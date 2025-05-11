@@ -1,24 +1,29 @@
+
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Class Schedule Planner</title>
   <link href="./styles.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
-  <div class="container">
-    <h1>Class Schedule Planner</h1>
-    <div class="user-management">
-      <div class="new-user">
+  <div class="app">
+    <header>
+      <h1>Class Schedule Planner</h1>
+    </header>
+
+    <section class="users">
+      <div class="add-user">
         <input type="text" id="userName" placeholder="Enter your name" />
         <input type="text" id="userId" placeholder="Create a unique ID" />
         <button onclick="addNewUser()">Add User</button>
       </div>
       <div id="userList" class="user-list"></div>
       <button onclick="compareSchedules()" id="compare">Compare Schedules</button>
-    </div>
-    <div class="schedule-container">
+    </section>
+
+    <section class="schedule">
       <table id="schedule">
         <tr>
           <th>Day/Time</th>
@@ -93,7 +98,7 @@
           <td class="slot" data-day="6" data-time="5"></td>
         </tr>
       </table>
-    </div>
+    </section>
   </div>
   <script src="./script.js"></script>
 </body>

@@ -1,9 +1,21 @@
 let activeUser = null;
 let users = loadUsers() || {};
+let selectedUsers = new Set();
+let compareMode = false;
 
 function loadUsers() {
   const saved = localStorage.getItem("scheduleUsers");
   return saved ? JSON.parse(saved) : null;
+}
+
+function deleteUser(userId) {
+  delete users[userId];
+  if (activeUser === userId) {
+    activeUser = null;
+  }
+  selectedUsers.delete(userId);
+  saveUsers();
+  updateUI();
 }
 
 function saveUsers() {
@@ -40,9 +52,8 @@ function setActiveUser(userId) {
 }
 
 function toggleSlot(day, time) {
-  if (!activeUser) return;
-  users[activeUser].schedule[day][time] =
-    !users[activeUser].schedule[day][time];
+  if (!activeUser || compareMode) return;
+  users[activeUser].schedule[day][time] = !users[activeUser].schedule[day][time];
   saveUsers();
   updateUI();
 }
@@ -61,38 +72,60 @@ function updateUI() {
   userList.innerHTML = Object.entries(users)
     .map(
       ([userId, user]) => `
-      <div class="user-item ${activeUser === userId ? "active" : ""}">
-        <button onclick="setActiveUser('${userId}')">${user.name}</button>
+      <div class="user-item ${activeUser === userId ? "active" : ""} ${selectedUsers.has(userId) ? "selected" : ""}">
+        <button onclick="${compareMode ? `toggleUserSelection('${userId}')` : `setActiveUser('${userId}')`}">${user.name}</button>
+        <button onclick="deleteUser('${userId}')" class="delete-btn">Delete</button>
       </div>
     `
     )
     .join("");
 }
 
-let compareMode = false;
-
 function compareSchedules() {
   compareMode = !compareMode;
+  selectedUsers.clear();
   document.getElementById("compare").classList.toggle("active");
   updateUI();
 }
 
+function toggleUserSelection(userId) {
+  if (selectedUsers.has(userId)) {
+    selectedUsers.delete(userId);
+  } else {
+    selectedUsers.add(userId);
+  }
+  updateUI();
+}
+
 function updateSlotDisplay(slot, day, time) {
-  const usersWithSlot = Object.values(users).filter(
-    (user) => user.schedule[day][time]
-  );
+  slot.classList.remove("slot-selected", "slot-conflict", "slot-free", "slot-partial");
 
   if (compareMode) {
-    if (usersWithSlot.length > 1) {
-      slot.classList.add("conflict");
-    } else if (usersWithSlot.length === 1) {
-      slot.classList.add("selected");
+    if (selectedUsers.size === 0) return;
+
+    const selectedUsersWithSlot = Object.entries(users)
+      .filter(([userId]) => selectedUsers.has(userId))
+      .filter(([, user]) => user.schedule[day][time])
+      .length;
+
+    if (selectedUsers.size === 2 && selectedUsersWithSlot === 2) {
+      slot.classList.add("slot-conflict");
+    } else if (selectedUsers.size > 2 && selectedUsersWithSlot > 0) {
+      slot.classList.add(selectedUsersWithSlot === selectedUsers.size ? "slot-conflict" : "slot-partial");
+    } else if (selectedUsersWithSlot === 0) {
+      slot.classList.add("slot-free");
     }
-  } else {
-    if (usersWithSlot.some((user) => user === users[activeUser])) {
-      slot.classList.add("selected");
-    }
+  } else if (activeUser && users[activeUser].schedule[day][time]) {
+    slot.classList.add("slot-selected");
   }
+}
+
+function compareSchedules() {
+  compareMode = !compareMode;
+  selectedUsers.clear();
+  activeUser = null;
+  document.getElementById("compare").classList.toggle("active");
+  updateUI();
 }
 
 function addNewUser() {
