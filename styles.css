@@ -1,31 +1,28 @@
-/* Base styles */
+/* Reset body margins and padding, set up font and background */
 body {
   margin: 0;
   padding: 20px;
-  font-family: 'Inter', sans-serif; 
-
-  /* Gradient background */
+  font-family: 'Inter', sans-serif;
   background: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
   background-size: 400% 400%;
   animation: waveGradient 15s ease infinite;
 }
 
-
-/* Main app container */
+/* Main app container: Grid layout for sectioning */
 .app {
+  display: grid;
+  grid-template-columns: 1fr; /* Single column layout */
+  grid-template-rows: auto auto 1fr auto; /* Auto rows for header, users, schedule, and export-import */
+  gap: 30px;
   max-width: 1200px;
   margin: 0 auto;
   background: white;
   padding: 30px;
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 30px;
 }
 
-/* Header */
+/* Header styles */
 header {
   text-align: center;
 }
@@ -34,19 +31,15 @@ h1 {
   font-size: 2.5rem;
   font-weight: 900;
   font-style: italic;
-  line-height: 1.2;
   margin: 0;
   padding: 10px 0;
-
   background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
   background-size: 300% 300%;
   animation: waveGradient 10s ease infinite;
-
   background-clip: text;
-  -webkit-background-clip: text;
   color: transparent;
+  -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -61,28 +54,16 @@ h1::after {
   animation: pulseGlow 2s ease-in-out infinite alternate;
 }
 
-@keyframes pulseGlow {
-  from {
-    box-shadow: 0 0 5px #ffb6ff;
-  }
-  to {
-    box-shadow: 0 0 20px #ffb6ff;
-  }
-}
-
-
-
-
-
-/* Users section */
+/* Users section styles */
 .users {
   display: grid;
   gap: 20px;
 }
 
+/* Add User form layout */
 .add-user {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive grid */
   gap: 10px;
   align-items: center;
 }
@@ -91,59 +72,30 @@ h1::after {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: start;
-  padding: 10px 0;
 }
 
-.user-item {
-  display: flex;
-  gap: 5px;
-}
-
-.delete-btn {
-  background: #ff4444;
+button#compare {
+  background: linear-gradient(135deg, #4A00E0, #8E2DE2);
   color: white;
   border: none;
-}
-
-.delete-btn:hover {
-  background: #cc0000;
-}
-
-.user-item button:not(.delete-btn) {
-  background: white;
-  color: #333;
-  transition: all 0.3s ease;
-}
-
-.user-item.active button:not(.delete-btn) {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.user-item.selected button:not(.delete-btn) {
-  background: #e3f2fd;
-  color: #1976d2;
-  transform: translateY(-3px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: background 0.3s ease;
 }
 
 button#compare.active {
   background: #4CAF50;
-  color: white;
-  border-color: #4CAF50;
 }
 
-/* Schedule section */
+/* Schedule section with grid */
 .schedule {
   overflow-x: auto;
+  display: grid;
+  gap: 1rem;
 }
 
+/* Table styles for schedule */
 table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: white;
+  border-collapse: collapse;
 }
 
 th, td {
@@ -162,11 +114,10 @@ td:first-child {
   font-weight: 600;
 }
 
-/* Slots */
+/* Slots (time slots for schedule) */
 .slot {
   cursor: pointer;
   transition: background 0.2s;
-  min-width: 120px;
 }
 
 .slot:hover {
@@ -183,18 +134,15 @@ td:first-child {
   color: white;
 }
 
-.slot-conflict {
-  background: #f44336;
-  color: white;
-}
-
-.slot-partial {
-  background: #ff9800;
-  color: white;
+/* Export/Import Section */
+.export-import {
+  margin-top: 2rem;
+  padding: 1rem;
+  border-top: 1px solid #ccc;
 }
 
 /* Inputs and buttons */
-input {
+input, textarea {
   padding: 12px;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -202,10 +150,42 @@ input {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-input:focus {
+input:focus, textarea:focus {
   border-color: #6200ee;
   box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
 }
+
+/* Tooltip styles */
+
+.slot-tooltip {
+  position: absolute;
+  background-color: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.85em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  max-width: 200px;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+/* Slot conflict styles */
+
+
+.slot-conflict {
+  background-color: red !important; /* Full overlap */
+}
+
+.slot-partial {
+  background-color: orange !important; /* Partial overlap for 3+ users */
+}
+
+
+
+/* Button styles */
 
 
 button {
@@ -222,16 +202,31 @@ button {
 
 button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
 }
 
 button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Target the delete button with a specific class */
+.delete-btn {
+  background: rgb(223, 0, 0); /* Red background */
+  color: white; /* White text */
+  border: none; /* Remove border */
+  
+  cursor: pointer; /* Show pointer cursor on hover */
+  font-size: 14px; /* Adjust font size */
+  
+  transition: background-color 0.3s ease; /* Smooth transition on hover */
+}
+
+/* Add hover effect to delete button*/
+.delete-btn:hover {
+  background: darkred; /* Darker red on hover */
 }
 
 
-/* Responsive */
+/* Responsive Styles */
 @media (max-width: 768px) {
   body {
     padding: 10px;
@@ -247,6 +242,15 @@ button:active {
 
   th, td {
     padding: 10px 5px;
+  }
+}
+
+@keyframes pulseGlow {
+  from {
+    box-shadow: 0 0 5px #ffb6ff;
+  }
+  to {
+    box-shadow: 0 0 20px #ffb6ff;
   }
 }
 

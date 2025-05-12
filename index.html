@@ -1,33 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MeetchuThere</title>
     <link href="./styles.css" rel="stylesheet" type="text/css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div class="app">
+      <!-- Header Section -->
       <header>
         <h1>MeetchuThere</h1>
       </header>
 
+      <!-- Users Section -->
       <section class="users">
+        <!-- Add User Form -->
         <div class="add-user">
-          <input type="text" id="userName" placeholder="Enter your name" />
-          <input type="text" id="userId" placeholder="Create a unique ID" />
+          <input
+            type="text"
+            id="userName"
+            placeholder="Enter your name"
+            required
+          />
+          <input
+            type="text"
+            inputmode="numeric"
+            id="userId"
+            placeholder="Create a unique ID"
+            required
+          />
           <button onclick="addNewUser()">Add User</button>
         </div>
+
+        <!-- Display User List -->
         <div id="userList" class="user-list"></div>
+
+        <!-- Compare Schedules Button -->
         <button onclick="compareSchedules()" id="compare">
           Compare Schedules
         </button>
       </section>
 
+      <!-- Schedule Section -->
       <section class="schedule">
         <table id="schedule">
+          <!-- Table Header (Time/Days) -->
           <tr>
             <th>Day/Time</th>
             <th>8:00-9:30</th>
@@ -37,6 +59,7 @@
             <th>2:40-4:10</th>
             <th>4:20-5:50</th>
           </tr>
+          <!-- Days (Rows with time slots) -->
           <tr>
             <td>Sunday</td>
             <td class="slot" data-day="0" data-time="0"></td>
@@ -103,10 +126,10 @@
         </table>
       </section>
 
-      <div style="margin-top: 2rem; padding: 1rem; border-top: 1px solid #ccc">
+      <!-- Export/Import Schedule Section -->
+      <div class="export-import">
         <h3>Export Schedule</h3>
         <button onclick="exportCurrentUser()">Export Current User</button>
-        
 
         <h3 style="margin-top: 2rem">Import Schedule</h3>
         <textarea
@@ -115,11 +138,19 @@
           style="width: 100%"
           placeholder="Paste exported schedule JSON here..."
         ></textarea>
-        <button onclick="importSchedule()" style="display:block; margin-top: 0.5rem">
+        <button
+          onclick="importSchedule()"
+          style="display: block; margin-top: 0.5rem"
+        >
           Import User
         </button>
       </div>
     </div>
+
+    <!-- Slot tooltip -->
+     <div id="slotTooltip" class="slot-tooltip" style="display: none;"></div>
+
+
     <script src="./script.js"></script>
   </body>
 </html>
