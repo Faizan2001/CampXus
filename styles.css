@@ -22,7 +22,9 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-/* Header styles */
+/* ================================
+   HEADER STYLES (Added Hover Effect)
+================================== */
 header {
   text-align: center;
 }
@@ -35,12 +37,19 @@ h1 {
   padding: 10px 0;
   background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
   background-size: 300% 300%;
-  animation: waveGradient 10s ease infinite;
+  animation: waveGradient 10s ease infinite; /* Original shorter animation */
   background-clip: text;
   color: transparent;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.05);
+  display: inline-block; /* Needed for transform */
+  transition: transform 0.3s ease; /* Add transition for hover */
+}
+
+/* Added hover effect */
+h1:hover {
+  transform: scale(1.05);
 }
 
 h1::after {
@@ -54,16 +63,17 @@ h1::after {
   animation: pulseGlow 2s ease-in-out infinite alternate;
 }
 
-/* Users section styles */
+/* ================================
+   USERS SECTION (NEW User Item Styling)
+================================== */
 .users {
   display: grid;
   gap: 20px;
 }
 
-/* Add User form layout */
 .add-user {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive grid */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
   align-items: center;
 }
@@ -71,28 +81,114 @@ h1::after {
 .user-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px; /* Gap between user items */
 }
+
+/* NEW: Container style for each user item */
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8f9fa; /* Light background */
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer; /* Pointer cursor for user items */
+}
+
+/* NEW: Hover effect for the container */
+.user-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* NEW: Style for the ACTIVE user container */
+.user-item.active {
+  background-color: #e6dffc; /* Light purple background */
+  border-color: #c3aedb;
+}
+/* Optional: Change text color inside active container */
+.user-item.active > button:first-child {
+  color: #4a148c; /* Darker purple text */
+}
+
+/* NEW: Style for the SELECTED user container (comparison) */
+.user-item.selected {
+  background-color: #d1e7ff; /* Light blue background */
+  border-color: #a6cfff;
+}
+/* Optional: Change text color inside selected container */
+.user-item.selected > button:first-child {
+  color: #0056b3; /* Darker blue text */
+}
+
+
+
+/* NEW: Reset styles for the user name button INSIDE the container */
+.user-item > button:first-child {
+  flex-grow: 1;
+  background: none; /* Remove gradient */
+  color: #333; /* Default dark text */
+  padding: 0; /* Remove padding */
+  border: none; /* Remove border */
+  box-shadow: none; /* Remove shadow */
+  text-align: left;
+  font-weight: 600; /* Keep font weight */
+  transform: none; /* Remove hover/active transform */
+  cursor: pointer;
+  
+}
+/* NEW: Ensure no hover/active style changes on inner button */
+.user-item > button:first-child:hover,
+.user-item > button:first-child:active {
+    transform: none;
+    box-shadow: none;
+}
+
+/* NEW: Adjust delete button styles INSIDE the container */
+.user-item .delete-btn {
+  background: rgb(223, 0, 0); /* Keep red */
+  color: white;
+  border: none;
+  font-size: 12px; /* Adjusted size */
+  padding: 5px 10px; /* Adjusted padding */
+  flex-shrink: 0;
+  border-radius: 6px;
+  transition: background-color 0.3s ease; /* Keep transition */
+  cursor: pointer; /* Keep cursor */
+  /* Remove styles inherited from general 'button' rule */
+  box-shadow: none;
+  transform: none;
+  font-weight: normal; /* Reset font weight if needed */
+}
+.user-item .delete-btn:hover {
+  background: darkred; /* Keep hover */
+  transform: none; /* Ensure no transform on hover */
+}
+
+
+/* ================================
+   SCHEDULE & OTHER ELEMENTS (Original Styles)
+================================== */
 
 button#compare {
   background: linear-gradient(135deg, #4A00E0, #8E2DE2);
   color: white;
   border: none;
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 button#compare.active {
-  background: #4CAF50;
+  background: #4CAF50; /* Keep green active state */
 }
 
-/* Schedule section with grid */
 .schedule {
   overflow-x: auto;
   display: grid;
   gap: 1rem;
 }
 
-/* Table styles for schedule */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -114,7 +210,6 @@ td:first-child {
   font-weight: 600;
 }
 
-/* Slots (time slots for schedule) */
 .slot {
   cursor: pointer;
   transition: background 0.2s;
@@ -134,14 +229,22 @@ td:first-child {
   color: white;
 }
 
-/* Export/Import Section */
+.slot-conflict {
+  background-color: red !important;
+  color: white;
+}
+
+.slot-partial {
+  background-color: orange !important;
+  color: white;
+}
+
 .export-import {
   margin-top: 2rem;
   padding: 1rem;
   border-top: 1px solid #ccc;
 }
 
-/* Inputs and buttons */
 input, textarea {
   padding: 12px;
   border: 1px solid #ccc;
@@ -154,8 +257,6 @@ input:focus, textarea:focus {
   border-color: #6200ee;
   box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
 }
-
-/* Tooltip styles */
 
 .slot-tooltip {
   position: absolute;
@@ -170,25 +271,11 @@ input:focus, textarea:focus {
   max-width: 200px;
   pointer-events: none;
   white-space: pre-wrap;
+  /* Removed transform: translateX(-50%); from original */
 }
 
-/* Slot conflict styles */
-
-
-.slot-conflict {
-  background-color: red !important; /* Full overlap */
-}
-
-.slot-partial {
-  background-color: orange !important; /* Partial overlap for 3+ users */
-}
-
-
-
-/* Button styles */
-
-
-button {
+/* General Button styles (ONLY for non-user-item buttons) */
+button:not(.user-item button) {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
@@ -196,35 +283,25 @@ button {
   color: white;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s ease;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-button:hover {
+button:not(.user-item button):hover {
   transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
-button:active {
+button:not(.user-item button):active {
   transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* Target the delete button with a specific class */
-.delete-btn {
-  background: rgb(223, 0, 0); /* Red background */
-  color: white; /* White text */
-  border: none; /* Remove border */
-  
-  cursor: pointer; /* Show pointer cursor on hover */
-  font-size: 14px; /* Adjust font size */
-  
-  transition: background-color 0.3s ease; /* Smooth transition on hover */
-}
-
-/* Add hover effect to delete button*/
-.delete-btn:hover {
-  background: darkred; /* Darker red on hover */
-}
-
+/* Remove original delete button style that's now handled within .user-item */
+/*
+.delete-btn { ... }
+.delete-btn:hover { ... }
+*/
 
 /* Responsive Styles */
 @media (max-width: 768px) {
@@ -236,32 +313,42 @@ button:active {
     padding: 15px;
   }
 
+  h1 {
+      font-size: 2rem; /* Adjust H1 size */
+  }
+
   .slot {
-    min-width: 80px;
+    min-width: 80px; /* Original responsive size */
   }
 
   th, td {
     padding: 10px 5px;
   }
+
+  /* Adjust user item padding/font for smaller screens */
+  .user-item {
+      padding: 6px 10px;
+      gap: 6px;
+  }
+  .user-item .delete-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+  }
 }
 
+/* Keyframe Animations (Originals) */
 @keyframes pulseGlow {
-  from {
-    box-shadow: 0 0 5px #ffb6ff;
-  }
-  to {
-    box-shadow: 0 0 20px #ffb6ff;
-  }
+  from { box-shadow: 0 0 5px #ffb6ff; }
+  to { box-shadow: 0 0 20px #ffb6ff; }
 }
 
 @keyframes waveGradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
+
+/* Removed unused animations from previous attempts */
+/* @keyframes waveGradientText { ... } */
+/* @keyframes dazzlingShadow { ... } */
+/* @keyframes slideInUnderline { ... } */
