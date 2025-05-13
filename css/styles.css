@@ -1,3 +1,5 @@
+/* css/styles.css */
+
 /* Reset body margins and padding, set up font and background */
 body {
   margin: 0;
@@ -6,6 +8,21 @@ body {
   background: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
   background-size: 400% 400%;
   animation: waveGradient 15s ease infinite;
+  position: relative; /* Added for potential future positioning contexts or if menu pushes content */
+}
+
+/* Class to be added to body when menu is open */
+body.menu-open {
+  overflow: hidden; /* Prevent scrolling of main content when menu is open */
+  /* Optional: If you want the main content to shift when the menu opens */
+  /* transform: translateX(250px); /* Adjust 250px to match nav-panel width in menu.css */
+  /* transition: transform 0.3s ease-in-out; /* For smooth content shift */
+}
+
+/* scroll-bar compensation for preventing UI shift */
+
+html {
+  overflow-y: scroll;
 }
 
 /* Main app container: Grid layout for sectioning */
@@ -20,6 +37,8 @@ body {
   padding: 30px;
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  /* Optional: Add transition if .app itself is being shifted by menu-open */
+  /* transition: transform 0.3s ease-in-out; */
 }
 
 /* ================================
@@ -173,14 +192,17 @@ h1::after {
 ================================== */
 
 button#compare {
-  background: linear-gradient(135deg, #4A00E0, #8E2DE2);
-  color: white;
-  border: none;
+  /* This specific button will still be styled by the general rule below, which is fine */
+  /* If you wanted it different, give it a more unique class or adjust the general rule */
+  /* background: linear-gradient(135deg, #4A00E0, #8E2DE2); */ /* Example of original general style */
+  /* color: white; */
+  /* border: none; */
   transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 button#compare.active {
-  background: #4CAF50; /* Keep green active state */
+  background: #4CAF50; /* Keep green active state for compare button */
+  /* Ensure this overrides the general button gradient if necessary */
 }
 
 .schedule {
@@ -267,15 +289,14 @@ input:focus, textarea:focus {
   padding: 8px 10px;
   font-size: 0.85em;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
+  z-index: 1000; /* Ensure it's above schedule slots but can be below menu if needed */
   max-width: 200px;
   pointer-events: none;
   white-space: pre-wrap;
-  /* Removed transform: translateX(-50%); from original */
 }
 
-/* General Button styles (ONLY for non-user-item buttons) */
-button:not(.user-item button) {
+/* General Button styles (MODIFIED: Excludes user-item buttons AND hamburger-button) */
+button:not(.user-item button):not(.hamburger-button) {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
@@ -287,15 +308,21 @@ button:not(.user-item button) {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-button:not(.user-item button):hover {
+button:not(.user-item button):not(.hamburger-button):hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
-button:not(.user-item button):active {
+button:not(.user-item button):not(.hamburger-button):active {
   transform: translateY(0);
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
+
+/*
+   The .hamburger-button will have its own specific styles in css/menu.css
+   (e.g., background: transparent;).
+   This general rule will not apply to it due to the :not(.hamburger-button) selector.
+*/
 
 /* Remove original delete button style that's now handled within .user-item */
 /*
@@ -309,9 +336,22 @@ button:not(.user-item button):active {
     padding: 10px;
   }
 
+  /* If body.menu-open shifts content, adjust for mobile if needed */
+  /*
+  body.menu-open {
+    transform: translateX(220px); /* Match mobile nav-panel width */
+  /* }
+  */
+
   .app {
     padding: 15px;
   }
+  /* If .app is shifted by menu-open, adjust for mobile if needed */
+  /*
+  body.menu-open .app {
+    transform: translateX(220px);
+  }
+  */
 
   h1 {
       font-size: 2rem; /* Adjust H1 size */

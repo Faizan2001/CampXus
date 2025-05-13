@@ -1,0 +1,200 @@
+/* css/menu.css */
+
+/* ================================
+   OVERLAY STYLES
+================================== */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease-in-out, visibility 0.35s ease-in-out;
+  z-index: 1000;
+}
+
+body.menu-open .overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ================================
+   HAMBURGER MENU BUTTON STYLES
+================================== */
+.hamburger-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1002;
+  background-color: rgba(255, 255, 255, 0.4); /* Semi-transparent white background */
+  border: none;
+  border-radius: 10px; /* Rounded corners for the button background */
+  padding: 8px; 
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around; 
+  width: 40px;
+  height: 32px; 
+  outline: none;
+}
+
+.hamburger-bar {
+  width: 100%;
+  height: 3px; 
+  border-radius: 2px; /* Kept original radius, 3px as in prev prompt is fine too */
+  transition: all 0.3s ease-in-out;
+  background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
+  background-size: 300% 300%;
+  animation: waveGradientMenu 10s ease infinite;
+  border: 1px solid rgba(0, 0, 0, 0.25); /* Single, more defined border */
+  box-sizing: border-box; 
+}
+
+/* Hamburger animation to X when menu is open */
+body.menu-open .hamburger-button .hamburger-bar:nth-child(1) {
+  transform: translateY(8px) rotate(45deg); /* Using 8px based on previous fine-tuning */
+}
+body.menu-open .hamburger-button .hamburger-bar:nth-child(2) {
+  opacity: 0;
+}
+body.menu-open .hamburger-button .hamburger-bar:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg); /* Using -8px based on previous fine-tuning */
+}
+
+
+/* ================================
+   NAVIGATION PANEL STYLES
+================================== */
+.nav-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100%;
+  background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.97), rgba(240, 230, 255, 0.92));
+  box-shadow: 3px 0 15px rgba(0, 0, 0, 0.15);
+  transform: translateX(-100%);
+  transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+  z-index: 1001;
+  padding-top: 70px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+body.menu-open .nav-panel {
+  transform: translateX(0);
+}
+
+.nav-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.nav-panel li {
+  border-bottom: 1px solid transparent;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(to right, #d57cff, #ff769f);
+}
+.nav-panel li:first-child {
+  border-top: 1px solid transparent;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(to right, #d57cff, #ff769f);
+}
+.nav-panel li:last-child {
+  border-bottom: none;
+}
+
+
+.nav-link {
+  display: block;
+  padding: 18px 25px;
+  text-decoration: none;
+  color: #4B0082;
+  font-weight: 600;
+  font-size: 1.05em;
+  transition: background-color 0.25s ease, color 0.25s ease, padding-left 0.25s ease, transform 0.2s ease;
+  position: relative;
+}
+
+.nav-link:hover,
+.nav-link:focus {
+  background-color: rgba(230, 223, 252, 0.7);
+  color: #6A0DAD;
+  padding-left: 30px;
+  transform: translateX(5px);
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd);
+  background-size: 200% 200%;
+  transition: width 0.3s ease-in-out;
+}
+
+.nav-link:hover::before,
+.nav-link:focus::before {
+  width: 100%;
+}
+
+
+/* ================================
+   KEYFRAME ANIMATIONS (Menu Specific)
+================================== */
+@keyframes waveGradientMenu {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+/* ================================
+   RESPONSIVE ADJUSTMENTS
+================================== */
+@media (max-width: 768px) {
+  .hamburger-button {
+    top: 15px;
+    left: 15px;
+    width: 35px;
+    height: 28px; 
+    padding: 5px; 
+  }
+  .hamburger-bar {
+    height: 2px; 
+    border: 1px solid rgba(0,0,0,0.3); 
+  }
+  body.menu-open .hamburger-button .hamburger-bar:nth-child(1) {
+    transform: translateY(7px) rotate(45deg); 
+  }
+  body.menu-open .hamburger-button .hamburger-bar:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  .nav-panel {
+    width: 230px;
+    padding-top: 65px;
+  }
+  .nav-link {
+    padding: 15px 20px;
+    font-size: 1em;
+  }
+  .nav-link:hover,
+  .nav-link:focus {
+    padding-left: 25px;
+    transform: translateX(3px);
+  }
+  .nav-link::before {
+    height: 2px;
+  }
+}

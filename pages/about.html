@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MeetchuThere - About the Developer" />
+    <title>MeetchuThere - About</title>
+
+    <!-- Link to main styles (provides background, .app styling, etc.) -->
+    <link href="../css/styles.css" rel="stylesheet" type="text/css" />
+    <!-- Link to menu-specific styles -->
+    <link href="../css/menu.css" rel="stylesheet" type="text/css" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- START: Hamburger Menu Elements (Same as index.html) -->
+    <button type="button" id="hamburgerBtn" class="hamburger-button" aria-label="Open menu" aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+
+    <nav id="navPanel" class="nav-panel" aria-hidden="true">
+      <ul>
+        <li><a href="../index.html" class="nav-link">Schedule</a></li>
+        <li><a href="./friends.html" class="nav-link">Friends</a></li>
+        <li><a href="./about.html" class="nav-link">About the Developer</a></li>
+      </ul>
+    </nav>
+
+    <div id="overlay" class="overlay"></div>
+    <!-- END: Hamburger Menu Elements -->
+
+    <div class="app"> <!-- This .app container gets styled by styles.css -->
+      <!-- Header Section (Same as index.html for consistency) -->
+      <header>
+        <h1>MeetchuThere</h1>
+      </header>
+
+      <!-- About Page Content Section -->
+      <section class="page-content about-page-content"> <!-- Added generic .page-content -->
+        <h2>About the Developer</h2>
+        <div class="content-placeholder">
+            <p>Welcome to the About page!</p>
+            <p>Information about the creator of MeetchuThere will be shared here.</p>
+            <p><em>(Content coming soon!)</em></p>
+        </div>
+        <!-- Example: Future content
+        <article>
+            <h3>[Developer's Name]</h3>
+            <p>A passionate developer dedicated to creating useful and engaging web applications.</p>
+            <p>Contact: <a href="mailto:developer@example.com">developer@example.com</a></p>
+        </article>
+        -->
+      </section>
+    </div>
+
+    <!-- Link to menu-specific JavaScript (needed on every page with the menu) -->
+    <script src="../js/menu.js"></script>
+    <!-- Optional: Link to about-specific JavaScript if needed later
+    <script src="./js/about.js"></script>
+    -->
+  </body>
+</html>
