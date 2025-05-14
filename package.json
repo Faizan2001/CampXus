@@ -1,0 +1,23 @@
+{
+  "name": "classclashes",
+  "version": "1.0.0",
+  "description": "A web-based scheduling and availability tracker for university students to: - Add their own class schedule - See overlaps with other students - Compare availability in real-time - Navigate easily between Schedule, Friends, and About sections.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Faizan2001/ClassClashes.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Faizan2001/ClassClashes/issues"
+  },
+  "homepage": "https://github.com/Faizan2001/ClassClashes#readme",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
