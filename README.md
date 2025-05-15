@@ -1,112 +1,104 @@
-# University Schedule Sync App (MeetchuThere)
+# 📅 MeetchuThere - University Schedule Sync ✨
 
-A web-based scheduling and availability tracker for university students to:
-- Add their own class schedule
-- See overlaps with other students
-- Compare availability in real-time
-- Navigate easily between Schedule, Friends, and About sections.
+Never miss a study session or a coffee break again! MeetchuThere is a sleek, web-based scheduling assistant designed to help university students effortlessly coordinate their academic lives. Add your class schedule, compare availability with friends in real-time, and find those perfect meet-up slots.
 
 ---
 
-## 🚀 Features
+## 🚀 Core Features
 
-- Add students with custom schedule blocks
-- Live comparison mode to see who is available or busy
-- Partial clashes shown in orange, full clashes in red, free slots in green
-- Hover/tap on time slots to view who's free or busy
-- LocalStorage-based sync across tabs for schedule data
-- Import/export schedules via JSON
-- Tooltip-based slot explanations
-- Responsive design with a hamburger menu for navigation across different pages (Schedule, Friends, About).
-- Animated gradient styling for a modern look and feel.
+*   **Personal Schedules:** Easily input and manage your weekly class blocks.
+*   **Real-Time Comparison:** Select multiple users and instantly see who's free, busy, or partially clashing.
+    *   🟢 **Green:** Everyone's available!
+    *   🔴 **Red:** Full conflict zone!
+    *   🟠 **Orange:** Some overlap, some free.
+*   **Insightful Tooltips:** Hover or tap on slots in compare mode to see exactly who's available.
+*   **Data Portability:** Import/Export individual user schedules via JSON.
+*   **Seamless Navigation:** A smooth hamburger menu guides you between the main Schedule, Friends, and About pages.
+*   **Modern & Responsive:** Enjoy an animated gradient UI that looks great on any device.
+*   **Browser-Friendly:** Uses LocalStorage for persisting schedule data right in your browser.
 
 ---
 
-## 📁 Project Structure
+## 🛠️ Tech Stack & Structure
 
-project-root/
+This project is a **Multi-Page Application (MPA)** built with the essentials:
+
+*   🍦 **Vanilla HTML, CSS, and JavaScript (ES6 Modules)**
+*   🗄️ **LocalStorage** for client-side data persistence (on the Schedule page).
+*   🧪 **Jest** for unit testing core logic.
+*   🎨 **Modular CSS** (`styles.css` for global, `menu.css` for navigation).
+
+**Project Layout:**
+```
+CLASSCLASHES/
 │
-├── index.html              # Main HTML (Schedule page)
-├── pages/                  # Folder for other distinct pages
-│   ├── friends.html        # Friends page
-│   └── about.html          # About the Developer page
+├── .md Files/
+│   ├── Contributing-Guide.md
+│   ├── tests-roadmap.md
+│   └── UI-Map.md
 │
-├── css/                    # Stylesheets
-│   ├── styles.css          # Main UI styling, layout, global styles
-│   └── menu.css            # Styles specific to the hamburger menu
+├── css/
+│   ├── menu.css
+│   └── styles.css
 │
-├── js/                     # JavaScript files
-│   ├── script.js           # Core logic for schedule page (state mgmt, rendering, storage)
-│   └── menu.js             # JavaScript logic for the hamburger menu functionality
+├── js/
+│   ├── menu.js
+│   ├── script.js
+│   └── script.test.js
 │
-├── README.md               # Project documentation
-└── UI-Map.md               # UI Reference Map (Details DOM elements and interactions)
-
-## ⚙️ How It Works
-
-The application follows a multi-page architecture (MPA). Each main section (Schedule, Friends, About) is a separate HTML page.
-
-### State Management (Schedule Page - `script.js`)
-- User schedule data is stored in localStorage.
-- Each user has a `name`, `id`, and a `schedule` (7x6 boolean matrix).
-- `activeUser` is the one editing their schedule on the Schedule page.
-- `selectedUsers` is a set used in compare mode on the Schedule page.
-
-### Slot Coloring Logic (Schedule Page)
-- **Green**: Everyone selected is free.
-- **Red**: Everyone selected is busy (conflict).
-- **Orange**: Partial overlap among selected users.
-
-### Compare Mode (Schedule Page)
-- Toggled by the "Compare Schedules" button.
-- Enables multi-user schedule comparison.
-- Clicking or hovering over a slot shows who’s free/busy.
-
-### Navigation
-- A hamburger menu provides consistent navigation across all pages.
-- Menu state (open/closed) is managed by `js/menu.js`.
-- Styling for the menu is handled by `css/menu.css`.
+├── node_modules/   # (Typically in .gitignore)
+│
+├── pages/
+│   ├── about.html
+│   └── friends.html
+│
+├── .gitignore
+├── index.html         # Main Schedule Page
+├── jest.setup.js      # Jest global setup (mocks etc.)
+├── package-lock.json
+├── package.json
+└── README.md          
+```
 
 ---
 
-## 🧠 Developer Guide
+## ⚙️ How It Works (The Gist)
 
-### Adding New Features
-- For features on the Schedule page, modify `index.html` and `js/script.js`.
-- For features on other pages (Friends, About), modify their respective HTML files in the `pages/` directory and consider creating new dedicated JS files in `js/` if client-side logic is needed for those pages.
-- Functions in `js/script.js` and `js/menu.js` aim for Single Responsibility Principle.
-- UI rendering on the Schedule page is decoupled from logic (see `renderScheduleGrid`, `renderUserList` in `js/script.js`).
-- Tooltips on the Schedule page are handled in `showSlotTooltip()`.
-
-### Styling
-- Global styles, including the animated background and `.app` container, are in `css/styles.css`.
-- Menu-specific styles are in `css/menu.css`.
-- All buttons (except user item buttons and hamburger) share a gradient by default; `.delete-btn` overrides it with red.
-- Responsive grid layout is used for main content areas.
+*   **Schedule Page (`index.html` & `js/script.js`):** This is the heart of the app.
+    *   **State Management:** User data and UI state (active user, compare mode) are managed in `js/script.js`. Schedules are 7x6 boolean matrices.
+    *   **DOM Updates:** JavaScript dynamically renders the user list and schedule grid based on the current state.
+*   **Navigation (`js/menu.js` & `css/menu.css`):** A consistent hamburger menu provides access to all application pages.
+*   **Styling:** Global aesthetics and specific component styles are separated for clarity.
 
 ---
 
-## ✅ TODOs / Future Improvements
+## 🧠 Developer Quick Guide
 
-- Populate Friends and About pages with actual content and features.
-- Add authentication via university email.
-- Sync schedules in real-time via backend (Firebase or Supabase).
-- User status (Available/In Class/Off Campus) toggle on Schedule page.
-- Export to PDF/ICS calendar formats from Schedule page.
-- Consider a shared header/footer component if using a build system or templating in the future to reduce HTML duplication.
-
----
-
-## 🛠️ Tech Stack
-
-- HTML, CSS, JavaScript (Vanilla)
-- Multi-Page Architecture (MPA)
-- LocalStorage for persistence on the Schedule page
-- Fully front-end, no backend yet
+*   **Main Logic (Schedule):** `js/script.js` (now using ES6 modules for better structure and testability!)
+*   **Menu Logic:** `js/menu.js`
+*   **Documentation:** Found in the `.md Files/` directory and this `README.md`.
+*   **Adding Features:**
+    *   For the Schedule page, dive into `index.html` and `js/script.js`.
+    *   For Friends/About pages, head to the `pages/` directory. Consider new JS files for their specific logic if needed.
+*   **Testing:** We use Jest! Check out `js/script.test.js` for examples and `tests-roadmap.md` for what to test. New logic should ideally come with new tests.
 
 ---
 
-## 🙋‍♂️ Contributing
+## ✅ Next Adventures (TODOs / Future)
 
-Feel free to open issues or suggest improvements. Try to keep UI responsive and logic modular.
-Ensure new pages maintain consistent navigation and styling.
+*   Bring the "Friends" and "About" pages to life with content!
+*   University email authentication.
+*   Real-time backend sync (e.g., Firebase, Supabase).
+*   More export options (PDF, ICS).
+
+---
+
+## 🙋‍♂️ Want to Contribute?
+
+Awesome! Check out the `Contributing-Guide.md` in the `.md Files/` directory. Key principles:
+
+*   Keep UI responsive and clean.
+*   Write modular, testable JavaScript.
+*   Ensure new pages fit seamlessly with existing navigation and style.
+
+Let's make scheduling painless!
