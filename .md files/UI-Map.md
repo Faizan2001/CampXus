@@ -1,208 +1,192 @@
 # 🗺️ MeetchuThere: UI Reference Map & Developer Guide
 
-**Version:** 1.2 (Reflects ES6 Module refactor for `script.js` and event delegation)
-**Last Updated:** May 16 2025
+**Version:** 1.3 (Integrates custom modal, including confirmation)
+**Last Updated:** 17 May, 2025
 
-This document serves as a comprehensive reference for the Document Object Model (DOM) elements used in the "MeetchuThere" application. It maps HTML elements to their corresponding JavaScript interactions and CSS styling, facilitating easier onboarding for new developers and serving as a quick-glance guide for ongoing development and debugging.
+A guide to DOM elements, their JavaScript interactions, and CSS styling in the MeetchuThere app, aiding development and debugging.
 
 ---
 
 ## 📌 Table of Contents
 
-1.  [Global Application State (`state` object in `js/script.js`)](#-global-application-state-state-object-in-jsscriptjs)
-2.  [Exported DOM References (`DOM_ELEMENTS` from `js/script.js`)](#-exported-dom-references-dom_elements-from-jsscriptjs)
+1.  [Global App State (`state` in `js/script.js`)](#-global-app-state-state-in-jsscriptjs)
+2.  [Exported DOM References (`DOM_ELEMENTS` in `js/script.js`)](#-exported-dom-references-dom_elements-in-jsscriptjs)
 3.  [Navigation Menu (Hamburger - All Pages)](#-navigation-menu-hamburger---all-pages)
-4.  [Header Section (All Pages)](#-header-section-all-pages)
-5.  [User Management Section (`<section class="users">` - `index.html`)](#-user-management-section-section-classusers---indexhtml)
-    - [Add User Form (`<div class="add-user">`)](#-add-user-form-div-classadd-user)
-    - [User List Display (`<div id="userList">`)](#-user-list-display-div-iduserlist)
-    - [Schedule Comparison Control](#-schedule-comparison-control)
-6.  [Schedule Grid Section (`<section class="schedule">` - `index.html`)](#-schedule-grid-section-section-classschedule---indexhtml)
-    - [Schedule Table (`<table id="schedule">`)](#-schedule-table-table-idschedule)
-    - [Slot Tooltip (`<div id="slotTooltip">`)](#-slot-tooltip-div-idslottooltip)
-7.  [Export/Import Section (`<div class="export-import">` - `index.html`)](#-exportimport-section-div-classexport-import---indexhtml)
-8.  [Content Sections (Other Pages - `pages/friends.html`, `pages/about.html`)](#-content-sections-other-pages---pagesfriendshtml-pagesabouthtml)
-9.  [Key CSS Utility & State Classes](#-key-css-utility--state-classes)
-10. [Key User Workflows & Interactions](#-key-user-workflows--interactions)
-11. [How to Use This Document](#-how-to-use-this-document)
+4.  [Custom Modal (All Pages)](#-custom-modal-all-pages)
+5.  [Header Section (All Pages)](#-header-section-all-pages)
+6.  [User Management (`<section class="users">` - `index.html`)](#-user-management-section-classusers---indexhtml)
+7.  [Schedule Grid (`<section class="schedule">` - `index.html`)](#-schedule-grid-section-classschedule---indexhtml)
+8.  [Export/Import (`<div class="export-import">` - `index.html`)](#-exportimport-div-classexport-import---indexhtml)
+9.  [Content Sections (Other Pages)](#-content-sections-other-pages)
+10. [Key CSS Utility & State Classes](#-key-css-utility--state-classes)
+11. [Key User Workflows](#-key-user-workflows)
+12. [How to Use This Document](#-how-to-use-this-document)
 
 ---
 
-## 🌎 Global Application State (`state` object in `js/script.js`)
+## 🌎 Global App State (`state` in `js/script.js`)
 
-This `state` object is central to the application logic on `index.html`. It's defined and managed within `js/script.js`. Core logic functions (now often purer) may receive parts of this state as arguments or the whole state, and event handlers update this global `state`.
+Central data store for `index.html` logic, managed in `js/script.js`. Modified by handler functions.
 
-| 🔤 Variable within `state` | 🧬 Type   | 🧠 Description & Key Modifying Handlers/Functions                                                                                                                                                                                                                                                                                 |
-| :------------------------- | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeUserId`             | `String`  | Stores the ID of the user whose schedule is currently being edited. `null` if no user is active or in compare mode. Set by `handleSetActiveUser()`. Modified by `handleDeleteUser()`, `handleToggleCompareMode()`.                                                                                                                |
-| `users`                    | `Object`  | A dictionary holding all user data, keyed by `userId`. Each user object contains `id`, `name`, and a 2D `schedule` array. Modified by `handleAddNewUser()` (using `createUserObject`), `handleDeleteUser()` (using `deleteUserFromState`), `handleImportSchedule()`, `handleToggleScheduleSlot()` (using `toggleSlotInSchedule`). |
-| `selectedUserIds`          | `Set`     | A set of `userId`s for users selected for schedule comparison. Modified by `handleToggleUserSelectionForCompare()`. Cleared by `handleSetActiveUser()`, `handleToggleCompareMode()`, `handleDeleteUser()`.                                                                                                                        |
-| `compareMode`              | `Boolean` | Toggles `index.html` between schedule editing mode (`false`) and schedule comparison mode (`true`). Toggled by `handleToggleCompareMode()`. Set to `false` by `handleSetActiveUser()`.                                                                                                                                            |
+| Variable in `state` | Type     | Description & Key Modifying Handlers                                     |
+| :------------------ | :------- | :----------------------------------------------------------------------- |
+| `activeUserId`      | `String` | ID of user being edited. Set by `handleSetActiveUser()`.                 |
+| `users`             | `Object` | Dictionary of users (`id`, `name`, `schedule`). Managed by user handlers. |
+| `selectedUserIds`   | `Set`    | User IDs for comparison. Modified by `handleToggleUserSelectionForCompare()`. |
+| `compareMode`       | `Boolean`| Toggles edit/compare mode. Set by `handleToggleCompareMode()`.          |
 
-_Helper functions `getState()`, `_setStateForTesting()`, `_resetStateForTesting()` are exported from `js/script.js` for testing and controlled state access._
+*Test helpers: `getState()`, `_setStateForTesting()`, `_resetStateForTesting()` exported from `js/script.js`.*
 
 ---
 
-## EXPORTED DOM REFERENCES (`DOM_ELEMENTS` from `js/script.js`)
+## EXPORTED DOM REFERENCES (`DOM_ELEMENTS` in `js/script.js`)
 
-`js/script.js` exports a `DOM_ELEMENTS` object containing cached references to frequently accessed DOM elements for the `index.html` page.
+A cached object of frequently accessed DOM elements from `index.html`, exported from `js/script.js`.
 
-| 🔤 Key in `DOM_ELEMENTS` | 🎯 Points To (Selector)                   |
-| :----------------------- | :---------------------------------------- |
-| `userNameInput`          | `input#userName`                          |
-| `userIdInput`            | `input#userId`                            |
-| `userListContainer`      | `div#userList`                            |
-| `compareButton`          | `button#compare`                          |
-| `scheduleTable`          | `table#schedule`                          |
-| `slotTooltip`            | `div#slotTooltip`                         |
-| `importTextArea`         | `textarea#importText`                     |
-| `addUserButton`          | `div.add-user button`                     |
-| `exportButton`           | `div.export-import button:nth-of-type(1)` |
-| `importButton`           | `div.export-import button:nth-of-type(2)` |
+| Key in `DOM_ELEMENTS` | Points To (Selector)                     |
+| :---------------------- | :------------------------------------------ |
+| `userNameInput`         | `input#userName`                            |
+| `userIdInput`           | `input#userId`                              |
+| `userListContainer`     | `div#userList`                              |
+| `compareButton`         | `button#compare`                            |
+| `scheduleTable`         | `table#schedule`                            |
+| `slotTooltip`           | `div#slotTooltip`                         |
+| `importTextArea`        | `textarea#importText`                     |
+| `addUserButton`         | `div.add-user button`                       |
+| `exportButton`          | `div.export-import button:nth-of-type(1)`   |
+| `importButton`          | `div.export-import button:nth-of-type(2)`   |
+| `appModal`              | `div#appModal`                              |
+| `modalTitle`            | `h3#modalTitle`                             |
+| `modalMessage`          | `p#modalMessage`                            |
+| `modalCloseBtn`         | `button#modalCloseBtn`                      |
+| `modalActionButtons`    | `div#modalActionButtons`                    |
+| `modalConfirmBtn`       | `button#modalConfirmBtn`                    |
+| `modalCancelBtn`        | `button#modalCancelBtn`                     |
 
 ---
 
 ## 🍔 Navigation Menu (Hamburger - All Pages)
 
-Present on `index.html`, `pages/friends.html`, `pages/about.html`. Logic in `js/menu.js` (using `initMenu()`), styles in `css/menu.css`.
+Logic in `js/menu.js` (via `initMenu()`), styles in `css/menu.css`.
 
-| 🔧 UI Element            | 🔍 DOM Selector (ID/Class) | 📝 Description & Purpose                                                                  | 🧠 Key JavaScript Interactions (from `js/menu.js`)                         | 🎨 Relevant CSS Classes (from `css/menu.css`) |
-| :----------------------- | :------------------------- | :---------------------------------------------------------------------------------------- | :------------------------------------------------------------------------- | :-------------------------------------------- |
-| Hamburger Button         | `button#hamburgerBtn`      | Toggles the navigation panel. Visually changes from bars to 'X'.                          | Event listener calls internal `toggleMenu()`. Updates `aria-expanded`.     | `.hamburger-button`, `.hamburger-bar`         |
-| Navigation Panel         | `nav#navPanel`             | Slides in from the left, contains navigation links.                                       | Internal `toggleMenu()` controls visibility via transform & `aria-hidden`. | `.nav-panel`                                  |
-| Navigation Link          | `a.nav-link` (dynamic)     | Links to different pages (`index.html`, `pages/friends.html`, `pages/about.html`).        | Event listener: if menu open, calls internal `toggleMenu()` before nav.    | `.nav-link`                                   |
-| Overlay                  | `div#overlay`              | Dims the background when the menu is open. Clicking it closes the menu.                   | Event listener: if menu open, calls internal `toggleMenu()`.               | `.overlay`                                    |
-| Body Class for Open Menu | `body.menu-open`           | Class applied to `<body>` when menu is open, used by CSS to show panel/overlay and style. | Applied/removed by internal `toggleMenu()`.                                | `.menu-open`                                  |
+| UI Element         | Selector (ID/Class)   | Description & Purpose                                   | JS Interactions (from `js/menu.js`) | CSS Classes (from `css/menu.css`)     |
+| :----------------- | :-------------------- | :------------------------------------------------------ | :---------------------------------- | :------------------------------------ |
+| Hamburger Button   | `button#hamburgerBtn` | Toggles nav panel; animates bars to 'X'.                | Calls internal `toggleMenu()`.      | `.hamburger-button`, `.hamburger-bar` |
+| Navigation Panel   | `nav#navPanel`        | Slide-out menu with page links.                         | Visibility via `toggleMenu()`.    | `.nav-panel`                          |
+| Navigation Link    | `a.nav-link`          | Links to pages (Schedule, Friends, About).              | Closes menu on click before nav.    | `.nav-link`                           |
+| Overlay            | `div#overlay`         | Dims background when menu is open; click closes menu. | Calls internal `toggleMenu()`.      | `.overlay`                            |
+| Body (Menu Open) | `body.menu-open`      | Class on `<body>` to trigger menu open state styles.    | Applied/removed by `toggleMenu()`.  | `.menu-open`                          |
+
+---
+
+## 💬 Custom Modal (All Pages)
+
+Reusable modal for notifications and confirmations. Logic in `js/script.js` (`showAppModal`, `hideAppModal`), styles in `css/modal.css`.
+
+| UI Element            | Selector (ID/Class)       | Description & Purpose                                         | JS Interactions (from `js/script.js`)                                  | CSS Classes (from `css/modal.css`)      |
+| :-------------------- | :------------------------ | :------------------------------------------------------------ | :--------------------------------------------------------------------- | :------------------------------------ |
+| Modal Overlay         | `div#appModal`            | Full-screen overlay; container for modal content.             | Visibility & content set by `showAppModal()`, `hideAppModal()`.          | `.modal-overlay`, `.active`             |
+| Modal Content Box     | `.modal-content`          | The main dialog box.                                          | Houses title, message, buttons.                                        | `.modal-content`                      |
+| Modal Title           | `h3#modalTitle`           | Title of the modal.                                           | Text set by `showAppModal()`.                                          | `.modal-title`                        |
+| Modal Message         | `p#modalMessage`          | Main message/text of the modal.                               | Text set by `showAppModal()`.                                          | `.modal-message`                      |
+| OK Button             | `button#modalCloseBtn`    | Default button for simple notifications.                      | Click calls `hideAppModal()`. Visibility managed by `showAppModal()`.    | `.modal-close-btn`, `.modal-button`   |
+| Action Buttons Div  | `div#modalActionButtons`  | Container for Yes/No buttons in confirmation modals.          | Visibility managed by `showAppModal()`.                                  | `.modal-action-buttons`               |
+| Confirm (Yes) Button  | `button#modalConfirmBtn`  | "Yes" button for confirmations.                               | Click executes `confirmModalCallback`, then `hideAppModal()`.            | `.modal-button`, `.confirm`         |
+| Cancel (No) Button    | `button#modalCancelBtn`   | "No" button for confirmations.                                | Click calls `hideAppModal()`.                                          | `.modal-button`, `.cancel`          |
 
 ---
 
 ## 🗣️ Header Section (All Pages)
 
-| 🔧 UI Element     | 🔍 DOM Selector (ID/Class) | 📝 Description & Purpose                                   | 🧠 Key JavaScript Interactions | 🎨 Relevant CSS Classes (from `css/styles.css`) |
-| :---------------- | :------------------------- | :--------------------------------------------------------- | :----------------------------- | :---------------------------------------------- |
-| Application Title | `header > h1`              | Displays the main title "MeetchuThere" of the application. | N/A (Static content)           | `h1` (for gradient text & underline)            |
+| UI Element        | Selector (ID/Class) | Description & Purpose                    | JS Interactions | CSS Classes (from `css/styles.css`) |
+| :---------------- | :------------------ | :--------------------------------------- | :-------------- | :---------------------------------- |
+| Application Title | `header > h1`       | Main title "MeetchuThere".               | N/A             | `h1` (gradient text)                |
 
 ---
 
-## 🧑‍🤝‍🧑 User Management Section (`<section class="users">` - `index.html`)
+## 🧑‍🤝‍🧑 User Management (`<section class="users">` - `index.html`)
 
-This section handles user creation, listing, and comparison mode toggle on `index.html`. Logic in `js/script.js`. DOM elements often accessed via `DOM_ELEMENTS`.
+User creation, listing, and comparison controls on `index.html`. Logic in `js/script.js`.
 
-| 🔧 UI Element              | 🔍 DOM Selector (ID/Class) or Key in `DOM_ELEMENTS`   | 📝 Description & Purpose                                                  | 🧠 Key JavaScript Interactions (from `js/script.js`)                                                                       | 🎨 Relevant CSS Classes              |
-| :------------------------- | :---------------------------------------------------- | :------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------- | :----------------------------------- |
-| Section Heading            | `section.users > h2`                                  | "Manage & Compare Schedules" title.                                       | N/A (Static content)                                                                                                       | General `h2` styles                  |
-| Name Input Field           | `userNameInput`                                       | Text input for the new user's name.                                       | Value read by `handleAddNewUser()`. `input` event listener (from `setupInputValidation()`) for live validation.            | General `input` styles               |
-| User ID Input Field        | `userIdInput`                                         | Text input for the new user's unique ID (numeric).                        | Value read by `handleAddNewUser()`. `input` event listener (from `setupInputValidation()`) for live validation.            | General `input` styles               |
-| "Add User" Button          | `addUserButton`                                       | Submits the new user's name and ID.                                       | Event listener calls `handleAddNewUser()`.                                                                                 | General `button` styles              |
-| User List Container        | `userListContainer`                                   | Dynamically populated container displaying all registered users.          | Content generated by `renderUserList()`. Event delegation listener (from `setupEventListeners()`) handles clicks on items. | `.user-list`                         |
-| User Item                  | `div.user-item` (dynamic, inside `userListContainer`) | Container for user name & delete. `data-user-id` attribute holds user ID. | Click handled by delegated listener on `userListContainer`. Classes `.active`/`.selected` applied by `renderUserList()`.   | `.user-item`, `.active`, `.selected` |
-| User Name Button           | `button.user-name-btn` (dynamic, inside `.user-item`) | Displays user's name.                                                     | Click handled by delegated listener on `userListContainer` (targets parent `.user-item`).                                  | (Styled within `.user-item`)         |
-| Delete User Button         | `button.delete-btn` (dynamic, inside `.user-item`)    | Allows deletion. `data-delete-user-id` attribute holds user ID.           | Click handled by delegated listener on `userListContainer`. Calls `handleDeleteUser()`.                                    | `.delete-btn`                        |
-| "Compare Schedules" Button | `compareButton`                                       | Toggles between schedule editing and comparison mode.                     | Event listener calls `handleToggleCompareMode()`.                                                                          | `#compare`, `.active`                |
-
----
-
-## 🗓️ Schedule Grid Section (`<section class="schedule">` - `index.html`)
-
-Displays the weekly schedule on `index.html`. Logic in `js/script.js`. DOM elements often accessed via `DOM_ELEMENTS`.
-
-| 🔧 UI Element  | 🔍 DOM Selector (ID/Class) or Key in `DOM_ELEMENTS` | 📝 Description & Purpose                                              | 🧠 Key JavaScript Interactions (from `js/script.js`)                                                                                                                                                                          | 🎨 Relevant CSS Classes (from `css/styles.css`)                            |
-| :------------- | :-------------------------------------------------- | :-------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
-| Schedule Table | `scheduleTable`                                     | The main table structure.                                             | Event delegation listeners (from `setupEventListeners()`) for `click`, `mouseover`, `mouseout` on child `.slot` elements.                                                                                                     | General `table`, `th`, `td` styles                                         |
-| Time Slot Cell | `td.slot` (dynamic, inside `scheduleTable`)         | Individual time slot. Clickable. `data-day` & `data-time` attributes. | Clicks call `handleToggleScheduleSlot()` (edit mode). Mouseover/mouseout call `handleShowSlotTooltip()`/`handleHideSlotTooltip()` (compare mode). Classes applied by `renderScheduleGrid()` based on `determineSlotStatus()`. | `.slot`, `.slot-selected`, `.slot-free`, `.slot-conflict`, `.slot-partial` |
-| Slot Tooltip   | `slotTooltip`                                       | Pop-up in `compareMode` showing who is free/busy.                     | Display, position, `textContent` managed by `handleShowSlotTooltip()` & `handleHideSlotTooltip()`.                                                                                                                            | `.slot-tooltip`                                                            |
+| UI Element            | Selector / `DOM_ELEMENTS` Key | Description & Purpose                                        | JS Interactions (from `js/script.js`)                                              | CSS Classes         |
+| :-------------------- | :---------------------------- | :----------------------------------------------------------- | :--------------------------------------------------------------------------------- | :------------------ |
+| Section Heading       | `section.users > h2`          | "Manage & Compare Schedules" title.                          | N/A                                                                                | `h2` styles         |
+| Name Input            | `userNameInput`               | Input for new user's name.                                   | Value read by `handleAddNewUser()`; live validation.                               | `input` styles      |
+| User ID Input         | `userIdInput`                 | Input for new user's ID (numeric).                           | Value read by `handleAddNewUser()`; live validation.                               | `input` styles      |
+| "Add User" Button     | `addUserButton`               | Submits new user details.                                    | Click calls `handleAddNewUser()`.                                                  | `button` styles     |
+| User List Container   | `userListContainer`           | Displays registered users.                                   | Content by `renderUserList()`. Delegated clicks handled by `setupEventListeners()`.  | `.user-list`        |
+| User Item (dynamic)   | `div.user-item`               | Represents a user in the list. `data-user-id`.               | Clicks call `handleSetActiveUser()` or `handleToggleUserSelectionForCompare()`.    | `.user-item`, `.active`, `.selected` |
+| Delete User Btn (dyn) | `button.delete-btn`           | Deletes user. `data-delete-user-id`.                         | Clicks call `handleDeleteUser()` (shows confirmation modal).                       | `.delete-btn`       |
+| "Compare" Button    | `compareButton`               | Toggles comparison mode.                                     | Click calls `handleToggleCompareMode()`.                                           | `#compare`, `.active` |
 
 ---
 
-## 📤📥 Export/Import Section (`<div class="export-import">` - `index.html`)
+## 🗓️ Schedule Grid (`<section class="schedule">` - `index.html`)
 
-Allows users to export/import schedule data on `index.html`. Logic in `js/script.js`. DOM elements accessed via `DOM_ELEMENTS`.
+Weekly schedule display on `index.html`. Logic in `js/script.js`.
 
-| 🔧 UI Element                | 🔍 DOM Selector (ID/Class) or Key in `DOM_ELEMENTS` | 📝 Description & Purpose                                     | 🧠 Key JavaScript Interactions (from `js/script.js`) | 🎨 Relevant CSS Classes   |
-| :--------------------------- | :-------------------------------------------------- | :----------------------------------------------------------- | :--------------------------------------------------- | :------------------------ |
-| "Export Current User" Button | `exportButton`                                      | Exports the `activeUser`'s schedule data as JSON.            | Event listener calls `handleExportCurrentUser()`.    | General `button` styles   |
-| Import Data Textarea         | `importTextArea`                                    | Multi-line input for pasting JSON data of a user's schedule. | Value read by `handleImportSchedule()`.              | General `textarea` styles |
-| "Import User" Button         | `importButton`                                      | Imports schedule data from the `importTextArea`.             | Event listener calls `handleImportSchedule()`.       | General `button` styles   |
+| UI Element       | Selector / `DOM_ELEMENTS` Key | Description & Purpose                                       | JS Interactions (from `js/script.js`)                                                                    | CSS Classes                                                              |
+| :--------------- | :---------------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------- |
+| Schedule Table   | `scheduleTable`               | Main table for days/time slots.                             | Delegated `click`, `mouseover`, `mouseout` for `.slot` elements.                                         | `table`, `th`, `td` styles                                               |
+| Time Slot (dyn)  | `td.slot`                     | Individual time slot. `data-day`, `data-time`.              | Click calls `handleToggleScheduleSlot()`. Hover for `handleShowSlotTooltip()`. Classes via `renderScheduleGrid()`. | `.slot`, `.slot-selected`, `.slot-free`, `.slot-conflict`, `.slot-partial` |
+| Slot Tooltip     | `slotTooltip`                 | Pop-up in compare mode showing availability.                | Managed by `handleShowSlotTooltip()` & `handleHideSlotTooltip()`.                                        | `.slot-tooltip`                                                          |
 
 ---
 
-## 📄 Content Sections (Other Pages - `pages/friends.html`, `pages/about.html`)
+## 📤📥 Export/Import (`<div class="export-import">` - `index.html`)
 
-These pages have their own primary content sections. Styling primarily from `css/styles.css`.
+Data export/import on `index.html`. Logic in `js/script.js`.
 
-| 🔧 UI Element        | 🔍 DOM Selector (ID/Class)                               | 📝 Description & Purpose                            | 🧠 Key JavaScript Interactions (if any)        | 🎨 Relevant CSS Classes (from `css/styles.css`) |
-| :------------------- | :------------------------------------------------------- | :-------------------------------------------------- | :--------------------------------------------- | :---------------------------------------------- |
-| Friends Page Content | `section.friends-page-content` (in `pages/friends.html`) | Main content area for the Friends page.             | Currently placeholder; future JS may interact. | `.page-content`, `.friends-page-content`        |
-| About Page Content   | `section.about-page-content` (in `pages/about.html`)     | Main content area for the About the Developer page. | Currently placeholder; future JS may interact. | `.page-content`, `.about-page-content`          |
-| Content Placeholder  | `div.content-placeholder` (within above)                 | Placeholder text for pages under development.       | N/A                                            | `.content-placeholder`                          |
+| UI Element       | Selector / `DOM_ELEMENTS` Key | Description & Purpose                          | JS Interactions (from `js/script.js`)       | CSS Classes             |
+| :--------------- | :---------------------------- | :--------------------------------------------- | :------------------------------------------ | :---------------------- |
+| "Export" Button  | `exportButton`                | Exports active user's schedule.                | Click calls `handleExportCurrentUser()`.      | `button` styles         |
+| Import Textarea  | `importTextArea`              | Area to paste JSON for import.                 | Value read by `handleImportSchedule()`.       | `textarea` styles       |
+| "Import" Button  | `importButton`                | Imports schedule from textarea.                | Click calls `handleImportSchedule()`.       | `button` styles         |
+
+---
+
+## 📄 Content Sections (Other Pages)
+
+Placeholder content on `pages/friends.html`, `pages/about.html`.
+
+| UI Element           | Selector (ID/Class)            | Description & Purpose                          | JS Interactions | CSS Classes (from `css/styles.css`) |
+| :------------------- | :----------------------------- | :--------------------------------------------- | :-------------- | :---------------------------------- |
+| Friends Page Content | `section.friends-page-content` | Main content area for Friends page.            | Placeholder     | `.page-content`                     |
+| About Page Content   | `section.about-page-content`   | Main content area for About page.            | Placeholder     | `.page-content`                     |
+| Placeholder Div    | `div.content-placeholder`      | Box for "Content coming soon!" text.           | N/A             | `.content-placeholder`              |
 
 ---
 
 ## 🎨 Key CSS Utility & State Classes
 
-These classes are dynamically applied by JavaScript or are key for styling specific states/components. Global styles in `css/styles.css`, menu styles in `css/menu.css`.
+Dynamically applied or key for styling. Globals in `css/styles.css`, menu in `css/menu.css`, modal in `css/modal.css`.
 
-| 🎨 Class               | 📍 Applied To                                                         | 🧠 Purpose & Visual Effect                                                                            |
-| :--------------------- | :-------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
-| `.menu-open`           | `body`                                                                | Indicates hamburger menu is open. Shows panel/overlay, affects body scroll (from `styles.css`).       |
-| `.active`              | `div.user-item` (on `index.html`), `button#compare` (on `index.html`) | Highlights active user or indicates compare mode is on. Applied by `renderUserList()` & `updateUI()`. |
-| `.selected`            | `div.user-item` (on `index.html`)                                     | Highlights users chosen for comparison. Applied by `renderUserList()`.                                |
-| `.delete-btn`          | `button.delete-btn` (on `index.html`)                                 | Styles the user deletion button.                                                                      |
-| `.slot`                | `td.slot` (on `index.html`)                                           | Base class for interactive schedule time slots.                                                       |
-| `.slot-selected`       | `td.slot` (on `index.html`)                                           | Active user is busy (purple). Applied by `renderScheduleGrid()`.                                      |
-| `.slot-free`           | `td.slot` (on `index.html`)                                           | Compare mode: all selected users free (green). Applied by `renderScheduleGrid()`.                     |
-| `.slot-conflict`       | `td.slot` (on `index.html`)                                           | Compare mode: all selected users busy (red). Applied by `renderScheduleGrid()`.                       |
-| `.slot-partial`        | `td.slot` (on `index.html`)                                           | Compare mode: mixed availability (orange). Applied by `renderScheduleGrid()`.                         |
-| `.app`                 | `div.app` (all pages)                                                 | Main application container; layout, padding, background.                                              |
-| `.page-content`        | `section` elements on `friends.html`, `about.html`                    | Styles main content area of sub-pages.                                                                |
-| `.content-placeholder` | `div` inside `.page-content`                                          | Styles placeholder box for undeveloped pages.                                                         |
-| `.hamburger-button`    | `button#hamburgerBtn` (all pages)                                     | Styles the hamburger icon.                                                                            |
-| `.nav-panel`           | `nav#navPanel` (all pages)                                            | Styles the slide-out navigation menu.                                                                 |
-| `.overlay`             | `div#overlay` (all pages)                                             | Styles background dimming overlay for open menu.                                                      |
+| Class                  | Applied To                                     | Purpose & Visual Effect                                                  |
+| :--------------------- | :--------------------------------------------- | :----------------------------------------------------------------------- |
+| `.menu-open`           | `body`                                         | Indicates hamburger menu is open.                                        |
+| `.active`              | `.user-item`, `#compare`, `.modal-overlay`     | Highlights active user/state, shows modal.                             |
+| `.selected`            | `.user-item`                                   | Highlights user selected for comparison.                                 |
+| `.slot-selected` etc.  | `td.slot`                                      | Colors schedule slots based on availability (purple, green, red, orange). |
+| `.app`                 | `div.app`                                      | Main app layout container.                                               |
+| `.page-content`        | `section` on sub-pages                         | Styles content areas of `friends.html`, `about.html`.                    |
+| `.modal-button` etc. | Buttons inside modal                           | Styles for modal buttons (`.confirm`, `.cancel`).                      |
 
 ---
 
-## 🔄 Key User Workflows & Interactions
+## 🔄 Key User Workflows
 
-1.  **Opening/Closing Hamburger Menu (All Pages):**
-
-    1.  User clicks `button#hamburgerBtn`.
-    2.  `initMenu()` (from `js/menu.js`) has attached a listener that calls an internal `toggleMenu()`.
-    3.  `body` gets/loses `.menu-open` class. Panel/Overlay visibility changes via CSS.
-    4.  Button icon changes. Escape key or overlay click also closes.
-
-2.  **Navigating to a Different Page (All Pages):**
-
-    1.  Menu open, user clicks `a.nav-link`.
-    2.  Menu closes, browser navigates to the linked HTML page.
-
-3.  **Adding a New User (`index.html`):**
-
-    1.  User types into `DOM_ELEMENTS.userNameInput`, `DOM_ELEMENTS.userIdInput`.
-    2.  User clicks `DOM_ELEMENTS.addUserButton`.
-    3.  `handleAddNewUser()` in `js/script.js` is called.
-    4.  `createUserObject()` is used, `state` is updated, `handleSetActiveUser()` is called (which calls `saveStateToStorage()` and `updateUI()`).
-
-4.  **Editing a User's Schedule (`index.html` - Not in Compare Mode):**
-
-    1.  User clicks a `.user-item` (or `button.user-name-btn` within it) in `DOM_ELEMENTS.userListContainer`. Delegated event listener calls `handleSetActiveUser()`.
-    2.  User clicks a `td.slot` in `DOM_ELEMENTS.scheduleTable`. Delegated event listener calls `handleToggleScheduleSlot()`.
-
-5.  **Comparing Schedules (`index.html`):**
-    1.  User clicks `DOM_ELEMENTS.compareButton`. `handleToggleCompareMode()` is called.
-    2.  User clicks multiple `.user-item` elements. Delegated listener calls `handleToggleUserSelectionForCompare()`.
-    3.  `renderScheduleGrid()` updates slot classes based on `determineSlotStatus()`.
-    4.  Hover/mouseout on `td.slot` calls `handleShowSlotTooltip()` / `handleHideSlotTooltip()`.
+1.  **Menu Navigation:** User clicks `#hamburgerBtn` -> `js/menu.js` toggles `.menu-open` on `body`, `nav#navPanel` slides in. Clicking `a.nav-link` navigates.
+2.  **Add User (`index.html`):** Input to `#userName`, `#userId` -> Click `addUserButton` -> `handleAddNewUser()` updates `state` & UI.
+3.  **Edit Schedule (`index.html`):** Click `.user-item` -> `handleSetActiveUser()`. Click `td.slot` -> `handleToggleScheduleSlot()`.
+4.  **Compare Schedules (`index.html`):** Click `#compare` -> `handleToggleCompareMode()`. Click `.user-item`s -> `handleToggleUserSelectionForCompare()`. Hover `td.slot` -> `handleShowSlotTooltip()`.
+5.  **Delete User (`index.html`):** Click `.delete-btn` in `.user-item` -> `handleDeleteUser()` shows confirmation modal. If "Yes", user is removed from `state` & UI.
+6.  **Show Notification/Confirmation Modal:** Functions like `handleAddNewUser` (on error) or `handleDeleteUser` call `showAppModal()` from `js/script.js`.
 
 ---
 
 ## 📖 How to Use This Document
 
-✅ Use this document to:
-
-- Understand Element-Logic Links for specific pages.
-- Locate Selectors (IDs, classes, or keys in `DOM_ELEMENTS`).
-- Debug Interactions by tracing actions through event handlers and state changes.
-- Onboard New Developers to the frontend structure and data flow.
-- Reference the global `state` structure (for `index.html`) and menu interaction.
-- Identify Styling Hooks and relevant CSS classes.
+*   **Find Elements:** Use "Selector / `DOM_ELEMENTS` Key" to locate elements.
+*   **Understand Logic:** See "JS Interactions" for related JavaScript functions.
+*   **Styling:** Refer to "CSS Classes" for styling hooks.
+*   **Debug:** Trace workflows using the "Key User Workflows" section.
