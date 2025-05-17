@@ -1,0 +1,87 @@
+/* css/modal.css */
+
+/* ================================
+   CUSTOM MODAL STYLES
+================================== */
+.modal-overlay {
+  position: fixed; /* Stay in place during scroll */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* Dark semi-transparent overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; /* Higher than other elements like nav panel */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+.modal-overlay.active { /* Class to show the modal */
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background-color: #ffffff;
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 450px; /* Max width of the modal */
+  text-align: center;
+  transform: scale(0.9);
+  transition: transform 0.3s ease-in-out;
+}
+
+.modal-overlay.active .modal-content {
+  transform: scale(1); /* Animate in */
+}
+
+.modal-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 15px;
+  /* Using your app's gradient for the title */
+  background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd);
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.modal-message {
+  font-size: 1rem;
+  color: #444; /* Dark grey for readability */
+  line-height: 1.6;
+  margin-bottom: 25px;
+  white-space: pre-wrap; /* Preserve line breaks in messages */
+}
+
+.modal-close-btn {
+  /* Reusing your general button styles (ensure this doesn't conflict with other button rules) */
+  /* Or, define specific styles here: */
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4A00E0, #8E2DE2); /* Your app's button gradient */
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.modal-close-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.modal-close-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
