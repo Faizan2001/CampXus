@@ -1,7 +1,8 @@
 // js/script.js
 
 /* ================================
-   DOM REFERENCES (Exported for potential use in tests or other modules)
+   DOM REFERENCES (Exported)
+   Cached references to frequently used DOM elements.
 ================================== */
 export const DOM_ELEMENTS = {
   userNameInput: document.getElementById("userName"),
@@ -20,63 +21,85 @@ export const DOM_ELEMENTS = {
   modalTitle: document.getElementById("modalTitle"),
   modalMessage: document.getElementById("modalMessage"),
   modalCloseBtn: document.getElementById("modalCloseBtn"),
+  modalActionButtons: document.getElementById("modalActionButtons"),
+  modalConfirmBtn: document.getElementById("modalConfirmBtn"),
+  modalCancelBtn: document.getElementById("modalCancelBtn"),
 };
 
 const LOCAL_STORAGE_KEY = "scheduleUsers";
 
 /* ================================
-   APPLICATION STATE (Not directly exported, managed via functions)
+   APPLICATION STATE
+   The single source of truth for the application's data.
 ================================== */
 let state = {
-  activeUserId: null,
-  users: {}, // { userId: { id, name, schedule[][] } }
-  selectedUserIds: new Set(),
-  compareMode: false,
+  activeUserId: null, // ID of the user whose schedule is being edited
+  users: {},          // Stores all user data: { userId: { id, name, schedule[][] } }
+  selectedUserIds: new Set(), // Set of user IDs selected for comparison
+  compareMode: false, // Boolean flag for compare mode
 };
 
-// --- State Accessors/Mutators ---
+// --- State Accessors/Mutators (primarily for testing) ---
 export function getState() {
-  return state;
+  return state; // Returns a direct reference; for strict immutability, a deep clone could be returned.
 }
-
-export function _setStateForTesting(newState) {
-  state = { ...state, ...newState };
+export function _setStateForTesting(newState) { // Underscore indicates for testing/internal use
+  state = { ...state, ...newState }; // Merges new state properties into the current state
 }
-
-export function _resetStateForTesting() {
+export function _resetStateForTesting() { // Resets state to initial values for test isolation
   state = {
-    activeUserId: null,
-    users: {},
-    selectedUserIds: new Set(),
-    compareMode: false,
+    activeUserId: null, users: {}, selectedUserIds: new Set(), compareMode: false,
   };
 }
 
 /* ================================
-   MODAL UI FUNCTIONS (NEW)
+   MODAL UI FUNCTIONS
+   Controls the display and behavior of the custom modal.
 ================================== */
+let confirmModalCallback = null; // Stores the function to execute when "Yes" is clicked on a confirmation modal.
 
 /**
- * Shows the custom modal with a specific title and message.
+ * Shows the custom modal.
  * @param {string} message - The main message to display.
  * @param {string} [title="Notification"] - Optional title for the modal.
+ * @param {boolean} [showConfirmationButtons=false] - If true, shows Yes/No buttons; otherwise, shows OK.
+ * @param {function} [onConfirm] - Callback for the "Yes" button if showConfirmationButtons is true.
  */
-export function showAppModal(message, title = "Notification") {
-  if (
-    DOM_ELEMENTS.appModal &&
-    DOM_ELEMENTS.modalTitle &&
-    DOM_ELEMENTS.modalMessage
-  ) {
-    DOM_ELEMENTS.modalTitle.textContent = title;
-    DOM_ELEMENTS.modalMessage.textContent = message;
-    DOM_ELEMENTS.appModal.style.display = "flex";
-    setTimeout(() => {
-      DOM_ELEMENTS.appModal.classList.add("active");
-    }, 10);
-  } else {
-    console.error("Modal elements not found. Falling back to alert.");
-    alert(`${title}: ${message}`); // Fallback, should not happen if HTML is correct
+export function showAppModal(message, title = "Notification", showConfirmationButtons = false, onConfirm) {
+  // Ensure all necessary modal DOM elements are available
+  if (!DOM_ELEMENTS.appModal || !DOM_ELEMENTS.modalTitle || !DOM_ELEMENTS.modalMessage ||
+      !DOM_ELEMENTS.modalCloseBtn || !DOM_ELEMENTS.modalActionButtons ||
+      !DOM_ELEMENTS.modalConfirmBtn || !DOM_ELEMENTS.modalCancelBtn) {
+    console.error("Modal elements not found in DOM. Falling back to native browser dialogs.");
+    // Fallback to native dialogs if custom modal isn't properly set up in HTML
+    if (showConfirmationButtons) {
+        if (confirm(`${title}: ${message}`)) { // Native confirm dialog
+            if (onConfirm && typeof onConfirm === 'function') onConfirm();
+        }
+    } else {
+        alert(`${title}: ${message}`); // Native alert dialog
+    }
+    return;
   }
+
+  DOM_ELEMENTS.modalTitle.textContent = title;
+  DOM_ELEMENTS.modalMessage.textContent = message;
+  confirmModalCallback = null; // Reset any previous callback
+
+  if (showConfirmationButtons) {
+    DOM_ELEMENTS.modalActionButtons.style.display = "flex"; // Show "Yes" / "No" buttons
+    DOM_ELEMENTS.modalCloseBtn.style.display = "none";   // Hide the default "OK" button
+    if (onConfirm && typeof onConfirm === 'function') {
+      confirmModalCallback = onConfirm; // Store the action for the "Yes" button
+    }
+  } else {
+    DOM_ELEMENTS.modalActionButtons.style.display = "none";  // Hide "Yes" / "No" buttons
+    DOM_ELEMENTS.modalCloseBtn.style.display = "inline-block"; // Show the default "OK" button
+  }
+
+  DOM_ELEMENTS.appModal.style.display = "flex"; // Make the modal overlay visible
+  // Short timeout to ensure `display:flex` is applied before adding 'active' class for CSS transition
+  setTimeout(() => DOM_ELEMENTS.appModal.classList.add("active"), 10);
 }
 
 /**
@@ -84,186 +107,238 @@ export function showAppModal(message, title = "Notification") {
  */
 export function hideAppModal() {
   if (DOM_ELEMENTS.appModal) {
-    DOM_ELEMENTS.appModal.classList.remove("active");
+    DOM_ELEMENTS.appModal.classList.remove("active"); // Trigger fade-out CSS transition
+    // Wait for transition to finish before setting display to none
     setTimeout(() => {
       DOM_ELEMENTS.appModal.style.display = "none";
-    }, 300); // Should match CSS transition duration
+      // Reset button visibility to default (OK shown, Yes/No hidden)
+      if(DOM_ELEMENTS.modalActionButtons) DOM_ELEMENTS.modalActionButtons.style.display = "none";
+      if(DOM_ELEMENTS.modalCloseBtn) DOM_ELEMENTS.modalCloseBtn.style.display = "inline-block";
+    }, 300); // This duration should match the transition duration in modal.css
+    confirmModalCallback = null; // Clear any stored confirmation callback
   }
 }
 
 /* ================================
-   CORE LOGIC FUNCTIONS (Pure or Purer)
+   CORE LOGIC FUNCTIONS (Data Manipulation - Purer)
+   These functions operate on data and return new data/values without direct side effects.
 ================================== */
 
+/**
+ * Creates a new user data object.
+ * @param {string} name - The user's name.
+ * @param {string} userId - The user's unique ID.
+ * @param {object} currentUsers - The current dictionary of users.
+ * @returns {object|null} The new user object or null if userId already exists.
+ */
 export function createUserObject(name, userId, currentUsers) {
-  if (!currentUsers[userId]) {
-    const schedule = Array(7)
-      .fill(null)
-      .map(() => Array(6).fill(false));
+  if (!currentUsers[userId]) { // Check for ID uniqueness
+    const schedule = Array(7).fill(null).map(() => Array(6).fill(false)); // 7 days, 6 slots per day
     return { id: userId, name: name, schedule: schedule };
   }
-  return null;
+  return null; // User ID already taken
 }
 
+/**
+ * Removes a user from a given state object and returns the new state.
+ * @param {string} userId - The ID of the user to delete.
+ * @param {object} currentState - The current application state.
+ * @returns {object} The new state object after deletion.
+ */
 export function deleteUserFromState(userId, currentState) {
+  // Create copies to avoid mutating the original state directly (good for predictability)
   const newUsers = { ...currentState.users };
   let newActiveUserId = currentState.activeUserId;
   const newSelectedUserIds = new Set(currentState.selectedUserIds);
 
-  if (!newUsers[userId]) return currentState;
+  if (!newUsers[userId]) return currentState; // User not found, return state unchanged
 
-  delete newUsers[userId];
+  delete newUsers[userId]; // Remove user
 
+  // If the deleted user was active, reset activeUserId
   if (newActiveUserId === userId) {
     newActiveUserId = null;
   }
+  // Remove from selected users if present
   newSelectedUserIds.delete(userId);
 
+  // Return the updated state components
   return {
-    ...currentState,
+    ...currentState, // Spread existing state
     users: newUsers,
     activeUserId: newActiveUserId,
     selectedUserIds: newSelectedUserIds,
   };
 }
 
+/**
+ * Toggles a boolean value in a 2D schedule array for a given day and time.
+ * Returns a new schedule array (immutable operation).
+ * @param {number} dayIndex - The index of the day (0-6).
+ * @param {number} timeIndex - The index of the time slot (0-5).
+ * @param {boolean[][]} userSchedule - The user's current schedule matrix.
+ * @returns {boolean[][]} A new schedule matrix with the slot toggled.
+ */
 export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
-  const newSchedule = userSchedule.map((day, dIndex) =>
-    dIndex === dayIndex
-      ? day.map((slot, tIndex) => (tIndex === timeIndex ? !slot : slot))
-      : [...day]
+  // Map over the schedule to create a new one, ensuring immutability
+  return userSchedule.map((daySlots, dIdx) =>
+    dIdx === dayIndex // If it's the target day
+      ? daySlots.map((slotValue, tIdx) => // Map over its time slots
+          tIdx === timeIndex ? !slotValue : slotValue // Toggle the target slot
+        )
+      : [...daySlots] // Otherwise, return a copy of the original day's slots
   );
-  return newSchedule;
 }
 
+/**
+ * Determines the CSS class for a schedule slot based on current mode and selections.
+ * @param {number} dayIndex - The index of the day.
+ * @param {number} timeIndex - The index of the time slot.
+ * @param {object} currentState - The current application state.
+ * @returns {string} The CSS class name for the slot.
+ */
 export function determineSlotStatus(dayIndex, timeIndex, currentState) {
   const { compareMode, selectedUserIds, users, activeUserId } = currentState;
 
   if (compareMode && selectedUserIds.size > 0) {
     let busyCount = 0;
-    selectedUserIds.forEach((id) => {
+    selectedUserIds.forEach(id => {
       if (users[id]?.schedule?.[dayIndex]?.[timeIndex]) {
         busyCount++;
       }
     });
 
-    if (busyCount === 0) return "slot-free";
-    if (busyCount === selectedUserIds.size) return "slot-conflict";
-    return "slot-partial";
-  } else if (
-    activeUserId &&
-    users[activeUserId]?.schedule?.[dayIndex]?.[timeIndex]
-  ) {
-    return "slot-selected";
+    if (busyCount === 0) return "slot-free"; // All selected are free
+    if (busyCount === selectedUserIds.size) return "slot-conflict"; // All selected are busy
+    return "slot-partial"; // Mixed availability
+  } else if (activeUserId && users[activeUserId]?.schedule?.[dayIndex]?.[timeIndex]) {
+    return "slot-selected"; // Current active user is busy
   }
-  return "slot";
+  return "slot"; // Default, unstyled slot
 }
 
+/**
+ * Generates the message for the slot tooltip in compare mode.
+ * @param {number} dayIndex - The index of the day.
+ * @param {number} timeIndex - The index of the time slot.
+ * @param {object} currentState - The current application state.
+ * @returns {string} The formatted tooltip message.
+ */
 export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
   const { users, selectedUserIds } = currentState;
-  if (selectedUserIds.size === 0) return "";
+  if (selectedUserIds.size === 0) return ""; // No users selected for comparison
 
   const freeUsers = [];
   const busyUsers = [];
 
   selectedUserIds.forEach((userId) => {
     const user = users[userId];
-    if (user) {
-      if (user.schedule?.[dayIndex]?.[timeIndex]) {
-        busyUsers.push(user.name);
-      } else {
-        freeUsers.push(user.name);
-      }
+    if (user) { // Check if user object exists
+      (user.schedule?.[dayIndex]?.[timeIndex] ? busyUsers : freeUsers).push(user.name);
     }
   });
 
-  if (busyUsers.length === selectedUserIds.size)
-    return "All selected users are unavailable.";
-  if (freeUsers.length === selectedUserIds.size)
-    return "All selected users are free.";
-
-  let message = "Availability:\n";
+  if (busyUsers.length === selectedUserIds.size) return "All selected users are unavailable.";
+  if (freeUsers.length === selectedUserIds.size) return "All selected users are free.";
+  
+  let message = "Availability:\n"; // Use \n for line breaks (CSS white-space: pre-wrap needed on tooltip)
   if (freeUsers.length > 0) message += `Free: ${freeUsers.join(", ")}\n`;
   if (busyUsers.length > 0) message += `Busy: ${busyUsers.join(", ")}`;
-  return message.trim();
+  return message.trim(); // Remove trailing newline if any
 }
 
 /* ================================
    STATE PERSISTENCE (LocalStorage)
+   Handles saving and loading the user data.
 ================================== */
 
+/** Loads user data from localStorage into the global `state`. */
 function loadStateFromStorage() {
-  const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
-  if (savedState) {
-    const parsed = JSON.parse(savedState);
-    state.users = parsed.users || {};
+  const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (savedStateString) {
+    const parsedSavedState = JSON.parse(savedStateString);
+    // Ensure users object exists, default to empty if not found or invalid
+    state.users = parsedSavedState.users || {};
   }
+  // Other parts of the state (activeUserId, compareMode, selectedUserIds) are intentionally transient
+  // and reset on page load.
 }
 
+/** Saves the current `state.users` to localStorage. */
 function saveStateToStorage() {
-  localStorage.setItem(
-    LOCAL_STORAGE_KEY,
-    JSON.stringify({ users: state.users })
-  );
+  // Only persist the users object
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ users: state.users }));
 }
 
 /* ================================
    UI RENDERING FUNCTIONS
+   Responsible for updating the HTML based on the current state.
 ================================== */
 
+/** Renders the entire schedule grid, applying appropriate classes to slots. */
 function renderScheduleGrid() {
-  if (!DOM_ELEMENTS.scheduleTable) return;
-  DOM_ELEMENTS.scheduleTable
-    .querySelectorAll(".slot")
-    .forEach((slotElement) => {
-      const day = parseInt(slotElement.dataset.day, 10);
-      const time = parseInt(slotElement.dataset.time, 10);
+  if (!DOM_ELEMENTS.scheduleTable) {
+    console.error("Schedule table element not found for rendering.");
+    return;
+  }
+  // Iterate over all .slot elements within the schedule table
+  DOM_ELEMENTS.scheduleTable.querySelectorAll(".slot").forEach((slotElement) => {
+    const day = parseInt(slotElement.dataset.day, 10);
+    const time = parseInt(slotElement.dataset.time, 10);
 
-      if (!isNaN(day) && !isNaN(time)) {
-        slotElement.className = "slot";
-        const statusClass = determineSlotStatus(day, time, state);
-        if (statusClass !== "slot") {
-          slotElement.classList.add(statusClass);
-        }
+    if (!isNaN(day) && !isNaN(time)) { // Ensure data attributes are valid numbers
+      slotElement.className = 'slot'; // Reset to base class first
+      const statusClass = determineSlotStatus(day, time, state); // Get dynamic class
+      if (statusClass !== 'slot') { // Add specific status class if not default
+        slotElement.classList.add(statusClass);
       }
-    });
+    }
+  });
 }
 
+/** Renders the list of users in the UI. */
 function renderUserList() {
-  if (!DOM_ELEMENTS.userListContainer) return;
-
-  const userEntries = Object.entries(state.users);
-  if (userEntries.length === 0) {
-    DOM_ELEMENTS.userListContainer.innerHTML = "<p>No users added yet.</p>";
+  if (!DOM_ELEMENTS.userListContainer) {
+    console.error("User list container element not found for rendering.");
     return;
   }
 
-  DOM_ELEMENTS.userListContainer.innerHTML = userEntries
-    .map(([userId, user]) => {
+  const userEntries = Object.entries(state.users);
+  if (userEntries.length === 0) {
+    DOM_ELEMENTS.userListContainer.innerHTML = "<p>No users added yet. Try adding one!</p>";
+    return;
+  }
+
+  // Generate HTML for each user item and join them
+  DOM_ELEMENTS.userListContainer.innerHTML = userEntries.map(([userId, user]) => {
       const isActive = state.activeUserId === userId ? "active" : "";
       const isSelected = state.selectedUserIds.has(userId) ? "selected" : "";
+      // Uses data attributes for event delegation targets
       return `
         <div data-user-id="${userId}" class="user-item ${isActive} ${isSelected}">
           <button class="user-name-btn">${user.name}</button>
           <button data-delete-user-id="${userId}" class="delete-btn">Delete</button>
         </div>
       `;
-    })
-    .join("");
+    }).join("");
 }
 
+/** Central function to update all relevant parts of the UI. */
 function updateUI() {
   renderScheduleGrid();
   renderUserList();
+  // Visually update the compare button based on compareMode state
   if (DOM_ELEMENTS.compareButton) {
     DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
   }
 }
 
 /* ================================
-   EVENT HANDLERS & APP LOGIC
+   EVENT HANDLERS & APP LOGIC ORCHESTRATION
+   These functions respond to user interactions, call core logic, update state, and trigger UI refresh.
 ================================== */
 
+/** Handles the "Add User" button click. */
 function handleAddNewUser() {
   if (!DOM_ELEMENTS.userNameInput || !DOM_ELEMENTS.userIdInput) return;
   const name = DOM_ELEMENTS.userNameInput.value.trim();
@@ -272,42 +347,60 @@ function handleAddNewUser() {
   if (name && userId) {
     const newUserObject = createUserObject(name, userId, state.users);
     if (newUserObject) {
-      state.users[userId] = newUserObject;
-      handleSetActiveUser(userId);
+      state.users[userId] = newUserObject; // Update state
+      handleSetActiveUser(userId);       // Set as active (also saves and updates UI)
     } else {
-      showAppModal(`User with ID ${userId} already exists.`, "Duplicate User"); // MODIFIED
+      showAppModal(`User with ID "${userId}" already exists. Please choose a different ID.`, "Duplicate User ID");
     }
+    // Clear input fields after attempt
     DOM_ELEMENTS.userNameInput.value = "";
     DOM_ELEMENTS.userIdInput.value = "";
   } else {
-    showAppModal("Please enter both a name and a unique ID.", "Input Required"); // MODIFIED
+    showAppModal("Please enter both a name and a unique ID for the new user.", "Input Required");
   }
 }
 
-function handleDeleteUser(userId) {
-  const newState = deleteUserFromState(userId, state);
-  state = newState;
-  saveStateToStorage();
-  updateUI();
+/** Handles a click on a user's delete button, showing a confirmation modal. */
+function handleDeleteUser(userIdToDelete) {
+  if (!state.users[userIdToDelete]) {
+    console.warn(`Attempted to delete non-existent user: ${userIdToDelete}`);
+    return;
+  }
+  const user = state.users[userIdToDelete];
+  showAppModal(
+    `Are you sure you want to delete ${user.name} (ID: ${userIdToDelete})? This action cannot be undone.`,
+    "Confirm Deletion",
+    true, // Show Yes/No confirmation buttons
+    () => { // This is the onConfirm callback, executed if "Yes" is clicked
+      state = deleteUserFromState(userIdToDelete, state); // Update state using pure function
+      saveStateToStorage();
+      updateUI();
+      showAppModal(`${user.name} has been successfully deleted.`, "User Deleted"); // Success feedback
+    }
+  );
 }
 
+/** Sets a user as active for editing their schedule. */
 function handleSetActiveUser(userId) {
   if (state.users[userId]) {
     state.activeUserId = userId;
-    state.compareMode = false;
-    state.selectedUserIds.clear();
-    saveStateToStorage();
+    state.compareMode = false; // Exit compare mode
+    state.selectedUserIds.clear(); // Clear any comparison selections
+    saveStateToStorage(); // Persist changes (e.g. if active user implies a default view)
     updateUI();
   }
 }
 
+/** Toggles the schedule comparison mode. */
 function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
-  state.activeUserId = null;
-  state.selectedUserIds.clear();
+  state.activeUserId = null; // No single active user in compare mode
+  state.selectedUserIds.clear(); // Reset selections when toggling mode
+  // Note: compareMode itself is not saved to localStorage, it's a session state.
   updateUI();
 }
 
+/** Toggles a user's inclusion in the comparison set when in compare mode. */
 function handleToggleUserSelectionForCompare(userId) {
   if (!state.compareMode || !state.users[userId]) return;
 
@@ -316,136 +409,133 @@ function handleToggleUserSelectionForCompare(userId) {
   } else {
     state.selectedUserIds.add(userId);
   }
+  // Note: selectedUserIds is not saved to localStorage, it's a session state.
   updateUI();
 }
 
+/** Handles a click on a schedule slot to toggle its busy/free state for the active user. */
 function handleToggleScheduleSlot(dayIndex, timeIndex) {
-  if (!state.activeUserId || state.compareMode) return;
+  if (!state.activeUserId || state.compareMode) return; // Only in edit mode for an active user
   const currentUser = state.users[state.activeUserId];
 
   if (currentUser?.schedule?.[dayIndex]?.[timeIndex] !== undefined) {
-    const newSchedule = toggleSlotInSchedule(
-      dayIndex,
-      timeIndex,
-      currentUser.schedule
-    );
-    currentUser.schedule = newSchedule;
+    const newSchedule = toggleSlotInSchedule(dayIndex, timeIndex, currentUser.schedule);
+    currentUser.schedule = newSchedule; // Update the user's schedule directly in the state object
     saveStateToStorage();
     updateUI();
   }
 }
 
+/** Shows the tooltip with availability details for a slot (in compare mode). */
 function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
-  if (
-    !DOM_ELEMENTS.slotTooltip ||
-    !state.compareMode ||
-    state.selectedUserIds.size === 0
-  ) {
-    handleHideSlotTooltip();
+  if (!DOM_ELEMENTS.slotTooltip || !state.compareMode || state.selectedUserIds.size === 0) {
+    handleHideSlotTooltip(); // Ensure tooltip is hidden if conditions aren't met
     return;
   }
   const message = generateTooltipMessage(dayIndex, timeIndex, state);
   DOM_ELEMENTS.slotTooltip.textContent = message;
 
   const rect = slotElement.getBoundingClientRect();
-  DOM_ELEMENTS.slotTooltip.style.left = `${
-    rect.left + window.scrollX + rect.width / 2
-  }px`;
-  DOM_ELEMENTS.slotTooltip.style.top = `${
-    rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5
-  }px`;
+  // Position tooltip above the slot, centered horizontally
+  DOM_ELEMENTS.slotTooltip.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
+  DOM_ELEMENTS.slotTooltip.style.top = `${rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5}px`; // 5px offset from slot
   DOM_ELEMENTS.slotTooltip.style.display = "block";
-  DOM_ELEMENTS.slotTooltip.style.transform = "translateX(-50%)";
+  DOM_ELEMENTS.slotTooltip.style.transform = 'translateX(-50%)'; // Horizontal centering trick
 }
 
+/** Hides the slot tooltip. */
 function handleHideSlotTooltip() {
   if (DOM_ELEMENTS.slotTooltip) {
     DOM_ELEMENTS.slotTooltip.style.display = "none";
   }
 }
 
+/** Handles exporting the current active user's schedule. */
 function handleExportCurrentUser() {
   if (!state.activeUserId || !state.users[state.activeUserId]) {
-    return showAppModal("Please select a user to export.", "Export Error"); // MODIFIED
+    return showAppModal("Please select an active user to export their schedule.", "Export Error");
   }
   const currentUser = state.users[state.activeUserId];
-  const exportData = {
+  const exportData = { // Create a clean object for export
     id: currentUser.id,
     name: currentUser.name,
     schedule: currentUser.schedule,
   };
-  const json = JSON.stringify(exportData, null, 2);
+  const jsonToExport = JSON.stringify(exportData, null, 2); // Pretty print with 2-space indent
 
-  navigator.clipboard
-    .writeText(json)
+  navigator.clipboard.writeText(jsonToExport)
     .then(() =>
       showAppModal(
-        `${currentUser.name}'s schedule has been copied to your clipboard!`,
+        `${currentUser.name}'s schedule has been successfully copied to your clipboard!`,
         "Export Successful"
       )
-    ) // MODIFIED
-    .catch((err) => {
-      console.error("Clipboard export error:", err);
+    )
+    .catch(error => {
+      console.error("Clipboard export error:", error);
       showAppModal(
-        "Could not copy to clipboard. Please check browser permissions or try again.",
+        "Could not copy schedule to clipboard. Please check browser permissions or try again. The schedule JSON is available in the import/export text area as a fallback.",
         "Clipboard Error"
-      ); // MODIFIED
-      if (DOM_ELEMENTS.importTextArea) DOM_ELEMENTS.importTextArea.value = json;
+      );
+      // Fallback: display JSON in the importTextArea if clipboard fails
+      if (DOM_ELEMENTS.importTextArea) DOM_ELEMENTS.importTextArea.value = jsonToExport;
     });
 }
 
+/** Handles importing a user's schedule from JSON. */
 function handleImportSchedule() {
   if (!DOM_ELEMENTS.importTextArea) return;
   const jsonInput = DOM_ELEMENTS.importTextArea.value.trim();
   if (!jsonInput) {
     return showAppModal(
-      "Please paste the exported schedule JSON into the text area first.",
-      "Import Error"
-    ); // MODIFIED
+      "Please paste the exported schedule JSON into the text area before importing.",
+      "Import Error: No Data"
+    );
   }
 
   try {
     const importedUser = JSON.parse(jsonInput);
-    if (
-      !importedUser.id ||
-      !importedUser.name ||
-      !Array.isArray(importedUser.schedule)
-    ) {
-      throw new Error(
-        "Invalid user data format. Ensure ID, name, and schedule array are present."
-      );
+    // Basic validation of the imported structure
+    if (!importedUser.id || typeof importedUser.id !== 'string' ||
+        !importedUser.name || typeof importedUser.name !== 'string' ||
+        !Array.isArray(importedUser.schedule) || importedUser.schedule.length !== 7 ||
+        !importedUser.schedule.every(day => Array.isArray(day) && day.length === 6 && day.every(slot => typeof slot === 'boolean'))
+       ) {
+      throw new Error("Invalid user data format. Ensure ID (string), name (string), and a valid 7x6 boolean schedule array are present.");
     }
-    state.users[importedUser.id] = importedUser;
+    state.users[importedUser.id] = importedUser; // Add or overwrite user in state
     saveStateToStorage();
     updateUI();
-    DOM_ELEMENTS.importTextArea.value = "";
+    DOM_ELEMENTS.importTextArea.value = ""; // Clear textarea on success
     showAppModal(
-      `User ${importedUser.name} imported successfully!`,
+      `User "${importedUser.name}" (ID: ${importedUser.id}) imported successfully!`,
       "Import Complete"
-    ); // MODIFIED
+    );
   } catch (e) {
     console.error("Import error:", e);
     showAppModal(
       `Import failed: ${e.message}\nPlease ensure valid JSON is pasted.`,
       "Import Failed"
-    ); // MODIFIED
+    );
   }
 }
 
 /* ================================
    INPUT VALIDATION
+   Sets up live validation for user name and ID input fields.
 ================================== */
 function setupInputValidation() {
-  if (DOM_ELEMENTS.userNameInput) {
-    DOM_ELEMENTS.userNameInput.addEventListener("input", (e) => {
-      e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, "");
+  if(DOM_ELEMENTS.userNameInput) {
+    DOM_ELEMENTS.userNameInput.addEventListener("input", (event) => {
+      // Allow letters, spaces, hyphens, apostrophes
+      event.target.value = event.target.value.replace(/[^a-zA-Z\s'-]/g,"");
     });
   }
-  if (DOM_ELEMENTS.userIdInput) {
-    DOM_ELEMENTS.userIdInput.addEventListener("input", (e) => {
-      e.target.value = e.target.value.replace(/[^0-9]/g, "");
-      if (e.target.value.length > 1) {
-        e.target.value = e.target.value.replace(/^0+/, "");
+  if(DOM_ELEMENTS.userIdInput) {
+    DOM_ELEMENTS.userIdInput.addEventListener("input", (event) => {
+      event.target.value = event.target.value.replace(/[^0-9]/g,""); // Allow only digits
+      // Prevent leading zeros if number is longer than 1 digit (e.g., "01" becomes "1")
+      if(event.target.value.length > 1) {
+        event.target.value = event.target.value.replace(/^0+/,"");
       }
     });
   }
@@ -453,35 +543,28 @@ function setupInputValidation() {
 
 /* ================================
    EVENT LISTENERS SETUP
+   Attaches event listeners to DOM elements.
 ================================== */
 function setupEventListeners() {
-  if (DOM_ELEMENTS.addUserButton)
-    DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
-  if (DOM_ELEMENTS.compareButton)
-    DOM_ELEMENTS.compareButton.addEventListener(
-      "click",
-      handleToggleCompareMode
-    );
-  if (DOM_ELEMENTS.exportButton)
-    DOM_ELEMENTS.exportButton.addEventListener(
-      "click",
-      handleExportCurrentUser
-    );
-  if (DOM_ELEMENTS.importButton)
-    DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
+  // Static button listeners
+  if(DOM_ELEMENTS.addUserButton) DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
+  if(DOM_ELEMENTS.compareButton) DOM_ELEMENTS.compareButton.addEventListener("click", handleToggleCompareMode);
+  if(DOM_ELEMENTS.exportButton) DOM_ELEMENTS.exportButton.addEventListener("click", handleExportCurrentUser);
+  if(DOM_ELEMENTS.importButton) DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
 
-  if (DOM_ELEMENTS.userListContainer) {
+  // Event Delegation for dynamically created user list items
+  if(DOM_ELEMENTS.userListContainer) {
     DOM_ELEMENTS.userListContainer.addEventListener("click", (event) => {
-      const target = event.target;
-      const userItemDiv = target.closest(".user-item");
+      const targetElement = event.target;
+      const userItemDiv = targetElement.closest(".user-item"); // Find the parent .user-item div
 
-      if (userItemDiv) {
+      if(userItemDiv) { // Check if the click originated within a user-item
         const userId = userItemDiv.dataset.userId;
-        if (target.classList.contains("delete-btn")) {
-          event.stopPropagation();
+        if(targetElement.classList.contains("delete-btn")) { // Click was on the delete button
+          event.stopPropagation(); // Prevent the click from also triggering user selection/activation
           handleDeleteUser(userId);
-        } else if (userId) {
-          if (state.compareMode) {
+        } else if (userId) { // Click was on the user name button or the user item div itself
+          if(state.compareMode) {
             handleToggleUserSelectionForCompare(userId);
           } else {
             handleSetActiveUser(userId);
@@ -490,31 +573,33 @@ function setupEventListeners() {
       }
     });
   }
-
-  if (DOM_ELEMENTS.scheduleTable) {
+  
+  // Event Delegation/Listeners for schedule table slots
+  if(DOM_ELEMENTS.scheduleTable) {
     DOM_ELEMENTS.scheduleTable.addEventListener("click", (event) => {
-      if (event.target.classList.contains("slot")) {
-        const slot = event.target;
-        const day = parseInt(slot.dataset.day, 10);
-        const time = parseInt(slot.dataset.time, 10);
-        if (!isNaN(day) && !isNaN(time) && !state.compareMode) {
-          handleToggleScheduleSlot(day, time);
+      if(event.target.classList.contains("slot")) {
+        const slotElement = event.target;
+        const day = parseInt(slotElement.dataset.day, 10);
+        const time = parseInt(slotElement.dataset.time, 10);
+        // Only toggle if valid slot and not in compare mode
+        if(!isNaN(day) && !isNaN(time) && !state.compareMode) {
+          handleToggleScheduleSlot(day,time);
         }
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (event) => {
-      if (state.compareMode && event.target.classList.contains("slot")) {
-        const slot = event.target;
-        const day = parseInt(slot.dataset.day, 10);
-        const time = parseInt(slot.dataset.time, 10);
-        if (!isNaN(day) && !isNaN(time)) handleShowSlotTooltip(slot, day, time);
+      if(state.compareMode && event.target.classList.contains("slot")) {
+        const slotElement = event.target;
+        const day = parseInt(slotElement.dataset.day, 10);
+        const time = parseInt(slotElement.dataset.time, 10);
+        if(!isNaN(day) && !isNaN(time)) {
+          handleShowSlotTooltip(slotElement, day, time);
+        }
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseout", (event) => {
-      if (
-        event.target.classList.contains("slot") ||
-        event.target === DOM_ELEMENTS.scheduleTable
-      ) {
+      // Hide tooltip if mouse leaves a slot or the table itself
+      if(event.target.classList.contains("slot") || event.target === DOM_ELEMENTS.scheduleTable) {
         handleHideSlotTooltip();
       }
     });
@@ -522,71 +607,70 @@ function setupEventListeners() {
 }
 
 /* ================================
-   INITIALIZATION FUNCTION (Called by DOMContentLoaded)
+   INITIALIZATION FUNCTION
+   Called once the DOM is fully loaded.
 ================================== */
 function initializeApp() {
-  // Re-fetch DOM elements that might not have been ready if script was in <head>
-  // or if DOM_ELEMENTS were not initialized correctly at the top.
-  // This is somewhat redundant if script is at end of body but acts as a safeguard.
-  DOM_ELEMENTS.userNameInput =
-    DOM_ELEMENTS.userNameInput || document.getElementById("userName");
-  DOM_ELEMENTS.userIdInput =
-    DOM_ELEMENTS.userIdInput || document.getElementById("userId");
-  DOM_ELEMENTS.userListContainer =
-    DOM_ELEMENTS.userListContainer || document.getElementById("userList");
-  DOM_ELEMENTS.compareButton =
-    DOM_ELEMENTS.compareButton || document.getElementById("compare");
-  DOM_ELEMENTS.scheduleTable =
-    DOM_ELEMENTS.scheduleTable || document.getElementById("schedule");
-  DOM_ELEMENTS.slotTooltip =
-    DOM_ELEMENTS.slotTooltip || document.getElementById("slotTooltip");
-  DOM_ELEMENTS.importTextArea =
-    DOM_ELEMENTS.importTextArea || document.getElementById("importText");
-  DOM_ELEMENTS.addUserButton =
-    DOM_ELEMENTS.addUserButton || document.querySelector(".add-user button");
-  DOM_ELEMENTS.exportButton =
-    DOM_ELEMENTS.exportButton ||
-    document.querySelector(".export-import button:nth-of-type(1)");
-  DOM_ELEMENTS.importButton =
-    DOM_ELEMENTS.importButton ||
-    document.querySelector(".export-import button:nth-of-type(2)");
-  DOM_ELEMENTS.appModal =
-    DOM_ELEMENTS.appModal || document.getElementById("appModal");
-  DOM_ELEMENTS.modalTitle =
-    DOM_ELEMENTS.modalTitle || document.getElementById("modalTitle");
-  DOM_ELEMENTS.modalMessage =
-    DOM_ELEMENTS.modalMessage || document.getElementById("modalMessage");
-  DOM_ELEMENTS.modalCloseBtn =
-    DOM_ELEMENTS.modalCloseBtn || document.getElementById("modalCloseBtn");
+  // Safeguard: Re-fetch DOM elements if they were null during initial module load.
+  // This is more of a defensive measure; with scripts at the end of <body> or using DOMContentLoaded,
+  // elements should generally be available when DOM_ELEMENTS is first defined.
+  Object.keys(DOM_ELEMENTS).forEach(key => {
+    if (!DOM_ELEMENTS[key]) {
+        const idGuess = key.replace(/([A-Z])/g, (match, p1) => `-${p1.toLowerCase()}`) // Crude camelCase to kebab-case
+                           .replace(/^(app-modal|modal-title|modal-message|modal-close-btn|modal-action-buttons|modal-confirm-btn|modal-cancel-btn)$/i, (match) => match.replace(/-/g, '')); // some IDs don't follow kebab from camel
 
-  loadStateFromStorage();
-  setupInputValidation();
-  setupEventListeners();
-
-  // Add event listener for the modal close button
-  if (DOM_ELEMENTS.modalCloseBtn) {
-    DOM_ELEMENTS.modalCloseBtn.addEventListener("click", hideAppModal);
-  }
-  // Optional: Close modal if overlay is clicked
-  if (DOM_ELEMENTS.appModal) {
-    DOM_ELEMENTS.appModal.addEventListener("click", (event) => {
-      if (event.target === DOM_ELEMENTS.appModal) {
-        hideAppModal();
-      }
-    });
-  }
-  // Optional: Close modal with Escape key
-  document.addEventListener("keydown", (e) => {
-    if (
-      e.key === "Escape" &&
-      DOM_ELEMENTS.appModal &&
-      DOM_ELEMENTS.appModal.classList.contains("active")
-    ) {
-      hideAppModal();
+        // Special selectors for buttons not matching ID pattern
+        if (key === "addUserButton") DOM_ELEMENTS[key] = document.querySelector(".add-user button");
+        else if (key === "exportButton") DOM_ELEMENTS[key] = document.querySelector(".export-import button:nth-of-type(1)");
+        else if (key === "importButton") DOM_ELEMENTS[key] = document.querySelector(".export-import button:nth-of-type(2)");
+        else DOM_ELEMENTS[key] = document.getElementById(idGuess) || document.getElementById(key); // Try kebab-case, then original key as ID
+        
+        // if (DOM_ELEMENTS[key]) console.warn(`DOM_ELEMENTS.${key} was re-fetched in initializeApp.`);
+        // else console.error(`DOM_ELEMENTS.${key} could not be found in initializeApp.`);
     }
   });
+  // Explicitly ensure modal action buttons are fetched as their keys in DOM_ELEMENTS don't directly map to their IDs
+  DOM_ELEMENTS.modalActionButtons = DOM_ELEMENTS.modalActionButtons || document.getElementById("modalActionButtons");
+  DOM_ELEMENTS.modalConfirmBtn = DOM_ELEMENTS.modalConfirmBtn || document.getElementById("modalConfirmBtn");
+  DOM_ELEMENTS.modalCancelBtn = DOM_ELEMENTS.modalCancelBtn || document.getElementById("modalCancelBtn");
 
-  updateUI();
+
+  loadStateFromStorage();   // Load any saved user data
+  setupInputValidation();   // Set up live input validation
+  setupEventListeners();    // Attach event listeners to page elements
+
+  // Setup Modal Button Event Listeners
+  if(DOM_ELEMENTS.modalCloseBtn) {
+      DOM_ELEMENTS.modalCloseBtn.addEventListener("click", hideAppModal);
+  }
+  if(DOM_ELEMENTS.modalConfirmBtn) {
+      DOM_ELEMENTS.modalConfirmBtn.addEventListener("click", () => {
+          if(typeof confirmModalCallback === 'function') {
+              confirmModalCallback(); // Execute the stored callback for "Yes"
+          }
+          hideAppModal(); // Always close modal after action
+      });
+  }
+  if(DOM_ELEMENTS.modalCancelBtn) {
+      DOM_ELEMENTS.modalCancelBtn.addEventListener("click", hideAppModal); // "No" just closes
+  }
+  
+  // Close modal if overlay (outside modal content) is clicked
+  if(DOM_ELEMENTS.appModal) {
+      DOM_ELEMENTS.appModal.addEventListener("click", (event) => {
+          if(event.target === DOM_ELEMENTS.appModal) { // Check if click was directly on overlay
+              hideAppModal();
+          }
+      });
+  }
+  // Close modal with Escape key
+  document.addEventListener("keydown", (event) => {
+      if(event.key === "Escape" && DOM_ELEMENTS.appModal?.classList.contains("active")) {
+          hideAppModal();
+      }
+  });
+
+  updateUI(); // Perform initial render based on loaded state
 }
 
 // Initialize the application once the DOM is fully loaded
