@@ -6,13 +6,15 @@ Welcome, intrepid Coder, to the MeetchuThere Testing Quest! Our mission, should 
 
 These trusty functions have faced the trials of testing and emerged victorious! They form the solid bedrock of our app. High fives all around! 🖐️
 
-*   `createUserObject(name, userId, currentUsers)` - Master of New Beginnings!
+*   `createUserObject(name, userId, currentUsers)` - Master of New Beginnings (now with dynamic default time slots!)
 *   `deleteUserFromState(userId, currentState)` - The User Vanisher!
 *   `toggleSlotInSchedule(dayIndex, timeIndex, userSchedule)` - The Time-Slot Flipper!
 *   `determineSlotStatus(dayIndex, timeIndex, currentState)` - The Oracle of Slot Colors!
 *   `generateTooltipMessage(dayIndex, timeIndex, currentState)` - The Whisperer of Availability! 📜
-*   `showAppModal(message, title, showConfirmationButtons, onConfirm)` - The Herald of Messages! 📢
+*   `showAppModal(message, title, showConfirmationButtons, onConfirm)` - The Herald of Messages! 📢 (Covers notifications & confirmation setup)
 *   `hideAppModal()` - The Closer of Dialogues! 🚪
+*   **Logic for `addCustomTimeSlotToActiveUser`** (Tested via simulated state changes for its core data impact) - The Column Extender!
+*   **Data Migration for `timeSlots` in `loadStateFromStorage`** (Tested by simulating load of old data) - The Structure Shifter!
 
 ---
 
@@ -21,41 +23,38 @@ These trusty functions have faced the trials of testing and emerged victorious! 
 Brave new frontiers await our testing prowess! Let's gear up to explore these functions and ensure they're bug-free and ready for prime time.
 
 ### 🧪 Utilities for Our Quest (Testing Helpers)
-These are our trusty sidekicks that help us in our tests. While simple, ensuring they work as expected when *used* in tests is good.
-*   `getState()` - The Crystal Ball of Current Truths!
-*   `_setStateForTesting(newState)` - The "What If?" Scenario Generator!
-*   `_resetStateForTesting()` - The "Clean Slate" Spell!
+*   `getState()` - The Crystal Ball of Current Truths! (Used in tests, inherently verified by their success)
+*   `_setStateForTesting(newState)` - The "What If?" Scenario Generator! (Used, verified by test setup)
+*   `_resetStateForTesting()` - The "Clean Slate" Spell! (Used, verified by test setup)
 
-### 💾 The Keepers of Memory (State Persistence)
-Let's make sure our app remembers things correctly!
-*   `loadStateFromStorage()` - The Awakener of Saved Data!
-*   `saveStateToStorage()` - The Guardian of Progress!
+### 💾 The Keepers of Memory (State Persistence - Direct Tests)
+While effects are seen, direct testing of these could be beneficial.
+*   `loadStateFromStorage()` - The Awakener of Saved Data! (Beyond migration, general load)
+*   `saveStateToStorage()` - The Guardian of Progress! (Verify it's called with correct data)
 
 ### 🎨 The Grand Illusionists (UI Rendering)
-These functions paint the picture for our users. Let's ensure their artistry is flawless!
-*   `renderScheduleGrid()` - The Drafter of Timetables!
-*   `renderUserList()` - The Assembler of User Avatars!
-*   `updateUI()` - The Master Conductor of Visual Harmony!
+*   `renderScheduleGrid()` - The Drafter of Timetables! (Test its dynamic output with different `timeSlots`)
+*   `renderUserList()` - The Assembler of User Avatars! (Test output with various users, active/selected states)
+*   `updateUI()` - The Master Conductor of Visual Harmony! (Verify it calls sub-renderers and updates compare button)
 
-### 🕹️ The Action Heroes! (Event Handlers & App Logic)
-These are the engines that drive the app when users click and interact! Each needs its own rigorous training montage (tests).
-
+### 🕹️ The Action Heroes! (Event Handlers & App Logic - Full Integration Tests)
+These orchestrate the app. Test their full behavior including state changes, calls to other functions, and UI updates.
 *   `handleAddNewUser()` - The Welcomer of New Friends!
-*   `handleDeleteUser(userIdToDelete)` - The Polite Usher Outer (with Confirmation)!
+*   `handleDeleteUser(userIdToDelete)` - The Polite Usher Outer (Test the modal confirmation flow & actual deletion).
 *   `handleSetActiveUser(userId)` - The Spotlight Operator!
 *   `handleToggleCompareMode()` - The Mode Shifter!
 *   `handleToggleUserSelectionForCompare(userId)` - The Team Picker!
 *   `handleToggleScheduleSlot(dayIndex, timeIndex)` - The Busy/Free Switcheroo!
-*   `handleShowSlotTooltip(slotElement, dayIndex, timeIndex)` - The Revealer of Secrets! (Note: The *message generation* part is tested, but the DOM interaction of showing/positioning isn't fully unit tested yet).
-*   `handleHideSlotTooltip()` - The Master of Disappearing Acts! (Similar to above, the act of hiding is simple, but could be verified).
+*   `handleShowSlotTooltip(slotElement, dayIndex, timeIndex)` - The Revealer of Secrets! (Test DOM interaction)
+*   `handleHideSlotTooltip()` - The Master of Disappearing Acts! (Test DOM interaction)
 *   `handleExportCurrentUser()` - The Data Courier (Outgoing)!
 *   `handleImportSchedule()` - The Data Courier (Incoming)!
+*   `handleAddNewTimeSlotClick()` - The Time Lord's Assistant! (Test prompt mocking, calls to `addCustomTimeSlotToActiveUser`)
 
 ### 🛠️ The Master Builders (Setup Functions)
-These functions lay the groundwork for our app's grand performance!
-*   `setupInputValidation()` - The Guardian of Clean Data!
-*   `setupEventListeners()` - The Director of Interactions!
-*   `initializeApp()` - The Grand Opener of the Show!
+*   `setupInputValidation()` - The Guardian of Clean Data! (Test input filtering)
+*   `setupEventListeners()` - The Director of Interactions! (Test if correct handlers are attached/called on events)
+*   `initializeApp()` - The Grand Opener of the Show! (Test if it calls all necessary setup functions)
 
 ---
 

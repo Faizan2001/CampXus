@@ -401,8 +401,7 @@ function saveStateToStorage() {
 /** Renders the entire schedule grid, applying appropriate classes to slots. */
 
 function renderScheduleGrid() {
-  console.log("renderScheduleGrid called at:", new Date().toLocaleTimeString());
-
+  
   if (!DOM_ELEMENTS.scheduleTable) {
     console.error("Schedule table element not found for rendering.");
     return;
@@ -524,9 +523,6 @@ function renderUserList() {
 
 /** Central function to update all relevant parts of the UI. */
 function updateUI() {
-
-  console.log("updateUI called at:", new Date().toLocaleTimeString()); // Add this
-
   renderScheduleGrid();
   renderUserList();
   // Visually update the compare button based on compareMode state
