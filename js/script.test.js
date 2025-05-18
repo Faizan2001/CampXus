@@ -1,28 +1,29 @@
 // js/script.test.js
 import { jest } from '@jest/globals';
 
+// Functions from script.js
 import {
   createUserObject,
   deleteUserFromState,
   toggleSlotInSchedule,
   determineSlotStatus,
   generateTooltipMessage,
-  showAppModal,
-  hideAppModal,
   getState,
   _setStateForTesting,
   _resetStateForTesting,
-  DOM_ELEMENTS,
 } from './script.js';
 
-const DEFAULT_TIMESLOTS_FOR_TEST = [
-  { start: "8:00 AM", end: "9:30 AM", label: "8:00-9:30" },
-  { start: "9:40 AM", end: "11:10 AM", label: "9:40-11:10" },
-  { start: "11:20 AM", end: "12:50 PM", label: "11:20-12:50" },
-  { start: "1:00 PM", end: "2:30 PM", label: "1:00-2:30" },
-  { start: "2:40 PM", end: "4:10 PM", label: "2:40-4:10" },
-  { start: "4:20 PM", end: "5:50 PM", label: "4:20-5:50" },
-];
+// Import DEFAULT_TIMESLOTS from its new location
+import { DEFAULT_TIMESLOTS } from './constants.js';
+
+// Import DOM_ELEMENTS and its initializer
+import { DOM_ELEMENTS, initializeDomElements } from './domElements.js';
+
+// Import the new modal functions to test them directly
+import { initModal, showModal } from './modal.js';
+
+// This constant is for clarity in tests, should match constants.js/DEFAULT_TIMESLOTS
+const DEFAULT_TIMESLOTS_FOR_TEST = DEFAULT_TIMESLOTS;
 
 
 describe('User Management Logic', () => {
@@ -39,11 +40,11 @@ describe('User Management Logic', () => {
       expect(newUser).not.toBeNull();
       expect(newUser.id).toBe('123');
       expect(newUser.name).toBe('Alice');
-      expect(newUser.timeSlots).toEqual(DEFAULT_TIMESLOTS_FOR_TEST);
-      expect(newUser.timeSlots).not.toBe(DEFAULT_TIMESLOTS_FOR_TEST); 
+      expect(newUser.timeSlots).toEqual(DEFAULT_TIMESLOTS);
+      expect(newUser.timeSlots).not.toBe(DEFAULT_TIMESLOTS);
       expect(newUser.schedule.length).toBe(7);
       newUser.schedule.forEach(daySchedule => {
-        expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS_FOR_TEST.length);
+        expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS.length);
         expect(daySchedule.every(slot => slot === false)).toBe(true);
       });
     });
@@ -94,15 +95,16 @@ describe('Schedule Interaction Logic', () => {
 
     describe('toggleSlotInSchedule', () => {
         test('should toggle a specific slot from false to true', () => {
-            const initialSchedule = Array(7).fill(null).map(() => Array(DEFAULT_TIMESLOTS_FOR_TEST.length).fill(false));
+            const initialSchedule = Array(7).fill(null).map(() => Array(DEFAULT_TIMESLOTS.length).fill(false));
             const newSchedule = toggleSlotInSchedule(0, 0, initialSchedule);
             expect(newSchedule[0][0]).toBe(true);
             expect(initialSchedule[0][0]).toBe(false);
         });
         test('should toggle a specific slot from true to false', () => {
-            const initialSchedule = Array(7).fill(null).map(() => Array(DEFAULT_TIMESLOTS_FOR_TEST.length).fill(false));
+            const initialSchedule = Array(7).fill(null).map(() => Array(DEFAULT_TIMESLOTS.length).fill(false));
             initialSchedule[1][2] = true;
-            const newSchedule = toggleSlotInSchedule(1, 2, initialSchedule);
+            const scheduleToToggle = JSON.parse(JSON.stringify(initialSchedule));
+            const newSchedule = toggleSlotInSchedule(1, 2, scheduleToToggle);
             expect(newSchedule[1][2]).toBe(false);
         });
     });
@@ -161,17 +163,17 @@ describe('Schedule Interaction Logic', () => {
 });
 
 
-describe('Dynamic Time Slot Management', () => {
+describe('Dynamic Time Slot Management (State Changes)', () => {
     beforeEach(() => {
         _resetStateForTesting();
         localStorage.clear();
         jest.clearAllMocks();
-        global.prompt = jest.fn();
     });
 
-    test('addCustomTimeSlotToActiveUser logic should add slot and expand schedule', () => {
-        const initialUserSchedule = Array(7).fill(null).map(() => Array(DEFAULT_TIMESLOTS_FOR_TEST.length).fill(false));
-        const initialTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS_FOR_TEST));
+    test('Simulating addCustomTimeSlotToActiveUser effect on state', () => {
+        const initialUserSchedule = Array(7).fill(null).map(() => Array(DEFAULT_TIMESLOTS.length).fill(false));
+        const initialTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
+
         _setStateForTesting({
             activeUserId: 'user1',
             users: {
@@ -182,199 +184,279 @@ describe('Dynamic Time Slot Management', () => {
         const user = getState().users['user1'];
         const newStartTime = "6:00 PM";
         const newEndTime = "7:00 PM";
-        const newSlotLabel = "6:00-7:00";
+        const newSlotLabel = "6PM-7PM";
 
         user.timeSlots.push({ start: newStartTime, end: newEndTime, label: newSlotLabel });
         user.schedule.forEach(daySchedule => daySchedule.push(false));
-        
+
         const updatedUser = getState().users['user1'];
-        expect(updatedUser.timeSlots.length).toBe(DEFAULT_TIMESLOTS_FOR_TEST.length + 1);
+        expect(updatedUser.timeSlots.length).toBe(DEFAULT_TIMESLOTS.length + 1);
         expect(updatedUser.timeSlots[updatedUser.timeSlots.length - 1]).toEqual({
             start: newStartTime, end: newEndTime, label: newSlotLabel
         });
         updatedUser.schedule.forEach(daySchedule => {
-            expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS_FOR_TEST.length + 1);
+            expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS.length + 1);
             expect(daySchedule[daySchedule.length - 1]).toBe(false);
         });
     });
 
-    describe('loadStateFromStorage Data Migration', () => {
+    describe('Data Migration Logic (Simulated)', () => {
         test('should add default timeSlots to users from old data structure', () => {
             const oldUserData = {
                 'userOld': { id: 'userOld', name: 'Old User', schedule: Array(7).fill(null).map(() => Array(6).fill(true)) }
             };
-            localStorage.setItem('scheduleUsers', JSON.stringify({ users: oldUserData }));
-            _resetStateForTesting(); 
+            const loadedUsers = JSON.parse(JSON.stringify(oldUserData));
 
-            // Simulate calling loadStateFromStorage part
-            const savedStateString = localStorage.getItem('scheduleUsers');
-            if (savedStateString) {
-                const parsed = JSON.parse(savedStateString);
-                const loadedUsers = parsed.users || {};
-                Object.values(loadedUsers).forEach(user => {
-                    if (!user.timeSlots || !Array.isArray(user.timeSlots) || user.timeSlots.length === 0) {
-                        user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS_FOR_TEST));
-                    }
-                    if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
-                        user.schedule = user.schedule.map(daySchedule => {
-                            const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
-                            const limit = Math.min(daySchedule.length, newDayScheduleArray.length);
-                            for (let i = 0; i < limit; i++) { newDayScheduleArray[i] = daySchedule[i]; }
-                            return newDayScheduleArray;
-                        });
-                    } else {
-                        user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
-                    }
-                });
-                _setStateForTesting({ users: loadedUsers });
-            }
+            Object.values(loadedUsers).forEach(user => {
+                if (!user.timeSlots || !Array.isArray(user.timeSlots) || user.timeSlots.length === 0) {
+                    user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
+                }
+                if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
+                    user.schedule = user.schedule.map(daySchedule => {
+                        const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
+                        const limit = Math.min(daySchedule.length, newDayScheduleArray.length);
+                        for (let i = 0; i < limit; i++) { newDayScheduleArray[i] = daySchedule[i]; }
+                        return newDayScheduleArray;
+                    });
+                } else {
+                    user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
+                }
+            });
+            _setStateForTesting({ users: loadedUsers });
 
             const migratedUser = getState().users['userOld'];
             expect(migratedUser).toBeDefined();
-            expect(migratedUser.timeSlots).toEqual(DEFAULT_TIMESLOTS_FOR_TEST);
+            expect(migratedUser.timeSlots).toEqual(DEFAULT_TIMESLOTS);
             expect(migratedUser.schedule.length).toBe(7);
             migratedUser.schedule.forEach(daySchedule => {
-                expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS_FOR_TEST.length);
-                for(let i=0; i<6; i++) {
+                expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS.length);
+                for(let i = 0; i < Math.min(6, DEFAULT_TIMESLOTS.length); i++) {
                     expect(daySchedule[i]).toBe(true);
+                }
+                for(let i = 6; i < DEFAULT_TIMESLOTS.length; i++) {
+                    expect(daySchedule[i]).toBe(false);
                 }
             });
         });
     });
 });
 
-
-describe('Modal UI Functions', () => {
-    const setupModalDOM = () => {
+// =========================================================================
+// NEW/REVISED MODAL TESTS - Directly testing js/modal.js functionality
+// =========================================================================
+describe('Modal System (js/modal.js)', () => {
+    // Helper to set up DOM for modal tests
+    const setupModalTestDOM = () => {
         document.body.innerHTML = `
             <div id="appModal" style="display: none;">
                 <div class="modal-content">
                     <h3 id="modalTitle"></h3>
                     <p id="modalMessage"></p>
                     <div id="modalActionButtons" style="display: none;">
-                        <button id="modalConfirmBtn"></button>
-                        <button id="modalCancelBtn"></button>
+                        <button id="modalConfirmBtn">Yes</button>
+                        <button id="modalCancelBtn">No</button>
                     </div>
-                    <button id="modalCloseBtn"></button>
+                    <button id="modalCloseBtn">OK</button>
                 </div>
             </div>
         `;
-        DOM_ELEMENTS.appModal = document.getElementById("appModal");
-        DOM_ELEMENTS.modalTitle = document.getElementById("modalTitle");
-        DOM_ELEMENTS.modalMessage = document.getElementById("modalMessage");
-        DOM_ELEMENTS.modalCloseBtn = document.getElementById("modalCloseBtn");
-        DOM_ELEMENTS.modalActionButtons = document.getElementById("modalActionButtons");
-        DOM_ELEMENTS.modalConfirmBtn = document.getElementById("modalConfirmBtn");
-        DOM_ELEMENTS.modalCancelBtn = document.getElementById("modalCancelBtn");
+        // Initialize DOM_ELEMENTS from domElements.js after setting up the DOM
+        initializeDomElements();
     };
 
-    describe('showAppModal', () => {
-        beforeEach(() => { // MOVED setup for showAppModal tests here
-            setupModalDOM();
-            jest.clearAllMocks();
-            jest.useFakeTimers();
-        });
+    beforeEach(() => {
+        setupModalTestDOM();
+        // Initialize the modal system from modal.js using the freshly populated DOM_ELEMENTS
+        initModal(DOM_ELEMENTS);
+        jest.clearAllMocks();
+        jest.useFakeTimers(); // Use fake timers for setTimeout
+    });
 
-        afterEach(() => { // MOVED teardown for showAppModal tests here
-            jest.clearAllTimers();
-            jest.useRealTimers();
-        });
+    afterEach(() => {
+        jest.clearAllTimers(); // Clear all timers
+        jest.useRealTimers(); // Restore real timers
+        document.body.innerHTML = ''; // Clean up DOM
+    });
 
-        test('should display the modal with correct title and message for notifications', () => {
-            showAppModal("Test Message", "Test Title");
-            expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Test Title");
-            expect(DOM_ELEMENTS.modalMessage.textContent).toBe("Test Message");
+    describe('showModal', () => {
+        test('should display notification modal with title and text content', () => {
+            showModal({ content: "Test notification message", title: "Notification Title" });
+
+            expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Notification Title");
+            expect(DOM_ELEMENTS.modalMessage.textContent).toBe("Test notification message");
+            expect(DOM_ELEMENTS.modalMessage.innerHTML).toBe("Test notification message"); // Check it's not HTML
             expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
-            expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("none");
-            expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("inline-block");
+            expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("none"); // Yes/No buttons hidden
+            expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("inline-block"); // OK button shown
+            expect(DOM_ELEMENTS.modalConfirmBtn.textContent).toBe("OK"); // Default for notification
+
+            jest.runAllTimers(); // Advance timers for fade-in
+            expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
+        });
+
+        test('should display confirmation modal with custom button texts', () => {
+            const onConfirmCallback = jest.fn();
+            const onCancelCallback = jest.fn();
+
+            showModal({
+                content: "Are you sure you want to proceed?",
+                title: "Confirmation",
+                showConfirmationButtons: true,
+                onConfirm: onConfirmCallback,
+                onCancel: onCancelCallback,
+                confirmText: "Proceed",
+                cancelText: "Hold Up"
+            });
+
+            expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Confirmation");
+            expect(DOM_ELEMENTS.modalMessage.textContent).toBe("Are you sure you want to proceed?");
+            expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
+            expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("flex"); // Yes/No buttons shown
+            expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("none");    // OK button hidden
+            expect(DOM_ELEMENTS.modalConfirmBtn.textContent).toBe("Proceed");
+            expect(DOM_ELEMENTS.modalCancelBtn.textContent).toBe("Hold Up");
+
             jest.runAllTimers();
             expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
         });
 
-        test('should display modal with Yes/No buttons for confirmation', () => {
-            const mockOnConfirm = jest.fn();
-            showAppModal("Are you sure?", "Confirm", true, mockOnConfirm);
-            expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Confirm");
-            expect(DOM_ELEMENTS.modalMessage.textContent).toBe("Are you sure?");
-            expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
-            expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("flex");
-            expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("none");
-            jest.runAllTimers();
-            expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
+        test('should display modal with HTML content', () => {
+            const htmlContent = '<p>This is <strong>HTML</strong> content.</p>';
+            showModal({ content: htmlContent, title: "HTML Modal", isHtmlContent: true });
+
+            expect(DOM_ELEMENTS.modalMessage.innerHTML).toBe(htmlContent);
+            expect(DOM_ELEMENTS.modalMessage.textContent).not.toBe(htmlContent); // Should be parsed as HTML
         });
 
-        test('should fallback to alert/confirm if modal DOM elements are missing', () => {
-            const originalAppModal = DOM_ELEMENTS.appModal;
-            DOM_ELEMENTS.appModal = null; 
-            const mockConfirmCallback = jest.fn();
-            window.confirm = jest.fn(() => true); 
-            showAppModal("Confirm please", "Native Confirm", true, mockConfirmCallback);
-            expect(window.confirm).toHaveBeenCalledWith("Native Confirm: Confirm please");
-            expect(mockConfirmCallback).toHaveBeenCalled();
-            DOM_ELEMENTS.appModal = originalAppModal; 
+        test('should fallback to native dialogs if critical DOM elements are missing (simulated before initModal)', () => {
+            document.body.innerHTML = `<!-- No modal elements -->`; // Break the DOM
+            initializeDomElements(); // DOM_ELEMENTS will have nulls for modal parts
+            
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {}); // Suppress console.error from initModal
+            initModal(DOM_ELEMENTS); // initModal is called with broken DOMs
+            consoleErrorSpy.mockRestore(); // Restore console.error for showModal's own check
+
+            const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+            const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
+            const onConfirmCb = jest.fn();
+            const onCancelCb = jest.fn();
+            
+            consoleErrorSpy.mockImplementationOnce(() => {}); // Suppress next console.error from showModal
+            showModal({ content: "Alert fallback", title: "Alert Test" });
+            expect(alertSpy).toHaveBeenCalledWith("Alert Test: Alert fallback");
+            
+            consoleErrorSpy.mockImplementationOnce(() => {});
+            showModal({ content: "Confirm fallback", title: "Confirm Test", showConfirmationButtons: true, onConfirm: onConfirmCb });
+            expect(confirmSpy).toHaveBeenCalledWith("Confirm Test: Confirm fallback");
+            expect(onConfirmCb).toHaveBeenCalled();
+
+            confirmSpy.mockImplementationOnce(() => false); // Simulate user clicking "Cancel"
+            consoleErrorSpy.mockImplementationOnce(() => {});
+            showModal({ content: "Cancel fallback", title: "Cancel Test", showConfirmationButtons: true, onCancel: onCancelCb });
+            expect(confirmSpy).toHaveBeenCalledWith("Cancel Test: Cancel fallback");
+            expect(onCancelCb).toHaveBeenCalled();
+
+            alertSpy.mockRestore();
+            confirmSpy.mockRestore();
+            consoleErrorSpy.mockRestore();
         });
     });
 
-    describe('hideAppModal', () => {
-        beforeEach(() => { // MOVED setup for hideAppModal tests here
-            setupModalDOM(); 
-            jest.clearAllMocks();
-            jest.useFakeTimers(); 
-        });
+    describe('Modal Interactions (Hide Logic)', () => {
+        test('clicking OK (close) button should hide notification modal and call onCancel if provided', () => {
+            const onCancelCallback = jest.fn();
+            showModal({ content: "Notification", onCancel: onCancelCallback });
+            jest.runAllTimers();
 
-        afterEach(() => { // MOVED teardown for hideAppModal tests here
-            jest.clearAllTimers();
-            jest.useRealTimers();
-        });
-
-        test('should hide the modal and reset button visibility', () => {
-            showAppModal("A message", "A Title", true, jest.fn());
-            jest.runAllTimers(); 
-            expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
-            hideAppModal();
-            expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(false);
-            jest.runAllTimers(); 
+            DOM_ELEMENTS.modalCloseBtn.click();
+            expect(onCancelCallback).toHaveBeenCalled();
+            jest.runAllTimers(); // For hideModal's setTimeout
             expect(DOM_ELEMENTS.appModal.style.display).toBe("none");
-            expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("none");
-            expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("inline-block"); 
+        });
+
+        test('clicking Confirm button should call onConfirm and hide modal if onConfirm does not return false', () => {
+            const onConfirmCallback = jest.fn(() => true); // Explicitly return true or undefined
+            showModal({ content: "Confirm?", showConfirmationButtons: true, onConfirm: onConfirmCallback });
+            jest.runAllTimers();
+
+            DOM_ELEMENTS.modalConfirmBtn.click();
+            expect(onConfirmCallback).toHaveBeenCalled();
+            jest.runAllTimers();
+            expect(DOM_ELEMENTS.appModal.style.display).toBe("none");
+        });
+
+        test('clicking Confirm button should call onConfirm and NOT hide modal if onConfirm returns false', () => {
+            const onConfirmCallback = jest.fn(() => false);
+            showModal({ content: "Validate input", showConfirmationButtons: true, onConfirm: onConfirmCallback });
+            jest.runAllTimers();
+
+            DOM_ELEMENTS.modalConfirmBtn.click();
+            expect(onConfirmCallback).toHaveBeenCalled();
+            jest.runAllTimers();
+            expect(DOM_ELEMENTS.appModal.style.display).toBe("flex"); // Still shown
+            expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
+        });
+
+        test('clicking Cancel button should call onCancel and hide modal', () => {
+            const onCancelCallback = jest.fn();
+            showModal({ content: "Cancel this?", showConfirmationButtons: true, onCancel: onCancelCallback });
+            jest.runAllTimers();
+
+            DOM_ELEMENTS.modalCancelBtn.click();
+            expect(onCancelCallback).toHaveBeenCalled();
+            jest.runAllTimers();
+            expect(DOM_ELEMENTS.appModal.style.display).toBe("none");
+        });
+
+        test('pressing Escape key should call onCancel and hide modal', () => {
+            const onCancelCallback = jest.fn();
+            showModal({ content: "Press Esc", onCancel: onCancelCallback });
+            jest.runAllTimers(); // Ensure modal is active
+            expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
+
+            // Simulate Escape key press
+            const event = new KeyboardEvent('keydown', { key: 'Escape' });
+            document.dispatchEvent(event);
+
+            expect(onCancelCallback).toHaveBeenCalled();
+            jest.runAllTimers(); // For hideModal's setTimeout
+            expect(DOM_ELEMENTS.appModal.style.display).toBe("none");
+        });
+
+        test('clicking modal overlay should call onCancel and hide modal', () => {
+            const onCancelCallback = jest.fn();
+            showModal({ content: "Click outside", onCancel: onCancelCallback });
+            jest.runAllTimers(); // Ensure modal is active
+
+            // Simulate click directly on the modal overlay
+            DOM_ELEMENTS.appModal.click();
+
+            expect(onCancelCallback).toHaveBeenCalled();
+            jest.runAllTimers(); // For hideModal's setTimeout
+            expect(DOM_ELEMENTS.appModal.style.display).toBe("none");
         });
     });
 });
+// =========================================================================
 
 
-describe('UI Rendering', () => {
+describe('UI Rendering (Placeholder)', () => {
     beforeEach(() => {
         document.body.innerHTML = `
             <div id="userList"></div>
-            <table id="schedule"><tbody>
-                <tr>
-                    <td>Sunday</td>
-                    <td class="slot" data-day="0" data-time="0"></td>
-                    <td class="slot" data-day="0" data-time="1"></td>
-                </tr>
-            </tbody></table>
+            <table id="scheduleTable">
+                <thead><tr><th>Day/Time</th><th id="addTimeSlotHeaderCell"><button id="addNewTimeSlotBtn">+</button></th></tr></thead>
+                <tbody></tbody>
+            </table>
             <button id="compare"></button>
-            <div id="appModal" style="display: none;"><div class="modal-content"><h3 id="modalTitle"></h3><p id="modalMessage"></p><div id="modalActionButtons"><button id="modalConfirmBtn"></button><button id="modalCancelBtn"></button></div><button id="modalCloseBtn"></button></div></div>
-        `; 
-        _resetStateForTesting(); 
-        localStorage.clear();    
-        jest.clearAllMocks();     
-
-        if (DOM_ELEMENTS) { 
-            DOM_ELEMENTS.userListContainer = document.getElementById("userList");
-            DOM_ELEMENTS.scheduleTable = document.getElementById("schedule");
-            DOM_ELEMENTS.compareButton = document.getElementById("compare");
-            DOM_ELEMENTS.appModal = document.getElementById("appModal");
-            DOM_ELEMENTS.modalTitle = document.getElementById("modalTitle");
-            DOM_ELEMENTS.modalMessage = document.getElementById("modalMessage");
-            DOM_ELEMENTS.modalCloseBtn = document.getElementById("modalCloseBtn");
-            DOM_ELEMENTS.modalActionButtons = document.getElementById("modalActionButtons");
-            DOM_ELEMENTS.modalConfirmBtn = document.getElementById("modalConfirmBtn");
-            DOM_ELEMENTS.modalCancelBtn = document.getElementById("modalCancelBtn");
-        }
+        `;
+        _resetStateForTesting();
+        localStorage.clear();
+        jest.clearAllMocks();
+        initializeDomElements();
     });
 
-    test.skip('UI Rendering tests are pending', () => { 
+    test.skip('UI Rendering tests are pending full implementation', () => {
         expect(true).toBe(true);
     });
 });

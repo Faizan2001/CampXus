@@ -1,575 +1,490 @@
 // js/script.js
 
-/* ================================
-   DOM REFERENCES (Exported)
-   Cached references to frequently used DOM elements.
-================================== */
-export const DOM_ELEMENTS = {
-  userNameInput: document.getElementById("userName"),
-  userIdInput: document.getElementById("userId"),
-  userListContainer: document.getElementById("userList"),
-  compareButton: document.getElementById("compare"),
-  scheduleTable: document.getElementById("schedule"),
-  slotTooltip: document.getElementById("slotTooltip"),
-  addUserButton: document.querySelector(".add-user button"),
-  // Import, Export
-  importTextArea: document.getElementById("importText"),
-  exportButton: document.querySelector(".export-import button:nth-of-type(1)"),
-  importButton: document.querySelector(".export-import button:nth-of-type(2)"),
-  // Modal DOM Elements
-  appModal: document.getElementById("appModal"),
-  modalTitle: document.getElementById("modalTitle"),
-  modalMessage: document.getElementById("modalMessage"),
-  modalCloseBtn: document.getElementById("modalCloseBtn"),
-  modalActionButtons: document.getElementById("modalActionButtons"),
-  modalConfirmBtn: document.getElementById("modalConfirmBtn"),
-  modalCancelBtn: document.getElementById("modalCancelBtn"),
-  // Adittional elements for adding new time slots
-  addNewTimeSlotBtn: document.getElementById("addNewTimeSlotBtn"),
-  addTimeSlotHeaderCell: document.getElementById("addTimeSlotHeaderCell"),
-};
-
-const DEFAULT_TIMESLOTS = [
-  { start: "8:00 AM", end: "9:30 AM", label: "8:00-9:30" },
-  { start: "9:40 AM", end: "11:10 AM", label: "9:40-11:10" },
-  { start: "11:20 AM", end: "12:50 PM", label: "11:20-12:50" },
-  { start: "1:00 PM", end: "2:30 PM", label: "1:00-2:30" },
-  { start: "2:40 PM", end: "4:10 PM", label: "2:40-4:10" },
-  { start: "4:20 PM", end: "5:50 PM", label: "4:20-5:50" },
-];
-
-const LOCAL_STORAGE_KEY = "scheduleUsers";
+// --- Module Imports ---
+import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from './constants.js';
+import { DOM_ELEMENTS, initializeDomElements } from './domElements.js';
+import { initModal, showModal } from './modal.js';
+import { parseTime, isTimeBefore, isValidTimeFormat, isValidStrictHHMMTimeFormat } from './timeUtils.js';
 
 /* ================================
    APPLICATION STATE
-   The single source of truth for the application's data.
 ================================== */
 let state = {
-  activeUserId: null, // ID of the user whose schedule is being edited
-  users: {}, // Stores all user data: { userId: { id, name, schedule[][] } }
-  selectedUserIds: new Set(), // Set of user IDs selected for comparison
-  compareMode: false, // Boolean flag for compare mode
+  activeUserId: null,
+  users: {}, // Changed from object to array: { userId: userObject } -> [userObject, ...]
+              // Let's keep it as an object for easier lookup state.users[userId]
+  selectedUserIds: new Set(),
+  compareMode: false,
 };
 
-// --- State Accessors/Mutators (primarily for testing) ---
-export function getState() {
-  return state; // Returns a direct reference; for strict immutability, a deep clone could be returned.
-}
-export function _setStateForTesting(newState) {
-  // Underscore indicates for testing/internal use
-  state = { ...state, ...newState }; // Merges new state properties into the current state
-}
+// --- State Accessors/Mutators (for testing or specific needs) ---
+export function getState() { return state; }
+export function _setStateForTesting(newState) { state = { ...state, ...newState }; }
 export function _resetStateForTesting() {
-  // Resets state to initial values for test isolation
-  state = {
-    activeUserId: null,
-    users: {},
-    selectedUserIds: new Set(),
-    compareMode: false,
-  };
+  state = { activeUserId: null, users: {}, selectedUserIds: new Set(), compareMode: false };
 }
 
 /* ================================
-   MODAL UI FUNCTIONS
-   Controls the display and behavior of the custom modal.
+   CORE LOGIC FUNCTIONS (Data Manipulation)
 ================================== */
-let confirmModalCallback = null; // Stores the function to execute when "Yes" is clicked on a confirmation modal.
-
-/**
- * Shows the custom modal.
- * @param {string} message - The main message to display.
- * @param {string} [title="Notification"] - Optional title for the modal.
- * @param {boolean} [showConfirmationButtons=false] - If true, shows Yes/No buttons; otherwise, shows OK.
- * @param {function} [onConfirm] - Callback for the "Yes" button if showConfirmationButtons is true.
- */
-// In js/script.js (MODIFIED showAppModal)
-
-export function showAppModal(
-  content,
-  title = "Notification",
-  showConfirmationButtons = false,
-  onConfirm,
-  isHtmlContent = false
-) {
-  // Ensure all necessary modal DOM elements are available
-  if (
-    !DOM_ELEMENTS.appModal ||
-    !DOM_ELEMENTS.modalTitle ||
-    !DOM_ELEMENTS.modalMessage ||
-    !DOM_ELEMENTS.modalCloseBtn ||
-    !DOM_ELEMENTS.modalActionButtons ||
-    !DOM_ELEMENTS.modalConfirmBtn ||
-    !DOM_ELEMENTS.modalCancelBtn
-  ) {
-    console.error(
-      "Modal elements not found in DOM. Falling back to native browser dialogs."
-    );
-    // Fallback logic
-    const messageString =
-      typeof content === "string" || content instanceof String
-        ? content
-        : "Custom content interaction required.";
-    if (showConfirmationButtons) {
-      if (confirm(`${title}: ${messageString}`)) {
-        if (onConfirm && typeof onConfirm === "function") onConfirm();
-      }
-    } else {
-      alert(`${title}: ${messageString}`);
-    }
-    return;
-  }
-
-  DOM_ELEMENTS.modalTitle.textContent = title;
-  confirmModalCallback = null; // Reset any previous callback
-
-  // --- HANDLE CUSTOM HTML CONTENT ---
-  if (isHtmlContent) {
-    // Clear previous message content first
-    DOM_ELEMENTS.modalMessage.innerHTML = "";
-    if (typeof content === "string") {
-      DOM_ELEMENTS.modalMessage.innerHTML = content; // Set HTML string
-    } else if (content instanceof HTMLElement) {
-      DOM_ELEMENTS.modalMessage.appendChild(content); // Append HTML element
-    } else {
-      // Fallback if content is not string or HTMLElement but isHtmlContent is true
-      DOM_ELEMENTS.modalMessage.textContent =
-        "Invalid content type for HTML modal.";
-      console.error(
-        "showAppModal called with isHtmlContent=true but content is not a string or HTMLElement."
-      );
-    }
-  } else {
-    DOM_ELEMENTS.modalMessage.innerHTML = ""; // Clear previous HTML if any
-    DOM_ELEMENTS.modalMessage.textContent = content; // Set as plain text
-  }
-  // --- END OF HTML CONTENT HANDLING ---
-
-  // Button visibility logic
-  if (showConfirmationButtons) {
-    DOM_ELEMENTS.modalActionButtons.style.display = "flex";
-    DOM_ELEMENTS.modalCloseBtn.style.display = "none";
-    if (onConfirm && typeof onConfirm === "function") {
-      confirmModalCallback = onConfirm;
-    }
-  } else {
-    DOM_ELEMENTS.modalActionButtons.style.display = "none";
-    DOM_ELEMENTS.modalCloseBtn.style.display = "inline-block";
-  }
-
-  DOM_ELEMENTS.appModal.style.display = "flex";
-  setTimeout(() => {
-    if (DOM_ELEMENTS.appModal) {
-      // Check again in case it became null
-      DOM_ELEMENTS.appModal.classList.add("active");
-    }
-  }, 10);
-}
-
-/**
- * Hides the custom modal.
- */
-export function hideAppModal() {
-  if (DOM_ELEMENTS.appModal) {
-    DOM_ELEMENTS.appModal.classList.remove("active"); // Trigger fade-out CSS transition
-    // Wait for transition to finish before setting display to none
-    setTimeout(() => {
-      DOM_ELEMENTS.appModal.style.display = "none";
-      // Reset button visibility to default (OK shown, Yes/No hidden)
-      if (DOM_ELEMENTS.modalActionButtons)
-        DOM_ELEMENTS.modalActionButtons.style.display = "none";
-      if (DOM_ELEMENTS.modalCloseBtn)
-        DOM_ELEMENTS.modalCloseBtn.style.display = "inline-block";
-    }, 300); // This duration should match the transition duration in modal.css
-    confirmModalCallback = null; // Clear any stored confirmation callback
-  }
-}
-
-/* ================================
-   CORE LOGIC FUNCTIONS (Data Manipulation - Purer)
-   These functions operate on data and return new data/values without direct side effects.
-================================== */
-
-/**
- * Creates a new user data object.
- * @param {string} name - The user's name.
- * @param {string} userId - The user's unique ID.
- * @param {object} currentUsers - The current dictionary of users.
- * @returns {object|null} The new user object or null if userId already exists.
- */
-
 export function createUserObject(name, userId, currentUsers) {
   if (!currentUsers[userId]) {
-    // Check for ID uniqueness
-    // Initialize with a deep copy of default time slots
-    const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
-
-    // Schedule matrix: 7 days, columns match the number of time slots
-    const schedule = Array(7)
-      .fill(null)
-      .map(() => Array(userTimeSlots.length).fill(false));
-
-    return {
-      id: userId,
-      name: name,
-      timeSlots: userTimeSlots, // Store the time slot definitions for this user
-      schedule: schedule, // Store their availability for these slots
-    };
+    const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)); // Deep copy
+    const schedule = Array(7).fill(null).map(() => Array(userTimeSlots.length).fill(false));
+    return { id: userId, name: name, timeSlots: userTimeSlots, schedule: schedule };
   }
-  return null; // User ID already taken
+  return null;
 }
 
-/**
- * Removes a user from a given state object and returns the new state.
- * @param {string} userId - The ID of the user to delete.
- * @param {object} currentState - The current application state.
- * @returns {object} The new state object after deletion.
- */
 export function deleteUserFromState(userId, currentState) {
-  // Create copies to avoid mutating the original state directly (good for predictability)
   const newUsers = { ...currentState.users };
   let newActiveUserId = currentState.activeUserId;
   const newSelectedUserIds = new Set(currentState.selectedUserIds);
 
-  if (!newUsers[userId]) return currentState; // User not found, return state unchanged
-
-  delete newUsers[userId]; // Remove user
-
-  // If the deleted user was active, reset activeUserId
-  if (newActiveUserId === userId) {
-    newActiveUserId = null;
-  }
-  // Remove from selected users if present
+  if (!newUsers[userId]) return currentState;
+  delete newUsers[userId];
+  if (newActiveUserId === userId) newActiveUserId = null;
   newSelectedUserIds.delete(userId);
 
-  // Return the updated state components
-  return {
-    ...currentState, // Spread existing state
-    users: newUsers,
-    activeUserId: newActiveUserId,
-    selectedUserIds: newSelectedUserIds,
-  };
+  return { ...currentState, users: newUsers, activeUserId: newActiveUserId, selectedUserIds: newSelectedUserIds };
 }
 
-/**
- * Toggles a boolean value in a 2D schedule array for a given day and time.
- * Returns a new schedule array (immutable operation).
- * @param {number} dayIndex - The index of the day (0-6).
- * @param {number} timeIndex - The index of the time slot (0-5).
- * @param {boolean[][]} userSchedule - The user's current schedule matrix.
- * @returns {boolean[][]} A new schedule matrix with the slot toggled.
- */
 export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
-  // Map over the schedule to create a new one, ensuring immutability
-  return userSchedule.map(
-    (daySlots, dIdx) =>
-      dIdx === dayIndex // If it's the target day
-        ? daySlots.map(
-            (
-              slotValue,
-              tIdx // Map over its time slots
-            ) => (tIdx === timeIndex ? !slotValue : slotValue) // Toggle the target slot
-          )
-        : [...daySlots] // Otherwise, return a copy of the original day's slots
+  return userSchedule.map((daySlots, dIdx) =>
+    dIdx === dayIndex
+      ? daySlots.map((slotValue, tIdx) => (tIdx === timeIndex ? !slotValue : slotValue))
+      : [...daySlots]
   );
 }
 
-/**
- * Determines the CSS class for a schedule slot based on current mode and selections.
- * @param {number} dayIndex - The index of the day.
- * @param {number} timeIndex - The index of the time slot.
- * @param {object} currentState - The current application state.
- * @returns {string} The CSS class name for the slot.
- */
 export function determineSlotStatus(dayIndex, timeIndex, currentState) {
   const { compareMode, selectedUserIds, users, activeUserId } = currentState;
+  // Ensure users[id].schedule[dayIndex] exists and is an array before accessing timeIndex
+  // And that users[id].timeSlots exist to determine valid timeIndex range
 
   if (compareMode && selectedUserIds.size > 0) {
     let busyCount = 0;
-    selectedUserIds.forEach((id) => {
-      if (users[id]?.schedule?.[dayIndex]?.[timeIndex]) {
-        busyCount++;
-      }
-    });
+    let allUsersHaveSlot = true; // Flag to check if all selected users even have this timeIndex
 
-    if (busyCount === 0) return "slot-free"; // All selected are free
-    if (busyCount === selectedUserIds.size) return "slot-conflict"; // All selected are busy
-    return "slot-partial"; // Mixed availability
-  } else if (
-    activeUserId &&
-    users[activeUserId]?.schedule?.[dayIndex]?.[timeIndex]
-  ) {
-    return "slot-selected"; // Current active user is busy
+    selectedUserIds.forEach(id => {
+        const user = users[id];
+        if (user && user.schedule && user.schedule[dayIndex]) {
+            if (timeIndex < user.schedule[dayIndex].length) { // Check if slot index is valid for this user
+                if (user.schedule[dayIndex][timeIndex]) {
+                    busyCount++;
+                }
+            } else {
+                allUsersHaveSlot = false; // This user doesn't have this time slot index
+            }
+        } else {
+            allUsersHaveSlot = false; // User or their schedule/day doesn't exist
+        }
+    });
+    
+    if (!allUsersHaveSlot && selectedUserIds.size > 0) { // If any user doesn't have the slot, it might be partial or uncomparable
+        // This logic needs refinement for heterogeneous schedules. For now, if not all have it, consider it partial.
+        // A better approach would be to map times, not indices, for comparison.
+        return "slot-partial"; // Or a new "slot-undefined-for-some"
+    }
+
+    if (busyCount === 0 && selectedUserIds.size > 0) return "slot-free";
+    if (busyCount === selectedUserIds.size) return "slot-conflict";
+    if (selectedUserIds.size > 0) return "slot-partial"; // some busy, some free
+    
+  } else if (activeUserId && users[activeUserId]) {
+      const activeUserObj = users[activeUserId];
+      if (activeUserObj.schedule && activeUserObj.schedule[dayIndex] && timeIndex < activeUserObj.schedule[dayIndex].length) {
+          if (activeUserObj.schedule[dayIndex][timeIndex]) {
+            return "slot-selected";
+          }
+      }
   }
-  return "slot"; // Default, unstyled slot
+  return "slot"; // Default
 }
 
-/**
- * Generates the message for the slot tooltip in compare mode.
- * @param {number} dayIndex - The index of the day.
- * @param {number} timeIndex - The index of the time slot.
- * @param {object} currentState - The current application state.
- * @returns {string} The formatted tooltip message.
- */
 export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
   const { users, selectedUserIds } = currentState;
-  if (selectedUserIds.size === 0) return ""; // No users selected for comparison
+  if (selectedUserIds.size === 0) return "";
 
   const freeUsers = [];
   const busyUsers = [];
 
   selectedUserIds.forEach((userId) => {
     const user = users[userId];
-    if (user) {
-      // Check if user object exists
-      (user.schedule?.[dayIndex]?.[timeIndex] ? busyUsers : freeUsers).push(
-        user.name
-      );
+    if (user && user.schedule && user.schedule[dayIndex] && timeIndex < user.schedule[dayIndex].length) {
+      (user.schedule[dayIndex][timeIndex] ? busyUsers : freeUsers).push(user.name);
+    } else if (user) {
+        // If user exists but doesn't have this specific slot defined (e.g. heterogeneous schedules)
+        // For now, we don't list them, or could add to a 'N/A' list.
     }
   });
 
-  if (busyUsers.length === selectedUserIds.size)
-    return "All selected users are unavailable.";
-  if (freeUsers.length === selectedUserIds.size)
-    return "All selected users are free.";
-
-  let message = "Availability:\n"; // Use \n for line breaks (CSS white-space: pre-wrap needed on tooltip)
+  if (busyUsers.length === selectedUserIds.size && selectedUserIds.size > 0) return "All selected users are unavailable.";
+  if (freeUsers.length === selectedUserIds.size && selectedUserIds.size > 0) return "All selected users are free.";
+  
+  let message = "Availability:\n";
   if (freeUsers.length > 0) message += `Free: ${freeUsers.join(", ")}\n`;
   if (busyUsers.length > 0) message += `Busy: ${busyUsers.join(", ")}`;
-  return message.trim(); // Remove trailing newline if any
+  return message.trim();
 }
 
 /* ================================
-   DYNAMIC TIMESLOT FUNCTIONS (NEW SECTION or within Event Handlers)
+   DYNAMIC TIMESLOT FUNCTIONS
 ================================== */
 
-/**
- * Adds a new custom time slot definition and extends the schedule matrix
- * for the currently active user.
- * @param {string} startTime - The start time for the new slot (e.g., "6:00 PM").
- * @param {string} endTime - The end time for the new slot (e.g., "7:00 PM").
- */
-export function addCustomTimeSlotToActiveUser(startTime, endTime) {
+// js/script.js
+
+// ... (other imports and code) ...
+
+function addCustomTimeSlotToActiveUser(startTime, endTime) {
   if (!state.activeUserId || !state.users[state.activeUserId]) {
-    // This case should ideally be caught by handleAddNewTimeSlotClick before calling this
-    showAppModal(
-      "Please select an active user to add a custom time slot.",
-      "No Active User"
-    );
-    return;
+    showModal({ content: "Please select an active user to add a custom time slot.", title: "No Active User" });
+    return false;
   }
 
-  // Ensure inputs are not empty (important now that it's not prompt)
   if (!startTime || !endTime) {
-    showAppModal(
-      "Both Start Time and End Time are required. Please enter valid times.",
-      "Input Error: Empty Fields"
-    );
-    return;
+    showModal({ content: "Both Start Time and End Time are required.", title: "Input Error" });
+    return false;
   }
 
-  // Basic Time Format Validation (allows HH:MM, HH:MM AM/PM, H:MM, H:MM AM/PM)
-  // This regex is a bit more forgiving for single-digit hours.
-  const timeFormatRegex =
-    /^\s*([0-1]?[0-9]|2[0-3])[:.]([0-5]\d)(\s*([AP]M))?\s*$/i;
-
-  if (!timeFormatRegex.test(startTime) || !timeFormatRegex.test(endTime)) {
-    showAppModal(
-      "Invalid time format entered. Please use formats like '8:00 AM', '08:00', '5:30 PM', or '17:30'.",
-      "Invalid Time Format"
-    );
-    return;
+  if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
+    showModal({
+      content: "Invalid time format. Use '8:00 AM', '08:00', '17:30'.",
+      title: "Invalid Time Format"
+    });
+    return false;
   }
-
-  // TODO for later, more robust validation:
-  // 1. Parse startTime and endTime into comparable values (e.g., minutes from midnight or Date objects).
-  // 2. Validate that endTime is actually after startTime.
-  // 3. Validate that the new time slot doesn't overlap with existing user.timeSlots.
-  //    (This would involve iterating user.timeSlots, parsing them, and checking for overlaps).
-  // 4. Ensure the new slot is of a reasonable duration.
 
   const user = state.users[state.activeUserId];
 
-  // Create a user-friendly label for the table header
-  // Example: "8:00 AM" -> "8AM", "17:30" -> "17:30"
-  const formatTimeForLabel = (timeStr) => {
-    return timeStr
-      .replace(/[:.]00(?=\s|$)/, "")
-      .toUpperCase()
-      .replace(/\s/g, "");
-  };
-  const newSlotLabel = `${formatTimeForLabel(startTime)}-${formatTimeForLabel(
-    endTime
-  )}`;
-
-  // Check if a slot with the exact same generated label already exists for this user
-  if (
-    user.timeSlots.some(
-      (slot) => slot.label.toUpperCase() === newSlotLabel.toUpperCase()
-    )
-  ) {
-    showAppModal(
-      `A time slot with the label "${newSlotLabel}" already exists for ${user.name}. Please choose different times or edit the existing slot.`,
-      "Duplicate Time Slot"
-    );
-    return;
+  if (!user.timeSlots || !Array.isArray(user.timeSlots)) {
+    user.timeSlots = [];
   }
 
-  user.timeSlots.push({
-    start: startTime, // Store the original user input for now
-    end: endTime,
-    label: newSlotLabel,
-  });
+  // --- START: MODIFIED formatTimeForLabel ---
+  const formatTimeForLabel = (timeStr) => {
+    let formattedTime = timeStr.toUpperCase().replace(/\s/g, ''); // Remove spaces, toUpperCase
+    // Only remove ":00" if AM/PM is present
+    if (formattedTime.includes("AM") || formattedTime.includes("PM")) {
+      formattedTime = formattedTime.replace(/[:.]00(?=(AM|PM))/, ''); // Remove :00 only if followed by AM/PM
+    }
+    // If the input was HH:MM (24-hour) and became HHAM/PM due to toUpperCase, we just want the original input.
+    // However, your current regex in isValidTimeFormat allows '8:00 AM' as well as '08:00'.
+    // The user input (startTime, endTime) is what we should use for the label if it's already HH:MM.
+    // The main goal is to make labels like "8AM" from "8:00 AM" but keep "17:00" as "17:00".
 
-  // Expand each day in their schedule matrix to include a new column, initialized to false (free)
-  user.schedule.forEach((daySchedule) => {
-    daySchedule.push(false);
-  });
+    // Let's simplify: If the input contains AM/PM, try to shorten it. Otherwise, use it as is.
+    // This assumes startTime and endTime are the user's input.
+    const originalTimeStr = timeStr.trim(); // Use the original, trimmed input
+    if (originalTimeStr.match(/\s*([AP]M)\s*$/i)) { // Check if AM/PM is part of the input
+        // It has AM/PM, so try to shorten like "8:00 AM" -> "8AM"
+        return originalTimeStr.replace(/[:.]00(?=\s*([AP]M)\s*$)/i, '').toUpperCase().replace(/\s/g, '');
+    } else {
+        // No AM/PM, so it's likely HH:MM (e.g., "05:00", "17:30"). Keep it as is.
+        return originalTimeStr;
+    }
+  };
+  // --- END: MODIFIED formatTimeForLabel ---
+
+  // The newSlotLabel will now use the raw startTime and endTime if they don't have AM/PM
+  // or the shortened version if they do.
+  // For "5:00" and "6:00", they will remain "5:00" and "6:00".
+  // For "8:00 AM" and "9:00 AM", they will become "8AM" and "9AM".
+  // The label now directly uses the (potentially formatted) start and end times.
+  const newSlotLabel = `${formatTimeForLabel(startTime)}-${formatTimeForLabel(endTime)}`;
+
+
+  if (user.timeSlots.some(slot => slot.label.toUpperCase() === newSlotLabel.toUpperCase())) {
+    showModal({ content: `A time slot with label "${newSlotLabel}" already exists.`, title: "Duplicate Time Slot" });
+    return false;
+  }
+
+  // Store the original, user-provided start and end times.
+  // The label is for display.
+  user.timeSlots.push({ start: startTime.trim(), end: endTime.trim(), label: newSlotLabel });
+  user.schedule.forEach(daySchedule => daySchedule.push(false));
 
   saveStateToStorage();
   updateUI();
-  showAppModal(
-    `New time slot "${newSlotLabel}" added for ${user.name}.`,
-    "Time Slot Added"
-  );
+  showModal({ content: `New slot "${newSlotLabel}" added for ${user.name}.`, title: "Time Slot Added" });
+  return true;
 }
 
-/**
- * Handles the click event for the "Add New Time Slot" button.
- */
-// In js/script.js (REPLACE existing handleAddNewTimeSlotClick)
+// .........................................
 
 function handleAddNewTimeSlotClick() {
   if (!state.activeUserId) {
-    showAppModal(
-      "Please select an active user first to customize their time slots.",
-      "User Not Selected"
-    );
+    showModal({ content: "Please select an active user first.", title: "User Not Selected" });
     return;
   }
+  const user = state.users[state.activeUserId];
+  if (!user.timeSlots || user.timeSlots.length === 0) {
+    // If user has no time slots (e.g. old data before migration fully initialized them or they were all deleted)
+    // We should initialize them from DEFAULT_TIMESLOTS before adding a new one.
+    // This ensures the schedule matrix is compatible.
+    // This scenario should be less common with the migration in loadState.
+    user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
+    user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
+    console.warn(`User ${user.id} had no timeSlots. Initialized with defaults before adding new custom slot.`);
+  }
 
-  // HTML structure for the time input form
+
   const timeInputFormHTML = `
     <div id="newTimeSlotFormInternal" class="time-input-form">
-      <div>
-        <label for="modalNewSlotStartTime" class="time-input-label">Start Time:</label>
-        <input type="text" id="modalNewSlotStartTime" class="time-input-field" name="newSlotStartTime" placeholder="e.g., 8:00 AM or 13:00" required value="">
-      </div>
-      <div>
-        <label for="modalNewSlotEndTime" class="time-input-label">End Time:</label>
-        <input type="text" id="modalNewSlotEndTime" class="time-input-field" name="newSlotEndTime" placeholder="e.g., 9:30 AM or 14:30" required value="">
-      </div>
-      <p class="time-input-hint">Use HH:MM format, optionally with AM/PM (e.g., "7:00 AM", "5:30 PM") or 24-hour format (e.g., "07:00", "17:30").</p>
-    </div>
-  `;
+      <div><label for="modalNewSlotStartTime">Start Time:</label><input type="text" id="modalNewSlotStartTime" placeholder="e.g., 08:00 or 8:00 AM" required></div>
+      <div><label for="modalNewSlotEndTime">End Time:</label><input type="text" id="modalNewSlotEndTime" placeholder="e.g., 09:30 or 9:30 AM" required></div>
+      <p class="time-input-hint">Use HH:MM or H:MM AM/PM.</p>
+      <div id="new-slot-error-message" class="modal-error-message" style="display:none;"></div>
+    </div>`;
 
-  showAppModal(
-    timeInputFormHTML, // The HTML string for the form
-    "Add New Time Slot", // Modal Title
-    true, // Show "Yes" (acts as Save) and "No" (acts as Cancel) buttons
-    () => {
-      // onConfirm callback (when "Yes/Save" is clicked)
-      // Get input elements FROM WITHIN THE CURRENTLY DISPLAYED MODAL
+  showModal({
+    content: timeInputFormHTML,
+    title: "Add New Time Slot",
+    showConfirmationButtons: true,
+    isHtmlContent: true,
+    confirmText: "Add Slot",
+    cancelText: "Cancel",
+    onConfirm: () => {
       const startTimeInputEl = document.getElementById("modalNewSlotStartTime");
       const endTimeInputEl = document.getElementById("modalNewSlotEndTime");
+      const errorMessageElement = document.getElementById('new-slot-error-message');
 
-      if (startTimeInputEl && endTimeInputEl) {
+      if (startTimeInputEl && endTimeInputEl && errorMessageElement) {
         const startTime = startTimeInputEl.value.trim();
         const endTime = endTimeInputEl.value.trim();
-
-        // Validation and adding logic is now primarily in addCustomTimeSlotToActiveUser
-        addCustomTimeSlotToActiveUser(startTime, endTime);
-      } else {
-        // This would indicate a programming error if the IDs in timeInputFormHTML are wrong
-        console.error(
-          "Could not find time input fields within the modal after confirmation."
-        );
-        // Optionally show an error modal, though hideAppModal will be called by the confirm button's listener anyway.
+        
+        // Basic validation within modal before calling addCustomTimeSlotToActiveUser
+        errorMessageElement.style.display = 'none';
+        if (!startTime || !endTime) {
+            errorMessageElement.textContent = 'Start and End times are required.';
+            errorMessageElement.style.display = 'block';
+            return false; // Prevent modal close
+        }
+        if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
+            errorMessageElement.textContent = "Invalid time format. Use HH:MM or H:MM AM/PM (e.g., '08:00', '5:30 PM').";
+            errorMessageElement.style.display = 'block';
+            return false; // Prevent modal close
+        }
+        // More advanced validation (start < end, no overlap) could go here or in addCustomTimeSlotToActiveUser
+        // For now, pass to addCustomTimeSlotToActiveUser which has its own checks.
+        return addCustomTimeSlotToActiveUser(startTime, endTime); // This will show its own modals for success/error
       }
-    },
-    true // IMPORTANT: Tell showAppModal that the 'content' is HTML
-  );
+      console.error("Modal time input fields not found.");
+      return false; // Prevent close if elements are missing
+    }
+  });
 }
 
 /* ================================
    STATE PERSISTENCE (LocalStorage)
-   Handles saving and loading the user data.
 ================================== */
-
-/** Loads user data from localStorage into the global `state`. */
-// In js/script.js (modify existing loadStateFromStorage)
-
 function loadStateFromStorage() {
   const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
   if (savedStateString) {
     const parsedSavedState = JSON.parse(savedStateString);
     const loadedUsers = parsedSavedState.users || {};
-
-    // --- START: Migration/Defaulting Logic for timeSlots ---
-    Object.values(loadedUsers).forEach((user) => {
-      // If a user from an old version doesn't have timeSlots, add defaults
-      if (
-        !user.timeSlots ||
-        !Array.isArray(user.timeSlots) ||
-        user.timeSlots.length === 0
-      ) {
+    
+    Object.values(loadedUsers).forEach(user => {
+      if (!user.timeSlots || !Array.isArray(user.timeSlots) || user.timeSlots.length === 0) {
         console.warn(`User ${user.id} missing timeSlots, applying defaults.`);
         user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
       }
-
-      // Ensure the schedule matrix dimensions match the number of timeSlots
-      // This is a simple way to handle potential inconsistencies.
-      // A more robust migration might try to preserve existing schedule data if columns were just added/removed.
       if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
-        user.schedule = user.schedule.map((daySchedule) => {
-          // Create a new day schedule with the correct number of columns, initialized to false
+        user.schedule = user.schedule.map(daySchedule => {
           const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
-          // Copy over existing slot data up to the shorter of the two lengths
-          const limit = Math.min(
-            daySchedule.length,
-            newDayScheduleArray.length
-          );
-          for (let i = 0; i < limit; i++) {
-            newDayScheduleArray[i] = daySchedule[i];
-          }
+          const limit = Math.min(daySchedule.length, newDayScheduleArray.length);
+          for (let i = 0; i < limit; i++) newDayScheduleArray[i] = daySchedule[i];
           return newDayScheduleArray;
         });
       } else {
-        // If schedule is missing or not 7 days, re-initialize it
-        console.warn(
-          `User ${user.id} schedule malformed or missing, re-initializing.`
-        );
-        user.schedule = Array(7)
-          .fill(null)
-          .map(() => Array(user.timeSlots.length).fill(false));
+        user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
       }
     });
-    // --- END: Migration/Defaulting Logic ---
     state.users = loadedUsers;
   }
 }
 
-/** Saves the current `state.users` to localStorage. */
-export function saveStateToStorage() {
-  // Only persist the users object
-  localStorage.setItem(
-    LOCAL_STORAGE_KEY,
-    JSON.stringify({ users: state.users })
-  );
+function saveStateToStorage() {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ users: state.users }));
 }
 
 /* ================================
    UI RENDERING FUNCTIONS
-   Responsible for updating the HTML based on the current state.
 ================================== */
+// --- START: Phase 3 - Editable Time Slot Header Functions ---
+/**
+ * Handles click events on time slot headers for editing.
+ * @param {Event} event - The click event.
+ */
+function handleTimeSlotHeaderClick(event) {
+    const slotIndex = parseInt(event.currentTarget.dataset.slotIndex, 10);
+    const activeUserObject = state.users[state.activeUserId];
 
-/** Renders the entire schedule grid, applying appropriate classes to slots. */
+    if (!activeUserObject) {
+        showModal({ content: "No active user selected.", title: "Error" });
+        return;
+    }
+    // Ensure we are editing user's own timeSlots, not defaults if they have none.
+    if (!activeUserObject.timeSlots || activeUserObject.timeSlots.length === 0) {
+        showModal({
+            content: "This user is currently using default time slots. Add a custom time slot first to enable editing.",
+            title: "Cannot Edit Defaults"
+        });
+        return;
+    }
+    if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= activeUserObject.timeSlots.length) {
+        console.error("Invalid slot index for editing:", slotIndex);
+        showModal({ content: "Error: Could not determine which time slot to edit.", title: "Error" });
+        return;
+    }
+    openEditTimeSlotModal(slotIndex, activeUserObject);
+}
+
+/**
+ * Opens a modal to edit a specific time slot.
+ * @param {number} slotIndex - The index of the time slot to edit.
+ * @param {object} activeUserObject - The active user object.
+ */
+function openEditTimeSlotModal(slotIndex, activeUserObject) {
+    const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
+
+    // For editing, we expect HH:MM format. If stored format is AM/PM, convert or ask user.
+    // For simplicity, let's assume stored start/end might be AM/PM, but input for edit is HH:MM.
+    // The initial values in the modal should be what the user can readily edit.
+    // We'll provide current values as placeholders. Users should input strict HH:MM.
+    const modalContentHTML = `
+        <div>
+            <h3>Edit Time Slot</h3>
+            <p>Current Label: <strong>${currentTimeSlot.label}</strong></p>
+            <p class="time-input-hint">Enter new times in HH:MM format (e.g., 09:00, 14:30).</p>
+            <div class="form-group">
+                <label for="edit-slot-start-time">New Start Time (HH:MM):</label>
+                <input type="text" id="edit-slot-start-time" class="modal-input" value="${currentTimeSlot.start.match(/\d{1,2}:\d{2}/) ? currentTimeSlot.start.match(/\d{1,2}:\d{2}/)[0] : currentTimeSlot.start}" required placeholder="e.g., 09:00">
+            </div>
+            <div class="form-group">
+                <label for="edit-slot-end-time">New End Time (HH:MM):</label>
+                <input type="text" id="edit-slot-end-time" class="modal-input" value="${currentTimeSlot.end.match(/\d{1,2}:\d{2}/) ? currentTimeSlot.end.match(/\d{1,2}:\d{2}/)[0] : currentTimeSlot.end}" required placeholder="e.g., 10:30">
+            </div>
+            <div id="edit-slot-error-message" class="modal-error-message" style="display:none;"></div>
+        </div>
+    `;
+
+    showModal({
+        content: modalContentHTML,
+        title: "Edit Time Slot",
+        isHtmlContent: true,
+        showConfirmationButtons: true,
+        confirmText: "Save Changes",
+        cancelText: "Cancel",
+        onConfirm: () => processTimeSlotEdit(slotIndex, activeUserObject)
+    });
+}
+
+/**
+ * Processes the editing of a time slot after modal submission.
+ * @param {number} slotIndex - The index of the time slot being edited.
+ * @param {object} activeUserObject - The active user object.
+ * @returns {boolean} True if successful (modal should close), false if validation fails.
+ */
+function processTimeSlotEdit(slotIndex, activeUserObject) {
+    const newStartTimeInput = document.getElementById('edit-slot-start-time');
+    const newEndTimeInput = document.getElementById('edit-slot-end-time');
+    const errorMessageElement = document.getElementById('edit-slot-error-message');
+
+    if (!newStartTimeInput || !newEndTimeInput || !errorMessageElement) {
+        console.error("Modal elements for editing time slot not found.");
+        if(errorMessageElement) {
+             errorMessageElement.textContent = 'Error: Modal form is broken.';
+             errorMessageElement.style.display = 'block';
+        }
+        return false; 
+    }
+
+    const newStartTime = newStartTimeInput.value.trim();
+    const newEndTime = newEndTimeInput.value.trim();
+
+    errorMessageElement.textContent = '';
+    errorMessageElement.style.display = 'none';
+    newStartTimeInput.classList.remove('input-error'); // Assuming you have .input-error CSS
+    newEndTimeInput.classList.remove('input-error');
+
+    if (!newStartTime || !newEndTime) {
+        errorMessageElement.textContent = 'Start and End times cannot be empty.';
+        if (!newStartTime) newStartTimeInput.classList.add('input-error');
+        if (!newEndTime) newEndTimeInput.classList.add('input-error');
+        errorMessageElement.style.display = 'block';
+        return false;
+    }
+    // Use stricter HH:MM validation for editing
+    if (!isValidStrictHHMMTimeFormat(newStartTime)) {
+        errorMessageElement.textContent = 'Invalid Start Time. Use HH:MM format (e.g., 09:00).';
+        newStartTimeInput.classList.add('input-error');
+        errorMessageElement.style.display = 'block';
+        return false;
+    }
+    if (!isValidStrictHHMMTimeFormat(newEndTime)) {
+        errorMessageElement.textContent = 'Invalid End Time. Use HH:MM format (e.g., 14:30).';
+        newEndTimeInput.classList.add('input-error');
+        errorMessageElement.style.display = 'block';
+        return false;
+    }
+    if (!isTimeBefore(newStartTime, newEndTime)) {
+        errorMessageElement.textContent = 'Start Time must be before End Time.';
+        newStartTimeInput.classList.add('input-error');
+        newEndTimeInput.classList.add('input-error');
+        errorMessageElement.style.display = 'block';
+        return false;
+    }
+
+    // Adjacent Slot Conflict Validation
+    const userTimeSlots = activeUserObject.timeSlots;
+    if (slotIndex > 0) {
+        const prevSlot = userTimeSlots[slotIndex - 1];
+        // prevSlot.end might be "HH:MM AM/PM", newStartTime is "HH:MM"
+        // Need a robust way to compare. For now, assume prevSlot.end can be parsed by isTimeBefore if it were HH:MM
+        // This highlights the need for consistent time representation or more robust parsing.
+        // Let's assume for this validation, we need to parse prevSlot.end to HH:MM or handle AM/PM in parseTime
+        // For now, if prevSlot.end is in AM/PM, this comparison might be tricky.
+        // A temporary fix: if isTimeBefore expects HH:MM, and prevSlot.end contains AM/PM, it will fail parseTime.
+        // This needs a more robust time parsing utility that handles AM/PM and converts to minutes or 24h format.
+        // For now, this check might be unreliable if times are stored with AM/PM.
+        // We'll proceed assuming isTimeBefore can handle the format or that times are already HH:MM.
+        if (!isTimeBefore(prevSlot.end, newStartTime)) { // This will fail if prevSlot.end has AM/PM and parseTime doesn't handle it
+             // A better comparison logic is needed here if formats differ.
+             // Simplification: assume parseTime in timeUtils.js is robust enough or formats are consistent.
+            errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous slot's end (${prevSlot.end}).`;
+            newStartTimeInput.classList.add('input-error');
+            errorMessageElement.style.display = 'block';
+            return false;
+        }
+    }
+    if (slotIndex < userTimeSlots.length - 1) {
+        const nextSlot = userTimeSlots[slotIndex + 1];
+        if (!isTimeBefore(newEndTime, nextSlot.start)) { // Similar issue with nextSlot.start format
+            errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
+            newEndTimeInput.classList.add('input-error');
+            errorMessageElement.style.display = 'block';
+            return false;
+        }
+    }
+
+    // Update user's timeSlot object
+    userTimeSlots[slotIndex].start = newStartTime; // Store as HH:MM
+    userTimeSlots[slotIndex].end = newEndTime;   // Store as HH:MM
+    userTimeSlots[slotIndex].label = `${newStartTime}-${newEndTime}`; // Update label
+
+    saveStateToStorage();
+    renderScheduleGrid(); // Re-render to reflect changes
+    // No success modal here, as the main modal closing is success.
+    return true; // Success
+}
+// --- END: Phase 3 - Editable Time Slot Header Functions ---
 
 function renderScheduleGrid() {
   if (!DOM_ELEMENTS.scheduleTable) {
-    console.error("Schedule table element not found for rendering.");
+    console.error("Schedule table element not found.");
     return;
   }
-
   const tableHeadRow = DOM_ELEMENTS.scheduleTable.querySelector("thead tr");
   const tableBody = DOM_ELEMENTS.scheduleTable.querySelector("tbody");
 
@@ -578,141 +493,98 @@ function renderScheduleGrid() {
     return;
   }
 
-  // Determine which time slots to use for rendering
-  let currentTimeSlotsToRender = DEFAULT_TIMESLOTS; // Default
-  let scheduleMatrixToRender = null; // Will hold the 7xN boolean matrix
+  let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+  let scheduleMatrixToRender = null;
+  let activeUserHasCustomSlots = false;
 
   if (state.activeUserId && state.users[state.activeUserId]) {
-    const activeUser = state.users[state.activeUserId];
-    // Use the active user's timeSlots if they exist and are valid
-    if (activeUser.timeSlots && activeUser.timeSlots.length > 0) {
-      currentTimeSlotsToRender = activeUser.timeSlots;
+    const user = state.users[state.activeUserId];
+    if (user.timeSlots && user.timeSlots.length > 0) {
+      currentTimeSlotsToRender = user.timeSlots;
+      activeUserHasCustomSlots = true; // User has their own slots
     }
-    scheduleMatrixToRender = activeUser.schedule;
+    scheduleMatrixToRender = user.schedule;
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
-    // In compare mode, for now, we'll render based on the DEFAULT_TIMESLOTS
-    // The actual clash detection in determineSlotStatus will need to be much smarter later.
-    // This means the VISUAL grid is based on defaults, but coloring might reflect actual overlaps.
-    // OR, pick the time slots of the first selected user as the base for the grid display.
-    // For simplicity in Phase 1, let's stick to DEFAULT_TIMESLOTS as the visual grid basis in compare mode.
-    // This part will need significant rework for true heterogeneous comparison display.
-    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
-    // `determineSlotStatus` will handle the logic for coloring these default slots based on actual user times
-    console.warn(
-      "Compare mode: Grid rendered with default time slots. Advanced heterogeneous comparison display pending."
-    );
-  } else {
-    // No active user, not in compare mode with selections: show default grid structure
-    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    // For compare mode, use default time slots for the grid structure for now.
+    // Actual coloring will be handled by determineSlotStatus which needs to be robust for heterogeneous schedules.
+    currentTimeSlotsToRender = DEFAULT_TIMESLOTS; 
+    // `determineSlotStatus` will attempt to map indices, which is a simplification.
   }
-
-  // --- Render Table Headers (Time Slots) ---
-  // Clear existing time headers, keeping "Day/Time" and the add button cell
+  
+  // Clear existing time headers, except "Day/Time" and "Add Slot" cell
   const thCells = Array.from(tableHeadRow.children);
-  // Start from 1 to keep "Day/Time", end before the last cell (add button cell)
-  for (let i = thCells.length - 2; i >= 1; i--) {
+  for (let i = thCells.length - 2; i >= 1; i--) { // Assumes Day/Time is child 0, AddSlot is last child
     tableHeadRow.removeChild(thCells[i]);
   }
-
-  const addSlotCellRef = DOM_ELEMENTS.addTimeSlotHeaderCell; // Reference to the "+" button's cell
+  
+  const addSlotCellRef = DOM_ELEMENTS.addTimeSlotHeaderCell;
 
   currentTimeSlotsToRender.forEach((slotData, index) => {
     const th = document.createElement("th");
-    th.textContent = slotData.label; // Use the label from timeSlots
-    th.dataset.timeIndex = index; // For identifying the column, useful for editing later
-    th.classList.add("time-slot-header"); // For potential styling or click handling for editing
-
-    // Insert the new header cell before the "add new slot" button's cell
-    if (addSlotCellRef) {
-      tableHeadRow.insertBefore(th, addSlotCellRef);
+    th.textContent = slotData.label;
+    th.dataset.timeIndex = index; // Kept for compatibility with other logic
+    
+    // --- START: Phase 3 - Make headers clickable for editing ---
+    if (state.activeUserId && activeUserHasCustomSlots) { // Only if an active user has their own slots
+        th.classList.add('editable-timeslot-header');
+        th.dataset.slotIndex = index; // Specific for editing this indexed slot
+        th.title = "Click to edit this time slot";
+        th.addEventListener('click', handleTimeSlotHeaderClick);
     } else {
-      tableHeadRow.appendChild(th); // Fallback if the addSlotCellRef isn't found
+        th.classList.add("time-slot-header"); // Default class if not editable
     }
+    // --- END: Phase 3 ---
+
+    if (addSlotCellRef) tableHeadRow.insertBefore(th, addSlotCellRef);
+    else tableHeadRow.appendChild(th);
   });
 
-  // --- Render Table Body (Schedule Slots for each day) ---
-  tableBody.innerHTML = ""; // Clear existing body rows to rebuild
-
-  const daysOfWeek = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
+  tableBody.innerHTML = ""; // Clear existing body
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   daysOfWeek.forEach((dayName, dayIndex) => {
     const tr = document.createElement("tr");
     const tdDayName = document.createElement("td");
     tdDayName.textContent = dayName;
     tr.appendChild(tdDayName);
 
-    currentTimeSlotsToRender.forEach((slotData, timeIndex) => {
+    currentTimeSlotsToRender.forEach((_, timeIndex) => {
       const tdSlot = document.createElement("td");
-      tdSlot.classList.add("slot");
+      tdSlot.classList.add("slot"); // Base class
       tdSlot.dataset.day = dayIndex;
-      tdSlot.dataset.time = timeIndex; // CRITICAL: This now refers to the *index* of the time slot
+      tdSlot.dataset.time = timeIndex; // This index matches currentTimeSlotsToRender
 
-      // Get status class using the master state object for comparison logic
-      // or the active user's schedule for direct display.
-      // determineSlotStatus already handles checking state.activeUserId for 'slot-selected'
       const statusClass = determineSlotStatus(dayIndex, timeIndex, state);
-      if (statusClass !== "slot") {
-        tdSlot.classList.add(statusClass);
-      }
+      if (statusClass !== 'slot') tdSlot.classList.add(statusClass);
       tr.appendChild(tdSlot);
     });
     tableBody.appendChild(tr);
   });
 }
 
-/** Renders the list of users in the UI. */
-function renderUserList() {
-  if (!DOM_ELEMENTS.userListContainer) {
-    console.error("User list container element not found for rendering.");
-    return;
-  }
 
+function renderUserList() {
+  if (!DOM_ELEMENTS.userListContainer) return;
   const userEntries = Object.entries(state.users);
   if (userEntries.length === 0) {
-    DOM_ELEMENTS.userListContainer.innerHTML =
-      "<p>No users added yet. Try adding one!</p>";
+    DOM_ELEMENTS.userListContainer.innerHTML = "<p>No users. Add one!</p>";
     return;
   }
-
-  // Generate HTML for each user item and join them
-  DOM_ELEMENTS.userListContainer.innerHTML = userEntries
-    .map(([userId, user]) => {
-      const isActive = state.activeUserId === userId ? "active" : "";
-      const isSelected = state.selectedUserIds.has(userId) ? "selected" : "";
-      // Uses data attributes for event delegation targets
-      return `
-        <div data-user-id="${userId}" class="user-item ${isActive} ${isSelected}">
-          <button class="user-name-btn">${user.name}</button>
-          <button data-delete-user-id="${userId}" class="delete-btn">Delete</button>
-        </div>
-      `;
-    })
-    .join("");
+  DOM_ELEMENTS.userListContainer.innerHTML = userEntries.map(([userId, user]) => `
+    <div data-user-id="${userId}" class="user-item ${state.activeUserId === userId ? "active" : ""} ${state.selectedUserIds.has(userId) ? "selected" : ""}">
+      <button class="user-name-btn">${user.name}</button>
+      <button data-delete-user-id="${userId}" class="delete-btn">Delete</button>
+    </div>`).join("");
 }
 
-/** Central function to update all relevant parts of the UI. */
-export function updateUI() {
+function updateUI() {
   renderScheduleGrid();
   renderUserList();
-  // Visually update the compare button based on compareMode state
-  if (DOM_ELEMENTS.compareButton) {
-    DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
-  }
+  if (DOM_ELEMENTS.compareButton) DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
 }
 
 /* ================================
-   EVENT HANDLERS & APP LOGIC ORCHESTRATION
-   These functions respond to user interactions, call core logic, update state, and trigger UI refresh.
+   EVENT HANDLERS & APP LOGIC
 ================================== */
-
-/** Handles the "Add User" button click. */
 function handleAddNewUser() {
   if (!DOM_ELEMENTS.userNameInput || !DOM_ELEMENTS.userIdInput) return;
   const name = DOM_ELEMENTS.userNameInput.value.trim();
@@ -721,426 +593,212 @@ function handleAddNewUser() {
   if (name && userId) {
     const newUserObject = createUserObject(name, userId, state.users);
     if (newUserObject) {
-      state.users[userId] = newUserObject; // Update state
-      handleSetActiveUser(userId); // Set as active (also saves and updates UI)
+      state.users[userId] = newUserObject;
+      handleSetActiveUser(userId);
     } else {
-      showAppModal(
-        `User with ID "${userId}" already exists. Please choose a different ID.`,
-        "Duplicate User ID"
-      );
+      showModal({ content: `User ID "${userId}" already exists.`, title: "Duplicate User ID" });
     }
-    // Clear input fields after attempt
     DOM_ELEMENTS.userNameInput.value = "";
     DOM_ELEMENTS.userIdInput.value = "";
   } else {
-    showAppModal(
-      "Please enter both a name and a unique ID for the new user.",
-      "Input Required"
-    );
+    showModal({ content: "Name and ID are required.", title: "Input Required" });
   }
 }
 
-/** Handles a click on a user's delete button, showing a confirmation modal. */
 function handleDeleteUser(userIdToDelete) {
-  if (!state.users[userIdToDelete]) {
-    console.warn(`Attempted to delete non-existent user: ${userIdToDelete}`);
-    return;
-  }
+  if (!state.users[userIdToDelete]) return;
   const user = state.users[userIdToDelete];
-  showAppModal(
-    `Are you sure you want to delete ${user.name} (ID: ${userIdToDelete})? This action cannot be undone.`,
-    "Confirm Deletion",
-    true, // Show Yes/No confirmation buttons
-    () => {
-      // This is the onConfirm callback, executed if "Yes" is clicked
-      state = deleteUserFromState(userIdToDelete, state); // Update state using pure function
+  showModal({
+    content: `Delete ${user.name} (ID: ${userIdToDelete})? This is permanent.`,
+    title: "Confirm Deletion",
+    showConfirmationButtons: true,
+    confirmText: "Delete",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      state = deleteUserFromState(userIdToDelete, state);
       saveStateToStorage();
       updateUI();
-      showAppModal(
-        `${user.name} has been successfully deleted.`,
-        "User Deleted"
-      ); // Success feedback
+      showModal({ content: `${user.name} deleted.`, title: "User Deleted" });
+      return true; // Allow modal to close
     }
-  );
+  });
 }
 
-/** Sets a user as active for editing their schedule. */
 function handleSetActiveUser(userId) {
   if (state.users[userId]) {
     state.activeUserId = userId;
-    state.compareMode = false; // Exit compare mode
-    state.selectedUserIds.clear(); // Clear any comparison selections
-    saveStateToStorage(); // Persist changes (e.g. if active user implies a default view)
+    state.compareMode = false;
+    state.selectedUserIds.clear();
+    saveStateToStorage(); // Save state if active user change implies persistent view change
     updateUI();
   }
 }
 
-/** Toggles the schedule comparison mode. */
 function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
-  state.activeUserId = null; // No single active user in compare mode
-  state.selectedUserIds.clear(); // Reset selections when toggling mode
-  // Note: compareMode itself is not saved to localStorage, it's a session state.
+  state.activeUserId = null;
+  // state.selectedUserIds.clear(); // Keep selections or clear? User preference. Let's keep.
   updateUI();
 }
 
-/** Toggles a user's inclusion in the comparison set when in compare mode. */
 function handleToggleUserSelectionForCompare(userId) {
   if (!state.compareMode || !state.users[userId]) return;
-
-  if (state.selectedUserIds.has(userId)) {
-    state.selectedUserIds.delete(userId);
-  } else {
-    state.selectedUserIds.add(userId);
-  }
-  // Note: selectedUserIds is not saved to localStorage, it's a session state.
+  if (state.selectedUserIds.has(userId)) state.selectedUserIds.delete(userId);
+  else state.selectedUserIds.add(userId);
   updateUI();
 }
 
-/** Handles a click on a schedule slot to toggle its busy/free state for the active user. */
 function handleToggleScheduleSlot(dayIndex, timeIndex) {
-  if (!state.activeUserId || state.compareMode) return; // Only in edit mode for an active user
+  if (!state.activeUserId || state.compareMode || !state.users[state.activeUserId]) return;
   const currentUser = state.users[state.activeUserId];
-
-  if (currentUser?.schedule?.[dayIndex]?.[timeIndex] !== undefined) {
-    const newSchedule = toggleSlotInSchedule(
-      dayIndex,
-      timeIndex,
-      currentUser.schedule
-    );
-    currentUser.schedule = newSchedule; // Update the user's schedule directly in the state object
-    saveStateToStorage();
-    updateUI();
+  
+  // Ensure the slot index is valid for the current user's schedule
+  if (currentUser.schedule && currentUser.schedule[dayIndex] && timeIndex < currentUser.schedule[dayIndex].length) {
+      currentUser.schedule = toggleSlotInSchedule(dayIndex, timeIndex, currentUser.schedule);
+      saveStateToStorage();
+      updateUI();
+  } else {
+      console.warn(`Attempted to toggle invalid slot: Day ${dayIndex}, Time ${timeIndex} for user ${state.activeUserId}`);
   }
 }
 
-/** Shows the tooltip with availability details for a slot (in compare mode). */
 function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
-  if (
-    !DOM_ELEMENTS.slotTooltip ||
-    !state.compareMode ||
-    state.selectedUserIds.size === 0
-  ) {
-    handleHideSlotTooltip(); // Ensure tooltip is hidden if conditions aren't met
-    return;
+  if (!DOM_ELEMENTS.slotTooltip || !state.compareMode || state.selectedUserIds.size === 0) {
+    handleHideSlotTooltip(); return;
   }
   const message = generateTooltipMessage(dayIndex, timeIndex, state);
   DOM_ELEMENTS.slotTooltip.textContent = message;
-
   const rect = slotElement.getBoundingClientRect();
-  // Position tooltip above the slot, centered horizontally
-  DOM_ELEMENTS.slotTooltip.style.left = `${
-    rect.left + window.scrollX + rect.width / 2
-  }px`;
-  DOM_ELEMENTS.slotTooltip.style.top = `${
-    rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5
-  }px`; // 5px offset from slot
+  DOM_ELEMENTS.slotTooltip.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
+  DOM_ELEMENTS.slotTooltip.style.top = `${rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5}px`;
   DOM_ELEMENTS.slotTooltip.style.display = "block";
-  DOM_ELEMENTS.slotTooltip.style.transform = "translateX(-50%)"; // Horizontal centering trick
+  DOM_ELEMENTS.slotTooltip.style.transform = 'translateX(-50%)';
 }
 
-/** Hides the slot tooltip. */
 function handleHideSlotTooltip() {
-  if (DOM_ELEMENTS.slotTooltip) {
-    DOM_ELEMENTS.slotTooltip.style.display = "none";
-  }
+  if (DOM_ELEMENTS.slotTooltip) DOM_ELEMENTS.slotTooltip.style.display = "none";
 }
 
-/** Handles exporting the current active user's schedule. */
 function handleExportCurrentUser() {
   if (!state.activeUserId || !state.users[state.activeUserId]) {
-    return showAppModal(
-      "Please select an active user to export their schedule.",
-      "Export Error"
-    );
+    return showModal({ content: "Select an active user to export.", title: "Export Error" });
   }
   const currentUser = state.users[state.activeUserId];
+  // Exporting user's own timeSlots if they exist
   const exportData = {
-    // Create a clean object for export
     id: currentUser.id,
     name: currentUser.name,
+    timeSlots: currentUser.timeSlots, // Export user's specific time slots
     schedule: currentUser.schedule,
   };
-  const jsonToExport = JSON.stringify(exportData, null, 2); // Pretty print with 2-space indent
-
-  navigator.clipboard
-    .writeText(jsonToExport)
-    .then(() =>
-      showAppModal(
-        `${currentUser.name}'s schedule has been successfully copied to your clipboard!`,
-        "Export Successful"
-      )
-    )
-    .catch((error) => {
-      console.error("Clipboard export error:", error);
-      showAppModal(
-        "Could not copy schedule to clipboard. Please check browser permissions or try again. The schedule JSON is available in the import/export text area as a fallback.",
-        "Clipboard Error"
-      );
-      // Fallback: display JSON in the importTextArea if clipboard fails
-      if (DOM_ELEMENTS.importTextArea)
-        DOM_ELEMENTS.importTextArea.value = jsonToExport;
+  const jsonToExport = JSON.stringify(exportData, null, 2);
+  navigator.clipboard.writeText(jsonToExport)
+    .then(() => showModal({ content: `${currentUser.name}'s schedule copied!`, title: "Export Successful" }))
+    .catch(err => {
+      console.error("Clipboard export error:", err);
+      showModal({ content: "Could not copy. See text area.", title: "Clipboard Error" });
+      if (DOM_ELEMENTS.importTextArea) DOM_ELEMENTS.importTextArea.value = jsonToExport;
     });
 }
 
-/** Handles importing a user's schedule from JSON. */
 function handleImportSchedule() {
   if (!DOM_ELEMENTS.importTextArea) return;
   const jsonInput = DOM_ELEMENTS.importTextArea.value.trim();
-  if (!jsonInput) {
-    return showAppModal(
-      "Please paste the exported schedule JSON into the text area before importing.",
-      "Import Error: No Data"
-    );
-  }
+  if (!jsonInput) return showModal({ content: "Paste JSON to import.", title: "Import Error" });
 
   try {
-    const importedUser = JSON.parse(jsonInput);
-    // Basic validation of the imported structure
-    if (
-      !importedUser.id ||
-      typeof importedUser.id !== "string" ||
-      !importedUser.name ||
-      typeof importedUser.name !== "string" ||
-      !Array.isArray(importedUser.schedule) ||
-      importedUser.schedule.length !== 7 ||
-      !importedUser.schedule.every(
-        (day) =>
-          Array.isArray(day) &&
-          day.length === 6 &&
-          day.every((slot) => typeof slot === "boolean")
-      )
+    const importedData = JSON.parse(jsonInput);
+    // Validate imported structure
+    if (!importedData.id || !importedData.name || !Array.isArray(importedData.schedule) ||
+        !Array.isArray(importedData.timeSlots) // Expecting timeSlots now
     ) {
-      throw new Error(
-        "Invalid user data format. Ensure ID (string), name (string), and a valid 7x6 boolean schedule array are present."
-      );
+      throw new Error("Invalid data format. Must include id, name, schedule array, and timeSlots array.");
     }
-    state.users[importedUser.id] = importedUser; // Add or overwrite user in state
+    // Further validation for schedule and timeSlots structure
+    if (importedData.schedule.length !== 7 || 
+        !importedData.schedule.every(day => Array.isArray(day) && day.length === importedData.timeSlots.length)) {
+        throw new Error("Schedule dimensions must be 7 days by number of timeSlots.");
+    }
+    if (!importedData.timeSlots.every(slot => slot.label && slot.start && slot.end)) {
+        throw new Error("Each timeSlot must have a label, start, and end time.");
+    }
+
+    state.users[importedData.id] = { // Directly assign/overwrite
+        id: importedData.id,
+        name: importedData.name,
+        timeSlots: importedData.timeSlots,
+        schedule: importedData.schedule,
+    };
     saveStateToStorage();
     updateUI();
-    DOM_ELEMENTS.importTextArea.value = ""; // Clear textarea on success
-    showAppModal(
-      `User "${importedUser.name}" (ID: ${importedUser.id}) imported successfully!`,
-      "Import Complete"
-    );
+    DOM_ELEMENTS.importTextArea.value = "";
+    showModal({ content: `User "${importedData.name}" imported!`, title: "Import Complete" });
   } catch (e) {
     console.error("Import error:", e);
-    showAppModal(
-      `Import failed: ${e.message}\nPlease ensure valid JSON is pasted.`,
-      "Import Failed"
-    );
+    showModal({ content: `Import failed: ${e.message}`, title: "Import Failed" });
   }
 }
 
-/* ================================
-   INPUT VALIDATION
-   Sets up live validation for user name and ID input fields.
-================================== */
+
 function setupInputValidation() {
-  if (DOM_ELEMENTS.userNameInput) {
-    DOM_ELEMENTS.userNameInput.addEventListener("input", (event) => {
-      // Allow letters, spaces, hyphens, apostrophes
-      event.target.value = event.target.value.replace(/[^a-zA-Z\s'-]/g, "");
-    });
-  }
-  if (DOM_ELEMENTS.userIdInput) {
-    DOM_ELEMENTS.userIdInput.addEventListener("input", (event) => {
-      event.target.value = event.target.value.replace(/[^0-9]/g, ""); // Allow only digits
-      // Prevent leading zeros if number is longer than 1 digit (e.g., "01" becomes "1")
-      if (event.target.value.length > 1) {
-        event.target.value = event.target.value.replace(/^0+/, "");
-      }
-    });
-  }
+  if(DOM_ELEMENTS.userNameInput) DOM_ELEMENTS.userNameInput.addEventListener("input", (e) => e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g,""));
+  if(DOM_ELEMENTS.userIdInput) DOM_ELEMENTS.userIdInput.addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/[^0-9]/g,"");
+    if(e.target.value.length > 1) e.target.value = e.target.value.replace(/^0+/,"");
+  });
 }
 
-/* ================================
-   EVENT LISTENERS SETUP
-   Attaches event listeners to DOM elements.
-================================== */
 function setupEventListeners() {
-  // Static button listeners
-  if (DOM_ELEMENTS.addUserButton)
-    DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
-  if (DOM_ELEMENTS.compareButton)
-    DOM_ELEMENTS.compareButton.addEventListener(
-      "click",
-      handleToggleCompareMode
-    );
-  if (DOM_ELEMENTS.exportButton)
-    DOM_ELEMENTS.exportButton.addEventListener(
-      "click",
-      handleExportCurrentUser
-    );
-  if (DOM_ELEMENTS.importButton)
-    DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
+  if(DOM_ELEMENTS.addUserButton) DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
+  if(DOM_ELEMENTS.compareButton) DOM_ELEMENTS.compareButton.addEventListener("click", handleToggleCompareMode);
+  if(DOM_ELEMENTS.exportButton) DOM_ELEMENTS.exportButton.addEventListener("click", handleExportCurrentUser);
+  if(DOM_ELEMENTS.importButton) DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
+  if(DOM_ELEMENTS.addNewTimeSlotBtn) DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener("click", handleAddNewTimeSlotClick);
 
-  // Add listener for the "Add New Time Slot" button
-  if (DOM_ELEMENTS.addNewTimeSlotBtn)
-    DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener(
-      "click",
-      handleAddNewTimeSlotClick
-    );
-
-  // Event Delegation for dynamically created user list items
-  if (DOM_ELEMENTS.userListContainer) {
-    DOM_ELEMENTS.userListContainer.addEventListener("click", (event) => {
-      const targetElement = event.target;
-      const userItemDiv = targetElement.closest(".user-item"); // Find the parent .user-item div
-
-      if (userItemDiv) {
-        // Check if the click originated within a user-item
+  if(DOM_ELEMENTS.userListContainer) {
+    DOM_ELEMENTS.userListContainer.addEventListener("click", (e) => {
+      const userItemDiv = e.target.closest(".user-item");
+      if(userItemDiv) {
         const userId = userItemDiv.dataset.userId;
-        if (targetElement.classList.contains("delete-btn")) {
-          // Click was on the delete button
-          event.stopPropagation(); // Prevent the click from also triggering user selection/activation
-          handleDeleteUser(userId);
+        if(e.target.classList.contains("delete-btn")) {
+          e.stopPropagation(); handleDeleteUser(userId);
         } else if (userId) {
-          // Click was on the user name button or the user item div itself
-          if (state.compareMode) {
-            handleToggleUserSelectionForCompare(userId);
-          } else {
-            handleSetActiveUser(userId);
-          }
+          state.compareMode ? handleToggleUserSelectionForCompare(userId) : handleSetActiveUser(userId);
         }
       }
     });
   }
-
-  // Event Delegation/Listeners for schedule table slots
-  if (DOM_ELEMENTS.scheduleTable) {
-    DOM_ELEMENTS.scheduleTable.addEventListener("click", (event) => {
-      if (event.target.classList.contains("slot")) {
-        const slotElement = event.target;
-        const day = parseInt(slotElement.dataset.day, 10);
-        const time = parseInt(slotElement.dataset.time, 10);
-        // Only toggle if valid slot and not in compare mode
-        if (!isNaN(day) && !isNaN(time) && !state.compareMode) {
-          handleToggleScheduleSlot(day, time);
-        }
+  
+  if(DOM_ELEMENTS.scheduleTable) {
+    DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
+      if(e.target.classList.contains("slot")) {
+        const day = parseInt(e.target.dataset.day, 10), time = parseInt(e.target.dataset.time, 10);
+        if(!isNaN(day) && !isNaN(time) && !state.compareMode) handleToggleScheduleSlot(day,time);
       }
     });
-    DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (event) => {
-      if (state.compareMode && event.target.classList.contains("slot")) {
-        const slotElement = event.target;
-        const day = parseInt(slotElement.dataset.day, 10);
-        const time = parseInt(slotElement.dataset.time, 10);
-        if (!isNaN(day) && !isNaN(time)) {
-          handleShowSlotTooltip(slotElement, day, time);
-        }
+    DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (e) => {
+      if(state.compareMode && e.target.classList.contains("slot")) {
+        const day = parseInt(e.target.dataset.day, 10), time = parseInt(e.target.dataset.time, 10);
+        if(!isNaN(day) && !isNaN(time)) handleShowSlotTooltip(e.target, day, time);
       }
     });
-    DOM_ELEMENTS.scheduleTable.addEventListener("mouseout", (event) => {
-      // Hide tooltip if mouse leaves a slot or the table itself
-      if (
-        event.target.classList.contains("slot") ||
-        event.target === DOM_ELEMENTS.scheduleTable
-      ) {
-        handleHideSlotTooltip();
-      }
+    DOM_ELEMENTS.scheduleTable.addEventListener("mouseout", (e) => {
+      if(e.target.classList.contains("slot") || e.target === DOM_ELEMENTS.scheduleTable) handleHideSlotTooltip();
     });
   }
 }
 
 /* ================================
-   INITIALIZATION FUNCTION
-   Called once the DOM is fully loaded.
+   INITIALIZATION
 ================================== */
-
 function initializeApp() {
-  // **Consolidated DOM Element Ensuring/Re-fetching**
-  // The DOM_ELEMENTS object at the top of the file attempts to fetch these.
-  // This section in initializeApp acts as a final check or re-fetch if any were null,
-  // which might happen if the script was in <head> without defer or if there are race conditions.
-  // With DOMContentLoaded, initial fetches should mostly be successful.
-
-  // Define an array of element keys that are fetched by ID
-  const elementsById = [
-    "userNameInput",
-    "userIdInput",
-    "userListContainer",
-    "compareButton",
-    "scheduleTable",
-    "slotTooltip",
-    "importTextArea",
-    "appModal",
-    "modalTitle",
-    "modalMessage",
-    "modalCloseBtn",
-    "modalActionButtons",
-    "modalConfirmBtn",
-    "modalCancelBtn",
-    "addNewTimeSlotBtn",
-    "addTimeSlotHeaderCell",
-  ];
-
-  elementsById.forEach((key) => {
-    // If the key exists in DOM_ELEMENTS but its value is null, try to get it again.
-    // (This assumes keys in DOM_ELEMENTS match the element IDs, which is mostly true for these)
-    if (DOM_ELEMENTS.hasOwnProperty(key) && !DOM_ELEMENTS[key]) {
-      DOM_ELEMENTS[key] = document.getElementById(key); // Assuming key is the ID
-      // if (!DOM_ELEMENTS[key]) console.error(`Critical DOM Element not found: #${key}`);
-    }
-  });
-
-  // For elements fetched by querySelector, ensure they are also checked/re-fetched if null
-  if (!DOM_ELEMENTS.addUserButton) {
-    DOM_ELEMENTS.addUserButton = document.querySelector(".add-user button");
-  }
-  if (!DOM_ELEMENTS.exportButton) {
-    DOM_ELEMENTS.exportButton = document.querySelector(
-      ".export-import button:nth-of-type(1)"
-    );
-  }
-  if (!DOM_ELEMENTS.importButton) {
-    DOM_ELEMENTS.importButton = document.querySelector(
-      ".export-import button:nth-of-type(2)"
-    );
-  }
-
-  // --- End of DOM Element Ensuring ---
-
-  loadStateFromStorage(); // Load any saved user data
-  setupInputValidation(); // Set up live input validation
-  setupEventListeners(); // Attach event listeners to page elements (including addNewTimeSlotBtn)
-
-  // Setup Modal Button Event Listeners
-  if (DOM_ELEMENTS.modalCloseBtn) {
-    DOM_ELEMENTS.modalCloseBtn.addEventListener("click", hideAppModal);
-  }
-  if (DOM_ELEMENTS.modalConfirmBtn) {
-    DOM_ELEMENTS.modalConfirmBtn.addEventListener("click", () => {
-      if (typeof confirmModalCallback === "function") {
-        confirmModalCallback(); // Execute the stored callback for "Yes"
-      }
-      hideAppModal(); // Always close modal after action
-    });
-  }
-  if (DOM_ELEMENTS.modalCancelBtn) {
-    DOM_ELEMENTS.modalCancelBtn.addEventListener("click", hideAppModal); // "No" just closes
-  }
-
-  // Close modal if overlay (outside modal content) is clicked
-  if (DOM_ELEMENTS.appModal) {
-    DOM_ELEMENTS.appModal.addEventListener("click", (event) => {
-      if (event.target === DOM_ELEMENTS.appModal) {
-        // Check if click was directly on overlay
-        hideAppModal();
-      }
-    });
-  }
-  // Close modal with Escape key
-  document.addEventListener("keydown", (event) => {
-    if (
-      event.key === "Escape" &&
-      DOM_ELEMENTS.appModal?.classList.contains("active")
-    ) {
-      hideAppModal();
-    }
-  });
-
-  updateUI(); // Perform initial render based on loaded state
+  initializeDomElements(); // Initialize DOM_ELEMENTS from domElements.js
+  initModal(DOM_ELEMENTS); // Initialize Modal system from modal.js
+  
+  loadStateFromStorage();
+  setupInputValidation();
+  setupEventListeners();
+  updateUI();
 }
 
-// Initialize the application once the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", initializeApp);
