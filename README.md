@@ -38,6 +38,7 @@ CLASSCLASHES/
 │   └── UI-Map.md
 │
 ├── css/
+|   ├── modal.css
 │   ├── menu.css
 │   └── styles.css
 │

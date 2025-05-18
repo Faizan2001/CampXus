@@ -24,7 +24,19 @@ export const DOM_ELEMENTS = {
   modalActionButtons: document.getElementById("modalActionButtons"),
   modalConfirmBtn: document.getElementById("modalConfirmBtn"),
   modalCancelBtn: document.getElementById("modalCancelBtn"),
+  // Adittional elements for adding new time slots
+  addNewTimeSlotBtn: document.getElementById("addNewTimeSlotBtn"),
+  addTimeSlotHeaderCell: document.getElementById("addTimeSlotHeaderCell"),
 };
+
+const DEFAULT_TIMESLOTS = [
+  { start: "8:00 AM", end: "9:30 AM", label: "8:00-9:30" },
+  { start: "9:40 AM", end: "11:10 AM", label: "9:40-11:10" },
+  { start: "11:20 AM", end: "12:50 PM", label: "11:20-12:50" },
+  { start: "1:00 PM", end: "2:30 PM", label: "1:00-2:30" },
+  { start: "2:40 PM", end: "4:10 PM", label: "2:40-4:10" },
+  { start: "4:20 PM", end: "5:50 PM", label: "4:20-5:50" },
+];
 
 const LOCAL_STORAGE_KEY = "scheduleUsers";
 
@@ -131,10 +143,23 @@ export function hideAppModal() {
  * @param {object} currentUsers - The current dictionary of users.
  * @returns {object|null} The new user object or null if userId already exists.
  */
+
 export function createUserObject(name, userId, currentUsers) {
   if (!currentUsers[userId]) { // Check for ID uniqueness
-    const schedule = Array(7).fill(null).map(() => Array(6).fill(false)); // 7 days, 6 slots per day
-    return { id: userId, name: name, schedule: schedule };
+    // Initialize with a deep copy of default time slots
+    const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
+    
+    // Schedule matrix: 7 days, columns match the number of time slots
+    const schedule = Array(7)
+      .fill(null)
+      .map(() => Array(userTimeSlots.length).fill(false));
+
+    return {
+      id: userId,
+      name: name,
+      timeSlots: userTimeSlots, // Store the time slot definitions for this user
+      schedule: schedule,       // Store their availability for these slots
+    };
   }
   return null; // User ID already taken
 }
@@ -248,20 +273,118 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 }
 
 /* ================================
+   DYNAMIC TIMESLOT FUNCTIONS (NEW SECTION or within Event Handlers)
+================================== */
+
+/**
+ * Adds a new custom time slot definition and extends the schedule matrix
+ * for the currently active user.
+ * @param {string} startTime - The start time for the new slot (e.g., "6:00 PM").
+ * @param {string} endTime - The end time for the new slot (e.g., "7:00 PM").
+ */
+function addCustomTimeSlotToActiveUser(startTime, endTime) {
+  if (!state.activeUserId || !state.users[state.activeUserId]) {
+    showAppModal("Please select an active user to add a custom time slot.", "No Active User");
+    return;
+  }
+
+  // Basic validation for time format (can be made more robust later)
+  if (!startTime || !endTime || !startTime.includes(':') || !endTime.includes(':')) {
+    showAppModal("Invalid time format. Please use a format like HH:MM or HH:MM AM/PM.", "Invalid Time Input");
+    return;
+  }
+  // More validation: check if end time is after start time, check for overlapping slots (these are advanced)
+
+  const user = state.users[state.activeUserId];
+  
+  // Create a simple label from start and end times (e.g., "6:00-7:00")
+  // This removes AM/PM for brevity in the header; adjust as needed.
+  const newSlotLabel = `${startTime.replace(/ (AM|PM)/ig, '')}-${endTime.replace(/ (AM|PM)/ig, '')}`;
+
+  // Add the new time slot definition to the user's timeSlots array
+  user.timeSlots.push({ 
+    start: startTime, 
+    end: endTime, 
+    label: newSlotLabel 
+  });
+
+  // Expand each day in their schedule matrix to include a new column, initialized to false (free)
+  user.schedule.forEach(daySchedule => {
+    daySchedule.push(false); 
+  });
+
+  saveStateToStorage(); // Persist the updated user data
+  updateUI();           // Re-render the UI to show the new column
+  showAppModal(`New time slot "${newSlotLabel}" added for ${user.name}.`, "Time Slot Added");
+}
+
+/**
+ * Handles the click event for the "Add New Time Slot" button.
+ * Prompts the user for start and end times.
+ */
+function handleAddNewTimeSlotClick() {
+  if (!state.activeUserId) {
+    showAppModal("Please select an active user first to customize their time slots.", "User Not Selected");
+    return;
+  }
+
+  // Using prompt for now. This will be replaced by a custom modal input in Phase 2.
+  const startTimeInput = prompt("Enter start time for the new slot (e.g., 6:00 PM or 18:00):");
+  if (startTimeInput === null) return; // User pressed Cancel
+
+  const endTimeInput = prompt(`Enter end time for the new slot (starts at ${startTimeInput}):`);
+  if (endTimeInput === null) return; // User pressed Cancel
+
+  addCustomTimeSlotToActiveUser(startTimeInput.trim(), endTimeInput.trim());
+}
+
+
+
+/* ================================
    STATE PERSISTENCE (LocalStorage)
    Handles saving and loading the user data.
 ================================== */
 
 /** Loads user data from localStorage into the global `state`. */
+// In js/script.js (modify existing loadStateFromStorage)
+
 function loadStateFromStorage() {
   const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
   if (savedStateString) {
     const parsedSavedState = JSON.parse(savedStateString);
-    // Ensure users object exists, default to empty if not found or invalid
-    state.users = parsedSavedState.users || {};
+    const loadedUsers = parsedSavedState.users || {};
+    
+    // --- START: Migration/Defaulting Logic for timeSlots ---
+    Object.values(loadedUsers).forEach(user => {
+      // If a user from an old version doesn't have timeSlots, add defaults
+      if (!user.timeSlots || !Array.isArray(user.timeSlots) || user.timeSlots.length === 0) {
+        console.warn(`User ${user.id} missing timeSlots, applying defaults.`);
+        user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
+      }
+
+      // Ensure the schedule matrix dimensions match the number of timeSlots
+      // This is a simple way to handle potential inconsistencies.
+      // A more robust migration might try to preserve existing schedule data if columns were just added/removed.
+      if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
+        user.schedule = user.schedule.map(daySchedule => {
+          // Create a new day schedule with the correct number of columns, initialized to false
+          const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
+          // Copy over existing slot data up to the shorter of the two lengths
+          const limit = Math.min(daySchedule.length, newDayScheduleArray.length);
+          for (let i = 0; i < limit; i++) {
+            newDayScheduleArray[i] = daySchedule[i];
+          }
+          return newDayScheduleArray;
+        });
+      } else {
+        // If schedule is missing or not 7 days, re-initialize it
+        console.warn(`User ${user.id} schedule malformed or missing, re-initializing.`);
+        user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
+      }
+    });
+    // --- END: Migration/Defaulting Logic ---
+    state.users = loadedUsers;
   }
-  // Other parts of the state (activeUserId, compareMode, selectedUserIds) are intentionally transient
-  // and reset on page load.
 }
 
 /** Saves the current `state.users` to localStorage. */
@@ -276,23 +399,99 @@ function saveStateToStorage() {
 ================================== */
 
 /** Renders the entire schedule grid, applying appropriate classes to slots. */
+
 function renderScheduleGrid() {
+  console.log("renderScheduleGrid called at:", new Date().toLocaleTimeString());
+
   if (!DOM_ELEMENTS.scheduleTable) {
     console.error("Schedule table element not found for rendering.");
     return;
   }
-  // Iterate over all .slot elements within the schedule table
-  DOM_ELEMENTS.scheduleTable.querySelectorAll(".slot").forEach((slotElement) => {
-    const day = parseInt(slotElement.dataset.day, 10);
-    const time = parseInt(slotElement.dataset.time, 10);
 
-    if (!isNaN(day) && !isNaN(time)) { // Ensure data attributes are valid numbers
-      slotElement.className = 'slot'; // Reset to base class first
-      const statusClass = determineSlotStatus(day, time, state); // Get dynamic class
-      if (statusClass !== 'slot') { // Add specific status class if not default
-        slotElement.classList.add(statusClass);
-      }
+  const tableHeadRow = DOM_ELEMENTS.scheduleTable.querySelector("thead tr");
+  const tableBody = DOM_ELEMENTS.scheduleTable.querySelector("tbody");
+
+  if (!tableHeadRow || !tableBody) {
+    console.error("Schedule table thead>tr or tbody not found.");
+    return;
+  }
+
+  // Determine which time slots to use for rendering
+  let currentTimeSlotsToRender = DEFAULT_TIMESLOTS; // Default
+  let scheduleMatrixToRender = null; // Will hold the 7xN boolean matrix
+
+  if (state.activeUserId && state.users[state.activeUserId]) {
+    const activeUser = state.users[state.activeUserId];
+    // Use the active user's timeSlots if they exist and are valid
+    if (activeUser.timeSlots && activeUser.timeSlots.length > 0) {
+      currentTimeSlotsToRender = activeUser.timeSlots;
     }
+    scheduleMatrixToRender = activeUser.schedule;
+  } else if (state.compareMode && state.selectedUserIds.size > 0) {
+    // In compare mode, for now, we'll render based on the DEFAULT_TIMESLOTS
+    // The actual clash detection in determineSlotStatus will need to be much smarter later.
+    // This means the VISUAL grid is based on defaults, but coloring might reflect actual overlaps.
+    // OR, pick the time slots of the first selected user as the base for the grid display.
+    // For simplicity in Phase 1, let's stick to DEFAULT_TIMESLOTS as the visual grid basis in compare mode.
+    // This part will need significant rework for true heterogeneous comparison display.
+    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    // `determineSlotStatus` will handle the logic for coloring these default slots based on actual user times
+    console.warn("Compare mode: Grid rendered with default time slots. Advanced heterogeneous comparison display pending.");
+  } else {
+    // No active user, not in compare mode with selections: show default grid structure
+    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+  }
+  
+  // --- Render Table Headers (Time Slots) ---
+  // Clear existing time headers, keeping "Day/Time" and the add button cell
+  const thCells = Array.from(tableHeadRow.children);
+  // Start from 1 to keep "Day/Time", end before the last cell (add button cell)
+  for (let i = thCells.length - 2; i >= 1; i--) { 
+    tableHeadRow.removeChild(thCells[i]);
+  }
+
+  const addSlotCellRef = DOM_ELEMENTS.addTimeSlotHeaderCell; // Reference to the "+" button's cell
+
+  currentTimeSlotsToRender.forEach((slotData, index) => {
+    const th = document.createElement("th");
+    th.textContent = slotData.label; // Use the label from timeSlots
+    th.dataset.timeIndex = index;     // For identifying the column, useful for editing later
+    th.classList.add("time-slot-header"); // For potential styling or click handling for editing
+    
+    // Insert the new header cell before the "add new slot" button's cell
+    if (addSlotCellRef) {
+      tableHeadRow.insertBefore(th, addSlotCellRef);
+    } else {
+      tableHeadRow.appendChild(th); // Fallback if the addSlotCellRef isn't found
+    }
+  });
+
+  // --- Render Table Body (Schedule Slots for each day) ---
+  tableBody.innerHTML = ""; // Clear existing body rows to rebuild
+
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  daysOfWeek.forEach((dayName, dayIndex) => {
+    const tr = document.createElement("tr");
+    const tdDayName = document.createElement("td");
+    tdDayName.textContent = dayName;
+    tr.appendChild(tdDayName);
+
+    currentTimeSlotsToRender.forEach((slotData, timeIndex) => {
+      const tdSlot = document.createElement("td");
+      tdSlot.classList.add("slot");
+      tdSlot.dataset.day = dayIndex;
+      tdSlot.dataset.time = timeIndex; // CRITICAL: This now refers to the *index* of the time slot
+
+      // Get status class using the master state object for comparison logic
+      // or the active user's schedule for direct display.
+      // determineSlotStatus already handles checking state.activeUserId for 'slot-selected'
+      const statusClass = determineSlotStatus(dayIndex, timeIndex, state); 
+      if (statusClass !== 'slot') {
+        tdSlot.classList.add(statusClass);
+      }
+      tr.appendChild(tdSlot);
+    });
+    tableBody.appendChild(tr);
   });
 }
 
@@ -325,6 +524,9 @@ function renderUserList() {
 
 /** Central function to update all relevant parts of the UI. */
 function updateUI() {
+
+  console.log("updateUI called at:", new Date().toLocaleTimeString()); // Add this
+
   renderScheduleGrid();
   renderUserList();
   // Visually update the compare button based on compareMode state
@@ -552,6 +754,9 @@ function setupEventListeners() {
   if(DOM_ELEMENTS.exportButton) DOM_ELEMENTS.exportButton.addEventListener("click", handleExportCurrentUser);
   if(DOM_ELEMENTS.importButton) DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
 
+  // Add listener for the "Add New Time Slot" button
+  if(DOM_ELEMENTS.addNewTimeSlotBtn) DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener("click", handleAddNewTimeSlotClick);
+
   // Event Delegation for dynamically created user list items
   if(DOM_ELEMENTS.userListContainer) {
     DOM_ELEMENTS.userListContainer.addEventListener("click", (event) => {
@@ -610,64 +815,77 @@ function setupEventListeners() {
    INITIALIZATION FUNCTION
    Called once the DOM is fully loaded.
 ================================== */
-function initializeApp() {
-  // Safeguard: Re-fetch DOM elements if they were null during initial module load.
-  // This is more of a defensive measure; with scripts at the end of <body> or using DOMContentLoaded,
-  // elements should generally be available when DOM_ELEMENTS is first defined.
-  Object.keys(DOM_ELEMENTS).forEach(key => {
-    if (!DOM_ELEMENTS[key]) {
-        const idGuess = key.replace(/([A-Z])/g, (match, p1) => `-${p1.toLowerCase()}`) // Crude camelCase to kebab-case
-                           .replace(/^(app-modal|modal-title|modal-message|modal-close-btn|modal-action-buttons|modal-confirm-btn|modal-cancel-btn)$/i, (match) => match.replace(/-/g, '')); // some IDs don't follow kebab from camel
 
-        // Special selectors for buttons not matching ID pattern
-        if (key === "addUserButton") DOM_ELEMENTS[key] = document.querySelector(".add-user button");
-        else if (key === "exportButton") DOM_ELEMENTS[key] = document.querySelector(".export-import button:nth-of-type(1)");
-        else if (key === "importButton") DOM_ELEMENTS[key] = document.querySelector(".export-import button:nth-of-type(2)");
-        else DOM_ELEMENTS[key] = document.getElementById(idGuess) || document.getElementById(key); // Try kebab-case, then original key as ID
-        
-        // if (DOM_ELEMENTS[key]) console.warn(`DOM_ELEMENTS.${key} was re-fetched in initializeApp.`);
-        // else console.error(`DOM_ELEMENTS.${key} could not be found in initializeApp.`);
+function initializeApp() {
+  // **Consolidated DOM Element Ensuring/Re-fetching**
+  // The DOM_ELEMENTS object at the top of the file attempts to fetch these.
+  // This section in initializeApp acts as a final check or re-fetch if any were null,
+  // which might happen if the script was in <head> without defer or if there are race conditions.
+  // With DOMContentLoaded, initial fetches should mostly be successful.
+
+  // Define an array of element keys that are fetched by ID
+  const elementsById = [
+    "userNameInput", "userIdInput", "userListContainer", "compareButton",
+    "scheduleTable", "slotTooltip", "importTextArea", "appModal", "modalTitle",
+    "modalMessage", "modalCloseBtn", "modalActionButtons", "modalConfirmBtn",
+    "modalCancelBtn", "addNewTimeSlotBtn", "addTimeSlotHeaderCell"
+  ];
+
+  elementsById.forEach(key => {
+    // If the key exists in DOM_ELEMENTS but its value is null, try to get it again.
+    // (This assumes keys in DOM_ELEMENTS match the element IDs, which is mostly true for these)
+    if (DOM_ELEMENTS.hasOwnProperty(key) && !DOM_ELEMENTS[key]) {
+      DOM_ELEMENTS[key] = document.getElementById(key); // Assuming key is the ID
+      // if (!DOM_ELEMENTS[key]) console.error(`Critical DOM Element not found: #${key}`);
     }
   });
-  // Explicitly ensure modal action buttons are fetched as their keys in DOM_ELEMENTS don't directly map to their IDs
-  DOM_ELEMENTS.modalActionButtons = DOM_ELEMENTS.modalActionButtons || document.getElementById("modalActionButtons");
-  DOM_ELEMENTS.modalConfirmBtn = DOM_ELEMENTS.modalConfirmBtn || document.getElementById("modalConfirmBtn");
-  DOM_ELEMENTS.modalCancelBtn = DOM_ELEMENTS.modalCancelBtn || document.getElementById("modalCancelBtn");
 
+  // For elements fetched by querySelector, ensure they are also checked/re-fetched if null
+  if (!DOM_ELEMENTS.addUserButton) {
+    DOM_ELEMENTS.addUserButton = document.querySelector(".add-user button");
+  }
+  if (!DOM_ELEMENTS.exportButton) {
+    DOM_ELEMENTS.exportButton = document.querySelector(".export-import button:nth-of-type(1)");
+  }
+  if (!DOM_ELEMENTS.importButton) {
+    DOM_ELEMENTS.importButton = document.querySelector(".export-import button:nth-of-type(2)");
+  }
+
+  // --- End of DOM Element Ensuring ---
 
   loadStateFromStorage();   // Load any saved user data
   setupInputValidation();   // Set up live input validation
-  setupEventListeners();    // Attach event listeners to page elements
+  setupEventListeners();    // Attach event listeners to page elements (including addNewTimeSlotBtn)
 
   // Setup Modal Button Event Listeners
-  if(DOM_ELEMENTS.modalCloseBtn) {
-      DOM_ELEMENTS.modalCloseBtn.addEventListener("click", hideAppModal);
+  if (DOM_ELEMENTS.modalCloseBtn) {
+    DOM_ELEMENTS.modalCloseBtn.addEventListener("click", hideAppModal);
   }
-  if(DOM_ELEMENTS.modalConfirmBtn) {
-      DOM_ELEMENTS.modalConfirmBtn.addEventListener("click", () => {
-          if(typeof confirmModalCallback === 'function') {
-              confirmModalCallback(); // Execute the stored callback for "Yes"
-          }
-          hideAppModal(); // Always close modal after action
-      });
+  if (DOM_ELEMENTS.modalConfirmBtn) {
+    DOM_ELEMENTS.modalConfirmBtn.addEventListener("click", () => {
+      if (typeof confirmModalCallback === 'function') {
+        confirmModalCallback(); // Execute the stored callback for "Yes"
+      }
+      hideAppModal(); // Always close modal after action
+    });
   }
-  if(DOM_ELEMENTS.modalCancelBtn) {
-      DOM_ELEMENTS.modalCancelBtn.addEventListener("click", hideAppModal); // "No" just closes
+  if (DOM_ELEMENTS.modalCancelBtn) {
+    DOM_ELEMENTS.modalCancelBtn.addEventListener("click", hideAppModal); // "No" just closes
   }
   
   // Close modal if overlay (outside modal content) is clicked
-  if(DOM_ELEMENTS.appModal) {
-      DOM_ELEMENTS.appModal.addEventListener("click", (event) => {
-          if(event.target === DOM_ELEMENTS.appModal) { // Check if click was directly on overlay
-              hideAppModal();
-          }
-      });
+  if (DOM_ELEMENTS.appModal) {
+    DOM_ELEMENTS.appModal.addEventListener("click", (event) => {
+      if (event.target === DOM_ELEMENTS.appModal) { // Check if click was directly on overlay
+        hideAppModal();
+      }
+    });
   }
   // Close modal with Escape key
   document.addEventListener("keydown", (event) => {
-      if(event.key === "Escape" && DOM_ELEMENTS.appModal?.classList.contains("active")) {
-          hideAppModal();
-      }
+    if (event.key === "Escape" && DOM_ELEMENTS.appModal?.classList.contains("active")) {
+      hideAppModal();
+    }
   });
 
   updateUI(); // Perform initial render based on loaded state

@@ -234,7 +234,7 @@ td:first-child {
 
 .slot {
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.05;
 }
 
 .slot:hover {
@@ -318,17 +318,42 @@ button:not(.user-item button):not(.hamburger-button):active {
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/*
-   The .hamburger-button will have its own specific styles in css/menu.css
-   (e.g., background: transparent;).
-   This general rule will not apply to it due to the :not(.hamburger-button) selector.
-*/
+/* In css/styles.css */
 
-/* Remove original delete button style that's now handled within .user-item */
-/*
-.delete-btn { ... }
-.delete-btn:hover { ... }
-*/
+/* ================================
+   SCHEDULE CONTROLS (NEW or existing section)
+================================== */
+#addNewTimeSlotBtn {
+ 
+  color: white;
+  border: none;
+  border-radius: 50%; /* Make it circular */
+  width: 35px;
+  height: 35px;
+  font-size: 1.2rem;   /* Adjust for '+' size */
+  font-weight: bold;
+  line-height: 30px; /* Helps center the '+' vertically if font size matches */
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0; /* Remove default button padding */
+  display: inline-flex; /* Helps with centering content if needed */
+  justify-content: center;
+  align-items: center;
+}
+
+#addNewTimeSlotBtn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Styles for the table header cell containing the '+' button */
+#addTimeSlotHeaderCell {
+  text-align: center; 
+  vertical-align: middle;
+  /* Optional: if you want a visual separator */
+  /* border-left: 1px solid #eee; */ 
+}
 
 /* Responsive Styles */
 @media (max-width: 768px) {
