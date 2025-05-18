@@ -1,5 +1,5 @@
 {
-  "name": "classclashes",
+  "name": "campxus",
   "version": "1.0.0",
   "description": "A web-based scheduling and availability tracker for university students to: - Add their own class schedule - See overlaps with other students - Compare availability in real-time - Navigate easily between Schedule, Friends, and About sections.",
   "main": "index.html",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Faizan2001/ClassClashes.git"
+    "url": "git+https://github.com/Faizan2001/CampXus.git"
   },
   "keywords": [],
   "author": "Faizan2001",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Faizan2001/ClassClashes/issues"
+    "url": "https://github.com/Faizan2001/CampXus/issues"
   },
-  "homepage": "https://github.com/Faizan2001/ClassClashes#readme",
+  "homepage": "https://github.com/Faizan2001/CampXus#readme",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "jest": "^29.7.0",
