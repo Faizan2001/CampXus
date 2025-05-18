@@ -70,6 +70,7 @@ export function _resetStateForTesting() { // Resets state to initial values for 
 ================================== */
 let confirmModalCallback = null; // Stores the function to execute when "Yes" is clicked on a confirmation modal.
 
+
 /**
  * Shows the custom modal.
  * @param {string} message - The main message to display.
@@ -77,41 +78,66 @@ let confirmModalCallback = null; // Stores the function to execute when "Yes" is
  * @param {boolean} [showConfirmationButtons=false] - If true, shows Yes/No buttons; otherwise, shows OK.
  * @param {function} [onConfirm] - Callback for the "Yes" button if showConfirmationButtons is true.
  */
-export function showAppModal(message, title = "Notification", showConfirmationButtons = false, onConfirm) {
+// In js/script.js (MODIFIED showAppModal)
+
+export function showAppModal(content, title = "Notification", showConfirmationButtons = false, onConfirm, isHtmlContent = false) {
   // Ensure all necessary modal DOM elements are available
   if (!DOM_ELEMENTS.appModal || !DOM_ELEMENTS.modalTitle || !DOM_ELEMENTS.modalMessage ||
       !DOM_ELEMENTS.modalCloseBtn || !DOM_ELEMENTS.modalActionButtons ||
       !DOM_ELEMENTS.modalConfirmBtn || !DOM_ELEMENTS.modalCancelBtn) {
     console.error("Modal elements not found in DOM. Falling back to native browser dialogs.");
-    // Fallback to native dialogs if custom modal isn't properly set up in HTML
+    // Fallback logic
+    const messageString = (typeof content === 'string' || content instanceof String) ? content : "Custom content interaction required.";
     if (showConfirmationButtons) {
-        if (confirm(`${title}: ${message}`)) { // Native confirm dialog
+        if (confirm(`${title}: ${messageString}`)) { 
             if (onConfirm && typeof onConfirm === 'function') onConfirm();
         }
     } else {
-        alert(`${title}: ${message}`); // Native alert dialog
+        alert(`${title}: ${messageString}`);
     }
     return;
   }
 
   DOM_ELEMENTS.modalTitle.textContent = title;
-  DOM_ELEMENTS.modalMessage.textContent = message;
   confirmModalCallback = null; // Reset any previous callback
 
-  if (showConfirmationButtons) {
-    DOM_ELEMENTS.modalActionButtons.style.display = "flex"; // Show "Yes" / "No" buttons
-    DOM_ELEMENTS.modalCloseBtn.style.display = "none";   // Hide the default "OK" button
-    if (onConfirm && typeof onConfirm === 'function') {
-      confirmModalCallback = onConfirm; // Store the action for the "Yes" button
+  // --- HANDLE CUSTOM HTML CONTENT ---
+  if (isHtmlContent) {
+    // Clear previous message content first
+    DOM_ELEMENTS.modalMessage.innerHTML = ''; 
+    if (typeof content === 'string') {
+      DOM_ELEMENTS.modalMessage.innerHTML = content; // Set HTML string
+    } else if (content instanceof HTMLElement) {
+      DOM_ELEMENTS.modalMessage.appendChild(content); // Append HTML element
+    } else {
+      // Fallback if content is not string or HTMLElement but isHtmlContent is true
+      DOM_ELEMENTS.modalMessage.textContent = "Invalid content type for HTML modal.";
+      console.error("showAppModal called with isHtmlContent=true but content is not a string or HTMLElement.");
     }
   } else {
-    DOM_ELEMENTS.modalActionButtons.style.display = "none";  // Hide "Yes" / "No" buttons
-    DOM_ELEMENTS.modalCloseBtn.style.display = "inline-block"; // Show the default "OK" button
+    DOM_ELEMENTS.modalMessage.innerHTML = ''; // Clear previous HTML if any
+    DOM_ELEMENTS.modalMessage.textContent = content; // Set as plain text
+  }
+  // --- END OF HTML CONTENT HANDLING ---
+
+  // Button visibility logic
+  if (showConfirmationButtons) {
+    DOM_ELEMENTS.modalActionButtons.style.display = "flex";
+    DOM_ELEMENTS.modalCloseBtn.style.display = "none";
+    if (onConfirm && typeof onConfirm === 'function') {
+      confirmModalCallback = onConfirm;
+    }
+  } else {
+    DOM_ELEMENTS.modalActionButtons.style.display = "none";
+    DOM_ELEMENTS.modalCloseBtn.style.display = "inline-block";
   }
 
-  DOM_ELEMENTS.appModal.style.display = "flex"; // Make the modal overlay visible
-  // Short timeout to ensure `display:flex` is applied before adding 'active' class for CSS transition
-  setTimeout(() => DOM_ELEMENTS.appModal.classList.add("active"), 10);
+  DOM_ELEMENTS.appModal.style.display = "flex";
+  setTimeout(() => {
+    if (DOM_ELEMENTS.appModal) { // Check again in case it became null
+        DOM_ELEMENTS.appModal.classList.add("active");
+    }
+  }, 10);
 }
 
 /**
@@ -320,22 +346,53 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
 /**
  * Handles the click event for the "Add New Time Slot" button.
- * Prompts the user for start and end times.
  */
+// In js/script.js (REPLACE existing handleAddNewTimeSlotClick)
+
 function handleAddNewTimeSlotClick() {
   if (!state.activeUserId) {
     showAppModal("Please select an active user first to customize their time slots.", "User Not Selected");
     return;
   }
 
-  // Using prompt for now. This will be replaced by a custom modal input in Phase 2.
-  const startTimeInput = prompt("Enter start time for the new slot (e.g., 6:00 PM or 18:00):");
-  if (startTimeInput === null) return; // User pressed Cancel
+  // HTML structure for the time input form
+  const timeInputFormHTML = `
+    <div id="newTimeSlotFormInternal" class="time-input-form">
+      <div>
+        <label for="modalNewSlotStartTime" class="time-input-label">Start Time:</label>
+        <input type="text" id="modalNewSlotStartTime" class="time-input-field" name="newSlotStartTime" placeholder="e.g., 8:00 AM or 13:00" required value="">
+      </div>
+      <div>
+        <label for="modalNewSlotEndTime" class="time-input-label">End Time:</label>
+        <input type="text" id="modalNewSlotEndTime" class="time-input-field" name="newSlotEndTime" placeholder="e.g., 9:30 AM or 14:30" required value="">
+      </div>
+      <p class="time-input-hint">Use HH:MM format, optionally with AM/PM (e.g., "7:00 AM", "5:30 PM") or 24-hour format (e.g., "07:00", "17:30").</p>
+    </div>
+  `;
 
-  const endTimeInput = prompt(`Enter end time for the new slot (starts at ${startTimeInput}):`);
-  if (endTimeInput === null) return; // User pressed Cancel
+  showAppModal(
+    timeInputFormHTML,      // The HTML string for the form
+    "Add New Time Slot",    // Modal Title
+    true,                   // Show "Yes" (acts as Save) and "No" (acts as Cancel) buttons
+    () => {                 // onConfirm callback (when "Yes/Save" is clicked)
+      // Get input elements FROM WITHIN THE CURRENTLY DISPLAYED MODAL
+      const startTimeInputEl = document.getElementById("modalNewSlotStartTime");
+      const endTimeInputEl = document.getElementById("modalNewSlotEndTime");
 
-  addCustomTimeSlotToActiveUser(startTimeInput.trim(), endTimeInput.trim());
+      if (startTimeInputEl && endTimeInputEl) {
+        const startTime = startTimeInputEl.value.trim();
+        const endTime = endTimeInputEl.value.trim();
+        
+        // Validation and adding logic is now primarily in addCustomTimeSlotToActiveUser
+        addCustomTimeSlotToActiveUser(startTime, endTime); 
+      } else {
+        // This would indicate a programming error if the IDs in timeInputFormHTML are wrong
+        console.error("Could not find time input fields within the modal after confirmation.");
+        // Optionally show an error modal, though hideAppModal will be called by the confirm button's listener anyway.
+      }
+    },
+    true                    // IMPORTANT: Tell showAppModal that the 'content' is HTML
+  );
 }
 
 

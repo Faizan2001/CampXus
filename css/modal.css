@@ -115,3 +115,53 @@
 .modal-button.cancel:hover {
   background-color: #c82333;
 }
+
+/* Time Input Form */
+/* ================================
+   TIME INPUT FORM STYLES
+================================== */
+/* This is a simple time input form with a label, input field, and hint text */
+/* The form is designed to be responsive and user-friendly, with a clean layout */
+
+.time-input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Space between label/input groups and hint */
+  margin-bottom: 20px; /* Space before action buttons */
+  text-align: left; 
+}
+
+.time-input-form > div { /* Targeting the div wrappers for label+input */
+    display: flex;
+    flex-direction: column;
+    gap: 4px; /* Small gap between label and its input */
+}
+
+.time-input-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+  /* margin-bottom: 3px; */ /* Replaced by gap in parent */
+}
+
+.time-input-field {
+  padding: 10px 12px; /* Increased padding for better touch/click targets */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  width: 100%; /* Make input take full width of its container */
+  box-sizing: border-box; /* Ensure padding and border are included in width */
+}
+
+.time-input-field:focus {
+  border-color: #6200ee; /* Your app's primary focus color */
+  box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
+  outline: none;
+}
+
+.time-input-hint {
+  font-size: 0.8rem;
+  color: #6c757d; /* A softer grey for the hint */
+  margin-top: 5px;
+  text-align: center;
+}
