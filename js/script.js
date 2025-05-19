@@ -776,7 +776,7 @@ function handleSetActiveUser(userId) {
 function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
   state.activeUserId = null;
-  // state.selectedUserIds.clear(); // Keep selections or clear? User preference. Let's keep.
+  state.selectedUserIds.clear(); 
   updateUI();
 }
 
