@@ -412,35 +412,11 @@ function saveStateToStorage() {
  * @param {Event} event - The click event.
  */
 function handleTimeSlotHeaderClick(event) {
-  const slotIndex = parseInt(event.currentTarget.dataset.slotIndex, 10);
-  const activeUserObject = state.users[state.activeUserId];
-
-  if (!activeUserObject) {
-    showModal({ content: "No active user selected.", title: "Error" });
-    return;
-  }
-  // Ensure we are editing user's own timeSlots, not defaults if they have none.
-  if (!activeUserObject.timeSlots || activeUserObject.timeSlots.length === 0) {
-    showModal({
-      content:
-        "This user is currently using default time slots. Add a custom time slot first to enable editing.",
-      title: "Cannot Edit Defaults",
-    });
-    return;
-  }
-  if (
-    isNaN(slotIndex) ||
-    slotIndex < 0 ||
-    slotIndex >= activeUserObject.timeSlots.length
-  ) {
-    console.error("Invalid slot index for editing:", slotIndex);
-    showModal({
-      content: "Error: Could not determine which time slot to edit.",
-      title: "Error",
-    });
-    return;
-  }
-  openEditTimeSlotModal(slotIndex, activeUserObject);
+  console.log(
+    "Time slot header clicked!",
+    event.currentTarget.dataset.slotIndex
+  );
+  // We will implement the logic to open the edit modal here in the next step.
 }
 
 /**
@@ -611,21 +587,26 @@ function renderScheduleGrid() {
   }
 
   let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
-  let scheduleMatrixToRender = null;
-  let activeUserHasCustomSlots = false;
+
+  let allowEditingHeaders = false; // Renamed for clarity
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     const user = state.users[state.activeUserId];
-    if (user.timeSlots && user.timeSlots.length > 0) {
+
+    // Critical: Check if the user object and its timeSlots array exist and are not empty
+    if (user && user.timeSlots && user.timeSlots.length > 0) {
       currentTimeSlotsToRender = user.timeSlots;
-      activeUserHasCustomSlots = true; // User has their own slots
+      allowEditingHeaders = true; // User has their own slots defined
     }
-    scheduleMatrixToRender = user.schedule;
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
-    // For compare mode, use default time slots for the grid structure for now.
-    // Actual coloring will be handled by determineSlotStatus which needs to be robust for heterogeneous schedules.
+    // Compare mode
+
     currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
-    // `determineSlotStatus` will attempt to map indices, which is a simplification.
+    allowEditingHeaders = false; // Not editable in compare mode
+  } else {
+    // No active user, show defaults, not editable
+    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    allowEditingHeaders = false;
   }
 
   // Clear existing time headers, except "Day/Time" and "Add Slot" cell
@@ -640,19 +621,15 @@ function renderScheduleGrid() {
   currentTimeSlotsToRender.forEach((slotData, index) => {
     const th = document.createElement("th");
     th.textContent = slotData.label;
-    th.dataset.timeIndex = index; // Kept for compatibility with other logic
 
-    // --- START: Phase 3 - Make headers clickable for editing ---
-    if (state.activeUserId && activeUserHasCustomSlots) {
-      // Only if an active user has their own slots
-      th.classList.add("editable-timeslot-header");
-      th.dataset.slotIndex = index; // Specific for editing this indexed slot
+     if (allowEditingHeaders) { // Use the simplified flag
+      th.classList.add('editable-timeslot-header');
+      th.dataset.slotIndex = index;
       th.title = "Click to edit this time slot";
-      th.addEventListener("click", handleTimeSlotHeaderClick);
+      th.addEventListener('click', handleTimeSlotHeaderClick);
     } else {
-      th.classList.add("time-slot-header"); // Default class if not editable
+      th.classList.add("time-slot-header");
     }
-    // --- END: Phase 3 ---
 
     if (addSlotCellRef) tableHeadRow.insertBefore(th, addSlotCellRef);
     else tableHeadRow.appendChild(th);
@@ -668,6 +645,12 @@ function renderScheduleGrid() {
     "Friday",
     "Saturday",
   ];
+
+  const scheduleMatrixToRender =
+    state.activeUserId && state.users[state.activeUserId]
+      ? state.users[state.activeUserId].schedule
+      : null;
+
   daysOfWeek.forEach((dayName, dayIndex) => {
     const tr = document.createElement("tr");
     const tdDayName = document.createElement("td");
@@ -680,8 +663,27 @@ function renderScheduleGrid() {
       tdSlot.dataset.day = dayIndex;
       tdSlot.dataset.time = timeIndex; // This index matches currentTimeSlotsToRender
 
+      // Determine status using the main state for compare mode, or active user's schedule
+      let isBusy = false;
+      if (state.compareMode && state.selectedUserIds.size > 0) {
+        // determineSlotStatus will handle this
+      } else if (
+        scheduleMatrixToRender &&
+        scheduleMatrixToRender[dayIndex] &&
+        scheduleMatrixToRender[dayIndex][timeIndex] !== undefined
+      ) {
+        isBusy = scheduleMatrixToRender[dayIndex][timeIndex];
+      }
+
       const statusClass = determineSlotStatus(dayIndex, timeIndex, state);
-      if (statusClass !== "slot") tdSlot.classList.add(statusClass);
+      if (statusClass !== "slot") {
+        // determineSlotStatus returns more specific classes
+        tdSlot.classList.add(statusClass);
+      } else if (isBusy && !state.compareMode) {
+        // Fallback for active user if determineSlotStatus only returns 'slot'
+        tdSlot.classList.add("slot-selected"); // Or your 'busy' class for active user
+      }
+
       tr.appendChild(tdSlot);
     });
     tableBody.appendChild(tr);
@@ -776,7 +778,7 @@ function handleSetActiveUser(userId) {
 function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
   state.activeUserId = null;
-  state.selectedUserIds.clear(); 
+  state.selectedUserIds.clear();
   updateUI();
 }
 

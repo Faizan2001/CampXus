@@ -355,6 +355,16 @@ button:not(.user-item button):not(.hamburger-button):active {
   /* border-left: 1px solid #eee; */ 
 }
 
+.editable-timeslot-header {
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.editable-timeslot-header:hover {
+  background-color: #e5dffb; /* Or any subtle hover color that fits your theme */
+  /* text-decoration: underline; */ /* Optional */
+}
+
 /* Responsive Styles */
 @media (max-width: 768px) {
   body {
