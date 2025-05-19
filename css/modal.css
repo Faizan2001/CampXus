@@ -125,6 +125,13 @@
   background-color: #c82333;
 }
 
+.modal-input.input-error,
+.time-input-field.input-error {
+  /* If you use .time-input-field elsewhere */
+  border-color: #d8000c; /* Error red */
+  background-color: #ffd2d2; /* Light red background */
+}
+
 /* ===========================================================
    STYLES FOR "EDIT TIME SLOT" MODAL (using .modal-form-container)
    This is for the more complex form with multiple paragraphs and groups.

@@ -308,7 +308,7 @@ function handleAddNewTimeSlotClick() {
     );
   }
 
- const timeInputFormHTML = `
+  const timeInputFormHTML = `
   <div class="add-timeslot-form-content">
     <div> <!-- Wrapper for Start Time label + input -->
       <label for="modalNewSlotStartTime">Start Time:</label>
@@ -419,31 +419,49 @@ function saveStateToStorage() {
  * @param {Event} event - The click event.
  */
 function handleTimeSlotHeaderClick(event) {
-    const slotIndexString = event.currentTarget.dataset.slotIndex;
-    if (slotIndexString === undefined) {
-        console.error("Slot index is undefined for clicked header.");
-        showModal({ content: "Could not determine which time slot to edit. Slot index missing.", title: "Error" });
-        return;
-    }
-    const slotIndex = parseInt(slotIndexString, 10);
+  const slotIndexString = event.currentTarget.dataset.slotIndex;
+  if (slotIndexString === undefined) {
+    console.error("Slot index is undefined for clicked header.");
+    showModal({
+      content:
+        "Could not determine which time slot to edit. Slot index missing.",
+      title: "Error",
+    });
+    return;
+  }
+  const slotIndex = parseInt(slotIndexString, 10);
 
-    if (!state.activeUserId || !state.users[state.activeUserId]) {
-        // This case should ideally not be reached if headers are only made clickable for active users,
-        // but it's a good safeguard.
-        console.error("handleTimeSlotHeaderClick called with no active user.");
-        showModal({ content: "No active user selected. Please select a user to edit their schedule.", title: "Error" });
-        return;
-    }
-    const activeUserObject = state.users[state.activeUserId];
+  if (!state.activeUserId || !state.users[state.activeUserId]) {
+    // This case should ideally not be reached if headers are only made clickable for active users,
+    // but it's a good safeguard.
+    console.error("handleTimeSlotHeaderClick called with no active user.");
+    showModal({
+      content:
+        "No active user selected. Please select a user to edit their schedule.",
+      title: "Error",
+    });
+    return;
+  }
+  const activeUserObject = state.users[state.activeUserId];
 
-    if (!activeUserObject.timeSlots || slotIndex < 0 || slotIndex >= activeUserObject.timeSlots.length) {
-        console.error(`Invalid slot index ${slotIndex} for user ${activeUserObject.id} with ${activeUserObject.timeSlots?.length} slots.`);
-        showModal({ content: "Error: The selected time slot could not be found or is invalid.", title: "Error" });
-        return;
-    }
+  if (
+    !activeUserObject.timeSlots ||
+    slotIndex < 0 ||
+    slotIndex >= activeUserObject.timeSlots.length
+  ) {
+    console.error(
+      `Invalid slot index ${slotIndex} for user ${activeUserObject.id} with ${activeUserObject.timeSlots?.length} slots.`
+    );
+    showModal({
+      content:
+        "Error: The selected time slot could not be found or is invalid.",
+      title: "Error",
+    });
+    return;
+  }
 
-    // If all checks pass, open the modal for editing
-    openEditTimeSlotModal(slotIndex, activeUserObject);
+  // If all checks pass, open the modal for editing
+  openEditTimeSlotModal(slotIndex, activeUserObject);
 }
 
 /**
@@ -452,11 +470,11 @@ function handleTimeSlotHeaderClick(event) {
  * @param {object} activeUserObject - The active user object.
  */
 function openEditTimeSlotModal(slotIndex, activeUserObject) {
-    const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
+  const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
 
-    // Since we store times in "HH:MM" format, pre-filling is direct.
- 
-     const modalContentHTML = `
+  // Since we store times in "HH:MM" format, pre-filling is direct.
+
+  const modalContentHTML = `
         <div class="modal-form-container"> <!-- Outer container for all form content -->
             <p>Current: <strong>${currentTimeSlot.label}</strong></p>
             <p class="time-input-hint">Enter new times in HH:MM format (e.g., 09:00, 14:30).</p>
@@ -479,27 +497,20 @@ function openEditTimeSlotModal(slotIndex, activeUserObject) {
         </div>
     `;
 
-    showModal({
-        content: modalContentHTML,
-        title: "Edit Time Slot",
-        isHtmlContent: true,
-        showConfirmationButtons: true,
-        confirmText: "Save Changes",
-        cancelText: "Cancel",
-        onConfirm: () => {
-            // Placeholder for now. In the next segment, this will call:
-            // return processTimeSlotEdit(slotIndex, activeUserObject);
-            console.log(`"Save Changes" clicked for slot index: ${slotIndex}`);
-            console.log("Start time input:", document.getElementById('edit-slot-start-time').value);
-            console.log("End time input:", document.getElementById('edit-slot-end-time').value);
-            // For now, let's just return true to allow the modal to close.
-            // The actual processing will determine if it should close or show errors.
-            return true;
-        },
-        onCancel: () => {
-            console.log("Edit time slot cancelled.");
-        }
-    });
+  showModal({
+    content: modalContentHTML,
+    title: "Edit Time Slot",
+    isHtmlContent: true,
+    showConfirmationButtons: true,
+    confirmText: "Save Changes",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      return processTimeSlotEdit(slotIndex, activeUserObject);
+    },
+    onCancel: () => {
+      console.log("Edit time slot cancelled.");
+    },
+  });
 }
 
 /**
@@ -517,70 +528,66 @@ function processTimeSlotEdit(slotIndex, activeUserObject) {
 
   if (!newStartTimeInput || !newEndTimeInput || !errorMessageElement) {
     console.error("Modal elements for editing time slot not found.");
-    if (errorMessageElement) {
-      errorMessageElement.textContent = "Error: Modal form is broken.";
-      errorMessageElement.style.display = "block";
-    }
-    return false;
+
+    return true; // Allow modal to close, but log the error
   }
 
-  const newStartTime = newStartTimeInput.value.trim();
-  const newEndTime = newEndTimeInput.value.trim();
+  const rawStartTime = newStartTimeInput.value.trim(); // Get raw input
+  const rawEndTime = newEndTimeInput.value.trim(); // Get raw input
 
   errorMessageElement.textContent = "";
   errorMessageElement.style.display = "none";
-  newStartTimeInput.classList.remove("input-error"); // Assuming you have .input-error CSS
+  newStartTimeInput.classList.remove("input-error");
   newEndTimeInput.classList.remove("input-error");
 
-  if (!newStartTime || !newEndTime) {
-    errorMessageElement.textContent = "Start and End times cannot be empty.";
-    if (!newStartTime) newStartTimeInput.classList.add("input-error");
-    if (!newEndTime) newEndTimeInput.classList.add("input-error");
+  if (!rawStartTime || !rawEndTime) {
+    errorMessageElement.textContent = "Both Start and End times are required.";
+    // ... add input-error class ...
     errorMessageElement.style.display = "block";
     return false;
   }
-  // Use stricter HH:MM validation for editing
+
+  // --- START: Convert raw input from edit modal to HH:MM ---
+  const newStartTime = convertToHHMM(rawStartTime);
+  const newEndTime = convertToHHMM(rawEndTime);
+  // --- END: Conversion ---
+
+  // --- Validation ---
+
+  // Now validate the converted HH:MM format
   if (!isValidStrictHHMMTimeFormat(newStartTime)) {
-    errorMessageElement.textContent =
-      "Invalid Start Time. Use HH:MM format (e.g., 09:00).";
+    errorMessageElement.textContent = `Invalid Start Time: "${rawStartTime}". Please use H:MM or HH:MM (e.g., 8:00, 09:00, 14:30).`;
     newStartTimeInput.classList.add("input-error");
     errorMessageElement.style.display = "block";
     return false;
   }
+
   if (!isValidStrictHHMMTimeFormat(newEndTime)) {
-    errorMessageElement.textContent =
-      "Invalid End Time. Use HH:MM format (e.g., 14:30).";
-    newEndTimeInput.classList.add("input-error");
-    errorMessageElement.style.display = "block";
-    return false;
-  }
-  if (!isTimeBefore(newStartTime, newEndTime)) {
-    errorMessageElement.textContent = "Start Time must be before End Time.";
-    newStartTimeInput.classList.add("input-error");
+    errorMessageElement.textContent = `Invalid End Time: "${rawEndTime}". Please use H:MM or HH:MM (e.g., 8:00, 09:00, 14:30).`;
     newEndTimeInput.classList.add("input-error");
     errorMessageElement.style.display = "block";
     return false;
   }
 
-  // Adjacent Slot Conflict Validation
+  if (!isTimeBefore(newStartTime, newEndTime)) {
+    errorMessageElement.textContent = `Start Time (${newStartTime}) must be strictly before End Time (${newEndTime}).`;
+    // ... add input-error class ...
+    errorMessageElement.style.display = "block";
+    return false;
+  }
+
+  // --- Adjacent Slot Conflict Validation ---
+  // Note: activeUserObject is passed in, so we use its timeSlots directly.
+  // No need to find user in state.users again unless you prefer to always get the latest from state.
+  // For this operation, the passed activeUserObject should be the correct one.
   const userTimeSlots = activeUserObject.timeSlots;
+
   if (slotIndex > 0) {
     const prevSlot = userTimeSlots[slotIndex - 1];
-    // prevSlot.end might be "HH:MM AM/PM", newStartTime is "HH:MM"
-    // Need a robust way to compare. For now, assume prevSlot.end can be parsed by isTimeBefore if it were HH:MM
-    // This highlights the need for consistent time representation or more robust parsing.
-    // Let's assume for this validation, we need to parse prevSlot.end to HH:MM or handle AM/PM in parseTime
-    // For now, if prevSlot.end is in AM/PM, this comparison might be tricky.
-    // A temporary fix: if isTimeBefore expects HH:MM, and prevSlot.end contains AM/PM, it will fail parseTime.
-    // This needs a more robust time parsing utility that handles AM/PM and converts to minutes or 24h format.
-    // For now, this check might be unreliable if times are stored with AM/PM.
-    // We'll proceed assuming isTimeBefore can handle the format or that times are already HH:MM.
     if (!isTimeBefore(prevSlot.end, newStartTime)) {
-      // This will fail if prevSlot.end has AM/PM and parseTime doesn't handle it
-      // A better comparison logic is needed here if formats differ.
-      // Simplification: assume parseTime in timeUtils.js is robust enough or formats are consistent.
+      // prevSlot.end should be HH:MM
       errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous slot's end (${prevSlot.end}).`;
-      newStartTimeInput.classList.add("input-error");
+      // ... add input-error class ...
       errorMessageElement.style.display = "block";
       return false;
     }
@@ -588,24 +595,24 @@ function processTimeSlotEdit(slotIndex, activeUserObject) {
   if (slotIndex < userTimeSlots.length - 1) {
     const nextSlot = userTimeSlots[slotIndex + 1];
     if (!isTimeBefore(newEndTime, nextSlot.start)) {
-      // Similar issue with nextSlot.start format
+      // nextSlot.start should be HH:MM
       errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
-      newEndTimeInput.classList.add("input-error");
+      // ... add input-error class ...
       errorMessageElement.style.display = "block";
       return false;
     }
   }
 
-  // Update user's timeSlot object
-  userTimeSlots[slotIndex].start = newStartTime; // Store as HH:MM
-  userTimeSlots[slotIndex].end = newEndTime; // Store as HH:MM
-  userTimeSlots[slotIndex].label = `${newStartTime}-${newEndTime}`; // Update label
+  // --- All Validations Passed ---
+  userTimeSlots[slotIndex].start = newStartTime; // Store HH:MM
+  userTimeSlots[slotIndex].end = newEndTime; // Store HH:MM
+  userTimeSlots[slotIndex].label = `${newStartTime}-${newEndTime}`;
 
   saveStateToStorage();
-  renderScheduleGrid(); // Re-render to reflect changes
-  // No success modal here, as the main modal closing is success.
-  return true; // Success
+  renderScheduleGrid();
+  return true;
 }
+
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
 
 function renderScheduleGrid() {
@@ -657,11 +664,12 @@ function renderScheduleGrid() {
     const th = document.createElement("th");
     th.textContent = slotData.label;
 
-     if (allowEditingHeaders) { // Use the simplified flag
-      th.classList.add('editable-timeslot-header');
+    if (allowEditingHeaders) {
+      // Use the simplified flag
+      th.classList.add("editable-timeslot-header");
       th.dataset.slotIndex = index;
       th.title = "Click to edit this time slot";
-      th.addEventListener('click', handleTimeSlotHeaderClick);
+      th.addEventListener("click", handleTimeSlotHeaderClick);
     } else {
       th.classList.add("time-slot-header");
     }
