@@ -1,10 +1,16 @@
 // js/script.js
 
 // --- Module Imports ---
-import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from './constants.js';
-import { DOM_ELEMENTS, initializeDomElements } from './domElements.js';
-import { initModal, showModal } from './modal.js';
-import { parseTime, isTimeBefore, isValidTimeFormat, isValidStrictHHMMTimeFormat } from './timeUtils.js';
+import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "./constants.js";
+import { DOM_ELEMENTS, initializeDomElements } from "./domElements.js";
+import { initModal, showModal } from "./modal.js";
+import {
+  parseTime,
+  isTimeBefore,
+  isValidTimeFormat,
+  isValidStrictHHMMTimeFormat,
+  convertToHHMM,
+} from "./timeUtils.js";
 
 /* ================================
    APPLICATION STATE
@@ -12,16 +18,25 @@ import { parseTime, isTimeBefore, isValidTimeFormat, isValidStrictHHMMTimeFormat
 let state = {
   activeUserId: null,
   users: {}, // Changed from object to array: { userId: userObject } -> [userObject, ...]
-              // Let's keep it as an object for easier lookup state.users[userId]
+  // Let's keep it as an object for easier lookup state.users[userId]
   selectedUserIds: new Set(),
   compareMode: false,
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
-export function getState() { return state; }
-export function _setStateForTesting(newState) { state = { ...state, ...newState }; }
+export function getState() {
+  return state;
+}
+export function _setStateForTesting(newState) {
+  state = { ...state, ...newState };
+}
 export function _resetStateForTesting() {
-  state = { activeUserId: null, users: {}, selectedUserIds: new Set(), compareMode: false };
+  state = {
+    activeUserId: null,
+    users: {},
+    selectedUserIds: new Set(),
+    compareMode: false,
+  };
 }
 
 /* ================================
@@ -30,8 +45,15 @@ export function _resetStateForTesting() {
 export function createUserObject(name, userId, currentUsers) {
   if (!currentUsers[userId]) {
     const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)); // Deep copy
-    const schedule = Array(7).fill(null).map(() => Array(userTimeSlots.length).fill(false));
-    return { id: userId, name: name, timeSlots: userTimeSlots, schedule: schedule };
+    const schedule = Array(7)
+      .fill(null)
+      .map(() => Array(userTimeSlots.length).fill(false));
+    return {
+      id: userId,
+      name: name,
+      timeSlots: userTimeSlots,
+      schedule: schedule,
+    };
   }
   return null;
 }
@@ -46,13 +68,20 @@ export function deleteUserFromState(userId, currentState) {
   if (newActiveUserId === userId) newActiveUserId = null;
   newSelectedUserIds.delete(userId);
 
-  return { ...currentState, users: newUsers, activeUserId: newActiveUserId, selectedUserIds: newSelectedUserIds };
+  return {
+    ...currentState,
+    users: newUsers,
+    activeUserId: newActiveUserId,
+    selectedUserIds: newSelectedUserIds,
+  };
 }
 
 export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
   return userSchedule.map((daySlots, dIdx) =>
     dIdx === dayIndex
-      ? daySlots.map((slotValue, tIdx) => (tIdx === timeIndex ? !slotValue : slotValue))
+      ? daySlots.map((slotValue, tIdx) =>
+          tIdx === timeIndex ? !slotValue : slotValue
+        )
       : [...daySlots]
   );
 }
@@ -66,38 +95,43 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
     let busyCount = 0;
     let allUsersHaveSlot = true; // Flag to check if all selected users even have this timeIndex
 
-    selectedUserIds.forEach(id => {
-        const user = users[id];
-        if (user && user.schedule && user.schedule[dayIndex]) {
-            if (timeIndex < user.schedule[dayIndex].length) { // Check if slot index is valid for this user
-                if (user.schedule[dayIndex][timeIndex]) {
-                    busyCount++;
-                }
-            } else {
-                allUsersHaveSlot = false; // This user doesn't have this time slot index
-            }
+    selectedUserIds.forEach((id) => {
+      const user = users[id];
+      if (user && user.schedule && user.schedule[dayIndex]) {
+        if (timeIndex < user.schedule[dayIndex].length) {
+          // Check if slot index is valid for this user
+          if (user.schedule[dayIndex][timeIndex]) {
+            busyCount++;
+          }
         } else {
-            allUsersHaveSlot = false; // User or their schedule/day doesn't exist
+          allUsersHaveSlot = false; // This user doesn't have this time slot index
         }
+      } else {
+        allUsersHaveSlot = false; // User or their schedule/day doesn't exist
+      }
     });
-    
-    if (!allUsersHaveSlot && selectedUserIds.size > 0) { // If any user doesn't have the slot, it might be partial or uncomparable
-        // This logic needs refinement for heterogeneous schedules. For now, if not all have it, consider it partial.
-        // A better approach would be to map times, not indices, for comparison.
-        return "slot-partial"; // Or a new "slot-undefined-for-some"
+
+    if (!allUsersHaveSlot && selectedUserIds.size > 0) {
+      // If any user doesn't have the slot, it might be partial or uncomparable
+      // This logic needs refinement for heterogeneous schedules. For now, if not all have it, consider it partial.
+      // A better approach would be to map times, not indices, for comparison.
+      return "slot-partial"; // Or a new "slot-undefined-for-some"
     }
 
     if (busyCount === 0 && selectedUserIds.size > 0) return "slot-free";
     if (busyCount === selectedUserIds.size) return "slot-conflict";
     if (selectedUserIds.size > 0) return "slot-partial"; // some busy, some free
-    
   } else if (activeUserId && users[activeUserId]) {
-      const activeUserObj = users[activeUserId];
-      if (activeUserObj.schedule && activeUserObj.schedule[dayIndex] && timeIndex < activeUserObj.schedule[dayIndex].length) {
-          if (activeUserObj.schedule[dayIndex][timeIndex]) {
-            return "slot-selected";
-          }
+    const activeUserObj = users[activeUserId];
+    if (
+      activeUserObj.schedule &&
+      activeUserObj.schedule[dayIndex] &&
+      timeIndex < activeUserObj.schedule[dayIndex].length
+    ) {
+      if (activeUserObj.schedule[dayIndex][timeIndex]) {
+        return "slot-selected";
       }
+    }
   }
   return "slot"; // Default
 }
@@ -111,17 +145,26 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 
   selectedUserIds.forEach((userId) => {
     const user = users[userId];
-    if (user && user.schedule && user.schedule[dayIndex] && timeIndex < user.schedule[dayIndex].length) {
-      (user.schedule[dayIndex][timeIndex] ? busyUsers : freeUsers).push(user.name);
+    if (
+      user &&
+      user.schedule &&
+      user.schedule[dayIndex] &&
+      timeIndex < user.schedule[dayIndex].length
+    ) {
+      (user.schedule[dayIndex][timeIndex] ? busyUsers : freeUsers).push(
+        user.name
+      );
     } else if (user) {
-        // If user exists but doesn't have this specific slot defined (e.g. heterogeneous schedules)
-        // For now, we don't list them, or could add to a 'N/A' list.
+      // If user exists but doesn't have this specific slot defined (e.g. heterogeneous schedules)
+      // For now, we don't list them, or could add to a 'N/A' list.
     }
   });
 
-  if (busyUsers.length === selectedUserIds.size && selectedUserIds.size > 0) return "All selected users are unavailable.";
-  if (freeUsers.length === selectedUserIds.size && selectedUserIds.size > 0) return "All selected users are free.";
-  
+  if (busyUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
+    return "All selected users are unavailable.";
+  if (freeUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
+    return "All selected users are free.";
+
   let message = "Availability:\n";
   if (freeUsers.length > 0) message += `Free: ${freeUsers.join(", ")}\n`;
   if (busyUsers.length > 0) message += `Busy: ${busyUsers.join(", ")}`;
@@ -138,19 +181,33 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 
 function addCustomTimeSlotToActiveUser(startTime, endTime) {
   if (!state.activeUserId || !state.users[state.activeUserId]) {
-    showModal({ content: "Please select an active user to add a custom time slot.", title: "No Active User" });
-    return false;
-  }
-
-  if (!startTime || !endTime) {
-    showModal({ content: "Both Start Time and End Time are required.", title: "Input Error" });
-    return false;
-  }
-
-  if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
     showModal({
-      content: "Invalid time format. Use '8:00 AM', '08:00', '17:30'.",
-      title: "Invalid Time Format"
+      content: "Please select an active user to add a custom time slot.",
+      title: "No Active User",
+    });
+    return false; // Indicate failure
+  }
+
+  const trimmedStartTime = startTime.trim();
+  const trimmedEndTime = endTime.trim();
+
+  if (!trimmedStartTime || !trimmedEndTime) {
+    showModal({
+      content: "Both Start Time and End Time are required.",
+      title: "Input Error",
+    });
+    return false;
+  }
+
+  // Initial validation of user input format (allows AM/PM, HH:MM, H:MM)
+  if (
+    !isValidTimeFormat(trimmedStartTime) ||
+    !isValidTimeFormat(trimmedEndTime)
+  ) {
+    showModal({
+      content:
+        "Invalid time format. Please use formats like '8:00 AM', '08:00', '5:30 PM', or '17:30'.",
+      title: "Invalid Time Format",
     });
     return false;
   }
@@ -158,63 +215,82 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   const user = state.users[state.activeUserId];
 
   if (!user.timeSlots || !Array.isArray(user.timeSlots)) {
-    user.timeSlots = [];
+    user.timeSlots = []; // Initialize if missing
   }
 
-  // --- START: MODIFIED formatTimeForLabel ---
-  const formatTimeForLabel = (timeStr) => {
-    let formattedTime = timeStr.toUpperCase().replace(/\s/g, ''); // Remove spaces, toUpperCase
-    // Only remove ":00" if AM/PM is present
-    if (formattedTime.includes("AM") || formattedTime.includes("PM")) {
-      formattedTime = formattedTime.replace(/[:.]00(?=(AM|PM))/, ''); // Remove :00 only if followed by AM/PM
-    }
-    // If the input was HH:MM (24-hour) and became HHAM/PM due to toUpperCase, we just want the original input.
-    // However, your current regex in isValidTimeFormat allows '8:00 AM' as well as '08:00'.
-    // The user input (startTime, endTime) is what we should use for the label if it's already HH:MM.
-    // The main goal is to make labels like "8AM" from "8:00 AM" but keep "17:00" as "17:00".
+  // Convert user input to strict "HH:MM" (24-hour) format
+  const hhmmStartTime = convertToHHMM(trimmedStartTime);
+  const hhmmEndTime = convertToHHMM(trimmedEndTime);
 
-    // Let's simplify: If the input contains AM/PM, try to shorten it. Otherwise, use it as is.
-    // This assumes startTime and endTime are the user's input.
-    const originalTimeStr = timeStr.trim(); // Use the original, trimmed input
-    if (originalTimeStr.match(/\s*([AP]M)\s*$/i)) { // Check if AM/PM is part of the input
-        // It has AM/PM, so try to shorten like "8:00 AM" -> "8AM"
-        return originalTimeStr.replace(/[:.]00(?=\s*([AP]M)\s*$)/i, '').toUpperCase().replace(/\s/g, '');
-    } else {
-        // No AM/PM, so it's likely HH:MM (e.g., "05:00", "17:30"). Keep it as is.
-        return originalTimeStr;
-    }
-  };
-  // --- END: MODIFIED formatTimeForLabel ---
-
-  // The newSlotLabel will now use the raw startTime and endTime if they don't have AM/PM
-  // or the shortened version if they do.
-  // For "5:00" and "6:00", they will remain "5:00" and "6:00".
-  // For "8:00 AM" and "9:00 AM", they will become "8AM" and "9AM".
-  // The label now directly uses the (potentially formatted) start and end times.
-  const newSlotLabel = `${formatTimeForLabel(startTime)}-${formatTimeForLabel(endTime)}`;
-
-
-  if (user.timeSlots.some(slot => slot.label.toUpperCase() === newSlotLabel.toUpperCase())) {
-    showModal({ content: `A time slot with label "${newSlotLabel}" already exists.`, title: "Duplicate Time Slot" });
+  // After conversion, validate that the results are indeed in strict HH:MM format.
+  // This catches cases where convertToHHMM might return the original input if it couldn't parse it
+  // and that original input wasn't strictly HH:MM.
+  if (
+    !isValidStrictHHMMTimeFormat(hhmmStartTime) ||
+    !isValidStrictHHMMTimeFormat(hhmmEndTime)
+  ) {
+    showModal({
+      content: `Could not process the entered times into a standard format. Received: "${trimmedStartTime}" and "${trimmedEndTime}". Please use HH:MM or H:MM AM/PM.`,
+      title: "Time Processing Error",
+    });
     return false;
   }
 
-  // Store the original, user-provided start and end times.
-  // The label is for display.
-  user.timeSlots.push({ start: startTime.trim(), end: endTime.trim(), label: newSlotLabel });
-  user.schedule.forEach(daySchedule => daySchedule.push(false));
+  // Validate that start time is before end time using the consistent HH:MM format
+  if (!isTimeBefore(hhmmStartTime, hhmmEndTime)) {
+    showModal({
+      content: `Start time (${hhmmStartTime}) must be before end time (${hhmmEndTime}).`,
+      title: "Invalid Time Range",
+    });
+    return false;
+  }
+
+  // Create the label using the consistent "HH:MM" format
+  const newSlotLabel = `${hhmmStartTime}-${hhmmEndTime}`;
+
+  // Check for duplicate labels (case-insensitive)
+  if (
+    user.timeSlots.some(
+      (slot) => slot.label.toUpperCase() === newSlotLabel.toUpperCase()
+    )
+  ) {
+    showModal({
+      content: `A time slot with the label "${newSlotLabel}" already exists for ${user.name}.`,
+      title: "Duplicate Time Slot",
+    });
+    return false;
+  }
+
+  // --- Store the CONVERTED "HH:MM" times for consistency ---
+  // This makes future comparisons and processing easier.
+  user.timeSlots.push({
+    start: hhmmStartTime,
+    end: hhmmEndTime,
+    label: newSlotLabel,
+  });
+
+  // Expand the schedule matrix for the new slot
+  user.schedule.forEach((daySchedule) => {
+    daySchedule.push(false);
+  });
 
   saveStateToStorage();
   updateUI();
-  showModal({ content: `New slot "${newSlotLabel}" added for ${user.name}.`, title: "Time Slot Added" });
-  return true;
+  showModal({
+    content: `New time slot "${newSlotLabel}" added for ${user.name}.`,
+    title: "Time Slot Added",
+  });
+  return true; // Indicate success
 }
 
 // .........................................
 
 function handleAddNewTimeSlotClick() {
   if (!state.activeUserId) {
-    showModal({ content: "Please select an active user first.", title: "User Not Selected" });
+    showModal({
+      content: "Please select an active user first.",
+      title: "User Not Selected",
+    });
     return;
   }
   const user = state.users[state.activeUserId];
@@ -224,10 +300,13 @@ function handleAddNewTimeSlotClick() {
     // This ensures the schedule matrix is compatible.
     // This scenario should be less common with the migration in loadState.
     user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
-    user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
-    console.warn(`User ${user.id} had no timeSlots. Initialized with defaults before adding new custom slot.`);
+    user.schedule = Array(7)
+      .fill(null)
+      .map(() => Array(user.timeSlots.length).fill(false));
+    console.warn(
+      `User ${user.id} had no timeSlots. Initialized with defaults before adding new custom slot.`
+    );
   }
-
 
   const timeInputFormHTML = `
     <div id="newTimeSlotFormInternal" class="time-input-form">
@@ -247,23 +326,26 @@ function handleAddNewTimeSlotClick() {
     onConfirm: () => {
       const startTimeInputEl = document.getElementById("modalNewSlotStartTime");
       const endTimeInputEl = document.getElementById("modalNewSlotEndTime");
-      const errorMessageElement = document.getElementById('new-slot-error-message');
+      const errorMessageElement = document.getElementById(
+        "new-slot-error-message"
+      );
 
       if (startTimeInputEl && endTimeInputEl && errorMessageElement) {
         const startTime = startTimeInputEl.value.trim();
         const endTime = endTimeInputEl.value.trim();
-        
+
         // Basic validation within modal before calling addCustomTimeSlotToActiveUser
-        errorMessageElement.style.display = 'none';
+        errorMessageElement.style.display = "none";
         if (!startTime || !endTime) {
-            errorMessageElement.textContent = 'Start and End times are required.';
-            errorMessageElement.style.display = 'block';
-            return false; // Prevent modal close
+          errorMessageElement.textContent = "Start and End times are required.";
+          errorMessageElement.style.display = "block";
+          return false; // Prevent modal close
         }
         if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
-            errorMessageElement.textContent = "Invalid time format. Use HH:MM or H:MM AM/PM (e.g., '08:00', '5:30 PM').";
-            errorMessageElement.style.display = 'block';
-            return false; // Prevent modal close
+          errorMessageElement.textContent =
+            "Invalid time format. Use HH:MM or H:MM AM/PM (e.g., '08:00', '5:30 PM').";
+          errorMessageElement.style.display = "block";
+          return false; // Prevent modal close
         }
         // More advanced validation (start < end, no overlap) could go here or in addCustomTimeSlotToActiveUser
         // For now, pass to addCustomTimeSlotToActiveUser which has its own checks.
@@ -271,7 +353,7 @@ function handleAddNewTimeSlotClick() {
       }
       console.error("Modal time input fields not found.");
       return false; // Prevent close if elements are missing
-    }
+    },
   });
 }
 
@@ -283,21 +365,31 @@ function loadStateFromStorage() {
   if (savedStateString) {
     const parsedSavedState = JSON.parse(savedStateString);
     const loadedUsers = parsedSavedState.users || {};
-    
-    Object.values(loadedUsers).forEach(user => {
-      if (!user.timeSlots || !Array.isArray(user.timeSlots) || user.timeSlots.length === 0) {
+
+    Object.values(loadedUsers).forEach((user) => {
+      if (
+        !user.timeSlots ||
+        !Array.isArray(user.timeSlots) ||
+        user.timeSlots.length === 0
+      ) {
         console.warn(`User ${user.id} missing timeSlots, applying defaults.`);
         user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
       }
       if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
-        user.schedule = user.schedule.map(daySchedule => {
+        user.schedule = user.schedule.map((daySchedule) => {
           const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
-          const limit = Math.min(daySchedule.length, newDayScheduleArray.length);
-          for (let i = 0; i < limit; i++) newDayScheduleArray[i] = daySchedule[i];
+          const limit = Math.min(
+            daySchedule.length,
+            newDayScheduleArray.length
+          );
+          for (let i = 0; i < limit; i++)
+            newDayScheduleArray[i] = daySchedule[i];
           return newDayScheduleArray;
         });
       } else {
-        user.schedule = Array(7).fill(null).map(() => Array(user.timeSlots.length).fill(false));
+        user.schedule = Array(7)
+          .fill(null)
+          .map(() => Array(user.timeSlots.length).fill(false));
       }
     });
     state.users = loadedUsers;
@@ -305,7 +397,10 @@ function loadStateFromStorage() {
 }
 
 function saveStateToStorage() {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ users: state.users }));
+  localStorage.setItem(
+    LOCAL_STORAGE_KEY,
+    JSON.stringify({ users: state.users })
+  );
 }
 
 /* ================================
@@ -317,27 +412,35 @@ function saveStateToStorage() {
  * @param {Event} event - The click event.
  */
 function handleTimeSlotHeaderClick(event) {
-    const slotIndex = parseInt(event.currentTarget.dataset.slotIndex, 10);
-    const activeUserObject = state.users[state.activeUserId];
+  const slotIndex = parseInt(event.currentTarget.dataset.slotIndex, 10);
+  const activeUserObject = state.users[state.activeUserId];
 
-    if (!activeUserObject) {
-        showModal({ content: "No active user selected.", title: "Error" });
-        return;
-    }
-    // Ensure we are editing user's own timeSlots, not defaults if they have none.
-    if (!activeUserObject.timeSlots || activeUserObject.timeSlots.length === 0) {
-        showModal({
-            content: "This user is currently using default time slots. Add a custom time slot first to enable editing.",
-            title: "Cannot Edit Defaults"
-        });
-        return;
-    }
-    if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= activeUserObject.timeSlots.length) {
-        console.error("Invalid slot index for editing:", slotIndex);
-        showModal({ content: "Error: Could not determine which time slot to edit.", title: "Error" });
-        return;
-    }
-    openEditTimeSlotModal(slotIndex, activeUserObject);
+  if (!activeUserObject) {
+    showModal({ content: "No active user selected.", title: "Error" });
+    return;
+  }
+  // Ensure we are editing user's own timeSlots, not defaults if they have none.
+  if (!activeUserObject.timeSlots || activeUserObject.timeSlots.length === 0) {
+    showModal({
+      content:
+        "This user is currently using default time slots. Add a custom time slot first to enable editing.",
+      title: "Cannot Edit Defaults",
+    });
+    return;
+  }
+  if (
+    isNaN(slotIndex) ||
+    slotIndex < 0 ||
+    slotIndex >= activeUserObject.timeSlots.length
+  ) {
+    console.error("Invalid slot index for editing:", slotIndex);
+    showModal({
+      content: "Error: Could not determine which time slot to edit.",
+      title: "Error",
+    });
+    return;
+  }
+  openEditTimeSlotModal(slotIndex, activeUserObject);
 }
 
 /**
@@ -346,38 +449,46 @@ function handleTimeSlotHeaderClick(event) {
  * @param {object} activeUserObject - The active user object.
  */
 function openEditTimeSlotModal(slotIndex, activeUserObject) {
-    const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
+  const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
 
-    // For editing, we expect HH:MM format. If stored format is AM/PM, convert or ask user.
-    // For simplicity, let's assume stored start/end might be AM/PM, but input for edit is HH:MM.
-    // The initial values in the modal should be what the user can readily edit.
-    // We'll provide current values as placeholders. Users should input strict HH:MM.
-    const modalContentHTML = `
+  // For editing, we expect HH:MM format. If stored format is AM/PM, convert or ask user.
+  // For simplicity, let's assume stored start/end might be AM/PM, but input for edit is HH:MM.
+  // The initial values in the modal should be what the user can readily edit.
+  // We'll provide current values as placeholders. Users should input strict HH:MM.
+  const modalContentHTML = `
         <div>
             <h3>Edit Time Slot</h3>
             <p>Current Label: <strong>${currentTimeSlot.label}</strong></p>
             <p class="time-input-hint">Enter new times in HH:MM format (e.g., 09:00, 14:30).</p>
             <div class="form-group">
                 <label for="edit-slot-start-time">New Start Time (HH:MM):</label>
-                <input type="text" id="edit-slot-start-time" class="modal-input" value="${currentTimeSlot.start.match(/\d{1,2}:\d{2}/) ? currentTimeSlot.start.match(/\d{1,2}:\d{2}/)[0] : currentTimeSlot.start}" required placeholder="e.g., 09:00">
+                <input type="text" id="edit-slot-start-time" class="modal-input" value="${
+                  currentTimeSlot.start.match(/\d{1,2}:\d{2}/)
+                    ? currentTimeSlot.start.match(/\d{1,2}:\d{2}/)[0]
+                    : currentTimeSlot.start
+                }" required placeholder="e.g., 09:00">
             </div>
             <div class="form-group">
                 <label for="edit-slot-end-time">New End Time (HH:MM):</label>
-                <input type="text" id="edit-slot-end-time" class="modal-input" value="${currentTimeSlot.end.match(/\d{1,2}:\d{2}/) ? currentTimeSlot.end.match(/\d{1,2}:\d{2}/)[0] : currentTimeSlot.end}" required placeholder="e.g., 10:30">
+                <input type="text" id="edit-slot-end-time" class="modal-input" value="${
+                  currentTimeSlot.end.match(/\d{1,2}:\d{2}/)
+                    ? currentTimeSlot.end.match(/\d{1,2}:\d{2}/)[0]
+                    : currentTimeSlot.end
+                }" required placeholder="e.g., 10:30">
             </div>
             <div id="edit-slot-error-message" class="modal-error-message" style="display:none;"></div>
         </div>
     `;
 
-    showModal({
-        content: modalContentHTML,
-        title: "Edit Time Slot",
-        isHtmlContent: true,
-        showConfirmationButtons: true,
-        confirmText: "Save Changes",
-        cancelText: "Cancel",
-        onConfirm: () => processTimeSlotEdit(slotIndex, activeUserObject)
-    });
+  showModal({
+    content: modalContentHTML,
+    title: "Edit Time Slot",
+    isHtmlContent: true,
+    showConfirmationButtons: true,
+    confirmText: "Save Changes",
+    cancelText: "Cancel",
+    onConfirm: () => processTimeSlotEdit(slotIndex, activeUserObject),
+  });
 }
 
 /**
@@ -387,96 +498,102 @@ function openEditTimeSlotModal(slotIndex, activeUserObject) {
  * @returns {boolean} True if successful (modal should close), false if validation fails.
  */
 function processTimeSlotEdit(slotIndex, activeUserObject) {
-    const newStartTimeInput = document.getElementById('edit-slot-start-time');
-    const newEndTimeInput = document.getElementById('edit-slot-end-time');
-    const errorMessageElement = document.getElementById('edit-slot-error-message');
+  const newStartTimeInput = document.getElementById("edit-slot-start-time");
+  const newEndTimeInput = document.getElementById("edit-slot-end-time");
+  const errorMessageElement = document.getElementById(
+    "edit-slot-error-message"
+  );
 
-    if (!newStartTimeInput || !newEndTimeInput || !errorMessageElement) {
-        console.error("Modal elements for editing time slot not found.");
-        if(errorMessageElement) {
-             errorMessageElement.textContent = 'Error: Modal form is broken.';
-             errorMessageElement.style.display = 'block';
-        }
-        return false; 
+  if (!newStartTimeInput || !newEndTimeInput || !errorMessageElement) {
+    console.error("Modal elements for editing time slot not found.");
+    if (errorMessageElement) {
+      errorMessageElement.textContent = "Error: Modal form is broken.";
+      errorMessageElement.style.display = "block";
     }
+    return false;
+  }
 
-    const newStartTime = newStartTimeInput.value.trim();
-    const newEndTime = newEndTimeInput.value.trim();
+  const newStartTime = newStartTimeInput.value.trim();
+  const newEndTime = newEndTimeInput.value.trim();
 
-    errorMessageElement.textContent = '';
-    errorMessageElement.style.display = 'none';
-    newStartTimeInput.classList.remove('input-error'); // Assuming you have .input-error CSS
-    newEndTimeInput.classList.remove('input-error');
+  errorMessageElement.textContent = "";
+  errorMessageElement.style.display = "none";
+  newStartTimeInput.classList.remove("input-error"); // Assuming you have .input-error CSS
+  newEndTimeInput.classList.remove("input-error");
 
-    if (!newStartTime || !newEndTime) {
-        errorMessageElement.textContent = 'Start and End times cannot be empty.';
-        if (!newStartTime) newStartTimeInput.classList.add('input-error');
-        if (!newEndTime) newEndTimeInput.classList.add('input-error');
-        errorMessageElement.style.display = 'block';
-        return false;
-    }
-    // Use stricter HH:MM validation for editing
-    if (!isValidStrictHHMMTimeFormat(newStartTime)) {
-        errorMessageElement.textContent = 'Invalid Start Time. Use HH:MM format (e.g., 09:00).';
-        newStartTimeInput.classList.add('input-error');
-        errorMessageElement.style.display = 'block';
-        return false;
-    }
-    if (!isValidStrictHHMMTimeFormat(newEndTime)) {
-        errorMessageElement.textContent = 'Invalid End Time. Use HH:MM format (e.g., 14:30).';
-        newEndTimeInput.classList.add('input-error');
-        errorMessageElement.style.display = 'block';
-        return false;
-    }
-    if (!isTimeBefore(newStartTime, newEndTime)) {
-        errorMessageElement.textContent = 'Start Time must be before End Time.';
-        newStartTimeInput.classList.add('input-error');
-        newEndTimeInput.classList.add('input-error');
-        errorMessageElement.style.display = 'block';
-        return false;
-    }
+  if (!newStartTime || !newEndTime) {
+    errorMessageElement.textContent = "Start and End times cannot be empty.";
+    if (!newStartTime) newStartTimeInput.classList.add("input-error");
+    if (!newEndTime) newEndTimeInput.classList.add("input-error");
+    errorMessageElement.style.display = "block";
+    return false;
+  }
+  // Use stricter HH:MM validation for editing
+  if (!isValidStrictHHMMTimeFormat(newStartTime)) {
+    errorMessageElement.textContent =
+      "Invalid Start Time. Use HH:MM format (e.g., 09:00).";
+    newStartTimeInput.classList.add("input-error");
+    errorMessageElement.style.display = "block";
+    return false;
+  }
+  if (!isValidStrictHHMMTimeFormat(newEndTime)) {
+    errorMessageElement.textContent =
+      "Invalid End Time. Use HH:MM format (e.g., 14:30).";
+    newEndTimeInput.classList.add("input-error");
+    errorMessageElement.style.display = "block";
+    return false;
+  }
+  if (!isTimeBefore(newStartTime, newEndTime)) {
+    errorMessageElement.textContent = "Start Time must be before End Time.";
+    newStartTimeInput.classList.add("input-error");
+    newEndTimeInput.classList.add("input-error");
+    errorMessageElement.style.display = "block";
+    return false;
+  }
 
-    // Adjacent Slot Conflict Validation
-    const userTimeSlots = activeUserObject.timeSlots;
-    if (slotIndex > 0) {
-        const prevSlot = userTimeSlots[slotIndex - 1];
-        // prevSlot.end might be "HH:MM AM/PM", newStartTime is "HH:MM"
-        // Need a robust way to compare. For now, assume prevSlot.end can be parsed by isTimeBefore if it were HH:MM
-        // This highlights the need for consistent time representation or more robust parsing.
-        // Let's assume for this validation, we need to parse prevSlot.end to HH:MM or handle AM/PM in parseTime
-        // For now, if prevSlot.end is in AM/PM, this comparison might be tricky.
-        // A temporary fix: if isTimeBefore expects HH:MM, and prevSlot.end contains AM/PM, it will fail parseTime.
-        // This needs a more robust time parsing utility that handles AM/PM and converts to minutes or 24h format.
-        // For now, this check might be unreliable if times are stored with AM/PM.
-        // We'll proceed assuming isTimeBefore can handle the format or that times are already HH:MM.
-        if (!isTimeBefore(prevSlot.end, newStartTime)) { // This will fail if prevSlot.end has AM/PM and parseTime doesn't handle it
-             // A better comparison logic is needed here if formats differ.
-             // Simplification: assume parseTime in timeUtils.js is robust enough or formats are consistent.
-            errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous slot's end (${prevSlot.end}).`;
-            newStartTimeInput.classList.add('input-error');
-            errorMessageElement.style.display = 'block';
-            return false;
-        }
+  // Adjacent Slot Conflict Validation
+  const userTimeSlots = activeUserObject.timeSlots;
+  if (slotIndex > 0) {
+    const prevSlot = userTimeSlots[slotIndex - 1];
+    // prevSlot.end might be "HH:MM AM/PM", newStartTime is "HH:MM"
+    // Need a robust way to compare. For now, assume prevSlot.end can be parsed by isTimeBefore if it were HH:MM
+    // This highlights the need for consistent time representation or more robust parsing.
+    // Let's assume for this validation, we need to parse prevSlot.end to HH:MM or handle AM/PM in parseTime
+    // For now, if prevSlot.end is in AM/PM, this comparison might be tricky.
+    // A temporary fix: if isTimeBefore expects HH:MM, and prevSlot.end contains AM/PM, it will fail parseTime.
+    // This needs a more robust time parsing utility that handles AM/PM and converts to minutes or 24h format.
+    // For now, this check might be unreliable if times are stored with AM/PM.
+    // We'll proceed assuming isTimeBefore can handle the format or that times are already HH:MM.
+    if (!isTimeBefore(prevSlot.end, newStartTime)) {
+      // This will fail if prevSlot.end has AM/PM and parseTime doesn't handle it
+      // A better comparison logic is needed here if formats differ.
+      // Simplification: assume parseTime in timeUtils.js is robust enough or formats are consistent.
+      errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous slot's end (${prevSlot.end}).`;
+      newStartTimeInput.classList.add("input-error");
+      errorMessageElement.style.display = "block";
+      return false;
     }
-    if (slotIndex < userTimeSlots.length - 1) {
-        const nextSlot = userTimeSlots[slotIndex + 1];
-        if (!isTimeBefore(newEndTime, nextSlot.start)) { // Similar issue with nextSlot.start format
-            errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
-            newEndTimeInput.classList.add('input-error');
-            errorMessageElement.style.display = 'block';
-            return false;
-        }
+  }
+  if (slotIndex < userTimeSlots.length - 1) {
+    const nextSlot = userTimeSlots[slotIndex + 1];
+    if (!isTimeBefore(newEndTime, nextSlot.start)) {
+      // Similar issue with nextSlot.start format
+      errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
+      newEndTimeInput.classList.add("input-error");
+      errorMessageElement.style.display = "block";
+      return false;
     }
+  }
 
-    // Update user's timeSlot object
-    userTimeSlots[slotIndex].start = newStartTime; // Store as HH:MM
-    userTimeSlots[slotIndex].end = newEndTime;   // Store as HH:MM
-    userTimeSlots[slotIndex].label = `${newStartTime}-${newEndTime}`; // Update label
+  // Update user's timeSlot object
+  userTimeSlots[slotIndex].start = newStartTime; // Store as HH:MM
+  userTimeSlots[slotIndex].end = newEndTime; // Store as HH:MM
+  userTimeSlots[slotIndex].label = `${newStartTime}-${newEndTime}`; // Update label
 
-    saveStateToStorage();
-    renderScheduleGrid(); // Re-render to reflect changes
-    // No success modal here, as the main modal closing is success.
-    return true; // Success
+  saveStateToStorage();
+  renderScheduleGrid(); // Re-render to reflect changes
+  // No success modal here, as the main modal closing is success.
+  return true; // Success
 }
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
 
@@ -507,31 +624,33 @@ function renderScheduleGrid() {
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
     // For compare mode, use default time slots for the grid structure for now.
     // Actual coloring will be handled by determineSlotStatus which needs to be robust for heterogeneous schedules.
-    currentTimeSlotsToRender = DEFAULT_TIMESLOTS; 
+    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
     // `determineSlotStatus` will attempt to map indices, which is a simplification.
   }
-  
+
   // Clear existing time headers, except "Day/Time" and "Add Slot" cell
   const thCells = Array.from(tableHeadRow.children);
-  for (let i = thCells.length - 2; i >= 1; i--) { // Assumes Day/Time is child 0, AddSlot is last child
+  for (let i = thCells.length - 2; i >= 1; i--) {
+    // Assumes Day/Time is child 0, AddSlot is last child
     tableHeadRow.removeChild(thCells[i]);
   }
-  
+
   const addSlotCellRef = DOM_ELEMENTS.addTimeSlotHeaderCell;
 
   currentTimeSlotsToRender.forEach((slotData, index) => {
     const th = document.createElement("th");
     th.textContent = slotData.label;
     th.dataset.timeIndex = index; // Kept for compatibility with other logic
-    
+
     // --- START: Phase 3 - Make headers clickable for editing ---
-    if (state.activeUserId && activeUserHasCustomSlots) { // Only if an active user has their own slots
-        th.classList.add('editable-timeslot-header');
-        th.dataset.slotIndex = index; // Specific for editing this indexed slot
-        th.title = "Click to edit this time slot";
-        th.addEventListener('click', handleTimeSlotHeaderClick);
+    if (state.activeUserId && activeUserHasCustomSlots) {
+      // Only if an active user has their own slots
+      th.classList.add("editable-timeslot-header");
+      th.dataset.slotIndex = index; // Specific for editing this indexed slot
+      th.title = "Click to edit this time slot";
+      th.addEventListener("click", handleTimeSlotHeaderClick);
     } else {
-        th.classList.add("time-slot-header"); // Default class if not editable
+      th.classList.add("time-slot-header"); // Default class if not editable
     }
     // --- END: Phase 3 ---
 
@@ -540,7 +659,15 @@ function renderScheduleGrid() {
   });
 
   tableBody.innerHTML = ""; // Clear existing body
-  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
   daysOfWeek.forEach((dayName, dayIndex) => {
     const tr = document.createElement("tr");
     const tdDayName = document.createElement("td");
@@ -554,13 +681,12 @@ function renderScheduleGrid() {
       tdSlot.dataset.time = timeIndex; // This index matches currentTimeSlotsToRender
 
       const statusClass = determineSlotStatus(dayIndex, timeIndex, state);
-      if (statusClass !== 'slot') tdSlot.classList.add(statusClass);
+      if (statusClass !== "slot") tdSlot.classList.add(statusClass);
       tr.appendChild(tdSlot);
     });
     tableBody.appendChild(tr);
   });
 }
-
 
 function renderUserList() {
   if (!DOM_ELEMENTS.userListContainer) return;
@@ -569,17 +695,24 @@ function renderUserList() {
     DOM_ELEMENTS.userListContainer.innerHTML = "<p>No users. Add one!</p>";
     return;
   }
-  DOM_ELEMENTS.userListContainer.innerHTML = userEntries.map(([userId, user]) => `
-    <div data-user-id="${userId}" class="user-item ${state.activeUserId === userId ? "active" : ""} ${state.selectedUserIds.has(userId) ? "selected" : ""}">
+  DOM_ELEMENTS.userListContainer.innerHTML = userEntries
+    .map(
+      ([userId, user]) => `
+    <div data-user-id="${userId}" class="user-item ${
+        state.activeUserId === userId ? "active" : ""
+      } ${state.selectedUserIds.has(userId) ? "selected" : ""}">
       <button class="user-name-btn">${user.name}</button>
       <button data-delete-user-id="${userId}" class="delete-btn">Delete</button>
-    </div>`).join("");
+    </div>`
+    )
+    .join("");
 }
 
 function updateUI() {
   renderScheduleGrid();
   renderUserList();
-  if (DOM_ELEMENTS.compareButton) DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
+  if (DOM_ELEMENTS.compareButton)
+    DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
 }
 
 /* ================================
@@ -596,12 +729,18 @@ function handleAddNewUser() {
       state.users[userId] = newUserObject;
       handleSetActiveUser(userId);
     } else {
-      showModal({ content: `User ID "${userId}" already exists.`, title: "Duplicate User ID" });
+      showModal({
+        content: `User ID "${userId}" already exists.`,
+        title: "Duplicate User ID",
+      });
     }
     DOM_ELEMENTS.userNameInput.value = "";
     DOM_ELEMENTS.userIdInput.value = "";
   } else {
-    showModal({ content: "Name and ID are required.", title: "Input Required" });
+    showModal({
+      content: "Name and ID are required.",
+      title: "Input Required",
+    });
   }
 }
 
@@ -620,7 +759,7 @@ function handleDeleteUser(userIdToDelete) {
       updateUI();
       showModal({ content: `${user.name} deleted.`, title: "User Deleted" });
       return true; // Allow modal to close
-    }
+    },
   });
 }
 
@@ -649,30 +788,54 @@ function handleToggleUserSelectionForCompare(userId) {
 }
 
 function handleToggleScheduleSlot(dayIndex, timeIndex) {
-  if (!state.activeUserId || state.compareMode || !state.users[state.activeUserId]) return;
+  if (
+    !state.activeUserId ||
+    state.compareMode ||
+    !state.users[state.activeUserId]
+  )
+    return;
   const currentUser = state.users[state.activeUserId];
-  
+
   // Ensure the slot index is valid for the current user's schedule
-  if (currentUser.schedule && currentUser.schedule[dayIndex] && timeIndex < currentUser.schedule[dayIndex].length) {
-      currentUser.schedule = toggleSlotInSchedule(dayIndex, timeIndex, currentUser.schedule);
-      saveStateToStorage();
-      updateUI();
+  if (
+    currentUser.schedule &&
+    currentUser.schedule[dayIndex] &&
+    timeIndex < currentUser.schedule[dayIndex].length
+  ) {
+    currentUser.schedule = toggleSlotInSchedule(
+      dayIndex,
+      timeIndex,
+      currentUser.schedule
+    );
+    saveStateToStorage();
+    updateUI();
   } else {
-      console.warn(`Attempted to toggle invalid slot: Day ${dayIndex}, Time ${timeIndex} for user ${state.activeUserId}`);
+    console.warn(
+      `Attempted to toggle invalid slot: Day ${dayIndex}, Time ${timeIndex} for user ${state.activeUserId}`
+    );
   }
 }
 
 function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
-  if (!DOM_ELEMENTS.slotTooltip || !state.compareMode || state.selectedUserIds.size === 0) {
-    handleHideSlotTooltip(); return;
+  if (
+    !DOM_ELEMENTS.slotTooltip ||
+    !state.compareMode ||
+    state.selectedUserIds.size === 0
+  ) {
+    handleHideSlotTooltip();
+    return;
   }
   const message = generateTooltipMessage(dayIndex, timeIndex, state);
   DOM_ELEMENTS.slotTooltip.textContent = message;
   const rect = slotElement.getBoundingClientRect();
-  DOM_ELEMENTS.slotTooltip.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
-  DOM_ELEMENTS.slotTooltip.style.top = `${rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5}px`;
+  DOM_ELEMENTS.slotTooltip.style.left = `${
+    rect.left + window.scrollX + rect.width / 2
+  }px`;
+  DOM_ELEMENTS.slotTooltip.style.top = `${
+    rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5
+  }px`;
   DOM_ELEMENTS.slotTooltip.style.display = "block";
-  DOM_ELEMENTS.slotTooltip.style.transform = 'translateX(-50%)';
+  DOM_ELEMENTS.slotTooltip.style.transform = "translateX(-50%)";
 }
 
 function handleHideSlotTooltip() {
@@ -681,7 +844,10 @@ function handleHideSlotTooltip() {
 
 function handleExportCurrentUser() {
   if (!state.activeUserId || !state.users[state.activeUserId]) {
-    return showModal({ content: "Select an active user to export.", title: "Export Error" });
+    return showModal({
+      content: "Select an active user to export.",
+      title: "Export Error",
+    });
   }
   const currentUser = state.users[state.activeUserId];
   // Exporting user's own timeSlots if they exist
@@ -692,98 +858,165 @@ function handleExportCurrentUser() {
     schedule: currentUser.schedule,
   };
   const jsonToExport = JSON.stringify(exportData, null, 2);
-  navigator.clipboard.writeText(jsonToExport)
-    .then(() => showModal({ content: `${currentUser.name}'s schedule copied!`, title: "Export Successful" }))
-    .catch(err => {
+  navigator.clipboard
+    .writeText(jsonToExport)
+    .then(() =>
+      showModal({
+        content: `${currentUser.name}'s schedule copied!`,
+        title: "Export Successful",
+      })
+    )
+    .catch((err) => {
       console.error("Clipboard export error:", err);
-      showModal({ content: "Could not copy. See text area.", title: "Clipboard Error" });
-      if (DOM_ELEMENTS.importTextArea) DOM_ELEMENTS.importTextArea.value = jsonToExport;
+      showModal({
+        content: "Could not copy. See text area.",
+        title: "Clipboard Error",
+      });
+      if (DOM_ELEMENTS.importTextArea)
+        DOM_ELEMENTS.importTextArea.value = jsonToExport;
     });
 }
 
 function handleImportSchedule() {
   if (!DOM_ELEMENTS.importTextArea) return;
   const jsonInput = DOM_ELEMENTS.importTextArea.value.trim();
-  if (!jsonInput) return showModal({ content: "Paste JSON to import.", title: "Import Error" });
+  if (!jsonInput)
+    return showModal({
+      content: "Paste JSON to import.",
+      title: "Import Error",
+    });
 
   try {
     const importedData = JSON.parse(jsonInput);
     // Validate imported structure
-    if (!importedData.id || !importedData.name || !Array.isArray(importedData.schedule) ||
-        !Array.isArray(importedData.timeSlots) // Expecting timeSlots now
+    if (
+      !importedData.id ||
+      !importedData.name ||
+      !Array.isArray(importedData.schedule) ||
+      !Array.isArray(importedData.timeSlots) // Expecting timeSlots now
     ) {
-      throw new Error("Invalid data format. Must include id, name, schedule array, and timeSlots array.");
+      throw new Error(
+        "Invalid data format. Must include id, name, schedule array, and timeSlots array."
+      );
     }
     // Further validation for schedule and timeSlots structure
-    if (importedData.schedule.length !== 7 || 
-        !importedData.schedule.every(day => Array.isArray(day) && day.length === importedData.timeSlots.length)) {
-        throw new Error("Schedule dimensions must be 7 days by number of timeSlots.");
+    if (
+      importedData.schedule.length !== 7 ||
+      !importedData.schedule.every(
+        (day) =>
+          Array.isArray(day) && day.length === importedData.timeSlots.length
+      )
+    ) {
+      throw new Error(
+        "Schedule dimensions must be 7 days by number of timeSlots."
+      );
     }
-    if (!importedData.timeSlots.every(slot => slot.label && slot.start && slot.end)) {
-        throw new Error("Each timeSlot must have a label, start, and end time.");
+    if (
+      !importedData.timeSlots.every(
+        (slot) => slot.label && slot.start && slot.end
+      )
+    ) {
+      throw new Error("Each timeSlot must have a label, start, and end time.");
     }
 
-    state.users[importedData.id] = { // Directly assign/overwrite
-        id: importedData.id,
-        name: importedData.name,
-        timeSlots: importedData.timeSlots,
-        schedule: importedData.schedule,
+    state.users[importedData.id] = {
+      // Directly assign/overwrite
+      id: importedData.id,
+      name: importedData.name,
+      timeSlots: importedData.timeSlots,
+      schedule: importedData.schedule,
     };
     saveStateToStorage();
     updateUI();
     DOM_ELEMENTS.importTextArea.value = "";
-    showModal({ content: `User "${importedData.name}" imported!`, title: "Import Complete" });
+    showModal({
+      content: `User "${importedData.name}" imported!`,
+      title: "Import Complete",
+    });
   } catch (e) {
     console.error("Import error:", e);
-    showModal({ content: `Import failed: ${e.message}`, title: "Import Failed" });
+    showModal({
+      content: `Import failed: ${e.message}`,
+      title: "Import Failed",
+    });
   }
 }
 
-
 function setupInputValidation() {
-  if(DOM_ELEMENTS.userNameInput) DOM_ELEMENTS.userNameInput.addEventListener("input", (e) => e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g,""));
-  if(DOM_ELEMENTS.userIdInput) DOM_ELEMENTS.userIdInput.addEventListener("input", (e) => {
-    e.target.value = e.target.value.replace(/[^0-9]/g,"");
-    if(e.target.value.length > 1) e.target.value = e.target.value.replace(/^0+/,"");
-  });
+  if (DOM_ELEMENTS.userNameInput)
+    DOM_ELEMENTS.userNameInput.addEventListener(
+      "input",
+      (e) => (e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, ""))
+    );
+  if (DOM_ELEMENTS.userIdInput)
+    DOM_ELEMENTS.userIdInput.addEventListener("input", (e) => {
+      e.target.value = e.target.value.replace(/[^0-9]/g, "");
+      if (e.target.value.length > 1)
+        e.target.value = e.target.value.replace(/^0+/, "");
+    });
 }
 
 function setupEventListeners() {
-  if(DOM_ELEMENTS.addUserButton) DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
-  if(DOM_ELEMENTS.compareButton) DOM_ELEMENTS.compareButton.addEventListener("click", handleToggleCompareMode);
-  if(DOM_ELEMENTS.exportButton) DOM_ELEMENTS.exportButton.addEventListener("click", handleExportCurrentUser);
-  if(DOM_ELEMENTS.importButton) DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
-  if(DOM_ELEMENTS.addNewTimeSlotBtn) DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener("click", handleAddNewTimeSlotClick);
+  if (DOM_ELEMENTS.addUserButton)
+    DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
+  if (DOM_ELEMENTS.compareButton)
+    DOM_ELEMENTS.compareButton.addEventListener(
+      "click",
+      handleToggleCompareMode
+    );
+  if (DOM_ELEMENTS.exportButton)
+    DOM_ELEMENTS.exportButton.addEventListener(
+      "click",
+      handleExportCurrentUser
+    );
+  if (DOM_ELEMENTS.importButton)
+    DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
+  if (DOM_ELEMENTS.addNewTimeSlotBtn)
+    DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener(
+      "click",
+      handleAddNewTimeSlotClick
+    );
 
-  if(DOM_ELEMENTS.userListContainer) {
+  if (DOM_ELEMENTS.userListContainer) {
     DOM_ELEMENTS.userListContainer.addEventListener("click", (e) => {
       const userItemDiv = e.target.closest(".user-item");
-      if(userItemDiv) {
+      if (userItemDiv) {
         const userId = userItemDiv.dataset.userId;
-        if(e.target.classList.contains("delete-btn")) {
-          e.stopPropagation(); handleDeleteUser(userId);
+        if (e.target.classList.contains("delete-btn")) {
+          e.stopPropagation();
+          handleDeleteUser(userId);
         } else if (userId) {
-          state.compareMode ? handleToggleUserSelectionForCompare(userId) : handleSetActiveUser(userId);
+          state.compareMode
+            ? handleToggleUserSelectionForCompare(userId)
+            : handleSetActiveUser(userId);
         }
       }
     });
   }
-  
-  if(DOM_ELEMENTS.scheduleTable) {
+
+  if (DOM_ELEMENTS.scheduleTable) {
     DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
-      if(e.target.classList.contains("slot")) {
-        const day = parseInt(e.target.dataset.day, 10), time = parseInt(e.target.dataset.time, 10);
-        if(!isNaN(day) && !isNaN(time) && !state.compareMode) handleToggleScheduleSlot(day,time);
+      if (e.target.classList.contains("slot")) {
+        const day = parseInt(e.target.dataset.day, 10),
+          time = parseInt(e.target.dataset.time, 10);
+        if (!isNaN(day) && !isNaN(time) && !state.compareMode)
+          handleToggleScheduleSlot(day, time);
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (e) => {
-      if(state.compareMode && e.target.classList.contains("slot")) {
-        const day = parseInt(e.target.dataset.day, 10), time = parseInt(e.target.dataset.time, 10);
-        if(!isNaN(day) && !isNaN(time)) handleShowSlotTooltip(e.target, day, time);
+      if (state.compareMode && e.target.classList.contains("slot")) {
+        const day = parseInt(e.target.dataset.day, 10),
+          time = parseInt(e.target.dataset.time, 10);
+        if (!isNaN(day) && !isNaN(time))
+          handleShowSlotTooltip(e.target, day, time);
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseout", (e) => {
-      if(e.target.classList.contains("slot") || e.target === DOM_ELEMENTS.scheduleTable) handleHideSlotTooltip();
+      if (
+        e.target.classList.contains("slot") ||
+        e.target === DOM_ELEMENTS.scheduleTable
+      )
+        handleHideSlotTooltip();
     });
   }
 }
@@ -794,7 +1027,7 @@ function setupEventListeners() {
 function initializeApp() {
   initializeDomElements(); // Initialize DOM_ELEMENTS from domElements.js
   initModal(DOM_ELEMENTS); // Initialize Modal system from modal.js
-  
+
   loadStateFromStorage();
   setupInputValidation();
   setupEventListeners();
