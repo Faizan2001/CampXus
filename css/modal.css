@@ -1,22 +1,25 @@
 /* css/modal.css */
 
 /* ================================
-   CUSTOM MODAL STYLES
+   BASE CUSTOM MODAL STYLES (Apply to all modals)
 ================================== */
 .modal-overlay {
-  position: fixed; 
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); 
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000; 
+  z-index: 2000;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .modal-overlay.active {
@@ -26,22 +29,26 @@
 
 .modal-content {
   background-color: #ffffff;
-  padding: 30px 40px;
-  border-radius: 12px;
-  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+  padding: 25px 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   width: 90%;
-  max-width: 450px; 
-  text-align: center;
+  max-width: 400px; /* Default max-width for modals */
+  text-align: center; /* Default for simple modals, forms can override */
   transform: scale(0.9);
   transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh; /* Max height for the modal content box */
 }
 
 .modal-overlay.active .modal-content {
-  transform: scale(1); 
+  transform: scale(1);
 }
 
 .modal-title {
-  font-size: 1.8rem;
+  /* Main title set by showModal options.title */
+  font-size: 1.6rem;
   font-weight: 700;
   margin-top: 0;
   margin-bottom: 15px;
@@ -50,118 +57,240 @@
   color: transparent;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  flex-shrink: 0; /* Prevent title from shrinking */
 }
 
 .modal-message {
-  font-size: 1rem;
-  color: #444; 
-  line-height: 1.6;
-  margin-bottom: 25px;
-  white-space: pre-wrap; 
+  /* The container where dynamic HTML content is injected */
+  font-size: 0.95rem; /* Default for simple text messages */
+  color: #444; /* Default for simple text messages */
+  line-height: 1.6; /* Default for simple text messages */
+  white-space: pre-wrap; /* Good for simple text messages */
+  overflow-y: auto; /* Allows scrolling if content inside is too tall */
+  flex-grow: 1; /* Takes available vertical space */
+  word-wrap: break-word;
+  /* text-align: left; /* REMOVE generic text-align: left here. Let specific form containers handle it. */
+  padding: 0 5px; /* Minimal internal padding */
 }
 
-/* Container for Yes/No action buttons */
 .modal-action-buttons {
-  display: flex; 
-  justify-content: space-evenly; /* Evenly space Yes/No buttons */
-  margin-top: 25px; 
-  gap: 15px; 
+  display: flex;
+  justify-content: space-evenly; /* Or flex-end for right-aligned buttons */
+  margin-top: auto; /* Pushes to bottom of flex container (.modal-content) */
+  padding-top: 15px; /* Space above buttons */
+  gap: 10px;
+  flex-shrink: 0; /* Prevent button area from shrinking */
 }
 
-/* Common styling for all modal buttons (OK, Yes, No) */
 .modal-button {
-  padding: 10px 25px;
+  padding: 8px 20px;
   border: none;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, opacity 0.2s;
-  min-width: 100px; 
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease,
+    opacity 0.2s;
+  min-width: 90px;
 }
-
 .modal-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
-
 .modal-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-/* Default OK/Close button (also has .modal-button class) */
 .modal-close-btn {
-  background: linear-gradient(135deg, #4A00E0, #8E2DE2); 
+  /* Typically the "OK" button for notification modals */
+  background: linear-gradient(135deg, #4a00e0, #8e2de2);
   color: white;
-  display: inline-block; 
-  margin-top: 20px; /* Only really visible if it's the sole button */
+  display: inline-block;
+  margin-top: 20px; /* Only really has effect if it's the sole button */
 }
 
-/* Confirm (Yes) button */
 .modal-button.confirm {
-  background-color: #28a745; /* Green */
+  background-color: #28a745;
   color: white;
 }
 .modal-button.confirm:hover {
   background-color: #218838;
 }
-
-/* Cancel (No) button */
 .modal-button.cancel {
-  background-color: #dc3545; /* Red */
+  background-color: #dc3545;
   color: white;
 }
 .modal-button.cancel:hover {
   background-color: #c82333;
 }
 
-/* Time Input Form */
-/* ================================
-   TIME INPUT FORM STYLES
-================================== */
-/* This is a simple time input form with a label, input field, and hint text */
-/* The form is designed to be responsive and user-friendly, with a clean layout */
-
-.time-input-form {
+/* ===========================================================
+   STYLES FOR "EDIT TIME SLOT" MODAL (using .modal-form-container)
+   This is for the more complex form with multiple paragraphs and groups.
+=========================================================== */
+.modal-message .modal-form-container {
+  /* Root div of the injected HTML for Edit Modal */
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Space between label/input groups and hint */
-  margin-bottom: 20px; /* Space before action buttons */
-  text-align: left; 
+  width: 100%;
+  text-align: left; /* Form content elements will be left-aligned by default */
 }
 
-.time-input-form > div { /* Targeting the div wrappers for label+input */
-    display: flex;
-    flex-direction: column;
-    gap: 4px; /* Small gap between label and its input */
+#edit-slot-start-time-wrapper {
+  /* Specific wrapper for the start time input */
+  line-height: 0.5;
 }
 
-.time-input-label {
-  font-weight: 600;
+#edit-slot-end-time-wrapper {
+  /* Specific wrapper for the end time input */
+  line-height: 0.5;
+}
+
+.modal-message .modal-form-container > h3 {
+  /* Inner heading "Edit Time Slot" */
+  font-size: 1.3rem;
+  margin-top: 0;
+  margin-bottom: 10px;
+  text-align: center; /* Center this specific H3 if desired */
+  flex-shrink: 0;
+}
+
+.modal-message .modal-form-container > p {
+  /* "Current: ..." paragraph and similar general paragraphs */
   font-size: 0.9rem;
+  margin-top: 0;
+  margin-bottom: 8px; /* Spacing for these paragraphs */
+  /* text-align: center; /* Uncomment if "Current:..." should be centered */
+  flex-shrink: 0;
+}
+
+.modal-message .modal-form-container > p.time-input-hint {
+  /* Hint specific to edit form */
+  font-size: 0.8em;
+  color: #555;
+  margin-top: 0; /* Tighten up */
+  margin-bottom: 15px; /* Space before the first form group */
+  text-align: left;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.modal-message .modal-form-container .form-group {
+  /* Structure for label+input in edit form */
+  display: block; /* Label and input will stack naturally */
+  width: 100%;
+  margin-bottom: 12px; /* Space BETWEEN form groups */
+  padding: 0;
+  /* text-align: left; /* Already set on parent .modal-form-container */
+}
+
+.modal-message .modal-form-container .form-group label {
+  display: block;
+  margin-bottom: 3px; /* Space between label and its input */
+  font-weight: bold;
+  font-size: 0.85rem;
   color: #333;
-  /* margin-bottom: 3px; */ /* Replaced by gap in parent */
+  line-height: 1.2;
 }
 
-.time-input-field {
-  padding: 10px 12px; /* Increased padding for better touch/click targets */
+.modal-message .modal-form-container .modal-input {
+  /* Inputs in edit form */
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
   border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  width: 100%; /* Make input take full width of its container */
-  box-sizing: border-box; /* Ensure padding and border are included in width */
+  border-radius: 5px;
+  box-sizing: border-box;
+  font-size: 0.9rem;
+  margin-top: 0; /* Rely on label's margin-bottom for spacing */
 }
 
-.time-input-field:focus {
-  border-color: #6200ee; /* Your app's primary focus color */
+.modal-message .modal-form-container .modal-input:focus {
+  border-color: #6200ee;
   box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
   outline: none;
 }
 
-.time-input-hint {
+.modal-message .modal-form-container .modal-error-message {
+  color: #d8000c;
+  background-color: #ffd2d2;
+  border: 1px solid #d8000c;
+  padding: 10px;
+  margin-top: 10px; /* Space before error message */
+  margin-bottom: 10px; /* Space after error message before buttons (if error is last item) */
+  border-radius: 6px;
+  font-size: 0.85em;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+/* ===========================================================
+   STYLES FOR "ADD NEW TIME SLOT" MODAL (using .add-timeslot-form-content)
+   This is for the simpler form with label and input side-by-side.
+=========================================================== */
+.modal-message .add-timeslot-form-content {
+  /* Root div of the injected HTML for Add New Modal */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 12px; /* Overall gap between child elements (label/input groups, hint, error) */
+  text-align: left;
+}
+
+/* Direct div children are the label+input groups for this simple form */
+.modal-message
+  .add-timeslot-form-content
+  > div:not(.modal-error-message):not(p.time-input-hint) {
+  /* Exclude error message and hint */
+  display: flex;
+  flex-direction: row; /* Label and Input side-by-side */
+  align-items: center; /* Vertically align label and input in the middle of their row */
+  gap: 20px; /* Space between label and input */
+}
+
+.modal-message .add-timeslot-form-content label {
+  font-weight: bold;
+  font-size: 0.9rem; /* Slightly larger for this layout */
+  color: #333;
+  flex-shrink: 0; /* Prevent label from shrinking if input is wide */
+  width: 80px;
+  text-align: right;
+  padding-right: 5px;
+  /* Consider a fixed width if you want perfect alignment for multiple rows, e.g., width: 80px; text-align: right; */
+}
+
+.modal-message .add-timeslot-form-content .modal-input {
+  max-width: 150px;
+  width: 100%; /* Allow input to take available space */
+  padding: 9px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+
+.modal-message .add-timeslot-form-content .modal-input:focus {
+  border-color: #6200ee;
+  box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
+  outline: none;
+}
+
+.modal-message .add-timeslot-form-content p.time-input-hint {
   font-size: 0.8rem;
-  color: #6c757d; /* A softer grey for the hint */
-  margin-top: 5px;
-  text-align: center;
+  color: #6c757d;
+  text-align: center; /* Hint text can be centered for this form */
+  line-height: 1.3;
+  margin: 5px 0 0 0; /* Margins handled by parent gap or explicit if needed */
+}
+
+.modal-message .add-timeslot-form-content .modal-error-message {
+  color: #d8000c;
+  background-color: #ffd2d2;
+  border: 1px solid #d8000c;
+  padding: 8px;
+  border-radius: 5px;
+  font-size: 0.85em;
+  text-align: left;
+  /* margin-top handled by parent gap if it's a direct child */
 }

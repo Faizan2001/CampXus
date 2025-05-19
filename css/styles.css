@@ -365,6 +365,8 @@ button:not(.user-item button):not(.hamburger-button):active {
   /* text-decoration: underline; */ /* Optional */
 }
 
+
+
 /* Responsive Styles */
 @media (max-width: 768px) {
   body {

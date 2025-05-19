@@ -308,13 +308,20 @@ function handleAddNewTimeSlotClick() {
     );
   }
 
-  const timeInputFormHTML = `
-    <div id="newTimeSlotFormInternal" class="time-input-form">
-      <div><label for="modalNewSlotStartTime">Start Time:</label><input type="text" id="modalNewSlotStartTime" placeholder="e.g., 08:00 or 8:00 AM" required></div>
-      <div><label for="modalNewSlotEndTime">End Time:</label><input type="text" id="modalNewSlotEndTime" placeholder="e.g., 09:30 or 9:30 AM" required></div>
-      <p class="time-input-hint">Use HH:MM or H:MM AM/PM.</p>
-      <div id="new-slot-error-message" class="modal-error-message" style="display:none;"></div>
-    </div>`;
+ const timeInputFormHTML = `
+  <div class="add-timeslot-form-content">
+    <div> <!-- Wrapper for Start Time label + input -->
+      <label for="modalNewSlotStartTime">Start Time:</label>
+      <input type="text" id="modalNewSlotStartTime" class="modal-input" ...>
+    </div>
+    <div> <!-- Wrapper for End Time label + input -->
+      <label for="modalNewSlotEndTime">End Time:</label>
+      <input type="text" id="modalNewSlotEndTime" class="modal-input" ...>
+    </div>
+    <p class="time-input-hint">Use HH:MM or H:MM AM/PM.</p>
+    <div id="new-slot-error-message" class="modal-error-message" style="display:none;"></div>
+  </div>
+`;
 
   showModal({
     content: timeInputFormHTML,
@@ -412,11 +419,31 @@ function saveStateToStorage() {
  * @param {Event} event - The click event.
  */
 function handleTimeSlotHeaderClick(event) {
-  console.log(
-    "Time slot header clicked!",
-    event.currentTarget.dataset.slotIndex
-  );
-  // We will implement the logic to open the edit modal here in the next step.
+    const slotIndexString = event.currentTarget.dataset.slotIndex;
+    if (slotIndexString === undefined) {
+        console.error("Slot index is undefined for clicked header.");
+        showModal({ content: "Could not determine which time slot to edit. Slot index missing.", title: "Error" });
+        return;
+    }
+    const slotIndex = parseInt(slotIndexString, 10);
+
+    if (!state.activeUserId || !state.users[state.activeUserId]) {
+        // This case should ideally not be reached if headers are only made clickable for active users,
+        // but it's a good safeguard.
+        console.error("handleTimeSlotHeaderClick called with no active user.");
+        showModal({ content: "No active user selected. Please select a user to edit their schedule.", title: "Error" });
+        return;
+    }
+    const activeUserObject = state.users[state.activeUserId];
+
+    if (!activeUserObject.timeSlots || slotIndex < 0 || slotIndex >= activeUserObject.timeSlots.length) {
+        console.error(`Invalid slot index ${slotIndex} for user ${activeUserObject.id} with ${activeUserObject.timeSlots?.length} slots.`);
+        showModal({ content: "Error: The selected time slot could not be found or is invalid.", title: "Error" });
+        return;
+    }
+
+    // If all checks pass, open the modal for editing
+    openEditTimeSlotModal(slotIndex, activeUserObject);
 }
 
 /**
@@ -425,46 +452,54 @@ function handleTimeSlotHeaderClick(event) {
  * @param {object} activeUserObject - The active user object.
  */
 function openEditTimeSlotModal(slotIndex, activeUserObject) {
-  const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
+    const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
 
-  // For editing, we expect HH:MM format. If stored format is AM/PM, convert or ask user.
-  // For simplicity, let's assume stored start/end might be AM/PM, but input for edit is HH:MM.
-  // The initial values in the modal should be what the user can readily edit.
-  // We'll provide current values as placeholders. Users should input strict HH:MM.
-  const modalContentHTML = `
-        <div>
-            <h3>Edit Time Slot</h3>
-            <p>Current Label: <strong>${currentTimeSlot.label}</strong></p>
+    // Since we store times in "HH:MM" format, pre-filling is direct.
+ 
+     const modalContentHTML = `
+        <div class="modal-form-container"> <!-- Outer container for all form content -->
+            <p>Current: <strong>${currentTimeSlot.label}</strong></p>
             <p class="time-input-hint">Enter new times in HH:MM format (e.g., 09:00, 14:30).</p>
-            <div class="form-group">
+            
+            <div class="form-group" id="edit-slot-start-time-wrapper">
                 <label for="edit-slot-start-time">New Start Time (HH:MM):</label>
-                <input type="text" id="edit-slot-start-time" class="modal-input" value="${
-                  currentTimeSlot.start.match(/\d{1,2}:\d{2}/)
-                    ? currentTimeSlot.start.match(/\d{1,2}:\d{2}/)[0]
-                    : currentTimeSlot.start
-                }" required placeholder="e.g., 09:00">
+                <input type="text" id="edit-slot-start-time" class="modal-input" 
+                       value="${currentTimeSlot.start}" 
+                       required placeholder="e.g., 09:00">
             </div>
-            <div class="form-group">
+            
+            <div class="form-group" id="edit-slot-end-time-wrapper">
                 <label for="edit-slot-end-time">New End Time (HH:MM):</label>
-                <input type="text" id="edit-slot-end-time" class="modal-input" value="${
-                  currentTimeSlot.end.match(/\d{1,2}:\d{2}/)
-                    ? currentTimeSlot.end.match(/\d{1,2}:\d{2}/)[0]
-                    : currentTimeSlot.end
-                }" required placeholder="e.g., 10:30">
+                <input type="text" id="edit-slot-end-time" class="modal-input" 
+                       value="${currentTimeSlot.end}" 
+                       required placeholder="e.g., 10:30">
             </div>
+            
             <div id="edit-slot-error-message" class="modal-error-message" style="display:none;"></div>
         </div>
     `;
 
-  showModal({
-    content: modalContentHTML,
-    title: "Edit Time Slot",
-    isHtmlContent: true,
-    showConfirmationButtons: true,
-    confirmText: "Save Changes",
-    cancelText: "Cancel",
-    onConfirm: () => processTimeSlotEdit(slotIndex, activeUserObject),
-  });
+    showModal({
+        content: modalContentHTML,
+        title: "Edit Time Slot",
+        isHtmlContent: true,
+        showConfirmationButtons: true,
+        confirmText: "Save Changes",
+        cancelText: "Cancel",
+        onConfirm: () => {
+            // Placeholder for now. In the next segment, this will call:
+            // return processTimeSlotEdit(slotIndex, activeUserObject);
+            console.log(`"Save Changes" clicked for slot index: ${slotIndex}`);
+            console.log("Start time input:", document.getElementById('edit-slot-start-time').value);
+            console.log("End time input:", document.getElementById('edit-slot-end-time').value);
+            // For now, let's just return true to allow the modal to close.
+            // The actual processing will determine if it should close or show errors.
+            return true;
+        },
+        onCancel: () => {
+            console.log("Edit time slot cancelled.");
+        }
+    });
 }
 
 /**
