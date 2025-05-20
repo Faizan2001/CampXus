@@ -19,6 +19,8 @@ export const DOM_ELEMENTS = {
   
   // Modal Elements
   appModal: null,
+  modalContent: null, // Reference to the modal content div
+  // Modal content elements
   modalTitle: null,
   modalMessage: null,
   modalCloseBtn: null,
@@ -39,7 +41,7 @@ export function initializeDomElements() {
   DOM_ELEMENTS.userNameInput = document.getElementById("userName");
   DOM_ELEMENTS.userIdInput = document.getElementById("userId");
   DOM_ELEMENTS.userListContainer = document.getElementById("userList");
-  DOM_ELEMENTS.scheduleTable = document.getElementById("schedule"); 
+  DOM_ELEMENTS.scheduleTable = document.getElementById("scheduleTable"); 
   DOM_ELEMENTS.compareButton = document.getElementById("compare");
   DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip");
   
@@ -50,6 +52,8 @@ export function initializeDomElements() {
   DOM_ELEMENTS.importButton = document.querySelector(".export-import button:nth-of-type(2)");
   
   DOM_ELEMENTS.appModal = document.getElementById("appModal");
+  // How is modalContent being selected? It should be something like:
+  DOM_ELEMENTS.modalContent = DOM_ELEMENTS.appModal ? DOM_ELEMENTS.appModal.querySelector(".modal-content") : null;
   DOM_ELEMENTS.modalTitle = document.getElementById("modalTitle");
   DOM_ELEMENTS.modalMessage = document.getElementById("modalMessage");
   DOM_ELEMENTS.modalCloseBtn = document.getElementById("modalCloseBtn");

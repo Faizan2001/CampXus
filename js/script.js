@@ -285,7 +285,7 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
 // .........................................
 
-function handleAddNewTimeSlotClick() {
+export function handleAddNewTimeSlotClick() {
   if (!state.activeUserId) {
     showModal({
       content: "Please select an active user first.",
@@ -418,7 +418,7 @@ function saveStateToStorage() {
  * Handles click events on time slot headers for editing.
  * @param {Event} event - The click event.
  */
-function handleTimeSlotHeaderClick(event) {
+export function handleTimeSlotHeaderClick(event) {
   const slotIndexString = event.currentTarget.dataset.slotIndex;
   if (slotIndexString === undefined) {
     console.error("Slot index is undefined for clicked header.");
@@ -430,6 +430,15 @@ function handleTimeSlotHeaderClick(event) {
     return;
   }
   const slotIndex = parseInt(slotIndexString, 10);
+
+  if (isNaN(slotIndex)) {
+    console.error("Slot index is not a number:", slotIndexString);
+    showModal({
+      content: "Invalid slot index provided. Must be a number.",
+      title: "Error",
+    });
+    return;
+  }
 
   if (!state.activeUserId || !state.users[state.activeUserId]) {
     // This case should ideally not be reached if headers are only made clickable for active users,
@@ -469,7 +478,7 @@ function handleTimeSlotHeaderClick(event) {
  * @param {number} slotIndex - The index of the time slot to edit.
  * @param {object} activeUserObject - The active user object.
  */
-function openEditTimeSlotModal(slotIndex, activeUserObject) {
+export function openEditTimeSlotModal(slotIndex, activeUserObject) {
   const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
 
   // Since we store times in "HH:MM" format, pre-filling is direct.
@@ -519,7 +528,7 @@ function openEditTimeSlotModal(slotIndex, activeUserObject) {
  * @param {object} activeUserObject - The active user object.
  * @returns {boolean} True if successful (modal should close), false if validation fails.
  */
-function processTimeSlotEdit(slotIndex, activeUserObject) {
+export function processTimeSlotEdit(slotIndex, activeUserObject) {
   const newStartTimeInput = document.getElementById("edit-slot-start-time");
   const newEndTimeInput = document.getElementById("edit-slot-end-time");
   const errorMessageElement = document.getElementById(
@@ -540,9 +549,24 @@ function processTimeSlotEdit(slotIndex, activeUserObject) {
   newStartTimeInput.classList.remove("input-error");
   newEndTimeInput.classList.remove("input-error");
 
+  if (!activeUserObject || !Array.isArray(activeUserObject.timeSlots)) {
+    console.error(
+      "Invalid activeUserObject or missing timeSlots in processTimeSlotEdit."
+    );
+    errorMessageElement.textContent =
+      "An error occurred. User data might be corrupted.";
+    errorMessageElement.style.display = "block";
+    return false; // Critical error, prevent modal close
+  }
+
   if (!rawStartTime || !rawEndTime) {
     errorMessageElement.textContent = "Both Start and End times are required.";
-    // ... add input-error class ...
+    if (!rawStartTime) {
+      newStartTimeInput.classList.add("input-error");
+    }
+    if (!rawEndTime) {
+      newEndTimeInput.classList.add("input-error");
+    }
     errorMessageElement.style.display = "block";
     return false;
   }
@@ -571,33 +595,36 @@ function processTimeSlotEdit(slotIndex, activeUserObject) {
 
   if (!isTimeBefore(newStartTime, newEndTime)) {
     errorMessageElement.textContent = `Start Time (${newStartTime}) must be strictly before End Time (${newEndTime}).`;
-    // ... add input-error class ...
+    newStartTimeInput.classList.add("input-error");
+    newEndTimeInput.classList.add("input-error");
     errorMessageElement.style.display = "block";
     return false;
   }
 
-  // --- Adjacent Slot Conflict Validation ---
-  // Note: activeUserObject is passed in, so we use its timeSlots directly.
-  // No need to find user in state.users again unless you prefer to always get the latest from state.
-  // For this operation, the passed activeUserObject should be the correct one.
   const userTimeSlots = activeUserObject.timeSlots;
 
+  // --- Adjacent Slot Conflict Validation ---
   if (slotIndex > 0) {
     const prevSlot = userTimeSlots[slotIndex - 1];
-    if (!isTimeBefore(prevSlot.end, newStartTime)) {
-      // prevSlot.end should be HH:MM
+    // Ensure prevSlot and its 'end' property are valid before comparison
+    if (prevSlot && prevSlot.end && !isTimeBefore(prevSlot.end, newStartTime)) {
       errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous slot's end (${prevSlot.end}).`;
-      // ... add input-error class ...
+      newStartTimeInput.classList.add("input-error");
       errorMessageElement.style.display = "block";
       return false;
     }
   }
+
   if (slotIndex < userTimeSlots.length - 1) {
     const nextSlot = userTimeSlots[slotIndex + 1];
-    if (!isTimeBefore(newEndTime, nextSlot.start)) {
-      // nextSlot.start should be HH:MM
+    // Ensure nextSlot and its 'start' property are valid before comparison
+    if (
+      nextSlot &&
+      nextSlot.start &&
+      !isTimeBefore(newEndTime, nextSlot.start)
+    ) {
       errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
-      // ... add input-error class ...
+      newEndTimeInput.classList.add("input-error");
       errorMessageElement.style.display = "block";
       return false;
     }

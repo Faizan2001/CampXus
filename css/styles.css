@@ -205,7 +205,7 @@ button#compare.active {
   /* Ensure this overrides the general button gradient if necessary */
 }
 
-.schedule {
+.scheduleTable {
   overflow-x: auto;
   display: grid;
   gap: 1rem;
