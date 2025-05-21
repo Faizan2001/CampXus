@@ -550,11 +550,8 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   newEndTimeInput.classList.remove("input-error");
 
   if (!activeUserObject || !Array.isArray(activeUserObject.timeSlots)) {
-    console.error(
-      "Invalid activeUserObject or missing timeSlots in processTimeSlotEdit."
-    );
-    errorMessageElement.textContent =
-      "An error occurred. User data might be corrupted.";
+    console.error("Invalid activeUserObject or missing timeSlots in processTimeSlotEdit.");
+    errorMessageElement.textContent = "An error occurred. User data might be corrupted.";
     errorMessageElement.style.display = "block";
     return false; // Critical error, prevent modal close
   }
@@ -618,11 +615,7 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   if (slotIndex < userTimeSlots.length - 1) {
     const nextSlot = userTimeSlots[slotIndex + 1];
     // Ensure nextSlot and its 'start' property are valid before comparison
-    if (
-      nextSlot &&
-      nextSlot.start &&
-      !isTimeBefore(newEndTime, nextSlot.start)
-    ) {
+    if (nextSlot && nextSlot.start && !isTimeBefore(newEndTime, nextSlot.start)) {
       errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
       newEndTimeInput.classList.add("input-error");
       errorMessageElement.style.display = "block";
@@ -1107,3 +1100,5 @@ function initializeApp() {
 }
 
 document.addEventListener("DOMContentLoaded", initializeApp);
+
+
