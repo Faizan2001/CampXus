@@ -4,7 +4,7 @@
 body {
   margin: 0;
   padding: 20px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   background: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
   background-size: 400% 400%;
   animation: waveGradient 15s ease infinite;
@@ -72,7 +72,7 @@ h1:hover {
 }
 
 h1::after {
-  content: '';
+  content: "";
   display: block;
   width: 60px;
   margin: 8px auto 0;
@@ -112,14 +112,15 @@ h1::after {
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid #eee;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    background-color 0.2s ease, border-color 0.2s ease;
   cursor: pointer; /* Pointer cursor for user items */
 }
 
 /* NEW: Hover effect for the container */
 .user-item:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* NEW: Style for the ACTIVE user container */
@@ -142,8 +143,6 @@ h1::after {
   color: #0056b3; /* Darker blue text */
 }
 
-
-
 /* NEW: Reset styles for the user name button INSIDE the container */
 .user-item > button:first-child {
   flex-grow: 1;
@@ -156,13 +155,12 @@ h1::after {
   font-weight: 600; /* Keep font weight */
   transform: none; /* Remove hover/active transform */
   cursor: pointer;
-  
 }
 /* NEW: Ensure no hover/active style changes on inner button */
 .user-item > button:first-child:hover,
 .user-item > button:first-child:active {
-    transform: none;
-    box-shadow: none;
+  transform: none;
+  box-shadow: none;
 }
 
 /* NEW: Adjust delete button styles INSIDE the container */
@@ -186,10 +184,34 @@ h1::after {
   transform: none; /* Ensure no transform on hover */
 }
 
-
 /* ================================
    SCHEDULE & OTHER ELEMENTS (Original Styles)
 ================================== */
+
+/* Pin Mode button styles */
+
+/* In css/styles.css */
+.control-button {
+  /* ... your existing general button styles ... */
+  padding: 8px 15px;
+  margin: 5px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.control-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  /* background-color: #e0e0e0; Optional disabled style */
+}
+
+#togglePinModeBtn.active {
+  /* Style for when pin mode is ON */
+  background-color: #4caf50; /* Example: Green */
+  color: white;
+  border-color: #388e3c;
+}
 
 button#compare {
   /* This specific button will still be styled by the general rule below, which is fine */
@@ -201,7 +223,7 @@ button#compare {
 }
 
 button#compare.active {
-  background: #4CAF50; /* Keep green active state for compare button */
+  background: #4caf50; /* Keep green active state for compare button */
   /* Ensure this overrides the general button gradient if necessary */
 }
 
@@ -216,7 +238,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 15px;
   text-align: center;
   border: 1px solid #eee;
@@ -247,7 +270,7 @@ td:first-child {
 }
 
 .slot-free {
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
 }
 
@@ -267,7 +290,8 @@ td:first-child {
   border-top: 1px solid #ccc;
 }
 
-input, textarea {
+input,
+textarea {
   padding: 12px;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -275,7 +299,8 @@ input, textarea {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   border-color: #6200ee;
   box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
 }
@@ -300,7 +325,7 @@ button:not(.user-item button):not(.hamburger-button) {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #4A00E0, #8E2DE2);
+  background: linear-gradient(135deg, #4a00e0, #8e2de2);
   color: white;
   font-weight: 600;
   cursor: pointer;
@@ -310,12 +335,12 @@ button:not(.user-item button):not(.hamburger-button) {
 
 button:not(.user-item button):not(.hamburger-button):hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 button:not(.user-item button):not(.hamburger-button):active {
   transform: translateY(0);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* In css/styles.css */
@@ -324,13 +349,12 @@ button:not(.user-item button):not(.hamburger-button):active {
    SCHEDULE CONTROLS (NEW or existing section)
 ================================== */
 #addNewTimeSlotBtn {
- 
   color: white;
   border: none;
   border-radius: 50%; /* Make it circular */
   width: 35px;
   height: 35px;
-  font-size: 1.2rem;   /* Adjust for '+' size */
+  font-size: 1.2rem; /* Adjust for '+' size */
   font-weight: bold;
   line-height: 30px; /* Helps center the '+' vertically if font size matches */
   text-align: center;
@@ -344,15 +368,15 @@ button:not(.user-item button):not(.hamburger-button):active {
 
 #addNewTimeSlotBtn:hover {
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Styles for the table header cell containing the '+' button */
 #addTimeSlotHeaderCell {
-  text-align: center; 
+  text-align: center;
   vertical-align: middle;
   /* Optional: if you want a visual separator */
-  /* border-left: 1px solid #eee; */ 
+  /* border-left: 1px solid #eee; */
 }
 
 .editable-timeslot-header {
@@ -365,7 +389,33 @@ button:not(.user-item button):not(.hamburger-button):active {
   /* text-decoration: underline; */ /* Optional */
 }
 
-
+/* Flex row for Compare and Pin Mode buttons */
+.button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  align-items: stretch; /* Ensures children are same height */
+}
+.button-row #compare,
+.button-row #togglePinModeBtn {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px; /* Set a fixed height for both buttons */
+  padding-top: 0;
+  padding-bottom: 0;
+  box-sizing: border-box;
+  margin: 0; /* Remove extra margin from .control-button */
+}
+.button-row #compare {
+  flex: 3 1 0%;
+}
+.button-row #togglePinModeBtn {
+  flex: 1 1 0%;
+}
 
 /* Responsive Styles */
 @media (max-width: 768px) {
@@ -391,38 +441,49 @@ button:not(.user-item button):not(.hamburger-button):active {
   */
 
   h1 {
-      font-size: 2rem; /* Adjust H1 size */
+    font-size: 2rem; /* Adjust H1 size */
   }
 
   .slot {
     min-width: 80px; /* Original responsive size */
   }
 
-  th, td {
+  th,
+  td {
     padding: 10px 5px;
   }
 
   /* Adjust user item padding/font for smaller screens */
   .user-item {
-      padding: 6px 10px;
-      gap: 6px;
+    padding: 6px 10px;
+    gap: 6px;
   }
   .user-item .delete-btn {
-      padding: 4px 8px;
-      font-size: 11px;
+    padding: 4px 8px;
+    font-size: 11px;
   }
 }
 
 /* Keyframe Animations (Originals) */
 @keyframes pulseGlow {
-  from { box-shadow: 0 0 5px #ffb6ff; }
-  to { box-shadow: 0 0 20px #ffb6ff; }
+  from {
+    box-shadow: 0 0 5px #ffb6ff;
+  }
+  to {
+    box-shadow: 0 0 20px #ffb6ff;
+  }
 }
 
 @keyframes waveGradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Removed unused animations from previous attempts */

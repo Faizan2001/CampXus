@@ -10,6 +10,7 @@ export const DOM_ELEMENTS = {
   // Schedule & Comparison
   scheduleTable: null,
   compareButton: null,
+  togglePinModeBtn: null,
   slotTooltip: null,
   
   // Import / Export
@@ -31,6 +32,9 @@ export const DOM_ELEMENTS = {
   // Dynamic Time Slots
   addNewTimeSlotBtn: null,
   addTimeSlotHeaderCell: null, // Reference to the th cell containing the "+" button
+
+  
+
 };
 
 /**
@@ -43,6 +47,7 @@ export function initializeDomElements() {
   DOM_ELEMENTS.userListContainer = document.getElementById("userList");
   DOM_ELEMENTS.scheduleTable = document.getElementById("scheduleTable"); 
   DOM_ELEMENTS.compareButton = document.getElementById("compare");
+  DOM_ELEMENTS.togglePinModeBtn = document.getElementById("togglePinModeBtn");
   DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip");
   
   DOM_ELEMENTS.addUserButton = document.querySelector(".add-user button");

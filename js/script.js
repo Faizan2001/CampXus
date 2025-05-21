@@ -21,6 +21,7 @@ let state = {
   // Let's keep it as an object for easier lookup state.users[userId]
   selectedUserIds: new Set(),
   compareMode: false,
+  pinModeActive: false, // <-- NEW STATE PROPERTY
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
@@ -36,6 +37,7 @@ export function _resetStateForTesting() {
     users: {},
     selectedUserIds: new Set(),
     compareMode: false,
+    pinModeActive: false, // <-- ADD TO RESET
   };
 }
 
@@ -48,11 +50,15 @@ export function createUserObject(name, userId, currentUsers) {
     const schedule = Array(7)
       .fill(null)
       .map(() => Array(userTimeSlots.length).fill(false));
+    const pinnedSlots = Array(7)
+      .fill(null)
+      .map(() => Array(userTimeSlots.length).fill(false));
     return {
       id: userId,
       name: name,
       timeSlots: userTimeSlots,
       schedule: schedule,
+      pinnedSlots: pinnedSlots, // <-- ADD THIS
     };
   }
   return null;
@@ -273,6 +279,10 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   user.schedule.forEach((daySchedule) => {
     daySchedule.push(false);
   });
+  // Expand the pinnedSlots matrix for the new slot
+  user.pinnedSlots.forEach((dayPinnedSlots) => {
+    dayPinnedSlots.push(false);
+  });
 
   saveStateToStorage();
   updateUI();
@@ -395,6 +405,25 @@ function loadStateFromStorage() {
         });
       } else {
         user.schedule = Array(7)
+          .fill(null)
+          .map(() => Array(user.timeSlots.length).fill(false));
+      }
+      // Check if pinnedSlots is missing or has incorrect structure
+      if (
+        !user.pinnedSlots ||
+        !Array.isArray(user.pinnedSlots) ||
+        user.pinnedSlots.length !== 7 ||
+        (user.timeSlots.length > 0 &&
+          (!user.pinnedSlots[0] ||
+            user.pinnedSlots[0].length !== user.timeSlots.length)) ||
+        (user.timeSlots.length === 0 &&
+          user.pinnedSlots[0] &&
+          user.pinnedSlots[0].length !== 0)
+      ) {
+        console.warn(
+          `User ${user.id} (from storage) missing or has invalid pinnedSlots, re-initializing.`
+        );
+        user.pinnedSlots = Array(7)
           .fill(null)
           .map(() => Array(user.timeSlots.length).fill(false));
       }
@@ -550,8 +579,11 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   newEndTimeInput.classList.remove("input-error");
 
   if (!activeUserObject || !Array.isArray(activeUserObject.timeSlots)) {
-    console.error("Invalid activeUserObject or missing timeSlots in processTimeSlotEdit.");
-    errorMessageElement.textContent = "An error occurred. User data might be corrupted.";
+    console.error(
+      "Invalid activeUserObject or missing timeSlots in processTimeSlotEdit."
+    );
+    errorMessageElement.textContent =
+      "An error occurred. User data might be corrupted.";
     errorMessageElement.style.display = "block";
     return false; // Critical error, prevent modal close
   }
@@ -615,7 +647,11 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   if (slotIndex < userTimeSlots.length - 1) {
     const nextSlot = userTimeSlots[slotIndex + 1];
     // Ensure nextSlot and its 'start' property are valid before comparison
-    if (nextSlot && nextSlot.start && !isTimeBefore(newEndTime, nextSlot.start)) {
+    if (
+      nextSlot &&
+      nextSlot.start &&
+      !isTimeBefore(newEndTime, nextSlot.start)
+    ) {
       errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
       newEndTimeInput.classList.add("input-error");
       errorMessageElement.style.display = "block";
@@ -773,12 +809,46 @@ function renderUserList() {
     .join("");
 }
 
+
+/**
+ * Determines the properties for the Pin Mode button based on current application state.
+ * @param {string|null} currentActiveUserId - The ID of the currently active user.
+ * @param {boolean} isCompareModeActive - Whether compare mode is active.
+ * @param {boolean} isPinModeCurrentlyActive - Whether pin mode is currently active in the state.
+ * @returns {object} An object with { isDisabled: boolean, shouldHaveActiveClass: boolean }
+ **/
+
+function getPinModeButtonDynamicState(currentActiveUserId, isCompareModeActive, isPinModeCurrentlyActive) {
+    const conditionsMetForPinMode = currentActiveUserId && !isCompareModeActive;
+    return {
+        isDisabled: !conditionsMetForPinMode,
+        shouldHaveActiveClass: conditionsMetForPinMode && isPinModeCurrentlyActive,
+    };
+}
+
+
 function updateUI() {
   renderScheduleGrid();
   renderUserList();
   if (DOM_ELEMENTS.compareButton)
     DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
+
+  // --- START: Logic for Pin Mode Button ---
+  if (DOM_ELEMENTS.togglePinModeBtn) {
+    const buttonState = getPinModeButtonDynamicState(
+        state.activeUserId, 
+        state.compareMode, 
+        state.pinModeActive
+    );
+    
+    DOM_ELEMENTS.togglePinModeBtn.disabled = buttonState.isDisabled;
+    DOM_ELEMENTS.togglePinModeBtn.classList.toggle("active", buttonState.shouldHaveActiveClass);
+  }
+  // --- END: Logic for Pin Mode Button ---
+
 }
+
+
 
 /* ================================
    EVENT HANDLERS & APP LOGIC
@@ -819,7 +889,14 @@ function handleDeleteUser(userIdToDelete) {
     confirmText: "Delete",
     cancelText: "Cancel",
     onConfirm: () => {
+      const oldActiveUserId = state.activeUserId; // Store old active user ID
       state = deleteUserFromState(userIdToDelete, state);
+
+      // If the deleted user was the active user, set active user to null
+      if (oldActiveUserId === userIdToDelete && state.activeUserId === null) {
+        state.pinModeActive = false; // Reset pin mode if the active user is deleted
+      }
+
       saveStateToStorage();
       updateUI();
       showModal({ content: `${user.name} deleted.`, title: "User Deleted" });
@@ -829,9 +906,20 @@ function handleDeleteUser(userIdToDelete) {
 }
 
 function handleSetActiveUser(userId) {
+  // Clear selected user if button is clicked again after already selected, clear active user
+  if (state.activeUserId === userId) {
+    state.activeUserId = null;
+    state.pinModeActive = false; // Reset pin mode if active user is cleared
+    state.selectedUserIds.clear(); // Clear selected user IDs
+    saveStateToStorage(); // Save state if active user change implies persistent view change
+    updateUI();
+    return;
+  }
+  
   if (state.users[userId]) {
     state.activeUserId = userId;
     state.compareMode = false;
+    state.pinModeActive = false;
     state.selectedUserIds.clear();
     saveStateToStorage(); // Save state if active user change implies persistent view change
     updateUI();
@@ -840,8 +928,12 @@ function handleSetActiveUser(userId) {
 
 function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
-  state.activeUserId = null;
-  state.selectedUserIds.clear();
+  if (state.compareMode) {
+    state.activeUserId = null; // Clear active user when entering compare mode
+    state.pinModeActive = false; // Disable pin mode in compare mode
+    state.selectedUserIds.clear(); // Clear selected user IDs
+  }
+
   updateUI();
 }
 
@@ -1098,7 +1190,5 @@ function initializeApp() {
   setupEventListeners();
   updateUI();
 }
-
+window.appState = state
 document.addEventListener("DOMContentLoaded", initializeApp);
-
-
