@@ -374,6 +374,26 @@ export function handleAddNewTimeSlotClick() {
   });
 }
 
+function handleTogglePinMode() {
+  if (!state.activeUserId || state.compareMode) {
+    // This case means the button was clicked while it should have been disabled,
+    // or state changed between render and click. Defensive coding:
+    state.pinModeActive = false; // Ensure it's off if conditions aren't met
+    console.warn(
+      "Pin Mode toggle attempted when conditions not met. Forcing off."
+    );
+  } else {
+    // Toggle the pin mode state
+    state.pinModeActive = !state.pinModeActive;
+    if (state.pinModeActive && state.compareMode) {
+      // Defensive check
+      state.compareMode = false;
+      // activeUserId should still be set if we entered here
+    }
+  }
+  updateUI(); // This will re-apply the .active class to the button based on the new state.pinModeActive
+}
+
 /* ================================
    STATE PERSISTENCE (LocalStorage)
 ================================== */
@@ -809,6 +829,42 @@ function renderUserList() {
     .join("");
 }
 
+// Helpers for Compare and Pin Mode Button
+
+/**
+ * Determines the properties for the Compare Schedules button based on current app state.
+ * @param {boolean} isPinModeCurrentlyActive - Whether pin mode is active.
+ * @param {boolean} isCompareModeCurrentlyActive - Whether compare mode is active.
+ * @param {number} userCount - Total number of users (or selected users for more complex logic).
+ * @returns {object} An object with { isDisabled: boolean, isActiveClass: boolean }
+ */
+function getCompareButtonDynamicState(
+  isPinModeCurrentlyActive,
+  isCompareModeCurrentlyActive,
+  totalUserCount
+) {
+  // Compare button should be disabled if:
+  // 1. Pin mode is active.
+  // 2. There are fewer than 2 users to compare (common requirement, adjust if needed).
+  const canActuallyCompare = !isPinModeCurrentlyActive && totalUserCount >= 2;
+  const conditionsToEnableButton =
+    !isPinModeCurrentlyActive && canActuallyCompare;
+
+  let text;
+  if (!canActuallyCompare || isPinModeCurrentlyActive) {
+    text = "Compare Schedules: DISABLED";
+  } else if (isCompareModeCurrentlyActive) {
+    text = "Compare Schedules: ON";
+  } else {
+    text = "Compare Schedules: OFF";
+  }
+
+  return {
+    isDisabled: !conditionsToEnableButton, // Compare button is disabled if pin mode is active or not enough users
+    isActiveClass: conditionsToEnableButton && isCompareModeCurrentlyActive, // Compare button's active class is for when compare mode IS ON
+    text: text // Dynamic text (ON/OFF/DISABLED)
+  };
+}
 
 /**
  * Determines the properties for the Pin Mode button based on current application state.
@@ -818,37 +874,70 @@ function renderUserList() {
  * @returns {object} An object with { isDisabled: boolean, shouldHaveActiveClass: boolean }
  **/
 
-function getPinModeButtonDynamicState(currentActiveUserId, isCompareModeActive, isPinModeCurrentlyActive) {
-    const conditionsMetForPinMode = currentActiveUserId && !isCompareModeActive;
-    return {
-        isDisabled: !conditionsMetForPinMode,
-        shouldHaveActiveClass: conditionsMetForPinMode && isPinModeCurrentlyActive,
-    };
-}
+function getPinModeButtonDynamicState(
+  currentActiveUserId,
+  isCompareModeActive,
+  isPinModeCurrentlyActive
+) {
+  const canEnablePinMode = currentActiveUserId && !isCompareModeActive;
+  let text;
 
+  // Pin mode button should be disabled if:
+  // 1. No active user is selected.
+  // 2. Compare mode is active.
+  if (!canEnablePinMode) {
+    text = "Pin Mode: DISABLED";
+  } else if (isPinModeCurrentlyActive) {
+    text = "Pin Mode: ON";
+  } else {
+    text = "Pin Mode: OFF";
+  }
+
+  return {
+    isDisabled: !canEnablePinMode,
+    isActiveClass: canEnablePinMode && isPinModeCurrentlyActive,
+    text: text // Dynamic text (ON/OFF/DISABLED)
+  };
+}
 
 function updateUI() {
   renderScheduleGrid();
   renderUserList();
-  if (DOM_ELEMENTS.compareButton)
-    DOM_ELEMENTS.compareButton.classList.toggle("active", state.compareMode);
+
+  const totalUserCount = Object.keys(state.users).length; // Get total number of users
+
+  // --- Logic for Compare Button ---
+  if (DOM_ELEMENTS.compareButton) {
+    const compareButtonState = getCompareButtonDynamicState(
+      state.pinModeActive,
+      state.compareMode,
+      totalUserCount // Pass the user count
+    );
+    DOM_ELEMENTS.compareButton.disabled = compareButtonState.isDisabled;
+    DOM_ELEMENTS.compareButton.classList.toggle(
+      "active",
+      compareButtonState.isActiveClass
+    );
+    DOM_ELEMENTS.compareButton.textContent = compareButtonState.text; // Set Dynamic text (ON/OFF)
+  }
 
   // --- START: Logic for Pin Mode Button ---
   if (DOM_ELEMENTS.togglePinModeBtn) {
-    const buttonState = getPinModeButtonDynamicState(
-        state.activeUserId, 
-        state.compareMode, 
-        state.pinModeActive
+    const pinModeBtnState = getPinModeButtonDynamicState(
+      state.activeUserId,
+      state.compareMode,
+      state.pinModeActive
     );
-    
-    DOM_ELEMENTS.togglePinModeBtn.disabled = buttonState.isDisabled;
-    DOM_ELEMENTS.togglePinModeBtn.classList.toggle("active", buttonState.shouldHaveActiveClass);
+
+    DOM_ELEMENTS.togglePinModeBtn.disabled = pinModeBtnState.isDisabled;
+    DOM_ELEMENTS.togglePinModeBtn.classList.toggle(
+      "active",
+      pinModeBtnState.isActiveClass
+    );
+    DOM_ELEMENTS.togglePinModeBtn.textContent = pinModeBtnState.text; // Set Dynamic text (ON/OFF)
   }
   // --- END: Logic for Pin Mode Button ---
-
 }
-
-
 
 /* ================================
    EVENT HANDLERS & APP LOGIC
@@ -906,22 +995,31 @@ function handleDeleteUser(userIdToDelete) {
 }
 
 function handleSetActiveUser(userId) {
-  // Clear selected user if button is clicked again after already selected, clear active user
+  // Deselect Logic
   if (state.activeUserId === userId) {
     state.activeUserId = null;
     state.pinModeActive = false; // Reset pin mode if active user is cleared
     state.selectedUserIds.clear(); // Clear selected user IDs
-    saveStateToStorage(); // Save state if active user change implies persistent view change
+
+    saveStateToStorage();
     updateUI();
     return;
   }
-  
+
+  // Select Logic
   if (state.users[userId]) {
     state.activeUserId = userId;
     state.compareMode = false;
     state.pinModeActive = false;
     state.selectedUserIds.clear();
     saveStateToStorage(); // Save state if active user change implies persistent view change
+    updateUI();
+  } else if (userId === null && state.activeUserId !== null) {
+    // If userId is null, but we have an active user, clear the active user
+    state.activeUserId = null;
+    state.pinModeActive = false; // Reset pin mode if active user is cleared
+    state.selectedUserIds.clear(); // Clear selected user IDs
+    saveStateToStorage();
     updateUI();
   }
 }
@@ -932,6 +1030,8 @@ function handleToggleCompareMode() {
     state.activeUserId = null; // Clear active user when entering compare mode
     state.pinModeActive = false; // Disable pin mode in compare mode
     state.selectedUserIds.clear(); // Clear selected user IDs
+  } else if (!state.compareMode) {
+    state.selectedUserIds.clear(); // Clear selected user IDs when exiting compare mode
   }
 
   updateUI();
@@ -1121,6 +1221,13 @@ function setupEventListeners() {
       "click",
       handleToggleCompareMode
     );
+
+  if (DOM_ELEMENTS.togglePinModeBtn)
+    DOM_ELEMENTS.togglePinModeBtn.addEventListener(
+      "click",
+      handleTogglePinMode
+    );
+
   if (DOM_ELEMENTS.exportButton)
     DOM_ELEMENTS.exportButton.addEventListener(
       "click",
@@ -1190,5 +1297,5 @@ function initializeApp() {
   setupEventListeners();
   updateUI();
 }
-window.appState = state
+window.appState = state;
 document.addEventListener("DOMContentLoaded", initializeApp);

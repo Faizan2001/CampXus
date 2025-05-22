@@ -188,44 +188,111 @@ h1::after {
    SCHEDULE & OTHER ELEMENTS (Original Styles)
 ================================== */
 
-/* Pin Mode button styles */
-
-/* In css/styles.css */
-.control-button {
-  /* ... your existing general button styles ... */
-  padding: 8px 15px;
-  margin: 5px;
-  cursor: pointer;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+/* Pin Mode and Compare Button General Styles */
+.control-button { /* This class is on #togglePinModeBtn and #compare */
+    padding: 8px 15px;
+    margin: 5px; 
+    cursor: pointer;
+    border: 1px solid #ccc; 
+    border-radius: 6px;    
+    font-weight: 500;
+    transition: background-color 0.3s ease, background-image 0.3s ease, border-color 0.3s ease, color 0.3s ease, opacity 0.3s ease; /* Added background-image to transition */
+    text-align: center;
 }
 
-.control-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  /* background-color: #e0e0e0; Optional disabled style */
+/* --- START: Three-State Styling --- */
+
+/* State 1: DISABLED */
+/* Increase specificity by targeting the IDs directly for the disabled state */
+#togglePinModeBtn:disabled,
+#compare:disabled {
+    background-color: #e0e0e0 !important; /* Light grey background */
+    background-image: none !important;   /* CRUCIAL: Remove any gradient or image */
+    color: #a0a0a0 !important;           /* Dimmed text color */
+    border-color: #d0d0d0 !important;    /* Slightly darker grey border */
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+/* No need for :disabled:hover if we use !important above, it will take precedence */
+
+
+/* State 2: ENABLED and "OFF" */
+#togglePinModeBtn:not(.active):not(:disabled),
+#compare:not(.active):not(:disabled) {
+    background-color: #c82333; /* Deepish Red for OFF state */
+    background-image: none;   /* Ensure no gradient from general rule */
+    color: white;
+    border-color: #a51823; 
 }
 
-#togglePinModeBtn.active {
-  /* Style for when pin mode is ON */
-  background-color: #4caf50; /* Example: Green */
+#togglePinModeBtn:not(.active):not(:disabled):hover,
+#compare:not(.active):not(:disabled):hover {
+    background-color: #a51823; 
+    background-image: none;
+    border-color: #7f131b;
+}
+
+
+/* State 3: ENABLED and "ON" (when .active class is present) */
+#togglePinModeBtn.active, /* Removed :not(:disabled) because .active implies it's enabled */
+#compare.active {          /* Same here */
+    background-color: #218838; /* Deepish Green for ON state */
+    background-image: none;   /* Ensure no gradient from general rule */
+    color: white;
+    border-color: #19692c; 
+}
+#togglePinModeBtn.active:hover,
+#compare.active:hover {
+    background-color: #19692c; 
+    background-image: none;
+    border-color: #134f20;
+}
+
+/* --- END: Three-State Styling --- */
+
+
+/* General Button styles - this was already correctly excluding them */
+button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare) {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4a00e0, #8e2de2);
   color: white;
-  border-color: #388e3c;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-button#compare {
-  /* This specific button will still be styled by the general rule below, which is fine */
-  /* If you wanted it different, give it a more unique class or adjust the general rule */
-  /* background: linear-gradient(135deg, #4A00E0, #8E2DE2); */ /* Example of original general style */
-  /* color: white; */
-  /* border: none; */
-  transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+/* Ensure .button-row styles don't interfere with background/color set above */
+.button-row #compare,
+.button-row #togglePinModeBtn {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px; 
+  padding-top: 0;     /* These might have been reset by general button rule */
+  padding-bottom: 0;  /* These might have been reset by general button rule */
+  padding-left: 15px; /* Restore some horizontal padding */
+  padding-right: 15px;/* Restore some horizontal padding */
+  box-sizing: border-box;
+  margin: 0; 
+  border-radius: 6px; /* Consistent radius */
+  /* font-weight and color will be inherited or set by the specific state rules above */
 }
 
-button#compare.active {
-  background: #4caf50; /* Keep green active state for compare button */
-  /* Ensure this overrides the general button gradient if necessary */
-}
+
+
+
+/*         New section below    **/
+/* ================================
+   SCHEDULE TABLE STYLES (NEW)
+================================== */
+
 
 .scheduleTable {
   overflow-x: auto;
