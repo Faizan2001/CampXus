@@ -1,25 +1,7 @@
 /* Enhanced Menu CSS - Styled to match main styles.css */
 
 /* Import CSS Custom Properties from main styles */
-:root {
-  --primary-gradient: linear-gradient(135deg, #4a00e0, #8e2de2);
-  --background-gradient: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
-  --text-primary: #333;
-  --text-secondary: #666;
-  --border-color: #eee;
-  --border-radius: 8px;
-  --border-radius-large: 15px;
-  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.1);
-  --shadow-heavy: 0 8px 32px rgba(0, 0, 0, 0.1);
-  --transition-fast: 0.2s ease;
-  --transition-medium: 0.3s ease;
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 20px;
-  --spacing-xl: 30px;
-}
+/* Variables are defined in styles.css and will be inherited */
 
 /* ================================
    OVERLAY STYLES
@@ -76,7 +58,12 @@ body.menu-open .overlay {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
   transition: left 0.5s ease;
 }
 
@@ -115,7 +102,12 @@ body.menu-open .overlay {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
   transition: left 0.3s ease;
 }
 
@@ -154,14 +146,14 @@ body.menu-open .hamburger-button .hamburger-bar:nth-child(3) {
   left: 0;
   width: clamp(260px, 30vw, 320px);
   height: 100%;
-  background: linear-gradient(to bottom right, 
-    rgba(255, 255, 255, 0.98), 
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0.98),
     rgba(248, 249, 250, 0.95),
     rgba(240, 230, 255, 0.92)
   );
   backdrop-filter: blur(15px);
-  box-shadow: var(--shadow-heavy), 
-              inset -1px 0 0 rgba(74, 0, 224, 0.1);
+  box-shadow: var(--shadow-heavy), inset -1px 0 0 rgba(74, 0, 224, 0.1);
   transform: translateX(-100%);
   transition: transform 0.3s ease;
   z-index: 1001;
@@ -215,9 +207,10 @@ body.menu-open .nav-panel {
   left: 0;
   width: 100%;
   height: 1px;
-  background: linear-gradient(to right, 
-    transparent, 
-    rgba(74, 0, 224, 0.2), 
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(74, 0, 224, 0.2),
     rgba(255, 118, 159, 0.2),
     transparent
   );
@@ -231,9 +224,10 @@ body.menu-open .nav-panel {
   left: 0;
   width: 100%;
   height: 1px;
-  background: linear-gradient(to right, 
-    transparent, 
-    rgba(74, 0, 224, 0.2), 
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(74, 0, 224, 0.2),
     rgba(255, 118, 159, 0.2),
     transparent
   );
@@ -266,8 +260,9 @@ body.menu-open .nav-panel {
   left: 0;
   width: 0;
   height: 100%;
-  background: linear-gradient(135deg, 
-    rgba(74, 0, 224, 0.1), 
+  background: linear-gradient(
+    135deg,
+    rgba(74, 0, 224, 0.1),
     rgba(142, 45, 226, 0.05)
   );
   transition: width var(--transition-medium) ease;
@@ -288,7 +283,7 @@ body.menu-open .nav-panel {
 
 .nav-link:hover,
 .nav-link:focus {
-  color: #4a00e0;
+  color: var(--primary-color);
   padding-left: calc(var(--spacing-xl) + var(--spacing-sm));
   transform: translateX(var(--spacing-sm));
   border-left-color: rgba(74, 0, 224, 0.3);
@@ -313,12 +308,12 @@ body.menu-open .nav-panel {
 
 /* Enhanced focus states for accessibility */
 .nav-link:focus-visible {
-  outline: 2px solid #4a00e0;
+  outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
 .hamburger-button:focus-visible {
-  outline: 2px solid #4a00e0;
+  outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
@@ -326,14 +321,14 @@ body.menu-open .nav-panel {
    KEYFRAME ANIMATIONS
 ================================== */
 @keyframes waveGradientMenu {
-  0% { 
-    background-position: 0% 50%; 
+  0% {
+    background-position: 0% 50%;
   }
-  50% { 
-    background-position: 100% 50%; 
+  50% {
+    background-position: 100% 50%;
   }
-  100% { 
-    background-position: 0% 50%; 
+  100% {
+    background-position: 0% 50%;
   }
 }
 
@@ -448,8 +443,9 @@ body.menu-open .nav-panel {
   }
 
   .nav-panel {
-    background: linear-gradient(to bottom right, 
-      rgba(33, 37, 41, 0.98), 
+    background: linear-gradient(
+      to bottom right,
+      rgba(33, 37, 41, 0.98),
       rgba(73, 80, 87, 0.95),
       rgba(52, 58, 64, 0.92)
     );
@@ -467,9 +463,10 @@ body.menu-open .nav-panel {
 
   .nav-panel li::after,
   .nav-panel li:first-child::before {
-    background: linear-gradient(to right, 
-      transparent, 
-      rgba(173, 181, 189, 0.3), 
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(173, 181, 189, 0.3),
       rgba(206, 212, 218, 0.2),
       transparent
     );
@@ -507,7 +504,8 @@ body.menu-open .nav-panel {
 
 /* Add subtle pulsing animation for menu button when closed */
 @keyframes subtlePulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: var(--shadow-medium);
   }
   50% {
@@ -531,11 +529,27 @@ body.menu-open .nav-panel li {
   transform: translateX(0);
 }
 
-body.menu-open .nav-panel li:nth-child(1) { transition-delay: 0.1s; }
-body.menu-open .nav-panel li:nth-child(2) { transition-delay: 0.15s; }
-body.menu-open .nav-panel li:nth-child(3) { transition-delay: 0.2s; }
-body.menu-open .nav-panel li:nth-child(4) { transition-delay: 0.25s; }
-body.menu-open .nav-panel li:nth-child(5) { transition-delay: 0.3s; }
-body.menu-open .nav-panel li:nth-child(6) { transition-delay: 0.35s; }
-body.menu-open .nav-panel li:nth-child(7) { transition-delay: 0.4s; }
-body.menu-open .nav-panel li:nth-child(8) { transition-delay: 0.45s; }
+body.menu-open .nav-panel li:nth-child(1) {
+  transition-delay: 0.1s;
+}
+body.menu-open .nav-panel li:nth-child(2) {
+  transition-delay: 0.15s;
+}
+body.menu-open .nav-panel li:nth-child(3) {
+  transition-delay: 0.2s;
+}
+body.menu-open .nav-panel li:nth-child(4) {
+  transition-delay: 0.25s;
+}
+body.menu-open .nav-panel li:nth-child(5) {
+  transition-delay: 0.3s;
+}
+body.menu-open .nav-panel li:nth-child(6) {
+  transition-delay: 0.35s;
+}
+body.menu-open .nav-panel li:nth-child(7) {
+  transition-delay: 0.4s;
+}
+body.menu-open .nav-panel li:nth-child(8) {
+  transition-delay: 0.45s;
+}

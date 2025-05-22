@@ -2,18 +2,71 @@
 
 /* CSS Custom Properties for consistent theming */
 :root {
+  /* Primary Colors */
   --primary-gradient: linear-gradient(135deg, #4a00e0, #8e2de2);
-  --background-gradient: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
+  --primary-color: #4a00e0;
+  --primary-color-light: #9575cd;
+  --primary-color-dark: #8e2de2;
+
+  /* Background */
+  --background-gradient: linear-gradient(
+    -45deg,
+    #d57cff,
+    #ff769f,
+    #a1c4fd,
+    #c2e9fb
+  );
+  --background-white: rgba(255, 255, 255, 0.95);
+  --background-light: #f8f9fa;
+  --background-gray: #e9ecef;
+
+  /* Text Colors */
   --text-primary: #333;
   --text-secondary: #666;
+  --text-disabled: #a0a0a0;
+  --text-white: #fff;
+
+  /* Status Colors */
+  --color-success: #2ed573;
+  --color-success-dark: #1dd1a1;
+  --color-error: #ff4757;
+  --color-error-dark: #ff3742;
+  --color-warning: #ff769f;
+
+  /* Border Colors */
   --border-color: #eee;
+  --border-color-light: #ddd;
+  --border-color-disabled: #d0d0d0;
+  --border-color-focus: #4a00e0;
+  --border-color-error: #ff4757;
+  --border-color-success: #1dd1a1;
+
+  /* Gradients */
+  --gradient-title: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
+  --gradient-accent: linear-gradient(to right, #d57cff, #ff769f);
+  --gradient-purple-light: linear-gradient(135deg, #e6dffc, #f0ebff);
+  --gradient-blue-light: linear-gradient(135deg, #d1e7ff, #e8f4ff);
+  --gradient-error: linear-gradient(135deg, #ff4757, #ff3742);
+  --gradient-success: linear-gradient(135deg, #2ed573, #1dd1a1);
+  --gradient-disabled: linear-gradient(135deg, #e0e0e0, #d0d0d0);
+  --gradient-white: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+
+  /* Border Radius */
   --border-radius: 8px;
   --border-radius-large: 15px;
+  --border-radius-small: 4px;
+
+  /* Shadows */
   --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
   --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.1);
   --shadow-heavy: 0 8px 32px rgba(0, 0, 0, 0.1);
+
+  /* Transitions */
   --transition-fast: 0.2s ease;
   --transition-medium: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
@@ -24,8 +77,11 @@
   --input-bg-dark: #2c3136;
   --input-border-dark: #5a6268;
   --input-bg-focus-dark: #343a40;
-  --input-focus-border-dark: #8e2de2; /* Using a primary color for focus */
+  --input-focus-border-dark: #8e2de2;
   --input-focus-shadow-dark: rgba(142, 45, 226, 0.25);
+
+  /* Button height consistency */
+  --button-height: 48px;
 }
 
 /* Modern CSS Reset */
@@ -47,7 +103,8 @@ html {
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.6;
   color: var(--text-primary);
   background: var(--background-gradient);
@@ -95,7 +152,7 @@ h1 {
   font-style: italic;
   margin: 0;
   padding: var(--spacing-sm) 0;
-  background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
+  background: var(--gradient-title);
   background-size: 300% 300%;
   animation: waveGradient 10s ease infinite;
   background-clip: text;
@@ -119,7 +176,7 @@ h1::after {
   margin: var(--spacing-sm) auto 0;
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(to right, #d57cff, #ff769f);
+  background: var(--gradient-accent);
   animation: pulseGlow 2s ease-in-out infinite alternate;
 }
 
@@ -179,7 +236,12 @@ h3 {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
   transition: left 0.5s ease;
 }
 
@@ -210,7 +272,9 @@ h3 {
 .user-item > button:first-child {
   flex-grow: 1;
   background: none;
-  color: var(--text-primary); /* Ensure this inherits correctly or is set for dark mode children */
+  color: var(
+    --text-primary
+  ); /* Ensure this inherits correctly or is set for dark mode children */
   padding: 0;
   border: none;
   box-shadow: none;
@@ -253,7 +317,8 @@ h3 {
 }
 
 .control-button {
-  padding: var(--spacing-md) var(--spacing-lg);
+  height: var(--button-height);
+  padding: 0 var(--spacing-lg);
   cursor: pointer;
   border: 2px solid transparent;
   border-radius: var(--border-radius);
@@ -265,6 +330,9 @@ h3 {
   overflow: hidden;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /*
@@ -272,6 +340,19 @@ h3 {
   These buttons share the same styling for disabled, active, and inactive states
   to ensure visual consistency.
 */
+
+/* Add this new rule after your existing button rules */
+#togglePinModeBtn,
+#compare {
+  border-radius: var(--border-radius) !important;
+  font-size: clamp(0.8rem, 2vw, 1rem) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  height: var(--button-height) !important;
+  padding: 0 var(--spacing-lg) !important;
+}
+
 #togglePinModeBtn:disabled,
 #compare:disabled {
   background: linear-gradient(135deg, #e0e0e0, #d0d0d0);
@@ -506,13 +587,14 @@ td:first-child {
   text-align: center;
   vertical-align: middle;
   background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  position: relative;
 }
 
 .editable-timeslot-header {
   cursor: pointer;
   transition: all var(--transition-fast);
   padding: var(--spacing-xs);
-  border-radius: 0; /* MODIFICATION: Removed unintended border radius */
+  border-radius: 0;
 }
 
 .editable-timeslot-header:hover {
@@ -559,7 +641,7 @@ input:invalid {
 /* ================================
    GENERAL BUTTONS
 ================================== */
-button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare):not(.can-pin-indicator):not(.pin-indicator) {
+button:not(.user-item button):not(.hamburger-button):not(.can-pin-indicator):not(.pin-indicator) {
   padding: var(--spacing-md) var(--spacing-lg);
   border: none;
   border-radius: var(--border-radius);
@@ -577,13 +659,17 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
   letter-spacing: 0.5px;
 }
 
-button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare):not(.can-pin-indicator):not(.pin-indicator):hover {
+button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
+    #compare
+  ):not(.can-pin-indicator):not(.pin-indicator):hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-medium);
   background: linear-gradient(135deg, #5a10f0, #9e3de2);
 }
 
-button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare):not(.can-pin-indicator):not(.pin-indicator):active {
+button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
+    #compare
+  ):not(.can-pin-indicator):not(.pin-indicator):active {
   transform: translateY(0);
   box-shadow: var(--shadow-light);
 }
@@ -630,6 +716,7 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
     --spacing-md: 8px;
     --spacing-lg: 12px;
     --spacing-xl: 20px;
+    --button-height: 42px;
   }
 
   body {
@@ -684,6 +771,10 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
 
 /* Medium mobile devices */
 @media (min-width: 481px) and (max-width: 768px) {
+  :root {
+    --button-height: 45px;
+  }
+
   .add-user {
     grid-template-columns: 1fr 1fr;
   }
@@ -699,6 +790,10 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
 
 /* Tablet devices */
 @media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --button-height: 48px;
+  }
+
   .app {
     padding: var(--spacing-lg);
     gap: var(--spacing-xl);
@@ -715,6 +810,10 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
 
 /* Desktop devices */
 @media (min-width: 1025px) {
+  :root {
+    --button-height: 50px;
+  }
+
   .app {
     padding: var(--spacing-xl);
     gap: var(--spacing-xl);
@@ -735,6 +834,10 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
 
 /* Landscape orientation adjustments */
 @media (orientation: landscape) and (max-height: 600px) {
+  :root {
+    --button-height: 40px;
+  }
+
   .app {
     padding: var(--spacing-sm);
     gap: var(--spacing-sm);
@@ -792,40 +895,65 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
   }
 
   /* Table specific dark mode styles */
-  .schedule, table {
+  .schedule,
+  table {
     background: #212529; /* Darker table background */
   }
 
   th,
   td:first-child {
-    background: linear-gradient(135deg, #3e444a, #343a40); /* Darker header gradient */
+    background: linear-gradient(
+      135deg,
+      #3e444a,
+      #343a40
+    ); /* Darker header gradient */
     color: var(--text-primary);
     border-color: #495057; /* Match border color variable */
   }
-  td { /* Ensure all td borders are updated */
-     border-color: #495057;
+  
+  #addTimeSlotHeaderCell {
+    background: linear-gradient(135deg, #3e444a, #343a40);
   }
-
+  
+  td {
+    /* Ensure all td borders are updated */
+    border-color: #495057;
+  }
 
   /* User item dark mode adjustments */
   .user-item {
-    background: rgba(52, 58, 64, 0.8); /* Slightly lighter than app bg: #343a40 */
+    background: rgba(
+      52,
+      58,
+      64,
+      0.8
+    ); /* Slightly lighter than app bg: #343a40 */
     border-color: var(--border-color); /* #495057 */
     color: var(--text-primary); /* Base text color for user items */
   }
   .user-item > button:first-child {
-    color: var(--text-primary); /* Ensure button text within user item is light */
+    color: var(
+      --text-primary
+    ); /* Ensure button text within user item is light */
   }
 
   .user-item.active {
-    background: linear-gradient(135deg, #5e35b1, #7e57c2); /* Dark, distinct purple */
+    background: linear-gradient(
+      135deg,
+      #5e35b1,
+      #7e57c2
+    ); /* Dark, distinct purple */
     border-color: #9575cd;
     color: #ffffff; /* Ensure text on this background is white for max contrast */
     box-shadow: 0 0 15px rgba(126, 87, 194, 0.4);
   }
 
   .user-item.selected {
-    background: linear-gradient(135deg, #1565c0, #1e88e5); /* Dark, distinct blue */
+    background: linear-gradient(
+      135deg,
+      #1565c0,
+      #1e88e5
+    ); /* Dark, distinct blue */
     border-color: #42a5f5;
     color: #ffffff; /* Ensure text on this background is white for max contrast */
     box-shadow: 0 0 15px rgba(30, 136, 229, 0.4);
@@ -848,8 +976,12 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
   input:focus,
   textarea:focus {
     border-color: var(--input-focus-border-dark, #8e2de2);
-    background: var(--input-bg-focus-dark, rgba(52, 58, 64, 0.95)); /* #343a40 */
-    box-shadow: 0 0 0 3px var(--input-focus-shadow-dark, rgba(142, 45, 226, 0.25));
+    background: var(
+      --input-bg-focus-dark,
+      rgba(52, 58, 64, 0.95)
+    ); /* #343a40 */
+    box-shadow: 0 0 0 3px
+      var(--input-focus-shadow-dark, rgba(142, 45, 226, 0.25));
     color: var(--text-primary); /* Ensure text stays light on focus */
   }
 
@@ -860,14 +992,23 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
 
   /* Pin indicators in dark mode, if necessary */
   .can-pin-indicator {
-    background: linear-gradient(135deg, #495057 0%, #343a40 100%); /* Darker background */
-    color: var(--primary-gradient); /* Use a lighter color from primary gradient or white */
+    background: linear-gradient(
+      135deg,
+      #495057 0%,
+      #343a40 100%
+    ); /* Darker background */
+    color: var(
+      --primary-gradient
+    ); /* Use a lighter color from primary gradient or white */
     border-color: #5a6268;
   }
-   .can-pin-indicator:hover,
-   .can-pin-indicator:focus {
+  .can-pin-indicator:hover,
+  .can-pin-indicator:focus {
     background: linear-gradient(135deg, #5a6268, #495057);
-    border-color: var(--input-focus-border-dark, #8e2de2); /* Consistent focus color */
+    border-color: var(
+      --input-focus-border-dark,
+      #8e2de2
+    ); /* Consistent focus color */
     outline-color: var(--input-focus-shadow-dark, rgba(142, 45, 226, 0.3));
   }
 }
@@ -922,10 +1063,12 @@ textarea:focus-visible {
   button:focus-visible,
   input:focus-visible,
   textarea:focus-visible {
-    outline-color: var(--input-focus-border-dark, #9c27b0); /* Dark mode friendly outline */
+    outline-color: var(
+      --input-focus-border-dark,
+      #9c27b0
+    ); /* Dark mode friendly outline */
   }
 }
-
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
@@ -945,7 +1088,10 @@ textarea:focus-visible {
     border: 2px solid CanvasText;
   }
 
-  h1, h2, h3 { /* Ensure headings are clearly visible */
+  h1,
+  h2,
+  h3 {
+    /* Ensure headings are clearly visible */
     background: none !important;
     background-clip: initial !important;
     -webkit-background-clip: initial !important;
@@ -956,7 +1102,11 @@ textarea:focus-visible {
     background: CanvasText !important;
   }
 
-  button, input, textarea, .user-item, .slot {
+  button,
+  input,
+  textarea,
+  .user-item,
+  .slot {
     border-width: 2px !important;
     border-style: solid !important;
     border-color: currentColor !important; /* Explicitly set border color */
@@ -980,13 +1130,15 @@ textarea:focus-visible {
     color: HighlightText !important;
     border-color: Highlight !important;
   }
-  .user-item.active, .user-item.selected {
+  .user-item.active,
+  .user-item.selected {
     background: Highlight !important;
     color: HighlightText !important;
     border-color: Highlight !important;
   }
 
-  th, td {
+  th,
+  td {
     background: Canvas !important;
     color: CanvasText !important;
     border: 1px solid CanvasText !important;
