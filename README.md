@@ -7,11 +7,13 @@ Never miss a study session or a coffee break again! MeetchuThere is a sleek, web
 ## 🚀 Core Features
 
 - **Personal Schedules:** Easily input and manage your weekly class blocks.
-- **Dynamic Time Slots:** Add, edit, and customize time slots in your personal schedule.
+- **Dynamic & Editable Time Slots:** Add new custom time slots (e.g., "10:00-11:30") to any user's schedule. Existing time slots can be edited (start/end times).
+- **Pin Mode:** Focus on editing a single user's schedule without accidental deselection. The UI clearly indicates when Pin Mode is active.
 - **Real-Time Comparison:** Select multiple users and instantly see who's free, busy, or partially clashing.
   - 🟢 **Green:** Everyone's available!
   - 🔴 **Red:** Full conflict zone!
   - 🟠 **Orange:** Some overlap, some free.
+- **Three-State Control Buttons:** "Compare Schedules" and "Pin Mode" buttons clearly show their state (Disabled, Enabled-Off, Enabled-On) with distinct styling and text.
 - **Insightful Tooltips:** Hover or tap on slots in compare mode to see exactly who's available.
 - **Custom Modals:** User-friendly modals for time input and editing with validation.
 - **Data Portability:** Import/Export individual user schedules via JSON.
@@ -75,9 +77,10 @@ CampXus/ (Project Root)
 ## ⚙️ How It Works (The Gist)
 
 - **Schedule Page (`index.html`, `js/script.js` & helper modules in `js/`):** This is the heart of the app.
-  - **State Management:** User data (including custom time slots) and UI state (active user, compare mode) are managed primarily in `js/script.js`. Schedules are represented by user objects containing their availability and `timeSlots`.
-  - **DOM Updates:** JavaScript dynamically renders the user list and schedule grid based on the current state, utilizing helper functions for DOM manipulation and modal interactions.
-  - **Time Logic:** `js/timeUtils.js` provides functions for parsing, validating, and comparing times, crucial for dynamic slot management and future clash detection.
+  - **State Management:** User data (including custom `timeSlots` and `pinnedSlots`) and UI state (active user, compare mode, pin mode) are managed primarily in `js/script.js`. Schedules are represented by user objects containing their availability and `timeSlots`.
+  - **DOM Updates:** JavaScript dynamically renders the user list and schedule grid (including dynamic time slot headers) based on the current state, utilizing helper functions for DOM manipulation and modal interactions.
+  - **Time Logic:** `js/timeUtils.js` provides functions for parsing, validating, and comparing times, crucial for dynamic slot management.
+  - **Control Button Logic:** Helper functions (`getCompareButtonDynamicState`, `getPinModeButtonDynamicState`) determine the appearance and behavior of the Compare and Pin Mode buttons.
 - **Navigation (`js/menu.js` & `css/menu.css`):** A consistent hamburger menu provides access to all application pages.
 - **Styling:** Global aesthetics and specific component styles (like modals and menus) are separated for clarity.
 
@@ -93,11 +96,11 @@ CampXus/ (Project Root)
 - **Menu Logic:** `js/menu.js`
 - **Documentation:** Found in the `.md Files/` directory and this `README.md`.
 - **Adding Features:**
-  - For the Schedule page, start in `index.html` and `js/script.js`, and consider if new helper functions belong in existing or new modules within `js/`.
+  - For the Schedule page, start in `index.html` and `js/script.js`, and consider if new helper functions belong in existing or new modules within `js/`. (e.g., Pin Mode logic, dynamic time slot management).
   - For Friends/About pages, head to the `pages/` directory.
 - **Testing:** We use Jest!
   - Core schedule editing and dynamic time slot logic tests are in `js/scheduleEditor.test.js`.
-  - Other general tests can be found in `js/script.test.js`.
+  - Other general tests (including state management for compare/pin modes) can be found in `js/script.test.js`.
   - Refer to `tests-roadmap.md` for testing strategy. New logic should ideally come with new tests.
 
 ---

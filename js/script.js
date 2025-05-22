@@ -1297,5 +1297,5 @@ function initializeApp() {
   setupEventListeners();
   updateUI();
 }
-window.appState = state;
+
 document.addEventListener("DOMContentLoaded", initializeApp);
