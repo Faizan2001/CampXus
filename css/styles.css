@@ -1,543 +1,886 @@
-/* css/styles.css */
+/* Enhanced Mobile-First CSS for MeetchuThere */
 
-/* Reset body margins and padding, set up font and background */
-body {
+/* CSS Custom Properties for consistent theming */
+:root {
+  --primary-gradient: linear-gradient(135deg, #4a00e0, #8e2de2);
+  --background-gradient: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
+  --text-primary: #333;
+  --text-secondary: #666;
+  --border-color: #eee;
+  --border-radius: 8px;
+  --border-radius-large: 15px;
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-heavy: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --transition-fast: 0.2s ease;
+  --transition-medium: 0.3s ease;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 20px;
+  --spacing-xl: 30px;
+
+  /* Dark mode specific input colors (can be overridden in dark mode media query) */
+  --input-bg-dark: #2c3136;
+  --input-border-dark: #5a6268;
+  --input-bg-focus-dark: #343a40;
+  --input-focus-border-dark: #8e2de2; /* Using a primary color for focus */
+  --input-focus-shadow-dark: rgba(142, 45, 226, 0.25);
+}
+
+/* Modern CSS Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
   margin: 0;
-  padding: 20px;
-  font-family: "Inter", sans-serif;
-  background: linear-gradient(-45deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
-  background-size: 400% 400%;
-  animation: waveGradient 15s ease infinite;
-  position: relative; /* Added for potential future positioning contexts or if menu pushes content */
+  padding: 0;
 }
-
-/* Class to be added to body when menu is open */
-body.menu-open {
-  overflow: hidden; /* Prevent scrolling of main content when menu is open */
-  /* Optional: If you want the main content to shift when the menu opens */
-  /* transform: translateX(250px); /* Adjust 250px to match nav-panel width in menu.css */
-  /* transition: transform 0.3s ease-in-out; /* For smooth content shift */
-}
-
-/* scroll-bar compensation for preventing UI shift */
 
 html {
+  font-size: 16px;
   overflow-y: scroll;
+  scroll-behavior: smooth;
 }
 
-/* Main app container: Grid layout for sectioning */
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--background-gradient);
+  background-size: 400% 400%;
+  animation: waveGradient 15s ease infinite;
+  min-height: 100vh;
+  padding: var(--spacing-sm);
+  font-feature-settings: "liga" 1, "kern" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Menu open state */
+body.menu-open {
+  overflow: hidden;
+}
+
+/* Main app container with mobile-first approach */
 .app {
-  display: grid;
-  grid-template-columns: 1fr; /* Single column layout */
-  grid-template-rows: auto auto 1fr auto; /* Auto rows for header, users, schedule, and export-import */
-  gap: 30px;
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  /* Optional: Add transition if .app itself is being shifted by menu-open */
-  /* transition: transform 0.3s ease-in-out; */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-heavy);
+  padding: var(--spacing-md);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--spacing-lg);
+  min-height: calc(100vh - var(--spacing-lg));
 }
 
 /* ================================
-   HEADER STYLES (Added Hover Effect)
+   HEADER STYLES
 ================================== */
 header {
   text-align: center;
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
   font-weight: 900;
   font-style: italic;
   margin: 0;
-  padding: 10px 0;
+  padding: var(--spacing-sm) 0;
   background: linear-gradient(120deg, #d57cff, #ff769f, #a1c4fd, #c2e9fb);
   background-size: 300% 300%;
-  animation: waveGradient 10s ease infinite; /* Original shorter animation */
+  animation: waveGradient 10s ease infinite;
   background-clip: text;
   color: transparent;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.05);
-  display: inline-block; /* Needed for transform */
-  transition: transform 0.3s ease; /* Add transition for hover */
+  display: inline-block;
+  transition: transform var(--transition-medium);
+  cursor: pointer;
 }
 
-/* Added hover effect */
 h1:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 h1::after {
   content: "";
   display: block;
-  width: 60px;
-  margin: 8px auto 0;
+  width: clamp(40px, 10vw, 60px);
+  margin: var(--spacing-sm) auto 0;
   height: 4px;
   border-radius: 2px;
   background: linear-gradient(to right, #d57cff, #ff769f);
   animation: pulseGlow 2s ease-in-out infinite alternate;
 }
 
+h2 {
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+h3 {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
 /* ================================
-   USERS SECTION (NEW User Item Styling)
+   USERS SECTION
 ================================== */
 .users {
   display: grid;
-  gap: 20px;
+  gap: var(--spacing-lg);
 }
 
 .add-user {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
   align-items: center;
 }
 
 .user-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px; /* Gap between user items */
+  gap: var(--spacing-sm);
 }
 
-/* NEW: Container style for each user item */
+/* Enhanced user item styling */
 .user-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color: #f8f9fa; /* Light background */
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  transition: transform 0.2s ease, box-shadow 0.2s ease,
-    background-color 0.2s ease, border-color 0.2s ease;
-  cursor: pointer; /* Pointer cursor for user items */
+  gap: var(--spacing-sm);
+  background: rgba(248, 249, 250, 0.8);
+  backdrop-filter: blur(5px);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
-/* NEW: Hover effect for the container */
+.user-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s ease;
+}
+
+.user-item:hover::before {
+  left: 100%;
+}
+
 .user-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+  border-color: #ddd;
 }
 
-/* NEW: Style for the ACTIVE user container */
 .user-item.active {
-  background-color: #e6dffc; /* Light purple background */
+  background: linear-gradient(135deg, #e6dffc, #f0ebff); /* Light purple */
   border-color: #c3aedb;
-}
-/* Optional: Change text color inside active container */
-.user-item.active > button:first-child {
-  color: #4a148c; /* Darker purple text */
+  box-shadow: 0 0 20px rgba(195, 174, 219, 0.3);
+  /* Text color will be var(--text-primary) unless overridden by more specific selector */
 }
 
-/* NEW: Style for the SELECTED user container (comparison) */
 .user-item.selected {
-  background-color: #d1e7ff; /* Light blue background */
+  background: linear-gradient(135deg, #d1e7ff, #e8f4ff); /* Light blue */
   border-color: #a6cfff;
-}
-/* Optional: Change text color inside selected container */
-.user-item.selected > button:first-child {
-  color: #0056b3; /* Darker blue text */
+  box-shadow: 0 0 20px rgba(166, 207, 255, 0.3);
+  /* Text color will be var(--text-primary) unless overridden */
 }
 
-/* NEW: Reset styles for the user name button INSIDE the container */
 .user-item > button:first-child {
   flex-grow: 1;
-  background: none; /* Remove gradient */
-  color: #333; /* Default dark text */
-  padding: 0; /* Remove padding */
-  border: none; /* Remove border */
-  box-shadow: none; /* Remove shadow */
-  text-align: left;
-  font-weight: 600; /* Keep font weight */
-  transform: none; /* Remove hover/active transform */
-  cursor: pointer;
-}
-/* NEW: Ensure no hover/active style changes on inner button */
-.user-item > button:first-child:hover,
-.user-item > button:first-child:active {
-  transform: none;
+  background: none;
+  color: var(--text-primary); /* Ensure this inherits correctly or is set for dark mode children */
+  padding: 0;
+  border: none;
   box-shadow: none;
+  text-align: left;
+  font-weight: 600;
+  font-size: clamp(0.85rem, 2vw, 1rem);
+  cursor: pointer;
+  transition: none;
 }
 
-/* NEW: Adjust delete button styles INSIDE the container */
 .user-item .delete-btn {
-  background: rgb(223, 0, 0); /* Keep red */
+  background: linear-gradient(135deg, #ff4757, #ff3742);
   color: white;
   border: none;
-  font-size: 12px; /* Adjusted size */
-  padding: 5px 10px; /* Adjusted padding */
+  font-size: clamp(0.7rem, 1.5vw, 0.8rem);
+  padding: var(--spacing-xs) var(--spacing-sm);
   flex-shrink: 0;
-  border-radius: 6px;
-  transition: background-color 0.3s ease; /* Keep transition */
-  cursor: pointer; /* Keep cursor */
-  /* Remove styles inherited from general 'button' rule */
-  box-shadow: none;
-  transform: none;
-  font-weight: normal; /* Reset font weight if needed */
+  border-radius: calc(var(--border-radius) - 2px);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
+
 .user-item .delete-btn:hover {
-  background: darkred; /* Keep hover */
-  transform: none; /* Ensure no transform on hover */
+  background: linear-gradient(135deg, #ff3742, #ff2731);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-light);
 }
 
 /* ================================
-   SCHEDULE & OTHER ELEMENTS (Original Styles)
+   BUTTON CONTROLS
 ================================== */
-
-/* Pin Mode and Compare Button General Styles */
-.control-button { /* This class is on #togglePinModeBtn and #compare */
-    padding: 8px 15px;
-    margin: 5px; 
-    cursor: pointer;
-    border: 1px solid #ccc; 
-    border-radius: 6px;    
-    font-weight: 500;
-    transition: background-color 0.3s ease, background-image 0.3s ease, border-color 0.3s ease, color 0.3s ease, opacity 0.3s ease; /* Added background-image to transition */
-    text-align: center;
+.button-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-sm);
+  align-items: stretch;
 }
 
-/* --- START: Three-State Styling --- */
+.control-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  transition: all var(--transition-medium);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
-/* State 1: DISABLED */
-/* Increase specificity by targeting the IDs directly for the disabled state */
+/*
+  Enhanced three-state styling for #togglePinModeBtn and #compare.
+  These buttons share the same styling for disabled, active, and inactive states
+  to ensure visual consistency.
+*/
 #togglePinModeBtn:disabled,
 #compare:disabled {
-    background-color: #e0e0e0 !important; /* Light grey background */
-    background-image: none !important;   /* CRUCIAL: Remove any gradient or image */
-    color: #a0a0a0 !important;           /* Dimmed text color */
-    border-color: #d0d0d0 !important;    /* Slightly darker grey border */
-    cursor: not-allowed !important;
-    opacity: 0.7 !important;
-    box-shadow: none !important;
-    transform: none !important;
+  background: linear-gradient(135deg, #e0e0e0, #d0d0d0);
+  color: #a0a0a0;
+  border-color: #d0d0d0;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
-/* No need for :disabled:hover if we use !important above, it will take precedence */
 
-
-/* State 2: ENABLED and "OFF" */
 #togglePinModeBtn:not(.active):not(:disabled),
 #compare:not(.active):not(:disabled) {
-    background-color: #c82333; /* Deepish Red for OFF state */
-    background-image: none;   /* Ensure no gradient from general rule */
-    color: white;
-    border-color: #a51823; 
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+  color: white;
+  border-color: #ff3742;
 }
 
 #togglePinModeBtn:not(.active):not(:disabled):hover,
 #compare:not(.active):not(:disabled):hover {
-    background-color: #a51823; 
-    background-image: none;
-    border-color: #7f131b;
+  background: linear-gradient(135deg, #ff3742, #ff2731);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
 }
 
-
-/* State 3: ENABLED and "ON" (when .active class is present) */
-#togglePinModeBtn.active, /* Removed :not(:disabled) because .active implies it's enabled */
-#compare.active {          /* Same here */
-    background-color: #218838; /* Deepish Green for ON state */
-    background-image: none;   /* Ensure no gradient from general rule */
-    color: white;
-    border-color: #19692c; 
+#togglePinModeBtn.active,
+#compare.active {
+  background: linear-gradient(135deg, #2ed573, #1dd1a1);
+  color: white;
+  border-color: #1dd1a1;
 }
+
 #togglePinModeBtn.active:hover,
 #compare.active:hover {
-    background-color: #19692c; 
-    background-image: none;
-    border-color: #134f20;
+  background: linear-gradient(135deg, #1dd1a1, #00d2d3);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
 }
 
-/* --- END: Three-State Styling --- */
-
-
-/* General Button styles - this was already correctly excluding them */
-button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare) {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #4a00e0, #8e2de2);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, background 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-/* Ensure .button-row styles don't interfere with background/color set above */
-.button-row #compare,
-.button-row #togglePinModeBtn {
-  flex-basis: 0;
-  min-width: 0;
+/* ================================
+   PIN INDICATORS - RESPONSIVE
+================================== */
+.pin-indicator,
+.can-pin-indicator {
+  position: absolute;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 42px; 
-  padding-top: 0;     /* These might have been reset by general button rule */
-  padding-bottom: 0;  /* These might have been reset by general button rule */
-  padding-left: 15px; /* Restore some horizontal padding */
-  padding-right: 15px;/* Restore some horizontal padding */
-  box-sizing: border-box;
-  margin: 0; 
-  border-radius: 6px; /* Consistent radius */
-  /* font-weight and color will be inherited or set by the specific state rules above */
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  z-index: 10;
+  border: none;
+  outline: none;
+  transition: all var(--transition-fast);
+  font-size: clamp(14px, 3vw, 20px);
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  max-width: 32px;
+  max-height: 32px;
+  min-width: 20px;
+  min-height: 20px;
 }
 
+.pin-indicator {
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  background: none;
+  color: #2ed573;
+  box-shadow: none;
+  filter: none;
+  padding: 0;
+}
 
+.pin-indicator:hover,
+.pin-indicator:focus {
+  color: #1dd1a1;
+  transform: scale(1.1) rotate(-8deg);
+  outline: none;
+}
 
+.pin-indicator:active {
+  transform: scale(0.95) rotate(-4deg);
+}
 
-/*         New section below    **/
+.can-pin-indicator {
+  background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+  color: #4a00e0;
+  border: 2px solid #e9ecef;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-light);
+  top: 50%;
+  right: var(--spacing-xs);
+  transform: translateY(-50%);
+  margin: 0;
+  line-height: 1;
+}
+
+.can-pin-indicator:hover,
+.can-pin-indicator:focus {
+  background: linear-gradient(135deg, #e9ecef, #dee2e6);
+  color: #4a00e0;
+  border-color: #4a00e0;
+  box-shadow: var(--shadow-medium);
+  transform: translateY(-50%) scale(1.05);
+  outline: 2px solid rgba(74, 0, 224, 0.3);
+}
+
+.can-pin-indicator:active {
+  background: #f8f9fa;
+  transform: translateY(-50%) scale(0.95);
+}
+
 /* ================================
-   SCHEDULE TABLE STYLES (NEW)
+   SCHEDULE TABLE - MOBILE OPTIMIZED
 ================================== */
-
-
-.scheduleTable {
+.schedule {
   overflow-x: auto;
-  display: grid;
-  gap: 1rem;
+  width: 100%;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-light);
+  background: white; /* Will be overridden in dark mode if table itself needs different bg */
 }
 
 table {
   width: 100%;
+  min-width: 600px;
   border-collapse: collapse;
+  table-layout: fixed;
+  background: white; /* Will be overridden in dark mode */
 }
 
 th,
 td {
-  padding: 15px;
+  padding: var(--spacing-sm);
   text-align: center;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
+  font-size: clamp(0.7rem, 2vw, 0.9rem);
+  position: relative;
 }
 
 th {
-  background: #f8f9fa;
-  font-weight: 600;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 td:first-child {
-  background: #f8f9fa;
-  font-weight: 600;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  font-weight: 700;
+  color: var(--text-secondary);
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  text-transform: capitalize;
+  min-width: 80px;
 }
 
 .slot {
+  position: relative;
   cursor: pointer;
-  transition: background 0.05;
+  transition: all var(--transition-fast);
+  min-height: 40px;
+  height: auto;
+  padding: var(--spacing-sm);
 }
 
 .slot:hover {
-  background: #f5f5f5;
+  background: rgba(74, 0, 224, 0.05);
+  transform: scale(1.02);
 }
 
 .slot-selected {
-  background: #4a148c;
+  background: linear-gradient(135deg, #4a148c, #6a1b9a);
   color: white;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
 }
 
 .slot-free {
-  background: #4caf50;
+  background: linear-gradient(135deg, #2ed573, #1dd1a1);
   color: white;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .slot-conflict {
-  background-color: red !important;
+  background: linear-gradient(135deg, #ff4757, #ff3742);
   color: white;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
 }
 
 .slot-partial {
-  background-color: orange !important;
+  background: linear-gradient(135deg, #ffa726, #ff9800);
   color: white;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
 }
-
-.export-import {
-  margin-top: 2rem;
-  padding: 1rem;
-  border-top: 1px solid #ccc;
-}
-
-input,
-textarea {
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-input:focus,
-textarea:focus {
-  border-color: #6200ee;
-  box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
-}
-
-.slot-tooltip {
-  position: absolute;
-  background-color: #fff;
-  color: #333;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 0.85em;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  z-index: 1000; /* Ensure it's above schedule slots but can be below menu if needed */
-  max-width: 200px;
-  pointer-events: none;
-  white-space: pre-wrap;
-}
-
-/* General Button styles (MODIFIED: Excludes user-item buttons AND hamburger-button) */
-button:not(.user-item button):not(.hamburger-button) {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #4a00e0, #8e2de2);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, background 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-button:not(.user-item button):not(.hamburger-button):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-button:not(.user-item button):not(.hamburger-button):active {
-  transform: translateY(0);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-/* In css/styles.css */
 
 /* ================================
-   SCHEDULE CONTROLS (NEW or existing section)
+   ADD TIME SLOT BUTTON
 ================================== */
 #addNewTimeSlotBtn {
-  color: white;
-  border: none;
-  border-radius: 50%; /* Make it circular */
-  width: 35px;
-  height: 35px;
-  font-size: 1.2rem; /* Adjust for '+' size */
-  font-weight: bold;
-  line-height: 30px; /* Helps center the '+' vertically if font size matches */
+  width: clamp(24px, 5vw, 35px);
+  height: clamp(24px, 5vw, 35px);
+  border-radius: 50%;
+  font-size: clamp(1rem, 2.5vw, 1.4rem);
+  font-weight: 900;
+  line-height: 1;
   text-align: center;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  padding: 0; /* Remove default button padding */
-  display: inline-flex; /* Helps with centering content if needed */
+  transition: all var(--transition-fast);
+  padding: 0;
+  display: flex;
   justify-content: center;
   align-items: center;
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-light);
 }
 
 #addNewTimeSlotBtn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: var(--shadow-medium);
+  background: linear-gradient(135deg, #5a10f0, #9e3de2);
 }
 
-/* Styles for the table header cell containing the '+' button */
 #addTimeSlotHeaderCell {
   text-align: center;
   vertical-align: middle;
-  /* Optional: if you want a visual separator */
-  /* border-left: 1px solid #eee; */
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
 }
 
 .editable-timeslot-header {
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: all var(--transition-fast);
+  padding: var(--spacing-xs);
+  border-radius: 0; /* MODIFICATION: Removed unintended border radius */
 }
 
 .editable-timeslot-header:hover {
-  background-color: #e5dffb; /* Or any subtle hover color that fits your theme */
-  /* text-decoration: underline; */ /* Optional */
+  background: rgba(74, 0, 224, 0.1);
+  color: #4a00e0;
 }
 
-/* Flex row for Compare and Pin Mode buttons */
-.button-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  align-items: stretch; /* Ensures children are same height */
-}
-.button-row #compare,
-.button-row #togglePinModeBtn {
-  flex-basis: 0;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 42px; /* Set a fixed height for both buttons */
-  padding-top: 0;
-  padding-bottom: 0;
-  box-sizing: border-box;
-  margin: 0; /* Remove extra margin from .control-button */
-}
-.button-row #compare {
-  flex: 3 1 0%;
-}
-.button-row #togglePinModeBtn {
-  flex: 1 1 0%;
+/* ================================
+   FORM ELEMENTS
+================================== */
+input,
+textarea {
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  outline: none;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  color: var(--text-primary); /* Default text color for inputs */
 }
 
-/* Responsive Styles */
-@media (max-width: 768px) {
-  body {
-    padding: 10px;
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #4a00e0; /* Primary focus color */
+  box-shadow: 0 0 0 3px rgba(74, 0, 224, 0.1);
+  background: white; /* Default focus background for light mode */
+  color: var(--text-primary); /* Ensure text color is maintained on focus */
+}
+
+input:invalid {
+  border-color: #ff4757;
+}
+
+/* ================================
+   GENERAL BUTTONS
+================================== */
+button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare):not(.can-pin-indicator):not(.pin-indicator) {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius);
+  background: var(--primary-gradient);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-light);
+  font-family: inherit;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare):not(.can-pin-indicator):not(.pin-indicator):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+  background: linear-gradient(135deg, #5a10f0, #9e3de2);
+}
+
+button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(#compare):not(.can-pin-indicator):not(.pin-indicator):active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-light);
+}
+
+/* ================================
+   EXPORT/IMPORT SECTION
+================================== */
+.export-import {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  border-top: 2px solid var(--border-color);
+  background: rgba(248, 249, 250, 0.5);
+  border-radius: var(--border-radius);
+}
+
+/* ================================
+   TOOLTIP
+================================== */
+.slot-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+  box-shadow: var(--shadow-heavy);
+  z-index: 1000;
+  max-width: 200px;
+  pointer-events: none;
+  white-space: pre-wrap;
+  backdrop-filter: blur(10px);
+}
+
+/* ================================
+   RESPONSIVE BREAKPOINTS
+================================== */
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  :root {
+    --spacing-xs: 2px;
+    --spacing-sm: 4px;
+    --spacing-md: 8px;
+    --spacing-lg: 12px;
+    --spacing-xl: 20px;
   }
 
-  /* If body.menu-open shifts content, adjust for mobile if needed */
-  /*
-  body.menu-open {
-    transform: translateX(220px); /* Match mobile nav-panel width */
-  /* }
-  */
+  body {
+    padding: var(--spacing-xs);
+  }
 
   .app {
-    padding: 15px;
-  }
-  /* If .app is shifted by menu-open, adjust for mobile if needed */
-  /*
-  body.menu-open .app {
-    transform: translateX(220px);
-  }
-  */
-
-  h1 {
-    font-size: 2rem; /* Adjust H1 size */
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+    border-radius: var(--spacing-sm);
   }
 
-  .slot {
-    min-width: 80px; /* Original responsive size */
+  .add-user {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xs);
+  }
+
+  .button-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xs);
+  }
+
+  table {
+    min-width: 500px;
   }
 
   th,
   td {
-    padding: 10px 5px;
+    padding: var(--spacing-xs);
   }
 
-  /* Adjust user item padding/font for smaller screens */
-  .user-item {
-    padding: 6px 10px;
-    gap: 6px;
+  .slot {
+    min-height: 35px;
+    padding: var(--spacing-xs);
   }
-  .user-item .delete-btn {
-    padding: 4px 8px;
-    font-size: 11px;
+
+  .user-item {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    gap: var(--spacing-xs);
+  }
+
+  .pin-indicator,
+  .can-pin-indicator {
+    width: calc(100% - 8px);
+    height: calc(100% - 8px);
+    max-width: 24px;
+    max-height: 24px;
+    min-width: 16px;
+    min-height: 16px;
   }
 }
 
-/* Keyframe Animations (Originals) */
+/* Medium mobile devices */
+@media (min-width: 481px) and (max-width: 768px) {
+  .add-user {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  table {
+    min-width: 580px;
+  }
+
+  .slot {
+    min-height: 38px;
+  }
+}
+
+/* Tablet devices */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app {
+    padding: var(--spacing-lg);
+    gap: var(--spacing-xl);
+  }
+
+  .add-user {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  table {
+    min-width: 650px;
+  }
+}
+
+/* Desktop devices */
+@media (min-width: 1025px) {
+  .app {
+    padding: var(--spacing-xl);
+    gap: var(--spacing-xl);
+  }
+
+  .add-user {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+
+  table {
+    min-width: 700px;
+  }
+
+  .slot {
+    min-height: 45px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 600px) {
+  .app {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 3vh, 2rem);
+  }
+
+  .slot {
+    min-height: 30px;
+    padding: var(--spacing-xs);
+  }
+
+  th,
+  td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    --border-color: #495057; /* Darker border for general use */
+  }
+
+  .app {
+    background: rgba(33, 37, 41, 0.95); /* Dark app background */
+    color: var(--text-primary);
+  }
+
+  /* Table specific dark mode styles */
+  .schedule, table {
+    background: #212529; /* Darker table background */
+  }
+
+  th,
+  td:first-child {
+    background: linear-gradient(135deg, #3e444a, #343a40); /* Darker header gradient */
+    color: var(--text-primary);
+    border-color: #495057; /* Match border color variable */
+  }
+  td { /* Ensure all td borders are updated */
+     border-color: #495057;
+  }
+
+
+  /* User item dark mode adjustments */
+  .user-item {
+    background: rgba(52, 58, 64, 0.8); /* Slightly lighter than app bg: #343a40 */
+    border-color: var(--border-color); /* #495057 */
+    color: var(--text-primary); /* Base text color for user items */
+  }
+  .user-item > button:first-child {
+    color: var(--text-primary); /* Ensure button text within user item is light */
+  }
+
+  .user-item.active {
+    background: linear-gradient(135deg, #5e35b1, #7e57c2); /* Dark, distinct purple */
+    border-color: #9575cd;
+    color: #ffffff; /* Ensure text on this background is white for max contrast */
+    box-shadow: 0 0 15px rgba(126, 87, 194, 0.4);
+  }
+
+  .user-item.selected {
+    background: linear-gradient(135deg, #1565c0, #1e88e5); /* Dark, distinct blue */
+    border-color: #42a5f5;
+    color: #ffffff; /* Ensure text on this background is white for max contrast */
+    box-shadow: 0 0 15px rgba(30, 136, 229, 0.4);
+  }
+
+  /* Input fields dark mode adjustments */
+  input,
+  textarea {
+    background: var(--input-bg-dark, rgba(44, 49, 54, 0.9)); /* #2c3136 */
+    border-color: var(--input-border-dark, #5a6268);
+    color: var(--text-primary);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8; /* Slightly more opaque for better readability on dark bg */
+  }
+
+  input:focus,
+  textarea:focus {
+    border-color: var(--input-focus-border-dark, #8e2de2);
+    background: var(--input-bg-focus-dark, rgba(52, 58, 64, 0.95)); /* #343a40 */
+    box-shadow: 0 0 0 3px var(--input-focus-shadow-dark, rgba(142, 45, 226, 0.25));
+    color: var(--text-primary); /* Ensure text stays light on focus */
+  }
+
+  .export-import {
+    background: rgba(52, 58, 64, 0.5); /* #343a40 at 50% opacity */
+    border-top-color: var(--border-color);
+  }
+
+  /* Pin indicators in dark mode, if necessary */
+  .can-pin-indicator {
+    background: linear-gradient(135deg, #495057 0%, #343a40 100%); /* Darker background */
+    color: var(--primary-gradient); /* Use a lighter color from primary gradient or white */
+    border-color: #5a6268;
+  }
+   .can-pin-indicator:hover,
+   .can-pin-indicator:focus {
+    background: linear-gradient(135deg, #5a6268, #495057);
+    border-color: var(--input-focus-border-dark, #8e2de2); /* Consistent focus color */
+    outline-color: var(--input-focus-shadow-dark, rgba(142, 45, 226, 0.3));
+  }
+}
+
+/* ================================
+   KEYFRAME ANIMATIONS
+================================== */
 @keyframes pulseGlow {
   from {
-    box-shadow: 0 0 5px #ffb6ff;
+    box-shadow: 0 0 5px rgba(255, 182, 255, 0.5);
   }
   to {
-    box-shadow: 0 0 20px #ffb6ff;
+    box-shadow: 0 0 20px rgba(255, 182, 255, 0.8);
   }
 }
 
@@ -553,7 +896,99 @@ button:not(.user-item button):not(.hamburger-button):active {
   }
 }
 
-/* Removed unused animations from previous attempts */
-/* @keyframes waveGradientText { ... } */
-/* @keyframes dazzlingShadow { ... } */
-/* @keyframes slideInUnderline { ... } */
+/* ================================
+   ACCESSIBILITY IMPROVEMENTS
+================================== */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #4a00e0; /* Default outline */
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline-color: var(--input-focus-border-dark, #9c27b0); /* Dark mode friendly outline */
+  }
+}
+
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  * {
+    border-color: currentColor !important; /* Ensure all borders adapt */
+    background-image: none !important; /* Remove gradients for better contrast */
+    text-shadow: none !important; /* Remove text shadows */
+  }
+
+  body {
+    background: Canvas; /* Use system background */
+    color: CanvasText; /* Use system text color */
+  }
+
+  .app {
+    background: Canvas;
+    border: 2px solid CanvasText;
+  }
+
+  h1, h2, h3 { /* Ensure headings are clearly visible */
+    background: none !important;
+    background-clip: initial !important;
+    -webkit-background-clip: initial !important;
+    color: CanvasText !important;
+    -webkit-text-fill-color: CanvasText !important;
+  }
+  h1::after {
+    background: CanvasText !important;
+  }
+
+  button, input, textarea, .user-item, .slot {
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: currentColor !important; /* Explicitly set border color */
+    background: Canvas !important; /* Use system background for elements */
+    color: CanvasText !important; /* Use system text color */
+  }
+
+  /* Ensure specific button states are also high contrast */
+  #togglePinModeBtn:disabled,
+  #compare:disabled {
+    background: GrayText !important;
+    color: Canvas !important;
+    border-color: GrayText !important;
+  }
+
+  #togglePinModeBtn:not(.active):not(:disabled),
+  #compare:not(.active):not(:disabled),
+  #togglePinModeBtn.active,
+  #compare.active {
+    background: Highlight !important; /* Use system highlight for active/interactive states */
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+  .user-item.active, .user-item.selected {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  th, td {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border: 1px solid CanvasText !important;
+  }
+}

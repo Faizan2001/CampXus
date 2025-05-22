@@ -313,6 +313,10 @@ export function handleAddNewTimeSlotClick() {
     user.schedule = Array(7)
       .fill(null)
       .map(() => Array(user.timeSlots.length).fill(false));
+    user.pinnedSlots = Array(7)
+      .fill(null)
+      .map(() => Array(user.timeSlots.length).fill(false)); // <-- ADD/ENSURE THIS
+
     console.warn(
       `User ${user.id} had no timeSlots. Initialized with defaults before adding new custom slot.`
     );
@@ -392,6 +396,62 @@ function handleTogglePinMode() {
     }
   }
   updateUI(); // This will re-apply the .active class to the button based on the new state.pinModeActive
+}
+
+// Pin Slot Click Handler
+
+function handlePinSlotClick(dayIndex, slotIndex, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+
+  if (!state.activeUserId || !state.users[state.activeUserId]) {
+    console.warn("handlePinSlotClick called with no active user.");
+    return;
+  }
+
+  const activeUserObject = state.users[state.activeUserId];
+
+  if (
+    !activeUserObject ||
+    !activeUserObject.schedule ||
+    !activeUserObject.pinnedSlots ||
+    activeUserObject.schedule[dayIndex] === undefined ||
+    activeUserObject.schedule[dayIndex][slotIndex] === undefined ||
+    activeUserObject.pinnedSlots[dayIndex] === undefined ||
+    activeUserObject.pinnedSlots[dayIndex][slotIndex] === undefined
+  ) {
+    console.error(
+      "Data integrity issue in handlePinSlotClick for user:",
+      activeUserObject.id,
+      dayIndex,
+      slotIndex
+    );
+    showModal({
+      title: "Error",
+      content: "Could not process pin action due to data error.",
+    });
+    return;
+  }
+
+  if (activeUserObject.schedule[dayIndex][slotIndex] === true) {
+    // slot is busy
+    showModal({
+      title: "Pinning Not Allowed",
+      content:
+        "You can only pin or unpin slots that are marked as free in your schedule.",
+    });
+    return;
+  }
+
+  activeUserObject.pinnedSlots[dayIndex][slotIndex] =
+    !activeUserObject.pinnedSlots[dayIndex][slotIndex];
+  console.log(
+    `Slot (${dayIndex}, ${slotIndex}) for user ${activeUserObject.id} pinned state: ${activeUserObject.pinnedSlots[dayIndex][slotIndex]}`
+  );
+
+  saveStateToStorage();
+  updateUI();
 }
 
 /* ================================
@@ -803,6 +863,66 @@ function renderScheduleGrid() {
         tdSlot.classList.add("slot-selected"); // Or your 'busy' class for active user
       }
 
+      // --- START: Pin Rendering Logic for Active User ---
+
+      if (
+        state.activeUserId &&
+        !state.compareMode &&
+        state.users[state.activeUserId]
+      ) {
+        const activeUserObject = state.users[state.activeUserId];
+
+        // Ensure user object and relevant arrays exist and are valid for the current slot
+
+        if (
+          activeUserObject.schedule &&
+          activeUserObject.schedule[dayIndex] &&
+          activeUserObject.pinnedSlots &&
+          activeUserObject.pinnedSlots[dayIndex] &&
+          activeUserObject.schedule[dayIndex][timeIndex] !== undefined &&
+          activeUserObject.pinnedSlots[dayIndex][timeIndex] !== undefined
+        ) {
+          const isSlotActuallyFree =
+            !activeUserObject.schedule[dayIndex][timeIndex];
+          const isSlotPinnedByActiveUser =
+            activeUserObject.pinnedSlots[dayIndex][timeIndex];
+
+          // Clear any previous pins/indicatiors from this cell to prevent duplication on re-renders
+
+          const existingPinIndicators = tdSlot.querySelectorAll(
+            ".pin-indicator, can-pin-indicator"
+          );
+
+          existingPinIndicators.forEach((indicator) => indicator.remove());
+
+          if (isSlotPinnedByActiveUser) {
+            // Slot is pinned by the active user - display the pin icon
+            // This pin should be visible even if Pin Mode is OFF, as long as it's their schedule
+
+            const pinElement = document.createElement("span");
+            pinElement.classList.add("pin-indicator");
+            pinElement.innerHTML = "&#128204;"; // Pin icon
+            pinElement.title = "Pinned by you, Click to unpin";
+
+            pinElement.addEventListener("click", (event) =>
+              handlePinSlotClick(dayIndex, timeIndex, event)
+            );
+
+            tdSlot.appendChild(pinElement);
+          } else if (state.pinModeActive && isSlotActuallyFree) {
+            // Pin mode is ON, slot is FREE and NOT YET PINNED - show "+" affordance
+            const canPinElement = document.createElement("span");
+            canPinElement.classList.add("can-pin-indicator");
+            canPinElement.innerHTML = "&#43;"; // Plus icon
+            canPinElement.title = "Click to pin this slot";
+
+            canPinElement.addEventListener("click", (event) =>
+              handlePinSlotClick(dayIndex, timeIndex, event)
+            );
+            tdSlot.appendChild(canPinElement);
+          }
+        }
+      }
       tr.appendChild(tdSlot);
     });
     tableBody.appendChild(tr);
@@ -862,7 +982,7 @@ function getCompareButtonDynamicState(
   return {
     isDisabled: !conditionsToEnableButton, // Compare button is disabled if pin mode is active or not enough users
     isActiveClass: conditionsToEnableButton && isCompareModeCurrentlyActive, // Compare button's active class is for when compare mode IS ON
-    text: text // Dynamic text (ON/OFF/DISABLED)
+    text: text, // Dynamic text (ON/OFF/DISABLED)
   };
 }
 
@@ -896,7 +1016,7 @@ function getPinModeButtonDynamicState(
   return {
     isDisabled: !canEnablePinMode,
     isActiveClass: canEnablePinMode && isPinModeCurrentlyActive,
-    text: text // Dynamic text (ON/OFF/DISABLED)
+    text: text, // Dynamic text (ON/OFF/DISABLED)
   };
 }
 
@@ -1045,30 +1165,70 @@ function handleToggleUserSelectionForCompare(userId) {
 }
 
 function handleToggleScheduleSlot(dayIndex, timeIndex) {
+
+  // --- START: Check for Pin Mode Active ---
+  if (state.pinModeActive) {
+    // If pin mode is active, clicks on the slot body should NOT toggle busy/free.
+    // Pinning/unpinning is handled by handlePinSlotClick via the indicators.
+    console.log("Pin mode is active. Slot click ignored for busy/free toggle.");
+    return; 
+  }
+  // --- END: Check for Pin Mode Active ---
+
+
+
   if (
     !state.activeUserId ||
     state.compareMode ||
     !state.users[state.activeUserId]
-  )
+  ) {
+    // No active user, in compare mode, or user doesn't exist: do nothing.
     return;
+  }
+
   const currentUser = state.users[state.activeUserId];
 
-  // Ensure the slot index is valid for the current user's schedule
+  // Validate that the schedule and the specific slot exist before trying to toggle
   if (
+    currentUser && // Ensure currentUser object exists
     currentUser.schedule &&
-    currentUser.schedule[dayIndex] &&
-    timeIndex < currentUser.schedule[dayIndex].length
+    Array.isArray(currentUser.schedule[dayIndex]) && // Ensure the day's schedule is an array
+    timeIndex >= 0 && // Ensure timeIndex is not negative
+    timeIndex < currentUser.schedule[dayIndex].length // Ensure timeIndex is within bounds
   ) {
-    currentUser.schedule = toggleSlotInSchedule(
+    // 1. Toggle the busy/free state
+    // Assuming toggleSlotInSchedule is a pure function that returns the new schedule
+    const newSchedule = toggleSlotInSchedule(
       dayIndex,
       timeIndex,
       currentUser.schedule
     );
+    currentUser.schedule = newSchedule; // Update the user's schedule in the state
+
+    // 2. Get the new busy status of the slot *after* toggling
+    const isNowBusy = currentUser.schedule[dayIndex][timeIndex];
+
+    // 3. If the slot just became busy AND it was pinned, unpin it.
+    //    Also ensure pinnedSlots structure is valid before accessing.
+    if (
+      isNowBusy && // Check if the slot is now marked as busy
+      currentUser.pinnedSlots && // Check if pinnedSlots array exists for the user
+      Array.isArray(currentUser.pinnedSlots[dayIndex]) && // Check if the specific day's pinnedSlots is an array
+      currentUser.pinnedSlots[dayIndex][timeIndex] === true // Check if the slot was indeed pinned
+    ) {
+      currentUser.pinnedSlots[dayIndex][timeIndex] = false; // Unpin the slot
+      console.log(
+        `Slot (${dayIndex}, ${timeIndex}) for user ${currentUser.id} automatically unpinned because it became busy.`
+      );
+    }
+
+    // 4. Persist all changes and update the UI
     saveStateToStorage();
     updateUI();
   } else {
+    // Log a warning if the slot path is invalid, helping with debugging.
     console.warn(
-      `Attempted to toggle invalid slot: Day ${dayIndex}, Time ${timeIndex} for user ${state.activeUserId}`
+      `Attempted to toggle invalid slot or access invalid schedule structure: Day ${dayIndex}, Time ${timeIndex} for user ${state.activeUserId}. Schedule or slot may not exist.`
     );
   }
 }
