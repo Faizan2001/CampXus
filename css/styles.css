@@ -97,25 +97,37 @@
 }
 
 html {
+  margin: 0;
+  padding: 0; /* Ensure no padding on html */
+  border-top: none !important; /* This can likely be removed now */
+  position: relative;
   font-size: 16px;
   overflow-y: scroll;
   scroll-behavior: smooth;
+  height: 100%; /* ADDED: ensure html takes full height */
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Oxygen, Ubuntu, Cantarell, sans-serif;
+  margin: 0;
+  padding: 0; /* REMOVED: padding: var(--spacing-sm); MOVED to .body-wrapper */
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
   line-height: 1.6;
   color: var(--text-primary);
   background: var(--background-gradient);
   background-size: 400% 400%;
   animation: waveGradient 15s ease infinite;
-  min-height: 100vh;
+  will-change: background-position;
+  min-height: 100vh; /* Ensure body takes at least full viewport height */
+  height: 100%; /* ADDED: ensure body takes full height */
+}
+
+/* NEW: Wrapper for body content to handle padding */
+.body-wrapper {
   padding: var(--spacing-sm);
-  font-feature-settings: "liga" 1, "kern" 1;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%; /* Ensure wrapper also takes full height */
+  box-sizing: border-box; /* Include padding in height calculation */
 }
 
 /* Menu open state */
@@ -127,7 +139,6 @@ body.menu-open {
 .app {
   width: 100%;
   max-width: 1200px;
-  margin: 0 auto;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-radius: var(--border-radius);
@@ -136,7 +147,8 @@ body.menu-open {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   gap: var(--spacing-lg);
-  min-height: calc(100vh - var(--spacing-lg));
+  min-height: 100vh;
+  position: relative; /* ENSURE this is present */
 }
 
 /* ================================
@@ -197,7 +209,7 @@ h3 {
 ================================== */
 .users {
   display: grid;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-xl);
 }
 
 .add-user {
@@ -211,6 +223,15 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+  align-items: stretch; /* Keep this to maintain uniform height */
+  width: 100%; /* Keep this for the list to occupy full width */
+}
+
+/* Modify this rule */
+.user-list .user-item {
+  flex: 0 1 auto; /* Change from flex: 1 1 auto to flex: 0 1 auto to prevent growing */
+  min-width: min-content; /* Use min-content instead of fixed width */
+  max-width: fit-content; /* ADD: Limit maximum width */
 }
 
 /* Enhanced user item styling */
@@ -227,6 +248,8 @@ h3 {
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  min-height: 48px; /* Keep this for consistent height */
+  width: fit-content; /* Keep this */
 }
 
 .user-item::before {
@@ -272,9 +295,7 @@ h3 {
 .user-item > button:first-child {
   flex-grow: 1;
   background: none;
-  color: var(
-    --text-primary
-  ); /* Ensure this inherits correctly or is set for dark mode children */
+  color: var(--text-primary);
   padding: 0;
   border: none;
   box-shadow: none;
@@ -283,6 +304,10 @@ h3 {
   font-size: clamp(0.85rem, 2vw, 1rem);
   cursor: pointer;
   transition: none;
+  max-width: 200px; /* ADD: Limit maximum width */
+  white-space: nowrap; /* ADD: Keep text on single line */
+  overflow: hidden; /* ADD: Hide text overflow */
+  text-overflow: ellipsis; /* ADD: Show ellipsis for overflowing text */
 }
 
 .user-item .delete-btn {
@@ -298,6 +323,15 @@ h3 {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+
+  /* ADD THESE LINES TO FIX THE SIZE */
+  height: 32px; /* Fixed height */
+  max-height: 36px; /* Prevent growing too large */
+  min-width: 50px; /* Minimum width for touch targets */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1; /* Prevent text from adding extra height */
 }
 
 .user-item .delete-btn:hover {
@@ -314,6 +348,7 @@ h3 {
   grid-template-columns: 2fr 1fr;
   gap: var(--spacing-sm);
   align-items: stretch;
+  margin-top: var(--spacing-xs);
 }
 
 .control-button {
@@ -554,13 +589,25 @@ td:first-child {
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
+.schedule::-webkit-scrollbar {
+  height: 8px;
+}
+
+.schedule::-webkit-scrollbar-track {
+  background: var(--background-gray);
+}
+
+.schedule::-webkit-scrollbar-thumb {
+  background: var(--primary-color-light);
+  border-radius: 4px;
+}
+
 /* ================================
    ADD TIME SLOT BUTTON
 ================================== */
 #addNewTimeSlotBtn {
-  width: clamp(24px, 5vw, 35px);
-  height: clamp(24px, 5vw, 35px);
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   font-size: clamp(1rem, 2.5vw, 1.4rem);
   font-weight: 900;
   line-height: 1;
@@ -575,19 +622,48 @@ td:first-child {
   color: white;
   border: none;
   box-shadow: var(--shadow-light);
+  border-radius: 0; /* Remove border radius to fill the entire cell */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 #addNewTimeSlotBtn:hover {
-  transform: scale(1.1) rotate(90deg);
+  transform: none; /* Remove rotation to keep the + consistent */
   box-shadow: var(--shadow-medium);
   background: linear-gradient(135deg, #5a10f0, #9e3de2);
+}
+
+/* Add this rule to enhance the + symbol appearance */
+#addNewTimeSlotBtn::after {
+  content: "+";
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  display: block;
+  line-height: 1;
+}
+
+/* Add a subtle hover effect */
+#addNewTimeSlotBtn:hover::after {
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.2);
+  }
 }
 
 #addTimeSlotHeaderCell {
   text-align: center;
   vertical-align: middle;
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  background: transparent; /* Make background transparent since button covers it */
   position: relative;
+  padding: 0; /* Remove padding to allow button to fill the entire cell */
 }
 
 .editable-timeslot-header {
@@ -641,7 +717,9 @@ input:invalid {
 /* ================================
    GENERAL BUTTONS
 ================================== */
-button:not(.user-item button):not(.hamburger-button):not(.can-pin-indicator):not(.pin-indicator) {
+button:not(.user-item button):not(.hamburger-button):not(
+    .can-pin-indicator
+  ):not(.pin-indicator) {
   padding: var(--spacing-md) var(--spacing-lg);
   border: none;
   border-radius: var(--border-radius);
@@ -708,6 +786,32 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
    RESPONSIVE BREAKPOINTS
 ================================== */
 
+/* Improve touch interaction on mobile */
+@media (max-width: 768px) {
+  .user-item {
+    -webkit-tap-highlight-color: rgba(74, 0, 224, 0.1);
+    touch-action: manipulation; /* Prevents double-tap zoom */
+  }
+
+  .user-item .delete-btn {
+    -webkit-tap-highlight-color: rgba(255, 71, 87, 0.2);
+    touch-action: manipulation;
+    position: relative; /* Ensure it's above other elements */
+    z-index: 1;
+  }
+
+  /* Increase touch target without changing visual size */
+  .user-item .delete-btn::before {
+    content: "";
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    z-index: -1;
+  }
+}
+
 /* Small mobile devices */
 @media (max-width: 480px) {
   :root {
@@ -720,23 +824,31 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
   }
 
   body {
-    padding: var(--spacing-xs);
+    padding: 0; /* REMOVED: padding: 0 var(--spacing-xs); */
+  }
+
+  /* ADDED: Apply responsive padding to the wrapper */
+  .body-wrapper {
+    padding: 0 var(--spacing-xs);
   }
 
   .app {
     padding: var(--spacing-md);
     gap: var(--spacing-md);
     border-radius: var(--spacing-sm);
+    margin: var(--spacing-xs) auto 0;
   }
 
   .add-user {
     grid-template-columns: 1fr;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
   }
 
   .button-row {
     grid-template-columns: 1fr;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
   }
 
   table {
@@ -767,6 +879,51 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
     min-width: 16px;
     min-height: 16px;
   }
+
+  .user-item {
+    min-height: 44px; /* Slightly smaller on mobile but still accessible */
+    padding: var(--spacing-xs) var(--spacing-sm);
+    gap: var(--spacing-xs);
+    flex-wrap: nowrap; /* Prevent wrapping */
+  }
+
+  .user-item > button:first-child {
+    flex-grow: 1;
+    background: none;
+    color: var(--text-primary);
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    text-align: left;
+    font-weight: 600;
+    font-size: clamp(0.85rem, 2vw, 1rem);
+    cursor: pointer;
+    transition: none;
+    min-height: 0; /* ADD THIS - prevent button from forcing height */
+    line-height: 1.2; /* ADD THIS - control line height */
+    overflow: hidden; /* ADD THIS - prevent text overflow */
+    text-overflow: ellipsis; /* ADD THIS - show ... for long names */
+    white-space: nowrap; /* ADD THIS - prevent text wrapping */
+  }
+
+  .user-item .delete-btn {
+    height: 28px; /* Smaller on mobile */
+    max-height: 32px;
+    min-width: 45px; /* Slightly smaller but still touch-friendly */
+    font-size: 0.7rem; /* Fixed smaller size */
+    padding: 2px 6px; /* Tighter padding */
+  }
+}
+
+.control-button:focus-visible {
+  outline: 3px solid rgba(74, 0, 224, 0.5);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.user-item .delete-btn:focus-visible {
+  outline: 3px solid rgba(255, 71, 87, 0.5);
+  outline-offset: 2px;
 }
 
 /* Medium mobile devices */
@@ -841,6 +998,7 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
   .app {
     padding: var(--spacing-sm);
     gap: var(--spacing-sm);
+    margin: var(--spacing-xs) auto 0;
   }
 
   h1 {
@@ -910,11 +1068,11 @@ button:not(.user-item button):not(.hamburger-button):not(#togglePinModeBtn):not(
     color: var(--text-primary);
     border-color: #495057; /* Match border color variable */
   }
-  
+
   #addTimeSlotHeaderCell {
     background: linear-gradient(135deg, #3e444a, #343a40);
   }
-  
+
   td {
     /* Ensure all td borders are updated */
     border-color: #495057;
