@@ -10,12 +10,12 @@
 
   /* Background */
   --background-gradient: linear-gradient(
-    -45deg,
-    #d57cff,
-    #ff769f,
-    #a1c4fd,
-    #c2e9fb
-  );
+     -45deg,
+      #0c0c0c,
+      #1a1a2e,
+      #16213e,
+      #1f4068
+    );
   --background-white: rgba(255, 255, 255, 0.95);
   --background-light: #f8f9fa;
   --background-gray: #e9ecef;
