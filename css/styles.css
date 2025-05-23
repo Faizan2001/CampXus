@@ -713,7 +713,11 @@ textarea:focus {
 }
 
 input:invalid {
-  border-color: #ff4757;
+  border: 1px solid transparent; /* Make border thinner (1px instead of 2px) */
+  background: linear-gradient(white, white) padding-box,
+    var(--gradient-title) border-box; /* Use the same gradient as h1 */
+  background-size: 100% 100%, 300% 300%; /* Match the h1 animation size */
+  animation: waveGradient 10s ease infinite; /* Same animation as h1 */
 }
 
 /* ================================
@@ -1227,6 +1231,17 @@ textarea:focus-visible {
       --input-focus-border-dark,
       #9c27b0
     ); /* Dark mode friendly outline */
+  }
+
+  input:invalid {
+    background: linear-gradient(
+          var(--input-bg-dark, rgba(44, 49, 54, 0.9)),
+          var(--input-bg-dark, rgba(44, 49, 54, 0.9))
+        )
+        padding-box,
+      var(--gradient-title) border-box;
+    background-size: 100% 100%, 300% 300%;
+    animation: waveGradient 10s ease infinite;
   }
 }
 
