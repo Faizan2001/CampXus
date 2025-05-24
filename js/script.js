@@ -943,7 +943,7 @@ function renderUserList() {
         state.activeUserId === userId ? "active" : ""
       } ${state.selectedUserIds.has(userId) ? "selected" : ""}">
       <div class="user-info">
-        <button class="user-name-btn user-name">${user.name}</button>
+        <span class="user-name">${user.name}</span>
         <span class="user-id">ID: ${user.id}</span>
       </div>
       <div class="user-actions">

@@ -270,57 +270,250 @@ body {
   box-shadow: var(--shadow-glow);
 }
 
-/* ===== MAIN CONTENT ===== */
+/* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
 .main-content {
-  flex: 1;
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 1rem; /* Base padding for mobile */
   width: 100%;
+  max-width: 100%; /* Ensure it doesn't exceed viewport with box-sizing */
+  margin: 0 auto;
 }
 
 .content-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 2rem;
-  height: 100%;
-  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column; /* Mobile-first: single column */
+  gap: 1.5rem; /* Gap between schedule and controls stack */
+  width: 100%;
 }
 
-/* Progressive responsiveness for desktop to tablet */
-@media (max-width: 1200px) {
-  .content-grid {
-    grid-template-columns: 1fr 1.5fr; /* Adjust ratio for medium screens */
+.schedule-column {
+  order: -1; /* Schedule on top for mobile */
+  width: 100%;
+}
+
+.controls-column {
+  order: 0; /* Controls below schedule on mobile */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Gap between individual control sections */
+  width: 100%;
+}
+
+/* Ensure all cards take full width of their parent column */
+.controls-column .glass-card,
+.schedule-column .glass-card {
+  width: 100%;
+  margin-bottom: 0; /* Remove individual card margins if parent flex/grid has gap */
+}
+
+/* ===== DYNAMIC SCHEDULE SHRINKING ===== */
+/* Base for very small screens */
+.schedule-table {
+  min-width: 320px; /* Absolute minimum */
+  table-layout: fixed; /* for consistent columns */
+}
+.schedule-table th,
+.schedule-table td {
+  padding: 0.2rem 0.15rem;
+  font-size: 0.65rem;
+  min-height: 2.25rem; /* Slot height */
+  line-height: 1.2;
+  text-align: center;
+  vertical-align: middle;
+}
+.schedule-table .slot {
+  min-height: 2.25rem;
+}
+.schedule-table .day-label,
+.schedule-table .time-header {
+  font-size: 0.6rem; /* Even smaller for headers */
+}
+
+/* Small Mobile (e.g., > 400px) */
+@media (min-width: 400px) {
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.25rem;
+    font-size: 0.7rem;
+    min-height: 2.5rem;
+  }
+  .schedule-table .slot {
+    min-height: 2.5rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.65rem;
   }
 }
 
-@media (max-width: 1024px) {
-  .content-grid {
-    grid-template-columns: 1fr 1fr; /* Equal columns for smaller desktops/large tablets */
+/* Larger Mobile / Small Tablet (e.g., > 550px) */
+@media (min-width: 550px) {
+  .main-content {
+    padding: 1.5rem;
+  }
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.3rem;
+    font-size: 0.75rem;
+    min-height: 2.75rem;
+  }
+  .schedule-table .slot {
+    min-height: 2.75rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.7rem;
   }
 }
 
-/* Single column layout when screen gets too narrow */
-@media (max-width: 900px) {
-  .content-grid {
-    display: flex;
-    flex-direction: column-reverse; /* Schedule on top, controls below */
-    gap: 1.5rem;
+/* Tablet (e.g., > 768px, but still single column layout < 900px) */
+@media (min-width: 768px) and (max-width: 899px) {
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.4rem;
+    font-size: 0.8rem;
+    min-height: 3rem;
   }
-  
-  .schedule-column, 
+  .schedule-table .slot {
+    min-height: 3rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.75rem;
+  }
+}
+
+/* ===== STANDARD DESKTOP LAYOUT (900px - 1599px) ===== */
+@media (min-width: 900px) {
+  .main-content {
+    padding: 2rem; /* Restore desktop padding */
+    max-width: 1400px; /* Or your preferred max-width */
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) 2.5fr; /* Controls left (flexible), Schedule right (takes more space) */
+    grid-template-rows: auto; /* Let rows size by content */
+    gap: 2rem; /* Gap between columns */
+    align-items: start; /* Align items to the top of their grid cell */
+  }
+
+  .schedule-column {
+    order: 0; /* Reset mobile order */
+  }
+
   .controls-column {
+    order: 0; /* Reset mobile order */
+    /* It remains a flex column for its children */
+  }
+
+  /* Restore standard schedule sizes */
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    min-height: 3.5rem; /* Standard slot height */
+  }
+  .schedule-table .slot {
+    min-height: 3.5rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.85rem; /* Standard header font size */
+    writing-mode: initial; /* Ensure text is horizontal */
+    text-orientation: initial;
+  }
+}
+
+/* ===== VERY WIDE DESKTOP LAYOUT (>= 1600px) ===== */
+@media (min-width: 1600px) {
+  .main-content {
+    max-width: 1800px; /* Allow wider content */
+  }
+
+  .content-grid {
+    display: grid;
+    /* Define columns: Col1 for Compare/AddUser, Col2 for Schedule/Users/ImportExport */
+    grid-template-columns: minmax(320px, 1fr) 3fr;
+    /* Define rows: Row1 for Compare/Schedule, Row2 for AddUser/Schedule(cont.), Row3 for Users, Row4 for ImportExport */
+    grid-template-rows: auto auto auto auto 1fr; /* Added rows for clarity */
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* Key change: make children of these columns direct grid items */
+  .controls-column,
+  .schedule-column {
+    display: contents;
+  }
+
+  /* Assign grid areas to each section */
+  .compare-section {
+    /* This is the <section class="glass-card compare-section"> */
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    margin-bottom: 2rem; /* Re-add margin as it's a direct grid item now */
+  }
+  .add-user-section {
+    /* This is the <section class="glass-card add-user-section"> */
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+    margin-bottom: 0; /* Or 2rem if you want space below it before next conceptual row starts */
+  }
+
+  .schedule-section {
+    /* This is the <section class="glass-card schedule-section"> */
+    grid-column: 2 / 3;
+    grid-row: 1 / span 2; /* Span vertically alongside compare & add user */
+    margin-bottom: 2rem; /* Space before Users List */
+  }
+
+  .users-section {
+    /* This is the <section class="glass-card users-section"> */
+    grid-column: 2 / 3; /* Place in the second column, below schedule */
+    grid-row: 3 / 4;
+    margin-bottom: 2rem; /* Space before Import/Export */
+  }
+
+  .import-export-section {
+    /* This is the <section class="glass-card import-export-section"> */
+    grid-column: 2 / 3; /* Place in the second column, below users list */
+    grid-row: 4 / 5;
+  }
+
+  /* Ensure cards take full width of their new grid areas */
+  .compare-section,
+  .add-user-section,
+  .schedule-section,
+  .users-section,
+  .import-export-section {
     width: 100%;
   }
-  
-  /* Scale down schedule for better visibility */
-  .schedule-table {
+
+  /* Optionally, make schedule slots slightly larger on very wide screens */
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.6rem;
+    font-size: 1rem;
+    min-height: 4rem;
+  }
+  .schedule-table .slot {
+    min-height: 4rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
     font-size: 0.9rem;
   }
-  
-  .slot {
-    height: 3.5rem !important;
-    min-height: 3.5rem !important;
+}
+
+/* Optional: For extreme compactness on very small screens, use vertical headers */
+@media (max-width: 479px) {
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
+    font-size: 0.6rem; /* Adjust if needed with vertical text */
+    padding: 0.2rem 0.1rem; /* Adjust padding for vertical */
   }
 }
 
@@ -501,6 +694,14 @@ body {
   transition: all 0.3s ease;
 }
 
+/* Adjust icon position for textarea */
+.input-wrapper textarea + i, /* If icon is after */
+.input-wrapper i + textarea {
+  /* If icon is before */
+  top: var(--space-lg); /* Align with first line of text */
+  transform: translateY(0);
+}
+
 .input-wrapper input,
 .input-wrapper textarea {
   width: 100%;
@@ -529,6 +730,31 @@ body {
   background: var(--depth-elevated);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1), 0 8px 25px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
+}
+
+/* Specific styling for the import textarea */
+#importText {
+  padding-top: var(--space-md); /* Reduced top padding */
+  padding-bottom: var(--space-md); /* Reduced bottom padding */
+  padding-left: 3rem; /* Kept for icon */
+  padding-right: var(--space-lg); /* Kept for consistency */
+  min-height: 90px; /* Adjust as needed */
+  resize: vertical;
+}
+
+/* Ensure the wrapper containing the importText has a bottom margin */
+.import-section .input-wrapper {
+  /* Targets the wrapper in import section */
+  margin-bottom: var(--space-lg); /* Adds space before the button below */
+}
+
+/* Improved icon alignment for the importText textarea */
+.input-wrapper i + #importText, /* If icon is before textarea in HTML */
+#importText + i /* If icon is after textarea in HTML - adjust if your HTML is different */ {
+  top: calc(
+    var(--space-md) + 0.7em
+  ); /* Align icon with the first line of text */
+  transform: translateY(-50%); /* Vertically center icon with the first line */
 }
 
 /* ===== USERS LIST ===== */
@@ -560,17 +786,17 @@ body {
 }
 
 .user-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-lg);
   background: var(--depth-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  padding: var(--space-lg);
   margin-bottom: var(--space-md);
   transition: all 0.3s var(--animation-spring);
   position: relative;
   overflow: hidden;
+  display: flex !important; /* Ensure flex display */
+  align-items: center !important; /* Center align items vertically */
+  justify-content: space-between !important; /* Space between name and delete button */
 }
 
 .user-item::before {
@@ -605,19 +831,32 @@ body {
   flex-direction: column;
   gap: var(--space-xs);
   flex: 1;
+  min-width: 0 !important; /* Allows text to be truncated within flex container */
+  padding-right: 0.5rem !important;
 }
 
+/* Fix user name display in user list */
 .user-name {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  background: transparent !important;
+  display: block !important;
+  padding: 0 !important;
+  border: none !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
 }
 
 .user-id {
   font-size: 0.85rem;
   color: var(--text-tertiary);
   font-weight: 400;
+  display: block !important;
 }
 
 .user-actions {
@@ -717,45 +956,58 @@ body {
   max-width: 60px !important;
 }
 
-/* Fix slot appearance and spacing */
+/* Fix slot appearance and spacing - Adding silver borders */
 .slot {
-  height: 4rem !important;
-  min-height: 4rem !important;
-  border: 1px solid var(--border) !important;
+  height: 4rem;
+  min-height: 4rem;
+  border: 1px solid rgba(192, 192, 192, 0.4) !important; /* Silver border with some transparency */
   border-radius: 4px !important;
   margin: 2px !important;
   background: var(--depth-surface) !important;
   transition: all 0.2s ease !important;
   position: relative !important;
   cursor: pointer !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important; /* Inner highlight */
 }
 
 .slot:hover {
   background: var(--depth-elevated) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Brighter silver on hover */
   transform: scale(1.02) !important;
   z-index: 2 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important; /* Add shadow on hover */
 }
 
 /* Fix day labels */
 .day-label {
   background: var(--depth-elevated) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   border-radius: 4px !important;
   margin: 2px !important;
-  padding: 1rem 0.5rem !important;
+  padding: 1rem 0.5rem;
   font-weight: 600 !important;
   color: var(--text-primary) !important;
   text-align: center !important;
   position: sticky !important;
   left: 0 !important;
   z-index: 3 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  vertical-align: middle !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 3.5rem !important;
 }
 
-/* Fix table headers */
+/* Fix table headers for consistency with day labels */
 .schedule-table th {
   background: var(--depth-elevated) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   border-radius: 4px !important;
   margin: 2px !important;
   padding: 0.75rem 0.5rem !important;
@@ -766,6 +1018,7 @@ body {
   position: sticky !important;
   top: 0 !important;
   z-index: 4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* Fix table cells */
@@ -842,7 +1095,7 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Slot state colors */
+/* Enhance slot state colors with better borders */
 .slot-selected {
   background: linear-gradient(
     135deg,
@@ -850,25 +1103,49 @@ body {
     var(--accent-secondary)
   ) !important;
   color: white !important;
-  border-color: var(--accent-primary) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with selected state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--accent-primary) !important;
 }
 
 .slot-free {
   background: linear-gradient(135deg, var(--success), #38a169) !important;
   color: white !important;
-  border-color: var(--success) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with free state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--success) !important;
 }
 
 .slot-conflict {
   background: linear-gradient(135deg, var(--error), #e53e3e) !important;
   color: white !important;
-  border-color: var(--error) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with conflict state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--error) !important;
 }
 
 .slot-partial {
   background: linear-gradient(135deg, var(--warning), #d69e2e) !important;
   color: white !important;
-  border-color: var(--warning) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with partial state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--warning) !important;
 }
 
 /* Mobile responsiveness for schedule grid */
@@ -939,32 +1216,32 @@ body {
   }
 
   .day-label {
-    padding: 0.5rem 0.125rem !important;
-    font-size: 0.7rem !important;
+    padding: 0.5rem 0.125rem;
+    font-size: 0.7rem;
   }
-  
+
   /* Adjust padding for smaller screens */
   .glass-card {
     padding: 1.25rem !important;
   }
-  
+
   /* Ensure proper margins on mobile */
   main.main-content {
     padding: 1rem !important;
   }
-  
+
   /* Improve button layout on small screens */
   .button-group {
     flex-direction: column;
   }
-  
+
   .button-group button {
     width: 100%;
     margin-bottom: 0.5rem;
   }
 }
 
-/* Pin indicator styling */
+/* Pin indicator styling - Updated with active/inactive states */
 .pin-indicator {
   position: absolute !important;
   top: 2px !important;
@@ -979,6 +1256,20 @@ body {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+/* Pin mode toggle button - inactive state (red) */
+#togglePinModeBtn {
+  background: linear-gradient(135deg, var(--error), #e53e3e) !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Pin mode toggle button - active state (green) */
+#togglePinModeBtn.active {
+  background: linear-gradient(135deg, var(--success), #38a169) !important;
+  color: white !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important;
 }
 
 .can-pin-indicator {
@@ -1783,7 +2074,6 @@ body {
 /* ===== ENHANCED INPUT FIELD STYLING ===== */
 .input-wrapper {
   position: relative;
-  margin-bottom: var(--space-lg);
 }
 
 .input-wrapper:last-child {
@@ -1869,6 +2159,9 @@ body {
   transition: all 0.3s var(--animation-spring);
   position: relative;
   overflow: hidden;
+  display: flex !important; /* Ensure flex display */
+  align-items: center !important; /* Center align items vertically */
+  justify-content: space-between !important; /* Space between name and delete button */
 }
 
 .user-item::before {
@@ -1903,19 +2196,32 @@ body {
   flex-direction: column;
   gap: var(--space-xs);
   flex: 1;
+  min-width: 0 !important; /* Allows text to be truncated within flex container */
+  padding-right: 0.5rem !important;
 }
 
+/* Fix user name display in user list */
 .user-name {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  background: transparent !important;
+  display: block !important;
+  padding: 0 !important;
+  border: none !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
 }
 
 .user-id {
   font-size: 0.85rem;
   color: var(--text-tertiary);
   font-weight: 400;
+  display: block !important;
 }
 
 .user-actions {
@@ -1923,53 +2229,6 @@ body {
   align-items: center;
   gap: var(--space-sm);
   margin-left: var(--space-md);
-}
-
-.delete-btn {
-  background: linear-gradient(135deg, var(--error), #e53e3e);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s var(--animation-spring);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  position: relative;
-  overflow: hidden;
-}
-
-.delete-btn::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.3) 30%,
-    transparent 70%
-  );
-  transition: all 0.3s ease;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-}
-
-.delete-btn:hover::before {
-  width: 200%;
-  height: 200%;
-}
-
-.delete-btn:hover {
-  background: linear-gradient(135deg, #e53e3e, #c53030);
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
 /* ===== SCHEDULE SECTION ===== */
@@ -2015,45 +2274,58 @@ body {
   max-width: 60px !important;
 }
 
-/* Fix slot appearance and spacing */
+/* Fix slot appearance and spacing - Adding silver borders */
 .slot {
-  height: 4rem !important;
-  min-height: 4rem !important;
-  border: 1px solid var(--border) !important;
+  height: 4rem;
+  min-height: 4rem;
+  border: 1px solid rgba(192, 192, 192, 0.4) !important; /* Silver border with some transparency */
   border-radius: 4px !important;
   margin: 2px !important;
   background: var(--depth-surface) !important;
   transition: all 0.2s ease !important;
   position: relative !important;
   cursor: pointer !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important; /* Inner highlight */
 }
 
 .slot:hover {
   background: var(--depth-elevated) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Brighter silver on hover */
   transform: scale(1.02) !important;
   z-index: 2 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important; /* Add shadow on hover */
 }
 
 /* Fix day labels */
 .day-label {
   background: var(--depth-elevated) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   border-radius: 4px !important;
   margin: 2px !important;
-  padding: 1rem 0.5rem !important;
+  padding: 1rem 0.5rem;
   font-weight: 600 !important;
   color: var(--text-primary) !important;
   text-align: center !important;
   position: sticky !important;
   left: 0 !important;
   z-index: 3 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  vertical-align: middle !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 3.5rem !important;
 }
 
-/* Fix table headers */
+/* Fix table headers for consistency with day labels */
 .schedule-table th {
   background: var(--depth-elevated) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   border-radius: 4px !important;
   margin: 2px !important;
   padding: 0.75rem 0.5rem !important;
@@ -2064,6 +2336,7 @@ body {
   position: sticky !important;
   top: 0 !important;
   z-index: 4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* Fix table cells */
@@ -2140,7 +2413,7 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Slot state colors */
+/* Enhance slot state colors with better borders */
 .slot-selected {
   background: linear-gradient(
     135deg,
@@ -2148,25 +2421,49 @@ body {
     var(--accent-secondary)
   ) !important;
   color: white !important;
-  border-color: var(--accent-primary) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with selected state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--accent-primary) !important;
 }
 
 .slot-free {
   background: linear-gradient(135deg, var(--success), #38a169) !important;
   color: white !important;
-  border-color: var(--success) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with free state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--success) !important;
 }
 
 .slot-conflict {
   background: linear-gradient(135deg, var(--error), #e53e3e) !important;
   color: white !important;
-  border-color: var(--error) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with conflict state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--error) !important;
 }
 
 .slot-partial {
   background: linear-gradient(135deg, var(--warning), #d69e2e) !important;
   color: white !important;
-  border-color: var(--warning) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    0.7
+  ) !important; /* Silver border with partial state */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--warning) !important;
 }
 
 /* Mobile responsiveness for schedule grid */
@@ -2237,481 +2534,27 @@ body {
   }
 
   .day-label {
-    padding: 0.5rem 0.125rem !important;
-    font-size: 0.7rem !important;
+    padding: 0.5rem 0.125rem;
+    font-size: 0.7rem;
   }
-  
+
   /* Adjust padding for smaller screens */
   .glass-card {
     padding: 1.25rem !important;
   }
-  
+
   /* Ensure proper margins on mobile */
   main.main-content {
     padding: 1rem !important;
   }
-  
+
   /* Improve button layout on small screens */
   .button-group {
     flex-direction: column;
   }
-  
+
   .button-group button {
     width: 100%;
     margin-bottom: 0.5rem;
-  }
-}
-
-/* Pin indicator styling */
-.pin-indicator {
-  position: absolute !important;
-  top: 2px !important;
-  right: 2px !important;
-  font-size: 0.8rem !important;
-  cursor: pointer !important;
-  z-index: 5 !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-radius: 50% !important;
-  width: 16px !important;
-  height: 16px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.can-pin-indicator {
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  font-size: 1.2rem !important;
-  cursor: pointer !important;
-  z-index: 5 !important;
-  color: var(--accent-primary) !important;
-  opacity: 0.7 !important;
-}
-
-.can-pin-indicator:hover {
-  opacity: 1 !important;
-  color: var(--accent-secondary) !important;
-  transform: translate(-50%, -50%) scale(1.2) !important;
-}
-
-/* ===== ENHANCED ANIMATION SYSTEM ===== */
-@keyframes waveGradient {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes slideInFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideInFromRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.controls-column {
-  animation: slideInFromLeft 0.8s var(--animation-spring) forwards;
-}
-
-.schedule-column {
-  animation: slideInFromRight 0.8s var(--animation-spring) forwards;
-}
-
-.glass-card:nth-child(1) {
-  animation-delay: 0.1s;
-}
-.glass-card:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.glass-card:nth-child(3) {
-  animation-delay: 0.3s;
-}
-.glass-card:nth-child(4) {
-  animation-delay: 0.4s;
-}
-
-/* ===== ACCESSIBILITY ENHANCEMENTS ===== */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Enhanced focus indicators */
-.primary-btn:focus-visible,
-.secondary-btn:focus-visible,
-.nav-button:focus-visible,
-.delete-btn:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-}
-
-.input-wrapper input:focus-visible,
-.input-wrapper textarea:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
-.user-item:focus-within {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-lg);
-}
-
-.slot:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-  z-index: 10;
-}
-
-/* ===== HIGH CONTRAST MODE SUPPORT ===== */
-@media (prefers-contrast: high) {
-  :root {
-    --border: rgba(255, 255, 255, 0.3);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --text-tertiary: #9ca3af;
-  }
-
-  .glass-card {
-    border-width: 2px;
-  }
-
-  .user-item {
-    border-width: 2px;
-  }
-}
-
-/* About Page Specific Styles */
-.about-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  display: grid;
-  gap: 2rem;
-  grid-template-columns: 1fr;
-}
-
-.developer-profile {
-  grid-column: 1;
-}
-
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.profile-avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-  color: white;
-  flex-shrink: 0;
-}
-
-.profile-info h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.profile-title {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  font-weight: 500;
-}
-
-.profile-content {
-  display: grid;
-  gap: 2rem;
-}
-
-.bio-section h3,
-.skills-section h3,
-.features-section h3,
-.contact-section h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 1rem 0;
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.bio-section h3 i,
-.skills-section h3 i,
-.features-section h3 i,
-.contact-section h3 i {
-  color: var(--accent-primary);
-}
-
-.bio-section p {
-  margin: 0 0 1rem 0;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.tech-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
-}
-
-.tech-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-}
-
-.tech-item:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--accent-primary);
-}
-
-.tech-item i {
-  font-size: 2rem;
-  color: var(--accent-primary);
-}
-
-.tech-item span {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.features-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.8rem;
-}
-
-.features-list li {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.8rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  transition: all 0.3s ease;
-}
-
-.features-list li:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.features-list li i {
-  color: #10b981;
-  font-size: 1.1rem;
-}
-
-.contact-buttons {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.contact-buttons .btn {
-  flex: 1;
-  min-width: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.project-info,
-.acknowledgments {
-  margin-top: 1rem;
-}
-
-.project-info h3,
-.acknowledgments h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 1.5rem 0;
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.project-info h3 i,
-.acknowledgments h3 i {
-  color: var(--accent-primary);
-}
-
-.info-grid {
-  display: grid;
-  gap: 1rem;
-}
-/* Additional mobile styles */
-@media (max-width: 768px) {
-  /* Ensure glass cards have proper padding and width */
-  .glass-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  
-  /* Give proper spacing to the main content */
-  main.main-content {
-    padding: 1rem !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-  }
-}
-
-@media (max-width: 480px) {
-  /* Adjust padding for smaller screens */
-  .glass-card {
-    padding: 1.5rem !important;
-  }
-  
-  /* Improve button layout on small screens */
-  .button-group {
-    flex-direction: column !important;
-  }
-  
-  .button-group button {
-    width: 100% !important;
-    margin-bottom: 0.5rem !important;
-  }
-}
-
-/* Additional Mobile Responsiveness */
-
-/* Single column layout when screen gets too narrow */
-@media (max-width: 900px) {
-  .content-grid {
-    display: flex !important;
-    flex-direction: column-reverse !important; /* Schedule on top, controls below */
-    gap: 1.5rem !important;
-    width: 100% !important;
-  }
-  
-  .schedule-column, 
-  .controls-column {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  /* Make glass cards use full width */
-  .glass-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  
-  /* Better button grouping for mobile */
-  .button-group {
-    flex-direction: column !important;
-  }
-  
-  .button-group button {
-    width: 100% !important;
-    margin-right: 0 !important;
-    margin-bottom: 0.75rem !important;
-  }
-  
-  .button-group button:last-child {
-    margin-bottom: 0 !important;
-  }
-}
-
-/* Small mobile enhancements for better visibility */
-@media (max-width: 480px) {
-  /* Reduce padding to maximize content space */
-  .glass-card {
-    padding: 1.25rem !important;
-  }
-  
-  /* Make slots more compact for better visibility */
-  .slot {
-    height: 2.25rem !important;
-    min-height: 2.25rem !important;
-  }
-  
-  /* Adjust schedule wrapper scrolling */
-  .schedule-wrapper {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 5px !important;
-  }
-  
-  /* Improve small mobile scale */
-  .schedule-table {
-    min-width: 550px !important; /* Smaller minimum to show more columns */
-    font-size: 0.65rem !important;
-  }
-  
-  /* Adjust spacing for main content */
-  main.main-content {
-    padding: 0.75rem !important;
   }
 }
