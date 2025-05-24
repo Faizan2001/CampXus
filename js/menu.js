@@ -1,4 +1,4 @@
-// js/menu.js - Updated for glassmorphism design
+// js/menu.js - Enhanced dark/light mode toggle with glassmorphism design
 
 document.addEventListener("DOMContentLoaded", () => {
   // Apply saved theme on page load
@@ -9,13 +9,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize navigation
   initializeNavigation();
+
+  // Initialize theme system
+  initializeThemeSystem();
 });
 
 function applyTheme() {
   const savedTheme = localStorage.getItem("theme");
-  if (savedTheme === "dark") {
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  // Apply theme: saved preference > system preference > default (dark)
+  const shouldUseDark = savedTheme === "dark" || (!savedTheme && prefersDark);
+
+  if (shouldUseDark) {
     document.body.classList.add("dark-mode");
+  } else {
+    document.body.classList.remove("dark-mode");
   }
+
+  updateToggleIcon();
 }
 
 function initializeDarkModeToggle() {
@@ -33,6 +45,9 @@ function initializeDarkModeToggle() {
         darkModeToggle.classList.remove("theme-toggle-animation");
       }, 300);
     });
+
+    // Add tooltip
+    darkModeToggle.setAttribute("title", "Toggle dark/light mode");
   }
 }
 
@@ -45,6 +60,19 @@ function toggleDarkMode() {
 
   // Update toggle icon
   updateToggleIcon();
+
+  // Trigger custom event for other components to react
+  window.dispatchEvent(
+    new CustomEvent("themeChanged", {
+      detail: { isDarkMode, theme: isDarkMode ? "dark" : "light" },
+    })
+  );
+
+  // Add smooth transition class
+  body.classList.add("theme-transition");
+  setTimeout(() => {
+    body.classList.remove("theme-transition");
+  }, 300);
 }
 
 function updateToggleIcon() {
@@ -54,10 +82,29 @@ function updateToggleIcon() {
   if (icon) {
     if (document.body.classList.contains("dark-mode")) {
       icon.className = "fas fa-sun";
+      darkModeToggle.setAttribute("title", "Switch to light mode");
     } else {
       icon.className = "fas fa-moon";
+      darkModeToggle.setAttribute("title", "Switch to dark mode");
     }
   }
+}
+
+function initializeThemeSystem() {
+  // Listen for system theme changes
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  mediaQuery.addEventListener("change", (e) => {
+    // Only auto-update if user hasn't manually set a preference
+    if (!localStorage.getItem("theme")) {
+      if (e.matches) {
+        document.body.classList.add("dark-mode");
+      } else {
+        document.body.classList.remove("dark-mode");
+      }
+      updateToggleIcon();
+    }
+  });
 }
 
 function initializeNavigation() {
@@ -73,14 +120,15 @@ function initializeNavigation() {
 
     // Add hover effects and click handling
     link.addEventListener("click", (e) => {
-      // Add ripple effect or other feedback if desired
-      const ripple = document.createElement("span");
-      ripple.classList.add("ripple");
-      link.appendChild(ripple);
+      createRipple(link, e);
+    });
+  });
 
-      setTimeout(() => {
-        ripple.remove();
-      }, 600);
+  // Add ripple effects to navigation buttons
+  const navButtons = document.querySelectorAll(".nav-button");
+  navButtons.forEach((button) => {
+    button.addEventListener("click", (e) => {
+      createRipple(button, e);
     });
   });
 
@@ -120,3 +168,10 @@ function createRipple(element, event) {
     ripple.remove();
   }, 600);
 }
+
+// Expose theme functions for external access
+window.themeUtils = {
+  toggleDarkMode,
+  applyTheme,
+  getCurrentTheme: () => localStorage.getItem("theme") || "system",
+};

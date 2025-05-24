@@ -7,17 +7,58 @@
   display: none;
 }
 
-/* Theme toggle for top navigation */
+/* ===== ENHANCED THEME TOGGLE STYLING ===== */
 .theme-toggle {
   position: relative;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+.theme-toggle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(
+    circle,
+    var(--accent-primary) 30%,
+    transparent 70%
+  );
+  transition: all 0.4s ease;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: 0;
+  z-index: 0;
+}
+
+.theme-toggle:hover::before {
+  width: 120%;
+  height: 120%;
+  opacity: 0.15;
 }
 
 .theme-toggle i {
-  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
 }
 
-.dark-mode .theme-toggle i::before {
-  content: "\f185"; /* sun icon */
+.theme-toggle:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--accent-primary) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 20px var(--shadow-glow) !important;
+}
+
+.theme-toggle:hover i {
+  transform: scale(1.1);
+  color: var(--accent-primary) !important;
 }
 
 /* Mobile menu fallback (if needed) */
@@ -36,6 +77,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  position: relative;
+  transition: all 0.3s ease;
 }
 
 .nav-item.active {
@@ -43,19 +86,216 @@
   font-weight: 600;
 }
 
-/* Dark mode toggle animation */
+.nav-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-title);
+  border-radius: 1px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ===== THEME TOGGLE ANIMATIONS ===== */
 .theme-toggle-animation {
-  animation: themeToggle 0.3s ease;
+  animation: themeToggle 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes themeToggle {
   0% {
-    transform: rotate(0deg);
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.15);
   }
   50% {
-    transform: rotate(180deg) scale(1.1);
+    transform: rotate(180deg) scale(1.2);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.15);
   }
   100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* Icon transition animations */
+.theme-toggle i.fa-moon {
+  animation: fadeInIcon 0.3s ease-in-out;
+}
+
+.theme-toggle i.fa-sun {
+  animation: fadeInIcon 0.3s ease-in-out;
+}
+
+@keyframes fadeInIcon {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) rotate(-45deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Smooth transition for theme changes */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.4s ease, color 0.4s ease,
+    border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
+/* Enhanced focus accessibility */
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2), 0 4px 20px var(--shadow-glow) !important;
+}
+
+/* Theme toggle states */
+.theme-toggle[data-theme="dark"] i {
+  color: #fbbf24; /* Warm sun color */
+}
+
+.theme-toggle[data-theme="light"] i {
+  color: #1e293b; /* Dark moon color */
+}
+
+/* Loading state for theme toggle */
+.theme-toggle.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.theme-toggle.loading i {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
     transform: rotate(360deg);
   }
+}
+
+/* ===== RIPPLE EFFECT STYLES ===== */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.3);
+  transform: scale(0);
+  animation: ripple-animation 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ===== MOBILE NAVIGATION ENHANCEMENTS ===== */
+@media (max-width: 768px) {
+  .theme-toggle {
+    width: 2.2rem !important;
+    height: 2.2rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .theme-toggle:hover {
+    transform: scale(1.03) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .theme-toggle {
+    width: 2rem !important;
+    height: 2rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Simplify animations on very small screens */
+  .theme-toggle-animation {
+    animation: simpleToggle 0.3s ease;
+  }
+
+  @keyframes simpleToggle {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+  }
+}
+
+/* ===== HIGH CONTRAST MODE SUPPORT ===== */
+@media (prefers-contrast: high) {
+  .theme-toggle {
+    border: 2px solid var(--text-primary) !important;
+  }
+
+  .theme-toggle:hover {
+    background: var(--text-primary) !important;
+    color: var(--depth-background) !important;
+  }
+}
+
+/* ===== REDUCED MOTION SUPPORT ===== */
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle i,
+  .theme-toggle::before,
+  .theme-toggle {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .theme-toggle-animation {
+    animation: none !important;
+  }
+
+  .ripple {
+    animation: none !important;
+  }
+}
+
+/* ===== DARK MODE SPECIFIC ENHANCEMENTS ===== */
+.dark-mode .theme-toggle {
+  background: rgba(42, 45, 56, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .theme-toggle:hover {
+  background: rgba(42, 45, 56, 0.95) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4) !important;
+}
+
+/* ===== LIGHT MODE SPECIFIC ENHANCEMENTS ===== */
+body:not(.dark-mode) .theme-toggle {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1) !important;
+}
+
+body:not(.dark-mode) .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3) !important;
 }
