@@ -942,8 +942,16 @@ function renderUserList() {
     <div data-user-id="${userId}" class="user-item ${
         state.activeUserId === userId ? "active" : ""
       } ${state.selectedUserIds.has(userId) ? "selected" : ""}">
-      <button class="user-name-btn">${user.name}</button>
-      <button data-delete-user-id="${userId}" class="delete-btn">Delete</button>
+      <div class="user-info">
+        <button class="user-name-btn user-name">${user.name}</button>
+        <span class="user-id">ID: ${user.id}</span>
+      </div>
+      <div class="user-actions">
+        <button data-delete-user-id="${userId}" class="delete-btn">
+          <i class="fas fa-trash"></i>
+          Delete
+        </button>
+      </div>
     </div>`
     )
     .join("");
@@ -1165,17 +1173,14 @@ function handleToggleUserSelectionForCompare(userId) {
 }
 
 function handleToggleScheduleSlot(dayIndex, timeIndex) {
-
   // --- START: Check for Pin Mode Active ---
   if (state.pinModeActive) {
     // If pin mode is active, clicks on the slot body should NOT toggle busy/free.
     // Pinning/unpinning is handled by handlePinSlotClick via the indicators.
     console.log("Pin mode is active. Slot click ignored for busy/free toggle.");
-    return; 
+    return;
   }
   // --- END: Check for Pin Mode Active ---
-
-
 
   if (
     !state.activeUserId ||
