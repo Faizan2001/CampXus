@@ -46,6 +46,16 @@ ENHANCEMENTS INCLUDED:
   /* Fluid Container Widths */
   --container-fluid: clamp(320px, 100vw, 2000px);
   --content-max-width: clamp(320px, 95vw, 1400px);
+
+  /* Modern State Colors - Dark and sophisticated */
+  --button-off-red: #8b2635; /* Dark red for "off" state */
+  --button-off-red-hover: #a12e3f; /* Slightly lighter red on hover */
+  --button-on-green: #15803d; /* Dark green for "on/active" state */
+  --button-on-green-hover: #16a34a; /* Slightly lighter green on hover */
+
+  /* Light theme variants */
+  --button-off-red-light: #991b1b; /* Dark red for light theme */
+  --button-on-green-light: #166534; /* Dark green for light theme */
 }
 
 /* ===== ENHANCED VIEWPORT AND CONTAINER SUPPORT ===== */
@@ -71,10 +81,7 @@ body {
       font-size: var(--text-fluid-xs);
     }
 
-    .user-item {
-      padding: var(--touch-padding);
-      min-height: var(--touch-target-min);
-    }
+
   }
 
   @container (min-width: 800px) {
@@ -109,30 +116,199 @@ small,
   font-size: var(--text-fluid-xs);
 }
 
-/* ===== ENHANCED TOUCH TARGETS ===== */
 
-/* Ensure all interactive elements meet accessibility standards */
-button,
-.btn,
-input[type="button"],
-input[type="submit"],
-.user-item,
-.schedule-slot,
-a {
-  min-height: var(--touch-target-min);
-  min-width: var(--touch-target-min);
-  padding: var(--touch-padding);
+/* ===== USER ITEM & DELETE BUTTON FIXES ===== */
+
+
+/* Dark red delete button styling */
+.delete-btn,
+.user-item .delete-btn,
+button[data-delete-user-id] {
+  background: var(--button-off-red, #8b2635) !important;
+  border-color: var(--button-off-red, #8b2635) !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+  border-radius: var(--radius-sm, 6px) !important;
+  font-weight: 500 !important;
+  padding: 6px 12px !important;
 }
 
-/* Enhanced tap targets for mobile */
-@media (hover: none) and (pointer: coarse) {
-  button,
-  .btn,
-  .user-item,
-  .schedule-slot {
-    min-height: var(--touch-target-comfortable);
-    padding: clamp(14px, 4vw, 18px);
-  }
+.delete-btn:hover,
+.user-item .delete-btn:hover,
+button[data-delete-user-id]:hover {
+  background: var(--button-off-red-hover, #a12e3f) !important;
+  border-color: var(--button-off-red-hover, #a12e3f) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(139, 38, 53, 0.3) !important;
+}
+
+/* Light theme delete button adjustments */
+.light-mode .delete-btn,
+.light-mode .user-item .delete-btn,
+body:not(.dark-mode) .delete-btn,
+body:not(.dark-mode) .user-item .delete-btn {
+  background: var(--button-off-red-light, #991b1b) !important;
+  border-color: var(--button-off-red-light, #991b1b) !important;
+}
+
+/* ===== MODERN BUTTON STATE STYLING ===== */
+
+/* Compare Mode Button Styling */
+#compare,
+.compare-button,
+button[id*="compare"] {
+  /* Default "off" state - Dark Red */
+  background: var(--button-off-red) !important;
+  border-color: var(--button-off-red) !important;
+  color: white !important;
+  transition: all 0.3s var(--animation-smooth, ease) !important;
+  font-weight: 600 !important;
+  font-size: var(--text-fluid-sm) !important;
+  padding: var(--touch-padding) calc(var(--touch-padding) * 1.5) !important;
+  border-radius: var(--radius-md, 8px) !important;
+  border: 2px solid transparent !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+#compare:hover,
+.compare-button:hover,
+button[id*="compare"]:hover {
+  background: var(--button-off-red-hover) !important;
+  border-color: var(--button-off-red-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+}
+
+/* Compare Button "ON" state - Dark Green */
+#compare.active,
+.compare-button.active,
+button[id*="compare"].active {
+  background: var(--button-on-green) !important;
+  border-color: var(--button-on-green) !important;
+  color: white !important;
+}
+
+#compare.active:hover,
+.compare-button.active:hover,
+button[id*="compare"].active:hover {
+  background: var(--button-on-green-hover) !important;
+  border-color: var(--button-on-green-hover) !important;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
+}
+
+/* Pin Mode Button Styling */
+#togglePinModeBtn,
+.pin-mode-button,
+button[id*="pin"] {
+  /* Default "off" state - Dark Red */
+  background: var(--button-off-red) !important;
+  border-color: var(--button-off-red) !important;
+  color: white !important;
+  transition: all 0.3s var(--animation-smooth, ease) !important;
+  font-weight: 600 !important;
+  font-size: var(--text-fluid-sm) !important;
+  padding: var(--touch-padding) calc(var(--touch-padding) * 1.5) !important;
+  border-radius: var(--radius-md, 8px) !important;
+  border: 2px solid transparent !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+#togglePinModeBtn:hover,
+.pin-mode-button:hover,
+button[id*="pin"]:hover {
+  background: var(--button-off-red-hover) !important;
+  border-color: var(--button-off-red-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+}
+
+/* Pin Mode Button "ON" state - Dark Green */
+#togglePinModeBtn.active,
+.pin-mode-button.active,
+button[id*="pin"].active {
+  background: var(--button-on-green) !important;
+  border-color: var(--button-on-green) !important;
+  color: white !important;
+}
+
+#togglePinModeBtn.active:hover,
+.pin-mode-button.active:hover,
+button[id*="pin"].active:hover {
+  background: var(--button-on-green-hover) !important;
+  border-color: var(--button-on-green-hover) !important;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
+}
+
+/* Disabled Button States */
+#compare:disabled,
+#togglePinModeBtn:disabled,
+.compare-button:disabled,
+.pin-mode-button:disabled {
+  background: var(--text-tertiary) !important;
+  border-color: var(--text-tertiary) !important;
+  color: var(--text-secondary) !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6 !important;
+}
+
+/* Light Theme Adjustments */
+.light-mode #compare,
+.light-mode .compare-button,
+body:not(.dark-mode) #compare,
+body:not(.dark-mode) .compare-button {
+  background: var(--button-off-red-light) !important;
+  border-color: var(--button-off-red-light) !important;
+}
+
+.light-mode #togglePinModeBtn,
+.light-mode .pin-mode-button,
+body:not(.dark-mode) #togglePinModeBtn,
+body:not(.dark-mode) .pin-mode-button {
+  background: var(--button-off-red-light) !important;
+  border-color: var(--button-off-red-light) !important;
+}
+
+.light-mode #compare.active,
+.light-mode .compare-button.active,
+body:not(.dark-mode) #compare.active,
+body:not(.dark-mode) .compare-button.active {
+  background: var(--button-on-green-light) !important;
+  border-color: var(--button-on-green-light) !important;
+}
+
+.light-mode #togglePinModeBtn.active,
+.light-mode .pin-mode-button.active,
+body:not(.dark-mode) #togglePinModeBtn.active,
+body:not(.dark-mode) .pin-mode-button.active {
+  background: var(--button-on-green-light) !important;
+  border-color: var(--button-on-green-light) !important;
+}
+
+/* Subtle animation for state transitions */
+#compare::before,
+#togglePinModeBtn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+#compare:hover::before,
+#togglePinModeBtn:hover::before {
+  left: 100%;
 }
 
 /* ===== ULTRA-WIDE SCREEN OPTIMIZATIONS ===== */
@@ -187,6 +363,7 @@ button {
 @media print {
   * {
     -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
 
@@ -365,4 +542,162 @@ button {
   .text-left-desktop {
     text-align: left;
   }
+}
+
+/* ===== MODERN BUTTON STATE STYLING ===== */
+
+/* Compare Mode Button Styling */
+#compare-button,
+.compare-button,
+button[id*="compare"] {
+  /* Default "off" state - Dark Red */
+  background: var(--button-off-red) !important;
+  border-color: var(--button-off-red) !important;
+  color: white !important;
+  transition: all 0.3s var(--animation-smooth, ease) !important;
+}
+
+#compare-button:hover,
+.compare-button:hover,
+button[id*="compare"]:hover {
+  background: var(--button-off-red-hover) !important;
+  border-color: var(--button-off-red-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+}
+
+/* Compare Button "ON" state - Dark Green */
+#compare-button.active,
+.compare-button.active,
+button[id*="compare"].active {
+  background: var(--button-on-green) !important;
+  border-color: var(--button-on-green) !important;
+  color: white !important;
+}
+
+#compare-button.active:hover,
+.compare-button.active:hover,
+button[id*="compare"].active:hover {
+  background: var(--button-on-green-hover) !important;
+  border-color: var(--button-on-green-hover) !important;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
+}
+
+/* Pin Mode Button Styling */
+#toggle-pin-mode-btn,
+.pin-mode-button,
+button[id*="pin"] {
+  /* Default "off" state - Dark Red */
+  background: var(--button-off-red) !important;
+  border-color: var(--button-off-red) !important;
+  color: white !important;
+  transition: all 0.3s var(--animation-smooth, ease) !important;
+}
+
+#toggle-pin-mode-btn:hover,
+.pin-mode-button:hover,
+button[id*="pin"]:hover {
+  background: var(--button-off-red-hover) !important;
+  border-color: var(--button-off-red-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+}
+
+/* Pin Mode Button "ON" state - Dark Green */
+#toggle-pin-mode-btn.active,
+.pin-mode-button.active,
+button[id*="pin"].active {
+  background: var(--button-on-green) !important;
+  border-color: var(--button-on-green) !important;
+  color: white !important;
+}
+
+#toggle-pin-mode-btn.active:hover,
+.pin-mode-button.active:hover,
+button[id*="pin"].active:hover {
+  background: var(--button-on-green-hover) !important;
+  border-color: var(--button-on-green-hover) !important;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
+}
+
+/* Disabled Button States */
+#compare-button:disabled,
+#toggle-pin-mode-btn:disabled,
+.compare-button:disabled,
+.pin-mode-button:disabled {
+  background: var(--text-tertiary) !important;
+  border-color: var(--text-tertiary) !important;
+  color: var(--text-secondary) !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6 !important;
+}
+
+/* Light Theme Adjustments */
+.light-mode #compare-button,
+.light-mode .compare-button,
+body:not(.dark-mode) #compare-button,
+body:not(.dark-mode) .compare-button {
+  background: var(--button-off-red-light) !important;
+  border-color: var(--button-off-red-light) !important;
+}
+
+.light-mode #toggle-pin-mode-btn,
+.light-mode .pin-mode-button,
+body:not(.dark-mode) #toggle-pin-mode-btn,
+body:not(.dark-mode) .pin-mode-button {
+  background: var(--button-off-red-light) !important;
+  border-color: var(--button-off-red-light) !important;
+}
+
+.light-mode #compare-button.active,
+.light-mode .compare-button.active,
+body:not(.dark-mode) #compare-button.active,
+body:not(.dark-mode) .compare-button.active {
+  background: var(--button-on-green-light) !important;
+  border-color: var(--button-on-green-light) !important;
+}
+
+.light-mode #toggle-pin-mode-btn.active,
+.light-mode .pin-mode-button.active,
+body:not(.dark-mode) #toggle-pin-mode-btn.active,
+body:not(.dark-mode) .pin-mode-button.active {
+  background: var(--button-on-green-light) !important;
+  border-color: var(--button-on-green-light) !important;
+}
+
+/* Enhanced Button Text Styling */
+#compare-button,
+#toggle-pin-mode-btn {
+  font-weight: 600 !important;
+  font-size: var(--text-fluid-sm) !important;
+  padding: var(--touch-padding) calc(var(--touch-padding) * 1.5) !important;
+  border-radius: var(--radius-md, 8px) !important;
+  border: 2px solid transparent !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Subtle animation for state transitions */
+#compare-button::before,
+#toggle-pin-mode-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+#compare-button:hover::before,
+#toggle-pin-mode-btn:hover::before {
+  left: 100%;
 }
