@@ -1239,29 +1239,159 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
 }
 
 function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
-  if (
-    !DOM_ELEMENTS.slotTooltip ||
-    !state.compareMode ||
-    state.selectedUserIds.size === 0
-  ) {
+  console.log("=== TOOLTIP DEBUG START ===");
+  console.log("Tooltip Debug:", {
+    hasTooltipElement: !!DOM_ELEMENTS.slotTooltip,
+    compareMode: state.compareMode,
+    selectedCount: state.selectedUserIds.size,
+    selectedUserIds: Array.from(state.selectedUserIds),
+    dayIndex,
+    timeIndex,
+  });
+
+  if (!DOM_ELEMENTS.slotTooltip) {
+    console.log("❌ No tooltip element found");
+    return;
+  }
+
+  if (!state.compareMode) {
+    console.log("❌ Not in compare mode");
     handleHideSlotTooltip();
     return;
   }
+
+  if (state.selectedUserIds.size === 0) {
+    console.log("❌ No users selected for comparison");
+    handleHideSlotTooltip();
+    return;
+  }
+
   const message = generateTooltipMessage(dayIndex, timeIndex, state);
+  console.log("✅ Generated tooltip message:", message);
+
+  if (!message) {
+    handleHideSlotTooltip();
+    return;
+  }
+
+  // Set content first
   DOM_ELEMENTS.slotTooltip.textContent = message;
+
+  // Remove any existing classes and reset styles for measurement
+  DOM_ELEMENTS.slotTooltip.classList.remove("visible");
+
+  // Force the tooltip to be measurable by temporarily overriding all CSS
+  const originalStyles = {
+    display: DOM_ELEMENTS.slotTooltip.style.display,
+    visibility: DOM_ELEMENTS.slotTooltip.style.visibility,
+    position: DOM_ELEMENTS.slotTooltip.style.position,
+    left: DOM_ELEMENTS.slotTooltip.style.left,
+    top: DOM_ELEMENTS.slotTooltip.style.top,
+    opacity: DOM_ELEMENTS.slotTooltip.style.opacity,
+    transform: DOM_ELEMENTS.slotTooltip.style.transform,
+  };
+
+  // Override all styles for measurement
+  Object.assign(DOM_ELEMENTS.slotTooltip.style, {
+    display: "block",
+    visibility: "hidden",
+    position: "absolute",
+    left: "-9999px",
+    top: "-9999px",
+    opacity: "0",
+    transform: "none",
+    maxWidth: "250px",
+    whiteSpace: "pre-line",
+    wordWrap: "break-word",
+    padding: "8px 12px",
+    fontSize: "0.875rem",
+    lineHeight: "1.4",
+  });
+
+  // Force a reflow and get measurements
+  DOM_ELEMENTS.slotTooltip.offsetHeight; // Force reflow
+  const tooltipHeight = DOM_ELEMENTS.slotTooltip.offsetHeight;
+  const tooltipWidth = DOM_ELEMENTS.slotTooltip.offsetWidth;
+
+  console.log("🔍 Measurement debug:", {
+    offsetHeight: tooltipHeight,
+    offsetWidth: tooltipWidth,
+    textContent: DOM_ELEMENTS.slotTooltip.textContent.substring(0, 50),
+    hasContent: !!DOM_ELEMENTS.slotTooltip.textContent,
+  });
+
+  // Get slot position
   const rect = slotElement.getBoundingClientRect();
-  DOM_ELEMENTS.slotTooltip.style.left = `${
-    rect.left + window.scrollX + rect.width / 2
-  }px`;
-  DOM_ELEMENTS.slotTooltip.style.top = `${
-    rect.top + window.scrollY - DOM_ELEMENTS.slotTooltip.offsetHeight - 5
-  }px`;
-  DOM_ELEMENTS.slotTooltip.style.display = "block";
-  DOM_ELEMENTS.slotTooltip.style.transform = "translateX(-50%)";
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+  // Use fallback dimensions if measurement failed
+  const finalWidth = tooltipWidth > 0 ? tooltipWidth : 200;
+  const finalHeight = tooltipHeight > 0 ? tooltipHeight : 50;
+
+  // Calculate position (centered horizontally, above the slot)
+  let left = rect.left + scrollX + rect.width / 2 - finalWidth / 2;
+  let top = rect.top + scrollY - finalHeight - 10;
+
+  // Keep tooltip within viewport bounds
+  const viewportWidth = window.innerWidth;
+  if (left < 5) left = 5;
+  if (left + finalWidth > viewportWidth - 5) {
+    left = viewportWidth - finalWidth - 5;
+  }
+
+  // If tooltip would go above viewport, show it below the slot instead
+  if (top < 5) {
+    top = rect.bottom + scrollY + 10;
+  }
+
+  // Position the tooltip and make it visible - override all CSS
+  Object.assign(DOM_ELEMENTS.slotTooltip.style, {
+    left: `${left}px`,
+    top: `${top}px`,
+    position: "absolute",
+    display: "block",
+    visibility: "visible",
+    opacity: "1",
+    zIndex: "9999",
+    transform: "none",
+    // Apply all the styling directly to override CSS conflicts
+    background: "rgba(0, 0, 0, 0.9)",
+    color: "white",
+    padding: "8px 12px",
+    borderRadius: "6px",
+    fontSize: "0.875rem",
+    lineHeight: "1.4",
+    whiteSpace: "pre-line",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    maxWidth: "250px",
+    wordWrap: "break-word",
+    pointerEvents: "none",
+  });
+
+  DOM_ELEMENTS.slotTooltip.classList.add("visible");
+
+  console.log("✅ Tooltip positioned:", {
+    left: DOM_ELEMENTS.slotTooltip.style.left,
+    top: DOM_ELEMENTS.slotTooltip.style.top,
+    finalWidth,
+    finalHeight,
+    originalHeight: tooltipHeight,
+    originalWidth: tooltipWidth,
+    display: DOM_ELEMENTS.slotTooltip.style.display,
+    visibility: DOM_ELEMENTS.slotTooltip.style.visibility,
+    opacity: DOM_ELEMENTS.slotTooltip.style.opacity,
+    isVisible: DOM_ELEMENTS.slotTooltip.classList.contains("visible"),
+    element: DOM_ELEMENTS.slotTooltip,
+  });
 }
 
 function handleHideSlotTooltip() {
-  if (DOM_ELEMENTS.slotTooltip) DOM_ELEMENTS.slotTooltip.style.display = "none";
+  if (DOM_ELEMENTS.slotTooltip) {
+    DOM_ELEMENTS.slotTooltip.style.display = "none";
+    DOM_ELEMENTS.slotTooltip.classList.remove("visible");
+  }
 }
 
 function handleExportCurrentUser() {
@@ -1433,9 +1563,18 @@ function setupEventListeners() {
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (e) => {
+      console.log(
+        "Mouseover event:",
+        e.target,
+        "Compare mode:",
+        state.compareMode,
+        "Has slot class:",
+        e.target.classList.contains("slot")
+      );
       if (state.compareMode && e.target.classList.contains("slot")) {
         const day = parseInt(e.target.dataset.day, 10),
           time = parseInt(e.target.dataset.time, 10);
+        console.log("Showing tooltip for day:", day, "time:", time);
         if (!isNaN(day) && !isNaN(time))
           handleShowSlotTooltip(e.target, day, time);
       }
@@ -1447,6 +1586,40 @@ function setupEventListeners() {
       )
         handleHideSlotTooltip();
     });
+
+    // Touch event support for mobile devices
+    DOM_ELEMENTS.scheduleTable.addEventListener("touchstart", (e) => {
+      if (state.compareMode && e.target.classList.contains("slot")) {
+        e.preventDefault(); // Prevent default touch behavior
+        const day = parseInt(e.target.dataset.day, 10),
+          time = parseInt(e.target.dataset.time, 10);
+        if (!isNaN(day) && !isNaN(time))
+          handleShowSlotTooltip(e.target, day, time);
+      }
+    });
+
+    DOM_ELEMENTS.scheduleTable.addEventListener("touchend", (e) => {
+      if (
+        e.target.classList.contains("slot") ||
+        e.target === DOM_ELEMENTS.scheduleTable
+      ) {
+        // Hide tooltip after a delay to allow reading
+        setTimeout(() => {
+          handleHideSlotTooltip();
+        }, 2000);
+      }
+    });
+
+    // Hide tooltip when touching elsewhere on the document
+    document.addEventListener("touchstart", (e) => {
+      if (
+        state.compareMode &&
+        !e.target.closest("#scheduleTable") &&
+        !e.target.closest("#slotTooltip")
+      ) {
+        handleHideSlotTooltip();
+      }
+    });
   }
 }
 
@@ -1454,9 +1627,20 @@ function setupEventListeners() {
    INITIALIZATION
 ================================== */
 function initializeApp() {
-  initializeDomElements(); // Initialize DOM_ELEMENTS from domElements.js
-  initModal(DOM_ELEMENTS); // Initialize Modal system from modal.js
+  initializeDomElements();
 
+  // Create tooltip if it doesn't exist
+  if (!DOM_ELEMENTS.slotTooltip) {
+    const tooltip = document.createElement("div");
+    tooltip.id = "slotTooltip";
+    tooltip.className = "slot-tooltip";
+    tooltip.style.display = "none";
+    document.body.appendChild(tooltip);
+    DOM_ELEMENTS.slotTooltip = tooltip;
+    console.log("Tooltip element created dynamically");
+  }
+
+  initModal(DOM_ELEMENTS);
   loadStateFromStorage();
   setupInputValidation();
   setupEventListeners();

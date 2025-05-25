@@ -73,6 +73,9 @@ export function initializeDomElements() {
     "addTimeSlotHeaderCell"
   );
 
+  // Debug log to check if tooltip element is found
+  console.log('Tooltip element found:', !!DOM_ELEMENTS.slotTooltip);
+
   // Log missing critical elements
   for (const key in DOM_ELEMENTS) {
     if (DOM_ELEMENTS[key] === null) {

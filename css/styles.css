@@ -330,7 +330,8 @@ Brand identity with icon and text
   height: 2px;
   background: var(--gradient-title);
   background-size: 300% 300%;
-  animation: waveGradient 8s ease-in-out infinite, pulseGlow 4s ease-in-out infinite alternate; /* Combined animations */
+  animation: waveGradient 8s ease-in-out infinite,
+    pulseGlow 4s ease-in-out infinite alternate; /* Combined animations */
   border-radius: 2px;
   opacity: 0.8;
 }
@@ -476,21 +477,27 @@ Brand identity with icon and text
 
 /* Add this keyframe animation for the gradient wave effect */
 @keyframes waveGradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Add the pulseGlow animation for the underline glow effect */
 @keyframes pulseGlow {
-  from { 
-    box-shadow: 0 0 5px rgba(255, 182, 255, 0.6); 
+  from {
+    box-shadow: 0 0 5px rgba(255, 182, 255, 0.6);
   }
-  to { 
-    box-shadow: 0 0 20px rgba(255, 182, 255, 0.9), 0 0 30px rgba(255, 182, 255, 0.4); 
+  to {
+    box-shadow: 0 0 20px rgba(255, 182, 255, 0.9),
+      0 0 30px rgba(255, 182, 255, 0.4);
   }
 }
-
 
 @media (max-width: 768px) {
   .top-nav {
@@ -1111,7 +1118,7 @@ Main call-to-action buttons with gradient background and prominent styling
     var(--accent-primary),
     var(--accent-secondary)
   ); /* Purple gradient for brand consistency */
-  
+
   color: var(--text-primary);
   border: 1px solid var(--border); /* Subtle border for definition */
 }
@@ -1947,18 +1954,18 @@ Ensure all slot states have proper border visibility
     display: flex;
     flex-direction: column;
   }
-  
+
   @media (min-width: 900px) {
     .content-grid {
       flex-direction: row;
       gap: 2rem;
     }
-    
+
     .controls-column {
       flex: 1;
       max-width: 400px;
     }
-    
+
     .schedule-column {
       flex: 2.5;
     }
@@ -1983,4 +1990,59 @@ Ensure all slot states have proper border visibility
 .nav-center,
 .nav-right {
   gap: var(--space-lg);
+}
+
+/* Enhanced slot tooltip styling */
+#slotTooltip {
+  position: absolute;
+  background: var(--depth-floating, rgba(0, 0, 0, 0.9));
+  color: var(--text-primary, white);
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: pre-line;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 250px;
+  word-wrap: break-word;
+  display: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateX(-50%) scale(0.8);
+}
+
+/* Light mode tooltip */
+.light-mode #slotTooltip,
+body:not(.dark-mode) #slotTooltip {
+  background: var(--surface, rgba(255, 255, 255, 0.95)) !important;
+  color: var(--text-primary, #1a1a1a) !important;
+  border-color: var(--border, rgba(0, 0, 0, 0.1)) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure tooltip is visible when shown */
+#slotTooltip[style*="display: block"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Visible state for tooltip - higher specificity */
+#slotTooltip.visible {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: translateX(-50%) scale(1) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Hidden state for tooltip */
+#slotTooltip:not(.visible) {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
