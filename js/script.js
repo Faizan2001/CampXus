@@ -1606,7 +1606,7 @@ function setupEventListeners() {
         // Hide tooltip after a delay to allow reading
         setTimeout(() => {
           handleHideSlotTooltip();
-        }, 2000);
+        }, 4000);
       }
     });
 
