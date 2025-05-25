@@ -294,7 +294,7 @@ Brand identity with icon and text
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: clamp(1rem, 3vw, 1.5rem); /* Fluid logo sizing */
+  font-size: clamp(1.3rem, 3vw, 1.7rem); /* Fluid logo sizing */
   font-weight: 700;
   color: var(--text-primary);
   text-decoration: none;

@@ -107,8 +107,7 @@ h4 {
   font-size: var(--text-fluid-lg);
 }
 p,
-li,
-span {
+li {
   font-size: var(--text-fluid-base);
 }
 small,
