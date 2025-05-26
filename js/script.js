@@ -10,6 +10,7 @@ import {
   isValidTimeFormat,
   isValidStrictHHMMTimeFormat,
   convertToHHMM,
+  validateTimeSlotAdvanced,
 } from "./timeUtils.js";
 import {
   handleExportCurrentUser,
@@ -196,30 +197,6 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
       content: "Please select an active user to add a custom time slot.",
       title: "No Active User",
     });
-    return false; // Indicate failure
-  }
-
-  const trimmedStartTime = startTime.trim();
-  const trimmedEndTime = endTime.trim();
-
-  if (!trimmedStartTime || !trimmedEndTime) {
-    showModal({
-      content: "Both Start Time and End Time are required.",
-      title: "Input Error",
-    });
-    return false;
-  }
-
-  // Initial validation of user input format (allows AM/PM, HH:MM, H:MM)
-  if (
-    !isValidTimeFormat(trimmedStartTime) ||
-    !isValidTimeFormat(trimmedEndTime)
-  ) {
-    showModal({
-      content:
-        "Invalid time format. Please use formats like '8:00 AM', '08:00', '5:30 PM', or '17:30'.",
-      title: "Invalid Time Format",
-    });
     return false;
   }
 
@@ -229,94 +206,46 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
     user.timeSlots = []; // Initialize if missing
   }
 
-  // Convert user input to strict "HH:MM" (24-hour) format
-  const hhmmStartTime = convertToHHMM(trimmedStartTime);
-  const hhmmEndTime = convertToHHMM(trimmedEndTime);
-
-  // After conversion, validate that the results are indeed in strict HH:MM format.
-  // This catches cases where convertToHHMM might return the original input if it couldn't parse it
-  // and that original input wasn't strictly HH:MM.
-  if (
-    !isValidStrictHHMMTimeFormat(hhmmStartTime) ||
-    !isValidStrictHHMMTimeFormat(hhmmEndTime)
-  ) {
-    showModal({
-      content: `Could not process the entered times into a standard format. Received: "${trimmedStartTime}" and "${trimmedEndTime}". Please use HH:MM or H:MM AM/PM.`,
-      title: "Time Processing Error",
-    });
-    return false;
-  }
-
-  // Validate that start time is before end time using the consistent HH:MM format
-  if (!isTimeBefore(hhmmStartTime, hhmmEndTime)) {
-    showModal({
-      content: `Start time (${hhmmStartTime}) must be before end time (${hhmmEndTime}).`,
-      title: "Invalid Time Range",
-    });
-    return false;
-  }
-
-  // Create the label using the consistent "HH:MM" format
-  const newSlotLabel = `${hhmmStartTime}-${hhmmEndTime}`;
-
-  // Check for duplicate labels (case-insensitive)
-  if (
-    user.timeSlots.some(
-      (slot) => slot.label.toUpperCase() === newSlotLabel.toUpperCase()
-    )
-  ) {
-    showModal({
-      content: `A time slot with the label "${newSlotLabel}" already exists for ${user.name}.`,
-      title: "Duplicate Time Slot",
-    });
-    return false;
-  }
-
-  // Check for overlap with existing time slots
-  for (let i = 0; i < user.timeSlots.length; i++) {
-    const existingSlot = user.timeSlots[i];
-    
-    // Check if new slot overlaps with existing slot
-    // Overlap occurs if:
-    // 1. New start is before existing end AND new end is after existing start
-    const newStartMinutes = parseTime(hhmmStartTime);
-    const newEndMinutes = parseTime(hhmmEndTime);
-    const existingStartMinutes = parseTime(existingSlot.start);
-    const existingEndMinutes = parseTime(existingSlot.end);
-    
-    if (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes) {
-      showModal({
-        content: `The time slot ${newSlotLabel} overlaps with existing slot ${existingSlot.label}. New time slots must not overlap with existing ones.`,
-        title: "Time Slot Overlap",
-      });
-      return false;
+  // Use advanced validation
+  const validation = validateTimeSlotAdvanced(
+    startTime,
+    endTime,
+    user.timeSlots,
+    {
+      allowOverlaps: false,
+      requireSequential: true,
+      minDuration: 15,
+      maxDuration: 480,
     }
-  }
+  );
 
-  // Check that new slot starts after the last existing slot
-  if (user.timeSlots.length > 0) {
-    // Find the slot with the latest end time
-    const latestEndTime = user.timeSlots.reduce((latest, slot) => {
-      const latestMinutes = parseTime(latest);
-      const slotEndMinutes = parseTime(slot.end);
-      return slotEndMinutes > latestMinutes ? slot.end : latest;
-    }, "00:00");
-    
-    if (!isTimeBefore(latestEndTime, hhmmStartTime)) {
-      showModal({
-        content: `New time slot must start after the last existing slot ends (${latestEndTime}). Please choose a start time after ${latestEndTime}.`,
-        title: "Invalid Time Slot Position",
+  // Handle validation errors
+  if (!validation.success) {
+    let errorContent = "Time slot validation failed:\n\n";
+    validation.errors.forEach((error, index) => {
+      errorContent += `${index + 1}. ${error}\n`;
+    });
+
+    // Add suggestions if there are conflicting slots
+    if (validation.conflictingSlots.length > 0) {
+      errorContent += "\nConflicting slots:\n";
+      validation.conflictingSlots.forEach((conflict) => {
+        errorContent += `• ${conflict.label} (${conflict.start}-${conflict.end})\n`;
       });
-      return false;
     }
+
+    showModal({
+      content: errorContent.trim(),
+      title: "Invalid Time Slot",
+    });
+    return false;
   }
 
-  // --- Store the CONVERTED "HH:MM" times for consistency ---
-  // This makes future comparisons and processing easier.
+  // Add the validated time slot
   user.timeSlots.push({
-    start: hhmmStartTime,
-    end: hhmmEndTime,
-    label: newSlotLabel,
+    start: validation.normalizedStartTime,
+    end: validation.normalizedEndTime,
+    label: validation.suggestedLabel,
   });
 
   // Expand the schedule matrix for the new slot
@@ -330,11 +259,23 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
   saveStateToStorage();
   updateUI();
+
+  // Show success message with any warnings
+  let successContent = `New time slot "${validation.suggestedLabel}" added for ${user.name}.`;
+  successContent += `\nDuration: ${validation.duration} minutes`;
+
+  if (validation.warnings.length > 0) {
+    successContent += "\n\nNotes:\n";
+    validation.warnings.forEach((warning) => {
+      successContent += `• ${warning}\n`;
+    });
+  }
+
   showModal({
-    content: `New time slot "${newSlotLabel}" added for ${user.name}.`,
-    title: "Time Slot Added",
+    content: successContent.trim(),
+    title: "Time Slot Added Successfully",
   });
-  return true; // Indicate success
+  return true;
 }
 
 // .........................................

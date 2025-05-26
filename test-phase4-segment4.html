@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phase 4 Segment 4 - Schedule Merging Tests</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #333;
+        line-height: 1.6;
+      }
+
+      .test-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        color: #4a5568;
+        margin-bottom: 30px;
+        font-size: 2.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      h2 {
+        color: #2d3748;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 10px;
+        margin-top: 30px;
+      }
+
+      h3 {
+        color: #4a5568;
+        margin-top: 25px;
+      }
+
+      .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+      }
+
+      .test-result {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 8px;
+        font-weight: bold;
+      }
+
+      .test-pass {
+        background: rgba(72, 187, 120, 0.2);
+        border: 1px solid #48bb78;
+        color: #2f855a;
+      }
+
+      .test-fail {
+        background: rgba(245, 101, 101, 0.2);
+        border: 1px solid #f56565;
+        color: #c53030;
+      }
+
+      .test-info {
+        background: rgba(66, 153, 225, 0.2);
+        border: 1px solid #4299e1;
+        color: #2b6cb0;
+      }
+
+      .matrix-display {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+      }
+
+      .matrix-cell {
+        padding: 8px;
+        text-align: center;
+        border-radius: 5px;
+        font-size: 0.9em;
+        font-weight: bold;
+      }
+
+      .status-free {
+        background: rgba(72, 187, 120, 0.3);
+        border: 1px solid #48bb78;
+        color: #2f855a;
+      }
+
+      .status-conflict {
+        background: rgba(245, 101, 101, 0.3);
+        border: 1px solid #f56565;
+        color: #c53030;
+      }
+
+      .status-partial {
+        background: rgba(237, 137, 54, 0.3);
+        border: 1px solid #ed8936;
+        color: #c05621;
+      }
+
+      .user-info {
+        background: rgba(128, 90, 213, 0.1);
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 3px solid #805ad5;
+      }
+
+      .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 15px 0;
+      }
+
+      .stat-card {
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .stat-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #667eea;
+      }
+
+      .stat-label {
+        color: #4a5568;
+        font-size: 0.9em;
+      }
+
+      code {
+        background: rgba(0, 0, 0, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+      }
+
+      .availability-list {
+        background: rgba(255, 255, 255, 0.6);
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
+      }
+
+      .availability-item {
+        padding: 8px;
+        margin: 5px 0;
+        border-radius: 5px;
+        background: rgba(72, 187, 120, 0.2);
+        border-left: 3px solid #48bb78;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-container">
+      <h1>🚀 Phase 4 Segment 4 - Schedule Merging Tests</h1>
+      <div class="test-info">
+        <strong>Testing Suite:</strong> UnifiedSchedule class,
+        createUnifiedSchedule(), and compareUserAvailability()<br />
+        <strong>Purpose:</strong> Enable cross-user schedule comparison with
+        different time slot structures<br />
+        <strong>Features:</strong> Alice/Bob style comparison, conflict
+        detection, common availability finding
+      </div>
+
+      <h2>📊 Test Results</h2>
+      <div id="testResults"></div>
+
+      <h2>👥 User Scenarios</h2>
+      <div id="userScenarios"></div>
+
+      <h2>🔍 Detailed Analysis</h2>
+      <div id="detailedAnalysis"></div>
+
+      <h2>📈 Summary Statistics</h2>
+      <div id="summaryStats"></div>
+    </div>
+
+    <script type="module">
+      import {
+        UnifiedSchedule,
+        createUnifiedSchedule,
+        compareUserAvailability,
+        parseTime,
+        TimeInterval,
+      } from "./js/timeUtils.js";
+
+      // Test utilities
+      function runTest(testName, testFunction) {
+        try {
+          const result = testFunction();
+          const success =
+            result === true || (result && result.success !== false);
+
+          return {
+            name: testName,
+            success: success,
+            result: result,
+            error: null,
+          };
+        } catch (error) {
+          return {
+            name: testName,
+            success: false,
+            result: null,
+            error: error.message,
+          };
+        }
+      }
+
+      function displayTest(test) {
+        const className = test.success ? "test-pass" : "test-fail";
+        const status = test.success ? "✅ PASS" : "❌ FAIL";
+        let details = "";
+
+        if (test.error) {
+          details = `<br><strong>Error:</strong> ${test.error}`;
+        } else if (
+          test.result &&
+          typeof test.result === "object" &&
+          test.result.details
+        ) {
+          details = `<br><strong>Details:</strong> ${test.result.details}`;
+        }
+
+        return `<div class="test-result ${className}">
+                ${status}: ${test.name}${details}
+            </div>`;
+      }
+
+      // Sample users with different time slot structures
+      const alice = {
+        id: "alice",
+        name: "Alice",
+        timeSlots: [
+          { start: "09:00", end: "09:30", label: "09:00-09:30" },
+          { start: "09:30", end: "10:00", label: "09:30-10:00" },
+          { start: "10:00", end: "10:30", label: "10:00-10:30" },
+          { start: "10:30", end: "11:00", label: "10:30-11:00" },
+          { start: "14:00", end: "14:30", label: "14:00-14:30" },
+          { start: "14:30", end: "15:00", label: "14:30-15:00" },
+        ],
+        schedule: [
+          // Sunday: Busy 9:00-10:00, Free 10:00-11:00, Busy 14:00-15:00
+          [true, true, false, false, true, true],
+          // Monday: Free 9:00-10:30, Busy 10:30-11:00, Free 14:00-15:00
+          [false, false, false, true, false, false],
+          // Tuesday: All free
+          [false, false, false, false, false, false],
+          // Wednesday: All busy
+          [true, true, true, true, true, true],
+          // Thursday: Alternating
+          [true, false, true, false, true, false],
+          // Friday: Busy morning, free afternoon
+          [true, true, true, true, false, false],
+          // Saturday: Free morning, busy afternoon
+          [false, false, false, false, true, true],
+        ],
+      };
+
+      const bob = {
+        id: "bob",
+        name: "Bob",
+        timeSlots: [
+          { start: "09:00", end: "10:00", label: "09:00-10:00" },
+          { start: "10:00", end: "11:00", label: "10:00-11:00" },
+          { start: "14:00", end: "15:00", label: "14:00-15:00" },
+          { start: "15:00", end: "16:00", label: "15:00-16:00" },
+        ],
+        schedule: [
+          // Sunday: Busy 9:00-10:00, Free 10:00-11:00, Free 14:00-16:00
+          [true, false, false, false],
+          // Monday: Free 9:00-11:00, Busy 14:00-15:00, Free 15:00-16:00
+          [false, false, true, false],
+          // Tuesday: All free
+          [false, false, false, false],
+          // Wednesday: All busy
+          [true, true, true, true],
+          // Thursday: Free 9:00-10:00, Busy 10:00-11:00, Free 14:00-16:00
+          [false, true, false, false],
+          // Friday: Busy all
+          [true, true, true, true],
+          // Saturday: Free all
+          [false, false, false, false],
+        ],
+      };
+
+      const charlie = {
+        id: "charlie",
+        name: "Charlie",
+        timeSlots: [
+          { start: "08:30", end: "09:30", label: "08:30-09:30" },
+          { start: "09:30", end: "10:30", label: "09:30-10:30" },
+          { start: "10:30", end: "11:30", label: "10:30-11:30" },
+          { start: "13:30", end: "14:30", label: "13:30-14:30" },
+          { start: "14:30", end: "15:30", label: "14:30-15:30" },
+        ],
+        schedule: [
+          // Sunday: Busy 8:30-10:30, Free 10:30-11:30, Free 13:30-15:30
+          [true, true, false, false, false],
+          // Monday: Free 8:30-9:30, Busy 9:30-11:30, Free 13:30-15:30
+          [false, true, true, false, false],
+          // Tuesday: All free
+          [false, false, false, false, false],
+          // Wednesday: Alternating
+          [true, false, true, false, true],
+          // Thursday: All busy
+          [true, true, true, true, true],
+          // Friday: Free morning, busy afternoon
+          [false, false, false, true, true],
+          // Saturday: Busy morning, free afternoon
+          [true, true, true, false, false],
+        ],
+      };
+
+      // Test cases
+      const tests = [
+        // Basic UnifiedSchedule tests
+        {
+          name: "UnifiedSchedule: Create empty instance",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            return (
+              schedule.users.size === 0 &&
+              schedule.unifiedTimeSlots.length === 0
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Add single user",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+
+            return (
+              schedule.users.size === 1 &&
+              schedule.users.has("alice") &&
+              schedule.unifiedTimeSlots.length === alice.timeSlots.length
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Add multiple users with different time structures",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            // Should merge and create unified time slots
+            return (
+              schedule.users.size === 2 &&
+              schedule.unifiedTimeSlots.length >=
+                Math.max(alice.timeSlots.length, bob.timeSlots.length)
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Remove user",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            const beforeSize = schedule.users.size;
+            schedule.removeUser("alice");
+
+            return (
+              beforeSize === 2 &&
+              schedule.users.size === 1 &&
+              !schedule.users.has("alice")
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Get slot status - all available",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            // Tuesday (day 2) - both users are free
+            const status = schedule.getSlotStatus(2, 0);
+
+            return (
+              status.available.length === 2 &&
+              status.busy.length === 0 &&
+              status.total === 2
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Get slot status - conflict (all busy)",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            // Wednesday (day 3) - both users are busy
+            const status = schedule.getSlotStatus(3, 0);
+
+            return (
+              status.busy.length === 2 &&
+              status.available.length === 0 &&
+              status.total === 2
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Get slot status - partial availability",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            // Monday (day 1) - mixed availability
+            const status = schedule.getSlotStatus(1, 0);
+
+            return (
+              (status.busy.length > 0 && status.available.length > 0) ||
+              status.unavailable.length > 0
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Find common availability",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            // Tuesday (day 2) - both are free
+            const commonSlots = schedule.findCommonAvailability(2);
+
+            return (
+              commonSlots.length > 0 &&
+              commonSlots.every(
+                (slot) =>
+                  slot.participants.length === 2 &&
+                  slot.participants.some((p) => p.userId === "alice") &&
+                  slot.participants.some((p) => p.userId === "bob")
+              )
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Generate comparison matrix",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            const matrix = schedule.generateComparisonMatrix();
+
+            return (
+              matrix.length === 7 && // 7 days
+              matrix.every((dayRow) => dayRow.length > 0) &&
+              matrix[0][0].hasOwnProperty("status") &&
+              matrix[0][0].hasOwnProperty("details") &&
+              matrix[0][0].hasOwnProperty("tooltip")
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Export schedule data",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            const exported = schedule.export();
+
+            return (
+              exported.hasOwnProperty("users") &&
+              exported.hasOwnProperty("unifiedTimeSlots") &&
+              exported.hasOwnProperty("metadata") &&
+              exported.metadata.totalUsers === 2
+            );
+          },
+        },
+
+        {
+          name: "UnifiedSchedule: Get summary statistics",
+          test: () => {
+            const schedule = new UnifiedSchedule();
+            schedule.addUser(
+              alice.id,
+              alice.name,
+              alice.timeSlots,
+              alice.schedule
+            );
+            schedule.addUser(bob.id, bob.name, bob.timeSlots, bob.schedule);
+
+            const summary = schedule.getSummary();
+
+            return (
+              summary.hasOwnProperty("totalUsers") &&
+              summary.hasOwnProperty("totalTimeSlots") &&
+              summary.hasOwnProperty("totalConflicts") &&
+              summary.hasOwnProperty("totalFreeSlots") &&
+              summary.totalUsers === 2
+            );
+          },
+        },
+
+        // Helper function tests
+        {
+          name: "createUnifiedSchedule: Create from user array",
+          test: () => {
+            const schedule = createUnifiedSchedule([alice, bob]);
+
+            return (
+              schedule instanceof UnifiedSchedule &&
+              schedule.users.size === 2 &&
+              schedule.unifiedTimeSlots.length > 0
+            );
+          },
+        },
+
+        {
+          name: "createUnifiedSchedule: Handle empty array",
+          test: () => {
+            const schedule = createUnifiedSchedule([]);
+
+            return (
+              schedule instanceof UnifiedSchedule &&
+              schedule.users.size === 0 &&
+              schedule.unifiedTimeSlots.length === 0
+            );
+          },
+        },
+
+        {
+          name: "createUnifiedSchedule: Handle invalid user data",
+          test: () => {
+            const invalidUser = { id: "invalid", name: "Invalid" }; // Missing timeSlots and schedule
+            const schedule = createUnifiedSchedule([alice, invalidUser, bob]);
+
+            // Should only add valid users
+            return (
+              schedule.users.size === 2 &&
+              schedule.users.has("alice") &&
+              schedule.users.has("bob") &&
+              !schedule.users.has("invalid")
+            );
+          },
+        },
+
+        {
+          name: "compareUserAvailability: Two-user comparison",
+          test: () => {
+            const result = compareUserAvailability(alice, bob, 2); // Tuesday
+
+            return (
+              result.hasOwnProperty("commonSlots") &&
+              result.hasOwnProperty("summary") &&
+              result.hasOwnProperty("matrix") &&
+              Array.isArray(result.commonSlots) &&
+              result.commonSlots.length > 0
+            );
+          },
+        },
+
+        {
+          name: "Three-user scenario: Complex overlapping schedules",
+          test: () => {
+            const schedule = createUnifiedSchedule([alice, bob, charlie]);
+
+            // Find Tuesday common availability (all three are free)
+            const tuesdayCommon = schedule.findCommonAvailability(2);
+
+            return (
+              schedule.users.size === 3 &&
+              tuesdayCommon.length > 0 &&
+              tuesdayCommon.every((slot) => slot.participants.length === 3)
+            );
+          },
+        },
+      ];
+
+      // Run all tests
+      const testResults = tests.map((test) => runTest(test.name, test.test));
+      const passedTests = testResults.filter((test) => test.success).length;
+      const totalTests = testResults.length;
+
+      // Display results
+      document.getElementById("testResults").innerHTML = `
+            <div class="test-info">
+                <strong>Test Summary:</strong> ${passedTests}/${totalTests} tests passed 
+                (${Math.round((passedTests / totalTests) * 100)}% success rate)
+            </div>
+            ${testResults.map(displayTest).join("")}
+        `;
+
+      // Display user scenarios
+      function displayUserScenarios() {
+        return `
+                <div class="user-info">
+                    <h3>👩‍💼 Alice (30-minute slots)</h3>
+                    <strong>Time Slots:</strong> ${alice.timeSlots
+                      .map((slot) => slot.label)
+                      .join(", ")}<br>
+                    <strong>Structure:</strong> 6 slots of 30 minutes each<br>
+                    <strong>Example Schedule:</strong> Mixed availability throughout the week
+                </div>
+                
+                <div class="user-info">
+                    <h3>👨‍💼 Bob (1-hour slots)</h3>
+                    <strong>Time Slots:</strong> ${bob.timeSlots
+                      .map((slot) => slot.label)
+                      .join(", ")}<br>
+                    <strong>Structure:</strong> 4 slots of 1 hour each<br>
+                    <strong>Example Schedule:</strong> Different time granularity than Alice
+                </div>
+                
+                <div class="user-info">
+                    <h3>👨‍🎓 Charlie (1-hour slots, offset times)</h3>
+                    <strong>Time Slots:</strong> ${charlie.timeSlots
+                      .map((slot) => slot.label)
+                      .join(", ")}<br>
+                    <strong>Structure:</strong> 5 slots with 30-minute offset from Bob<br>
+                    <strong>Example Schedule:</strong> Demonstrates complex merging scenarios
+                </div>
+            `;
+      }
+
+      document.getElementById("userScenarios").innerHTML =
+        displayUserScenarios();
+
+      // Detailed analysis
+      function performDetailedAnalysis() {
+        const schedule = createUnifiedSchedule([alice, bob, charlie]);
+        const matrix = schedule.generateComparisonMatrix();
+        const summary = schedule.getSummary();
+
+        // Analyze Tuesday (day 2) - should be mostly free
+        const tuesdayAnalysis = matrix[2];
+        const tuesdayCommon = schedule.findCommonAvailability(2);
+
+        // Analyze Wednesday (day 3) - should have conflicts
+        const wednesdayAnalysis = matrix[3];
+
+        return `
+                <div class="test-section">
+                    <h3>🔬 Three-User Schedule Analysis</h3>
+                    <div class="test-info">
+                        <strong>Unified Time Slots:</strong> ${
+                          schedule.unifiedTimeSlots.length
+                        } total slots<br>
+                        <strong>Time Range:</strong> ${
+                          schedule.unifiedTimeSlots[0]?.label
+                        } to ${
+          schedule.unifiedTimeSlots[schedule.unifiedTimeSlots.length - 1]?.label
+        }
+                    </div>
+                    
+                    <h4>📅 Tuesday Analysis (Generally Free Day)</h4>
+                    <div class="availability-list">
+                        <strong>Common availability slots:</strong> ${
+                          tuesdayCommon.length
+                        }<br>
+                        ${tuesdayCommon
+                          .map(
+                            (slot) =>
+                              `<div class="availability-item">
+                                ${slot.slot.label} - All 3 users available
+                            </div>`
+                          )
+                          .join("")}
+                    </div>
+                    
+                    <h4>📅 Tuesday Status Matrix</h4>
+                    <div class="matrix-display">
+                        ${tuesdayAnalysis
+                          .map(
+                            (cell) =>
+                              `<div class="matrix-cell status-${cell.status}">
+                                ${cell.timeSlot.label}<br>
+                                ${cell.status.toUpperCase()}
+                            </div>`
+                          )
+                          .join("")}
+                    </div>
+                    
+                    <h4>⚠️ Wednesday Analysis (Conflict Day)</h4>
+                    <div class="matrix-display">
+                        ${wednesdayAnalysis
+                          .slice(0, 8)
+                          .map(
+                            (cell) =>
+                              `<div class="matrix-cell status-${cell.status}">
+                                ${cell.timeSlot.label}<br>
+                                ${cell.status.toUpperCase()}<br>
+                                <small>${cell.details.busy.length}B/${
+                                cell.details.available.length
+                              }A/${cell.details.unavailable.length}N</small>
+                            </div>`
+                          )
+                          .join("")}
+                    </div>
+                    <small>B=Busy, A=Available, N=No slot</small>
+                </div>
+                
+                <div class="test-section">
+                    <h3>🎯 Alice vs Bob Direct Comparison</h3>
+                    ${(() => {
+                      const comparison = compareUserAvailability(alice, bob, 1); // Monday
+                      return `
+                            <div class="test-info">
+                                <strong>Monday Common Slots:</strong> ${
+                                  comparison.commonSlots.length
+                                }<br>
+                                <strong>Matrix Analysis:</strong> ${
+                                  comparison.matrix.length
+                                } time periods analyzed
+                            </div>
+                            <div class="availability-list">
+                                ${comparison.commonSlots
+                                  .map(
+                                    (slot) =>
+                                      `<div class="availability-item">
+                                        ${slot.slot.label} - Both Alice & Bob available
+                                    </div>`
+                                  )
+                                  .join("")}
+                            </div>
+                        `;
+                    })()}
+                </div>
+            `;
+      }
+
+      document.getElementById("detailedAnalysis").innerHTML =
+        performDetailedAnalysis();
+
+      // Summary statistics
+      function displaySummaryStats() {
+        const schedule = createUnifiedSchedule([alice, bob, charlie]);
+        const summary = schedule.getSummary();
+        const exported = schedule.export();
+
+        return `
+                <div class="summary-stats">
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.totalUsers}</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.totalTimeSlots}</div>
+                        <div class="stat-label">Unified Time Slots</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${
+                          summary.totalPossibleSlots
+                        }</div>
+                        <div class="stat-label">Total Possible Slots</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.totalConflicts}</div>
+                        <div class="stat-label">Full Conflicts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.totalFreeSlots}</div>
+                        <div class="stat-label">Completely Free Slots</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${Math.round(
+                          summary.averageBusyPerSlot * 100
+                        )}%</div>
+                        <div class="stat-label">Average Busy Rate</div>
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <h3>📊 Export Data Validation</h3>
+                    <div class="test-info">
+                        <strong>Export Structure Valid:</strong> ✅<br>
+                        <strong>Users in Export:</strong> ${
+                          Object.keys(exported.users).length
+                        }<br>
+                        <strong>Metadata Present:</strong> ✅<br>
+                        <strong>Generated At:</strong> ${
+                          exported.metadata.generatedAt
+                        }<br>
+                        <strong>Total Unified Slots:</strong> ${
+                          exported.unifiedTimeSlots.length
+                        }
+                    </div>
+                </div>
+            `;
+      }
+
+      document.getElementById("summaryStats").innerHTML = displaySummaryStats();
+
+      console.log("Phase 4 Segment 4 tests completed!");
+      console.log(`Test Results: ${passedTests}/${totalTests} passed`);
+
+      // Log sample unified schedule for debugging
+      const sampleSchedule = createUnifiedSchedule([alice, bob]);
+      console.log("Sample unified schedule:", sampleSchedule.export());
+    </script>
+  </body>
+</html>
