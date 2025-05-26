@@ -730,9 +730,9 @@ while maintaining schedule visibility on mobile.
   .schedule-section {
     grid-column: 2;
     grid-row: 1 / -1; /* Span all rows */
-    height: auto;
+    height: fit-content; /* Scale with content */
     max-height: calc(
-      100vh - 8rem
+      100vh - 6rem
     ); /* Optimized height for better desktop utilization */
     order: unset;
   }
@@ -818,9 +818,9 @@ while maintaining schedule visibility on mobile.
   .schedule-section {
     grid-column: 2;
     grid-row: 1 / -1;
-    height: auto;
+    height: fit-content; /* Scale with content */
     max-height: calc(
-      100vh - 6rem
+      100vh - 4rem
     ); /* Maximize height utilization on wide screens */
     order: unset;
   }
@@ -1498,13 +1498,21 @@ Improved layout for user info and action components
 
 /* 
 --- SCHEDULE CONTAINER ---
-🎨 VISUAL FIX: Addresses "excessive height" issue with responsive max-height limits
+🎨 VISUAL FIX: Make glass card scale properly with schedule table content
 */
 .schedule-section {
-  height: auto;
+  display: flex;
+  flex-direction: column;
+  height: fit-content; /* Allow glass card to scale with content */
   max-height: calc(
-    100vh - 12rem
-  ); /* Prevent excessive height on mobile - FIXED */
+    100vh - 8rem
+  ); /* Reasonable max height to prevent excessive growth */
+  overflow: hidden; /* Ensure content stays within bounds */
+}
+
+.schedule-section h3 {
+  flex-shrink: 0; /* Prevent header from shrinking */
+  margin-bottom: 1rem;
 }
 
 .schedule-wrapper {
@@ -1515,9 +1523,9 @@ Improved layout for user info and action components
   box-shadow: var(--shadow-xl); /* Deep shadow for elevation */
   border: 1px solid var(--border);
   position: relative; /* For sticky positioning context */
-  height: 100%; /* Take full available height of parent */
-  min-height: 400px; /* Minimum height for usability */
-  max-height: calc(100vh - 16rem); /* Dynamic height based on viewport */
+  flex: 1; /* Take remaining space after header */
+  min-height: 300px; /* Minimum height for usability */
+  max-height: calc(100vh - 12rem); /* Dynamic height constraint */
 }
 
 /* 
@@ -1638,6 +1646,45 @@ Enhanced table layout with proper column distribution and fixed sizing
   padding: 8px !important;
   border: 1px solid var(--border) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 
+--- ADDITIONAL SCHEDULE WRAPPER CONTAINMENT ---
+Ensure the schedule wrapper properly fits within the glass card
+*/
+.schedule-wrapper {
+  /* Ensure proper containment within glass card */
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Ensure the schedule table doesn't overflow the wrapper */
+.schedule-table {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Mobile-specific adjustments for proper containment */
+@media (max-width: 768px) {
+  .schedule-section {
+    max-height: calc(100vh - 10rem); /* Adjust for mobile header/nav */
+  }
+
+  .schedule-wrapper {
+    min-height: 250px; /* Smaller minimum on mobile */
+    max-height: calc(100vh - 14rem); /* Account for mobile interface elements */
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-section {
+    max-height: calc(100vh - 12rem); /* Account for smaller mobile screens */
+  }
+
+  .schedule-wrapper {
+    min-height: 200px; /* Even smaller minimum on very small screens */
+    max-height: calc(100vh - 16rem);
+  }
 }
 
 /* 

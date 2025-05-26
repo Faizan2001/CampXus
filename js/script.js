@@ -272,6 +272,45 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
     return false;
   }
 
+  // Check for overlap with existing time slots
+  for (let i = 0; i < user.timeSlots.length; i++) {
+    const existingSlot = user.timeSlots[i];
+    
+    // Check if new slot overlaps with existing slot
+    // Overlap occurs if:
+    // 1. New start is before existing end AND new end is after existing start
+    const newStartMinutes = parseTime(hhmmStartTime);
+    const newEndMinutes = parseTime(hhmmEndTime);
+    const existingStartMinutes = parseTime(existingSlot.start);
+    const existingEndMinutes = parseTime(existingSlot.end);
+    
+    if (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes) {
+      showModal({
+        content: `The time slot ${newSlotLabel} overlaps with existing slot ${existingSlot.label}. New time slots must not overlap with existing ones.`,
+        title: "Time Slot Overlap",
+      });
+      return false;
+    }
+  }
+
+  // Check that new slot starts after the last existing slot
+  if (user.timeSlots.length > 0) {
+    // Find the slot with the latest end time
+    const latestEndTime = user.timeSlots.reduce((latest, slot) => {
+      const latestMinutes = parseTime(latest);
+      const slotEndMinutes = parseTime(slot.end);
+      return slotEndMinutes > latestMinutes ? slot.end : latest;
+    }, "00:00");
+    
+    if (!isTimeBefore(latestEndTime, hhmmStartTime)) {
+      showModal({
+        content: `New time slot must start after the last existing slot ends (${latestEndTime}). Please choose a start time after ${latestEndTime}.`,
+        title: "Invalid Time Slot Position",
+      });
+      return false;
+    }
+  }
+
   // --- Store the CONVERTED "HH:MM" times for consistency ---
   // This makes future comparisons and processing easier.
   user.timeSlots.push({
