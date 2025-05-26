@@ -1673,27 +1673,70 @@ function setupEventListeners() {
         handleHideSlotTooltip();
     });
 
-    // Touch event support for mobile devices
+    // Touch event support for mobile devices with scroll detection
+    let touchStartData = null;
+    let isScrolling = false;
+    let scrollTimeout = null;
+
     DOM_ELEMENTS.scheduleTable.addEventListener("touchstart", (e) => {
       if (state.compareMode && e.target.classList.contains("slot")) {
-        e.preventDefault(); // Prevent default touch behavior
-        const day = parseInt(e.target.dataset.day, 10),
-          time = parseInt(e.target.dataset.time, 10);
-        if (!isNaN(day) && !isNaN(time))
-          handleShowSlotTooltip(e.target, day, time);
+        // Store initial touch data
+        touchStartData = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+          time: Date.now(),
+          target: e.target,
+          day: parseInt(e.target.dataset.day, 10),
+          timeIndex: parseInt(e.target.dataset.time, 10)
+        };
+        isScrolling = false;
+        
+        // Clear any existing scroll timeout
+        if (scrollTimeout) {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = null;
+        }
       }
-    });
+    }, { passive: true });
+
+    DOM_ELEMENTS.scheduleTable.addEventListener("touchmove", (e) => {
+      if (touchStartData && state.compareMode) {
+        const deltaX = Math.abs(e.touches[0].clientX - touchStartData.x);
+        const deltaY = Math.abs(e.touches[0].clientY - touchStartData.y);
+        
+        // If user has moved more than 10px in any direction, consider it scrolling
+        if (deltaX > 10 || deltaY > 10) {
+          isScrolling = true;
+          // Hide tooltip immediately if user starts scrolling
+          handleHideSlotTooltip();
+        }
+      }
+    }, { passive: true });
 
     DOM_ELEMENTS.scheduleTable.addEventListener("touchend", (e) => {
-      if (
-        e.target.classList.contains("slot") ||
-        e.target === DOM_ELEMENTS.scheduleTable
-      ) {
-        // Hide tooltip after a delay to allow reading
-        setTimeout(() => {
-          handleHideSlotTooltip();
-        }, 4000);
+      if (touchStartData && state.compareMode && !isScrolling) {
+        const touchDuration = Date.now() - touchStartData.time;
+        
+        // Only show tooltip if:
+        // 1. Touch was brief (less than 300ms, indicating a tap not a long press)
+        // 2. User didn't scroll
+        // 3. Touch ended on the same element it started on
+        if (touchDuration < 300 && e.target === touchStartData.target) {
+          const { day, timeIndex } = touchStartData;
+          if (!isNaN(day) && !isNaN(timeIndex)) {
+            handleShowSlotTooltip(touchStartData.target, day, timeIndex);
+            
+            // Auto-hide tooltip after 3 seconds on mobile
+            scrollTimeout = setTimeout(() => {
+              handleHideSlotTooltip();
+            }, 3000);
+          }
+        }
       }
+      
+      // Reset touch data
+      touchStartData = null;
+      isScrolling = false;
     });
 
     // Hide tooltip when touching elsewhere on the document
@@ -1704,6 +1747,12 @@ function setupEventListeners() {
         !e.target.closest("#slotTooltip")
       ) {
         handleHideSlotTooltip();
+        
+        // Clear any pending timeout
+        if (scrollTimeout) {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = null;
+        }
       }
     });
   }
