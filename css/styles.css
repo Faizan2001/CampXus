@@ -1331,7 +1331,10 @@ textarea {
   transform: translateY(-50%); /* Vertically center icon with first line */
 }
 
-/* Specific styling for import textarea */
+/* 
+--- SPECIFIC STYLING FOR IMPORT TEXTAREA ---
+Ensures consistent padding and height for the import textarea
+*/
 .import-section .input-wrapper textarea {
   padding-left: 3rem; /* Ensure consistent padding for the textarea */
   min-height: 100px; /* Ensure adequate height for the textarea */
@@ -1840,6 +1843,74 @@ Visual indicators for pinned slots and pin mode interactions
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)) !important;
 }
 
+/* 
+--- PIN SQUARE CONTAINER STYLES ---
+Square background for pin indicators in compare mode positioned to the right
+*/
+.pin-square-container {
+  position: absolute !important;
+  top: 50% !important;
+  right: 4px !important;
+  transform: translateY(-50%) !important;
+  width: 32px !important;
+  height: 80% !important;
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  opacity: 0.9 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: auto !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.pin-square-container:hover {
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  border-color: var(--accent-primary) !important;
+  background: var(--glass-bg-hover, var(--glass-bg)) !important;
+}
+
+.pin-square-container:active {
+  transform: translateY(-50%) scale(1.05) !important;
+  transition: all 0.1s ease !important;
+}
+
+.pin-square-container .pin-icon {
+  font-size: 14px !important;
+  line-height: 1 !important;
+  color: var(--accent-primary) !important;
+  margin-bottom: 1px !important;
+}
+
+.pin-square-container .pin-count-number {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  line-height: 1 !important;
+  margin-top: 5px !important;
+  color: white !important;
+  border-radius: 10% !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid white !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 
+--- COMPARE MODE PIN INDICATOR STYLES (Legacy - keeping for compatibility) ---
+Visual indicators for pinned slots in compare mode with multiple users
+*/
 .can-pin-indicator {
   position: absolute !important;
   top: 50% !important;
@@ -2139,4 +2210,363 @@ body:not(.dark-mode) #slotTooltip {
   opacity: 0;
   transform: translateX(-50%) scale(0.8);
   transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.compare-pin-indicator {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  opacity: 0.9 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: auto !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15)) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 6px !important;
+  padding: 2px 4px !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.compare-pin-indicator:hover {
+  opacity: 1 !important;
+  transform: scale(1.15) !important;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25)) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.compare-pin-indicator:active {
+  transform: scale(1.05) !important;
+  transition: all 0.1s ease !important;
+}
+
+.compare-pin-indicator .pin-count {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  ) !important;
+  color: white !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  border-radius: 50% !important;
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 3px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  border: 2px solid white !important;
+  animation: pulseCount 2s infinite !important;
+}
+
+/* 
+--- PIN TOOLTIP STYLES ---
+Detailed tooltip for showing which users have pinned a slot
+*/
+.pin-tooltip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  min-width: 160px !important;
+  max-width: 280px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  animation: tooltipFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  z-index: 1001 !important;
+}
+
+.pin-tooltip-content {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.pin-tooltip-header {
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  padding-bottom: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.pin-tooltip-header::before {
+  content: "📌" !important;
+  font-size: 16px !important;
+}
+
+.pin-tooltip-users {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
+
+.pin-tooltip-user {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  color: var(--text-secondary) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.pin-tooltip-user:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateX(2px) !important;
+}
+
+.pin-tooltip-user-color {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  border: 2px solid white !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+.pin-tooltip-user span {
+  font-weight: 500 !important;
+  color: var(--text-primary) !important;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseCount {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Mobile responsiveness for pin indicators */
+@media (max-width: 768px) {
+  .pin-square-container {
+    width: 28px !important;
+    height: 80% !important;
+    top: 50% !important;
+    right: 2px !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .pin-square-container .pin-icon {
+    font-size: 12px !important;
+  }
+
+  .pin-square-container:hover {
+    transform: translateY(-50%) scale(1.1) !important;
+  }
+
+  .pin-square-container:active {
+    transform: translateY(-50%) scale(1.05) !important;
+  }
+
+  .pin-square-container .pin-count-number {
+    width: 14px !important;
+    height: 14px !important;
+    margin-top: 5px !important;
+    font-size: 9px !important;
+    color: white !important;
+    border-radius: 10% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .compare-pin-indicator {
+    font-size: 14px !important;
+    padding: 1px 3px !important;
+    top: 2px !important;
+    right: 2px !important;
+  }
+
+  .compare-pin-indicator .pin-count {
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 9px !important;
+    margin-left: 2px !important;
+  }
+
+  .pin-tooltip {
+    padding: 12px !important;
+    min-width: 140px !important;
+    max-width: 220px !important;
+    border-radius: 10px !important;
+  }
+
+  .pin-tooltip-header {
+    font-size: 13px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .pin-tooltip-user {
+    padding: 6px 8px !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .pin-tooltip-user-color {
+    width: 12px !important;
+    height: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .pin-square-container {
+    width: 26px !important;
+    height: 80% !important;
+    top: 50% !important;
+    right: 1px !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .pin-square-container .pin-icon {
+    font-size: 11px !important;
+  }
+
+  .pin-square-container:hover {
+    transform: translateY(-50%) scale(1.1) !important;
+  }
+
+  .pin-square-container:active {
+    transform: translateY(-50%) scale(1.05) !important;
+  }
+
+  .pin-square-container .pin-count-number {
+    width: 12px !important;
+    height: 12px !important;
+    margin-top: 5px !important;
+    font-size: 8px !important;
+    color: white !important;
+    border-radius: 10% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .compare-pin-indicator {
+    font-size: 12px !important;
+    padding: 1px 2px !important;
+  }
+
+  .compare-pin-indicator .pin-count {
+    width: 14px !important;
+    height: 14px !important;
+    font-size: 8px !important;
+    margin-left: 1px !important;
+  }
+
+  .pin-tooltip {
+    padding: 10px !important;
+    min-width: 120px !important;
+    max-width: 200px !important;
+  }
+
+  .pin-tooltip-header {
+    font-size: 12px !important;
+  }
+
+  .pin-tooltip-user {
+    padding: 4px 6px !important;
+    gap: 6px !important;
+    font-size: 11px !important;
+  }
+
+  .pin-tooltip-user-color {
+    width: 10px !important;
+    height: 10px !important;
+  }
+}
+
+/* Enhanced focus states for accessibility */
+.pin-square-container:focus {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
+}
+
+.compare-pin-indicator:focus {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Improved tooltip positioning for edge cases */
+.pin-tooltip.tooltip-left {
+  transform: translateX(-100%) !important;
+}
+
+.pin-tooltip.tooltip-top {
+  transform: translateY(-100%) !important;
+}
+
+/* Dark theme enhancements */
+@media (prefers-color-scheme: dark) {
+  .compare-pin-indicator {
+    background: rgba(0, 0, 0, 0.8) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .compare-pin-indicator:hover {
+    background: rgba(0, 0, 0, 0.9) !important;
+    border-color: var(--accent-primary) !important;
+  }
+
+  .pin-square-container {
+    background: rgba(0, 0, 0, 0.8) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .pin-square-container:hover {
+    background: rgba(0, 0, 0, 0.9) !important;
+    border-color: var(--accent-primary) !important;
+  }
+
+  .pin-tooltip {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .pin-tooltip-user {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .pin-tooltip-user:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+  }
 }

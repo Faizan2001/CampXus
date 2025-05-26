@@ -10,7 +10,6 @@ import {
   isValidTimeFormat,
   isValidStrictHHMMTimeFormat,
   convertToHHMM,
-  validateTimeSlotAdvanced,
 } from "./timeUtils.js";
 import {
   handleExportCurrentUser,
@@ -183,6 +182,67 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
   return message.trim();
 }
 
+/**
+ * Aggregates pin information for a specific slot across multiple users in compare mode
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @param {Object} currentState - Current application state
+ * @returns {Object} Pin aggregation data: { count: number, userNames: string[], userIds: string[] }
+ */
+export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
+  const { users, selectedUserIds, compareMode } = currentState;
+
+  // Debug logging
+  console.log(`Aggregating pins for slot [${dayIndex}, ${timeIndex}]`, {
+    compareMode,
+    selectedUserIds: Array.from(selectedUserIds),
+    usersCount: Object.keys(users).length,
+  });
+
+  // Only aggregate pins in compare mode with selected users
+  if (!compareMode || selectedUserIds.size === 0) {
+    console.log("Early return: not in compare mode or no selected users");
+    return { count: 0, userNames: [], userIds: [] };
+  }
+
+  const pinnedByUsers = [];
+  const pinnedUserNames = [];
+
+  selectedUserIds.forEach((userId) => {
+    const user = users[userId];
+    console.log(`Checking user ${userId}:`, {
+      userExists: !!user,
+      hasPinnedSlots: !!(user && user.pinnedSlots),
+      hasDayData: !!(user && user.pinnedSlots && user.pinnedSlots[dayIndex]),
+      slotValue:
+        user &&
+        user.pinnedSlots &&
+        user.pinnedSlots[dayIndex] &&
+        user.pinnedSlots[dayIndex][timeIndex],
+    });
+
+    if (
+      user &&
+      user.pinnedSlots &&
+      user.pinnedSlots[dayIndex] &&
+      user.pinnedSlots[dayIndex][timeIndex] === true
+    ) {
+      pinnedByUsers.push(userId);
+      pinnedUserNames.push(user.name);
+      console.log(`User ${user.name} has pinned this slot`);
+    }
+  });
+
+  const result = {
+    count: pinnedByUsers.length,
+    userNames: pinnedUserNames,
+    userIds: pinnedByUsers,
+  };
+
+  console.log("Aggregation result:", result);
+  return result;
+}
+
 /* ================================
    DYNAMIC TIMESLOT FUNCTIONS
 ================================== */
@@ -197,6 +257,30 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
       content: "Please select an active user to add a custom time slot.",
       title: "No Active User",
     });
+    return false; // Indicate failure
+  }
+
+  const trimmedStartTime = startTime.trim();
+  const trimmedEndTime = endTime.trim();
+
+  if (!trimmedStartTime || !trimmedEndTime) {
+    showModal({
+      content: "Both Start Time and End Time are required.",
+      title: "Input Error",
+    });
+    return false;
+  }
+
+  // Initial validation of user input format (allows AM/PM, HH:MM, H:MM)
+  if (
+    !isValidTimeFormat(trimmedStartTime) ||
+    !isValidTimeFormat(trimmedEndTime)
+  ) {
+    showModal({
+      content:
+        "Invalid time format. Please use formats like '8:00 AM', '08:00', '5:30 PM', or '17:30'.",
+      title: "Invalid Time Format",
+    });
     return false;
   }
 
@@ -206,46 +290,97 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
     user.timeSlots = []; // Initialize if missing
   }
 
-  // Use advanced validation
-  const validation = validateTimeSlotAdvanced(
-    startTime,
-    endTime,
-    user.timeSlots,
-    {
-      allowOverlaps: false,
-      requireSequential: true,
-      minDuration: 15,
-      maxDuration: 480,
-    }
-  );
+  // Convert user input to strict "HH:MM" (24-hour) format
+  const hhmmStartTime = convertToHHMM(trimmedStartTime);
+  const hhmmEndTime = convertToHHMM(trimmedEndTime);
 
-  // Handle validation errors
-  if (!validation.success) {
-    let errorContent = "Time slot validation failed:\n\n";
-    validation.errors.forEach((error, index) => {
-      errorContent += `${index + 1}. ${error}\n`;
-    });
-
-    // Add suggestions if there are conflicting slots
-    if (validation.conflictingSlots.length > 0) {
-      errorContent += "\nConflicting slots:\n";
-      validation.conflictingSlots.forEach((conflict) => {
-        errorContent += `• ${conflict.label} (${conflict.start}-${conflict.end})\n`;
-      });
-    }
-
+  // After conversion, validate that the results are indeed in strict HH:MM format.
+  // This catches cases where convertToHHMM might return the original input if it couldn't parse it
+  // and that original input wasn't strictly HH:MM.
+  if (
+    !isValidStrictHHMMTimeFormat(hhmmStartTime) ||
+    !isValidStrictHHMMTimeFormat(hhmmEndTime)
+  ) {
     showModal({
-      content: errorContent.trim(),
-      title: "Invalid Time Slot",
+      content: `Could not process the entered times into a standard format. Received: "${trimmedStartTime}" and "${trimmedEndTime}". Please use HH:MM or H:MM AM/PM.`,
+      title: "Time Processing Error",
     });
     return false;
   }
 
-  // Add the validated time slot
+  // Validate that start time is before end time using the consistent HH:MM format
+  if (!isTimeBefore(hhmmStartTime, hhmmEndTime)) {
+    showModal({
+      content: `Start time (${hhmmStartTime}) must be before end time (${hhmmEndTime}).`,
+      title: "Invalid Time Range",
+    });
+    return false;
+  }
+
+  // Create the label using the consistent "HH:MM" format
+  const newSlotLabel = `${hhmmStartTime}-${hhmmEndTime}`;
+
+  // Check for duplicate labels (case-insensitive)
+  if (
+    user.timeSlots.some(
+      (slot) => slot.label.toUpperCase() === newSlotLabel.toUpperCase()
+    )
+  ) {
+    showModal({
+      content: `A time slot with the label "${newSlotLabel}" already exists for ${user.name}.`,
+      title: "Duplicate Time Slot",
+    });
+    return false;
+  }
+
+  // Check for overlap with existing time slots
+  for (let i = 0; i < user.timeSlots.length; i++) {
+    const existingSlot = user.timeSlots[i];
+
+    // Check if new slot overlaps with existing slot
+    // Overlap occurs if:
+    // 1. New start is before existing end AND new end is after existing start
+    const newStartMinutes = parseTime(hhmmStartTime);
+    const newEndMinutes = parseTime(hhmmEndTime);
+    const existingStartMinutes = parseTime(existingSlot.start);
+    const existingEndMinutes = parseTime(existingSlot.end);
+
+    if (
+      newStartMinutes < existingEndMinutes &&
+      newEndMinutes > existingStartMinutes
+    ) {
+      showModal({
+        content: `The time slot ${newSlotLabel} overlaps with existing slot ${existingSlot.label}. New time slots must not overlap with existing ones.`,
+        title: "Time Slot Overlap",
+      });
+      return false;
+    }
+  }
+
+  // Check that new slot starts after the last existing slot
+  if (user.timeSlots.length > 0) {
+    // Find the slot with the latest end time
+    const latestEndTime = user.timeSlots.reduce((latest, slot) => {
+      const latestMinutes = parseTime(latest);
+      const slotEndMinutes = parseTime(slot.end);
+      return slotEndMinutes > latestMinutes ? slot.end : latest;
+    }, "00:00");
+
+    if (!isTimeBefore(latestEndTime, hhmmStartTime)) {
+      showModal({
+        content: `New time slot must start after the last existing slot ends (${latestEndTime}). Please choose a start time after ${latestEndTime}.`,
+        title: "Invalid Time Slot Position",
+      });
+      return false;
+    }
+  }
+
+  // --- Store the CONVERTED "HH:MM" times for consistency ---
+  // This makes future comparisons and processing easier.
   user.timeSlots.push({
-    start: validation.normalizedStartTime,
-    end: validation.normalizedEndTime,
-    label: validation.suggestedLabel,
+    start: hhmmStartTime,
+    end: hhmmEndTime,
+    label: newSlotLabel,
   });
 
   // Expand the schedule matrix for the new slot
@@ -259,23 +394,11 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
   saveStateToStorage();
   updateUI();
-
-  // Show success message with any warnings
-  let successContent = `New time slot "${validation.suggestedLabel}" added for ${user.name}.`;
-  successContent += `\nDuration: ${validation.duration} minutes`;
-
-  if (validation.warnings.length > 0) {
-    successContent += "\n\nNotes:\n";
-    validation.warnings.forEach((warning) => {
-      successContent += `• ${warning}\n`;
-    });
-  }
-
   showModal({
-    content: successContent.trim(),
-    title: "Time Slot Added Successfully",
+    content: `New time slot "${newSlotLabel}" added for ${user.name}.`,
+    title: "Time Slot Added",
   });
-  return true;
+  return true; // Indicate success
 }
 
 // .........................................
@@ -873,7 +996,7 @@ function renderScheduleGrid() {
           // Clear any previous pins/indicatiors from this cell to prevent duplication on re-renders
 
           const existingPinIndicators = tdSlot.querySelectorAll(
-            ".pin-indicator, can-pin-indicator"
+            ".pin-indicator, .can-pin-indicator, .pin-square-container"
           );
 
           existingPinIndicators.forEach((indicator) => indicator.remove());
@@ -906,6 +1029,86 @@ function renderScheduleGrid() {
           }
         }
       }
+
+      // --- START: Pin Rendering Logic for Compare Mode ---
+
+      if (state.compareMode && state.selectedUserIds.size > 0) {
+        console.log(
+          `Rendering compare mode pins for slot [${dayIndex}, ${timeIndex}]`
+        );
+
+        // Clear any existing pin indicators first
+        const existingPinIndicators = tdSlot.querySelectorAll(
+          ".pin-indicator, .can-pin-indicator, .compare-pin-indicator, .pin-square-container"
+        );
+        existingPinIndicators.forEach((indicator) => indicator.remove());
+
+        // Get pin aggregation data for this slot
+        const pinData = aggregatePinsForCompareMode(dayIndex, timeIndex, state);
+
+        console.log(`Pin data for slot [${dayIndex}, ${timeIndex}]:`, pinData);
+
+        if (pinData.count > 0) {
+          console.log(`Creating pin indicator for ${pinData.count} users`);
+
+          // Create square background container
+          const pinContainer = document.createElement("div");
+          pinContainer.classList.add("pin-square-container");
+          pinContainer.setAttribute("tabindex", "0");
+          pinContainer.setAttribute("role", "button");
+          pinContainer.setAttribute(
+            "aria-label",
+            `Pin indicator: ${pinData.count} user${
+              pinData.count > 1 ? "s" : ""
+            } pinned this slot`
+          );
+
+          // Create pin icon element
+          const pinIcon = document.createElement("span");
+          pinIcon.classList.add("pin-icon");
+          pinIcon.innerHTML = "&#128204;"; // Pin icon
+
+          // Create count element
+          const pinCount = document.createElement("span");
+          pinCount.classList.add("pin-count-number");
+          pinCount.textContent = pinData.count;
+
+          // Assemble the pin container
+          pinContainer.appendChild(pinIcon);
+          pinContainer.appendChild(pinCount);
+
+          // Store pin data for tooltip handling
+          pinContainer.dataset.pinnedByUsers = JSON.stringify(
+            pinData.userNames
+          );
+          pinContainer.dataset.pinnedUserIds = JSON.stringify(pinData.userIds);
+          pinContainer.dataset.pinCount = pinData.count;
+
+          // Add click handler for showing pin tooltip
+          pinContainer.addEventListener("click", (event) => {
+            event.stopPropagation();
+            showPinTooltip(event, pinData);
+          });
+
+          // Add keyboard support for accessibility
+          pinContainer.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              showPinTooltip(event, pinData);
+            }
+          });
+
+          tdSlot.appendChild(pinContainer);
+          console.log(
+            `Pin indicator added to slot [${dayIndex}, ${timeIndex}]`
+          );
+        } else {
+          console.log(`No pins found for slot [${dayIndex}, ${timeIndex}]`);
+        }
+      }
+
+      // --- END: Pin Rendering Logic for Compare Mode ---
       tr.appendChild(tdSlot);
     });
     tableBody.appendChild(tr);
@@ -1532,3 +1735,122 @@ function initializeApp() {
 }
 
 document.addEventListener("DOMContentLoaded", initializeApp);
+
+/**
+ * Shows a detailed tooltip for pin indicators in compare mode
+ * @param {Event} event - The click event
+ * @param {Object} pinData - Pin aggregation data containing count, userNames, and userIds
+ */
+function showPinTooltip(event, pinData) {
+  // Remove any existing pin tooltips
+  const existingTooltip = document.querySelector(".pin-tooltip");
+  if (existingTooltip) {
+    existingTooltip.remove();
+  }
+
+  // Create tooltip element
+  const tooltip = document.createElement("div");
+  tooltip.className = "pin-tooltip";
+
+  // Create tooltip content
+  const content = document.createElement("div");
+  content.className = "pin-tooltip-content";
+
+  // Add header
+  const header = document.createElement("div");
+  header.className = "pin-tooltip-header";
+  header.textContent = `Users who prefer this slot:`;
+  content.appendChild(header);
+
+  // Add user list
+  const userList = document.createElement("div");
+  userList.className = "pin-tooltip-users";
+
+  pinData.userNames.forEach((userName, index) => {
+    const userItem = document.createElement("div");
+    userItem.className = "pin-tooltip-user";
+
+    // Add user color indicator if available
+    const userId = pinData.userIds[index];
+    if (state.users[userId] && state.users[userId].color) {
+      const colorIndicator = document.createElement("span");
+      colorIndicator.className = "pin-tooltip-user-color";
+      colorIndicator.style.backgroundColor = state.users[userId].color;
+      userItem.appendChild(colorIndicator);
+    }
+
+    const userNameSpan = document.createElement("span");
+    userNameSpan.textContent = userName;
+    userItem.appendChild(userNameSpan);
+
+    userList.appendChild(userItem);
+  });
+
+  content.appendChild(userList);
+  tooltip.appendChild(content);
+
+  // Position tooltip near the clicked element with smart positioning
+  const rect = event.target.getBoundingClientRect();
+  const viewport = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+
+  // Add tooltip to document first to measure its dimensions
+  document.body.appendChild(tooltip);
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  // Smart positioning logic
+  let left = rect.left;
+  let top = rect.bottom + 8;
+
+  // Check if tooltip goes beyond right edge
+  if (left + tooltipRect.width > viewport.width - 10) {
+    left = viewport.width - tooltipRect.width - 10;
+    tooltip.classList.add("tooltip-left");
+  }
+
+  // Check if tooltip goes beyond left edge
+  if (left < 10) {
+    left = 10;
+  }
+
+  // Check if tooltip goes beyond bottom edge
+  if (top + tooltipRect.height > viewport.height - 10) {
+    top = rect.top - tooltipRect.height - 8;
+    tooltip.classList.add("tooltip-top");
+  }
+
+  // Check if tooltip goes beyond top edge (rare case)
+  if (top < 10) {
+    top = rect.bottom + 8; // Fallback to bottom positioning
+    tooltip.classList.remove("tooltip-top");
+  }
+
+  // Apply final positioning
+  tooltip.style.position = "fixed";
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+  tooltip.style.zIndex = "1001";
+
+  // Add click-outside handler to close tooltip
+  const closeTooltip = (e) => {
+    if (!tooltip.contains(e.target)) {
+      tooltip.remove();
+      document.removeEventListener("click", closeTooltip);
+    }
+  };
+
+  // Delay adding the click handler to prevent immediate closure
+  setTimeout(() => {
+    document.addEventListener("click", closeTooltip);
+  }, 100);
+
+  // Auto-close tooltip after 5 seconds
+  setTimeout(() => {
+    if (tooltip.parentNode) {
+      tooltip.remove();
+      document.removeEventListener("click", closeTooltip);
+    }
+  }, 5000);
+}
