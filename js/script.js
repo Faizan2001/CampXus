@@ -11,6 +11,11 @@ import {
   isValidStrictHHMMTimeFormat,
   convertToHHMM,
 } from "./timeUtils.js";
+import {
+  handleExportCurrentUser,
+  handleImportSchedule,
+  setupExportImportListeners,
+} from "./export-import.js";
 
 /* ================================
    APPLICATION STATE
@@ -513,10 +518,8 @@ function loadStateFromStorage() {
 }
 
 function saveStateToStorage() {
-  localStorage.setItem(
-    LOCAL_STORAGE_KEY,
-    JSON.stringify({ users: state.users })
-  );
+  const dataToSave = { users: state.users };
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
 }
 
 /* ================================
@@ -932,6 +935,7 @@ function renderScheduleGrid() {
 function renderUserList() {
   if (!DOM_ELEMENTS.userListContainer) return;
   const userEntries = Object.entries(state.users);
+
   if (userEntries.length === 0) {
     DOM_ELEMENTS.userListContainer.innerHTML = "<p>No users. Add one!</p>";
     return;
@@ -1107,12 +1111,17 @@ function handleDeleteUser(userIdToDelete) {
     cancelText: "Cancel",
     onConfirm: () => {
       const oldActiveUserId = state.activeUserId; // Store old active user ID
-      state = deleteUserFromState(userIdToDelete, state);
 
-      // If the deleted user was the active user, set active user to null
-      if (oldActiveUserId === userIdToDelete && state.activeUserId === null) {
+      // Instead of replacing the entire state object, just mutate the existing properties
+      // This preserves the reference that export-import.js is using
+      delete state.users[userIdToDelete];
+
+      if (oldActiveUserId === userIdToDelete) {
+        state.activeUserId = null;
         state.pinModeActive = false; // Reset pin mode if the active user is deleted
       }
+
+      state.selectedUserIds.delete(userIdToDelete);
 
       saveStateToStorage();
       updateUI();
@@ -1394,106 +1403,6 @@ function handleHideSlotTooltip() {
   }
 }
 
-function handleExportCurrentUser() {
-  if (!state.activeUserId || !state.users[state.activeUserId]) {
-    return showModal({
-      content: "Select an active user to export.",
-      title: "Export Error",
-    });
-  }
-  const currentUser = state.users[state.activeUserId];
-  // Exporting user's own timeSlots if they exist
-  const exportData = {
-    id: currentUser.id,
-    name: currentUser.name,
-    timeSlots: currentUser.timeSlots, // Export user's specific time slots
-    schedule: currentUser.schedule,
-  };
-  const jsonToExport = JSON.stringify(exportData, null, 2);
-  navigator.clipboard
-    .writeText(jsonToExport)
-    .then(() =>
-      showModal({
-        content: `${currentUser.name}'s schedule copied!`,
-        title: "Export Successful",
-      })
-    )
-    .catch((err) => {
-      console.error("Clipboard export error:", err);
-      showModal({
-        content: "Could not copy. See text area.",
-        title: "Clipboard Error",
-      });
-      if (DOM_ELEMENTS.importTextArea)
-        DOM_ELEMENTS.importTextArea.value = jsonToExport;
-    });
-}
-
-function handleImportSchedule() {
-  if (!DOM_ELEMENTS.importTextArea) return;
-  const jsonInput = DOM_ELEMENTS.importTextArea.value.trim();
-  if (!jsonInput)
-    return showModal({
-      content: "Paste JSON to import.",
-      title: "Import Error",
-    });
-
-  try {
-    const importedData = JSON.parse(jsonInput);
-    // Validate imported structure
-    if (
-      !importedData.id ||
-      !importedData.name ||
-      !Array.isArray(importedData.schedule) ||
-      !Array.isArray(importedData.timeSlots) // Expecting timeSlots now
-    ) {
-      throw new Error(
-        "Invalid data format. Must include id, name, schedule array, and timeSlots array."
-      );
-    }
-    // Further validation for schedule and timeSlots structure
-    if (
-      importedData.schedule.length !== 7 ||
-      !importedData.schedule.every(
-        (day) =>
-          Array.isArray(day) && day.length === importedData.timeSlots.length
-      )
-    ) {
-      throw new Error(
-        "Schedule dimensions must be 7 days by number of timeSlots."
-      );
-    }
-    if (
-      !importedData.timeSlots.every(
-        (slot) => slot.label && slot.start && slot.end
-      )
-    ) {
-      throw new Error("Each timeSlot must have a label, start, and end time.");
-    }
-
-    state.users[importedData.id] = {
-      // Directly assign/overwrite
-      id: importedData.id,
-      name: importedData.name,
-      timeSlots: importedData.timeSlots,
-      schedule: importedData.schedule,
-    };
-    saveStateToStorage();
-    updateUI();
-    DOM_ELEMENTS.importTextArea.value = "";
-    showModal({
-      content: `User "${importedData.name}" imported!`,
-      title: "Import Complete",
-    });
-  } catch (e) {
-    console.error("Import error:", e);
-    showModal({
-      content: `Import failed: ${e.message}`,
-      title: "Import Failed",
-    });
-  }
-}
-
 function setupInputValidation() {
   if (DOM_ELEMENTS.userNameInput)
     DOM_ELEMENTS.userNameInput.addEventListener(
@@ -1523,13 +1432,7 @@ function setupEventListeners() {
       handleTogglePinMode
     );
 
-  if (DOM_ELEMENTS.exportButton)
-    DOM_ELEMENTS.exportButton.addEventListener(
-      "click",
-      handleExportCurrentUser
-    );
-  if (DOM_ELEMENTS.importButton)
-    DOM_ELEMENTS.importButton.addEventListener("click", handleImportSchedule);
+  // Export/Import event listeners are handled by setupExportImportListeners() from export-import.js
   if (DOM_ELEMENTS.addNewTimeSlotBtn)
     DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener(
       "click",
@@ -1644,6 +1547,7 @@ function initializeApp() {
   loadStateFromStorage();
   setupInputValidation();
   setupEventListeners();
+  setupExportImportListeners(state, saveStateToStorage, updateUI);
   updateUI();
 }
 
