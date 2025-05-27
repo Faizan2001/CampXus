@@ -101,39 +101,6 @@
               </div>
             </section>
 
-            <!-- Add New User Section (Now third) -->
-            <section class="glass-card add-user-section">
-              <h3>
-                <i class="fas fa-user-plus"></i>
-                Add New User
-              </h3>
-              <div class="input-group">
-                <div class="input-wrapper">
-                  <i class="fas fa-user"></i>
-                  <input
-                    type="text"
-                    id="userName"
-                    placeholder="Enter your name"
-                    required
-                  />
-                </div>
-                <div class="input-wrapper">
-                  <i class="fas fa-id-card"></i>
-                  <input
-                    type="text"
-                    inputmode="numeric"
-                    id="userId"
-                    placeholder="Create a unique ID"
-                    required
-                  />
-                </div>
-                <button type="button" class="primary-btn full-width">
-                  <i class="fas fa-plus"></i>
-                  Add User
-                </button>
-              </div>
-            </section>
-
             <!-- Import/Export Section (Now fourth) -->
             <section class="glass-card import-export-section">
               <h3>
@@ -167,10 +134,21 @@
           <!-- Schedule Column (Right on Desktop, Bottom on Mobile) -->
           <div class="schedule-column">
             <section class="glass-card schedule-section">
-              <h3>
-                <i class="fas fa-calendar-week"></i>
-                Weekly Schedule
-              </h3>
+              <div class="schedule-header">
+                <h3>
+                  <i class="fas fa-calendar-week"></i>
+                  Weekly Schedule
+                </h3>
+                <button
+                  type="button"
+                  id="addUserHeaderBtn"
+                  class="add-user-header-btn"
+                  title="Add New User"
+                >
+                  <i class="fas fa-plus"></i>
+                  <i class="fas fa-users"></i>
+                </button>
+              </div>
               <div class="schedule-wrapper">
                 <table id="scheduleTable" class="schedule-table">
                   <thead>

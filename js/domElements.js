@@ -47,9 +47,7 @@ export function initializeDomElements() {
   DOM_ELEMENTS.togglePinModeBtn = document.getElementById("togglePinModeBtn");
   DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip");
 
-  DOM_ELEMENTS.addUserButton = document.querySelector(
-    ".add-user-section button"
-  );
+  DOM_ELEMENTS.addUserButton = document.getElementById("addUserHeaderBtn");
 
   DOM_ELEMENTS.importTextArea = document.getElementById("importText");
   DOM_ELEMENTS.exportButton = document.querySelector(".export-section button");
@@ -74,7 +72,7 @@ export function initializeDomElements() {
   );
 
   // Debug log to check if tooltip element is found
-  console.log('Tooltip element found:', !!DOM_ELEMENTS.slotTooltip);
+  console.log("Tooltip element found:", !!DOM_ELEMENTS.slotTooltip);
 
   // Log missing critical elements
   for (const key in DOM_ELEMENTS) {

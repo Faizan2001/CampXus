@@ -1236,7 +1236,16 @@ function updateUI() {
       "active",
       compareButtonState.isActiveClass
     );
-    DOM_ELEMENTS.compareButton.textContent = compareButtonState.text; // Set Dynamic text (ON/OFF)
+
+    // Update text while preserving the icon
+    const icon = DOM_ELEMENTS.compareButton.querySelector("i");
+    DOM_ELEMENTS.compareButton.innerHTML = "";
+    if (icon) {
+      DOM_ELEMENTS.compareButton.appendChild(icon);
+    }
+    DOM_ELEMENTS.compareButton.appendChild(
+      document.createTextNode(compareButtonState.text)
+    );
   }
 
   // --- START: Logic for Pin Mode Button ---
@@ -1252,7 +1261,16 @@ function updateUI() {
       "active",
       pinModeBtnState.isActiveClass
     );
-    DOM_ELEMENTS.togglePinModeBtn.textContent = pinModeBtnState.text; // Set Dynamic text (ON/OFF)
+
+    // Update text while preserving the icon
+    const icon = DOM_ELEMENTS.togglePinModeBtn.querySelector("i");
+    DOM_ELEMENTS.togglePinModeBtn.innerHTML = "";
+    if (icon) {
+      DOM_ELEMENTS.togglePinModeBtn.appendChild(icon);
+    }
+    DOM_ELEMENTS.togglePinModeBtn.appendChild(
+      document.createTextNode(pinModeBtnState.text)
+    );
   }
   // --- END: Logic for Pin Mode Button ---
 }
@@ -1261,29 +1279,121 @@ function updateUI() {
    EVENT HANDLERS & APP LOGIC
 ================================== */
 function handleAddNewUser() {
-  if (!DOM_ELEMENTS.userNameInput || !DOM_ELEMENTS.userIdInput) return;
-  const name = DOM_ELEMENTS.userNameInput.value.trim();
-  const userId = DOM_ELEMENTS.userIdInput.value.trim();
+  const addUserModalHTML = `
+    <div class="add-user-form-content">
+      <div class="input-group">
+        <div class="input-wrapper">
+          <i class="fas fa-user"></i>
+          <input
+            type="text"
+            id="modalUserName"
+            class="modal-input"
+            placeholder="Enter your name"
+            required
+          />
+        </div>
+        <div class="input-wrapper">
+          <i class="fas fa-id-card"></i>
+          <input
+            type="text"
+            inputmode="numeric"
+            id="modalUserId"
+            class="modal-input"
+            placeholder="Create a unique ID"
+            required
+          />
+        </div>
+      </div>
+      <div id="add-user-error-message" class="modal-error-message" style="display:none;"></div>
+    </div>
+  `;
 
-  if (name && userId) {
-    const newUserObject = createUserObject(name, userId, state.users);
-    if (newUserObject) {
-      state.users[userId] = newUserObject;
-      handleSetActiveUser(userId);
-    } else {
-      showModal({
-        content: `User ID "${userId}" already exists.`,
-        title: "Duplicate User ID",
+  showModal({
+    content: addUserModalHTML,
+    title: "Add New User",
+    isHtmlContent: true,
+    showConfirmationButtons: true,
+    confirmText: "Add User",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      const nameInput = document.getElementById("modalUserName");
+      const userIdInput = document.getElementById("modalUserId");
+      const errorMessageElement = document.getElementById(
+        "add-user-error-message"
+      );
+
+      if (nameInput && userIdInput && errorMessageElement) {
+        const name = nameInput.value.trim();
+        const userId = userIdInput.value.trim();
+
+        // Reset error display
+        errorMessageElement.style.display = "none";
+
+        if (!name || !userId) {
+          errorMessageElement.textContent = "Name and ID are required.";
+          errorMessageElement.style.display = "block";
+          return false; // Prevent modal close
+        }
+
+        // Validate user ID format (numbers only)
+        if (!/^\d+$/.test(userId) || userId === "0" || userId.startsWith("0")) {
+          errorMessageElement.textContent =
+            "User ID must be a positive number without leading zeros.";
+          errorMessageElement.style.display = "block";
+          return false; // Prevent modal close
+        }
+
+        // Validate name format (letters, spaces, hyphens, apostrophes only)
+        if (!/^[a-zA-Z\s'-]+$/.test(name)) {
+          errorMessageElement.textContent =
+            "Name can only contain letters, spaces, hyphens, and apostrophes.";
+          errorMessageElement.style.display = "block";
+          return false; // Prevent modal close
+        }
+
+        const newUserObject = createUserObject(name, userId, state.users);
+        if (newUserObject) {
+          state.users[userId] = newUserObject;
+          handleSetActiveUser(userId);
+          showModal({
+            content: `User "${name}" (ID: ${userId}) has been added successfully!`,
+            title: "User Added",
+          });
+          return true; // Allow modal to close
+        } else {
+          errorMessageElement.textContent = `User ID "${userId}" already exists. Please choose a different ID.`;
+          errorMessageElement.style.display = "block";
+          return false; // Prevent modal close
+        }
+      }
+      console.error("Modal input fields not found.");
+      return false; // Prevent close if elements are missing
+    },
+    onCancel: () => {
+      console.log("Add user cancelled.");
+    },
+  });
+
+  // Set up input validation for the modal inputs after a brief delay to ensure they're in DOM
+  setTimeout(() => {
+    const modalNameInput = document.getElementById("modalUserName");
+    const modalUserIdInput = document.getElementById("modalUserId");
+
+    if (modalNameInput) {
+      modalNameInput.addEventListener("input", (e) => {
+        e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, "");
       });
     }
-    DOM_ELEMENTS.userNameInput.value = "";
-    DOM_ELEMENTS.userIdInput.value = "";
-  } else {
-    showModal({
-      content: "Name and ID are required.",
-      title: "Input Required",
-    });
-  }
+
+    if (modalUserIdInput) {
+      modalUserIdInput.addEventListener("input", (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, "");
+        if (e.target.value.length > 1) {
+          e.target.value = e.target.value.replace(/^0+/, "");
+        }
+      });
+    }
+  }, 100);
 }
 
 function handleDeleteUser(userIdToDelete) {
@@ -1581,17 +1691,9 @@ function handleHideSlotTooltip() {
 }
 
 function setupInputValidation() {
-  if (DOM_ELEMENTS.userNameInput)
-    DOM_ELEMENTS.userNameInput.addEventListener(
-      "input",
-      (e) => (e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, ""))
-    );
-  if (DOM_ELEMENTS.userIdInput)
-    DOM_ELEMENTS.userIdInput.addEventListener("input", (e) => {
-      e.target.value = e.target.value.replace(/[^0-9]/g, "");
-      if (e.target.value.length > 1)
-        e.target.value = e.target.value.replace(/^0+/, "");
-    });
+  // Input validation is now handled within modal forms
+  // when they are created, so this function can remain minimal
+  // for any future fixed input fields that might be added
 }
 
 function setupEventListeners() {

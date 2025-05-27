@@ -700,7 +700,7 @@ while maintaining schedule visibility on mobile.
   }
 
   /* Desktop grid positioning - place sections directly in grid */
-  /* NEW DESKTOP ORDER: Users List → Compare & Pin Mode → Add New User → Export/Import */
+  /* NEW DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
   /* HTML source order: Compare → Add User → Users → Import/Export */
   .users-section {
     grid-column: 1;
@@ -714,15 +714,11 @@ while maintaining schedule visibility on mobile.
     order: unset;
   }
 
-  .add-user-section {
-    grid-column: 1;
-    grid-row: 3; /* Add New User third (2nd in HTML) */
-    order: unset;
-  }
+  /* Add user functionality now integrated into schedule header */
 
   .import-export-section {
     grid-column: 1;
-    grid-row: 4; /* Export/Import fourth (4th in HTML) */
+    grid-row: 3; /* Export/Import third (4th in HTML) */
     order: unset;
   }
 
@@ -789,7 +785,7 @@ while maintaining schedule visibility on mobile.
   }
 
   /* Wide desktop grid positioning */
-  /* NEW WIDE DESKTOP ORDER: Users List → Compare & Pin Mode → Add New User → Export/Import */
+  /* NEW WIDE DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
   /* HTML source order: Compare → Add User → Users → Import/Export */
   .users-section {
     grid-column: 1;
@@ -803,15 +799,11 @@ while maintaining schedule visibility on mobile.
     order: unset;
   }
 
-  .add-user-section {
-    grid-column: 1;
-    grid-row: 3; /* Add New User third (2nd in HTML) */
-    order: unset;
-  }
+  /* Add user functionality now integrated into schedule header */
 
   .import-export-section {
     grid-column: 1;
-    grid-row: 4; /* Export/Import fourth (4th in HTML) */
+    grid-row: 3; /* Export/Import third (4th in HTML) */
     order: unset;
   }
 
@@ -897,12 +889,8 @@ while maintaining schedule visibility on mobile.
     order: 2; /* Compare & Pin Mode second within controls */
   }
 
-  .add-user-section {
-    order: 3; /* Add New User third within controls */
-  }
-
   .import-export-section {
-    order: 4; /* Export/Import last within controls */
+    order: 3; /* Export/Import third within controls */
   }
 
   /* Make glass cards use full width */
@@ -1119,6 +1107,7 @@ Main call-to-action buttons with gradient background and prominent styling
     var(--accent-primary),
     var(--accent-secondary)
   ); /* Purple gradient for brand consistency */
+  margin-bottom: 10px;
 
   color: var(--text-primary);
   border: 1px solid var(--border); /* Subtle border for definition */
@@ -1516,6 +1505,94 @@ Improved layout for user info and action components
 .schedule-section h3 {
   flex-shrink: 0; /* Prevent header from shrinking */
   margin-bottom: 1rem;
+}
+
+/* 
+--- SCHEDULE HEADER ---
+Header with title and add user button
+*/
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.schedule-header h3 {
+  margin-bottom: 0; /* Remove margin since parent has margin-bottom */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 
+--- ADD USER HEADER BUTTON ---
+Compact button for adding users from schedule header
+*/
+.add-user-header-btn {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+}
+
+.add-user-header-btn:hover {
+  background: var(--accent-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.add-user-header-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.add-user-header-btn i {
+  font-size: 0.8rem;
+}
+
+/* Icon stacking for the add user button */
+.add-user-header-btn i:last-child {
+  margin-left: -0.25rem;
+  opacity: 0.8;
+}
+
+/* Mobile responsive styles for add user header button */
+@media (max-width: 768px) {
+  .add-user-header-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+    gap: 0.4rem;
+  }
+
+  .add-user-header-btn i {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .add-user-header-btn {
+    align-self: flex-end;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.8rem;
+  }
 }
 
 .schedule-wrapper {
