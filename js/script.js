@@ -1219,6 +1219,9 @@ function updateUI() {
   renderScheduleGrid();
   renderUserList();
 
+  // Toggle pin-mode-active class on body for CSS styling
+  document.body.classList.toggle("pin-mode-active", state.pinModeActive);
+
   const totalUserCount = Object.keys(state.users).length; // Get total number of users
 
   // --- Logic for Compare Button ---
@@ -1365,15 +1368,6 @@ function handleToggleUserSelectionForCompare(userId) {
 }
 
 function handleToggleScheduleSlot(dayIndex, timeIndex) {
-  // --- START: Check for Pin Mode Active ---
-  if (state.pinModeActive) {
-    // If pin mode is active, clicks on the slot body should NOT toggle busy/free.
-    // Pinning/unpinning is handled by handlePinSlotClick via the indicators.
-    console.log("Pin mode is active. Slot click ignored for busy/free toggle.");
-    return;
-  }
-  // --- END: Check for Pin Mode Active ---
-
   if (
     !state.activeUserId ||
     state.compareMode ||
@@ -1644,8 +1638,17 @@ function setupEventListeners() {
       if (e.target.classList.contains("slot")) {
         const day = parseInt(e.target.dataset.day, 10),
           time = parseInt(e.target.dataset.time, 10);
-        if (!isNaN(day) && !isNaN(time) && !state.compareMode)
-          handleToggleScheduleSlot(day, time);
+
+        if (!isNaN(day) && !isNaN(time)) {
+          if (state.pinModeActive && !state.compareMode) {
+            // In pin mode: handle pinning/unpinning
+            handlePinSlotClick(day, time, e);
+          } else if (!state.compareMode) {
+            // Normal mode: handle busy/free toggle
+            handleToggleScheduleSlot(day, time);
+          }
+          // In compare mode: do nothing (tooltips are handled by mouseover)
+        }
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (e) => {
@@ -1678,45 +1681,53 @@ function setupEventListeners() {
     let isScrolling = false;
     let scrollTimeout = null;
 
-    DOM_ELEMENTS.scheduleTable.addEventListener("touchstart", (e) => {
-      if (state.compareMode && e.target.classList.contains("slot")) {
-        // Store initial touch data
-        touchStartData = {
-          x: e.touches[0].clientX,
-          y: e.touches[0].clientY,
-          time: Date.now(),
-          target: e.target,
-          day: parseInt(e.target.dataset.day, 10),
-          timeIndex: parseInt(e.target.dataset.time, 10)
-        };
-        isScrolling = false;
-        
-        // Clear any existing scroll timeout
-        if (scrollTimeout) {
-          clearTimeout(scrollTimeout);
-          scrollTimeout = null;
-        }
-      }
-    }, { passive: true });
+    DOM_ELEMENTS.scheduleTable.addEventListener(
+      "touchstart",
+      (e) => {
+        if (state.compareMode && e.target.classList.contains("slot")) {
+          // Store initial touch data
+          touchStartData = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+            time: Date.now(),
+            target: e.target,
+            day: parseInt(e.target.dataset.day, 10),
+            timeIndex: parseInt(e.target.dataset.time, 10),
+          };
+          isScrolling = false;
 
-    DOM_ELEMENTS.scheduleTable.addEventListener("touchmove", (e) => {
-      if (touchStartData && state.compareMode) {
-        const deltaX = Math.abs(e.touches[0].clientX - touchStartData.x);
-        const deltaY = Math.abs(e.touches[0].clientY - touchStartData.y);
-        
-        // If user has moved more than 10px in any direction, consider it scrolling
-        if (deltaX > 10 || deltaY > 10) {
-          isScrolling = true;
-          // Hide tooltip immediately if user starts scrolling
-          handleHideSlotTooltip();
+          // Clear any existing scroll timeout
+          if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = null;
+          }
         }
-      }
-    }, { passive: true });
+      },
+      { passive: true }
+    );
+
+    DOM_ELEMENTS.scheduleTable.addEventListener(
+      "touchmove",
+      (e) => {
+        if (touchStartData && state.compareMode) {
+          const deltaX = Math.abs(e.touches[0].clientX - touchStartData.x);
+          const deltaY = Math.abs(e.touches[0].clientY - touchStartData.y);
+
+          // If user has moved more than 10px in any direction, consider it scrolling
+          if (deltaX > 10 || deltaY > 10) {
+            isScrolling = true;
+            // Hide tooltip immediately if user starts scrolling
+            handleHideSlotTooltip();
+          }
+        }
+      },
+      { passive: true }
+    );
 
     DOM_ELEMENTS.scheduleTable.addEventListener("touchend", (e) => {
       if (touchStartData && state.compareMode && !isScrolling) {
         const touchDuration = Date.now() - touchStartData.time;
-        
+
         // Only show tooltip if:
         // 1. Touch was brief (less than 300ms, indicating a tap not a long press)
         // 2. User didn't scroll
@@ -1725,7 +1736,7 @@ function setupEventListeners() {
           const { day, timeIndex } = touchStartData;
           if (!isNaN(day) && !isNaN(timeIndex)) {
             handleShowSlotTooltip(touchStartData.target, day, timeIndex);
-            
+
             // Auto-hide tooltip after 3 seconds on mobile
             scrollTimeout = setTimeout(() => {
               handleHideSlotTooltip();
@@ -1733,7 +1744,7 @@ function setupEventListeners() {
           }
         }
       }
-      
+
       // Reset touch data
       touchStartData = null;
       isScrolling = false;
@@ -1747,7 +1758,7 @@ function setupEventListeners() {
         !e.target.closest("#slotTooltip")
       ) {
         handleHideSlotTooltip();
-        
+
         // Clear any pending timeout
         if (scrollTimeout) {
           clearTimeout(scrollTimeout);
