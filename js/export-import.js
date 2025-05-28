@@ -98,7 +98,14 @@ function fallbackToTextAreaDisplay(jsonData, userName) {
  * @returns {Promise<void>}
  */
 export async function handleExportCurrentUser(state) {
-  if (!state.activeUserId || !state.users[state.activeUserId]) {
+    
+  // if compare mode is active, do not export
+  if (state.compareMode) {
+    return showModal({
+      content: "Cannot export while in compare mode.",
+      title: "Export Error",
+    });
+  } else if (!state.activeUserId || !state.users[state.activeUserId]) {
     return showModal({
       content: "Select an active user to export.",
       title: "Export Error",
