@@ -7,9 +7,10 @@ import { initModal, showModal } from "./modal.js";
 import {
   parseTime,
   isTimeBefore,
+  convertToHHMM,
   isValidTimeFormat,
   isValidStrictHHMMTimeFormat,
-  convertToHHMM,
+  createUnifiedSchedule,
 } from "./timeUtils.js";
 import {
   handleExportCurrentUser,
@@ -99,39 +100,86 @@ export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
 
 export function determineSlotStatus(dayIndex, timeIndex, currentState) {
   const { compareMode, selectedUserIds, users, activeUserId } = currentState;
-  // Ensure users[id].schedule[dayIndex] exists and is an array before accessing timeIndex
-  // And that users[id].timeSlots exist to determine valid timeIndex range
 
   if (compareMode && selectedUserIds.size > 0) {
-    let busyCount = 0;
-    let allUsersHaveSlot = true; // Flag to check if all selected users even have this timeIndex
+    // Create unified schedule for heterogeneous comparison
+    const selectedUsers = Array.from(selectedUserIds)
+      .map((id) => users[id])
+      .filter((user) => user);
 
-    selectedUserIds.forEach((id) => {
-      const user = users[id];
-      if (user && user.schedule && user.schedule[dayIndex]) {
-        if (timeIndex < user.schedule[dayIndex].length) {
-          // Check if slot index is valid for this user
-          if (user.schedule[dayIndex][timeIndex]) {
-            busyCount++;
-          }
-        } else {
-          allUsersHaveSlot = false; // This user doesn't have this time slot index
-        }
-      } else {
-        allUsersHaveSlot = false; // User or their schedule/day doesn't exist
-      }
-    });
-
-    if (!allUsersHaveSlot && selectedUserIds.size > 0) {
-      // If any user doesn't have the slot, it might be partial or uncomparable
-      // This logic needs refinement for heterogeneous schedules. For now, if not all have it, consider it partial.
-      // A better approach would be to map times, not indices, for comparison.
-      return "slot-partial"; // Or a new "slot-undefined-for-some"
+    if (selectedUsers.length === 0) {
+      return "slot";
     }
 
-    if (busyCount === 0 && selectedUserIds.size > 0) return "slot-free";
-    if (busyCount === selectedUserIds.size) return "slot-conflict";
-    if (selectedUserIds.size > 0) return "slot-partial"; // some busy, some free
+    // Check if we need unified schedule (users have different time structures)
+    // Only use unified schedule if all users have timeSlots defined
+    const allUsersHaveTimeSlots = selectedUsers.every(
+      (user) => user.timeSlots && Array.isArray(user.timeSlots)
+    );
+
+    const needsUnifiedSchedule =
+      allUsersHaveTimeSlots &&
+      selectedUsers.some((user) => {
+        const firstUserTimeSlots = selectedUsers[0].timeSlots;
+        return (
+          user.timeSlots.length !== firstUserTimeSlots.length ||
+          user.timeSlots.some(
+            (slot, idx) =>
+              !firstUserTimeSlots[idx] ||
+              slot.start !== firstUserTimeSlots[idx].start ||
+              slot.end !== firstUserTimeSlots[idx].end
+          )
+        );
+      });
+
+    if (needsUnifiedSchedule) {
+      // Use UnifiedSchedule for heterogeneous time structures
+      const unifiedSchedule = createUnifiedSchedule(selectedUsers);
+
+      if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
+        return "slot-partial"; // Slot doesn't exist in unified schedule
+      }
+
+      const status = unifiedSchedule.getSlotStatus(dayIndex, timeIndex);
+
+      if (status.busy.length === 0 && status.unavailable.length === 0) {
+        return "slot-free"; // All users are available
+      } else if (
+        status.busy.length === status.total &&
+        status.unavailable.length === 0
+      ) {
+        return "slot-conflict"; // All users are busy
+      } else {
+        return "slot-partial"; // Mixed availability or some users don't have this slot
+      }
+    } else {
+      // Fall back to original logic for homogeneous schedules
+      let busyCount = 0;
+      let allUsersHaveSlot = true;
+
+      selectedUserIds.forEach((id) => {
+        const user = users[id];
+        if (user && user.schedule && user.schedule[dayIndex]) {
+          if (timeIndex < user.schedule[dayIndex].length) {
+            if (user.schedule[dayIndex][timeIndex]) {
+              busyCount++;
+            }
+          } else {
+            allUsersHaveSlot = false;
+          }
+        } else {
+          allUsersHaveSlot = false;
+        }
+      });
+
+      if (!allUsersHaveSlot && selectedUserIds.size > 0) {
+        return "slot-partial";
+      }
+
+      if (busyCount === 0 && selectedUserIds.size > 0) return "slot-free";
+      if (busyCount === selectedUserIds.size) return "slot-conflict";
+      if (selectedUserIds.size > 0) return "slot-partial";
+    }
   } else if (activeUserId && users[activeUserId]) {
     const activeUserObj = users[activeUserId];
     if (
@@ -148,38 +196,77 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
 }
 
 export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
-  const { users, selectedUserIds } = currentState;
+  const { users, selectedUserIds, compareMode } = currentState;
   if (selectedUserIds.size === 0) return "";
 
-  const freeUsers = [];
-  const busyUsers = [];
+  // Check if we need unified schedule approach for heterogeneous comparison
+  const selectedUsers = Array.from(selectedUserIds)
+    .map((id) => users[id])
+    .filter((user) => user);
 
-  selectedUserIds.forEach((userId) => {
-    const user = users[userId];
-    if (
-      user &&
-      user.schedule &&
-      user.schedule[dayIndex] &&
-      timeIndex < user.schedule[dayIndex].length
-    ) {
-      (user.schedule[dayIndex][timeIndex] ? busyUsers : freeUsers).push(
-        user.name
+  if (selectedUsers.length === 0) return "";
+
+  const allUsersHaveTimeSlots = selectedUsers.every(
+    (user) => user.timeSlots && Array.isArray(user.timeSlots)
+  );
+
+  const needsUnifiedSchedule =
+    allUsersHaveTimeSlots &&
+    selectedUsers.some((user) => {
+      const firstUserTimeSlots = selectedUsers[0].timeSlots;
+      return (
+        user.timeSlots.length !== firstUserTimeSlots.length ||
+        user.timeSlots.some(
+          (slot, idx) =>
+            !firstUserTimeSlots[idx] ||
+            slot.start !== firstUserTimeSlots[idx].start ||
+            slot.end !== firstUserTimeSlots[idx].end
+        )
       );
-    } else if (user) {
-      // If user exists but doesn't have this specific slot defined (e.g. heterogeneous schedules)
-      // For now, we don't list them, or could add to a 'N/A' list.
+    });
+
+  if (needsUnifiedSchedule) {
+    // Use UnifiedSchedule for heterogeneous tooltip generation
+    const unifiedSchedule = createUnifiedSchedule(selectedUsers);
+
+    if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
+      return "Time slot not available in unified schedule";
     }
-  });
 
-  if (busyUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
-    return "All selected users are unavailable.";
-  if (freeUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
-    return "All selected users are free.";
+    const status = unifiedSchedule.getSlotStatus(dayIndex, timeIndex);
+    return unifiedSchedule._generateTooltip(status);
+  } else {
+    // Fall back to original logic for homogeneous schedules
+    const freeUsers = [];
+    const busyUsers = [];
 
-  let message = "Availability:\n";
-  if (freeUsers.length > 0) message += `Free: ${freeUsers.join(", ")}\n`;
-  if (busyUsers.length > 0) message += `Busy: ${busyUsers.join(", ")}`;
-  return message.trim();
+    selectedUserIds.forEach((userId) => {
+      const user = users[userId];
+      if (
+        user &&
+        user.schedule &&
+        user.schedule[dayIndex] &&
+        timeIndex < user.schedule[dayIndex].length
+      ) {
+        (user.schedule[dayIndex][timeIndex] ? busyUsers : freeUsers).push(
+          user.name
+        );
+      } else if (user) {
+        // If user exists but doesn't have this specific slot defined (e.g. heterogeneous schedules)
+        // For now, we don't list them, or could add to a 'N/A' list.
+      }
+    });
+
+    if (busyUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
+      return "All selected users are unavailable.";
+    if (freeUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
+      return "All selected users are free.";
+
+    let message = "Availability:\n";
+    if (freeUsers.length > 0) message += `Free: ${freeUsers.join(", ")}\n`;
+    if (busyUsers.length > 0) message += `Busy: ${busyUsers.join(", ")}`;
+    return message.trim();
+  }
 }
 
 /**
@@ -883,9 +970,40 @@ function renderScheduleGrid() {
       allowEditingHeaders = true; // User has their own slots defined
     }
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
-    // Compare mode
+    // Compare mode - check if we need unified schedule
+    const selectedUsers = Array.from(state.selectedUserIds)
+      .map((id) => state.users[id])
+      .filter((user) => user);
 
-    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    if (selectedUsers.length > 0) {
+      // Check if users have different time structures
+      const needsUnifiedSchedule = selectedUsers.some((user) => {
+        const firstUserTimeSlots = selectedUsers[0].timeSlots;
+        return (
+          !user.timeSlots ||
+          user.timeSlots.length !== firstUserTimeSlots.length ||
+          user.timeSlots.some(
+            (slot, idx) =>
+              !firstUserTimeSlots[idx] ||
+              slot.start !== firstUserTimeSlots[idx].start ||
+              slot.end !== firstUserTimeSlots[idx].end
+          )
+        );
+      });
+
+      if (needsUnifiedSchedule) {
+        // Use unified schedule for heterogeneous comparison
+        const unifiedSchedule = createUnifiedSchedule(selectedUsers);
+        currentTimeSlotsToRender = unifiedSchedule.unifiedTimeSlots;
+      } else {
+        // Use first user's time slots for homogeneous comparison
+        currentTimeSlotsToRender =
+          selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
+      }
+    } else {
+      currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    }
+
     allowEditingHeaders = false; // Not editable in compare mode
   } else {
     // No active user, show defaults, not editable
@@ -1535,35 +1653,21 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
 }
 
 function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
-  console.log("=== TOOLTIP DEBUG START ===");
-  console.log("Tooltip Debug:", {
-    hasTooltipElement: !!DOM_ELEMENTS.slotTooltip,
-    compareMode: state.compareMode,
-    selectedCount: state.selectedUserIds.size,
-    selectedUserIds: Array.from(state.selectedUserIds),
-    dayIndex,
-    timeIndex,
-  });
-
   if (!DOM_ELEMENTS.slotTooltip) {
-    console.log("❌ No tooltip element found");
     return;
   }
 
   if (!state.compareMode) {
-    console.log("❌ Not in compare mode");
     handleHideSlotTooltip();
     return;
   }
 
   if (state.selectedUserIds.size === 0) {
-    console.log("❌ No users selected for comparison");
     handleHideSlotTooltip();
     return;
   }
 
   const message = generateTooltipMessage(dayIndex, timeIndex, state);
-  console.log("✅ Generated tooltip message:", message);
 
   if (!message) {
     handleHideSlotTooltip();
@@ -1608,13 +1712,6 @@ function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
   DOM_ELEMENTS.slotTooltip.offsetHeight; // Force reflow
   const tooltipHeight = DOM_ELEMENTS.slotTooltip.offsetHeight;
   const tooltipWidth = DOM_ELEMENTS.slotTooltip.offsetWidth;
-
-  console.log("🔍 Measurement debug:", {
-    offsetHeight: tooltipHeight,
-    offsetWidth: tooltipWidth,
-    textContent: DOM_ELEMENTS.slotTooltip.textContent.substring(0, 50),
-    hasContent: !!DOM_ELEMENTS.slotTooltip.textContent,
-  });
 
   // Get slot position
   const rect = slotElement.getBoundingClientRect();
@@ -1667,20 +1764,6 @@ function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
   });
 
   DOM_ELEMENTS.slotTooltip.classList.add("visible");
-
-  console.log("✅ Tooltip positioned:", {
-    left: DOM_ELEMENTS.slotTooltip.style.left,
-    top: DOM_ELEMENTS.slotTooltip.style.top,
-    finalWidth,
-    finalHeight,
-    originalHeight: tooltipHeight,
-    originalWidth: tooltipWidth,
-    display: DOM_ELEMENTS.slotTooltip.style.display,
-    visibility: DOM_ELEMENTS.slotTooltip.style.visibility,
-    opacity: DOM_ELEMENTS.slotTooltip.style.opacity,
-    isVisible: DOM_ELEMENTS.slotTooltip.classList.contains("visible"),
-    element: DOM_ELEMENTS.slotTooltip,
-  });
 }
 
 function handleHideSlotTooltip() {
@@ -1754,18 +1837,9 @@ function setupEventListeners() {
       }
     });
     DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (e) => {
-      console.log(
-        "Mouseover event:",
-        e.target,
-        "Compare mode:",
-        state.compareMode,
-        "Has slot class:",
-        e.target.classList.contains("slot")
-      );
       if (state.compareMode && e.target.classList.contains("slot")) {
         const day = parseInt(e.target.dataset.day, 10),
           time = parseInt(e.target.dataset.time, 10);
-        console.log("Showing tooltip for day:", day, "time:", time);
         if (!isNaN(day) && !isNaN(time))
           handleShowSlotTooltip(e.target, day, time);
       }

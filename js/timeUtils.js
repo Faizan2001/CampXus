@@ -1,6 +1,60 @@
 // js/timeUtils.js
 
 /**
+ * Validates time format in strict HH:MM (24-hour) format.
+ * @param {string} time - The time string to validate.
+ * @returns {boolean} True if valid HH:MM format, false otherwise.
+ */
+export function isValidStrictHHMMTimeFormat(time) {
+  if (!time || typeof time !== "string") return false;
+  const timeRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/; // HH:MM format
+  return timeRegex.test(time.trim());
+}
+
+/**
+ * Converts a time string (potentially with AM/PM) to a 24-hour HH:MM format string.
+ * Example: "8:00 AM" -> "08:00", "5:30 PM" -> "17:30", "14:00" -> "14:00"
+ * Returns original string if conversion is not applicable or fails.
+ * @param {string} timeStr - The time string input.
+ * @returns {string} Time string in HH:MM format.
+ */
+export function convertToHHMM(timeStr) {
+  if (!timeStr || typeof timeStr !== "string") return timeStr; // Or throw error/return null
+
+  const trimmedTime = timeStr.trim().toUpperCase();
+  // Regex to capture hours, minutes, and AM/PM
+  // Allows H:MM, HH:MM, with optional space before AM/PM
+  const match = trimmedTime.match(/^(\d{1,2})[:.](\d{2})\s*([AP]M)?$/);
+
+  if (!match) {
+    // If it doesn't match the expected pattern (e.g., already "HH:MM" or invalid)
+    // and it's a valid HH:MM format, return it. Otherwise, it might be invalid.
+    if (isValidStrictHHMMTimeFormat(trimmedTime)) return trimmedTime; // e.g. "14:30"
+    return timeStr; // Return original if not AM/PM and not strictly HH:MM (let other validators catch it)
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const ampm = match[3];
+
+  // Convert to 24-hour format if AM/PM is present
+  if (ampm) {
+    if (ampm === "AM" && hours === 12) {
+      hours = 0; // 12 AM is 00:xx
+    } else if (ampm === "PM" && hours !== 12) {
+      hours += 12; // PM hours (except 12 PM)
+    }
+    // 12 PM remains 12:xx
+  }
+
+  // Format as HH:MM
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+/**
  * Parses a time string into total minutes from midnight.
  * Supports multiple formats: HH:MM, H:MM, H:MM AM/PM, HH:MM AM/PM
  * @param {string} timeStr - The time string, e.g., "09:30", "9:30 AM", "5:00 PM".
@@ -95,61 +149,6 @@ export function isValidTimeFormat(time) {
   const timeFormatRegex =
     /^\s*([0-1]?[0-9]|2[0-3])[:.]([0-5]\d)(\s*([AP]M))?\s*$/i;
   return timeFormatRegex.test(time.trim());
-}
-
-/**
- * Validates a stricter HH:MM time format.
- * @param {string} time - The time string to validate.
- * @returns {boolean} True if valid HH:MM format, false otherwise.
- */
-export function isValidStrictHHMMTimeFormat(time) {
-  if (!time || typeof time !== "string") return false;
-  const timeRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/; // HH:MM format
-  return timeRegex.test(time.trim());
-}
-
-/**
- * Converts a time string (potentially with AM/PM) to a 24-hour HH:MM format string.
- * Example: "8:00 AM" -> "08:00", "5:30 PM" -> "17:30", "14:00" -> "14:00"
- * Returns original string if conversion is not applicable or fails.
- * @param {string} timeStr - The time string input.
- * @returns {string} Time string in HH:MM format.
- */
-export function convertToHHMM(timeStr) {
-  if (!timeStr || typeof timeStr !== "string") return timeStr; // Or throw error/return null
-
-  const trimmedTime = timeStr.trim().toUpperCase();
-  // Regex to capture hours, minutes, and AM/PM
-  // Allows H:MM, HH:MM, with optional space before AM/PM
-  const match = trimmedTime.match(/^(\d{1,2})[:.](\d{2})\s*([AP]M)?$/);
-
-  if (!match) {
-    // If it doesn't match the expected pattern (e.g., already "HH:MM" or invalid)
-    // and it's a valid HH:MM format, return it. Otherwise, it might be invalid.
-    if (isValidStrictHHMMTimeFormat(trimmedTime)) return trimmedTime; // e.g. "14:30"
-    return timeStr; // Return original if not AM/PM and not strictly HH:MM (let other validators catch it)
-  }
-
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const period = match[3]; // AM/PM or undefined
-
-  if (isNaN(hours) || isNaN(minutes)) return timeStr; // Should not happen if regex matches digits
-
-  if (period) {
-    // If AM/PM is present
-    if (period === "PM" && hours < 12) {
-      hours += 12;
-    } else if (period === "AM" && hours === 12) {
-      // Midnight case: 12 AM is 00 hours
-      hours = 0;
-    }
-  }
-  // Ensure hours and minutes are two digits (e.g., "08:00" not "8:0")
-  const formattedHours = String(hours).padStart(2, "0");
-  const formattedMinutes = String(minutes).padStart(2, "0");
-
-  return `${formattedHours}:${formattedMinutes}`;
 }
 
 /**
@@ -346,6 +345,42 @@ export function mergeOverlappingIntervals(intervals) {
     if (mergedInterval) {
       // Replace the last merged with the new merged interval
       merged[merged.length - 1] = mergedInterval;
+    } else {
+      // No overlap, add as separate interval
+      merged.push(current.clone());
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Merges only truly overlapping intervals (not adjacent ones) for schedule comparison.
+ * This preserves distinct time slots even if they're adjacent.
+ * @param {TimeInterval[]} intervals - Array of time intervals
+ * @returns {TimeInterval[]} Array of merged intervals, keeping adjacent intervals separate
+ */
+export function mergeOnlyOverlappingIntervals(intervals) {
+  if (!intervals || intervals.length === 0) {
+    return [];
+  }
+
+  // Sort intervals by start time
+  const sorted = intervals
+    .slice()
+    .sort((a, b) => a.startMinutes - b.startMinutes);
+  const merged = [sorted[0].clone()];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const lastMerged = merged[merged.length - 1];
+
+    // Only merge if they truly overlap (not just adjacent)
+    if (lastMerged.overlaps(current)) {
+      const mergedInterval = lastMerged.merge(current);
+      if (mergedInterval) {
+        merged[merged.length - 1] = mergedInterval;
+      }
     } else {
       // No overlap, add as separate interval
       merged.push(current.clone());
@@ -764,32 +799,52 @@ export class UnifiedSchedule {
   }
 
   /**
-   * Rebuilds the unified time slots by merging all users' time structures.
+   * Rebuilds the unified time slots by creating a timeline from all unique time boundaries.
+   * For heterogeneous schedule comparison, we want to preserve all distinct time slots.
    * @private
    */
   _rebuildUnifiedTimeSlots() {
-    const allIntervals = [];
-
-    // Collect all time intervals from all users
-    for (const user of this.users.values()) {
-      allIntervals.push(...user.intervals);
+    if (this.users.size === 0) {
+      this.allTimeIntervals = [];
+      this.unifiedTimeSlots = [];
+      return;
     }
 
-    // Remove duplicates and merge overlapping intervals
-    this.allTimeIntervals = mergeOverlappingIntervals(allIntervals);
+    // Collect all unique time boundaries from all users
+    const timePoints = new Set();
+
+    for (const user of this.users.values()) {
+      for (const interval of user.intervals) {
+        timePoints.add(interval.startMinutes);
+        timePoints.add(interval.endMinutes);
+      }
+    }
+
+    // Convert to sorted array
+    const sortedTimePoints = Array.from(timePoints).sort((a, b) => a - b);
+
+    // Create intervals from consecutive time points
+    this.allTimeIntervals = [];
+    for (let i = 0; i < sortedTimePoints.length - 1; i++) {
+      const start = sortedTimePoints[i];
+      const end = sortedTimePoints[i + 1];
+
+      // Create a TimeInterval for this segment
+      const interval = new TimeInterval(
+        start,
+        end,
+        `${minutesToTimeString(start)}-${minutesToTimeString(end)}`
+      );
+      this.allTimeIntervals.push(interval);
+    }
 
     // Convert back to time slot format
     this.unifiedTimeSlots = this.allTimeIntervals.map((interval) => ({
       start: interval.startTime,
       end: interval.endTime,
-      label: interval.label || `${interval.startTime}-${interval.endTime}`,
+      label: `${interval.startTime}-${interval.endTime}`,
       duration: interval.duration,
     }));
-
-    // Sort by start time
-    this.unifiedTimeSlots.sort(
-      (a, b) => parseTime(a.start) - parseTime(b.start)
-    );
   }
 
   /**
@@ -958,9 +1013,13 @@ export class UnifiedSchedule {
     }
 
     if (status.unavailable.length > 0) {
-      messages.push(
-        `No slot: ${status.unavailable.map((u) => u.name).join(", ")}`
-      );
+      // Improved messaging: Instead of "No slot", show that users are busy during this period
+      const unavailableUsers = status.unavailable.map((u) => u.name);
+      if (unavailableUsers.length === 1) {
+        messages.push(`Busy: ${unavailableUsers[0]} (no slot during this time)`);
+      } else {
+        messages.push(`Busy: ${unavailableUsers.join(", ")} (no slots during this time)`);
+      }
     }
 
     return messages.join("\n");
@@ -1037,7 +1096,20 @@ export class UnifiedSchedule {
  * @param {Array} users - Array of user objects with { id, name, timeSlots, schedule }
  * @returns {UnifiedSchedule} A new unified schedule instance
  */
-export function createUnifiedSchedule(users = []) {
+export function createUnifiedSchedule(users) {
+  if (users == null) {
+    throw new Error("Users array cannot be null or undefined");
+  }
+
+  if (!Array.isArray(users)) {
+    throw new Error("Users must be an array");
+  }
+
+  // Use empty array as default only after validation
+  if (users.length === 0) {
+    users = [];
+  }
+
   const unifiedSchedule = new UnifiedSchedule();
 
   for (const user of users) {
