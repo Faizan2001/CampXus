@@ -1721,16 +1721,24 @@ Enhanced table layout with proper column distribution and fixed sizing
   min-width: 100px !important; /* Increased minimum width to prevent narrowing */
 }
 
-/* Override for compare mode with many slots */
+/* Override for compare mode with many slots - Enhanced for cross-browser compatibility */
 .schedule-table.many-slots th:not(:first-child):not(:last-child) {
-  width: auto !important; /* Let columns size naturally */
-  min-width: 80px !important; /* Reduced minimum width for more compact slots */
-  max-width: 180px !important; /* Reduced maximum width for tighter layout */
-  flex: 1 1 100px; /* Allow flexible growth but maintain minimum */
+  width: 90px !important; /* Fixed width for consistent display */
+  min-width: 90px !important; /* Strong minimum width enforcement */
+  max-width: 150px !important; /* Prevent excessive width */
+  box-sizing: border-box !important; /* Ensure padding is included in width */
+}
+
+.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+  width: 90px !important; /* Fixed width for table cells */
+  min-width: 90px !important; /* Strong minimum width enforcement */
+  max-width: 150px !important; /* Prevent excessive width */
+  box-sizing: border-box !important; /* Ensure padding is included in width */
 }
 
 /* Ensure table can scroll horizontally when needed */
 .schedule-table.many-slots {
+  table-layout: fixed !important; /* Force fixed layout for consistent widths */
   min-width: auto !important; /* Remove fixed minimum, let content dictate */
   width: max-content !important; /* Expand to fit content */
   display: table !important; /* Ensure proper table layout */
@@ -2737,8 +2745,8 @@ Detailed tooltip for showing which users have pinned a slot
   }
 
   .pin-square-container .pin-count-number {
-    width: 12px !important;
-    height: 12px !important;
+    width: 10px !important;
+    height: 10px !important;
     margin-top: 5px !important;
     font-size: 8px !important;
     color: white !important;
@@ -2804,7 +2812,7 @@ Detailed tooltip for showing which users have pinned a slot
   transform: translateY(-100%) !important;
 }
 
-/* Dark theme enhancements */
+/* Dark mode enhancements */
 @media (prefers-color-scheme: dark) {
   .compare-pin-indicator {
     background: rgba(0, 0, 0, 0.8) !important;
@@ -3352,131 +3360,652 @@ body:not(.dark-mode) #addNewTimeSlotBtn:hover {
 .pin-btn:not(:disabled):active {
   transform: translateY(0px);
   transition: all 0.1s ease;
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
 }
 
-/* Remove any unwanted borders/outlines from pin button */
-button#togglePinModeBtn.pin-btn:focus,
-button#togglePinModeBtn.pin-btn:focus-visible,
-button#togglePinModeBtn.pin-btn:hover {
-  outline: none !important;
-  border: none !important;
+.pin-btn:focus-visible,
+#addNewTimeSlotBtn:focus-visible {
+  /* Focus Accessibility */
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
+    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Pin button icon animations */
-.pin-btn i {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+.add-timeslot-btn i,
+#addNewTimeSlotBtn i {
+  /* Icon Styling */
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.3s ease;
 }
 
-.pin-btn:not(:disabled):hover i {
-  transform: scale(1.1) rotate(15deg);
+.add-timeslot-btn:hover i,
+#addNewTimeSlotBtn:hover i {
+  /* Icon Hover Effect */
+  transform: rotate(90deg) scale(1.1);
 }
 
-.pin-btn:not(:disabled):active i {
-  transform: scale(0.95) rotate(0deg);
-  transition: transform 0.1s ease;
+/* Disabled State */
+.add-timeslot-btn:disabled,
+#addNewTimeSlotBtn:disabled {
+  background: var(--text-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.6;
+  border-color: transparent;
 }
 
-/* Pin button active state icon - keep rotated when pin mode is ON */
-button#togglePinModeBtn.pin-btn.pin-mode-active i {
-  transform: rotate(30deg);
+.add-timeslot-btn:disabled:hover,
+#addNewTimeSlotBtn:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
-button#togglePinModeBtn.pin-btn.pin-mode-active:hover i {
-  transform: scale(1.1) rotate(15deg);
+.add-timeslot-btn:disabled i,
+#addNewTimeSlotBtn:disabled i {
+  transform: none;
 }
 
-button#togglePinModeBtn.pin-btn.pin-mode-active:active i {
-  transform: scale(0.95) rotate(15deg);
-  transition: transform 0.1s ease;
+/* Ripple Effect for Add Button */
+.add-timeslot-btn::before,
+#addNewTimeSlotBtn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
 }
 
-/* Pin button text span */
-.pin-btn-text {
-  margin-left: 4px;
+.add-timeslot-btn:active::before,
+#addNewTimeSlotBtn:active::before {
+  width: 120%;
+  height: 120%;
 }
 
-/* Hide text on smaller screens to show icon only */
-@media (max-width: 640px) {
-  .pin-btn-text {
-    display: none;
+/* Light Mode Adjustments */
+.light-mode .add-timeslot-btn,
+.light-mode #addNewTimeSlotBtn,
+body:not(.dark-mode) .add-timeslot-btn,
+body:not(.dark-mode) #addNewTimeSlotBtn {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .add-timeslot-btn:hover,
+.light-mode #addNewTimeSlotBtn:hover,
+body:not(.dark-mode) .add-timeslot-btn:hover,
+body:not(.dark-mode) #addNewTimeSlotBtn:hover {
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35),
+    0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 16px;
   }
 }
 
 @media (max-width: 480px) {
-  .pin-btn {
-    padding: 6px 8px;
-    min-width: 32px;
-    height: 28px;
-  }
-
-  .pin-btn-text {
-    display: none; /* Hide text on very small screens, show only icon */
-  }
-}
-
-/* Dark mode styles for pin button */
-.dark-mode .pin-btn {
-  background: rgba(139, 69, 19, 0.4);
-  color: rgba(139, 69, 19, 0.7);
-}
-
-.dark-mode .pin-btn:not(:disabled) {
-  background: rgba(220, 53, 69, 0.8);
-  color: white;
-}
-
-.dark-mode .pin-btn.pin-mode-active {
-  background: rgba(25, 135, 84, 0.9) !important; /* Dark green for dark mode */
-  color: white !important;
-}
-
-/* Responsive styles for pin button */
-@media (max-width: 768px) {
-  .schedule-header-actions {
-    gap: 8px;
-  }
-
-  .pin-btn {
-    padding: 6px 10px;
-    font-size: 0.8rem;
-    min-width: 36px;
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 32px;
     height: 32px;
   }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 14px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    border: 2px solid var(--text-primary);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn,
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i,
+  .add-timeslot-btn::before,
+  #addNewTimeSlotBtn::before {
+    transition: none;
+    animation: none;
+  }
+
+  .add-timeslot-btn:hover,
+  #addNewTimeSlotBtn:hover {
+    transform: none;
+  }
+
+  .add-timeslot-btn:hover i,
+  #addNewTimeSlotBtn:hover i {
+    transform: none;
+  }
+}
+
+/* New styles for relocated pin mode button in schedule header */
+
+/* Schedule header actions container */
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Pin button in schedule header */
+.pin-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 36px;
+  justify-content: center;
+
+  /* Default disabled state */
+  background: rgba(139, 69, 19, 0.3);
+  color: rgba(139, 69, 19, 0.6);
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.1);
+}
+
+.pin-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Pin button enabled state (red - ready to pin) */
+.pin-btn:not(:disabled) {
+  background: rgba(220, 53, 69, 0.9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-btn:not(:disabled):hover {
+  background: rgba(220, 53, 69, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+.pin-btn:not(:disabled):active {
+  transform: translateY(0px);
+  transition: all 0.1s ease;
+}
+
+.pin-btn:focus-visible,
+#addNewTimeSlotBtn:focus-visible {
+  /* Focus Accessibility */
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
+    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.add-timeslot-btn i,
+#addNewTimeSlotBtn i {
+  /* Icon Styling */
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.add-timeslot-btn:hover i,
+#addNewTimeSlotBtn:hover i {
+  /* Icon Hover Effect */
+  transform: rotate(90deg) scale(1.1);
+}
+
+/* Disabled State */
+.add-timeslot-btn:disabled,
+#addNewTimeSlotBtn:disabled {
+  background: var(--text-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.6;
+  border-color: transparent;
+}
+
+.add-timeslot-btn:disabled:hover,
+#addNewTimeSlotBtn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.add-timeslot-btn:disabled i,
+#addNewTimeSlotBtn:disabled i {
+  transform: none;
+}
+
+/* Ripple Effect for Add Button */
+.add-timeslot-btn::before,
+#addNewTimeSlotBtn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.add-timeslot-btn:active::before,
+#addNewTimeSlotBtn:active::before {
+  width: 120%;
+  height: 120%;
+}
+
+/* Light Mode Adjustments */
+.light-mode .add-timeslot-btn,
+.light-mode #addNewTimeSlotBtn,
+body:not(.dark-mode) .add-timeslot-btn,
+body:not(.dark-mode) #addNewTimeSlotBtn {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .add-timeslot-btn:hover,
+.light-mode #addNewTimeSlotBtn:hover,
+body:not(.dark-mode) .add-timeslot-btn:hover,
+body:not(.dark-mode) #addNewTimeSlotBtn:hover {
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35),
+    0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 480px) {
-  .schedule-header-actions {
-    gap: 6px;
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 32px;
+    height: 32px;
   }
 
-  .pin-btn {
-    padding: 6px 8px;
-    min-width: 32px;
-    height: 28px;
-  }
-
-  .pin-btn span {
-    display: none; /* Hide text on very small screens, show only icon */
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 14px;
   }
 }
 
-/* Enhanced specificity for pin button active state - dark green when ON */
-button#togglePinModeBtn.pin-btn.pin-mode-active {
-  background: rgba(25, 135, 84, 1) !important; /* Dark green */
-  color: white !important;
-  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    border: 2px solid var(--text-primary);
+  }
 }
 
-button#togglePinModeBtn.pin-btn.pin-mode-active:hover {
-  background: rgba(20, 108, 67, 1) !important; /* Even darker green on hover */
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn,
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i,
+  .add-timeslot-btn::before,
+  #addNewTimeSlotBtn::before {
+    transition: none;
+    animation: none;
+  }
+
+  .add-timeslot-btn:hover,
+  #addNewTimeSlotBtn:hover {
+    transform: none;
+  }
+
+  .add-timeslot-btn:hover i,
+  #addNewTimeSlotBtn:hover i {
+    transform: none;
+  }
+}
+
+/* New styles for relocated pin mode button in schedule header */
+
+/* Schedule header actions container */
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Pin button in schedule header */
+.pin-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 36px;
+  justify-content: center;
+
+  /* Default disabled state */
+  background: rgba(139, 69, 19, 0.3);
+  color: rgba(139, 69, 19, 0.6);
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.1);
+}
+
+.pin-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Pin button enabled state (red - ready to pin) */
+.pin-btn:not(:disabled) {
+  background: rgba(220, 53, 69, 0.9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-btn:not(:disabled):hover {
+  background: rgba(220, 53, 69, 1);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(25, 135, 84, 0.5) !important;
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
 }
 
-button#togglePinModeBtn.pin-btn.pin-mode-active:active {
+.pin-btn:not(:disabled):active {
   transform: translateY(0px);
   transition: all 0.1s ease;
-  box-shadow: 0 2px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+.pin-btn:focus-visible,
+#addNewTimeSlotBtn:focus-visible {
+  /* Focus Accessibility */
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
+    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.add-timeslot-btn i,
+#addNewTimeSlotBtn i {
+  /* Icon Styling */
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.add-timeslot-btn:hover i,
+#addNewTimeSlotBtn:hover i {
+  /* Icon Hover Effect */
+  transform: rotate(90deg) scale(1.1);
+}
+
+/* Disabled State */
+.add-timeslot-btn:disabled,
+#addNewTimeSlotBtn:disabled {
+  background: var(--text-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.6;
+  border-color: transparent;
+}
+
+.add-timeslot-btn:disabled:hover,
+#addNewTimeSlotBtn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.add-timeslot-btn:disabled i,
+#addNewTimeSlotBtn:disabled i {
+  transform: none;
+}
+
+/* Ripple Effect for Add Button */
+.add-timeslot-btn::before,
+#addNewTimeSlotBtn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.add-timeslot-btn:active::before,
+#addNewTimeSlotBtn:active::before {
+  width: 120%;
+  height: 120%;
+}
+
+/* Light Mode Adjustments */
+.light-mode .add-timeslot-btn,
+.light-mode #addNewTimeSlotBtn,
+body:not(.dark-mode) .add-timeslot-btn,
+body:not(.dark-mode) #addNewTimeSlotBtn {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .add-timeslot-btn:hover,
+.light-mode #addNewTimeSlotBtn:hover,
+body:not(.dark-mode) .add-timeslot-btn:hover,
+body:not(.dark-mode) #addNewTimeSlotBtn:hover {
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35),
+    0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 14px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    border: 2px solid var(--text-primary);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn,
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i,
+  .add-timeslot-btn::before,
+  #addNewTimeSlotBtn::before {
+    transition: none;
+    animation: none;
+  }
+
+  .add-timeslot-btn:hover,
+  #addNewTimeSlotBtn:hover {
+    transform: none;
+  }
+
+  .add-timeslot-btn:hover i,
+  #addNewTimeSlotBtn:hover i {
+    transform: none;
+  }
+}
+
+/* ===== ENHANCED CROSS-BROWSER COMPATIBILITY FOR MANY SLOTS ===== */
+/* Specifically fixes issues with mobile Chrome (Pixel 9) not respecting min-width on table cells */
+
+/* Force table layout for better cross-browser consistency */
+.schedule-table.many-slots {
+  table-layout: fixed !important;
+  width: max-content !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+/* Enhanced specificity for table headers in many-slots mode */
+table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 150px !important;
+  box-sizing: border-box !important;
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* Enhanced specificity for table cells in many-slots mode */
+table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 150px !important;
+  box-sizing: border-box !important;
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* Mobile-specific overrides for cross-browser compatibility */
+@media screen and (max-width: 768px) {
+  /* Force fixed widths on mobile for better compatibility */
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important; /* Force table-cell display */
+  }
+
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important; /* Force table-cell display */
+  }
+
+  /* Ensure slots maintain fixed width */
+  table.schedule-table.many-slots .slot {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+  }
+}
+
+/* Extra small screens - even more specific for problematic browsers */
+@media screen and (max-width: 480px) {
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important;
+  }
+
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important;
+  }
+
+  table.schedule-table.many-slots .slot {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+  }
+}
+
+/* WebKit-specific fixes for Chrome mobile rendering issues */
+@supports (-webkit-touch-callout: none) {
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child),
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    box-sizing: border-box !important;
+    -webkit-box-sizing: border-box !important;
+    flex: none !important;
+    -webkit-flex: none !important;
+  }
+}
+
+/* Chrome-specific CSS targeting */
+@media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child),
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    flex-basis: 85px !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+  }
 }
