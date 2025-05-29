@@ -816,6 +816,17 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
   if (!state.activeUserId || !state.users[state.activeUserId]) {
     console.warn("handlePinSlotClick called with no active user.");
+    // Trigger appropriate glow effect for visual feedback
+    if (!state.activeUserId) {
+      const userCount = Object.keys(state.users).length;
+      if (userCount > 0) {
+        // Users exist but no active user - glow the users section
+        triggerUsersSectionGlow();
+      } else {
+        // No users exist - glow the add user button
+        triggerAddUserGlow();
+      }
+    }
     return;
   }
 
@@ -1469,6 +1480,17 @@ function renderScheduleGrid() {
     console.error("Schedule table element not found.");
     return;
   }
+  
+  // Apply disabled state when no active user is selected
+  const scheduleWrapper = DOM_ELEMENTS.scheduleWrapper;
+  if (scheduleWrapper) {
+    if (!state.activeUserId) {
+      scheduleWrapper.classList.add("schedule-disabled");
+    } else {
+      scheduleWrapper.classList.remove("schedule-disabled");
+    }
+  }
+  
   const tableHeadRow = DOM_ELEMENTS.scheduleTable.querySelector("thead tr");
   const tableBody = DOM_ELEMENTS.scheduleTable.querySelector("tbody");
 
@@ -1939,6 +1961,50 @@ function getPinModeButtonDynamicState(
   };
 }
 
+/**
+ * Triggers a glow effect on the add user button to guide user interaction
+ * when they try to interact with the disabled schedule.
+ */
+function triggerAddUserGlow() {
+  if (DOM_ELEMENTS.addUserButton) {
+    // Remove any existing glow class
+    DOM_ELEMENTS.addUserButton.classList.remove("add-user-glow");
+    
+    // Force reflow to ensure the class removal is processed
+    DOM_ELEMENTS.addUserButton.offsetHeight;
+    
+    // Add the glow class to trigger the animation
+    DOM_ELEMENTS.addUserButton.classList.add("add-user-glow");
+    
+    // Remove the class after animation completes (0.6s * 3 repetitions = 1.8s)
+    setTimeout(() => {
+      DOM_ELEMENTS.addUserButton.classList.remove("add-user-glow");
+    }, 2000);
+  }
+}
+
+/**
+ * Triggers a glow effect on the users section to guide user interaction
+ * when they try to interact with the disabled schedule and users exist.
+ */
+function triggerUsersSectionGlow() {
+  if (DOM_ELEMENTS.usersSection) {
+    // Remove any existing glow class
+    DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
+    
+    // Force reflow to ensure the class removal is processed
+    DOM_ELEMENTS.usersSection.offsetHeight;
+    
+    // Add the glow class to trigger the animation
+    DOM_ELEMENTS.usersSection.classList.add("users-section-glow");
+    
+    // Remove the class after animation completes (0.6s * 3 repetitions = 1.8s)
+    setTimeout(() => {
+      DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
+    }, 2000);
+  }
+}
+
 function updateUI() {
   renderScheduleGrid();
   renderUserList();
@@ -2207,7 +2273,18 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
     state.compareMode ||
     !state.users[state.activeUserId]
   ) {
-    // No active user, in compare mode, or user doesn't exist: do nothing.
+    // No active user, in compare mode, or user doesn't exist: show visual feedback
+    if (!state.activeUserId && !state.compareMode) {
+      // Schedule is disabled - trigger appropriate glow effect
+      const userCount = Object.keys(state.users).length;
+      if (userCount > 0) {
+        // Users exist but no active user - glow the users section
+        triggerUsersSectionGlow();
+      } else {
+        // No users exist - glow the add user button
+        triggerAddUserGlow();
+      }
+    }
     return;
   }
 
@@ -2386,6 +2463,25 @@ function setupEventListeners() {
       "click",
       handleAddNewTimeSlotClick
     );
+
+  // Schedule wrapper click handler for disabled state feedback
+  if (DOM_ELEMENTS.scheduleWrapper) {
+    DOM_ELEMENTS.scheduleWrapper.addEventListener("click", (e) => {
+      // Only trigger glow if schedule is disabled and click wasn't on a control element
+      if (DOM_ELEMENTS.scheduleWrapper.classList.contains("schedule-disabled") && 
+          !e.target.closest("button") && 
+          !e.target.closest(".add-timeslot-btn")) {
+        const userCount = Object.keys(state.users).length;
+        if (userCount > 0) {
+          // Users exist but no active user - glow the users section
+          triggerUsersSectionGlow();
+        } else {
+          // No users exist - glow the add user button
+          triggerAddUserGlow();
+        }
+      }
+    });
+  }
 
   if (DOM_ELEMENTS.userListContainer) {
     DOM_ELEMENTS.userListContainer.addEventListener("click", (e) => {

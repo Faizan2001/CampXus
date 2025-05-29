@@ -5,10 +5,12 @@ export const DOM_ELEMENTS = {
   userNameInput: null,
   userIdInput: null,
   userListContainer: null,
+  usersSection: null,
   addUserButton: null,
 
   // Schedule & Comparison
   scheduleTable: null,
+  scheduleWrapper: null,
   compareButton: null,
   togglePinModeBtn: null,
   slotTooltip: null,
@@ -42,7 +44,9 @@ export function initializeDomElements() {
   DOM_ELEMENTS.userNameInput = document.getElementById("userName");
   DOM_ELEMENTS.userIdInput = document.getElementById("userId");
   DOM_ELEMENTS.userListContainer = document.getElementById("userList");
+  DOM_ELEMENTS.usersSection = document.querySelector(".users-section");
   DOM_ELEMENTS.scheduleTable = document.getElementById("scheduleTable");
+  DOM_ELEMENTS.scheduleWrapper = document.querySelector(".schedule-wrapper");
   DOM_ELEMENTS.compareButton = document.getElementById("compare");
   DOM_ELEMENTS.togglePinModeBtn = document.getElementById("togglePinModeBtn");
   DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip");

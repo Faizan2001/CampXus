@@ -2034,6 +2034,76 @@ Custom scrollbar for horizontal schedule scrolling
 }
 
 /* 
+--- SCHEDULE DISABLED STATE ---
+Visual styling for when no active user is selected
+*/
+.schedule-disabled {
+  filter: grayscale(100%) brightness(0.7) !important;
+  opacity: 0.5 !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+}
+
+/* Apply overlay to the table itself so it scrolls with content */
+.schedule-disabled .schedule-table::before {
+  content: "";
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(2px) !important;
+  z-index: 5 !important;
+  border-radius: var(--radius-xl) !important;
+  pointer-events: none !important;
+}
+
+/* Ensure the table has relative positioning for the overlay */
+.schedule-disabled .schedule-table {
+  position: relative !important;
+}
+
+.schedule-disabled .slot {
+  cursor: not-allowed !important;
+  filter: brightness(0.8) !important;
+  pointer-events: none !important;
+}
+
+.schedule-disabled .pin-indicator,
+.schedule-disabled .pin-square-container {
+  display: none !important;
+}
+
+.schedule-disabled .add-timeslot-btn,
+.schedule-disabled #addNewTimeSlotBtn {
+  pointer-events: none !important;
+  opacity: 0.3 !important;
+}
+
+/* Glow effect for add user button when schedule is clicked while disabled */
+@keyframes addUserGlow {
+  0% { box-shadow: 0 0 5px var(--accent-primary); }
+  50% { box-shadow: 0 0 20px var(--accent-primary), 0 0 30px rgba(79, 172, 254, 0.3); }
+  100% { box-shadow: 0 0 5px var(--accent-primary); }
+}
+
+.add-user-glow {
+  animation: addUserGlow 0.6s ease-in-out 3 !important;
+}
+
+/* Glow effect for users section when disabled schedule is clicked and users exist */
+@keyframes usersSectionGlow {
+  0% { box-shadow: 0 0 5px var(--accent-secondary); }
+  50% { box-shadow: 0 0 20px var(--accent-secondary), 0 0 30px rgba(138, 43, 226, 0.3); }
+  100% { box-shadow: 0 0 5px var(--accent-secondary); }
+}
+
+.users-section-glow {
+  animation: usersSectionGlow 0.6s ease-in-out 3 !important;
+}
+
+/* 
 --- PIN INDICATOR STYLES ---
 Visual indicators for pinned slots and pin mode interactions
 */
