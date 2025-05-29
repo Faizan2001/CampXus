@@ -3215,3 +3215,185 @@ body:not(.dark-mode) #addNewTimeSlotBtn:hover {
     transform: none;
   }
 }
+
+/* New styles for relocated pin mode button in schedule header */
+
+/* Schedule header actions container */
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Pin button in schedule header */
+.pin-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 36px;
+  justify-content: center;
+
+  /* Default disabled state */
+  background: rgba(139, 69, 19, 0.3);
+  color: rgba(139, 69, 19, 0.6);
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.1);
+}
+
+.pin-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Pin button enabled state (red - ready to pin) */
+.pin-btn:not(:disabled) {
+  background: rgba(220, 53, 69, 0.9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-btn:not(:disabled):hover {
+  background: rgba(220, 53, 69, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+.pin-btn:not(:disabled):active {
+  transform: translateY(0px);
+  transition: all 0.1s ease;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Remove any unwanted borders/outlines from pin button */
+button#togglePinModeBtn.pin-btn:focus,
+button#togglePinModeBtn.pin-btn:focus-visible,
+button#togglePinModeBtn.pin-btn:hover {
+  outline: none !important;
+  border: none !important;
+}
+
+/* Pin button icon animations */
+.pin-btn i {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-btn:not(:disabled):hover i {
+  transform: scale(1.1) rotate(15deg);
+}
+
+.pin-btn:not(:disabled):active i {
+  transform: scale(0.95) rotate(0deg);
+  transition: transform 0.1s ease;
+}
+
+/* Pin button active state icon - keep rotated when pin mode is ON */
+button#togglePinModeBtn.pin-btn.pin-mode-active i {
+  transform: rotate(30deg);
+}
+
+button#togglePinModeBtn.pin-btn.pin-mode-active:hover i {
+  transform: scale(1.1) rotate(15deg);
+}
+
+button#togglePinModeBtn.pin-btn.pin-mode-active:active i {
+  transform: scale(0.95) rotate(15deg);
+  transition: transform 0.1s ease;
+}
+
+/* Pin button text span */
+.pin-btn-text {
+  margin-left: 4px;
+}
+
+/* Hide text on smaller screens to show icon only */
+@media (max-width: 640px) {
+  .pin-btn-text {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .pin-btn {
+    padding: 6px 8px;
+    min-width: 32px;
+    height: 28px;
+  }
+
+  .pin-btn-text {
+    display: none; /* Hide text on very small screens, show only icon */
+  }
+}
+
+/* Dark mode styles for pin button */
+.dark-mode .pin-btn {
+  background: rgba(139, 69, 19, 0.4);
+  color: rgba(139, 69, 19, 0.7);
+}
+
+.dark-mode .pin-btn:not(:disabled) {
+  background: rgba(220, 53, 69, 0.8);
+  color: white;
+}
+
+.dark-mode .pin-btn.pin-mode-active {
+  background: rgba(25, 135, 84, 0.9) !important; /* Dark green for dark mode */
+  color: white !important;
+}
+
+/* Responsive styles for pin button */
+@media (max-width: 768px) {
+  .schedule-header-actions {
+    gap: 8px;
+  }
+
+  .pin-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    min-width: 36px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-header-actions {
+    gap: 6px;
+  }
+
+  .pin-btn {
+    padding: 6px 8px;
+    min-width: 32px;
+    height: 28px;
+  }
+
+  .pin-btn span {
+    display: none; /* Hide text on very small screens, show only icon */
+  }
+}
+
+/* Enhanced specificity for pin button active state - dark green when ON */
+button#togglePinModeBtn.pin-btn.pin-mode-active {
+  background: rgba(25, 135, 84, 1) !important; /* Dark green */
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button#togglePinModeBtn.pin-btn.pin-mode-active:hover {
+  background: rgba(20, 108, 67, 1) !important; /* Even darker green on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(25, 135, 84, 0.5) !important;
+}
+
+button#togglePinModeBtn.pin-btn.pin-mode-active:active {
+  transform: translateY(0px);
+  transition: all 0.1s ease;
+  box-shadow: 0 2px 8px rgba(25, 135, 84, 0.3) !important;
+}

@@ -1925,17 +1925,17 @@ function getPinModeButtonDynamicState(
   // 1. No active user is selected.
   // 2. Compare mode is active.
   if (!canEnablePinMode) {
-    text = "Pin Mode: DISABLED";
+    text = "Pin Mode";
   } else if (isPinModeCurrentlyActive) {
-    text = "Pin Mode: ON";
+    text = "ON";
   } else {
-    text = "Pin Mode: OFF";
+    text = "OFF";
   }
 
   return {
     isDisabled: !canEnablePinMode,
     isActiveClass: canEnablePinMode && isPinModeCurrentlyActive,
-    text: text, // Dynamic text (ON/OFF/DISABLED)
+    text: text, // Simplified text for icon-based button
   };
 }
 
@@ -1981,20 +1981,20 @@ function updateUI() {
     );
 
     DOM_ELEMENTS.togglePinModeBtn.disabled = pinModeBtnState.isDisabled;
-    DOM_ELEMENTS.togglePinModeBtn.classList.toggle(
-      "active",
-      pinModeBtnState.isActiveClass
-    );
 
-    // Update text while preserving the icon
-    const icon = DOM_ELEMENTS.togglePinModeBtn.querySelector("i");
-    DOM_ELEMENTS.togglePinModeBtn.innerHTML = "";
-    if (icon) {
-      DOM_ELEMENTS.togglePinModeBtn.appendChild(icon);
+    // Handle the active class based on pin mode state
+    if (pinModeBtnState.isActiveClass) {
+      DOM_ELEMENTS.togglePinModeBtn.classList.add("pin-mode-active");
+    } else {
+      DOM_ELEMENTS.togglePinModeBtn.classList.remove("pin-mode-active");
     }
-    DOM_ELEMENTS.togglePinModeBtn.appendChild(
-      document.createTextNode(pinModeBtnState.text)
-    );
+
+    // Update text content in the span element
+    const textSpan =
+      DOM_ELEMENTS.togglePinModeBtn.querySelector(".pin-btn-text");
+    if (textSpan) {
+      textSpan.textContent = pinModeBtnState.text;
+    }
   }
   // --- END: Logic for Pin Mode Button ---
 }
