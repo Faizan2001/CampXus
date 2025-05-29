@@ -780,7 +780,6 @@ while maintaining schedule visibility on mobile.
     order: unset;
   }
 
-  /* Schedule takes full right column height */
   .schedule-section {
     grid-column: 2;
     grid-row: 1 / -1; /* Span all rows */
@@ -2957,4 +2956,207 @@ Styling for course code and classroom information display within schedule slots
 /* Ensure slots have relative positioning for absolute children */
 .slot {
   position: relative;
+}
+
+/* ===== ADD TIME SLOT BUTTON STYLING ===== */
+/* 
+Modern, accessible styling for the add time slot button in the schedule header
+*/
+.add-timeslot-btn,
+#addNewTimeSlotBtn {
+  /* Layout & Positioning */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0 auto;
+
+  /* Visual Styling */
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 50%; /* Circular button */
+  cursor: pointer;
+
+  /* Interactive Effects */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  /* Enhanced Shadows */
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* Accessibility */
+  outline: none;
+}
+
+.add-timeslot-btn:hover,
+#addNewTimeSlotBtn:hover {
+  /* Hover Effects */
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+
+  /* Background Enhancement */
+  background: linear-gradient(
+    135deg,
+    var(--accent-secondary),
+    var(--accent-primary)
+  );
+}
+
+.add-timeslot-btn:active,
+#addNewTimeSlotBtn:active {
+  /* Active State */
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition-duration: 0.1s;
+}
+
+.add-timeslot-btn:focus-visible,
+#addNewTimeSlotBtn:focus-visible {
+  /* Focus Accessibility */
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
+    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.add-timeslot-btn i,
+#addNewTimeSlotBtn i {
+  /* Icon Styling */
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.add-timeslot-btn:hover i,
+#addNewTimeSlotBtn:hover i {
+  /* Icon Hover Effect */
+  transform: rotate(90deg) scale(1.1);
+}
+
+/* Disabled State */
+.add-timeslot-btn:disabled,
+#addNewTimeSlotBtn:disabled {
+  background: var(--text-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.6;
+  border-color: transparent;
+}
+
+.add-timeslot-btn:disabled:hover,
+#addNewTimeSlotBtn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.add-timeslot-btn:disabled i,
+#addNewTimeSlotBtn:disabled i {
+  transform: none;
+}
+
+/* Ripple Effect for Add Button */
+.add-timeslot-btn::before,
+#addNewTimeSlotBtn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.add-timeslot-btn:active::before,
+#addNewTimeSlotBtn:active::before {
+  width: 120%;
+  height: 120%;
+}
+
+/* Light Mode Adjustments */
+.light-mode .add-timeslot-btn,
+.light-mode #addNewTimeSlotBtn,
+body:not(.dark-mode) .add-timeslot-btn,
+body:not(.dark-mode) #addNewTimeSlotBtn {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .add-timeslot-btn:hover,
+.light-mode #addNewTimeSlotBtn:hover,
+body:not(.dark-mode) .add-timeslot-btn:hover,
+body:not(.dark-mode) #addNewTimeSlotBtn:hover {
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35),
+    0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i {
+    font-size: 14px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn {
+    border: 2px solid var(--text-primary);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .add-timeslot-btn,
+  #addNewTimeSlotBtn,
+  .add-timeslot-btn i,
+  #addNewTimeSlotBtn i,
+  .add-timeslot-btn::before,
+  #addNewTimeSlotBtn::before {
+    transition: none;
+    animation: none;
+  }
+
+  .add-timeslot-btn:hover,
+  #addNewTimeSlotBtn:hover {
+    transform: none;
+  }
+
+  .add-timeslot-btn:hover i,
+  #addNewTimeSlotBtn:hover i {
+    transform: none;
+  }
 }
