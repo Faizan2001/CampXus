@@ -2083,9 +2083,15 @@ Visual styling for when no active user is selected
 
 /* Glow effect for add user button when schedule is clicked while disabled */
 @keyframes addUserGlow {
-  0% { box-shadow: 0 0 5px var(--accent-primary); }
-  50% { box-shadow: 0 0 20px var(--accent-primary), 0 0 30px rgba(79, 172, 254, 0.3); }
-  100% { box-shadow: 0 0 5px var(--accent-primary); }
+  0% {
+    box-shadow: 0 0 5px var(--accent-primary);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-primary), 0 0 30px rgba(79, 172, 254, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 5px var(--accent-primary);
+  }
 }
 
 .add-user-glow {
@@ -2094,9 +2100,16 @@ Visual styling for when no active user is selected
 
 /* Glow effect for users section when disabled schedule is clicked and users exist */
 @keyframes usersSectionGlow {
-  0% { box-shadow: 0 0 5px var(--accent-secondary); }
-  50% { box-shadow: 0 0 20px var(--accent-secondary), 0 0 30px rgba(138, 43, 226, 0.3); }
-  100% { box-shadow: 0 0 5px var(--accent-secondary); }
+  0% {
+    box-shadow: 0 0 5px var(--accent-secondary);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-secondary),
+      0 0 30px rgba(138, 43, 226, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 5px var(--accent-secondary);
+  }
 }
 
 .users-section-glow {
