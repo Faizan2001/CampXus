@@ -59,12 +59,20 @@ export function createUserObject(name, userId, currentUsers) {
     const pinnedSlots = Array(7)
       .fill(null)
       .map(() => Array(userTimeSlots.length).fill(false));
+    const slotInfo = Array(7)
+      .fill(null)
+      .map(() =>
+        Array(userTimeSlots.length)
+          .fill(null)
+          .map(() => ({ courseCode: "", classroomNumber: "" }))
+      );
     return {
       id: userId,
       name: name,
       timeSlots: userTimeSlots,
       schedule: schedule,
       pinnedSlots: pinnedSlots, // <-- ADD THIS
+      slotInfo: slotInfo, // <-- ADD SLOT INFORMATION MATRIX
     };
   }
   return null;
@@ -668,6 +676,19 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   user.pinnedSlots.forEach((dayPinnedSlots) => {
     dayPinnedSlots.push(false);
   });
+  // Expand the slotInfo matrix for the new slot
+  if (!user.slotInfo) {
+    user.slotInfo = Array(7)
+      .fill(null)
+      .map(() =>
+        Array(user.timeSlots.length - 1)
+          .fill(null)
+          .map(() => ({ courseCode: "", classroomNumber: "" }))
+      );
+  }
+  user.slotInfo.forEach((daySlotInfo) => {
+    daySlotInfo.push({ courseCode: "", classroomNumber: "" });
+  });
 
   // Migrate pins to preserve pin intentions when schedule structure changes
   migratePinsToTimeBased(user);
@@ -844,6 +865,304 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
   saveStateToStorage();
   updateUI();
+}
+
+/**
+ * Shows a modal to edit course information for an existing busy slot
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @param {Object} user - User object
+ */
+function showEditSlotInfoModal(dayIndex, timeIndex, user) {
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const dayName = daysOfWeek[dayIndex];
+  const timeSlot = user.timeSlots[timeIndex];
+
+  // Get existing slot info
+  const existingInfo =
+    user.slotInfo &&
+    user.slotInfo[dayIndex] &&
+    user.slotInfo[dayIndex][timeIndex]
+      ? user.slotInfo[dayIndex][timeIndex]
+      : { courseCode: "", classroomNumber: "" };
+
+  const modalContent = `
+    <div class="slot-info-form">
+      <p><strong>Day:</strong> ${dayName}</p>
+      <p><strong>Time:</strong> ${timeSlot.label}</p>
+      <div class="form-group">
+        <label for="editCourseCodeInput">Course Code:</label>
+        <input type="text" id="editCourseCodeInput" class="modal-input" 
+               value="${existingInfo.courseCode}" 
+               placeholder="e.g., CS101, MATH202"
+               maxlength="20">
+        <small>Enter course code (optional)</small>
+      </div>
+      <div class="form-group">
+        <label for="editClassroomInput">Classroom:</label>
+        <input type="text" id="editClassroomInput" class="modal-input" 
+               value="${existingInfo.classroomNumber}" 
+               placeholder="e.g., Room 101, Lab A"
+               maxlength="20">
+        <small>Enter classroom/location (optional)</small>
+      </div>
+      <div id="edit-slot-info-error" class="modal-error-message" style="display: none;"></div>
+    </div>
+  `;
+
+  showModal({
+    title: "Edit Slot Information",
+    content: modalContent,
+    isHtmlContent: true,
+    showConfirmationButtons: true,
+    confirmText: "Save Slot",
+    cancelText: "Delete Slot",
+    onConfirm: () => {
+      const courseCodeInput = document.getElementById("editCourseCodeInput");
+      const classroomInput = document.getElementById("editClassroomInput");
+
+      if (courseCodeInput && classroomInput) {
+        const courseCode = courseCodeInput.value.trim().toUpperCase();
+        const classroomNumber = classroomInput.value.trim();
+
+        // Validate course code format if provided
+        if (courseCode && !/^[A-Z0-9\s]{1,20}$/i.test(courseCode)) {
+          const errorDiv = document.getElementById("edit-slot-info-error");
+          if (errorDiv) {
+            errorDiv.textContent =
+              "Course code should only contain letters, numbers, and spaces (max 20 characters)";
+            errorDiv.style.display = "block";
+          }
+          return false;
+        }
+
+        // Initialize slotInfo structure if needed
+        if (!user.slotInfo) {
+          user.slotInfo = Array(7)
+            .fill(null)
+            .map(() =>
+              Array(user.timeSlots.length)
+                .fill(null)
+                .map(() => ({ courseCode: "", classroomNumber: "" }))
+            );
+        }
+
+        // Store updated slot information
+        if (!user.slotInfo[dayIndex]) {
+          user.slotInfo[dayIndex] = Array(user.timeSlots.length)
+            .fill(null)
+            .map(() => ({ courseCode: "", classroomNumber: "" }));
+        }
+        if (!user.slotInfo[dayIndex][timeIndex]) {
+          user.slotInfo[dayIndex][timeIndex] = {
+            courseCode: "",
+            classroomNumber: "",
+          };
+        }
+
+        user.slotInfo[dayIndex][timeIndex] = {
+          courseCode: courseCode,
+          classroomNumber: classroomNumber,
+        };
+
+        saveStateToStorage();
+        updateUI();
+        return true;
+      }
+      return false;
+    },
+    onCancel: () => {
+      // "Delete Slot" functionality
+      showModal({
+        title: "Delete Slot",
+        content: `Are you sure you want to delete this slot and mark it as free?\n\nDay: ${dayName}\nTime: ${timeSlot.label}`,
+        showConfirmationButtons: true,
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        onConfirm: () => {
+          // Mark slot as free
+          const newSchedule = toggleSlotInSchedule(
+            dayIndex,
+            timeIndex,
+            user.schedule
+          );
+          user.schedule = newSchedule;
+
+          // Clear slot information
+          if (
+            user.slotInfo &&
+            user.slotInfo[dayIndex] &&
+            user.slotInfo[dayIndex][timeIndex]
+          ) {
+            user.slotInfo[dayIndex][timeIndex] = {
+              courseCode: "",
+              classroomNumber: "",
+            };
+          }
+
+          // If the slot was pinned, unpin it
+          if (
+            user.pinnedSlots &&
+            Array.isArray(user.pinnedSlots[dayIndex]) &&
+            user.pinnedSlots[dayIndex][timeIndex] === true
+          ) {
+            user.pinnedSlots[dayIndex][timeIndex] = false;
+            console.log(
+              `Slot (${dayIndex}, ${timeIndex}) for user ${user.id} automatically unpinned because it was deleted.`
+            );
+          }
+
+          saveStateToStorage();
+          updateUI();
+          return true;
+        },
+      });
+      return true; // Close the edit modal
+    },
+  });
+}
+
+/**
+ * Shows a modal to input course information when marking a slot as busy
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @param {Object} user - User object
+ */
+function showSlotInfoModal(dayIndex, timeIndex, user) {
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const dayName = daysOfWeek[dayIndex];
+  const timeSlot = user.timeSlots[timeIndex];
+
+  // Get existing slot info if any
+  const existingInfo =
+    user.slotInfo &&
+    user.slotInfo[dayIndex] &&
+    user.slotInfo[dayIndex][timeIndex]
+      ? user.slotInfo[dayIndex][timeIndex]
+      : { courseCode: "", classroomNumber: "" };
+
+  const modalContent = `
+    <div class="slot-info-form">
+      <p><strong>Day:</strong> ${dayName}</p>
+      <p><strong>Time:</strong> ${timeSlot.label}</p>
+      <div class="form-group">
+        <label for="courseCodeInput">Course Code:</label>
+        <input type="text" id="courseCodeInput" class="modal-input" 
+               value="${existingInfo.courseCode}" 
+               placeholder="e.g., CS101, MATH202"
+               maxlength="20">
+        <small>Enter course code (optional)</small>
+      </div>
+      <div class="form-group">
+        <label for="classroomInput">Classroom:</label>
+        <input type="text" id="classroomInput" class="modal-input" 
+               value="${existingInfo.classroomNumber}" 
+               placeholder="e.g., Room 101, Lab A"
+               maxlength="20">
+        <small>Enter classroom/location (optional)</small>
+      </div>
+      <div id="slot-info-error" class="modal-error-message" style="display: none;"></div>
+    </div>
+  `;
+
+  showModal({
+    title: "Mark Slot as Busy",
+    content: modalContent,
+    isHtmlContent: true,
+    showConfirmationButtons: true,
+    confirmText: "Mark Busy",
+    cancelText: "Cancel",
+    onConfirm: () => {
+      const courseCodeInput = document.getElementById("courseCodeInput");
+      const classroomInput = document.getElementById("classroomInput");
+
+      if (courseCodeInput && classroomInput) {
+        const courseCode = courseCodeInput.value.trim().toUpperCase();
+        const classroomNumber = classroomInput.value.trim();
+
+        // Validate course code format if provided
+        if (courseCode && !/^[A-Z0-9\s]{1,20}$/i.test(courseCode)) {
+          const errorDiv = document.getElementById("slot-info-error");
+          if (errorDiv) {
+            errorDiv.textContent =
+              "Course code should only contain letters, numbers, and spaces (max 20 characters)";
+            errorDiv.style.display = "block";
+          }
+          return false; // Prevent modal from closing
+        }
+
+        // Mark slot as busy
+        const newSchedule = toggleSlotInSchedule(
+          dayIndex,
+          timeIndex,
+          user.schedule
+        );
+        user.schedule = newSchedule;
+
+        // Initialize slotInfo structure if needed
+        if (!user.slotInfo) {
+          user.slotInfo = Array(7)
+            .fill(null)
+            .map(() =>
+              Array(user.timeSlots.length)
+                .fill(null)
+                .map(() => ({ courseCode: "", classroomNumber: "" }))
+            );
+        }
+
+        // Store slot information
+        if (!user.slotInfo[dayIndex]) {
+          user.slotInfo[dayIndex] = Array(user.timeSlots.length)
+            .fill(null)
+            .map(() => ({ courseCode: "", classroomNumber: "" }));
+        }
+        if (!user.slotInfo[dayIndex][timeIndex]) {
+          user.slotInfo[dayIndex][timeIndex] = {
+            courseCode: "",
+            classroomNumber: "",
+          };
+        }
+
+        user.slotInfo[dayIndex][timeIndex] = {
+          courseCode: courseCode,
+          classroomNumber: classroomNumber,
+        };
+
+        // If the slot was pinned, unpin it
+        if (
+          user.pinnedSlots &&
+          Array.isArray(user.pinnedSlots[dayIndex]) &&
+          user.pinnedSlots[dayIndex][timeIndex] === true
+        ) {
+          user.pinnedSlots[dayIndex][timeIndex] = false;
+          console.log(
+            `Slot (${dayIndex}, ${timeIndex}) for user ${user.id} automatically unpinned because it became busy.`
+          );
+        }
+
+        saveStateToStorage();
+        updateUI();
+        return true; // Allow modal to close
+      }
+      return false;
+    },
+  });
 }
 
 /* ================================
@@ -1476,6 +1795,46 @@ function renderScheduleGrid() {
       }
 
       // --- END: Pin Rendering Logic for Compare Mode ---
+
+      // --- START: Course Information Display ---
+      if (
+        !state.compareMode &&
+        state.activeUserId &&
+        state.users[state.activeUserId] &&
+        state.users[state.activeUserId].schedule &&
+        state.users[state.activeUserId].schedule[dayIndex] &&
+        state.users[state.activeUserId].schedule[dayIndex][timeIndex] &&
+        state.users[state.activeUserId].slotInfo &&
+        state.users[state.activeUserId].slotInfo[dayIndex] &&
+        state.users[state.activeUserId].slotInfo[dayIndex][timeIndex]
+      ) {
+        const slotInfo =
+          state.users[state.activeUserId].slotInfo[dayIndex][timeIndex];
+        const hasInfo = slotInfo.courseCode || slotInfo.classroomNumber;
+
+        if (hasInfo) {
+          const infoContainer = document.createElement("div");
+          infoContainer.classList.add("slot-info-display");
+
+          if (slotInfo.courseCode) {
+            const courseSpan = document.createElement("span");
+            courseSpan.classList.add("course-code");
+            courseSpan.textContent = slotInfo.courseCode;
+            infoContainer.appendChild(courseSpan);
+          }
+
+          if (slotInfo.classroomNumber) {
+            const classroomSpan = document.createElement("span");
+            classroomSpan.classList.add("classroom-number");
+            classroomSpan.textContent = slotInfo.classroomNumber;
+            infoContainer.appendChild(classroomSpan);
+          }
+
+          tdSlot.appendChild(infoContainer);
+        }
+      }
+      // --- END: Course Information Display ---
+
       tr.appendChild(tdSlot);
     });
     tableBody.appendChild(tr);
@@ -1864,35 +2223,15 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
     timeIndex >= 0 && // Ensure timeIndex is not negative
     timeIndex < currentUser.schedule[dayIndex].length // Ensure timeIndex is within bounds
   ) {
-    // 1. Toggle the busy/free state
-    // Assuming toggleSlotInSchedule is a pure function that returns the new schedule
-    const newSchedule = toggleSlotInSchedule(
-      dayIndex,
-      timeIndex,
-      currentUser.schedule
-    );
-    currentUser.schedule = newSchedule; // Update the user's schedule in the state
+    const isCurrentlyBusy = currentUser.schedule[dayIndex][timeIndex];
 
-    // 2. Get the new busy status of the slot *after* toggling
-    const isNowBusy = currentUser.schedule[dayIndex][timeIndex];
-
-    // 3. If the slot just became busy AND it was pinned, unpin it.
-    //    Also ensure pinnedSlots structure is valid before accessing.
-    if (
-      isNowBusy && // Check if the slot is now marked as busy
-      currentUser.pinnedSlots && // Check if pinnedSlots array exists for the user
-      Array.isArray(currentUser.pinnedSlots[dayIndex]) && // Check if the specific day's pinnedSlots is an array
-      currentUser.pinnedSlots[dayIndex][timeIndex] === true // Check if the slot was indeed pinned
-    ) {
-      currentUser.pinnedSlots[dayIndex][timeIndex] = false; // Unpin the slot
-      console.log(
-        `Slot (${dayIndex}, ${timeIndex}) for user ${currentUser.id} automatically unpinned because it became busy.`
-      );
+    if (!isCurrentlyBusy) {
+      // Slot is currently free, show modal to mark as busy with course info
+      showSlotInfoModal(dayIndex, timeIndex, currentUser);
+    } else {
+      // Slot is currently busy, show edit modal
+      showEditSlotInfoModal(dayIndex, timeIndex, currentUser);
     }
-
-    // 4. Persist all changes and update the UI
-    saveStateToStorage();
-    updateUI();
   } else {
     // Log a warning if the slot path is invalid, helping with debugging.
     console.warn(
