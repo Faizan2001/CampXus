@@ -904,7 +904,6 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
                value="${existingInfo.courseCode}" 
                placeholder="e.g., CS101, MATH202"
                maxlength="20">
-        <small>Enter course code (optional)</small>
       </div>
       <div class="form-group">
         <label for="editClassroomInput">Classroom:</label>
@@ -1067,7 +1066,6 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
                value="${existingInfo.courseCode}" 
                placeholder="e.g., CS101, MATH202"
                maxlength="20">
-        <small>Enter course code (optional)</small>
       </div>
       <div class="form-group">
         <label for="classroomInput">Classroom:</label>
@@ -1086,7 +1084,7 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
     content: modalContent,
     isHtmlContent: true,
     showConfirmationButtons: true,
-    confirmText: "Mark Busy",
+    confirmText: "Save",
     cancelText: "Cancel",
     onConfirm: () => {
       const courseCodeInput = document.getElementById("courseCodeInput");

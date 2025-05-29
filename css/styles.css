@@ -476,13 +476,18 @@ Brand identity with icon and text
   }
 
   .schedule-table.many-slots th:not(:first-child):not(:last-child) {
-    min-width: 75px !important; /* Reduced minimum for more compact mobile slots */
+    min-width: 85px !important; /* Increased for better mobile usability in comparison mode */
+    max-width: 120px !important; /* Prevent excessive width */
     font-size: 0.7rem !important;
-    padding: 0.4rem 0.2rem !important;
+    padding: 0.4rem 0.3rem !important; /* Improved padding for better touch targets */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .schedule-table.many-slots .slot {
     min-height: 2.5rem !important;
+    min-width: 85px !important; /* Match header width for consistency */
     height: 2.5rem !important;
   }
 }
@@ -573,13 +578,18 @@ Brand identity with icon and text
   }
 
   .schedule-table.many-slots th:not(:first-child):not(:last-child) {
-    min-width: 75px !important; /* Reduced minimum for more compact mobile slots */
+    min-width: 85px !important; /* Increased for better mobile usability in comparison mode */
+    max-width: 120px !important; /* Prevent excessive width */
     font-size: 0.7rem !important;
-    padding: 0.4rem 0.2rem !important;
+    padding: 0.4rem 0.3rem !important; /* Improved padding for better touch targets */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .schedule-table.many-slots .slot {
     min-height: 2.5rem !important;
+    min-width: 85px !important; /* Match header width for consistency */
     height: 2.5rem !important;
   }
 }
@@ -1640,15 +1650,32 @@ Compact button for adding users from schedule header
 
 @media (max-width: 480px) {
   .schedule-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: space-between;
+  }
+
+  /* Keep h3 and button on the same line */
+  .schedule-header h3 {
+    flex: 1;
+    margin-right: 0.5rem;
+    min-width: 0; /* Allow text to truncate if needed */
   }
 
   .add-user-header-btn {
-    align-self: flex-end;
+    flex-shrink: 0;
     padding: 0.5rem 0.7rem;
     font-size: 0.8rem;
+  }
+
+  /* Force notification to appear on its own line below */
+  .many-slots-note {
+    flex-basis: 100%;
+    order: 3;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
   }
 }
 
@@ -2808,7 +2835,11 @@ Styling for course code and classroom information display within schedule slots
   font-weight: 800; /* Extra bold for prominence */
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  font-size: clamp(0.7rem, 2.5vw, 1.2rem); /* Larger, more visible */
+  font-size: clamp(
+    0.8rem,
+    2.8vw,
+    1.2rem
+  ); /* Significantly larger than classroom number */
   line-height: 1.1;
   text-align: center;
   max-width: 95%;
@@ -2825,10 +2856,10 @@ Styling for course code and classroom information display within schedule slots
   font-weight: 600;
   padding: 2px 6px;
   font-size: clamp(
-    0.6rem,
-    2.1vw,
-    1.1rem
-  ); /* Slightly larger for better visibility */
+    0.5rem,
+    1.8vw,
+    0.9rem
+  ); /* Smaller than course code for better hierarchy */
   text-align: center;
   line-height: 1.2;
   max-width: 95%;
@@ -2847,10 +2878,10 @@ Styling for course code and classroom information display within schedule slots
 .slot-info-display:has(.course-code) .classroom-number {
   margin-top: 3px; /* Proper spacing between course code and classroom number */
   font-size: clamp(
-    0.5rem,
-    1.8vw,
-    0.8rem
-  ); /* Slightly larger when course code present */
+    0.4rem,
+    1.5vw,
+    0.7rem
+  ); /* Even smaller when course code present to maintain hierarchy */
 }
 
 /* Dark mode adjustments */
@@ -2879,36 +2910,60 @@ Styling for course code and classroom information display within schedule slots
   }
 
   .course-code {
-    font-size: clamp(0.6rem, 2.2vw, 0.9rem); /* Larger for mobile visibility */
+    font-size: clamp(
+      0.7rem,
+      2.5vw,
+      1rem
+    ); /* Larger than classroom number on mobile */
     font-weight: 700; /* Still bold on mobile */
   }
 
   .classroom-number {
-    font-size: clamp(0.5rem, 1.8vw, 0.8rem); /* Larger for mobile visibility */
+    font-size: clamp(
+      0.45rem,
+      1.6vw,
+      0.7rem
+    ); /* Smaller than course code to maintain hierarchy */
     margin-top: 2px;
     padding: 2px 5px;
   }
 
   .slot-info-display:has(.course-code) .classroom-number {
-    margin-top: 2px; /* Proper spacing on mobile */
-    font-size: clamp(0.45rem, 1.6vw, 0.7rem);
+    margin-top: 1px; /* Reduced spacing on very small screens */
+    font-size: clamp(
+      0.4rem,
+      1.4vw,
+      0.6rem
+    ); /* Even smaller when both elements present */
   }
 }
 
 /* Extra small screens */
 @media (max-width: 480px) {
   .course-code {
-    font-size: clamp(0.3rem, 1vw, 0.4rem);
-    padding: 0px 1px;
+    font-size: clamp(
+      0.6rem,
+      2vw,
+      0.8rem
+    ); /* Larger than classroom number even on small screens */
+    padding: 1px 2px; /* Slightly more padding for touch targets */
   }
 
   .classroom-number {
-    font-size: clamp(0.5rem, 2vw, 0.8rem);
+    font-size: clamp(
+      0.4rem,
+      1.5vw,
+      0.6rem
+    ); /* Smaller than course code to maintain hierarchy */
     padding: 1px 4px;
   }
 
   .slot-info-display:has(.course-code) .classroom-number {
-    font-size: clamp(0.45rem, 1.8vw, 0.7rem);
+    font-size: clamp(
+      0.35rem,
+      1.3vw,
+      0.5rem
+    ); /* Even smaller when both elements present */
   }
 }
 
