@@ -331,6 +331,196 @@ export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
 }
 
 /* ================================
+   TIME-BASED PIN PERSISTENCE SYSTEM
+================================== */
+
+/**
+ * Converts pin data from slot indices to time-based format for persistence across different schedule structures
+ * @param {Object} user - User object with pinnedSlots array
+ * @returns {Object} Time-based pins { dayIndex: [{ start: "HH:MM", end: "HH:MM", pinned: true }] }
+ */
+export function convertPinsToTimeBased(user) {
+  if (!user || !user.pinnedSlots || !user.timeSlots) {
+    return {};
+  }
+
+  const timeBasedPins = {};
+
+  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+    if (user.pinnedSlots[dayIndex]) {
+      timeBasedPins[dayIndex] = [];
+
+      for (
+        let slotIndex = 0;
+        slotIndex < user.pinnedSlots[dayIndex].length;
+        slotIndex++
+      ) {
+        if (
+          user.pinnedSlots[dayIndex][slotIndex] &&
+          user.timeSlots[slotIndex]
+        ) {
+          const timeSlot = user.timeSlots[slotIndex];
+          timeBasedPins[dayIndex].push({
+            start: timeSlot.start,
+            end: timeSlot.end,
+            label: timeSlot.label,
+            pinned: true,
+          });
+        }
+      }
+    }
+  }
+
+  return timeBasedPins;
+}
+
+/**
+ * Converts time-based pins back to slot indices for the user's current schedule structure
+ * @param {Object} timeBasedPins - Time-based pin data
+ * @param {Object} user - User object with current timeSlots structure
+ * @returns {Array} Updated pinnedSlots array
+ */
+export function convertPinsFromTimeBased(timeBasedPins, user) {
+  if (!user || !user.timeSlots || !timeBasedPins) {
+    return user.pinnedSlots || [];
+  }
+
+  const newPinnedSlots = Array.from({ length: 7 }, () =>
+    Array.from({ length: user.timeSlots.length }, () => false)
+  );
+
+  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+    if (timeBasedPins[dayIndex]) {
+      for (const pinnedTime of timeBasedPins[dayIndex]) {
+        // Find matching time slot in user's current schedule
+        const matchingSlotIndex = user.timeSlots.findIndex(
+          (slot) =>
+            slot.start === pinnedTime.start && slot.end === pinnedTime.end
+        );
+
+        if (matchingSlotIndex >= 0 && pinnedTime.pinned) {
+          newPinnedSlots[dayIndex][matchingSlotIndex] = true;
+        }
+      }
+    }
+  }
+
+  return newPinnedSlots;
+}
+
+/**
+ * Enhanced aggregation for compare mode that uses time-based pin mapping
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index in unified schedule
+ * @param {Object} currentState - Current application state
+ * @returns {Object} Pin aggregation data with time-aware mapping
+ */
+export function aggregatePinsForCompareModeTimeBased(
+  dayIndex,
+  timeIndex,
+  currentState
+) {
+  const { users, selectedUserIds, compareMode } = currentState;
+
+  if (!compareMode || selectedUserIds.size === 0) {
+    return { count: 0, userNames: [], userIds: [] };
+  }
+
+  // Get the unified schedule to map timeIndex to actual time range
+  const selectedUsers = Array.from(selectedUserIds)
+    .map((id) => users[id])
+    .filter((user) => user);
+
+  if (selectedUsers.length === 0) {
+    return { count: 0, userNames: [], userIds: [] };
+  }
+
+  // Check if we need unified schedule approach
+  const allUsersHaveTimeSlots = selectedUsers.every(
+    (user) => user.timeSlots && Array.isArray(user.timeSlots)
+  );
+
+  const needsUnifiedSchedule =
+    allUsersHaveTimeSlots &&
+    selectedUsers.some((user) => {
+      const firstUserTimeSlots = selectedUsers[0].timeSlots;
+      return (
+        user.timeSlots.length !== firstUserTimeSlots.length ||
+        user.timeSlots.some(
+          (slot, idx) =>
+            !firstUserTimeSlots[idx] ||
+            slot.start !== firstUserTimeSlots[idx].start ||
+            slot.end !== firstUserTimeSlots[idx].end
+        )
+      );
+    });
+
+  const pinnedByUsers = [];
+  const pinnedUserNames = [];
+
+  if (needsUnifiedSchedule) {
+    // Use time-based mapping for heterogeneous schedules
+    const unifiedSchedule = createUnifiedSchedule(selectedUsers);
+
+    if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
+      return { count: 0, userNames: [], userIds: [] };
+    }
+
+    const targetTimeSlot = unifiedSchedule.unifiedTimeSlots[timeIndex];
+
+    selectedUserIds.forEach((userId) => {
+      const user = users[userId];
+      if (!user || !user.timeSlots) return;
+
+      // Convert user's pins to time-based format
+      const timeBasedPins = convertPinsToTimeBased(user);
+
+      if (timeBasedPins[dayIndex]) {
+        // Check if any of user's pinned time slots overlap with target time slot
+        const hasMatchingPin = timeBasedPins[dayIndex].some((pinnedTime) => {
+          // Check for overlap between pinned time and target time slot
+          const pinnedStart = parseTime(pinnedTime.start);
+          const pinnedEnd = parseTime(pinnedTime.end);
+          const targetStart = parseTime(targetTimeSlot.start);
+          const targetEnd = parseTime(targetTimeSlot.end);
+
+          return (
+            pinnedStart < targetEnd &&
+            pinnedEnd > targetStart &&
+            pinnedTime.pinned
+          );
+        });
+
+        if (hasMatchingPin) {
+          pinnedByUsers.push(userId);
+          pinnedUserNames.push(user.name);
+        }
+      }
+    });
+  } else {
+    // Use original array-based approach for homogeneous schedules
+    selectedUserIds.forEach((userId) => {
+      const user = users[userId];
+      if (
+        user &&
+        user.pinnedSlots &&
+        user.pinnedSlots[dayIndex] &&
+        user.pinnedSlots[dayIndex][timeIndex] === true
+      ) {
+        pinnedByUsers.push(userId);
+        pinnedUserNames.push(user.name);
+      }
+    });
+  }
+
+  return {
+    count: pinnedByUsers.length,
+    userNames: pinnedUserNames,
+    userIds: pinnedByUsers,
+  };
+}
+
+/* ================================
    DYNAMIC TIMESLOT FUNCTIONS
 ================================== */
 
@@ -478,6 +668,9 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   user.pinnedSlots.forEach((dayPinnedSlots) => {
     dayPinnedSlots.push(false);
   });
+
+  // Migrate pins to preserve pin intentions when schedule structure changes
+  migratePinsToTimeBased(user);
 
   saveStateToStorage();
   updateUI();
@@ -639,10 +832,14 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
     return;
   }
 
-  activeUserObject.pinnedSlots[dayIndex][slotIndex] =
-    !activeUserObject.pinnedSlots[dayIndex][slotIndex];
+  const newPinState = !activeUserObject.pinnedSlots[dayIndex][slotIndex];
+  activeUserObject.pinnedSlots[dayIndex][slotIndex] = newPinState;
+
+  // Update time-based pins for persistence across schedule changes
+  updateTimeBasedPin(activeUserObject, dayIndex, slotIndex, newPinState);
+
   console.log(
-    `Slot (${dayIndex}, ${slotIndex}) for user ${activeUserObject.id} pinned state: ${activeUserObject.pinnedSlots[dayIndex][slotIndex]}`
+    `Slot (${dayIndex}, ${slotIndex}) for user ${activeUserObject.id} pinned state: ${newPinState}`
   );
 
   saveStateToStorage();
@@ -702,6 +899,9 @@ function loadStateFromStorage() {
           .fill(null)
           .map(() => Array(user.timeSlots.length).fill(false));
       }
+
+      // Migrate existing pins to time-based format for cross-user compatibility
+      migratePinsToTimeBased(user);
     });
     state.users = loadedUsers;
   }
@@ -937,6 +1137,9 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   userTimeSlots[slotIndex].end = newEndTime; // Store HH:MM
   userTimeSlots[slotIndex].label = `${newStartTime}-${newEndTime}`;
 
+  // Migrate pins to preserve pin intentions when schedule structure changes
+  migratePinsToTimeBased(activeUserObject);
+
   saveStateToStorage();
   renderScheduleGrid();
   return true;
@@ -1037,6 +1240,48 @@ function renderScheduleGrid() {
     if (addSlotCellRef) tableHeadRow.insertBefore(th, addSlotCellRef);
     else tableHeadRow.appendChild(th);
   });
+
+  // Apply dynamic styling based on number of time slots
+  const slotCount = currentTimeSlotsToRender.length;
+  const scheduleTable = DOM_ELEMENTS.scheduleTable;
+
+  // Use a more intelligent threshold - consider both slot count and compare mode
+  const shouldUseManySlots =
+    slotCount > 8 || (state.compareMode && slotCount > 6);
+
+  if (shouldUseManySlots) {
+    // Many slots detected - apply flexible width styling
+    scheduleTable.classList.add("many-slots");
+    console.log(
+      `Many slots detected (${slotCount}), applying flexible width styling`
+    );
+
+    // Add a helpful message to the schedule header if it exists
+    const scheduleHeader = document.querySelector(".schedule-header h3");
+    if (scheduleHeader && state.compareMode) {
+      const existingNote =
+        scheduleHeader.parentNode.querySelector(".many-slots-note");
+      if (!existingNote) {
+        const note = document.createElement("div");
+        note.className = "many-slots-note";
+        note.style.cssText =
+          "font-size: 0.8rem; color: white; margin-top: 0.5rem; font-style: italic; font-weight: bold;";
+        note.textContent = `Showing ${slotCount} time slots - scroll horizontally to view all`;
+        scheduleHeader.parentNode.appendChild(note);
+      } else {
+        existingNote.textContent = `Showing ${slotCount} time slots - scroll horizontally to view all`;
+      }
+    }
+  } else {
+    // Normal slot count - use default styling
+    scheduleTable.classList.remove("many-slots");
+
+    // Remove the note if it exists
+    const existingNote = document.querySelector(".many-slots-note");
+    if (existingNote) {
+      existingNote.remove();
+    }
+  }
 
   tableBody.innerHTML = ""; // Clear existing body
   const daysOfWeek = [
@@ -1161,8 +1406,12 @@ function renderScheduleGrid() {
         );
         existingPinIndicators.forEach((indicator) => indicator.remove());
 
-        // Get pin aggregation data for this slot
-        const pinData = aggregatePinsForCompareMode(dayIndex, timeIndex, state);
+        // Get pin aggregation data for this slot using time-based mapping
+        const pinData = aggregatePinsForCompareModeTimeBased(
+          dayIndex,
+          timeIndex,
+          state
+        );
 
         console.log(`Pin data for slot [${dayIndex}, ${timeIndex}]:`, pinData);
 
@@ -1970,8 +2219,6 @@ function initializeApp() {
   updateUI();
 }
 
-document.addEventListener("DOMContentLoaded", initializeApp);
-
 /**
  * Shows a detailed tooltip for pin indicators in compare mode
  * @param {Event} event - The click event
@@ -2090,3 +2337,68 @@ function showPinTooltip(event, pinData) {
     }
   }, 5000);
 }
+
+/**
+ * Migrates a user's pin data to time-based format when their schedule structure changes
+ * This preserves pin intentions when users modify their time slots
+ * @param {Object} user - User object to migrate
+ */
+export function migratePinsToTimeBased(user) {
+  if (!user || !user.pinnedSlots || !user.timeSlots) {
+    return;
+  }
+
+  // Store time-based pins in user object for persistence
+  if (!user.timeBasedPins) {
+    user.timeBasedPins = convertPinsToTimeBased(user);
+  }
+
+  // Update array-based pins to match current schedule structure
+  user.pinnedSlots = convertPinsFromTimeBased(user.timeBasedPins, user);
+}
+
+/**
+ * Updates time-based pins when user manually pins/unpins a slot
+ * @param {Object} user - User object
+ * @param {number} dayIndex - Day index
+ * @param {number} slotIndex - Slot index
+ * @param {boolean} isPinned - Whether the slot is now pinned
+ */
+export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
+  if (!user || !user.timeSlots || !user.timeSlots[slotIndex]) {
+    return;
+  }
+
+  if (!user.timeBasedPins) {
+    user.timeBasedPins = {};
+  }
+
+  if (!user.timeBasedPins[dayIndex]) {
+    user.timeBasedPins[dayIndex] = [];
+  }
+
+  const timeSlot = user.timeSlots[slotIndex];
+  const existingPinIndex = user.timeBasedPins[dayIndex].findIndex(
+    (pin) => pin.start === timeSlot.start && pin.end === timeSlot.end
+  );
+
+  if (isPinned) {
+    if (existingPinIndex >= 0) {
+      user.timeBasedPins[dayIndex][existingPinIndex].pinned = true;
+    } else {
+      user.timeBasedPins[dayIndex].push({
+        start: timeSlot.start,
+        end: timeSlot.end,
+        label: timeSlot.label,
+        pinned: true,
+      });
+    }
+  } else {
+    if (existingPinIndex >= 0) {
+      user.timeBasedPins[dayIndex][existingPinIndex].pinned = false;
+    }
+  }
+}
+
+// Initialize the application when DOM is loaded
+document.addEventListener("DOMContentLoaded", initializeApp);

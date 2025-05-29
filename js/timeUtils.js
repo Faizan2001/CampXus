@@ -887,22 +887,39 @@ export class UnifiedSchedule {
         continue;
       }
 
-      // Check if user is busy during this time on this day
+      // Enhanced conflict detection: Check if user is busy during any part of the unified slot
       let isBusy = false;
-      for (const userInterval of userOverlaps) {
-        const slotIndex = user.intervals.findIndex(
-          (interval) =>
-            interval.startMinutes === userInterval.startMinutes &&
-            interval.endMinutes === userInterval.endMinutes
-        );
 
-        if (
-          slotIndex >= 0 &&
-          user.schedule[dayIndex] &&
-          user.schedule[dayIndex][slotIndex]
-        ) {
-          isBusy = true;
-          break;
+      // Method 1: Check if any of user's busy intervals on this day overlap with target interval
+      if (user.busyIntervals) {
+        for (const busyInterval of user.busyIntervals) {
+          if (
+            busyInterval.dayIndex === dayIndex &&
+            targetInterval.overlaps(busyInterval)
+          ) {
+            isBusy = true;
+            break;
+          }
+        }
+      }
+
+      // Method 2: Fallback - check original schedule array mapping
+      if (!isBusy) {
+        for (const userInterval of userOverlaps) {
+          const slotIndex = user.intervals.findIndex(
+            (interval) =>
+              interval.startMinutes === userInterval.startMinutes &&
+              interval.endMinutes === userInterval.endMinutes
+          );
+
+          if (
+            slotIndex >= 0 &&
+            user.schedule[dayIndex] &&
+            user.schedule[dayIndex][slotIndex]
+          ) {
+            isBusy = true;
+            break;
+          }
         }
       }
 
@@ -1016,9 +1033,13 @@ export class UnifiedSchedule {
       // Improved messaging: Instead of "No slot", show that users are busy during this period
       const unavailableUsers = status.unavailable.map((u) => u.name);
       if (unavailableUsers.length === 1) {
-        messages.push(`Busy: ${unavailableUsers[0]} (no slot during this time)`);
+        messages.push(
+          `Busy: ${unavailableUsers[0]} (no slot during this time)`
+        );
       } else {
-        messages.push(`Busy: ${unavailableUsers.join(", ")} (no slots during this time)`);
+        messages.push(
+          `Busy: ${unavailableUsers.join(", ")} (no slots during this time)`
+        );
       }
     }
 
