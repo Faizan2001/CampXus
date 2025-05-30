@@ -47,14 +47,14 @@ ENHANCEMENTS INCLUDED:
   --container-fluid: clamp(320px, 100vw, 2000px);
   --content-max-width: clamp(320px, 95vw, 1400px);
 
-  /* Modern State Colors - Dark and sophisticated */
-  --button-off-red: #8b2635; /* Dark red for "off" state */
-  --button-off-red-hover: #a12e3f; /* Slightly lighter red on hover */
+  /* Modern State Colors - Now consistent with variables.css */
+  --button-off-red: #ef4444; /* Richer red for "off" state - dark mode */
+  --button-off-red-hover: #dc2626; /* Rich red hover - dark mode */
   --button-on-green: #15803d; /* Dark green for "on/active" state */
   --button-on-green-hover: #16a34a; /* Slightly lighter green on hover */
 
   /* Light theme variants */
-  --button-off-red-light: #991b1b; /* Dark red for light theme */
+  --button-off-red-light: #dc2626; /* Consistent red for light theme */
   --button-on-green-light: #166534; /* Dark green for light theme */
 }
 
@@ -80,8 +80,6 @@ body {
     .schedule-grid {
       font-size: var(--text-fluid-xs);
     }
-
-
   }
 
   @container (min-width: 800px) {
@@ -115,16 +113,14 @@ small,
   font-size: var(--text-fluid-xs);
 }
 
-
 /* ===== USER ITEM & DELETE BUTTON FIXES ===== */
-
 
 /* Dark red delete button styling */
 .delete-btn,
 .user-item .delete-btn,
 button[data-delete-user-id] {
-  background: var(--button-off-red, #8b2635) !important;
-  border-color: var(--button-off-red, #8b2635) !important;
+  background: var(--button-off-red, #ef4444) !important;
+  border-color: var(--button-off-red, #ef4444) !important;
   color: white !important;
   transition: all 0.3s ease !important;
   border-radius: var(--radius-sm, 6px) !important;
@@ -135,10 +131,10 @@ button[data-delete-user-id] {
 .delete-btn:hover,
 .user-item .delete-btn:hover,
 button[data-delete-user-id]:hover {
-  background: var(--button-off-red-hover, #a12e3f) !important;
-  border-color: var(--button-off-red-hover, #a12e3f) !important;
+  background: var(--button-off-red-hover, #b91c1c) !important;
+  border-color: var(--button-off-red-hover, #b91c1c) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 2px 8px rgba(139, 38, 53, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
 }
 
 /* Light theme delete button adjustments */
@@ -146,8 +142,8 @@ button[data-delete-user-id]:hover {
 .light-mode .user-item .delete-btn,
 body:not(.dark-mode) .delete-btn,
 body:not(.dark-mode) .user-item .delete-btn {
-  background: var(--button-off-red-light, #991b1b) !important;
-  border-color: var(--button-off-red-light, #991b1b) !important;
+  background: var(--button-off-red, #ef4444) !important;
+  border-color: var(--button-off-red, #ef4444) !important;
 }
 
 /* ===== MODERN BUTTON STATE STYLING ===== */
@@ -176,7 +172,7 @@ button[id*="compare"]:hover {
   background: var(--button-off-red-hover) !important;
   border-color: var(--button-off-red-hover) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
 }
 
 /* Compare Button "ON" state - Dark Green */
@@ -220,21 +216,21 @@ button[id*="pin"]:hover {
   background: var(--button-off-red-hover) !important;
   border-color: var(--button-off-red-hover) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
 }
 
 /* Pin Mode Button "ON" state - Dark Green */
-#togglePinModeBtn.active,
-.pin-mode-button.active,
-button[id*="pin"].active {
+#togglePinModeBtn.pin-mode-active,
+.pin-mode-button.pin-mode-active,
+button[id*="pin"].pin-mode-active {
   background: var(--button-on-green) !important;
   border-color: var(--button-on-green) !important;
   color: white !important;
 }
 
-#togglePinModeBtn.active:hover,
-.pin-mode-button.active:hover,
-button[id*="pin"].active:hover {
+#togglePinModeBtn.pin-mode-active:hover,
+.pin-mode-button.pin-mode-active:hover,
+button[id*="pin"].pin-mode-active:hover {
   background: var(--button-on-green-hover) !important;
   border-color: var(--button-on-green-hover) !important;
   box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
@@ -259,32 +255,32 @@ button[id*="pin"].active:hover {
 .light-mode .compare-button,
 body:not(.dark-mode) #compare,
 body:not(.dark-mode) .compare-button {
-  background: var(--button-off-red-light) !important;
-  border-color: var(--button-off-red-light) !important;
+  background: var(--button-off-red) !important;
+  border-color: var(--button-off-red) !important;
 }
 
 .light-mode #togglePinModeBtn,
 .light-mode .pin-mode-button,
 body:not(.dark-mode) #togglePinModeBtn,
 body:not(.dark-mode) .pin-mode-button {
-  background: var(--button-off-red-light) !important;
-  border-color: var(--button-off-red-light) !important;
+  background: var(--button-off-red) !important;
+  border-color: var(--button-off-red) !important;
 }
 
 .light-mode #compare.active,
 .light-mode .compare-button.active,
 body:not(.dark-mode) #compare.active,
 body:not(.dark-mode) .compare-button.active {
-  background: var(--button-on-green-light) !important;
-  border-color: var(--button-on-green-light) !important;
+  background: var(--button-on-green) !important;
+  border-color: var(--button-on-green) !important;
 }
 
-.light-mode #togglePinModeBtn.active,
-.light-mode .pin-mode-button.active,
-body:not(.dark-mode) #togglePinModeBtn.active,
-body:not(.dark-mode) .pin-mode-button.active {
-  background: var(--button-on-green-light) !important;
-  border-color: var(--button-on-green-light) !important;
+.light-mode #togglePinModeBtn.pin-mode-active,
+.light-mode .pin-mode-button.pin-mode-active,
+body:not(.dark-mode) #togglePinModeBtn.pin-mode-active,
+body:not(.dark-mode) .pin-mode-button.pin-mode-active {
+  background: var(--button-on-green) !important;
+  border-color: var(--button-on-green) !important;
 }
 
 /* Subtle animation for state transitions */
@@ -543,159 +539,54 @@ button {
 }
 
 /* ===== MODERN BUTTON STATE STYLING ===== */
+/* This section is removed as it contains incorrect selectors that don't match the actual HTML IDs.
+   The correct button styling is handled in the existing sections with #compare and #togglePinModeBtn selectors. */
 
-/* Compare Mode Button Styling */
-#compare-button,
-.compare-button,
-button[id*="compare"] {
-  /* Default "off" state - Dark Red */
-  background: var(--button-off-red) !important;
-  border-color: var(--button-off-red) !important;
-  color: white !important;
-  transition: all 0.3s var(--animation-smooth, ease) !important;
+/* ===== TIME HEADER STYLES ===== */
+
+/* Time header responsive font size adjustments */
+.schedule-table .day-label,
+.schedule-table .time-header {
+  font-size: 0.6rem; /* Even smaller for headers */
 }
 
-#compare-button:hover,
-.compare-button:hover,
-button[id*="compare"]:hover {
-  background: var(--button-off-red-hover) !important;
-  border-color: var(--button-off-red-hover) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
+/* Time header styles in various media queries - integrated into existing responsive breakpoints */
+@media (max-width: 500px) {
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.5rem; /* Smaller on very small screens */
+  }
 }
 
-/* Compare Button "ON" state - Dark Green */
-#compare-button.active,
-.compare-button.active,
-button[id*="compare"].active {
-  background: var(--button-on-green) !important;
-  border-color: var(--button-on-green) !important;
-  color: white !important;
+@media (min-width: 768px) {
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.55rem; /* Slightly larger on tablets */
+  }
 }
 
-#compare-button.active:hover,
-.compare-button.active:hover,
-button[id*="compare"].active:hover {
-  background: var(--button-on-green-hover) !important;
-  border-color: var(--button-on-green-hover) !important;
-  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
+@media (min-width: 1024px) {
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.6rem; /* Default size for desktops */
+  }
 }
 
-/* Pin Mode Button Styling */
-#toggle-pin-mode-btn,
-.pin-mode-button,
-button[id*="pin"] {
-  /* Default "off" state - Dark Red */
-  background: var(--button-off-red) !important;
-  border-color: var(--button-off-red) !important;
-  color: white !important;
-  transition: all 0.3s var(--animation-smooth, ease) !important;
+/* ===== TIME HEADER RESPONSIVE ENHANCEMENTS ===== */
+/* Improved responsive styling for time headers */
+@media (max-width: 768px) {
+  .time-header {
+    font-size: 0.75rem !important;
+    padding: 0.5rem 0.25rem !important;
+  }
 }
 
-#toggle-pin-mode-btn:hover,
-.pin-mode-button:hover,
-button[id*="pin"]:hover {
-  background: var(--button-off-red-hover) !important;
-  border-color: var(--button-off-red-hover) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 38, 53, 0.3) !important;
-}
-
-/* Pin Mode Button "ON" state - Dark Green */
-#toggle-pin-mode-btn.active,
-.pin-mode-button.active,
-button[id*="pin"].active {
-  background: var(--button-on-green) !important;
-  border-color: var(--button-on-green) !important;
-  color: white !important;
-}
-
-#toggle-pin-mode-btn.active:hover,
-.pin-mode-button.active:hover,
-button[id*="pin"].active:hover {
-  background: var(--button-on-green-hover) !important;
-  border-color: var(--button-on-green-hover) !important;
-  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
-}
-
-/* Disabled Button States */
-#compare-button:disabled,
-#toggle-pin-mode-btn:disabled,
-.compare-button:disabled,
-.pin-mode-button:disabled {
-  background: var(--text-tertiary) !important;
-  border-color: var(--text-tertiary) !important;
-  color: var(--text-secondary) !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-  box-shadow: none !important;
-  opacity: 0.6 !important;
-}
-
-/* Light Theme Adjustments */
-.light-mode #compare-button,
-.light-mode .compare-button,
-body:not(.dark-mode) #compare-button,
-body:not(.dark-mode) .compare-button {
-  background: var(--button-off-red-light) !important;
-  border-color: var(--button-off-red-light) !important;
-}
-
-.light-mode #toggle-pin-mode-btn,
-.light-mode .pin-mode-button,
-body:not(.dark-mode) #toggle-pin-mode-btn,
-body:not(.dark-mode) .pin-mode-button {
-  background: var(--button-off-red-light) !important;
-  border-color: var(--button-off-red-light) !important;
-}
-
-.light-mode #compare-button.active,
-.light-mode .compare-button.active,
-body:not(.dark-mode) #compare-button.active,
-body:not(.dark-mode) .compare-button.active {
-  background: var(--button-on-green-light) !important;
-  border-color: var(--button-on-green-light) !important;
-}
-
-.light-mode #toggle-pin-mode-btn.active,
-.light-mode .pin-mode-button.active,
-body:not(.dark-mode) #toggle-pin-mode-btn.active,
-body:not(.dark-mode) .pin-mode-button.active {
-  background: var(--button-on-green-light) !important;
-  border-color: var(--button-on-green-light) !important;
-}
-
-/* Enhanced Button Text Styling */
-#compare-button,
-#toggle-pin-mode-btn {
-  font-weight: 600 !important;
-  font-size: var(--text-fluid-sm) !important;
-  padding: var(--touch-padding) calc(var(--touch-padding) * 1.5) !important;
-  border-radius: var(--radius-md, 8px) !important;
-  border: 2px solid transparent !important;
-  position: relative !important;
-  overflow: hidden !important;
-}
-
-/* Subtle animation for state transitions */
-#compare-button::before,
-#toggle-pin-mode-btn::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  transition: left 0.6s ease;
-}
-
-#compare-button:hover::before,
-#toggle-pin-mode-btn:hover::before {
-  left: 100%;
+@media (max-width: 480px) {
+  .time-header {
+    font-size: 0.6rem !important;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
+    padding: 0.2rem 0.1rem !important;
+  }
 }

@@ -1,0 +1,1711 @@
+/*
+====================================================================================
+                              SCHEDULE COMPONENT STYLES
+                        Schedule Grid, Time Slots, and Interactions
+====================================================================================
+
+🎯 COMPONENT SCOPE:
+This file contains all styles related to the schedule display:
+
+📋 INCLUDED STYLES:
+- Schedule wrapper and container
+- Schedule table layout and columns
+- Time slots and cells
+- Schedule headers and controls
+- Many-slots mode optimizations
+- Cross-browser compatibility fixes
+- Mobile schedule responsiveness
+
+====================================================================================
+*/
+
+/* ===== SCHEDULE SECTION CONTAINER ===== */
+.schedule-section {
+  display: flex;
+  flex-direction: column;
+  height: fit-content; /* Allow glass card to scale with content */
+  max-height: calc(
+    100vh - 8rem
+  ); /* Reasonable max height to prevent excessive growth */
+  overflow: hidden; /* Ensure content stays within bounds */
+}
+
+.schedule-section h3 {
+  flex-shrink: 0; /* Prevent header from shrinking */
+  margin-bottom: 1rem;
+}
+
+/* ===== SCHEDULE HEADER ===== */
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.schedule-header h3 {
+  margin-bottom: 0; /* Remove margin since parent has margin-bottom */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Schedule header actions container */
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Pin button in schedule header */
+.pin-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 36px;
+  justify-content: center;
+
+  /* Default disabled state */
+  background: rgba(139, 69, 19, 0.3);
+  color: rgba(139, 69, 19, 0.6);
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.1);
+}
+
+.pin-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Pin button enabled state (red - ready to pin) */
+.pin-btn:not(:disabled) {
+  background: var(--button-off-red);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-btn:not(:disabled):hover {
+  background: var(--button-off-red-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(185, 28, 28, 0.4);
+}
+
+.pin-btn:not(:disabled):active {
+  transform: translateY(0px);
+  transition: all 0.1s ease;
+}
+
+.pin-btn:focus-visible,
+#addNewTimeSlotBtn:focus-visible {
+  /* Focus Accessibility */
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
+    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== ADD USER HEADER BUTTON ===== */
+.add-user-header-btn {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+}
+
+.add-user-header-btn:hover {
+  background: var(--accent-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.add-user-header-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.add-user-header-btn i {
+  font-size: 0.8rem;
+}
+
+.add-user-header-btn i:last-child {
+  margin-left: -0.25rem;
+  opacity: 0.8;
+}
+
+/* ===== SCHEDULE WRAPPER & TABLE LAYOUT ===== */
+.schedule-wrapper {
+  border-radius: var(--radius-xl);
+  overflow-x: auto; /* Enable horizontal scrolling */
+  overflow-y: auto; /* Allow vertical scrolling when needed */
+  background: var(--depth-surface);
+  box-shadow: var(--shadow-xl); /* Deep shadow for elevation */
+  border: 1px solid var(--border);
+  position: relative; /* For sticky positioning context */
+  flex: 1; /* Take remaining space after header */
+  min-height: 300px; /* Minimum height for usability */
+  max-height: calc(100vh - 12rem); /* Dynamic height constraint */
+}
+
+/* Fix table layout and ensure proper column distribution */
+.schedule-table {
+  table-layout: fixed !important; /* Consistent column widths */
+  border-spacing: 0 !important;
+  border-collapse: separate !important;
+  width: 100% !important;
+  min-width: 900px; /* Minimum width for proper display */
+}
+
+/* Ensure proper column sizing for time and day labels */
+.schedule-table th:first-child,
+.schedule-table .day-label {
+  width: 100px !important; /* Fixed width for time column */
+  min-width: 100px !important;
+  max-width: 100px !important;
+}
+
+.schedule-table th:not(:first-child):not(:last-child) {
+  width: calc(
+    (100% - 100px - 60px) / 6
+  ) !important; /* Default: Distribute remaining width among 6 slots */
+  min-width: 100px !important; /* Increased minimum width to prevent narrowing */
+}
+
+/* ===== MANY SLOTS MODE OPTIMIZATION ===== */
+/* Override for compare mode with many slots - Enhanced for cross-browser compatibility */
+.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+  width: 90px !important; /* Fixed width for consistent display */
+  min-width: 90px !important; /* Strong minimum width enforcement */
+  max-width: 150px !important; /* Prevent excessive width */
+  box-sizing: border-box !important; /* Ensure padding is included in width */
+}
+
+.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+  width: 90px !important; /* Fixed width for table cells */
+  min-width: 90px !important; /* Strong minimum width enforcement */
+  max-width: 150px !important; /* Prevent excessive width */
+  box-sizing: border-box !important; /* Ensure padding is included in width */
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* Force table layout for better cross-browser consistency */
+.schedule-table.many-slots {
+  table-layout: fixed !important;
+  width: max-content !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+/* Enhanced specificity for table headers in many-slots mode */
+table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 150px !important;
+  box-sizing: border-box !important;
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* Enhanced specificity for table cells in many-slots mode */
+table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 150px !important;
+  box-sizing: border-box !important;
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* ===== CORE SCHEDULE TABLE & SLOT STYLING ===== */
+/* Base styling for schedule slots and table elements */
+
+.schedule-table th:last-child {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+}
+
+/* Fix slot appearance and spacing - Enhanced visible borders */
+.slot {
+  height: 4rem;
+  min-height: 4rem;
+  border: 2px solid rgba(192, 192, 192, 0.9) !important; /* Thicker, more opaque silver border */
+  border-radius: 4px !important;
+  margin: 0 !important; /* Remove margins to prevent border doubling */
+  margin-right: -1px !important; /* Overlap right border with next slot */
+  margin-bottom: -1px !important; /* Overlap bottom border with slot below */
+  background: var(--depth-surface) !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15) !important; /* Enhanced inner highlight */
+}
+
+.slot:hover {
+  background: var(--accent-tertiary) !important;
+  border-color: rgba(
+    192,
+    192,
+    192,
+    1
+  ) !important; /* Fully opaque silver on hover */
+  z-index: 10 !important; /* Ensure hover state appears above adjacent slots */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important; /* Add shadow on hover */
+}
+
+/* Fix day labels */
+.day-label {
+  background: var(--depth-elevated) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 4px !important;
+  margin: 2px !important;
+  padding: 1rem 0.5rem;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  text-align: center !important;
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 3 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  vertical-align: middle !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 3.5rem !important;
+}
+
+/* Fix table headers for consistency with day labels */
+.schedule-table th {
+  background: var(--depth-elevated) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 4px !important;
+  margin: 2px !important;
+  padding: 0.75rem 0.5rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  text-align: center !important;
+  font-size: 0.85rem !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Fix table cells */
+.schedule-table td {
+  border: none !important;
+  padding: 1px !important; /* Minimal padding to accommodate overlapping borders */
+  vertical-align: middle !important;
+  text-align: center !important;
+  position: relative !important;
+}
+
+/* ===== MANY SLOTS NOTIFICATION ===== */
+/* Notification message for users when many time slots are present */
+.many-slots-note {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white !important;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-lg);
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: slideInFromTop 0.3s var(--animation-smooth);
+}
+
+.many-slots-note i {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile responsive styles for notification */
+@media (max-width: 768px) {
+  .many-slots-note {
+    font-size: 0.8rem;
+    padding: 0.6rem 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Make slots more compact for better visibility on small screens */
+  .slot {
+    height: 2.25rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  /* Adjust schedule wrapper scrolling for small mobile */
+  .schedule-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 5px !important;
+  }
+
+  /* Improve small mobile scale */
+  .schedule-table {
+    min-width: 550px !important; /* Smaller minimum to show more columns */
+    font-size: 0.65rem !important;
+  }
+
+  .many-slots-note {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.7rem;
+    margin: 0.25rem 0;
+  }
+}
+
+/* ===== RESPONSIVE SCHEDULE DESIGN ===== */
+
+/* Mobile responsive styles for add user header button */
+@media (max-width: 768px) {
+  .add-user-header-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+    gap: 0.4rem;
+  }
+
+  .add-user-header-btn i {
+    font-size: 0.75rem;
+  }
+
+  /* Mobile-specific adjustments for proper containment */
+  .schedule-section {
+    max-height: calc(100vh - 10rem); /* Adjust for mobile header/nav */
+  }
+
+  .schedule-wrapper {
+    min-height: 250px; /* Smaller minimum on mobile */
+    max-height: calc(100vh - 14rem); /* Account for mobile interface elements */
+  }
+
+  /* Force fixed widths on mobile for better compatibility */
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important; /* Force table-cell display */
+  }
+
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important; /* Force table-cell display */
+  }
+
+  /* Ensure slots maintain fixed width */
+  table.schedule-table.many-slots .slot {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: space-between;
+  }
+
+  /* Keep h3 and button on the same line */
+  .schedule-header h3 {
+    flex: 1;
+    margin-right: 0.5rem;
+    min-width: 0; /* Allow text to truncate if needed */
+  }
+
+  .add-user-header-btn {
+    flex-shrink: 0;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  /* Force notification to appear on its own line below */
+  .many-slots-note {
+    flex-basis: 100%;
+    order: 3;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+  }
+
+  .schedule-section {
+    max-height: calc(100vh - 12rem); /* Account for smaller mobile screens */
+  }
+
+  .schedule-wrapper {
+    min-height: 200px; /* Even smaller minimum on very small screens */
+    max-height: calc(100vh - 16rem);
+  }
+
+  /* Extra small screens - even more specific for problematic browsers */
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important;
+  }
+
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important;
+  }
+
+  table.schedule-table.many-slots .slot {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+  }
+}
+
+/* ===== SLOT INFORMATION DISPLAY STYLING ===== */
+/* Styling for course code and classroom information display within schedule slots */
+
+/* Container for slot information - centered and responsive */
+.slot-info-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  gap: 1px;
+  font-size: clamp(0.5rem, 2vw, 0.7rem);
+  line-height: 1.1;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Course code styling - prominent, bold text */
+.course-code {
+  color: var(--text-primary);
+  font-weight: 800; /* Extra bold for prominence */
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: clamp(
+    0.8rem,
+    2.8vw,
+    1.2rem
+  ); /* Significantly larger than classroom number */
+  line-height: 1.1;
+  text-align: center;
+  max-width: 95%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); /* Stronger shadow for visibility */
+  margin-bottom: 1px;
+  transition: all 0.2s ease;
+}
+
+/* Classroom number styling - smaller text underneath with rounded background */
+.classroom-number {
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: 2px 6px;
+  font-size: clamp(
+    0.5rem,
+    1.8vw,
+    0.9rem
+  ); /* Smaller than course code for better hierarchy */
+  text-align: center;
+  line-height: 1.2;
+  max-width: 95%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  margin-top: 2px;
+  transition: all 0.2s ease;
+}
+
+/* Adjust layout when both course code and classroom number are present */
+.slot-info-display:has(.course-code) .classroom-number {
+  margin-top: 3px; /* Proper spacing between course code and classroom number */
+  font-size: clamp(
+    0.4rem,
+    1.5vw,
+    0.7rem
+  ); /* Even smaller when course code present to maintain hierarchy */
+}
+
+/* Dark mode adjustments */
+.dark-mode .course-code {
+  color: var(--text-primary);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* Enhanced shadow for dark mode */
+}
+
+.dark-mode .classroom-number {
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Light mode adjustments - white text for better contrast */
+.light-mode .course-code,
+body:not(.dark-mode) .course-code {
+  color: white !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* Dark shadow for white text */
+}
+
+.light-mode .classroom-number,
+body:not(.dark-mode) .classroom-number {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); /* Dark shadow for white text */
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .slot-info-display {
+    padding: 1px;
+    gap: 1px;
+  }
+
+  .course-code {
+    font-size: clamp(
+      0.7rem,
+      2.5vw,
+      1rem
+    ); /* Larger than classroom number on mobile */
+    font-weight: 700; /* Still bold on mobile */
+  }
+
+  .classroom-number {
+    font-size: clamp(
+      0.45rem,
+      1.6vw,
+      0.7rem
+    ); /* Smaller than course code to maintain hierarchy */
+    margin-top: 2px;
+    padding: 2px 5px;
+  }
+
+  .slot-info-display:has(.course-code) .classroom-number {
+    margin-top: 1px; /* Reduced spacing on very small screens */
+    font-size: clamp(
+      0.4rem,
+      1.4vw,
+      0.6rem
+    ); /* Even smaller when both elements present */
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .course-code {
+    font-size: clamp(
+      0.6rem,
+      2vw,
+      0.8rem
+    ); /* Larger than classroom number even on small screens */
+    padding: 1px 2px; /* Slightly more padding for touch targets */
+  }
+
+  .classroom-number {
+    font-size: clamp(
+      0.4rem,
+      1.5vw,
+      0.6rem
+    ); /* Smaller than course code to maintain hierarchy */
+    padding: 1px 4px;
+  }
+
+  .slot-info-display:has(.course-code) .classroom-number {
+    font-size: clamp(
+      0.35rem,
+      1.3vw,
+      0.5rem
+    ); /* Even smaller when both elements present */
+  }
+}
+
+/* Hover effects for better interactivity */
+.slot:hover .course-code {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+.slot:hover .classroom-number {
+  opacity: 1;
+  transform: scale(1.05);
+  transform: scale(1.02);
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dark-mode .slot:hover .course-code {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Ensure proper text contrast in different slot states */
+.slot.busy .course-code,
+.slot.selected .course-code {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.slot.busy .classroom-number,
+.slot.selected .classroom-number {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Free slot information styling */
+.slot.free .course-code,
+.slot.free .classroom-number {
+  display: none; /* Hide information for free slots */
+}
+
+/* Theme-specific border enhancements for better visibility */
+/* Light mode: darker, more visible borders */
+.light-mode .slot,
+body:not(.dark-mode) .slot {
+  border: 1px solid rgba(100, 116, 139, 0.5) !important; /* Darker slate border for light mode */
+  margin: 0 !important; /* Remove margins to prevent border doubling */
+  margin-right: -1px !important; /* Overlap right border with next slot */
+  margin-bottom: -1px !important; /* Overlap bottom border with slot below */
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.3) !important; /* Enhanced inner border */
+}
+
+.light-mode .slot:hover,
+body:not(.dark-mode) .slot:hover {
+  border-color: rgba(
+    100,
+    116,
+    139,
+    1
+  ) !important; /* Fully opaque slate border on hover */
+  z-index: 10 !important; /* Ensure hover state appears above adjacent slots */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.5) !important;
+}
+
+/* Dark mode: enhanced silver borders */
+.dark-mode .slot {
+  border: 1px solid rgba(203, 213, 225, 0.8) !important; /* Lighter silver for dark mode */
+  margin: 0 !important; /* Remove margins to prevent border doubling */
+  margin-right: -1px !important; /* Overlap right border with next slot */
+  margin-bottom: -1px !important; /* Overlap bottom border with slot below */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important; /* Enhanced inner highlight */
+}
+
+.dark-mode .slot:hover {
+  border-color: rgba(
+    203,
+    213,
+    225,
+    1
+  ) !important; /* Fully opaque lighter silver on hover */
+  z-index: 10 !important; /* Ensure hover state appears above adjacent slots */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ===== EDITABLE TIMESLOT HEADER STYLES ===== */
+/* Interactive schedule header functionality */
+.editable-timeslot-header {
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.editable-timeslot-header:hover {
+  background: var(--depth-floating) !important;
+  color: var(--accent-primary) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ===== TIME HEADER STYLES ===== */
+/* Enhanced styling for time headers in schedule */
+.time-header {
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  text-align: center !important;
+  background: var(--depth-elevated) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 4px !important;
+  margin: 2px !important;
+  padding: 0.75rem 0.5rem !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ===== ENHANCED CROSS-BROWSER COMPATIBILITY FOR MANY SLOTS ===== */
+/* Specifically fixes issues with mobile Chrome (Pixel 9) not respecting min-width on table cells */
+
+/* Force table layout for better cross-browser consistency */
+.schedule-table.many-slots {
+  table-layout: fixed !important;
+  width: max-content !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+/* Enhanced specificity for table headers in many-slots mode */
+table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 150px !important;
+  box-sizing: border-box !important;
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* Enhanced specificity for table cells in many-slots mode */
+table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 150px !important;
+  box-sizing: border-box !important;
+  flex: none !important; /* Disable flex to ensure fixed width */
+}
+
+/* Mobile-specific overrides for cross-browser compatibility */
+@media screen and (max-width: 768px) {
+  /* Force fixed widths on mobile for better compatibility */
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important; /* Force table-cell display */
+  }
+
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important; /* Force table-cell display */
+  }
+
+  /* Ensure slots maintain fixed width */
+  table.schedule-table.many-slots .slot {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 100px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+  }
+}
+
+/* Extra small screens - even more specific for problematic browsers */
+@media screen and (max-width: 480px) {
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important;
+  }
+
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+    display: table-cell !important;
+  }
+
+  table.schedule-table.many-slots .slot {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 90px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+  }
+}
+
+/* WebKit-specific fixes for Chrome mobile rendering issues */
+@supports (-webkit-touch-callout: none) {
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child),
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    box-sizing: border-box !important;
+    -webkit-box-sizing: border-box !important;
+    flex: none !important;
+    -webkit-flex: none !important;
+  }
+}
+
+/* Chrome-specific CSS targeting */
+@media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
+  table.schedule-table.many-slots th:not(:first-child):not(:last-child),
+  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 85px !important;
+    min-width: 85px !important;
+    flex-basis: 85px !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* ===== SLOT STATE CLASSES ===== */
+/* Visual styling for different slot states based on schedule comparison */
+
+.slot-selected {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  ) !important;
+  color: white !important;
+  border-color: rgba(192, 192, 192, 0.9) !important;
+}
+
+.slot-free {
+  background: linear-gradient(135deg, var(--success), #38a169) !important;
+  color: white !important;
+  border-color: rgba(192, 192, 192, 0.9) !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--success) !important;
+}
+
+.slot-conflict {
+  background: linear-gradient(135deg, var(--error), #e53e3e) !important;
+  color: white !important;
+  border-color: rgba(192, 192, 192, 0.9) !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--error) !important;
+}
+
+.slot-partial {
+  background: linear-gradient(135deg, var(--warning), #d69e2e) !important;
+  color: white !important;
+  border-color: rgba(192, 192, 192, 0.9) !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--warning) !important;
+}
+
+/* ===== SCHEDULE DISABLED STATE ===== */
+/* Visual styling for when no active user is selected */
+
+.schedule-disabled {
+  filter: grayscale(100%) brightness(0.7) !important;
+  opacity: 0.5 !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+}
+
+/* Apply overlay to the table itself so it scrolls with content */
+.schedule-disabled .schedule-table::before {
+  content: "";
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(2px) !important;
+  z-index: 5 !important;
+  border-radius: var(--radius-xl) !important;
+  pointer-events: none !important;
+}
+
+/* Ensure the table has relative positioning for the overlay */
+.schedule-disabled .schedule-table {
+  position: relative !important;
+}
+
+.schedule-disabled .slot {
+  cursor: not-allowed !important;
+  filter: brightness(0.8) !important;
+  pointer-events: none !important;
+}
+
+.schedule-disabled .pin-indicator,
+.schedule-disabled .pin-square-container {
+  display: none !important;
+}
+
+.schedule-disabled .add-timeslot-btn,
+.schedule-disabled #addNewTimeSlotBtn {
+  pointer-events: none !important;
+  opacity: 0.3 !important;
+}
+
+/* ===== PIN MODE STYLING ===== */
+/* Enhanced styling for pin mode interactions */
+
+.pin-mode-active
+  .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(
+    .slot-partial
+  ):not(.slot-busy) {
+  border: 1px solid silver !important;
+  background: linear-gradient(
+    135deg,
+    var(--depth-surface) 0%,
+    rgba(139, 92, 246, 0.1) 100%
+  ) !important;
+}
+
+.pin-mode-active
+  .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(
+    .slot-partial
+  ):not(.slot-selected):hover {
+  border-color: var(--accent-secondary) !important;
+  background: linear-gradient(
+    135deg,
+    var(--depth-elevated) 0%,
+    rgba(168, 85, 247, 0.15) 100%
+  ) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Enhanced border for selected slots in pin mode */
+.pin-mode-active .slot.slot-selected,
+.pin-mode-active .slot.slot-free,
+.pin-mode-active .slot.slot-conflict,
+.pin-mode-active .slot.slot-partial {
+  border-width: 3px !important;
+}
+
+/* Show 🚫 icon for busy slots (slot-selected) in pin mode */
+.pin-mode-active .slot.slot-selected::before {
+  content: "🚫";
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  font-size: 20px !important;
+  opacity: 0.7 !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+.pin-mode-active .slot.slot-selected {
+  cursor: not-allowed !important;
+}
+
+/* ===== GLOW ANIMATION FOR ADD USER BUTTON ===== */
+/* Animation for when schedule is clicked while disabled */
+@keyframes addUserGlow {
+  0% {
+    box-shadow: 0 0 5px var(--accent-primary);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-primary), 0 0 30px rgba(79, 172, 254, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 5px var(--accent-primary);
+  }
+}
+
+/* 
+--- IMPROVED SCROLLBAR STYLING ---
+Custom scrollbar for horizontal schedule scrolling
+*/
+.schedule-wrapper::-webkit-scrollbar {
+  height: 8px !important;
+}
+
+.schedule-wrapper::-webkit-scrollbar-track {
+  background: var(--depth-surface) !important;
+  border-radius: 4px !important;
+}
+
+.schedule-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border) !important;
+  border-radius: 4px !important;
+  transition: background 0.3s ease !important;
+}
+
+.schedule-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary) !important;
+}
+
+/* Enhanced scroll behavior for many slots */
+.schedule-wrapper {
+  /* Smooth scrolling for better UX */
+  scroll-behavior: smooth !important;
+  /* Better scrolling on touch devices */
+  -webkit-overflow-scrolling: touch !important;
+  /* Hint for better scrolling performance */
+  will-change: scroll-position;
+}
+
+/* ===== PIN INDICATOR STYLES ===== */
+/* Visual indicators for pinned slots and pin mode interactions */
+.pin-indicator {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  opacity: 0.9 !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) !important;
+}
+
+.pin-indicator:hover {
+  opacity: 1 !important;
+  transform: scale(1.1) !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)) !important;
+}
+
+/* PIN SQUARE CONTAINER STYLES */
+/* Square background for pin indicators in compare mode positioned to the right */
+.pin-square-container {
+  position: absolute !important;
+  top: 50% !important;
+  right: 4px !important;
+  transform: translateY(-50%) !important;
+  width: 32px !important;
+  height: 80% !important;
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  opacity: 0.9 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: auto !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.pin-square-container:hover {
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  border-color: var(--accent-primary) !important;
+  background: var(--glass-bg-hover, var(--glass-bg)) !important;
+}
+
+.pin-square-container:active {
+  transform: translateY(-50%) scale(1.05) !important;
+  transition: all 0.1s ease !important;
+}
+
+.pin-square-container .pin-icon {
+  font-size: 14px !important;
+  line-height: 1 !important;
+  color: var(--accent-primary) !important;
+  margin-bottom: 1px !important;
+}
+
+.pin-square-container .pin-count-number {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  line-height: 1 !important;
+  margin-top: 5px !important;
+  color: white !important;
+  border-radius: 10% !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid white !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* COMPARE MODE PIN INDICATOR STYLES (Legacy - keeping for compatibility) */
+/* Visual indicators for pinned slots in compare mode with multiple users */
+.can-pin-indicator {
+  position: absolute !important;
+  top: 50% !important;
+  right: 50% !important;
+  transform: translate(50%, -50%) !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  opacity: 0.6 !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  color: var(--accent-primary) !important;
+  font-weight: bold !important;
+}
+
+.can-pin-indicator:hover {
+  opacity: 1 !important;
+  transform: translate(50%, -50%) scale(1.2) !important;
+  color: var(--accent-secondary) !important;
+}
+
+/* ===== SLOT TOOLTIP STYLES ===== */
+/* Enhanced slot tooltip styling */
+#slotTooltip {
+  position: absolute;
+  background: var(--depth-floating, rgba(0, 0, 0, 0.9));
+  color: var(--text-primary, white);
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: pre-line;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 250px;
+  word-wrap: break-word;
+  display: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateX(-50%) scale(0.8);
+}
+
+/* Light mode tooltip */
+.light-mode #slotTooltip,
+body:not(.dark-mode) #slotTooltip {
+  background: var(--surface, rgba(255, 255, 255, 0.95)) !important;
+  color: var(--text-primary, #1a1a1a) !important;
+  border-color: var(--border, rgba(0, 0, 0, 0.1)) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure tooltip is visible when shown */
+#slotTooltip[style*="display: block"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Visible state for tooltip - higher specificity */
+#slotTooltip.visible {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: translateX(-50%) scale(1) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Hidden state for tooltip */
+#slotTooltip:not(.visible) {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* ===== COMPARE PIN INDICATOR STYLES ===== */
+.compare-pin-indicator {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  opacity: 0.9 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: auto !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15)) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 6px !important;
+  padding: 2px 4px !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.compare-pin-indicator:hover {
+  opacity: 1 !important;
+  transform: scale(1.15) !important;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25)) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.compare-pin-indicator:active {
+  transform: scale(1.05) !important;
+  transition: all 0.1s ease !important;
+}
+
+.compare-pin-indicator .pin-count {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  ) !important;
+  color: white !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  border-radius: 50% !important;
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 3px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  border: 2px solid white !important;
+  animation: pulseCount 2s infinite !important;
+}
+
+/* ===== PIN TOOLTIP STYLES ===== */
+/* Detailed tooltip for showing which users have pinned a slot */
+.pin-tooltip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  min-width: 160px !important;
+  max-width: 280px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  animation: tooltipFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  z-index: 1001 !important;
+}
+
+.pin-tooltip-content {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.pin-tooltip-header {
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  padding-bottom: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.pin-tooltip-header::before {
+  font-size: 16px !important;
+}
+
+.pin-tooltip-users {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
+
+.pin-tooltip-user {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  color: var(--text-secondary) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.pin-tooltip-user:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateX(2px) !important;
+}
+
+.pin-tooltip-user-color {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  border: 2px solid white !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+.pin-tooltip-user span {
+  font-weight: 500 !important;
+  color: var(--text-primary) !important;
+}
+
+/* ===== ADD TIME SLOT BUTTON STYLING ===== */
+/* Modern, accessible styling for the add time slot button in the schedule header */
+.add-timeslot-btn,
+#addNewTimeSlotBtn {
+  /* Layout & Positioning */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0 auto;
+
+  /* Visual Styling */
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 50%; /* Circular button */
+  cursor: pointer;
+
+  /* Interactive Effects */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  /* Enhanced Shadows */
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* Accessibility */
+  outline: none;
+}
+
+.add-timeslot-btn:hover,
+#addNewTimeSlotBtn:hover {
+  /* Hover Effects */
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+
+  /* Background Enhancement */
+  background: linear-gradient(
+    135deg,
+    var(--accent-secondary),
+    var(--accent-primary)
+  );
+}
+
+.add-timeslot-btn:active,
+#addNewTimeSlotBtn:active {
+  /* Active State */
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition-duration: 0.1s;
+}
+
+.add-timeslot-btn:focus-visible,
+#addNewTimeSlotBtn:focus-visible {
+  /* Focus Accessibility */
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
+    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.add-timeslot-btn i,
+#addNewTimeSlotBtn i {
+  /* Icon Styling */
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.add-timeslot-btn:hover i,
+#addNewTimeSlotBtn:hover i {
+  /* Icon Hover Effect */
+  transform: rotate(90deg) scale(1.1);
+}
+
+/* Disabled State */
+.add-timeslot-btn:disabled,
+#addNewTimeSlotBtn:disabled {
+  background: var(--text-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.6;
+  border-color: transparent;
+}
+
+/* ===== KEYFRAME ANIMATIONS ===== */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseCount {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* ===== MOBILE RESPONSIVE ENHANCEMENTS ===== */
+/* Mobile responsiveness for pin indicators */
+@media (max-width: 768px) {
+  .pin-square-container {
+    width: 28px !important;
+    height: 80% !important;
+    top: 50% !important;
+    right: 2px !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .pin-square-container .pin-icon {
+    font-size: 12px !important;
+  }
+
+  .pin-square-container:hover {
+    transform: translateY(-50%) scale(1.1) !important;
+  }
+
+  .pin-square-container:active {
+    transform: translateY(-50%) scale(1.05) !important;
+  }
+
+  .pin-square-container .pin-count-number {
+    width: 14px !important;
+    height: 14px !important;
+    margin-top: 5px !important;
+    font-size: 9px !important;
+    color: white !important;
+    border-radius: 10% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .compare-pin-indicator {
+    font-size: 14px !important;
+    padding: 1px 3px !important;
+    top: 2px !important;
+    right: 2px !important;
+  }
+
+  .compare-pin-indicator .pin-count {
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 9px !important;
+    margin-left: 2px !important;
+  }
+
+  .pin-tooltip {
+    padding: 12px !important;
+    min-width: 140px !important;
+    max-width: 220px !important;
+    border-radius: 10px !important;
+  }
+
+  .pin-tooltip-header {
+    font-size: 13px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .pin-tooltip-user {
+    padding: 6px 8px !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .pin-tooltip-user-color {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  /* Mobile course/classroom styling */
+  .course-code {
+    font-size: clamp(
+      0.7rem,
+      2.5vw,
+      1rem
+    ); /* Larger than classroom number on mobile */
+    font-weight: 700; /* Still bold on mobile */
+  }
+
+  .classroom-number {
+    font-size: clamp(
+      0.45rem,
+      1.6vw,
+      0.7rem
+    ); /* Smaller than course code to maintain hierarchy */
+    margin-top: 2px;
+    padding: 2px 5px;
+  }
+
+  .slot-info-display:has(.course-code) .classroom-number {
+    margin-top: 1px; /* Reduced spacing on very small screens */
+    font-size: clamp(
+      0.4rem,
+      1.4vw,
+      0.6rem
+    ); /* Even smaller when both elements present */
+  }
+}
+
+@media (max-width: 480px) {
+  .pin-square-container {
+    width: 26px !important;
+    height: 80% !important;
+    top: 50% !important;
+    right: 1px !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .pin-square-container .pin-icon {
+    font-size: 11px !important;
+  }
+
+  .pin-square-container:hover {
+    transform: translateY(-50%) scale(1.1) !important;
+  }
+
+  .pin-square-container:active {
+    transform: translateY(-50%) scale(1.05) !important;
+  }
+
+  .pin-square-container .pin-count-number {
+    width: 10px !important;
+    height: 10px !important;
+    margin-top: 5px !important;
+    font-size: 8px !important;
+    color: white !important;
+    border-radius: 10% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .compare-pin-indicator {
+    font-size: 12px !important;
+    padding: 1px 2px !important;
+  }
+
+  .compare-pin-indicator .pin-count {
+    width: 14px !important;
+    height: 14px !important;
+    font-size: 8px !important;
+    margin-left: 1px !important;
+  }
+
+  .pin-tooltip {
+    padding: 10px !important;
+    min-width: 120px !important;
+    max-width: 200px !important;
+  }
+
+  .pin-tooltip-header {
+    font-size: 12px !important;
+  }
+
+  .pin-tooltip-user {
+    padding: 4px 6px !important;
+    gap: 6px !important;
+    font-size: 11px !important;
+  }
+
+  .pin-tooltip-user-color {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  /* Extra small course/classroom styling */
+  .course-code {
+    font-size: clamp(
+      0.6rem,
+      2vw,
+      0.8rem
+    ); /* Larger than classroom number even on small screens */
+    padding: 1px 2px; /* Slightly more padding for touch targets */
+  }
+
+  .classroom-number {
+    font-size: clamp(
+      0.4rem,
+      1.5vw,
+      0.6rem
+    ); /* Smaller than course code to maintain hierarchy */
+    padding: 1px 4px;
+  }
+
+  .slot-info-display:has(.course-code) .classroom-number {
+    font-size: clamp(
+      0.35rem,
+      1.3vw,
+      0.5rem
+    ); /* Even smaller when both elements present */
+  }
+}

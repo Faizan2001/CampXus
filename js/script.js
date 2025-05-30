@@ -1940,7 +1940,7 @@ function getPinModeButtonDynamicState(
   // 1. No active user is selected.
   // 2. Compare mode is active.
   if (!canEnablePinMode) {
-    text = "Pin Mode";
+    text = "Pin";
   } else if (isPinModeCurrentlyActive) {
     text = "ON";
   } else {

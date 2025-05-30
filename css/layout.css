@@ -1,0 +1,661 @@
+/* 
+=============================================================================
+                          LAYOUT & NAVIGATION COMPONENTS
+=============================================================================
+
+This file contains all layout-related styles for the MeetchuThere app:
+
+- Main App Container & Structure
+- Top Navigation Bar & Logo
+- Navigation Links & Buttons  
+- Responsive Grid Systems
+- Mobile Navigation Rules
+- Desktop Two-Column Layout
+- Responsive Breakpoints & Ordering
+
+=============================================================================
+*/
+
+/* ===== MAIN APP CONTAINER ===== */
+/* Root container that holds the entire application structure */
+.app-container {
+  min-height: 100vh; /* Full viewport height */
+  display: flex;
+  flex-direction: column; /* Stack navigation above main content */
+}
+
+/* ===== TOP NAVIGATION BAR ===== */
+/* Sticky navigation with glassmorphism effect and backdrop blur */
+.top-nav {
+  /* Positioning & Layout */
+  position: sticky; /* Stays at top while scrolling */
+  top: 0;
+  z-index: 1000; /* Above all other content */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+
+  /* Glassmorphism Styling */
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px); /* Creates glassmorphism effect */
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+/* Navigation sections - Left (logo), Center (links), Right (controls) */
+.nav-left,
+.nav-center,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+/* ===== LOGO COMPONENT ===== */
+/* Brand identity with icon and text */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: clamp(1.3rem, 3vw, 1.7rem); /* Fluid logo sizing */
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+  position: relative;
+}
+
+.logo span {
+  background: var(--gradient-title);
+  background-size: 300% 300%;
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+  font-style: italic;
+  display: inline-block;
+  transition: transform 0.3s var(--animation-smooth);
+  position: relative;
+  animation: waveGradient 8s ease-in-out infinite; /* Apply the gradient animation */
+}
+
+.logo span:hover {
+  transform: scale(1.02);
+}
+
+.logo span::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 2px;
+  background: var(--gradient-title);
+  background-size: 300% 300%;
+  animation: waveGradient 8s ease-in-out infinite;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+
+/* Hide the calendar icon for cleaner modern look */
+.logo i {
+  display: none;
+  font-size: 1.5rem;
+}
+
+/* ===== NAVIGATION LINKS ===== */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.3s var(--animation-smooth);
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.nav-link:hover::before {
+  left: 100%;
+}
+
+.nav-link:hover {
+  background: var(--surface-hover);
+  color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ===== NAVIGATION BUTTONS ===== */
+.nav-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s var(--animation-spring);
+  font-size: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(
+    circle,
+    var(--accent-primary) 30%,
+    transparent 70%
+  );
+  transition: all 0.3s ease;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.nav-button:hover::before {
+  width: 100%;
+  height: 100%;
+  opacity: 0.2;
+}
+
+.nav-button:hover {
+  background: var(--surface-hover);
+  color: var(--accent-primary);
+  transform: scale(1.1);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
+.main-content {
+  padding: 1rem; /* Base padding for mobile */
+  width: 100%;
+  max-width: 100%; /* Ensure it doesn't exceed viewport with box-sizing */
+  margin: 0 auto;
+}
+
+.content-grid {
+  display: flex;
+  flex-direction: column; /* Mobile-first: single column */
+  gap: 1.5rem; /* Gap between schedule and controls stack */
+  width: 100%;
+}
+
+.schedule-column {
+  width: 100%;
+}
+
+.controls-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Gap between individual control sections */
+  width: 100%;
+}
+
+/* Ensure all cards take full width of their parent column */
+.controls-column .glass-card,
+.schedule-column .glass-card {
+  width: 100%;
+  margin-bottom: 0; /* Remove individual card margins if parent flex/grid has gap */
+}
+
+/* ===== WAVE GRADIENT ANIMATION ===== */
+@keyframes waveGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ===== RESPONSIVE DESIGN RULES ===== */
+
+/* Mobile Navigation Responsiveness */
+@media (max-width: 768px) {
+  .top-nav {
+    padding: 0.75rem 1rem; /* Reduce padding on mobile */
+    flex-wrap: wrap; /* Allow wrapping if needed */
+  }
+
+  .nav-center {
+    display: none; /* Hide center navigation links on mobile */
+  }
+
+  .nav-left,
+  .nav-right {
+    gap: var(--space-md); /* Reduce gap on mobile */
+  }
+
+  .logo span {
+    font-size: 1.2rem; /* Slightly smaller logo text */
+  }
+
+  .nav-button {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav {
+    padding: 0.5rem 0.75rem; /* Even smaller padding */
+  }
+
+  .logo span {
+    font-size: 1rem; /* Smaller logo for very small screens */
+  }
+
+  .nav-button {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.8rem;
+  }
+
+  /* Adjust spacing for main content on very small screens */
+  .main-content {
+    padding: 0.75rem !important;
+  }
+}
+
+/* Larger Mobile / Small Tablet (e.g., > 550px) */
+@media (min-width: 550px) {
+  .main-content {
+    padding: 1.5rem;
+  }
+}
+
+/* ===== MOBILE LAYOUT ORDERING (up to 900px) ===== */
+/* Single column layout with proper mobile ordering */
+@media (max-width: 900px) {
+  .content-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+
+  .schedule-column,
+  .controls-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Mobile column ordering - Schedule column should come first */
+  .schedule-column {
+    order: 1; /* Schedule column first */
+  }
+
+  .controls-column {
+    order: 2; /* Controls column second */
+  }
+
+  /* Within controls column, set the internal section order */
+  /* Mobile order within controls: Users → Compare → Import/Export */
+  .users-section {
+    order: 1; /* Users List first within controls */
+  }
+
+  .compare-section {
+    order: 2; /* Compare & Pin Mode second within controls */
+  }
+
+  .import-export-section {
+    order: 3; /* Export/Import third within controls */
+  }
+
+  /* Make glass cards use full width */
+  .glass-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Better button grouping for mobile */
+  .button-group {
+    flex-direction: column !important;
+  }
+
+  .button-group button {
+    width: 100% !important;
+    margin-right: 0 !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .button-group button:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+
+/* ===== ULTRA-WIDE DESKTOP OPTIMIZATIONS (1600px+) ===== */
+@media (min-width: 1600px) {
+  .main-content {
+    padding: 2.5rem 3rem; /* More generous padding */
+    max-width: 1800px; /* Constrain maximum width */
+    margin: 0 auto; /* Center the content */
+  }
+
+  .content-grid {
+    grid-template-columns: minmax(400px, 1fr) 3fr; /* Wider controls, larger schedule */
+    gap: 2rem; /* Increased gap */
+  }
+
+
+  /* Wide desktop grid positioning */
+  /* NEW WIDE DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
+  /* HTML source order: Compare → Add User → Users → Import/Export */
+  .users-section {
+    grid-column: 1;
+    grid-row: 1; /* Users List first (3rd in HTML) */
+    order: unset;
+  }
+
+  .compare-section {
+    grid-column: 1;
+    grid-row: 2; /* Compare & Pin Mode second (1st in HTML) */
+    order: unset;
+  }
+
+  /* Add user functionality now integrated into schedule header */
+
+  .import-export-section {
+    grid-column: 1;
+    grid-row: 3; /* Export/Import third (4th in HTML) */
+    order: unset;
+  }
+
+  .schedule-section {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    height: fit-content; /* Scale with content */
+    max-height: calc(
+      100vh - 4rem
+    ); /* Maximize height utilization on wide screens */
+    order: unset;
+  }
+
+  /* Larger cards for wide screens */
+  .glass-card {
+    padding: 2rem;
+  }
+
+  /* Enhanced schedule table for wide screens */
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.75rem;
+    font-size: 1rem;
+    min-height: 4.5rem;
+  }
+
+  .schedule-table .slot {
+    min-height: 4.5rem;
+  }
+
+  /* Better schedule height utilization on wide screens */
+  .schedule-wrapper {
+    max-height: calc(100vh - 10rem); /* Optimized for wide screens */
+    min-height: 600px; /* Larger minimum height for wide screens */
+  }
+}
+
+
+/* Optional: For extreme compactness on very small screens, use vertical headers */
+@media (max-width: 479px) {
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
+    font-size: 0.6rem; /* Adjust if needed with vertical text */
+    padding: 0.2rem 0.1rem; /* Adjust padding for vertical */
+  }
+}
+
+/* ===== ADDITIONAL MOBILE RESPONSIVE ENHANCEMENTS ===== */
+/* Single column layout when screen gets too narrow */
+@media (max-width: 900px) {
+  .content-grid {
+    display: flex !important;
+    flex-direction: column !important; /* Now uses normal column order for new layout */
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+
+  .schedule-wrapper {
+    /* Expand beyond parent container */
+    width: calc(100vw - 3.5rem) !important; /* Full viewport minus small margin */
+    max-width: none !important;
+    margin-left: calc(-1rem) !important; /* Negative margin to break out of padding */
+    margin-right: calc(-1rem) !important;
+    border-radius: var(--radius-xl) !important; /* Maintain border radius */
+  }
+
+  .schedule-column,
+  .controls-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Mobile column ordering - Schedule column should come first */
+  .schedule-column {
+    order: 1; /* Schedule column first */
+  }
+
+  .controls-column {
+    order: 2; /* Controls column second */
+  }
+
+  /* Within controls column, set the internal section order */
+  /* Mobile order within controls: Users → Compare → Add User → Export/Import */
+  /* HTML source order: Compare → Add User → Users → Import/Export */
+  .users-section {
+    order: 1; /* Users List first within controls */
+  }
+
+  .compare-section {
+    order: 2; /* Compare & Pin Mode second within controls */
+  }
+
+  .import-export-section {
+    order: 3; /* Export/Import third within controls */
+  }
+
+  /* Make glass cards use full width */
+  .glass-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Better button grouping for mobile */
+  .button-group {
+    flex-direction: column !important;
+  }
+
+  .button-group button {
+    width: 100% !important;
+    margin-right: 0 !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .button-group button:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* Small mobile enhancements for better visibility */
+@media (max-width: 480px) {
+  /* Make slots more compact for better visibility */
+  .slot {
+    height: 2.25rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  /* Adjust schedule wrapper scrolling */
+  .schedule-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 5px !important;
+  }
+
+  /* Improve small mobile scale */
+  .schedule-table {
+    min-width: 550px !important; /* Smaller minimum to show more columns */
+    font-size: 0.65rem !important;
+  }
+
+  /* Adjust spacing for main content */
+  main.main-content {
+    padding: 0.75rem !important;
+  }
+}
+
+/* ===== STANDARD DESKTOP LAYOUT (900px - 1599px) ===== */
+@media (min-width: 900px) {
+  .main-content {
+    padding: 2rem; /* Restore desktop padding */
+    max-width: none; /* Remove width constraint for full width */
+    width: 100%;
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: minmax(350px, 1fr) 2.5fr; /* Controls left, Schedule right */
+    grid-template-rows: auto auto auto auto; /* Four rows for masonry effect */
+    gap: 1.5rem;
+    align-items: start;
+    width: 100%;
+  }
+
+  
+
+  /* Desktop grid positioning - place sections directly in grid */
+  /* NEW DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
+  /* HTML source order: Compare → Add User → Users → Import/Export */
+  .users-section {
+    grid-column: 1;
+    grid-row: 1; /* Users List first (3rd in HTML) */
+    order: unset;
+  }
+
+  .compare-section {
+    grid-column: 1;
+    grid-row: 2; /* Compare & Pin Mode second (1st in HTML) */
+    order: unset;
+  }
+
+  /* Add user functionality now integrated into schedule header */
+
+  .import-export-section {
+    grid-column: 1;
+    grid-row: 3; /* Export/Import third (4th in HTML) */
+    order: unset;
+  }
+
+  .schedule-section {
+    grid-column: 2;
+    grid-row: 1 / -1; /* Span all rows */
+    height: fit-content; /* Scale with content */
+    max-height: calc(
+      100vh - 6rem
+    ); /* Optimized height for better desktop utilization */
+    order: unset;
+  }
+
+  /* Restore standard schedule sizes */
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    min-height: 3.5rem; /* Standard slot height */
+  }
+  .schedule-table .slot {
+    min-height: 3.5rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.85rem; /* Standard header font size */
+    writing-mode: initial; /* Ensure text is horizontal */
+    text-orientation: initial;
+  }
+
+  /* Optimize schedule height for standard desktop */
+  .schedule-wrapper {
+    max-height: calc(100vh - 12rem); /* Desktop-optimized height */
+    min-height: 500px; /* Adequate minimum height for desktop */
+  }
+}
+
+.glass-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+}
+
+.glass-card::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.03) 60deg,
+    transparent 120deg,
+    rgba(255, 255, 255, 0.03) 180deg,
+    transparent 240deg,
+    rgba(255, 255, 255, 0.03) 300deg,
+    transparent 360deg
+  );
+  animation: rotate 20s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+

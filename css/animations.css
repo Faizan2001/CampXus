@@ -1,0 +1,211 @@
+/*
+====================================================================================
+                              ANIMATIONS & TRANSITIONS
+                        Motion Design, Hover Effects, and Interactions
+====================================================================================
+
+🎯 COMPONENT SCOPE:
+This file contains all animation and transition styles:
+
+📋 INCLUDED STYLES:
+- Loading animations and spinners
+- Hover and focus transitions
+- Button state changes
+- Card hover effects
+- Smooth page transitions
+- Micro-interactions
+
+====================================================================================
+*/
+
+/* ===== LOADING ANIMATIONS ===== */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ===== GRADIENT WAVE ANIMATION ===== */
+@keyframes waveGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ===== LOADING SPINNER ===== */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  border-top-color: var(--accent-primary);
+  animation: spin 1s ease-in-out infinite;
+}
+
+/* ===== FADE-IN UTILITIES ===== */
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* ===== HOVER EFFECT UTILITIES ===== */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* ===== BUTTON INTERACTION EFFECTS ===== */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-ripple:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* ===== SMOOTH STATE TRANSITIONS ===== */
+.smooth-all {
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.smooth-transform {
+  transition: transform 0.3s var(--animation-spring);
+}
+
+.smooth-colors {
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* ===== CARD INTERACTION ANIMATIONS ===== */
+.card-hover-effect:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  transition: all 0.3s var(--animation-spring);
+}
+
+/* ===== MODAL ANIMATIONS ===== */
+.modal-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-fade-out {
+  animation: fadeIn 0.2s ease-out reverse;
+}
+
+/* ===== NOTIFICATION ANIMATIONS ===== */
+.notification-enter {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* ===== USER GLOW ANIMATION ===== */
+.add-user-glow {
+  animation: addUserGlow 0.6s ease-in-out 3 !important;
+}
+
+@keyframes addUserGlow {
+  0% {
+    box-shadow: 0 0 5px var(--accent-primary);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-primary),
+      0 0 30px rgba(102, 126, 234, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 5px var(--accent-primary);
+  }
+}
+
+/* ===== GLOW EFFECT FOR USERS SECTION ===== */
+.users-section-glow {
+  animation: usersSectionGlow 0.6s ease-in-out 3 !important;
+}
+
+@keyframes usersSectionGlow {
+  0% {
+    box-shadow: 0 0 5px var(--accent-secondary);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-secondary),
+      0 0 30px rgba(138, 43, 226, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 5px var(--accent-secondary);
+  }
+}
+
+/* ===== RESPONSIVE ANIMATION CONTROLS ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
