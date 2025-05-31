@@ -816,9 +816,18 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
   if (!state.activeUserId || !state.users[state.activeUserId]) {
     console.warn("handlePinSlotClick called with no active user.");
-    // Trigger glow effect on add user button for visual feedback
+    // Trigger glow effect for visual feedback
     if (!state.activeUserId) {
-      triggerAddUserGlow();
+      // Check if users exist to determine which glow to trigger
+      const totalUserCount = Object.keys(state.users).length;
+
+      if (totalUserCount === 0) {
+        // No users exist - trigger add user button glow
+        triggerAddUserGlow();
+      } else {
+        // Users exist but no active user - trigger users section glow
+        triggerUsersSectionGlow();
+      }
     }
     return;
   }
@@ -1981,7 +1990,12 @@ function triggerAddUserGlow() {
  * when they try to interact with the disabled schedule and users exist.
  */
 function triggerUsersSectionGlow() {
+  console.log("triggerUsersSectionGlow called");
+  console.log("DOM_ELEMENTS.usersSection:", DOM_ELEMENTS.usersSection);
+
   if (DOM_ELEMENTS.usersSection) {
+    console.log("Users section found, applying glow effect");
+
     // Remove any existing glow class
     DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
 
@@ -1991,10 +2005,15 @@ function triggerUsersSectionGlow() {
     // Add the glow class to trigger the animation
     DOM_ELEMENTS.usersSection.classList.add("users-section-glow");
 
+    console.log("Glow class added to users section");
+
     // Remove the class after animation completes (0.6s * 3 repetitions = 1.8s)
     setTimeout(() => {
       DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
+      console.log("Glow class removed from users section");
     }, 2000);
+  } else {
+    console.error("DOM_ELEMENTS.usersSection is null or undefined");
   }
 }
 
@@ -2268,8 +2287,16 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
   ) {
     // No active user, in compare mode, or user doesn't exist: show visual feedback
     if (!state.activeUserId && !state.compareMode) {
-      // Schedule is disabled - trigger glow effect on add user button
-      triggerAddUserGlow();
+      // Schedule is disabled - check if users exist to determine which glow to trigger
+      const totalUserCount = Object.keys(state.users).length;
+
+      if (totalUserCount === 0) {
+        // No users exist - trigger add user button glow
+        triggerAddUserGlow();
+      } else {
+        // Users exist but no active user - trigger users section glow
+        triggerUsersSectionGlow();
+      }
     }
     return;
   }
@@ -2459,7 +2486,22 @@ function setupEventListeners() {
         !e.target.closest("button") &&
         !e.target.closest(".add-timeslot-btn")
       ) {
-        triggerAddUserGlow();
+        // Check if there are any users in the user list
+        const totalUserCount = Object.keys(state.users).length;
+
+        console.log("Schedule disabled clicked - Total users:", totalUserCount);
+
+        if (totalUserCount === 0) {
+          // No users exist - trigger add user button glow
+          console.log("No users exist, triggering add user glow");
+          triggerAddUserGlow();
+        } else {
+          // Users exist but no active user - trigger users section glow
+          console.log(
+            "Users exist but no active user, triggering users section glow"
+          );
+          triggerUsersSectionGlow();
+        }
       }
     });
   }
