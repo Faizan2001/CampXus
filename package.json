@@ -5,7 +5,13 @@
   "main": "index.html",
   "type": "module",
   "scripts": {
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "firebase:serve": "firebase serve",
+    "firebase:deploy": "firebase deploy",
+    "firebase:emulators": "firebase emulators:start",
+    "security:audit": "npm audit",
+    "security:fix": "npm audit fix",
+    "security:check": "npx audit-ci"
   },
   "repository": {
     "type": "git",
@@ -21,12 +27,19 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0"
+    "jest-environment-jsdom": "^29.7.0",
+    "audit-ci": "^6.6.1"
   },
   "jest": {
     "testEnvironment": "jsdom",
     "setupFilesAfterEnv": [
       "./jest.setup.js"
+    ],
+    "testMatch": [
+      "**/js/tests/**/*.test.js"
     ]
+  },
+  "dependencies": {
+    "firebase": "^11.8.1"
   }
 }

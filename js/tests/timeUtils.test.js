@@ -4,7 +4,7 @@ import {
   TimeInterval,
   UnifiedSchedule,
   createUnifiedSchedule,
-} from "./timeUtils.js";
+} from "../timeUtils.js";
 
 describe("Time Parsing Utilities", () => {
   describe("parseTime", () => {

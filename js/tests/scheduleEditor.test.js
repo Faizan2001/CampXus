@@ -1,4 +1,4 @@
-// js/scheduleEditor.test.js
+// js/tests/scheduleEditor.test.js
 import { jest } from "@jest/globals";
 
 // Functions from script.js (exported directly by their original names)
@@ -9,12 +9,12 @@ import {
   getState,
   _setStateForTesting,
   _resetStateForTesting,
-} from "./script.js";
+} from "../script.js";
 
 // Modules needed for setup
-import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "./constants.js";
-import { DOM_ELEMENTS, initializeDomElements } from "./domElements.js";
-import { initModal } from "./modal.js";
+import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../constants.js";
+import { DOM_ELEMENTS, initializeDomElements } from "../domElements.js";
+import { initModal } from "../modal.js";
 
 // Helper function to set up a comprehensive DOM structure
 const setupBaseTestDOM = () => {
