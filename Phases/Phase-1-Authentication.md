@@ -1,63 +1,70 @@
-# Phase 1: University Authentication System 🎓
+# Phase 1: Firebase Authentication Setup 🎓✨
+
+## Welcome to Authentication! 🚀
+
+Welcome to Phase 1, where we add Firebase Authentication to CampXus! Think of this phase as creating the "front door" to your app - a welcoming, secure place where university students can sign up and sign in to manage their schedules.
 
 ## What We're Building 🌟
 
-Welcome to Phase 1! Here we'll add a simple but effective authentication system to CampXus. Students will be able to sign up with their university email and create accounts to use our schedule manager.
+After completing Phase 0's Firebase setup, we'll now build a complete authentication system that:
 
-## Learning Goals 🎯
+- **University Email Validation**: Only students with university emails can join
+- **Beautiful Sign-up/Sign-in Forms**: Clean, mobile-friendly authentication
+- **Email Verification**: Students verify their email before full access
+- **Firebase Integration**: Seamless connection with Firebase Authentication
 
-By the end of this phase, you'll have:
+## 🏗️ Simple Architecture
 
-- **University Email Validation**: Only students with valid university emails can register
-- **Simple Sign-up/Login**: Clean authentication flow with Firebase
-- **Basic Security**: Email verification and simple validation
-- **User-Friendly Interface**: Beautiful login and registration forms
+This phase uses Firebase Authentication basics:
 
-### What You'll Build ✨
-
-- **Email Validation**: Check if the email belongs to a supported university
-- **Firebase Authentication**: Sign up and login with email/password
-- **Email Verification**: Students must verify their email before accessing the app
-- **Simple Security**: Basic protection against invalid registrations
+- **Client-Side**: JavaScript form handling and Firebase Auth methods
+- **Firebase Auth**: Email/password authentication
+- **University Validation**: Simple domain checking for university emails
+- **User-Friendly UI**: Clean forms with helpful feedback
 
 ## 📋 Prerequisites
 
 Make sure you've completed Phase 0:
 
-- [ ] Firebase project is set up and configured
-- [ ] Firebase Authentication is enabled
+- [ ] Firebase project is created and configured
+- [ ] Firebase Authentication is enabled in console
+- [ ] Firebase CLI is installed and logged in
 - [ ] Basic HTML/CSS/JavaScript understanding
 
-## 🎨 What You'll Learn
+## 🎯 Learning Goals
 
-- **Firebase Authentication**: Using Firebase Auth for user management
-- **Email Validation**: Validating university email addresses
-- **Form Handling**: Creating responsive login/signup forms
-- **User Experience**: Building smooth authentication flows
+By the end of this phase, you'll know how to:
 
-## 🛠️ Your Authentication Tasks
+- **Use Firebase Authentication**: Create and sign in users with email/password
+- **Validate Email Domains**: Check if emails belong to universities
+- **Handle Auth State**: Track when users are logged in or out
+- **Create Forms**: Build responsive sign-up and sign-in forms
+- **Manage User Sessions**: Keep users logged in across browser sessions
 
-### Task 1: Simple University Email Validator 🏫
+## 🛠️ Mission: Your Authentication Adventure
 
-Create a simple system to check if email addresses belong to supported universities.
+### Adventure 1: University Email Validator 🏫
+
+Let's start by creating a simple system to validate university email addresses. This ensures only real university students can join CampXus!
 
 #### 1.1 Create the University Validator
 
-**File: `js/university-validator.js`**
+Create `js/university-validator.js`:
 
 ```javascript
-// Simple university email validation
+// Simple university email validation for CampXus
 const SUPPORTED_UNIVERSITIES = {
   iub: {
     name: "Independent University, Bangladesh",
     domains: ["iub.edu.bd"],
     displayName: "IUB",
-    colors: {
-      primary: "#1e40af",
-      secondary: "#3b82f6",
-    },
   },
-  // Add more universities here as needed
+  // Easy to add more universities later!
+  // nsu: {
+  //   name: "North South University",
+  //   domains: ["northsouth.edu"],
+  //   displayName: "NSU"
+  // }
 };
 
 /**
@@ -66,32 +73,65 @@ const SUPPORTED_UNIVERSITIES = {
  * @returns {object|null} University info if valid, null if not
  */
 function validateUniversityEmail(email) {
-  if (!email || typeof email !== "string") {
+  // Basic email format check
+  if (!email || typeof email !== "string" || !email.includes("@")) {
     return null;
   }
 
-  // Extract domain from email
+  // Extract domain from email (everything after @)
   const domain = email.toLowerCase().split("@")[1];
   if (!domain) {
     return null;
   }
 
-  // Check each university's domains
-  for (const [key, university] of Object.entries(SUPPORTED_UNIVERSITIES)) {
+  // Check if this domain belongs to any of our supported universities
+  for (const [universityId, university] of Object.entries(
+    SUPPORTED_UNIVERSITIES
+  )) {
     if (university.domains.includes(domain)) {
       return {
-        universityId: key,
-        ...university,
+        universityId,
+        name: university.name,
+        displayName: university.displayName,
+        domain,
         isValid: true,
       };
     }
   }
 
+  // Not a supported university domain
   return null;
 }
 
 /**
- * Get all supported universities for display
+ * Get a friendly error message for invalid emails
+ * @param {string} email - The email that failed validation
+ * @returns {string} A helpful error message
+ */
+function getFriendlyEmailError(email) {
+  if (!email) {
+    return "Please enter your university email address 📧";
+  }
+
+  if (!email.includes("@")) {
+    return "That doesn't look like an email address. Did you forget the @ symbol? 🤔";
+  }
+
+  const domain = email.split("@")[1];
+  if (!domain) {
+    return "Your email looks incomplete. Please finish typing it! ✍️";
+  }
+
+  // Check for common typos
+  if (domain.includes("iub.edu") && !domain.includes("iub.edu.bd")) {
+    return "Almost there! Did you mean @iub.edu.bd? 🎯";
+  }
+
+  return `We don't support ${domain} yet. Currently supporting IUB students! 🏫`;
+}
+
+/**
+ * Get list of all supported universities
  * @returns {array} List of supported universities
  */
 function getSupportedUniversities() {
@@ -103,38 +143,20 @@ function getSupportedUniversities() {
   }));
 }
 
-export { validateUniversityEmail, getSupportedUniversities };
-/**
- * Get a friendly error message for invalid emails
- * @param {string} email - The problematic email
- * @returns {string} A helpful error message
- */
-export function getFriendlyEmailError(email) {
-  if (!email) return "Please enter your email address 📧";
-
-  if (!email.includes("@")) {
-    return "That doesn't look like an email address. Missing the @ symbol? 🤔";
-  }
-
-  const domain = email.split("@")[1];
-  if (!domain) {
-    return "That email looks incomplete. Did you finish typing? ✍️";
-  }
-
-  // Check for common typos
-  if (domain.includes("iub.edu") && !domain.includes("iub.edu.bd")) {
-    return "Almost there! Did you mean @iub.edu.bd? 🎯";
-  }
-
-  return `${domain} isn't a supported university yet. We currently support IUB students! 🏫`;
-}
+// Export functions for use in other files
+export {
+  validateUniversityEmail,
+  getFriendlyEmailError,
+  getSupportedUniversities,
+};
 ```
 
-#### 1.2 Create Simple Email Validation Tests
+#### 1.2 Test Your Email Validator
 
 Create `js/university-validator.test.js`:
 
 ```javascript
+// Simple tests to make sure our email validator works correctly
 import {
   validateUniversityEmail,
   getFriendlyEmailError,
@@ -149,8 +171,8 @@ describe("University Email Validator", () => {
     expect(result.name).toBe("Independent University, Bangladesh");
   });
 
-  test("rejects email from unsupported domain", () => {
-    const result = validateUniversityEmail("user@example.com");
+  test("rejects non-university email", () => {
+    const result = validateUniversityEmail("user@gmail.com");
     expect(result).toBe(null);
   });
 
@@ -162,41 +184,39 @@ describe("University Email Validator", () => {
 
   test("provides helpful error messages", () => {
     expect(getFriendlyEmailError("")).toContain("Please enter");
-    expect(getFriendlyEmailError("notemail")).toContain("Missing the @");
-    expect(getFriendlyEmailError("student@example.com")).toContain(
-      "isn't a supported university"
+    expect(getFriendlyEmailError("notemail")).toContain("@ symbol");
+    expect(getFriendlyEmailError("student@gmail.com")).toContain(
+      "don't support"
     );
-    expect(getFriendlyEmailError("student@iub.edu")).toContain("@iub.edu.bd");
   });
 
-  test("returns list of supported universities", () => {
+  test("lists supported universities", () => {
     const universities = getSupportedUniversities();
     expect(universities.length).toBeGreaterThan(0);
-    expect(universities[0]).toHaveProperty("id");
     expect(universities[0]).toHaveProperty("name");
-    expect(universities[0]).toHaveProperty("domains");
   });
 });
 ```
 
-### Mission 2: Build the Secure Authentication Manager 🎨🔐
+### Adventure 2: Beautiful Authentication Interface 🎨
 
-Time to create a beautiful, secure authentication interface that protects users while providing an exceptional experience!
+Now let's create a beautiful, user-friendly authentication interface that makes signing up and signing in a joy!
 
-#### 2.1 Create Security-Enhanced CSS
+#### 2.1 Create Authentication Styles
 
 Create `css/auth.css`:
 
 ```css
-/* CampXus Secure Authentication Styles - Beautiful meets Bulletproof! */
+/* CampXus Authentication Styles - Clean and Student-Friendly! */
 
+/* Authentication Modal Overlay */
 .auth-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
@@ -204,7 +224,7 @@ Create `css/auth.css`:
   z-index: 2000;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
 }
 
 .auth-modal.active {
@@ -212,45 +232,24 @@ Create `css/auth.css`:
   visibility: visible;
 }
 
+/* Main Authentication Container */
 .auth-container {
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   max-height: 90vh;
   overflow: hidden;
   transform: translateY(20px) scale(0.95);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  transition: all 0.3s ease;
 }
 
 .auth-modal.active .auth-container {
   transform: translateY(0) scale(1);
 }
 
-/* Security indicator */
-.auth-security-indicator {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  z-index: 10;
-}
-
-.auth-security-indicator::before {
-  content: "🔐";
-  font-size: 12px;
-}
-
+/* Header with CampXus Branding */
 .auth-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -263,162 +262,79 @@ Create `css/auth.css`:
   font-size: 2rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .auth-subtitle {
   opacity: 0.9;
-  font-size: 0.95rem;
-  margin-bottom: 0.5rem;
+  font-size: 1rem;
 }
 
-.auth-security-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 6px 12px;
-  border-radius: 20px;
-  margin-top: 1rem;
-  backdrop-filter: blur(10px);
-}
-
-.auth-body {
-  padding: 2rem;
-}
-
+/* Tab Navigation */
 .auth-tabs {
   display: flex;
   background: #f8fafc;
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 2rem;
+  margin: 0;
+  border: none;
 }
 
 .auth-tab {
   flex: 1;
-  background: none;
+  padding: 1rem;
   border: none;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-weight: 600;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.2s;
+  font-weight: 600;
   color: #64748b;
+  transition: all 0.2s ease;
 }
 
 .auth-tab.active {
   background: white;
   color: #1e293b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 3px solid #667eea;
+}
+
+/* Form Container */
+.auth-body {
+  padding: 2rem;
 }
 
 .auth-form {
   display: none;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.3s ease;
 }
 
 .auth-form.active {
   display: block;
-  opacity: 1;
-  transform: translateY(0);
+  animation: fadeIn 0.3s ease;
 }
 
-/* Security Context Display */
-.security-context {
-  background: #f0f9ff;
-  border: 1px solid #0ea5e9;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-}
-
-.security-context-title {
-  font-weight: 600;
-  color: #0369a1;
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.security-checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-}
-
-.security-check {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-}
-
-.security-check.verified {
-  color: #059669;
-}
-
-.security-check.warning {
-  color: #d97706;
-}
-
-.security-check.error {
-  color: #dc2626;
-}
-
+/* University Info Display */
 .university-info {
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  border: 1px solid #0ea5e9;
-  border-radius: 12px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
   padding: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   display: none;
-  transform: translateY(-10px);
-  opacity: 0;
-  transition: all 0.3s ease;
+  animation: slideDown 0.3s ease;
 }
 
 .university-info.visible {
   display: block;
-  transform: translateY(0);
-  opacity: 1;
 }
 
 .university-name {
-  font-weight: 700;
+  font-weight: 600;
   color: #0369a1;
-  font-size: 1.1rem;
   margin-bottom: 0.25rem;
 }
 
 .university-domain {
   color: #0284c7;
   font-size: 0.9rem;
-  font-weight: 500;
 }
 
-.university-security-features {
-  margin-top: 8px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.security-feature {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 500;
-}
-
+/* Form Styling */
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -437,14 +353,14 @@ Create `css/auth.css`:
   border: 2px solid #e5e7eb;
   border-radius: 8px;
   font-size: 1rem;
-  transition: all 0.2s;
-  background: white;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .form-input.error {
@@ -457,125 +373,42 @@ Create `css/auth.css`:
   background: #f0fdf4;
 }
 
-/* Real-time validation indicators */
-.input-validation {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+/* Error and Success Messages */
+.form-error {
+  color: #ef4444;
   font-size: 0.8rem;
-}
-
-.validation-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-}
-
-.validation-icon.success {
-  background: #10b981;
-  color: white;
-}
-
-.validation-icon.error {
-  background: #ef4444;
-  color: white;
-}
-
-.validation-icon.loading {
-  background: #f59e0b;
-  color: white;
-  animation: spin 1s linear infinite;
-}
-
-/* Password strength indicator */
-.password-strength {
-  margin-top: 8px;
+  margin-top: 0.5rem;
   display: none;
 }
 
-.password-strength.visible {
+.form-error.show {
   display: block;
-}
-
-.strength-bars {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-
-.strength-bar {
-  height: 4px;
-  flex: 1;
-  background: #e5e7eb;
-  border-radius: 2px;
-  transition: all 0.3s;
-}
-
-.strength-bar.filled {
-  background: #10b981;
-}
-
-.strength-bar.weak {
-  background: #ef4444;
-}
-
-.strength-bar.medium {
-  background: #f59e0b;
-}
-
-.strength-bar.strong {
-  background: #10b981;
-}
-
-.strength-text {
-  font-size: 0.75rem;
-  color: #6b7280;
 }
 
 .error-message {
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #dc2626;
-  padding: 12px 16px;
+  padding: 12px;
   border-radius: 8px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.error-message::before {
-  content: "⚠️";
-  font-size: 16px;
 }
 
 .success-message {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: #059669;
-  padding: 12px 16px;
+  padding: 12px;
   border-radius: 8px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
-.success-message::before {
-  content: "✅";
-  font-size: 16px;
-}
-
+/* Submit Buttons */
 .auth-button {
   width: 100%;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
   border: none;
   padding: 14px 24px;
@@ -583,14 +416,13 @@ Create `css/auth.css`:
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   position: relative;
-  overflow: hidden;
 }
 
 .auth-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .auth-button:disabled {
@@ -599,10 +431,11 @@ Create `css/auth.css`:
   transform: none;
 }
 
+/* Loading Animation */
 .auth-button .loading-spinner {
   display: none;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid white;
   border-radius: 50%;
@@ -614,33 +447,7 @@ Create `css/auth.css`:
   display: inline-block;
 }
 
-.auth-button.loading .button-text {
-  opacity: 0.8;
-}
-
-/* Privacy notice */
-.privacy-notice {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  margin-top: 1rem;
-  font-size: 0.8rem;
-  color: #6b7280;
-  text-align: center;
-}
-
-.privacy-notice a {
-  color: #3b82f6;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.privacy-notice a:hover {
-  text-decoration: underline;
-}
-
-/* Close button */
+/* Close Button */
 .auth-close {
   position: absolute;
   top: 16px;
@@ -655,8 +462,8 @@ Create `css/auth.css`:
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  backdrop-filter: blur(10px);
+  font-size: 18px;
+  transition: all 0.2s ease;
 }
 
 .auth-close:hover {
@@ -664,37 +471,29 @@ Create `css/auth.css`:
   transform: scale(1.1);
 }
 
-/* Risk warning */
-.risk-warning {
-  background: linear-gradient(135deg, #fed7d7, #feb2b2);
-  border: 1px solid #fc8181;
-  color: #742a2a;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-}
-
-.risk-warning-title {
-  font-weight: 600;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Additional verification required */
-.additional-verification {
-  background: #fef3c7;
-  border: 1px solid #fbbf24;
-  color: #92400e;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-}
-
 /* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -704,17 +503,7 @@ Create `css/auth.css`:
   }
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Mobile responsiveness */
+/* Mobile Responsiveness */
 @media (max-width: 640px) {
   .auth-container {
     width: 95%;
@@ -726,17 +515,13 @@ Create `css/auth.css`:
     padding: 1.5rem;
   }
 
-  .security-checks {
-    grid-template-columns: 1fr;
+  .auth-logo {
+    font-size: 1.8rem;
   }
 }
 
-/* Dark mode support */
+/* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
-  .auth-modal {
-    background: rgba(0, 0, 0, 0.8);
-  }
-
   .auth-container {
     background: #1f2937;
     color: #f9fafb;
@@ -762,265 +547,35 @@ Create `css/auth.css`:
   }
 
   .form-input:focus {
-    border-color: #3b82f6;
+    border-color: #667eea;
   }
 }
 ```
 
-transition: all 0.3s ease;
-}
-
-.auth-modal.active {
-opacity: 1;
-visibility: visible;
-}
-
-.auth-container {
-background: white;
-border-radius: 20px;
-box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-overflow: hidden;
-width: 90%;
-max-width: 500px;
-transform: translateY(30px);
-transition: transform 0.3s ease;
-}
-
-.auth-modal.active .auth-container {
-transform: translateY(0);
-}
-
-.auth-header {
-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-color: white;
-padding: 2rem;
-text-align: center;
-position: relative;
-}
-
-.auth-header::before {
-content: "";
-position: absolute;
-top: 0;
-left: 0;
-right: 0;
-bottom: 0;
-background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="3" fill="white" opacity="0.1"/><circle cx="60" cy="80" r="1" fill="white" opacity="0.1"/></svg>');
-pointer-events: none;
-}
-
-.auth-logo {
-font-size: 2.5rem;
-font-weight: bold;
-margin-bottom: 0.5rem;
-position: relative;
-}
-
-.auth-subtitle {
-opacity: 0.9;
-font-size: 1.1rem;
-position: relative;
-}
-
-.auth-body {
-padding: 2rem;
-}
-
-.auth-tabs {
-display: flex;
-margin-bottom: 2rem;
-background: #f8fafc;
-border-radius: 12px;
-padding: 4px;
-}
-
-.auth-tab {
-flex: 1;
-padding: 12px 16px;
-border: none;
-background: transparent;
-border-radius: 8px;
-cursor: pointer;
-font-weight: 500;
-transition: all 0.2s ease;
-color: #64748b;
-}
-
-.auth-tab.active {
-background: white;
-color: #1e293b;
-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.auth-form {
-display: none;
-}
-
-.auth-form.active {
-display: block;
-}
-
-.form-group {
-margin-bottom: 1.5rem;
-}
-
-.form-label {
-display: block;
-font-weight: 500;
-color: #374151;
-margin-bottom: 0.5rem;
-font-size: 0.9rem;
-}
-
-.form-input {
-width: 100%;
-padding: 12px 16px;
-border: 2px solid #e5e7eb;
-border-radius: 10px;
-font-size: 1rem;
-transition: all 0.2s ease;
-background: #fafafa;
-}
-
-.form-input:focus {
-outline: none;
-border-color: #667eea;
-background: white;
-box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.form-input.error {
-border-color: #ef4444;
-background: #fef2f2;
-}
-
-.form-error {
-color: #ef4444;
-font-size: 0.8rem;
-margin-top: 0.25rem;
-display: none;
-}
-
-.form-error.show {
-display: block;
-}
-
-.auth-button {
-width: 100%;
-padding: 14px;
-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-color: white;
-border: none;
-border-radius: 10px;
-font-size: 1rem;
-font-weight: 600;
-cursor: pointer;
-transition: all 0.2s ease;
-position: relative;
-overflow: hidden;
-}
-
-.auth-button:hover {
-transform: translateY(-1px);
-box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.auth-button:disabled {
-opacity: 0.6;
-cursor: not-allowed;
-transform: none;
-box-shadow: none;
-}
-
-.auth-button .loader {
-display: none;
-width: 20px;
-height: 20px;
-border: 2px solid transparent;
-border-top: 2px solid white;
-border-radius: 50%;
-animation: spin 1s linear infinite;
-margin-right: 8px;
-}
-
-.auth-button.loading .loader {
-display: inline-block;
-}
-
-.university-info {
-background: #f0f9ff;
-border: 1px solid #bae6fd;
-border-radius: 10px;
-padding: 1rem;
-margin-bottom: 1rem;
-display: none;
-}
-
-.university-info.show {
-display: block;
-}
-
-.university-name {
-font-weight: 600;
-color: #0369a1;
-margin-bottom: 0.25rem;
-}
-
-.university-domain {
-color: #0284c7;
-font-size: 0.9rem;
-}
-
-@keyframes spin {
-0% {
-transform: rotate(0deg);
-}
-100% {
-transform: rotate(360deg);
-}
-}
-
-/_ Mobile responsiveness _/
-@media (max-width: 640px) {
-.auth-container {
-width: 95%;
-margin: 1rem;
-}
-
-.auth-header,
-.auth-body {
-padding: 1.5rem;
-}
-}
-
-````
-
-#### 2.2 Build the Secure Authentication Manager
+#### 2.2 Create the Authentication Manager
 
 Create `js/auth-manager.js`:
 
 ```javascript
-/**
- * CampXus Simple Authentication Manager
- * Handles Firebase authentication for university students! 🎓✨
- */
-
-import { auth, db } from "./firebase-config.js";
+// Import Firebase Auth functions
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification,
   signOut,
+  sendEmailVerification,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { getFriendlyEmailError } from "./university-validator.js";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "./firebase-config.js";
+import {
+  validateUniversityEmail,
+  getFriendlyEmailError,
+} from "./university-validator.js";
 
 class AuthManager {
   constructor() {
     this.currentUser = null;
     this.authModal = null;
-    this.isInitialized = false;
     this.authStateListeners = [];
   }
 
@@ -1028,511 +583,349 @@ class AuthManager {
    * Initialize the authentication system
    */
   async initialize() {
-    if (this.isInitialized) return;
+    console.log("🔥 Initializing CampXus Authentication...");
 
-    try {
-      this.createAuthModal();
-      this.setupAuthStateListener();
-      this.isInitialized = true;
+    // Set up authentication state listener
+    this.setupAuthStateListener();
 
-      console.log("🎓 CampXus Auth System initialized!");
-    } catch (error) {
-      console.error("Failed to initialize auth system:", error);
-    }
+    // Create the authentication modal
+    this.createAuthModal();
+
+    console.log("✅ Authentication system ready!");
   }
 
   /**
-   * Create the simple authentication modal
+   * Create the authentication modal HTML
    */
   createAuthModal() {
     const modalHTML = `
       <div id="auth-modal" class="auth-modal">
         <div class="auth-container">
-          <button class="auth-close" onclick="authManager.closeModal()">
-            ✕
-          </button>
-
+          <button class="auth-close" onclick="authManager.hideAuthModal()">&times;</button>
+          
           <div class="auth-header">
             <div class="auth-logo">🎓 CampXus</div>
-            <div class="auth-subtitle">Your University Companion</div>
+            <div class="auth-subtitle">Join your university community</div>
+          </div>
+
+          <div class="auth-tabs">
+            <button class="auth-tab active" data-tab="signin">Sign In</button>
+            <button class="auth-tab" data-tab="signup">Sign Up</button>
           </div>
 
           <div class="auth-body">
-            <div class="auth-tabs">
-              <button class="auth-tab active" data-tab="signin">Sign In</button>
-              <button class="auth-tab" data-tab="signup">Sign Up</button>
-            </div>
-
             <!-- Sign In Form -->
             <form id="signin-form" class="auth-form active">
-              <div class="university-info" id="signin-university-info">
-                <div class="university-name"></div>
-                <div class="university-domain"></div>
-              </div>
-
               <div class="form-group">
                 <label class="form-label" for="signin-email">University Email</label>
-                <input
-                  type="email"
-                  id="signin-email"
+                <input 
+                  type="email" 
+                  id="signin-email" 
                   class="form-input"
-                  placeholder="student@iub.edu.bd"
-                  autocomplete="email"
-                  spellcheck="false"
+                  placeholder="your.name@iub.edu.bd"
+                  required
                 />
-                <div class="input-validation" id="signin-email-validation"></div>
+                <div class="form-error"></div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="signin-password">Password</label>
-                <input
-                  type="password"
-                  id="signin-password"
+                <input 
+                  type="password" 
+                  id="signin-password" 
                   class="form-input"
                   placeholder="Enter your password"
-                  autocomplete="current-password"
+                  required
                 />
-                <div class="input-validation" id="signin-password-validation"></div>
+                <div class="form-error"></div>
               </div>
 
-              <div id="signin-error" class="error-message" style="display: none;"></div>
-              <div id="signin-success" class="success-message" style="display: none;"></div>
-
-              <button type="submit" class="auth-button" id="signin-btn">
-                <div class="loading-spinner"></div>
-                <span class="button-text">Sign In</span>
+              <button type="submit" id="signin-button" class="auth-button">
+                <span class="loading-spinner"></span>
+                <span class="button-text">Sign In to CampXus</span>
               </button>
             </form>
 
             <!-- Sign Up Form -->
             <form id="signup-form" class="auth-form">
-              <div class="university-info" id="signup-university-info">
-                <div class="university-name"></div>
-                <div class="university-domain"></div>
+              <div class="university-info" id="university-info">
+                <div class="university-name" id="university-name"></div>
+                <div class="university-domain" id="university-domain"></div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="signup-email">University Email</label>
-                <input
-                  type="email"
-                  id="signup-email"
+                <input 
+                  type="email" 
+                  id="signup-email" 
                   class="form-input"
-                  placeholder="student@iub.edu.bd"
-                  autocomplete="email"
-                  spellcheck="false"
+                  placeholder="your.name@iub.edu.bd"
+                  required
                 />
-                <div class="input-validation" id="signup-email-validation"></div>
+                <div class="form-error"></div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="signup-password">Password</label>
-                <input
-                  type="password"
-                  id="signup-password"
+                <input 
+                  type="password" 
+                  id="signup-password" 
                   class="form-input"
-                  placeholder="Create a password"
-                  autocomplete="new-password"
+                  placeholder="Choose a strong password"
+                  minlength="6"
+                  required
                 />
-                <div class="password-strength" id="password-strength">
-                  <div class="strength-bars">
-                    <div class="strength-bar"></div>
-                    <div class="strength-bar"></div>
-                    <div class="strength-bar"></div>
-                    <div class="strength-bar"></div>
-                  </div>
-                  <div class="strength-text">Password strength</div>
-                </div>
-                <div class="input-validation" id="signup-password-validation"></div>
+                <div class="form-error"></div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="signup-confirm-password">Confirm Password</label>
-                <input
-                  type="password"
-                  id="signup-confirm-password"
+                <input 
+                  type="password" 
+                  id="signup-confirm-password" 
                   class="form-input"
-                  placeholder="Confirm your password"
-                  autocomplete="new-password"
+                  placeholder="Re-enter your password"
+                  required
                 />
-                <div class="input-validation" id="signup-confirm-validation"></div>
+                <div class="form-error"></div>
               </div>
 
-              <div id="signup-error" class="error-message" style="display: none;"></div>
-              <div id="signup-success" class="success-message" style="display: none;"></div>
-
-              <button type="submit" class="auth-button" id="signup-btn">
-                <div class="loading-spinner"></div>
-                <span class="button-text">Create Account</span>
+              <button type="submit" id="signup-button" class="auth-button">
+                <span class="loading-spinner"></span>
+                <span class="button-text">Create CampXus Account</span>
               </button>
             </form>
-
-            <div class="privacy-notice">
-              By continuing, you agree to our
-              <a href="/privacy" target="_blank">Privacy Policy</a> and
-              <a href="/terms" target="_blank">Terms of Service</a>
-            </div>
           </div>
         </div>
       </div>
     `;
 
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    this.authModal = document.getElementById('auth-modal');
+    // Add modal to page
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+    this.authModal = document.getElementById("auth-modal");
+
+    // Set up event listeners
     this.setupModalEventListeners();
   }
 
   /**
-   * Setup event listeners for the modal
+   * Set up all event listeners for the modal
    */
   setupModalEventListeners() {
     // Tab switching
-    document.querySelectorAll('.auth-tab').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        this.switchTab(e.target.dataset.tab);
+    document.querySelectorAll(".auth-tab").forEach((tab) => {
+      tab.addEventListener("click", (e) => {
+        const tabName = e.target.dataset.tab;
+        this.switchTab(tabName);
       });
-    });
-
-    // Simple email validation
-    ['signin-email', 'signup-email'].forEach(inputId => {
-      const input = document.getElementById(inputId);
-      input.addEventListener('input', (e) => {
-        this.validateEmailRealTime(e.target.value, inputId);
-      });
-    });
-
-    // Password strength checking
-    const signupPassword = document.getElementById('signup-password');
-    signupPassword.addEventListener('input', (e) => {
-      this.checkPasswordStrength(e.target.value);
-    });
-
-    // Password confirmation
-    const confirmPassword = document.getElementById('signup-confirm-password');
-    confirmPassword.addEventListener('input', (e) => {
-      this.validatePasswordConfirmation();
     });
 
     // Form submissions
-    document.getElementById('signin-form').addEventListener('submit', (e) => {
+    document.getElementById("signin-form").addEventListener("submit", (e) => {
       e.preventDefault();
       this.handleSignIn();
     });
 
-    document.getElementById('signup-form').addEventListener('submit', (e) => {
+    document.getElementById("signup-form").addEventListener("submit", (e) => {
       e.preventDefault();
       this.handleSignUp();
     });
-  }
 
-  /**
-   * Simple email validation
-   */
-  validateEmailRealTime(email, inputId) {
-    const input = document.getElementById(inputId);
-    const validation = document.getElementById(`${inputId}-validation`);
-    const universityInfo = document.getElementById(`${inputId.split('-')[0]}-university-info`);
-
-    if (!email) {
-      this.clearValidation(input, validation, universityInfo);
-      return;
-    }
-
-    // Basic email validation
-    const emailError = getFriendlyEmailError(email);
-
-    if (emailError) {
-      this.showValidationError(input, validation, { error: emailError });
-      this.hideUniversityInfo(universityInfo);
-    } else {
-      this.showValidationSuccess(input, validation);
-      // Show university info for valid domains
-      const domain = email.split('@')[1];
-      if (domain) {
-        this.showUniversityInfoForDomain(universityInfo, domain);
-      }
-    }
-  }
-
-  /**
-   * Check password strength
-   */
-  checkPasswordStrength(password) {
-    const strengthContainer = document.getElementById('password-strength');
-    const bars = strengthContainer.querySelectorAll('.strength-bar');
-    const text = strengthContainer.querySelector('.strength-text');
-
-    if (!password) {
-      strengthContainer.classList.remove('visible');
-      return;
-    }
-
-    strengthContainer.classList.add('visible');
-
-    const strength = this.calculatePasswordStrength(password);
-
-    // Reset bars
-    bars.forEach(bar => {
-      bar.classList.remove('filled', 'weak', 'medium', 'strong');
+    // Real-time email validation for signup
+    document.getElementById("signup-email").addEventListener("input", (e) => {
+      this.validateEmailInRealTime(e.target.value);
     });
 
-    // Fill bars based on strength
-    for (let i = 0; i < strength.score; i++) {
-      bars[i].classList.add('filled', strength.level);
-    }
+    // Clear errors when user starts typing
+    document.querySelectorAll(".form-input").forEach((input) => {
+      input.addEventListener("input", () => {
+        this.clearFieldError(input);
+      });
+    });
 
-    text.textContent = `${strength.text}`;
-  }
-
-  /**
-   * Calculate password strength
-   */
-  calculatePasswordStrength(password) {
-    let score = 0;
-
-    // Length check
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score++;
-
-    // Character variety
-    if (/[a-z]/.test(password)) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-
-    // Limit to 4 bars
-    score = Math.min(score, 4);
-
-    const levels = ['weak', 'weak', 'medium', 'strong'];
-    const texts = ['Weak', 'Fair', 'Good', 'Strong'];
-
-    return {
-      score: score,
-      level: levels[Math.min(score - 1, 3)] || 'weak',
-      text: texts[Math.min(score - 1, 3)] || 'Weak'
-    };
-  }
-
-  /**
-   * Validate password confirmation
-   */
-  validatePasswordConfirmation() {
-    const password = document.getElementById('signup-password').value;
-    const confirm = document.getElementById('signup-confirm-password').value;
-    const validation = document.getElementById('signup-confirm-validation');
-
-    if (!confirm) {
-      validation.innerHTML = '';
-      return;
-    }
-
-    if (password === confirm) {
-      validation.innerHTML = `
-        <div class="validation-icon success">✓</div>
-        <span style="color: #059669;">Passwords match</span>
-      `;
-    } else {
-      validation.innerHTML = `
-        <div class="validation-icon error">✗</div>
-        <span style="color: #dc2626;">Passwords do not match</span>
-      `;
-    }
-  }
-
-  /**
-   * Handle sign in
-   */
-  async handleSignIn() {
-    const email = document.getElementById('signin-email').value;
-    const password = document.getElementById('signin-password').value;
-    const button = document.getElementById('signin-btn');
-    const errorDiv = document.getElementById('signin-error');
-    const successDiv = document.getElementById('signin-success');
-
-    this.setButtonLoading(button, true);
-    this.hideMessage(errorDiv);
-    this.hideMessage(successDiv);
-
-    try {
-      // Validate email
-      const emailError = getFriendlyEmailError(email);
-      if (emailError) {
-        throw new Error(emailError);
+    // Close modal when clicking outside
+    this.authModal.addEventListener("click", (e) => {
+      if (e.target === this.authModal) {
+        this.hideAuthModal();
       }
-
-      // Attempt Firebase authentication
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Check email verification
-      if (!user.emailVerified) {
-        await this.handleEmailVerificationRequired(user);
-        return;
-      }
-
-      this.showMessage(successDiv, '🎉 Welcome back! Redirecting...', 'success');
-
-      setTimeout(() => {
-        this.closeModal();
-        window.location.reload();
-      }, 1500);
-
-    } catch (error) {
-      this.showMessage(errorDiv, this.getFriendlyAuthError(error), 'error');
-    } finally {
-      this.setButtonLoading(button, false);
-    }
+    });
   }
-
-  /**
-   * Handle sign up
-   */
-  async handleSignUp() {
-    const email = document.getElementById('signup-email').value;
-    const password = document.getElementById('signup-password').value;
-    const confirmPassword = document.getElementById('signup-confirm-password').value;
-    const button = document.getElementById('signup-btn');
-    const errorDiv = document.getElementById('signup-error');
-    const successDiv = document.getElementById('signup-success');
-
-    this.setButtonLoading(button, true);
-    this.hideMessage(errorDiv);
-    this.hideMessage(successDiv);
-
-    try {
-      // Basic validation
-      if (password !== confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
-
-      const passwordStrength = this.calculatePasswordStrength(password);
-      if (passwordStrength.score < 2) {
-        throw new Error('Password is too weak. Please create a stronger password.');
-      }
-
-      // Validate email
-      const emailError = getFriendlyEmailError(email);
-      if (emailError) {
-        throw new Error(emailError);
-      }
-
-      // Create Firebase account
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Create user document
-      await this.createUserDocument(user);
-
-      this.showMessage(successDiv,
-        '🎉 Account created! Please check your email to verify your account.',
-        'success'
-      );
-
-    } catch (error) {
-      this.showMessage(errorDiv, this.getFriendlyAuthError(error), 'error');
-    } finally {
-      this.setButtonLoading(button, false);
-    }
-  }
-
-  /**
-   * Create simple user document
-   */
-  async createUserDocument(user) {
-    const domain = user.email.split('@')[1];
-
-    const userData = {
-      email: user.email,
-      emailVerified: user.emailVerified,
-      university: domain,
-      createdAt: serverTimestamp(),
-      lastSignIn: serverTimestamp()
-    };
-
-    await setDoc(doc(db, "users", user.uid), userData);
-  }
-
-  // Additional helper methods for UI management, validation, etc.
 
   /**
    * Switch between sign in and sign up tabs
    */
   switchTab(tabName) {
     // Update tab buttons
-    const tabs = this.authModal.querySelectorAll('.auth-tab');
-    tabs.forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.tab === tabName);
+    document.querySelectorAll(".auth-tab").forEach((tab) => {
+      tab.classList.remove("active");
     });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add("active");
 
     // Update forms
-    const forms = this.authModal.querySelectorAll('.auth-form');
-    forms.forEach(form => {
-      form.classList.toggle('active', form.id === `${tabName}-form`);
+    document.querySelectorAll(".auth-form").forEach((form) => {
+      form.classList.remove("active");
     });
+    document.getElementById(`${tabName}-form`).classList.add("active");
 
-    // Clear any previous errors
-    this.clearFormErrors();
+    // Clear any errors
+    this.clearAllErrors();
   }
 
   /**
-   * Show university info for valid domain
+   * Validate email in real-time as user types
    */
-  showUniversityInfoForDomain(universityInfo, domain) {
-    // Simple university lookup (this would be more comprehensive in a real app)
-    const universities = {
-      'iub.edu.bd': { name: 'Independent University, Bangladesh', domain: 'iub.edu.bd' },
-      'du.ac.bd': { name: 'University of Dhaka', domain: 'du.ac.bd' },
-      'buet.ac.bd': { name: 'Bangladesh University of Engineering and Technology', domain: 'buet.ac.bd' }
+  validateEmailInRealTime(email) {
+    const universityInfo = document.getElementById("university-info");
+    const universityName = document.getElementById("university-name");
+    const universityDomain = document.getElementById("university-domain");
+
+    if (!email) {
+      universityInfo.classList.remove("visible");
+      return;
+    }
+
+    const validation = validateUniversityEmail(email);
+
+    if (validation) {
+      // Show university info
+      universityName.textContent = validation.name;
+      universityDomain.textContent = `✅ ${validation.domain}`;
+      universityInfo.classList.add("visible");
+    } else {
+      universityInfo.classList.remove("visible");
+    }
+  }
+
+  /**
+   * Handle sign in form submission
+   */
+  async handleSignIn() {
+    const email = document.getElementById("signin-email").value.trim();
+    const password = document.getElementById("signin-password").value;
+    const button = document.getElementById("signin-button");
+
+    // Validate form
+    if (!this.validateSignInForm(email, password)) {
+      return;
+    }
+
+    // Show loading state
+    this.setLoadingState(button, true);
+
+    try {
+      // Sign in with Firebase
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      // Check if email is verified
+      if (!userCredential.user.emailVerified) {
+        throw new Error(
+          "Please verify your email before signing in. Check your inbox! 📧"
+        );
+      }
+
+      console.log("🎉 Successfully signed in!");
+      this.hideAuthModal();
+    } catch (error) {
+      console.error("Sign in error:", error);
+      this.showFormError("signin-form", this.getReadableError(error.message));
+    } finally {
+      this.setLoadingState(button, false);
+    }
+  }
+
+  /**
+   * Handle sign up form submission
+   */
+  async handleSignUp() {
+    const email = document.getElementById("signup-email").value.trim();
+    const password = document.getElementById("signup-password").value;
+    const confirmPassword = document.getElementById(
+      "signup-confirm-password"
+    ).value;
+    const button = document.getElementById("signup-button");
+
+    // Validate form
+    if (!this.validateSignUpForm(email, password, confirmPassword)) {
+      return;
+    }
+
+    // Show loading state
+    this.setLoadingState(button, true);
+
+    try {
+      // Create user account
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Send email verification
+      await sendEmailVerification(user);
+
+      // Create user profile in Firestore
+      await this.createUserProfile(user, email);
+
+      // Show success message and switch to sign in
+      this.showFormSuccess(
+        "signup-form",
+        "🎉 Account created! Check your email to verify your account, then sign in."
+      );
+
+      setTimeout(() => {
+        this.switchTab("signin");
+      }, 2000);
+    } catch (error) {
+      console.error("Sign up error:", error);
+      this.showFormError("signup-form", this.getReadableError(error.message));
+    } finally {
+      this.setLoadingState(button, false);
+    }
+  }
+
+  /**
+   * Create user profile document in Firestore
+   */
+  async createUserProfile(user, email) {
+    const validation = validateUniversityEmail(email);
+
+    const userProfile = {
+      email: email,
+      university: validation.universityId,
+      universityName: validation.name,
+      displayName: email.split("@")[0], // Default display name
+      status: "offline",
+      createdAt: serverTimestamp(),
+      lastActive: serverTimestamp(),
+      emailVerified: false,
+      profileSetupComplete: false,
     };
 
-    const university = universities[domain];
-    if (university) {
-      const nameEl = universityInfo.querySelector('.university-name');
-      const domainEl = universityInfo.querySelector('.university-domain');
-
-      nameEl.textContent = university.name;
-      domainEl.textContent = `Domain: @${university.domain}`;
-
-      universityInfo.classList.add('show');
-    }
+    await setDoc(doc(db, "users", user.uid), userProfile);
+    console.log("👤 User profile created in Firestore");
   }
 
   /**
-   * Handle email verification required
-   */
-  async handleEmailVerificationRequired(user) {
-    const result = confirm(
-      'Please verify your email before signing in. Would you like us to send another verification email?'
-    );
-
-    if (result) {
-      try {
-        await sendEmailVerification(user);
-        alert('Verification email sent! Please check your inbox.');
-      } catch (error) {
-        alert('Failed to send verification email. Please try again later.');
-      }
-    }
-  }
-
-  /**
-   * Setup auth state listener
+   * Set up Firebase auth state listener
    */
   setupAuthStateListener() {
     onAuthStateChanged(auth, (user) => {
       this.currentUser = user;
 
       if (user) {
-        console.log('👋 User signed in:', user.email);
+        console.log("👋 User signed in:", user.email);
         this.updateUserLastActive();
       } else {
-        console.log('👋 User signed out');
+        console.log("👋 User signed out");
       }
 
       // Notify all listeners
-      this.authStateListeners.forEach(listener => listener(user));
+      this.authStateListeners.forEach((listener) => listener(user));
     });
   }
 
@@ -1544,14 +937,14 @@ class AuthManager {
   }
 
   /**
-   * Sign out the current user
+   * Sign out current user
    */
   async signOut() {
     try {
       await signOut(auth);
-      console.log('👋 Successfully signed out');
+      console.log("👋 Successfully signed out");
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error("Sign out error:", error);
     }
   }
 
@@ -1563,733 +956,203 @@ class AuthManager {
 
     try {
       await setDoc(
-        doc(db, 'users', this.currentUser.uid),
+        doc(db, "users", this.currentUser.uid),
         {
           lastActive: serverTimestamp(),
         },
         { merge: true }
       );
     } catch (error) {
-      console.error('Error updating last active:', error);
+      console.error("Error updating last active:", error);
     }
   }
 
   /**
-   * Show/hide the authentication modal
+   * Show authentication modal
    */
-  showModal() {
-    if (!this.authModal) this.createAuthModal();
-    this.authModal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-
-  closeModal() {
-    if (this.authModal) {
-      this.authModal.classList.remove('active');
-      document.body.style.overflow = '';
-      this.clearFormErrors();
-    }
-  }
-
-  // UI Helper Methods
-  showValidationSuccess(input, validation) {
-    input.classList.remove('error');
-    input.classList.add('success');
-    validation.innerHTML = `
-      <div class="validation-icon success">✓</div>
-      <span style="color: #059669;">Valid university email</span>
-    `;
-  }
-
-  showValidationError(input, validation, result) {
-    input.classList.add('error');
-    validation.innerHTML = `
-      <div class="validation-icon error">✗</div>
-      <span style="color: #dc2626;">${result.error}</span>
-    `;
-  }
-
-  clearValidation(input, validation, universityInfo) {
-    input.classList.remove('error', 'success');
-    validation.innerHTML = '';
-    if (universityInfo) {
-      universityInfo.classList.remove('show');
-    }
-  }
-
-  hideUniversityInfo(universityInfo) {
-    universityInfo.classList.remove('show');
-  }
-
-  setButtonLoading(button, isLoading) {
-    button.classList.toggle('loading', isLoading);
-    button.disabled = isLoading;
-  }
-
-  showMessage(element, message, type) {
-    element.textContent = message;
-    element.style.display = 'block';
-  }
-
-  hideMessage(element) {
-    element.style.display = 'none';
-  }
-
-  clearFormErrors() {
-    const inputs = this.authModal?.querySelectorAll('.form-input');
-    inputs?.forEach(input => {
-      input.classList.remove('error', 'success');
-    });
-
-    const validations = this.authModal?.querySelectorAll('.input-validation');
-    validations?.forEach(validation => {
-      validation.innerHTML = '';
-    });
-  }
-
-  getFriendlyAuthError(error) {
-    const errorMap = {
-      'auth/user-not-found': 'No account found with this email address',
-      'auth/wrong-password': 'Incorrect password',
-      'auth/email-already-in-use': 'An account with this email already exists',
-      'auth/weak-password': 'Password is too weak. Please choose a stronger password',
-      'auth/invalid-email': 'Invalid email address format',
-      'auth/too-many-requests': 'Too many failed attempts. Please try again later',
-    };
-
-    const errorCode = error.code;
-    return errorMap[errorCode] || error.message || 'An unexpected error occurred';
-  }
-}
-
-// Create and export the global auth manager instance
-export const authManager = new AuthManager();
-```
-
-### Mission 3: Integration with CampXus 🔗
-
-Now let's weave the authentication seamlessly into your existing CampXus application!
-
-#### 3.1 Update Your Main Script
-
-Add this to your existing `js/script.js`:
-
-```javascript
-// Add these imports at the top
-import { authManager } from "./auth-manager.js";
-
-// Add this initialization in your existing DOMContentLoaded event
-document.addEventListener("DOMContentLoaded", async () => {
-  // ...existing code...
-
-  // Initialize authentication
-  await authManager.initialize();
-
-  // Set up auth state monitoring
-  authManager.onAuthStateChanged((user) => {
-    if (user) {
-      // User is signed in
-      showAuthenticatedUI(user);
-    } else {
-      // User is signed out
-      showUnauthenticatedUI();
-    }
-  });
-});
-
-function showAuthenticatedUI(user) {
-  // Hide login button, show user menu
-  const loginBtn = document.getElementById("login-btn");
-  if (loginBtn) loginBtn.style.display = "none";
-
-  // Show user info in the header
-  showUserInfo(user);
-
-  // Enable all CampXus features
-  enableScheduleFeatures();
-}
-
-function showUnauthenticatedUI() {
-  // Show login button
-  const loginBtn = document.getElementById("login-btn");
-  if (loginBtn) loginBtn.style.display = "block";
-
-  // Hide user-specific features
-  hideUserInfo();
-
-  // Disable advanced features
-  disableScheduleFeatures();
-}
-
-function showUserInfo(user) {
-  // Create or update user info display
-  let userInfo = document.getElementById("user-info");
-  if (!userInfo) {
-    userInfo = document.createElement("div");
-    userInfo.id = "user-info";
-    userInfo.innerHTML = `
-      <span class="user-email">${user.email}</span>
-      <button id="logout-btn" class="btn btn-outline">Sign Out</button>
-    `;
-    document.querySelector("header").appendChild(userInfo);
-
-    // Add logout functionality
-    document.getElementById("logout-btn").addEventListener("click", () => {
-      authManager.signOut();
-    });
-  }
-}
-
-function hideUserInfo() {
-  const userInfo = document.getElementById("user-info");
-  if (userInfo) userInfo.remove();
-}
-
-function enableScheduleFeatures() {
-  // Enable cloud sync, sharing, etc.
-  console.log("🎉 All CampXus features enabled!");
-}
-
-function disableScheduleFeatures() {
-  // Disable cloud features, keep local scheduling
-  console.log("📱 Running in local mode");
-}
-```
-
-#### 3.2 Add Login Button to Your Header
-
-Update your `index.html` header section:
-
-```html
-<header>
-  <div class="header-content">
-    <h1>🎓 CampXus</h1>
-    <nav>
-      <button id="login-btn" class="btn btn-primary">Join CampXus</button>
-      <!-- User info will be added here dynamically -->
-    </nav>
-  </div>
-</header>
-```
-
-#### 3.3 Connect the Login Button
-
-Add this JavaScript to connect your login button:
-
-```javascript
-// In your main script file
-document.getElementById("login-btn")?.addEventListener("click", () => {
-  authManager.showModal();
-});
-```
-
-## ✅ Testing Your Authentication System
-
-### The Grand Test Plan 🧪
-
-1. **Visual Test**: Click the "Join CampXus" button
-
-   - Modal should appear with beautiful animations
-   - Tabs should switch smoothly
-   - Forms should look professional
-
-2. **Email Validation Test**:
-
-   - Try typing `student@iub.edu.bd` - should show university info
-   - Try `student@gmail.com` - should show friendly error
-   - Try partial emails - should validate in real-time
-
-3. **Sign Up Flow**:
-
-   - Create account with valid IUB email
-   - Check your email for verification link
-   - Verify email and try signing in
-
-4. **Error Handling**:
-   - Try wrong password - should show friendly error
-   - Try duplicate email - should handle gracefully
-   - Try weak password - should guide user
-````
-
-                  type="email"
-                  id="signin-email"
-                  class="form-input"
-                  placeholder="your.name@iub.edu.bd"
-                  autocomplete="email"
-                >
-                <div class="form-error" id="signin-email-error"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="signin-password">Password</label>
-                <input
-                  type="password"
-                  id="signin-password"
-                  class="form-input"
-                  placeholder="Enter your password"
-                  autocomplete="current-password"
-                >
-                <div class="form-error" id="signin-password-error"></div>
-              </div>
-
-              <button type="submit" class="auth-button" id="signin-button">
-                <span class="loader"></span>
-                Sign In to CampXus
-              </button>
-            </form>
-
-            <!-- Sign Up Form -->
-            <form id="signup-form" class="auth-form">
-              <div class="university-info" id="signup-university-info">
-                <div class="university-name"></div>
-                <div class="university-domain"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="signup-email">University Email</label>
-                <input
-                  type="email"
-                  id="signup-email"
-                  class="form-input"
-                  placeholder="your.name@iub.edu.bd"
-                  autocomplete="email"
-                >
-                <div class="form-error" id="signup-email-error"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="signup-password">Create Password</label>
-                <input
-                  type="password"
-                  id="signup-password"
-                  class="form-input"
-                  placeholder="Create a strong password"
-                  autocomplete="new-password"
-                >
-                <div class="form-error" id="signup-password-error"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="signup-confirm-password">Confirm Password</label>
-                <input
-                  type="password"
-                  id="signup-confirm-password"
-                  class="form-input"
-                  placeholder="Confirm your password"
-                  autocomplete="new-password"
-                >
-                <div class="form-error" id="signup-confirm-password-error"></div>
-              </div>
-
-              <button type="submit" class="auth-button" id="signup-button">
-                <span class="loader"></span>
-                Join CampXus
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.body.insertAdjacentHTML("beforeend", modalHTML);
-    this.authModal = document.getElementById("auth-modal");
-    this.setupModalEventListeners();
-
-}
-
-/\*\*
-
-- Set up all the modal event listeners
-  \*/
-  setupModalEventListeners() {
-  // Tab switching
-  const tabs = this.authModal.querySelectorAll(".auth-tab");
-  tabs.forEach((tab) => {
-  tab.addEventListener("click", () => this.switchTab(tab.dataset.tab));
-  });
-
-  // Form submissions
-  document.getElementById("signin-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  this.handleSignIn();
-  });
-
-  document.getElementById("signup-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  this.handleSignUp();
-  });
-
-  // Email validation on input
-  const emailInputs = this.authModal.querySelectorAll('input[type="email"]');
-  emailInputs.forEach((input) => {
-  input.addEventListener("input", () => this.validateEmailInput(input));
-  });
-
-  // Close modal when clicking outside
-  this.authModal.addEventListener("click", (e) => {
-  if (e.target === this.authModal) {
-  this.hideAuthModal();
-  }
-  });
-
-}
-
-/\*\*
-
-- Switch between sign in and sign up tabs
-  \*/
-  switchTab(tabName) {
-  // Update tab buttons
-  const tabs = this.authModal.querySelectorAll(".auth-tab");
-  tabs.forEach((tab) => {
-  tab.classList.toggle("active", tab.dataset.tab === tabName);
-  });
-
-  // Update forms
-  const forms = this.authModal.querySelectorAll(".auth-form");
-  forms.forEach((form) => {
-  form.classList.toggle("active", form.id === `${tabName}-form`);
-  });
-
-  // Clear any previous errors
-  this.clearFormErrors();
-
-}
-
-/\*\*
-
-- Validate email input in real-time
-  \*/
-  validateEmailInput(input) {
-  const email = input.value.trim();
-  const formType = input.id.startsWith("signin") ? "signin" : "signup";
-  const universityInfo = document.getElementById(
-  `${formType}-university-info`
-  );
-
-  if (!email) {
-  universityInfo.classList.remove("show");
-  this.clearFieldError(input);
-  return;
-  }
-
-  const validation = validateUniversityEmail(email);
-
-  if (validation.isValid) {
-  // Show university info
-  const nameEl = universityInfo.querySelector(".university-name");
-  const domainEl = universityInfo.querySelector(".university-domain");
-
-      nameEl.textContent = validation.university.name;
-      domainEl.textContent = `Domain: @${validation.university.domains[0]}`;
-
-      universityInfo.classList.add("show");
-      this.clearFieldError(input);
-
-  } else {
-  universityInfo.classList.remove("show");
-
-      if (email.includes("@")) {
-        this.showFieldError(input, getFriendlyEmailError(email));
-      } else {
-        this.clearFieldError(input);
-      }
-
-  }
-
-}
-
-/\*\*
-
-- Handle sign in form submission
-  \*/
-  async handleSignIn() {
-  const email = document.getElementById("signin-email").value.trim();
-  const password = document.getElementById("signin-password").value;
-  const button = document.getElementById("signin-button");
-
-  if (!this.validateSignInForm(email, password)) return;
-
-  this.setLoadingState(button, true);
-
-  try {
-  const userCredential = await signInWithEmailAndPassword(
-  auth,
-  email,
-  password
-  );
-
-      if (!userCredential.user.emailVerified) {
-        throw new Error(
-          "Please verify your email before signing in. Check your inbox!"
-        );
-      }
-
-      console.log("🎉 Sign in successful!");
-      this.hideAuthModal();
-
-  } catch (error) {
-  console.error("Sign in error:", error);
-  this.showAuthError(this.getReadableError(error.message));
-  } finally {
-  this.setLoadingState(button, false);
-  }
-
-}
-
-/\*\*
-
-- Handle sign up form submission
-  \*/
-  async handleSignUp() {
-  const email = document.getElementById("signup-email").value.trim();
-  const password = document.getElementById("signup-password").value;
-  const confirmPassword = document.getElementById(
-  "signup-confirm-password"
-  ).value;
-  const button = document.getElementById("signup-button");
-
-  if (!this.validateSignUpForm(email, password, confirmPassword)) return;
-
-  this.setLoadingState(button, true);
-
-  try {
-  // Create the user account
-  const userCredential = await createUserWithEmailAndPassword(
-  auth,
-  email,
-  password
-  );
-  const user = userCredential.user;
-
-      // Send email verification
-      await sendEmailVerification(user);
-
-      // Create user profile in Firestore
-      await this.createUserProfile(user, email);
-
-      // Show success message
-      alert(
-        "🎉 Account created! Please check your email to verify your account before signing in."
-      );
-
-      this.switchTab("signin");
-
-  } catch (error) {
-  console.error("Sign up error:", error);
-  this.showAuthError(this.getReadableError(error.message));
-  } finally {
-  this.setLoadingState(button, false);
-  }
-
-}
-
-/\*\*
-
-- Create user profile in Firestore
-  \*/
-  async createUserProfile(user, email) {
-  const validation = validateUniversityEmail(email);
-
-  const userProfile = {
-  email: validation.normalizedEmail,
-  university: validation.universityId,
-  universityName: validation.university.name,
-  displayName: email.split("@")[0], // Default display name from email
-  status: "offline",
-  createdAt: serverTimestamp(),
-  lastActive: serverTimestamp(),
-  emailVerified: false,
-  profileSetupComplete: false,
-  };
-
-  await setDoc(doc(db, "users", user.uid), userProfile);
-  console.log("👤 User profile created in Firestore");
-
-}
-
-/\*\*
-
-- Show/hide the authentication modal
-  \*/
   showAuthModal() {
-  if (!this.authModal) this.createAuthModal();
-  this.authModal.classList.add("active");
-  document.body.style.overflow = "hidden";
+    if (!this.authModal) this.createAuthModal();
+    this.authModal.classList.add("active");
+    document.body.style.overflow = "hidden";
   }
 
-hideAuthModal() {
-if (this.authModal) {
-this.authModal.classList.remove("active");
-document.body.style.overflow = "";
-this.clearFormErrors();
-}
-}
-
-/\*\*
-
-- Set up authentication state listener
-  \*/
-  setupAuthStateListener() {
-  onAuthStateChanged(auth, (user) => {
-  this.currentUser = user;
-
-      if (user) {
-        console.log("👋 User signed in:", user.email);
-        this.updateUserLastActive();
-      } else {
-        console.log("👋 User signed out");
-      }
-
-      // Notify all listeners
-      this.authStateListeners.forEach((listener) => listener(user));
-
-  });
+  /**
+   * Hide authentication modal
+   */
+  hideAuthModal() {
+    if (this.authModal) {
+      this.authModal.classList.remove("active");
+      document.body.style.overflow = "";
+      this.clearAllErrors();
+    }
   }
 
-/\*\*
+  // Validation and UI Helper Methods
 
-- Add listener for auth state changes
-  \*/
-  onAuthStateChanged(callback) {
-  this.authStateListeners.push(callback);
-  }
+  /**
+   * Validate sign in form
+   */
+  validateSignInForm(email, password) {
+    let isValid = true;
 
-/\*\*
-
-- Sign out the current user
-  \*/
-  async signOut() {
-  try {
-  await signOut(auth);
-  console.log("👋 Successfully signed out");
-  } catch (error) {
-  console.error("Sign out error:", error);
-  }
-  }
-
-/\*\*
-
-- Update user's last active timestamp
-  \*/
-  async updateUserLastActive() {
-  if (!this.currentUser) return;
-
-  try {
-  await setDoc(
-  doc(db, "users", this.currentUser.uid),
-  {
-  lastActive: serverTimestamp(),
-  },
-  { merge: true }
-  );
-  } catch (error) {
-  console.error("Error updating last active:", error);
-  }
-
-}
-
-// Utility methods for form validation and UI management
-validateSignInForm(email, password) {
-let isValid = true;
-
+    // Validate email
     const emailValidation = validateUniversityEmail(email);
-    if (!emailValidation.isValid) {
+    if (!emailValidation) {
       this.showFieldError(
         document.getElementById("signin-email"),
-        emailValidation.error
+        getFriendlyEmailError(email)
       );
       isValid = false;
     }
 
+    // Validate password
     if (!password) {
       this.showFieldError(
         document.getElementById("signin-password"),
-        "Password is required"
+        "Please enter your password 🔒"
       );
       isValid = false;
     }
 
     return isValid;
+  }
 
-}
+  /**
+   * Validate sign up form
+   */
+  validateSignUpForm(email, password, confirmPassword) {
+    let isValid = true;
 
-validateSignUpForm(email, password, confirmPassword) {
-let isValid = true;
-
+    // Validate email
     const emailValidation = validateUniversityEmail(email);
-    if (!emailValidation.isValid) {
+    if (!emailValidation) {
       this.showFieldError(
         document.getElementById("signup-email"),
-        emailValidation.error
+        getFriendlyEmailError(email)
       );
       isValid = false;
     }
 
+    // Validate password
     if (!password) {
       this.showFieldError(
         document.getElementById("signup-password"),
-        "Password is required"
+        "Please choose a password 🔒"
       );
       isValid = false;
     } else if (password.length < 6) {
       this.showFieldError(
         document.getElementById("signup-password"),
-        "Password must be at least 6 characters"
+        "Password must be at least 6 characters long 📏"
       );
       isValid = false;
     }
 
+    // Validate password confirmation
     if (password !== confirmPassword) {
       this.showFieldError(
         document.getElementById("signup-confirm-password"),
-        "Passwords do not match"
+        "Passwords don't match 🔄"
       );
       isValid = false;
     }
 
     return isValid;
+  }
 
-}
+  /**
+   * Show error for a specific field
+   */
+  showFieldError(input, message) {
+    input.classList.add("error");
+    const errorEl = input.parentNode.querySelector(".form-error");
+    if (errorEl) {
+      errorEl.textContent = message;
+      errorEl.classList.add("show");
+    }
+  }
 
-showFieldError(input, message) {
-input.classList.add("error");
-const errorEl = input.parentNode.querySelector(".form-error");
-errorEl.textContent = message;
-errorEl.classList.add("show");
-}
+  /**
+   * Clear error for a specific field
+   */
+  clearFieldError(input) {
+    input.classList.remove("error", "success");
+    const errorEl = input.parentNode.querySelector(".form-error");
+    if (errorEl) {
+      errorEl.classList.remove("show");
+    }
+  }
 
-clearFieldError(input) {
-input.classList.remove("error");
-const errorEl = input.parentNode.querySelector(".form-error");
-errorEl.classList.remove("show");
-}
+  /**
+   * Show form-level error message
+   */
+  showFormError(formId, message) {
+    let errorDiv = document.querySelector(`#${formId} .error-message`);
+    if (!errorDiv) {
+      errorDiv = document.createElement("div");
+      errorDiv.className = "error-message";
+      document
+        .getElementById(formId)
+        .insertBefore(errorDiv, document.getElementById(formId).firstChild);
+    }
+    errorDiv.textContent = message;
+  }
 
-clearFormErrors() {
-const inputs = this.authModal.querySelectorAll(".form-input");
-inputs.forEach((input) => this.clearFieldError(input));
-}
+  /**
+   * Show form-level success message
+   */
+  showFormSuccess(formId, message) {
+    let successDiv = document.querySelector(`#${formId} .success-message`);
+    if (!successDiv) {
+      successDiv = document.createElement("div");
+      successDiv.className = "success-message";
+      document
+        .getElementById(formId)
+        .insertBefore(successDiv, document.getElementById(formId).firstChild);
+    }
+    successDiv.textContent = message;
+  }
 
-setLoadingState(button, isLoading) {
-button.classList.toggle("loading", isLoading);
-button.disabled = isLoading;
-}
+  /**
+   * Clear all errors and messages
+   */
+  clearAllErrors() {
+    // Clear field errors
+    document.querySelectorAll(".form-input").forEach((input) => {
+      this.clearFieldError(input);
+    });
 
-showAuthError(message) {
-alert(`Authentication Error: ${message}`);
-}
+    // Clear form messages
+    document
+      .querySelectorAll(".error-message, .success-message")
+      .forEach((msg) => {
+        msg.remove();
+      });
+  }
 
-getReadableError(errorMessage) {
-const errorMap = {
-"auth/user-not-found": "No account found with this email address",
-"auth/wrong-password": "Incorrect password",
-"auth/email-already-in-use": "An account with this email already exists",
-"auth/weak-password":
-"Password is too weak. Please choose a stronger password",
-"auth/invalid-email": "Invalid email address format",
-"auth/too-many-requests":
-"Too many failed attempts. Please try again later",
-};
+  /**
+   * Set loading state for buttons
+   */
+  setLoadingState(button, isLoading) {
+    button.classList.toggle("loading", isLoading);
+    button.disabled = isLoading;
+  }
+
+  /**
+   * Convert Firebase error codes to friendly messages
+   */
+  getReadableError(errorMessage) {
+    const errorMap = {
+      "auth/user-not-found": "No account found with this email address 🔍",
+      "auth/wrong-password": "Incorrect password. Please try again 🔑",
+      "auth/email-already-in-use":
+        "An account with this email already exists 📧",
+      "auth/weak-password":
+        "Password is too weak. Please choose a stronger one 💪",
+      "auth/invalid-email": "Invalid email address format 📧",
+      "auth/too-many-requests":
+        "Too many failed attempts. Please try again later ⏰",
+    };
 
     for (const [code, message] of Object.entries(errorMap)) {
       if (errorMessage.includes(code)) {
@@ -2298,81 +1161,135 @@ const errorMap = {
     }
 
     return errorMessage;
-
+  }
 }
-}
 
-// Create and export the global auth manager instance
+// Create and export global auth manager instance
 export const authManager = new AuthManager();
+```
 
-````
+### Adventure 3: Connect Authentication to CampXus 🔗
 
-### Mission 3: Integration with CampXus 🔗
+Now let's integrate your beautiful authentication system with the main CampXus application!
 
-Now let's weave the authentication seamlessly into your existing CampXus application!
+#### 3.1 Update Your Firebase Configuration
 
-#### 3.1 Update Your Main Script
-
-Add this to your existing `js/script.js`:
+First, make sure you have `js/firebase-config.js` (this should be from Phase 0):
 
 ```javascript
-// Add these imports at the top
+// Import Firebase SDK
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+// Your Firebase configuration (from Phase 0)
+const firebaseConfig = {
+  // Your config from Firebase Console
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "your-app-id",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize services
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+export default app;
+```
+
+#### 3.2 Update Your Main Script
+
+Add authentication to your existing `js/script.js`:
+
+```javascript
+// Add imports at the top
 import { authManager } from "./auth-manager.js";
 
-// Add this initialization in your existing DOMContentLoaded event
+// Add this to your existing DOMContentLoaded event
 document.addEventListener("DOMContentLoaded", async () => {
-  // ...existing code...
+  console.log("🚀 Starting CampXus...");
 
-  // Initialize authentication
+  // Initialize authentication system
   await authManager.initialize();
 
-  // Set up auth state monitoring
+  // Set up authentication state monitoring
   authManager.onAuthStateChanged((user) => {
     if (user) {
-      // User is signed in
+      console.log("✅ User authenticated, enabling full features");
       showAuthenticatedUI(user);
     } else {
-      // User is signed out
+      console.log("📱 No user authenticated, showing login");
       showUnauthenticatedUI();
     }
   });
+
+  // Set up login button click handler
+  const loginButton = document.getElementById("login-btn");
+  if (loginButton) {
+    loginButton.addEventListener("click", () => {
+      authManager.showAuthModal();
+    });
+  }
+
+  console.log("✅ CampXus loaded successfully!");
 });
 
+/**
+ * Show UI for authenticated users
+ */
 function showAuthenticatedUI(user) {
-  // Hide login button, show user menu
+  // Hide login button
   const loginBtn = document.getElementById("login-btn");
   if (loginBtn) loginBtn.style.display = "none";
 
-  // Show user info in the header
+  // Show user info
   showUserInfo(user);
 
   // Enable all CampXus features
   enableScheduleFeatures();
 }
 
+/**
+ * Show UI for unauthenticated users
+ */
 function showUnauthenticatedUI() {
   // Show login button
   const loginBtn = document.getElementById("login-btn");
   if (loginBtn) loginBtn.style.display = "block";
 
-  // Hide user-specific features
+  // Hide user info
   hideUserInfo();
 
   // Disable advanced features
   disableScheduleFeatures();
 }
 
+/**
+ * Display user information in header
+ */
 function showUserInfo(user) {
-  // Create or update user info display
-  let userInfo = document.getElementById("user-info");
-  if (!userInfo) {
-    userInfo = document.createElement("div");
-    userInfo.id = "user-info";
-    userInfo.innerHTML = `
-      <span class="user-email">${user.email}</span>
-      <button id="logout-btn" class="btn btn-outline">Sign Out</button>
-    `;
-    document.querySelector("header").appendChild(userInfo);
+  // Remove existing user info
+  const existingUserInfo = document.getElementById("user-info");
+  if (existingUserInfo) existingUserInfo.remove();
+
+  // Create new user info
+  const userInfo = document.createElement("div");
+  userInfo.id = "user-info";
+  userInfo.innerHTML = `
+    <span class="user-email">👋 ${user.email}</span>
+    <button id="logout-btn" class="btn btn-outline">Sign Out</button>
+  `;
+
+  // Add to header
+  const header = document.querySelector("header");
+  if (header) {
+    header.appendChild(userInfo);
 
     // Add logout functionality
     document.getElementById("logout-btn").addEventListener("click", () => {
@@ -2381,182 +1298,217 @@ function showUserInfo(user) {
   }
 }
 
+/**
+ * Hide user information
+ */
 function hideUserInfo() {
   const userInfo = document.getElementById("user-info");
   if (userInfo) userInfo.remove();
 }
 
+/**
+ * Enable features that require authentication
+ */
 function enableScheduleFeatures() {
-  // Enable cloud sync, sharing, etc.
-  console.log("🎉 All CampXus features enabled!");
+  console.log("🎉 Enabling cloud sync, sharing, and advanced features!");
+
+  // Enable cloud save/load buttons
+  const cloudButtons = document.querySelectorAll(".cloud-feature");
+  cloudButtons.forEach((btn) => {
+    btn.disabled = false;
+    btn.title = "Cloud features enabled!";
+  });
 }
 
+/**
+ * Disable features that require authentication
+ */
 function disableScheduleFeatures() {
-  // Disable cloud features, keep local scheduling
-  console.log("📱 Running in local mode");
+  console.log("📱 Running in local mode - advanced features disabled");
+
+  // Disable cloud features but keep basic scheduling
+  const cloudButtons = document.querySelectorAll(".cloud-feature");
+  cloudButtons.forEach((btn) => {
+    btn.disabled = true;
+    btn.title = "Sign in to use cloud features";
+  });
 }
-````
-
-#### 3.2 Add Login Button to Your Header
-
-Update your `index.html`:
-
-```html
-<!-- Add this to your header, replace existing login if any -->
-<header>
-  <!-- ...existing header content... -->
-
-  <button id="login-btn" class="btn btn-primary">🎓 Join CampXus</button>
-
-  <!-- This will be dynamically created -->
-  <div id="user-info" style="display: none;"></div>
-</header>
-
-<!-- Add the auth CSS -->
-<link rel="stylesheet" href="css/auth.css" />
 ```
 
-#### 3.3 Connect the Login Button
+#### 3.3 Update Your HTML
 
-Add this to your script:
+Add the authentication CSS and login button to your `index.html`:
 
-```javascript
-// Add this to your DOMContentLoaded event
-document.getElementById("login-btn")?.addEventListener("click", () => {
-  authManager.showAuthModal();
-});
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CampXus - University Schedule Manager</title>
+
+    <!-- Existing CSS -->
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- Add Authentication CSS -->
+    <link rel="stylesheet" href="css/auth.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🎓 CampXus</h1>
+      <p>Your University Schedule Manager</p>
+
+      <!-- Add Login Button -->
+      <button id="login-btn" class="btn btn-primary">🎓 Join CampXus</button>
+
+      <!-- User info will be added here dynamically -->
+    </header>
+
+    <main>
+      <!-- Your existing schedule manager content -->
+    </main>
+
+    <!-- Your existing scripts -->
+    <script type="module" src="js/script.js"></script>
+  </body>
+</html>
 ```
 
 ## ✅ Testing Your Authentication System
 
-### The Grand Test Plan 🧪
+### The Complete Test Plan 🧪
 
-1. **Visual Test**: Click the "Join CampXus" button
+Let's make sure everything works perfectly!
 
-   - Modal should appear with beautiful animations
-   - Tabs should switch smoothly
-   - Forms should look professional
+#### Test 1: Visual Tests 👀
 
-2. **Email Validation Test**:
+1. **Open your CampXus application**
+2. **Click "Join CampXus" button**
+   - Modal should appear with smooth animation
+   - Should see "Sign In" and "Sign Up" tabs
+   - Forms should look clean and professional
 
-   - Try typing `student@iub.edu.bd` - should show university info
-   - Try `student@gmail.com` - should show friendly error
-   - Try partial emails - should validate in real-time
+#### Test 2: University Email Validation 🏫
 
-3. **Sign Up Flow**:
+1. **Go to Sign Up tab**
+2. **Type in signup email field**:
+   - `student@iub.edu.bd` - Should show university info
+   - `student@gmail.com` - Should not show university info
+   - `student@iub.edu` - Should suggest correct domain
 
-   - Create account with valid IUB email
-   - Check your email for verification link
-   - Verify email and try signing in
+#### Test 3: Sign Up Flow 📝
 
-4. **Error Handling**:
-   - Try wrong password - should show friendly error
-   - Try duplicate email - should handle gracefully
-   - Try weak password - should guide user
+1. **Create account with valid university email**
+2. **Check your email for verification link**
+3. **Verify email and try signing in**
+
+#### Test 4: Sign In Flow 🔑
+
+1. **After verifying email, try to sign in**
+2. **Use correct email and password**
+3. **Should successfully sign in**
+4. **Login button should disappear**
+5. **Should see user email and "Sign Out" button**
+
+#### Test 5: Error Handling 🚨
+
+1. **Try wrong password** - should show friendly error
+2. **Try unverified email** - should ask to verify
+3. **Try signing up with existing email** - should show appropriate error
 
 ## 🎯 Success Criteria
 
 You've mastered Phase 1 when:
 
-### 🎓 Firebase Authentication Basics
+### ✅ Firebase Authentication Basics
 
-- [ ] Firebase Authentication is properly configured and connected
-- [ ] Students can sign up with their university email addresses
-- [ ] Email verification works and students can verify their accounts
-- [ ] Sign in/out functionality works smoothly
-- [ ] Authentication state is properly managed (logged in vs logged out)
-- [ ] User sessions persist across browser refreshes
+- [ ] Firebase Authentication is properly connected to your app
+- [ ] Students can create accounts with university email addresses
+- [ ] Email verification system works correctly
+- [ ] Sign in and sign out functionality works smoothly
+- [ ] Authentication state persists across browser refreshes
 
-### 🎨 User Experience
+### ✅ University Email Validation
 
-- [ ] Authentication modal appears with beautiful design and animations
-- [ ] Email validation provides helpful, student-friendly error messages
-- [ ] Password strength indicator helps students create good passwords
-- [ ] Tab switching between Sign In and Sign Up works smoothly
-- [ ] Error messages are clear and help students understand what went wrong
-- [ ] Success messages guide students through the verification process
+- [ ] Only university email domains are accepted
+- [ ] Helpful error messages guide students to correct emails
+- [ ] Real-time validation shows university info for valid domains
+- [ ] Easy to add new universities to the system
 
-### 🏫 University Email Validation
+### ✅ User Experience
 
-- [ ] Only university email domains are accepted for registration
-- [ ] Students get helpful suggestions when they make typos in their email
-- [ ] University information displays when a valid domain is entered
-- [ ] Clear feedback when non-university emails are attempted
-- [ ] Easy to add new university domains to the system
+- [ ] Beautiful, responsive authentication modal
+- [ ] Smooth animations and transitions
+- [ ] Clear error messages that help students understand issues
+- [ ] Tab switching between Sign In and Sign Up works perfectly
+- [ ] Mobile-friendly design
 
-### 🔧 Technical Implementation
+### ✅ Technical Implementation
 
-- [ ] Code is well-organized and follows Firebase best practices
-- [ ] Authentication manager properly handles Firebase methods
-- [ ] User documents are created in Firestore upon registration
-- [ ] Event listeners are set up correctly for form interactions
-- [ ] CSS styles create a modern, mobile-responsive interface
+- [ ] Code is organized with ES6 modules
+- [ ] Firebase methods are used correctly
+- [ ] User profiles are created in Firestore
+- [ ] Authentication state is properly managed
+- [ ] Event listeners work correctly
 
 ## 🎉 What You've Built!
 
-### Your Authentication System Features ✨
+### Your Authentication Features ✨
 
-#### **Firebase Authentication Integration**
+#### **Simple Firebase Authentication**
 
-- **User Management**: Sign up and sign in with email/password
-- **Email Verification**: Students must verify their email before full access
-- **Session Management**: Users stay logged in across browser sessions
-- **Secure Password Storage**: Firebase handles password encryption and security
-
-#### **University Email Validation**
-
-- **Domain Checking**: Only university email addresses are accepted
-- **Helpful Feedback**: Clear error messages guide students to correct emails
-- **University Recognition**: System displays university info for valid domains
-- **Easy Extension**: Simple to add new universities to the supported list
+- **University Email Only**: Students sign up with university email addresses
+- **Email Verification**: Must verify email before full access
+- **Session Management**: Stay logged in across browser sessions
+- **Secure Password Storage**: Firebase handles all security
 
 #### **Beautiful User Interface**
 
-- **Modern Design**: Clean, mobile-responsive authentication modal
-- **Smooth Animations**: Professional transitions and visual feedback
-- **User-Friendly Forms**: Clear labels, helpful placeholders, and validation
-- **Password Strength**: Visual indicator helps students create secure passwords
+- **Modern Modal Design**: Clean, professional authentication forms
+- **Real-time Validation**: Instant feedback as students type
+- **Friendly Error Messages**: Clear guidance when things go wrong
+- **Mobile Responsive**: Works great on phones and tablets
 
-#### **Firebase Integration**
+#### **Smart Email Validation**
 
-- **Firestore Database**: User profiles are stored securely in the cloud
-- **Real-time Updates**: Authentication state changes are instant
-- **Firebase Security Rules**: Built-in protection for user data
-- **Scalable Architecture**: Ready to handle growing number of students
+- **University Domain Checking**: Only accepts university email addresses
+- **Helpful Suggestions**: Guides students to correct email formats
+- **Easy to Extend**: Simple to add new universities
 
 ### Learning Outcomes 🎓
 
-By completing this phase, you've learned:
+By completing Phase 1, you've learned:
 
-- **Firebase Authentication**: How to integrate Firebase Auth into a web application
-- **Email Validation**: Techniques for validating and restricting email domains
-- **User Experience Design**: Creating intuitive and beautiful authentication flows
-- **JavaScript Modules**: Organizing code with ES6 modules and classes
-- **Event Handling**: Managing form submissions and user interactions
-- **CSS Animation**: Creating smooth, professional transitions and effects
+- **Firebase Authentication**: How to implement secure user authentication
+- **Form Validation**: Creating user-friendly validation with helpful feedback
+- **JavaScript Modules**: Organizing code with classes and ES6 modules
+- **CSS Animations**: Creating smooth, professional transitions
+- **Event Handling**: Managing user interactions and form submissions
 - **Error Handling**: Providing helpful feedback when things go wrong
-- **State Management**: Tracking user authentication status across the app
+- **State Management**: Tracking authentication status across your app
 
 ## 🎉 Congratulations!
 
-Fantastic work! You've just built a complete authentication system for CampXus using Firebase. Your university students can now:
+Amazing work! You've successfully built a complete authentication system for CampXus!
 
-✨ **Sign up securely** with their university email addresses  
-🎓 **Verify their identity** through email verification  
-🔐 **Sign in easily** with a beautiful, user-friendly interface  
-📱 **Stay logged in** across different sessions and devices  
-🏫 **Join their university community** on CampXus
+Your university students can now:
 
-You've learned valuable skills in Firebase, JavaScript, CSS, and user experience design. This foundation will serve you well as you continue building more features for CampXus!
+- 🎓 **Sign up securely** with their university email
+- 📧 **Verify their identity** through email verification
+- 🔐 **Sign in easily** with a beautiful interface
+- 📱 **Stay logged in** across different sessions
+- 🏫 **Join their university community** on CampXus
 
-## ⏭️ Next Adventure: Phase 2
+You've learned essential skills in Firebase, JavaScript, and user experience design that will serve you well throughout your development journey!
 
-Ready for **Phase 2: User Profile Setup**? We'll help students create their profiles, add their course schedules, and start building their university network on CampXus.
+## ⏭️ Next Up: Phase 2
+
+Ready for **Phase 2: User Profile Setup**? We'll help students create their profiles, upload photos, and set up their course schedules to get fully started with CampXus!
 
 ---
 
-**Estimated Time**: 4-6 hours  
-**Difficulty**: Intermediate  
+**Estimated Time**: 3-4 hours  
+**Difficulty**: Beginner-Friendly  
 **Fun Factor**: 🌟🌟🌟🌟🌟  
-**Skills You'll Learn**: Firestore Database, File Upload, User Profiles  
-**University Vibes**: 🎓📚✨
+**Skills Learned**: Firebase Auth, Form Validation, CSS Animations, JavaScript Modules  
+**University Ready**: 🎓📚✨
