@@ -11,16 +11,16 @@ import {
   getState,
   _setStateForTesting,
   _resetStateForTesting,
-} from "../script.js";
+} from "../../core/script.js";
 
 // Import DEFAULT_TIMESLOTS from its new location
-import { DEFAULT_TIMESLOTS } from "../constants.js";
+import { DEFAULT_TIMESLOTS } from "../../core/constants.js";
 
 // Import DOM_ELEMENTS and its initializer
-import { DOM_ELEMENTS, initializeDomElements } from "../domElements.js";
+import { DOM_ELEMENTS, initializeDomElements } from "../../core/domElements.js";
 
 // Import the new modal functions to test them directly
-import { initModal, showModal } from "../modal.js";
+import { initModal, showModal } from "../../core/modal.js";
 
 // This constant is for clarity in tests, should match constants.js/DEFAULT_TIMESLOTS
 const DEFAULT_TIMESLOTS_FOR_TEST = DEFAULT_TIMESLOTS;

@@ -9,6 +9,7 @@ node_modules/
 #Firebase
 firebase-debug.log
 .firebase/
+js/firebase/config/env-config.js
 
 #OS generated files
 

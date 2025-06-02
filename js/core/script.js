@@ -17,6 +17,7 @@ import {
   handleImportSchedule,
   setupExportImportListeners,
 } from "./export-import.js";
+import { authManager } from "../firebase/auth/auth-manager.js";
 
 /* ================================
    APPLICATION STATE
@@ -2651,9 +2652,100 @@ function setupEventListeners() {
 }
 
 /* ================================
+   AUTHENTICATION UI MANAGEMENT
+================================== */
+
+
+/**
+ * Show UI for unauthenticated users
+ */
+function showUnauthenticatedUI() {
+  console.log("🔓 Showing unauthenticated UI");
+
+  // Show login button
+  const loginBtn = document.getElementById("login-btn");
+  if (loginBtn) {
+    console.log("👁️ Showing login button");
+    loginBtn.style.display = "block";
+  } else {
+    console.warn("Login button not found when trying to show it");
+  }
+
+  // Hide user info
+  hideUserInfo();
+
+  // Disable advanced features
+  disableScheduleFeatures();
+}
+
+/**
+ * Display user information in header
+ */
+function showUserInfo(user) {
+  console.log("👤 Showing user info for:", user.email);
+
+  
+
+  // Add to navigation (instead of header)
+  const navRight = document.querySelector(".nav-right");
+  if (navRight) {
+    console.log("✅ Adding user info to navigation");
+    navRight.appendChild(userInfo);
+
+    // Add logout functionality
+    document.getElementById("logout-btn").addEventListener("click", () => {
+      console.log("🚪 Logout button clicked");
+      authManager.signOut();
+    });
+  } else {
+    console.error(
+      "❌ Navigation right section not found, cannot add user info"
+    );
+  }
+}
+
+/**
+ * Hide user information
+ */
+function hideUserInfo() {
+  const userInfo = document.getElementById("user-info");
+  if (userInfo) userInfo.remove();
+}
+
+/**
+ * Enable features that require authentication
+ */
+function enableScheduleFeatures() {
+  console.log("🎉 Enabling cloud sync, sharing, and advanced features!");
+
+  // Enable cloud save/load buttons
+  const cloudButtons = document.querySelectorAll(".cloud-feature");
+  cloudButtons.forEach((btn) => {
+    btn.disabled = false;
+    btn.title = "Cloud features enabled!";
+  });
+}
+
+/**
+ * Disable features that require authentication
+ */
+function disableScheduleFeatures() {
+  console.log("📱 Running in local mode - advanced features disabled");
+
+  // Disable cloud features but keep basic scheduling
+  const cloudButtons = document.querySelectorAll(".cloud-feature");
+  cloudButtons.forEach((btn) => {
+    btn.disabled = true;
+    btn.title = "Sign in to use cloud features";
+  });
+}
+
+/* ================================
    INITIALIZATION
 ================================== */
-function initializeApp() {
+async function initializeApp() {
+  console.log("🚀 Starting CampXus...");
+
   initializeDomElements();
 
   // Create tooltip if it doesn't exist
@@ -2672,7 +2764,26 @@ function initializeApp() {
   setupInputValidation();
   setupEventListeners();
   setupExportImportListeners(state, saveStateToStorage, updateUI);
+
+  // Initialize authentication system
+  await authManager.initialize();
+
+
+
+  // Set up login button click handler
+  const loginButton = document.getElementById("login-btn");
+  if (loginButton) {
+    loginButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      console.log("🎓 Login button clicked, showing auth modal");
+      authManager.showAuthModal();
+    });
+  } else {
+    console.warn("Login button not found in DOM");
+  }
+
   updateUI();
+  console.log("✅ CampXus loaded successfully!");
 }
 
 /**
@@ -2857,4 +2968,6 @@ export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
 }
 
 // Initialize the application when DOM is loaded
-document.addEventListener("DOMContentLoaded", initializeApp);
+document.addEventListener("DOMContentLoaded", async () => {
+  await initializeApp();
+});

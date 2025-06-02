@@ -7,6 +7,7 @@ export const DOM_ELEMENTS = {
   userListContainer: null,
   usersSection: null,
   addUserButton: null,
+  loginButton: null,
 
   // Schedule & Comparison
   scheduleTable: null,
@@ -41,49 +42,72 @@ export const DOM_ELEMENTS = {
  * Should be called after DOMContentLoaded.
  */
 export function initializeDomElements() {
+  // User Management - Now these exist in the modal
   DOM_ELEMENTS.userNameInput = document.getElementById("userName");
   DOM_ELEMENTS.userIdInput = document.getElementById("userId");
   DOM_ELEMENTS.userListContainer = document.getElementById("userList");
   DOM_ELEMENTS.usersSection = document.querySelector(".users-section");
+  DOM_ELEMENTS.addUserButton = document.getElementById("addUserHeaderBtn");
+  DOM_ELEMENTS.loginButton = document.getElementById("login-btn");
+
+  // Schedule & Comparison
   DOM_ELEMENTS.scheduleTable = document.getElementById("scheduleTable");
   DOM_ELEMENTS.scheduleWrapper = document.querySelector(".schedule-wrapper");
   DOM_ELEMENTS.compareButton = document.getElementById("compare");
   DOM_ELEMENTS.togglePinModeBtn = document.getElementById("togglePinModeBtn");
-  DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip");
+  DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip") || null; // May not exist
 
-  DOM_ELEMENTS.addUserButton = document.getElementById("addUserHeaderBtn");
-
+  // Import / Export
   DOM_ELEMENTS.importTextArea = document.getElementById("importText");
   DOM_ELEMENTS.exportButton = document.querySelector(".export-section button");
   DOM_ELEMENTS.importButton = document.querySelector(".import-section button");
 
-  DOM_ELEMENTS.appModal = document.getElementById("appModal");
-  // How is modalContent being selected? It should be something like:
+  // Modal Elements - These may not exist if modal not implemented yet
+  DOM_ELEMENTS.appModal = document.getElementById("appModal") || null;
   DOM_ELEMENTS.modalContent = DOM_ELEMENTS.appModal
     ? DOM_ELEMENTS.appModal.querySelector(".modal-content")
     : null;
-  DOM_ELEMENTS.modalTitle = document.getElementById("modalTitle");
-  DOM_ELEMENTS.modalMessage = document.getElementById("modalMessage");
-  DOM_ELEMENTS.modalCloseBtn = document.getElementById("modalCloseBtn");
+  DOM_ELEMENTS.modalTitle = document.getElementById("modalTitle") || null;
+  DOM_ELEMENTS.modalMessage = document.getElementById("modalMessage") || null;
+  DOM_ELEMENTS.modalCloseBtn = document.getElementById("modalCloseBtn") || null;
   DOM_ELEMENTS.modalActionButtons =
-    document.getElementById("modalActionButtons");
-  DOM_ELEMENTS.modalConfirmBtn = document.getElementById("modalConfirmBtn");
-  DOM_ELEMENTS.modalCancelBtn = document.getElementById("modalCancelBtn");
+    document.getElementById("modalActionButtons") || null;
+  DOM_ELEMENTS.modalConfirmBtn =
+    document.getElementById("modalConfirmBtn") || null;
+  DOM_ELEMENTS.modalCancelBtn =
+    document.getElementById("modalCancelBtn") || null;
 
+  // Dynamic Time Slots
   DOM_ELEMENTS.addNewTimeSlotBtn = document.getElementById("addNewTimeSlotBtn");
   DOM_ELEMENTS.addTimeSlotHeaderCell = document.getElementById(
     "addTimeSlotHeaderCell"
   );
 
-  // Debug log to check if tooltip element is found
-  console.log("Tooltip element found:", !!DOM_ELEMENTS.slotTooltip);
+  // Debug log for important missing elements
+  const criticalElements = [
+    "scheduleTable",
+    "userListContainer",
+    "compareButton",
+  ];
+  const missingCritical = criticalElements.filter((key) => !DOM_ELEMENTS[key]);
 
-  // Log missing critical elements
-  for (const key in DOM_ELEMENTS) {
-    if (DOM_ELEMENTS[key] === null) {
-      console.warn(`DOM_ELEMENTS.${key} was not found during initialization.`);
-      // Allow some to be optional or page-specific by not erroring out here.
-      // Critical ones for modal: appModal, modalTitle, modalMessage, modalCloseBtn, modalActionButtons, modalConfirmBtn, modalCancelBtn
-    }
+  if (missingCritical.length > 0) {
+    console.error("Critical DOM elements missing:", missingCritical);
+  }
+
+  // Log optional missing elements as warnings
+  const optionalElements = [
+    "userNameInput",
+    "userIdInput",
+    "slotTooltip",
+    "appModal",
+  ];
+  const missingOptional = optionalElements.filter((key) => !DOM_ELEMENTS[key]);
+
+  if (missingOptional.length > 0) {
+    console.warn(
+      "Optional DOM elements missing (this may be normal):",
+      missingOptional
+    );
   }
 }

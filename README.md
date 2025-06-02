@@ -78,15 +78,31 @@ CampXus/
 │   ├── menu.js                          # Navigation & theme system
 │   ├── timeUtils.js                     # Time parsing & schedule utilities
 │   ├── export-import.js                 # Data import/export functionality
-│   ├── script.test.js                   # Core logic unit tests (Jest)
-│   ├── scheduleEditor.test.js           # Schedule editing tests
-│   └── timeUtils.test.js                # Time utilities tests
+│   ├── firebase/                        # 🔥 Firebase Integration
+│   │   ├── firebase-config.js           # Firebase initialization & configuration
+│   │   ├── env-config.js                # Auto-generated browser environment config
+│   │   └── dev-tools/                   # 🛠️ Development Helper Scripts
+│   │       ├── generate-env-config.js   # Environment config generator
+│   │       ├── check-dev-setup.js       # Development environment validator
+│   │       ├── env-loader.js            # Environment loading utilities
+│   │       └── README.md                # Development tools documentation
+│   ├── security/                        # 🔐 Security & Authentication
+│   │   ├── auth-manager.js              # Authentication management
+│   │   ├── privacy-manager.js           # Privacy controls & data management
+│   │   ├── security-logger.js           # Security event logging
+│   │   └── university-validator.js      # University email validation
+│   └── tests/                           # 🧪 Test Suites
+│       ├── script.test.js               # Core logic unit tests (Jest)
+│       ├── scheduleEditor.test.js       # Schedule editing tests
+│       ├── timeUtils.test.js            # Time utilities tests
+│       └── university-validator.test.js # University validation tests
 ├── pages/                               # 📄 Multi-page Application Structure
 │   ├── about.html                       # About page with app information
 │   └── friends.html                     # Friends management page
 ├── index.html                           # 🏠 Main schedule interface
 ├── package.json                         # Node.js dependencies & Jest configuration
 ├── jest.setup.js                        # Jest testing environment setup
+├── BEGINNER_SETUP_GUIDE.md             # 🔰 Simplified setup guide for beginners
 └── README.md                            # Project overview & setup guide
 ```
 
@@ -145,6 +161,80 @@ CampXus/
 - Firebase integration for cloud storage and real-time collaboration
 - Export options (PDF, ICS calendar files)
 - Enhanced friend management system
+
+---
+
+## 🔧 Development Setup
+
+> 🔰 **New to Firebase?** Check out [`BEGINNER_SETUP_GUIDE.md`](./BEGINNER_SETUP_GUIDE.md) for a simplified explanation!
+
+### Quick Start
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/Faizan2001/CampXus.git
+   cd CampXus
+   ```
+
+2. **Install dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configure Firebase (for development):**
+
+   - Create a `.env.local` file in the project root
+   - Add your Firebase configuration:
+
+   ```bash
+   # Firebase Configuration
+   FIREBASE_API_KEY=your_api_key_here
+   FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   FIREBASE_PROJECT_ID=your-project-id
+   FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+   FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   FIREBASE_APP_ID=your_app_id
+   ```
+
+4. **Generate development config:**
+
+   ```bash
+   npm run dev:config
+   ```
+
+5. **Verify your setup (optional):**
+
+   ```bash
+   npm run dev:check
+   ```
+
+6. **Start development server:**
+   ```bash
+   npm run dev:serve
+   ```
+
+### Environment Configuration
+
+The app uses a smart environment management system:
+
+- **Development:** Environment variables are loaded from `.env.local` and converted to browser-compatible format
+- **Production:** Configuration should be injected by your hosting platform (Vercel, Netlify, etc.)
+
+**Important Security Notes:**
+
+- The `.env.local` file is already in `.gitignore` - never commit it
+- The generated `js/firebase/env-config.js` is also ignored and regenerated automatically
+- Firebase API keys are safe to expose in client-side code (they're not secret keys)
+
+### Available Scripts
+
+- `npm run dev:check` - Validate your development environment setup
+- `npm run dev:config` - Generate browser-compatible environment config
+- `npm run dev:serve` - Generate config and start Firebase local server
+- `npm test` - Run Jest test suites
+- `npm run firebase:emulators` - Start Firebase emulators for local development
 
 ---
 

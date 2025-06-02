@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "dev:config": "node js/firebase/dev-tools/generate-env-config.js",
+    "dev:check": "node js/firebase/dev-tools/check-dev-setup.js",
+    "dev:serve": "npm run dev:config && firebase serve",
     "firebase:serve": "firebase serve",
     "firebase:deploy": "firebase deploy",
     "firebase:emulators": "firebase emulators:start",
@@ -37,7 +40,13 @@
     ],
     "testMatch": [
       "**/js/tests/**/*.test.js"
-    ]
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(firebase|@firebase)/)"
+    ],
+    "moduleNameMapper": {
+      "^firebase/(.*)$": "<rootDir>/node_modules/firebase/$1"
+    }
   },
   "dependencies": {
     "firebase": "^11.8.1"

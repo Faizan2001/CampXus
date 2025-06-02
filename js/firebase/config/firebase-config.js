@@ -1,18 +1,22 @@
-// Firebase configuration with environment variables
+// Firebase configuration for browser environment
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Secure configuration loading
+// Browser-compatible configuration loading
+// Load Firebase config from environment variables or fallback to embedded values
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "your_api_key_here",
+  apiKey:
+    window.ENV?.FIREBASE_API_KEY || "AIzaSyC_kanIBFqxyq8LLE4CKuzH24yEfCMjFiQ",
   authDomain:
-    process.env.FIREBASE_AUTH_DOMAIN || "your_project.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || "your_project_id",
+    window.ENV?.FIREBASE_AUTH_DOMAIN || "meetchuthere-00.firebaseapp.com",
+  projectId: window.ENV?.FIREBASE_PROJECT_ID || "meetchuthere-00",
   storageBucket:
-    process.env.FIREBASE_STORAGE_BUCKET || "your_project.appspot.com",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.FIREBASE_APP_ID || "1:123456789:web:abcdef",
+    window.ENV?.FIREBASE_STORAGE_BUCKET ||
+    "meetchuthere-00.firebasestorage.app",
+  messagingSenderId: window.ENV?.FIREBASE_MESSAGING_SENDER_ID || "749689064628",
+  appId:
+    window.ENV?.FIREBASE_APP_ID || "1:749689064628:web:e757a95468a0a9a285dbe1",
 };
 
 // Initialize Firebase with error handling

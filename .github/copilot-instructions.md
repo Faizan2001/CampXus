@@ -4,6 +4,8 @@
 	Avoid working on more than one file at a time.
 	Multiple simultaneous edits to a file will cause corruption.
 	Be chatting and teach about what you are doing while coding.
+	User is a university student and a beginner in web development.
+	Teach concepts in simple and concise ways with careful creativity while you add code.
 
 ## LARGE FILE & COMPLEX CHANGE PROTOCOL
 

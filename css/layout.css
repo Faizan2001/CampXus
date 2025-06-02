@@ -43,13 +43,27 @@ This file contains all layout-related styles for the MeetchuThere app:
   box-shadow: 0 4px 20px var(--shadow);
 }
 
-/* Navigation sections - Left (logo), Center (links), Right (controls) */
+/* Navigation sections - Left (logo + links), Right (controls) */
 .nav-left,
-.nav-center,
 .nav-right {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
+}
+
+.nav-left {
+  flex: 1; /* Take up available space */
+}
+
+.nav-right {
+  flex-shrink: 0; /* Prevent shrinking on mobile */
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-left: var(--space-xl);
 }
 
 /* ===== LOGO COMPONENT ===== */
@@ -148,22 +162,24 @@ This file contains all layout-related styles for the MeetchuThere app:
   box-shadow: var(--shadow-md);
 }
 
-/* ===== NAVIGATION BUTTONS ===== */
+/* ===== ENHANCED NAVIGATION BUTTONS ===== */
 .nav-button {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  border: none;
-  border-radius: 50%;
-  background: var(--surface);
+  border: none !important; /* Force remove any inherited borders */
+  border-radius: 50%; /* Circular for cleaner look */
+  background: transparent; /* Clean, no background by default */
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s var(--animation-spring);
-  font-size: 1rem;
+  font-size: 1.1rem;
   position: relative;
   overflow: hidden;
+  /* Ensure consistent box-sizing */
+  box-sizing: border-box;
 }
 
 .nav-button::before {
@@ -178,70 +194,90 @@ This file contains all layout-related styles for the MeetchuThere app:
     var(--accent-primary) 30%,
     transparent 70%
   );
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   opacity: 0;
 }
 
 .nav-button:hover::before {
-  width: 100%;
-  height: 100%;
-  opacity: 0.2;
+  width: 120%;
+  height: 120%;
+  opacity: 0.1;
 }
 
 .nav-button:hover {
   background: var(--surface-hover);
   color: var(--accent-primary);
-  transform: scale(1.1);
+  transform: scale(1.05);
   box-shadow: var(--shadow-glow);
+  border: none !important; /* Ensure no borders appear on hover */
 }
 
-/* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
-.main-content {
-  padding: 1rem; /* Base padding for mobile */
-  width: 100%;
-  max-width: 100%; /* Ensure it doesn't exceed viewport with box-sizing */
-  margin: 0 auto;
+.nav-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 
-.content-grid {
-  display: flex;
-  flex-direction: column; /* Mobile-first: single column */
-  gap: 1.5rem; /* Gap between schedule and controls stack */
-  width: 100%;
-}
-
-.schedule-column {
-  width: 100%;
-}
-
-.controls-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem; /* Gap between individual control sections */
-  width: 100%;
-}
-
-/* Ensure all cards take full width of their parent column */
-.controls-column .glass-card,
-.schedule-column .glass-card {
-  width: 100%;
-  margin-bottom: 0; /* Remove individual card margins if parent flex/grid has gap */
-}
-
-/* ===== WAVE GRADIENT ANIMATION ===== */
-@keyframes waveGradient {
-  0% {
-    background-position: 0% 50%;
+/* Mobile-specific timed illumination system */
+@media (max-width: 768px) {
+  /* Icon scaling on hover for better visual feedback */
+  .nav-button i {
+    transition: all 0.3s var(--animation-smooth);
   }
-  50% {
-    background-position: 100% 50%;
+
+  .nav-button:hover i {
+    transform: scale(1.1);
   }
-  100% {
-    background-position: 0% 50%;
+
+  /* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
+  .main-content {
+    padding: 1rem; /* Base padding for mobile */
+    width: 100%;
+    max-width: 100%; /* Ensure it doesn't exceed viewport with box-sizing */
+    margin: 0 auto;
   }
+
+  .content-grid {
+    display: flex;
+    flex-direction: column; /* Mobile-first: single column */
+    gap: 1.5rem; /* Gap between schedule and controls stack */
+    width: 100%;
+  }
+
+  .schedule-column {
+    width: 100%;
+  }
+
+  .controls-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Gap between individual control sections */
+    width: 100%;
+  }
+
+  /* Ensure all cards take full width of their parent column */
+  .controls-column .glass-card,
+  .schedule-column .glass-card {
+    width: 100%;
+    margin-bottom: 0; /* Remove individual card margins if parent flex/grid has gap */
+  }
+
 }
+
+  /* ===== WAVE GRADIENT ANIMATION ===== */
+  @keyframes waveGradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
 
 /* ===== RESPONSIVE DESIGN RULES ===== */
 
@@ -316,6 +352,13 @@ This file contains all layout-related styles for the MeetchuThere app:
     max-width: 100% !important;
   }
 
+  .controls-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Gap between individual control sections */
+    width: 100%;
+  }
+
   /* Mobile column ordering - Schedule column should come first */
   .schedule-column {
     order: 1; /* Schedule column first */
@@ -323,6 +366,13 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   .controls-column {
     order: 2; /* Controls column second */
+  }
+
+  .controls-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Gap between individual control sections */
+    width: 100%;
   }
 
   /* Within controls column, set the internal section order */
@@ -362,7 +412,6 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 }
 
-
 /* ===== ULTRA-WIDE DESKTOP OPTIMIZATIONS (1600px+) ===== */
 @media (min-width: 1600px) {
   .main-content {
@@ -375,7 +424,6 @@ This file contains all layout-related styles for the MeetchuThere app:
     grid-template-columns: minmax(400px, 1fr) 3fr; /* Wider controls, larger schedule */
     gap: 2rem; /* Increased gap */
   }
-
 
   /* Wide desktop grid positioning */
   /* NEW WIDE DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
@@ -434,7 +482,6 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 }
 
-
 /* Optional: For extreme compactness on very small screens, use vertical headers */
 @media (max-width: 479px) {
   .schedule-table .day-label,
@@ -459,9 +506,13 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   .schedule-wrapper {
     /* Expand beyond parent container */
-    width: calc(100vw - 3.5rem) !important; /* Full viewport minus small margin */
+    width: calc(
+      100vw - 3.5rem
+    ) !important; /* Full viewport minus small margin */
     max-width: none !important;
-    margin-left: calc(-1rem) !important; /* Negative margin to break out of padding */
+    margin-left: calc(
+      -1rem
+    ) !important; /* Negative margin to break out of padding */
     margin-right: calc(-1rem) !important;
     border-radius: var(--radius-xl) !important; /* Maintain border radius */
   }
@@ -470,6 +521,13 @@ This file contains all layout-related styles for the MeetchuThere app:
   .controls-column {
     width: 100% !important;
     max-width: 100% !important;
+  }
+
+  .controls-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Gap between individual control sections */
+    width: 100%;
   }
 
   /* Mobile column ordering - Schedule column should come first */
@@ -563,8 +621,6 @@ This file contains all layout-related styles for the MeetchuThere app:
     width: 100%;
   }
 
-  
-
   /* Desktop grid positioning - place sections directly in grid */
   /* NEW DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
   /* HTML source order: Compare → Add User → Users → Import/Export */
@@ -598,6 +654,13 @@ This file contains all layout-related styles for the MeetchuThere app:
     order: unset;
   }
 
+  .controls-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Gap between individual control sections */
+    width: 100%;
+  }
+
   /* Restore standard schedule sizes */
   .schedule-table th,
   .schedule-table td {
@@ -622,40 +685,663 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 }
 
-.glass-card::before {
+/* ===== RESPONSIVE NAVIGATION TEXT ===== */
+.nav-text {
+  display: inline; /* Show text by default */
+}
+
+/* ===== USER MENU SYSTEM ===== */
+.user-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Simplified user menu trigger - clean icon-only design */
+.user-menu-trigger {
+  /* Clean, borderless design */
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none !important; /* Force remove any inherited borders */
+  border-radius: 50%; /* Circular for a cleaner look */
+  background: transparent; /* No background by default */
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Ensure consistent box-sizing */
+  box-sizing: border-box;
+}
+
+.user-menu-trigger:hover {
+  background: var(--surface-hover);
+  color: var(--accent-primary);
+  transform: scale(1.1);
+  box-shadow: var(--shadow-glow);
+}
+
+.user-menu-trigger:focus {
+  outline: none;
+  background: var(--surface-hover);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* User avatar icon with enhanced styling */
+.user-menu-trigger i {
+  font-size: 1.4rem; /* Slightly larger for better visibility */
+  transition: all 0.3s var(--animation-smooth);
+  color: inherit;
+}
+
+.user-menu-trigger:hover i {
+  transform: scale(1.1);
+  color: var(--accent-primary);
+}
+
+/* Subtle ripple effect for user menu trigger */
+.user-menu-trigger::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(
+    circle,
+    var(--accent-primary) 30%,
+    transparent 70%
+  );
+  transition: all 0.4s ease;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.user-menu-trigger:hover::before {
+  width: 120%;
+  height: 120%;
+  opacity: 0.1;
+}
+
+/* ===== USER DROPDOWN MENU ===== */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
   right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(20px);
+  z-index: 1001;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s var(--animation-spring);
+  /* Prevent dropdown from being cut off */
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 
-.glass-card::after {
+.user-dropdown.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-hover);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.user-avatar-large {
+  font-size: 2.5rem;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-details .user-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  max-width: 180px;
+}
+
+.user-email {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.dropdown-menu {
+  padding: var(--space-sm);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--surface-hover);
+  color: var(--accent-primary);
+  transform: translateX(4px);
+}
+
+.dropdown-item i {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  transition: color 0.3s var(--animation-smooth);
+}
+
+.dropdown-item:hover i {
+  color: var(--accent-primary);
+}
+
+/* Sign out button specific styling */
+.dropdown-item#signOutBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.dropdown-item#signOutBtn:hover i {
+  color: #ef4444;
+}
+
+/* ===== LOGIN BUTTON STYLING ===== */
+.login-btn {
+  white-space: nowrap;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  text-decoration: none;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  color: white;
+}
+
+.login-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.login-btn:focus {
+  outline: none;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6),
+    0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* Add ripple effect for login button */
+.login-btn::before {
   content: "";
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    rgba(255, 255, 255, 0.03) 60deg,
-    transparent 120deg,
-    rgba(255, 255, 255, 0.03) 180deg,
-    transparent 240deg,
-    rgba(255, 255, 255, 0.03) 300deg,
-    transparent 360deg
-  );
-  animation: rotate 20s linear infinite;
-  pointer-events: none;
-  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
 }
 
+.login-btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* ===== RESPONSIVE NAVIGATION ===== */
+@media (max-width: 768px) {
+  .top-nav {
+    padding: 1rem;
+    gap: var(--space-md);
+  }
+
+  .nav-left {
+    gap: var(--space-md);
+    flex: 1; /* Take available space */
+  }
+
+  .nav-right {
+    gap: var(--space-sm); /* Reduce gap between elements on mobile */
+    flex-shrink: 0; /* Prevent shrinking */
+    align-items: center;
+  }
+
+  .nav-links {
+    margin-left: var(--space-md);
+  }
+
+  /* Hide nav text on mobile, keep icons */
+  .nav-text {
+    display: none;
+  }
+
+  .nav-link {
+    padding: var(--space-sm);
+    min-width: 40px;
+    justify-content: center;
+  }
+
+  /* Enhanced dark mode button for mobile */
+  .theme-toggle {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0;
+    transition: all 0.3s var(--animation-spring);
+  }
+
+  .theme-toggle i {
+    font-size: 1rem !important;
+    transition: all 0.3s var(--animation-smooth);
+  }
+  
+  .theme-toggle:hover {
+    background: var(--surface-hover);
+    color: var(--accent-primary);
+    transform: scale(1.05);
+  }
+  
+  .theme-toggle:hover i {
+    transform: scale(1.1);
+  }
+
+  /* Login button mobile optimization */
+  .login-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Compact user menu on mobile */
+  .user-menu {
+    flex-shrink: 0;
+  }
+
+  /* Ensure user menu trigger matches other nav buttons on mobile */
+  .user-menu-trigger {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.3s var(--animation-spring);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .user-menu-trigger i {
+    font-size: 1.1rem !important;
+    transition: all 0.3s var(--animation-smooth);
+  }
+  
+  .user-menu-trigger:hover {
+    background: var(--surface-hover);
+    color: var(--accent-primary);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .user-menu-trigger:hover i {
+    transform: scale(1.1);
+  }
+  
+  /* Add ripple effect for user menu trigger */
+  .user-menu-trigger::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: radial-gradient(
+      circle,
+      var(--accent-primary) 30%,
+      transparent 70%
+    );
+    transition: all 0.4s ease;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    opacity: 0;
+  }
+  
+  .user-menu-trigger:hover::before {
+    width: 120%;
+    height: 120%;
+    opacity: 0.1;
+  }
+
+  /* Enhanced dropdown positioning for mobile */
+  .user-dropdown {
+    width: 280px;
+    right: 0;
+    max-width: calc(100vw - 2rem);
+    /* Ensure dropdown doesn't overflow viewport */
+  }
+
+  .dropdown-header {
+    padding: var(--space-md);
+  }
+
+  /* Improve touch targets in dropdown */
+  .dropdown-item {
+    padding: var(--space-md) var(--space-lg);
+    min-height: 48px; /* WCAG AA minimum touch target */
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav {
+    padding: 0.75rem;
+  }
+
+  .nav-right {
+    gap: 0.5rem; /* Even smaller gap on very small screens */
+  }
+
+  /* Dark mode button - ensure it stays visible and functional but maintain desktop behavior */
+  .theme-toggle {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    transform-origin: center;
+  }
+  
+  .theme-toggle:hover {
+    transform: scale(1.05);
+  }
+
+  /* Login button - make more compact but still readable */
+  .login-btn {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8rem;
+  }
+
+  /* User dropdown - full width on very small screens */
+  .user-dropdown {
+    width: calc(100vw - 1.5rem);
+    right: -0.75rem;
+    left: 0.75rem;
+    /* Use viewport positioning for better mobile experience */
+  }
+
+  /* Larger touch targets for very small screens */
+  .dropdown-item {
+    padding: 1rem var(--space-lg);
+    min-height: 52px;
+    font-size: 0.9rem;
+  }
+
+  .dropdown-item i {
+    font-size: 1.1rem;
+    width: 24px;
+  }
+
+  /* Ensure avatar is touch-friendly but maintains desktop behavior */
+  .user-menu-trigger {
+    min-height: 44px; /* WCAG AA minimum */
+    min-width: 44px;
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+  
+  .user-menu-trigger:hover {
+    transform: scale(1.05);
+  }
+}
+
+/* ===== MOBILE DROPDOWN POSITIONING ENHANCEMENTS ===== */
+@media (max-width: 768px) {
+  /* Smart dropdown positioning to prevent overflow */
+  .user-dropdown {
+    /* Use dynamic positioning based on available space */
+    position: fixed;
+    top: auto;
+    bottom: auto;
+    /* JavaScript will handle dynamic positioning */
+  }
+
+  /* Ensure dropdown is always accessible on mobile */
+  .user-dropdown.position-above {
+    bottom: calc(100vh - var(--dropdown-trigger-bottom, 60px));
+    top: auto;
+    transform: translateY(10px);
+  }
+
+  .user-dropdown.position-above.active {
+    transform: translateY(0);
+  }
+
+  .user-dropdown.position-below {
+    top: calc(var(--dropdown-trigger-bottom, 60px));
+    bottom: auto;
+    transform: translateY(-10px);
+  }
+
+  .user-dropdown.position-below.active {
+    transform: translateY(0);
+  }
+
+  /* Add backdrop for mobile dropdown */
+  .user-dropdown.active::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: -1;
+    backdrop-filter: blur(2px);
+  }
+}
+
+/* ===== ENHANCED MOBILE DROPDOWN POSITIONING ===== */
+@media (max-width: 768px) {
+  /* Dynamic positioning support for smart mobile dropdown */
+  .user-dropdown.position-above {
+    transform: translateY(10px);
+    animation: slideUpIn 0.3s var(--animation-spring) forwards;
+  }
+
+  .user-dropdown.position-below {
+    transform: translateY(-10px);
+    animation: slideDownIn 0.3s var(--animation-spring) forwards;
+  }
+
+  .user-dropdown.position-above.active {
+    transform: translateY(0);
+  }
+
+  .user-dropdown.position-below.active {
+    transform: translateY(0);
+  }
+
+  /* Animations for smart positioning */
+  @keyframes slideUpIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideDownIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Add slide-out animations for smooth closing */
+  @keyframes slideUpOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+
+  @keyframes slideDownOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Apply close animations */
+  .user-dropdown.position-above:not(.active) {
+    animation: slideUpOut 0.3s var(--animation-spring) forwards;
+  }
+
+  .user-dropdown.position-below:not(.active) {
+    animation: slideDownOut 0.3s var(--animation-spring) forwards;
+  }
+
+  /* Improved backdrop blur for mobile with proper fade-out */
+  .user-dropdown.active::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.05);
+    z-index: -1;
+    backdrop-filter: blur(3px);
+    animation: fadeIn 0.3s ease forwards;
+  }
+
+  /* Add fade-out animation for smooth backdrop disappearance */
+  .user-dropdown:not(.active)::before {
+    animation: fadeOut 0.3s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+/* ===== IMPROVED TOUCH INTERACTION FEEDBACK ===== */
+@media (max-width: 768px) {
+  .dropdown-item {
+    /* Enhanced touch feedback */
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dropdown-item:active {
+    transform: scale(0.98);
+    background: var(--surface-hover);
+  }
+
+  /* Ripple effect for touch */
+  .dropdown-item::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(var(--accent-primary-rgb, 102, 126, 234), 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+    pointer-events: none;
+  }
+
+  .dropdown-item:active::after {
+    width: 200%;
+    height: 200%;
+  }
+}

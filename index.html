@@ -8,11 +8,17 @@
       http-equiv="Content-Security-Policy"
       content="
        default-src 'self';
-       script-src 'self' 'unsafe-eval' https://*.firebase.com https://*.firebaseapp.com;
-       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-       font-src 'self' https://fonts.gstatic.com;
+       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebase.com https://*.firebaseapp.com https://www.gstatic.com;
+       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://use.fontawesome.com;
+       font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://use.fontawesome.com;
        img-src 'self' data: https://*.googleusercontent.com;
-       connect-src 'self' https://*.firebase.com https://*.firebaseapp.com wss://*.firebaseio.com;
+       connect-src 'self' 
+         https://*.firebase.com 
+         https://*.firebaseapp.com 
+         https://securetoken.googleapis.com 
+         https://identitytoolkit.googleapis.com
+         https://*.googleapis.com
+         wss://*.firebaseio.com;
        frame-src 'none';
        object-src 'none';
        base-uri 'self';
@@ -32,13 +38,16 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
-    <!-- Add this to the <head> section of your index.html -->
+    <!-- Add Authentication CSS -->
+    <link rel="stylesheet" href="css/auth.css" />
+
+    <!-- Firebase Import Map for ES6 Modules -->
     <script type="importmap">
       {
         "imports": {
-          "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-          "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-          "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js"
         }
       }
     </script>
@@ -51,28 +60,70 @@
           <div class="logo">
             <span>MeetchuThere</span>
           </div>
+          <div class="nav-links">
+            <a href="./pages/friends.html" class="nav-link">
+              <i class="fas fa-users"></i>
+              <span class="nav-text">Friends</span>
+            </a>
+          </div>
         </div>
-        <div class="nav-center">
-          <a href="./pages/friends.html" class="nav-link">
-            <i class="fas fa-users"></i>
-            Friends
-          </a>
-          <a href="./pages/about.html" class="nav-link">
-            <i class="fas fa-info-circle"></i>
-            About Developer
-          </a>
-        </div>
+
         <div class="nav-right">
+          <!-- Dark Mode Toggle -->
           <button
             type="button"
             id="darkModeToggle"
             class="nav-button theme-toggle"
+            aria-label="Toggle dark mode"
           >
             <i class="fas fa-moon"></i>
           </button>
-          <button type="button" class="nav-button profile-btn">
-            <i class="fas fa-user-circle"></i>
+
+          <!-- Login Button (shown when not authenticated) -->
+          <button id="login-btn" class="btn btn-primary login-btn">
+            🎓 Join CampXus
           </button>
+
+          <!-- User Profile Menu (shown when authenticated) -->
+          <div class="user-menu" id="userMenu" style="display: none">
+            <button
+              type="button"
+              class="user-menu-trigger"
+              id="userMenuTrigger"
+              aria-expanded="false"
+              aria-label="User menu"
+              title="Open user menu"
+            >
+              <i class="fas fa-user-circle"></i>
+            </button>
+
+            <div class="user-dropdown" id="userDropdown">
+              <div class="dropdown-header">
+                <div class="user-avatar-large">
+                  <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-details">
+                  <strong class="user-name" id="userDropdownName"
+                    >John Doe</strong
+                  >
+                  <span class="user-email" id="userDropdownEmail"
+                    >john@university.edu</span
+                  >
+                </div>
+              </div>
+
+              <div class="dropdown-menu">
+                <a href="./pages/about.html" class="dropdown-item">
+                  <i class="fas fa-info-circle"></i>
+                  <span>About Developer</span>
+                </a>
+                <button type="button" class="dropdown-item" id="signOutBtn">
+                  <i class="fas fa-sign-out-alt"></i>
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </nav>
 
@@ -272,6 +323,41 @@
             This is a sample message.
           </p>
 
+          <!-- Add User Form Content (Hidden by default) -->
+          <div
+            id="addUserFormContent"
+            class="add-user-form-content"
+            style="display: none"
+          >
+            <div class="form-group">
+              <label for="userName">Name</label>
+              <div class="input-wrapper">
+                <i class="fas fa-user"></i>
+                <input
+                  type="text"
+                  id="userName"
+                  class="modal-input"
+                  placeholder="Enter your name"
+                  maxlength="50"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="userId">Student ID</label>
+              <div class="input-wrapper">
+                <i class="fas fa-id-card"></i>
+                <input
+                  type="text"
+                  id="userId"
+                  class="modal-input"
+                  placeholder="Enter your student ID"
+                  maxlength="20"
+                />
+              </div>
+            </div>
+          </div>
+
           <div
             id="modalActionButtons"
             class="modal-action-buttons"
@@ -292,7 +378,10 @@
       </div>
     </div>
 
-    <script type="module" src="./js/script.js"></script>
-    <script type="module" src="./js/menu.js"></script>
+    <!-- Load environment configuration for development -->
+    <script src="./js/firebase/config/env-config.js"></script>
+
+    <script type="module" src="./js/core/script.js"></script>
+    <script type="module" src="./js/core/menu.js"></script>
   </body>
 </html>

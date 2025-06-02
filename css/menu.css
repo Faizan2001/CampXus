@@ -220,6 +220,7 @@
   .theme-toggle:hover {
     transform: scale(1.03) !important;
   }
+  
 }
 
 @media (max-width: 480px) {
@@ -275,27 +276,30 @@
   }
 }
 
-/* ===== DARK MODE SPECIFIC ENHANCEMENTS ===== */
-.dark-mode .theme-toggle {
-  background: rgba(42, 45, 56, 0.9) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dark-mode .theme-toggle:hover {
-  background: rgba(42, 45, 56, 0.95) !important;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4) !important;
-}
-
-/* ===== LIGHT MODE SPECIFIC ENHANCEMENTS ===== */
+/* ===== CLEAN THEME TOGGLE DESIGN ===== */
+/* Remove background squares for cleaner appearance */
+.dark-mode .theme-toggle,
 body:not(.dark-mode) .theme-toggle {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(148, 163, 184, 0.3) !important;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
+.dark-mode .theme-toggle:hover,
 body:not(.dark-mode) .theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3) !important;
+  background: var(--surface-hover) !important;
+  border: none !important;
+  box-shadow: var(--shadow-glow) !important;
+  transform: scale(1.05);
+}
+
+/* Enhanced icon visibility and hover effects */
+.theme-toggle i {
+  transition: all 0.3s var(--animation-smooth);
+  color: var(--text-secondary);
+}
+
+.theme-toggle:hover i {
+  color: var(--accent-primary);
+  transform: scale(1.1);
 }
