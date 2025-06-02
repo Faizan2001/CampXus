@@ -262,22 +262,20 @@ This file contains all layout-related styles for the MeetchuThere app:
     width: 100%;
     margin-bottom: 0; /* Remove individual card margins if parent flex/grid has gap */
   }
-
 }
 
-  /* ===== WAVE GRADIENT ANIMATION ===== */
-  @keyframes waveGradient {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
+/* ===== WAVE GRADIENT ANIMATION ===== */
+@keyframes waveGradient {
+  0% {
+    background-position: 0% 50%;
   }
-
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
 
 /* ===== RESPONSIVE DESIGN RULES ===== */
 
@@ -993,13 +991,13 @@ This file contains all layout-related styles for the MeetchuThere app:
     font-size: 1rem !important;
     transition: all 0.3s var(--animation-smooth);
   }
-  
+
   .theme-toggle:hover {
     background: var(--surface-hover);
     color: var(--accent-primary);
     transform: scale(1.05);
   }
-  
+
   .theme-toggle:hover i {
     transform: scale(1.1);
   }
@@ -1034,18 +1032,18 @@ This file contains all layout-related styles for the MeetchuThere app:
     font-size: 1.1rem !important;
     transition: all 0.3s var(--animation-smooth);
   }
-  
+
   .user-menu-trigger:hover {
     background: var(--surface-hover);
     color: var(--accent-primary);
     transform: scale(1.05);
     box-shadow: var(--shadow-glow);
   }
-  
+
   .user-menu-trigger:hover i {
     transform: scale(1.1);
   }
-  
+
   /* Add ripple effect for user menu trigger */
   .user-menu-trigger::before {
     content: "";
@@ -1064,7 +1062,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     border-radius: 50%;
     opacity: 0;
   }
-  
+
   .user-menu-trigger:hover::before {
     width: 120%;
     height: 120%;
@@ -1107,7 +1105,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     height: 2.25rem !important;
     transform-origin: center;
   }
-  
+
   .theme-toggle:hover {
     transform: scale(1.05);
   }
@@ -1116,6 +1114,93 @@ This file contains all layout-related styles for the MeetchuThere app:
   .login-btn {
     padding: 0.625rem 0.875rem;
     font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav {
+    padding: 0.75rem;
+  }
+
+  .nav-right {
+    gap: 0.5rem; /* Even smaller gap on very small screens */
+  }
+
+  /* Dark mode button - ensure it stays visible and functional but maintain desktop behavior */
+  .theme-toggle {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    transform-origin: center;
+  }
+
+  .theme-toggle:hover {
+    transform: scale(1.05);
+  }
+
+  /* Login button - make more compact but still readable */
+  .login-btn {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ===== ULTRA-COMPACT SCREENS (iPhone 4 & smaller - 320px) ===== */
+@media (max-width: 325px) {
+  .top-nav {
+    padding: 0.5rem 0.625rem; /* Minimal padding for max space */
+    flex-wrap: nowrap !important; /* Prevent wrapping */
+  }
+
+  .nav-left {
+    gap: 0.5rem; /* Reduce gap around logo */
+    min-width: 0; /* Allow shrinking if needed */
+  }
+
+  .nav-right {
+    gap: 0.25rem !important; /* Minimal gap between buttons */
+    flex-shrink: 0; /* Prevent shrinking of controls */
+    align-items: center;
+  }
+
+  .logo span {
+    font-size: 0.875rem !important; /* Smaller logo text */
+    font-weight: 800; /* Keep it bold for visibility */
+  }
+
+  /* Ultra-compact theme toggle */
+  .theme-toggle {
+    width: 2rem !important;
+    height: 2rem !important;
+    flex-shrink: 0; /* Don't allow shrinking */
+  }
+
+  .theme-toggle i {
+    font-size: 0.75rem !important;
+  }
+
+  /* Ultra-compact login button with shorter text */
+  .login-btn {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0; /* Don't allow shrinking */
+    position: relative;
+    text-indent: -9999px; /* Hide original text */
+    max-width: 4.5rem; /* Limit width to fit */
+    overflow: hidden;
+  }
+
+  /* Show shorter text for ultra-compact screens */
+  .login-btn::before {
+    content: "🎓 Join";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-indent: 0;
+    color: white;
+    font-weight: 600;
+    font-size: 0.7rem;
   }
 
   /* User dropdown - full width on very small screens */
@@ -1145,7 +1230,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     width: 2.25rem !important;
     height: 2.25rem !important;
   }
-  
+
   .user-menu-trigger:hover {
     transform: scale(1.05);
   }

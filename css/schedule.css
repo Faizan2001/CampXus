@@ -161,8 +161,10 @@ This file contains all styles related to the schedule display:
   border: 1px solid var(--border);
   position: relative; /* For sticky positioning context */
   flex: 1; /* Take remaining space after header */
-  min-height: 300px; /* Minimum height for usability */
-  max-height: calc(100vh - 12rem); /* Dynamic height constraint */
+  min-height: 250px; /* Reduced minimum for better mobile scaling */
+  max-height: 70vh; /* Container-relative instead of viewport-relative */
+  padding: 0.5rem; /* Add consistent padding for gap management */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 /* Fix table layout and ensure proper column distribution */
@@ -171,74 +173,47 @@ This file contains all styles related to the schedule display:
   border-spacing: 0 !important;
   border-collapse: separate !important;
   width: 100% !important;
-  min-width: 900px; /* Minimum width for proper display */
+  min-width: 600px; /* Reduced from 900px for better scaling */
+  max-width: none; /* Allow natural expansion */
 }
 
 /* Ensure proper column sizing for time and day labels */
 .schedule-table th:first-child,
 .schedule-table .day-label {
-  width: 100px !important; /* Fixed width for time column */
-  min-width: 100px !important;
-  max-width: 100px !important;
+  width: 90px !important; /* Slightly reduced for better mobile fit */
+  min-width: 90px !important;
+  max-width: 90px !important;
 }
 
 .schedule-table th:not(:first-child):not(:last-child) {
-  width: calc(
-    (100% - 100px - 60px) / 6
-  ) !important; /* Default: Distribute remaining width among 6 slots */
-  min-width: 100px !important; /* Increased minimum width to prevent narrowing */
+  width: auto !important; /* Let columns distribute naturally */
+  min-width: 80px !important; /* Reduced minimum for better mobile support */
+  flex: 1; /* Equal distribution of available space */
+}
+
+.schedule-table th:last-child {
+  width: 50px !important; /* Slightly reduced for mobile */
+  min-width: 50px !important;
+  max-width: 50px !important;
 }
 
 /* ===== MANY SLOTS MODE OPTIMIZATION ===== */
-/* Override for compare mode with many slots - Enhanced for cross-browser compatibility */
-.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-  width: 90px !important; /* Fixed width for consistent display */
-  min-width: 90px !important; /* Strong minimum width enforcement */
-  max-width: 150px !important; /* Prevent excessive width */
-  box-sizing: border-box !important; /* Ensure padding is included in width */
-}
-
+/* Simplified many-slots mode with consistent scaling */
+.schedule-table.many-slots th:not(:first-child):not(:last-child),
 .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-  width: 90px !important; /* Fixed width for table cells */
-  min-width: 90px !important; /* Strong minimum width enforcement */
-  max-width: 150px !important; /* Prevent excessive width */
-  box-sizing: border-box !important; /* Ensure padding is included in width */
-  flex: none !important; /* Disable flex to ensure fixed width */
+  width: 75px !important; /* Consistent width for all screen sizes */
+  min-width: 75px !important;
+  max-width: 75px !important;
+  box-sizing: border-box !important;
+  flex: none !important;
 }
 
-/* Force table layout for better cross-browser consistency */
+/* Simplified table layout for many-slots mode */
 .schedule-table.many-slots {
   table-layout: fixed !important;
-  width: max-content !important;
+  width: auto !important; /* Let table size naturally */
   border-collapse: separate !important;
   border-spacing: 0 !important;
-}
-
-/* Enhanced specificity for table headers in many-slots mode */
-table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 150px !important;
-  box-sizing: border-box !important;
-  flex: none !important; /* Disable flex to ensure fixed width */
-}
-
-/* Enhanced specificity for table cells in many-slots mode */
-table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 150px !important;
-  box-sizing: border-box !important;
-  flex: none !important; /* Disable flex to ensure fixed width */
-}
-
-/* ===== CORE SCHEDULE TABLE & SLOT STYLING ===== */
-/* Base styling for schedule slots and table elements */
-
-.schedule-table th:last-child {
-  width: 60px !important;
-  min-width: 60px !important;
-  max-width: 60px !important;
 }
 
 /* Fix slot appearance and spacing - Enhanced visible borders */
@@ -372,12 +347,14 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   .schedule-wrapper {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 5px !important;
+    padding: 0.25rem !important; /* Reduced padding for more space */
+    min-height: 200px !important;
+    max-height: 60vh !important; /* Reduced for small screens */
   }
 
   /* Improve small mobile scale */
   .schedule-table {
-    min-width: 550px !important; /* Smaller minimum to show more columns */
+    min-width: 450px !important; /* Smaller minimum to show more columns */
     font-size: 0.65rem !important;
   }
 
@@ -385,6 +362,89 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
     font-size: 0.75rem;
     padding: 0.5rem 0.7rem;
     margin: 0.25rem 0;
+  }
+
+  /* Compact column widths for small screens */
+  .schedule-table th:first-child,
+  .schedule-table .day-label {
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
+  }
+
+  .schedule-table.many-slots th:not(:first-child):not(:last-child),
+  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 65px !important;
+    min-width: 65px !important;
+    max-width: 65px !important;
+  }
+
+  .schedule-table th:last-child {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+  }
+}
+
+/* ===== ULTRA-COMPACT SCREENS (iPhone 4 and similar) ===== */
+@media (max-width: 325px) {
+  .schedule-wrapper {
+    padding: 0.125rem !important; /* Minimal padding */
+    min-height: 180px !important;
+    max-height: 55vh !important;
+  }
+
+  .schedule-table {
+    min-width: 320px !important; /* Fit within iPhone 4 width */
+    font-size: 0.6rem !important;
+  }
+
+  /* Ultra-compact column sizes */
+  .schedule-table th:first-child,
+  .schedule-table .day-label {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+    font-size: 0.55rem !important;
+  }
+
+  .schedule-table.many-slots th:not(:first-child):not(:last-child),
+  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 55px !important;
+    min-width: 55px !important;
+    max-width: 55px !important;
+  }
+
+  .schedule-table th:last-child {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+  }
+
+  /* Extra compact slots */
+  .slot {
+    height: 2rem !important;
+    min-height: 2rem !important;
+    font-size: 0.55rem !important;
+  }
+
+  /* Compact schedule header for ultra-small screens */
+  .schedule-header {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .schedule-header h3 {
+    font-size: 1rem !important;
+  }
+
+  .add-user-header-btn {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .many-slots-note {
+    font-size: 0.7rem !important;
+    padding: 0.4rem 0.6rem !important;
   }
 }
 
@@ -404,40 +464,20 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
 
   /* Mobile-specific adjustments for proper containment */
   .schedule-section {
-    max-height: calc(100vh - 10rem); /* Adjust for mobile header/nav */
+    max-height: 75vh; /* Container-relative sizing */
   }
 
   .schedule-wrapper {
-    min-height: 250px; /* Smaller minimum on mobile */
-    max-height: calc(100vh - 14rem); /* Account for mobile interface elements */
+    min-height: 220px; /* Smaller minimum on mobile */
+    max-height: 65vh; /* Container-relative sizing */
   }
 
-  /* Force fixed widths on mobile for better compatibility */
-  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-    width: 85px !important;
-    min-width: 85px !important;
-    max-width: 100px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important; /* Force table-cell display */
-  }
-
-  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 85px !important;
-    min-width: 85px !important;
-    max-width: 100px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important; /* Force table-cell display */
-  }
-
-  /* Ensure slots maintain fixed width */
-  table.schedule-table.many-slots .slot {
-    width: 85px !important;
-    min-width: 85px !important;
-    max-width: 100px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
+  /* Simplified many-slots mode for tablets */
+  .schedule-table.many-slots th:not(:first-child):not(:last-child),
+  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
   }
 }
 
@@ -830,66 +870,6 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   flex: none !important; /* Disable flex to ensure fixed width */
 }
 
-/* Mobile-specific overrides for cross-browser compatibility */
-@media screen and (max-width: 768px) {
-  /* Force fixed widths on mobile for better compatibility */
-  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-    width: 85px !important;
-    min-width: 85px !important;
-    max-width: 100px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important; /* Force table-cell display */
-  }
-
-  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 85px !important;
-    min-width: 85px !important;
-    max-width: 100px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important; /* Force table-cell display */
-  }
-
-  /* Ensure slots maintain fixed width */
-  table.schedule-table.many-slots .slot {
-    width: 85px !important;
-    min-width: 85px !important;
-    max-width: 100px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-  }
-}
-
-/* Extra small screens - even more specific for problematic browsers */
-@media screen and (max-width: 480px) {
-  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 90px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important;
-  }
-
-  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 90px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important;
-  }
-
-  table.schedule-table.many-slots .slot {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 90px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-  }
-}
-
 /* WebKit-specific fixes for Chrome mobile rendering issues */
 @supports (-webkit-touch-callout: none) {
   table.schedule-table.many-slots th:not(:first-child):not(:last-child),
@@ -905,9 +885,9 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
 @media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
   table.schedule-table.many-slots th:not(:first-child):not(:last-child),
   table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 85px !important;
-    min-width: 85px !important;
-    flex-basis: 85px !important;
+    width: 75px !important; /* Use our simplified width from Edit 2 */
+    min-width: 75px !important;
+    flex-basis: 75px !important;
     flex-grow: 0 !important;
     flex-shrink: 0 !important;
   }
