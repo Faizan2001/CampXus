@@ -162,19 +162,41 @@ This file contains all styles related to the schedule display:
   position: relative; /* For sticky positioning context */
   flex: 1; /* Take remaining space after header */
   min-height: 250px; /* Reduced minimum for better mobile scaling */
-  max-height: 70vh; /* Container-relative instead of viewport-relative */
+  max-height: 100%; /* Container-relative instead of viewport-relative */
   padding: 0.5rem; /* Add consistent padding for gap management */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+
+   /* Explicitly set full width and manage box model */
+  width: 100%; /* Ensure wrapper takes full available width of its parent. */
+  box-sizing: border-box; /* Include padding and border in the element's total width and height. */
+  margin-inline: 0; /* Ensure no horizontal margins are pushing the element. */
 }
 
-/* Fix table layout and ensure proper column distribution */
+/*
+  Schedule Table Base Styles:
+  - 'table-layout: fixed': Ensures columns maintain consistent widths based on
+    the first row or <col> elements, preventing content from unexpectedly
+    stretching or shrinking columns. This is key for a predictable layout.
+  - 'width: 100%': Makes the table attempt to fill the width of its container
+    ('.schedule-wrapper').
+  - 'min-width': This is crucial for responsive behavior with wide tables.
+    When the '.schedule-wrapper' becomes narrower than this 'min-width' value,
+    the table itself stops shrinking and instead overflows horizontally.
+    The 'overflow-x: auto' on '.schedule-wrapper' then provides a scrollbar.
+    This base 'min-width' is adjusted in media queries for smaller screen sizes
+    to optimize viewing.
+  - 'border-collapse: separate' and 'border-spacing: 0': Used here likely to
+    control borders on individual cells/slots more precisely, especially with
+    your custom slot borders.
+*/
 .schedule-table {
-  table-layout: fixed !important; /* Consistent column widths */
-  border-spacing: 0 !important;
-  border-collapse: separate !important;
-  width: 100% !important;
-  min-width: 600px; /* Reduced from 900px for better scaling */
-  max-width: none; /* Allow natural expansion */
+   table-layout: fixed !important; /* Ensures consistent column widths; see block comment above for details. */
+  border-spacing: 0 !important; /* Used with border-collapse: separate to control cell spacing. */
+  border-collapse: separate !important; /* Allows individual borders on cells/slots, not collapsing them. */
+  width: 100% !important; /* Table width will be determined by its content, up to the container width. */
+  margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
+  min-width: 600px; /* Base minimum width. If container is narrower, table scrolls horizontally. Adjusted in media queries. */
+  max-width: none; /* Allows table to expand beyond min-width if content requires and container allows. */
 }
 
 /* Ensure proper column sizing for time and day labels */
@@ -198,22 +220,30 @@ This file contains all styles related to the schedule display:
 }
 
 /* ===== MANY SLOTS MODE OPTIMIZATION ===== */
-/* Simplified many-slots mode with consistent scaling */
+/*
+  When the .schedule-table has the .many-slots class, these rules apply
+  to optimize the layout for a large number of time slots.
+  The main strategy is to give day/time columns a fixed, narrower width
+  to prevent the table from becoming excessively wide.
+*/
+
+/* Consistent, fixed-width scaling for day/time header and data cells in many-slots mode. */
 .schedule-table.many-slots th:not(:first-child):not(:last-child),
 .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-  width: 75px !important; /* Consistent width for all screen sizes */
-  min-width: 75px !important;
-  max-width: 75px !important;
-  box-sizing: border-box !important;
-  flex: none !important;
+   width: 75px !important; /* Fixed width for these columns. */
+  min-width: 75px !important; /* Enforce the fixed width. */
+  max-width: 75px !important; /* Enforce the fixed width. */
+  box-sizing: border-box !important; /* Ensures padding/border are within the 75px. */
+  flex: none !important; /* Prevents flex-grow/shrink if table display were flex. */
 }
 
-/* Simplified table layout for many-slots mode */
+/* Table-level adjustments for many-slots mode. */
 .schedule-table.many-slots {
-  table-layout: fixed !important;
-  width: auto !important; /* Let table size naturally */
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
+  table-layout: fixed !important; /* Crucial for respecting the fixed column widths above. */
+  width: auto !important; /* Allows the table to size based on its content (the fixed-width columns), potentially triggering horizontal scroll. */
+  margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
+  border-collapse: separate !important; /* Consistent with base table styling. */
+  border-spacing: 0 !important; /* Consistent with base table styling. */
 }
 
 /* Fix slot appearance and spacing - Enhanced visible borders */
@@ -374,9 +404,9 @@ This file contains all styles related to the schedule display:
 
   .schedule-table.many-slots th:not(:first-child):not(:last-child),
   .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 65px !important;
-    min-width: 65px !important;
-    max-width: 65px !important;
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
   }
 
   .schedule-table th:last-child {
@@ -410,9 +440,9 @@ This file contains all styles related to the schedule display:
 
   .schedule-table.many-slots th:not(:first-child):not(:last-child),
   .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 55px !important;
-    min-width: 55px !important;
-    max-width: 55px !important;
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
   }
 
   .schedule-table th:last-child {
@@ -842,26 +872,39 @@ body:not(.dark-mode) .slot:hover {
 }
 
 /* ===== ENHANCED CROSS-BROWSER COMPATIBILITY FOR MANY SLOTS ===== */
-/* Specifically fixes issues with mobile Chrome (Pixel 9) not respecting min-width on table cells */
+/*
+  This section contains overrides and browser-specific rules to ensure
+  the .many-slots mode renders consistently, especially on mobile browsers
+  like Chrome, which can sometimes have quirks with table cell widths.
+  The `!important` flags are used more heavily here due to the need
+  to override base styles or other media query styles for specific browser behaviors.
+*/
 
-/* Force table layout for better cross-browser consistency */
+/* General override for .many-slots table layout to ensure consistency. */
+/* Using 'width: max-content' can help if 'width: auto' doesn't yield expected results in some browsers. */
 .schedule-table.many-slots {
-  table-layout: fixed !important;
-  width: max-content !important;
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
+  table-layout: fixed !important; /* Reinforce fixed layout. */
+  width: max-content !important; /* Table width will be the sum of its column widths. */
+  margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
+  border-collapse: separate !important; /* Maintain consistency. */
+  border-spacing: 0 !important; /* Maintain consistency. */
 }
 
-/* Enhanced specificity for table headers in many-slots mode */
+/*
+  Enhanced specificity (using `table.schedule-table.many-slots`) for day/time headers.
+  These widths (90px min, 150px max) seem to be an alternative attempt or
+  a specific fix for a scenario different from the general 75px fixed width.
+  It's important to test which set of widths is ultimately desired for .many-slots.
+*/
 table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-  width: 90px !important;
+ width: 90px !important;
   min-width: 90px !important;
-  max-width: 150px !important;
+  max-width: 150px !important; /* Allows some flexibility if 90px is too small. */
   box-sizing: border-box !important;
-  flex: none !important; /* Disable flex to ensure fixed width */
+  flex: none !important; /* Crucial for preventing flex behavior from interfering with fixed widths. */
 }
 
-/* Enhanced specificity for table cells in many-slots mode */
+/* Enhanced specificity for day/time data cells, mirroring the header overrides above. */
 table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   width: 90px !important;
   min-width: 90px !important;
@@ -870,26 +913,36 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   flex: none !important; /* Disable flex to ensure fixed width */
 }
 
-/* WebKit-specific fixes for Chrome mobile rendering issues */
+/*
+  WebKit-specific fixes (targets Safari, Chrome, and other WebKit-based browsers).
+  The `@supports (-webkit-touch-callout: none)` is a common way to target WebKit.
+  This ensures box-sizing and flex properties are applied correctly in these browsers.
+*/
 @supports (-webkit-touch-callout: none) {
   table.schedule-table.many-slots th:not(:first-child):not(:last-child),
   table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
     box-sizing: border-box !important;
-    -webkit-box-sizing: border-box !important;
+    -webkit-box-sizing: border-box !important; /* Explicitly for WebKit. */
     flex: none !important;
-    -webkit-flex: none !important;
+    -webkit-flex: none !important; /* Explicitly for WebKit. */
   }
 }
 
-/* Chrome-specific CSS targeting */
+/*
+  Chrome-specific CSS targeting.
+  This media query is a common hack to apply styles only to Google Chrome.
+  It seems to revert to the 75px fixed width for Chrome in .many-slots mode.
+  This suggests the 90px/150px rules above might be for other browsers or a fallback,
+  while Chrome gets the stricter 75px.
+*/
 @media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
   table.schedule-table.many-slots th:not(:first-child):not(:last-child),
   table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 75px !important; /* Use our simplified width from Edit 2 */
+    width: 75px !important; /* Reverting to the 75px fixed width specifically for Chrome. */
     min-width: 75px !important;
-    flex-basis: 75px !important;
-    flex-grow: 0 !important;
-    flex-shrink: 0 !important;
+    flex-basis: 75px !important; /* Explicit flex-basis for Chrome. */
+    flex-grow: 0 !important;   /* Ensure no growing. */
+    flex-shrink: 0 !important; /* Ensure no shrinking. */
   }
 }
 

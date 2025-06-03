@@ -49,6 +49,34 @@ export function _resetStateForTesting() {
 }
 
 /* ================================
+   UTILITY FUNCTIONS
+================================== */
+
+/**
+ * Detects if the user is on a mobile device or tablet.
+ * This helps us show appropriate UI elements only when needed.
+ * @returns {boolean} True if on mobile/tablet, false if on desktop
+ */
+function isMobileOrTablet() {
+  // Check for common mobile/tablet user agents
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+  // Check for mobile/tablet patterns in user agent
+  const mobileRegex =
+    /android|blackberry|iphone|ipad|ipod|opera mini|iemobile|wpdesktop/i;
+
+  // Also check screen width as a fallback (tablets/phones typically under 1024px)
+  const isSmallScreen = window.innerWidth <= 1024;
+
+  // Check for touch capability (mobile devices typically have touch)
+  const hasTouchScreen =
+    "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+  // Return true if any mobile indicators are present
+  return mobileRegex.test(userAgent) || (isSmallScreen && hasTouchScreen);
+}
+
+/* ================================
    CORE LOGIC FUNCTIONS (Data Manipulation)
 ================================== */
 export function createUserObject(name, userId, currentUsers) {
@@ -1599,8 +1627,11 @@ function renderScheduleGrid() {
     );
 
     // Add a helpful message to the schedule header if it exists
+    // Only show on mobile devices, not on desktop
     const scheduleHeader = document.querySelector(".schedule-header h3");
-    if (scheduleHeader && state.compareMode) {
+    const isMobileDevice = isMobileOrTablet();
+
+    if (scheduleHeader && state.compareMode && isMobileDevice) {
       const existingNote =
         scheduleHeader.parentNode.querySelector(".many-slots-note");
       if (!existingNote) {
@@ -1619,6 +1650,15 @@ function renderScheduleGrid() {
     scheduleTable.classList.remove("many-slots");
 
     // Remove the note if it exists
+    const existingNote = document.querySelector(".many-slots-note");
+    if (existingNote) {
+      existingNote.remove();
+    }
+  }
+
+  // Also remove the note if we're not in compare mode or not on mobile device
+  // This ensures cleanup when conditions change
+  if (!state.compareMode || !isMobileOrTablet()) {
     const existingNote = document.querySelector(".many-slots-note");
     if (existingNote) {
       existingNote.remove();
@@ -2655,7 +2695,6 @@ function setupEventListeners() {
    AUTHENTICATION UI MANAGEMENT
 ================================== */
 
-
 /**
  * Show UI for unauthenticated users
  */
@@ -2683,8 +2722,6 @@ function showUnauthenticatedUI() {
  */
 function showUserInfo(user) {
   console.log("👤 Showing user info for:", user.email);
-
-  
 
   // Add to navigation (instead of header)
   const navRight = document.querySelector(".nav-right");
@@ -2767,8 +2804,6 @@ async function initializeApp() {
 
   // Initialize authentication system
   await authManager.initialize();
-
-
 
   // Set up login button click handler
   const loginButton = document.getElementById("login-btn");

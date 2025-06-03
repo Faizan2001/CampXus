@@ -34,7 +34,9 @@ This file contains all layout-related styles for the MeetchuThere app:
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 2rem;
+  padding: 1rem clamp(1rem, 3vw, 2rem); /* Responsive horizontal padding */
+  width: 100%; /* Ensure full width coverage */
+  min-width: 0; /* Allow flex children to shrink properly */
 
   /* Glassmorphism Styling */
   background: var(--nav-bg);
@@ -48,15 +50,19 @@ This file contains all layout-related styles for the MeetchuThere app:
 .nav-right {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  gap: clamp(0.75rem, 2.5vw, 1.5rem); /* Responsive gap */
+  min-width: 0; /* Allow content to shrink */
 }
 
 .nav-left {
   flex: 1; /* Take up available space */
+  min-width: 0; /* Ensure proper text truncation */
+  max-width: calc(100% - 160px); /* Reserve space for nav-right */
 }
 
 .nav-right {
   flex-shrink: 0; /* Prevent shrinking on mobile */
+  gap: clamp(0.5rem, 2vw, 1rem); /* Smaller gap for mobile */
 }
 
 .nav-links {
@@ -231,36 +237,28 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   /* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
-  .main-content {
-    padding: 1rem; /* Base padding for mobile */
-    width: 100%;
-    max-width: 100%; /* Ensure it doesn't exceed viewport with box-sizing */
-    margin: 0 auto;
-  }
+  /* These .main-content and .content-grid rules will be moved from here */
 
-  .content-grid {
-    display: flex;
-    flex-direction: column; /* Mobile-first: single column */
-    gap: 1.5rem; /* Gap between schedule and controls stack */
+  .schedule-column,
+  .controls-column {
     width: 100%;
-  }
-
-  .schedule-column {
-    width: 100%;
+    max-width: 100%;
+    min-width: 0; /* Allow content to shrink */
   }
 
   .controls-column {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* Gap between individual control sections */
-    width: 100%;
+    gap: clamp(1rem, 3vw, 1.5rem); /* Responsive gap between control sections */
   }
 
-  /* Ensure all cards take full width of their parent column */
+  /* Ensure all cards take full width and respect container bounds */
   .controls-column .glass-card,
   .schedule-column .glass-card {
     width: 100%;
-    margin-bottom: 0; /* Remove individual card margins if parent flex/grid has gap */
+    max-width: 100%;
+    margin-bottom: 0; /* Remove individual card margins if parent has gap */
+    box-sizing: border-box;
   }
 }
 
@@ -277,48 +275,82 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 }
 
+/* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
+/* These rules are moved here to become base styles */
+.main-content {
+  padding: clamp(0.75rem, 3vw, 1.5rem); /* Responsive padding */
+  width: 100%;
+  max-width: 100vw; /* Never exceed viewport width */
+  margin: 0 auto;
+  box-sizing: border-box; /* Include padding in width calculation */
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+.content-grid {
+  display: flex;
+  flex-direction: column; /* Mobile-first: single column */
+  gap: clamp(1rem, 3vw, 1.5rem); /* Responsive gap */
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 /* ===== RESPONSIVE DESIGN RULES ===== */
 
 /* Mobile Navigation Responsiveness */
 @media (max-width: 768px) {
   .top-nav {
-    padding: 0.75rem 1rem; /* Reduce padding on mobile */
-    flex-wrap: wrap; /* Allow wrapping if needed */
+    padding: 0.75rem clamp(0.75rem, 3vw, 1.5rem); /* Consistent responsive padding */
+    flex-wrap: nowrap; /* Prevent wrapping to maintain layout */
   }
 
   .nav-center {
     display: none; /* Hide center navigation links on mobile */
   }
 
-  .nav-left,
+  .nav-left {
+    max-width: calc(100% - 120px); /* Reserve space for nav-right on mobile */
+  }
+
   .nav-right {
-    gap: var(--space-md); /* Reduce gap on mobile */
+    gap: clamp(0.5rem, 1.5vw, 0.75rem); /* Tighter gap on mobile */
   }
 
   .logo span {
-    font-size: 1.2rem; /* Slightly smaller logo text */
+    font-size: clamp(1rem, 4vw, 1.2rem); /* Fluid logo sizing */
   }
 
   .nav-button {
-    width: 2.2rem;
-    height: 2.2rem;
-    font-size: 0.9rem;
+    width: clamp(2rem, 6vw, 2.5rem);
+    height: clamp(2rem, 6vw, 2.5rem);
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   }
 }
 
 @media (max-width: 480px) {
   .top-nav {
-    padding: 0.5rem 0.75rem; /* Even smaller padding */
+    padding: 0.5rem clamp(0.5rem, 2.5vw, 1rem); /* Ultra-responsive padding */
+  }
+
+  .nav-left {
+    max-width: calc(
+      100% - 100px
+    ); /* More space for nav-right on small screens */
+  }
+
+  .nav-right {
+    gap: 0.375rem; /* Minimal gap for very small screens */
   }
 
   .logo span {
-    font-size: 1rem; /* Smaller logo for very small screens */
+    font-size: clamp(0.9rem, 4.5vw, 1.1rem); /* Smaller but readable logo */
   }
 
   .nav-button {
-    width: 2rem;
-    height: 2rem;
-    font-size: 0.8rem;
+    width: clamp(1.75rem, 5.5vw, 2.25rem);
+    height: clamp(1.75rem, 5.5vw, 2.25rem);
+    font-size: clamp(0.7rem, 2.2vw, 0.85rem);
+    padding: 0.25rem; /* Ensure minimum touch target */
   }
 
   /* Adjust spacing for main content on very small screens */
@@ -330,7 +362,24 @@ This file contains all layout-related styles for the MeetchuThere app:
 /* Larger Mobile / Small Tablet (e.g., > 550px) */
 @media (min-width: 550px) {
   .main-content {
-    padding: 1.5rem;
+    padding: clamp(1rem, 4vw, 1.5rem); /* More responsive padding */
+  }
+}
+
+/* ===== INTERMEDIATE TABLET LAYOUT (650px - 899px) ===== */
+/* Smooth transition between mobile and desktop */
+@media (min-width: 650px) and (max-width: 899px) {
+  .main-content {
+    padding: clamp(1.25rem, 4vw, 2rem);
+    max-width: 95vw; /* Slight margin from viewport edges */
+  }
+
+  .content-grid {
+    gap: clamp(1.25rem, 3vw, 2rem);
+  }
+
+  .glass-card {
+    padding: clamp(1.25rem, 4vw, 1.75rem);
   }
 }
 
@@ -340,14 +389,16 @@ This file contains all layout-related styles for the MeetchuThere app:
   .content-grid {
     display: flex !important;
     flex-direction: column !important;
-    gap: 1.5rem !important;
+    gap: clamp(1rem, 3vw, 1.5rem) !important;
     width: 100% !important;
+    max-width: 100% !important;
   }
 
   .schedule-column,
   .controls-column {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important; /* Allow content to shrink */
   }
 
   .controls-column {
@@ -502,19 +553,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     width: 100% !important;
   }
 
-  .schedule-wrapper {
-    /* Expand beyond parent container */
-    width: calc(
-      100vw - 3.5rem
-    ) !important; /* Full viewport minus small margin */
-    max-width: none !important;
-    margin-left: calc(
-      -1rem
-    ) !important; /* Negative margin to break out of padding */
-    margin-right: calc(-1rem) !important;
-    border-radius: var(--radius-xl) !important; /* Maintain border radius */
-  }
-
+  
   .schedule-column,
   .controls-column {
     width: 100% !important;
@@ -604,6 +643,12 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 /* ===== STANDARD DESKTOP LAYOUT (900px - 1599px) ===== */
 @media (min-width: 900px) {
+
+  .top-nav { /* Add this new ruleset */
+    width: 100%; /* Explicitly set full width for this breakpoint */
+    box-sizing: border-box; /* Ensures padding and border are included in the 100% width */
+  }
+
   .main-content {
     padding: 2rem; /* Restore desktop padding */
     max-width: none; /* Remove width constraint for full width */
