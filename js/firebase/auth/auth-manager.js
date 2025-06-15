@@ -13,11 +13,82 @@ import {
   getFriendlyEmailError,
 } from "./university-validator.js";
 
+/**
+ * Custom error class for authentication-related errors
+ * This helps us identify auth errors vs other types of errors
+ */
+class AuthError extends Error {
+  constructor(message, code = null) {
+    super(message);
+    this.name = "AuthError";
+    this.code = code;
+  }
+}
+
+/**
+ * Custom error class for form validation errors
+ * This helps us handle validation errors differently
+ */
+class ValidationError extends Error {
+  constructor(message, field = null) {
+    super(message);
+    this.name = "ValidationError";
+    this.field = field;
+  }
+}
+
 class AuthManager {
   constructor() {
     this.currentUser = null;
     this.authModal = null;
     this.authStateListeners = [];
+    // Simple auth event callbacks - much simpler than full event system
+    this.onSigninSuccess = null;
+    this.onSigninError = null;
+    this.onSignupSuccess = null;
+    this.onSignupError = null;
+  }
+
+  /**
+   * Set callback for successful sign in
+   * @param {function} callback - Function to call on successful sign in
+   */
+  setSigninSuccessCallback(callback) {
+    this.onSigninSuccess = callback;
+  }
+
+  /**
+   * Set callback for sign in errors
+   * @param {function} callback - Function to call on sign in error
+   */
+  setSigninErrorCallback(callback) {
+    this.onSigninError = callback;
+  }
+
+  /**
+   * Trigger signin success callback if set
+   */
+  triggerSigninSuccess(data) {
+    if (this.onSigninSuccess) {
+      try {
+        this.onSigninSuccess(data);
+      } catch (error) {
+        console.error("Error in signin success callback:", error);
+      }
+    }
+  }
+
+  /**
+   * Trigger signin error callback if set
+   */
+  triggerSigninError(data) {
+    if (this.onSigninError) {
+      try {
+        this.onSigninError(data);
+      } catch (error) {
+        console.error("Error in signin error callback:", error);
+      }
+    }
   }
 
   /**
@@ -180,7 +251,7 @@ class AuthManager {
     // Clear errors when user starts typing
     document.querySelectorAll(".form-input").forEach((input) => {
       input.addEventListener("input", () => {
-        this.clearFieldError(input);
+        clearFieldError(input); // Use external function
       });
     });
 
@@ -197,51 +268,6 @@ class AuthManager {
       closeBtn.addEventListener("click", () => {
         this.hideAuthModal();
       });
-    }
-  }
-
-  /**
-   * Switch between sign in and sign up tabs
-   */
-  switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll(".auth-tab").forEach((tab) => {
-      tab.classList.remove("active");
-    });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add("active");
-
-    // Update forms
-    document.querySelectorAll(".auth-form").forEach((form) => {
-      form.classList.remove("active");
-    });
-    document.getElementById(`${tabName}-form`).classList.add("active");
-
-    // Clear any errors
-    this.clearAllErrors();
-  }
-
-  /**
-   * Validate email in real-time as user types
-   */
-  validateEmailInRealTime(email) {
-    const universityInfo = document.getElementById("university-info");
-    const universityName = document.getElementById("university-name");
-    const universityDomain = document.getElementById("university-domain");
-
-    if (!email) {
-      universityInfo.classList.remove("visible");
-      return;
-    }
-
-    const validation = validateUniversityEmail(email);
-
-    if (validation) {
-      // Show university info
-      universityName.textContent = validation.name;
-      universityDomain.textContent = `✅ ${validation.domain}`;
-      universityInfo.classList.add("visible");
-    } else {
-      universityInfo.classList.remove("visible");
     }
   }
 
@@ -269,7 +295,7 @@ class AuthManager {
     }
 
     // Show loading state
-    this.setLoadingState(button, true);
+    setLoadingState(button, true); // Use external function
 
     try {
       // Sign in with Firebase
@@ -288,15 +314,19 @@ class AuthManager {
         );
         console.log("🎉 Successfully signed in! (Development email bypass)");
         this.hideAuthModal();
+        // Call success callback if set
+        this.triggerSigninSuccess({ user, isDevelopment: true });
         return;
       }
 
       // For production emails, check Firebase Auth's built-in emailVerified
       if (!user.emailVerified) {
         // Sign out the user immediately since they're not verified
+        // This prevents them from being considered "signed in" even briefly
         await signOut(auth);
-        throw new Error(
-          "Please verify your email before signing in. Check your inbox. 📧"
+        throw new AuthError(
+          "Please verify your email before signing in. Check your inbox. 📧",
+          "email-not-verified"
         );
       }
 
@@ -305,11 +335,15 @@ class AuthManager {
         "🎉 Successfully signed in! (Firebase Auth emailVerified check passed)"
       );
       this.hideAuthModal();
+      // Call success callback if set
+      this.triggerSigninSuccess({ user, isDevelopment: false });
     } catch (error) {
       console.error("Sign in error:", error);
-      this.showFormError("signin-form", this.getReadableError(error));
+      showFormError("signin-form", this.getReadableError(error)); // Use external function
+      // Call error callback if set
+      this.triggerSigninError({ error, email });
     } finally {
-      this.setLoadingState(button, false);
+      setLoadingState(button, false); // Use external function
     }
   }
 
@@ -330,7 +364,7 @@ class AuthManager {
     }
 
     // Show loading state
-    this.setLoadingState(button, true);
+    setLoadingState(button, true); // Use external function
 
     try {
       // Create user account
@@ -356,12 +390,14 @@ class AuthManager {
 
       // Show appropriate success message
       if (this.isDevelopmentEmail(email)) {
-        this.showFormSuccess(
+        showFormSuccess(
+          // Use external function
           "signup-form",
           "🔧 Development account created! You can sign in immediately."
         );
       } else {
-        this.showFormSuccess(
+        showFormSuccess(
+          // Use external function
           "signup-form",
           "🎉 Account created! Check your email to verify your account, then sign in."
         );
@@ -372,9 +408,9 @@ class AuthManager {
       }, 2000);
     } catch (error) {
       console.error("Sign up error:", error);
-      this.showFormError("signup-form", this.getReadableError(error));
+      showFormError("signup-form", this.getReadableError(error)); // Use external function
     } finally {
-      this.setLoadingState(button, false);
+      setLoadingState(button, false); // Use external function
     }
   }
 
@@ -401,36 +437,54 @@ class AuthManager {
 
   /**
    * Set up Firebase auth state listener
+   * This is the security guard that watches for auth changes
    */
   setupAuthStateListener() {
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       this.currentUser = user;
 
       if (user) {
-        console.log("👋 User signed in:", user.email);
-        this.updateUserLastActive();
+        // Check if user should be allowed access
+        const isAllowed = this.isUserAllowed(user);
 
-        // Check if user is verified or is a development email
-        if (this.isDevelopmentEmail(user.email)) {
-          console.log("🔧 Development email detected - allowing access");
-          // Notify all listeners that user is authenticated
-          this.authStateListeners.forEach((listener) => listener(user));
-        } else if (user.emailVerified) {
-          console.log("✅ Email verified - allowing access");
-          // Notify all listeners that user is authenticated
-          this.authStateListeners.forEach((listener) => listener(user));
+        if (isAllowed) {
+          console.log("✅ User allowed access:", user.email);
+          this.updateUserLastActive();
+          this.notifyAuthStateChange(user);
         } else {
-          console.log("❌ Email not verified - keeping user in auth flow");
-          // Don't notify listeners - this keeps the auth modal open
-          // and prevents the rest of the app from thinking user is authenticated
-          this.showAuthModal();
+          console.log("❌ User not allowed - signing out:", user.email);
+          await this.handleUnverifiedUser();
         }
       } else {
         console.log("👋 User signed out");
-        // Notify all listeners that user is signed out
-        this.authStateListeners.forEach((listener) => listener(null));
+        this.notifyAuthStateChange(null);
       }
     });
+  }
+
+  /**
+   * Check if user should be allowed access
+   * @param {Object} user - Firebase user object
+   * @returns {boolean} - True if user is allowed
+   */
+  isUserAllowed(user) {
+    return this.isDevelopmentEmail(user.email) || user.emailVerified;
+  }
+
+  /**
+   * Handle unverified users by signing them out
+   */
+  async handleUnverifiedUser() {
+    await signOut(auth);
+    this.showAuthModal();
+  }
+
+  /**
+   * Notify all listeners about auth state change
+   * @param {Object|null} user - User object or null
+   */
+  notifyAuthStateChange(user) {
+    this.authStateListeners.forEach((listener) => listener(user));
   }
 
   /**
@@ -471,6 +525,9 @@ class AuthManager {
     }
   }
 
+  // ===== UI HELPER METHODS =====
+  // All methods that deal with showing/hiding UI elements
+
   /**
    * Show authentication modal
    */
@@ -487,11 +544,57 @@ class AuthManager {
     if (this.authModal) {
       this.authModal.classList.remove("active");
       document.body.style.overflow = "";
-      this.clearAllErrors();
+      clearAllErrors(); // Use external function
     }
   }
 
-  // Validation and UI Helper Methods
+  /**
+   * Switch between sign in and sign up tabs
+   */
+  switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll(".auth-tab").forEach((tab) => {
+      tab.classList.remove("active");
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add("active");
+
+    // Update forms
+    document.querySelectorAll(".auth-form").forEach((form) => {
+      form.classList.remove("active");
+    });
+    document.getElementById(`${tabName}-form`).classList.add("active");
+
+    // Clear any errors
+    clearAllErrors(); // Use external function
+  }
+
+  /**
+   * Validate email in real-time as user types
+   */
+  validateEmailInRealTime(email) {
+    const universityInfo = document.getElementById("university-info");
+    const universityName = document.getElementById("university-name");
+    const universityDomain = document.getElementById("university-domain");
+
+    if (!email) {
+      universityInfo.classList.remove("visible");
+      return;
+    }
+
+    const validation = validateUniversityEmail(email);
+
+    if (validation) {
+      // Show university info
+      universityName.textContent = validation.name;
+      universityDomain.textContent = `✅ ${validation.domain}`;
+      universityInfo.classList.add("visible");
+    } else {
+      universityInfo.classList.remove("visible");
+    }
+  }
+
+  // ===== VALIDATION METHODS =====
+  // All methods that validate user input
 
   /**
    * Validate sign in form
@@ -502,7 +605,8 @@ class AuthManager {
     // Validate email
     const emailValidation = validateUniversityEmail(email);
     if (!emailValidation) {
-      this.showFieldError(
+      showFieldError(
+        // Use external function
         document.getElementById("signin-email"),
         getFriendlyEmailError(email)
       );
@@ -511,7 +615,8 @@ class AuthManager {
 
     // Validate password
     if (!password) {
-      this.showFieldError(
+      showFieldError(
+        // Use external function
         document.getElementById("signin-password"),
         "Please enter your password 🔒"
       );
@@ -530,7 +635,8 @@ class AuthManager {
     // Validate email
     const emailValidation = validateUniversityEmail(email);
     if (!emailValidation) {
-      this.showFieldError(
+      showFieldError(
+        // Use external function
         document.getElementById("signup-email"),
         getFriendlyEmailError(email)
       );
@@ -539,13 +645,15 @@ class AuthManager {
 
     // Validate password
     if (!password) {
-      this.showFieldError(
+      showFieldError(
+        // Use external function
         document.getElementById("signup-password"),
         "Please choose a password 🔒"
       );
       isValid = false;
     } else if (password.length < 6) {
-      this.showFieldError(
+      showFieldError(
+        // Use external function
         document.getElementById("signup-password"),
         "Password must be at least 6 characters long 📏"
       );
@@ -554,7 +662,8 @@ class AuthManager {
 
     // Validate password confirmation
     if (password !== confirmPassword) {
-      this.showFieldError(
+      showFieldError(
+        // Use external function
         document.getElementById("signup-confirm-password"),
         "Passwords don't match 🔄"
       );
@@ -564,83 +673,8 @@ class AuthManager {
     return isValid;
   }
 
-  /**
-   * Show error for a specific field
-   */
-  showFieldError(input, message) {
-    input.classList.add("error");
-    const errorEl = input.parentNode.querySelector(".form-error");
-    if (errorEl) {
-      errorEl.textContent = message;
-      errorEl.classList.add("show");
-    }
-  }
-
-  /**
-   * Clear error for a specific field
-   */
-  clearFieldError(input) {
-    input.classList.remove("error", "success");
-    const errorEl = input.parentNode.querySelector(".form-error");
-    if (errorEl) {
-      errorEl.classList.remove("show");
-    }
-  }
-
-  /**
-   * Show form-level error message
-   */
-  showFormError(formId, message) {
-    let errorDiv = document.querySelector(`#${formId} .error-message`);
-    if (!errorDiv) {
-      errorDiv = document.createElement("div");
-      errorDiv.className = "error-message";
-      document
-        .getElementById(formId)
-        .insertBefore(errorDiv, document.getElementById(formId).firstChild);
-    }
-    errorDiv.textContent = message;
-  }
-
-  /**
-   * Show form-level success message
-   */
-  showFormSuccess(formId, message) {
-    let successDiv = document.querySelector(`#${formId} .success-message`);
-    if (!successDiv) {
-      successDiv = document.createElement("div");
-      successDiv.className = "success-message";
-      document
-        .getElementById(formId)
-        .insertBefore(successDiv, document.getElementById(formId).firstChild);
-    }
-    successDiv.textContent = message;
-  }
-
-  /**
-   * Clear all errors and messages
-   */
-  clearAllErrors() {
-    // Clear field errors
-    document.querySelectorAll(".form-input").forEach((input) => {
-      this.clearFieldError(input);
-    });
-
-    // Clear form messages
-    document
-      .querySelectorAll(".error-message, .success-message")
-      .forEach((msg) => {
-        msg.remove();
-      });
-  }
-
-  /**
-   * Set loading state for buttons
-   */
-  setLoadingState(button, isLoading) {
-    button.classList.toggle("loading", isLoading);
-    button.disabled = isLoading;
-  }
+  // ===== UTILITY METHODS =====
+  // Helper methods for various tasks
 
   /**
    * Convert Firebase error codes to friendly messages
@@ -677,8 +711,112 @@ class AuthManager {
   }
 }
 
+// ===== UI HELPER FUNCTIONS =====
+// These functions handle UI manipulation and are separate from authentication logic
+
+/**
+ * Show error for a specific field
+ * @param {HTMLElement} input - The input element
+ * @param {string} message - Error message to show
+ */
+function showFieldError(input, message) {
+  input.classList.add("error");
+  const errorEl = input.parentNode.querySelector(".form-error");
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.classList.add("show");
+  }
+}
+
+/**
+ * Clear error for a specific field
+ * @param {HTMLElement} input - The input element
+ */
+function clearFieldError(input) {
+  input.classList.remove("error", "success");
+  const errorEl = input.parentNode.querySelector(".form-error");
+  if (errorEl) {
+    errorEl.classList.remove("show");
+  }
+}
+
+/**
+ * Show form-level error message
+ * @param {string} formId - ID of the form
+ * @param {string} message - Error message to show
+ */
+function showFormError(formId, message) {
+  let errorDiv = document.querySelector(`#${formId} .error-message`);
+  if (!errorDiv) {
+    errorDiv = document.createElement("div");
+    errorDiv.className = "error-message";
+    document
+      .getElementById(formId)
+      .insertBefore(errorDiv, document.getElementById(formId).firstChild);
+  }
+  errorDiv.textContent = message;
+}
+
+/**
+ * Show form-level success message
+ * @param {string} formId - ID of the form
+ * @param {string} message - Success message to show
+ */
+function showFormSuccess(formId, message) {
+  let successDiv = document.querySelector(`#${formId} .success-message`);
+  if (!successDiv) {
+    successDiv = document.createElement("div");
+    successDiv.className = "success-message";
+    document
+      .getElementById(formId)
+      .insertBefore(successDiv, document.getElementById(formId).firstChild);
+  }
+  successDiv.textContent = message;
+}
+
+/**
+ * Clear all errors and messages from forms
+ */
+function clearAllErrors() {
+  // Clear field errors
+  document.querySelectorAll(".form-input").forEach((input) => {
+    clearFieldError(input);
+  });
+
+  // Clear form messages
+  document
+    .querySelectorAll(".error-message, .success-message")
+    .forEach((msg) => {
+      msg.remove();
+    });
+}
+
+/**
+ * Set loading state for buttons
+ * @param {HTMLElement} button - The button element
+ * @param {boolean} isLoading - Whether to show loading state
+ */
+function setLoadingState(button, isLoading) {
+  button.classList.toggle("loading", isLoading);
+  button.disabled = isLoading;
+}
+
 // Create and export global auth manager instance
 export const authManager = new AuthManager();
 
 // Expose auth manager to window for inline handlers
 window.authManager = authManager;
+
+// Example: How to use the simple callback system (much easier!)
+// authManager.setSigninSuccessCallback((data) => {
+//   console.log('User signed in:', data.user);
+//   if (data.isDevelopment) {
+//     console.log('This was a development email');
+//   }
+//   // Maybe redirect to dashboard or show welcome message
+// });
+//
+// authManager.setSigninErrorCallback((data) => {
+//   console.log('Sign in failed:', data.error.message);
+//   // Maybe show user-friendly error or send to analytics
+// });
