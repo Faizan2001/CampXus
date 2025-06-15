@@ -2778,6 +2778,38 @@ function disableScheduleFeatures() {
 }
 
 /* ================================
+   PROFILE SET UP
+================================== */
+
+// Add this to your dashboard.js
+function checkProfileCompletion() {
+  firebase.auth().onAuthStateChanged(async (user) => {
+    if (user) {
+      try {
+        const userDoc = await firebase
+          .firestore()
+          .collection("users")
+          .doc(user.uid)
+          .get();
+
+        if (!userDoc.exists || !userDoc.data().profileSetupComplete) {
+          // Use profileSetupComplete
+          // Redirect to profile setup
+          window.location.href = "pages/profile-setup.html"; // Corrected path
+        }
+      } catch (error) {
+        console.error("Error checking profile:", error);
+        // Optionally, redirect to an error page or show a message
+        // For now, if there's an error, we don't redirect, allowing the app to load partially
+        // or the user to stay on the current page.
+        // Consider if a redirect to profile-setup.html is a safe fallback here too:
+        // window.location.href = "pages/profile-setup.html";
+      }
+    }
+  });
+}
+
+/* ================================
    INITIALIZATION
 ================================== */
 async function initializeApp() {
@@ -2819,6 +2851,9 @@ async function initializeApp() {
 
   updateUI();
   console.log("✅ CampXus loaded successfully!");
+
+  // Call this when dashboard loads
+  checkProfileCompletion();
 }
 
 /**

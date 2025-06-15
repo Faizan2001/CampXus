@@ -6,7 +6,7 @@ import {
   sendEmailVerification,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"; // Added getDoc
 import { auth, db } from "../config/firebase-config.js";
 import {
   validateUniversityEmail,
@@ -63,7 +63,7 @@ class AuthManager {
                   type="email" 
                   id="signin-email" 
                   class="form-input"
-                  placeholder="your.name@iub.edu.bd"
+                  placeholder="yourID@university.edu.bd"
                   required
                 />
                 <div class="form-error"></div>
@@ -100,7 +100,7 @@ class AuthManager {
                   type="email" 
                   id="signup-email" 
                   class="form-input"
-                  placeholder="your.name@iub.edu.bd"
+                  placeholder="yourID@university.edu.bd"
                   required
                 />
                 <div class="form-error"></div>
@@ -246,6 +246,16 @@ class AuthManager {
   }
 
   /**
+   * Check if email is a development email for testing purposes
+   * @param {string} email - Email to check
+   * @returns {boolean} - True if development email
+   */
+  isDevelopmentEmail(email) {
+    const devPatterns = ["dev", "test", "fake", "demo"];
+    return devPatterns.some((pattern) => email.toLowerCase().includes(pattern));
+  }
+
+  /**
    * Handle sign in form submission
    */
   async handleSignIn() {
@@ -268,19 +278,36 @@ class AuthManager {
         email,
         password
       );
+      const user = userCredential.user;
 
-      // Check if email is verified
-      if (!userCredential.user.emailVerified) {
+      // Check if this is a development email
+      if (this.isDevelopmentEmail(email)) {
+        console.log(
+          "🔧 Development mode: Bypassing email verification for:",
+          email
+        );
+        console.log("🎉 Successfully signed in! (Development email bypass)");
+        this.hideAuthModal();
+        return;
+      }
+
+      // For production emails, check Firebase Auth's built-in emailVerified
+      if (!user.emailVerified) {
+        // Sign out the user immediately since they're not verified
+        await signOut(auth);
         throw new Error(
-          "Please verify your email before signing in. Check your inbox! 📧"
+          "Please verify your email before signing in. Check your inbox. 📧"
         );
       }
 
-      console.log("🎉 Successfully signed in!");
+      // If Firebase Auth's emailVerified is true, proceed
+      console.log(
+        "🎉 Successfully signed in! (Firebase Auth emailVerified check passed)"
+      );
       this.hideAuthModal();
     } catch (error) {
       console.error("Sign in error:", error);
-      this.showFormError("signin-form", this.getReadableError(error.message));
+      this.showFormError("signin-form", this.getReadableError(error));
     } finally {
       this.setLoadingState(button, false);
     }
@@ -314,24 +341,38 @@ class AuthManager {
       );
       const user = userCredential.user;
 
-      // Send email verification
-      await sendEmailVerification(user);
+      // Check if this is a development email
+      if (this.isDevelopmentEmail(email)) {
+        console.log("🔧 Development mode: Auto-verifying email for:", email);
+        // For development emails, we'll skip sending verification email
+        // Firebase Auth will still show emailVerified as false, but our sign-in logic bypasses it
+      } else {
+        // For production emails, send verification email
+        await sendEmailVerification(user);
+      }
 
-      // Create user profile in Firestore
+      // Create user profile in Firestore (removed emailVerified field)
       await this.createUserProfile(user, email);
 
-      // Show success message and switch to sign in
-      this.showFormSuccess(
-        "signup-form",
-        "🎉 Account created! Check your email to verify your account, then sign in."
-      );
+      // Show appropriate success message
+      if (this.isDevelopmentEmail(email)) {
+        this.showFormSuccess(
+          "signup-form",
+          "🔧 Development account created! You can sign in immediately."
+        );
+      } else {
+        this.showFormSuccess(
+          "signup-form",
+          "🎉 Account created! Check your email to verify your account, then sign in."
+        );
+      }
 
       setTimeout(() => {
         this.switchTab("signin");
       }, 2000);
     } catch (error) {
       console.error("Sign up error:", error);
-      this.showFormError("signup-form", this.getReadableError(error.message));
+      this.showFormError("signup-form", this.getReadableError(error));
     } finally {
       this.setLoadingState(button, false);
     }
@@ -351,8 +392,7 @@ class AuthManager {
       status: "offline",
       createdAt: serverTimestamp(),
       lastActive: serverTimestamp(),
-      emailVerified: false,
-      profileSetupComplete: false,
+      profileSetupComplete: false, // Removed emailVerified field
     };
 
     await setDoc(doc(db, "users", user.uid), userProfile);
@@ -369,12 +409,27 @@ class AuthManager {
       if (user) {
         console.log("👋 User signed in:", user.email);
         this.updateUserLastActive();
+
+        // Check if user is verified or is a development email
+        if (this.isDevelopmentEmail(user.email)) {
+          console.log("🔧 Development email detected - allowing access");
+          // Notify all listeners that user is authenticated
+          this.authStateListeners.forEach((listener) => listener(user));
+        } else if (user.emailVerified) {
+          console.log("✅ Email verified - allowing access");
+          // Notify all listeners that user is authenticated
+          this.authStateListeners.forEach((listener) => listener(user));
+        } else {
+          console.log("❌ Email not verified - keeping user in auth flow");
+          // Don't notify listeners - this keeps the auth modal open
+          // and prevents the rest of the app from thinking user is authenticated
+          this.showAuthModal();
+        }
       } else {
         console.log("👋 User signed out");
+        // Notify all listeners that user is signed out
+        this.authStateListeners.forEach((listener) => listener(null));
       }
-
-      // Notify all listeners
-      this.authStateListeners.forEach((listener) => listener(user));
     });
   }
 
@@ -590,26 +645,35 @@ class AuthManager {
   /**
    * Convert Firebase error codes to friendly messages
    */
-  getReadableError(errorMessage) {
+  getReadableError(error) {
+    // Changed parameter from errorMessage to error
     const errorMap = {
       "auth/user-not-found": "No account found with this email address 🔍",
       "auth/wrong-password": "Incorrect password. Please try again 🔑",
-      "auth/email-already-in-use":
-        "An account with this email already exists 📧",
+      "auth/invalid-credential":
+        "Incorrect email or password. Please try again.", // Added this line
+      "auth/email-already-in-use": "An account with this email already exists",
       "auth/weak-password":
-        "Password is too weak. Please choose a stronger one 💪",
-      "auth/invalid-email": "Invalid email address format 📧",
+        "Password is too weak. Please choose a stronger one",
+      "auth/invalid-email": "Invalid email address format",
       "auth/too-many-requests":
-        "Too many failed attempts. Please try again later ⏰",
+        "Too many failed attempts. Please try again later",
+      // Add other common Firebase Auth error codes here if needed
     };
 
-    for (const [code, message] of Object.entries(errorMap)) {
-      if (errorMessage.includes(code)) {
-        return message;
-      }
+    // Check if the error object and its code property exist, and if the code is in our map
+    if (error && error.code && errorMap[error.code]) {
+      return errorMap[error.code];
     }
 
-    return errorMessage;
+    // If no specific mapping by code, fallback to the error's message property
+    // This handles custom new Error("message") and unmapped Firebase errors
+    if (error && error.message) {
+      return error.message;
+    }
+
+    // If all else fails, return a generic error message
+    return "An unexpected error occurred. Please try again. 🛠️";
   }
 }
 

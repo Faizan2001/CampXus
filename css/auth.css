@@ -31,9 +31,11 @@
   width: 100%;
   max-width: 400px;
   max-height: 90vh;
-  overflow: hidden;
+  overflow: hidden; /* Kept to ensure container itself doesn't scroll and respects border-radius */
   transform: translateY(20px) scale(0.95);
   transition: all 0.3s ease;
+  display: flex; /* Added */
+  flex-direction: column; /* Added */
 }
 
 .auth-modal.active .auth-container {
@@ -88,6 +90,8 @@
 /* Form Container */
 .auth-body {
   padding: 2rem;
+  overflow-y: auto; /* Added */
+  flex-grow: 1; /* Added */
 }
 
 .auth-form {
