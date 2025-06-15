@@ -1,12 +1,13 @@
-// CampXus Profile Setup - Simple Firebase Implementation
+// CampXus Profile Setup - Simple Standalone Implementation
 class ProfileSetup {
   constructor() {
     this.currentStep = 0;
-    this.totalSteps = 3; // Corresponds to 3 steps: Basic Info, Profile Pic/Bio, Preferences
+    this.totalSteps = 3; // Basic Info, Profile Pic/Bio, Preferences
     this.currentUser = null;
     this.profileData = {};
     this.profilePictureFile = null;
 
+    // Initialize the setup
     this.checkAuthentication();
   }
 
@@ -14,55 +15,35 @@ class ProfileSetup {
     firebase.auth().onAuthStateChanged((user) => {
       if (user) {
         this.currentUser = user;
-        this.checkIfProfileComplete();
+        console.log("✅ User authenticated:", user.email);
+        this.initializeSetup();
       } else {
-        // If not authenticated, redirect to the main page which should handle login
-        window.location.href = "../index.html"; // Adjusted path
+        // Redirect to main app if not authenticated
+        console.log("❌ No user authenticated, redirecting...");
+        window.location.href = "../index.html";
       }
     });
   }
 
-  async checkIfProfileComplete() {
-    try {
-      const userDoc = await firebase
-        .firestore()
-        .collection("users")
-        .doc(this.currentUser.uid)
-        .get();
+  initializeSetup() {
+    console.log("🎯 Initializing profile setup...");
 
-      if (userDoc.exists) {
-        const userData = userDoc.data();
-        if (userData.profileSetupComplete) {
-          // Changed from profileComplete
-          // If profile is complete, redirect to dashboard (assuming dashboard.html is in root)
-          window.location.href = "../index.html"; // Or your main dashboard page
-          return;
-        }
-      }
-      // If profile doesn't exist or is not complete, show the setup wizard
-      this.showSetupWizard();
-    } catch (error) {
-      console.error("Error checking profile:", error);
-      // Fallback to showing setup wizard in case of error
-      this.showSetupWizard();
-    }
-  }
-
-  showSetupWizard() {
-    const overlay = document.getElementById("profile-setup-overlay");
-    if (overlay) {
-      overlay.classList.add("active");
-    }
-
+    // Pre-fill email
     const emailInput = document.getElementById("setup-email");
     if (emailInput && this.currentUser) {
       emailInput.value = this.currentUser.email;
+      console.log("✅ Email populated:", this.currentUser.email);
     }
 
+    // Setup all event listeners
     this.setupEventListeners();
-    this.updateStepDisplay(); // Call this to set initial button states
+
+    // Initialize display and validation
+    this.updateStepDisplay();
     this.updateProgress();
-    this.validateCurrentStep(); // And validate to set initial button text/state
+    this.validateCurrentStep();
+
+    console.log("✅ Profile setup initialized");
   }
 
   setupEventListeners() {
@@ -72,8 +53,16 @@ class ProfileSetup {
     const pictureUpload = document.getElementById("profile-picture-upload");
     const bioInput = document.getElementById("setup-bio");
 
+    console.log("🔗 Setting up event listeners...");
+    console.log("Next button found:", !!nextBtn);
+    console.log("Previous button found:", !!prevBtn);
+    console.log("Skip button found:", !!skipBtn);
+
     if (nextBtn) {
-      nextBtn.addEventListener("click", () => this.nextStep());
+      nextBtn.addEventListener("click", () => {
+        console.log("🖱️ Next button clicked");
+        this.nextStep();
+      });
     }
     if (prevBtn) {
       prevBtn.addEventListener("click", () => this.prevStep());
@@ -122,33 +111,37 @@ class ProfileSetup {
     const nextBtn = document.getElementById("setup-next-btn");
     if (!nextBtn) return;
 
-    let isValid = false;
-    let buttonText = "Next Step →";
+    let buttonText = "Next Step";
 
     if (this.currentStep === 0) {
-      const firstName = document
-        .getElementById("setup-first-name")
-        .value.trim();
-      const lastName = document.getElementById("setup-last-name").value.trim();
-      const graduationYear = document.getElementById(
-        "setup-graduation-year"
-      ).value;
-      const major = document.getElementById("setup-major").value.trim();
-      isValid = !!(firstName && lastName && graduationYear && major);
-      buttonText = isValid ? "Next Step →" : "Fill Required Fields";
+      // Step 1: Basic Info
+      const firstName =
+        document.getElementById("setup-first-name")?.value.trim() || "";
+      const lastName =
+        document.getElementById("setup-last-name")?.value.trim() || "";
+      const graduationYear =
+        document.getElementById("setup-graduation-year")?.value || "";
+      const major = document.getElementById("setup-major")?.value.trim() || "";
+
+      const hasRequiredFields =
+        firstName && lastName && graduationYear && major;
+      buttonText = hasRequiredFields ? "Next Step →" : "Next Step →";
     } else if (this.currentStep === 1) {
-      // Bio/Profile picture step is optional, so it's always "valid" to proceed
-      isValid = true;
-      buttonText = "Complete Setup →";
+      // Step 2: Profile picture/bio (optional)
+      buttonText = "Next Step →";
     } else if (this.currentStep === 2) {
-      // Final step - Preferences
-      const timezone = document.getElementById("setup-timezone").value;
-      isValid = !!timezone;
-      buttonText = isValid ? "Start Using CampXus!" : "Select Timezone";
+      // Step 3: Preferences (final step)
+      const timezone = document.getElementById("setup-timezone")?.value || "";
+      buttonText = timezone ? "Complete Setup!" : "Complete Setup!";
     }
 
-    nextBtn.disabled = !isValid;
-    nextBtn.textContent = buttonText;
+    // Update button text
+    if (nextBtn.textContent !== buttonText) {
+      nextBtn.textContent = buttonText;
+    }
+
+    // Keep button enabled for better UX - validation happens in nextStep
+    nextBtn.disabled = false;
   }
 
   handleProfilePictureUpload(event) {
@@ -185,34 +178,84 @@ class ProfileSetup {
     const reader = new FileReader();
     reader.onload = (e) => {
       if (preview) {
-        preview.innerHTML = `<img src="\${e.target.result}" alt="Profile Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        preview.innerHTML = `<img src="${e.target.result}" alt="Profile Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
       }
     };
     reader.readAsDataURL(file);
   }
 
   async nextStep() {
-    // First, ensure current step is valid before proceeding (though button should be disabled if not)
-    this.validateCurrentStep();
-    const nextBtn = document.getElementById("setup-next-btn");
-    if (nextBtn && nextBtn.disabled) {
-      // If button is disabled, means validation failed.
-      // We could shake the button or show a more prominent message.
-      // For now, just return.
-      return;
+    console.log("🔄 Moving to next step, current step:", this.currentStep);
+
+    // Validate current step before proceeding
+    if (!this.validateStepData()) {
+      return; // Don't proceed if validation fails
     }
 
-    this.collectCurrentStepData(); // Collect data before incrementing step
+    // Collect data from current step
+    this.collectCurrentStepData();
 
     if (this.currentStep < this.totalSteps - 1) {
+      // Move to next step
       this.currentStep++;
+      console.log("✅ Advanced to step:", this.currentStep + 1);
       this.updateStepDisplay();
       this.updateProgress();
-      this.validateCurrentStep(); // Validate the new current step
+      this.validateCurrentStep();
     } else {
-      // This is the final step, attempt to save the profile
+      // Final step - save the profile
+      console.log("💾 Saving profile...");
       await this.saveProfile();
     }
+  }
+
+  // Separate validation method for cleaner code
+  validateStepData() {
+    const nextBtn = document.getElementById("setup-next-btn");
+
+    if (this.currentStep === 0) {
+      // Validate Step 1 (Basic Info)
+      const firstName = document
+        .getElementById("setup-first-name")
+        .value.trim();
+      const lastName = document.getElementById("setup-last-name").value.trim();
+      const graduationYear = document.getElementById(
+        "setup-graduation-year"
+      ).value;
+      const major = document.getElementById("setup-major").value.trim();
+
+      if (!firstName || !lastName || !graduationYear || !major) {
+        // Show validation message
+        if (nextBtn) {
+          const originalText = nextBtn.textContent;
+          nextBtn.textContent = "Please fill required fields";
+          nextBtn.style.background = "#ef4444";
+          setTimeout(() => {
+            nextBtn.textContent = originalText;
+            nextBtn.style.background = "";
+          }, 2000);
+        }
+        return false;
+      }
+    } else if (this.currentStep === 2) {
+      // Validate Step 3 (Preferences)
+      const timezone = document.getElementById("setup-timezone").value;
+      if (!timezone) {
+        if (nextBtn) {
+          const originalText = nextBtn.textContent;
+          nextBtn.textContent = "Please select timezone";
+          nextBtn.style.background = "#ef4444";
+          setTimeout(() => {
+            nextBtn.textContent = originalText;
+            nextBtn.style.background = "";
+          }, 2000);
+        }
+        return false;
+      }
+    }
+    // Step 2 (Profile pic/bio) is optional, so no validation needed
+
+    return true;
   }
 
   prevStep() {
@@ -264,7 +307,7 @@ class ProfileSetup {
     steps.forEach((step) => step.classList.remove("active")); // More robust way to hide
 
     const currentStepElement = document.querySelector(
-      `\[data-step="\${this.currentStep}"]`
+      `[data-step="${this.currentStep}"]`
     );
     if (currentStepElement) {
       currentStepElement.classList.add("active"); // More robust way to show
@@ -295,40 +338,52 @@ class ProfileSetup {
       progressBar.style.width = `${progress}%`;
     }
 
-    // The document mentions updating a .setup-step-counter, but it's not in the HTML.
-    // If you add <span class="setup-step-counter"></span> to your .setup-header, this will work:
-    const stepCounterElement = document.querySelector(".setup-step-counter");
-    if (stepCounterElement) {
-      stepCounterElement.textContent = `Step \${this.currentStep + 1} of \${this.totalSteps}`;
+    // Update step text elements
+    const currentStepElement = document.querySelector(".current-step");
+    const totalStepsElement = document.querySelector(".total-steps");
+
+    if (currentStepElement) {
+      currentStepElement.textContent = `Step ${this.currentStep + 1}`;
     }
+    if (totalStepsElement) {
+      totalStepsElement.textContent = `${this.totalSteps}`;
+    }
+
+    console.log(
+      `📊 Progress: Step ${this.currentStep + 1}/${
+        this.totalSteps
+      } (${progress.toFixed(0)}%)`
+    );
   }
 
   async saveProfile() {
     const nextBtn = document.getElementById("setup-next-btn");
-    const originalText = nextBtn ? nextBtn.textContent : "Start Using CampXus!";
+    const originalText = nextBtn ? nextBtn.textContent : "Complete Setup";
     if (nextBtn) {
       nextBtn.textContent = "Saving...";
       nextBtn.disabled = true;
     }
 
-    // Ensure data from the final step is collected if not already
+    // Ensure data from the final step is collected
     this.collectCurrentStepData();
 
     try {
-      let profilePictureUrl = this.profileData.profilePictureUrl || null; // Preserve if already set from a previous attempt
+      let profilePictureUrl = null;
       if (this.profilePictureFile) {
         profilePictureUrl = await this.uploadProfilePicture();
       }
 
       const userData = {
-        ...this.profileData, // Contains data from all steps
-        uid: this.currentUser.uid, // Add UID for easier querying if needed
+        ...this.profileData,
+        uid: this.currentUser.uid,
+        email: this.currentUser.email,
         profilePictureUrl: profilePictureUrl,
-        profileSetupComplete: true, // Changed from profileComplete
+        profileSetupComplete: true,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
       };
-      // Remove undefined fields that might have been added if some optional fields were skipped
+
+      // Remove undefined fields
       Object.keys(userData).forEach(
         (key) => userData[key] === undefined && delete userData[key]
       );
@@ -337,21 +392,50 @@ class ProfileSetup {
         .firestore()
         .collection("users")
         .doc(this.currentUser.uid)
-        .set(userData, { merge: true }); // Use merge:true to avoid overwriting existing fields if any
+        .set(userData, { merge: true });
 
       this.showSuccessMessage();
+
+      // Redirect to main app after a short delay
       setTimeout(() => {
-        window.location.href = "../index.html"; // Redirect to dashboard or main app page
-      }, 2500); // Slightly longer for user to read success message
+        window.location.href = "../index.html";
+      }, 2500);
     } catch (error) {
       console.error("Error saving profile:", error);
       alert(
-        "Oh no! Something went wrong while saving your profile. Please check your connection and try again. If the problem persists, contact support."
+        "Oh no! Something went wrong while saving your profile. Please check your connection and try again."
       );
       if (nextBtn) {
-        nextBtn.textContent = originalText; // Reset button text
-        nextBtn.disabled = false; // Re-enable button
+        nextBtn.textContent = originalText;
+        nextBtn.disabled = false;
       }
+    }
+  }
+
+  async skipSetup() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    if (nextBtn) nextBtn.disabled = true;
+
+    try {
+      const userData = {
+        uid: this.currentUser.uid,
+        email: this.currentUser.email,
+        profileSetupComplete: false,
+        skippedSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await firebase
+        .firestore()
+        .collection("users")
+        .doc(this.currentUser.uid)
+        .set(userData, { merge: true });
+
+      // Redirect to main app
+      window.location.href = "../index.html";
+    } catch (error) {
+      console.error("Error during skip setup:", error);
+      alert("Could not process skip action. Please try again.");
+      if (nextBtn) nextBtn.disabled = false;
     }
   }
 
@@ -359,7 +443,7 @@ class ProfileSetup {
     if (!this.profilePictureFile || !this.currentUser) {
       return null;
     }
-    const filePath = `profilePictures/\${this.currentUser.uid}/\${this.profilePictureFile.name}`;
+    const filePath = `profilePictures/${this.currentUser.uid}/${this.profilePictureFile.name}`;
     const storageRef = firebase.storage().ref(filePath);
 
     try {
@@ -375,50 +459,24 @@ class ProfileSetup {
     }
   }
 
-  async skipSetup() {
-    // If user skips, we still want to create a basic document for them
-    // so they don't get prompted again immediately, but mark profile as incomplete.
-    const nextBtn = document.getElementById("setup-next-btn");
-    if (nextBtn) nextBtn.disabled = true; // Disable buttons during skip
-
-    try {
-      const userData = {
-        uid: this.currentUser.uid,
-        email: this.currentUser.email, // Save email at least
-        profileSetupComplete: false, // Changed from profileComplete
-        skippedSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
-      };
-
-      await firebase
-        .firestore()
-        .collection("users")
-        .doc(this.currentUser.uid)
-        .set(userData, { merge: true }); // Merge to not overwrite if some partial data exists
-
-      // Redirect to dashboard or main app page
-      window.location.href = "../index.html";
-    } catch (error) {
-      console.error("Error during skip setup:", error);
-      alert("Could not process skip action. Please try again.");
-      if (nextBtn) nextBtn.disabled = false;
-    }
-  }
-
   showSuccessMessage() {
-    const setupContainer = document.querySelector(".setup-container");
-    if (setupContainer) {
-      // Clear existing content and show success
-      setupContainer.innerHTML = `
-        <div class="setup-header" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">
-          <div class="setup-title">All Set! 🎉</div>
-          <div class="setup-subtitle">Your CampXus profile is ready.</div>
+    const setupCard = document.querySelector(".profile-setup-card");
+    if (setupCard) {
+      setupCard.innerHTML = `
+        <div class="setup-header">
+          <div class="setup-title-section">
+            <h1 class="setup-title">All Set! 🎉</h1>
+            <p class="setup-subtitle">Your CampXus profile is ready</p>
+          </div>
         </div>
         <div class="setup-body" style="text-align: center; padding: 3rem;">
-          <span class="step-icon" style="font-size: 4rem; color: #10B981;">🚀</span>
-          <h3 class="step-title" style="font-size: 1.8rem; margin-top: 1rem;">Welcome Aboard!</h3>
-          <p class="step-description" style="font-size: 1.1rem; margin-top: 0.5rem;">
-            You'll be redirected to your dashboard shortly.
-          </p>
+          <div class="success-message">
+            <div class="success-icon" style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;">
+              <i class="fas fa-rocket"></i>
+            </div>
+            <h3 style="color: #10b981; margin-bottom: 1rem;">Welcome Aboard!</h3>
+            <p style="color: #6b7280;">You'll be redirected to your dashboard shortly.</p>
+          </div>
         </div>
       `;
     }
@@ -428,30 +486,34 @@ class ProfileSetup {
 // Initialize profile setup when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   // Ensure Firebase is initialized before creating ProfileSetup
-  // This assumes firebase-config.js handles initialization and is loaded before this script.
   if (typeof firebase !== "undefined" && firebase.app) {
     new ProfileSetup();
   } else {
     console.error(
-      "Firebase not initialized. Make sure firebase-config.js is loaded and configured correctly before profile-setup.js"
+      "Firebase not initialized. Please check firebase configuration."
     );
-    // Optionally, display an error to the user on the page
-    const overlay = document.getElementById("profile-setup-overlay");
-    if (overlay) {
-      overlay.classList.add("active"); // Show the container
-      const container = document.querySelector(".setup-container");
-      if (container) {
-        container.innerHTML = `
-                <div class="setup-header" style="background: #EF4444;">
-                    <div class="setup-title">Initialization Error</div>
-                </div>
-                <div class="setup-body" style="text-align: center; padding: 2rem;">
-                    <p class="step-description" style="color: #B91C1C;">
-                        Could not connect to services. Please check your internet connection or contact support if the issue persists.
-                    </p>
-                </div>
-            `;
-      }
+    // Show error message to user
+    const setupCard = document.querySelector(".profile-setup-card");
+    if (setupCard) {
+      setupCard.innerHTML = `
+        <div class="setup-header">
+          <div class="setup-title-section">
+            <h1 class="setup-title">Connection Error</h1>
+            <p class="setup-subtitle">Unable to connect to services</p>
+          </div>
+        </div>
+        <div class="setup-body" style="text-align: center; padding: 2rem;">
+          <div style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 1rem;">
+            <div style="font-size: 3rem; color: #c33; margin-bottom: 1rem;">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style="color: #c33; margin-bottom: 0.5rem;">Connection Failed</h3>
+            <p style="color: #c33; margin: 0;">
+              Could not connect to services. Please check your internet connection or contact support.
+            </p>
+          </div>
+        </div>
+      `;
     }
   }
 });

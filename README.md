@@ -125,8 +125,31 @@ CampXus/
 
 1. **Clone/Download** the project
 2. **Install dependencies:** `npm install`
-3. **Run tests:** `npm test`
-4. **Open in browser:** Launch `index.html` or use a local server
+3. **Set up environment:** `cp .env.local.example .env.local` (add your Firebase keys)
+4. **Run tests:** `npm test`
+5. **Start development:** `npm run dev:serve`
+
+## 🔒 **IMPORTANT: Security Setup**
+
+**⚠️ Before pushing to public repositories:**
+
+1. **Never commit API keys!** Your `.env.local` file contains sensitive Firebase credentials
+2. **Use the development commands:** `npm run dev:serve` loads your environment securely
+3. **Verify security:** Run `npm run dev:check` to validate your setup
+4. **Read the security guide:** See `SECURITY.md` for detailed security practices
+
+```bash
+# ✅ SECURE: Use environment-based development
+npm run dev:serve
+
+# ❌ INSECURE: Don't edit HTML files to add API keys directly
+```
+
+**What's Protected:**
+
+- 🔐 Your Firebase API keys (stored in `.env.local`)
+- 🔐 Auto-generated browser config (`env-config.js`)
+- 🔐 Firebase deployment files (`.firebase/`)
 
 ## 🧠 Developer Guide
 

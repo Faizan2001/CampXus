@@ -1,21 +1,37 @@
-#node_modules
+# Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-
-#Enivironment variables
+# Environment variables (CRITICAL: Never commit these!)
 .env
 .env.local
+.env.development
+.env.production
 
-#Firebase
+# Firebase (CRITICAL: Never commit these!)
 firebase-debug.log
 .firebase/
 js/firebase/config/env-config.js
 
-#OS generated files
-
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.log

@@ -1144,7 +1144,7 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
               "Course code should only contain letters, numbers, and spaces (max 20 characters)";
             errorDiv.style.display = "block";
           }
-          return false; // Prevent modal from closing
+          return false; // Prevent modal close
         }
 
         // Mark slot as busy
@@ -2778,34 +2778,60 @@ function disableScheduleFeatures() {
 }
 
 /* ================================
-   PROFILE SET UP
+   PROFILE COMPLETION CHECK (Legacy)
 ================================== */
 
-// Add this to your dashboard.js
+/**
+ * Legacy profile completion check - now handled by authentication callbacks
+ * This function remains for backwards compatibility but is no longer the primary method
+ */
 function checkProfileCompletion() {
-  firebase.auth().onAuthStateChanged(async (user) => {
-    if (user) {
-      try {
-        const userDoc = await firebase
-          .firestore()
-          .collection("users")
-          .doc(user.uid)
-          .get();
+  console.log(
+    "💡 Note: Profile completion is now handled by authentication callbacks"
+  );
+  // The actual profile check is now done in setupAuthenticationCallbacks()
+}
 
-        if (!userDoc.exists || !userDoc.data().profileSetupComplete) {
-          // Use profileSetupComplete
-          // Redirect to profile setup
-          window.location.href = "pages/profile-setup.html"; // Corrected path
-        }
-      } catch (error) {
-        console.error("Error checking profile:", error);
-        // Optionally, redirect to an error page or show a message
-        // For now, if there's an error, we don't redirect, allowing the app to load partially
-        // or the user to stay on the current page.
-        // Consider if a redirect to profile-setup.html is a safe fallback here too:
-        // window.location.href = "pages/profile-setup.html";
+/* ================================
+   AUTHENTICATION CALLBACK SETUP
+================================== */
+
+/**
+ * Sets up authentication callbacks for profile completion checks
+ * This ensures new users are directed to profile setup after sign-in
+ */
+function setupAuthenticationCallbacks() {
+  // Set up sign-in success callback to check profile completion
+  authManager.setSigninSuccessCallback(async (data) => {
+    console.log("🎉 User signed in successfully:", data.user.email);
+
+    try {
+      // Check if user has completed profile setup using modern Firebase API
+      const { doc, getDoc } = await import("firebase/firestore");
+      const { db } = await import("../firebase/config/firebase-config.js");
+      const userDocRef = doc(db, "users", data.user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists() || !userDoc.data().profileSetupComplete) {
+        // Redirect to profile setup for new or incomplete profiles
+        console.log("📝 Redirecting to profile setup...");
+        window.location.href = "pages/profile-setup.html";
+      } else {
+        // Profile is complete, continue to main dashboard
+        console.log("✅ Profile complete, loading dashboard...");
+        // The app will continue loading normally
       }
+    } catch (error) {
+      console.error("Error checking profile completion after sign-in:", error);
+      // On error, default to profile setup to be safe
+      window.location.href = "pages/profile-setup.html";
     }
+  });
+
+  // Set up sign-in error callback for better error handling
+  authManager.setSigninErrorCallback((data) => {
+    console.error("❌ Sign-in failed:", data.error.message);
+    // The auth modal will handle showing the error to the user
   });
 }
 
@@ -2852,8 +2878,10 @@ async function initializeApp() {
   updateUI();
   console.log("✅ CampXus loaded successfully!");
 
-  // Call this when dashboard loads
-  checkProfileCompletion();
+  // Set up authentication callback for profile check
+  setupAuthenticationCallbacks();
+
+  // Note: Profile completion check is now handled by the authentication callback
 }
 
 /**
@@ -3041,3 +3069,100 @@ export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
 document.addEventListener("DOMContentLoaded", async () => {
   await initializeApp();
 });
+
+/* ================================
+   🎓 LEARNING MOMENT: Authentication Flow
+================================== */
+
+/**
+ * Hey there! Let me explain what we just set up for the authentication flow:
+ *
+ * 1. **Sign-in Success Callback**: When a user successfully signs in, we immediately
+ *    check if they have completed their profile setup.
+ *
+ * 2. **Profile Completion Check**: We look in Firestore for the user's document
+ *    and check the `profileSetupComplete` field.
+ *
+ * 3. **Smart Routing**:
+ *    - If profile is incomplete → Redirect to profile-setup.html
+ *    - If profile is complete → Continue to main dashboard
+ *
+ * 4. **Error Handling**: If something goes wrong, we default to profile setup
+ *    to ensure users don't get stuck.
+ *
+ * This creates a smooth "onboarding" experience where new users automatically
+ * go through profile setup after their first sign-in!
+ */
+
+/* ================================
+   🧪 TESTING HELPER FUNCTIONS
+================================== */
+
+/**
+ * Helper function for testing the profile setup flow
+ * Call this in browser console to reset a user's profile setup status
+ */
+window.resetUserProfileForTesting = async function () {
+  try {
+    const { getCurrentUser } = await import("../firebase/auth/auth-manager.js");
+    const { doc, updateDoc } = await import("firebase/firestore");
+    const { db } = await import("../firebase/config/firebase-config.js");
+
+    const user = getCurrentUser();
+    if (!user) {
+      console.log("❌ No user signed in for testing");
+      return;
+    }
+
+    const userDocRef = doc(db, "users", user.uid);
+    await updateDoc(userDocRef, {
+      profileSetupComplete: false,
+    });
+
+    console.log(
+      "✅ User profile reset for testing - refresh page to see profile setup"
+    );
+    console.log("🔄 Refreshing page in 2 seconds...");
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  } catch (error) {
+    console.error("❌ Error resetting user profile:", error);
+  }
+};
+
+/**
+ * Helper function to check current user's profile status
+ */
+window.checkCurrentUserProfile = async function () {
+  try {
+    const { getCurrentUser } = await import("../firebase/auth/auth-manager.js");
+    const { doc, getDoc } = await import("firebase/firestore");
+    const { db } = await import("../firebase/config/firebase-config.js");
+
+    const user = getCurrentUser();
+    if (!user) {
+      console.log("❌ No user signed in");
+      return;
+    }
+
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      console.log("👤 Current user profile:", {
+        email: user.email,
+        profileSetupComplete: data.profileSetupComplete,
+        hasName: !!(data.firstName && data.lastName),
+        hasMajor: !!data.major,
+        profileData: data,
+      });
+    } else {
+      console.log("❌ No profile document found for user");
+    }
+  } catch (error) {
+    console.error("❌ Error checking profile:", error);
+  }
+};

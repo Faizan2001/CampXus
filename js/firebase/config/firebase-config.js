@@ -4,20 +4,43 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Browser-compatible configuration loading
-// Load Firebase config from environment variables or fallback to embedded values
-const firebaseConfig = {
-  apiKey:
-    window.ENV?.FIREBASE_API_KEY || "AIzaSyC_kanIBFqxyq8LLE4CKuzH24yEfCMjFiQ",
-  authDomain:
-    window.ENV?.FIREBASE_AUTH_DOMAIN || "meetchuthere-00.firebaseapp.com",
-  projectId: window.ENV?.FIREBASE_PROJECT_ID || "meetchuthere-00",
-  storageBucket:
-    window.ENV?.FIREBASE_STORAGE_BUCKET ||
-    "meetchuthere-00.firebasestorage.app",
-  messagingSenderId: window.ENV?.FIREBASE_MESSAGING_SENDER_ID || "749689064628",
-  appId:
-    window.ENV?.FIREBASE_APP_ID || "1:749689064628:web:e757a95468a0a9a285dbe1",
-};
+// Load Firebase config from environment variables with security validation
+function loadFirebaseConfig() {
+  // Check if environment configuration is loaded
+  if (!window.ENV) {
+    console.error("❌ Environment configuration not loaded");
+    throw new Error(
+      "Missing environment configuration. Please run: npm run dev:serve"
+    );
+  }
+
+  // Validate required Firebase configuration
+  const requiredKeys = [
+    "FIREBASE_API_KEY",
+    "FIREBASE_AUTH_DOMAIN",
+    "FIREBASE_PROJECT_ID",
+    "FIREBASE_STORAGE_BUCKET",
+    "FIREBASE_MESSAGING_SENDER_ID",
+    "FIREBASE_APP_ID",
+  ];
+
+  const missingKeys = requiredKeys.filter((key) => !window.ENV[key]);
+  if (missingKeys.length > 0) {
+    console.error("❌ Missing Firebase configuration keys:", missingKeys);
+    throw new Error(`Missing Firebase config: ${missingKeys.join(", ")}`);
+  }
+
+  return {
+    apiKey: window.ENV.FIREBASE_API_KEY,
+    authDomain: window.ENV.FIREBASE_AUTH_DOMAIN,
+    projectId: window.ENV.FIREBASE_PROJECT_ID,
+    storageBucket: window.ENV.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: window.ENV.FIREBASE_MESSAGING_SENDER_ID,
+    appId: window.ENV.FIREBASE_APP_ID,
+  };
+}
+
+const firebaseConfig = loadFirebaseConfig();
 
 // Initialize Firebase with error handling
 let app;

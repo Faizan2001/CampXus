@@ -10,11 +10,17 @@
 /* ===== ENHANCED THEME TOGGLE STYLING ===== */
 .theme-toggle {
   position: relative;
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  backdrop-filter: blur(10px) !important;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  overflow: hidden !important;
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: visible !important;
+  padding: 0.5rem !important; /* Minimal padding for touch target */
+  width: auto !important; /* Let content determine width */
+  height: auto !important; /* Let content determine height */
+  min-width: 2.5rem !important; /* Ensure minimum touch target */
+  min-height: 2.5rem !important; /* Ensure minimum touch target */
+  border-radius: 0.5rem !important; /* Subtle rounded corners */
 }
 
 .theme-toggle::before {
@@ -50,10 +56,10 @@
 }
 
 .theme-toggle:hover {
-  background: var(--surface-hover) !important;
-  border-color: var(--accent-primary) !important;
-  transform: scale(1.05) !important;
-  box-shadow: 0 4px 20px var(--shadow-glow) !important;
+  background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
+  border: none !important;
+  transform: scale(1.1) !important;
+  box-shadow: none !important;
 }
 
 .theme-toggle:hover i {
@@ -107,28 +113,9 @@
   }
 }
 
-/* ===== THEME TOGGLE ANIMATIONS ===== */
-.theme-toggle-animation {
-  animation: themeToggle 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes themeToggle {
-  0% {
-    transform: rotate(0deg) scale(1);
-  }
-  25% {
-    transform: rotate(90deg) scale(1.15);
-  }
-  50% {
-    transform: rotate(180deg) scale(1.2);
-  }
-  75% {
-    transform: rotate(270deg) scale(1.15);
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
-  }
-}
+/* ===== THEME TOGGLE ANIMATIONS (DISABLED) ===== */
+/* Animation removed for cleaner, minimal interaction */
+/* Removed: .theme-toggle-animation class and themeToggle keyframe animation */
 
 /* Icon transition animations */
 .theme-toggle i.fa-moon {
@@ -209,25 +196,43 @@
   }
 }
 
+/* ===== THEME TOGGLE - NO RIPPLE EFFECTS ===== */
+.theme-toggle .ripple {
+  display: none !important; /* Prevent ripple effects on theme toggle */
+}
+
 /* ===== MOBILE NAVIGATION ENHANCEMENTS ===== */
 @media (max-width: 768px) {
   .theme-toggle {
-    width: 2.2rem !important;
-    height: 2.2rem !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 2.2rem !important;
+    min-height: 2.2rem !important;
+    padding: 0.5rem !important;
     font-size: 0.9rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
   }
 
   .theme-toggle:hover {
-    transform: scale(1.03) !important;
+    transform: scale(1.1) !important;
+    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
+    box-shadow: none !important;
   }
-  
 }
 
 @media (max-width: 480px) {
   .theme-toggle {
-    width: 2rem !important;
-    height: 2rem !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 2rem !important;
+    min-height: 2rem !important;
+    padding: 0.4rem !important;
     font-size: 0.85rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.4rem !important;
   }
 
   /* Simplify animations on very small screens */
@@ -274,6 +279,12 @@
   .ripple {
     animation: none !important;
   }
+
+  /* Disable all animations on theme toggle */
+  .theme-toggle * {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* ===== CLEAN THEME TOGGLE DESIGN ===== */
@@ -283,14 +294,20 @@ body:not(.dark-mode) .theme-toggle {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  padding: 0.5rem !important; /* Minimal padding for touch target */
+  width: auto !important; /* Let content determine width */
+  height: auto !important; /* Let content determine height */
+  min-width: 2.5rem !important; /* Ensure minimum touch target */
+  min-height: 2.5rem !important; /* Ensure minimum touch target */
 }
 
 .dark-mode .theme-toggle:hover,
 body:not(.dark-mode) .theme-toggle:hover {
-  background: var(--surface-hover) !important;
+  background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
   border: none !important;
-  box-shadow: var(--shadow-glow) !important;
-  transform: scale(1.05);
+  box-shadow: none !important;
+  transform: scale(1.1);
+  border-radius: 0.5rem !important; /* Subtle rounded corners only on hover */
 }
 
 /* Enhanced icon visibility and hover effects */

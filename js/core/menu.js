@@ -45,11 +45,7 @@ function initializeDarkModeToggle() {
 
     darkModeToggle.addEventListener("click", () => {
       toggleDarkMode();
-      // Add animation class
-      darkModeToggle.classList.add("theme-toggle-animation");
-      setTimeout(() => {
-        darkModeToggle.classList.remove("theme-toggle-animation");
-      }, 300);
+      // Animation removed for cleaner interaction
     });
 
     // Add tooltip
@@ -130,12 +126,13 @@ function initializeNavigation() {
     });
   });
 
-  // Add ripple effects to navigation buttons
-  const navButtons = document.querySelectorAll(".nav-button");
+  // Add ripple effects to navigation buttons (excluding theme toggle)
+  const navButtons = document.querySelectorAll(
+    ".nav-button:not(.theme-toggle)"
+  );
   navButtons.forEach((button) => {
     button.addEventListener("click", (e) => {
       createRipple(button, e);
-
     });
   });
 
@@ -171,7 +168,6 @@ function initializeUserMenu() {
     e.preventDefault();
     e.stopPropagation();
     toggleUserDropdown();
-
   });
 
   // Close dropdown when clicking outside
@@ -480,8 +476,16 @@ function toggleMenu() {
   console.warn("toggleMenu() is deprecated in the new glassmorphism design");
 }
 
-// Utility function to create ripple effects
+/* Utility function to create ripple effects
 function createRipple(element, event) {
+  // Skip ripple effect for theme toggle button
+  if (
+    element.classList.contains("theme-toggle") ||
+    element.id === "darkModeToggle"
+  ) {
+    return;
+  }
+
   const ripple = document.createElement("span");
   const rect = element.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height);
@@ -498,7 +502,7 @@ function createRipple(element, event) {
   setTimeout(() => {
     ripple.remove();
   }, 600);
-}
+}  */
 
 /**
  * Initialize mobile-specific optimizations
@@ -605,8 +609,6 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
-
-
 
 // Expose theme functions and user menu functions for external access
 window.themeUtils = {

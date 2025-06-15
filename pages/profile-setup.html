@@ -4,304 +4,425 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Profile Setup - CampXus</title>
+    <!-- Include main app styles for consistent theming -->
+    <link rel="stylesheet" href="../css/variables.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/animations.css" />
     <link rel="stylesheet" href="../css/profile-setup.css" />
+
+    <!-- Load environment configuration for Firebase -->
+    <script src="../js/firebase/config/env-config.js"></script>
   </head>
   <body>
-    <div id="profile-setup-overlay" class="profile-setup-overlay">
-      <div class="setup-container">
-        <div class="setup-header">
-          <div class="setup-title">Welcome to CampXus! 👋</div>
-          <div class="setup-subtitle">Let's set up your profile</div>
-          <div class="setup-progress">
-            <div class="setup-progress-bar"></div>
+    <div class="app-container">
+      <!-- Top Navigation Bar (same as main app) -->
+      <nav class="top-nav">
+        <div class="nav-left">
+          <div class="logo">
+            <span>MeetchuThere</span>
+          </div>
+          <div class="nav-links">
+            <a href="../index.html" class="nav-link" title="Back to Schedule">
+              <i class="fas fa-calendar-alt"></i>
+              <span class="nav-text">Schedule</span>
+            </a>
           </div>
         </div>
 
-        <div class="setup-body">
-          <!-- Step 1: Basic Information -->
-          <div class="setup-step active" data-step="0">
-            <div class="step-header">
-              <span class="step-icon">👋</span>
-              <h3 class="step-title">Tell us about yourself</h3>
-              <p class="step-description">
-                Let's start with the basics. This information will help other
-                students recognize and connect with you.
-              </p>
-            </div>
+        <div class="nav-right">
+          <!-- Dark Mode Toggle -->
+          <button
+            type="button"
+            id="darkModeToggle"
+            class="nav-button theme-toggle"
+            aria-label="Toggle dark mode"
+          >
+            <i class="fas fa-moon"></i>
+          </button>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label" for="setup-first-name"
-                  >First Name</label
-                >
-                <input
-                  type="text"
-                  id="setup-first-name"
-                  class="form-input"
-                  placeholder="John"
-                  required
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="setup-last-name"
-                  >Last Name</label
-                >
-                <input
-                  type="text"
-                  id="setup-last-name"
-                  class="form-input"
-                  placeholder="Doe"
-                  required
-                />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="setup-email"
-                >University Email</label
-              >
-              <input
-                type="email"
-                id="setup-email"
-                class="form-input"
-                readonly
-              />
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label" for="setup-student-id"
-                  >Student ID (Optional)</label
-                >
-                <input
-                  type="text"
-                  id="setup-student-id"
-                  class="form-input"
-                  placeholder="202X123456"
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="setup-graduation-year"
-                  >Graduation Year</label
-                >
-                <select id="setup-graduation-year" class="form-input" required>
-                  <option value="">Select Year</option>
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
-                  <option value="2026">2026</option>
-                  <option value="2027">2027</option>
-                  <option value="2028">2028</option>
-                  <option value="2029">2029</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="setup-major"
-                >Major/Department</label
-              >
-              <input
-                type="text"
-                id="setup-major"
-                class="form-input"
-                placeholder="Computer Science & Engineering"
-                required
-              />
+          <!-- Profile Icon (current user) -->
+          <div class="user-menu">
+            <div class="user-menu-trigger setup-user-icon">
+              <i class="fas fa-user-circle"></i>
             </div>
           </div>
+        </div>
+      </nav>
 
-          <!-- Step 2: Profile Picture -->
-          <div class="setup-step" data-step="1">
-            <div class="step-header">
-              <span class="step-icon">📸</span>
-              <h3 class="step-title">Add your profile picture</h3>
-              <p class="step-description">
-                Help your fellow students recognize you! You can always change
-                this later.
-              </p>
+      <!-- Main Profile Setup Content -->
+      <main class="profile-setup-main">
+        <div class="profile-setup-container">
+          <!-- Profile Setup Glass Card -->
+          <div class="glass-card profile-setup-card">
+            <!-- Setup Header with Progress -->
+            <div class="setup-header">
+              <div class="setup-title-section">
+                <h1 class="setup-title">Welcome to MeetchuThere! 👋</h1>
+                <p class="setup-subtitle">
+                  Let's set up your profile to get started
+                </p>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="setup-progress">
+                <div class="setup-progress-track">
+                  <div class="setup-progress-bar"></div>
+                </div>
+                <div class="setup-progress-text">
+                  <span class="current-step">Step 1</span>
+                  <span class="progress-separator">of</span>
+                  <span class="total-steps">3</span>
+                </div>
+              </div>
             </div>
 
-            <div class="profile-picture-section">
-              <div class="profile-picture-preview" id="profile-picture-preview">
-                👤
+            <!-- Setup Form Steps -->
+            <div class="setup-body">
+              <!-- Step 1: Basic Information -->
+              <div class="setup-step active" data-step="0">
+                <div class="step-header">
+                  <div class="step-icon">👋</div>
+                  <h2 class="step-title">Tell us about yourself</h2>
+                  <p class="step-description">
+                    Let's start with the basics. This information will help
+                    other students recognize and connect with you.
+                  </p>
+                </div>
+
+                <div class="form-content">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label" for="setup-first-name"
+                        >First Name</label
+                      >
+                      <input
+                        type="text"
+                        id="setup-first-name"
+                        class="form-input"
+                        placeholder="John"
+                        required
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="setup-last-name"
+                        >Last Name</label
+                      >
+                      <input
+                        type="text"
+                        id="setup-last-name"
+                        class="form-input"
+                        placeholder="Doe"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setup-email"
+                      >University Email</label
+                    >
+                    <input
+                      type="email"
+                      id="setup-email"
+                      class="form-input"
+                      readonly
+                    />
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label" for="setup-student-id"
+                        >Student ID (Optional)</label
+                      >
+                      <input
+                        type="text"
+                        id="setup-student-id"
+                        class="form-input"
+                        placeholder="202X123456"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="setup-graduation-year"
+                        >Graduation Year</label
+                      >
+                      <select
+                        id="setup-graduation-year"
+                        class="form-input"
+                        required
+                      >
+                        <option value="">Select Year</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setup-major"
+                      >Major/Department</label
+                    >
+                    <input
+                      type="text"
+                      id="setup-major"
+                      class="form-input"
+                      placeholder="Computer Science & Engineering"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-              <input
-                type="file"
-                id="profile-picture-upload"
-                class="profile-picture-upload"
-                accept="image/*"
-              />
+
+              <!-- Step 2: Profile Picture -->
+              <div class="setup-step" data-step="1">
+                <div class="step-header">
+                  <div class="step-icon">📸</div>
+                  <h2 class="step-title">Add your profile picture</h2>
+                  <p class="step-description">
+                    Help your fellow students recognize you! You can always
+                    change this later.
+                  </p>
+                </div>
+
+                <div class="form-content">
+                  <div class="profile-picture-section">
+                    <div
+                      class="profile-picture-preview"
+                      id="profile-picture-preview"
+                    >
+                      <i class="fas fa-user"></i>
+                    </div>
+                    <input
+                      type="file"
+                      id="profile-picture-upload"
+                      class="profile-picture-upload"
+                      accept="image/*"
+                    />
+                    <button
+                      type="button"
+                      class="upload-button btn-secondary"
+                      onclick="document.getElementById('profile-picture-upload').click()"
+                    >
+                      <i class="fas fa-camera"></i>
+                      Choose Photo
+                    </button>
+                    <p class="upload-hint">JPG, PNG, or GIF up to 5MB</p>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setup-bio"
+                      >Bio (Optional)</label
+                    >
+                    <textarea
+                      id="setup-bio"
+                      class="form-input bio-textarea"
+                      placeholder="Tell us a bit about yourself! Your interests, hobbies, what you're studying..."
+                      maxlength="300"
+                    ></textarea>
+                    <div class="char-counter">
+                      <span id="bio-count">0</span>/300 characters
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Preferences -->
+              <div class="setup-step" data-step="2">
+                <div class="step-header">
+                  <div class="step-icon">⚙️</div>
+                  <h2 class="step-title">Customize your preferences</h2>
+                  <p class="step-description">
+                    Set up your timezone and notification preferences. You can
+                    always change these later in settings.
+                  </p>
+                </div>
+
+                <div class="form-content">
+                  <div class="form-group">
+                    <label class="form-label" for="setup-timezone"
+                      >Timezone</label
+                    >
+                    <select id="setup-timezone" class="form-input" required>
+                      <option value="">Select Timezone</option>
+                      <option value="Asia/Dhaka">Asia/Dhaka (GMT+6)</option>
+                      <option value="America/New_York">
+                        America/New_York (GMT-5)
+                      </option>
+                      <option value="Europe/London">
+                        Europe/London (GMT+0)
+                      </option>
+                      <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setup-theme"
+                      >Preferred Theme</label
+                    >
+                    <select id="setup-theme" class="form-input">
+                      <option value="auto">Auto (System)</option>
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Notification Preferences</label>
+                    <div class="checkbox-group">
+                      <label class="checkbox-item">
+                        <input
+                          type="checkbox"
+                          id="notify-schedule-updates"
+                          checked
+                        />
+                        <span class="checkmark"></span>
+                        Schedule updates and reminders
+                      </label>
+                      <label class="checkbox-item">
+                        <input
+                          type="checkbox"
+                          id="notify-friend-requests"
+                          checked
+                        />
+                        <span class="checkmark"></span>
+                        Friend requests and social updates
+                      </label>
+                      <label class="checkbox-item">
+                        <input type="checkbox" id="notify-campus-events" />
+                        <span class="checkmark"></span>
+                        Campus events and announcements
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Navigation Controls -->
+            <div class="setup-navigation">
               <button
                 type="button"
-                class="upload-button"
-                onclick="document.getElementById('profile-picture-upload').click()"
+                class="nav-button btn-secondary"
+                id="setup-prev-btn"
+                style="display: none"
               >
-                Choose Photo
+                <i class="fas fa-arrow-left"></i>
+                Previous
               </button>
-              <p style="color: #6b7280; font-size: 0.8rem; margin-top: 0.5rem">
-                JPG, PNG, or GIF up to 5MB
-              </p>
-            </div>
 
-            <div class="form-group">
-              <label class="form-label" for="setup-bio">Bio (Optional)</label>
-              <textarea
-                id="setup-bio"
-                class="form-input"
-                placeholder="Tell us a bit about yourself! Your interests, hobbies, what you're studying..."
-                maxlength="300"
-                style="min-height: 80px; resize: vertical"
-              ></textarea>
-              <div
-                style="
-                  text-align: right;
-                  font-size: 0.8rem;
-                  color: #6b7280;
-                  margin-top: 0.25rem;
-                "
-              >
-                <span id="bio-count">0</span>/300 characters
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 3: Preferences & Completion -->
-          <div class="setup-step" data-step="2">
-            <div class="step-header">
-              <span class="step-icon">🎉</span>
-              <h3 class="step-title">You're all set!</h3>
-              <p class="step-description">
-                Your CampXus profile has been created successfully. Start
-                managing your schedule now!
-              </p>
-            </div>
-
-            <div
-              style="
-                background: #f0fdf4;
-                border: 2px solid #10b981;
-                border-radius: 12px;
-                padding: 1rem;
-                margin-bottom: 1.5rem;
-              "
-            >
-              <h4 style="color: #059669; margin: 0 0 0.5rem 0; font-size: 1rem">
-                🎉 Welcome to CampXus!
-              </h4>
-              <p style="color: #059669; margin: 0; font-size: 0.9rem">
-                Your profile is ready. Start adding your classes and connect
-                with fellow students!
-              </p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="setup-timezone">Timezone</label>
-              <select id="setup-timezone" class="form-input" required>
-                <option value="">Select Timezone</option>
-                <option value="Asia/Dhaka">Asia/Dhaka (GMT+6)</option>
-                <option value="America/New_York">
-                  America/New_York (GMT-5)
-                </option>
-                <option value="Europe/London">Europe/London (GMT+0)</option>
-                <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="setup-theme"
-                >Preferred Theme</label
-              >
-              <select id="setup-theme" class="form-input">
-                <option value="auto">Auto (System)</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Notification Preferences</label>
-              <div style="margin-top: 0.5rem">
-                <label
-                  style="
-                    display: block;
-                    margin-bottom: 0.5rem;
-                    font-weight: normal;
-                  "
+              <div class="nav-right-group">
+                <button
+                  type="button"
+                  class="nav-button btn-tertiary"
+                  id="setup-skip-btn"
                 >
-                  <input
-                    type="checkbox"
-                    id="notify-schedule-updates"
-                    checked
-                    style="margin-right: 0.5rem"
-                  />
-                  Schedule updates and reminders
-                </label>
-                <label
-                  style="
-                    display: block;
-                    margin-bottom: 0.5rem;
-                    font-weight: normal;
-                  "
+                  Skip for now
+                </button>
+                <button
+                  type="button"
+                  class="nav-button btn-primary"
+                  id="setup-next-btn"
                 >
-                  <input
-                    type="checkbox"
-                    id="notify-friend-requests"
-                    checked
-                    style="margin-right: 0.5rem"
-                  />
-                  Friend requests and social updates
-                </label>
-                <label style="display: block; font-weight: normal">
-                  <input
-                    type="checkbox"
-                    id="notify-campus-events"
-                    style="margin-right: 0.5rem"
-                  />
-                  Campus events and announcements
-                </label>
+                  Next Step
+                  <i class="fas fa-arrow-right"></i>
+                </button>
               </div>
             </div>
           </div>
         </div>
-
-        <div class="setup-navigation">
-          <div>
-            <button
-              type="button"
-              class="setup-nav-button secondary"
-              id="setup-prev-btn"
-              style="display: none"
-            >
-              ← Previous
-            </button>
-          </div>
-
-          <div style="display: flex; gap: 1rem; align-items: center">
-            <button
-              type="button"
-              class="setup-nav-button secondary"
-              id="setup-skip-btn"
-            >
-              Skip for now
-            </button>
-            <button
-              type="button"
-              class="setup-nav-button primary"
-              id="setup-next-btn"
-            >
-              Next Step →
-            </button>
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
+
+    <!-- Font Awesome for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
 
     <!-- Firebase Scripts -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-    <script src="../js/firebase/config/firebase-config.js"></script>
+
+    <!-- Load environment configuration for development -->
+    <script src="../js/firebase/config/env-config.js"></script>
+
+    <script>
+      // Initialize Firebase compat SDK for profile setup using environment config
+      // Check if environment configuration is loaded
+      if (!window.ENV) {
+        console.error("❌ Environment configuration not loaded");
+        alert(
+          "Development environment not configured. Please run: npm run dev:serve"
+        );
+        throw new Error("Missing environment configuration");
+      }
+
+      // Validate required Firebase configuration
+      const requiredKeys = [
+        "FIREBASE_API_KEY",
+        "FIREBASE_AUTH_DOMAIN",
+        "FIREBASE_PROJECT_ID",
+        "FIREBASE_STORAGE_BUCKET",
+        "FIREBASE_MESSAGING_SENDER_ID",
+        "FIREBASE_APP_ID",
+      ];
+
+      const missingKeys = requiredKeys.filter((key) => !window.ENV[key]);
+      if (missingKeys.length > 0) {
+        console.error("❌ Missing Firebase configuration keys:", missingKeys);
+        alert(
+          "Incomplete Firebase configuration. Please check your .env.local file."
+        );
+        throw new Error(`Missing Firebase config: ${missingKeys.join(", ")}`);
+      }
+
+      // Initialize Firebase with secure environment-based configuration
+      const firebaseConfig = {
+        apiKey: window.ENV.FIREBASE_API_KEY,
+        authDomain: window.ENV.FIREBASE_AUTH_DOMAIN,
+        projectId: window.ENV.FIREBASE_PROJECT_ID,
+        storageBucket: window.ENV.FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: window.ENV.FIREBASE_MESSAGING_SENDER_ID,
+        appId: window.ENV.FIREBASE_APP_ID,
+      };
+
+      // Initialize Firebase for profile setup
+      firebase.initializeApp(firebaseConfig);
+      console.log("🔥 Firebase compat SDK initialized for profile setup");
+
+      // Initialize dark mode toggle functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        const darkModeToggle = document.getElementById("darkModeToggle");
+        const body = document.body;
+
+        // Check for saved theme or default to system preference
+        const savedTheme = localStorage.getItem("theme");
+        const systemPreference = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+
+        if (savedTheme === "dark" || (!savedTheme && systemPreference)) {
+          body.classList.add("dark-mode");
+          darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+
+        darkModeToggle.addEventListener("click", function () {
+          body.classList.toggle("dark-mode");
+          const isDark = body.classList.contains("dark-mode");
+
+          localStorage.setItem("theme", isDark ? "dark" : "light");
+          darkModeToggle.innerHTML = isDark
+            ? '<i class="fas fa-sun"></i>'
+            : '<i class="fas fa-moon"></i>';
+        });
+      });
+    </script>
     <script src="../js/core/profile-setup.js"></script>
   </body>
 </html>

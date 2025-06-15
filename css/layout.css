@@ -173,17 +173,20 @@ This file contains all layout-related styles for the MeetchuThere app:
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: auto !important;
+  height: auto !important;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
   border: none !important; /* Force remove any inherited borders */
-  border-radius: 50%; /* Circular for cleaner look */
-  background: transparent; /* Clean, no background by default */
+  border-radius: 0.5rem; /* Subtle rounded corners */
+  background: transparent !important; /* Clean, no background by default */
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s var(--animation-spring);
   font-size: 1.1rem;
   position: relative;
   overflow: hidden;
+  padding: 0.5rem !important; /* Minimal padding for touch target */
   /* Ensure consistent box-sizing */
   box-sizing: border-box;
 }
@@ -213,10 +216,10 @@ This file contains all layout-related styles for the MeetchuThere app:
 }
 
 .nav-button:hover {
-  background: var(--surface-hover);
+  background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
   color: var(--accent-primary);
-  transform: scale(1.05);
-  box-shadow: var(--shadow-glow);
+  transform: scale(1.1);
+  box-shadow: none !important; /* Remove shadow for cleaner look */
   border: none !important; /* Ensure no borders appear on hover */
 }
 
@@ -553,7 +556,6 @@ This file contains all layout-related styles for the MeetchuThere app:
     width: 100% !important;
   }
 
-  
   .schedule-column,
   .controls-column {
     width: 100% !important;
@@ -643,8 +645,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 /* ===== STANDARD DESKTOP LAYOUT (900px - 1599px) ===== */
 @media (min-width: 900px) {
-
-  .top-nav { /* Add this new ruleset */
+  .top-nav {
+    /* Add this new ruleset */
     width: 100%; /* Explicitly set full width for this breakpoint */
     box-sizing: border-box; /* Ensures padding and border are included in the 100% width */
   }
@@ -743,11 +745,13 @@ This file contains all layout-related styles for the MeetchuThere app:
 /* Simplified user menu trigger - clean icon-only design */
 .user-menu-trigger {
   /* Clean, borderless design */
-  width: 2.5rem;
-  height: 2.5rem;
+  width: auto !important;
+  height: auto !important;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
   border: none !important; /* Force remove any inherited borders */
-  border-radius: 50%; /* Circular for a cleaner look */
-  background: transparent; /* No background by default */
+  border-radius: 0.5rem; /* Subtle rounded corners */
+  background: transparent !important; /* No background by default */
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s var(--animation-smooth);
@@ -756,15 +760,16 @@ This file contains all layout-related styles for the MeetchuThere app:
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0.5rem !important; /* Minimal padding for touch target */
   /* Ensure consistent box-sizing */
   box-sizing: border-box;
 }
 
 .user-menu-trigger:hover {
-  background: var(--surface-hover);
+  background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
   color: var(--accent-primary);
   transform: scale(1.1);
-  box-shadow: var(--shadow-glow);
+  box-shadow: none !important; /* Remove shadow for cleaner look */
 }
 
 .user-menu-trigger:focus {
@@ -1022,14 +1027,19 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Enhanced dark mode button for mobile */
   .theme-toggle {
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    padding: 0.5rem !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     flex-shrink: 0;
     transition: all 0.3s var(--animation-spring);
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
   }
 
   .theme-toggle i {
@@ -1038,9 +1048,10 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .theme-toggle:hover {
-    background: var(--surface-hover);
+    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
     color: var(--accent-primary);
-    transform: scale(1.05);
+    transform: scale(1.1);
+    box-shadow: none !important;
   }
 
   .theme-toggle:hover i {
@@ -1062,15 +1073,20 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Ensure user menu trigger matches other nav buttons on mobile */
   .user-menu-trigger {
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    padding: 0.5rem !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     transition: all 0.3s var(--animation-spring);
     overflow: hidden;
     position: relative;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
   }
 
   .user-menu-trigger i {
@@ -1079,10 +1095,10 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .user-menu-trigger:hover {
-    background: var(--surface-hover);
+    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
     color: var(--accent-primary);
-    transform: scale(1.05);
-    box-shadow: var(--shadow-glow);
+    transform: scale(1.1);
+    box-shadow: none !important;
   }
 
   .user-menu-trigger:hover i {
@@ -1146,40 +1162,21 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Dark mode button - ensure it stays visible and functional but maintain desktop behavior */
   .theme-toggle {
-    width: 2.25rem !important;
-    height: 2.25rem !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 2.25rem !important;
+    min-height: 2.25rem !important;
+    padding: 0.4rem !important;
     transform-origin: center;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
   }
 
   .theme-toggle:hover {
-    transform: scale(1.05);
-  }
-
-  /* Login button - make more compact but still readable */
-  .login-btn {
-    padding: 0.625rem 0.875rem;
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .top-nav {
-    padding: 0.75rem;
-  }
-
-  .nav-right {
-    gap: 0.5rem; /* Even smaller gap on very small screens */
-  }
-
-  /* Dark mode button - ensure it stays visible and functional but maintain desktop behavior */
-  .theme-toggle {
-    width: 2.25rem !important;
-    height: 2.25rem !important;
-    transform-origin: center;
-  }
-
-  .theme-toggle:hover {
-    transform: scale(1.05);
+    transform: scale(1.1);
+    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
+    box-shadow: none !important;
   }
 
   /* Login button - make more compact but still readable */
@@ -1214,13 +1211,25 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Ultra-compact theme toggle */
   .theme-toggle {
-    width: 2rem !important;
-    height: 2rem !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 2rem !important;
+    min-height: 2rem !important;
+    padding: 0.3rem !important;
     flex-shrink: 0; /* Don't allow shrinking */
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.4rem !important;
   }
 
   .theme-toggle i {
     font-size: 0.75rem !important;
+  }
+
+  .theme-toggle:hover {
+    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
+    transform: scale(1.1);
+    box-shadow: none !important;
   }
 
   /* Ultra-compact login button with shorter text */
