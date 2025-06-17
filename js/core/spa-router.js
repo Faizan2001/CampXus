@@ -19,17 +19,18 @@ class SPARouter {
         title: "Schedule - CampXus",
         template: "templates/home.html",
         cssFiles: [
-          "css/schedule.css",
-          "css/components.css",
-          "css/animations.css",
-        ], // Include all needed styles
+          "css/styles.css", // ✅ Master stylesheet imports all components
+        ], // Simplified: styles.css imports everything we need
         jsFiles: ["js/core/script.js"], // Schedule functionality
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
         title: "Profile Setup - CampXus",
         template: "templates/profile.html",
-        cssFiles: ["css/profile-setup.css"], // Specific styles for profile
+        cssFiles: [
+          "css/styles.css", // ✅ Base styles with all components
+          "css/profile-setup.css", // ✅ Profile-specific extensions
+        ],
         jsFiles: ["js/core/profile-setup.js"], // Profile functionality
         description: "Set up your student profile and preferences",
       },
