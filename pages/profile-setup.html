@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="../css/animations.css" />
     <link rel="stylesheet" href="../css/profile-setup.css" />
 
+    <!-- Load production Firebase configuration -->
+    <script src="../js/firebase/config/firebase-config-production.js"></script>
     <!-- Load environment configuration for Firebase -->
     <script src="../js/firebase/config/env-config.js"></script>
   </head>
@@ -349,8 +351,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-    <!-- Load environment configuration for development -->
-    <script src="../js/firebase/config/env-config.js"></script>
+    <!-- Environment configuration is now loaded in the <head> -->
+    <!-- <script src="../js/firebase/config/env-config.js"></script> -->
 
     <script>
       // Initialize Firebase compat SDK for profile setup using environment config
