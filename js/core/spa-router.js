@@ -97,25 +97,239 @@ class SPARouter {
     this.loadingIndicator = document.createElement("div");
     this.loadingIndicator.className = "spa-loading";
     this.loadingIndicator.innerHTML = `
-      <div class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
-        <span>Loading...</span>
+      <div class="loading-container">
+        <div class="loading-animation">
+          <div class="loading-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+          <div class="loading-pulse"></div>
+        </div>
+        <div class="loading-text">
+          <span class="loading-message">Loading</span>
+          <span class="loading-ellipsis">...</span>
+        </div>
       </div>
     `;
+
+    // 🎨 Modern glassmorphism loading design with smooth animations
     this.loadingIndicator.style.cssText = `
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255, 255, 255, 0.9);
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       display: none;
-      z-index: 1000;
-      text-align: center;
-      backdrop-filter: blur(5px);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
     `;
+
+    // 🎯 Learning: CSS-in-JS for dynamic, modern loading animations
+    const loadingStyles = document.createElement("style");
+    loadingStyles.textContent = `
+      .spa-loading.show {
+        opacity: 1 !important;
+      }
+
+      .spa-loading .loading-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 2.5rem 3rem;
+        border-radius: 20px;
+        box-shadow: 
+          0 20px 40px rgba(0, 0, 0, 0.1),
+          0 8px 20px rgba(0, 0, 0, 0.05),
+          inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        min-width: 200px;
+        animation: slideUpIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .spa-loading .loading-container {
+          background: rgba(40, 44, 52, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 
+            0 20px 40px rgba(0, 0, 0, 0.3),
+            0 8px 20px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+      }
+
+      .spa-loading .loading-animation {
+        position: relative;
+        margin-bottom: 1.5rem;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .spa-loading .loading-dots {
+        display: flex;
+        gap: 8px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .spa-loading .loading-dots .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        animation: dotBounce 1.4s infinite ease-in-out both;
+      }
+
+      .spa-loading .loading-dots .dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+
+      .spa-loading .loading-dots .dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+
+      .spa-loading .loading-dots .dot:nth-child(3) {
+        animation-delay: 0s;
+      }
+
+      .spa-loading .loading-pulse {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
+        transform: translate(-50%, -50%);
+        animation: pulse 2s infinite ease-in-out;
+      }
+
+      .spa-loading .loading-text {
+        color: #4a5568;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 500;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .spa-loading .loading-text {
+          color: #e2e8f0;
+        }
+      }
+
+      .spa-loading .loading-ellipsis {
+        animation: ellipsis 1.5s infinite ease-in-out;
+        display: inline-block;
+        width: 20px;
+        text-align: left;
+      }
+
+      /* 🎨 Keyframe Animations */
+      @keyframes dotBounce {
+        0%, 80%, 100% {
+          transform: scale(0.8) translateY(0);
+          opacity: 0.7;
+        }
+        40% {
+          transform: scale(1.2) translateY(-10px);
+          opacity: 1;
+        }
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 0.6;
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.5);
+          opacity: 0.2;
+        }
+      }
+
+      @keyframes ellipsis {
+        0% { content: ''; }
+        33% { content: '.'; }
+        66% { content: '..'; }
+        100% { content: '...'; }
+      }
+
+      @keyframes slideUpIn {
+        0% {
+          transform: translate(-50%, -40%);
+          opacity: 0;
+          filter: blur(10px);
+        }
+        100% {
+          transform: translate(-50%, -50%);
+          opacity: 1;
+          filter: blur(0);
+        }
+      }
+
+      /* 🚀 Performance optimizations */
+      .spa-loading .loading-container,
+      .spa-loading .loading-dots .dot,
+      .spa-loading .loading-pulse {
+        will-change: transform, opacity;
+      }
+
+      /* 📱 Mobile optimizations */
+      @media (max-width: 480px) {
+        .spa-loading .loading-container {
+          padding: 2rem;
+          margin: 0 1rem;
+          min-width: auto;
+          max-width: 280px;
+        }
+        
+        .spa-loading .loading-dots .dot {
+          width: 10px;
+          height: 10px;
+        }
+        
+        .spa-loading .loading-text {
+          font-size: 14px;
+        }
+      }
+
+      /* 🎯 Reduced motion support for accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        .spa-loading .loading-container {
+          animation: none;
+        }
+        
+        .spa-loading .loading-dots .dot {
+          animation: dotBounceReduced 2s infinite ease-in-out both;
+        }
+        
+        .spa-loading .loading-pulse {
+          animation: none;
+          opacity: 0.3;
+        }
+        
+        @keyframes dotBounceReduced {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+      }
+    `;
+
+    document.head.appendChild(loadingStyles);
     document.body.appendChild(this.loadingIndicator);
   }
 
@@ -342,20 +556,32 @@ class SPARouter {
   }
 
   /**
-   * Show loading indicator
+   * Show loading indicator with smooth animation
+   * 🎯 Learning: Smooth transitions make the app feel more professional
    */
   showLoading() {
     if (this.loadingIndicator) {
       this.loadingIndicator.style.display = "block";
+      // Small delay to ensure display is set before adding animation class
+      requestAnimationFrame(() => {
+        this.loadingIndicator.classList.add("show");
+      });
     }
   }
 
   /**
-   * Hide loading indicator
+   * Hide loading indicator with smooth animation
+   * 🎯 Learning: Exit animations are just as important as entrance animations
    */
   hideLoading() {
     if (this.loadingIndicator) {
-      this.loadingIndicator.style.display = "none";
+      this.loadingIndicator.classList.remove("show");
+      // Wait for fade out animation before hiding
+      setTimeout(() => {
+        if (this.loadingIndicator) {
+          this.loadingIndicator.style.display = "none";
+        }
+      }, 300); // Match the CSS transition duration
     }
   }
 
