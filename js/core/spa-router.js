@@ -1,9 +1,9 @@
 /**
  * CampXus SPA Router - Simple Single Page Application Router
- * 
+ *
  * 🎯 Learning Concept: A router decides which content to show based on the URL
  * Think of it as a traffic controller for your web app!
- * 
+ *
  * This router will:
  * - Listen for navigation clicks
  * - Load the right content for each page
@@ -15,40 +15,44 @@ class SPARouter {
   constructor() {
     // 📚 Learning: These are the "routes" - like a map of your app's pages
     this.routes = {
-      'home': {
-        title: 'Schedule - CampXus',
-        template: 'templates/home.html',
-        cssFiles: ['css/schedule.css', 'css/components.css', 'css/animations.css'], // Include all needed styles
-        jsFiles: ['js/core/script.js'], // Schedule functionality
-        description: 'Manage your weekly schedule and compare with friends'
+      home: {
+        title: "Schedule - CampXus",
+        template: "templates/home.html",
+        cssFiles: [
+          "css/schedule.css",
+          "css/components.css",
+          "css/animations.css",
+        ], // Include all needed styles
+        jsFiles: ["js/core/script.js"], // Schedule functionality
+        description: "Manage your weekly schedule and compare with friends",
       },
-      'profile': {
-        title: 'Profile Setup - CampXus', 
-        template: 'templates/profile.html',
-        cssFiles: ['css/profile-setup.css'], // Specific styles for profile
-        jsFiles: ['js/core/profile-setup.js'], // Profile functionality
-        description: 'Set up your student profile and preferences'
+      profile: {
+        title: "Profile Setup - CampXus",
+        template: "templates/profile.html",
+        cssFiles: ["css/profile-setup.css"], // Specific styles for profile
+        jsFiles: ["js/core/profile-setup.js"], // Profile functionality
+        description: "Set up your student profile and preferences",
       },
-      'friends': {
-        title: 'Friends - CampXus',
-        template: 'templates/friends.html', 
+      friends: {
+        title: "Friends - CampXus",
+        template: "templates/friends.html",
         cssFiles: [],
         jsFiles: [],
-        description: 'Connect with your classmates and study buddies'
+        description: "Connect with your classmates and study buddies",
       },
-      'about': {
-        title: 'About - CampXus',
-        template: 'templates/about.html',
+      about: {
+        title: "About - CampXus",
+        template: "templates/about.html",
         cssFiles: [],
         jsFiles: [],
-        description: 'Learn about the developer and the app'
-      }
+        description: "Learn about the developer and the app",
+      },
     };
 
-    this.currentPage = 'home'; // Default page
+    this.currentPage = "home"; // Default page
     this.mainContentContainer = null; // Will hold our content area
     this.loadingIndicator = null;
-    
+
     // 🎯 Learning: Initialize the router when created
     this.init();
   }
@@ -58,28 +62,30 @@ class SPARouter {
    * 🎯 Learning: This sets up all the event listeners and prepares the router
    */
   init() {
-    console.log('🚀 Initializing SPA Router...');
-    
+    console.log("🚀 Initializing SPA Router...");
+
     // Find the main content container
-    this.mainContentContainer = document.querySelector('.main-content');
+    this.mainContentContainer = document.querySelector(".main-content");
     if (!this.mainContentContainer) {
-      console.error('❌ Main content container not found! SPA Router cannot work.');
+      console.error(
+        "❌ Main content container not found! SPA Router cannot work."
+      );
       return;
     }
 
     // Create loading indicator
     this.createLoadingIndicator();
-    
+
     // Set up navigation event listeners
     this.setupNavigationListeners();
-    
+
     // Handle browser back/forward buttons
     this.setupBrowserNavigation();
-    
+
     // Load the initial page based on URL
     this.loadInitialPage();
-    
-    console.log('✅ SPA Router initialized successfully!');
+
+    console.log("✅ SPA Router initialized successfully!");
   }
 
   /**
@@ -87,8 +93,8 @@ class SPARouter {
    * 🎯 Learning: Good UX means showing users when something is loading
    */
   createLoadingIndicator() {
-    this.loadingIndicator = document.createElement('div');
-    this.loadingIndicator.className = 'spa-loading';
+    this.loadingIndicator = document.createElement("div");
+    this.loadingIndicator.className = "spa-loading";
     this.loadingIndicator.innerHTML = `
       <div class="loading-spinner">
         <i class="fas fa-spinner fa-spin"></i>
@@ -118,11 +124,11 @@ class SPARouter {
    */
   setupNavigationListeners() {
     // Listen for clicks on elements with data-spa-route attribute
-    document.addEventListener('click', (event) => {
-      const routeElement = event.target.closest('[data-spa-route]');
+    document.addEventListener("click", (event) => {
+      const routeElement = event.target.closest("[data-spa-route]");
       if (routeElement) {
         event.preventDefault(); // Stop the normal link behavior
-        const route = routeElement.getAttribute('data-spa-route');
+        const route = routeElement.getAttribute("data-spa-route");
         console.log(`🖱️ Navigation clicked: ${route}`);
         this.navigateTo(route);
       }
@@ -134,9 +140,9 @@ class SPARouter {
    * 🎯 Learning: Users expect back/forward buttons to work in SPAs too!
    */
   setupBrowserNavigation() {
-    window.addEventListener('popstate', (event) => {
-      console.log('🔄 Browser navigation detected');
-      const route = event.state?.route || 'home';
+    window.addEventListener("popstate", (event) => {
+      console.log("🔄 Browser navigation detected");
+      const route = event.state?.route || "home";
       this.loadPage(route, false); // Don't update history again
     });
   }
@@ -148,13 +154,13 @@ class SPARouter {
   loadInitialPage() {
     // For now, just load home page
     // Later we can parse URL fragments or search params
-    this.navigateTo('home', false);
+    this.navigateTo("home", false);
   }
 
   /**
    * Navigate to a specific route
    * 🎯 Learning: This is the main method that changes pages
-   * 
+   *
    * @param {string} route - The route to navigate to
    * @param {boolean} updateHistory - Whether to update browser history
    */
@@ -165,17 +171,17 @@ class SPARouter {
     }
 
     console.log(`🧭 Navigating to: ${route}`);
-    
+
     // Update browser history if requested
     if (updateHistory) {
       const routeData = this.routes[route];
       history.pushState(
-        { route }, 
-        routeData.title, 
+        { route },
+        routeData.title,
         `#${route}` // Use hash for simplicity
       );
     }
-    
+
     // Load the page content
     await this.loadPage(route);
   }
@@ -183,7 +189,7 @@ class SPARouter {
   /**
    * Load page content and resources
    * 🎯 Learning: This does the heavy lifting of swapping content
-   * 
+   *
    * @param {string} route - The route to load
    * @param {boolean} updateHistory - Whether this should update history
    */
@@ -194,44 +200,43 @@ class SPARouter {
     try {
       // Show loading indicator
       this.showLoading();
-      
+
       // Update page title
       document.title = routeData.title;
-      
+
       // Update meta description
       this.updateMetaDescription(routeData.description);
-      
+
       // Load CSS files if needed
       await this.loadCSS(routeData.cssFiles);
-      
+
       // Load the HTML template
       const htmlContent = await this.loadTemplate(routeData.template);
-      
+
       // Update the main content
       this.mainContentContainer.innerHTML = htmlContent;
-      
+
       // Load and execute JavaScript files
       await this.loadJS(routeData.jsFiles);
-      
+
       // Special initialization for home page after content and scripts are loaded
-      if (route === 'home') {
+      if (route === "home") {
         await this.initializeHomePage();
       }
-      
+
       // Update current page
       this.currentPage = route;
-      
+
       // Update navigation active states
       this.updateNavigationStates(route);
-      
+
       // Hide loading indicator
       this.hideLoading();
-      
+
       // Dispatch custom event for other parts of the app
       this.dispatchNavigationEvent(route);
-      
+
       console.log(`✅ Successfully loaded page: ${route}`);
-      
     } catch (error) {
       console.error(`❌ Error loading page ${route}:`, error);
       this.hideLoading();
@@ -245,24 +250,24 @@ class SPARouter {
    */
   async loadCSS(cssFiles) {
     if (!cssFiles || cssFiles.length === 0) return;
-    
-    const promises = cssFiles.map(cssFile => {
+
+    const promises = cssFiles.map((cssFile) => {
       return new Promise((resolve, reject) => {
         // Check if already loaded
         if (document.querySelector(`link[href="${cssFile}"]`)) {
           resolve();
           return;
         }
-        
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
         link.href = cssFile;
         link.onload = resolve;
         link.onerror = reject;
         document.head.appendChild(link);
       });
     });
-    
+
     await Promise.all(promises);
   }
 
@@ -284,16 +289,16 @@ class SPARouter {
    */
   async loadJS(jsFiles) {
     if (!jsFiles || jsFiles.length === 0) return;
-    
+
     for (const jsFile of jsFiles) {
       // Check if already loaded
       if (document.querySelector(`script[src="${jsFile}"]`)) {
         continue;
       }
-      
+
       await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.type = 'module'; // Use ES6 modules
+        const script = document.createElement("script");
+        script.type = "module"; // Use ES6 modules
         script.src = jsFile;
         script.onload = resolve;
         script.onerror = reject;
@@ -309,8 +314,8 @@ class SPARouter {
   updateMetaDescription(description) {
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.name = 'description';
+      metaDesc = document.createElement("meta");
+      metaDesc.name = "description";
       document.head.appendChild(metaDesc);
     }
     metaDesc.content = description;
@@ -322,14 +327,16 @@ class SPARouter {
    */
   updateNavigationStates(activeRoute) {
     // Remove active class from all nav items
-    document.querySelectorAll('[data-spa-route]').forEach(el => {
-      el.classList.remove('active');
+    document.querySelectorAll("[data-spa-route]").forEach((el) => {
+      el.classList.remove("active");
     });
-    
+
     // Add active class to current route
-    const activeNavItem = document.querySelector(`[data-spa-route="${activeRoute}"]`);
+    const activeNavItem = document.querySelector(
+      `[data-spa-route="${activeRoute}"]`
+    );
     if (activeNavItem) {
-      activeNavItem.classList.add('active');
+      activeNavItem.classList.add("active");
     }
   }
 
@@ -338,7 +345,7 @@ class SPARouter {
    */
   showLoading() {
     if (this.loadingIndicator) {
-      this.loadingIndicator.style.display = 'block';
+      this.loadingIndicator.style.display = "block";
     }
   }
 
@@ -347,7 +354,7 @@ class SPARouter {
    */
   hideLoading() {
     if (this.loadingIndicator) {
-      this.loadingIndicator.style.display = 'none';
+      this.loadingIndicator.style.display = "none";
     }
   }
 
@@ -370,7 +377,7 @@ class SPARouter {
           <summary style="cursor: pointer; color: #666;">Technical Details</summary>
           <pre style="background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow: auto; margin-top: 1rem;">
 ${error.message}
-${error.stack || ''}
+${error.stack || ""}
           </pre>
         </details>
       </div>
@@ -382,8 +389,8 @@ ${error.stack || ''}
    * 🎯 Learning: Events let different parts of your app communicate
    */
   dispatchNavigationEvent(route) {
-    const event = new CustomEvent('spa:navigation', {
-      detail: { route, router: this }
+    const event = new CustomEvent("spa:navigation", {
+      detail: { route, router: this },
     });
     document.dispatchEvent(event);
   }
@@ -408,37 +415,36 @@ ${error.stack || ''}
    * 🎯 Learning: This ensures the schedule app starts properly in SPA mode
    */
   async initializeHomePage() {
-    console.log('🏠 Initializing home page...');
-    
+    console.log("🏠 Initializing home page...");
+
     try {
       // Wait a short time for script.js to fully load and initialize
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Check if the main app functions are available
-      if (typeof window.initializeApp === 'function') {
-        console.log('✅ Found initializeApp function, calling it...');
+      if (typeof window.initializeApp === "function") {
+        console.log("✅ Found initializeApp function, calling it...");
         await window.initializeApp();
       } else {
-        console.log('⚠️ initializeApp not found, dispatching event...');
-        
+        console.log("⚠️ initializeApp not found, dispatching event...");
+
         // Dispatch an event that the home page script can listen for
-        document.dispatchEvent(new CustomEvent('spa:home:loaded'));
-        
+        document.dispatchEvent(new CustomEvent("spa:home:loaded"));
+
         // Wait a bit more and try again
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        if (typeof window.initializeApp === 'function') {
-          console.log('✅ Found initializeApp after delay, calling it...');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        if (typeof window.initializeApp === "function") {
+          console.log("✅ Found initializeApp after delay, calling it...");
           await window.initializeApp();
         } else {
-          console.error('❌ Still cannot find initializeApp function');
+          console.error("❌ Still cannot find initializeApp function");
         }
       }
-      
-      console.log('✅ Home page initialization complete');
-      
+
+      console.log("✅ Home page initialization complete");
     } catch (error) {
-      console.error('❌ Error initializing home page:', error);
+      console.error("❌ Error initializing home page:", error);
       // Don't throw error to prevent SPA navigation from failing
     }
   }

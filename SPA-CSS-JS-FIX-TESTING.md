@@ -3,6 +3,7 @@
 ### What to Test:
 
 #### 1. **CSS Styling** ✅
+
 - Navigate to Home page (click logo or Home link)
 - Check that the schedule grid displays properly with correct styling
 - Verify that buttons have proper hover effects and colors
@@ -10,6 +11,7 @@
 - Test mobile responsiveness
 
 #### 2. **JavaScript Functionality** ⚡
+
 - **Add User**: Click "Add User" button and add a test user
 - **Schedule Interaction**: Click on schedule slots to mark them busy/free
 - **Compare Mode**: Add multiple users and test compare functionality
@@ -17,13 +19,16 @@
 - **Export/Import**: Test data export and import features
 
 #### 3. **SPA Navigation** 🚀
+
 - Click between different pages (Home, Profile, Friends, About)
 - Verify NO page reloads occur (watch browser's loading indicator)
 - Test browser back/forward buttons work correctly
 - Check that page transitions are smooth
 
 #### 4. **Console Messages** 🔍
+
 Open browser console (F12) and look for these success messages:
+
 ```
 🏠 Initializing home page...
 ✅ Found initializeApp function, calling it...
@@ -44,14 +49,17 @@ Open browser console (F12) and look for these success messages:
 ### Common Issues & Solutions:
 
 ❌ **If schedule looks broken:**
+
 - Check browser console for CSS loading errors
 - Try hard refresh (Ctrl+F5 or Cmd+Shift+R)
 
 ❌ **If JavaScript doesn't work:**
+
 - Check console for "initializeApp" success messages
 - Try navigating away and back to Home page
 
 ❌ **If navigation doesn't work:**
+
 - Check that all links use `data-spa-route` attributes
 - Verify browser console for SPA router messages
 
@@ -59,10 +67,10 @@ Open browser console (F12) and look for these success messages:
 
 ```javascript
 // Check if SPA router is working
-console.log('SPA Router:', window.spaRouter);
+console.log("SPA Router:", window.spaRouter);
 
 // Check if main app is initialized
-console.log('Init function available:', typeof window.initializeApp);
+console.log("Init function available:", typeof window.initializeApp);
 
 // Force re-initialization if needed
 if (window.initializeApp) window.initializeApp();

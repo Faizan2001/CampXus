@@ -393,9 +393,11 @@ class ProfileSetup {
       this.showSuccessMessage();
 
       // 🎯 SPA Integration: Dispatch completion event instead of page redirect
-      document.dispatchEvent(new CustomEvent('profile:setup:complete', {
-        detail: { userData }
-      }));
+      document.dispatchEvent(
+        new CustomEvent("profile:setup:complete", {
+          detail: { userData },
+        })
+      );
 
       // Fallback redirect if SPA router isn't available
       setTimeout(() => {
@@ -434,9 +436,11 @@ class ProfileSetup {
         .set(userData, { merge: true });
 
       // 🎯 SPA Integration: Dispatch skip event instead of page redirect
-      document.dispatchEvent(new CustomEvent('profile:setup:skip', {
-        detail: { userData }
-      }));
+      document.dispatchEvent(
+        new CustomEvent("profile:setup:skip", {
+          detail: { userData },
+        })
+      );
 
       // Fallback redirect if SPA router isn't available
       setTimeout(() => {

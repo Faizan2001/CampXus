@@ -1,9 +1,9 @@
 /**
  * CampXus SPA Initialization
- * 
+ *
  * 🎯 Learning: This file initializes our Single Page Application
  * It's like the "conductor" that makes sure everything starts up correctly!
- * 
+ *
  * This script:
  * - Creates the router instance
  * - Handles authentication state
@@ -11,28 +11,28 @@
  * - Integrates with existing app functionality
  */
 
-import SPARouter from './spa-router.js';
+import SPARouter from "./spa-router.js";
 
 /**
  * Initialize the SPA when DOM is ready
  * 🎯 Learning: We wait for the DOM to load before setting up our app
  */
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 Starting CampXus SPA...');
-  
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("🚀 Starting CampXus SPA...");
+
   // Create global router instance
   window.spaRouter = new SPARouter();
-  
+
   // Set up authentication-aware navigation
   setupAuthenticationIntegration();
-  
+
   // Set up profile completion redirects
   setupProfileCompletionFlow();
-  
+
   // Listen for SPA navigation events
   setupSPAEventListeners();
-  
-  console.log('✅ CampXus SPA initialized successfully!');
+
+  console.log("✅ CampXus SPA initialized successfully!");
 });
 
 /**
@@ -41,11 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function setupAuthenticationIntegration() {
   // Listen for authentication state changes
-  document.addEventListener('spa:navigation', (event) => {
+  document.addEventListener("spa:navigation", (event) => {
     const { route } = event.detail;
-    
+
     // Some pages might require authentication
-    if (route === 'profile') {
+    if (route === "profile") {
       // Check if user is authenticated before showing profile
       // This integrates with your existing Firebase auth
       checkAuthenticationForProfile();
@@ -59,23 +59,23 @@ function setupAuthenticationIntegration() {
  */
 function setupProfileCompletionFlow() {
   // Listen for profile setup completion
-  document.addEventListener('profile:setup:complete', () => {
-    console.log('📝 Profile setup completed, redirecting to home...');
-    
+  document.addEventListener("profile:setup:complete", () => {
+    console.log("📝 Profile setup completed, redirecting to home...");
+
     // Show success message briefly, then redirect
     setTimeout(() => {
       if (window.spaRouter) {
-        window.spaRouter.navigateTo('home');
+        window.spaRouter.navigateTo("home");
       }
     }, 2000); // 2 second delay to show success message
   });
-  
+
   // Listen for profile setup skip
-  document.addEventListener('profile:setup:skip', () => {
-    console.log('⏭️ Profile setup skipped, redirecting to home...');
-    
+  document.addEventListener("profile:setup:skip", () => {
+    console.log("⏭️ Profile setup skipped, redirecting to home...");
+
     if (window.spaRouter) {
-      window.spaRouter.navigateTo('home');
+      window.spaRouter.navigateTo("home");
     }
   });
 }
@@ -86,18 +86,18 @@ function setupProfileCompletionFlow() {
  */
 function setupSPAEventListeners() {
   // Listen for navigation events to update UI
-  document.addEventListener('spa:navigation', (event) => {
+  document.addEventListener("spa:navigation", (event) => {
     const { route } = event.detail;
-    
+
     // Update document title for better UX
     updatePageTitle(route);
-    
+
     // Close any open menus/dropdowns when navigating
     closeAllDropdowns();
-    
+
     // Scroll to top of page (like a normal page navigation would)
     window.scrollTo(0, 0);
-    
+
     // Update any global UI elements based on current page
     updateGlobalUIForPage(route);
   });
@@ -109,16 +109,18 @@ function setupSPAEventListeners() {
  */
 function checkAuthenticationForProfile() {
   // This integrates with your existing Firebase authentication
-  if (typeof firebase !== 'undefined' && firebase.auth) {
+  if (typeof firebase !== "undefined" && firebase.auth) {
     const user = firebase.auth().currentUser;
-    
+
     if (!user) {
-      console.log('🔒 Profile requires authentication, staying on current page');
+      console.log(
+        "🔒 Profile requires authentication, staying on current page"
+      );
       // Could show login modal or redirect to a different page
       return false;
     }
   }
-  
+
   return true;
 }
 
@@ -128,13 +130,13 @@ function checkAuthenticationForProfile() {
  */
 function updatePageTitle(route) {
   const titles = {
-    'home': 'Schedule - CampXus',
-    'profile': 'Profile Setup - CampXus',
-    'friends': 'Friends - CampXus',
-    'about': 'About - CampXus'
+    home: "Schedule - CampXus",
+    profile: "Profile Setup - CampXus",
+    friends: "Friends - CampXus",
+    about: "About - CampXus",
   };
-  
-  const title = titles[route] || 'CampXus';
+
+  const title = titles[route] || "CampXus";
   document.title = title;
 }
 
@@ -144,15 +146,15 @@ function updatePageTitle(route) {
  */
 function closeAllDropdowns() {
   // Close user menu dropdown if open
-  const userDropdown = document.getElementById('userDropdown');
+  const userDropdown = document.getElementById("userDropdown");
   if (userDropdown) {
-    userDropdown.classList.remove('show');
+    userDropdown.classList.remove("show");
   }
-  
+
   // Reset user menu trigger
-  const userMenuTrigger = document.getElementById('userMenuTrigger');
+  const userMenuTrigger = document.getElementById("userMenuTrigger");
   if (userMenuTrigger) {
-    userMenuTrigger.setAttribute('aria-expanded', 'false');
+    userMenuTrigger.setAttribute("aria-expanded", "false");
   }
 }
 
@@ -163,11 +165,11 @@ function closeAllDropdowns() {
 function updateGlobalUIForPage(route) {
   // Example: You might want to highlight different nav items
   // or show/hide certain global elements based on the current page
-  
+
   // Add page-specific class to body for CSS targeting
-  document.body.className = document.body.className.replace(/\bpage-\w+/g, '');
+  document.body.className = document.body.className.replace(/\bpage-\w+/g, "");
   document.body.classList.add(`page-${route}`);
-  
+
   // You could also update the navigation active states here
   // (though the router already handles this)
 }
@@ -176,11 +178,11 @@ function updateGlobalUIForPage(route) {
  * Global SPA navigation helper function
  * 🎯 Learning: Provide a simple way for other scripts to navigate
  */
-window.navigateTo = function(route) {
+window.navigateTo = function (route) {
   if (window.spaRouter) {
     window.spaRouter.navigateTo(route);
   } else {
-    console.error('SPA Router not initialized yet');
+    console.error("SPA Router not initialized yet");
   }
 };
 
@@ -188,8 +190,8 @@ window.navigateTo = function(route) {
  * Export for use in other modules
  * 🎯 Learning: Modern JavaScript modules can export functions
  */
-export { 
+export {
   setupAuthenticationIntegration,
   setupProfileCompletionFlow,
-  updatePageTitle
+  updatePageTitle,
 };
