@@ -63,3 +63,323 @@ IMPORTED MODULES:
 
 ====================================================================================
 */
+
+/* ===== SPA (Single Page Application) Styles ===== */
+/* 🎯 Learning: These styles make our SPA feel smooth and professional */
+
+/* SPA Loading Indicator */
+.spa-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--glass-border);
+}
+
+.loading-spinner i {
+  font-size: 2rem;
+  color: var(--accent-primary);
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.loading-spinner span {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* SPA Page Transitions */
+.main-content {
+  /* Ensure dynamic content displays properly */
+  min-height: 50vh;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+  position: relative;
+}
+
+.main-content.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.main-content.spa-loading {
+  opacity: 0.5;
+}
+
+/* Content animation when loaded */
+.content-grid {
+  animation: spa-content-fade-in 0.5s ease-out;
+}
+
+@keyframes spa-content-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* SPA Navigation Active States */
+.nav-link.active,
+.dropdown-item.active {
+  background: var(--accent-primary) !important;
+  color: white !important;
+}
+
+.nav-link.active .nav-text,
+.dropdown-item.active span {
+  color: white !important;
+}
+
+/* Page-specific body classes for styling */
+body.page-home .nav-link[data-spa-route="home"] {
+  background: var(--accent-primary);
+  color: white;
+}
+
+body.page-profile .dropdown-item[data-spa-route="profile"] {
+  background: var(--accent-primary);
+  color: white;
+}
+
+body.page-friends .nav-link[data-spa-route="friends"] {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* SPA Loading Placeholder */
+.spa-loading-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.spa-loading-placeholder::before {
+  content: "⏳ ";
+  margin-right: 0.5rem;
+  animation: spin 1s linear infinite;
+}
+
+/* Error Page Styles */
+.error-page {
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  margin: 2rem;
+  padding: 3rem;
+}
+
+.error-page h2 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.error-page .empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+/* Friends and About Page Styles */
+.friends-container,
+.about-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.search-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.search-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+  background: var(--accent-secondary);
+  transform: translateY(-1px);
+}
+
+.friends-grid,
+.requests-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--text-secondary);
+}
+
+.empty-state .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.empty-state h4 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+/* About page specific styles */
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.feature-list i {
+  color: var(--accent-primary);
+  width: 20px;
+}
+
+.developer-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.developer-avatar {
+  width: 80px;
+  height: 80px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.developer-details h4 {
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.tech-tag {
+  background: var(--accent-primary);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.contact-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.version-content {
+  line-height: 1.6;
+}
+
+.credits ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.credits li {
+  padding: 0.25rem 0;
+  color: var(--text-secondary);
+}
+
+/* Responsive adjustments for SPA */
+@media (max-width: 768px) {
+  .friends-container,
+  .about-container {
+    padding: 1rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .developer-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .contact-buttons {
+    flex-direction: column;
+  }
+}

@@ -15,11 +15,14 @@ const firebaseProductionConfig = {
   // FIREBASE_MEASUREMENT_ID: "YOUR_PRODUCTION_FIREBASE_MEASUREMENT_ID"
 };
 
-
 // Only define window.ENV if it's not already defined (e.g., by env-config.js in local development)
-if (typeof window.ENV === 'undefined') {
-  console.log("🚀 Production Firebase config loaded: window.ENV was not defined, setting it now.");
+if (typeof window.ENV === "undefined") {
+  console.log(
+    "🚀 Production Firebase config loaded: window.ENV was not defined, setting it now."
+  );
   window.ENV = firebaseProductionConfig;
 } else {
-  console.log("🔧 Development Firebase config (window.ENV) already loaded. Production config will not override.");
+  console.log(
+    "🔧 Development Firebase config (window.ENV) already loaded. Production config will not override."
+  );
 }

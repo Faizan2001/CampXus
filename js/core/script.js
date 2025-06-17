@@ -2884,6 +2884,9 @@ async function initializeApp() {
   // Note: Profile completion check is now handled by the authentication callback
 }
 
+// Make initializeApp available globally for SPA
+window.initializeApp = initializeApp;
+
 /**
  * Shows a detailed tooltip for pin indicators in compare mode
  * @param {Event} event - The click event
@@ -3065,8 +3068,20 @@ export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
   }
 }
 
-// Initialize the application when DOM is loaded
+// Make initializeApp available globally for SPA
+window.initializeApp = initializeApp;
+
+// Traditional initialization for non-SPA mode
 document.addEventListener("DOMContentLoaded", async () => {
+  // Only initialize if we're not in SPA mode
+  if (!window.spaRouter) {
+    await initializeApp();
+  }
+});
+
+// SPA initialization - listen for the home page loaded event
+document.addEventListener('spa:home:loaded', async () => {
+  console.log('📱 SPA home page loaded, initializing...');
   await initializeApp();
 });
 

@@ -1,0 +1,77 @@
+<!-- 
+  🎯 Learning: This is the FRIENDS template - where users manage their connections!
+  This is currently a placeholder, but you can expand it later.
+-->
+
+<div class="content-grid">
+  <div class="friends-container">
+    <!-- Friends Page Header -->
+    <section class="glass-card friends-header">
+      <div class="page-title-section">
+        <h1 class="page-title">
+          <i class="fas fa-users"></i>
+          Friends & Connections
+        </h1>
+        <p class="page-subtitle">
+          Connect with your classmates and study buddies to compare schedules and plan study sessions.
+        </p>
+      </div>
+    </section>
+
+    <!-- Search and Add Friends -->
+    <section class="glass-card friends-search">
+      <h3>
+        <i class="fas fa-search"></i>
+        Find Friends
+      </h3>
+      <div class="search-input-wrapper">
+        <input 
+          type="text" 
+          id="friendSearch" 
+          class="search-input" 
+          placeholder="Search by name, email, or student ID..."
+        >
+        <button type="button" class="search-btn">
+          <i class="fas fa-search"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Friends List -->
+    <section class="glass-card friends-list">
+      <h3>
+        <i class="fas fa-heart"></i>
+        Your Friends
+      </h3>
+      <div id="friendsList" class="friends-grid">
+        <!-- This will be populated by JavaScript -->
+        <div class="empty-state">
+          <div class="empty-icon">👥</div>
+          <h4>No friends yet!</h4>
+          <p>Start connecting with your classmates to see shared study times and plan group sessions.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Friend Requests -->
+    <section class="glass-card friend-requests">
+      <h3>
+        <i class="fas fa-user-plus"></i>
+        Friend Requests
+      </h3>
+      <div id="friendRequests" class="requests-list">
+        <!-- This will be populated by JavaScript -->
+        <div class="empty-state">
+          <div class="empty-icon">📬</div>
+          <p>No pending friend requests</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 
+  🎯 Learning Note: This template shows how you can structure future pages.
+  You can add CSS files and JavaScript files to the router configuration
+  when you're ready to implement the full friends functionality!
+-->

@@ -11,53 +11,23 @@ from components.css, and animations from animations.css.
 =============================================================================
 */
 
-/* ===== SINGLE-PAGE APP MODE ===== */
-.profile-setup-mode .main-content {
-  /* Override main content layout when in profile setup mode */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-lg);
-  min-height: calc(100vh - 80px); /* Account for nav height */
-}
-
-.profile-setup-mode .content-grid {
-  /* Replace grid layout with centered container */
-  display: block;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.profile-setup-mode .controls-column,
-.profile-setup-mode .schedule-column {
-  /* Hide original columns when in profile mode */
-  display: none;
-}
-
 /* ===== PROFILE SETUP MAIN LAYOUT ===== */
-.profile-setup-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-lg);
-  min-height: calc(100vh - 80px); /* Account for nav height */
-  animation: fadeIn 0.6s ease-out;
-}
+/* 
+  The .profile-setup-overlay and .profile-setup-card styles 
+  are now handled by the main app structure (.app-container, .main-content, .content-grid)
+  and the .glass-card class from components.css.
+  We only need to ensure the .profile-setup-card (which is now also .glass-card)
+  has appropriate padding and any specific layout adjustments if needed.
+*/
 
-.profile-setup-container {
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-/* ===== PROFILE SETUP CARD ===== */
-.profile-setup-card {
-  /* Extends glass-card from components.css */
-  min-height: 600px;
-  animation: slideUp 0.8s var(--animation-smooth);
-  transform-origin: center bottom;
+.profile-setup-card.glass-card {
+  padding: var(
+    --space-xl
+  ); /* Ensure consistent padding with other glass cards */
+  margin: var(--space-xl) auto; /* Center the card if it doesn't fill the grid area */
+  max-width: 800px; /* Maintain max-width for the setup content */
+  min-height: auto; /* Override previous min-height as it's now part of a page flow */
+  animation: none; /* Remove previous slideUp animation if not desired in this context */
 }
 
 /* ===== SETUP HEADER ===== */
@@ -90,20 +60,34 @@ from components.css, and animations from animations.css.
 }
 
 /* ===== PROGRESS BAR ===== */
-.setup-progress {
+.setup-progress-container {
+  /* New class added in HTML for better structure */
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  margin-top: var(--space-lg);
+  justify-content: space-between; /* Aligns step info and progress bar */
+  margin-bottom: var(--space-lg);
 }
 
-.setup-progress-track {
-  flex: 1;
+.setup-step-info {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.setup-step-info .current-step {
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+.setup-progress {
+  /* Was .setup-progress-track, renamed for clarity */
+  flex-grow: 1; /* Allow it to take available space */
   height: 8px;
   background: var(--surface);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
+  margin-left: var(--space-md); /* Add some space between text and bar */
 }
 
 .setup-progress-bar {
@@ -111,7 +95,7 @@ from components.css, and animations from animations.css.
   background: var(--gradient-primary);
   border-radius: 4px;
   transition: width 0.5s var(--animation-smooth);
-  width: 33.33%; /* Step 1 of 3 */
+  width: 50%; /* Step 1 of 2 */
   position: relative;
 }
 
@@ -125,25 +109,13 @@ from components.css, and animations from animations.css.
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
+    rgba(255, 255, 255, 0.2),
+    /* Slightly less opaque shimmer */ transparent
   );
   animation: shimmer 2s infinite;
 }
 
-.setup-progress-text {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.current-step {
-  font-weight: 600;
-  color: var(--text-accent);
-}
+/* Removed .setup-progress-text as its content is now in .setup-step-info */
 
 /* ===== SETUP BODY & STEPS ===== */
 .setup-body {
@@ -418,223 +390,118 @@ from components.css, and animations from animations.css.
 /* ===== SETUP NAVIGATION ===== */
 .setup-navigation {
   display: flex;
-  justify-content: flex-end; /* Move buttons to bottom right */
+  justify-content: space-between; /* Align prev to left, next/skip group to right */
   align-items: center;
-  padding: var(--space-xl) 0; /* Increased vertical padding */
+  padding-top: var(--space-xl); /* Add padding only to the top */
+  padding-bottom: var(--space-md); /* Reduce bottom padding slightly */
   border-top: 1px solid var(--glass-border);
   margin-top: var(--space-xl);
-  min-height: 80px; /* Ensure consistent height */
 }
 
-.nav-right-group {
+/* Group for skip and next buttons to keep them together */
+.setup-navigation > div[style*="display: flex"] {
   display: flex;
-  gap: var(--space-lg); /* Increased gap between buttons */
+  gap: var(--space-md); /* Consistent gap */
   align-items: center;
-  justify-content: flex-end; /* Align buttons to the right */
-  flex-wrap: nowrap; /* Prevent wrapping to maintain layout */
-  min-width: 0; /* Allow the group to shrink if needed */
 }
 
-.nav-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  padding: 14px 28px; /* Increased padding for better button size */
-  min-width: 120px; /* Minimum width for consistency */
-  max-width: 280px; /* Maximum width to prevent excessive growth */
-  min-height: 48px; /* Minimum height for touch-friendly buttons */
-  border-radius: var(--radius-md);
-  border: none;
-  cursor: pointer;
-  font-weight: 600; /* Slightly bolder for better readability */
-  font-size: 1rem; /* Slightly larger text */
-  line-height: 1.2;
-  transition: all 0.3s var(--animation-smooth);
-  text-decoration: none;
-  white-space: nowrap; /* Prevent text wrapping */
-  /* Dynamic width with smooth transitions */
-  width: auto;
-  flex-shrink: 0; /* Prevent shrinking in flex containers */
+/* Remove .nav-right-group as it's not used anymore in the new HTML structure */
+
+/* .nav-button styles are now primarily handled by .button from components.css 
+   and specific overrides like .setup-nav-button if needed. 
+   The .btn-primary, .btn-secondary, .btn-tertiary classes from profile-setup.css 
+   should be reviewed if they are still needed or if .button.primary etc. from components.css suffice.
+   For now, assuming .button and .btn-primary (from HTML) are working. 
+*/
+
+.setup-nav-button {
+  /* Add any specific overrides for setup navigation buttons if .button is not enough */
+  /* Example: min-width if they are too small */
+  min-width: 100px;
 }
 
-.btn-primary {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
-  color: white;
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.6);
-}
-
-.btn-secondary {
-  background: var(--surface);
-  color: var(--text-primary);
+/* Ensure .button.muted is styled if not already in components.css */
+.button.muted {
+  background-color: var(--surface-hover); /* Example style */
+  color: var(--text-secondary);
   border: 1px solid var(--glass-border);
 }
 
-.btn-secondary:hover {
-  background: var(--surface-hover);
-  border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+.button.muted:hover {
+  background-color: var(--surface-active);
 }
 
-.btn-tertiary {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid transparent;
-}
+/* Remove specific .nav-button#setup-next-btn width animations if not desired */
+/* or adjust if they conflict with .button class */
 
-.btn-tertiary:hover {
-  color: var(--text-primary);
-  background: var(--surface);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-}
-
-.nav-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-/* ===== BUTTON TEXT ANIMATION ===== */
-.nav-button.text-changing {
-  animation: buttonTextChange 0.3s ease-in-out;
-}
-
-@keyframes buttonTextChange {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(0.98);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Dynamic width adjustment for different button states */
-.nav-button#setup-next-btn {
-  /* Specific width constraints for the Next button that changes text */
-  min-width: 140px; /* Slightly larger minimum for longer text */
-  max-width: 320px; /* Allow more room for longer validation messages */
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Smoother easing for width changes */
-}
-
-/* Enhanced animation for width changes */
-.nav-button.width-changing {
-  animation: buttonWidthChange 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes buttonWidthChange {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.02);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* ===== ENHANCED NAVIGATION STYLING ===== */
-/* When Previous button is visible, adjust layout */
-.setup-navigation:has(#setup-prev-btn:not([style*="display: none"])) {
-  justify-content: space-between;
-}
-
-.setup-navigation:has(#setup-prev-btn:not([style*="display: none"]))
-  .nav-right-group {
-  margin-left: auto;
-}
-
-/* Enhanced button hover effects */
-.nav-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* ===== USER ICON STYLING ===== */
-.setup-user-icon {
-  color: var(--text-secondary);
-  font-size: 1.5rem;
-  cursor: default;
-}
+/* Remove .setup-navigation:has(#setup-prev-btn:not([style*="display: none"])) rules
+   as the flexbox justify-content: space-between on .setup-navigation handles this now.
+*/
 
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
-  .profile-setup-main {
-    padding: var(--space-md);
-  }
-
-  .profile-setup-card {
+  .profile-setup-card.glass-card {
+    margin-top: var(--space-md);
     padding: var(--space-lg);
   }
 
   .setup-title {
-    font-size: 1.8rem;
+    font-size: 1.6rem; /* Adjusted for page context */
+  }
+
+  .setup-subtitle {
+    font-size: 1rem;
+  }
+
+  .setup-progress-container {
+    flex-direction: column; /* Stack step info and progress bar */
+    align-items: flex-start; /* Align to left */
+    gap: var(--space-sm);
+  }
+
+  .setup-progress {
+    width: 100%; /* Full width for progress bar */
+    margin-left: 0;
   }
 
   .setup-navigation {
-    flex-direction: column;
+    flex-direction: column-reverse; /* Stack buttons, next/skip group on top */
     gap: var(--space-md);
-    padding: var(--space-lg) 0; /* Reduce padding on mobile */
   }
 
-  .nav-right-group {
+  .setup-navigation > div[style*="display: flex"] {
     width: 100%;
-    justify-content: center; /* Center buttons on mobile */
-    flex-wrap: wrap; /* Allow wrapping if needed */
+    justify-content: space-between; /* Space out skip and next */
   }
 
-  .nav-button {
-    min-width: 100px; /* Smaller minimum width on mobile */
-    max-width: 250px; /* Smaller maximum width on mobile */
-    padding: 12px 20px; /* Slightly smaller padding on mobile */
-    font-size: 0.95rem; /* Slightly smaller text on mobile */
+  .setup-navigation > div[style*="display: flex"] > .button {
+    flex-grow: 1; /* Allow buttons to grow if needed */
+    text-align: center;
   }
 
-  .nav-button#setup-next-btn {
-    min-width: 120px; /* Slightly larger minimum for mobile */
-    max-width: 280px; /* Maintain flexibility on mobile */
-  }
-
-  .upload-button {
-    min-width: 100px;
-    padding: 12px 20px;
-    font-size: 0.95rem;
-  }
-
-  .nav-right-group {
-    justify-content: center; /* Center buttons on mobile */
-    flex-wrap: wrap; /* Allow wrapping if needed on very small screens */
-    gap: var(--space-md); /* Smaller gap on mobile */
+  .setup-nav-button#setup-prev-btn {
+    width: 100%;
+    text-align: center;
   }
 }
 
 @media (max-width: 480px) {
   .profile-picture-preview {
-    width: 100px;
-    height: 100px;
-    font-size: 2.5rem;
+    width: 90px;
+    height: 90px;
+    font-size: 2.2rem;
   }
 
-  .nav-button {
-    padding: var(--space-sm) var(--space-md);
-    font-size: 0.9rem;
+  .form-row {
+    grid-template-columns: 1fr; /* Already there, but ensure it */
+  }
+
+  .setup-navigation > div[style*="display: flex"] {
+    flex-direction: column; /* Stack skip and next on smallest screens */
+    gap: var(--space-sm);
+  }
+  .setup-navigation > div[style*="display: flex"] > .button {
+    width: 100%; /* Full width for stacked buttons */
   }
 }
 

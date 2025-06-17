@@ -2,7 +2,7 @@
 class ProfileSetup {
   constructor() {
     this.currentStep = 0;
-    this.totalSteps = 3; // Basic Info, Profile Pic/Bio, Preferences
+    this.totalSteps = 2; // Basic Info, Profile Pic/Bio
     this.currentUser = null;
     this.profileData = {};
     this.profilePictureFile = null;
@@ -33,6 +33,20 @@ class ProfileSetup {
     if (emailInput && this.currentUser) {
       emailInput.value = this.currentUser.email;
       console.log("✅ Email populated:", this.currentUser.email);
+
+      // Automatically extract and populate Student ID from email
+      const studentIdInput = document.getElementById("setup-student-id");
+      if (studentIdInput) {
+        const emailParts = this.currentUser.email.split("@");
+        if (emailParts.length > 0) {
+          studentIdInput.value = emailParts[0];
+          console.log(
+            "✅ Student ID extracted and populated:",
+            studentIdInput.value
+          );
+          // studentIdInput.readOnly = true; // Make this field read-only in HTML
+        }
+      }
     }
 
     // Setup all event listeners
@@ -86,19 +100,19 @@ class ProfileSetup {
     this.setupFormValidation();
   }
 
+  // Method to set up event listeners for form field validation
   setupFormValidation() {
+    // Define required fields for the first step (Basic Information)
     const requiredFieldsStep0 = [
       "setup-first-name",
       "setup-last-name",
-      "setup-graduation-year",
+      "setup-starting-year", // Changed from setup-graduation-year
       "setup-major",
     ];
-    // Step 1 (Profile Pic/Bio) is optional.
-    const requiredFieldsStep2 = ["setup-timezone"];
+    // Step 1 (Profile Pic/Bio) is optional, so no specific required fields array here.
 
-    const allFields = [...requiredFieldsStep0, ...requiredFieldsStep2];
-
-    allFields.forEach((fieldId) => {
+    // Attach event listeners to all fields in the first step for real-time validation
+    requiredFieldsStep0.forEach((fieldId) => {
       const field = document.getElementById(fieldId);
       if (field) {
         field.addEventListener("input", () => this.validateCurrentStep());
@@ -107,43 +121,42 @@ class ProfileSetup {
     });
   }
 
+  // Method to validate the current step's input fields
   validateCurrentStep() {
     const nextBtn = document.getElementById("setup-next-btn");
     if (!nextBtn) return;
 
-    let buttonText = "Next Step";
+    // Default button style and text
+    nextBtn.style.background = ""; // Reset background in case it was changed by validateStepData
 
     if (this.currentStep === 0) {
-      // Step 1: Basic Info
+      // Step 0: Basic Info
       const firstName =
         document.getElementById("setup-first-name")?.value.trim() || "";
       const lastName =
         document.getElementById("setup-last-name")?.value.trim() || "";
-      const graduationYear =
-        document.getElementById("setup-graduation-year")?.value || "";
+      const startingYear = // Changed from graduationYear
+        document.getElementById("setup-starting-year")?.value || "";
       const major = document.getElementById("setup-major")?.value.trim() || "";
 
-      const hasRequiredFields =
-        firstName && lastName && graduationYear && major;
-      buttonText = hasRequiredFields ? "Next Step →" : "Next Step →";
+      const hasRequiredFields = firstName && lastName && startingYear && major;
+
+      if (hasRequiredFields) {
+        nextBtn.textContent = "Next Step →";
+        nextBtn.disabled = false;
+      } else {
+        nextBtn.textContent = "Please fill required fields";
+        nextBtn.disabled = true;
+      }
     } else if (this.currentStep === 1) {
-      // Step 2: Profile picture/bio (optional)
-      buttonText = "Next Step →";
-    } else if (this.currentStep === 2) {
-      // Step 3: Preferences (final step)
-      const timezone = document.getElementById("setup-timezone")?.value || "";
-      buttonText = timezone ? "Complete Setup!" : "Complete Setup!";
+      // Step 1: Profile picture/bio (optional, this is the new final step)
+      nextBtn.textContent = "Complete Setup!";
+      nextBtn.disabled = false; // Always enabled as fields are optional
     }
-
-    // Update button text
-    if (nextBtn.textContent !== buttonText) {
-      nextBtn.textContent = buttonText;
-    }
-
-    // Keep button enabled for better UX - validation happens in nextStep
-    nextBtn.disabled = false;
+    // Removed old else if (this.currentStep === 2) block for Preferences
   }
 
+  // Method to handle profile picture upload
   handleProfilePictureUpload(event) {
     const file = event.target.files[0];
     const preview = document.getElementById("profile-picture-preview");
@@ -155,7 +168,7 @@ class ProfileSetup {
     }
 
     const maxSize = 5 * 1024 * 1024; // 5MB
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+    const allowedTypes = ["image/jpeg", "image/png"]; // Removed "image/gif"
 
     if (file.size > maxSize) {
       alert("Image too large! Please choose an image smaller than 5MB.");
@@ -166,7 +179,7 @@ class ProfileSetup {
     }
 
     if (!allowedTypes.includes(file.type)) {
-      alert("Invalid file type. Please choose a JPG, PNG, or GIF image.");
+      alert("Invalid file type. Please choose a JPG or PNG image."); // Updated message
       event.target.value = ""; // Reset file input
       if (preview) preview.innerHTML = "👤";
       this.profilePictureFile = null;
@@ -214,50 +227,42 @@ class ProfileSetup {
     const nextBtn = document.getElementById("setup-next-btn");
 
     if (this.currentStep === 0) {
-      // Validate Step 1 (Basic Info)
+      // Validate Step 0 (Basic Info)
       const firstName = document
         .getElementById("setup-first-name")
         .value.trim();
       const lastName = document.getElementById("setup-last-name").value.trim();
-      const graduationYear = document.getElementById(
-        "setup-graduation-year"
-      ).value;
+      // Changed from graduationYear to startingYear
+      const startingYear = document.getElementById("setup-starting-year").value;
       const major = document.getElementById("setup-major").value.trim();
 
-      if (!firstName || !lastName || !graduationYear || !major) {
+      if (!firstName || !lastName || !startingYear || !major) {
         // Show validation message
         if (nextBtn) {
           const originalText = nextBtn.textContent;
+          // This text is now primarily handled by validateCurrentStep
+          // but this provides a fallback visual cue if somehow clicked
           nextBtn.textContent = "Please fill required fields";
-          nextBtn.style.background = "#ef4444";
+          nextBtn.style.background = "#ef4444"; // Red background for error
           setTimeout(() => {
-            nextBtn.textContent = originalText;
-            nextBtn.style.background = "";
-          }, 2000);
-        }
-        return false;
-      }
-    } else if (this.currentStep === 2) {
-      // Validate Step 3 (Preferences)
-      const timezone = document.getElementById("setup-timezone").value;
-      if (!timezone) {
-        if (nextBtn) {
-          const originalText = nextBtn.textContent;
-          nextBtn.textContent = "Please select timezone";
-          nextBtn.style.background = "#ef4444";
-          setTimeout(() => {
-            nextBtn.textContent = originalText;
-            nextBtn.style.background = "";
+            // Restore text based on validateCurrentStep logic if it was changed
+            this.validateCurrentStep();
+            // Reset background only if it hasn't been changed by another validation
+            if (nextBtn.style.background === "rgb(239, 68, 68)") {
+              nextBtn.style.background = "";
+            }
           }, 2000);
         }
         return false;
       }
     }
-    // Step 2 (Profile pic/bio) is optional, so no validation needed
+    // Removed old else if (this.currentStep === 2) block for Preferences validation
+    // Step 1 (Profile pic/bio) is optional, so no specific validation needed here to block progression
 
     return true;
   }
 
+  // Method to navigate to the previous step
   prevStep() {
     if (this.currentStep > 0) {
       this.currentStep--;
@@ -278,9 +283,10 @@ class ProfileSetup {
       this.profileData.email = document.getElementById("setup-email").value; // Already pre-filled and readonly
       this.profileData.studentId = document
         .getElementById("setup-student-id")
-        .value.trim();
-      this.profileData.graduationYear = document.getElementById(
-        "setup-graduation-year"
+        .value.trim(); // Auto-populated and readonly
+      this.profileData.startingYear = document.getElementById(
+        // Changed from graduationYear
+        "setup-starting-year"
       ).value;
       this.profileData.major = document
         .getElementById("setup-major")
@@ -288,18 +294,8 @@ class ProfileSetup {
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
       // Profile picture file is handled by this.profilePictureFile
-    } else if (this.currentStep === 2) {
-      this.profileData.timezone =
-        document.getElementById("setup-timezone").value;
-      this.profileData.theme = document.getElementById("setup-theme").value;
-      this.profileData.notifications = {
-        scheduleUpdates: document.getElementById("notify-schedule-updates")
-          .checked,
-        friendRequests: document.getElementById("notify-friend-requests")
-          .checked,
-        campusEvents: document.getElementById("notify-campus-events").checked,
-      };
     }
+    // Removed old else if (this.currentStep === 2) block for Preferences data collection
   }
 
   updateStepDisplay() {
@@ -396,10 +392,17 @@ class ProfileSetup {
 
       this.showSuccessMessage();
 
-      // Redirect to main app after a short delay
+      // 🎯 SPA Integration: Dispatch completion event instead of page redirect
+      document.dispatchEvent(new CustomEvent('profile:setup:complete', {
+        detail: { userData }
+      }));
+
+      // Fallback redirect if SPA router isn't available
       setTimeout(() => {
-        window.location.href = "../index.html";
-      }, 2500);
+        if (!window.spaRouter) {
+          window.location.href = "../index.html";
+        }
+      }, 3000);
     } catch (error) {
       console.error("Error saving profile:", error);
       alert(
@@ -430,8 +433,17 @@ class ProfileSetup {
         .doc(this.currentUser.uid)
         .set(userData, { merge: true });
 
-      // Redirect to main app
-      window.location.href = "../index.html";
+      // 🎯 SPA Integration: Dispatch skip event instead of page redirect
+      document.dispatchEvent(new CustomEvent('profile:setup:skip', {
+        detail: { userData }
+      }));
+
+      // Fallback redirect if SPA router isn't available
+      setTimeout(() => {
+        if (!window.spaRouter) {
+          window.location.href = "../index.html";
+        }
+      }, 1000);
     } catch (error) {
       console.error("Error during skip setup:", error);
       alert("Could not process skip action. Please try again.");
