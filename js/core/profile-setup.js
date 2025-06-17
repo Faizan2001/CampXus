@@ -18,9 +18,13 @@ class ProfileSetup {
         console.log("✅ User authenticated:", user.email);
         this.initializeSetup();
       } else {
-        // Redirect to main app if not authenticated
-        console.log("❌ No user authenticated, redirecting...");
-        window.location.href = "../index.html";
+        // Navigate to main app if not authenticated
+        console.log("❌ No user authenticated, navigating to home...");
+        if (window.spaRouter) {
+          window.spaRouter.navigateTo("home");
+        } else {
+          window.location.href = "../index.html";
+        }
       }
     });
   }
@@ -399,10 +403,12 @@ class ProfileSetup {
         })
       );
 
-      // Fallback redirect if SPA router isn't available
+      // Fallback navigation if SPA router isn't available
       setTimeout(() => {
         if (!window.spaRouter) {
           window.location.href = "../index.html";
+        } else {
+          window.spaRouter.navigateTo("home");
         }
       }, 3000);
     } catch (error) {
@@ -442,10 +448,12 @@ class ProfileSetup {
         })
       );
 
-      // Fallback redirect if SPA router isn't available
+      // Fallback navigation if SPA router isn't available
       setTimeout(() => {
         if (!window.spaRouter) {
           window.location.href = "../index.html";
+        } else {
+          window.spaRouter.navigateTo("home");
         }
       }, 1000);
     } catch (error) {

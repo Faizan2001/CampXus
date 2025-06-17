@@ -2813,9 +2813,14 @@ function setupAuthenticationCallbacks() {
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists() || !userDoc.data().profileSetupComplete) {
-        // Redirect to profile setup for new or incomplete profiles
-        console.log("📝 Redirecting to profile setup...");
-        window.location.href = "pages/profile-setup.html";
+        // Navigate to profile setup for new or incomplete profiles using SPA router
+        console.log("📝 Navigating to profile setup...");
+        if (window.spaRouter) {
+          window.spaRouter.navigateTo("profile");
+        } else {
+          // Fallback for non-SPA environments
+          window.location.href = "pages/profile-setup.html";
+        }
       } else {
         // Profile is complete, continue to main dashboard
         console.log("✅ Profile complete, loading dashboard...");
@@ -2824,7 +2829,11 @@ function setupAuthenticationCallbacks() {
     } catch (error) {
       console.error("Error checking profile completion after sign-in:", error);
       // On error, default to profile setup to be safe
-      window.location.href = "pages/profile-setup.html";
+      if (window.spaRouter) {
+        window.spaRouter.navigateTo("profile");
+      } else {
+        window.location.href = "pages/profile-setup.html";
+      }
     }
   });
 
@@ -3080,8 +3089,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // SPA initialization - listen for the home page loaded event
-document.addEventListener('spa:home:loaded', async () => {
-  console.log('📱 SPA home page loaded, initializing...');
+document.addEventListener("spa:home:loaded", async () => {
+  console.log("📱 SPA home page loaded, initializing...");
   await initializeApp();
 });
 
