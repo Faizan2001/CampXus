@@ -157,7 +157,11 @@ class AuthManager {
               </div>
 
               <button type="submit" id="signin-button" class="auth-button">
-                <span class="loading-spinner"></span>
+                <div class="loading-dots">
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                </div>
                 <span class="button-text">Sign In to CampXus</span>
               </button>
             </form>
@@ -207,7 +211,11 @@ class AuthManager {
               </div>
 
               <button type="submit" id="signup-button" class="auth-button">
-                <span class="loading-spinner"></span>
+                <div class="loading-dots">
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                </div>
                 <span class="button-text">Create CampXus Account</span>
               </button>
             </form>
