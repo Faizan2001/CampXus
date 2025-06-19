@@ -47,7 +47,8 @@
         "imports": {
           "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
           "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
-          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js"
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
+          "firebase/storage": "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js"
         }
       }
     </script>
@@ -59,7 +60,9 @@
         <div class="nav-left">
           <div class="logo">
             <!-- 🎯 Learning: Make logo clickable to go home in SPA -->
-            <span data-spa-route="home" style="cursor: pointer;">MeetchuThere</span>
+            <span data-spa-route="home" style="cursor: pointer"
+              >MeetchuThere</span
+            >
           </div>
           <div class="nav-links">
             <!-- 🎯 Learning: Convert to SPA navigation using data-spa-route -->
@@ -145,12 +148,17 @@
       <!-- Main Content Area - SPA Dynamic Container -->
       <main class="main-content">
         <!-- 🎯 Learning: This area will be dynamically filled by our SPA router -->
-        <div class="spa-loading-placeholder" style="text-align: center; padding: 3rem;">
-          <div style="font-size: 2rem; margin-bottom: 1rem;">
+        <div
+          class="spa-loading-placeholder"
+          style="text-align: center; padding: 3rem"
+        >
+          <div style="font-size: 2rem; margin-bottom: 1rem">
             <i class="fas fa-spinner fa-spin"></i>
           </div>
           <h3>Loading CampXus...</h3>
-          <p style="color: #666;">Setting up your schedule management experience</p>
+          <p style="color: #666">
+            Setting up your schedule management experience
+          </p>
         </div>
       </main>
 

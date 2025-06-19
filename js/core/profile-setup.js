@@ -1,17 +1,47 @@
-// CampXus Profile Setup - Simple Standalone Implementation
+// CampXus Profile Setup - Fixed Version with Proper Auth Manager Loading
+
+// Import Firebase functions we need - using import map from index.html
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+import { db, storage } from "../firebase/config/firebase-config.js";
+
 class ProfileSetup {
   constructor() {
+    // CRITICAL: Prevent multiple instances from being created
+    if (profileSetupInstance) {
+      console.warn(
+        "⚠️ ProfileSetup instance already exists! Returning existing instance."
+      );
+      return profileSetupInstance;
+    }
+
+    console.log("🆕 Creating new ProfileSetup instance");
+
     this.currentStep = 0;
     this.totalSteps = 2; // Basic Info, Profile Pic/Bio
     this.currentUser = null;
     this.profileData = {};
     this.profilePictureFile = null;
 
+    // Store this instance globally to prevent duplicates
+    profileSetupInstance = this;
+
     // Initialize the setup
     this.checkAuthentication();
   }
 
   async checkAuthentication() {
+    // Prevent multiple authentication checks
+    if (this.authCheckInProgress) {
+      console.log("🔄 Authentication check already in progress, skipping...");
+      return;
+    }
+
+    this.authCheckInProgress = true;
+    console.log("🔐 Starting authentication check...");
+
     // Check if auth manager is available (modern approach)
     if (window.authManager) {
       console.log("🔥 Using modern auth manager");
@@ -61,38 +91,6 @@ class ProfileSetup {
         }, 100);
       }
     }
-    // Fallback to old Firebase v8 syntax if auth manager not available
-    else if (typeof firebase !== "undefined" && firebase.auth) {
-      console.log("🔄 Using legacy Firebase auth");
-      firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-          this.currentUser = user;
-          console.log("✅ User authenticated via legacy Firebase:", user.email);
-          setTimeout(() => {
-            this.initializeSetup();
-          }, 100);
-        } else {
-          console.log("❌ No user authenticated, navigating to home...");
-          if (window.spaRouter) {
-            window.spaRouter.navigateTo("home");
-          } else {
-            window.location.href = "../index.html";
-          }
-        }
-      });
-
-      // Fallback: If no user after 3 seconds, try to get current user directly
-      setTimeout(() => {
-        if (!this.currentUser) {
-          const user = firebase.auth().currentUser;
-          if (user) {
-            console.log("🔄 Fallback: Found current user", user.email);
-            this.currentUser = user;
-            this.initializeSetup();
-          }
-        }
-      }, 3000);
-    }
     // No auth system available
     else {
       console.error("❌ No authentication system available");
@@ -107,6 +105,22 @@ class ProfileSetup {
     console.log("🔍 Auth Manager available:", !!window.authManager);
     console.log("🔍 Current user:", this.currentUser?.email || "None");
 
+    // CRITICAL: Check if profile template is loaded first
+    const profileCard = document.querySelector(".profile-setup-card");
+    const setupBody = document.querySelector(".setup-body");
+
+    if (!profileCard || !setupBody) {
+      console.log("⚠️ Profile template not fully loaded, waiting...");
+      setTimeout(() => {
+        this.initializeSetup();
+      }, 500);
+      return;
+    }
+
+    console.log(
+      "✅ Profile template is loaded, proceeding with initialization"
+    );
+
     // Add debug info to page for development
     this.addDebugInfo();
 
@@ -116,12 +130,147 @@ class ProfileSetup {
     // Setup all event listeners
     this.setupEventListeners();
 
-    // Initialize display and validation
+    // Initialize display and validation - CRITICAL FOR VISIBILITY
+    console.log(
+      "🎯 CRITICAL: About to call updateStepDisplay() - this should make step 0 visible"
+    );
     this.updateStepDisplay();
+
+    console.log("🎯 CRITICAL: About to call updateProgress()");
     this.updateProgress();
+
+    console.log("🎯 CRITICAL: About to call validateCurrentStep()");
     this.validateCurrentStep();
 
     console.log("✅ Profile setup initialized");
+
+    // 🧪 IMMEDIATE VERIFICATION: Check if step 0 is actually visible now
+    setTimeout(() => {
+      const step0 = document.querySelector('.setup-step[data-step="0"]');
+      if (step0) {
+        const hasActive = step0.classList.contains("active");
+        const isVisible = window.getComputedStyle(step0).display !== "none";
+        console.log("🧪 VERIFICATION: Step 0 has active class:", hasActive);
+        console.log("🧪 VERIFICATION: Step 0 is visible:", isVisible);
+
+        if (!hasActive) {
+          console.log(
+            "🚨 CRITICAL ISSUE: Step 0 does not have active class after initialization!"
+          );
+          console.log("🚨 Manually adding active class now...");
+          step0.classList.add("active");
+
+          // Check again
+          const hasActiveNow = step0.classList.contains("active");
+          const isVisibleNow =
+            window.getComputedStyle(step0).display !== "none";
+          console.log(
+            "🧪 AFTER MANUAL FIX: Step 0 has active class:",
+            hasActiveNow
+          );
+          console.log("🧪 AFTER MANUAL FIX: Step 0 is visible:", isVisibleNow);
+        }
+      } else {
+        console.log(
+          "🚨 CRITICAL: Could not find step 0 element for verification!"
+        );
+      }
+    }, 100);
+
+    // Add diagnostic information for debugging display issues (with delay)
+    setTimeout(() => {
+      this.addDiagnosticInfo();
+    }, 200);
+
+    // 🧪 Add a test button for manual debugging (development only)
+    if (this.currentUser && this.isDevelopmentEmail(this.currentUser.email)) {
+      this.addTestButton();
+    }
+  }
+
+  // Add diagnostic method to check what's in the DOM
+  addDiagnosticInfo() {
+    console.log("🔍 DIAGNOSTIC: Profile setup DOM analysis");
+
+    // Check current page context
+    const currentHash = window.location.hash;
+    const currentBodyClass = document.body.className;
+    console.log("🔍 Current URL hash:", currentHash);
+    console.log("🔍 Body classes:", currentBodyClass);
+
+    // Check main containers
+    const profileCard = document.querySelector(".profile-setup-card");
+    const setupBody = document.querySelector(".setup-body");
+    const steps = document.querySelectorAll(".setup-step");
+
+    console.log("📋 Profile card found:", !!profileCard);
+    console.log("📋 Setup body found:", !!setupBody);
+    console.log("📋 Total steps found:", steps.length);
+
+    // Check for email/student ID inputs specifically
+    const emailInput = document.getElementById("setup-email");
+    const studentIdInput = document.getElementById("setup-student-id");
+    console.log("📋 Email input found:", !!emailInput);
+    console.log("📋 Student ID input found:", !!studentIdInput);
+
+    // Check individual steps
+    steps.forEach((step, index) => {
+      const dataStep = step.getAttribute("data-step");
+      const isActive = step.classList.contains("active");
+      const isVisible = window.getComputedStyle(step).display !== "none";
+      console.log(
+        `📋 Step ${index}: data-step=${dataStep}, active=${isActive}, visible=${isVisible}`
+      );
+    });
+
+    // Check current step specifically
+    const currentStepEl = document.querySelector(
+      `[data-step="${this.currentStep}"]`
+    );
+    if (currentStepEl) {
+      console.log("✅ Current step element found and should be active");
+      console.log("🎯 Current step classes:", currentStepEl.className);
+      console.log(
+        "🎯 Current step display:",
+        window.getComputedStyle(currentStepEl).display
+      );
+    } else {
+      console.error("❌ Current step element NOT found!");
+      console.log(
+        "🔍 Looking for selector:",
+        `[data-step="${this.currentStep}"]`
+      );
+    }
+  }
+
+  // 🧪 Add test button for development debugging
+  addTestButton() {
+    const testButton = document.createElement("button");
+    testButton.textContent = "🧪 Test Step Display";
+    testButton.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 2000;
+      font-family: monospace;
+    `;
+
+    testButton.addEventListener("click", () => {
+      console.log("🧪 MANUAL TEST: Calling updateStepDisplay()");
+      this.updateStepDisplay();
+    });
+
+    document.body.appendChild(testButton);
+
+    // Remove after 30 seconds to keep things clean
+    setTimeout(() => testButton.remove(), 30000);
   }
 
   // Add debug information for development
@@ -158,6 +307,15 @@ class ProfileSetup {
     // If fields aren't available yet, retry after a short delay
     if (!emailInput || !studentIdInput) {
       console.log("🔄 Form fields not ready, retrying in 500ms...");
+
+      // Check if we're actually on the profile page and have the basic structure
+      const profileCard = document.querySelector(".profile-setup-card");
+      if (!profileCard) {
+        console.log("⚠️ Profile template not loaded yet, waiting longer...");
+        setTimeout(() => this.prefillUserData(), 1000);
+        return;
+      }
+
       setTimeout(() => this.prefillUserData(), 500);
       return;
     }
@@ -196,7 +354,7 @@ class ProfileSetup {
       emailInput.value = this.currentUser.email || "";
       emailInput.placeholder = isDev
         ? "Development email (auto-filled)"
-        : "Your university email";
+        : "Your university email (auto-filled)";
       console.log("✅ Email populated:", emailInput.value);
     }
 
@@ -207,12 +365,21 @@ class ProfileSetup {
         studentIdInput.value = emailParts[0];
         studentIdInput.placeholder = isDev
           ? "Development ID (extracted)"
-          : "Extracted from your email";
+          : "Student ID (extracted from email)";
         console.log(
           "✅ Student ID extracted and populated:",
           studentIdInput.value
         );
       }
+    }
+
+    // 🎉 SUCCESS LOG: Check if both fields were successfully populated
+    if (emailInput.value && studentIdInput.value) {
+      console.log(
+        "🎉 SUCCESS: Both email and student ID fields have been successfully pre-filled!"
+      );
+      console.log(`📧 Email: ${emailInput.value}`);
+      console.log(`🆔 Student ID: ${studentIdInput.value}`);
     }
 
     // Add visual indicators for readonly fields
@@ -484,15 +651,58 @@ class ProfileSetup {
   }
 
   updateStepDisplay() {
+    console.log("🔄 Updating step display, current step:", this.currentStep);
+
     const steps = document.querySelectorAll(".setup-step");
+    console.log("🔍 Found steps:", steps.length);
+
+    // Log current state before making changes
+    steps.forEach((step, index) => {
+      const dataStep = step.getAttribute("data-step");
+      const hasActive = step.classList.contains("active");
+      console.log(
+        `📋 BEFORE: Step ${index} (data-step=${dataStep}) has active=${hasActive}`
+      );
+    });
+
     steps.forEach((step) => step.classList.remove("active")); // More robust way to hide
 
     const currentStepElement = document.querySelector(
-      `[data-step="${this.currentStep}"]`
+      `.setup-step[data-step="${this.currentStep}"]`
     );
+
     if (currentStepElement) {
+      console.log("✅ Found current step element, making it active");
       currentStepElement.classList.add("active"); // More robust way to show
+
+      // Verify it was actually added
+      const hasActiveNow = currentStepElement.classList.contains("active");
+      console.log("✅ Active class added successfully:", hasActiveNow);
+    } else {
+      console.error(
+        "❌ Could not find step element for step:",
+        this.currentStep
+      );
+      console.log("🔍 Available steps:");
+      steps.forEach((step, index) => {
+        console.log(
+          `  Step ${index}: data-step="${step.getAttribute("data-step")}"`
+        );
+      });
     }
+
+    // Log final state after making changes
+    setTimeout(() => {
+      const stepsAfter = document.querySelectorAll(".setup-step");
+      stepsAfter.forEach((step, index) => {
+        const dataStep = step.getAttribute("data-step");
+        const hasActive = step.classList.contains("active");
+        const isVisible = window.getComputedStyle(step).display !== "none";
+        console.log(
+          `📋 AFTER: Step ${index} (data-step=${dataStep}) active=${hasActive}, visible=${isVisible}`
+        );
+      });
+    }, 50);
 
     const prevBtn = document.getElementById("setup-prev-btn");
     const skipBtn = document.getElementById("setup-skip-btn");
@@ -569,8 +779,8 @@ class ProfileSetup {
         email: this.currentUser.email,
         profilePictureUrl: profilePictureUrl,
         profileSetupComplete: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp(),
       };
 
       // Remove undefined fields
@@ -578,11 +788,9 @@ class ProfileSetup {
         (key) => userData[key] === undefined && delete userData[key]
       );
 
-      await firebase
-        .firestore()
-        .collection("users")
-        .doc(this.currentUser.uid)
-        .set(userData, { merge: true });
+      // Use modern Firebase v9 syntax
+      const userDocRef = doc(db, "users", this.currentUser.uid);
+      await setDoc(userDocRef, userData, { merge: true });
 
       this.showSuccessMessage();
 
@@ -622,14 +830,12 @@ class ProfileSetup {
         uid: this.currentUser.uid,
         email: this.currentUser.email,
         profileSetupComplete: false,
-        skippedSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
+        skippedSetupAt: serverTimestamp(),
       };
 
-      await firebase
-        .firestore()
-        .collection("users")
-        .doc(this.currentUser.uid)
-        .set(userData, { merge: true });
+      // Use modern Firebase v9 syntax
+      const userDocRef = doc(db, "users", this.currentUser.uid);
+      await setDoc(userDocRef, userData, { merge: true });
 
       // 🎯 SPA Integration: Dispatch skip event instead of page redirect
       document.dispatchEvent(
@@ -658,11 +864,11 @@ class ProfileSetup {
       return null;
     }
     const filePath = `profilePictures/${this.currentUser.uid}/${this.profilePictureFile.name}`;
-    const storageRef = firebase.storage().ref(filePath);
+    const storageRef = ref(storage, filePath);
 
     try {
-      const snapshot = await storageRef.put(this.profilePictureFile);
-      const downloadURL = await snapshot.ref.getDownloadURL();
+      const snapshot = await uploadBytes(storageRef, this.profilePictureFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
     } catch (error) {
       console.error("Error uploading profile picture:", error);
@@ -697,28 +903,229 @@ class ProfileSetup {
   }
 }
 
-// Initialize profile setup when DOM is loaded
+// ===== SIMPLIFIED INITIALIZATION SYSTEM =====
+
+// Global instance variable and initialization flag
+let profileSetupInstance = null;
+let initializationInProgress = false;
+
+// Function to wait for auth manager
+function waitForAuthManager(maxWaitTime = 5000, checkInterval = 100) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    function checkAuthManager() {
+      if (
+        window.authManager &&
+        typeof window.authManager.getCurrentUser === "function"
+      ) {
+        console.log("✅ Auth manager is ready!");
+        resolve(window.authManager);
+      } else if (Date.now() - startTime >= maxWaitTime) {
+        reject(new Error("Timeout waiting for auth manager"));
+      } else {
+        setTimeout(checkAuthManager, checkInterval);
+      }
+    }
+
+    checkAuthManager();
+  });
+}
+
+// Function to check authentication once auth manager is available
+function checkAuthenticationAndInitialize() {
+  // Check if user is already signed in
+  const currentUser = window.authManager.getCurrentUser();
+  console.log(
+    "🔍 Current user from auth manager:",
+    currentUser?.email || "None"
+  );
+
+  if (currentUser) {
+    console.log(
+      "✅ Found signed-in user, initializing profile setup immediately"
+    );
+
+    // Check if we're still on the profile page before creating instance
+    const profileElements = document.querySelector(
+      "#setup-email, #setup-student-id, .profile-setup-card"
+    );
+    if (profileElements && !profileSetupInstance) {
+      profileSetupInstance = new ProfileSetup();
+    } else if (!profileElements) {
+      console.log(
+        "🔄 User found but not on profile page, skipping initialization"
+      );
+    }
+    return;
+  }
+
+  // No user signed in, listen for auth state changes
+  console.log("👂 No user signed in, setting up auth state listener...");
+  window.authManager.onAuthStateChanged((user) => {
+    if (user && !profileSetupInstance) {
+      console.log(
+        "✅ User signed in via state change, checking if on profile page"
+      );
+
+      // Only initialize if we're on the profile page
+      const profileElements = document.querySelector(
+        "#setup-email, #setup-student-id, .profile-setup-card"
+      );
+      if (profileElements) {
+        console.log("✅ On profile page, initializing profile setup");
+        profileSetupInstance = new ProfileSetup();
+      } else {
+        console.log("🔄 User authenticated but not on profile page");
+      }
+    }
+  });
+
+  // Redirect to home after a reasonable delay if still no user
+  setTimeout(() => {
+    if (!profileSetupInstance) {
+      console.log("❌ Still no user after waiting, redirecting to home");
+      if (window.spaRouter) {
+        window.spaRouter.navigateTo("home");
+      }
+    }
+  }, 2000);
+}
+
+// Simplified initialization function
+function initializeProfileSetup() {
+  console.log("🚀 Starting profile setup initialization...");
+
+  // Prevent multiple simultaneous initializations
+  if (initializationInProgress) {
+    console.log("⚠️ Initialization already in progress, skipping...");
+    return;
+  }
+
+  // If instance already exists, don't create another
+  if (profileSetupInstance) {
+    console.log("⚠️ Profile setup instance already exists, skipping...");
+    return;
+  }
+
+  initializationInProgress = true;
+
+  // Debug what's available
+  console.log("🔍 Debugging available auth systems:");
+  console.log("   - window.authManager:", !!window.authManager);
+  console.log(
+    "   - window.authManager.getCurrentUser:",
+    typeof window.authManager?.getCurrentUser
+  );
+
+  // Wait for auth manager if it's not available yet
+  waitForAuthManager()
+    .then(() => {
+      console.log(
+        "✅ Auth manager is now available, checking authentication..."
+      );
+      checkAuthenticationAndInitialize();
+    })
+    .catch((error) => {
+      console.error("❌ Timeout waiting for auth manager:", error);
+      console.log("❌ Redirecting to home page...");
+      if (window.spaRouter) {
+        window.spaRouter.navigateTo("home");
+      }
+    })
+    .finally(() => {
+      initializationInProgress = false;
+    });
+}
+
+// Helper function to retry auth detection for existing instance
+function retryAuthDetection() {
+  if (
+    profileSetupInstance &&
+    typeof profileSetupInstance.checkAuthentication === "function"
+  ) {
+    console.log("🔄 Retrying authentication detection for existing instance");
+    profileSetupInstance.checkAuthentication();
+  }
+}
+
+// 🎯 FIX #1: Listen for SPA navigation to profile page
+document.addEventListener("spa:navigation", (event) => {
+  if (event.detail.route === "profile") {
+    console.log("🔄 Navigated to profile page via SPA...");
+
+    // If profile setup instance doesn't exist, create it now
+    if (!profileSetupInstance) {
+      console.log("🎯 Profile setup not initialized, creating instance...");
+
+      // Add a small delay to ensure template is loaded
+      setTimeout(() => {
+        if (!profileSetupInstance) {
+          initializeProfileSetup();
+        }
+      }, 200);
+    } else {
+      console.log(
+        "🔄 Profile setup already exists, skipping duplicate initialization"
+      );
+      // Don't retry auth detection - the instance should already be working
+    }
+  }
+});
+
+// 🎯 TRADITIONAL: Handle traditional page loads with DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🎯 Profile setup DOM loaded, checking auth system...");
 
-  // Wait for auth system to be ready
-  const initializeWhenReady = () => {
-    // Check if auth manager is available and initialized
-    if (window.authManager && window.authManager.currentUser !== undefined) {
-      console.log("✅ Auth manager ready, initializing profile setup");
-      new ProfileSetup();
-    }
-    // Check for legacy Firebase as fallback
-    else if (typeof firebase !== "undefined" && firebase.app) {
-      console.log("✅ Legacy Firebase ready, initializing profile setup");
-      new ProfileSetup();
-    }
-    // Auth system not ready yet, wait a bit more
-    else {
-      console.log("⏳ Auth system not ready, retrying in 100ms...");
-      setTimeout(initializeWhenReady, 100);
-    }
-  };
-
-  initializeWhenReady();
+  // Only initialize if we don't already have an instance
+  if (!profileSetupInstance) {
+    // Add a small delay to ensure SPA navigation has had a chance to run first
+    setTimeout(() => {
+      if (!profileSetupInstance) {
+        console.log("🎯 No instance created by SPA, creating via DOM ready...");
+        initializeProfileSetup();
+      } else {
+        console.log(
+          "🎯 Instance already exists from SPA navigation, skipping DOM ready init"
+        );
+      }
+    }, 50);
+  } else {
+    console.log(
+      "🎯 Instance already exists, skipping DOM ready initialization"
+    );
+  }
 });
+
+// 🎯 FIX #2: FALLBACK - If DOM is already loaded (SPA case), initialize immediately
+if (document.readyState === "loading") {
+  // DOM still loading, DOMContentLoaded will fire
+  console.log("📄 DOM still loading, waiting for DOMContentLoaded...");
+} else {
+  // DOM already loaded, initialize now if we're on the profile page
+  console.log("📄 DOM already loaded, checking if we're on profile page...");
+
+  // Check if profile setup elements are present
+  const profileElements = document.querySelector(
+    "#setup-email, #setup-student-id"
+  );
+  if (profileElements && !profileSetupInstance) {
+    console.log(
+      "🎯 Profile page detected and setup not initialized, starting now..."
+    );
+
+    // Small delay to ensure elements are fully rendered
+    setTimeout(() => {
+      if (!profileSetupInstance) {
+        console.log("🎯 Creating instance via immediate DOM check...");
+        initializeProfileSetup();
+      } else {
+        console.log(
+          "🎯 Instance already created, skipping immediate DOM check"
+        );
+      }
+    }, 100);
+  } else if (profileSetupInstance) {
+    console.log("🎯 Instance already exists, skipping immediate DOM check");
+  }
+}

@@ -47,6 +47,10 @@ class AuthManager {
     this.onSigninError = null;
     this.onSignupSuccess = null;
     this.onSignupError = null;
+
+    // 🛡️ Prevent multiple rapid submissions
+    this.signupInProgress = false;
+    this.signinInProgress = false;
   }
 
   /**
@@ -285,6 +289,12 @@ class AuthManager {
    * Handle sign in form submission
    */
   async handleSignIn() {
+    // 🛡️ Prevent multiple rapid submissions
+    if (this.signinInProgress) {
+      console.log("🔄 Sign in already in progress, ignoring duplicate request");
+      return;
+    }
+
     const email = document.getElementById("signin-email").value.trim();
     const password = document.getElementById("signin-password").value;
     const button = document.getElementById("signin-button");
@@ -294,7 +304,8 @@ class AuthManager {
       return;
     }
 
-    // Show loading state
+    // 🛡️ Set submission flag and show loading state
+    this.signinInProgress = true;
     setLoadingState(button, true); // Use external function
 
     try {
@@ -343,6 +354,8 @@ class AuthManager {
       // Call error callback if set
       this.triggerSigninError({ error, email });
     } finally {
+      // 🛡️ Reset submission flag and loading state
+      this.signinInProgress = false;
       setLoadingState(button, false); // Use external function
     }
   }
@@ -351,6 +364,12 @@ class AuthManager {
    * Handle sign up form submission
    */
   async handleSignUp() {
+    // 🛡️ Prevent multiple rapid submissions
+    if (this.signupInProgress) {
+      console.log("🔄 Sign up already in progress, ignoring duplicate request");
+      return;
+    }
+
     const email = document.getElementById("signup-email").value.trim();
     const password = document.getElementById("signup-password").value;
     const confirmPassword = document.getElementById(
@@ -363,7 +382,8 @@ class AuthManager {
       return;
     }
 
-    // Show loading state
+    // 🛡️ Set submission flag and show loading state
+    this.signupInProgress = true;
     setLoadingState(button, true); // Use external function
 
     try {
@@ -410,6 +430,8 @@ class AuthManager {
       console.error("Sign up error:", error);
       showFormError("signup-form", this.getReadableError(error)); // Use external function
     } finally {
+      // 🛡️ Reset submission flag and loading state
+      this.signupInProgress = false;
       setLoadingState(button, false); // Use external function
     }
   }

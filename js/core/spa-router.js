@@ -31,7 +31,10 @@ class SPARouter {
           "css/styles.css", // ✅ Base styles with all components
           "css/profile-setup.css", // ✅ Profile-specific extensions
         ],
-        jsFiles: ["js/core/profile-setup.js"], // Profile functionality
+        jsFiles: [
+          "js/firebase/auth/auth-manager.js", // ✅ Authentication system
+          "js/core/profile-setup.js", // ✅ Profile functionality
+        ],
         description: "Set up your student profile and preferences",
       },
       friends: {
