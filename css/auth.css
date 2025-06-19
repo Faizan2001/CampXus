@@ -1,4 +1,18 @@
-/* CampXus Authentication Styles - Clean and Student-Friendly! */
+/* 
+=============================================================================
+                     CAMPXUS AUTHENTICATION MODAL STYLES
+                      Glassmorphism Design with Theme Support
+=============================================================================
+
+Modern authentication modal that matches the CampXus design language with:
+- Glassmorphism effects and backdrop filtering
+- CSS variable integration for consistent theming
+- Dark/light mode support using app's color system
+- Purple accent brand colors and modern typography
+- Responsive design and accessibility features
+
+=============================================================================
+*/
 
 /* Authentication Modal Overlay */
 .auth-modal {
@@ -7,15 +21,15 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(5px);
+  background: var(--modal-overlay, rgba(0, 0, 0, 0.7));
+  backdrop-filter: blur(20px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: var(--z-modal, 2000);
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--animation-smooth, ease);
 }
 
 .auth-modal.active {
@@ -23,51 +37,118 @@
   visibility: visible;
 }
 
-/* Main Authentication Container */
+/* Main Authentication Container - Glass Card Design */
 .auth-container {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.2));
+  border-radius: var(--radius-lg, 1.5rem);
+  box-shadow: 0 20px 60px var(--shadow, rgba(0, 0, 0, 0.3)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   max-height: 90vh;
-  overflow: hidden; /* Kept to ensure container itself doesn't scroll and respects border-radius */
+  overflow: hidden;
   transform: translateY(20px) scale(0.95);
-  transition: all 0.3s ease;
-  display: flex; /* Added */
-  flex-direction: column; /* Added */
+  transition: all 0.3s
+    var(--animation-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .auth-modal.active .auth-container {
   transform: translateY(0) scale(1);
 }
 
-/* Header with CampXus Branding */
+/* Glass Card Shimmer Effect */
+.auth-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+}
+
+/* Header with Modern CampXus Branding */
 .auth-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary, #8b5cf6) 0%,
+    var(--accent-secondary, #a855f7) 50%,
+    #667eea 100%
+  );
   color: white;
   text-align: center;
   padding: 2rem;
   position: relative;
+  border-radius: var(--radius-lg, 1.5rem) var(--radius-lg, 1.5rem) 0 0;
+  overflow: hidden;
+}
+
+/* Add subtle animated background pattern */
+.auth-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 50%,
+    transparent 75%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 20px 20px;
+  animation: gradientShift 20s ease infinite;
+  opacity: 0.3;
 }
 
 .auth-logo {
   font-size: 2rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 1),
+    rgba(255, 255, 255, 0.9),
+    rgba(240, 245, 255, 1)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 2;
 }
 
 .auth-subtitle {
-  opacity: 0.9;
+  opacity: 0.95;
   font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  position: relative;
+  z-index: 2;
 }
 
-/* Tab Navigation */
+/* Tab Navigation - Neutral Glass Design */
 .auth-tabs {
   display: flex;
-  background: #f8fafc;
+  background: var(--surface, rgba(248, 250, 252, 0.8));
   margin: 0;
   border: none;
+  border-bottom: 1px solid var(--glass-border, rgba(203, 213, 225, 0.3));
+  backdrop-filter: blur(10px);
 }
 
 .auth-tab {
@@ -77,21 +158,53 @@
   background: transparent;
   cursor: pointer;
   font-weight: 600;
-  color: #64748b;
-  transition: all 0.2s ease;
+  color: var(--text-secondary, #64748b);
+  transition: all 0.3s var(--animation-smooth, ease);
+  position: relative;
+}
+
+.auth-tab:hover {
+  background: var(--surface-hover, rgba(139, 92, 246, 0.08));
+  color: var(--text-primary, #1e293b);
 }
 
 .auth-tab.active {
-  background: white;
-  color: #1e293b;
-  border-bottom: 3px solid #667eea;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.12),
+    rgba(167, 85, 247, 0.08)
+  );
+  color: var(--accent-primary, #8b5cf6);
+  border-bottom: 3px solid var(--accent-primary, #8b5cf6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Form Container */
+/* Form Container - Glass Background */
 .auth-body {
   padding: 2rem;
-  overflow-y: auto; /* Added */
-  flex-grow: 1; /* Added */
+  overflow-y: auto;
+  flex-grow: 1;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(10px);
+}
+
+/* Custom scrollbar for auth body */
+.auth-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.auth-body::-webkit-scrollbar-track {
+  background: var(--surface, rgba(255, 255, 255, 0.1));
+  border-radius: 3px;
+}
+
+.auth-body::-webkit-scrollbar-thumb {
+  background: var(--accent-primary, #8b5cf6);
+  border-radius: 3px;
+}
+
+.auth-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-secondary, #a855f7);
 }
 
 .auth-form {
@@ -100,18 +213,37 @@
 
 .auth-form.active {
   display: block;
-  animation: fadeIn 0.3s ease;
+  animation: fadeInUp 0.4s
+    var(--animation-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
 }
 
-/* University Info Display */
+/* University Info Display - Balanced Color Design */
 .university-info {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.08),
+    rgba(139, 92, 246, 0.05)
+  );
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-md, 0.75rem);
   padding: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   display: none;
-  animation: slideDown 0.3s ease;
+  animation: slideDown 0.3s var(--animation-spring, ease);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.university-info::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  border-radius: 2px;
 }
 
 .university-info.visible {
@@ -120,16 +252,18 @@
 
 .university-name {
   font-weight: 600;
-  color: #0369a1;
+  color: #3b82f6;
   margin-bottom: 0.25rem;
+  margin-left: 1rem;
 }
 
 .university-domain {
-  color: #0284c7;
+  color: var(--text-secondary, #6b7280);
   font-size: 0.9rem;
+  margin-left: 1rem;
 }
 
-/* Form Styling */
+/* Form Styling - Neutral Modern Design */
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -137,96 +271,155 @@
 .form-label {
   display: block;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary, #374151);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
 
 .form-input {
   width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: var(--input-bg, rgba(255, 255, 255, 0.9));
+  border: 2px solid var(--input-border, rgba(203, 213, 225, 0.4));
+  border-radius: var(--radius-md, 0.75rem);
+  color: var(--text-primary, #374151);
   font-size: 1rem;
-  transition: all 0.2s ease;
+  transition: all 0.3s var(--animation-smooth, ease);
   box-sizing: border-box;
+  backdrop-filter: blur(10px);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--accent-primary, #8b5cf6);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow, rgba(139, 92, 246, 0.1)),
+    0 4px 12px rgba(139, 92, 246, 0.15);
+  background: var(--glass-hover, rgba(255, 255, 255, 0.95));
+  transform: translateY(-1px);
+}
+
+.form-input::placeholder {
+  color: var(--text-tertiary, #9ca3af);
 }
 
 .form-input.error {
   border-color: #ef4444;
-  background: #fef2f2;
+  background: rgba(254, 242, 242, 0.8);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 .form-input.success {
   border-color: #10b981;
-  background: #f0fdf4;
+  background: rgba(240, 253, 244, 0.8);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
-/* Error and Success Messages */
+/* Error and Success Messages - Glass Design */
 .form-error {
-  color: #ef4444;
+  color: var(--error, #ef4444);
   font-size: 0.8rem;
   margin-top: 0.5rem;
   display: none;
+  font-weight: 500;
 }
 
 .form-error.show {
   display: block;
+  animation: fadeInUp 0.3s ease;
 }
 
 .error-message {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 12px;
-  border-radius: 8px;
+  background: var(--error-light, rgba(239, 68, 68, 0.1));
+  border: 1px solid var(--error, rgba(239, 68, 68, 0.3));
+  color: var(--error, #ef4444);
+  padding: 1rem;
+  border-radius: var(--radius-md, 0.75rem);
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
 }
 
 .success-message {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #059669;
-  padding: 12px;
-  border-radius: 8px;
+  background: var(--success-light, rgba(16, 185, 129, 0.1));
+  border: 1px solid var(--success, rgba(16, 185, 129, 0.3));
+  color: var(--success, #10b981);
+  padding: 1rem;
+  border-radius: var(--radius-md, 0.75rem);
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
 }
-
-/* Submit Buttons */
+/* Submit Buttons - Sophisticated Gradient Design */
 .auth-button {
   width: 100%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary, #8b5cf6) 0%,
+    var(--accent-secondary, #a855f7) 50%,
+    #667eea 100%
+  );
   color: white;
   border: none;
-  padding: 14px 24px;
-  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md, 0.75rem);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s var(--animation-smooth, ease);
   position: relative;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.25),
+    0 2px 8px rgba(102, 126, 234, 0.15);
+  overflow: hidden;
+}
+
+/* Add subtle shimmer effect */
+.auth-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.6s ease;
 }
 
 .auth-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.3),
+    0 4px 15px rgba(102, 126, 234, 0.2);
+  background: linear-gradient(
+    135deg,
+    var(--accent-secondary, #a855f7) 0%,
+    var(--accent-tertiary, #c084fc) 50%,
+    #7c3aed 100%
+  );
+}
+
+.auth-button:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.auth-button:active {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .auth-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-/* Loading Animation - Three Dots Style */
+/* Loading Animation - Three Dots Style (Enhanced) */
 .auth-button .loading-dots {
   display: none;
   gap: 4px;
@@ -238,7 +431,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
   animation: authDotBounce 1.4s infinite ease-in-out both;
 }
 
@@ -258,6 +451,7 @@
   color: transparent;
   cursor: not-allowed;
   transform: none;
+  pointer-events: none;
 }
 
 .auth-button.loading .loading-dots {
@@ -268,35 +462,42 @@
   transform: translate(-50%, -50%);
 }
 
-/* Close Button */
+/* Close Button - Glass Design */
 .auth-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 1rem;
+  right: 1rem;
   background: rgba(255, 255, 255, 0.2);
-  border: none;
-  width: 32px;
-  height: 32px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  transition: all 0.2s ease;
+  font-size: 16px;
+  transition: all 0.3s var(--animation-smooth, ease);
+  z-index: 10;
 }
 
 .auth-close:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
 }
 
-/* Animations */
-@keyframes fadeIn {
+.auth-close:active {
+  transform: scale(0.95);
+}
+
+/* Enhanced Animations */
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -307,20 +508,13 @@
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-15px);
+    max-height: 0;
   }
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
+    max-height: 200px;
   }
 }
 
@@ -332,16 +526,35 @@
     opacity: 0.7;
   }
   40% {
-    transform: scale(1.2) translateY(-3px);
+    transform: scale(1.2) translateY(-4px);
     opacity: 1;
   }
 }
 
-/* Mobile Responsiveness */
+/* Gradient animation for header */
+@keyframes gradientShift {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(5px) translateY(-5px);
+  }
+  50% {
+    transform: translateX(-5px) translateY(5px);
+  }
+  75% {
+    transform: translateX(-5px) translateY(-5px);
+  }
+}
+
+/* Responsive Design - Mobile Optimizations */
 @media (max-width: 640px) {
   .auth-container {
     width: 95%;
     margin: 1rem;
+    max-width: none;
+    border-radius: var(--radius-md, 1rem);
   }
 
   .auth-header,
@@ -352,35 +565,130 @@
   .auth-logo {
     font-size: 1.8rem;
   }
-}
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .auth-container {
-    background: #1f2937;
-    color: #f9fafb;
-  }
-
-  .auth-tabs {
-    background: #374151;
-  }
-
-  .auth-tab {
-    color: #9ca3af;
-  }
-
-  .auth-tab.active {
-    background: #4b5563;
-    color: #f9fafb;
+  .auth-subtitle {
+    font-size: 0.9rem;
   }
 
   .form-input {
-    background: #374151;
-    border-color: #4b5563;
-    color: #f9fafb;
+    padding: 0.875rem 1rem;
   }
 
-  .form-input:focus {
-    border-color: #667eea;
+  .auth-button {
+    padding: 0.875rem 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .auth-header {
+    border-radius: 0;
+  }
+}
+
+/* Theme Integration - Enhanced Dark Mode */
+.dark-mode .auth-container,
+body:not(.light-mode) .auth-container {
+  background: var(--depth-surface, rgba(42, 45, 56, 0.95));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+
+.dark-mode .auth-body,
+body:not(.light-mode) .auth-body {
+  background: var(--depth-surface, rgba(42, 45, 56, 0.9));
+}
+
+.dark-mode .auth-tabs,
+body:not(.light-mode) .auth-tabs {
+  background: var(--surface, rgba(30, 35, 47, 0.8));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+
+.dark-mode .auth-tab.active,
+body:not(.light-mode) .auth-tab.active {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.2),
+    rgba(167, 85, 247, 0.15)
+  );
+}
+
+.dark-mode .form-input,
+body:not(.light-mode) .form-input {
+  background: var(--input-bg, rgba(42, 45, 56, 0.9));
+  border-color: var(--input-border, rgba(255, 255, 255, 0.15));
+  color: var(--text-primary, #f0f2f5);
+}
+
+.dark-mode .form-input:focus,
+body:not(.light-mode) .form-input:focus {
+  background: var(--glass-hover, rgba(42, 45, 56, 0.95));
+  border-color: var(--accent-primary, #8b5cf6);
+}
+
+.dark-mode .form-label,
+body:not(.light-mode) .form-label {
+  color: var(--text-primary, #f0f2f5);
+}
+
+.dark-mode .university-info,
+body:not(.light-mode) .university-info {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.15),
+    rgba(139, 92, 246, 0.1)
+  );
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.dark-mode .university-name,
+body:not(.light-mode) .university-name {
+  color: #60a5fa;
+}
+
+/* Light Mode Specific Overrides */
+.light-mode .auth-container,
+body:not(.dark-mode) .auth-container {
+  background: var(--glass-bg, rgba(255, 255, 255, 0.85));
+  border-color: var(--glass-border, rgba(192, 132, 252, 0.2));
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .auth-container {
+    border: 2px solid var(--accent-primary, #8b5cf6) !important;
+  }
+
+  .form-input {
+    border-width: 2px !important;
+  }
+
+  .auth-button {
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .auth-container,
+  .auth-form,
+  .university-info,
+  .form-error {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .auth-button:hover {
+    transform: none !important;
+  }
+
+  .loading-dots .dot {
+    animation: none !important;
   }
 }
