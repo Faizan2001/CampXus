@@ -46,14 +46,13 @@ class ProfileSetup {
     if (window.authManager) {
       console.log("🔥 Using modern auth manager");
 
-      // First, try to get current user immediately
+      // 🎯 IMMEDIATE USER CHECK: First, try to get current user immediately
       const currentUser = window.authManager.getCurrentUser();
       if (currentUser) {
         this.currentUser = currentUser;
         console.log("✅ Found immediate user:", this.currentUser.email);
-        setTimeout(() => {
-          this.initializeSetup();
-        }, 100);
+        // Initialize setup immediately without delay
+        this.initializeSetup();
         return; // Exit early if we found a user
       }
 
@@ -66,9 +65,8 @@ class ProfileSetup {
             "✅ User authenticated via auth manager callback:",
             user.email
           );
-          setTimeout(() => {
-            this.initializeSetup();
-          }, 100);
+          // Initialize setup immediately without delay for callback
+          this.initializeSetup();
         } else if (!user) {
           console.log("❌ No user authenticated, navigating to home...");
           if (window.spaRouter) {
@@ -86,9 +84,8 @@ class ProfileSetup {
           "✅ Found user via direct property:",
           this.currentUser.email
         );
-        setTimeout(() => {
-          this.initializeSetup();
-        }, 100);
+        // Initialize setup immediately
+        this.initializeSetup();
       }
     }
     // No auth system available
@@ -113,7 +110,7 @@ class ProfileSetup {
       console.log("⚠️ Profile template not fully loaded, waiting...");
       setTimeout(() => {
         this.initializeSetup();
-      }, 500);
+      }, 200);
       return;
     }
 
@@ -124,7 +121,7 @@ class ProfileSetup {
     // Add debug info to page for development
     this.addDebugInfo();
 
-    // Pre-fill email and student ID with better error handling
+    // 🎯 IMMEDIATE DATA PREFILL: Pre-fill email and student ID with immediate execution
     this.prefillUserData();
 
     // Setup all event listeners
@@ -142,7 +139,7 @@ class ProfileSetup {
     console.log("🎯 CRITICAL: About to call validateCurrentStep()");
     this.validateCurrentStep();
 
-    console.log("✅ Profile setup initialized");
+    console.log("✅ Profile setup initialized with immediate data prefill");
 
     // 🧪 IMMEDIATE VERIFICATION: Check if step 0 is actually visible now
     setTimeout(() => {
@@ -150,32 +147,24 @@ class ProfileSetup {
       if (step0) {
         const hasActive = step0.classList.contains("active");
         const isVisible = window.getComputedStyle(step0).display !== "none";
-        console.log("🧪 VERIFICATION: Step 0 has active class:", hasActive);
-        console.log("🧪 VERIFICATION: Step 0 is visible:", isVisible);
-
-        if (!hasActive) {
-          console.log(
-            "🚨 CRITICAL ISSUE: Step 0 does not have active class after initialization!"
-          );
-          console.log("🚨 Manually adding active class now...");
-          step0.classList.add("active");
-
-          // Check again
-          const hasActiveNow = step0.classList.contains("active");
-          const isVisibleNow =
-            window.getComputedStyle(step0).display !== "none";
-          console.log(
-            "🧪 AFTER MANUAL FIX: Step 0 has active class:",
-            hasActiveNow
-          );
-          console.log("🧪 AFTER MANUAL FIX: Step 0 is visible:", isVisibleNow);
-        }
-      } else {
         console.log(
-          "🚨 CRITICAL: Could not find step 0 element for verification!"
+          `🧪 VERIFICATION: Step 0 has active class: ${hasActive}`
         );
+        console.log(`🧪 VERIFICATION: Step 0 is visible: ${isVisible}`);
+
+        // Also verify that the email and student ID fields have been populated
+        const emailInput = document.getElementById("setup-email");
+        const studentIdInput = document.getElementById("setup-student-id");
+        if (emailInput && studentIdInput) {
+          console.log(
+            `🧪 VERIFICATION: Email field value: "${emailInput.value}"`
+          );
+          console.log(
+            `🧪 VERIFICATION: Student ID field value: "${studentIdInput.value}"`
+          );
+        }
       }
-    }, 100);
+    }, 50);
 
     // Add diagnostic information for debugging display issues (with delay)
     setTimeout(() => {
@@ -306,17 +295,8 @@ class ProfileSetup {
 
     // If fields aren't available yet, retry after a short delay
     if (!emailInput || !studentIdInput) {
-      console.log("🔄 Form fields not ready, retrying in 500ms...");
-
-      // Check if we're actually on the profile page and have the basic structure
-      const profileCard = document.querySelector(".profile-setup-card");
-      if (!profileCard) {
-        console.log("⚠️ Profile template not loaded yet, waiting longer...");
-        setTimeout(() => this.prefillUserData(), 1000);
-        return;
-      }
-
-      setTimeout(() => this.prefillUserData(), 500);
+      console.log("🔄 Form fields not ready, retrying in 200ms...");
+      setTimeout(() => this.prefillUserData(), 200);
       return;
     }
 
@@ -343,31 +323,32 @@ class ProfileSetup {
     }
 
     console.log("🔍 Current user for prefilling:", this.currentUser.email);
-    console.log("🔍 User object:", this.currentUser);
 
     // Check if this is a development email
     const isDev = this.isDevelopmentEmail(this.currentUser.email);
     console.log("🔧 Is development email?", isDev);
 
-    // Pre-fill email
+    // 🎯 IMMEDIATE AUTO-FILL: Pre-fill email immediately without any loading text
     if (emailInput) {
+      // Always set the value, even if it was already set (SPA template reload case)
       emailInput.value = this.currentUser.email || "";
       emailInput.placeholder = isDev
-        ? "Development email (auto-filled)"
-        : "Your university email (auto-filled)";
-      console.log("✅ Email populated:", emailInput.value);
+        ? "Development email"
+        : "Your university email";
+      console.log("✅ Email populated immediately:", emailInput.value);
     }
 
-    // Automatically extract and populate Student ID from email
+    // 🎯 IMMEDIATE AUTO-FILL: Automatically extract and populate Student ID from email immediately
     if (studentIdInput && this.currentUser.email) {
       const emailParts = this.currentUser.email.split("@");
       if (emailParts.length > 0) {
+        // Always set the value, even if it was already set (SPA template reload case)
         studentIdInput.value = emailParts[0];
         studentIdInput.placeholder = isDev
-          ? "Development ID (extracted)"
-          : "Student ID (extracted from email)";
+          ? "Development ID"
+          : "Student ID (from email)";
         console.log(
-          "✅ Student ID extracted and populated:",
+          "✅ Student ID extracted and populated immediately:",
           studentIdInput.value
         );
       }
@@ -376,7 +357,7 @@ class ProfileSetup {
     // 🎉 SUCCESS LOG: Check if both fields were successfully populated
     if (emailInput.value && studentIdInput.value) {
       console.log(
-        "🎉 SUCCESS: Both email and student ID fields have been successfully pre-filled!"
+        "🎉 SUCCESS: Both email and student ID fields have been auto-filled instantly!"
       );
       console.log(`📧 Email: ${emailInput.value}`);
       console.log(`🆔 Student ID: ${studentIdInput.value}`);
@@ -411,7 +392,8 @@ class ProfileSetup {
     console.log("Previous button found:", !!prevBtn);
     console.log("Skip button found:", !!skipBtn);
 
-    if (nextBtn) {
+    // 🎯 DEFENSIVE: Remove existing listeners first to prevent duplicates
+    if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
       nextBtn.addEventListener("click", (e) => {
         console.log("🖱️ Next button clicked");
 
@@ -424,26 +406,36 @@ class ProfileSetup {
 
         this.nextStep();
       });
+      nextBtn.setAttribute('data-listener-attached', 'true');
     }
-    if (prevBtn) {
+    
+    if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
       prevBtn.addEventListener("click", () => this.prevStep());
+      prevBtn.setAttribute('data-listener-attached', 'true');
     }
-    if (skipBtn) {
+    
+    if (skipBtn && !skipBtn.hasAttribute('data-listener-attached')) {
       skipBtn.addEventListener("click", () => this.skipSetup());
+      skipBtn.setAttribute('data-listener-attached', 'true');
     }
-    if (pictureUpload) {
+    
+    if (pictureUpload && !pictureUpload.hasAttribute('data-listener-attached')) {
       pictureUpload.addEventListener("change", (e) =>
         this.handleProfilePictureUpload(e)
       );
+      pictureUpload.setAttribute('data-listener-attached', 'true');
     }
-    if (bioInput) {
+    
+    if (bioInput && !bioInput.hasAttribute('data-listener-attached')) {
       bioInput.addEventListener("input", (e) => {
         const bioCount = document.getElementById("bio-count");
         if (bioCount) {
           bioCount.textContent = e.target.value.length;
         }
       });
+      bioInput.setAttribute('data-listener-attached', 'true');
     }
+    
     this.setupFormValidation();
   }
 
@@ -477,8 +469,7 @@ class ProfileSetup {
       // Step 0: Basic Info
       const firstName =
         document.getElementById("setup-first-name")?.value.trim() || "";
-      const lastName =
-        document.getElementById("setup-last-name")?.value.trim() || "";
+      const lastName = document.getElementById("setup-last-name")?.value.trim() || "";
       const startingYear =
         document.getElementById("setup-starting-year")?.value || "";
       const major = document.getElementById("setup-major")?.value.trim() || "";
@@ -900,6 +891,38 @@ class ProfileSetup {
         </div>
       `;
     }
+ }
+
+  /**
+   * Re-initialize setup for a fresh template (SPA navigation case)
+   * This is called when the user navigates back to the profile page
+   * and the template has been reloaded but the instance still exists
+   */
+  reinitializeForFreshTemplate() {
+    console.log("🔄 Re-initializing profile setup for fresh template...");
+    
+    // Check if template is loaded
+    const profileCard = document.querySelector(".profile-setup-card");
+    const setupBody = document.querySelector(".setup-body");
+
+    if (!profileCard || !setupBody) {
+      console.log("⚠️ Template not ready yet, retrying...");
+      setTimeout(() => this.reinitializeForFreshTemplate(), 100);
+      return;
+    }
+
+    // Re-populate the fields
+    this.prefillUserData();
+    
+    // Re-setup event listeners (in case they were lost)
+    this.setupEventListeners();
+    
+    // Update display and validation
+    this.updateStepDisplay();
+    this.updateProgress();
+    this.validateCurrentStep();
+    
+    console.log("✅ Profile setup re-initialized for fresh template");
   }
 }
 
@@ -1066,9 +1089,34 @@ document.addEventListener("spa:navigation", (event) => {
       }, 200);
     } else {
       console.log(
-        "🔄 Profile setup already exists, skipping duplicate initialization"
+        "🔄 Profile setup already exists, checking if template needs re-initialization..."
       );
-      // Don't retry auth detection - the instance should already be working
+      
+      // 🎯 CRITICAL FIX: Always re-initialize when navigating back to profile page
+      // This handles the case where SPA navigation reloads the template but the instance exists
+      setTimeout(() => {
+        const emailInput = document.getElementById("setup-email");
+        const studentIdInput = document.getElementById("setup-student-id");
+        
+        if (emailInput && studentIdInput) {
+          const emailEmpty = !emailInput.value || emailInput.value.trim() === "";
+          const studentIdEmpty = !studentIdInput.value || studentIdInput.value.trim() === "";
+          
+          console.log(`🔍 Template reload check - Email empty: ${emailEmpty}, Student ID empty: ${studentIdEmpty}`);
+          
+          if (emailEmpty && studentIdEmpty && profileSetupInstance.currentUser) {
+            console.log("🔄 Template was reloaded with empty fields, re-populating...");
+            profileSetupInstance.reinitializeForFreshTemplate();
+          } else if (emailEmpty || studentIdEmpty) {
+            console.log("🔄 Some fields empty, ensuring all fields are populated...");
+            profileSetupInstance.prefillUserData();
+          } else {
+            console.log("✅ Fields are already populated, no action needed");
+          }
+        } else {
+          console.log("⚠️ Form fields not found in reloaded template");
+        }
+      }, 100);
     }
   }
 });
