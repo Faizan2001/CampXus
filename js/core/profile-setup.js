@@ -12,46 +12,106 @@ class ProfileSetup {
   }
 
   async checkAuthentication() {
-    firebase.auth().onAuthStateChanged((user) => {
-      if (user) {
-        this.currentUser = user;
-        console.log("✅ User authenticated:", user.email);
-        this.initializeSetup();
-      } else {
-        // Navigate to main app if not authenticated
-        console.log("❌ No user authenticated, navigating to home...");
-        if (window.spaRouter) {
-          window.spaRouter.navigateTo("home");
-        } else {
-          window.location.href = "../index.html";
-        }
+    // Check if auth manager is available (modern approach)
+    if (window.authManager) {
+      console.log("🔥 Using modern auth manager");
+
+      // First, try to get current user immediately
+      const currentUser = window.authManager.getCurrentUser();
+      if (currentUser) {
+        this.currentUser = currentUser;
+        console.log("✅ Found immediate user:", this.currentUser.email);
+        setTimeout(() => {
+          this.initializeSetup();
+        }, 100);
+        return; // Exit early if we found a user
       }
-    });
+
+      // Listen for auth state changes through auth manager
+      window.authManager.onAuthStateChanged((user) => {
+        if (user && !this.currentUser) {
+          // Only process if we don't already have a user
+          this.currentUser = user;
+          console.log(
+            "✅ User authenticated via auth manager callback:",
+            user.email
+          );
+          setTimeout(() => {
+            this.initializeSetup();
+          }, 100);
+        } else if (!user) {
+          console.log("❌ No user authenticated, navigating to home...");
+          if (window.spaRouter) {
+            window.spaRouter.navigateTo("home");
+          } else {
+            window.location.href = "../index.html";
+          }
+        }
+      });
+
+      // Also check the direct property as fallback
+      if (!this.currentUser && window.authManager.currentUser) {
+        this.currentUser = window.authManager.currentUser;
+        console.log(
+          "✅ Found user via direct property:",
+          this.currentUser.email
+        );
+        setTimeout(() => {
+          this.initializeSetup();
+        }, 100);
+      }
+    }
+    // Fallback to old Firebase v8 syntax if auth manager not available
+    else if (typeof firebase !== "undefined" && firebase.auth) {
+      console.log("🔄 Using legacy Firebase auth");
+      firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+          this.currentUser = user;
+          console.log("✅ User authenticated via legacy Firebase:", user.email);
+          setTimeout(() => {
+            this.initializeSetup();
+          }, 100);
+        } else {
+          console.log("❌ No user authenticated, navigating to home...");
+          if (window.spaRouter) {
+            window.spaRouter.navigateTo("home");
+          } else {
+            window.location.href = "../index.html";
+          }
+        }
+      });
+
+      // Fallback: If no user after 3 seconds, try to get current user directly
+      setTimeout(() => {
+        if (!this.currentUser) {
+          const user = firebase.auth().currentUser;
+          if (user) {
+            console.log("🔄 Fallback: Found current user", user.email);
+            this.currentUser = user;
+            this.initializeSetup();
+          }
+        }
+      }, 3000);
+    }
+    // No auth system available
+    else {
+      console.error("❌ No authentication system available");
+      if (window.spaRouter) {
+        window.spaRouter.navigateTo("home");
+      }
+    }
   }
 
   initializeSetup() {
     console.log("🎯 Initializing profile setup...");
+    console.log("🔍 Auth Manager available:", !!window.authManager);
+    console.log("🔍 Current user:", this.currentUser?.email || "None");
 
-    // Pre-fill email
-    const emailInput = document.getElementById("setup-email");
-    if (emailInput && this.currentUser) {
-      emailInput.value = this.currentUser.email;
-      console.log("✅ Email populated:", this.currentUser.email);
+    // Add debug info to page for development
+    this.addDebugInfo();
 
-      // Automatically extract and populate Student ID from email
-      const studentIdInput = document.getElementById("setup-student-id");
-      if (studentIdInput) {
-        const emailParts = this.currentUser.email.split("@");
-        if (emailParts.length > 0) {
-          studentIdInput.value = emailParts[0];
-          console.log(
-            "✅ Student ID extracted and populated:",
-            studentIdInput.value
-          );
-          // studentIdInput.readOnly = true; // Make this field read-only in HTML
-        }
-      }
-    }
+    // Pre-fill email and student ID with better error handling
+    this.prefillUserData();
 
     // Setup all event listeners
     this.setupEventListeners();
@@ -62,6 +122,114 @@ class ProfileSetup {
     this.validateCurrentStep();
 
     console.log("✅ Profile setup initialized");
+  }
+
+  // Add debug information for development
+  addDebugInfo() {
+    if (!this.currentUser) return;
+
+    const isDev = this.isDevelopmentEmail(this.currentUser.email);
+    const debugDiv = document.createElement("div");
+    debugDiv.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: ${isDev ? "#4ade80" : "#3b82f6"};
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 1000;
+      font-family: monospace;
+    `;
+    debugDiv.textContent = `🔧 ${isDev ? "DEV" : "PROD"}: ${
+      this.currentUser.email
+    }`;
+    document.body.appendChild(debugDiv);
+
+    // Remove after 5 seconds
+    setTimeout(() => debugDiv.remove(), 5000);
+  }
+
+  prefillUserData() {
+    const emailInput = document.getElementById("setup-email");
+    const studentIdInput = document.getElementById("setup-student-id");
+
+    // If fields aren't available yet, retry after a short delay
+    if (!emailInput || !studentIdInput) {
+      console.log("🔄 Form fields not ready, retrying in 500ms...");
+      setTimeout(() => this.prefillUserData(), 500);
+      return;
+    }
+
+    if (!this.currentUser) {
+      console.warn("⚠️ No current user available for prefilling");
+
+      // Try one more time to get user from auth manager
+      if (window.authManager) {
+        const user = window.authManager.getCurrentUser();
+        if (user) {
+          console.log("🔄 Retry successful: Found user", user.email);
+          this.currentUser = user;
+        } else {
+          // Update placeholders to show no user found
+          emailInput.placeholder = "Please sign in first";
+          studentIdInput.placeholder = "Please sign in first";
+          return;
+        }
+      } else {
+        emailInput.placeholder = "Please sign in first";
+        studentIdInput.placeholder = "Please sign in first";
+        return;
+      }
+    }
+
+    console.log("🔍 Current user for prefilling:", this.currentUser.email);
+    console.log("🔍 User object:", this.currentUser);
+
+    // Check if this is a development email
+    const isDev = this.isDevelopmentEmail(this.currentUser.email);
+    console.log("🔧 Is development email?", isDev);
+
+    // Pre-fill email
+    if (emailInput) {
+      emailInput.value = this.currentUser.email || "";
+      emailInput.placeholder = isDev
+        ? "Development email (auto-filled)"
+        : "Your university email";
+      console.log("✅ Email populated:", emailInput.value);
+    }
+
+    // Automatically extract and populate Student ID from email
+    if (studentIdInput && this.currentUser.email) {
+      const emailParts = this.currentUser.email.split("@");
+      if (emailParts.length > 0) {
+        studentIdInput.value = emailParts[0];
+        studentIdInput.placeholder = isDev
+          ? "Development ID (extracted)"
+          : "Extracted from your email";
+        console.log(
+          "✅ Student ID extracted and populated:",
+          studentIdInput.value
+        );
+      }
+    }
+
+    // Add visual indicators for readonly fields
+    this.styleReadonlyFields();
+  }
+
+  // Add development email detection method
+  isDevelopmentEmail(email) {
+    const devPatterns = ["dev", "test", "fake", "demo"];
+    return devPatterns.some((pattern) => email.toLowerCase().includes(pattern));
+  }
+
+  styleReadonlyFields() {
+    const readonlyFields = document.querySelectorAll(".form-input[readonly]");
+    readonlyFields.forEach((field) => {
+      field.classList.add("readonly-field");
+    });
   }
 
   setupEventListeners() {
@@ -77,8 +245,16 @@ class ProfileSetup {
     console.log("Skip button found:", !!skipBtn);
 
     if (nextBtn) {
-      nextBtn.addEventListener("click", () => {
+      nextBtn.addEventListener("click", (e) => {
         console.log("🖱️ Next button clicked");
+
+        // If button is disabled, show visual feedback and scroll to button
+        if (nextBtn.disabled) {
+          e.preventDefault();
+          this.showIncompleteFieldsFeedback();
+          return;
+        }
+
         this.nextStep();
       });
     }
@@ -130,34 +306,57 @@ class ProfileSetup {
     const nextBtn = document.getElementById("setup-next-btn");
     if (!nextBtn) return;
 
-    // Default button style and text
-    nextBtn.style.background = ""; // Reset background in case it was changed by validateStepData
-
     if (this.currentStep === 0) {
       // Step 0: Basic Info
       const firstName =
         document.getElementById("setup-first-name")?.value.trim() || "";
       const lastName =
         document.getElementById("setup-last-name")?.value.trim() || "";
-      const startingYear = // Changed from graduationYear
+      const startingYear =
         document.getElementById("setup-starting-year")?.value || "";
       const major = document.getElementById("setup-major")?.value.trim() || "";
 
       const hasRequiredFields = firstName && lastName && startingYear && major;
 
-      if (hasRequiredFields) {
-        nextBtn.textContent = "Next Step →";
-        nextBtn.disabled = false;
+      // Always keep "Next Step →" text, just enable/disable button
+      nextBtn.textContent = "Next Step →";
+      nextBtn.disabled = !hasRequiredFields;
+
+      // Add visual styling for disabled state
+      if (!hasRequiredFields) {
+        nextBtn.classList.add("disabled-state");
       } else {
-        nextBtn.textContent = "Please fill required fields";
-        nextBtn.disabled = true;
+        nextBtn.classList.remove("disabled-state");
       }
     } else if (this.currentStep === 1) {
       // Step 1: Profile picture/bio (optional, this is the new final step)
       nextBtn.textContent = "Complete Setup!";
-      nextBtn.disabled = false; // Always enabled as fields are optional
+      nextBtn.disabled = false;
+      nextBtn.classList.remove("disabled-state");
     }
-    // Removed old else if (this.currentStep === 2) block for Preferences
+  }
+
+  // Method to show visual feedback when disabled button is clicked
+  showIncompleteFieldsFeedback() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    if (!nextBtn) return;
+
+    // Scroll to button smoothly
+    nextBtn.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "center",
+    });
+
+    // Add red glow animation
+    nextBtn.classList.add("red-glow-pulse");
+
+    // Remove the animation after it completes
+    setTimeout(() => {
+      nextBtn.classList.remove("red-glow-pulse");
+    }, 800);
+
+    console.log("🔴 Incomplete fields feedback shown");
   }
 
   // Method to handle profile picture upload
@@ -228,40 +427,22 @@ class ProfileSetup {
 
   // Separate validation method for cleaner code
   validateStepData() {
-    const nextBtn = document.getElementById("setup-next-btn");
-
     if (this.currentStep === 0) {
       // Validate Step 0 (Basic Info)
       const firstName = document
         .getElementById("setup-first-name")
         .value.trim();
       const lastName = document.getElementById("setup-last-name").value.trim();
-      // Changed from graduationYear to startingYear
       const startingYear = document.getElementById("setup-starting-year").value;
       const major = document.getElementById("setup-major").value.trim();
 
       if (!firstName || !lastName || !startingYear || !major) {
-        // Show validation message
-        if (nextBtn) {
-          const originalText = nextBtn.textContent;
-          // This text is now primarily handled by validateCurrentStep
-          // but this provides a fallback visual cue if somehow clicked
-          nextBtn.textContent = "Please fill required fields";
-          nextBtn.style.background = "#ef4444"; // Red background for error
-          setTimeout(() => {
-            // Restore text based on validateCurrentStep logic if it was changed
-            this.validateCurrentStep();
-            // Reset background only if it hasn't been changed by another validation
-            if (nextBtn.style.background === "rgb(239, 68, 68)") {
-              nextBtn.style.background = "";
-            }
-          }, 2000);
-        }
+        // Show visual feedback for incomplete fields
+        this.showIncompleteFieldsFeedback();
         return false;
       }
     }
-    // Removed old else if (this.currentStep === 2) block for Preferences validation
-    // Step 1 (Profile pic/bio) is optional, so no specific validation needed here to block progression
+    // Step 1 (Profile pic/bio) is optional, so no validation needed
 
     return true;
   }
@@ -332,11 +513,20 @@ class ProfileSetup {
   }
 
   updateProgress() {
-    const progress = ((this.currentStep + 1) / this.totalSteps) * 100;
-    const progressBar = document.querySelector(".setup-progress-bar");
-    if (progressBar) {
-      progressBar.style.width = `${progress}%`;
-    }
+    // Update step blocks instead of progress bar
+    const stepBlocks = document.querySelectorAll(".step-block");
+    stepBlocks.forEach((block, index) => {
+      block.classList.remove("active", "completed");
+
+      if (index < this.currentStep) {
+        // Previous steps are completed
+        block.classList.add("completed");
+      } else if (index === this.currentStep) {
+        // Current step is active
+        block.classList.add("active");
+      }
+      // Future steps remain default styling
+    });
 
     // Update step text elements
     const currentStepElement = document.querySelector(".current-step");
@@ -350,9 +540,9 @@ class ProfileSetup {
     }
 
     console.log(
-      `📊 Progress: Step ${this.currentStep + 1}/${
-        this.totalSteps
-      } (${progress.toFixed(0)}%)`
+      `📊 Progress: Step ${this.currentStep + 1}/${this.totalSteps} - Block ${
+        this.currentStep
+      } active`
     );
   }
 
@@ -509,35 +699,26 @@ class ProfileSetup {
 
 // Initialize profile setup when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  // Ensure Firebase is initialized before creating ProfileSetup
-  if (typeof firebase !== "undefined" && firebase.app) {
-    new ProfileSetup();
-  } else {
-    console.error(
-      "Firebase not initialized. Please check firebase configuration."
-    );
-    // Show error message to user
-    const setupCard = document.querySelector(".profile-setup-card");
-    if (setupCard) {
-      setupCard.innerHTML = `
-        <div class="setup-header">
-          <div class="setup-title-section">
-            <h1 class="setup-title">Connection Error</h1>
-            <p class="setup-subtitle">Unable to connect to services</p>
-          </div>
-        </div>
-        <div class="setup-body" style="text-align: center; padding: 2rem;">
-          <div style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 1rem;">
-            <div style="font-size: 3rem; color: #c33; margin-bottom: 1rem;">
-              <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3 style="color: #c33; margin-bottom: 0.5rem;">Connection Failed</h3>
-            <p style="color: #c33; margin: 0;">
-              Could not connect to services. Please check your internet connection or contact support.
-            </p>
-          </div>
-        </div>
-      `;
+  console.log("🎯 Profile setup DOM loaded, checking auth system...");
+
+  // Wait for auth system to be ready
+  const initializeWhenReady = () => {
+    // Check if auth manager is available and initialized
+    if (window.authManager && window.authManager.currentUser !== undefined) {
+      console.log("✅ Auth manager ready, initializing profile setup");
+      new ProfileSetup();
     }
-  }
+    // Check for legacy Firebase as fallback
+    else if (typeof firebase !== "undefined" && firebase.app) {
+      console.log("✅ Legacy Firebase ready, initializing profile setup");
+      new ProfileSetup();
+    }
+    // Auth system not ready yet, wait a bit more
+    else {
+      console.log("⏳ Auth system not ready, retrying in 100ms...");
+      setTimeout(initializeWhenReady, 100);
+    }
+  };
+
+  initializeWhenReady();
 });

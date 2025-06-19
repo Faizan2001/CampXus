@@ -495,6 +495,14 @@ class AuthManager {
   }
 
   /**
+   * Get current user - used by profile setup and other modules
+   * @returns {Object|null} - Current user object or null
+   */
+  getCurrentUser() {
+    return this.currentUser;
+  }
+
+  /**
    * Sign out current user
    */
   async signOut() {

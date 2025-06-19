@@ -473,31 +473,32 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .content-grid {
-    grid-template-columns: minmax(400px, 1fr) 3fr; /* Wider controls, larger schedule */
-    gap: 2rem; /* Increased gap */
+    grid-template-columns: minmax(400px, 1fr) 3fr !important; /* Wider controls, larger schedule */
+    gap: 2rem !important; /* Increased gap */
   }
 
-  /* Wide desktop grid positioning */
-  /* NEW WIDE DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
-  /* HTML source order: Compare → Add User → Users → Import/Export */
-  .users-section {
-    grid-column: 1;
-    grid-row: 1; /* Users List first (3rd in HTML) */
-    order: unset;
+  /* Force column structure on ultra-wide desktop */
+  .controls-column {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2rem !important;
   }
 
-  .compare-section {
-    grid-column: 1;
-    grid-row: 2; /* Compare & Pin Mode second (1st in HTML) */
-    order: unset;
+  .schedule-column {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
   }
 
-  /* Add user functionality now integrated into schedule header */
-
-  .import-export-section {
-    grid-column: 1;
-    grid-row: 3; /* Export/Import third (4th in HTML) */
-    order: unset;
+  /* Reset any individual section positioning for ultra-wide */
+  .users-section,
+  .compare-section,
+  .import-export-section,
+  .schedule-section {
+    grid-column: unset !important;
+    grid-row: unset !important;
+    order: unset !important;
   }
 
   .schedule-section {
@@ -658,45 +659,38 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .content-grid {
-    display: grid;
-    grid-template-columns: minmax(350px, 1fr) 2.5fr; /* Controls left, Schedule right */
-    grid-template-rows: auto auto auto auto; /* Four rows for masonry effect */
-    gap: 1.5rem;
-    align-items: start;
-    width: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(350px, 1fr) 2.5fr !important; /* Controls left, Schedule right */
+    grid-template-rows: 1fr !important; /* Single row for column layout */
+    gap: 1.5rem !important;
+    align-items: start !important;
+    width: 100% !important;
   }
 
-  /* Desktop grid positioning - place sections directly in grid */
-  /* NEW DESKTOP ORDER: Users List → Compare & Pin Mode → Export/Import */
-  /* HTML source order: Compare → Add User → Users → Import/Export */
-  .users-section {
-    grid-column: 1;
-    grid-row: 1; /* Users List first (3rd in HTML) */
-    order: unset;
+  /* Force column structure on desktop */
+  .controls-column {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
   }
 
-  .compare-section {
-    grid-column: 1;
-    grid-row: 2; /* Compare & Pin Mode second (1st in HTML) */
-    order: unset;
+  .schedule-column {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
   }
 
-  /* Add user functionality now integrated into schedule header */
-
-  .import-export-section {
-    grid-column: 1;
-    grid-row: 3; /* Export/Import third (4th in HTML) */
-    order: unset;
-  }
-
+  /* Reset any individual section positioning */
+  .users-section,
+  .compare-section,
+  .import-export-section,
   .schedule-section {
-    grid-column: 2;
-    grid-row: 1 / -1; /* Span all rows */
-    height: fit-content; /* Scale with content */
-    max-height: calc(
-      100vh - 6rem
-    ); /* Optimized height for better desktop utilization */
-    order: unset;
+    grid-column: unset !important;
+    grid-row: unset !important;
+    order: unset !important;
   }
 
   .controls-column {

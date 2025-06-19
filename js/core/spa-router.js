@@ -356,9 +356,30 @@ class SPARouter {
    */
   setupBrowserNavigation() {
     window.addEventListener("popstate", (event) => {
-      console.log("🔄 Browser navigation detected");
-      const route = event.state?.route || "home";
+      console.log("🔄 Browser navigation detected", event.state);
+
+      // Try to get route from event state first, then from URL hash
+      let route = event.state?.route;
+      if (!route) {
+        const hash = window.location.hash.slice(1);
+        route = hash && this.routes[hash] ? hash : "home";
+      }
+
+      console.log(`🧭 Navigating via browser to: ${route}`);
       this.loadPage(route, false); // Don't update history again
+    });
+
+    // Also listen for hash changes (in case someone manually types a URL)
+    window.addEventListener("hashchange", (event) => {
+      console.log("🔗 Hash change detected", event);
+      const hash = window.location.hash.slice(1);
+      const route = hash && this.routes[hash] ? hash : "home";
+
+      // Only navigate if it's different from current page
+      if (route !== this.currentPage) {
+        console.log(`🎯 Hash navigation to: ${route}`);
+        this.loadPage(route, false);
+      }
     });
   }
 
@@ -367,9 +388,14 @@ class SPARouter {
    * 🎯 Learning: When someone visits a direct link, show the right page
    */
   loadInitialPage() {
-    // For now, just load home page
-    // Later we can parse URL fragments or search params
-    this.navigateTo("home", false);
+    // Parse the current URL to determine which page to load
+    const hash = window.location.hash.slice(1); // Remove the # symbol
+    const route = hash && this.routes[hash] ? hash : "home";
+
+    console.log(`🎯 Initial page load: hash="${hash}", route="${route}"`);
+
+    // Load the determined route without updating history (since we're loading from URL)
+    this.navigateTo(route, false);
   }
 
   /**
@@ -410,9 +436,14 @@ class SPARouter {
    */
   async loadPage(route, updateHistory = true) {
     const routeData = this.routes[route];
-    if (!routeData) return;
+    if (!routeData) {
+      console.error(`❌ Route data not found for: ${route}`);
+      return;
+    }
 
     try {
+      console.log(`🔄 Loading page: ${route}, current: ${this.currentPage}`);
+
       // Show loading indicator
       this.showLoading();
 
@@ -421,6 +452,9 @@ class SPARouter {
 
       // Update meta description
       this.updateMetaDescription(routeData.description);
+
+      // Add body class for page-specific styling
+      this.updateBodyClass(route);
 
       // Load CSS files if needed
       await this.loadCSS(routeData.cssFiles);
@@ -439,11 +473,16 @@ class SPARouter {
         await this.initializeHomePage();
       }
 
-      // Update current page
+      // Update current page BEFORE navigation states to ensure consistency
       this.currentPage = route;
 
       // Update navigation active states
       this.updateNavigationStates(route);
+
+      // Update URL hash to match current route (for direct linking and refresh)
+      if (window.location.hash !== `#${route}`) {
+        history.replaceState({ route }, routeData.title, `#${route}`);
+      }
 
       // Hide loading indicator
       this.hideLoading();
@@ -534,6 +573,22 @@ class SPARouter {
       document.head.appendChild(metaDesc);
     }
     metaDesc.content = description;
+  }
+
+  /**
+   * Update body class for page-specific styling
+   * 🎯 Learning: Each page can have unique styles based on body class
+   */
+  updateBodyClass(route) {
+    // Remove all existing page classes
+    document.body.className = document.body.className
+      .replace(/page-\w+/g, "")
+      .trim();
+
+    // Add current page class
+    document.body.classList.add(`page-${route}`);
+
+    console.log(`🎨 Updated body class to: page-${route}`);
   }
 
   /**

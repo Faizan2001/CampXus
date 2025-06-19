@@ -13,21 +13,36 @@ from components.css, and animations from animations.css.
 
 /* ===== PROFILE SETUP MAIN LAYOUT ===== */
 /* 
-  The .profile-setup-overlay and .profile-setup-card styles 
-  are now handled by the main app structure (.app-container, .main-content, .content-grid)
-  and the .glass-card class from components.css.
-  We only need to ensure the .profile-setup-card (which is now also .glass-card)
-  has appropriate padding and any specific layout adjustments if needed.
+  Enhanced layout for proper centering and responsive behavior
 */
 
+/* Override content-grid for profile page to center the card */
+.content-grid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 120px); /* Account for navigation height */
+  padding: var(--space-xl);
+}
+
 .profile-setup-card.glass-card {
-  padding: var(
-    --space-xl
-  ); /* Ensure consistent padding with other glass cards */
-  margin: var(--space-xl) auto; /* Center the card if it doesn't fill the grid area */
+  width: 100%;
   max-width: 800px; /* Maintain max-width for the setup content */
-  min-height: auto; /* Override previous min-height as it's now part of a page flow */
-  animation: none; /* Remove previous slideUp animation if not desired in this context */
+  margin: 0; /* Remove auto margin since parent centers it */
+  padding: var(--space-xl);
+  animation: slideUp 0.6s ease-out; /* Add entrance animation */
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .content-grid {
+    padding: var(--space-md);
+    min-height: calc(100vh - 100px);
+  }
+
+  .profile-setup-card.glass-card {
+    padding: var(--space-lg);
+  }
 }
 
 /* ===== SETUP HEADER ===== */
@@ -59,58 +74,72 @@ from components.css, and animations from animations.css.
   line-height: 1.5;
 }
 
-/* ===== PROGRESS BAR ===== */
+/* ===== MODERN STEP BLOCKS SYSTEM ===== */
 .setup-progress-container {
-  /* New class added in HTML for better structure */
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Aligns step info and progress bar */
-  margin-bottom: var(--space-lg);
+  justify-content: center;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+  padding: var(--space-md) 0;
 }
 
 .setup-step-info {
   font-size: 0.9rem;
   color: var(--text-secondary);
-  white-space: nowrap;
+  text-align: center;
+  margin-bottom: var(--space-sm);
 }
 
 .setup-step-info .current-step {
   font-weight: 600;
-  color: var(--text-accent);
+  color: var(--accent-primary);
 }
 
+/* Modern step blocks container */
 .setup-progress {
-  /* Was .setup-progress-track, renamed for clarity */
-  flex-grow: 1; /* Allow it to take available space */
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+/* Individual step blocks */
+.step-block {
+  width: 60px;
   height: 8px;
   background: var(--surface);
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: all 0.4s var(--animation-smooth);
+  position: relative;
   overflow: hidden;
-  position: relative;
-  margin-left: var(--space-md); /* Add some space between text and bar */
 }
 
-.setup-progress-bar {
-  height: 100%;
-  background: var(--gradient-primary);
-  border-radius: 4px;
-  transition: width 0.5s var(--animation-smooth);
-  width: 50%; /* Step 1 of 2 */
-  position: relative;
+.step-block.active {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
-.setup-progress-bar::after {
+.step-block.completed {
+  background: var(--accent-primary);
+}
+
+/* Animated shimmer effect for active block */
+.step-block.active::after {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.2),
-    /* Slightly less opaque shimmer */ transparent
+    rgba(255, 255, 255, 0.4),
+    transparent
   );
   animation: shimmer 2s infinite;
 }
@@ -164,8 +193,12 @@ from components.css, and animations from animations.css.
   margin: 0 auto;
 }
 
+/* ===== FORM VALIDATION & FEEDBACK ===== */
+/* Enhanced form validation with better visual feedback */
+
 .form-group {
   margin-bottom: var(--space-lg);
+  position: relative;
 }
 
 .form-label {
@@ -176,11 +209,41 @@ from components.css, and animations from animations.css.
   font-size: 0.95rem;
 }
 
+/* Required field indicator */
+.form-label[for*="required"]::after,
+.form-input[required] + .form-label::after {
+  content: " *";
+  color: var(--error, #ef4444);
+  font-weight: 600;
+}
+
+/* Character counter styling */
+.char-counter-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+#bio-count {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Form hint text */
+.form-hint {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: var(--space-xs);
+  font-style: italic;
+}
+
 .form-input {
   width: 100%;
   padding: var(--space-md) var(--space-lg);
   background: var(--input-bg);
-  border: 1px solid var(--input-border);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: 1rem;
@@ -188,11 +251,81 @@ from components.css, and animations from animations.css.
   backdrop-filter: blur(10px);
 }
 
+/* Enhanced validation feedback */
+.form-input[required]:invalid::after,
+.form-input[required]:placeholder-shown::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(var(--error, #ef4444), var(--error, #ef4444))
+      padding-box,
+    linear-gradient(
+        45deg,
+        transparent 30%,
+        var(--error, #ef4444) 30%,
+        var(--error, #ef4444) 70%,
+        transparent 70%
+      )
+      border-box;
+  pointer-events: none;
+  opacity: 0.6;
+  animation: pulse-error 2s infinite;
+}
+
+.form-input[required]:valid:not(:placeholder-shown)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: linear-gradient(var(--success, #10b981), var(--success, #10b981))
+      padding-box,
+    linear-gradient(
+        45deg,
+        transparent 30%,
+        var(--success, #10b981) 30%,
+        var(--success, #10b981) 70%,
+        transparent 70%
+      )
+      border-box;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Validation feedback animations */
+@keyframes pulse-error {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.01);
+  }
+}
+
+/* Form validation icons */
+.form-group {
+  position: relative;
+}
+
+/* Focus state - clean purple glow */
 .form-input:focus {
   outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-  background: var(--glass-hover);
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1),
+    0 4px 15px rgba(139, 92, 246, 0.2) !important;
+  background: var(--glass-hover) !important;
+  transform: translateY(-1px);
 }
 
 .form-input::placeholder {
@@ -200,9 +333,58 @@ from components.css, and animations from animations.css.
 }
 
 .form-input[readonly] {
-  background: var(--surface);
-  color: var(--text-secondary);
-  cursor: not-allowed;
+  background: var(--surface) !important;
+  color: var(--text-secondary) !important;
+  cursor: not-allowed !important;
+  border-color: var(--glass-border) !important;
+  opacity: 0.8;
+  position: relative;
+}
+
+.form-input[readonly]:focus {
+  border-color: var(--glass-border) !important;
+  box-shadow: none !important;
+  background: var(--surface) !important;
+  transform: none !important;
+}
+
+/* Enhanced readonly field styling */
+.readonly-field {
+  background: linear-gradient(
+    135deg,
+    var(--surface),
+    var(--surface-hover)
+  ) !important;
+  border-style: dashed !important;
+  position: relative;
+}
+
+.readonly-field::before {
+  content: "🔒";
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+/* Updated labels for readonly fields */
+.form-label[for="setup-email"]::after {
+  content: " (Auto-filled)";
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.form-label[for="setup-student-id"]::after {
+  content: " (Auto-filled)";
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.85rem;
 }
 
 /* ===== FORM ROW LAYOUT ===== */
@@ -299,11 +481,18 @@ from components.css, and animations from animations.css.
   line-height: 1.5;
 }
 
-.char-counter {
-  text-align: right;
+.char-counter,
+.char-counter-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-xs);
   font-size: 0.8rem;
   color: var(--text-tertiary);
-  margin-top: var(--space-xs);
+}
+
+#bio-count {
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 /* ===== SUCCESS MESSAGE ===== */
@@ -407,28 +596,123 @@ from components.css, and animations from animations.css.
 
 /* Remove .nav-right-group as it's not used anymore in the new HTML structure */
 
-/* .nav-button styles are now primarily handled by .button from components.css 
-   and specific overrides like .setup-nav-button if needed. 
-   The .btn-primary, .btn-secondary, .btn-tertiary classes from profile-setup.css 
-   should be reviewed if they are still needed or if .button.primary etc. from components.css suffice.
-   For now, assuming .button and .btn-primary (from HTML) are working. 
-*/
+/* ===== BUTTON STYLING FIXES ===== */
+/* Comprehensive button styling for profile setup page */
 
-.setup-nav-button {
-  /* Add any specific overrides for setup navigation buttons if .button is not enough */
-  /* Example: min-width if they are too small */
-  min-width: 100px;
+/* Base button styling - matches your HTML class usage */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  min-width: 120px;
+  height: auto;
+  white-space: nowrap;
 }
 
-/* Ensure .button.muted is styled if not already in components.css */
+/* Primary button styling (.button.btn-primary) */
+.button.btn-primary {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.button.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  background: linear-gradient(
+    135deg,
+    var(--accent-secondary),
+    var(--accent-primary)
+  );
+}
+
+/* Secondary button styling (.button.secondary) */
+.button.secondary {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.button.secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Muted button styling (.button.muted) */
 .button.muted {
-  background-color: var(--surface-hover); /* Example style */
+  background: var(--surface-hover);
   color: var(--text-secondary);
   border: 1px solid var(--glass-border);
+  opacity: 0.8;
 }
 
 .button.muted:hover {
-  background-color: var(--surface-active);
+  background: var(--surface-active);
+  color: var(--text-primary);
+  opacity: 1;
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+/* Profile setup navigation specific buttons */
+.setup-nav-button {
+  min-width: 140px;
+  font-weight: 600;
+}
+
+/* Disabled button state styling */
+.button.disabled-state {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--surface) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--glass-border) !important;
+}
+
+.button.disabled-state:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Red glow animation for disabled button click */
+@keyframes redGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.button.red-glow-pulse {
+  animation: redGlow 0.8s ease-out;
+}
+
+/* File upload button specific styling */
+.profile-picture-section .button.secondary {
+  margin-top: var(--space-sm);
+  min-width: 150px;
 }
 
 /* Remove specific .nav-button#setup-next-btn width animations if not desired */
@@ -440,13 +724,17 @@ from components.css, and animations from animations.css.
 
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
+  .content-grid {
+    padding: var(--space-md);
+    min-height: calc(100vh - 100px);
+  }
+
   .profile-setup-card.glass-card {
-    margin-top: var(--space-md);
     padding: var(--space-lg);
   }
 
   .setup-title {
-    font-size: 1.6rem; /* Adjusted for page context */
+    font-size: 1.8rem;
   }
 
   .setup-subtitle {
@@ -454,29 +742,30 @@ from components.css, and animations from animations.css.
   }
 
   .setup-progress-container {
-    flex-direction: column; /* Stack step info and progress bar */
-    align-items: flex-start; /* Align to left */
+    flex-direction: column;
+    align-items: flex-start;
     gap: var(--space-sm);
   }
 
   .setup-progress {
-    width: 100%; /* Full width for progress bar */
+    width: 100%;
     margin-left: 0;
   }
 
   .setup-navigation {
-    flex-direction: column-reverse; /* Stack buttons, next/skip group on top */
+    flex-direction: column-reverse;
     gap: var(--space-md);
   }
 
-  .setup-navigation > div[style*="display: flex"] {
+  .setup-navigation > div {
     width: 100%;
-    justify-content: space-between; /* Space out skip and next */
+    justify-content: space-between;
   }
 
-  .setup-navigation > div[style*="display: flex"] > .button {
-    flex-grow: 1; /* Allow buttons to grow if needed */
+  .setup-navigation .button {
+    flex: 1;
     text-align: center;
+    min-width: auto;
   }
 
   .setup-nav-button#setup-prev-btn {
