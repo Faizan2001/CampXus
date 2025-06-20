@@ -8,13 +8,13 @@
  *
  * Features:
  * ├── Multiple avatar styles (miniavs, adventurer, pixel-art, etc.)
- * ├── Customization options for each style
+ * ├── Customization options for each style with color swatch support
  * ├── Modal-based avatar editor
  * ├── Avatar URL generation
  * ├── Preview functionality
  * └── Firestore integration ready
  *
- * Uses DiceBear API: https://api.dicebear.com/7.x/
+ * Uses DiceBear API: https://api.dicebear.com/8.x/
  *
  * =============================================================================
  */
@@ -85,37 +85,29 @@ class AvatarManager {
       options: {},
     };
 
-    // Modal elements (will be set when modal is opened)
-    this.modal = null;
     this.currentConfig = null;
     this.onSaveCallback = null;
+    // Bind the keydown handler once to `this` to manage its removal
+    this.handleKeyDown = this.handleKeyDown.bind(this);
   }
 
   /**
    * Generate avatar URL based on configuration
    * @param {Object} config - Avatar configuration
-   * @param {string} config.style - Avatar style (e.g., 'miniavs', 'adventurer')
-   * @param {string} config.seed - Unique seed for avatar generation
-   * @param {Object} config.options - Style-specific options
    * @returns {string} Complete DiceBear API URL
    */
   generateAvatarUrl(config) {
+    if (!config || !config.style || !config.seed) {
+      console.warn("⚠️ Invalid config passed to generateAvatarUrl, using fallback.");
+      config = this.generateDefaultAvatar('fallback-user');
+    }
     const { style, seed, options = {} } = config;
-
-    // Base DiceBear API URL
-    const baseUrl = `https://api.dicebear.com/7.x/${style}/svg`;
-
-    // Build query parameters
-    const params = new URLSearchParams();
-    params.append("seed", seed);
-
-    // Add style-specific options
+    // NOTE: Using latest DiceBear version 8.x
+    const baseUrl = `https://api.dicebear.com/8.x/${style}/svg`;
+    const params = new URLSearchParams({ seed });
     Object.entries(options).forEach(([key, value]) => {
-      if (value) {
-        params.append(key, value);
-      }
+      if (value) params.append(key, value);
     });
-
     return `${baseUrl}?${params.toString()}`;
   }
 
@@ -142,29 +134,19 @@ class AvatarManager {
    */
   openAvatarEditor(currentAvatar = null, onSave = null) {
     console.log("🎨 Opening avatar editor...");
-
-    // Set current configuration or use default
-    this.currentConfig = currentAvatar || this.generateDefaultAvatar("preview");
+    // BUG FIX: Deep copy the current config to avoid modifying the original state until 'Save' is clicked.
+    this.currentConfig = JSON.parse(
+      JSON.stringify(currentAvatar || this.generateDefaultAvatar("preview"))
+    );
     this.onSaveCallback = onSave;
-
-    // Create and show the custom modal
     this.createAndShowModal();
   }
 
-  /**
-   * Create and display the custom avatar editor modal
-   */
   createAndShowModal() {
-    // Remove any existing modal
     this.removeExistingModal();
-
-    // Create modal HTML
     const modalHTML = this.createModalHTML();
-
-    // Inject modal into DOM
     document.body.insertAdjacentHTML("beforeend", modalHTML);
-
-    // Initialize the editor
+    // Use a short delay to ensure the DOM is ready for JS manipulation
     setTimeout(() => {
       this.initializeAvatarEditor();
       this.setupModalEventListeners();
@@ -172,25 +154,15 @@ class AvatarManager {
     }, 10);
   }
 
-  /**
-   * Create the complete modal HTML structure
-   * @returns {string} Complete modal HTML
-   */
   createModalHTML() {
     return `
       <div id="avatar-editor-modal" class="avatar-modal-overlay">
         <div class="avatar-modal-content">
           <div class="avatar-modal-header">
             <h2 class="avatar-modal-title">🎨 Choose Your Avatar</h2>
-            <button class="avatar-modal-close-btn" aria-label="Close modal">
-              <i class="fas fa-times"></i>
-            </button>
+            <button class="avatar-modal-close-btn" aria-label="Close modal"><i class="fas fa-times"></i></button>
           </div>
-          
-          <div class="avatar-modal-body">
-            ${this.createAvatarEditorHTML()}
-          </div>
-          
+          <div class="avatar-modal-body">${this.createAvatarEditorHTML()}</div>
           <div class="avatar-modal-footer">
             <button class="avatar-modal-button cancel">Cancel</button>
             <button class="avatar-modal-button confirm">Save Avatar</button>
@@ -200,120 +172,66 @@ class AvatarManager {
     `;
   }
 
-  /**
-   * Remove any existing modal from the DOM
-   */
   removeExistingModal() {
     const existingModal = document.getElementById("avatar-editor-modal");
-    if (existingModal) {
-      existingModal.remove();
-    }
+    if (existingModal) existingModal.remove();
   }
 
-  /**
-   * Show the modal with animation
-   */
   showModal() {
     const modal = document.getElementById("avatar-editor-modal");
-    if (modal) {
-      modal.classList.add("active");
-    }
+    if (modal) modal.classList.add("active");
   }
 
-  /**
-   * Hide the modal with animation
-   */
   hideModal() {
+    document.removeEventListener("keydown", this.handleKeyDown);
     const modal = document.getElementById("avatar-editor-modal");
     if (modal) {
       modal.classList.remove("active");
-      setTimeout(() => {
-        modal.remove();
-      }, 300);
+      setTimeout(() => modal.remove(), 300);
     }
   }
 
-  /**
-   * Set up modal-specific event listeners
-   */
+  handleKeyDown(e) {
+    if (e.key === "Escape") {
+      this.hideModal();
+    }
+  }
+
   setupModalEventListeners() {
     const modal = document.getElementById("avatar-editor-modal");
     if (!modal) return;
-
-    // Close button
-    const closeBtn = modal.querySelector(".avatar-modal-close-btn");
-    if (closeBtn) {
-      closeBtn.addEventListener("click", () => this.hideModal());
-    }
-
-    // Cancel button
-    const cancelBtn = modal.querySelector(".avatar-modal-button.cancel");
-    if (cancelBtn) {
-      cancelBtn.addEventListener("click", () => this.hideModal());
-    }
-
-    // Save button
-    const saveBtn = modal.querySelector(".avatar-modal-button.confirm");
-    if (saveBtn) {
-      saveBtn.addEventListener("click", () => {
-        this.handleSaveAvatar();
-        this.hideModal();
-      });
-    }
-
-    // Close on overlay click
+    modal.querySelector(".avatar-modal-close-btn").addEventListener("click", () => this.hideModal());
+    modal.querySelector(".avatar-modal-button.cancel").addEventListener("click", () => this.hideModal());
+    modal.querySelector(".avatar-modal-button.confirm").addEventListener("click", () => {
+      this.handleSaveAvatar();
+      this.hideModal();
+    });
     modal.addEventListener("click", (e) => {
-      if (e.target === modal) {
-        this.hideModal();
-      }
+      if (e.target === modal) this.hideModal();
     });
-
-    // Close on Escape key
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        this.hideModal();
-      }
-    });
+    document.addEventListener("keydown", this.handleKeyDown);
   }
 
-  /**
-   * Create the HTML structure for the avatar editor
-   * @returns {string} HTML string for the avatar editor
-   */
   createAvatarEditorHTML() {
     return `
       <div class="avatar-editor-container">
         <div class="avatar-editor-content">
-          <!-- Avatar Preview Section -->
           <div class="avatar-preview-section">
             <div class="avatar-preview-container">
               <img id="avatar-preview" class="avatar-preview-image" src="" alt="Avatar Preview" />
             </div>
             <p class="avatar-preview-label">Your Avatar Preview</p>
           </div>
-          
-          <!-- Avatar Controls Section -->
           <div class="avatar-controls-section">
             <div class="control-group">
-              <label for="avatar-style-select" class="control-label">
-                <i class="fas fa-palette"></i> Avatar Style
-              </label>
-              <select id="avatar-style-select" class="control-select">
-                ${this.generateStyleOptions()}
-              </select>
+              <label for="avatar-style-select" class="control-label"><i class="fas fa-palette"></i> Avatar Style</label>
+              <select id="avatar-style-select" class="control-select">${this.generateStyleOptions()}</select>
               <p id="style-description" class="style-description"></p>
             </div>
-            
             <hr class="control-divider">
-            
-            <div id="avatar-options-container" class="avatar-options-container">
-              <!-- Dynamic customization options will be inserted here -->
-            </div>
-            
+            <div id="avatar-options-container" class="avatar-options-container"></div>
             <div class="randomize-section">
-              <button id="randomize-avatar" class="button secondary randomize-btn">
-                <i class="fas fa-dice"></i> Randomize
-              </button>
+              <button id="randomize-avatar" class="button secondary randomize-btn"><i class="fas fa-dice"></i> Randomize</button>
             </div>
           </div>
         </div>
@@ -321,79 +239,46 @@ class AvatarManager {
     `;
   }
 
-  /**
-   * Generate HTML options for style selection
-   * @returns {string} HTML option elements
-   */
   generateStyleOptions() {
     return Object.entries(this.avatarStyles)
       .map(([key, style]) => `<option value="${key}">${style.name}</option>`)
       .join("");
   }
 
-  /**
-   * Initialize the avatar editor after modal is shown
-   */
   initializeAvatarEditor() {
     console.log("🎯 Initializing avatar editor...");
-
-    // Set up initial preview
-    this.updateAvatarPreview();
-
-    // Set initial style selection
     const styleSelect = document.getElementById("avatar-style-select");
-    if (styleSelect) {
-      styleSelect.value = this.currentConfig.style;
-      this.updateStyleDescription();
-      this.populateStyleOptions(this.currentConfig.style);
-    }
-
-    // Set up event listeners
+    if (styleSelect) styleSelect.value = this.currentConfig.style;
+    this.updateAvatarPreview();
+    this.updateStyleDescription();
+    this.populateStyleOptions(this.currentConfig.style);
     this.setupAvatarEditorEventListeners();
-
     console.log("✅ Avatar editor initialized");
   }
 
-  /**
-   * Set up event listeners for the avatar editor
-   */
   setupAvatarEditorEventListeners() {
-    // Style selection change
-    const styleSelect = document.getElementById("avatar-style-select");
-    if (styleSelect) {
-      styleSelect.addEventListener("change", (e) => {
-        console.log("🎨 Style changed to:", e.target.value);
-        this.currentConfig.style = e.target.value;
-        this.currentConfig.options = {}; // Reset options when style changes
-        this.updateStyleDescription();
-        this.populateStyleOptions(e.target.value);
-        this.updateAvatarPreview();
-      });
-    }
-
-    // Randomize button
-    const randomizeBtn = document.getElementById("randomize-avatar");
-    if (randomizeBtn) {
-      randomizeBtn.addEventListener("click", () => {
-        console.log("🎲 Randomizing avatar...");
-        this.randomizeAvatar();
-      });
-    }
+    document.getElementById("avatar-style-select")?.addEventListener("change", (e) => {
+      console.log("🎨 Style changed to:", e.target.value);
+      this.currentConfig.style = e.target.value;
+      this.currentConfig.options = {};
+      this.updateStyleDescription();
+      this.populateStyleOptions(e.target.value);
+      this.updateAvatarPreview();
+    });
+    document.getElementById("randomize-avatar")?.addEventListener("click", () => {
+      console.log("🎲 Randomizing avatar...");
+      this.randomizeAvatar();
+    });
   }
 
-  /**
-   * Update the style description text
-   */
   updateStyleDescription() {
     const descElement = document.getElementById("style-description");
     const styleInfo = this.avatarStyles[this.currentConfig.style];
-    if (descElement && styleInfo) {
-      descElement.textContent = styleInfo.description;
-    }
+    if (descElement && styleInfo) descElement.textContent = styleInfo.description;
   }
 
   /**
-   * Populate customization options for the selected style
+   * Populate customization options, handling color swatches correctly.
    * @param {string} style - Selected avatar style
    */
   populateStyleOptions(style) {
@@ -401,172 +286,130 @@ class AvatarManager {
     if (!container) return;
 
     const styleInfo = this.avatarStyles[style];
-    if (!styleInfo || !styleInfo.options) {
-      container.innerHTML =
-        '<p class="no-options">No customization options available for this style.</p>';
+    if (!styleInfo || Object.keys(styleInfo.options).length === 0) {
+      container.innerHTML = '<p class="no-options">No customization options available.</p>';
       return;
     }
 
-    // Generate HTML for each option
-    const optionsHTML = Object.entries(styleInfo.options)
-      .map(([optionKey, optionValues]) => {
-        const currentValue = this.currentConfig.options[optionKey] || "";
-
-        return `
-          <div class="option-group">
-            <label for="option-${optionKey}" class="option-label">
-              ${this.formatOptionName(optionKey)}
-            </label>
-            <select id="option-${optionKey}" class="option-select" data-option="${optionKey}">
-              <option value="">Default</option>
-              ${optionValues
-                .map(
-                  (value) =>
-                    `<option value="${value}" ${
-                      value === currentValue ? "selected" : ""
-                    }>${this.formatOptionValue(value)}</option>`
-                )
-                .join("")}
-            </select>
-          </div>
-        `;
-      })
-      .join("");
+    const optionsHTML = Object.entries(styleInfo.options).map(([key, values]) => {
+      // *** BUG FIX START: Check for 'backgroundColor' and render swatches ***
+      if (key === 'backgroundColor') {
+        return this.createColorSwatchesHTML(key, values);
+      }
+      // *** BUG FIX END ***
+      
+      // Render standard dropdown for other options
+      const currentValue = this.currentConfig.options[key] || "";
+      const selectOptions = values.map(val => `<option value="${val}" ${val === currentValue ? "selected" : ""}>${this.formatOptionValue(val)}</option>`).join("");
+      return `
+        <div class="option-group">
+          <label for="option-${key}" class="option-label">${this.formatOptionName(key)}</label>
+          <select id="option-${key}" class="option-select" data-option="${key}">
+            <option value="">Default</option>${selectOptions}
+          </select>
+        </div>
+      `;
+    }).join("");
 
     container.innerHTML = optionsHTML;
+    this.addOptionEventListeners(container);
+  }
 
-    // Add event listeners to option selects
-    container.querySelectorAll(".option-select").forEach((select) => {
-      select.addEventListener("change", (e) => {
-        const optionKey = e.target.dataset.option;
+  /**
+   * NEW: Helper to create HTML for color swatches.
+   * @param {string} key - The option key (e.g., 'backgroundColor')
+   * @param {string[]} colors - Array of hex color codes (without #)
+   */
+  createColorSwatchesHTML(key, colors) {
+    const currentValue = this.currentConfig.options[key] || "";
+    const swatches = colors.map(color => `
+      <button 
+        class="color-swatch-btn ${color === currentValue ? 'active' : ''}" 
+        data-option="${key}" 
+        data-value="${color}"
+        aria-label="Color ${color}"
+        style="background-color: #${color};">
+      </button>
+    `).join('');
+    return `
+      <div class="option-group">
+        <label class="option-label">${this.formatOptionName(key)}</label>
+        <div class="color-swatch-container">${swatches}</div>
+      </div>
+    `;
+  }
+
+  /**
+   * NEW: Add event listeners to all generated options (both selects and swatches).
+   */
+  addOptionEventListeners(container) {
+    container.querySelectorAll(".option-select").forEach(select => {
+      select.addEventListener("change", e => {
+        const key = e.target.dataset.option;
         const value = e.target.value;
+        if (value) this.currentConfig.options[key] = value;
+        else delete this.currentConfig.options[key];
+        this.updateAvatarPreview();
+      });
+    });
 
-        console.log(`🎛️ Option ${optionKey} changed to:`, value);
-
-        if (value) {
-          this.currentConfig.options[optionKey] = value;
-        } else {
-          delete this.currentConfig.options[optionKey];
-        }
-
+    container.querySelectorAll(".color-swatch-btn").forEach(button => {
+      button.addEventListener("click", e => {
+        const key = e.currentTarget.dataset.option;
+        const value = e.currentTarget.dataset.value;
+        this.currentConfig.options[key] = value;
+        // Update active state visual
+        container.querySelectorAll(`[data-option="${key}"]`).forEach(btn => btn.classList.remove('active'));
+        e.currentTarget.classList.add('active');
         this.updateAvatarPreview();
       });
     });
   }
 
-  /**
-   * Format option names for display
-   * @param {string} optionName - Raw option name
-   * @returns {string} Formatted display name
-   */
-  formatOptionName(optionName) {
-    return optionName
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (str) => str.toUpperCase())
-      .replace("Background Color", "Background");
+  formatOptionName(name) {
+    return name.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
   }
 
-  /**
-   * Format option values for display
-   * @param {string} value - Raw option value
-   * @returns {string} Formatted display value
-   */
   formatOptionValue(value) {
-    if (value.startsWith("#") || /^[0-9a-fA-F]{6}$/.test(value)) {
-      return `Color ${value}`;
-    }
-    return value
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (str) => str.toUpperCase())
-      .replace(/variant0?(\d+)/i, "Style $1");
+    return value.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase()).replace(/variant0?(\d+)/i, "Style $1");
   }
 
-  /**
-   * Update the avatar preview image
-   */
   updateAvatarPreview() {
     const previewImg = document.getElementById("avatar-preview");
-    if (previewImg) {
-      const avatarUrl = this.generateAvatarUrl(this.currentConfig);
-      previewImg.src = avatarUrl;
-      console.log("🖼️ Avatar preview updated:", avatarUrl);
-    }
+    if (previewImg) previewImg.src = this.generateAvatarUrl(this.currentConfig);
   }
 
-  /**
-   * Randomize the current avatar configuration
-   */
   randomizeAvatar() {
     const styleInfo = this.avatarStyles[this.currentConfig.style];
-    if (!styleInfo || !styleInfo.options) return;
-
-    // Generate random seed
+    if (!styleInfo || Object.keys(styleInfo.options).length === 0) return;
     this.currentConfig.seed = Math.random().toString(36).substring(2, 15);
-
-    // Randomize each option
-    Object.entries(styleInfo.options).forEach(([optionKey, optionValues]) => {
-      if (optionValues.length > 0) {
-        const randomIndex = Math.floor(Math.random() * optionValues.length);
-        this.currentConfig.options[optionKey] = optionValues[randomIndex];
+    this.currentConfig.options = {}; // Clear previous options
+    Object.entries(styleInfo.options).forEach(([key, values]) => {
+      if (values.length > 0) {
+        this.currentConfig.options[key] = values[Math.floor(Math.random() * values.length)];
       }
     });
-
-    // Update the UI to reflect the changes
     this.populateStyleOptions(this.currentConfig.style);
     this.updateAvatarPreview();
-
-    console.log("🎲 Avatar randomized:", this.currentConfig);
   }
 
-  /**
-   * Handle saving the avatar configuration
-   */
   handleSaveAvatar() {
     console.log("💾 Saving avatar configuration:", this.currentConfig);
-
-    if (this.onSaveCallback && typeof this.onSaveCallback === "function") {
-      this.onSaveCallback(this.currentConfig);
-    }
-
-    return true; // Allow modal to close
-  }
-
-  /**
-   * Get avatar URL for display in the application
-   * @param {Object} userAvatarConfig - User's saved avatar configuration
-   * @param {string} fallbackUserId - Fallback user ID if no config available
-   * @returns {string} Avatar URL
-   */
-  getAvatarUrl(userAvatarConfig, fallbackUserId = "default") {
-    if (userAvatarConfig && userAvatarConfig.style) {
-      return this.generateAvatarUrl(userAvatarConfig);
-    }
-
-    // Fallback to default avatar
-    const defaultConfig = this.generateDefaultAvatar(fallbackUserId);
-    return this.generateAvatarUrl(defaultConfig);
-  }
-
-  /**
-   * Validate avatar configuration
-   * @param {Object} config - Avatar configuration to validate
-   * @returns {boolean} True if valid
-   */
-  isValidAvatarConfig(config) {
-    if (!config || typeof config !== "object") return false;
-    if (!config.style || !this.avatarStyles[config.style]) return false;
-    if (!config.seed || typeof config.seed !== "string") return false;
+    if (this.onSaveCallback) this.onSaveCallback(this.currentConfig);
     return true;
+  }
+
+  getAvatarUrl(userConfig, fallbackUserId = "default") {
+    const config = (userConfig && this.isValidAvatarConfig(userConfig)) ? userConfig : this.generateDefaultAvatar(fallbackUserId);
+    return this.generateAvatarUrl(config);
+  }
+
+  isValidAvatarConfig(config) {
+    return config && typeof config === 'object' && config.style && this.avatarStyles[config.style] && config.seed;
   }
 }
 
-// =============================================================================
-//                           GLOBAL INITIALIZATION
-// =============================================================================
-
-// Create global instance
+// Global instance to be used by other scripts
 window.avatarManager = new AvatarManager();
 console.log("🎨 Avatar Manager loaded globally and available at window.avatarManager");
-
-// Export for ES6 modules
-export default AvatarManager;
+export default window.avatarManager;

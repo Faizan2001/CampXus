@@ -467,13 +467,10 @@ function updateUserAvatarDisplays(userData) {
     userData.avatarConfig.style &&
     userData.avatarConfig.seed;
 
-  // 🧪 ENHANCED DEBUG: Add detailed avatar debugging
-  console.log("🎨 Avatar Debug Info:", {
+  // 🏆 DEBUG: Keep basic avatar debugging for development
+  console.log("🎨 Avatar Status:", {
     hasAvatarConfig: !!userData.avatarConfig,
-    avatarConfig: userData.avatarConfig,
     hasAvatarManager: !!window.avatarManager,
-    hasStyle: userData.avatarConfig?.style,
-    hasSeed: userData.avatarConfig?.seed,
     hasCustomAvatar,
   });
 
@@ -514,18 +511,22 @@ function updateUserAvatarDisplays(userData) {
     }
   } else {
     console.log("⚠️ No custom avatar found, using default icon");
-    
+
     // 🔄 If we have avatar config but no avatar manager, retry when it loads
     if (userData.avatarConfig && !window.avatarManager) {
-      console.log("🔄 Avatar config exists but avatar manager not ready, will retry...");
-      
+      console.log(
+        "🔄 Avatar config exists but avatar manager not ready, will retry..."
+      );
+
       // Store user data for retry
       window.pendingAvatarUpdate = userData;
-      
+
       // Set up a listener for when avatar manager loads
       const checkAvatarManager = () => {
         if (window.avatarManager && window.pendingAvatarUpdate) {
-          console.log("✅ Avatar manager now available, retrying avatar display...");
+          console.log(
+            "✅ Avatar manager now available, retrying avatar display..."
+          );
           const pendingData = window.pendingAvatarUpdate;
           window.pendingAvatarUpdate = null; // Clear the pending data
           updateUserAvatarDisplays(pendingData); // Retry the avatar display
@@ -534,11 +535,11 @@ function updateUserAvatarDisplays(userData) {
           setTimeout(checkAvatarManager, 500);
         }
       };
-      
+
       // Start checking for avatar manager
       setTimeout(checkAvatarManager, 100);
     }
-    
+
     // Display default avatar icons
     displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
   }
@@ -580,6 +581,7 @@ function checkAuthenticationState() {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       const userData = JSON.parse(storedUser);
+
       console.log(
         "📱 Using cached user data while Firebase loads:",
         userData.email
@@ -598,9 +600,11 @@ function checkAuthenticationState() {
 
 /**
  * Set up Firebase authentication state listener
+ * 🏆 BEST PRACTICE: Use debouncing to prevent race conditions
  */
 function setupFirebaseAuthListener() {
-  // 🛡️ FIX: Add guard to prevent infinite loops
+  // 🛡️ Debouncing variables to prevent rapid auth state changes
+  let authProcessingTimer = null;
   let isProcessingAuthChange = false;
 
   // Wait for Firebase auth manager to be available
@@ -612,100 +616,124 @@ function setupFirebaseAuthListener() {
       console.log("🔥 Setting up Firebase auth state listener for menu");
 
       window.authManager.onAuthStateChanged(async (user) => {
-        // 🛡️ FIX: Prevent processing multiple auth changes simultaneously
+        // 🏆 DEBOUNCING: Clear any pending auth processing
+        clearTimeout(authProcessingTimer);
+
+        // 🛡️ Prevent overlapping auth processing
         if (isProcessingAuthChange) {
-          console.log("🔄 Auth change already being processed, skipping...");
+          console.log("🔄 Auth change already being processed, debouncing...");
           return;
         }
 
-        isProcessingAuthChange = true;
+        // 🏆 DEBOUNCE: Wait 200ms before processing to let Firestore settle
+        authProcessingTimer = setTimeout(async () => {
+          isProcessingAuthChange = true;
 
-        try {
-          if (user) {
-            // User is signed in - always fetch fresh profile data from Firestore
-            console.log(
-              "👤 User authenticated, fetching fresh profile data for:",
-              user.email
-            );
-
-            // 🐛 BUG FIX: Clear any stale data before loading new user data
-            clearUserDisplayInfo();
-
-            try {
-              // Import Firestore functions dynamically
-              const { doc, getDoc } = await import("firebase/firestore");
-              const { db } = await import(
-                "../firebase/config/firebase-config.js"
-              );
-
-              // Fetch user profile data from Firestore
-              const userDocRef = doc(db, "users", user.uid);
-              const userDoc = await getDoc(userDocRef);
-
-              let userData;
-
-              if (userDoc.exists()) {
-                const firestoreData = userDoc.data();
-                userData = {
-                  uid: user.uid, // 🐛 BUG FIX: Include UID to ensure data consistency
-                  name:
-                    firestoreData.firstName && firestoreData.lastName
-                      ? `${firestoreData.firstName} ${firestoreData.lastName}`
-                    : firestoreData.displayName || user.email.split("@")[0],
-                email: user.email, // Always use Firebase Auth email as source of truth
-                avatarConfig: firestoreData.avatarConfig || null,
-                profileSetupComplete: firestoreData.profileSetupComplete || false,
-              };
-
-              console.log("✅ Fresh profile data loaded for:", user.email, {
-                hasAvatar: !!userData.avatarConfig,
-                profileSetupComplete: userData.profileSetupComplete,
-              });
-            } else {
-              // Create fresh user data if no Firestore document exists yet
-              userData = {
-                uid: user.uid,
-                name: user.displayName || user.email.split("@")[0],
-                email: user.email,
-                avatarConfig: null,
-                profileSetupComplete: false,
-              };
-
+          try {
+            if (user) {
+              // User is signed in - fetch fresh profile data from Firestore
               console.log(
-                "⚠️ No Firestore profile found for:",
-                user.email,
-                "using Firebase Auth data"
+                "👤 User authenticated, fetching fresh profile data for:",
+                user.email
               );
+
+              // 🐛 BUG FIX: Clear any stale data before loading new user data
+              clearUserDisplayInfo();
+
+              // 🏆 ROBUST: Retry system for reliable Firestore access
+              const maxRetries = 3;
+              let retryCount = 0;
+              let userData = null;
+
+              while (retryCount < maxRetries && !userData) {
+                try {
+                  // Import Firestore functions dynamically
+                  const { doc, getDoc } = await import("firebase/firestore");
+                  const { db } = await import(
+                    "../firebase/config/firebase-config.js"
+                  );
+
+                  // Fetch user profile data from Firestore
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists()) {
+                    const firestoreData = userDoc.data();
+
+                    userData = {
+                      uid: user.uid,
+                      name:
+                        firestoreData.firstName && firestoreData.lastName
+                          ? `${firestoreData.firstName} ${firestoreData.lastName}`
+                          : firestoreData.displayName ||
+                            user.email.split("@")[0],
+                      email: user.email,
+                      avatarConfig: firestoreData.avatarConfig || null,
+                      profileSetupComplete:
+                        firestoreData.profileSetupComplete || false,
+                    };
+
+                    console.log("✅ Profile loaded for:", user.email, {
+                      hasAvatar: !!userData.avatarConfig,
+                      profileSetupComplete: userData.profileSetupComplete,
+                    });
+
+                    break; // Success! Exit the retry loop
+                  } else {
+                    // If this was from cache and we have retries left, try again
+                    if (
+                      userDoc.metadata.fromCache &&
+                      retryCount < maxRetries - 1
+                    ) {
+                      console.log("🔄 Retrying for fresh server data...");
+                      retryCount++;
+                      await new Promise((resolve) => setTimeout(resolve, 500));
+                      continue;
+                    }
+                  }
+                } catch (error) {
+                  console.error(
+                    `❌ Attempt ${retryCount + 1} failed:`,
+                    error.message
+                  );
+
+                  retryCount++;
+                  if (retryCount < maxRetries) {
+                    const delay = retryCount * 300;
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                  }
+                }
+              }
+
+              // If we still don't have userData after all retries, create fallback
+              if (!userData) {
+                console.log("⚠️ Using fallback user data for:", user.email);
+                userData = {
+                  uid: user.uid,
+                  name: user.displayName || user.email.split("@")[0],
+                  email: user.email,
+                  avatarConfig: null,
+                  profileSetupComplete: false,
+                };
+              }
+
+              updateAuthenticationUI(true, userData);
+            } else {
+              // User is signed out - clear everything
+              console.log(
+                "👤 User signed out, clearing all data and updating UI"
+              );
+
+              localStorage.removeItem("user");
+              localStorage.removeItem("authToken");
+              clearUserDisplayInfo();
+              updateAuthenticationUI(false);
             }
-
-            updateAuthenticationUI(true, userData);
-          } catch (error) {
-            console.error("❌ Error fetching user profile data:", error);
-
-            // Create clean fallback user data (never use cached data on error)
-            const userData = {
-              uid: user.uid,
-              name: user.displayName || user.email.split("@")[0],
-              email: user.email,
-              avatarConfig: null,
-              profileSetupComplete: false,
-            };
-            updateAuthenticationUI(true, userData);
+          } finally {
+            // 🛡️ Reset processing flag when done
+            isProcessingAuthChange = false;
           }
-        } else {
-          // User is signed out - clear everything
-          console.log("👤 User signed out, clearing all data and updating UI");
-
-          // 🐛 BUG FIX: Ensure all data is cleared on sign out
-          localStorage.removeItem("user");
-          localStorage.removeItem("authToken");
-          clearUserDisplayInfo();
-          updateAuthenticationUI(false);
-        }
-        } finally {
-          // 🛡️ FIX: Reset processing flag when done
-          isProcessingAuthChange = false;
-        }
+        }, 200); // 200ms debounce delay
       });
     } else {
       // Retry after a short delay if auth manager isn't ready yet

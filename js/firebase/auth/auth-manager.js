@@ -565,20 +565,24 @@ class AuthManager {
 
   /**
    * Update user's last active timestamp
+   * 🏆 BEST PRACTICE: Use updateDoc with specific field to avoid race conditions
    */
   async updateUserLastActive() {
     if (!this.currentUser) return;
 
     try {
-      await setDoc(
-        doc(db, "users", this.currentUser.uid),
-        {
-          lastActive: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const { updateDoc } = await import("firebase/firestore");
+
+      // 🎯 SOLUTION: Only update the specific field we need
+      // This prevents interfering with other document reads/writes
+      await updateDoc(doc(db, "users", this.currentUser.uid), {
+        lastActive: serverTimestamp(),
+      });
+
+      console.log("👤 Updated lastActive timestamp");
     } catch (error) {
-      console.error("Error updating last active:", error);
+      // 🛡️ SILENT FAIL: Don't let lastActive updates break the app
+      console.log("⚠️ LastActive update failed (non-critical):", error.code);
     }
   }
 

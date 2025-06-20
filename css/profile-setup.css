@@ -1538,3 +1538,65 @@ body.page-profile .profile-setup-card.glass-card {
 [data-theme="dark"] .profile-loading-overlay {
   background: rgba(30, 30, 30, 0.95);
 }
+
+
+
+/* ==========================================================================
+   Avatar Editor - Color Swatches
+   ========================================================================== */
+
+/* The container for all the color swatches */
+.color-swatch-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px; /* Spacing between swatches */
+  padding-top: 4px;
+}
+
+/* The individual color swatch button */
+.color-swatch-btn {
+  /* --- Core Sizing and Shape --- */
+  width: 28px;
+  height: 28px;
+  border-radius: 50%; /* Make them circular */
+  border: 2px solid transparent; /* Start with a transparent border */
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  flex-shrink: 0;
+  
+  /* --- CRITICAL FIX: Resetting conflicting styles --- */
+  /* This ensures the inline background-color from JS is always applied */
+  background-image: none !important; /* Remove any background images like arrows */
+  font-size: 0; /* Hides any text or weird characters inside */
+  line-height: 0; /* Further ensures no content is visible */
+  color: transparent; /* Hides text color */
+
+  /* This is just for a nice visual effect on hover */
+  outline-offset: 3px;
+}
+
+/* --- Hover state for interactivity --- */
+.color-swatch-btn:hover {
+  transform: scale(1.1);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* --- Active/Selected state --- */
+/* This style is applied to the currently chosen color swatch */
+.color-swatch-btn.active {
+  border-color: #007bff; /* A strong, visible color for the selected border */
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #007bff; /* Creates a nice "glow" effect */
+  transform: scale(1.1);
+}
+
+/* Dark mode adjustments for better visibility */
+.dark-mode .color-swatch-btn.active {
+    border-color: #4dabf7;
+    box-shadow: 0 0 0 2px #2d3748, 0 0 0 4px #4dabf7;
+}
+
+/* --- Focus state for accessibility (keyboard navigation) --- */
+.color-swatch-btn:focus-visible {
+  outline: 2px solid #007bff;
+}
