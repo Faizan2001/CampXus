@@ -1,11 +1,40 @@
-// CampXus Profile Setup - Fixed Version with Proper Auth Manager Loading
+/**
+ * =============================================================================
+ *                           CAMPXUS PROFILE SETUP
+ *                      Modern ES6+ Class-Based Implementation
+ * =============================================================================
+ *
+ * 📋 TABLE OF CONTENTS:
+ * ├── 1. Class Definition & Constructor
+ * ├── 2. Authentication & User Management
+ * ├── 3. Initialization & Setup Methods
+ * ├── 4. Form Data Management
+ * ├── 5. Step Navigation System
+ * ├── 6. Validation & Error Handling
+ * ├── 7. UI State Management
+ * ├── 8. File Upload & Storage
+ * ├── 9. Database Operations
+ * ├── 10. Event Listeners & DOM Manipulation
+ * ├── 11. Utility & Helper Methods
+ * └── 12. Global Initialization System
+ *
+ * This class manages the complete profile setup workflow for new users,
+ * including form validation, file uploads, Firebase integration, and SPA
+ * navigation. Uses modern JavaScript features and follows best practices.
+ *
+ * =============================================================================
+ */
 
 // Import Firebase functions we need - using import map from index.html
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
 import { db, storage } from "../firebase/config/firebase-config.js";
+
+/**
+ * =============================================================================
+ *                        1. CLASS DEFINITION & CONSTRUCTOR
+ * =============================================================================
+ */
 
 class ProfileSetup {
   constructor() {
@@ -24,6 +53,7 @@ class ProfileSetup {
     this.currentUser = null;
     this.profileData = {};
     this.profilePictureFile = null;
+    this.authCheckInProgress = false;
 
     // Store this instance globally to prevent duplicates
     profileSetupInstance = this;
@@ -32,6 +62,16 @@ class ProfileSetup {
     this.checkAuthentication();
   }
 
+  /**
+   * =============================================================================
+   *                      2. AUTHENTICATION & USER MANAGEMENT
+   * =============================================================================
+   */
+
+  /**
+   * Check if user is authenticated and setup auth state listeners
+   * Handles both immediate auth and auth state changes
+   */
   async checkAuthentication() {
     // Prevent multiple authentication checks
     if (this.authCheckInProgress) {
@@ -97,6 +137,36 @@ class ProfileSetup {
     }
   }
 
+  /**
+   * Navigate to home page using available navigation method
+   */
+  navigateToHome() {
+    if (window.spaRouter) {
+      window.spaRouter.navigateTo("home");
+    } else {
+      window.location.href = "../index.html";
+    }
+  }
+
+  /**
+   * Check if email is a development/test email
+   * @param {string} email - Email to check
+   * @returns {boolean} True if it's a development email
+   */
+  isDevelopmentEmail(email) {
+    const devPatterns = ["dev", "test", "fake", "demo"];
+    return devPatterns.some((pattern) => email.toLowerCase().includes(pattern));
+  }
+
+  /**
+   * =============================================================================
+   *                      3. INITIALIZATION & SETUP METHODS
+   * =============================================================================
+   */
+
+  /**
+   * Initialize the profile setup UI and functionality
+   */
   initializeSetup() {
     console.log("🎯 Initializing profile setup...");
     console.log("🔍 Auth Manager available:", !!window.authManager);
@@ -143,27 +213,7 @@ class ProfileSetup {
 
     // 🧪 IMMEDIATE VERIFICATION: Check if step 0 is actually visible now
     setTimeout(() => {
-      const step0 = document.querySelector('.setup-step[data-step="0"]');
-      if (step0) {
-        const hasActive = step0.classList.contains("active");
-        const isVisible = window.getComputedStyle(step0).display !== "none";
-        console.log(
-          `🧪 VERIFICATION: Step 0 has active class: ${hasActive}`
-        );
-        console.log(`🧪 VERIFICATION: Step 0 is visible: ${isVisible}`);
-
-        // Also verify that the email and student ID fields have been populated
-        const emailInput = document.getElementById("setup-email");
-        const studentIdInput = document.getElementById("setup-student-id");
-        if (emailInput && studentIdInput) {
-          console.log(
-            `🧪 VERIFICATION: Email field value: "${emailInput.value}"`
-          );
-          console.log(
-            `🧪 VERIFICATION: Student ID field value: "${studentIdInput.value}"`
-          );
-        }
-      }
+      this.verifyInitialization();
     }, 50);
 
     // Add diagnostic information for debugging display issues (with delay)
@@ -177,118 +227,47 @@ class ProfileSetup {
     }
   }
 
-  // Add diagnostic method to check what's in the DOM
-  addDiagnosticInfo() {
-    console.log("🔍 DIAGNOSTIC: Profile setup DOM analysis");
+  /**
+   * Re-initialize setup for a fresh template (SPA navigation case)
+   * This is called when the user navigates back to the profile page
+   * and the template has been reloaded but the instance still exists
+   */
+  reinitializeForFreshTemplate() {
+    console.log("🔄 Re-initializing profile setup for fresh template...");
 
-    // Check current page context
-    const currentHash = window.location.hash;
-    const currentBodyClass = document.body.className;
-    console.log("🔍 Current URL hash:", currentHash);
-    console.log("🔍 Body classes:", currentBodyClass);
-
-    // Check main containers
+    // Check if template is loaded
     const profileCard = document.querySelector(".profile-setup-card");
     const setupBody = document.querySelector(".setup-body");
-    const steps = document.querySelectorAll(".setup-step");
 
-    console.log("📋 Profile card found:", !!profileCard);
-    console.log("📋 Setup body found:", !!setupBody);
-    console.log("📋 Total steps found:", steps.length);
-
-    // Check for email/student ID inputs specifically
-    const emailInput = document.getElementById("setup-email");
-    const studentIdInput = document.getElementById("setup-student-id");
-    console.log("📋 Email input found:", !!emailInput);
-    console.log("📋 Student ID input found:", !!studentIdInput);
-
-    // Check individual steps
-    steps.forEach((step, index) => {
-      const dataStep = step.getAttribute("data-step");
-      const isActive = step.classList.contains("active");
-      const isVisible = window.getComputedStyle(step).display !== "none";
-      console.log(
-        `📋 Step ${index}: data-step=${dataStep}, active=${isActive}, visible=${isVisible}`
-      );
-    });
-
-    // Check current step specifically
-    const currentStepEl = document.querySelector(
-      `[data-step="${this.currentStep}"]`
-    );
-    if (currentStepEl) {
-      console.log("✅ Current step element found and should be active");
-      console.log("🎯 Current step classes:", currentStepEl.className);
-      console.log(
-        "🎯 Current step display:",
-        window.getComputedStyle(currentStepEl).display
-      );
-    } else {
-      console.error("❌ Current step element NOT found!");
-      console.log(
-        "🔍 Looking for selector:",
-        `[data-step="${this.currentStep}"]`
-      );
+    if (!profileCard || !setupBody) {
+      console.log("⚠️ Template not ready yet, retrying...");
+      setTimeout(() => this.reinitializeForFreshTemplate(), 100);
+      return;
     }
+
+    // Re-populate the fields
+    this.prefillUserData();
+
+    // Re-setup event listeners (in case they were lost)
+    this.setupEventListeners();
+
+    // Update display and validation
+    this.updateStepDisplay();
+    this.updateProgress();
+    this.validateCurrentStep();
+
+    console.log("✅ Profile setup re-initialized for fresh template");
   }
 
-  // 🧪 Add test button for development debugging
-  addTestButton() {
-    const testButton = document.createElement("button");
-    testButton.textContent = "🧪 Test Step Display";
-    testButton.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #ff6b6b;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 14px;
-      cursor: pointer;
-      z-index: 2000;
-      font-family: monospace;
-    `;
+  /**
+   * =============================================================================
+   *                        4. FORM DATA MANAGEMENT
+   * =============================================================================
+   */
 
-    testButton.addEventListener("click", () => {
-      console.log("🧪 MANUAL TEST: Calling updateStepDisplay()");
-      this.updateStepDisplay();
-    });
-
-    document.body.appendChild(testButton);
-
-    // Remove after 30 seconds to keep things clean
-    setTimeout(() => testButton.remove(), 30000);
-  }
-
-  // Add debug information for development
-  addDebugInfo() {
-    if (!this.currentUser) return;
-
-    const isDev = this.isDevelopmentEmail(this.currentUser.email);
-    const debugDiv = document.createElement("div");
-    debugDiv.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: ${isDev ? "#4ade80" : "#3b82f6"};
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      z-index: 1000;
-      font-family: monospace;
-    `;
-    debugDiv.textContent = `🔧 ${isDev ? "DEV" : "PROD"}: ${
-      this.currentUser.email
-    }`;
-    document.body.appendChild(debugDiv);
-
-    // Remove after 5 seconds
-    setTimeout(() => debugDiv.remove(), 5000);
-  }
-
+  /**
+   * Pre-fill form fields with user data from authentication
+   */
   prefillUserData() {
     const emailInput = document.getElementById("setup-email");
     const studentIdInput = document.getElementById("setup-student-id");
@@ -367,197 +346,42 @@ class ProfileSetup {
     this.styleReadonlyFields();
   }
 
-  // Add development email detection method
-  isDevelopmentEmail(email) {
-    const devPatterns = ["dev", "test", "fake", "demo"];
-    return devPatterns.some((pattern) => email.toLowerCase().includes(pattern));
-  }
-
-  styleReadonlyFields() {
-    const readonlyFields = document.querySelectorAll(".form-input[readonly]");
-    readonlyFields.forEach((field) => {
-      field.classList.add("readonly-field");
-    });
-  }
-
-  setupEventListeners() {
-    const nextBtn = document.getElementById("setup-next-btn");
-    const prevBtn = document.getElementById("setup-prev-btn");
-    const skipBtn = document.getElementById("setup-skip-btn");
-    const pictureUpload = document.getElementById("profile-picture-upload");
-    const bioInput = document.getElementById("setup-bio");
-
-    console.log("🔗 Setting up event listeners...");
-    console.log("Next button found:", !!nextBtn);
-    console.log("Previous button found:", !!prevBtn);
-    console.log("Skip button found:", !!skipBtn);
-
-    // 🎯 DEFENSIVE: Remove existing listeners first to prevent duplicates
-    if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
-      nextBtn.addEventListener("click", (e) => {
-        console.log("🖱️ Next button clicked");
-
-        // If button is disabled, show visual feedback and scroll to button
-        if (nextBtn.disabled) {
-          e.preventDefault();
-          this.showIncompleteFieldsFeedback();
-          return;
-        }
-
-        this.nextStep();
-      });
-      nextBtn.setAttribute('data-listener-attached', 'true');
-    }
-    
-    if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
-      prevBtn.addEventListener("click", () => this.prevStep());
-      prevBtn.setAttribute('data-listener-attached', 'true');
-    }
-    
-    if (skipBtn && !skipBtn.hasAttribute('data-listener-attached')) {
-      skipBtn.addEventListener("click", () => this.skipSetup());
-      skipBtn.setAttribute('data-listener-attached', 'true');
-    }
-    
-    if (pictureUpload && !pictureUpload.hasAttribute('data-listener-attached')) {
-      pictureUpload.addEventListener("change", (e) =>
-        this.handleProfilePictureUpload(e)
-      );
-      pictureUpload.setAttribute('data-listener-attached', 'true');
-    }
-    
-    if (bioInput && !bioInput.hasAttribute('data-listener-attached')) {
-      bioInput.addEventListener("input", (e) => {
-        const bioCount = document.getElementById("bio-count");
-        if (bioCount) {
-          bioCount.textContent = e.target.value.length;
-        }
-      });
-      bioInput.setAttribute('data-listener-attached', 'true');
-    }
-    
-    this.setupFormValidation();
-  }
-
-  // Method to set up event listeners for form field validation
-  setupFormValidation() {
-    // Define required fields for the first step (Basic Information)
-    const requiredFieldsStep0 = [
-      "setup-first-name",
-      "setup-last-name",
-      "setup-starting-year", // Changed from setup-graduation-year
-      "setup-major",
-    ];
-    // Step 1 (Profile Pic/Bio) is optional, so no specific required fields array here.
-
-    // Attach event listeners to all fields in the first step for real-time validation
-    requiredFieldsStep0.forEach((fieldId) => {
-      const field = document.getElementById(fieldId);
-      if (field) {
-        field.addEventListener("input", () => this.validateCurrentStep());
-        field.addEventListener("blur", () => this.validateCurrentStep()); // Validate on blur too
-      }
-    });
-  }
-
-  // Method to validate the current step's input fields
-  validateCurrentStep() {
-    const nextBtn = document.getElementById("setup-next-btn");
-    if (!nextBtn) return;
-
+  /**
+   * Collect data from the current step
+   */
+  collectCurrentStepData() {
     if (this.currentStep === 0) {
-      // Step 0: Basic Info
-      const firstName =
-        document.getElementById("setup-first-name")?.value.trim() || "";
-      const lastName = document.getElementById("setup-last-name")?.value.trim() || "";
-      const startingYear =
-        document.getElementById("setup-starting-year")?.value || "";
-      const major = document.getElementById("setup-major")?.value.trim() || "";
-
-      const hasRequiredFields = firstName && lastName && startingYear && major;
-
-      // Always keep "Next Step →" text, just enable/disable button
-      nextBtn.textContent = "Next Step →";
-      nextBtn.disabled = !hasRequiredFields;
-
-      // Add visual styling for disabled state
-      if (!hasRequiredFields) {
-        nextBtn.classList.add("disabled-state");
-      } else {
-        nextBtn.classList.remove("disabled-state");
-      }
+      this.profileData.firstName = document
+        .getElementById("setup-first-name")
+        .value.trim();
+      this.profileData.lastName = document
+        .getElementById("setup-last-name")
+        .value.trim();
+      this.profileData.email = document.getElementById("setup-email").value; // Already pre-filled and readonly
+      this.profileData.studentId = document
+        .getElementById("setup-student-id")
+        .value.trim(); // Auto-populated and readonly
+      this.profileData.startingYear = document.getElementById(
+        "setup-starting-year"
+      ).value;
+      this.profileData.major = document
+        .getElementById("setup-major")
+        .value.trim();
     } else if (this.currentStep === 1) {
-      // Step 1: Profile picture/bio (optional, this is the new final step)
-      nextBtn.textContent = "Complete Setup!";
-      nextBtn.disabled = false;
-      nextBtn.classList.remove("disabled-state");
+      this.profileData.bio = document.getElementById("setup-bio").value.trim();
+      // Profile picture file is handled by this.profilePictureFile
     }
   }
 
-  // Method to show visual feedback when disabled button is clicked
-  showIncompleteFieldsFeedback() {
-    const nextBtn = document.getElementById("setup-next-btn");
-    if (!nextBtn) return;
+  /**
+   * =============================================================================
+   *                         5. STEP NAVIGATION SYSTEM
+   * =============================================================================
+   */
 
-    // Scroll to button smoothly
-    nextBtn.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "center",
-    });
-
-    // Add red glow animation
-    nextBtn.classList.add("red-glow-pulse");
-
-    // Remove the animation after it completes
-    setTimeout(() => {
-      nextBtn.classList.remove("red-glow-pulse");
-    }, 800);
-
-    console.log("🔴 Incomplete fields feedback shown");
-  }
-
-  // Method to handle profile picture upload
-  handleProfilePictureUpload(event) {
-    const file = event.target.files[0];
-    const preview = document.getElementById("profile-picture-preview");
-    if (!file) {
-      // If no file selected, or selection cancelled, reset to default
-      if (preview) preview.innerHTML = "👤";
-      this.profilePictureFile = null;
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    const allowedTypes = ["image/jpeg", "image/png"]; // Removed "image/gif"
-
-    if (file.size > maxSize) {
-      alert("Image too large! Please choose an image smaller than 5MB.");
-      event.target.value = ""; // Reset file input
-      if (preview) preview.innerHTML = "👤";
-      this.profilePictureFile = null;
-      return;
-    }
-
-    if (!allowedTypes.includes(file.type)) {
-      alert("Invalid file type. Please choose a JPG or PNG image."); // Updated message
-      event.target.value = ""; // Reset file input
-      if (preview) preview.innerHTML = "👤";
-      this.profilePictureFile = null;
-      return;
-    }
-
-    this.profilePictureFile = file;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (preview) {
-        preview.innerHTML = `<img src="${e.target.result}" alt="Profile Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-
+  /**
+   * Move to the next step in the setup process
+   */
   async nextStep() {
     console.log("🔄 Moving to next step, current step:", this.currentStep);
 
@@ -583,7 +407,106 @@ class ProfileSetup {
     }
   }
 
-  // Separate validation method for cleaner code
+  /**
+   * Move to the previous step in the setup process
+   */
+  prevStep() {
+    if (this.currentStep > 0) {
+      this.currentStep--;
+      this.updateStepDisplay();
+      this.updateProgress();
+      this.validateCurrentStep(); // Validate the new current step
+    }
+  }
+
+  /**
+   * Skip the entire setup process
+   */
+  async skipSetup() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    if (nextBtn) nextBtn.disabled = true;
+
+    try {
+      const userData = {
+        uid: this.currentUser.uid,
+        email: this.currentUser.email,
+        profileSetupComplete: false,
+        skippedSetupAt: serverTimestamp(),
+      };
+
+      // Use modern Firebase v9 syntax
+      const userDocRef = doc(db, "users", this.currentUser.uid);
+      await setDoc(userDocRef, userData, { merge: true });
+
+      // 🎯 SPA Integration: Dispatch skip event instead of page redirect
+      document.dispatchEvent(
+        new CustomEvent("profile:setup:skip", {
+          detail: { userData },
+        })
+      );
+
+      // Fallback navigation if SPA router isn't available
+      setTimeout(() => {
+        if (!window.spaRouter) {
+          window.location.href = "../index.html";
+        } else {
+          window.spaRouter.navigateTo("home");
+        }
+      }, 1000);
+    } catch (error) {
+      console.error("Error during skip setup:", error);
+      alert("Could not process skip action. Please try again.");
+      if (nextBtn) nextBtn.disabled = false;
+    }
+  }
+
+  /**
+   * =============================================================================
+   *                       6. VALIDATION & ERROR HANDLING
+   * =============================================================================
+   */
+
+  /**
+   * Validate the current step's input fields
+   */
+  validateCurrentStep() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    if (!nextBtn) return;
+
+    if (this.currentStep === 0) {
+      // Step 0: Basic Info
+      const firstName =
+        document.getElementById("setup-first-name")?.value.trim() || "";
+      const lastName =
+        document.getElementById("setup-last-name")?.value.trim() || "";
+      const startingYear =
+        document.getElementById("setup-starting-year")?.value || "";
+      const major = document.getElementById("setup-major")?.value.trim() || "";
+
+      const hasRequiredFields = firstName && lastName && startingYear && major;
+
+      // Always keep "Next Step →" text, just enable/disable button
+      nextBtn.textContent = "Next Step →";
+      nextBtn.disabled = !hasRequiredFields;
+
+      // Add visual styling for disabled state
+      if (!hasRequiredFields) {
+        nextBtn.classList.add("disabled-state");
+      } else {
+        nextBtn.classList.remove("disabled-state");
+      }
+    } else if (this.currentStep === 1) {
+      // Step 1: Profile picture/bio (optional, this is the new final step)
+      nextBtn.textContent = "Complete Setup!";
+      nextBtn.disabled = false;
+      nextBtn.classList.remove("disabled-state");
+    }
+  }
+
+  /**
+   * Validate step data before proceeding to next step
+   * @returns {boolean} True if validation passes
+   */
   validateStepData() {
     if (this.currentStep === 0) {
       // Validate Step 0 (Basic Info)
@@ -605,42 +528,40 @@ class ProfileSetup {
     return true;
   }
 
-  // Method to navigate to the previous step
-  prevStep() {
-    if (this.currentStep > 0) {
-      this.currentStep--;
-      this.updateStepDisplay();
-      this.updateProgress();
-      this.validateCurrentStep(); // Validate the new current step
-    }
+  /**
+   * Show visual feedback when disabled button is clicked
+   */
+  showIncompleteFieldsFeedback() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    if (!nextBtn) return;
+
+    // Scroll to button smoothly
+    nextBtn.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "center",
+    });
+
+    // Add red glow animation
+    nextBtn.classList.add("red-glow-pulse");
+
+    // Remove the animation after it completes
+    setTimeout(() => {
+      nextBtn.classList.remove("red-glow-pulse");
+    }, 800);
+
+    console.log("🔴 Incomplete fields feedback shown");
   }
 
-  collectCurrentStepData() {
-    if (this.currentStep === 0) {
-      this.profileData.firstName = document
-        .getElementById("setup-first-name")
-        .value.trim();
-      this.profileData.lastName = document
-        .getElementById("setup-last-name")
-        .value.trim();
-      this.profileData.email = document.getElementById("setup-email").value; // Already pre-filled and readonly
-      this.profileData.studentId = document
-        .getElementById("setup-student-id")
-        .value.trim(); // Auto-populated and readonly
-      this.profileData.startingYear = document.getElementById(
-        // Changed from graduationYear
-        "setup-starting-year"
-      ).value;
-      this.profileData.major = document
-        .getElementById("setup-major")
-        .value.trim();
-    } else if (this.currentStep === 1) {
-      this.profileData.bio = document.getElementById("setup-bio").value.trim();
-      // Profile picture file is handled by this.profilePictureFile
-    }
-    // Removed old else if (this.currentStep === 2) block for Preferences data collection
-  }
+  /**
+   * =============================================================================
+   *                          7. UI STATE MANAGEMENT
+   * =============================================================================
+   */
 
+  /**
+   * Update the step display to show current step
+   */
   updateStepDisplay() {
     console.log("🔄 Updating step display, current step:", this.currentStep);
 
@@ -695,24 +616,34 @@ class ProfileSetup {
       });
     }, 50);
 
-    const prevBtn = document.getElementById("setup-prev-btn");
-    const skipBtn = document.getElementById("setup-skip-btn");
-    const nextBtn = document.getElementById("setup-next-btn");
-
-    if (prevBtn) {
-      prevBtn.style.display = this.currentStep === 0 ? "none" : "flex"; // Use flex as it's a flex item
-    }
-
-    if (skipBtn) {
-      // Show skip button on step 0 and 1, hide on step 2 (final confirmation)
-      skipBtn.style.display =
-        this.currentStep < this.totalSteps - 1 ? "flex" : "none";
-    }
+    // Update navigation button visibility
+    this.updateNavigationButtons();
 
     // Next button text is handled by validateCurrentStep
     this.validateCurrentStep(); // Re-validate to update button text and state
   }
 
+  /**
+   * Update navigation button visibility and state
+   */
+  updateNavigationButtons() {
+    const prevBtn = document.getElementById("setup-prev-btn");
+    const skipBtn = document.getElementById("setup-skip-btn");
+
+    if (prevBtn) {
+      prevBtn.style.display = this.currentStep === 0 ? "none" : "flex";
+    }
+
+    if (skipBtn) {
+      // Show skip button on step 0 and 1, hide on final step
+      skipBtn.style.display =
+        this.currentStep < this.totalSteps - 1 ? "flex" : "none";
+    }
+  }
+
+  /**
+   * Update progress indicator display
+   */
   updateProgress() {
     // Update step blocks instead of progress bar
     const stepBlocks = document.querySelectorAll(".step-block");
@@ -747,6 +678,117 @@ class ProfileSetup {
     );
   }
 
+  /**
+   * Display success message after profile completion
+   */
+  showSuccessMessage() {
+    const setupCard = document.querySelector(".profile-setup-card");
+    if (setupCard) {
+      setupCard.innerHTML = `
+        <div class="setup-header">
+          <div class="setup-title-section">
+            <h1 class="setup-title">All Set! 🎉</h1>
+            <p class="setup-subtitle">Your CampXus profile is ready</p>
+          </div>
+        </div>
+        <div class="setup-body" style="text-align: center; padding: 3rem;">
+          <div class="success-message">
+            <div class="success-icon" style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;">
+              <i class="fas fa-rocket"></i>
+            </div>
+            <h3 style="color: #10b981; margin-bottom: 1rem;">Welcome Aboard!</h3>
+            <p style="color: #6b7280;">You'll be redirected to your dashboard shortly.</p>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * =============================================================================
+   *                        8. FILE UPLOAD & STORAGE
+   * =============================================================================
+   */
+
+  /**
+   * Handle profile picture upload and validation
+   * @param {Event} event - File input change event
+   */
+  handleProfilePictureUpload(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById("profile-picture-preview");
+
+    if (!file) {
+      // If no file selected, or selection cancelled, reset to default
+      if (preview) preview.innerHTML = "👤";
+      this.profilePictureFile = null;
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ["image/jpeg", "image/png"];
+
+    if (file.size > maxSize) {
+      alert("Image too large! Please choose an image smaller than 5MB.");
+      event.target.value = ""; // Reset file input
+      if (preview) preview.innerHTML = "👤";
+      this.profilePictureFile = null;
+      return;
+    }
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("Invalid file type. Please choose a JPG or PNG image.");
+      event.target.value = ""; // Reset file input
+      if (preview) preview.innerHTML = "👤";
+      this.profilePictureFile = null;
+      return;
+    }
+
+    this.profilePictureFile = file;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (preview) {
+        preview.innerHTML = `<img src="${e.target.result}" alt="Profile Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /**
+   * Upload profile picture to Firebase Storage
+   * @returns {Promise<string|null>} Download URL or null if failed
+   */
+  async uploadProfilePicture() {
+    if (!this.profilePictureFile || !this.currentUser) {
+      return null;
+    }
+
+    const filePath = `profilePictures/${this.currentUser.uid}/${this.profilePictureFile.name}`;
+    const storageRef = ref(storage, filePath);
+
+    try {
+      const snapshot = await uploadBytes(storageRef, this.profilePictureFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      alert(
+        "Could not upload your profile picture. Please try a different image or try again later."
+      );
+      return null;
+    }
+  }
+
+  /**
+   * =============================================================================
+   *                          9. DATABASE OPERATIONS
+   * =============================================================================
+   */
+
+  /**
+   * Save the complete profile to Firebase Firestore
+   */
   async saveProfile() {
     const nextBtn = document.getElementById("setup-next-btn");
     const originalText = nextBtn ? nextBtn.textContent : "Complete Setup";
@@ -812,127 +854,275 @@ class ProfileSetup {
     }
   }
 
-  async skipSetup() {
-    const nextBtn = document.getElementById("setup-next-btn");
-    if (nextBtn) nextBtn.disabled = true;
-
-    try {
-      const userData = {
-        uid: this.currentUser.uid,
-        email: this.currentUser.email,
-        profileSetupComplete: false,
-        skippedSetupAt: serverTimestamp(),
-      };
-
-      // Use modern Firebase v9 syntax
-      const userDocRef = doc(db, "users", this.currentUser.uid);
-      await setDoc(userDocRef, userData, { merge: true });
-
-      // 🎯 SPA Integration: Dispatch skip event instead of page redirect
-      document.dispatchEvent(
-        new CustomEvent("profile:setup:skip", {
-          detail: { userData },
-        })
-      );
-
-      // Fallback navigation if SPA router isn't available
-      setTimeout(() => {
-        if (!window.spaRouter) {
-          window.location.href = "../index.html";
-        } else {
-          window.spaRouter.navigateTo("home");
-        }
-      }, 1000);
-    } catch (error) {
-      console.error("Error during skip setup:", error);
-      alert("Could not process skip action. Please try again.");
-      if (nextBtn) nextBtn.disabled = false;
-    }
-  }
-
-  async uploadProfilePicture() {
-    if (!this.profilePictureFile || !this.currentUser) {
-      return null;
-    }
-    const filePath = `profilePictures/${this.currentUser.uid}/${this.profilePictureFile.name}`;
-    const storageRef = ref(storage, filePath);
-
-    try {
-      const snapshot = await uploadBytes(storageRef, this.profilePictureFile);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
-    } catch (error) {
-      console.error("Error uploading profile picture:", error);
-      alert(
-        "Could not upload your profile picture. Please try a different image or try again later."
-      );
-      return null;
-    }
-  }
-
-  showSuccessMessage() {
-    const setupCard = document.querySelector(".profile-setup-card");
-    if (setupCard) {
-      setupCard.innerHTML = `
-        <div class="setup-header">
-          <div class="setup-title-section">
-            <h1 class="setup-title">All Set! 🎉</h1>
-            <p class="setup-subtitle">Your CampXus profile is ready</p>
-          </div>
-        </div>
-        <div class="setup-body" style="text-align: center; padding: 3rem;">
-          <div class="success-message">
-            <div class="success-icon" style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;">
-              <i class="fas fa-rocket"></i>
-            </div>
-            <h3 style="color: #10b981; margin-bottom: 1rem;">Welcome Aboard!</h3>
-            <p style="color: #6b7280;">You'll be redirected to your dashboard shortly.</p>
-          </div>
-        </div>
-      `;
-    }
- }
+  /**
+   * =============================================================================
+   *                    10. EVENT LISTENERS & DOM MANIPULATION
+   * =============================================================================
+   */
 
   /**
-   * Re-initialize setup for a fresh template (SPA navigation case)
-   * This is called when the user navigates back to the profile page
-   * and the template has been reloaded but the instance still exists
+   * Setup all event listeners for the profile setup form
    */
-  reinitializeForFreshTemplate() {
-    console.log("🔄 Re-initializing profile setup for fresh template...");
-    
-    // Check if template is loaded
-    const profileCard = document.querySelector(".profile-setup-card");
-    const setupBody = document.querySelector(".setup-body");
+  setupEventListeners() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    const prevBtn = document.getElementById("setup-prev-btn");
+    const skipBtn = document.getElementById("setup-skip-btn");
+    const pictureUpload = document.getElementById("profile-picture-upload");
+    const bioInput = document.getElementById("setup-bio");
 
-    if (!profileCard || !setupBody) {
-      console.log("⚠️ Template not ready yet, retrying...");
-      setTimeout(() => this.reinitializeForFreshTemplate(), 100);
-      return;
+    console.log("🔗 Setting up event listeners...");
+    console.log("Next button found:", !!nextBtn);
+    console.log("Previous button found:", !!prevBtn);
+    console.log("Skip button found:", !!skipBtn);
+
+    // 🎯 DEFENSIVE: Remove existing listeners first to prevent duplicates
+    if (nextBtn && !nextBtn.hasAttribute("data-listener-attached")) {
+      nextBtn.addEventListener("click", (e) => {
+        console.log("🖱️ Next button clicked");
+
+        // If button is disabled, show visual feedback and scroll to button
+        if (nextBtn.disabled) {
+          e.preventDefault();
+          this.showIncompleteFieldsFeedback();
+          return;
+        }
+
+        this.nextStep();
+      });
+      nextBtn.setAttribute("data-listener-attached", "true");
     }
 
-    // Re-populate the fields
-    this.prefillUserData();
-    
-    // Re-setup event listeners (in case they were lost)
-    this.setupEventListeners();
-    
-    // Update display and validation
-    this.updateStepDisplay();
-    this.updateProgress();
-    this.validateCurrentStep();
-    
-    console.log("✅ Profile setup re-initialized for fresh template");
+    if (prevBtn && !prevBtn.hasAttribute("data-listener-attached")) {
+      prevBtn.addEventListener("click", () => this.prevStep());
+      prevBtn.setAttribute("data-listener-attached", "true");
+    }
+
+    if (skipBtn && !skipBtn.hasAttribute("data-listener-attached")) {
+      skipBtn.addEventListener("click", () => this.skipSetup());
+      skipBtn.setAttribute("data-listener-attached", "true");
+    }
+
+    if (
+      pictureUpload &&
+      !pictureUpload.hasAttribute("data-listener-attached")
+    ) {
+      pictureUpload.addEventListener("change", (e) =>
+        this.handleProfilePictureUpload(e)
+      );
+      pictureUpload.setAttribute("data-listener-attached", "true");
+    }
+
+    if (bioInput && !bioInput.hasAttribute("data-listener-attached")) {
+      bioInput.addEventListener("input", (e) => {
+        const bioCount = document.getElementById("bio-count");
+        if (bioCount) {
+          bioCount.textContent = e.target.value.length;
+        }
+      });
+      bioInput.setAttribute("data-listener-attached", "true");
+    }
+
+    this.setupFormValidation();
+  }
+
+  /**
+   * Setup form field validation event listeners
+   */
+  setupFormValidation() {
+    // Define required fields for the first step (Basic Information)
+    const requiredFieldsStep0 = [
+      "setup-first-name",
+      "setup-last-name",
+      "setup-starting-year",
+      "setup-major",
+    ];
+
+    // Attach event listeners to all fields in the first step for real-time validation
+    requiredFieldsStep0.forEach((fieldId) => {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.addEventListener("input", () => this.validateCurrentStep());
+        field.addEventListener("blur", () => this.validateCurrentStep());
+      }
+    });
+  }
+
+  /**
+   * =============================================================================
+   *                       11. UTILITY & HELPER METHODS
+   * =============================================================================
+   */
+
+  /**
+   * Add visual styling for readonly form fields
+   */
+  styleReadonlyFields() {
+    const readonlyFields = document.querySelectorAll(".form-input[readonly]");
+    readonlyFields.forEach((field) => {
+      field.classList.add("readonly-field");
+    });
+  }
+
+  /**
+   * Verify that initialization completed successfully
+   */
+  verifyInitialization() {
+    const step0 = document.querySelector('.setup-step[data-step="0"]');
+    if (step0) {
+      const hasActive = step0.classList.contains("active");
+      const isVisible = window.getComputedStyle(step0).display !== "none";
+      console.log(`🧪 VERIFICATION: Step 0 has active class: ${hasActive}`);
+      console.log(`🧪 VERIFICATION: Step 0 is visible: ${isVisible}`);
+
+      // Also verify that the email and student ID fields have been populated
+      const emailInput = document.getElementById("setup-email");
+      const studentIdInput = document.getElementById("setup-student-id");
+      if (emailInput && studentIdInput) {
+        console.log(
+          `🧪 VERIFICATION: Email field value: "${emailInput.value}"`
+        );
+        console.log(
+          `🧪 VERIFICATION: Student ID field value: "${studentIdInput.value}"`
+        );
+      }
+    }
+  }
+
+  /**
+   * Add diagnostic information for debugging display issues
+   */
+  addDiagnosticInfo() {
+    console.log("🔍 DIAGNOSTIC: Profile setup DOM analysis");
+
+    // Check current page context
+    const currentHash = window.location.hash;
+    const currentBodyClass = document.body.className;
+    console.log("🔍 Current URL hash:", currentHash);
+    console.log("🔍 Body classes:", currentBodyClass);
+
+    // Check main containers
+    const profileCard = document.querySelector(".profile-setup-card");
+    const setupBody = document.querySelector(".setup-body");
+    const steps = document.querySelectorAll(".setup-step");
+
+    console.log("📋 Profile card found:", !!profileCard);
+    console.log("📋 Setup body found:", !!setupBody);
+    console.log("📋 Total steps found:", steps.length);
+
+    // Check for email/student ID inputs specifically
+    const emailInput = document.getElementById("setup-email");
+    const studentIdInput = document.getElementById("setup-student-id");
+    console.log("📋 Email input found:", !!emailInput);
+    console.log("📋 Student ID input found:", !!studentIdInput);
+
+    // Check individual steps
+    steps.forEach((step, index) => {
+      const dataStep = step.getAttribute("data-step");
+      const isActive = step.classList.contains("active");
+      const isVisible = window.getComputedStyle(step).display !== "none";
+      console.log(
+        `📋 Step ${index}: data-step=${dataStep}, active=${isActive}, visible=${isVisible}`
+      );
+    });
+
+    // Check current step specifically
+    const currentStepEl = document.querySelector(
+      `[data-step="${this.currentStep}"]`
+    );
+    if (currentStepEl) {
+      console.log("✅ Current step element found and should be active");
+      console.log("🎯 Current step classes:", currentStepEl.className);
+      console.log(
+        "🎯 Current step display:",
+        window.getComputedStyle(currentStepEl).display
+      );
+    } else {
+      console.error("❌ Current step element NOT found!");
+      console.log(
+        "🔍 Looking for selector:",
+        `[data-step="${this.currentStep}"]`
+      );
+    }
+  }
+
+  /**
+   * Add debug information for development users
+   */
+  addDebugInfo() {
+    if (!this.currentUser) return;
+
+    const isDev = this.isDevelopmentEmail(this.currentUser.email);
+    const debugDiv = document.createElement("div");
+    debugDiv.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: ${isDev ? "#4ade80" : "#3b82f6"};
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 1000;
+      font-family: monospace;
+    `;
+    debugDiv.textContent = `🔧 ${isDev ? "DEV" : "PROD"}: ${
+      this.currentUser.email
+    }`;
+    document.body.appendChild(debugDiv);
+
+    // Remove after 5 seconds
+    setTimeout(() => debugDiv.remove(), 5000);
+  }
+
+  /**
+   * Add test button for development debugging
+   */
+  addTestButton() {
+    const testButton = document.createElement("button");
+    testButton.textContent = "🧪 Test Step Display";
+    testButton.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 2000;
+      font-family: monospace;
+    `;
+
+    testButton.addEventListener("click", () => {
+      console.log("🧪 MANUAL TEST: Calling updateStepDisplay()");
+      this.updateStepDisplay();
+    });
+
+    document.body.appendChild(testButton);
+
+    // Remove after 30 seconds to keep things clean
+    setTimeout(() => testButton.remove(), 30000);
   }
 }
 
-// ===== SIMPLIFIED INITIALIZATION SYSTEM =====
+/**
+ * =============================================================================
+ *                      12. GLOBAL INITIALIZATION SYSTEM
+ * =============================================================================
+ */
 
 // Global instance variable and initialization flag
 let profileSetupInstance = null;
 let initializationInProgress = false;
 
-// Function to wait for auth manager
+/**
+ * Wait for auth manager to be available
+ * @param {number} maxWaitTime - Maximum time to wait in milliseconds
+ * @param {number} checkInterval - Interval between checks in milliseconds
+ * @returns {Promise<Object>} Promise that resolves with auth manager
+ */
 function waitForAuthManager(maxWaitTime = 5000, checkInterval = 100) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
@@ -955,7 +1145,9 @@ function waitForAuthManager(maxWaitTime = 5000, checkInterval = 100) {
   });
 }
 
-// Function to check authentication once auth manager is available
+/**
+ * Check authentication once auth manager is available and initialize if needed
+ */
 function checkAuthenticationAndInitialize() {
   // Check if user is already signed in
   const currentUser = window.authManager.getCurrentUser();
@@ -1015,7 +1207,9 @@ function checkAuthenticationAndInitialize() {
   }, 2000);
 }
 
-// Simplified initialization function
+/**
+ * Main initialization function for profile setup
+ */
 function initializeProfileSetup() {
   console.log("🚀 Starting profile setup initialization...");
 
@@ -1061,7 +1255,9 @@ function initializeProfileSetup() {
     });
 }
 
-// Helper function to retry auth detection for existing instance
+/**
+ * Helper function to retry auth detection for existing instance
+ */
 function retryAuthDetection() {
   if (
     profileSetupInstance &&
@@ -1071,6 +1267,10 @@ function retryAuthDetection() {
     profileSetupInstance.checkAuthentication();
   }
 }
+
+// =============================================================================
+//                           EVENT LISTENERS & INITIALIZATION
+// =============================================================================
 
 // 🎯 FIX #1: Listen for SPA navigation to profile page
 document.addEventListener("spa:navigation", (event) => {
@@ -1091,24 +1291,36 @@ document.addEventListener("spa:navigation", (event) => {
       console.log(
         "🔄 Profile setup already exists, checking if template needs re-initialization..."
       );
-      
+
       // 🎯 CRITICAL FIX: Always re-initialize when navigating back to profile page
       // This handles the case where SPA navigation reloads the template but the instance exists
       setTimeout(() => {
         const emailInput = document.getElementById("setup-email");
         const studentIdInput = document.getElementById("setup-student-id");
-        
+
         if (emailInput && studentIdInput) {
-          const emailEmpty = !emailInput.value || emailInput.value.trim() === "";
-          const studentIdEmpty = !studentIdInput.value || studentIdInput.value.trim() === "";
-          
-          console.log(`🔍 Template reload check - Email empty: ${emailEmpty}, Student ID empty: ${studentIdEmpty}`);
-          
-          if (emailEmpty && studentIdEmpty && profileSetupInstance.currentUser) {
-            console.log("🔄 Template was reloaded with empty fields, re-populating...");
+          const emailEmpty =
+            !emailInput.value || emailInput.value.trim() === "";
+          const studentIdEmpty =
+            !studentIdInput.value || studentIdInput.value.trim() === "";
+
+          console.log(
+            `🔍 Template reload check - Email empty: ${emailEmpty}, Student ID empty: ${studentIdEmpty}`
+          );
+
+          if (
+            emailEmpty &&
+            studentIdEmpty &&
+            profileSetupInstance.currentUser
+          ) {
+            console.log(
+              "🔄 Template was reloaded with empty fields, re-populating..."
+            );
             profileSetupInstance.reinitializeForFreshTemplate();
           } else if (emailEmpty || studentIdEmpty) {
-            console.log("🔄 Some fields empty, ensuring all fields are populated...");
+            console.log(
+              "🔄 Some fields empty, ensuring all fields are populated..."
+            );
             profileSetupInstance.prefillUserData();
           } else {
             console.log("✅ Fields are already populated, no action needed");
@@ -1177,3 +1389,7 @@ if (document.readyState === "loading") {
     console.log("🎯 Instance already exists, skipping immediate DOM check");
   }
 }
+
+// =============================================================================
+//                                    END
+// =============================================================================
