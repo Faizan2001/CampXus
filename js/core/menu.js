@@ -80,13 +80,16 @@ function toggleDarkMode() {
 function updateToggleIcon() {
   const darkModeToggle = document.getElementById("darkModeToggle");
   const icon = darkModeToggle?.querySelector("i");
+  const text = document.getElementById("darkModeText");
 
-  if (icon) {
+  if (icon && text) {
     if (document.body.classList.contains("dark-mode")) {
       icon.className = "fas fa-sun";
+      text.textContent = "Light Mode";
       darkModeToggle.setAttribute("title", "Switch to light mode");
     } else {
       icon.className = "fas fa-moon";
+      text.textContent = "Dark Mode";
       darkModeToggle.setAttribute("title", "Switch to dark mode");
     }
   }
@@ -299,14 +302,19 @@ async function handleSignOut() {
   }
 
   try {
+    // 🐛 BUG FIX: Clear all cached data BEFORE Firebase sign out
+    console.log("🧹 Clearing cached user data...");
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+
+    // Clear UI immediately
+    clearUserDisplayInfo();
+
     // Use Firebase auth manager to sign out
     if (window.authManager) {
       await window.authManager.signOut();
       console.log("Successfully signed out");
     } else {
-      // Fallback: Clear any stored user data
-      localStorage.removeItem("user");
-      localStorage.removeItem("authToken");
       console.log("User signed out successfully");
     }
 
@@ -334,7 +342,12 @@ async function handleSignOut() {
     );
   } catch (error) {
     console.error("Error during sign out:", error);
-    // Even on error, try to navigate to home for better UX
+    // Even on error, clear cached data and navigate to home for better UX
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+    clearUserDisplayInfo();
+    updateAuthenticationUI(false);
+
     if (window.spaRouter) {
       window.spaRouter.navigateTo("home");
     }
@@ -390,18 +403,28 @@ function updateAuthenticationUI(isAuthenticated, userData = null) {
     userMenu.style.display = "flex";
     loginBtn.style.display = "none";
 
+    // Store user data in localStorage for page reload persistence
+    localStorage.setItem("user", JSON.stringify(userData));
+
     // Update user information in the UI
     updateUserDisplayInfo(userData);
   } else {
     // Hide user menu, show login button
     userMenu.style.display = "none";
     loginBtn.style.display = "block";
+
+    // BUG FIX: Clear all cached user data on sign out
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+
+    // Clear displayed user info
+    clearUserDisplayInfo();
   }
 }
 
 /**
  * Update user display information in the dropdown
- * Since the main trigger now only shows an icon, we only update the dropdown details
+ * Enhanced to display custom avatar from Firestore profile
  */
 function updateUserDisplayInfo(userData) {
   // Update dropdown header with user details
@@ -416,6 +439,9 @@ function updateUserDisplayInfo(userData) {
     userDropdownEmail.textContent = userData.email;
   }
 
+  // Update avatar displays with custom avatar from Firestore
+  updateUserAvatarDisplays(userData);
+
   // Update the user menu trigger tooltip for better UX
   const userMenuTrigger = document.getElementById("userMenuTrigger");
   if (userMenuTrigger && userData.name) {
@@ -427,19 +453,110 @@ function updateUserDisplayInfo(userData) {
 }
 
 /**
+ * Update user avatar displays in navigation and dropdown
+ * Fetches and displays custom avatar from user's Firestore profile
+ * @param {Object} userData - User data containing avatarConfig
+ */
+function updateUserAvatarDisplays(userData) {
+  const userAvatarTrigger = document.getElementById("userAvatarTrigger");
+  const userAvatarLarge = document.getElementById("userAvatarLarge");
+
+  // Check if we have avatar configuration from Firestore
+  const hasCustomAvatar =
+    userData.avatarConfig &&
+    userData.avatarConfig.style &&
+    userData.avatarConfig.seed;
+
+  if (hasCustomAvatar && window.avatarManager) {
+    try {
+      // Generate avatar URL using avatar manager
+      const avatarUrl = window.avatarManager.generateAvatarUrl(
+        userData.avatarConfig
+      );
+
+      console.log("🎨 Displaying custom avatar:", {
+        style: userData.avatarConfig.style,
+        seed: userData.avatarConfig.seed,
+        url: avatarUrl,
+      });
+
+      // Update navigation trigger avatar
+      if (userAvatarTrigger) {
+        userAvatarTrigger.innerHTML = `
+          <div class="avatar-content">
+            <img src="${avatarUrl}" alt="${userData.name}'s Avatar" />
+          </div>
+        `;
+      }
+
+      // Update dropdown header avatar
+      if (userAvatarLarge) {
+        userAvatarLarge.innerHTML = `
+          <div class="avatar-content">
+            <img src="${avatarUrl}" alt="${userData.name}'s Avatar" />
+          </div>
+        `;
+      }
+    } catch (error) {
+      console.error("❌ Error generating avatar URL:", error);
+      // Fallback to default icon
+      displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
+    }
+  } else {
+    console.log("⚠️ No custom avatar found, using default icon");
+    // Display default avatar icons
+    displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
+  }
+}
+
+/**
+ * Display default avatar icons when no custom avatar is available
+ * @param {HTMLElement} triggerElement - Navigation trigger element
+ * @param {HTMLElement} largeElement - Dropdown header element
+ */
+function displayDefaultAvatarIcons(triggerElement, largeElement) {
+  if (triggerElement) {
+    triggerElement.innerHTML = '<i class="fas fa-user-circle"></i>';
+  }
+
+  if (largeElement) {
+    largeElement.innerHTML = '<i class="fas fa-user-circle"></i>';
+  }
+}
+
+/**
  * Check current authentication state on page load
+ * 🐛 BUG FIX: Only use cached data if Firebase auth is not available yet
  */
 function checkAuthenticationState() {
+  // First, check if Firebase auth manager is available
+  if (window.authManager && window.authManager.getCurrentUser) {
+    const currentUser = window.authManager.getCurrentUser();
+    if (currentUser) {
+      console.log("🔥 Firebase auth available, will fetch fresh data");
+      // Firebase auth is available and user is signed in
+      // Don't use cached data - let Firebase auth listener handle this
+      return;
+    }
+  }
+
+  // Only fall back to cached data if Firebase auth is not available yet
   try {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       const userData = JSON.parse(storedUser);
+      console.log(
+        "📱 Using cached user data while Firebase loads:",
+        userData.email
+      );
       updateAuthenticationUI(true, userData);
     } else {
       updateAuthenticationUI(false);
     }
   } catch (error) {
     console.error("Error checking authentication state:", error);
+    // Clear corrupted cached data
+    localStorage.removeItem("user");
     updateAuthenticationUI(false);
   }
 }
@@ -456,22 +573,86 @@ function setupFirebaseAuthListener() {
     ) {
       console.log("🔥 Setting up Firebase auth state listener for menu");
 
-      window.authManager.onAuthStateChanged((user) => {
+      window.authManager.onAuthStateChanged(async (user) => {
         if (user) {
-          // User is signed in
-          const userData = {
-            name: user.displayName || user.email.split("@")[0],
-            email: user.email,
-            avatar: user.photoURL || null,
-          };
+          // User is signed in - always fetch fresh profile data from Firestore
           console.log(
-            "👤 User authenticated, updating menu UI:",
-            userData.name
+            "👤 User authenticated, fetching fresh profile data for:",
+            user.email
           );
-          updateAuthenticationUI(true, userData);
+
+          // 🐛 BUG FIX: Clear any stale data before loading new user data
+          clearUserDisplayInfo();
+
+          try {
+            // Import Firestore functions dynamically
+            const { doc, getDoc } = await import("firebase/firestore");
+            const { db } = await import(
+              "../firebase/config/firebase-config.js"
+            );
+
+            // Fetch user profile data from Firestore
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            let userData;
+
+            if (userDoc.exists()) {
+              const firestoreData = userDoc.data();
+              userData = {
+                uid: user.uid, // 🐛 BUG FIX: Include UID to ensure data consistency
+                name:
+                  firestoreData.firstName && firestoreData.lastName
+                    ? `${firestoreData.firstName} ${firestoreData.lastName}`
+                    : firestoreData.displayName || user.email.split("@")[0],
+                email: user.email, // Always use Firebase Auth email as source of truth
+                avatarConfig: firestoreData.avatarConfig || null,
+                profileComplete: firestoreData.profileSetupComplete || false,
+              };
+
+              console.log("✅ Fresh profile data loaded for:", user.email, {
+                hasAvatar: !!userData.avatarConfig,
+                profileComplete: userData.profileComplete,
+              });
+            } else {
+              // Create fresh user data if no Firestore document exists yet
+              userData = {
+                uid: user.uid,
+                name: user.displayName || user.email.split("@")[0],
+                email: user.email,
+                avatarConfig: null,
+                profileComplete: false,
+              };
+
+              console.log(
+                "⚠️ No Firestore profile found for:",
+                user.email,
+                "using Firebase Auth data"
+              );
+            }
+
+            updateAuthenticationUI(true, userData);
+          } catch (error) {
+            console.error("❌ Error fetching user profile data:", error);
+
+            // Create clean fallback user data (never use cached data on error)
+            const userData = {
+              uid: user.uid,
+              name: user.displayName || user.email.split("@")[0],
+              email: user.email,
+              avatarConfig: null,
+              profileComplete: false,
+            };
+            updateAuthenticationUI(true, userData);
+          }
         } else {
-          // User is signed out
-          console.log("👤 User signed out, updating menu UI");
+          // User is signed out - clear everything
+          console.log("👤 User signed out, clearing all data and updating UI");
+
+          // 🐛 BUG FIX: Ensure all data is cleared on sign out
+          localStorage.removeItem("user");
+          localStorage.removeItem("authToken");
+          clearUserDisplayInfo();
           updateAuthenticationUI(false);
         }
       });
@@ -609,8 +790,41 @@ window.userMenuUtils = {
   closeUserDropdown,
   updateAuthenticationUI,
   updateUserDisplayInfo,
+  clearUserDisplayInfo, // 🐛 BUG FIX: Expose clear function for external use
   handleSignOut,
   handleLogin,
   checkAuthenticationState,
   setupFirebaseAuthListener,
 };
+
+/**
+ * Clear user display information from the UI
+ * 🐛 BUG FIX: Ensures no stale data remains when users sign out
+ */
+function clearUserDisplayInfo() {
+  // Clear dropdown header user details
+  const userDropdownName = document.getElementById("userDropdownName");
+  const userDropdownEmail = document.getElementById("userDropdownEmail");
+
+  if (userDropdownName) {
+    userDropdownName.textContent = "";
+  }
+
+  if (userDropdownEmail) {
+    userDropdownEmail.textContent = "";
+  }
+
+  // Clear avatar displays and reset to default icons
+  const userAvatarTrigger = document.getElementById("userAvatarTrigger");
+  const userAvatarLarge = document.getElementById("userAvatarLarge");
+
+  displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
+
+  // Clear user menu trigger tooltip
+  const userMenuTrigger = document.getElementById("userMenuTrigger");
+  if (userMenuTrigger) {
+    userMenuTrigger.setAttribute("title", "User menu");
+  }
+
+  console.log("🧹 Cleared all user display information");
+}

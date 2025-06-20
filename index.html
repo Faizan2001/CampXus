@@ -79,16 +79,6 @@
         </div>
 
         <div class="nav-right">
-          <!-- Dark Mode Toggle -->
-          <button
-            type="button"
-            id="darkModeToggle"
-            class="nav-button theme-toggle"
-            aria-label="Toggle dark mode"
-          >
-            <i class="fas fa-moon"></i>
-          </button>
-
           <!-- Login Button (shown when not authenticated) -->
           <button id="login-btn" class="btn btn-primary login-btn">
             🎓 Join CampXus
@@ -104,12 +94,15 @@
               aria-label="User menu"
               title="Open user menu"
             >
-              <i class="fas fa-user-circle"></i>
+              <!-- Default avatar icon (will be replaced with custom avatar) -->
+              <div class="user-avatar-trigger" id="userAvatarTrigger">
+                <i class="fas fa-user-circle"></i>
+              </div>
             </button>
 
             <div class="user-dropdown" id="userDropdown">
               <div class="dropdown-header">
-                <div class="user-avatar-large">
+                <div class="user-avatar-large" id="userAvatarLarge">
                   <i class="fas fa-user-circle"></i>
                 </div>
                 <div class="user-details">
@@ -136,6 +129,16 @@
                   <i class="fas fa-info-circle"></i>
                   <span>About Developer</span>
                 </a>
+                <!-- Dark Mode Toggle (moved to dropdown) -->
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  id="darkModeToggle"
+                  aria-label="Toggle dark mode"
+                >
+                  <i class="fas fa-moon"></i>
+                  <span id="darkModeText">Dark Mode</span>
+                </button>
                 <button type="button" class="dropdown-item" id="signOutBtn">
                   <i class="fas fa-sign-out-alt"></i>
                   <span>Sign Out</span>

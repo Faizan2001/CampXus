@@ -148,7 +148,21 @@ class ProfileSetup {
       if (profileData.firstName) firstName.value = profileData.firstName;
       if (profileData.lastName) lastName.value = profileData.lastName;
       if (profileData.email) email.value = profileData.email;
-      if (profileData.studentId) studentId.value = profileData.studentId;
+
+      // 🐛 BUG FIX: Always populate student ID from email, even if not in saved data
+      if (studentId && this.currentUser && this.currentUser.email) {
+        // First try saved data, then extract from email as fallback
+        const savedStudentId = profileData.studentId;
+        const extractedStudentId = this.currentUser.email.split("@")[0];
+
+        studentId.value = savedStudentId || extractedStudentId;
+        console.log(
+          `🆔 Student ID populated: ${studentId.value} (from ${
+            savedStudentId ? "saved data" : "email extraction"
+          })`
+        );
+      }
+
       if (profileData.startingYear)
         startingYear.value = profileData.startingYear;
       if (profileData.major) major.value = profileData.major;
@@ -170,17 +184,30 @@ class ProfileSetup {
       }
 
       // Update internal profile data object
+      // 🐛 BUG FIX: Ensure student ID is always populated from email if missing
+      const finalStudentId =
+        profileData.studentId ||
+        (this.currentUser && this.currentUser.email
+          ? this.currentUser.email.split("@")[0]
+          : "");
+
       this.profileData = {
         firstName: profileData.firstName || "",
         lastName: profileData.lastName || "",
         email: profileData.email || "",
-        studentId: profileData.studentId || "",
+        studentId: finalStudentId,
         startingYear: profileData.startingYear || "",
         major: profileData.major || "",
         bio: profileData.bio || "",
       };
 
       console.log("✅ Form fields populated successfully");
+      console.log(
+        `🆔 Final student ID in profileData: "${this.profileData.studentId}"`
+      );
+
+      // Add visual indicators for readonly fields (especially email and student ID)
+      this.styleReadonlyFields();
 
       // Re-validate current step after populating
       this.validateCurrentStep();
@@ -630,6 +657,8 @@ class ProfileSetup {
           // If profile is complete, show in edit mode
           if (this.isProfileComplete(existingData)) {
             console.log("✅ Profile is complete, entering edit mode");
+            // 🐛 BUG FIX: Always start from step 0 in edit mode
+            this.currentStep = 0;
             this.updateStepTitles("edit");
             this.updateStepDisplay();
           }
@@ -713,6 +742,8 @@ class ProfileSetup {
           // If profile is complete, show in edit mode
           if (this.isProfileComplete(this.existingProfileData)) {
             console.log("✅ Profile is complete, entering edit mode");
+            // 🐛 BUG FIX: Always start from step 0 in edit mode
+            this.currentStep = 0;
             this.updateStepTitles("edit");
           }
         } else {
@@ -728,6 +759,8 @@ class ProfileSetup {
             // If profile is complete, show in edit mode
             if (this.isProfileComplete(existingData)) {
               console.log("✅ Profile is complete, entering edit mode");
+              // 🐛 BUG FIX: Always start from step 0 in edit mode
+              this.currentStep = 0;
               this.updateStepTitles("edit");
             }
           } else {
