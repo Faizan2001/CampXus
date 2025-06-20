@@ -566,6 +566,7 @@ class AvatarManager {
 
 // Create global instance
 window.avatarManager = new AvatarManager();
+console.log("🎨 Avatar Manager loaded globally and available at window.avatarManager");
 
 // Export for ES6 modules
 export default AvatarManager;

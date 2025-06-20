@@ -58,19 +58,8 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// Security event logging
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    console.log("Security: User authenticated", {
-      uid: user.uid,
-      email: user.email,
-      timestamp: new Date().toISOString(),
-    });
-  } else {
-    console.log("Security: User signed out", {
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
+// 🔧 FIX: Removed duplicate auth listener from firebase-config.js
+// Security logging is now handled by auth-manager.js to prevent infinite loops
+// This avoids having multiple auth state listeners that can trigger each other
 
 export default app;

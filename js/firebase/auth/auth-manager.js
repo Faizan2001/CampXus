@@ -471,6 +471,25 @@ class AuthManager {
    */
   setupAuthStateListener() {
     onAuthStateChanged(auth, async (user) => {
+      // 🔧 FIX: Add security logging here to consolidate auth listeners
+      if (user) {
+        console.log("Security: User authenticated", {
+          uid: user.uid,
+          email: user.email,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        console.log("Security: User signed out", {
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // 🛡️ FIX: Prevent rapid successive auth state changes
+      if (this.currentUser === user) {
+        console.log("🔄 Auth state unchanged, skipping processing");
+        return;
+      }
+
       this.currentUser = user;
 
       if (user) {

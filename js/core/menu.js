@@ -467,6 +467,16 @@ function updateUserAvatarDisplays(userData) {
     userData.avatarConfig.style &&
     userData.avatarConfig.seed;
 
+  // 🧪 ENHANCED DEBUG: Add detailed avatar debugging
+  console.log("🎨 Avatar Debug Info:", {
+    hasAvatarConfig: !!userData.avatarConfig,
+    avatarConfig: userData.avatarConfig,
+    hasAvatarManager: !!window.avatarManager,
+    hasStyle: userData.avatarConfig?.style,
+    hasSeed: userData.avatarConfig?.seed,
+    hasCustomAvatar,
+  });
+
   if (hasCustomAvatar && window.avatarManager) {
     try {
       // Generate avatar URL using avatar manager
@@ -504,6 +514,31 @@ function updateUserAvatarDisplays(userData) {
     }
   } else {
     console.log("⚠️ No custom avatar found, using default icon");
+    
+    // 🔄 If we have avatar config but no avatar manager, retry when it loads
+    if (userData.avatarConfig && !window.avatarManager) {
+      console.log("🔄 Avatar config exists but avatar manager not ready, will retry...");
+      
+      // Store user data for retry
+      window.pendingAvatarUpdate = userData;
+      
+      // Set up a listener for when avatar manager loads
+      const checkAvatarManager = () => {
+        if (window.avatarManager && window.pendingAvatarUpdate) {
+          console.log("✅ Avatar manager now available, retrying avatar display...");
+          const pendingData = window.pendingAvatarUpdate;
+          window.pendingAvatarUpdate = null; // Clear the pending data
+          updateUserAvatarDisplays(pendingData); // Retry the avatar display
+        } else if (!window.avatarManager) {
+          // Retry after a short delay
+          setTimeout(checkAvatarManager, 500);
+        }
+      };
+      
+      // Start checking for avatar manager
+      setTimeout(checkAvatarManager, 100);
+    }
+    
     // Display default avatar icons
     displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
   }
@@ -565,6 +600,9 @@ function checkAuthenticationState() {
  * Set up Firebase authentication state listener
  */
 function setupFirebaseAuthListener() {
+  // 🛡️ FIX: Add guard to prevent infinite loops
+  let isProcessingAuthChange = false;
+
   // Wait for Firebase auth manager to be available
   const checkAuthManager = () => {
     if (
@@ -574,45 +612,54 @@ function setupFirebaseAuthListener() {
       console.log("🔥 Setting up Firebase auth state listener for menu");
 
       window.authManager.onAuthStateChanged(async (user) => {
-        if (user) {
-          // User is signed in - always fetch fresh profile data from Firestore
-          console.log(
-            "👤 User authenticated, fetching fresh profile data for:",
-            user.email
-          );
+        // 🛡️ FIX: Prevent processing multiple auth changes simultaneously
+        if (isProcessingAuthChange) {
+          console.log("🔄 Auth change already being processed, skipping...");
+          return;
+        }
 
-          // 🐛 BUG FIX: Clear any stale data before loading new user data
-          clearUserDisplayInfo();
+        isProcessingAuthChange = true;
 
-          try {
-            // Import Firestore functions dynamically
-            const { doc, getDoc } = await import("firebase/firestore");
-            const { db } = await import(
-              "../firebase/config/firebase-config.js"
+        try {
+          if (user) {
+            // User is signed in - always fetch fresh profile data from Firestore
+            console.log(
+              "👤 User authenticated, fetching fresh profile data for:",
+              user.email
             );
 
-            // Fetch user profile data from Firestore
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
+            // 🐛 BUG FIX: Clear any stale data before loading new user data
+            clearUserDisplayInfo();
 
-            let userData;
+            try {
+              // Import Firestore functions dynamically
+              const { doc, getDoc } = await import("firebase/firestore");
+              const { db } = await import(
+                "../firebase/config/firebase-config.js"
+              );
 
-            if (userDoc.exists()) {
-              const firestoreData = userDoc.data();
-              userData = {
-                uid: user.uid, // 🐛 BUG FIX: Include UID to ensure data consistency
-                name:
-                  firestoreData.firstName && firestoreData.lastName
-                    ? `${firestoreData.firstName} ${firestoreData.lastName}`
+              // Fetch user profile data from Firestore
+              const userDocRef = doc(db, "users", user.uid);
+              const userDoc = await getDoc(userDocRef);
+
+              let userData;
+
+              if (userDoc.exists()) {
+                const firestoreData = userDoc.data();
+                userData = {
+                  uid: user.uid, // 🐛 BUG FIX: Include UID to ensure data consistency
+                  name:
+                    firestoreData.firstName && firestoreData.lastName
+                      ? `${firestoreData.firstName} ${firestoreData.lastName}`
                     : firestoreData.displayName || user.email.split("@")[0],
                 email: user.email, // Always use Firebase Auth email as source of truth
                 avatarConfig: firestoreData.avatarConfig || null,
-                profileComplete: firestoreData.profileSetupComplete || false,
+                profileSetupComplete: firestoreData.profileSetupComplete || false,
               };
 
               console.log("✅ Fresh profile data loaded for:", user.email, {
                 hasAvatar: !!userData.avatarConfig,
-                profileComplete: userData.profileComplete,
+                profileSetupComplete: userData.profileSetupComplete,
               });
             } else {
               // Create fresh user data if no Firestore document exists yet
@@ -621,7 +668,7 @@ function setupFirebaseAuthListener() {
                 name: user.displayName || user.email.split("@")[0],
                 email: user.email,
                 avatarConfig: null,
-                profileComplete: false,
+                profileSetupComplete: false,
               };
 
               console.log(
@@ -641,7 +688,7 @@ function setupFirebaseAuthListener() {
               name: user.displayName || user.email.split("@")[0],
               email: user.email,
               avatarConfig: null,
-              profileComplete: false,
+              profileSetupComplete: false,
             };
             updateAuthenticationUI(true, userData);
           }
@@ -654,6 +701,10 @@ function setupFirebaseAuthListener() {
           localStorage.removeItem("authToken");
           clearUserDisplayInfo();
           updateAuthenticationUI(false);
+        }
+        } finally {
+          // 🛡️ FIX: Reset processing flag when done
+          isProcessingAuthChange = false;
         }
       });
     } else {
