@@ -529,58 +529,261 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* 
 =============================================================================
-                         7. PROFILE PICTURE UPLOAD
+                         7. AVATAR SELECTION SYSTEM
 =============================================================================
 */
 
-/* 📷 PROFILE PICTURE SECTION */
-/* Container for profile picture upload functionality */
-.profile-picture-section {
+/* 🎨 AVATAR SELECTION SECTION */
+/* Container for avatar selection functionality */
+.avatar-selection-section {
   text-align: center;
   margin-bottom: var(--space-xl);
 }
 
-/* 🖼️ PROFILE PICTURE PREVIEW */
-/* Circular preview container for profile picture */
-.profile-picture-preview {
+.avatar-selection-label {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+/* 🖼️ AVATAR PREVIEW DISPLAY */
+/* Circular container for avatar preview */
+.avatar-display-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+.avatar-preview-display {
   width: 120px;
   height: 120px;
   border-radius: 50%; /* Perfect circle */
   background: var(--glass-bg);
   border: 2px solid var(--glass-border);
-  margin: 0 auto var(--space-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3rem;
   color: var(--text-tertiary);
   overflow: hidden;
-  cursor: pointer;
   transition: all 0.3s var(--animation-smooth);
   position: relative;
 }
 
-/* ✨ PREVIEW HOVER EFFECT */
-/* Hover animation for profile picture preview */
-.profile-picture-preview:hover {
-  transform: scale(1.05);
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+.avatar-preview-display:hover {
+  border-color: var(--primary, #3b82f6);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
 }
 
-/* 🖼️ UPLOADED IMAGE STYLING */
-/* Styling for uploaded profile picture */
-.profile-picture-preview img {
+/* Avatar edit button styling */
+.avatar-edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.avatar-edit-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* =============================================================================
+                         AVATAR EDITOR MODAL STYLES
+============================================================================= */
+
+/* Main container for avatar editor */
+.avatar-editor-container {
+  max-width: 600px;
   width: 100%;
-  height: 100%;
-  object-fit: cover; /* Maintain aspect ratio */
+  margin: 0 auto;
 }
 
-/* 🎯 HIDDEN FILE INPUT */
-/* Hide the default file input */
-.profile-picture-upload {
-  display: none;
+.avatar-editor-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
 }
+
+/* Avatar preview section in modal */
+.avatar-preview-section {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+}
+
+.avatar-preview-container {
+  margin-bottom: 1rem;
+}
+
+.avatar-preview-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 3px solid var(--glass-border);
+  background: white;
+  display: block;
+  margin: 0 auto;
+}
+
+.avatar-preview-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Avatar controls section */
+.avatar-controls-section {
+  padding: 1rem;
+}
+
+.control-group {
+  margin-bottom: 1.5rem;
+}
+
+.control-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.control-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--surface, white);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.control-select:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.style-description {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin: 0.5rem 0 0 0;
+  font-style: italic;
+}
+
+.control-divider {
+  border: none;
+  height: 1px;
+  background: var(--glass-border);
+  margin: 1.5rem 0;
+}
+
+/* Avatar options container */
+.avatar-options-container {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.option-group {
+  margin-bottom: 1rem;
+}
+
+.option-label {
+  display: block;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.option-select {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--surface, white);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.option-select:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.no-options {
+  color: var(--text-tertiary);
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+  margin: 0;
+}
+
+/* Randomize section */
+.randomize-section {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.randomize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--primary, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.randomize-btn:hover {
+  background: var(--primary-dark, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Responsive design for avatar editor */
+@media (max-width: 768px) {
+  .avatar-editor-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .avatar-preview-section {
+    order: 1;
+  }
+
+  .avatar-controls-section {
+    order: 2;
+  }
+
+  .avatar-preview-image {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* Responsive design for avatar editor already included above */
 
 /* 📤 UPLOAD BUTTON */
 /* Styled button for file upload */
@@ -604,22 +807,7 @@ body.page-profile .profile-setup-card.glass-card {
   white-space: nowrap;
 }
 
-/* ✨ UPLOAD BUTTON HOVER */
-/* Hover effect for upload button */
-.upload-button:hover {
-  background: var(--surface-hover);
-  border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-/* 💡 UPLOAD HINT TEXT */
-/* Helpful text below upload button */
-.upload-hint {
-  color: var(--text-tertiary);
-  font-size: 0.8rem;
-  margin: 0;
-}
+/* Responsive design for avatar editor already included above */
 
 /* 
 =============================================================================
@@ -822,13 +1010,6 @@ body.page-profile .profile-setup-card.glass-card {
   animation: redGlow 0.8s ease-out;
 }
 
-/* 📤 FILE UPLOAD BUTTON */
-/* Special styling for profile picture upload */
-.profile-picture-section .button.secondary {
-  margin-top: var(--space-sm);
-  min-width: 150px;
-}
-
 /* 
 =============================================================================
                          10. SUCCESS STATES & FEEDBACK
@@ -968,13 +1149,6 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* 📱 MOBILE (480px and below) */
 @media (max-width: 480px) {
-  /* 📷 PROFILE PICTURE SCALING */
-  .profile-picture-preview {
-    width: 90px;
-    height: 90px;
-    font-size: 2.2rem;
-  }
-
   /* 🧭 NAVIGATION STACKING */
   .setup-navigation > div[style*="display: flex"] {
     flex-direction: column; /* Stack skip and next buttons */
@@ -1126,6 +1300,241 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* 
 =============================================================================
-                              END OF FILE
+                          12. AVATAR EDITOR MODAL
 =============================================================================
 */
+
+/* 🎨 AVATAR MODAL OVERLAY */
+.avatar-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.avatar-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 🎨 AVATAR MODAL CONTENT */
+.avatar-modal-content {
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  background: var(--depth-surface);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  transform: scale(0.7) translateY(50px);
+  transition: transform 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.avatar-modal-overlay.active .avatar-modal-content {
+  transform: scale(1) translateY(0);
+}
+
+/* 🎨 AVATAR MODAL HEADER */
+.avatar-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 2rem 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alpha);
+}
+
+.avatar-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.avatar-modal-close-btn {
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.avatar-modal-close-btn:hover {
+  background: var(--danger);
+  color: white;
+  transform: scale(1.05);
+}
+
+/* 🎨 AVATAR MODAL BODY */
+.avatar-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* 🎨 AVATAR MODAL FOOTER */
+.avatar-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem 2rem 2rem 2rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-alpha);
+}
+
+.avatar-modal-button {
+  min-width: 120px;
+  height: 48px;
+  padding: 0.75rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+}
+
+.avatar-modal-button.confirm {
+  background: linear-gradient(135deg, var(--success), #38a169);
+  color: white;
+  border-color: var(--success);
+}
+
+.avatar-modal-button.cancel {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.avatar-modal-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.avatar-modal-button.confirm:hover {
+  background: linear-gradient(135deg, #38a169, var(--success));
+}
+
+.avatar-modal-button.cancel:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-secondary);
+}
+
+/* 🎨 RESPONSIVE AVATAR MODAL */
+@media (max-width: 768px) {
+  .avatar-modal-content {
+    width: 95%;
+    max-height: 95vh;
+    border-radius: 1rem;
+  }
+
+  .avatar-modal-header,
+  .avatar-modal-body,
+  .avatar-modal-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .avatar-modal-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .avatar-modal-button {
+    width: 100%;
+  }
+}
+
+/* 
+=============================================================================
+                          14. PROFILE LOADING OVERLAY
+=============================================================================
+*/
+
+/* 🔄 PROFILE LOADING OVERLAY */
+.profile-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  border-radius: 1.5rem;
+}
+
+.profile-loading-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 🔄 LOADING CONTENT */
+.profile-loading-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.profile-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface-hover);
+  border-top: 3px solid var(--accent-primary);
+  border-radius: 50%;
+  animation: profileSpin 1s linear infinite;
+  margin: 0 auto 1rem auto;
+}
+
+.profile-loading-message {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* 🔄 LOADING SPINNER ANIMATION */
+@keyframes profileSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .profile-loading-overlay {
+  background: rgba(30, 30, 30, 0.95);
+}

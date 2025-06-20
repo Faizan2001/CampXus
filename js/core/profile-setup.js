@@ -26,9 +26,11 @@
  */
 
 // Import Firebase functions we need - using import map from index.html
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../firebase/config/firebase-config.js";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase/config/firebase-config.js";
+
+// Import avatar management system
+import AvatarManager from "./avatars.js";
 
 /**
  * =============================================================================
@@ -49,17 +51,442 @@ class ProfileSetup {
     console.log("🆕 Creating new ProfileSetup instance");
 
     this.currentStep = 0;
-    this.totalSteps = 2; // Basic Info, Profile Pic/Bio
+    this.totalSteps = 2; // Basic Info, Avatar & Bio
     this.currentUser = null;
     this.profileData = {};
-    this.profilePictureFile = null;
+    this.avatarConfig = null; // Stores user's avatar configuration
     this.authCheckInProgress = false;
+    this.dataLoadInProgress = false; // Prevent duplicate data loading
+    this.existingProfileData = null; // Cache for existing profile data
 
     // Store this instance globally to prevent duplicates
     profileSetupInstance = this;
 
     // Initialize the setup
     this.checkAuthentication();
+  }
+
+  /**
+   * =============================================================================
+   *                      1.5. PROFILE DATA LOADING & MANAGEMENT
+   * =============================================================================
+   */
+
+  /**
+   * Load existing profile data from Firestore
+   * @param {string} userId - User ID to fetch data for
+   * @returns {Promise<Object|null>} Profile data or null if not found
+   */
+  async loadProfileData(userId) {
+    if (this.dataLoadInProgress) {
+      console.log("🔄 Profile data loading already in progress, skipping...");
+      return this.existingProfileData;
+    }
+
+    this.dataLoadInProgress = true;
+    console.log("📥 Loading profile data for user:", userId);
+
+    try {
+      // Show loading state
+      this.showLoadingState("Loading your profile...");
+
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        console.log("✅ Profile data loaded successfully:", data);
+
+        this.existingProfileData = data;
+
+        // Hide loading state
+        this.hideLoadingState();
+
+        return data;
+      } else {
+        console.log("📝 No existing profile data found, starting fresh setup");
+        this.existingProfileData = null;
+        this.hideLoadingState();
+        return null;
+      }
+    } catch (error) {
+      console.error("❌ Error loading profile data:", error);
+      this.hideLoadingState();
+      this.showError("Failed to load profile data. Please try again.");
+      return null;
+    } finally {
+      this.dataLoadInProgress = false;
+    }
+  }
+
+  /**
+   * Populate form fields with existing profile data
+   * @param {Object} profileData - Profile data from Firestore
+   */
+  populateFormFields(profileData) {
+    console.log("📝 Populating form fields with existing data...");
+
+    // Wait for DOM elements to be available
+    const populateFields = () => {
+      // Basic Information fields
+      const firstName = document.getElementById("setup-first-name");
+      const lastName = document.getElementById("setup-last-name");
+      const email = document.getElementById("setup-email");
+      const studentId = document.getElementById("setup-student-id");
+      const startingYear = document.getElementById("setup-starting-year");
+      const major = document.getElementById("setup-major");
+      const bio = document.getElementById("setup-bio");
+
+      // Check if elements are available
+      if (!firstName || !lastName) {
+        console.log("🔄 Form elements not ready, retrying in 200ms...");
+        setTimeout(populateFields, 200);
+        return;
+      }
+
+      // Populate basic info
+      if (profileData.firstName) firstName.value = profileData.firstName;
+      if (profileData.lastName) lastName.value = profileData.lastName;
+      if (profileData.email) email.value = profileData.email;
+      if (profileData.studentId) studentId.value = profileData.studentId;
+      if (profileData.startingYear)
+        startingYear.value = profileData.startingYear;
+      if (profileData.major) major.value = profileData.major;
+      if (profileData.bio && bio) bio.value = profileData.bio;
+
+      // Update bio character counter
+      if (profileData.bio && bio) {
+        const bioCount = document.getElementById("bio-count");
+        if (bioCount) {
+          bioCount.textContent = profileData.bio.length;
+        }
+      }
+
+      // Handle avatar configuration
+      if (profileData.avatarConfig) {
+        this.avatarConfig = profileData.avatarConfig;
+        console.log("🎨 Loaded avatar config:", this.avatarConfig);
+        this.updateAvatarPreview();
+      }
+
+      // Update internal profile data object
+      this.profileData = {
+        firstName: profileData.firstName || "",
+        lastName: profileData.lastName || "",
+        email: profileData.email || "",
+        studentId: profileData.studentId || "",
+        startingYear: profileData.startingYear || "",
+        major: profileData.major || "",
+        bio: profileData.bio || "",
+      };
+
+      console.log("✅ Form fields populated successfully");
+
+      // Re-validate current step after populating
+      this.validateCurrentStep();
+    };
+
+    populateFields();
+  }
+
+  /**
+   * Show loading state with custom message using SPA router's loading animation
+   * @param {string} message - Loading message to display
+   */
+  showLoadingState(message = "Loading...") {
+    // Create SPA-style loading overlay if it doesn't exist
+    let loadingOverlay = document.getElementById("profile-spa-loading");
+
+    if (!loadingOverlay) {
+      loadingOverlay = document.createElement("div");
+      loadingOverlay.id = "profile-spa-loading";
+      loadingOverlay.className = "spa-loading";
+      loadingOverlay.innerHTML = `
+        <div class="loading-container">
+          <div class="loading-animation">
+            <div class="loading-dots">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+            <div class="loading-pulse"></div>
+          </div>
+          <div class="loading-text">
+            <span class="loading-message">${message}</span>
+            <span class="loading-ellipsis">...</span>
+          </div>
+        </div>
+      `;
+
+      // Apply SPA router loading styles
+      loadingOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        display: none;
+        z-index: 9999;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      `;
+
+      // Add SPA loading styles if not already present
+      if (!document.getElementById("profile-spa-loading-styles")) {
+        const loadingStyles = document.createElement("style");
+        loadingStyles.id = "profile-spa-loading-styles";
+        loadingStyles.textContent = `
+          .spa-loading.show {
+            opacity: 1 !important;
+          }
+
+          .spa-loading .loading-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 
+              0 20px 40px rgba(0, 0, 0, 0.1),
+              0 8px 20px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            min-width: 200px;
+            animation: slideUpIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+          }
+
+          @media (prefers-color-scheme: dark) {
+            .spa-loading .loading-container {
+              background: rgba(40, 44, 52, 0.95);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 8px 20px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            }
+          }
+
+          .spa-loading .loading-animation {
+            position: relative;
+            margin-bottom: 1.5rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .spa-loading .loading-dots {
+            display: flex;
+            gap: 8px;
+            position: relative;
+            z-index: 2;
+          }
+
+          .spa-loading .loading-dots .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: dotBounce 1.4s infinite ease-in-out both;
+          }
+
+          .spa-loading .loading-dots .dot:nth-child(1) {
+            animation-delay: -0.32s;
+          }
+
+          .spa-loading .loading-dots .dot:nth-child(2) {
+            animation-delay: -0.16s;
+          }
+
+          .spa-loading .loading-dots .dot:nth-child(3) {
+            animation-delay: 0s;
+          }
+
+          .spa-loading .loading-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            animation: pulse 2s infinite ease-in-out;
+          }
+
+          .spa-loading .loading-text {
+            color: #4a5568;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+          }
+
+          @media (prefers-color-scheme: dark) {
+            .spa-loading .loading-text {
+              color: #e2e8f0;
+            }
+          }
+
+          .spa-loading .loading-ellipsis {
+            animation: ellipsis 1.5s infinite ease-in-out;
+            display: inline-block;
+            width: 20px;
+            text-align: left;
+          }
+
+          @keyframes dotBounce {
+            0%, 80%, 100% {
+              transform: scale(0.8) translateY(0);
+              opacity: 0.7;
+            }
+            40% {
+              transform: scale(1.2) translateY(-10px);
+              opacity: 1;
+            }
+          }
+
+          @keyframes pulse {
+            0%, 100% {
+              transform: translate(-50%, -50%) scale(1);
+              opacity: 0.6;
+            }
+            50% {
+              transform: translate(-50%, -50%) scale(1.5);
+              opacity: 0.2;
+            }
+          }
+
+          @keyframes ellipsis {
+            0% { content: ''; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
+          }
+
+          @keyframes slideUpIn {
+            0% {
+              transform: translate(-50%, -40%);
+              opacity: 0;
+              filter: blur(10px);
+            }
+            100% {
+              transform: translate(-50%, -50%);
+              opacity: 1;
+              filter: blur(0);
+            }
+          }
+
+          @media (max-width: 480px) {
+            .spa-loading .loading-container {
+              padding: 2rem;
+              margin: 0 1rem;
+              min-width: auto;
+              max-width: 280px;
+            }
+            
+            .spa-loading .loading-dots .dot {
+              width: 10px;
+              height: 10px;
+            }
+            
+            .spa-loading .loading-text {
+              font-size: 14px;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .spa-loading .loading-container {
+              animation: none;
+            }
+            
+            .spa-loading .loading-dots .dot {
+              animation: dotBounceReduced 2s infinite ease-in-out both;
+            }
+            
+            .spa-loading .loading-pulse {
+              animation: none;
+              opacity: 0.3;
+            }
+            
+            @keyframes dotBounceReduced {
+              0%, 100% { opacity: 0.6; }
+              50% { opacity: 1; }
+            }
+          }
+        `;
+        document.head.appendChild(loadingStyles);
+      }
+
+      document.body.appendChild(loadingOverlay);
+    } else {
+      // Update message
+      const messageEl = loadingOverlay.querySelector(".loading-message");
+      if (messageEl) messageEl.textContent = message;
+    }
+
+    // Show the overlay with SPA router's smooth animation
+    loadingOverlay.style.display = "block";
+    // Use requestAnimationFrame for smooth animation like SPA router
+    requestAnimationFrame(() => {
+      loadingOverlay.classList.add("show");
+    });
+  }
+
+  /**
+   * Hide loading state using SPA router's smooth animation
+   */
+  hideLoadingState() {
+    const loadingOverlay = document.getElementById("profile-spa-loading");
+    if (loadingOverlay) {
+      // Use SPA router's smooth hide animation
+      loadingOverlay.classList.remove("show");
+      // Wait for fade out animation before hiding (match SPA router timing)
+      setTimeout(() => {
+        if (loadingOverlay) {
+          loadingOverlay.style.display = "none";
+        }
+      }, 300); // Match the CSS transition duration
+    }
+  }
+
+  /**
+   * Show error message to user
+   * @param {string} message - Error message to display
+   */
+  showError(message) {
+    // Simple error display - could be enhanced with better UI
+    console.error("🚨 Profile Setup Error:", message);
+    alert(message); // TODO: Replace with better error UI
+  }
+
+  /**
+   * Check if user has completed profile setup
+   * @param {Object} profileData - Profile data to check
+   * @returns {boolean} True if profile is complete
+   */
+  isProfileComplete(profileData) {
+    if (!profileData) return false;
+
+    return !!(
+      profileData.profileSetupComplete &&
+      profileData.firstName &&
+      profileData.lastName &&
+      profileData.email &&
+      profileData.studentId &&
+      profileData.startingYear &&
+      profileData.major
+    );
   }
 
   /**
@@ -167,7 +594,7 @@ class ProfileSetup {
   /**
    * Initialize the profile setup UI and functionality
    */
-  initializeSetup() {
+  async initializeSetup() {
     console.log("🎯 Initializing profile setup...");
     console.log("🔍 Auth Manager available:", !!window.authManager);
     console.log("🔍 Current user:", this.currentUser?.email || "None");
@@ -191,8 +618,38 @@ class ProfileSetup {
     // Add debug info to page for development
     this.addDebugInfo();
 
-    // 🎯 IMMEDIATE DATA PREFILL: Pre-fill email and student ID with immediate execution
-    this.prefillUserData();
+    // 🎯 LOAD EXISTING PROFILE DATA: Check for existing profile data first
+    if (this.currentUser && this.currentUser.uid) {
+      try {
+        const existingData = await this.loadProfileData(this.currentUser.uid);
+
+        if (existingData) {
+          console.log("📋 Found existing profile data, populating fields...");
+          this.populateFormFields(existingData);
+
+          // If profile is complete, show in edit mode
+          if (this.isProfileComplete(existingData)) {
+            console.log("✅ Profile is complete, entering edit mode");
+            this.updateStepTitles("edit");
+            this.updateStepDisplay();
+          }
+        } else {
+          console.log("📝 No existing data, starting fresh setup");
+          // 🎯 IMMEDIATE DATA PREFILL: Pre-fill email and student ID for new setup
+          this.prefillUserData();
+        }
+      } catch (error) {
+        console.error("❌ Error loading profile data:", error);
+        // Fallback to normal prefill if data loading fails
+        this.prefillUserData();
+      }
+    } else {
+      // No user available, use fallback prefill
+      this.prefillUserData();
+    }
+
+    // Initialize avatar system
+    this.initializeAvatarSystem();
 
     // Setup all event listeners
     this.setupEventListeners();
@@ -232,7 +689,7 @@ class ProfileSetup {
    * This is called when the user navigates back to the profile page
    * and the template has been reloaded but the instance still exists
    */
-  reinitializeForFreshTemplate() {
+  async reinitializeForFreshTemplate() {
     console.log("🔄 Re-initializing profile setup for fresh template...");
 
     // Check if template is loaded
@@ -245,8 +702,54 @@ class ProfileSetup {
       return;
     }
 
-    // Re-populate the fields
-    this.prefillUserData();
+    // 🎯 LOAD EXISTING PROFILE DATA: Just like in initializeSetup, check for existing data
+    if (this.currentUser && this.currentUser.uid) {
+      try {
+        // Check if we already have cached data to avoid unnecessary loading
+        if (this.existingProfileData) {
+          console.log("📋 Using cached profile data for re-initialization...");
+          this.populateFormFields(this.existingProfileData);
+
+          // If profile is complete, show in edit mode
+          if (this.isProfileComplete(this.existingProfileData)) {
+            console.log("✅ Profile is complete, entering edit mode");
+            this.updateStepTitles("edit");
+          }
+        } else {
+          // Load fresh data from Firestore
+          const existingData = await this.loadProfileData(this.currentUser.uid);
+
+          if (existingData) {
+            console.log(
+              "📋 Found existing profile data during re-initialization..."
+            );
+            this.populateFormFields(existingData);
+
+            // If profile is complete, show in edit mode
+            if (this.isProfileComplete(existingData)) {
+              console.log("✅ Profile is complete, entering edit mode");
+              this.updateStepTitles("edit");
+            }
+          } else {
+            console.log("📝 No existing data found, using basic prefill");
+            this.prefillUserData();
+          }
+        }
+      } catch (error) {
+        console.error(
+          "❌ Error loading profile data during re-initialization:",
+          error
+        );
+        // Fallback to basic prefill if data loading fails
+        this.prefillUserData();
+      }
+    } else {
+      // No user available, use basic prefill
+      this.prefillUserData();
+    }
+
+    // Re-initialize avatar system
+    this.initializeAvatarSystem();
 
     // Re-setup event listeners (in case they were lost)
     this.setupEventListeners();
@@ -256,7 +759,9 @@ class ProfileSetup {
     this.updateProgress();
     this.validateCurrentStep();
 
-    console.log("✅ Profile setup re-initialized for fresh template");
+    console.log(
+      "✅ Profile setup re-initialized for fresh template with data loading"
+    );
   }
 
   /**
@@ -369,7 +874,7 @@ class ProfileSetup {
         .value.trim();
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
-      // Profile picture file is handled by this.profilePictureFile
+      // Avatar configuration is handled by this.avatarConfig
     }
   }
 
@@ -496,7 +1001,7 @@ class ProfileSetup {
         nextBtn.classList.remove("disabled-state");
       }
     } else if (this.currentStep === 1) {
-      // Step 1: Profile picture/bio (optional, this is the new final step)
+      // Step 1: Avatar & bio (optional, this is the new final step)
       nextBtn.textContent = "Complete Setup!";
       nextBtn.disabled = false;
       nextBtn.classList.remove("disabled-state");
@@ -706,77 +1211,77 @@ class ProfileSetup {
 
   /**
    * =============================================================================
-   *                        8. FILE UPLOAD & STORAGE
+   *                        8. AVATAR MANAGEMENT SYSTEM
    * =============================================================================
    */
 
   /**
-   * Handle profile picture upload and validation
-   * @param {Event} event - File input change event
+   * Initialize avatar system with default avatar for user
    */
-  handleProfilePictureUpload(event) {
-    const file = event.target.files[0];
-    const preview = document.getElementById("profile-picture-preview");
-
-    if (!file) {
-      // If no file selected, or selection cancelled, reset to default
-      if (preview) preview.innerHTML = "👤";
-      this.profilePictureFile = null;
+  initializeAvatarSystem() {
+    if (!this.currentUser) {
+      console.log("⚠️ No user available for avatar system");
       return;
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    const allowedTypes = ["image/jpeg", "image/png"];
-
-    if (file.size > maxSize) {
-      alert("Image too large! Please choose an image smaller than 5MB.");
-      event.target.value = ""; // Reset file input
-      if (preview) preview.innerHTML = "👤";
-      this.profilePictureFile = null;
-      return;
+    // Generate default avatar configuration if none exists
+    if (!this.avatarConfig) {
+      this.avatarConfig = window.avatarManager.generateDefaultAvatar(
+        this.currentUser.uid
+      );
+      console.log("🎨 Generated default avatar config:", this.avatarConfig);
     }
 
-    if (!allowedTypes.includes(file.type)) {
-      alert("Invalid file type. Please choose a JPG or PNG image.");
-      event.target.value = ""; // Reset file input
-      if (preview) preview.innerHTML = "👤";
-      this.profilePictureFile = null;
-      return;
-    }
-
-    this.profilePictureFile = file;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (preview) {
-        preview.innerHTML = `<img src="${e.target.result}" alt="Profile Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-      }
-    };
-    reader.readAsDataURL(file);
+    // Update avatar preview
+    this.updateAvatarPreview();
   }
 
   /**
-   * Upload profile picture to Firebase Storage
-   * @returns {Promise<string|null>} Download URL or null if failed
+   * Open avatar editor modal
    */
-  async uploadProfilePicture() {
-    if (!this.profilePictureFile || !this.currentUser) {
-      return null;
+  openAvatarEditor() {
+    console.log("🎨 Opening avatar editor...");
+
+    if (!window.avatarManager) {
+      console.error("❌ Avatar manager not available");
+      alert("Avatar system is not loaded. Please refresh the page.");
+      return;
     }
 
-    const filePath = `profilePictures/${this.currentUser.uid}/${this.profilePictureFile.name}`;
-    const storageRef = ref(storage, filePath);
+    if (!this.currentUser) {
+      console.error("❌ No user available for avatar editor");
+      alert("Please sign in to customize your avatar.");
+      return;
+    }
 
-    try {
-      const snapshot = await uploadBytes(storageRef, this.profilePictureFile);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
-    } catch (error) {
-      console.error("Error uploading profile picture:", error);
-      alert(
-        "Could not upload your profile picture. Please try a different image or try again later."
+    // Initialize with current avatar or generate default
+    const currentAvatar =
+      this.avatarConfig ||
+      window.avatarManager.generateDefaultAvatar(this.currentUser.uid);
+
+    // Open avatar editor with callback
+    window.avatarManager.openAvatarEditor(currentAvatar, (newAvatarConfig) => {
+      console.log("✅ Avatar saved:", newAvatarConfig);
+      this.avatarConfig = newAvatarConfig;
+      this.updateAvatarPreview();
+    });
+  }
+
+  /**
+   * Update the avatar preview in the profile setup
+   */
+  updateAvatarPreview() {
+    const avatarPreview = document.getElementById("avatar-preview-display");
+
+    if (avatarPreview && this.avatarConfig) {
+      const avatarUrl = window.avatarManager.generateAvatarUrl(
+        this.avatarConfig
       );
-      return null;
+      avatarPreview.innerHTML = `<img src="${avatarUrl}" alt="Your Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+      console.log("🖼️ Avatar preview updated in profile setup");
+    } else if (avatarPreview) {
+      // Show default avatar placeholder
+      avatarPreview.innerHTML = "🎨";
     }
   }
 
@@ -801,16 +1306,22 @@ class ProfileSetup {
     this.collectCurrentStepData();
 
     try {
-      let profilePictureUrl = null;
-      if (this.profilePictureFile) {
-        profilePictureUrl = await this.uploadProfilePicture();
+      // Ensure we have an avatar configuration
+      if (!this.avatarConfig && this.currentUser) {
+        this.avatarConfig = window.avatarManager.generateDefaultAvatar(
+          this.currentUser.uid
+        );
+        console.log(
+          "🎨 Generated default avatar for saving:",
+          this.avatarConfig
+        );
       }
 
       const userData = {
         ...this.profileData,
         uid: this.currentUser.uid,
         email: this.currentUser.email,
-        profilePictureUrl: profilePictureUrl,
+        avatarConfig: this.avatarConfig, // Store avatar configuration instead of file URL
         profileSetupComplete: true,
         createdAt: serverTimestamp(),
         lastUpdated: serverTimestamp(),
@@ -824,6 +1335,11 @@ class ProfileSetup {
       // Use modern Firebase v9 syntax
       const userDocRef = doc(db, "users", this.currentUser.uid);
       await setDoc(userDocRef, userData, { merge: true });
+
+      console.log(
+        "💾 Profile saved successfully with avatar config:",
+        this.avatarConfig
+      );
 
       this.showSuccessMessage();
 
@@ -867,13 +1383,14 @@ class ProfileSetup {
     const nextBtn = document.getElementById("setup-next-btn");
     const prevBtn = document.getElementById("setup-prev-btn");
     const skipBtn = document.getElementById("setup-skip-btn");
-    const pictureUpload = document.getElementById("profile-picture-upload");
+    const avatarEditBtn = document.getElementById("avatar-edit-btn");
     const bioInput = document.getElementById("setup-bio");
 
     console.log("🔗 Setting up event listeners...");
     console.log("Next button found:", !!nextBtn);
     console.log("Previous button found:", !!prevBtn);
     console.log("Skip button found:", !!skipBtn);
+    console.log("Avatar edit button found:", !!avatarEditBtn);
 
     // 🎯 DEFENSIVE: Remove existing listeners first to prevent duplicates
     if (nextBtn && !nextBtn.hasAttribute("data-listener-attached")) {
@@ -902,14 +1419,16 @@ class ProfileSetup {
       skipBtn.setAttribute("data-listener-attached", "true");
     }
 
+    // Avatar editor button event listener
     if (
-      pictureUpload &&
-      !pictureUpload.hasAttribute("data-listener-attached")
+      avatarEditBtn &&
+      !avatarEditBtn.hasAttribute("data-listener-attached")
     ) {
-      pictureUpload.addEventListener("change", (e) =>
-        this.handleProfilePictureUpload(e)
-      );
-      pictureUpload.setAttribute("data-listener-attached", "true");
+      avatarEditBtn.addEventListener("click", () => {
+        console.log("🎨 Avatar edit button clicked");
+        this.openAvatarEditor();
+      });
+      avatarEditBtn.setAttribute("data-listener-attached", "true");
     }
 
     if (bioInput && !bioInput.hasAttribute("data-listener-attached")) {
@@ -1104,6 +1623,33 @@ class ProfileSetup {
 
     // Remove after 30 seconds to keep things clean
     setTimeout(() => testButton.remove(), 30000);
+  }
+
+  /**
+   * Update step titles and descriptions based on mode (setup vs edit)
+   * @param {string} mode - Either "setup" or "edit"
+   */
+  updateStepTitles(mode = "setup") {
+    const stepDescription = document.querySelector(
+      '[data-step="1"] .step-description'
+    );
+
+    if (stepDescription) {
+      if (mode === "edit") {
+        stepDescription.textContent = "Update your avatar and bio information.";
+      } else {
+        stepDescription.textContent = "Choose your avatar and add a short bio.";
+      }
+    }
+
+    // Update main title if in edit mode
+    const mainTitle = document.querySelector(".setup-title");
+    const mainSubtitle = document.querySelector(".setup-subtitle");
+
+    if (mode === "edit" && mainTitle && mainSubtitle) {
+      mainTitle.textContent = "Update Your Profile";
+      mainSubtitle.textContent = "Make changes to your profile information.";
+    }
   }
 }
 

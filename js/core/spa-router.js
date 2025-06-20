@@ -33,6 +33,7 @@ class SPARouter {
         ],
         jsFiles: [
           "js/firebase/auth/auth-manager.js", // ✅ Authentication system
+          "js/core/avatars.js", // ✅ Avatar management system
           "js/core/profile-setup.js", // ✅ Profile functionality
         ],
         description: "Set up your student profile and preferences",

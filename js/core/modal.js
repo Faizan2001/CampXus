@@ -217,3 +217,9 @@ function hideModal() {
     }
   }, 300); // Match CSS transition duration
 }
+
+// =============================================================================
+//                           GLOBAL EXPORTS
+// =============================================================================
+
+// No global exports needed - modal system is initialized via initModal()

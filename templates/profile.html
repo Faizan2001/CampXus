@@ -121,44 +121,37 @@
         </div>
       </div>
 
-      <!-- Step 1: Profile Picture & Bio -->
+      <!-- Step 1: Avatar & Bio -->
       <div class="setup-step" data-step="1">
         <div class="step-header">
-          <span class="step-icon">📸</span>
-          <h2 class="step-title">Profile Picture & Bio</h2>
+          <span class="step-icon">🎨</span>
+          <h2 class="step-title">Avatar & Bio</h2>
           <p class="step-description">
-            Add a photo and a short bio to personalize your profile (optional).
+            Choose your avatar and add a short bio.
           </p>
         </div>
-        <div class="profile-picture-section">
-          <label
-            for="profile-picture-upload"
-            class="profile-picture-preview-label"
-          >
+
+        <!-- Avatar Selection Section -->
+        <div class="avatar-selection-section">
+          <label class="avatar-selection-label">Your Avatar</label>
+          <div class="avatar-display-container">
             <div
-              id="profile-picture-preview"
-              class="profile-picture-preview"
-              title="Click to upload a profile picture"
+              id="avatar-preview-display"
+              class="avatar-preview-display"
+              title="Your current avatar"
             >
-              👤
+              🎨
             </div>
-          </label>
-          <input
-            type="file"
-            id="profile-picture-upload"
-            name="profile-picture-upload"
-            class="profile-picture-upload"
-            accept="image/jpeg, image/png"
-          />
+          </div>
           <button
             type="button"
-            class="button secondary"
-            onclick="document.getElementById('profile-picture-upload').click();"
+            id="avatar-edit-btn"
+            class="button secondary avatar-edit-button"
           >
-            <i class="fas fa-upload"></i> Choose Image
+            <i class="fas fa-palette"></i> Choose Avatar
           </button>
           <p class="form-hint" style="margin-top: 0.5rem">
-            Max 5MB. JPG or PNG only.
+            Safe, customizable avatars powered by DiceBear
           </p>
         </div>
 
