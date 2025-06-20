@@ -316,6 +316,16 @@ async function handleSignOut() {
     // Hide user menu and show login button
     updateAuthenticationUI(false);
 
+    // Navigate to home page (main schedule screen) using SPA router
+    if (window.spaRouter) {
+      console.log("🏠 Redirecting to home after sign out...");
+      window.spaRouter.navigateTo("home");
+    } else {
+      // Fallback: Traditional navigation if SPA router isn't available
+      console.log("⚠️ SPA router not available, using traditional navigation");
+      window.location.href = "#home";
+    }
+
     // Dispatch custom event for other components to react
     window.dispatchEvent(
       new CustomEvent("userSignedOut", {
@@ -324,6 +334,10 @@ async function handleSignOut() {
     );
   } catch (error) {
     console.error("Error during sign out:", error);
+    // Even on error, try to navigate to home for better UX
+    if (window.spaRouter) {
+      window.spaRouter.navigateTo("home");
+    }
   } finally {
     // Always reset button state (whether success or error)
     if (signOutBtn) {
