@@ -4,35 +4,50 @@
                     Glass Card Design with App Theme Integration
 =============================================================================
 
+📋 TABLE OF CONTENTS:
+├── 1. Layout & Page Structure
+├── 2. Header & Title Section  
+├── 3. Progress Indicator System
+├── 4. Step Content & Forms
+├── 5. Form Controls & Validation
+├── 6. Profile Picture Upload
+├── 7. Interactive Elements
+├── 8. Navigation Controls
+├── 9. Success States & Feedback
+├── 10. Responsive Design
+└── 11. Animations & Effects
+
 This file contains profile setup specific styles that extend the main app's
-design system. It uses CSS variables from variables.css, glass components
+design system. Uses CSS variables from variables.css, glass components
 from components.css, and animations from animations.css.
 
 =============================================================================
 */
 
-/* ===== PROFILE SETUP MAIN LAYOUT ===== */
 /* 
-  Enhanced layout for proper centering and responsive behavior
-  These rules override the standard grid layout for profile pages
+=============================================================================
+                          1. LAYOUT & PAGE STRUCTURE
+=============================================================================
 */
 
-/* Ensure main content area allows full viewport usage on profile page */
+/* 🏗️ MAIN PAGE CONTAINER */
+/* Override default layout to center profile setup card in full viewport */
+
+/* Ensure main content area uses full viewport for profile page */
 body.page-profile .main-content {
-  padding: 0 !important; /* Remove any padding that might interfere */
+  padding: 0 !important; /* Remove any interfering padding */
   width: 100vw !important;
   max-width: 100vw !important;
   margin: 0 !important;
-  display: flex !important; /* Ensure flex container */
-  flex-direction: column !important; /* Column direction */
+  display: flex !important; /* Enable flexbox for centering */
+  flex-direction: column !important; /* Stack elements vertically */
 }
 
-/* Override content-grid for profile page to center the card */
-/* Use body class selector to make this more specific than layout.css */
+/* Override content-grid to center the profile setup card */
 body.page-profile .content-grid {
   display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+  justify-content: center !important; /* Center horizontally */
+  align-items: center !important; /* Center vertically */
   grid-template-columns: unset !important; /* Reset grid columns */
   grid-template-rows: unset !important; /* Reset grid rows */
   min-height: calc(100vh - 120px) !important; /* Full viewport minus nav */
@@ -42,10 +57,11 @@ body.page-profile .content-grid {
   gap: 0 !important; /* Remove grid gap */
 }
 
-/* Ensure no column interference on profile page */
+/* 🚫 HIDE UNNECESSARY COLUMNS */
+/* Hide default dashboard columns on profile page */
 body.page-profile .controls-column,
 body.page-profile .schedule-column {
-  display: none !important; /* Hide columns completely on profile page */
+  display: none !important; /* Hide columns completely */
 }
 
 /* Reset any grid positioning for profile elements */
@@ -56,21 +72,23 @@ body.page-profile .schedule-section {
   grid-column: unset !important;
   grid-row: unset !important;
   order: unset !important;
-  display: none !important; /* These shouldn't exist on profile page anyway */
+  display: none !important; /* These shouldn't exist on profile page */
 }
 
-/* Profile setup card styling with enhanced specificity */
+/* 🎴 PROFILE SETUP CARD */
+/* Main container for the profile setup form */
 body.page-profile .profile-setup-card.glass-card {
   width: 100% !important;
-  max-width: 800px !important; /* Maintain max-width for the setup content */
+  max-width: 800px !important; /* Maintain readable max-width */
   margin: 0 auto !important; /* Center horizontally as fallback */
   padding: var(--space-xl) !important;
-  animation: slideUp 0.6s ease-out; /* Add entrance animation */
+  animation: slideUp 0.6s ease-out; /* Smooth entrance animation */
   position: relative !important; /* Ensure proper positioning */
   flex-shrink: 0 !important; /* Prevent shrinking */
 }
 
-/* Mobile adjustments with enhanced specificity */
+/* 📱 MOBILE LAYOUT ADJUSTMENTS */
+/* Mobile-specific layout adjustments for profile setup card */
 @media (max-width: 768px) {
   body.page-profile .content-grid {
     padding: var(--space-md) !important;
@@ -84,22 +102,33 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* ===== SETUP HEADER ===== */
+/* 
+=============================================================================
+                          2. HEADER & TITLE SECTION
+=============================================================================
+*/
+
+/* 📝 SETUP HEADER CONTAINER */
+/* Container for the main title and subtitle */
 .setup-header {
   margin-bottom: var(--space-xl);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border); /* Subtle separator */
 }
 
+/* 🎯 TITLE SECTION */
+/* Main title and subtitle container */
 .setup-title-section {
   text-align: center;
   margin-bottom: var(--space-lg);
 }
 
+/* 🎨 MAIN TITLE */
+/* Large gradient title with responsive sizing */
 .setup-title {
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-size: clamp(1.8rem, 4vw, 2.5rem); /* Responsive font size */
   font-weight: 700;
-  background: var(--gradient-title);
+  background: var(--gradient-title); /* Gradient text effect */
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -107,13 +136,22 @@ body.page-profile .profile-setup-card.glass-card {
   line-height: 1.2;
 }
 
+/* 📖 SUBTITLE */
+/* Descriptive text below main title */
 .setup-subtitle {
   color: var(--text-secondary);
   font-size: 1.1rem;
   line-height: 1.5;
 }
 
-/* ===== MODERN STEP BLOCKS SYSTEM ===== */
+/* 
+=============================================================================
+                         3. PROGRESS INDICATOR SYSTEM
+=============================================================================
+*/
+
+/* 📊 PROGRESS CONTAINER */
+/* Main container for step information and progress blocks */
 .setup-progress-container {
   display: flex;
   align-items: center;
@@ -123,6 +161,8 @@ body.page-profile .profile-setup-card.glass-card {
   padding: var(--space-md) 0;
 }
 
+/* ℹ️ STEP INFORMATION TEXT */
+/* Shows current step number and total steps */
 .setup-step-info {
   font-size: 0.9rem;
   color: var(--text-secondary);
@@ -130,32 +170,37 @@ body.page-profile .profile-setup-card.glass-card {
   margin-bottom: var(--space-sm);
 }
 
+/* 🎯 CURRENT STEP HIGHLIGHT */
+/* Highlights the current step number */
 .setup-step-info .current-step {
   font-weight: 600;
   color: var(--accent-primary);
 }
 
-/* Modern step blocks container */
+/* 📋 PROGRESS BLOCKS CONTAINER */
+/* Container for individual step blocks */
 .setup-progress {
   display: flex;
   gap: var(--space-md);
   align-items: center;
 }
 
-/* Individual step blocks */
+/* 🔳 INDIVIDUAL STEP BLOCKS */
+/* Visual progress indicators for each step */
 .step-block {
   width: 60px;
   height: 8px;
   background: var(--surface);
-  border: 2px solid var(--glass-border);
+  border: 2px solid var(--glass-border); /* Visible border for clarity */
   border-radius: 6px;
   transition: all 0.4s var(--animation-smooth);
   position: relative;
   overflow: hidden;
-  /* Add subtle inner shadow for depth */
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle depth */
 }
 
+/* ⚡ ACTIVE STEP BLOCK */
+/* Currently active step with gradient and glow */
 .step-block.active {
   background: linear-gradient(
     135deg,
@@ -167,6 +212,8 @@ body.page-profile .profile-setup-card.glass-card {
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
+/* ✅ COMPLETED STEP BLOCK */
+/* Steps that have been finished */
 .step-block.completed {
   background: var(--accent-primary);
   border: 2px solid var(--accent-primary);
@@ -174,7 +221,8 @@ body.page-profile .profile-setup-card.glass-card {
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Animated shimmer effect for active block */
+/* ✨ SHIMMER ANIMATION */
+/* Animated shimmer effect for active step block */
 .step-block.active::after {
   content: "";
   position: absolute;
@@ -191,35 +239,49 @@ body.page-profile .profile-setup-card.glass-card {
   animation: shimmer 2s infinite;
 }
 
-/* Removed .setup-progress-text as its content is now in .setup-step-info */
+/* 
+=============================================================================
+                           4. STEP CONTENT & FORMS
+=============================================================================
+*/
 
-/* ===== SETUP BODY & STEPS ===== */
+/* 📦 SETUP BODY CONTAINER */
+/* Main container for all step content */
 .setup-body {
   margin-bottom: var(--space-xl);
 }
 
+/* 📄 INDIVIDUAL SETUP STEPS */
+/* Each step is hidden by default, shown when active */
 .setup-step {
   display: none;
-  animation: slideInRight 0.4s ease-out;
+  animation: slideInRight 0.4s ease-out; /* Smooth step transition */
 }
 
+/* 👁️ ACTIVE STEP DISPLAY */
+/* Shows the currently active step */
 .setup-step.active {
   display: block;
 }
 
-/* ===== STEP HEADER ===== */
+/* 🎯 STEP HEADER SECTION */
+/* Header area for each step with icon, title, and description */
 .step-header {
   text-align: center;
   margin-bottom: var(--space-xl);
 }
 
+/* 🎨 STEP ICON */
+/* Large animated icon for each step */
 .step-icon {
   font-size: 3rem;
   margin-bottom: var(--space-md);
   display: block;
-  animation: bounce 0.6s ease-out 0.2s both;
+  animation: bounce 0.6s ease-out 0.2s both; /* Bouncy entrance */
 }
 
+/* 📝 STEP TITLE */
+/* Title for each step */
 .step-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -227,6 +289,8 @@ body.page-profile .profile-setup-card.glass-card {
   margin-bottom: var(--space-sm);
 }
 
+/* 📖 STEP DESCRIPTION */
+/* Descriptive text explaining the step */
 .step-description {
   color: var(--text-secondary);
   line-height: 1.6;
@@ -234,20 +298,28 @@ body.page-profile .profile-setup-card.glass-card {
   margin: 0 auto;
 }
 
-/* ===== FORM CONTENT ===== */
+/* 📋 FORM CONTENT CONTAINER */
+/* Container for form elements within each step */
 .form-content {
   max-width: 600px;
   margin: 0 auto;
 }
 
-/* ===== FORM VALIDATION & FEEDBACK ===== */
-/* Enhanced form validation with better visual feedback */
+/* 
+=============================================================================
+                        5. FORM CONTROLS & VALIDATION
+=============================================================================
+*/
 
+/* 📝 FORM GROUP CONTAINER */
+/* Container for each form field with proper spacing */
 .form-group {
   margin-bottom: var(--space-lg);
   position: relative;
 }
 
+/* 🏷️ FORM LABELS */
+/* Labels for form inputs */
 .form-label {
   display: block;
   margin-bottom: var(--space-sm);
@@ -256,7 +328,8 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.95rem;
 }
 
-/* Required field indicator */
+/* ⭐ REQUIRED FIELD INDICATOR */
+/* Red asterisk for required fields */
 .form-label[for*="required"]::after,
 .form-input[required] + .form-label::after {
   content: " *";
@@ -264,7 +337,8 @@ body.page-profile .profile-setup-card.glass-card {
   font-weight: 600;
 }
 
-/* Character counter styling */
+/* 🔢 CHARACTER COUNTER */
+/* Shows character count for text areas */
 .char-counter-container {
   display: flex;
   justify-content: flex-end;
@@ -278,7 +352,8 @@ body.page-profile .profile-setup-card.glass-card {
   color: var(--text-secondary);
 }
 
-/* Form hint text */
+/* 💡 FORM HINTS */
+/* Helpful hint text below form fields */
 .form-hint {
   font-size: 0.8rem;
   color: var(--text-tertiary);
@@ -286,6 +361,8 @@ body.page-profile .profile-setup-card.glass-card {
   font-style: italic;
 }
 
+/* 📝 FORM INPUTS */
+/* Base styling for all form inputs */
 .form-input {
   width: 100%;
   padding: var(--space-md) var(--space-lg);
@@ -295,10 +372,111 @@ body.page-profile .profile-setup-card.glass-card {
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s var(--animation-smooth);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px); /* Glass effect */
 }
 
-/* Enhanced validation feedback */
+/* 🎯 FOCUS STATE */
+/* Purple glow when input is focused */
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1),
+    0 4px 15px rgba(139, 92, 246, 0.2) !important;
+  background: var(--glass-hover) !important;
+  transform: translateY(-1px);
+}
+
+/* 💬 PLACEHOLDER TEXT */
+.form-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* 🔒 READONLY FIELDS */
+/* Styling for non-editable fields */
+.form-input[readonly] {
+  background: var(--surface) !important;
+  color: var(--text-secondary) !important;
+  cursor: not-allowed !important;
+  border-color: var(--glass-border) !important;
+  opacity: 0.8;
+  position: relative;
+}
+
+.form-input[readonly]:focus {
+  border-color: var(--glass-border) !important;
+  box-shadow: none !important;
+  background: var(--surface) !important;
+  transform: none !important;
+}
+
+/* 🔐 ENHANCED READONLY STYLING */
+/* Special styling for auto-filled fields */
+.readonly-field {
+  background: linear-gradient(
+    135deg,
+    var(--surface),
+    var(--surface-hover)
+  ) !important;
+  border-style: dashed !important;
+  position: relative;
+}
+
+.readonly-field::before {
+  content: "🔒";
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+/* 🏷️ READONLY FIELD LABELS */
+/* Special labels for auto-filled fields */
+.form-label[for="setup-email"]::after,
+.form-label[for="setup-student-id"]::after {
+  content: " (Auto-filled)";
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* 📐 FORM ROW LAYOUT */
+/* Two-column layout for form fields */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+/* 📝 BIO TEXTAREA */
+/* Special styling for biography text area */
+.bio-textarea {
+  min-height: 100px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.char-counter,
+.char-counter-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+/* 
+=============================================================================
+                           6. FORM VALIDATION FEEDBACK
+=============================================================================
+*/
+
+/* ❌ VALIDATION ERROR FEEDBACK */
+/* Visual feedback for invalid form fields */
 .form-input[required]:invalid::after,
 .form-input[required]:placeholder-shown::after {
   content: "";
@@ -324,6 +502,8 @@ body.page-profile .profile-setup-card.glass-card {
   animation: pulse-error 2s infinite;
 }
 
+/* ✅ VALIDATION SUCCESS FEEDBACK */
+/* Visual feedback for valid form fields */
 .form-input[required]:valid:not(:placeholder-shown)::after {
   content: "";
   position: absolute;
@@ -347,116 +527,25 @@ body.page-profile .profile-setup-card.glass-card {
   opacity: 0.6;
 }
 
-/* Validation feedback animations */
-@keyframes pulse-error {
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.01);
-  }
-}
+/* 
+=============================================================================
+                         7. PROFILE PICTURE UPLOAD
+=============================================================================
+*/
 
-/* Form validation icons */
-.form-group {
-  position: relative;
-}
-
-/* Focus state - clean purple glow */
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1),
-    0 4px 15px rgba(139, 92, 246, 0.2) !important;
-  background: var(--glass-hover) !important;
-  transform: translateY(-1px);
-}
-
-.form-input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.form-input[readonly] {
-  background: var(--surface) !important;
-  color: var(--text-secondary) !important;
-  cursor: not-allowed !important;
-  border-color: var(--glass-border) !important;
-  opacity: 0.8;
-  position: relative;
-}
-
-.form-input[readonly]:focus {
-  border-color: var(--glass-border) !important;
-  box-shadow: none !important;
-  background: var(--surface) !important;
-  transform: none !important;
-}
-
-/* Enhanced readonly field styling */
-.readonly-field {
-  background: linear-gradient(
-    135deg,
-    var(--surface),
-    var(--surface-hover)
-  ) !important;
-  border-style: dashed !important;
-  position: relative;
-}
-
-.readonly-field::before {
-  content: "🔒";
-  position: absolute;
-  right: var(--space-md);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  font-size: 0.9rem;
-  pointer-events: none;
-}
-
-/* Updated labels for readonly fields */
-.form-label[for="setup-email"]::after {
-  content: " (Auto-filled)";
-  color: var(--text-tertiary);
-  font-weight: 400;
-  font-style: italic;
-  font-size: 0.85rem;
-}
-
-.form-label[for="setup-student-id"]::after {
-  content: " (Auto-filled)";
-  color: var(--text-tertiary);
-  font-weight: 400;
-  font-style: italic;
-  font-size: 0.85rem;
-}
-
-/* ===== FORM ROW LAYOUT ===== */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-lg);
-}
-
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ===== PROFILE PICTURE SECTION ===== */
+/* 📷 PROFILE PICTURE SECTION */
+/* Container for profile picture upload functionality */
 .profile-picture-section {
   text-align: center;
   margin-bottom: var(--space-xl);
 }
 
+/* 🖼️ PROFILE PICTURE PREVIEW */
+/* Circular preview container for profile picture */
 .profile-picture-preview {
   width: 120px;
   height: 120px;
-  border-radius: 50%;
+  border-radius: 50%; /* Perfect circle */
   background: var(--glass-bg);
   border: 2px solid var(--glass-border);
   margin: 0 auto var(--space-md);
@@ -471,22 +560,30 @@ body.page-profile .profile-setup-card.glass-card {
   position: relative;
 }
 
+/* ✨ PREVIEW HOVER EFFECT */
+/* Hover animation for profile picture preview */
 .profile-picture-preview:hover {
   transform: scale(1.05);
   border-color: var(--accent-primary);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
+/* 🖼️ UPLOADED IMAGE STYLING */
+/* Styling for uploaded profile picture */
 .profile-picture-preview img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: cover; /* Maintain aspect ratio */
 }
 
+/* 🎯 HIDDEN FILE INPUT */
+/* Hide the default file input */
 .profile-picture-upload {
   display: none;
 }
 
+/* 📤 UPLOAD BUTTON */
+/* Styled button for file upload */
 .upload-button {
   display: inline-flex;
   align-items: center;
@@ -507,6 +604,8 @@ body.page-profile .profile-setup-card.glass-card {
   white-space: nowrap;
 }
 
+/* ✨ UPLOAD BUTTON HOVER */
+/* Hover effect for upload button */
 .upload-button:hover {
   background: var(--surface-hover);
   border-color: var(--accent-primary);
@@ -514,64 +613,22 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
+/* 💡 UPLOAD HINT TEXT */
+/* Helpful text below upload button */
 .upload-hint {
   color: var(--text-tertiary);
   font-size: 0.8rem;
   margin: 0;
 }
 
-/* ===== BIO TEXTAREA ===== */
-.bio-textarea {
-  min-height: 100px;
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.5;
-}
+/* 
+=============================================================================
+                         8. INTERACTIVE ELEMENTS
+=============================================================================
+*/
 
-.char-counter,
-.char-counter-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-xs);
-  font-size: 0.8rem;
-  color: var(--text-tertiary);
-}
-
-#bio-count {
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-/* ===== SUCCESS MESSAGE ===== */
-.success-message {
-  background: var(--success-light);
-  border: 1px solid var(--success);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  margin-bottom: var(--space-xl);
-  text-align: center;
-  animation: successPulse 0.6s ease-out;
-}
-
-.success-icon {
-  font-size: 3rem;
-  color: var(--success);
-  margin-bottom: var(--space-md);
-}
-
-.success-message h3 {
-  color: var(--success);
-  margin-bottom: var(--space-sm);
-  font-size: 1.2rem;
-}
-
-.success-message p {
-  color: var(--success);
-  margin: 0;
-  opacity: 0.9;
-}
-
-/* ===== CHECKBOX GROUP ===== */
+/* ✅ CHECKBOX GROUP CONTAINER */
+/* Container for grouped checkboxes */
 .checkbox-group {
   display: flex;
   flex-direction: column;
@@ -579,6 +636,8 @@ body.page-profile .profile-setup-card.glass-card {
   margin-top: var(--space-sm);
 }
 
+/* ☑️ INDIVIDUAL CHECKBOX ITEM */
+/* Container for each checkbox with label */
 .checkbox-item {
   display: flex;
   align-items: center;
@@ -589,14 +648,19 @@ body.page-profile .profile-setup-card.glass-card {
   transition: color 0.3s ease;
 }
 
+/* ✨ CHECKBOX HOVER EFFECT */
 .checkbox-item:hover {
   color: var(--text-accent);
 }
 
+/* 🎯 HIDDEN CHECKBOX INPUT */
+/* Hide default checkbox appearance */
 .checkbox-item input[type="checkbox"] {
   display: none;
 }
 
+/* 📦 CUSTOM CHECKMARK */
+/* Custom styled checkbox */
 .checkmark {
   width: 20px;
   height: 20px;
@@ -607,11 +671,15 @@ body.page-profile .profile-setup-card.glass-card {
   transition: all 0.3s var(--animation-smooth);
 }
 
+/* ✅ CHECKED STATE */
+/* Styling for checked checkbox */
 .checkbox-item input[type="checkbox"]:checked + .checkmark {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
 }
 
+/* ✓ CHECKMARK ICON */
+/* Check icon for checked state */
 .checkbox-item input[type="checkbox"]:checked + .checkmark::after {
   content: "✓";
   position: absolute;
@@ -623,30 +691,34 @@ body.page-profile .profile-setup-card.glass-card {
   font-weight: bold;
 }
 
-/* ===== SETUP NAVIGATION ===== */
+/* 
+=============================================================================
+                           9. NAVIGATION CONTROLS
+=============================================================================
+*/
+
+/* 🧭 SETUP NAVIGATION CONTAINER */
+/* Container for previous, next, and skip buttons */
 .setup-navigation {
   display: flex;
-  justify-content: space-between; /* Align prev to left, next/skip group to right */
+  justify-content: space-between; /* Previous left, next/skip right */
   align-items: center;
-  padding-top: var(--space-xl); /* Add padding only to the top */
-  padding-bottom: var(--space-md); /* Reduce bottom padding slightly */
-  border-top: 1px solid var(--glass-border);
+  padding-top: var(--space-xl);
+  padding-bottom: var(--space-md);
+  border-top: 1px solid var(--glass-border); /* Visual separator */
   margin-top: var(--space-xl);
 }
 
-/* Group for skip and next buttons to keep them together */
+/* 🔘 BUTTON GROUP */
+/* Group for skip and next buttons */
 .setup-navigation > div[style*="display: flex"] {
   display: flex;
-  gap: var(--space-md); /* Consistent gap */
+  gap: var(--space-md);
   align-items: center;
 }
 
-/* Remove .nav-right-group as it's not used anymore in the new HTML structure */
-
-/* ===== BUTTON STYLING FIXES ===== */
-/* Comprehensive button styling for profile setup page */
-
-/* Base button styling - matches your HTML class usage */
+/* 🎯 BASE BUTTON STYLING */
+/* Universal button styles for all navigation buttons */
 .button {
   display: inline-flex;
   align-items: center;
@@ -667,7 +739,8 @@ body.page-profile .profile-setup-card.glass-card {
   white-space: nowrap;
 }
 
-/* Primary button styling (.button.btn-primary) */
+/* 🟣 PRIMARY BUTTON */
+/* Main action buttons (Next, Complete Setup) */
 .button.btn-primary {
   background: linear-gradient(
     135deg,
@@ -688,7 +761,8 @@ body.page-profile .profile-setup-card.glass-card {
   );
 }
 
-/* Secondary button styling (.button.secondary) */
+/* ⚪ SECONDARY BUTTON */
+/* Secondary actions (Previous, Skip) */
 .button.secondary {
   background: var(--surface);
   color: var(--text-primary);
@@ -703,7 +777,8 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
-/* Muted button styling (.button.muted) */
+/* 🔇 MUTED BUTTON */
+/* Less prominent actions */
 .button.muted {
   background: var(--surface-hover);
   color: var(--text-secondary);
@@ -719,13 +794,15 @@ body.page-profile .profile-setup-card.glass-card {
   transform: translateY(-1px);
 }
 
-/* Profile setup navigation specific buttons */
+/* 🎯 SETUP NAVIGATION SPECIFIC */
+/* Special styling for setup navigation buttons */
 .setup-nav-button {
   min-width: 140px;
   font-weight: 600;
 }
 
-/* Disabled button state styling */
+/* 🚫 DISABLED BUTTON STATE */
+/* Styling for disabled buttons */
 .button.disabled-state {
   opacity: 0.6;
   cursor: not-allowed;
@@ -739,38 +816,91 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: none !important;
 }
 
-/* Red glow animation for disabled button click */
-@keyframes redGlow {
-  0% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0.3);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-  }
-}
-
+/* ❌ ERROR FEEDBACK ANIMATION */
+/* Red glow for clicking disabled buttons */
 .button.red-glow-pulse {
   animation: redGlow 0.8s ease-out;
 }
 
-/* File upload button specific styling */
+/* 📤 FILE UPLOAD BUTTON */
+/* Special styling for profile picture upload */
 .profile-picture-section .button.secondary {
   margin-top: var(--space-sm);
   min-width: 150px;
 }
 
-/* Remove specific .nav-button#setup-next-btn width animations if not desired */
-/* or adjust if they conflict with .button class */
-
-/* Remove .setup-navigation:has(#setup-prev-btn:not([style*="display: none"])) rules
-   as the flexbox justify-content: space-between on .setup-navigation handles this now.
+/* 
+=============================================================================
+                         10. SUCCESS STATES & FEEDBACK
+=============================================================================
 */
 
-/* ===== RESPONSIVE DESIGN ===== */
+/* 🎉 SUCCESS MESSAGE CONTAINER */
+/* Container for completion success message */
+.success-message {
+  background: var(--success-light);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-xl);
+  text-align: center;
+  animation: successPulse 0.6s ease-out;
+}
+
+/* ✅ SUCCESS ICON */
+/* Large success icon */
+.success-icon {
+  font-size: 3rem;
+  color: var(--success);
+  margin-bottom: var(--space-md);
+}
+
+/* 📝 SUCCESS MESSAGE HEADING */
+/* Success message title */
+.success-message h3 {
+  color: var(--success);
+  margin-bottom: var(--space-sm);
+  font-size: 1.2rem;
+}
+
+/* 📖 SUCCESS MESSAGE TEXT */
+/* Success message description */
+.success-message p {
+  color: var(--success);
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* ⚡ LOADING STATE */
+/* Loading animation for navigation buttons */
+.nav-button.loading {
+  pointer-events: none;
+  position: relative;
+  color: transparent;
+}
+
+.nav-button.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+/* 
+=============================================================================
+                            11. RESPONSIVE DESIGN
+=============================================================================
+*/
+
+/* 📱 TABLET & SMALL DESKTOP (768px and below) */
 @media (max-width: 768px) {
+  /* 🏗️ LAYOUT ADJUSTMENTS */
   body.page-profile .main-content {
     padding: 0 !important;
   }
@@ -786,6 +916,7 @@ body.page-profile .profile-setup-card.glass-card {
     max-width: calc(100vw - 2rem) !important;
   }
 
+  /* 📝 TYPOGRAPHY SCALING */
   .setup-title {
     font-size: 1.8rem;
   }
@@ -794,19 +925,22 @@ body.page-profile .profile-setup-card.glass-card {
     font-size: 1rem;
   }
 
+  /* 📊 PROGRESS INDICATOR ADJUSTMENTS */
   .setup-progress-container {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center; /* Center the step count text on mobile */
     gap: var(--space-sm);
   }
 
   .setup-progress {
     width: 100%;
     margin-left: 0;
+    justify-content: center; /* Center the progress blocks on mobile */
   }
 
+  /* 🧭 NAVIGATION LAYOUT */
   .setup-navigation {
-    flex-direction: column-reverse;
+    flex-direction: column-reverse; /* Stack vertically */
     gap: var(--space-md);
   }
 
@@ -825,29 +959,49 @@ body.page-profile .profile-setup-card.glass-card {
     width: 100%;
     text-align: center;
   }
+
+  /* 📐 FORM LAYOUT */
+  .form-row {
+    grid-template-columns: 1fr; /* Single column on mobile */
+  }
 }
 
+/* 📱 MOBILE (480px and below) */
 @media (max-width: 480px) {
+  /* 📷 PROFILE PICTURE SCALING */
   .profile-picture-preview {
     width: 90px;
     height: 90px;
     font-size: 2.2rem;
   }
 
-  .form-row {
-    grid-template-columns: 1fr; /* Already there, but ensure it */
-  }
-
+  /* 🧭 NAVIGATION STACKING */
   .setup-navigation > div[style*="display: flex"] {
-    flex-direction: column; /* Stack skip and next on smallest screens */
+    flex-direction: column; /* Stack skip and next buttons */
     gap: var(--space-sm);
   }
+
   .setup-navigation > div[style*="display: flex"] > .button {
     width: 100%; /* Full width for stacked buttons */
   }
 }
 
-/* ===== ANIMATIONS ===== */
+/* 📐 FORM ROW RESPONSIVE BEHAVIOR */
+@media (max-width: 640px) {
+  .form-row {
+    grid-template-columns: 1fr; /* Single column layout */
+  }
+}
+
+/* 
+=============================================================================
+                          12. ANIMATIONS & EFFECTS
+=============================================================================
+*/
+
+/* 🚀 ENTRANCE ANIMATIONS */
+
+/* Card slide up animation */
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -859,6 +1013,7 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
+/* Step content slide in animation */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -870,6 +1025,7 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
+/* Icon bounce animation */
 @keyframes bounce {
   0%,
   20%,
@@ -890,6 +1046,9 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
+/* 🎉 SUCCESS ANIMATIONS */
+
+/* Success message pulse animation */
 @keyframes successPulse {
   0% {
     transform: scale(0.95);
@@ -904,6 +1063,9 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
+/* 💫 LOADING & FEEDBACK ANIMATIONS */
+
+/* Progress shimmer effect */
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -913,29 +1075,57 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* ===== LOADING STATES ===== */
-.nav-button.loading {
-  pointer-events: none;
-  position: relative;
-  color: transparent;
+/* Validation error pulse animation */
+@keyframes pulse-error {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.01);
+  }
 }
 
-.nav-button.loading::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+/* Button loading spinner */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
-/* ===== THEME TRANSITIONS ===== */
+/* Error feedback red glow animation */
+@keyframes redGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* 
+=============================================================================
+                           13. THEME TRANSITIONS
+=============================================================================
+*/
+
+/* 🎨 SMOOTH THEME TRANSITIONS */
+/* Smooth transitions for theme changes */
 * {
   transition: background-color 0.3s ease, border-color 0.3s ease,
     color 0.3s ease;
 }
+
+/* 
+=============================================================================
+                              END OF FILE
+=============================================================================
+*/
