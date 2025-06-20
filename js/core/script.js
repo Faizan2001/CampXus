@@ -2822,17 +2822,26 @@ function setupAuthenticationCallbacks() {
           window.location.href = "pages/profile-setup.html";
         }
       } else {
-        // Profile is complete, continue to main dashboard
-        console.log("✅ Profile complete, loading dashboard...");
-        // The app will continue loading normally
+        // Profile is complete, navigate to main schedule screen
+        console.log(
+          "✅ Profile complete, navigating to home/schedule screen..."
+        );
+        if (window.spaRouter) {
+          window.spaRouter.navigateTo("home");
+        } else {
+          // Fallback for non-SPA environments
+          window.location.href = "index.html";
+        }
       }
     } catch (error) {
       console.error("Error checking profile completion after sign-in:", error);
-      // On error, default to profile setup to be safe
+      // On error, navigate to home to avoid getting stuck in profile setup
+      // Users can manually navigate to profile setup if needed
+      console.log("⚠️ Error occurred, navigating to home for safety...");
       if (window.spaRouter) {
-        window.spaRouter.navigateTo("profile");
+        window.spaRouter.navigateTo("home");
       } else {
-        window.location.href = "pages/profile-setup.html";
+        window.location.href = "index.html";
       }
     }
   });
