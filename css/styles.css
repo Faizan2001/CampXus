@@ -369,16 +369,16 @@ body.page-friends .nav-link[data-spa-route="friends"] {
   .about-container {
     padding: 1rem;
   }
-  
+
   .page-title {
     font-size: 1.5rem;
   }
-  
+
   .developer-card {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .contact-buttons {
     flex-direction: column;
   }

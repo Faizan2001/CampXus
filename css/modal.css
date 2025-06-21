@@ -118,7 +118,11 @@
 }
 
 .modal-button.confirm {
-  background: linear-gradient(135deg, var(--success), var(--modal-confirm-bg-end));
+  background: linear-gradient(
+    135deg,
+    var(--success),
+    var(--modal-confirm-bg-end)
+  );
   color: var(--modal-confirm-text);
   border-color: var(--success);
 }

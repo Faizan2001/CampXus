@@ -482,8 +482,7 @@ body.page-profile .profile-setup-card.glass-card {
   bottom: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
-  background: linear-gradient(var(--error), var(--error))
-      padding-box,
+  background: linear-gradient(var(--error), var(--error)) padding-box,
     linear-gradient(
         45deg,
         transparent 30%,
@@ -508,8 +507,7 @@ body.page-profile .profile-setup-card.glass-card {
   bottom: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
-  background: linear-gradient(var(--success), var(--success))
-      padding-box,
+  background: linear-gradient(var(--success), var(--success)) padding-box,
     linear-gradient(
         45deg,
         transparent 30%,
@@ -557,8 +555,8 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: 50%; /* Perfect circle */
   background: var(--glass-bg);
   border: 3px solid var(--glass-border);
-  box-shadow: 0 4px 12px var(--avatar-shadow), 0 2px 6px var(--avatar-shadow-light),
-    inset 0 1px 0 var(--avatar-highlight);
+  box-shadow: 0 4px 12px var(--avatar-shadow),
+    0 2px 6px var(--avatar-shadow-light), inset 0 1px 0 var(--avatar-highlight);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -575,7 +573,8 @@ body.page-profile .profile-setup-card.glass-card {
   border-color: var(--accent-primary);
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 12px 30px var(--avatar-hover-shadow),
-    0 6px 16px var(--avatar-hover-shadow-light), 0 2px 8px var(--avatar-shadow-light),
+    0 6px 16px var(--avatar-hover-shadow-light),
+    0 2px 8px var(--avatar-shadow-light),
     inset 0 1px 0 var(--avatar-hover-highlight);
 }
 
@@ -667,8 +666,8 @@ body.page-profile .profile-setup-card.glass-card {
   border: 3px solid var(--glass-border);
   overflow: hidden;
   background: var(--glass-bg);
-  box-shadow: 0 8px 25px var(--avatar-shadow), 0 4px 12px var(--avatar-shadow-light),
-    inset 0 1px 0 var(--avatar-highlight);
+  box-shadow: 0 8px 25px var(--avatar-shadow),
+    0 4px 12px var(--avatar-shadow-light), inset 0 1px 0 var(--avatar-highlight);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
@@ -680,7 +679,8 @@ body.page-profile .profile-setup-card.glass-card {
   transform: scale(1.05);
   border-color: var(--accent-primary);
   box-shadow: 0 15px 40px var(--avatar-hover-shadow),
-    0 8px 20px var(--avatar-hover-shadow-light), 0 4px 12px var(--avatar-shadow-light),
+    0 8px 20px var(--avatar-hover-shadow-light),
+    0 4px 12px var(--avatar-shadow-light),
     inset 0 1px 0 var(--avatar-hover-highlight);
 }
 
@@ -1718,7 +1718,11 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .avatar-modal-button.confirm {
-  background: linear-gradient(135deg, var(--success), var(--modal-confirm-bg-end));
+  background: linear-gradient(
+    135deg,
+    var(--success),
+    var(--modal-confirm-bg-end)
+  );
   color: var(--modal-confirm-text);
   border-color: var(--success);
 }
@@ -1735,7 +1739,11 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .avatar-modal-button.confirm:hover {
-  background: linear-gradient(135deg, var(--avatar-modal-confirm-hover-bg-start), var(--success));
+  background: linear-gradient(
+    135deg,
+    var(--avatar-modal-confirm-hover-bg-start),
+    var(--success)
+  );
 }
 
 .avatar-modal-button.cancel:hover {
@@ -1903,11 +1911,13 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .gradient-swatch.active {
-  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow), 0 4px 12px var(--color-swatch-shadow);
+  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow),
+    0 4px 12px var(--color-swatch-shadow);
 }
 
 .dark-mode .gradient-swatch.active {
-  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow-dark), 0 4px 12px var(--color-swatch-shadow);
+  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow-dark),
+    0 4px 12px var(--color-swatch-shadow);
 }
 
 /* --- Gradient Swatch Specific Styles --- */

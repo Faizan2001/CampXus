@@ -148,7 +148,8 @@
 .theme-toggle:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 3px;
-  box-shadow: 0 0 0 3px var(--theme-toggle-focus-shadow), 0 4px 20px var(--shadow-glow) !important;
+  box-shadow: 0 0 0 3px var(--theme-toggle-focus-shadow),
+    0 4px 20px var(--shadow-glow) !important;
 }
 
 /* Theme toggle states */
