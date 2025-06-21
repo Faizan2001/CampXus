@@ -98,8 +98,10 @@ class AvatarManager {
    */
   generateAvatarUrl(config) {
     if (!config || !config.style || !config.seed) {
-      console.warn("⚠️ Invalid config passed to generateAvatarUrl, using fallback.");
-      config = this.generateDefaultAvatar('fallback-user');
+      console.warn(
+        "⚠️ Invalid config passed to generateAvatarUrl, using fallback."
+      );
+      config = this.generateDefaultAvatar("fallback-user");
     }
     const { style, seed, options = {} } = config;
     // NOTE: Using latest DiceBear version 8.x
@@ -159,7 +161,7 @@ class AvatarManager {
       <div id="avatar-editor-modal" class="avatar-modal-overlay">
         <div class="avatar-modal-content">
           <div class="avatar-modal-header">
-            <h2 class="avatar-modal-title">🎨 Choose Your Avatar</h2>
+            <h2 class="avatar-modal-title">Choose Your Avatar</h2>
             <button class="avatar-modal-close-btn" aria-label="Close modal"><i class="fas fa-times"></i></button>
           </div>
           <div class="avatar-modal-body">${this.createAvatarEditorHTML()}</div>
@@ -200,12 +202,18 @@ class AvatarManager {
   setupModalEventListeners() {
     const modal = document.getElementById("avatar-editor-modal");
     if (!modal) return;
-    modal.querySelector(".avatar-modal-close-btn").addEventListener("click", () => this.hideModal());
-    modal.querySelector(".avatar-modal-button.cancel").addEventListener("click", () => this.hideModal());
-    modal.querySelector(".avatar-modal-button.confirm").addEventListener("click", () => {
-      this.handleSaveAvatar();
-      this.hideModal();
-    });
+    modal
+      .querySelector(".avatar-modal-close-btn")
+      .addEventListener("click", () => this.hideModal());
+    modal
+      .querySelector(".avatar-modal-button.cancel")
+      .addEventListener("click", () => this.hideModal());
+    modal
+      .querySelector(".avatar-modal-button.confirm")
+      .addEventListener("click", () => {
+        this.handleSaveAvatar();
+        this.hideModal();
+      });
     modal.addEventListener("click", (e) => {
       if (e.target === modal) this.hideModal();
     });
@@ -216,22 +224,39 @@ class AvatarManager {
     return `
       <div class="avatar-editor-container">
         <div class="avatar-editor-content">
+          <!-- 🎨 Fixed Preview Section (stays visible on mobile) -->
           <div class="avatar-preview-section">
             <div class="avatar-preview-container">
               <img id="avatar-preview" class="avatar-preview-image" src="" alt="Avatar Preview" />
             </div>
             <p class="avatar-preview-label">Your Avatar Preview</p>
-          </div>
-          <div class="avatar-controls-section">
-            <div class="control-group">
-              <label for="avatar-style-select" class="control-label"><i class="fas fa-palette"></i> Avatar Style</label>
-              <select id="avatar-style-select" class="control-select">${this.generateStyleOptions()}</select>
-              <p id="style-description" class="style-description"></p>
+            
+            <!-- 🎲 Move randomize button to preview section for better mobile access -->
+            <div class="preview-controls">
+              <button id="randomize-avatar" class="button secondary randomize-btn">
+                <i class="fas fa-dice"></i> Randomize
+              </button>
             </div>
-            <hr class="control-divider">
-            <div id="avatar-options-container" class="avatar-options-container"></div>
-            <div class="randomize-section">
-              <button id="randomize-avatar" class="button secondary randomize-btn"><i class="fas fa-dice"></i> Randomize</button>
+          </div>
+          
+          <!-- 🎛️ Scrollable Controls Section -->
+          <div class="avatar-controls-section">
+            <div class="controls-content">
+              <div class="control-group">
+                <label for="avatar-style-select" class="control-label">
+                  <i class="fas fa-palette"></i> Avatar Style
+                </label>
+                <select id="avatar-style-select" class="control-select">${this.generateStyleOptions()}</select>
+                <p id="style-description" class="style-description"></p>
+              </div>
+              
+              <hr class="control-divider">
+              
+              <!-- 📱 Compact options container with better mobile layout -->
+              <div class="customization-header">
+                <h4>Customize Your Avatar</h4>
+              </div>
+              <div id="avatar-options-container" class="avatar-options-container"></div>
             </div>
           </div>
         </div>
@@ -257,24 +282,29 @@ class AvatarManager {
   }
 
   setupAvatarEditorEventListeners() {
-    document.getElementById("avatar-style-select")?.addEventListener("change", (e) => {
-      console.log("🎨 Style changed to:", e.target.value);
-      this.currentConfig.style = e.target.value;
-      this.currentConfig.options = {};
-      this.updateStyleDescription();
-      this.populateStyleOptions(e.target.value);
-      this.updateAvatarPreview();
-    });
-    document.getElementById("randomize-avatar")?.addEventListener("click", () => {
-      console.log("🎲 Randomizing avatar...");
-      this.randomizeAvatar();
-    });
+    document
+      .getElementById("avatar-style-select")
+      ?.addEventListener("change", (e) => {
+        console.log("🎨 Style changed to:", e.target.value);
+        this.currentConfig.style = e.target.value;
+        this.currentConfig.options = {};
+        this.updateStyleDescription();
+        this.populateStyleOptions(e.target.value);
+        this.updateAvatarPreview();
+      });
+    document
+      .getElementById("randomize-avatar")
+      ?.addEventListener("click", () => {
+        console.log("🎲 Randomizing avatar...");
+        this.randomizeAvatar();
+      });
   }
 
   updateStyleDescription() {
     const descElement = document.getElementById("style-description");
     const styleInfo = this.avatarStyles[this.currentConfig.style];
-    if (descElement && styleInfo) descElement.textContent = styleInfo.description;
+    if (descElement && styleInfo)
+      descElement.textContent = styleInfo.description;
   }
 
   /**
@@ -287,29 +317,41 @@ class AvatarManager {
 
     const styleInfo = this.avatarStyles[style];
     if (!styleInfo || Object.keys(styleInfo.options).length === 0) {
-      container.innerHTML = '<p class="no-options">No customization options available.</p>';
+      container.innerHTML =
+        '<p class="no-options">No customization options available.</p>';
       return;
     }
 
-    const optionsHTML = Object.entries(styleInfo.options).map(([key, values]) => {
-      // *** BUG FIX START: Check for 'backgroundColor' and render swatches ***
-      if (key === 'backgroundColor') {
-        return this.createColorSwatchesHTML(key, values);
-      }
-      // *** BUG FIX END ***
-      
-      // Render standard dropdown for other options
-      const currentValue = this.currentConfig.options[key] || "";
-      const selectOptions = values.map(val => `<option value="${val}" ${val === currentValue ? "selected" : ""}>${this.formatOptionValue(val)}</option>`).join("");
-      return `
+    const optionsHTML = Object.entries(styleInfo.options)
+      .map(([key, values]) => {
+        // *** BUG FIX START: Check for 'backgroundColor' and render swatches ***
+        if (key === "backgroundColor") {
+          return this.createColorSwatchesHTML(key, values);
+        }
+        // *** BUG FIX END ***
+
+        // Render standard dropdown for other options
+        const currentValue = this.currentConfig.options[key] || "";
+        const selectOptions = values
+          .map(
+            (val) =>
+              `<option value="${val}" ${
+                val === currentValue ? "selected" : ""
+              }>${this.formatOptionValue(val)}</option>`
+          )
+          .join("");
+        return `
         <div class="option-group">
-          <label for="option-${key}" class="option-label">${this.formatOptionName(key)}</label>
+          <label for="option-${key}" class="option-label">${this.formatOptionName(
+          key
+        )}</label>
           <select id="option-${key}" class="option-select" data-option="${key}">
             <option value="">Default</option>${selectOptions}
           </select>
         </div>
       `;
-    }).join("");
+      })
+      .join("");
 
     container.innerHTML = optionsHTML;
     this.addOptionEventListeners(container);
@@ -322,15 +364,19 @@ class AvatarManager {
    */
   createColorSwatchesHTML(key, colors) {
     const currentValue = this.currentConfig.options[key] || "";
-    const swatches = colors.map(color => `
+    const swatches = colors
+      .map(
+        (color) => `
       <button 
-        class="color-swatch-btn ${color === currentValue ? 'active' : ''}" 
+        class="color-swatch-btn ${color === currentValue ? "active" : ""}" 
         data-option="${key}" 
         data-value="${color}"
         aria-label="Color ${color}"
         style="background-color: #${color};">
       </button>
-    `).join('');
+    `
+      )
+      .join("");
     return `
       <div class="option-group">
         <label class="option-label">${this.formatOptionName(key)}</label>
@@ -343,8 +389,8 @@ class AvatarManager {
    * NEW: Add event listeners to all generated options (both selects and swatches).
    */
   addOptionEventListeners(container) {
-    container.querySelectorAll(".option-select").forEach(select => {
-      select.addEventListener("change", e => {
+    container.querySelectorAll(".option-select").forEach((select) => {
+      select.addEventListener("change", (e) => {
         const key = e.target.dataset.option;
         const value = e.target.value;
         if (value) this.currentConfig.options[key] = value;
@@ -353,25 +399,32 @@ class AvatarManager {
       });
     });
 
-    container.querySelectorAll(".color-swatch-btn").forEach(button => {
-      button.addEventListener("click", e => {
+    container.querySelectorAll(".color-swatch-btn").forEach((button) => {
+      button.addEventListener("click", (e) => {
         const key = e.currentTarget.dataset.option;
         const value = e.currentTarget.dataset.value;
         this.currentConfig.options[key] = value;
         // Update active state visual
-        container.querySelectorAll(`[data-option="${key}"]`).forEach(btn => btn.classList.remove('active'));
-        e.currentTarget.classList.add('active');
+        container
+          .querySelectorAll(`[data-option="${key}"]`)
+          .forEach((btn) => btn.classList.remove("active"));
+        e.currentTarget.classList.add("active");
         this.updateAvatarPreview();
       });
     });
   }
 
   formatOptionName(name) {
-    return name.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
+    return name
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase());
   }
 
   formatOptionValue(value) {
-    return value.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase()).replace(/variant0?(\d+)/i, "Style $1");
+    return value
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .replace(/variant0?(\d+)/i, "Style $1");
   }
 
   updateAvatarPreview() {
@@ -386,7 +439,8 @@ class AvatarManager {
     this.currentConfig.options = {}; // Clear previous options
     Object.entries(styleInfo.options).forEach(([key, values]) => {
       if (values.length > 0) {
-        this.currentConfig.options[key] = values[Math.floor(Math.random() * values.length)];
+        this.currentConfig.options[key] =
+          values[Math.floor(Math.random() * values.length)];
       }
     });
     this.populateStyleOptions(this.currentConfig.style);
@@ -400,16 +454,27 @@ class AvatarManager {
   }
 
   getAvatarUrl(userConfig, fallbackUserId = "default") {
-    const config = (userConfig && this.isValidAvatarConfig(userConfig)) ? userConfig : this.generateDefaultAvatar(fallbackUserId);
+    const config =
+      userConfig && this.isValidAvatarConfig(userConfig)
+        ? userConfig
+        : this.generateDefaultAvatar(fallbackUserId);
     return this.generateAvatarUrl(config);
   }
 
   isValidAvatarConfig(config) {
-    return config && typeof config === 'object' && config.style && this.avatarStyles[config.style] && config.seed;
+    return (
+      config &&
+      typeof config === "object" &&
+      config.style &&
+      this.avatarStyles[config.style] &&
+      config.seed
+    );
   }
 }
 
 // Global instance to be used by other scripts
 window.avatarManager = new AvatarManager();
-console.log("🎨 Avatar Manager loaded globally and available at window.avatarManager");
+console.log(
+  "🎨 Avatar Manager loaded globally and available at window.avatarManager"
+);
 export default window.avatarManager;

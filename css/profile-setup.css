@@ -157,7 +157,7 @@ body.page-profile .profile-setup-card.glass-card {
   align-items: center;
   justify-content: center;
   gap: var(--space-lg);
-  margin-bottom: var(--space-xl);
+
   padding: var(--space-md) 0;
 }
 
@@ -561,7 +561,9 @@ body.page-profile .profile-setup-card.glass-card {
   height: 120px;
   border-radius: 50%; /* Perfect circle */
   background: var(--glass-bg);
-  border: 2px solid var(--glass-border);
+  border: 3px solid var(--glass-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -570,12 +572,37 @@ body.page-profile .profile-setup-card.glass-card {
   overflow: hidden;
   transition: all 0.3s var(--animation-smooth);
   position: relative;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .avatar-preview-display:hover {
-  border-color: var(--primary, #3b82f6);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+  border-color: var(--accent-primary);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.25),
+    0 6px 16px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* 🖼️ AVATAR IMAGE STYLING */
+.avatar-preview-display img,
+.avatar-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+/* Subtle hover effect for avatar images */
+.avatar-preview-display:hover img,
+.avatar-preview-container:hover .avatar-preview-image {
+  transform: scale(1.02);
+}
+
+/* Add a subtle inner glow when image is loaded */
+.avatar-preview-display img {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 /* Avatar edit button styling */
@@ -599,56 +626,167 @@ body.page-profile .profile-setup-card.glass-card {
                          AVATAR EDITOR MODAL STYLES
 ============================================================================= */
 
-/* Main container for avatar editor */
+/* 🎨 AVATAR EDITOR - UNIFIED GLASS CONTAINER */
 .avatar-editor-container {
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .avatar-editor-content {
+  flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  align-items: start;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
 }
 
-/* Avatar preview section in modal */
+/* 🎨 AVATAR PREVIEW SECTION - UNIFIED GLASSMORPHISM */
 .avatar-preview-section {
-  text-align: center;
-  padding: 1.5rem;
-  background: var(--glass-bg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--glass-border);
+  padding: 2rem;
+  background: transparent;
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .avatar-preview-container {
-  margin-bottom: 1rem;
-}
-
-.avatar-preview-image {
   width: 150px;
   height: 150px;
   border-radius: 50%;
   border: 3px solid var(--glass-border);
-  background: white;
-  display: block;
-  margin: 0 auto;
+  overflow: hidden;
+  background: var(--glass-bg);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  margin-bottom: 1rem;
+}
+
+.avatar-preview-container:hover {
+  transform: scale(1.05);
+  border-color: var(--accent-primary);
+  box-shadow: 0 15px 40px rgba(139, 92, 246, 0.2),
+    0 8px 20px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.avatar-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* 🎨 AVATAR IMAGE STYLING */
+.avatar-preview-display img,
+.avatar-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+/* Subtle hover effect for avatar images */
+.avatar-preview-display:hover img,
+.avatar-preview-container:hover .avatar-preview-image {
+  transform: scale(1.02);
+}
+
+/* Add a subtle inner glow when image is loaded */
+.avatar-preview-display img {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .avatar-preview-label {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+  text-align: center;
 }
 
-/* Avatar controls section */
+/* 🎲 PREVIEW CONTROLS */
+.preview-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.randomize-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.randomize-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 🎛️ AVATAR CONTROLS SECTION - SCROLLABLE */
 .avatar-controls-section {
-  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flexbox */
+  height: 100%; /* Ensure full height within grid */
 }
 
+.controls-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2rem;
+  padding-right: 1rem; /* Account for scrollbar */
+  background: transparent; /* Let parent glassmorphism show through */
+  /* Add smooth scrolling */
+  scroll-behavior: smooth;
+  /* Better scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit scrollbar styling for better appearance */
+.controls-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.controls-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.controls-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.controls-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* 🎯 CONTROL GROUPS */
 .control-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .control-label {
@@ -657,129 +795,197 @@ body.page-profile .profile-setup-card.glass-card {
   gap: 0.5rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.control-label i {
+  color: var(--accent-primary);
+  font-size: 1.1rem;
 }
 
 .control-select {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  background: var(--surface, white);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
   color: var(--text-primary);
-  font-size: 0.9rem;
-  transition: all 0.3s var(--animation-smooth);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  padding-right: 3rem;
 }
 
 .control-select:focus {
   outline: none;
-  border-color: var(--primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .style-description {
-  font-size: 0.85rem;
-  color: var(--text-tertiary);
-  margin: 0.5rem 0 0 0;
+  margin: 0.75rem 0 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
   font-style: italic;
 }
 
 .control-divider {
   border: none;
   height: 1px;
-  background: var(--glass-border);
-  margin: 1.5rem 0;
+  background: var(--border);
+  margin: 2rem 0;
 }
 
-/* Avatar options container */
+/* 📝 CUSTOMIZATION HEADER */
+.customization-header {
+  margin-bottom: 1.5rem;
+}
+
+.customization-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 🎨 AVATAR OPTIONS CONTAINER */
 .avatar-options-container {
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .option-group {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .option-label {
-  display: block;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 0.4rem;
-  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
 }
 
 .option-select {
   width: 100%;
-  padding: 0.6rem;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  background: var(--surface, white);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
   color: var(--text-primary);
-  font-size: 0.85rem;
-  transition: all 0.3s var(--animation-smooth);
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
 }
 
 .option-select:focus {
   outline: none;
-  border-color: var(--primary, #3b82f6);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .no-options {
-  color: var(--text-tertiary);
-  font-style: italic;
   text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
   padding: 2rem;
   margin: 0;
 }
 
-/* Randomize section */
-.randomize-section {
-  margin-top: 1.5rem;
-  text-align: center;
-}
-
-.randomize-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--primary, #3b82f6);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s var(--animation-smooth);
-}
-
-.randomize-btn:hover {
-  background: var(--primary-dark, #2563eb);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-/* Responsive design for avatar editor */
+/* 📱 MOBILE RESPONSIVE DESIGN */
 @media (max-width: 768px) {
+  /* 📱 MOBILE: STACK PREVIEW AND CONTROLS */
   .avatar-editor-content {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    grid-template-rows: auto 1fr;
   }
 
+  /* 📱 MOBILE: COMPACT STICKY PREVIEW - Enhanced Glassmorphism */
   .avatar-preview-section {
-    order: 1;
+    padding: 1.5rem 1rem 1rem 1rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background: transparent;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
 
+  .avatar-preview-container {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 0;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+
+  .avatar-preview-label {
+    margin: 0;
+    font-size: 0.9rem;
+    text-align: left;
+    flex: 1;
+  }
+
+  .preview-controls {
+    flex-direction: row;
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .randomize-btn {
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* 📱 MOBILE: SCROLLABLE CONTROLS */
   .avatar-controls-section {
-    order: 2;
+    flex: 1;
+    min-height: 0; /* Important for mobile scrolling */
   }
 
-  .avatar-preview-image {
-    width: 120px;
-    height: 120px;
+  .controls-content {
+    padding: 1.5rem 1rem;
+    padding-bottom: 2rem;
+    /* Ensure scrolling works on mobile */
+    height: 100%;
+    max-height: none;
+  }
+
+  .control-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .control-divider {
+    margin: 1.5rem 0;
+  }
+}
+
+/* 📱 EXTRA SMALL MOBILE */
+@media (max-width: 480px) {
+  .avatar-preview-section {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .avatar-preview-container {
+    width: 80px;
+    height: 80px;
+    margin-right: 0;
+  }
+
+  .controls-content {
+    padding: 1rem;
   }
 }
 
@@ -894,7 +1100,6 @@ body.page-profile .profile-setup-card.glass-card {
   padding-top: var(--space-xl);
   padding-bottom: var(--space-md);
   border-top: 1px solid var(--glass-border); /* Visual separator */
-  margin-top: var(--space-xl);
 }
 
 /* 🔘 BUTTON GROUP */
@@ -1285,6 +1490,16 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
+/* 🎨 GLASSMORPHISM ANIMATION */
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* 
 =============================================================================
                            13. THEME TRANSITIONS
@@ -1304,7 +1519,7 @@ body.page-profile .profile-setup-card.glass-card {
 =============================================================================
 */
 
-/* 🎨 AVATAR MODAL OVERLAY */
+/* 🎨 AVATAR MODAL OVERLAY - Enhanced Glassmorphism */
 .avatar-modal-overlay {
   position: fixed;
   top: 0;
@@ -1313,6 +1528,7 @@ body.page-profile .profile-setup-card.glass-card {
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1327,35 +1543,77 @@ body.page-profile .profile-setup-card.glass-card {
   visibility: visible;
 }
 
-/* 🎨 AVATAR MODAL CONTENT */
+/* 🎨 AVATAR MODAL CONTENT - Using Glass Card System */
 .avatar-modal-content {
   max-width: 800px;
   width: 90%;
   max-height: 90vh;
-  background: var(--depth-surface);
-  border: 1px solid var(--border);
-  border-radius: 1.5rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 32px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: scale(0.7) translateY(50px);
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Add the rotating glassmorphism effect like glass-card */
+.avatar-modal-content::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+}
+
+.avatar-modal-content::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.03) 60deg,
+    transparent 120deg,
+    rgba(255, 255, 255, 0.03) 180deg,
+    transparent 240deg,
+    rgba(255, 255, 255, 0.03) 300deg,
+    transparent 360deg
+  );
+  animation: rotate 20s linear infinite;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .avatar-modal-overlay.active .avatar-modal-content {
   transform: scale(1) translateY(0);
 }
 
-/* 🎨 AVATAR MODAL HEADER */
+/* 🎨 AVATAR MODAL HEADER - Unified Glass Effect */
 .avatar-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 2rem 2rem 1rem 2rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-alpha);
+  border-bottom: 1px solid var(--glass-border);
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .avatar-modal-title {
@@ -1375,32 +1633,42 @@ body.page-profile .profile-setup-card.glass-card {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   color: var(--text-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .avatar-modal-close-btn:hover {
   background: var(--danger);
   color: white;
-  transform: scale(1.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* 🎨 AVATAR MODAL BODY */
+/* 🎨 AVATAR MODAL BODY - Unified Glass Effect */
 .avatar-modal-body {
   flex: 1;
-  overflow-y: auto;
-  padding: 2rem;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
-/* 🎨 AVATAR MODAL FOOTER */
+/* 🎨 AVATAR MODAL FOOTER - Unified Glass Effect */
 .avatar-modal-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 1rem;
   padding: 1rem 2rem 2rem 2rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-alpha);
+  border-top: 1px solid var(--glass-border);
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .avatar-modal-button {
@@ -1539,32 +1807,31 @@ body.page-profile .profile-setup-card.glass-card {
   background: rgba(30, 30, 30, 0.95);
 }
 
-
-
 /* ==========================================================================
-   Avatar Editor - Color Swatches
+   Avatar Editor - Color Swatches (Updated for Mobile-Optimized Layout)
    ========================================================================== */
 
 /* The container for all the color swatches */
 .color-swatch-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px; /* Spacing between swatches */
-  padding-top: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
+  gap: 0.75rem;
+  padding: 0.5rem 0;
 }
 
 /* The individual color swatch button */
 .color-swatch-btn {
-  /* --- Core Sizing and Shape --- */
-  width: 28px;
-  height: 28px;
-  border-radius: 50%; /* Make them circular */
-  border: 2px solid transparent; /* Start with a transparent border */
-  padding: 0;
+  width: 45px;
+  height: 45px;
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  flex-shrink: 0;
-  
+  transition: all 0.3s ease;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+
   /* --- CRITICAL FIX: Resetting conflicting styles --- */
   /* This ensures the inline background-color from JS is always applied */
   background-image: none !important; /* Remove any background images like arrows */
@@ -1578,25 +1845,53 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* --- Hover state for interactivity --- */
 .color-swatch-btn:hover {
-  transform: scale(1.1);
-  border-color: rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: var(--text-secondary);
 }
 
 /* --- Active/Selected state --- */
 /* This style is applied to the currently chosen color swatch */
 .color-swatch-btn.active {
-  border-color: #007bff; /* A strong, visible color for the selected border */
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #007bff; /* Creates a nice "glow" effect */
+  border-color: var(--accent-primary);
+  border-width: 3px;
   transform: scale(1.1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
 /* Dark mode adjustments for better visibility */
 .dark-mode .color-swatch-btn.active {
-    border-color: #4dabf7;
-    box-shadow: 0 0 0 2px #2d3748, 0 0 0 4px #4dabf7;
+  border-color: #4dabf7;
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.2);
 }
 
 /* --- Focus state for accessibility (keyboard navigation) --- */
 .color-swatch-btn:focus-visible {
-  outline: 2px solid #007bff;
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* 📱 MOBILE RESPONSIVE COLOR SWATCHES */
+@media (max-width: 768px) {
+  .color-swatch-container {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+  }
+
+  .color-swatch-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* 📱 EXTRA SMALL MOBILE */
+@media (max-width: 480px) {
+  .color-swatch-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .color-swatch-btn {
+    width: 35px;
+    height: 35px;
+  }
 }
