@@ -651,7 +651,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* 🎨 AVATAR PREVIEW SECTION - COMPACT LAYOUT */
 .avatar-preview-section {
-  padding: 1.5rem;
+  padding: 1rem;
   background: transparent;
   border-right: 1px solid var(--glass-border);
   display: flex;
@@ -946,7 +946,7 @@ body.page-profile .profile-setup-card.glass-card {
 
   /* 📱 MOBILE: CENTERED VERTICAL PREVIEW LAYOUT */
   .avatar-preview-section {
-    padding: 2rem 1rem;
+    padding: 0.1rem 0.5rem;
     border-right: none;
     border-bottom: 1px solid var(--glass-border);
     display: flex !important;
@@ -1020,7 +1020,7 @@ body.page-profile .profile-setup-card.glass-card {
 /* 📱 EXTRA SMALL MOBILE */
 @media (max-width: 480px) {
   .avatar-preview-section {
-    padding: 1rem;
+    padding: 0.5rem;
     flex-wrap: wrap;
     gap: 1rem;
   }
@@ -1175,7 +1175,6 @@ body.page-profile .profile-setup-card.glass-card {
   text-decoration: none;
   min-width: 120px;
   height: auto;
-  white-space: nowrap;
 }
 
 /* 🟣 PRIMARY BUTTON */
@@ -1883,10 +1882,9 @@ body.page-profile .profile-setup-card.glass-card {
 
   /* --- CRITICAL FIX: Resetting conflicting styles --- */
   /* This ensures the inline background-color from JS is always applied */
-  background-image: none !important; /* Remove any background images like arrows */
+  /* Note: We don't use !important on background-image to allow gradients */
   font-size: 0; /* Hides any text or weird characters inside */
   line-height: 0; /* Further ensures no content is visible */
-  color: transparent; /* Hides text color */
 
   /* This is just for a nice visual effect on hover */
   outline-offset: 3px;
@@ -1908,53 +1906,96 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
-/* Dark mode adjustments for better visibility */
-.dark-mode .color-swatch-btn.active {
-  border-color: #4dabf7;
-  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.2);
+/* Dark mode adjustments for gradient swatches */
+.dark-mode .gradient-swatch::before {
+  background: linear-gradient(
+    45deg,
+    transparent 25%,
+    rgba(0, 0, 0, 0.2) 25%,
+    rgba(0, 0, 0, 0.2) 50%,
+    transparent 50%,
+    transparent 75%,
+    rgba(0, 0, 0, 0.2) 75%
+  );
 }
 
-/* --- Focus state for accessibility (keyboard navigation) --- */
-.color-swatch-btn:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+.dark-mode .solid-swatch::after {
+  border-color: rgba(0, 0, 0, 0.3);
 }
 
-/* 📱 MOBILE RESPONSIVE COLOR SWATCHES */
-@media (max-width: 768px) {
-  .color-swatch-container {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.5rem;
-  }
-
-  .color-swatch-btn {
-    width: 40px;
-    height: 40px;
-  }
+/* Enhanced hover effects for gradient swatches */
+.gradient-swatch:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
-/* 📱 EXTRA SMALL MOBILE */
-@media (max-width: 480px) {
-  .color-swatch-container {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.gradient-swatch.active {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
 
-  .color-swatch-btn {
-    width: 35px;
-    height: 35px;
-  }
+.dark-mode .gradient-swatch.active {
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
 
-  /* 📱 EXTRA SMALL MOBILE: SMALLER AVATAR */
-  .avatar-preview-container {
-    width: 120px !important;
-    height: 120px !important;
-  }
+/* --- Gradient Swatch Specific Styles --- */
+.gradient-swatch {
+  position: relative;
+  /* Add a subtle pattern overlay to make gradients more visible */
+}
 
-  .avatar-preview-section {
-    padding: 1.5rem 1rem !important;
-  }
+.gradient-swatch::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.1) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 50%,
+    transparent 75%,
+    rgba(255, 255, 255, 0.1) 75%
+  );
+  background-size: 8px 8px;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.3;
+}
 
-  .controls-content {
-    padding: 1rem !important;
-  }
+.gradient-indicator {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  font-weight: bold;
+  line-height: 1;
+  z-index: 2;
+}
+
+.gradient-swatch:hover .gradient-indicator {
+  color: rgba(255, 255, 255, 1);
+}
+
+/* Solid color swatches get a subtle border highlight */
+.solid-swatch {
+  border-style: solid;
+  /* Only solid swatches should reset background-image */
+  background-image: none !important;
+}
+
+.solid-swatch::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
 }

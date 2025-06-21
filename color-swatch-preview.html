@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Avatar Color Swatches Preview</title>
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/profile-setup.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 2rem;
+        background: var(--bg-primary, #f8f9fa);
+        color: var(--text-primary, #333);
+      }
+      .preview-section {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: var(--bg-secondary, white);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        margin-bottom: 1rem;
+        color: var(--accent-primary, #6366f1);
+      }
+      .test-container {
+        max-width: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎨 Avatar Color Swatches Preview</h1>
+
+    <div class="preview-section">
+      <h2>Background Colors with Gradients</h2>
+      <div class="test-container">
+        <div class="option-group">
+          <label class="option-label">Background Color</label>
+          <div class="color-swatch-container">
+            <!-- Solid colors -->
+            <button
+              class="color-swatch-btn solid-swatch"
+              style="background-color: #b6e3f4"
+              title="Solid Blue"
+            ></button>
+            <button
+              class="color-swatch-btn solid-swatch"
+              style="background-color: #c0aede"
+              title="Solid Purple"
+            ></button>
+            <button
+              class="color-swatch-btn solid-swatch"
+              style="background-color: #ffd93d"
+              title="Solid Yellow"
+            ></button>
+            <button
+              class="color-swatch-btn solid-swatch"
+              style="background-color: #ffdfbf"
+              title="Solid Peach"
+            ></button>
+            <button
+              class="color-swatch-btn solid-swatch"
+              style="background-color: #d1d4f9"
+              title="Solid Lavender"
+            ></button>
+
+            <!-- Gradient colors -->
+            <button
+              class="color-swatch-btn gradient-swatch"
+              style="background: linear-gradient(135deg, #b6e3f4, #c0aede)"
+              title="Blue to Purple Gradient"
+            >
+              <span class="gradient-indicator">▲</span>
+            </button>
+            <button
+              class="color-swatch-btn gradient-swatch"
+              style="background: linear-gradient(135deg, #ffd93d, #ffdfbf)"
+              title="Yellow to Peach Gradient"
+            >
+              <span class="gradient-indicator">▲</span>
+            </button>
+            <button
+              class="color-swatch-btn gradient-swatch"
+              style="background: linear-gradient(135deg, #d1d4f9, #b6e3f4)"
+              title="Lavender to Blue Gradient"
+            >
+              <span class="gradient-indicator">▲</span>
+            </button>
+            <button
+              class="color-swatch-btn gradient-swatch"
+              style="background: linear-gradient(135deg, #c0aede, #ffd93d)"
+              title="Purple to Yellow Gradient"
+            >
+              <span class="gradient-indicator">▲</span>
+            </button>
+            <button
+              class="color-swatch-btn gradient-swatch active"
+              style="background: linear-gradient(135deg, #ffdfbf, #d1d4f9)"
+              title="Peach to Lavender Gradient"
+            >
+              <span class="gradient-indicator">▲</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <h2>How it works:</h2>
+      <ul>
+        <li>
+          ✨ <strong>Solid colors</strong> display as regular color swatches
+        </li>
+        <li>
+          🌈 <strong>Gradient colors</strong> show the actual gradient with a
+          "▲" indicator
+        </li>
+        <li>🎯 <strong>Active selection</strong> gets a highlighted border</li>
+        <li>
+          📱 <strong>Mobile responsive</strong> with touch-friendly sizing
+        </li>
+      </ul>
+    </div>
+
+    <script>
+      // Add some interactivity for demo
+      document.querySelectorAll(".color-swatch-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          document
+            .querySelectorAll(".color-swatch-btn")
+            .forEach((b) => b.classList.remove("active"));
+          this.classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>
