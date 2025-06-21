@@ -6,7 +6,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--modal-overlay-bg);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -30,7 +30,7 @@
   border: 1px solid var(--border);
   border-radius: 1.5rem;
   padding: 2rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px var(--modal-shadow);
   backdrop-filter: blur(20px);
   transform: scale(0.7) translateY(50px);
   transition: transform 0.3s ease;
@@ -118,8 +118,8 @@
 }
 
 .modal-button.confirm {
-  background: linear-gradient(135deg, var(--success), #38a169);
-  color: white;
+  background: linear-gradient(135deg, var(--success), var(--modal-confirm-bg-end));
+  color: var(--modal-confirm-text);
   border-color: var(--success);
 }
 
@@ -171,7 +171,7 @@
 .modal-input:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px var(--modal-input-focus-shadow);
   background: var(--surface-hover);
 }
 
@@ -279,7 +279,7 @@
 .add-user-form-content .modal-input:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px var(--modal-input-focus-shadow);
   background: var(--surface-hover);
 }
 
@@ -346,7 +346,7 @@
 
 /* Dark mode specific adjustments */
 .dark-mode .modal-overlay {
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--modal-overlay-dark);
 }
 
 /* Mobile responsive */

@@ -118,7 +118,7 @@ This file contains all animation and transition styles:
   width: 0;
   height: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--btn-ripple-bg);
   transform: translate(-50%, -50%);
   transition: width 0.6s, height 0.6s;
 }
@@ -174,7 +174,7 @@ This file contains all animation and transition styles:
   }
   50% {
     box-shadow: 0 0 20px var(--accent-primary),
-      0 0 30px rgba(102, 126, 234, 0.3);
+      0 0 30px var(--animation-glow-shadow-secondary);
   }
   100% {
     box-shadow: 0 0 5px var(--accent-primary);
@@ -193,9 +193,9 @@ This file contains all animation and transition styles:
   }
   50% {
     box-shadow: 0 0 20px var(--accent-secondary),
-      0 0 30px rgba(138, 43, 226, 0.3);
+      0 0 30px var(--animation-glow-shadow-tertiary);
     border: 1px solid var(--accent-secondary);
-    background-color: rgba(168, 85, 247, 0.1);
+    background-color: var(--animation-glow-bg);
   }
   100% {
     box-shadow: 0 0 5px var(--accent-secondary);

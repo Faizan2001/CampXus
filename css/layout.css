@@ -151,7 +151,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.1),
+    var(--nav-link-highlight),
     transparent
   );
   transition: left 0.5s ease;
@@ -225,7 +225,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 .nav-button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  box-shadow: var(--focus-ring);
 }
 
 /* Mobile-specific timed illumination system */
@@ -769,7 +769,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 .user-menu-trigger:focus {
   outline: none;
   background: var(--surface-hover);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  box-shadow: var(--focus-ring);
 }
 
 /* User avatar icon with enhanced styling */
@@ -916,12 +916,12 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 /* Sign out button specific styling */
 .dropdown-item#signOutBtn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: var(--signout-hover-bg);
+  color: var(--error-red);
 }
 
 .dropdown-item#signOutBtn:hover i {
-  color: #ef4444;
+  color: var(--error-red);
 }
 
 /* ===== LOGIN BUTTON STYLING ===== */
@@ -946,25 +946,24 @@ This file contains all layout-related styles for the MeetchuThere app:
     var(--accent-secondary)
   );
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-accent-light);
   text-decoration: none;
 }
 
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  box-shadow: var(--shadow-accent-strong);
   color: white;
 }
 
 .login-btn:active {
   transform: translateY(0);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-accent-light);
 }
 
 .login-btn:focus {
   outline: none;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6),
-    0 0 0 3px rgba(102, 126, 234, 0.2);
+  box-shadow: var(--shadow-accent-strong), var(--focus-ring);
 }
 
 /* Add ripple effect for login button */
@@ -976,7 +975,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   width: 0;
   height: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--dropdown-overlay);
   transform: translate(-50%, -50%);
   transition: width 0.3s ease, height 0.3s ease;
 }
@@ -1324,7 +1323,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--dark-overlay-light);
     z-index: -1;
     backdrop-filter: blur(2px);
   }
@@ -1414,7 +1413,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--dark-overlay-subtle);
     z-index: -1;
     backdrop-filter: blur(3px);
     animation: fadeIn 0.3s ease forwards;
@@ -1533,7 +1532,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 /* Hover effects for avatar trigger */
 .user-menu-trigger:hover .user-avatar-trigger {
   transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  box-shadow: var(--glow-accent-medium);
   background: linear-gradient(
     135deg,
     var(--accent-secondary),
@@ -1631,7 +1630,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 /* Dynamic icon and text based on theme */
 .dark-mode #darkModeToggle.dropdown-item i {
-  color: #fbbf24; /* Warm sun color */
+  color: var(--warning-gold); /* Warm sun color */
 }
 
 .light-mode #darkModeToggle.dropdown-item i {

@@ -196,7 +196,7 @@ body.page-profile .profile-setup-card.glass-card {
   transition: all 0.4s var(--animation-smooth);
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle depth */
+  box-shadow: var(--shadow-inset-subtle); /* Subtle depth */
 }
 
 /* ⚡ ACTIVE STEP BLOCK */
@@ -208,8 +208,8 @@ body.page-profile .profile-setup-card.glass-card {
     var(--accent-secondary)
   );
   border: 2px solid var(--accent-primary);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px var(--step-block-active-shadow),
+    inset 0 1px 0 var(--step-block-active-inset-shadow);
 }
 
 /* ✅ COMPLETED STEP BLOCK */
@@ -217,8 +217,8 @@ body.page-profile .profile-setup-card.glass-card {
 .step-block.completed {
   background: var(--accent-primary);
   border: 2px solid var(--accent-primary);
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 10px var(--step-block-completed-shadow),
+    inset 0 1px 0 var(--step-block-completed-inset-shadow);
 }
 
 /* ✨ SHIMMER ANIMATION */
@@ -230,12 +230,7 @@ body.page-profile .profile-setup-card.glass-card {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: var(--step-block-shimmer);
   animation: shimmer 2s infinite;
 }
 
@@ -333,7 +328,7 @@ body.page-profile .profile-setup-card.glass-card {
 .form-label[for*="required"]::after,
 .form-input[required] + .form-label::after {
   content: " *";
-  color: var(--error, #ef4444);
+  color: var(--error);
   font-weight: 600;
 }
 
@@ -380,8 +375,8 @@ body.page-profile .profile-setup-card.glass-card {
 .form-input:focus {
   outline: none;
   border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1),
-    0 4px 15px rgba(139, 92, 246, 0.2) !important;
+  box-shadow: 0 0 0 3px var(--form-input-focus-shadow),
+    0 4px 15px var(--form-input-focus-shadow-strong) !important;
   background: var(--glass-hover) !important;
   transform: translateY(-1px);
 }
@@ -487,13 +482,13 @@ body.page-profile .profile-setup-card.glass-card {
   bottom: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
-  background: linear-gradient(var(--error, #ef4444), var(--error, #ef4444))
+  background: linear-gradient(var(--error), var(--error))
       padding-box,
     linear-gradient(
         45deg,
         transparent 30%,
-        var(--error, #ef4444) 30%,
-        var(--error, #ef4444) 70%,
+        var(--error) 30%,
+        var(--error) 70%,
         transparent 70%
       )
       border-box;
@@ -513,13 +508,13 @@ body.page-profile .profile-setup-card.glass-card {
   bottom: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
-  background: linear-gradient(var(--success, #10b981), var(--success, #10b981))
+  background: linear-gradient(var(--success), var(--success))
       padding-box,
     linear-gradient(
         45deg,
         transparent 30%,
-        var(--success, #10b981) 30%,
-        var(--success, #10b981) 70%,
+        var(--success) 30%,
+        var(--success) 70%,
         transparent 70%
       )
       border-box;
@@ -562,8 +557,8 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: 50%; /* Perfect circle */
   background: var(--glass-bg);
   border: 3px solid var(--glass-border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px var(--avatar-shadow), 0 2px 6px var(--avatar-shadow-light),
+    inset 0 1px 0 var(--avatar-highlight);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -579,9 +574,9 @@ body.page-profile .profile-setup-card.glass-card {
 .avatar-preview-display:hover {
   border-color: var(--accent-primary);
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.25),
-    0 6px 16px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 30px var(--avatar-hover-shadow),
+    0 6px 16px var(--avatar-hover-shadow-light), 0 2px 8px var(--avatar-shadow-light),
+    inset 0 1px 0 var(--avatar-hover-highlight);
 }
 
 /* 🖼️ AVATAR IMAGE STYLING */
@@ -602,7 +597,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* Add a subtle inner glow when image is loaded */
 .avatar-preview-display img {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px var(--avatar-highlight);
 }
 
 /* Avatar edit button styling */
@@ -619,7 +614,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 .avatar-edit-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--avatar-shadow);
 }
 
 /* =============================================================================
@@ -672,8 +667,8 @@ body.page-profile .profile-setup-card.glass-card {
   border: 3px solid var(--glass-border);
   overflow: hidden;
   background: var(--glass-bg);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 25px var(--avatar-shadow), 0 4px 12px var(--avatar-shadow-light),
+    inset 0 1px 0 var(--avatar-highlight);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
@@ -684,9 +679,9 @@ body.page-profile .profile-setup-card.glass-card {
 .avatar-preview-container:hover {
   transform: scale(1.05);
   border-color: var(--accent-primary);
-  box-shadow: 0 15px 40px rgba(139, 92, 246, 0.2),
-    0 8px 20px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 15px 40px var(--avatar-hover-shadow),
+    0 8px 20px var(--avatar-hover-shadow-light), 0 4px 12px var(--avatar-shadow-light),
+    inset 0 1px 0 var(--avatar-hover-highlight);
 }
 
 .avatar-preview-image {
@@ -714,7 +709,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* Add a subtle inner glow when image is loaded */
 .avatar-preview-display img {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px var(--avatar-highlight);
 }
 
 .avatar-preview-label {
@@ -749,7 +744,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 .randomize-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--avatar-shadow);
 }
 
 /* 🎛️ AVATAR CONTROLS SECTION - FIXED HEIGHT WITH SCROLLABLE CONTENT */
@@ -772,7 +767,7 @@ body.page-profile .profile-setup-card.glass-card {
   scroll-behavior: smooth;
   /* Better scrollbar styling */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   /* Ensure content never exceeds available space */
   max-height: 100%;
   box-sizing: border-box;
@@ -787,11 +782,7 @@ body.page-profile .profile-setup-card.glass-card {
   left: 0;
   right: 0;
   height: 20px;
-  background: linear-gradient(
-    to bottom,
-    var(--glass-bg) 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: var(--avatar-editor-scroll-indicator-bg);
   z-index: 2;
   pointer-events: none;
   margin-bottom: -20px;
@@ -804,11 +795,7 @@ body.page-profile .profile-setup-card.glass-card {
   left: 0;
   right: 0;
   height: 20px;
-  background: linear-gradient(
-    to top,
-    var(--glass-bg) 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: var(--avatar-editor-scroll-indicator-bg-bottom);
   z-index: 2;
   pointer-events: none;
   margin-top: -20px;
@@ -853,7 +840,7 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 1rem;
   transition: all 0.3s ease;
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-image: var(--control-select-arrow);
   background-position: right 0.75rem center;
   background-repeat: no-repeat;
   background-size: 1.25rem;
@@ -863,7 +850,7 @@ body.page-profile .profile-setup-card.glass-card {
 .control-select:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px var(--control-select-focus-shadow);
 }
 
 .style-description {
@@ -925,7 +912,7 @@ body.page-profile .profile-setup-card.glass-card {
 .option-select:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px var(--control-select-focus-shadow);
 }
 
 .no-options {
@@ -1186,12 +1173,12 @@ body.page-profile .profile-setup-card.glass-card {
     var(--accent-secondary)
   );
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-accent-light);
 }
 
 .button.btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  box-shadow: var(--shadow-accent-strong);
   background: linear-gradient(
     135deg,
     var(--accent-secondary),
@@ -1205,14 +1192,14 @@ body.page-profile .profile-setup-card.glass-card {
   background: var(--surface);
   color: var(--text-primary);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--button-secondary-shadow);
 }
 
 .button.secondary:hover {
   background: var(--surface-hover);
   border-color: var(--accent-primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 15px var(--button-secondary-hover-shadow);
 }
 
 /* 🔇 MUTED BUTTON */
@@ -1318,8 +1305,8 @@ body.page-profile .profile-setup-card.glass-card {
   transform: translate(-50%, -50%);
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  border: 2px solid var(--loading-spinner-border);
+  border-top: 2px solid var(--loading-spinner-border-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1525,13 +1512,13 @@ body.page-profile .profile-setup-card.glass-card {
 /* Error feedback red glow animation */
 @keyframes redGlow {
   0% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    box-shadow: 0 0 0 0 var(--red-glow-start);
   }
   50% {
-    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 0 15px var(--red-glow-mid);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 0 var(--red-glow-end);
   }
 }
 
@@ -1571,7 +1558,7 @@ body.page-profile .profile-setup-card.glass-card {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--modal-overlay-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px); /* Safari support */
   display: flex;
@@ -1581,11 +1568,6 @@ body.page-profile .profile-setup-card.glass-card {
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
-}
-
-.avatar-modal-overlay.active {
-  opacity: 1;
-  visibility: visible;
 }
 
 /* 🎨 AVATAR MODAL CONTENT - Using Glass Card System with Fixed HEIGHT */
@@ -1600,7 +1582,7 @@ body.page-profile .profile-setup-card.glass-card {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   border-radius: 1.5rem;
-  box-shadow: 0 8px 32px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px var(--shadow), var(--shadow-inset-glass);
   transform: scale(0.7) translateY(50px);
   transition: all 0.3s ease;
   overflow: hidden;
@@ -1620,7 +1602,7 @@ body.page-profile .profile-setup-card.glass-card {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.3),
+    var(--glass-highlight),
     transparent
   );
 }
@@ -1635,11 +1617,11 @@ body.page-profile .profile-setup-card.glass-card {
   background: conic-gradient(
     from 0deg at 50% 50%,
     transparent 0deg,
-    rgba(255, 255, 255, 0.03) 60deg,
+    var(--glass-highlight-faint) 60deg,
     transparent 120deg,
-    rgba(255, 255, 255, 0.03) 180deg,
+    var(--glass-highlight-faint) 180deg,
     transparent 240deg,
-    rgba(255, 255, 255, 0.03) 300deg,
+    var(--glass-highlight-faint) 300deg,
     transparent 360deg
   );
   animation: rotate 20s linear infinite;
@@ -1687,10 +1669,10 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .avatar-modal-close-btn:hover {
-  background: var(--danger);
-  color: white;
+  background: var(--error);
+  color: var(--avatar-modal-close-hover-text);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--avatar-shadow);
 }
 
 /* 🎨 AVATAR MODAL BODY - Unified Glass Effect */
@@ -1736,8 +1718,8 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .avatar-modal-button.confirm {
-  background: linear-gradient(135deg, var(--success), #38a169);
-  color: white;
+  background: linear-gradient(135deg, var(--success), var(--modal-confirm-bg-end));
+  color: var(--modal-confirm-text);
   border-color: var(--success);
 }
 
@@ -1749,11 +1731,11 @@ body.page-profile .profile-setup-card.glass-card {
 
 .avatar-modal-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--avatar-shadow);
 }
 
 .avatar-modal-button.confirm:hover {
-  background: linear-gradient(135deg, #38a169, var(--success));
+  background: linear-gradient(135deg, var(--avatar-modal-confirm-hover-bg-start), var(--success));
 }
 
 .avatar-modal-button.cancel:hover {
@@ -1800,7 +1782,7 @@ body.page-profile .profile-setup-card.glass-card {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--profile-loading-overlay-bg);
   backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
@@ -1852,7 +1834,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* Dark theme support */
 [data-theme="dark"] .profile-loading-overlay {
-  background: rgba(30, 30, 30, 0.95);
+  background: var(--profile-loading-overlay-bg-dark);
 }
 
 /* ==========================================================================
@@ -1893,7 +1875,7 @@ body.page-profile .profile-setup-card.glass-card {
 /* --- Hover state for interactivity --- */
 .color-swatch-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px var(--color-swatch-shadow);
   border-color: var(--text-secondary);
 }
 
@@ -1903,37 +1885,29 @@ body.page-profile .profile-setup-card.glass-card {
   border-color: var(--accent-primary);
   border-width: 3px;
   transform: scale(1.1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px var(--color-swatch-active-shadow);
 }
 
 /* Dark mode adjustments for gradient swatches */
 .dark-mode .gradient-swatch::before {
-  background: linear-gradient(
-    45deg,
-    transparent 25%,
-    rgba(0, 0, 0, 0.2) 25%,
-    rgba(0, 0, 0, 0.2) 50%,
-    transparent 50%,
-    transparent 75%,
-    rgba(0, 0, 0, 0.2) 75%
-  );
+  background: var(--gradient-swatch-dark-pattern);
 }
 
 .dark-mode .solid-swatch::after {
-  border-color: rgba(0, 0, 0, 0.3);
+  border-color: var(--solid-swatch-dark-border);
 }
 
 /* Enhanced hover effects for gradient swatches */
 .gradient-swatch:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 16px var(--gradient-swatch-hover-shadow);
 }
 
 .gradient-swatch.active {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow), 0 4px 12px var(--color-swatch-shadow);
 }
 
 .dark-mode .gradient-swatch.active {
-  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow-dark), 0 4px 12px var(--color-swatch-shadow);
 }
 
 /* --- Gradient Swatch Specific Styles --- */
@@ -1949,15 +1923,7 @@ body.page-profile .profile-setup-card.glass-card {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    45deg,
-    transparent 25%,
-    rgba(255, 255, 255, 0.1) 25%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 50%,
-    transparent 75%,
-    rgba(255, 255, 255, 0.1) 75%
-  );
+  background: var(--gradient-swatch-pattern);
   background-size: 8px 8px;
   pointer-events: none;
   border-radius: inherit;
@@ -1969,8 +1935,8 @@ body.page-profile .profile-setup-card.glass-card {
   top: 3px;
   right: 3px;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  color: var(--gradient-indicator-text);
+  text-shadow: 0 1px 3px var(--gradient-indicator-text-shadow);
   pointer-events: none;
   font-weight: bold;
   line-height: 1;
@@ -1978,7 +1944,7 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .gradient-swatch:hover .gradient-indicator {
-  color: rgba(255, 255, 255, 1);
+  color: var(--gradient-indicator-text-hover);
 }
 
 /* Solid color swatches get a subtle border highlight */
@@ -1996,6 +1962,6 @@ body.page-profile .profile-setup-card.glass-card {
   right: 0;
   bottom: 0;
   border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--solid-swatch-border);
   pointer-events: none;
 }

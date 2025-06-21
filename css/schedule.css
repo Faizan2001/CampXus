@@ -75,9 +75,9 @@ This file contains all styles related to the schedule display:
   justify-content: center;
 
   /* Default disabled state */
-  background: rgba(139, 69, 19, 0.3);
-  color: rgba(139, 69, 19, 0.6);
-  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.1);
+  background: var(--pin-btn-disabled-bg);
+  color: var(--pin-btn-disabled-color);
+  box-shadow: 0 2px 8px var(--pin-btn-disabled-shadow);
 }
 
 .pin-btn:disabled {
@@ -89,14 +89,14 @@ This file contains all styles related to the schedule display:
 .pin-btn:not(:disabled) {
   background: var(--button-off-red);
   color: white;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 4px 12px var(--pin-btn-enabled-shadow);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .pin-btn:not(:disabled):hover {
   background: var(--button-off-red-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(185, 28, 28, 0.4);
+  box-shadow: 0 6px 16px var(--pin-btn-hover-shadow);
 }
 
 .pin-btn:not(:disabled):active {
@@ -109,8 +109,8 @@ This file contains all styles related to the schedule display:
   /* Focus Accessibility */
   outline: 2px solid var(--accent-primary);
   outline-offset: 3px;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
-    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 0 3px var(--focus-outline-shadow),
+    0 8px 20px var(--focus-glow-shadow), 0 4px 8px var(--focus-general-shadow);
 }
 
 /* ===== ADD USER HEADER BUTTON ===== */
@@ -960,7 +960,7 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
 }
 
 .slot-free {
-  background: linear-gradient(135deg, var(--success), #38a169) !important;
+  background: linear-gradient(135deg, var(--success), var(--success-secondary)) !important;
   color: white !important;
   border-color: rgba(192, 192, 192, 0.9) !important;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--success) !important;

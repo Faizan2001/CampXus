@@ -43,8 +43,7 @@ Modern authentication modal that matches the CampXus design language with:
   backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.2));
   border-radius: var(--radius-lg, 1.5rem);
-  box-shadow: 0 20px 60px var(--shadow, rgba(0, 0, 0, 0.3)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px var(--shadow), var(--shadow-inset-glass);
   width: 100%;
   max-width: 420px;
   max-height: 90vh;
@@ -72,20 +71,15 @@ Modern authentication modal that matches the CampXus design language with:
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.3),
+    var(--glass-overlay-light),
     transparent
   );
 }
 
 /* Header with Modern CampXus Branding */
 .auth-header {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary, #8b5cf6) 0%,
-    var(--accent-secondary, #a855f7) 50%,
-    #667eea 100%
-  );
-  color: white;
+  background: var(--auth-header-gradient);
+  color: var(--auth-button-text);
   text-align: center;
   padding: 2rem;
   position: relative;
@@ -104,11 +98,11 @@ Modern authentication modal that matches the CampXus design language with:
   background: linear-gradient(
     45deg,
     transparent 25%,
-    rgba(255, 255, 255, 0.05) 25%,
-    rgba(255, 255, 255, 0.05) 50%,
+    var(--auth-header-pattern) 25%,
+    var(--auth-header-pattern) 50%,
     transparent 50%,
     transparent 75%,
-    rgba(255, 255, 255, 0.05) 75%
+    var(--auth-header-pattern) 75%
   );
   background-size: 20px 20px;
   animation: gradientShift 20s ease infinite;
@@ -119,14 +113,9 @@ Modern authentication modal that matches the CampXus design language with:
   font-size: 2rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 1),
-    rgba(255, 255, 255, 0.9),
-    rgba(240, 245, 255, 1)
-  );
+  background: var(--auth-logo-gradient);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  -webkit-text-fill-color: var(--auth-logo-text-fill);
   background-clip: text;
   position: relative;
   z-index: 2;
@@ -136,7 +125,7 @@ Modern authentication modal that matches the CampXus design language with:
   opacity: 0.95;
   font-size: 1rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--auth-subtitle-text);
   position: relative;
   z-index: 2;
 }
@@ -144,10 +133,10 @@ Modern authentication modal that matches the CampXus design language with:
 /* Tab Navigation - Neutral Glass Design */
 .auth-tabs {
   display: flex;
-  background: var(--surface, rgba(248, 250, 252, 0.8));
+  background: var(--auth-tabs-bg);
   margin: 0;
   border: none;
-  border-bottom: 1px solid var(--glass-border, rgba(203, 213, 225, 0.3));
+  border-bottom: 1px solid var(--auth-tabs-border);
   backdrop-filter: blur(10px);
 }
 
@@ -158,25 +147,21 @@ Modern authentication modal that matches the CampXus design language with:
   background: transparent;
   cursor: pointer;
   font-weight: 600;
-  color: var(--text-secondary, #64748b);
+  color: var(--auth-tab-text);
   transition: all 0.3s var(--animation-smooth, ease);
   position: relative;
 }
 
 .auth-tab:hover {
-  background: var(--surface-hover, rgba(139, 92, 246, 0.08));
-  color: var(--text-primary, #1e293b);
+  background: var(--auth-tab-hover-bg);
+  color: var(--auth-tab-text-hover);
 }
 
 .auth-tab.active {
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.12),
-    rgba(167, 85, 247, 0.08)
-  );
-  color: var(--accent-primary, #8b5cf6);
-  border-bottom: 3px solid var(--accent-primary, #8b5cf6);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: var(--auth-tab-active-bg);
+  color: var(--accent-primary);
+  border-bottom: 3px solid var(--auth-tab-active-border);
+  box-shadow: var(--shadow-inset-glass);
 }
 
 /* Form Container - Glass Background */
@@ -199,12 +184,12 @@ Modern authentication modal that matches the CampXus design language with:
 }
 
 .auth-body::-webkit-scrollbar-thumb {
-  background: var(--accent-primary, #8b5cf6);
+  background: var(--accent-primary);
   border-radius: 3px;
 }
 
 .auth-body::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary, #a855f7);
+  background: var(--accent-secondary);
 }
 
 .auth-form {
@@ -219,12 +204,8 @@ Modern authentication modal that matches the CampXus design language with:
 
 /* University Info Display - Balanced Color Design */
 .university-info {
-  background: linear-gradient(
-    135deg,
-    rgba(59, 130, 246, 0.08),
-    rgba(139, 92, 246, 0.05)
-  );
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: var(--auth-university-info-bg);
+  border: 1px solid var(--auth-university-info-border);
   border-radius: var(--radius-md, 0.75rem);
   padding: 1rem;
   margin-bottom: 1.5rem;
@@ -242,7 +223,7 @@ Modern authentication modal that matches the CampXus design language with:
   left: 0;
   width: 4px;
   height: 100%;
-  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  background: var(--auth-university-info-accent-bar);
   border-radius: 2px;
 }
 
@@ -252,13 +233,13 @@ Modern authentication modal that matches the CampXus design language with:
 
 .university-name {
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--auth-university-name-text);
   margin-bottom: 0.25rem;
   margin-left: 1rem;
 }
 
 .university-domain {
-  color: var(--text-secondary, #6b7280);
+  color: var(--auth-university-domain-text);
   font-size: 0.9rem;
   margin-left: 1rem;
 }
@@ -271,7 +252,7 @@ Modern authentication modal that matches the CampXus design language with:
 .form-label {
   display: block;
   font-weight: 600;
-  color: var(--text-primary, #374151);
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
@@ -279,10 +260,10 @@ Modern authentication modal that matches the CampXus design language with:
 .form-input {
   width: 100%;
   padding: 1rem 1.25rem;
-  background: var(--input-bg, rgba(255, 255, 255, 0.9));
-  border: 2px solid var(--input-border, rgba(203, 213, 225, 0.4));
+  background: var(--auth-input-bg);
+  border: 2px solid var(--auth-input-border);
   border-radius: var(--radius-md, 0.75rem);
-  color: var(--text-primary, #374151);
+  color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s var(--animation-smooth, ease);
   box-sizing: border-box;
@@ -291,32 +272,32 @@ Modern authentication modal that matches the CampXus design language with:
 
 .form-input:focus {
   outline: none;
-  border-color: var(--accent-primary, #8b5cf6);
-  box-shadow: 0 0 0 3px var(--input-focus-shadow, rgba(139, 92, 246, 0.1)),
-    0 4px 12px rgba(139, 92, 246, 0.15);
-  background: var(--glass-hover, rgba(255, 255, 255, 0.95));
+  border-color: var(--auth-input-focus-border);
+  box-shadow: 0 0 0 3px var(--auth-input-focus-shadow-color),
+    0 4px 12px var(--auth-input-focus-glow);
+  background: var(--auth-input-focus-bg);
   transform: translateY(-1px);
 }
 
 .form-input::placeholder {
-  color: var(--text-tertiary, #9ca3af);
+  color: var(--auth-input-placeholder);
 }
 
 .form-input.error {
-  border-color: #ef4444;
-  background: rgba(254, 242, 242, 0.8);
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: var(--auth-input-error-border);
+  background: var(--auth-input-error-bg);
+  box-shadow: 0 0 0 3px var(--auth-input-error-shadow);
 }
 
 .form-input.success {
-  border-color: #10b981;
-  background: rgba(240, 253, 244, 0.8);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  border-color: var(--auth-input-success-border);
+  background: var(--auth-input-success-bg);
+  box-shadow: 0 0 0 3px var(--auth-input-success-shadow);
 }
 
 /* Error and Success Messages - Glass Design */
 .form-error {
-  color: var(--error, #ef4444);
+  color: var(--auth-error-text);
   font-size: 0.8rem;
   margin-top: 0.5rem;
   display: none;
@@ -329,9 +310,9 @@ Modern authentication modal that matches the CampXus design language with:
 }
 
 .error-message {
-  background: var(--error-light, rgba(239, 68, 68, 0.1));
-  border: 1px solid var(--error, rgba(239, 68, 68, 0.3));
-  color: var(--error, #ef4444);
+  background: var(--auth-error-message-bg);
+  border: 1px solid var(--auth-error-message-border);
+  color: var(--auth-error-text);
   padding: 1rem;
   border-radius: var(--radius-md, 0.75rem);
   margin-bottom: 1rem;
@@ -341,9 +322,9 @@ Modern authentication modal that matches the CampXus design language with:
 }
 
 .success-message {
-  background: var(--success-light, rgba(16, 185, 129, 0.1));
-  border: 1px solid var(--success, rgba(16, 185, 129, 0.3));
-  color: var(--success, #10b981);
+  background: var(--auth-success-message-bg);
+  border: 1px solid var(--auth-success-message-border);
+  color: var(--success);
   padding: 1rem;
   border-radius: var(--radius-md, 0.75rem);
   margin-bottom: 1rem;
@@ -354,13 +335,8 @@ Modern authentication modal that matches the CampXus design language with:
 /* Submit Buttons - Sophisticated Gradient Design */
 .auth-button {
   width: 100%;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary, #8b5cf6) 0%,
-    var(--accent-secondary, #a855f7) 50%,
-    #667eea 100%
-  );
-  color: white;
+  background: var(--auth-button-gradient);
+  color: var(--auth-button-text);
   border: none;
   padding: 1rem 1.5rem;
   border-radius: var(--radius-md, 0.75rem);
@@ -370,8 +346,8 @@ Modern authentication modal that matches the CampXus design language with:
   transition: all 0.3s var(--animation-smooth, ease);
   position: relative;
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.25),
-    0 2px 8px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 4px 20px var(--auth-button-shadow-primary),
+    0 2px 8px var(--auth-button-shadow-secondary);
   overflow: hidden;
 }
 
@@ -383,25 +359,15 @@ Modern authentication modal that matches the CampXus design language with:
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: var(--auth-button-shimmer);
   transition: left 0.6s ease;
 }
 
 .auth-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.3),
-    0 4px 15px rgba(102, 126, 234, 0.2);
-  background: linear-gradient(
-    135deg,
-    var(--accent-secondary, #a855f7) 0%,
-    var(--accent-tertiary, #c084fc) 50%,
-    #7c3aed 100%
-  );
+  box-shadow: 0 8px 30px var(--auth-button-hover-shadow-primary),
+    0 4px 15px var(--auth-button-hover-shadow-secondary);
+  background: var(--auth-button-hover-gradient);
 }
 
 .auth-button:hover:not(:disabled)::before {
@@ -431,7 +397,7 @@ Modern authentication modal that matches the CampXus design language with:
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--auth-loading-dot-bg);
   animation: authDotBounce 1.4s infinite ease-in-out both;
 }
 
@@ -467,13 +433,13 @@ Modern authentication modal that matches the CampXus design language with:
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--auth-close-button-bg);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--auth-close-button-border);
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  color: white;
+  color: var(--auth-close-button-text);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -484,9 +450,9 @@ Modern authentication modal that matches the CampXus design language with:
 }
 
 .auth-close:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--auth-close-button-hover-bg);
   transform: scale(1.1);
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px var(--auth-close-button-hover-shadow);
 }
 
 .auth-close:active {
@@ -606,63 +572,55 @@ body:not(.light-mode) .auth-body {
 
 .dark-mode .auth-tabs,
 body:not(.light-mode) .auth-tabs {
-  background: var(--surface, rgba(30, 35, 47, 0.8));
-  border-color: var(--glass-border, rgba(255, 255, 255, 0.1));
+  background: var(--auth-tabs-bg);
+  border-color: var(--auth-tabs-border);
 }
 
 .dark-mode .auth-tab.active,
 body:not(.light-mode) .auth-tab.active {
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.2),
-    rgba(167, 85, 247, 0.15)
-  );
+  background: var(--auth-tab-active-bg);
 }
 
 .dark-mode .form-input,
 body:not(.light-mode) .form-input {
-  background: var(--input-bg, rgba(42, 45, 56, 0.9));
-  border-color: var(--input-border, rgba(255, 255, 255, 0.15));
-  color: var(--text-primary, #f0f2f5);
+  background: var(--auth-input-bg);
+  border-color: var(--auth-input-border);
+  color: var(--text-primary);
 }
 
 .dark-mode .form-input:focus,
 body:not(.light-mode) .form-input:focus {
-  background: var(--glass-hover, rgba(42, 45, 56, 0.95));
-  border-color: var(--accent-primary, #8b5cf6);
+  background: var(--auth-input-focus-bg);
+  border-color: var(--auth-input-focus-border);
 }
 
 .dark-mode .form-label,
 body:not(.light-mode) .form-label {
-  color: var(--text-primary, #f0f2f5);
+  color: var(--text-primary);
 }
 
 .dark-mode .university-info,
 body:not(.light-mode) .university-info {
-  background: linear-gradient(
-    135deg,
-    rgba(59, 130, 246, 0.15),
-    rgba(139, 92, 246, 0.1)
-  );
-  border-color: rgba(59, 130, 246, 0.3);
+  background: var(--auth-university-info-bg);
+  border-color: var(--auth-university-info-border);
 }
 
 .dark-mode .university-name,
 body:not(.light-mode) .university-name {
-  color: #60a5fa;
+  color: var(--auth-university-name-text);
 }
 
 /* Light Mode Specific Overrides */
 .light-mode .auth-container,
 body:not(.dark-mode) .auth-container {
   background: var(--glass-bg, rgba(255, 255, 255, 0.85));
-  border-color: var(--glass-border, rgba(192, 132, 252, 0.2));
+  border-color: var(--glass-border);
 }
 
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
   .auth-container {
-    border: 2px solid var(--accent-primary, #8b5cf6) !important;
+    border: var(--auth-high-contrast-border) !important;
   }
 
   .form-input {
@@ -670,7 +628,7 @@ body:not(.dark-mode) .auth-container {
   }
 
   .auth-button {
-    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+    border: var(--auth-high-contrast-button-border) !important;
   }
 }
 
