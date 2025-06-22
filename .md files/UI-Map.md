@@ -1,104 +1,264 @@
 # 🗺️ CampXus: UI Reference Map & Developer Guide
 
-**Version:** 3.0 (Modular Architecture with Advanced Features)
-**Last Updated:** December 2024
+**Version:** 4.0 (SPA + Firebase Architecture)  
+**Last Updated:** June 2025
 
-A comprehensive guide to DOM elements, their JavaScript interactions, and CSS styling in the CampXus scheduling application. This document reflects the current modular architecture with 9 CSS modules and 8 JavaScript modules, including advanced features like pin mode, glassmorphism design, and comprehensive testing.
+A comprehensive guide to the Single Page Application architecture, Firebase integration, DOM elements, and their interactions in CampXus. This document reflects the current **SPA + Firebase** architecture with authentication, profile management, and social features.
 
 ---
 
 ## 📌 Table of Contents
 
-1. [Global App State](#-global-app-state)
-2. [Modular Architecture Overview](#-modular-architecture-overview)
-3. [Key DOM Elements](#-key-dom-elements)
-4. [Navigation & Theme System](#-navigation--theme-system)
-5. [User Management & Selection](#-user-management--selection)
-6. [Schedule Grid & Time Slots](#-schedule-grid--time-slots)
-7. [Advanced Features](#-advanced-features)
-8. [Modals & Forms](#-modals--forms)
-9. [CSS Architecture & Styling System](#-css-architecture--styling-system)
-10. [Key User Workflows](#-key-user-workflows)
-11. [Testing Integration](#-testing-integration)
+1. [SPA Architecture Overview](#-spa-architecture-overview)
+2. [Firebase Integration Layer](#-firebase-integration-layer)
+3. [Authentication System](#-authentication-system)
+4. [Profile Management System](#-profile-management-system)
+5. [Schedule Management](#-schedule-management)
+6. [Key DOM Elements](#-key-dom-elements)
+7. [SPA Router & Navigation](#-spa-router--navigation)
+8. [CSS Architecture](#-css-architecture)
+9. [Testing Framework](#-testing-framework)
+10. [Development Workflows](#-development-workflows)
 
 ---
 
-## 🌎 Global App State
+## 🌐 SPA Architecture Overview
 
-Central data store managed in `js/script.js`:
+CampXus is built as a **Single Page Application** with Firebase backend integration:
 
-| Variable          | Type        | Description                                              |
-| ----------------- | ----------- | -------------------------------------------------------- |
-| `activeUserId`    | String/null | ID of currently selected user for editing                |
-| `users`           | Object      | Dictionary of user objects with schedules and time slots |
-| `selectedUserIds` | Set         | User IDs selected for comparison mode                    |
-| `compareMode`     | Boolean     | Toggle between edit and compare modes                    |
-| `pinModeActive`   | Boolean     | Lock editing to active user only                         |
+### Core Philosophy
+
+- **One Shell, Multiple Templates:** `index.html` serves as the app shell, templates are dynamically loaded
+- **Route-Based Navigation:** Custom SPA router handles navigation without page reloads
+- **Component Lifecycle:** Smart initialization and cleanup for each template
+- **State Persistence:** JavaScript objects persist across navigation, templates refresh
+
+### App State Management
+
+| State Object            | Location          | Purpose                             | Persistence   |
+| ----------------------- | ----------------- | ----------------------------------- | ------------- |
+| `activeUserId`          | `script.js`       | Currently selected user for editing | Memory        |
+| `users`                 | `script.js`       | Local schedule data dictionary      | LocalStorage  |
+| `selectedUserIds`       | `script.js`       | Users selected for comparison       | Memory        |
+| `compareMode`           | `script.js`       | Toggle between edit/compare modes   | Memory        |
+| `pinModeActive`         | `script.js`       | Lock editing to active user         | Memory        |
+| `currentUser`           | `auth-manager.js` | Firebase authenticated user         | Firebase Auth |
+| `spaRouter.currentPage` | `spa-router.js`   | Current route/template              | Memory        |
+
+---
+
+## 🔥 Firebase Integration Layer
+
+### Authentication Architecture
+
+| Component                | File                                    | Purpose                 | Key Methods                                            |
+| ------------------------ | --------------------------------------- | ----------------------- | ------------------------------------------------------ |
+| **AuthManager**          | `firebase/auth/auth-manager.js`         | Core auth controller    | `signIn()`, `signUp()`, `signOut()`                    |
+| **University Validator** | `firebase/auth/university-validator.js` | Email domain validation | `validateUniversityEmail()`, `getFriendlyEmailError()` |
+| **Firebase Config**      | `firebase/config/firebase-config.js`    | Environment-based setup | Auto-initialization with security validation           |
+
+### Firestore Data Structure
+
+```javascript
+// User Profile Document (users/{uid})
+{
+  uid: "firebase-user-id",
+  email: "student@iub.edu.bd",
+  university: "iub",
+  universityName: "Independent University, Bangladesh",
+  firstName: "John",
+  lastName: "Doe",
+  studentId: "1234567",
+  major: "Computer Science",
+  avatarConfig: { /* avatar settings */ },
+  profileSetupComplete: true,
+  createdAt: timestamp,
+  lastActive: timestamp
+}
+```
+
+### Security Rules
+
+- **University Email Only:** Authentication restricted to verified .edu domains
+- **User Data Protection:** Users can only read/write their own profile data
+- **Email Verification Required:** Unverified emails are automatically signed out
 
 ---
 
-## 🏗️ Modular Architecture Overview
+## 🔐 Authentication System
 
-CampXus follows a modular architecture with separation of concerns:
+### Modal-Based Authentication UI
 
-### JavaScript Modules (8 Core Modules)
+| Element             | Selector                         | Purpose                                | Event Listeners                  |
+| ------------------- | -------------------------------- | -------------------------------------- | -------------------------------- |
+| **Auth Modal**      | `#auth-modal`                    | Container for sign-in/sign-up forms    | Click outside to close           |
+| **Sign In Form**    | `#signin-form`                   | Email/password login                   | Form submission                  |
+| **Sign Up Form**    | `#signup-form`                   | Account creation with university email | Real-time validation             |
+| **Email Inputs**    | `#signin-email`, `#signup-email` | University email validation            | Input events for real-time check |
+| **University Info** | `#university-info`               | Shows detected university              | Auto-populated on valid email    |
 
-| Module                  | Purpose                                     | Dependencies           |
-| ----------------------- | ------------------------------------------- | ---------------------- |
-| `script.js`             | Main application logic and state management | All other modules      |
-| `domElements.js`        | DOM element caching and initialization      | None                   |
-| `modal.js`              | Modal system for dialogs and confirmations  | domElements            |
-| `menu.js`               | Navigation and theme management             | domElements            |
-| `timeUtils.js`          | Time parsing and validation utilities       | None                   |
-| `scheduleGeneration.js` | Schedule grid rendering and interactions    | domElements, timeUtils |
-| `userManagement.js`     | User creation, deletion, and selection      | domElements, modal     |
-| `storageManager.js`     | Data persistence and import/export          | None                   |
+### Authentication States
 
-### CSS Modules (9 Styling Modules)
+| State                  | UI Changes                 | Available Actions            |
+| ---------------------- | -------------------------- | ---------------------------- |
+| **Unauthenticated**    | Show "Join CampXus" button | Sign in, Sign up             |
+| **Authenticated**      | Show user menu with avatar | Profile, Schedule, Sign out  |
+| **Profile Incomplete** | Redirect to profile setup  | Complete profile, Skip setup |
+| **Profile Complete**   | Full app access            | All features unlocked        |
 
-| Module                        | Purpose                                       |
-| ----------------------------- | --------------------------------------------- |
-| `styles.css`                  | Base styles and design system foundation      |
-| `glassmorphism.css`           | Glassmorphism effects and visual aesthetics   |
-| `responsive-enhancements.css` | Mobile-first responsive design                |
-| `schedule-grid.css`           | Schedule table layout and interactions        |
-| `user-management.css`         | User list styling and selection states        |
-| `modal.css`                   | Modal dialogs and overlay system              |
-| `menu.css`                    | Navigation and theme toggle components        |
-| `animations.css`              | Transitions, hover effects, and interactions  |
-| `accessibility.css`           | Screen reader support and keyboard navigation |
+### Authentication Events
 
-### Testing Modules (3 Test Files)
+```javascript
+// Custom events dispatched by AuthManager
+document.addEventListener("profile:setup:complete", (event) => {
+  // User completed profile setup
+});
 
-| Test File           | Coverage                                    |
-| ------------------- | ------------------------------------------- |
-| `script.test.js`    | Core state management and utility functions |
-| `modal.test.js`     | Modal system functionality                  |
-| `timeUtils.test.js` | Time parsing and validation                 |
+document.addEventListener("profile:setup:skip", (event) => {
+  // User skipped profile setup
+});
+
+// SPA navigation integration
+authManager.onAuthStateChanged((user) => {
+  // Update UI based on auth state
+});
+```
+
+## 👤 Profile Management System
+
+### Multi-Step Profile Setup
+
+The profile setup uses a **wizard-style interface** with smart template detection:
+
+| Step                | Focus           | DOM Elements                                            | Validation                          |
+| ------------------- | --------------- | ------------------------------------------------------- | ----------------------------------- |
+| **Personal Info**   | Basic details   | `#setup-email`, `#setup-student-id`                     | University email, Student ID format |
+| **Profile Details** | Academic info   | `#setup-first-name`, `#setup-last-name`, `#setup-major` | Required fields                     |
+| **Avatar Creation** | Visual identity | Avatar builder canvas                                   | Color scheme selection              |
+| **Completion**      | Final review    | Summary display                                         | Complete profile validation         |
+
+### Profile Setup Architecture
+
+```javascript
+// ProfileSetup class lifecycle in SPA context
+class ProfileSetup {
+  // On first page load or direct navigation
+  async initializeSetup()
+
+  // When user navigates back to profile page
+  async reinitializeForFreshTemplate()
+
+  // Handle SPA navigation completion
+  navigateToHome() // Uses spaRouter.navigateTo() or fallback
+}
+```
+
+### SPA Integration Challenges & Solutions
+
+**The Template Refresh Problem:**
+
+- **Issue:** User navigates away and back - JavaScript instance persists but HTML template is fresh
+- **Detection:** Check if form fields are empty when they should be populated
+- **Solution:** `reinitializeForFreshTemplate()` method re-populates fields from cached data
+
+**Event Listeners:**
+
+```javascript
+// Listen for SPA navigation to profile page
+document.addEventListener("spa:navigation", (event) => {
+  if (event.detail.route === "profile") {
+    // Handle profile page initialization
+  }
+});
+```
 
 ---
+
+## 📅 Schedule Management
+
+### Schedule Grid System
+
+| Component          | Element          | Purpose                                 | Interactions                       |
+| ------------------ | ---------------- | --------------------------------------- | ---------------------------------- |
+| **Time Header**    | `.time-header`   | Display time slots (e.g., "9:00-10:30") | Click to select entire time period |
+| **Day Columns**    | `.day-column`    | Monday through Sunday schedule          | Drag selection across days         |
+| **Schedule Cells** | `.schedule-cell` | Individual time/day intersections       | Click to toggle, hover for tooltip |
+| **User Selector**  | `#userSelector`  | Choose active user for editing          | Change event updates UI state      |
+
+### Pin Mode System
+
+| State            | Visual Indicators          | Available Actions                     |
+| ---------------- | -------------------------- | ------------------------------------- |
+| **Pin Mode Off** | Normal schedule view       | Edit any user, compare multiple users |
+| **Pin Mode On**  | Locked icon, purple accent | Edit only pinned user, visual lock    |
+| **Active User**  | Purple-colored time slots  | Primary editing target                |
+
+### Schedule Comparison Engine
+
+```javascript
+// Color coding for multi-user comparison
+const conflictColors = {
+  available: "#10b981", // Green - everyone free
+  busy: "#ef4444", // Red - everyone busy
+  partial: "#f59e0b", // Orange - mixed availability
+  active: "#8b5cf6", // Purple - active user's slots
+};
+```
 
 ## 🔧 Key DOM Elements
 
-Cached in `js/domElements.js` for performance:
+### SPA Shell Structure (index.html)
 
-### User Management Elements
+| Element               | Selector         | Purpose                    | SPA Behavior                          |
+| --------------------- | ---------------- | -------------------------- | ------------------------------------- |
+| **App Container**     | `.app-container` | Main application wrapper   | Persistent across navigation          |
+| **Top Navigation**    | `.top-nav`       | Global navigation bar      | Always visible, updates active states |
+| **Main Content**      | `.main-content`  | Dynamic template container | Content swapped by SPA router         |
+| **Loading Indicator** | `.spa-loading`   | Navigation loading state   | Shown during template transitions     |
 
-| Element             | Selector                   | Purpose                       |
-| ------------------- | -------------------------- | ----------------------------- |
-| `userNameInput`     | `#userName`                | New user name input           |
-| `userIdInput`       | `#userId`                  | New user ID input             |
-| `userListContainer` | `#userList`                | Container for user list items |
-| `addUserButton`     | `.add-user-section button` | Add new user trigger          |
+### Navigation Elements
 
-### Schedule & Comparison Elements
+| Element           | Selector                     | Purpose                 | SPA Integration              |
+| ----------------- | ---------------------------- | ----------------------- | ---------------------------- |
+| **Logo**          | `[data-spa-route="home"]`    | Navigate to home        | SPA route attribute          |
+| **Schedule Link** | `[data-spa-route="home"]`    | Main schedule interface | SPA navigation               |
+| **Friends Link**  | `[data-spa-route="friends"]` | Social connections      | SPA navigation               |
+| **Profile Menu**  | `#userMenuTrigger`           | User account access     | Dropdown with profile link   |
+| **Theme Toggle**  | `.theme-toggle`              | Dark/light mode switch  | Persistent across navigation |
 
-| Element            | Selector            | Purpose                  |
-| ------------------ | ------------------- | ------------------------ |
-| `scheduleTable`    | `#scheduleTable`    | Main schedule grid       |
-| `compareButton`    | `#compare`          | Toggle compare mode      |
-| `togglePinModeBtn` | `#togglePinModeBtn` | Toggle pin mode          |
-| `slotTooltip`      | `#slotTooltip`      | Hover tooltips for slots |
+### Authentication Elements (Modal-based)
+
+| Element             | Selector                           | Purpose                        | Event Handling                   |
+| ------------------- | ---------------------------------- | ------------------------------ | -------------------------------- |
+| **Auth Modal**      | `#auth-modal`                      | Sign-in/sign-up container      | Overlay with backdrop blur       |
+| **Tab Buttons**     | `.auth-tab`                        | Switch between sign-in/sign-up | Click handler with active states |
+| **Email Fields**    | `#signin-email`, `#signup-email`   | University email input         | Real-time validation             |
+| **University Info** | `#university-info`                 | Shows detected university      | Auto-populated display           |
+| **Submit Buttons**  | `#signin-button`, `#signup-button` | Form submission                | Loading states with spinners     |
+
+### Schedule Interface Elements (Home Template)
+
+| Element             | Selector                   | Purpose                | Interactions                 |
+| ------------------- | -------------------------- | ---------------------- | ---------------------------- |
+| **User Selector**   | `#userSelector`            | Choose active user     | Dropdown with user list      |
+| **Add User Button** | `.add-user-section button` | Create new user        | Modal trigger                |
+| **Compare Button**  | `#compare`                 | Toggle comparison mode | Three-state button           |
+| **Pin Mode Button** | `#togglePinModeBtn`        | Lock editing to user   | Visual lock indicator        |
+| **Schedule Table**  | `#scheduleTable`           | Main grid interface    | Cell click/drag interactions |
+| **Time Headers**    | `.time-header`             | Time period labels     | Click to select column       |
+| **Schedule Cells**  | `.schedule-cell`           | Individual time slots  | Hover tooltips, click toggle |
+
+### Profile Setup Elements (Profile Template)
+
+| Element                | Selector                                | Purpose                | Validation                |
+| ---------------------- | --------------------------------------- | ---------------------- | ------------------------- |
+| **Email Input**        | `#setup-email`                          | University email       | Auto-filled from auth     |
+| **Student ID**         | `#setup-student-id`                     | University ID number   | Format validation         |
+| **Name Fields**        | `#setup-first-name`, `#setup-last-name` | Personal info          | Required field validation |
+| **Major Select**       | `#setup-major`                          | Academic program       | Dropdown selection        |
+| **Avatar Builder**     | `.avatar-builder`                       | Custom avatar creation | Interactive color picker  |
+| **Step Indicators**    | `.step-indicator`                       | Wizard progress        | Visual progress tracking  |
+| **Navigation Buttons** | `#setup-next-btn`, `#setup-prev-btn`    | Wizard navigation      | Step validation           |
 
 ### Modal System Elements
 
@@ -370,125 +530,103 @@ CampXus includes comprehensive Jest-based testing with 90%+ code coverage:
 
 ---
 
-## 🔄 Key User Workflows
+## 🔄 Development Workflows
 
-### Basic Operations
+### SPA Component Development
 
-1. **Add User**: Input name/ID → Click "Add User" → User appears in list with default schedule
-2. **Edit Schedule**: Select user → Click schedule slots to toggle availability (green/red)
-3. **Delete User**: Click red delete button → Confirm deletion in modal dialog
+**Adding a New Page:**
 
-### Advanced Schedule Management
+1. Create template in `templates/your-page.html`
+2. Add route configuration to `spa-router.js`
+3. Add navigation link with `data-spa-route="your-page"`
+4. Create component initialization in `js/core/your-page.js`
+5. Listen for `spa:navigation` events for setup/cleanup
 
-4. **Custom Time Slots**:
-   - Click "+" button in header → Enter start/end times → Validate format → Add to schedule
-   - Click existing time headers → Edit start/end times → Update all users' schedules
-5. **Pin Mode Workflow**:
-   - Select active user → Enable pin mode → Click "+" on free slots to pin
-   - Pinned slots show pin icon → Click pin icon to unpin
-   - Pin mode focuses editing on selected user only
+**Authentication Integration:**
 
-### Comparison & Analysis
+```javascript
+// Check auth state in your component
+document.addEventListener("spa:navigation", (event) => {
+  if (event.detail.route === "protected-page") {
+    if (!window.authManager?.getCurrentUser()) {
+      // Redirect to auth or show auth modal
+      window.authManager?.showAuthModal();
+    }
+  }
+});
+```
 
-6. **Compare Schedules**:
-   - Enable compare mode → Select multiple users from list
-   - View color-coded overlaps → Hover for detailed tooltips
-   - Identify conflicts (red) and partial overlaps (orange)
-7. **Import/Export Data**:
-   - Export: Select user → Click export → Copy JSON to clipboard
-   - Import: Paste JSON data → Validate format → Merge into application
+### Firebase Integration Workflow
 
-### UI & Theme Management
+**Environment Setup:**
 
-8. **Theme Toggle**: Switch between dark/light modes with automatic persistence
-9. **Responsive Navigation**: Mobile hamburger menu → Desktop persistent navigation
-10. **Keyboard Navigation**: Tab through elements → Enter to activate → Escape to close modals
+1. Create `.env.local` with Firebase config
+2. Run `npm run dev:config` to generate browser config
+3. Use `npm run dev:serve` for secure development
 
-### Error Handling Workflows
+**Authentication Flow:**
 
-- **Validation Errors**: Invalid time formats show inline error messages
-- **Conflict Detection**: Overlapping time slots highlighted in comparison mode
-- **Data Recovery**: LocalStorage backup prevents data loss on refresh
-- **Modal Confirmations**: Critical actions (delete user) require confirmation
+1. User signs up with university email
+2. Email verification required (auto-handled)
+3. Profile setup wizard guides user through onboarding
+4. Full app access granted after profile completion
 
----
+### CSS Development Patterns
 
-## 🧠 JavaScript Functions Reference
+**Adding New Styles:**
 
-### Core State Management (`js/script.js`)
+- Add to appropriate module (e.g., `components.css` for UI elements)
+- Use CSS custom properties for themeable values
+- Follow BEM naming convention for classes
+- Test in both light and dark themes
 
-| Function                 | Purpose                                | Parameters                        |
-| ------------------------ | -------------------------------------- | --------------------------------- |
-| `getState()`             | Returns current app state              | None                              |
-| `createUserObject()`     | Creates new user with default schedule | name, userId, currentUsers        |
-| `deleteUserFromState()`  | Removes user from state                | userId, currentState              |
-| `toggleSlotInSchedule()` | Toggles slot availability              | dayIndex, timeIndex, userSchedule |
+**Responsive Design:**
 
-### UI Rendering Functions (`js/scheduleGeneration.js`)
+- Mobile-first approach with `min-width` media queries
+- Use modern CSS features (grid, flexbox, container queries)
+- Test across different device sizes
 
-| Function                | Purpose                                 | Parameters                        |
-| ----------------------- | --------------------------------------- | --------------------------------- |
-| `updateUI()`            | Re-renders entire interface             | None                              |
-| `renderScheduleGrid()`  | Renders schedule table                  | None                              |
-| `renderUserList()`      | Renders user list with selection states | None                              |
-| `determineSlotStatus()` | Calculates slot color/state             | dayIndex, timeIndex, currentState |
+### Testing Workflow
 
-### User Management (`js/userManagement.js`)
+**Before Committing:**
 
-| Function                      | Purpose                        | Trigger               |
-| ----------------------------- | ------------------------------ | --------------------- |
-| `handleAddNewUser()`          | Creates new user               | Add User button click |
-| `handleDeleteUser()`          | Removes user with confirmation | Delete button click   |
-| `handleToggleCompareMode()`   | Switches comparison mode       | Compare button click  |
-| `handleTogglePinMode()`       | Toggles pin mode               | Pin Mode button click |
-| `handleTimeSlotHeaderClick()` | Opens time slot editor         | Time header click     |
+```bash
+npm test                    # Run all tests
+npm run dev:check          # Validate environment
+npm run dev:serve          # Test in browser
+```
 
-### Time Slot Management (`js/timeUtils.js`)
+**Writing Tests:**
 
-| Function                          | Purpose                               | Parameters            |
-| --------------------------------- | ------------------------------------- | --------------------- |
-| `handleAddNewTimeSlotClick()`     | Opens add time slot modal             | None                  |
-| `addCustomTimeSlotToActiveUser()` | Adds new time period                  | startTime, endTime    |
-| `openEditTimeSlotModal()`         | Opens edit modal for existing slot    | slotIndex, userObject |
-| `processTimeSlotEdit()`           | Validates and saves time slot changes | slotIndex, userObject |
-
-### Modal System (`js/modal.js`)
-
-| Function      | Purpose                       | Parameters                            |
-| ------------- | ----------------------------- | ------------------------------------- |
-| `showModal()` | Displays modal with content   | {title, content, onConfirm, onCancel} |
-| `hideModal()` | Closes currently open modal   | None                                  |
-| `initModal()` | Sets up modal event listeners | domElements                           |
-
-### Utility Functions (`js/timeUtils.js`)
-
-| Function              | Purpose                            | Parameters   |
-| --------------------- | ---------------------------------- | ------------ |
-| `parseTime()`         | Converts time string to 24h format | timeString   |
-| `isValidTimeFormat()` | Validates time format              | timeString   |
-| `isTimeBefore()`      | Compares two time strings          | time1, time2 |
-| `convertToHHMM()`     | Standardizes time format           | timeString   |
-
-### Storage Management (`js/storageManager.js`)
-
-| Function                 | Purpose                             | Parameters |
-| ------------------------ | ----------------------------------- | ---------- |
-| `loadStateFromStorage()` | Loads saved data from localStorage  | None       |
-| `saveStateToStorage()`   | Saves current state to localStorage | state      |
-| `exportUserData()`       | Exports user data as JSON           | userId     |
-| `importUserData()`       | Imports JSON data into app          | jsonData   |
+- Test user interactions and core functionality
+- Mock Firebase for authentication tests
+- Use descriptive test names and clear assertions
+- Aim for 90%+ code coverage
 
 ---
 
-_This comprehensive map covers all essential UI components, interactions, and implementation details in the current modular architecture. Each module serves a specific purpose and works together to create a cohesive, maintainable, and well-tested application._
+## 📚 Learning Resources & References
 
-## 📚 Additional Resources
+### For Beginners
 
-- **Architecture Guide**: See the modular structure with 9 CSS and 8 JavaScript modules
-- **Testing Patterns**: Review `js/*.test.js` files for comprehensive unit test examples
-- **Responsive Design**: Check `css/responsive-enhancements.css` for mobile-first optimizations
-- **Theme System**: Examine `js/menu.js` for advanced dark/light mode implementation
-- **Modal Components**: Study `css/modal.css` for glassmorphism modal styling
-- **Accessibility**: Reference `css/accessibility.css` for inclusive design patterns
-- **Performance**: Review `js/domElements.js` for efficient DOM caching strategies
-- **State Management**: Analyze `js/script.js` for centralized state handling patterns
+- **SPA Concepts:** [SPA-All-that-you-need.md](../SPA-All-that-you-need.md)
+- **Phase-by-Phase Learning:** Check `/Phases/` directory
+- **Adding New Pages:** [HOW-TO-ADD-NEW-PAGES.md](./HOW-TO-ADD-NEW-PAGES.md)
+
+### For Advanced Developers
+
+- **Architecture Patterns:** Study the modular JavaScript structure
+- **Firebase Integration:** Review authentication and database patterns
+- **Testing Strategies:** Examine comprehensive Jest test suites
+- **Performance Optimization:** Learn from DOM caching and state management
+
+### Quick Reference
+
+- **Router API:** `window.spaRouter.navigateTo(route)`
+- **Auth API:** `window.authManager.getCurrentUser()`
+- **Theme API:** `document.documentElement.setAttribute('data-theme', 'dark')`
+- **Modal API:** `window.showModal({title, message, onConfirm})`
+
+---
+
+_This comprehensive UI reference map serves as your complete guide to understanding and extending the CampXus SPA architecture. Each component is designed to work together seamlessly while maintaining clear separation of concerns._

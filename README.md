@@ -1,202 +1,194 @@
-# 📅 CampXus - University Schedule Sync ✨
+# 📅 CampXus - University Schedule & Social Platform ✨
 
-A sleek, web-based scheduling assistant designed to help university students effortlessly coordinate their academic lives. Add your class schedule, compare availability with friends in real-time, and find those perfect meet-up slots.
+A modern, Firebase-powered scheduling platform that helps university students manage schedules, connect with classmates, and coordinate study sessions. Built with cutting-edge web technologies and designed for the university experience.
 
 ---
 
 ## 🚀 Core Features
 
-- **📅 Personal Schedules:** Easily input and manage your weekly class blocks with custom time slots
-- **⏰ Dynamic Time Management:** Add, edit, and customize time periods with validation (e.g., "10:00-11:30")
-- **📌 Advanced Pin Mode:** Focus on editing a single user's schedule with visual lock and pin indicators
-- **🔄 Real-Time Comparison:** Select multiple users and instantly see overlaps with intelligent conflict detection
-  - 🟢 **Green:** Everyone's available (perfect meeting time)
-  - 🔴 **Red:** Full conflict zone (everyone's busy)
-  - 🟠 **Orange:** Partial overlap (some available, some busy)
-  - 🟣 **Purple:** Active user's selected time slots
-- **🎛️ Smart UI Controls:** Three-state buttons with clear Disabled/Off/On visual feedback
-- **🎨 Modern Design System:** Glassmorphism effects with smooth dark/light theme transitions
-- **📤📥 Data Portability:** Complete import/export functionality via JSON with data validation
-- **📱 Responsive Excellence:** Optimized for desktop, tablet, and mobile with modern CSS features
-- **💾 Persistent Storage:** LocalStorage with automatic data migration and backup recovery
-- **🧪 Comprehensive Testing:** Jest-powered unit tests ensuring reliability and code quality
-- **♿ Accessibility Ready:** Keyboard navigation, focus management, and reduced motion support
+### 🎓 **Authentication & University Integration**
+
+- **🏫 University Email Validation:** Exclusive access for verified university students
+- **🔐 Firebase Authentication:** Secure sign-up/sign-in with email verification
+- **👤 Smart Profile Setup:** Multi-step guided profile creation with avatar customization
+
+### 📅 **Advanced Schedule Management**
+
+- **⏰ Dynamic Time Slots:** Create, edit, and manage custom time periods with validation
+- **📌 Pin Mode:** Focus editing on specific users with visual lock indicators
+- **🔄 Real-Time Comparison:** Multi-user schedule overlap detection with color-coded conflicts
+  - 🟢 **Available:** Perfect meeting times when everyone's free
+  - 🔴 **Conflicts:** Times when everyone's busy
+  - 🟠 **Partial:** Mixed availability across users
+- **📤📥 Data Portability:** Complete import/export with JSON validation
+
+### 🌐 **Modern Single Page Application**
+
+- **⚡ SPA Router:** Instant navigation without page reloads
+- **🎨 Glassmorphism Design:** Modern UI with smooth theme transitions
+- **📱 Responsive Excellence:** Mobile-first design with container queries
+- **♿ Accessibility Ready:** WCAG 2.1 compliant with keyboard navigation
+- **🧪 Comprehensive Testing:** Jest-powered test suites for reliability
 
 ---
 
 ## 🛠️ Tech Stack
 
-**Multi-Page Application (MPA)** built with modern web standards:
+**Single Page Application (SPA)** with Firebase integration:
 
-- 🍦 **Vanilla HTML, CSS, and JavaScript (ES6 Modules)**
-- 🎨 **Advanced Modular CSS Architecture (9 specialized modules)**
-  - `variables.css` - Design system, themes & CSS custom properties
-  - `layout.css` - App structure, navigation & responsive grid systems
-  - `components.css` - UI components, glassmorphism cards & forms
-  - `schedule.css` - Schedule grid, time slots & interactive features
-  - `menu.css` - Navigation system & theme toggle functionality
-  - `modal.css` - Modal dialogs with backdrop blur effects
-  - `animations.css` - Transitions, hover effects & motion design
-  - `responsive-enhancements.css` - Modern 2025 responsive features
-  - `styles.css` - Main orchestrator importing all modules
-- 📦 **Comprehensive JavaScript Architecture (8 specialized modules)**
-  - `script.js` - Core application logic & state management
-  - `domElements.js` - DOM element caching for performance optimization
-  - `modal.js` - Modal system & user interaction handling
-  - `timeUtils.js` - Time parsing, validation & schedule utilities
-  - `export-import.js` - Data import/export functionality
-  - `menu.js` - Navigation & theme system management
-  - `constants.js` - App configuration & default values
-- 🗄️ **LocalStorage** - Client-side data persistence with migration support
-- 🧪 **Jest Testing Framework** - Comprehensive unit testing with 3 test suites
-- 🎯 **Modern Web Features** - Container queries, fluid typography, dynamic viewport units
+### 🔥 **Firebase Backend Services**
+
+- **Authentication:** University email validation with Firebase Auth
+- **Firestore Database:** Real-time user profiles and data sync
+- **Security Rules:** Protected university-only access
+
+### 🎨 **Modern Frontend Architecture**
+
+- **Vanilla JavaScript (ES6+ Modules):** Clean, dependency-free codebase
+- **SPA Router:** Custom-built for smooth navigation without page reloads
+- **Modular CSS (9 specialized modules):**
+  - `variables.css` - Design system & CSS custom properties
+  - `layout.css` - App structure & navigation components
+  - `components.css` - UI elements & glassmorphism cards
+  - `schedule.css` - Schedule grid & time slot interactions
+  - `menu.css` - Navigation & theme toggle system
+  - `modal.css` - Modal dialogs with backdrop effects
+  - `animations.css` - Smooth transitions & motion design
+  - `auth.css` - Authentication UI components
+  - `profile-setup.css` - Multi-step profile creation
+  - `responsive-enhancements.css` - Modern responsive features
+
+### ⚙️ **JavaScript Module System (12+ specialized modules)**
+
+- **Core Application Logic:**
+  - `script.js` - Main schedule management & state
+  - `spa-router.js` - Single page navigation system
+  - `domElements.js` - Performance-optimized DOM caching
+- **Authentication & Security:**
+  - `auth-manager.js` - Firebase authentication controller
+  - `university-validator.js` - University email verification
+  - `privacy-manager.js` - Data privacy controls
+- **User Experience:**
+  - `profile-setup.js` - Multi-step profile creation
+  - `avatars.js` - Custom avatar generation system
+  - `menu.js` - Theme management & navigation
+- **Development & Testing:**
+  - `Jest test suites` - Comprehensive unit testing
+  - `Firebase dev tools` - Environment setup utilities
 
 ## 📁 Project Structure
 
 ```
 CampXus/
-├── .md files/                          # 📚 Documentation Hub
-│   ├── Contributing-Guide.md            # Development guidelines & conventions
-│   ├── tests-roadmap.md                 # Testing strategy & progress tracker
-│   ├── UI-Map.md                        # Complete DOM & interaction reference
-│   └── RESPONSIVE_ENHANCEMENT_REPORT.md # Modern CSS features report
-├── css/                                 # 🎨 Modular Stylesheet Architecture
-│   ├── variables.css                    # Design system & CSS custom properties
-│   ├── layout.css                       # App structure & navigation system
-│   ├── components.css                   # UI components, cards & forms
-│   ├── schedule.css                     # Schedule grid & time slot interactions
-│   ├── menu.css                         # Navigation & theme toggle system
-│   ├── modal.css                        # Modal dialogs & glassmorphism effects
-│   ├── animations.css                   # Transitions, hover effects & motion
-│   ├── responsive-enhancements.css      # Modern responsive features (2025)
-│   └── styles.css                       # Main import file (orchestrates all modules)
-├── js/                                  # ⚙️ Modular JavaScript Architecture
-│   ├── constants.js                     # App configuration & default values
-│   ├── domElements.js                   # DOM element caching for performance
-│   ├── script.js                        # Core application logic & state management
-│   ├── modal.js                         # Modal system & user interactions
-│   ├── menu.js                          # Navigation & theme system
-│   ├── timeUtils.js                     # Time parsing & schedule utilities
-│   ├── export-import.js                 # Data import/export functionality
-│   ├── firebase/                        # 🔥 Firebase Integration
-│   │   ├── firebase-config.js           # Firebase initialization & configuration
-│   │   ├── env-config.js                # Auto-generated browser environment config
-│   │   └── dev-tools/                   # 🛠️ Development Helper Scripts
-│   │       ├── generate-env-config.js   # Environment config generator
-│   │       ├── check-dev-setup.js       # Development environment validator
-│   │       ├── env-loader.js            # Environment loading utilities
-│   │       └── README.md                # Development tools documentation
-│   ├── security/                        # 🔐 Security & Authentication
-│   │   ├── auth-manager.js              # Authentication management
-│   │   ├── privacy-manager.js           # Privacy controls & data management
-│   │   ├── security-logger.js           # Security event logging
-│   │   └── university-validator.js      # University email validation
-│   └── tests/                           # 🧪 Test Suites
-│       ├── script.test.js               # Core logic unit tests (Jest)
-│       ├── scheduleEditor.test.js       # Schedule editing tests
-│       ├── timeUtils.test.js            # Time utilities tests
-│       └── university-validator.test.js # University validation tests
-├── pages/                               # 📄 Multi-page Application Structure
-│   ├── about.html                       # About page with app information
-│   └── friends.html                     # Friends management page
-├── index.html                           # 🏠 Main schedule interface
-├── package.json                         # Node.js dependencies & Jest configuration
-├── jest.setup.js                        # Jest testing environment setup
-├── BEGINNER_SETUP_GUIDE.md             # 🔰 Simplified setup guide for beginners
-└── README.md                            # Project overview & setup guide
+├── .md files/                          # 📚 Complete Documentation Suite
+│   ├── UI-Map.md                        # DOM reference & interaction guide
+│   ├── SPA-All-that-you-need.md         # SPA development masterclass
+│   ├── HOW-TO-ADD-NEW-PAGES.md          # Step-by-step page creation
+│   └── Contributing-Guide.md            # Development standards
+├── Phases/                             # 🎯 Phase-by-Phase Learning Guides
+│   ├── Phase-0-Foundation.md            # Firebase setup & environment
+│   ├── Phase-1-Authentication.md        # University auth system
+│   ├── Phase-2-Profile-Setup-Simple.md  # Multi-step profile creation
+│   └── Phase-3-Friends-Simple.md        # Social connections
+├── css/                                # 🎨 Modular Stylesheet Architecture
+│   ├── variables.css                    # Design system & theme management
+│   ├── layout.css                       # SPA structure & navigation
+│   ├── components.css                   # Reusable UI components
+│   ├── schedule.css                     # Schedule grid & interactions
+│   ├── auth.css                         # Authentication UI styling
+│   ├── profile-setup.css               # Multi-step form styling
+│   ├── menu.css                         # Theme toggle & navigation
+│   ├── modal.css                        # Glassmorphism modal dialogs
+│   ├── animations.css                   # Smooth transitions & effects
+│   └── responsive-enhancements.css      # Modern responsive features
+├── js/                                 # ⚙️ Modular JavaScript Architecture
+│   ├── core/                           # 🏗️ Core Application Systems
+│   │   ├── script.js                   # Main schedule logic & state
+│   │   ├── spa-router.js               # Single page navigation system
+│   │   ├── spa-init.js                 # SPA initialization & integration
+│   │   ├── profile-setup.js            # Multi-step profile system
+│   │   ├── avatars.js                  # Custom avatar generation
+│   │   ├── domElements.js              # Performance DOM caching
+│   │   ├── menu.js                     # Theme & navigation management
+│   │   ├── modal.js                    # Modal dialog system
+│   │   ├── timeUtils.js                # Time parsing & validation
+│   │   ├── export-import.js            # Data import/export tools
+│   │   └── constants.js                # App configuration
+│   ├── firebase/                       # 🔥 Firebase Integration Layer
+│   │   ├── auth/                       # 🔐 Authentication System
+│   │   │   ├── auth-manager.js         # Firebase auth controller
+│   │   │   └── university-validator.js # University email validation
+│   │   └── config/                     # ⚙️ Firebase Configuration
+│   │       ├── firebase-config.js      # Environment-based config
+│   │       └── env-config.js           # Auto-generated browser config
+│   ├── dev-tools/                      # 🛠️ Development Utilities
+│   │   ├── generate-env-config.js      # Environment setup
+│   │   ├── check-dev-setup.js          # Development validation
+│   │   └── env-loader.js               # Config loading utilities
+│   ├── security/                       # 🔐 Security & Privacy
+│   │   ├── privacy-manager.js          # Privacy controls
+│   │   └── security-logger.js          # Security event logging
+│   └── tests/                          # 🧪 Test Suites
+│       ├── core/                       # Core functionality tests
+│       └── firebase/                   # Firebase integration tests
+├── templates/                          # 📄 SPA Template System
+│   ├── home.html                       # Schedule interface template
+│   ├── profile.html                    # Profile setup template
+│   ├── friends.html                    # Social connections template
+│   └── about.html                      # About page template
+├── pages/                              # 📄 Static Utility Pages
+│   └── privacy.html                    # Privacy policy page
+├── index.html                          # 🏠 SPA Shell & Main Entry Point
+├── firebase.json                       # 🔥 Firebase deployment config
+├── package.json                        # Node.js dependencies & scripts
+└── README.md                           # 📖 Project overview & setup
 ```
 
 ---
 
 ## ⚙️ How It Works
 
-**State Management:** User data and UI state are managed in `js/script.js` with modular helpers for DOM manipulation, modals, and time utilities.
+### 🎯 **Core Architecture**
 
-**Key Features:**
+CampXus is built as a **Single Page Application (SPA)** with Firebase backend integration. The app uses a custom SPA router for seamless navigation and modular JavaScript architecture for maintainable code.
 
-- Dynamic time slot management with custom user schedules
-- Real-time schedule comparison across multiple users
-- Pin mode for focused editing
-- Responsive design with consistent navigation
+### 🔐 **Authentication Flow**
+
+1. **University Verification:** Students sign up with verified university email addresses
+2. **Firebase Authentication:** Secure email/password authentication with verification
+3. **Profile Setup:** Guided multi-step profile creation with avatar customization
+4. **Persistent Sessions:** Stay logged in across browser sessions
+
+### 📅 **Schedule Management System**
+
+- **Dynamic Grid:** Interactive weekly schedule with time slot management
+- **Pin Mode:** Lock editing to specific users for focused schedule updates
+- **Real-time Comparison:** Color-coded overlap detection across multiple users
+- **Smart Persistence:** Data saved locally with Firebase cloud sync
+
+### 🌐 **SPA Navigation**
+
+- **Template System:** Dynamic content loading without page reloads
+- **Router Integration:** Browser history and URL management
+- **Component Lifecycle:** Smart initialization and cleanup for each page
 
 ---
 
 ## 🚀 Getting Started
 
-1. **Clone/Download** the project
-2. **Install dependencies:** `npm install`
-3. **Set up environment:** `cp .env.local.example .env.local` (add your Firebase keys)
-4. **Run tests:** `npm test`
-5. **Start development:** `npm run dev:serve`
+### 🔰 **Quick Start for Beginners**
 
-## 🔒 **IMPORTANT: Security Setup**
+1. **Download the project** and open it in VS Code
+2. **Set up Firebase** (see [Phase-0-Foundation.md](./Phases/Phase-0-Foundation.md))
+3. **Configure environment:** Create `.env.local` with your Firebase keys
+4. **Start developing:** `npm run dev:serve`
 
-**⚠️ Before pushing to public repositories:**
-
-1. **Never commit API keys!** Your `.env.local` file contains sensitive Firebase credentials
-2. **Use the development commands:** `npm run dev:serve` loads your environment securely
-3. **Verify security:** Run `npm run dev:check` to validate your setup
-4. **Read the security guide:** See `SECURITY.md` for detailed security practices
-
-```bash
-# ✅ SECURE: Use environment-based development
-npm run dev:serve
-
-# ❌ INSECURE: Don't edit HTML files to add API keys directly
-```
-
-**What's Protected:**
-
-- 🔐 Your Firebase API keys (stored in `.env.local`)
-- 🔐 Auto-generated browser config (`env-config.js`)
-- 🔐 Firebase deployment files (`.firebase/`)
-
-## 🧠 Developer Guide
-
-**Main Components:**
-
-- `js/script.js` - Core application logic and state management
-- `js/domElements.js` - DOM element caching for performance
-- `js/modal.js` - Modal creation and user interaction
-- `js/timeUtils.js` - Time parsing and validation utilities
-- `js/menu.js` - Navigation and theme system
-
-**Adding Features:**
-
-- Schedule features: Start in `index.html` and `js/script.js`
-- New pages: Add to `pages/` directory
-- New tests: Follow patterns in existing `*.test.js` files
-
-**Documentation:** Check `.md Files/` directory for detailed guides
-
----
-
-## 🎯 Roadmap
-
-**Current Focus:**
-
-- Enhanced schedule comparison features
-- Advanced clash detection across different time formats
-- UI improvements for better user experience
-
-**Future Plans:**
-
-- Firebase integration for cloud storage and real-time collaboration
-- Export options (PDF, ICS calendar files)
-- Enhanced friend management system
-
----
-
-## 🔧 Development Setup
-
-> 🔰 **New to Firebase?** Check out [`BEGINNER_SETUP_GUIDE.md`](./BEGINNER_SETUP_GUIDE.md) for a simplified explanation!
-
-### Quick Start
+### 🔧 **Detailed Setup**
 
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/Faizan2001/CampXus.git
+   git clone https://github.com/your-username/CampXus.git
    cd CampXus
    ```
 
@@ -206,13 +198,13 @@ npm run dev:serve
    npm install
    ```
 
-3. **Configure Firebase (for development):**
+3. **Firebase Setup:**
 
-   - Create a `.env.local` file in the project root
-   - Add your Firebase configuration:
+   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+   - Enable Authentication (Email/Password) and Firestore Database
+   - Copy your config to `.env.local`:
 
    ```bash
-   # Firebase Configuration
    FIREBASE_API_KEY=your_api_key_here
    FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
    FIREBASE_PROJECT_ID=your-project-id
@@ -221,54 +213,173 @@ npm run dev:serve
    FIREBASE_APP_ID=your_app_id
    ```
 
-4. **Generate development config:**
-
+4. **Development Commands:**
    ```bash
-   npm run dev:config
+   npm run dev:config    # Generate browser-compatible config
+   npm run dev:check     # Validate your setup
+   npm run dev:serve     # Start development server
+   npm test              # Run test suites
    ```
 
-5. **Verify your setup (optional):**
+## 🔒 **IMPORTANT: Security & Environment Setup**
 
-   ```bash
-   npm run dev:check
-   ```
+### ⚠️ **Before Development**
 
-6. **Start development server:**
-   ```bash
-   npm run dev:serve
-   ```
+1. **Never commit API keys!** Your `.env.local` file contains sensitive credentials
+2. **Use secure development:** Always run `npm run dev:serve` for proper environment loading
+3. **Verify security:** Run `npm run dev:check` to validate your setup
+4. **Read security docs:** See [SECURITY.md](./SECURITY.md) for complete guidelines
 
-### Environment Configuration
+### 🛡️ **What's Protected**
 
-The app uses a smart environment management system:
+- 🔐 Firebase API keys (stored securely in `.env.local`)
+- 🔐 Auto-generated browser config (`js/firebase/config/env-config.js`)
+- 🔐 Firebase deployment files (`.firebase/` directory)
+- 🔐 University email validation rules
 
-- **Development:** Environment variables are loaded from `.env.local` and converted to browser-compatible format
-- **Production:** Configuration should be injected by your hosting platform (Vercel, Netlify, etc.)
+### ✅ **Development Commands**
 
-**Important Security Notes:**
+```bash
+# ✅ SECURE: Environment-based development
+npm run dev:serve
 
-- The `.env.local` file is already in `.gitignore` - never commit it
-- The generated `js/firebase/env-config.js` is also ignored and regenerated automatically
-- Firebase API keys are safe to expose in client-side code (they're not secret keys)
+# ✅ SECURE: Validate your setup
+npm run dev:check
 
-### Available Scripts
+# ❌ INSECURE: Don't edit HTML files to add keys directly
+# ❌ INSECURE: Don't commit .env.local or env-config.js
+```
 
-- `npm run dev:check` - Validate your development environment setup
-- `npm run dev:config` - Generate browser-compatible environment config
-- `npm run dev:serve` - Generate config and start Firebase local server
-- `npm test` - Run Jest test suites
-- `npm run firebase:emulators` - Start Firebase emulators for local development
+**Firebase Keys in Client Code:**
+Firebase API keys are safe to expose in client-side code - they're **not secret keys**. The real security comes from Firebase Security Rules, which control database access based on user authentication.
+
+## 🧠 Developer Guide
+
+### 🏗️ **Architecture Overview**
+
+CampXus follows a **modular SPA architecture** with clear separation of concerns:
+
+- **SPA Router** (`spa-router.js`) - Navigation and template management
+- **Authentication System** (`firebase/auth/`) - University-verified login
+- **Profile Management** (`profile-setup.js`) - Multi-step guided setup
+- **Schedule Engine** (`script.js`) - Core scheduling functionality
+- **Theme System** (`menu.js`) - Dark/light themes with smooth transitions
+
+### 🔧 **Adding New Features**
+
+**Schedule Features:**
+
+- Start in `js/core/script.js` for core logic
+- Update templates in `templates/home.html`
+- Add styles to `css/schedule.css`
+
+**New SPA Pages:**
+
+1. Create template in `templates/your-page.html`
+2. Add route to `spa-router.js`
+3. Add navigation link with `data-spa-route="your-page"`
+4. See [HOW-TO-ADD-NEW-PAGES.md](./.md%20files/HOW-TO-ADD-NEW-PAGES.md)
+
+**Authentication Features:**
+
+- Extend `firebase/auth/auth-manager.js`
+- Update university validation in `university-validator.js`
+
+### 📚 **Learning Resources**
+
+- **Complete SPA Guide:** [SPA-All-that-you-need.md](./SPA-All-that-you-need.md)
+- **Phase-by-Phase Learning:** Check `/Phases/` directory
+- **UI Reference:** [UI-Map.md](./.md%20files/UI-Map.md)
+- **Contributing:** [Contributing-Guide.md](./.md%20files/Contributing-Guide.md)
+
+---
+
+## 🎯 Roadmap
+
+### 🚀 **Current Features (Live)**
+
+- ✅ Firebase Authentication with university email validation
+- ✅ Multi-step profile setup with avatar customization
+- ✅ Single Page Application with smooth navigation
+- ✅ Advanced schedule management with pin mode
+- ✅ Real-time schedule comparison and conflict detection
+- ✅ Responsive design with glassmorphism effects
+- ✅ Theme switching and accessibility features
+
+### 🎯 **Phase 3: Social Connections (In Progress)**
+
+- 🔄 Friend discovery by university domain
+- 🔄 Friend requests and connections system
+- 🔄 Social schedule sharing and collaboration
+
+### 🎯 **Phase 4: Cloud Sync & Real-time (Planned)**
+
+- 📋 Real-time schedule updates across devices
+- 📋 Cloud storage for persistent data sync
+- 📋 Live collaboration features
+
+### 🌟 **Future Enhancements**
+
+- 📱 Progressive Web App (PWA) capabilities
+- 📧 Email notifications for schedule conflicts
+- 🗓️ Calendar export (ICS format)
+- 🤖 AI-powered meeting time suggestions
+- 🎨 Custom theme creation tools
+
+### 🏫 **University Expansion**
+
+- Currently supporting IUB (Independent University, Bangladesh)
+- Planned expansion to more universities
+- Easy configuration for new institutions
+
+---
+
+### 🔧 **Environment Management**
+
+The app uses a smart environment system that adapts to different deployment contexts:
+
+**Development Mode:**
+
+- Environment variables loaded from `.env.local`
+- Auto-generation of browser-compatible configuration
+- Development Firebase emulators support
+
+**Production Mode:**
+
+- Configuration injected by hosting platform (Vercel, Netlify, etc.)
+- Automatic environment detection and setup
+- Optimized build process for performance
+
+**Available Scripts:**
+
+```bash
+npm run dev:check          # Validate development environment
+npm run dev:config         # Generate browser-compatible config
+npm run dev:serve          # Start development server with environment
+npm test                   # Run comprehensive Jest test suites
+npm run firebase:emulators # Start Firebase local emulators
+```
 
 ---
 
 ## 🤝 Contributing
 
-Check out `Contributing-Guide.md` in the `.md Files/` directory for detailed guidelines.
+We welcome contributions! Check out [Contributing-Guide.md](./.md%20files/Contributing-Guide.md) for detailed guidelines.
 
 **Key Principles:**
 
-- Keep UI responsive and accessible
-- Write modular, testable code
-- Ensure new features integrate seamlessly with existing navigation
+- 🎯 Keep the university focus - features should serve student needs
+- 🎨 Maintain responsive, accessible design standards
+- 🧪 Write tests for new functionality
+- 📚 Update documentation for any new features
+- 🔐 Follow security best practices for authentication
 
-Let's make scheduling effortless! 🎉
+**Getting Started:**
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Follow the Phase guides in `/Phases/` directory
+4. Test your changes: `npm test`
+5. Submit a pull request with clear description
+
+Let's make university scheduling effortless for students everywhere! 🎓✨
