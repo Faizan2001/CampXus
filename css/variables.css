@@ -238,6 +238,47 @@ body:not(.dark-mode) {
     var(--glass-bg) 0%,
     rgba(255, 255, 255, 0) 100%
   );
+
+  /* Avatar Button Glassmorphism Effects */
+  --avatar-button-bg: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1),
+    rgba(168, 85, 247, 0.1)
+  );
+  --avatar-button-bg-hover: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15),
+    rgba(168, 85, 247, 0.15)
+  );
+  --avatar-button-border: rgba(139, 92, 246, 0.2);
+  --avatar-button-shadow: 0 4px 15px rgba(139, 92, 246, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --avatar-button-shadow-hover: 0 8px 25px rgba(139, 92, 246, 0.2),
+    0 4px 15px rgba(139, 92, 246, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --avatar-button-shadow-active: 0 4px 15px rgba(139, 92, 246, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --avatar-button-shimmer: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+
+  /* Avatar Button Animation Keyframes */
+  --avatar-button-pulse-start: 0 4px 15px rgba(139, 92, 246, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --avatar-button-pulse-mid: 0 4px 20px rgba(139, 92, 246, 0.15),
+    0 2px 10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+
+  /* Form Validation & Interactive States */
+  --form-shadow-light: rgba(0, 0, 0, 0.05);
+  --form-shadow-medium: rgba(0, 0, 0, 0.08);
+  --form-shadow-strong: rgba(0, 0, 0, 0.1);
+  --form-inset-light: rgba(255, 255, 255, 0.1);
+  --form-inset-medium: rgba(255, 255, 255, 0.15);
+  --form-inset-strong: rgba(255, 255, 255, 0.2);
+
   --control-select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
   --control-select-focus-shadow: rgba(99, 102, 241, 0.1);
   --button-secondary-shadow: rgba(0, 0, 0, 0.1);

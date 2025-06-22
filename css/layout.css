@@ -1506,8 +1506,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 /* Container for user avatar in navigation trigger */
 .user-avatar-trigger {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1665,8 +1665,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 @media (max-width: 768px) {
   .user-avatar-trigger {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
     padding: 1.5px;
   }
 
@@ -1686,8 +1686,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 @media (max-width: 480px) {
   .user-avatar-trigger {
-    width: 2rem;
-    height: 2rem;
+    width: 2.5rem;
+    height: 2.5rem;
     padding: 1px;
   }
 
