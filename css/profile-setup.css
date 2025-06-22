@@ -531,6 +531,112 @@ body.page-profile .profile-setup-card.glass-card {
 .avatar-selection-section {
   text-align: center;
   margin-bottom: var(--space-xl);
+  /* 🔧 FIX: Prevent glass card hover effects from breaking button interactions */
+  position: relative;
+  z-index: 5; /* Ensure avatar section is above glass card effects */
+}
+
+/* 🔧 FIX: Override glass card hover transform for avatar selection */
+.glass-card:hover .avatar-selection-section {
+  /* Reset any inherited transforms that might interfere with button clicks */
+  transform: none !important;
+}
+
+/* 🔧 FIX: Ensure avatar buttons remain interactive */
+.avatar-selection-section button,
+.avatar-selection-section .avatar-edit-button {
+  position: relative;
+  z-index: 10; /* Above glass card pseudo-elements */
+  pointer-events: auto !important; /* Force pointer events */
+  /* Isolate from parent transforms */
+  transform-style: flat;
+}
+
+/* 🔧 ADDITIONAL FIX: Prevent glass card pseudo-elements from blocking clicks */
+.glass-card .avatar-selection-section::before,
+.glass-card .avatar-selection-section::after {
+  pointer-events: none !important;
+}
+
+/* 🔧 ADDITIONAL FIX: Override glass card animations in avatar section */
+.avatar-selection-section * {
+  /* Ensure all elements in avatar section have proper pointer events */
+  pointer-events: auto;
+}
+
+/* 🎨 BEAUTIFUL AVATAR BUTTON EFFECTS */
+.avatar-edit-button {
+  /* Enhanced glassmorphism button styling */
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1),
+    rgba(168, 85, 247, 0.1)
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: var(--accent-primary);
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer effect on hover */
+.avatar-edit-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+.avatar-edit-button:hover::before {
+  left: 100%;
+}
+
+.avatar-edit-button:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15),
+    rgba(168, 85, 247, 0.15)
+  );
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.2),
+    0 4px 15px rgba(139, 92, 246, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  z-index: 11;
+}
+
+.avatar-edit-button:active {
+  transform: translateY(-1px) scale(0.98);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Focus state for accessibility */
+.avatar-edit-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* 🔧 GLASS CARD OVERRIDE: Stop any parent hover effects on this section */
+.avatar-selection-section:hover .glass-card,
+.avatar-selection-section:hover .glass-card::before,
+.avatar-selection-section:hover .glass-card::after {
+  transform: none !important;
+  transition: none !important;
 }
 
 .avatar-selection-label {
@@ -599,21 +705,23 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: inset 0 0 0 1px var(--avatar-highlight);
 }
 
-/* Avatar edit button styling */
+/* 🎨 Avatar edit button - Base styling */
 .avatar-edit-button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   font-size: 0.95rem;
-  font-weight: 500;
   border-radius: var(--radius-md);
   transition: all 0.3s var(--animation-smooth);
-}
-
-.avatar-edit-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--avatar-shadow);
+  cursor: pointer;
+  /* 🔧 Ensure button functionality */
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+  transform-origin: center;
+  border: none;
+  outline: none;
 }
 
 /* =============================================================================
@@ -1629,6 +1737,11 @@ body.page-profile .profile-setup-card.glass-card {
   z-index: -1;
 }
 
+.avatar-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
 .avatar-modal-overlay.active .avatar-modal-content {
   transform: scale(1) translateY(0);
 }
@@ -1974,4 +2087,27 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: inherit;
   border: 1px solid var(--solid-swatch-border);
   pointer-events: none;
+}
+
+/* 🌟 Subtle pulsing animation to draw attention */
+@keyframes avatarButtonPulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1),
+      0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15),
+      0 2px 10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+.avatar-edit-button {
+  /* Add subtle pulse animation */
+  animation: avatarButtonPulse 3s ease-in-out infinite;
+}
+
+.avatar-edit-button:hover {
+  /* Stop pulsing on hover since we have other effects */
+  animation: none;
 }

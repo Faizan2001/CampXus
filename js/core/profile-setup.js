@@ -1458,7 +1458,6 @@ class ProfileSetup {
       !avatarEditBtn.hasAttribute("data-listener-attached")
     ) {
       avatarEditBtn.addEventListener("click", () => {
-        console.log("🎨 Avatar edit button clicked");
         this.openAvatarEditor();
       });
       avatarEditBtn.setAttribute("data-listener-attached", "true");
