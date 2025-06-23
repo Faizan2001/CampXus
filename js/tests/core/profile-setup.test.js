@@ -112,13 +112,21 @@ describe("Profile Setup - Critical Function Tests", () => {
   });
 
   describe("Student ID Generation (CRITICAL - Used in collectCurrentStepData)", () => {
-    test("should extract ID from email consistently", () => {
+    test("should extract ID from email correctly", () => {
+      // 🎯 WHY THIS MATTERS: Student ID should be extracted from email consistently
+      expect(generateStudentId("22314914@iub.edu.bd")).toBe("22314914");
+      expect(generateStudentId("john.doe@university.edu")).toBe("john.doe");
+      expect(generateStudentId("student123@school.edu")).toBe("student123");
+    });
+
+    test("should extract same ID consistently from same email", () => {
       // 🎯 WHY THIS MATTERS: Same email should always extract same ID
       const email = "john.doe@university.edu";
       const id1 = generateStudentId(email);
       const id2 = generateStudentId(email);
       
       expect(id1).toBe(id2);
+      expect(id1).toBe("john.doe");
       expect(typeof id1).toBe("string");
     });
 
@@ -126,7 +134,7 @@ describe("Profile Setup - Critical Function Tests", () => {
       // 🎯 WHY THIS MATTERS: Prevents app crashes from bad data
       expect(generateStudentId("")).toBe("");
       expect(generateStudentId(null)).toBe("");
-      expect(() => generateStudentId("no-at-sign")).not.toThrow();
+      expect(generateStudentId("no-at-sign")).toBe("no-at-sign"); // Returns whole string if no @
     });
   });
 
@@ -253,7 +261,7 @@ describe("Profile Setup - Critical Function Tests", () => {
 
       expect(formattedFirst).toBe("John");
       expect(formattedLast).toBe("Doe");
-      expect(typeof studentId).toBe("string"); // Should extract ID from email
+      expect(studentId).toBe("john.doe"); // Should extract the part before @ from email
       expect(isValidEmail(email)).toBe(true);
     });
   });
@@ -293,7 +301,8 @@ describe("Profile Setup - Critical Function Tests", () => {
       const name1 = formatName(testName);
       const name2 = formatName(testName);
       
-      expect(id1).toBe(id2); // Same email extracts same ID
+      expect(id1).toBe(id2); // Same email extracts same ID (should be "test.user")
+      expect(id1).toBe("test.user"); // Verify actual extracted value
       expect(name1).toBe(name2);
       expect(isValidEmail(testEmail)).toBe(true);
     });
@@ -569,6 +578,12 @@ describe("Real Function Integration", () => {
     
     expect(typeof id1).toBe("string");
     expect(id1).toBe(id2); // Same email should extract same ID
+    expect(id1).toBe("john"); // Should extract "john" from "john@test.edu"
+    
+    // Test with a numeric ID like the user's example
+    const numericEmail = "22314914@iub.edu.bd";
+    const numericId = generateStudentId(numericEmail);
+    expect(numericId).toBe("22314914");
     
     // If someone changes the ID extraction in profile-setup.js,
     // this test will catch the change!

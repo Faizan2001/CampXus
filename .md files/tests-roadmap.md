@@ -41,6 +41,20 @@ These battle-tested functions form the reliable foundation of CampXus with compr
 - **Data Migration System** - Backward compatibility for `timeSlots` structure changes
 - **State Persistence Foundation** - Load/save operations tested for data integrity
 
+### Profile Setup (`js/core/profile-setup.js`) - Fully Tested ✅
+
+- `isValidEmail(email)` - University and general email validation for account creation
+- `formatName(name)` - Consistent name formatting for display and storage
+- `generateStudentId(email)` - Student ID extraction from email (unique, consistent)
+- `isValidStartingYear(year)` - Academic year validation (prevents unrealistic data)
+- `validateRequiredFields(profileData)` - Ensures all required fields are present before saving
+- **Step Data Validation & Collection** - Integration tests for step-by-step profile flow
+- **Error Handling & Edge Cases** - Robust handling of null, undefined, and malformed input
+- **Performance & Scale** - Validates efficiency with large datasets
+- **Real Function Integration** - Ensures all exported functions work together as in production
+
+> These tests protect against invalid signups, data corruption, UI bugs, and ensure a smooth, professional onboarding experience for all users.
+
 ---
 
 ## 🚧 Testing Opportunities: Areas for Expansion 🧗‍♀️⛰️

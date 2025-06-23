@@ -201,6 +201,9 @@ function initializeUserMenu() {
     loginBtn.addEventListener("click", handleLogin);
   }
 
+  // Add event listeners to all dropdown items to close dropdown when clicked
+  setupDropdownItemsCloseHandler();
+
   // Initialize authentication state
   checkAuthenticationState();
 
@@ -290,6 +293,78 @@ function closeUserDropdown() {
 
   userDropdown.classList.remove("active");
   userMenuTrigger.setAttribute("aria-expanded", "false");
+}
+
+/**
+ * Set up event listeners for all dropdown items to close dropdown when clicked
+ * 📚 LEARNING: This improves UX by automatically closing the dropdown after user interaction
+ */
+function setupDropdownItemsCloseHandler() {
+  const userDropdown = document.getElementById("userDropdown");
+
+  if (!userDropdown) {
+    console.warn("User dropdown not found for setting up close handlers");
+    return;
+  }
+
+  // Find all clickable items in the dropdown
+  const dropdownItems = userDropdown.querySelectorAll(".dropdown-item");
+
+  console.log(
+    `🎯 Setting up close handlers for ${dropdownItems.length} dropdown items`
+  );
+
+  dropdownItems.forEach((item, index) => {
+    // Get the item type for logging
+    const itemText = item.textContent?.trim() || `Item ${index + 1}`;
+    const isButton = item.tagName.toLowerCase() === "button";
+    const isLink = item.tagName.toLowerCase() === "a";
+
+    console.log(
+      `📋 Setting up handler for: "${itemText}" (${item.tagName.toLowerCase()})`
+    );
+
+    // Add click event listener to close dropdown
+    item.addEventListener("click", (event) => {
+      console.log(`🖱️ Dropdown item clicked: "${itemText}"`);
+
+      // For navigation links, let them handle their own navigation first
+      if (isLink && item.hasAttribute("data-spa-route")) {
+        // Small delay to allow SPA navigation to start before closing dropdown
+        setTimeout(() => {
+          closeUserDropdown();
+        }, 50);
+      } else {
+        // For buttons and regular links, close immediately
+        closeUserDropdown();
+      }
+
+      // Add visual feedback for better UX
+      item.style.transform = "scale(0.95)";
+      setTimeout(() => {
+        item.style.transform = "";
+      }, 150);
+    });
+
+    // Also handle keyboard interactions (Enter and Space)
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        console.log(`⌨️ Dropdown item activated via keyboard: "${itemText}"`);
+
+        // Prevent default space scrolling
+        if (event.key === " ") {
+          event.preventDefault();
+        }
+
+        // Close dropdown after keyboard activation
+        setTimeout(() => {
+          closeUserDropdown();
+        }, 100);
+      }
+    });
+  });
+
+  console.log("✅ Dropdown close handlers setup completed");
 }
 
 /**

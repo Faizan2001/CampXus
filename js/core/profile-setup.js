@@ -2574,18 +2574,14 @@ export function formatName(name) {
 }
 
 /**
- * Generate student ID from email
- * @param {string} email - Email to generate ID from
- * @returns {string} Generated student ID
+ * Extract student ID from email
+ * @param {string} email - Email to extract ID from
+ * @returns {string} Student ID extracted from email (part before @)
  */
 export function generateStudentId(email) {
-  if (!email) return "";
-  const username = email.split("@")[0];
-  const hash = username.split("").reduce((a, b) => {
-    a = (a << 5) - a + b.charCodeAt(0);
-    return a & a;
-  }, 0);
-  return `STU${Math.abs(hash).toString().substring(0, 6)}`;
+  if (!email || typeof email !== "string") return "";
+  const emailParts = email.split("@");
+  return emailParts.length > 0 ? emailParts[0] : "";
 }
 
 /**
