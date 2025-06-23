@@ -29,9 +29,11 @@
   "homepage": "https://github.com/Faizan2001/CampXus#readme",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "audit-ci": "^6.6.1",
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
-    "audit-ci": "^6.6.1"
+    "jest-environment-jsdom": "^29.7.0"
   },
   "jest": {
     "testEnvironment": "jsdom",

@@ -906,22 +906,19 @@ class ProfileSetup {
    */
   collectCurrentStepData() {
     if (this.currentStep === 0) {
-      this.profileData.firstName = document
+      // Format names using our utility function!
+      this.profileData.firstName = formatName(document
         .getElementById("setup-first-name")
-        .value.trim();
-      this.profileData.lastName = document
+        .value.trim());
+      this.profileData.lastName = formatName(document
         .getElementById("setup-last-name")
-        .value.trim();
+        .value.trim());
       this.profileData.email = document.getElementById("setup-email").value; // Already pre-filled and readonly
-      this.profileData.studentId = document
-        .getElementById("setup-student-id")
-        .value.trim(); // Auto-populated and readonly
+      this.profileData.studentId = generateStudentId(this.profileData.email); // Generate using our function!
       this.profileData.startingYear = document.getElementById(
         "setup-starting-year"
       ).value;
-      this.profileData.major = document
-        .getElementById("setup-major")
-        .value.trim();
+      this.profileData.major = document.getElementById("setup-major").value.trim();
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
       // Avatar configuration is handled by this.avatarConfig
@@ -1059,7 +1056,7 @@ class ProfileSetup {
     if (!nextBtn) return;
 
     if (this.currentStep === 0) {
-      // Step 0: Basic Info
+      // Step 0: Basic Info - Using our validation functions!
       const firstName =
         document.getElementById("setup-first-name")?.value.trim() || "";
       const lastName =
@@ -1067,18 +1064,33 @@ class ProfileSetup {
       const startingYear =
         document.getElementById("setup-starting-year")?.value || "";
       const major = document.getElementById("setup-major")?.value.trim() || "";
+      const email = document.getElementById("setup-email")?.value.trim() || "";
 
-      const hasRequiredFields = firstName && lastName && startingYear && major;
+      // Use our utility functions for validation!
+      const hasValidEmail = isValidEmail(email);
+      const hasValidStartingYear = isValidStartingYear(startingYear);
+      const hasRequiredFields = validateRequiredFields({
+        firstName,
+        lastName,
+        major,
+        startingYear
+      });
+
+      // All validations must pass
+      const isStepValid = hasRequiredFields && hasValidEmail && hasValidStartingYear;
 
       // Always keep "Next Step →" text, just enable/disable button
       nextBtn.textContent = "Next Step →";
-      nextBtn.disabled = !hasRequiredFields;
+      nextBtn.disabled = !isStepValid;
 
       // Add visual styling for disabled state
-      if (!hasRequiredFields) {
+      if (!isStepValid) {
         nextBtn.classList.add("disabled-state");
+        // Show specific validation messages
+        this.showValidationErrors(firstName, lastName, email, startingYear, major);
       } else {
         nextBtn.classList.remove("disabled-state");
+        this.clearValidationErrors();
       }
     } else if (this.currentStep === 1) {
       // Step 1: Avatar & bio (optional, this is the new final step)
@@ -1094,16 +1106,27 @@ class ProfileSetup {
    */
   validateStepData() {
     if (this.currentStep === 0) {
-      // Validate Step 0 (Basic Info)
+      // Validate Step 0 (Basic Info) using our utility functions
       const firstName = document
         .getElementById("setup-first-name")
         .value.trim();
       const lastName = document.getElementById("setup-last-name").value.trim();
       const startingYear = document.getElementById("setup-starting-year").value;
       const major = document.getElementById("setup-major").value.trim();
+      const email = document.getElementById("setup-email").value.trim();
 
-      if (!firstName || !lastName || !startingYear || !major) {
-        // Show visual feedback for incomplete fields
+      // Use our validation functions!
+      const hasRequiredFields = validateRequiredFields({
+        firstName,
+        lastName,
+        major,
+        startingYear
+      });
+      const hasValidEmail = isValidEmail(email);
+      const hasValidStartingYear = isValidStartingYear(startingYear);
+
+      if (!hasRequiredFields || !hasValidEmail || !hasValidStartingYear) {
+        // Show visual feedback for incomplete/invalid fields
         this.showIncompleteFieldsFeedback();
         return false;
       }
@@ -1136,6 +1159,88 @@ class ProfileSetup {
     }, 800);
 
     console.log("🔴 Incomplete fields feedback shown");
+  }
+
+  /**
+   * Show validation errors to help users fix their input
+   * @param {string} firstName - First name value
+   * @param {string} lastName - Last name value  
+   * @param {string} email - Email value
+   * @param {string} startingYear - Starting year value
+   * @param {string} major - Major value
+   */
+  showValidationErrors(firstName, lastName, email, startingYear, major) {
+    // Clear previous errors first
+    this.clearValidationErrors();
+
+    // Check each field and show specific errors
+    if (!firstName.trim()) {
+      this.showFieldError('setup-first-name', 'First name is required');
+    }
+    
+    if (!lastName.trim()) {
+      this.showFieldError('setup-last-name', 'Last name is required');
+    }
+    
+    if (!email.trim()) {
+      this.showFieldError('setup-email', 'Email is required');
+    } else if (!isValidEmail(email)) {
+      this.showFieldError('setup-email', 'Please enter a valid email address');
+    }
+    
+    if (!startingYear) {
+      this.showFieldError('setup-starting-year', 'Starting year is required');
+    } else if (!isValidStartingYear(startingYear)) {
+      this.showFieldError('setup-starting-year', 'Please enter a valid starting year');
+    }
+    
+    if (!major.trim()) {
+      this.showFieldError('setup-major', 'Major is required');
+    }
+  }
+
+  /**
+   * Show an error message for a specific field
+   * @param {string} fieldId - The ID of the field element
+   * @param {string} message - The error message to display
+   */
+  showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+
+    // Add error styling to the field
+    field.classList.add('error');
+    
+    // Create or update error message element
+    const errorId = `${fieldId}-error`;
+    let errorElement = document.getElementById(errorId);
+    
+    if (!errorElement) {
+      errorElement = document.createElement('div');
+      errorElement.id = errorId;
+      errorElement.className = 'error-message';
+      field.parentNode.appendChild(errorElement);
+    }
+    
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+  }
+
+  /**
+   * Clear all validation errors from the form
+   */
+  clearValidationErrors() {
+    // Remove error styling from all form fields
+    const formFields = document.querySelectorAll('.form-field input, .form-field select, .form-field textarea');
+    formFields.forEach(field => {
+      field.classList.remove('error');
+    });
+    
+    // Hide all error messages
+    const errorMessages = document.querySelectorAll('.error-message');
+    errorMessages.forEach(error => {
+      error.style.display = 'none';
+    });
   }
 
   /**
@@ -2041,6 +2146,84 @@ if (document.readyState === "loading") {
     console.log("🎯 Instance already exists, skipping immediate DOM check");
   }
 }
+
+// =============================================================================
+//                                    END
+// =============================================================================
+
+// =============================================================================
+//                         UTILITY FUNCTIONS FOR TESTING
+// =============================================================================
+
+/**
+ * Email validation utility function
+ * @param {string} email - Email to validate
+ * @returns {boolean} True if email is valid
+ */
+export function isValidEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email.trim());
+}
+
+/**
+ * Name formatting utility function
+ * @param {string} name - Name to format
+ * @returns {string} Properly formatted name
+ */
+export function formatName(name) {
+  if (!name || typeof name !== 'string') return "";
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+/**
+ * Generate student ID from email
+ * @param {string} email - Email to generate ID from
+ * @returns {string} Generated student ID
+ */
+export function generateStudentId(email) {
+  if (!email) return "";
+  const username = email.split('@')[0];
+  const hash = username.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  return `STU${Math.abs(hash).toString().substring(0, 6)}`;
+}
+
+/**
+ * Starting year validation utility
+ * @param {string|number} year - Year to validate
+ * @returns {boolean} True if year is valid
+ */
+export function isValidStartingYear(year) {
+  if (!year) return false;
+  const yearNum = parseInt(year);
+  if (isNaN(yearNum)) return false;
+  
+  const currentYear = new Date().getFullYear(); 
+  return yearNum >= (currentYear - 6) && yearNum <= currentYear;
+}
+
+/**
+ * Validate required profile fields
+ * @param {Object} data - Profile data to validate
+ * @returns {boolean} True if all required fields are present
+ */
+export function validateRequiredFields(data) {
+  const required = ["firstName", "lastName", "major", "startingYear"];
+  return required.every(field => 
+    data[field] && 
+    typeof data[field] === 'string' && 
+    data[field].trim() !== ""
+  );
+}
+
+// Export the ProfileSetup class for testing
+export { ProfileSetup };
 
 // =============================================================================
 //                                    END
