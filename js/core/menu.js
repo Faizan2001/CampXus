@@ -663,14 +663,17 @@ function setupFirebaseAuthListener() {
                     userData = {
                       uid: user.uid,
                       name:
-                        firestoreData.firstName && firestoreData.lastName
-                          ? `${firestoreData.firstName} ${firestoreData.lastName}`
+                        // 🗂️ ORGANIZED STRUCTURE: Access from profile group
+                        firestoreData.profile?.firstName &&
+                        firestoreData.profile?.lastName
+                          ? `${firestoreData.profile.firstName} ${firestoreData.profile.lastName}`
                           : firestoreData.displayName ||
                             user.email.split("@")[0],
                       email: user.email,
                       avatarConfig: firestoreData.avatarConfig || null,
                       profileSetupComplete:
-                        firestoreData.profileSetupComplete || false,
+                        // 🗂️ ORGANIZED STRUCTURE: Access from systemInfo group
+                        firestoreData.systemInfo?.profileSetupComplete || false,
                     };
 
                     console.log("✅ Profile loaded for:", user.email, {

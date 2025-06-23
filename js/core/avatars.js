@@ -28,7 +28,6 @@ class AvatarManager {
         name: "Mini Avatars",
         description: "Cute minimalist avatars",
         options: {
-          mood: ["happy", "sad", "surprised"],
           hair: [
             "balndess",
             "classic01",
@@ -36,7 +35,7 @@ class AvatarManager {
             "curly",
             "elvis",
             "long",
-            "ponytail",
+            "ponyTail",
             "stylish",
           ],
           backgroundColor: [

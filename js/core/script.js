@@ -2812,7 +2812,10 @@ function setupAuthenticationCallbacks() {
       const userDocRef = doc(db, "users", data.user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists() || !userDoc.data().profileSetupComplete) {
+      if (
+        !userDoc.exists() ||
+        !userDoc.data().systemInfo?.profileSetupComplete
+      ) {
         // Navigate to profile setup for new or incomplete profiles using SPA router
         console.log("📝 Navigating to profile setup...");
         if (window.spaRouter) {
@@ -3149,7 +3152,7 @@ window.resetUserProfileForTesting = async function () {
 
     const userDocRef = doc(db, "users", user.uid);
     await updateDoc(userDocRef, {
-      profileSetupComplete: false,
+      "systemInfo.profileSetupComplete": false,
     });
 
     console.log(
@@ -3187,9 +3190,9 @@ window.checkCurrentUserProfile = async function () {
       const data = userDoc.data();
       console.log("👤 Current user profile:", {
         email: user.email,
-        profileSetupComplete: data.profileSetupComplete,
-        hasName: !!(data.firstName && data.lastName),
-        hasMajor: !!data.major,
+        profileSetupComplete: data.systemInfo?.profileSetupComplete,
+        hasName: !!(data.profile?.firstName && data.profile?.lastName),
+        hasMajor: !!data.profile?.major,
         profileData: data,
       });
     } else {

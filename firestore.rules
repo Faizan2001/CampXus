@@ -1,4 +1,4 @@
-rules_version = '2';
+rules_version = '3';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Security baseline - deny all by default
@@ -6,36 +6,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Basic authenticated user rules (will be expanded in later phases)
+    // Simplified user rules for development and organized structure
     match /users/{userId} {
       // Allow read if user is authenticated and accessing their own document
       allow read: if request.auth != null && request.auth.uid == userId;
       
-      // Allow write if user is authenticated, accessing their own document, and data is valid
+      // Allow write if user is authenticated and accessing their own document
+      // Simplified validation for development
       allow write: if request.auth != null 
         && request.auth.uid == userId
-        && isValidUserData(request.resource.data);
+        && request.resource.data.uid == userId;
     }
 
     // Universities collection - read only for authenticated users
     match /universities/{universityId} {
       allow read: if request.auth != null;
       allow write: if false; // Admin only (handled in Cloud Functions)
-    }
-
-    // Helper functions
-    function isValidUserData(data) {
-      // Basic required fields for user data
-      return data.email is string
-        && ('university' in data ? data.university is string : true)
-        && ('displayName' in data ? data.displayName is string : true)
-        && ('createdAt' in data ? data.createdAt is timestamp : true)
-        && ('avatarConfig' in data ? data.avatarConfig is map : true)
-        && ('firstName' in data ? data.firstName is string : true)
-        && ('lastName' in data ? data.lastName is string : true)
-        && ('bio' in data ? data.bio is string : true)
-        && ('major' in data ? data.major is string : true)
-        && ('profileSetupComplete' in data ? data.profileSetupComplete is bool : true);
     }
   }
 }

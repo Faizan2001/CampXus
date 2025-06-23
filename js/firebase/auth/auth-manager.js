@@ -446,23 +446,66 @@ class AuthManager {
 
   /**
    * Create user profile document in Firestore
+   * 🗂️ ORGANIZED STRUCTURE: Use the same 4-field structure as profile completion
    */
   async createUserProfile(user, email) {
     const validation = validateUniversityEmail(email);
 
+    console.log("🔍 Creating user profile with validation data:", validation);
+
+    // 🗂️ ORGANIZED STRUCTURE: Match EXACTLY what profile-setup.js creates
     const userProfile = {
-      email: email,
-      university: validation.universityId,
-      universityName: validation.name,
-      displayName: email.split("@")[0], // Default display name
-      status: "offline",
-      createdAt: serverTimestamp(),
-      lastActive: serverTimestamp(),
-      profileSetupComplete: false, // Removed emailVerified field
+      // Core Identity (root level - only uid)
+      uid: user.uid,
+
+      // University Information (grouped)
+      universityInfo: {
+        university: validation.universityId,
+        universityName: validation.name,
+        studentId: email.split("@")[0], // Extract from email
+      },
+
+      // Personal Profile (grouped - includes email and displayName)
+      profile: {
+        firstName: "",
+        lastName: "",
+        bio: "",
+        major: "",
+        startingYear: "",
+        email: email,
+        displayName: email.split("@")[0], // Default display name
+      },
+
+      // Avatar Configuration (grouped - will be populated during profile setup)
+      avatarConfig: null,
+
+      // System Status (grouped - includes all system-related fields)
+      systemInfo: {
+        profileSetupComplete: false,
+        status: "offline",
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp(),
+        lastActive: serverTimestamp(),
+      },
     };
 
-    await setDoc(doc(db, "users", user.uid), userProfile);
-    console.log("👤 User profile created in Firestore");
+    console.log(
+      "📊 User profile structure to be saved:",
+      JSON.stringify(userProfile, null, 2)
+    );
+
+    try {
+      await setDoc(doc(db, "users", user.uid), userProfile);
+      console.log(
+        "👤 User profile created in Firestore with organized structure matching profile-setup.js"
+      );
+    } catch (error) {
+      console.error("❌ Failed to create user profile in Firestore:", error);
+      console.error("❌ Error code:", error.code);
+      console.error("❌ Error message:", error.message);
+      console.error("📊 Profile data that failed to save:", userProfile);
+      throw new Error(`Profile creation failed: ${error.message}`);
+    }
   }
 
   /**
@@ -573,13 +616,13 @@ class AuthManager {
     try {
       const { updateDoc } = await import("firebase/firestore");
 
-      // 🎯 SOLUTION: Only update the specific field we need
+      // 🎯 SOLUTION: Update nested field in systemInfo group
       // This prevents interfering with other document reads/writes
       await updateDoc(doc(db, "users", this.currentUser.uid), {
-        lastActive: serverTimestamp(),
+        "systemInfo.lastActive": serverTimestamp(),
       });
 
-      console.log("👤 Updated lastActive timestamp");
+      console.log("👤 Updated lastActive timestamp in systemInfo");
     } catch (error) {
       // 🛡️ SILENT FAIL: Don't let lastActive updates break the app
       console.log("⚠️ LastActive update failed (non-critical):", error.code);

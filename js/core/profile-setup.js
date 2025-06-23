@@ -144,15 +144,23 @@ class ProfileSetup {
         return;
       }
 
-      // Populate basic info
-      if (profileData.firstName) firstName.value = profileData.firstName;
-      if (profileData.lastName) lastName.value = profileData.lastName;
-      if (profileData.email) email.value = profileData.email;
+      // 🗂️ ORGANIZED DATA ACCESS: Extract from grouped structure
+      const getProfileValue = (path, defaultValue = "") => {
+        return profileData.profile?.[path] || defaultValue;
+      };
 
-      // 🐛 BUG FIX: Always populate student ID from email, even if not in saved data
+      const getUniversityValue = (path, defaultValue = "") => {
+        return profileData.universityInfo?.[path] || defaultValue;
+      };
+
+      // Populate basic info from organized structure
+      if (firstName) firstName.value = getProfileValue("firstName");
+      if (lastName) lastName.value = getProfileValue("lastName");
+      if (email) email.value = getProfileValue("email") || "";
+
+      // 🆔 Always populate student ID from organized structure or email fallback
       if (studentId && this.currentUser && this.currentUser.email) {
-        // First try saved data, then extract from email as fallback
-        const savedStudentId = profileData.studentId;
+        const savedStudentId = getUniversityValue("studentId");
         const extractedStudentId = this.currentUser.email.split("@")[0];
 
         studentId.value = savedStudentId || extractedStudentId;
@@ -163,16 +171,16 @@ class ProfileSetup {
         );
       }
 
-      if (profileData.startingYear)
-        startingYear.value = profileData.startingYear;
-      if (profileData.major) major.value = profileData.major;
-      if (profileData.bio && bio) bio.value = profileData.bio;
+      if (startingYear) startingYear.value = getProfileValue("startingYear");
+      if (major) major.value = getProfileValue("major");
+      if (bio) bio.value = getProfileValue("bio");
 
       // Update bio character counter
-      if (profileData.bio && bio) {
+      const bioValue = getProfileValue("bio");
+      if (bioValue && bio) {
         const bioCount = document.getElementById("bio-count");
         if (bioCount) {
-          bioCount.textContent = profileData.bio.length;
+          bioCount.textContent = bioValue.length;
         }
       }
 
@@ -183,22 +191,21 @@ class ProfileSetup {
         this.updateAvatarPreview();
       }
 
-      // Update internal profile data object
-      // 🐛 BUG FIX: Ensure student ID is always populated from email if missing
+      // 🗂️ ORGANIZED DATA STRUCTURE: Update internal profile data
       const finalStudentId =
-        profileData.studentId ||
+        getUniversityValue("studentId") ||
         (this.currentUser && this.currentUser.email
           ? this.currentUser.email.split("@")[0]
           : "");
 
       this.profileData = {
-        firstName: profileData.firstName || "",
-        lastName: profileData.lastName || "",
-        email: profileData.email || "",
+        firstName: getProfileValue("firstName"),
+        lastName: getProfileValue("lastName"),
+        email: getProfileValue("email") || "",
         studentId: finalStudentId,
-        startingYear: profileData.startingYear || "",
-        major: profileData.major || "",
-        bio: profileData.bio || "",
+        startingYear: getProfileValue("startingYear"),
+        major: getProfileValue("major"),
+        bio: getProfileValue("bio"),
       };
 
       console.log("✅ Form fields populated successfully");
@@ -505,14 +512,24 @@ class ProfileSetup {
   isProfileComplete(profileData) {
     if (!profileData) return false;
 
+    // 🗂️ ORGANIZED STRUCTURE: Check new organized structure
+    const systemComplete = profileData.systemInfo?.profileSetupComplete;
+
+    // Check profile fields
+    const hasFirstName = profileData.profile?.firstName;
+    const hasLastName = profileData.profile?.lastName;
+    const hasMajor = profileData.profile?.major;
+    const hasStartingYear = profileData.profile?.startingYear;
+    const hasStudentId = profileData.universityInfo?.studentId;
+
     return !!(
-      profileData.profileSetupComplete &&
-      profileData.firstName &&
-      profileData.lastName &&
+      systemComplete &&
+      hasFirstName &&
+      hasLastName &&
       profileData.email &&
-      profileData.studentId &&
-      profileData.startingYear &&
-      profileData.major
+      hasStudentId &&
+      hasStartingYear &&
+      hasMajor
     );
   }
 
@@ -965,11 +982,41 @@ class ProfileSetup {
     if (nextBtn) nextBtn.disabled = true;
 
     try {
+      // 🗂️ ORGANIZED STRUCTURE: Consistent structure even for skipped setup
       const userData = {
+        // Core Identity (root level - only uid)
         uid: this.currentUser.uid,
-        email: this.currentUser.email,
-        profileSetupComplete: false,
-        skippedSetupAt: serverTimestamp(),
+
+        // University Information (grouped)
+        universityInfo: {
+          university: this.currentUser.email.split("@")[1].split(".")[0],
+          universityName: "Independent University, Bangladesh",
+          studentId: this.currentUser.email.split("@")[0],
+        },
+
+        // Personal Profile (grouped - includes email and displayName)
+        profile: {
+          firstName: "",
+          lastName: "",
+          bio: "",
+          major: "",
+          startingYear: "",
+          email: this.currentUser.email,
+          displayName: this.currentUser.email.split("@")[0],
+        },
+
+        // Avatar Configuration (will be null for skipped setup)
+        avatarConfig: null,
+
+        // System Status (grouped)
+        systemInfo: {
+          profileSetupComplete: false,
+          status: "offline",
+          // Remove lastActive - it's managed by auth-manager
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp(),
+          skippedSetupAt: serverTimestamp(),
+        },
       };
 
       // Use modern Firebase v9 syntax
@@ -1350,14 +1397,41 @@ class ProfileSetup {
         );
       }
 
+      // 🗂️ ORGANIZED STRUCTURE: Group related fields for better data management
       const userData = {
-        ...this.profileData,
+        // Core Identity (root level - only uid)
         uid: this.currentUser.uid,
-        email: this.currentUser.email,
-        avatarConfig: this.avatarConfig, // Store avatar configuration instead of file URL
-        profileSetupComplete: true,
-        createdAt: serverTimestamp(),
-        lastUpdated: serverTimestamp(),
+
+        // University Information (grouped)
+        universityInfo: {
+          university: this.currentUser.email.split("@")[1].split(".")[0], // Extract from email domain
+          universityName: "Independent University, Bangladesh", // Could be dynamic based on email domain
+          studentId: this.profileData.studentId,
+        },
+
+        // Personal Profile (grouped - includes email and displayName)
+        profile: {
+          firstName: this.profileData.firstName,
+          lastName: this.profileData.lastName,
+          bio: this.profileData.bio || "",
+          major: this.profileData.major,
+          startingYear: this.profileData.startingYear,
+          email: this.currentUser.email,
+          displayName:
+            this.profileData.firstName || this.currentUser.email.split("@")[0], // Use firstName after profile completion
+        },
+
+        // Avatar Configuration (already well-structured)
+        avatarConfig: this.avatarConfig,
+
+        // System Status (grouped)
+        systemInfo: {
+          profileSetupComplete: true,
+          status: "offline",
+          // Remove lastActive - it's managed by auth-manager's updateUserLastActive()
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp(),
+        },
       };
 
       // Remove undefined fields
