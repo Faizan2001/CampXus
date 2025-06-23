@@ -188,7 +188,12 @@ class ProfileSetup {
       if (profileData.avatarConfig) {
         this.avatarConfig = profileData.avatarConfig;
         console.log("🎨 Loaded avatar config:", this.avatarConfig);
-        this.updateAvatarPreview();
+        // 🎯 FIX: Don't update avatar preview here - only do it when we're on step 1
+        console.log(
+          "🎨 Avatar config loaded, will update preview when on avatar step"
+        );
+      } else {
+        console.log("🎨 No avatar config found in profile data");
       }
 
       // 🗂️ ORGANIZED DATA STRUCTURE: Update internal profile data
@@ -662,6 +667,9 @@ class ProfileSetup {
     // Add debug info to page for development
     this.addDebugInfo();
 
+    // Run avatar system debugging for development users
+    await this.debugAvatarSystem();
+
     // 🎯 LOAD EXISTING PROFILE DATA: Check for existing profile data first
     if (this.currentUser && this.currentUser.uid) {
       try {
@@ -674,10 +682,14 @@ class ProfileSetup {
           // If profile is complete, show in edit mode
           if (this.isProfileComplete(existingData)) {
             console.log("✅ Profile is complete, entering edit mode");
-            // 🐛 BUG FIX: Always start from step 0 in edit mode
+            // 🎯 CRITICAL FIX: Always start from step 0 when editing profile
+            // This ensures consistent navigation regardless of which step has data
             this.currentStep = 0;
             this.updateStepTitles("edit");
             this.updateStepDisplay();
+          } else {
+            console.log("📝 Profile incomplete, starting from step 0");
+            this.currentStep = 0;
           }
         } else {
           console.log("📝 No existing data, starting fresh setup");
@@ -748,46 +760,37 @@ class ProfileSetup {
       return;
     }
 
-    // 🎯 LOAD EXISTING PROFILE DATA: Just like in initializeSetup, check for existing data
+    // Load existing profile data - ALWAYS FRESH DATA for avatar updates
     if (this.currentUser && this.currentUser.uid) {
       try {
-        // Check if we already have cached data to avoid unnecessary loading
-        if (this.existingProfileData) {
-          console.log("📋 Using cached profile data for re-initialization...");
-          this.populateFormFields(this.existingProfileData);
+        // Always load fresh data from database to ensure we have latest avatar config
+        console.log("� Loading fresh profile data from database...");
+        const freshData = await this.loadProfileData(this.currentUser.uid);
+
+        if (freshData) {
+          console.log(
+            "📋 Found fresh profile data, updating cache and populating fields..."
+          );
+          this.existingProfileData = freshData; // Update cache with fresh data
+          this.populateFormFields(freshData);
 
           // If profile is complete, show in edit mode
-          if (this.isProfileComplete(this.existingProfileData)) {
+          if (this.isProfileComplete(freshData)) {
             console.log("✅ Profile is complete, entering edit mode");
-            // 🐛 BUG FIX: Always start from step 0 in edit mode
             this.currentStep = 0;
             this.updateStepTitles("edit");
+          } else {
+            console.log("📝 Profile incomplete, starting from step 0");
+            this.currentStep = 0;
           }
         } else {
-          // Load fresh data from Firestore
-          const existingData = await this.loadProfileData(this.currentUser.uid);
-
-          if (existingData) {
-            console.log(
-              "📋 Found existing profile data during re-initialization..."
-            );
-            this.populateFormFields(existingData);
-
-            // If profile is complete, show in edit mode
-            if (this.isProfileComplete(existingData)) {
-              console.log("✅ Profile is complete, entering edit mode");
-              // 🐛 BUG FIX: Always start from step 0 in edit mode
-              this.currentStep = 0;
-              this.updateStepTitles("edit");
-            }
-          } else {
-            console.log("📝 No existing data found, using basic prefill");
-            this.prefillUserData();
-          }
+          console.log("📝 No profile found, using basic prefill");
+          this.currentStep = 0;
+          this.prefillUserData();
         }
       } catch (error) {
         console.error(
-          "❌ Error loading profile data during re-initialization:",
+          "❌ Error loading fresh profile data during re-initialization:",
           error
         );
         // Fallback to basic prefill if data loading fails
@@ -800,6 +803,9 @@ class ProfileSetup {
 
     // Re-initialize avatar system
     this.initializeAvatarSystem();
+
+    // 🎯 FIX: Don't force refresh avatar on re-initialization - only when on step 1
+    console.log("🎨 Avatar system re-initialized, will refresh when needed");
 
     // Re-setup event listeners (in case they were lost)
     this.setupEventListeners();
@@ -907,18 +913,20 @@ class ProfileSetup {
   collectCurrentStepData() {
     if (this.currentStep === 0) {
       // Format names using our utility function!
-      this.profileData.firstName = formatName(document
-        .getElementById("setup-first-name")
-        .value.trim());
-      this.profileData.lastName = formatName(document
-        .getElementById("setup-last-name")
-        .value.trim());
+      this.profileData.firstName = formatName(
+        document.getElementById("setup-first-name").value.trim()
+      );
+      this.profileData.lastName = formatName(
+        document.getElementById("setup-last-name").value.trim()
+      );
       this.profileData.email = document.getElementById("setup-email").value; // Already pre-filled and readonly
       this.profileData.studentId = generateStudentId(this.profileData.email); // Generate using our function!
       this.profileData.startingYear = document.getElementById(
         "setup-starting-year"
       ).value;
-      this.profileData.major = document.getElementById("setup-major").value.trim();
+      this.profileData.major = document
+        .getElementById("setup-major")
+        .value.trim();
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
       // Avatar configuration is handled by this.avatarConfig
@@ -932,7 +940,7 @@ class ProfileSetup {
    */
 
   /**
-   * Move to the next step in the setup process
+   * Move to the next step in the setup process - SIMPLIFIED
    */
   async nextStep() {
     console.log("🔄 Moving to next step, current step:", this.currentStep);
@@ -952,6 +960,13 @@ class ProfileSetup {
       this.updateStepDisplay();
       this.updateProgress();
       this.validateCurrentStep();
+
+      // Update avatar preview when navigating to avatar step (step 1)
+      if (this.currentStep === 1) {
+        console.log("👤 Navigated to avatar step, updating preview...");
+        // Simple single preview update
+        this.updateAvatarPreview();
+      }
     } else {
       // Final step - save the profile
       console.log("💾 Saving profile...");
@@ -960,14 +975,21 @@ class ProfileSetup {
   }
 
   /**
-   * Move to the previous step in the setup process
+   * Move to the previous step in the setup process - SIMPLIFIED
    */
-  prevStep() {
+  async prevStep() {
     if (this.currentStep > 0) {
       this.currentStep--;
       this.updateStepDisplay();
       this.updateProgress();
       this.validateCurrentStep(); // Validate the new current step
+
+      // Update avatar preview when navigating back to avatar step (step 1)
+      if (this.currentStep === 1) {
+        console.log("👤 Navigated back to avatar step, updating preview...");
+        // Simple single preview update
+        this.updateAvatarPreview();
+      }
     }
   }
 
@@ -1073,11 +1095,12 @@ class ProfileSetup {
         firstName,
         lastName,
         major,
-        startingYear
+        startingYear,
       });
 
       // All validations must pass
-      const isStepValid = hasRequiredFields && hasValidEmail && hasValidStartingYear;
+      const isStepValid =
+        hasRequiredFields && hasValidEmail && hasValidStartingYear;
 
       // Always keep "Next Step →" text, just enable/disable button
       nextBtn.textContent = "Next Step →";
@@ -1087,7 +1110,13 @@ class ProfileSetup {
       if (!isStepValid) {
         nextBtn.classList.add("disabled-state");
         // Show specific validation messages
-        this.showValidationErrors(firstName, lastName, email, startingYear, major);
+        this.showValidationErrors(
+          firstName,
+          lastName,
+          email,
+          startingYear,
+          major
+        );
       } else {
         nextBtn.classList.remove("disabled-state");
         this.clearValidationErrors();
@@ -1120,7 +1149,7 @@ class ProfileSetup {
         firstName,
         lastName,
         major,
-        startingYear
+        startingYear,
       });
       const hasValidEmail = isValidEmail(email);
       const hasValidStartingYear = isValidStartingYear(startingYear);
@@ -1164,7 +1193,7 @@ class ProfileSetup {
   /**
    * Show validation errors to help users fix their input
    * @param {string} firstName - First name value
-   * @param {string} lastName - Last name value  
+   * @param {string} lastName - Last name value
    * @param {string} email - Email value
    * @param {string} startingYear - Starting year value
    * @param {string} major - Major value
@@ -1175,27 +1204,30 @@ class ProfileSetup {
 
     // Check each field and show specific errors
     if (!firstName.trim()) {
-      this.showFieldError('setup-first-name', 'First name is required');
+      this.showFieldError("setup-first-name", "First name is required");
     }
-    
+
     if (!lastName.trim()) {
-      this.showFieldError('setup-last-name', 'Last name is required');
+      this.showFieldError("setup-last-name", "Last name is required");
     }
-    
+
     if (!email.trim()) {
-      this.showFieldError('setup-email', 'Email is required');
+      this.showFieldError("setup-email", "Email is required");
     } else if (!isValidEmail(email)) {
-      this.showFieldError('setup-email', 'Please enter a valid email address');
+      this.showFieldError("setup-email", "Please enter a valid email address");
     }
-    
+
     if (!startingYear) {
-      this.showFieldError('setup-starting-year', 'Starting year is required');
+      this.showFieldError("setup-starting-year", "Starting year is required");
     } else if (!isValidStartingYear(startingYear)) {
-      this.showFieldError('setup-starting-year', 'Please enter a valid starting year');
+      this.showFieldError(
+        "setup-starting-year",
+        "Please enter a valid starting year"
+      );
     }
-    
+
     if (!major.trim()) {
-      this.showFieldError('setup-major', 'Major is required');
+      this.showFieldError("setup-major", "Major is required");
     }
   }
 
@@ -1209,21 +1241,21 @@ class ProfileSetup {
     if (!field) return;
 
     // Add error styling to the field
-    field.classList.add('error');
-    
+    field.classList.add("error");
+
     // Create or update error message element
     const errorId = `${fieldId}-error`;
     let errorElement = document.getElementById(errorId);
-    
+
     if (!errorElement) {
-      errorElement = document.createElement('div');
+      errorElement = document.createElement("div");
       errorElement.id = errorId;
-      errorElement.className = 'error-message';
+      errorElement.className = "error-message";
       field.parentNode.appendChild(errorElement);
     }
-    
+
     errorElement.textContent = message;
-    errorElement.style.display = 'block';
+    errorElement.style.display = "block";
   }
 
   /**
@@ -1231,15 +1263,17 @@ class ProfileSetup {
    */
   clearValidationErrors() {
     // Remove error styling from all form fields
-    const formFields = document.querySelectorAll('.form-field input, .form-field select, .form-field textarea');
-    formFields.forEach(field => {
-      field.classList.remove('error');
+    const formFields = document.querySelectorAll(
+      ".form-field input, .form-field select, .form-field textarea"
+    );
+    formFields.forEach((field) => {
+      field.classList.remove("error");
     });
-    
+
     // Hide all error messages
-    const errorMessages = document.querySelectorAll('.error-message');
-    errorMessages.forEach(error => {
-      error.style.display = 'none';
+    const errorMessages = document.querySelectorAll(".error-message");
+    errorMessages.forEach((error) => {
+      error.style.display = "none";
     });
   }
 
@@ -1401,28 +1435,32 @@ class ProfileSetup {
    */
 
   /**
-   * Initialize avatar system with default avatar for user
+   * Initialize avatar system with default avatar for user - SIMPLIFIED
    */
-  initializeAvatarSystem() {
+  async initializeAvatarSystem() {
     if (!this.currentUser) {
       console.log("⚠️ No user available for avatar system");
       return;
     }
 
-    // Generate default avatar configuration if none exists
-    if (!this.avatarConfig) {
+    // Use existing avatar config from loaded profile data (always fresh)
+    if (this.existingProfileData?.avatarConfig) {
+      console.log("🎨 Using fresh avatar config from profile data");
+      this.avatarConfig = this.existingProfileData.avatarConfig;
+    }
+    // Generate default avatar if none exists
+    else if (!this.avatarConfig && window.avatarManager) {
+      console.log("🎨 Generating default avatar config");
       this.avatarConfig = window.avatarManager.generateDefaultAvatar(
         this.currentUser.uid
       );
-      console.log("🎨 Generated default avatar config:", this.avatarConfig);
     }
 
-    // Update avatar preview
-    this.updateAvatarPreview();
+    console.log("🎨 Avatar system initialized with config:", this.avatarConfig);
   }
 
   /**
-   * Open avatar editor modal
+   * Open avatar editor modal - SIMPLIFIED
    */
   openAvatarEditor() {
     console.log("🎨 Opening avatar editor...");
@@ -1439,35 +1477,246 @@ class ProfileSetup {
       return;
     }
 
-    // Initialize with current avatar or generate default
+    // Use current avatar or generate default
     const currentAvatar =
       this.avatarConfig ||
       window.avatarManager.generateDefaultAvatar(this.currentUser.uid);
 
+    console.log("🎨 Opening editor with avatar config:", currentAvatar);
+
     // Open avatar editor with callback
-    window.avatarManager.openAvatarEditor(currentAvatar, (newAvatarConfig) => {
-      console.log("✅ Avatar saved:", newAvatarConfig);
-      this.avatarConfig = newAvatarConfig;
-      this.updateAvatarPreview();
-    });
+    window.avatarManager.openAvatarEditor(
+      currentAvatar,
+      async (newAvatarConfig) => {
+        console.log("✅ Avatar updated:", newAvatarConfig);
+        this.avatarConfig = newAvatarConfig;
+
+        // Update the preview immediately
+        this.updateAvatarPreview();
+
+        // If profile is complete, save the avatar change immediately
+        if (
+          this.currentUser &&
+          this.isProfileComplete(this.existingProfileData || this.profileData)
+        ) {
+          await this.saveAvatarChange(newAvatarConfig);
+        }
+      }
+    );
   }
 
   /**
-   * Update the avatar preview in the profile setup
+   * Save avatar change to database (for completed profiles)
+   */
+  async saveAvatarChange(avatarConfig) {
+    console.log("💾 Saving avatar change for completed profile...");
+
+    try {
+      const userDocRef = doc(db, "users", this.currentUser.uid);
+      await setDoc(
+        userDocRef,
+        {
+          avatarConfig: avatarConfig,
+          "systemInfo.lastUpdated": serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      console.log("✅ Avatar saved to Firestore");
+
+      // Update cached profile data immediately
+      if (this.existingProfileData) {
+        this.existingProfileData.avatarConfig = avatarConfig;
+        console.log("🔄 Updated cached profile data with new avatar config");
+      }
+
+      // Update menu with new avatar
+      if (window.updateUserDataAfterProfileCompletion) {
+        const updatedUserData = {
+          uid: this.currentUser.uid,
+          name: this.getDisplayName(),
+          email: this.currentUser.email,
+          avatarConfig: avatarConfig,
+          profileSetupComplete: true,
+        };
+        window.updateUserDataAfterProfileCompletion(updatedUserData);
+      }
+
+      // Show success feedback
+      this.showAvatarSaveSuccess();
+    } catch (error) {
+      console.error("❌ Error saving avatar:", error);
+      alert("Failed to save avatar. Please try again.");
+    }
+  }
+
+  /**
+   * Get display name for user
+   */
+  getDisplayName() {
+    if (this.profileData?.firstName && this.profileData?.lastName) {
+      return `${this.profileData.firstName} ${this.profileData.lastName}`;
+    }
+    if (
+      this.existingProfileData?.profile?.firstName &&
+      this.existingProfileData?.profile?.lastName
+    ) {
+      return `${this.existingProfileData.profile.firstName} ${this.existingProfileData.profile.lastName}`;
+    }
+    return (
+      this.currentUser?.displayName ||
+      this.currentUser?.email?.split("@")[0] ||
+      "User"
+    );
+  }
+
+  /**
+   * Show success feedback for avatar save
+   */
+  showAvatarSaveSuccess() {
+    const avatarBtn = document.getElementById("choose-avatar-btn");
+    if (avatarBtn) {
+      const originalText = avatarBtn.textContent;
+      avatarBtn.textContent = "✅ Avatar Saved!";
+      avatarBtn.style.background = "var(--success-color, #10b981)";
+      setTimeout(() => {
+        avatarBtn.textContent = originalText;
+        avatarBtn.style.background = "";
+      }, 2000);
+    }
+  }
+
+  /**
+   * Update the avatar preview in the profile setup - SUPER SIMPLIFIED
    */
   updateAvatarPreview() {
     const avatarPreview = document.getElementById("avatar-preview-display");
 
-    if (avatarPreview && this.avatarConfig) {
-      const avatarUrl = window.avatarManager.generateAvatarUrl(
-        this.avatarConfig
-      );
-      avatarPreview.innerHTML = `<img src="${avatarUrl}" alt="Your Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-      console.log("🖼️ Avatar preview updated in profile setup");
-    } else if (avatarPreview) {
-      // Show default avatar placeholder
-      avatarPreview.innerHTML = "🎨";
+    if (!avatarPreview) {
+      console.log("🎨 Avatar preview element not found - not on avatar step");
+      return;
     }
+
+    console.log("🎨 Updating avatar preview...");
+
+    // Always use fallback approach for now to ensure something shows
+    this.showFallbackAvatar(avatarPreview);
+
+    // Then try to load the actual avatar in the background
+    if (this.avatarConfig && window.avatarManager) {
+      try {
+        const avatarUrl = window.avatarManager.generateAvatarUrl(
+          this.avatarConfig
+        );
+        console.log("🔗 Generated avatar URL:", avatarUrl);
+
+        // Test the URL with a background image load
+        const testImg = new Image();
+        testImg.onload = () => {
+          console.log("✅ Avatar URL works, updating preview");
+          this.loadAvatarImage(avatarPreview, avatarUrl);
+        };
+        testImg.onerror = () => {
+          console.log("❌ Avatar URL failed, keeping fallback");
+          // Keep the fallback that's already showing
+        };
+        testImg.src = avatarUrl;
+      } catch (error) {
+        console.error("❌ Error generating avatar URL:", error);
+        // Keep the fallback that's already showing
+      }
+    }
+  }
+
+  /**
+   * Load avatar image with simple error handling
+   */
+  loadAvatarImage(container, url) {
+    console.log("� Loading avatar from URL:", url);
+
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Your Avatar";
+    img.style.cssText = `
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+      border-radius: 50%; 
+      display: block;
+    `;
+
+    img.onload = () => {
+      console.log("✅ Avatar loaded successfully");
+      container.innerHTML = "";
+      container.appendChild(img);
+      container.classList.add("has-image");
+    };
+
+    img.onerror = () => {
+      console.log("❌ Avatar failed to load, using fallback");
+      this.showFallbackAvatar(container);
+    };
+  }
+
+  /**
+   * Show fallback avatar (initials or emoji)
+   */
+  showFallbackAvatar(container) {
+    console.log("🎨 Showing fallback avatar");
+
+    // Get user initials from profile data or email
+    let initials = "??";
+
+    if (this.profileData?.firstName && this.profileData?.lastName) {
+      initials =
+        `${this.profileData.firstName[0]}${this.profileData.lastName[0]}`.toUpperCase();
+    } else if (
+      this.existingProfileData?.profile?.firstName &&
+      this.existingProfileData?.profile?.lastName
+    ) {
+      initials =
+        `${this.existingProfileData.profile.firstName[0]}${this.existingProfileData.profile.lastName[0]}`.toUpperCase();
+    } else if (this.currentUser?.email) {
+      const emailName = this.currentUser.email.split("@")[0];
+      initials = emailName.substring(0, 2).toUpperCase();
+    }
+
+    // Create styled initials avatar
+    container.innerHTML = `
+      <div style="
+        width: 100%; 
+        height: 100%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-size: 2.5rem; 
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        color: white;
+        font-family: system-ui, -apple-system, sans-serif;
+      ">
+        ${initials}
+      </div>
+    `;
+
+    container.classList.add("has-image");
+    console.log(`✅ Fallback avatar shown with initials: ${initials}`);
+  }
+
+  /**
+   * Refresh avatar configuration from current profile data
+   * Simple approach - just use what we already have loaded
+   */
+  refreshAvatarConfig() {
+    if (this.existingProfileData?.avatarConfig) {
+      console.log("🔄 Refreshing avatar config from existing profile data");
+      this.avatarConfig = this.existingProfileData.avatarConfig;
+      return true;
+    }
+
+    console.log("⚠️ No avatar config found in existing data");
+    return false;
   }
 
   /**
@@ -1561,6 +1810,26 @@ class ProfileSetup {
           detail: { userData },
         })
       );
+
+      // 🎯 CRITICAL FIX: Force refresh user data in menu after profile completion
+      // This ensures the avatar and display name are updated immediately on redirect
+      if (window.updateUserDataAfterProfileCompletion) {
+        console.log("🔄 Forcing user data refresh after profile completion...");
+
+        // 🎯 CRITICAL: Create flat structure for menu system
+        const menuUserData = {
+          uid: userData.uid,
+          name: `${userData.profile.firstName} ${userData.profile.lastName}`,
+          email: userData.profile.email,
+          avatarConfig: userData.avatarConfig,
+          profileSetupComplete: userData.systemInfo.profileSetupComplete,
+        };
+
+        window.updateUserDataAfterProfileCompletion(menuUserData);
+      }
+
+      // Set flag to indicate profile was just completed (for SPA router)
+      sessionStorage.setItem("profileJustCompleted", "true");
 
       // Fallback navigation if SPA router isn't available
       setTimeout(() => {
@@ -1862,11 +2131,135 @@ class ProfileSetup {
       mainSubtitle.textContent = "Make changes to your profile information.";
     }
   }
+
+  /**
+   * Test DiceBear API connectivity and provide debugging info
+   */
+  async testAvatarAPIConnectivity() {
+    console.log("🧪 Testing DiceBear API connectivity...");
+
+    try {
+      // Test with the simplest possible URL
+      const testUrl = "https://api.dicebear.com/9.x/initials/svg?seed=test";
+      console.log("🔗 Testing URL:", testUrl);
+
+      const response = await fetch(testUrl, { method: "HEAD" });
+      console.log("📡 API Response Status:", response.status);
+      console.log(
+        "📡 API Response Headers:",
+        Object.fromEntries(response.headers.entries())
+      );
+
+      if (response.ok) {
+        console.log("✅ DiceBear API is accessible");
+        return true;
+      } else {
+        console.error(
+          "❌ DiceBear API returned error status:",
+          response.status
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ DiceBear API connectivity test failed:", error);
+      console.log("🌐 Possible issues:");
+      console.log("   - Network connectivity problems");
+      console.log("   - CORS restrictions");
+      console.log("   - API service temporarily down");
+      console.log("   - Firewall or proxy blocking requests");
+      return false;
+    }
+  }
+
+  /**
+   * Test avatar API connectivity with a simple request
+   */
+  async testAvatarAPI() {
+    console.log("🧪 Testing avatar API connectivity...");
+
+    try {
+      // Test with the simplest possible request
+      const testUrl =
+        "https://api.dicebear.com/9.x/initials/svg?seed=test&backgroundColor=b6e3f4";
+      console.log("🔗 Testing simple URL:", testUrl);
+
+      const response = await fetch(testUrl, { method: "HEAD" });
+      console.log("📡 API Response Status:", response.status);
+
+      if (response.ok) {
+        console.log(
+          "✅ Avatar API is working - issue might be with complex configurations"
+        );
+        return true;
+      } else {
+        console.error("❌ Avatar API returned error:", response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Avatar API test failed:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Create a simple avatar config for testing
+   */
+  createSimpleAvatarConfig() {
+    if (!this.currentUser) return null;
+
+    return {
+      style: "initials",
+      seed: this.currentUser.uid.substring(0, 8),
+      options: {
+        backgroundColor: "b6e3f4",
+      },
+    };
+  }
+
+  // Test avatar connectivity when initializing (for development)
+  async debugAvatarSystem() {
+    if (!this.currentUser || !this.isDevelopmentEmail(this.currentUser.email)) {
+      return; // Only run for development emails
+    }
+
+    console.log("🔧 Running avatar system debug for development user...");
+
+    // Test API connectivity
+    const apiWorking = await this.testAvatarAPI();
+
+    if (!apiWorking) {
+      console.log("🔄 API connectivity issues detected, using local fallback");
+      // Force use of initials fallback
+      this.avatarConfig = this.createSimpleAvatarConfig();
+    }
+
+    // Test avatar manager
+    if (window.avatarManager) {
+      try {
+        const testConfig = this.createSimpleAvatarConfig();
+        const testUrl = window.avatarManager.generateAvatarUrl(testConfig);
+        console.log("🧪 Generated test URL:", testUrl);
+      } catch (error) {
+        console.error("❌ Avatar manager error:", error);
+      }
+    } else {
+      console.error("❌ Avatar manager not loaded");
+    }
+  }
+
+  /**
+   * Clear cached profile data to force fresh reload
+   */
+  clearProfileCache() {
+    console.log("🗑️ Clearing cached profile data");
+    this.existingProfileData = null;
+    this.avatarConfig = null;
+  }
 }
 
 /**
  * =============================================================================
- *                      12. GLOBAL INITIALIZATION SYSTEM
+ *                        GLOBAL INITIALIZATION SYSTEM
  * =============================================================================
  */
 
@@ -1875,6 +2268,7 @@ let profileSetupInstance = null;
 let initializationInProgress = false;
 
 /**
+
  * Wait for auth manager to be available
  * @param {number} maxWaitTime - Maximum time to wait in milliseconds
  * @param {number} checkInterval - Interval between checks in milliseconds
@@ -2161,7 +2555,7 @@ if (document.readyState === "loading") {
  * @returns {boolean} True if email is valid
  */
 export function isValidEmail(email) {
-  if (!email || typeof email !== 'string') return false;
+  if (!email || typeof email !== "string") return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email.trim());
 }
@@ -2172,11 +2566,11 @@ export function isValidEmail(email) {
  * @returns {string} Properly formatted name
  */
 export function formatName(name) {
-  if (!name || typeof name !== 'string') return "";
+  if (!name || typeof name !== "string") return "";
   return name
     .trim()
     .toLowerCase()
-    .replace(/\b\w/g, char => char.toUpperCase());
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 /**
@@ -2186,9 +2580,9 @@ export function formatName(name) {
  */
 export function generateStudentId(email) {
   if (!email) return "";
-  const username = email.split('@')[0];
-  const hash = username.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0);
+  const username = email.split("@")[0];
+  const hash = username.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0);
     return a & a;
   }, 0);
   return `STU${Math.abs(hash).toString().substring(0, 6)}`;
@@ -2203,9 +2597,9 @@ export function isValidStartingYear(year) {
   if (!year) return false;
   const yearNum = parseInt(year);
   if (isNaN(yearNum)) return false;
-  
-  const currentYear = new Date().getFullYear(); 
-  return yearNum >= (currentYear - 6) && yearNum <= currentYear;
+
+  const currentYear = new Date().getFullYear();
+  return yearNum >= currentYear - 6 && yearNum <= currentYear;
 }
 
 /**
@@ -2215,10 +2609,11 @@ export function isValidStartingYear(year) {
  */
 export function validateRequiredFields(data) {
   const required = ["firstName", "lastName", "major", "startingYear"];
-  return required.every(field => 
-    data[field] && 
-    typeof data[field] === 'string' && 
-    data[field].trim() !== ""
+  return required.every(
+    (field) =>
+      data[field] &&
+      typeof data[field] === "string" &&
+      data[field].trim() !== ""
   );
 }
 
@@ -2228,3 +2623,18 @@ export { ProfileSetup };
 // =============================================================================
 //                                    END
 // =============================================================================
+
+/**
+ * Global function to refresh avatar preview (can be called from other modules)
+ */
+window.refreshProfileAvatarPreview = function () {
+  if (
+    profileSetupInstance &&
+    typeof profileSetupInstance.refreshAvatarFromDatabase === "function"
+  ) {
+    console.log("🔄 Global avatar refresh called");
+    profileSetupInstance.refreshAvatarFromDatabase();
+  } else {
+    console.log("⚠️ Profile setup instance not available for avatar refresh");
+  }
+};

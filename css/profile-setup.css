@@ -658,6 +658,14 @@ body.page-profile .profile-setup-card.glass-card {
   -webkit-backdrop-filter: blur(10px);
 }
 
+/* 🎯 FIX: Remove background and backdrop filter when image is present */
+.avatar-preview-display:has(img),
+.avatar-preview-display.has-image {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .avatar-preview-display:hover {
   border-color: var(--accent-primary);
   transform: translateY(-3px) scale(1.02);
@@ -675,6 +683,13 @@ body.page-profile .profile-setup-card.glass-card {
   object-fit: cover;
   border-radius: 50%;
   transition: transform 0.3s ease;
+  /* 🎯 FIX: Ensure image is fully visible */
+  position: relative;
+  z-index: 1;
+  display: block;
+  /* 🎯 FIX: Prevent alt text from showing when image loads */
+  font-size: 0;
+  background-color: transparent;
 }
 
 /* Subtle hover effect for avatar images */

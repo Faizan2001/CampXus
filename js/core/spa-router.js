@@ -475,6 +475,27 @@ class SPARouter {
       // Special initialization for home page after content and scripts are loaded
       if (route === "home") {
         await this.initializeHomePage();
+
+        // 🎯 CRITICAL FIX: Check if we just came from profile setup completion
+        // This ensures user data is refreshed when redirected from profile
+        const justCompletedProfile = sessionStorage.getItem(
+          "profileJustCompleted"
+        );
+        if (justCompletedProfile === "true") {
+          console.log(
+            "🔄 Just completed profile, forcing user data refresh..."
+          );
+          sessionStorage.removeItem("profileJustCompleted"); // Clear the flag
+
+          // Force refresh user data from Firebase
+          if (window.setupFirebaseAuthListener) {
+            setTimeout(() => {
+              console.log("🔄 Forcing Firebase auth state refresh...");
+              // The auth listener will automatically fetch fresh data
+              window.location.hash = window.location.hash; // Trigger refresh
+            }, 500);
+          }
+        }
       }
 
       // Update current page BEFORE navigation states to ensure consistency

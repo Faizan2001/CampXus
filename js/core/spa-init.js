@@ -59,20 +59,43 @@ function setupAuthenticationIntegration() {
  */
 function setupProfileCompletionFlow() {
   // Listen for profile setup completion
-  document.addEventListener("profile:setup:complete", () => {
+  document.addEventListener("profile:setup:complete", (event) => {
     console.log("📝 Profile setup completed, redirecting to home...");
+
+    // 🎯 CRITICAL FIX: Ensure user data is refreshed immediately
+    const userData = event.detail.userData;
+    if (userData && window.updateUserDataAfterProfileCompletion) {
+      // 🎯 CRITICAL: Create flat structure for menu system
+      const menuUserData = {
+        uid: userData.uid,
+        name: `${userData.profile.firstName} ${userData.profile.lastName}`,
+        email: userData.profile.email,
+        avatarConfig: userData.avatarConfig,
+        profileSetupComplete: userData.systemInfo.profileSetupComplete,
+      };
+
+      window.updateUserDataAfterProfileCompletion(menuUserData);
+    }
 
     // Show success message briefly, then redirect
     setTimeout(() => {
       if (window.spaRouter) {
+        // Set completion flag for the SPA router to handle
+        sessionStorage.setItem("profileJustCompleted", "true");
         window.spaRouter.navigateTo("home");
       }
     }, 2000); // 2 second delay to show success message
   });
 
   // Listen for profile setup skip
-  document.addEventListener("profile:setup:skip", () => {
+  document.addEventListener("profile:setup:skip", (event) => {
     console.log("⏭️ Profile setup skipped, redirecting to home...");
+
+    // Also refresh user data for skip case
+    const userData = event.detail.userData;
+    if (userData && window.updateUserDataAfterProfileCompletion) {
+      window.updateUserDataAfterProfileCompletion(userData);
+    }
 
     if (window.spaRouter) {
       window.spaRouter.navigateTo("home");

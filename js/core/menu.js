@@ -206,6 +206,9 @@ function initializeUserMenu() {
 
   // Set up Firebase auth state listener if available
   setupFirebaseAuthListener();
+
+  // Set up profile completion listeners for immediate data refresh
+  setupProfileCompletionListeners();
 }
 
 /**
@@ -427,29 +430,68 @@ function updateAuthenticationUI(isAuthenticated, userData = null) {
  * Enhanced to display custom avatar from Firestore profile
  */
 function updateUserDisplayInfo(userData) {
-  // Update dropdown header with user details
-  const userDropdownName = document.getElementById("userDropdownName");
-  const userDropdownEmail = document.getElementById("userDropdownEmail");
+  console.log("🔄 Updating user display info:", userData);
 
-  if (userDropdownName) {
+  // 🛡️ CRITICAL SAFEGUARD: Don't update with empty/invalid data
+  if (!userData || !userData.name || !userData.email) {
+    console.warn("⚠️ Skipping user display update - invalid data:", userData);
+    return;
+  }
+
+  // 🎯 CRITICAL FIX: Wait for elements to be available in the DOM
+  const waitForElements = () => {
+    const userDropdownName = document.getElementById("userDropdownName");
+    const userDropdownEmail = document.getElementById("userDropdownEmail");
+
+    if (!userDropdownName || !userDropdownEmail) {
+      console.log("⏳ Waiting for dropdown elements to be available...");
+      setTimeout(waitForElements, 100);
+      return;
+    }
+
+    // 🛡️ ADDITIONAL SAFEGUARD: Don't overwrite existing data with empty data
+    const currentName = userDropdownName.textContent?.trim();
+    const currentEmail = userDropdownEmail.textContent?.trim();
+
+    if (
+      currentName &&
+      currentEmail &&
+      (!userData.name?.trim() || !userData.email?.trim())
+    ) {
+      console.warn(
+        "🛡️ Preserving existing user data - new data seems invalid",
+        {
+          current: { name: currentName, email: currentEmail },
+          new: { name: userData.name, email: userData.email },
+        }
+      );
+      return;
+    }
+
+    // Elements are available, update them
     userDropdownName.textContent = userData.name;
-  }
+    console.log("👤 Set user name:", userData.name);
 
-  if (userDropdownEmail) {
     userDropdownEmail.textContent = userData.email;
-  }
+    console.log("📧 Set user email:", userData.email);
 
-  // Update avatar displays with custom avatar from Firestore
+    // Update the user menu trigger tooltip for better UX
+    const userMenuTrigger = document.getElementById("userMenuTrigger");
+    if (userMenuTrigger && userData.name) {
+      userMenuTrigger.setAttribute(
+        "title",
+        `${userData.name} - Click to open menu`
+      );
+    }
+
+    console.log("✅ User display info update completed");
+  };
+
+  // Start the element waiting process
+  waitForElements();
+
+  // Update avatar displays with custom avatar from Firestore (this has its own retry logic)
   updateUserAvatarDisplays(userData);
-
-  // Update the user menu trigger tooltip for better UX
-  const userMenuTrigger = document.getElementById("userMenuTrigger");
-  if (userMenuTrigger && userData.name) {
-    userMenuTrigger.setAttribute(
-      "title",
-      `${userData.name} - Click to open menu`
-    );
-  }
 }
 
 /**
@@ -510,7 +552,7 @@ function updateUserAvatarDisplays(userData) {
       displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
     }
   } else {
-    console.log("⚠️ No custom avatar found, using default icon");
+    console.log("⚠️ No custom avatar found or avatar manager not available");
 
     // 🔄 If we have avatar config but no avatar manager, retry when it loads
     if (userData.avatarConfig && !window.avatarManager) {
@@ -536,11 +578,28 @@ function updateUserAvatarDisplays(userData) {
         }
       };
 
-      // Start checking for avatar manager
+      // Start checking for avatar manager immediately and with retries
       setTimeout(checkAvatarManager, 100);
+
+      // 🎯 CRITICAL FIX: Also check when scripts are loaded via SPA router
+      document.addEventListener("DOMContentLoaded", checkAvatarManager);
+      document.addEventListener("spa:navigation", checkAvatarManager);
+
+      // 🎯 ADDITIONAL FIX: Check periodically for avatar manager
+      const avatarManagerInterval = setInterval(() => {
+        if (window.avatarManager && window.pendingAvatarUpdate) {
+          clearInterval(avatarManagerInterval);
+          console.log("🎨 Avatar manager detected during periodic check...");
+          checkAvatarManager();
+        }
+      }, 1000); // Check every second for up to 10 seconds
+
+      setTimeout(() => {
+        clearInterval(avatarManagerInterval);
+      }, 10000);
     }
 
-    // Display default avatar icons
+    // Display default avatar icons while waiting
     displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
   }
 }
@@ -599,6 +658,84 @@ function checkAuthenticationState() {
 }
 
 /**
+ * Force update user data after profile completion
+ * 🎯 CRITICAL FIX: This ensures avatar and display name appear immediately after profile setup
+ * @param {Object} newUserData - Fresh user data from profile completion
+ */
+function updateUserDataAfterProfileCompletion(newUserData) {
+  console.log(
+    "🔄 Forcing user data update after profile completion:",
+    newUserData
+  );
+
+  // 🛡️ Set a flag to prevent clearing operations for a short time
+  window.preventUserDataClearing = true;
+  setTimeout(() => {
+    window.preventUserDataClearing = false;
+  }, 3000); // Protect for 3 seconds
+
+  // Store in localStorage first for persistence across page reloads
+  localStorage.setItem("user", JSON.stringify(newUserData));
+
+  // Update authentication UI with the fresh data
+  updateAuthenticationUI(true, newUserData);
+
+  // 🎯 CRITICAL: Force immediate update of display info with retry
+  const forceUpdate = () => {
+    const userDropdownName = document.getElementById("userDropdownName");
+    const userDropdownEmail = document.getElementById("userDropdownEmail");
+
+    if (userDropdownName && userDropdownEmail) {
+      updateUserDisplayInfo(newUserData);
+      console.log("✅ User data successfully updated after profile completion");
+    } else {
+      console.log("⏳ Elements not ready, retrying user data update...");
+      setTimeout(forceUpdate, 200);
+    }
+  };
+
+  forceUpdate();
+}
+
+// 🎯 EXPORT FUNCTION: Make this available globally for profile-setup.js to call
+window.updateUserDataAfterProfileCompletion =
+  updateUserDataAfterProfileCompletion;
+
+/**
+ * =============================================================================
+ *                  🎯 CRITICAL FIX: AVATAR & DISPLAY NAME UPDATE SYSTEM
+ * =============================================================================
+ *
+ * 🚨 PROBLEM SOLVED:
+ * Previously, when users completed profile setup (including setting an avatar),
+ * they had to manually reload the page to see their avatar and display name.
+ *
+ * 🔍 ROOT CAUSE:
+ * 1. Profile data was saved to Firebase successfully
+ * 2. User was redirected to home page via SPA router
+ * 3. Menu system tried to fetch fresh user data from Firestore
+ * 4. BUT there was a timing issue - sometimes cached data was displayed
+ * 5. Avatar manager wasn't always loaded when avatar display was attempted
+ *
+ * 💡 SOLUTION IMPLEMENTED:
+ * 1. Force immediate refresh of user data after profile completion
+ * 2. Enhanced retry mechanism for avatar manager loading
+ * 3. Session storage flag to detect profile completion
+ * 4. Multiple fallback checks for avatar display
+ * 5. Event-driven updates instead of relying solely on auth state changes
+ *
+ * 🎯 TEACHING MOMENT:
+ * This fix demonstrates several important web development concepts:
+ * - Data synchronization in single-page applications
+ * - Event-driven architecture for real-time updates
+ * - Graceful handling of async resource loading
+ * - User experience optimization (no manual refresh needed)
+ * - Defensive programming with multiple fallback mechanisms
+ *
+ * =============================================================================
+ */
+
+/**
  * Set up Firebase authentication state listener
  * 🏆 BEST PRACTICE: Use debouncing to prevent race conditions
  */
@@ -637,8 +774,30 @@ function setupFirebaseAuthListener() {
                 user.email
               );
 
-              // 🐛 BUG FIX: Clear any stale data before loading new user data
-              clearUserDisplayInfo();
+              // 🎯 CRITICAL FIX: Be more careful about clearing display info
+              // Only clear if we truly have no user data AND no display elements are populated
+              const currentUserData = localStorage.getItem("user");
+              const userDropdownName =
+                document.getElementById("userDropdownName");
+              const userDropdownEmail =
+                document.getElementById("userDropdownEmail");
+
+              // Only clear if we have no stored data AND no displayed data
+              const hasDisplayedData =
+                userDropdownName?.textContent?.trim() ||
+                userDropdownEmail?.textContent?.trim();
+
+              if (!currentUserData && !hasDisplayedData) {
+                console.log(
+                  "🧹 Clearing user display info - no stored or displayed data"
+                );
+                clearUserDisplayInfo();
+              } else {
+                console.log("🛡️ Preserving user display info - data exists", {
+                  hasStoredData: !!currentUserData,
+                  hasDisplayedData: hasDisplayedData,
+                });
+              }
 
               // 🏆 ROBUST: Retry system for reliable Firestore access
               const maxRetries = 3;
@@ -745,6 +904,58 @@ function setupFirebaseAuthListener() {
   };
 
   checkAuthManager();
+}
+
+/**
+ * Set up profile completion listeners
+ * 🎯 LEARNING: Listen for when the user completes profile setup to refresh data immediately
+ */
+function setupProfileCompletionListeners() {
+  console.log("🎧 Setting up profile completion listeners...");
+
+  // Listen for profile setup completion
+  document.addEventListener("profile:setup:complete", (event) => {
+    console.log(
+      "🎉 Profile setup completed, refreshing user data immediately..."
+    );
+
+    const userData = event.detail.userData;
+    if (userData) {
+      // 🎯 CRITICAL: Create flat structure for menu system
+      const menuUserData = {
+        uid: userData.uid,
+        name: `${userData.profile.firstName} ${userData.profile.lastName}`,
+        email: userData.profile.email,
+        avatarConfig: userData.avatarConfig,
+        profileSetupComplete: userData.systemInfo.profileSetupComplete,
+      };
+
+      // Force immediate update of user data in menu
+      updateUserDataAfterProfileCompletion(menuUserData);
+    }
+  });
+
+  // Listen for profile setup skip (also update data)
+  document.addEventListener("profile:setup:skip", (event) => {
+    console.log("⏭️ Profile setup skipped, refreshing user data...");
+
+    const userData = event.detail.userData;
+    if (userData) {
+      // 🎯 CRITICAL: Create flat structure for menu system
+      const menuUserData = {
+        uid: userData.uid,
+        name:
+          userData.profile?.firstName && userData.profile?.lastName
+            ? `${userData.profile.firstName} ${userData.profile.lastName}`
+            : userData.profile?.email?.split("@")[0] || "User",
+        email: userData.profile.email,
+        avatarConfig: userData.avatarConfig,
+        profileSetupComplete: userData.systemInfo.profileSetupComplete,
+      };
+
+      updateUserDataAfterProfileCompletion(menuUserData);
+    }
+  });
 }
 
 // Legacy functions for backward compatibility (if needed by other scripts)
@@ -884,15 +1095,31 @@ window.userMenuUtils = {
  * 🐛 BUG FIX: Ensures no stale data remains when users sign out
  */
 function clearUserDisplayInfo() {
+  // 🛡️ CRITICAL SAFEGUARD: Don't clear if we just completed profile setup
+  if (window.preventUserDataClearing) {
+    console.log(
+      "🛡️ Prevented clearing user data - profile completion in progress"
+    );
+    return;
+  }
+
+  console.log("🧹 clearUserDisplayInfo called", {
+    stack: new Error().stack?.split("\n").slice(1, 4).join("\n"),
+    timestamp: new Date().toISOString(),
+    preventFlag: window.preventUserDataClearing,
+  });
+
   // Clear dropdown header user details
   const userDropdownName = document.getElementById("userDropdownName");
   const userDropdownEmail = document.getElementById("userDropdownEmail");
 
   if (userDropdownName) {
+    console.log("🧹 Clearing user name:", userDropdownName.textContent);
     userDropdownName.textContent = "";
   }
 
   if (userDropdownEmail) {
+    console.log("🧹 Clearing user email:", userDropdownEmail.textContent);
     userDropdownEmail.textContent = "";
   }
 
