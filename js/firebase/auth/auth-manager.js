@@ -436,6 +436,9 @@ class AuthManager {
         throw new Error(profileError.message || "Profile creation failed");
       }
 
+      // Immediately sign out after successful signup so user is not auto-signed in
+      await signOut(auth);
+
       // Show appropriate success message
       if (this.isDevelopmentEmail(email)) {
         showFormSuccess(
