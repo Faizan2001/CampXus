@@ -517,10 +517,12 @@ Modern authentication modal that matches the CampXus design language with:
 /* Responsive Design - Mobile Optimizations */
 @media (max-width: 640px) {
   .auth-container {
-    width: 95%;
-    margin: 1rem;
-    max-width: none;
+    width: 95vw;
+    max-width: 480px;
+    max-height: 90vh;
+    margin: 2.5rem auto;
     border-radius: var(--radius-md, 1rem);
+    box-shadow: 0 8px 32px var(--shadow, rgba(0, 0, 0, 0.18));
   }
 
   .auth-header,
@@ -547,14 +549,16 @@ Modern authentication modal that matches the CampXus design language with:
 
 @media (max-width: 480px) {
   .auth-container {
-    width: 100%;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
+    width: 95vw;
+    max-width: 360px;
+    max-height: 90vh;
+    margin: 2.5rem auto;
+    border-radius: var(--radius-md, 1rem);
+    box-shadow: 0 8px 32px var(--shadow, rgba(0, 0, 0, 0.18));
   }
 
   .auth-header {
-    border-radius: 0;
+    border-radius: var(--radius-md, 1rem) var(--radius-md, 1rem) 0 0;
   }
 }
 
