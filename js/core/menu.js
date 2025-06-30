@@ -202,7 +202,7 @@ function initializeUserMenu() {
   }
 
   // Add event listeners to all dropdown items to close dropdown when clicked
-  setupDropdownItemsCloseHandler();ygt
+  setupDropdownItemsCloseHandler();
 
   // Initialize authentication state
   checkAuthenticationState();
