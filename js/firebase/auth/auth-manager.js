@@ -12,6 +12,7 @@ import {
   validateUniversityEmail,
   getFriendlyEmailError,
 } from "./university-validator.js";
+import { dataManager } from "../../../js/core/data-manager.js";
 
 /**
  * Custom error class for authentication-related errors
@@ -414,7 +415,26 @@ class AuthManager {
       }
 
       // Create user profile in Firestore (removed emailVerified field)
-      await this.createUserProfile(user, email);
+      try {
+        await this.createUserProfile(user, email);
+      } catch (profileError) {
+        // If profile creation fails, delete the Auth user to avoid orphaned accounts
+        console.error(
+          "🧹 Cleaning up Auth user due to profile creation failure..."
+        );
+        try {
+          await user.delete();
+          console.log("🗑️ Auth user deleted after profile creation failure.");
+        } catch (deleteError) {
+          // If user.delete() fails (e.g., due to recent login requirements), sign out instead
+          console.error(
+            "⚠️ Failed to delete Auth user directly. Signing out instead.",
+            deleteError
+          );
+          await signOut(auth);
+        }
+        throw new Error(profileError.message || "Profile creation failed");
+      }
 
       // Show appropriate success message
       if (this.isDevelopmentEmail(email)) {
@@ -495,7 +515,11 @@ class AuthManager {
     );
 
     try {
-      await setDoc(doc(db, "users", user.uid), userProfile);
+      // Use dataManager to save user profile instead of direct setDoc
+      const result = await dataManager.saveUserProfile(user.uid, userProfile);
+      if (!result.success) {
+        throw new Error(result.error || "Unknown error saving profile");
+      }
       console.log(
         "👤 User profile created in Firestore with organized structure matching profile-setup.js"
       );
@@ -612,20 +636,18 @@ class AuthManager {
    */
   async updateUserLastActive() {
     if (!this.currentUser) return;
-
     try {
-      const { updateDoc } = await import("firebase/firestore");
-
-      // 🎯 SOLUTION: Update nested field in systemInfo group
-      // This prevents interfering with other document reads/writes
-      await updateDoc(doc(db, "users", this.currentUser.uid), {
-        "systemInfo.lastActive": serverTimestamp(),
-      });
-
+      // Use dataManager for last active update
+      const result = await dataManager.updateUserLastActive(
+        this.currentUser.uid
+      );
+      if (!result.success) {
+        throw new Error(result.error || "Unknown error updating lastActive");
+      }
       console.log("👤 Updated lastActive timestamp in systemInfo");
     } catch (error) {
       // 🛡️ SILENT FAIL: Don't let lastActive updates break the app
-      console.log("⚠️ LastActive update failed (non-critical):", error.code);
+      console.log("⚠️ LastActive update failed (non-critical):", error.message);
     }
   }
 

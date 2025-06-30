@@ -32,6 +32,9 @@ import { db } from "../firebase/config/firebase-config.js";
 // Import avatar management system
 import AvatarManager from "./avatars.js";
 
+// Import data manager for Firestore operations
+import { dataManager } from "./data-manager.js";
+
 /**
  * =============================================================================
  *                        1. CLASS DEFINITION & CONSTRUCTOR
@@ -64,6 +67,14 @@ class ProfileSetup {
 
     // Initialize the setup
     this.checkAuthentication();
+
+    // Add offline/online event listeners for UI feedback
+    window.addEventListener("offline", () => this.showOfflineBanner(true));
+    window.addEventListener("online", () => this.showOfflineBanner(false));
+    // Show banner if already offline on load
+    if (!navigator.onLine) {
+      this.showOfflineBanner(true);
+    }
   }
 
   /**
@@ -667,9 +678,6 @@ class ProfileSetup {
     // Add debug info to page for development
     this.addDebugInfo();
 
-    // Run avatar system debugging for development users
-    await this.debugAvatarSystem();
-
     // 🎯 LOAD EXISTING PROFILE DATA: Check for existing profile data first
     if (this.currentUser && this.currentUser.uid) {
       try {
@@ -1001,55 +1009,31 @@ class ProfileSetup {
     if (nextBtn) nextBtn.disabled = true;
 
     try {
-      // 🗂️ ORGANIZED STRUCTURE: Consistent structure even for skipped setup
+      // Use dataManager for skip profile save
       const userData = {
-        // Core Identity (root level - only uid)
         uid: this.currentUser.uid,
-
-        // University Information (grouped)
-        universityInfo: {
-          university: this.currentUser.email.split("@")[1].split(".")[0],
-          universityName: "Independent University, Bangladesh",
-          studentId: this.currentUser.email.split("@")[0],
-        },
-
-        // Personal Profile (grouped - includes email and displayName)
         profile: {
-          firstName: "",
-          lastName: "",
-          bio: "",
-          major: "",
-          startingYear: "",
           email: this.currentUser.email,
-          displayName: this.currentUser.email.split("@")[0],
+          displayName:
+            this.currentUser.displayName ||
+            this.currentUser.email.split("@")[0],
         },
-
-        // Avatar Configuration (will be null for skipped setup)
-        avatarConfig: null,
-
-        // System Status (grouped)
         systemInfo: {
           profileSetupComplete: false,
           status: "offline",
-          // Remove lastActive - it's managed by auth-manager
-          createdAt: serverTimestamp(),
           lastUpdated: serverTimestamp(),
-          skippedSetupAt: serverTimestamp(),
         },
       };
-
-      // Use modern Firebase v9 syntax
-      const userDocRef = doc(db, "users", this.currentUser.uid);
-      await setDoc(userDocRef, userData, { merge: true });
-
-      // 🎯 SPA Integration: Dispatch skip event instead of page redirect
+      const result = await dataManager.saveUserProfile(
+        this.currentUser.uid,
+        userData
+      );
+      if (!result.success) throw new Error(result.error);
       document.dispatchEvent(
         new CustomEvent("profile:setup:skip", {
           detail: { userData },
         })
       );
-
-      // Fallback navigation if SPA router isn't available
       setTimeout(() => {
         if (!window.spaRouter) {
           window.location.href = "../index.html";
@@ -1404,24 +1388,55 @@ class ProfileSetup {
 
   /**
    * Display success message after profile completion
+   * Shows an extra message if offline, and attempts to show sync status if available.
    */
   showSuccessMessage() {
     const setupCard = document.querySelector(".profile-setup-card");
     if (setupCard) {
+      // Check if offline and optionally get sync status from dataManager
+      let offlineMsg = "";
+      if (!navigator.onLine) {
+        offlineMsg = `
+          <div class="offline-success-info" style="margin-top:1.5rem; background:#f87171; color:#fff; padding:0.75rem 1rem; border-radius:8px; font-size:1rem; text-align:center; max-width:400px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            <span style="display:inline-block;margin-right:0.5em;vertical-align:middle;">⚠️</span>
+            <span style="vertical-align:middle;">You are offline. Your profile is saved locally and will sync to the cloud when you reconnect.</span>
+          </div>
+        `;
+      }
+      // Optionally, show more info if dataManager provides sync state (for advanced users)
+      if (
+        window.dataManager &&
+        typeof window.dataManager.getSyncStatus === "function"
+      ) {
+        try {
+          const syncStatus = window.dataManager.getSyncStatus();
+          if (syncStatus && syncStatus.pendingWrites > 0) {
+            offlineMsg += `
+              <div class="sync-status-info" style="margin-top:0.5rem; color:#fbbf24; font-size:0.95rem;">
+                <span style="display:inline-block;margin-right:0.3em;">⏳</span>
+                <span>Pending changes: ${syncStatus.pendingWrites}. They will sync automatically.</span>
+              </div>
+            `;
+          }
+        } catch (e) {
+          // Ignore errors, just don't show sync status
+        }
+      }
       setupCard.innerHTML = `
         <div class="setup-header">
           <div class="setup-title-section">
             <h1 class="setup-title">All Set! 🎉</h1>
-            <p class="setup-subtitle">Your CampXus profile is ready</p>
+            <p class="setup-subtitle">Your profile is ready</p>
           </div>
         </div>
-        <div class="setup-body" style="text-align: center; padding: 3rem;">
-          <div class="success-message">
+        <div class="setup-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 350px; padding: 3rem 1rem;">
+          <div class="success-message" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
             <div class="success-icon" style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;">
-              <i class="fas fa-rocket"></i>
+              <i class="fas fa-rocket" aria-hidden="true"></i>
             </div>
-            <h3 style="color: #10b981; margin-bottom: 1rem;">Welcome Aboard!</h3>
-            <p style="color: #6b7280;">You'll be redirected to your dashboard shortly.</p>
+            <h3 style="color: #059669; margin-bottom: 1rem; text-align: center;">Welcome Aboard!</h3>
+            <p style="color:rgb(248, 248, 248); text-align: center; max-width: 350px;">You'll be redirected to your dashboard shortly.</p>
+            ${offlineMsg}
           </div>
         </div>
       `;
@@ -1510,26 +1525,19 @@ class ProfileSetup {
    */
   async saveAvatarChange(avatarConfig) {
     console.log("💾 Saving avatar change for completed profile...");
-
     try {
-      const userDocRef = doc(db, "users", this.currentUser.uid);
-      await setDoc(
-        userDocRef,
-        {
-          avatarConfig: avatarConfig,
-          "systemInfo.lastUpdated": serverTimestamp(),
-        },
-        { merge: true }
+      // Use dataManager for avatar save
+      const result = await dataManager.saveAvatarConfig(
+        this.currentUser.uid,
+        avatarConfig
       );
-
+      if (!result.success) throw new Error(result.error);
       console.log("✅ Avatar saved to Firestore");
-
       // Update cached profile data immediately
       if (this.existingProfileData) {
         this.existingProfileData.avatarConfig = avatarConfig;
         console.log("🔄 Updated cached profile data with new avatar config");
       }
-
       // Update menu with new avatar
       if (window.updateUserDataAfterProfileCompletion) {
         const updatedUserData = {
@@ -1541,7 +1549,6 @@ class ProfileSetup {
         };
         window.updateUserDataAfterProfileCompletion(updatedUserData);
       }
-
       // Show success feedback
       this.showAvatarSaveSuccess();
     } catch (error) {
@@ -1549,181 +1556,6 @@ class ProfileSetup {
       alert("Failed to save avatar. Please try again.");
     }
   }
-
-  /**
-   * Get display name for user
-   */
-  getDisplayName() {
-    if (this.profileData?.firstName && this.profileData?.lastName) {
-      return `${this.profileData.firstName} ${this.profileData.lastName}`;
-    }
-    if (
-      this.existingProfileData?.profile?.firstName &&
-      this.existingProfileData?.profile?.lastName
-    ) {
-      return `${this.existingProfileData.profile.firstName} ${this.existingProfileData.profile.lastName}`;
-    }
-    return (
-      this.currentUser?.displayName ||
-      this.currentUser?.email?.split("@")[0] ||
-      "User"
-    );
-  }
-
-  /**
-   * Show success feedback for avatar save
-   */
-  showAvatarSaveSuccess() {
-    const avatarBtn = document.getElementById("choose-avatar-btn");
-    if (avatarBtn) {
-      const originalText = avatarBtn.textContent;
-      avatarBtn.textContent = "✅ Avatar Saved!";
-      avatarBtn.style.background = "var(--success-color, #10b981)";
-      setTimeout(() => {
-        avatarBtn.textContent = originalText;
-        avatarBtn.style.background = "";
-      }, 2000);
-    }
-  }
-
-  /**
-   * Update the avatar preview in the profile setup - SUPER SIMPLIFIED
-   */
-  updateAvatarPreview() {
-    const avatarPreview = document.getElementById("avatar-preview-display");
-
-    if (!avatarPreview) {
-      console.log("🎨 Avatar preview element not found - not on avatar step");
-      return;
-    }
-
-    console.log("🎨 Updating avatar preview...");
-
-    // Always use fallback approach for now to ensure something shows
-    this.showFallbackAvatar(avatarPreview);
-
-    // Then try to load the actual avatar in the background
-    if (this.avatarConfig && window.avatarManager) {
-      try {
-        const avatarUrl = window.avatarManager.generateAvatarUrl(
-          this.avatarConfig
-        );
-        console.log("🔗 Generated avatar URL:", avatarUrl);
-
-        // Test the URL with a background image load
-        const testImg = new Image();
-        testImg.onload = () => {
-          console.log("✅ Avatar URL works, updating preview");
-          this.loadAvatarImage(avatarPreview, avatarUrl);
-        };
-        testImg.onerror = () => {
-          console.log("❌ Avatar URL failed, keeping fallback");
-          // Keep the fallback that's already showing
-        };
-        testImg.src = avatarUrl;
-      } catch (error) {
-        console.error("❌ Error generating avatar URL:", error);
-        // Keep the fallback that's already showing
-      }
-    }
-  }
-
-  /**
-   * Load avatar image with simple error handling
-   */
-  loadAvatarImage(container, url) {
-    console.log("� Loading avatar from URL:", url);
-
-    const img = document.createElement("img");
-    img.src = url;
-    img.alt = "Your Avatar";
-    img.style.cssText = `
-      width: 100%; 
-      height: 100%; 
-      object-fit: cover; 
-      border-radius: 50%; 
-      display: block;
-    `;
-
-    img.onload = () => {
-      console.log("✅ Avatar loaded successfully");
-      container.innerHTML = "";
-      container.appendChild(img);
-      container.classList.add("has-image");
-    };
-
-    img.onerror = () => {
-      console.log("❌ Avatar failed to load, using fallback");
-      this.showFallbackAvatar(container);
-    };
-  }
-
-  /**
-   * Show fallback avatar (initials or emoji)
-   */
-  showFallbackAvatar(container) {
-    console.log("🎨 Showing fallback avatar");
-
-    // Get user initials from profile data or email
-    let initials = "??";
-
-    if (this.profileData?.firstName && this.profileData?.lastName) {
-      initials =
-        `${this.profileData.firstName[0]}${this.profileData.lastName[0]}`.toUpperCase();
-    } else if (
-      this.existingProfileData?.profile?.firstName &&
-      this.existingProfileData?.profile?.lastName
-    ) {
-      initials =
-        `${this.existingProfileData.profile.firstName[0]}${this.existingProfileData.profile.lastName[0]}`.toUpperCase();
-    } else if (this.currentUser?.email) {
-      const emailName = this.currentUser.email.split("@")[0];
-      initials = emailName.substring(0, 2).toUpperCase();
-    }
-
-    // Create styled initials avatar
-    container.innerHTML = `
-      <div style="
-        width: 100%; 
-        height: 100%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        font-size: 2.5rem; 
-        font-weight: 600;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
-        color: white;
-        font-family: system-ui, -apple-system, sans-serif;
-      ">
-        ${initials}
-      </div>
-    `;
-
-    container.classList.add("has-image");
-    console.log(`✅ Fallback avatar shown with initials: ${initials}`);
-  }
-
-  /**
-   * Refresh avatar configuration from current profile data
-   * Simple approach - just use what we already have loaded
-   */
-  refreshAvatarConfig() {
-    if (this.existingProfileData?.avatarConfig) {
-      console.log("🔄 Refreshing avatar config from existing profile data");
-      this.avatarConfig = this.existingProfileData.avatarConfig;
-      return true;
-    }
-
-    console.log("⚠️ No avatar config found in existing data");
-    return false;
-  }
-
-  /**
-   * =============================================================================
-   *                          9. DATABASE OPERATIONS
-   * =============================================================================
-   */
 
   /**
    * Save the complete profile to Firebase Firestore
@@ -1735,10 +1567,8 @@ class ProfileSetup {
       nextBtn.textContent = "Saving...";
       nextBtn.disabled = true;
     }
-
     // Ensure data from the final step is collected
     this.collectCurrentStepData();
-
     try {
       // Ensure we have an avatar configuration
       if (!this.avatarConfig && this.currentUser) {
@@ -1750,20 +1580,14 @@ class ProfileSetup {
           this.avatarConfig
         );
       }
-
       // 🗂️ ORGANIZED STRUCTURE: Group related fields for better data management
       const userData = {
-        // Core Identity (root level - only uid)
         uid: this.currentUser.uid,
-
-        // University Information (grouped)
         universityInfo: {
-          university: this.currentUser.email.split("@")[1].split(".")[0], // Extract from email domain
-          universityName: "Independent University, Bangladesh", // Could be dynamic based on email domain
+          university: this.currentUser.email.split("@")[1].split(".")[0],
+          universityName: "Independent University, Bangladesh",
           studentId: this.profileData.studentId,
         },
-
-        // Personal Profile (grouped - includes email and displayName)
         profile: {
           firstName: this.profileData.firstName,
           lastName: this.profileData.lastName,
@@ -1772,51 +1596,37 @@ class ProfileSetup {
           startingYear: this.profileData.startingYear,
           email: this.currentUser.email,
           displayName:
-            this.profileData.firstName || this.currentUser.email.split("@")[0], // Use firstName after profile completion
+            this.profileData.firstName || this.currentUser.email.split("@")[0],
         },
-
-        // Avatar Configuration (already well-structured)
         avatarConfig: this.avatarConfig,
-
-        // System Status (grouped)
         systemInfo: {
           profileSetupComplete: true,
           status: "offline",
-          // Remove lastActive - it's managed by auth-manager's updateUserLastActive()
           createdAt: serverTimestamp(),
           lastUpdated: serverTimestamp(),
         },
       };
-
-      // Remove undefined fields
       Object.keys(userData).forEach(
         (key) => userData[key] === undefined && delete userData[key]
       );
-
-      // Use modern Firebase v9 syntax
-      const userDocRef = doc(db, "users", this.currentUser.uid);
-      await setDoc(userDocRef, userData, { merge: true });
-
+      // Use dataManager for profile save
+      const result = await dataManager.saveUserProfile(
+        this.currentUser.uid,
+        userData
+      );
+      if (!result.success) throw new Error(result.error);
       console.log(
         "💾 Profile saved successfully with avatar config:",
         this.avatarConfig
       );
-
       this.showSuccessMessage();
-
-      // 🎯 SPA Integration: Dispatch completion event instead of page redirect
       document.dispatchEvent(
         new CustomEvent("profile:setup:complete", {
           detail: { userData },
         })
       );
-
-      // 🎯 CRITICAL FIX: Force refresh user data in menu after profile completion
-      // This ensures the avatar and display name are updated immediately on redirect
       if (window.updateUserDataAfterProfileCompletion) {
         console.log("🔄 Forcing user data refresh after profile completion...");
-
-        // 🎯 CRITICAL: Create flat structure for menu system
         const menuUserData = {
           uid: userData.uid,
           name: `${userData.profile.firstName} ${userData.profile.lastName}`,
@@ -1824,14 +1634,9 @@ class ProfileSetup {
           avatarConfig: userData.avatarConfig,
           profileSetupComplete: userData.systemInfo.profileSetupComplete,
         };
-
         window.updateUserDataAfterProfileCompletion(menuUserData);
       }
-
-      // Set flag to indicate profile was just completed (for SPA router)
       sessionStorage.setItem("profileJustCompleted", "true");
-
-      // Fallback navigation if SPA router isn't available
       setTimeout(() => {
         if (!window.spaRouter) {
           window.location.href = "../index.html";
@@ -1853,7 +1658,60 @@ class ProfileSetup {
 
   /**
    * =============================================================================
-   *                    10. EVENT LISTENERS & DOM MANIPULATION
+   *                       9. DATABASE OPERATIONS
+   * =============================================================================
+   */
+
+  /**
+   * Skip the entire setup process
+   */
+  async skipSetup() {
+    const nextBtn = document.getElementById("setup-next-btn");
+    if (nextBtn) nextBtn.disabled = true;
+
+    try {
+      // Use dataManager for skip profile save
+      const userData = {
+        uid: this.currentUser.uid,
+        profile: {
+          email: this.currentUser.email,
+          displayName:
+            this.currentUser.displayName ||
+            this.currentUser.email.split("@")[0],
+        },
+        systemInfo: {
+          profileSetupComplete: false,
+          status: "offline",
+          lastUpdated: serverTimestamp(),
+        },
+      };
+      const result = await dataManager.saveUserProfile(
+        this.currentUser.uid,
+        userData
+      );
+      if (!result.success) throw new Error(result.error);
+      document.dispatchEvent(
+        new CustomEvent("profile:setup:skip", {
+          detail: { userData },
+        })
+      );
+      setTimeout(() => {
+        if (!window.spaRouter) {
+          window.location.href = "../index.html";
+        } else {
+          window.spaRouter.navigateTo("home");
+        }
+      }, 1000);
+    } catch (error) {
+      console.error("Error during skip setup:", error);
+      alert("Could not process skip action. Please try again.");
+      if (nextBtn) nextBtn.disabled = false;
+    }
+  }
+
+  /**
+   * =============================================================================
+   *                      10. EVENT LISTENERS & DOM MANIPULATION
    * =============================================================================
    */
 
@@ -2216,44 +2074,213 @@ class ProfileSetup {
     };
   }
 
-  // Test avatar connectivity when initializing (for development)
-  async debugAvatarSystem() {
-    if (!this.currentUser || !this.isDevelopmentEmail(this.currentUser.email)) {
-      return; // Only run for development emails
+  /**
+   * Efficiently update the avatar preview in the profile setup flow.
+   * Shows a loading spinner while the avatar image loads, and only shows initials if the image fails to load or no avatar config is present.
+   * This method is called when entering the avatar step or after editing the avatar.
+   */
+  updateAvatarPreview() {
+    const previewContainer = document.getElementById("avatar-preview-display");
+    if (!previewContainer) {
+      console.warn("⚠️ Avatar preview container not found");
+      return;
     }
 
-    console.log("🔧 Running avatar system debug for development user...");
+    // Clear previous content
+    previewContainer.innerHTML = "";
 
-    // Test API connectivity
-    const apiWorking = await this.testAvatarAPI();
-
-    if (!apiWorking) {
-      console.log("🔄 API connectivity issues detected, using local fallback");
-      // Force use of initials fallback
-      this.avatarConfig = this.createSimpleAvatarConfig();
-    }
-
-    // Test avatar manager
-    if (window.avatarManager) {
-      try {
-        const testConfig = this.createSimpleAvatarConfig();
-        const testUrl = window.avatarManager.generateAvatarUrl(testConfig);
-        console.log("🧪 Generated test URL:", testUrl);
-      } catch (error) {
-        console.error("❌ Avatar manager error:", error);
+    // Helper: Get initials from profile data or email
+    const getInitials = () => {
+      const firstName = this.profileData?.firstName || "";
+      const lastName = this.profileData?.lastName || "";
+      if (firstName && lastName) {
+        return `${firstName[0]}${lastName[0]}`.toUpperCase();
       }
-    } else {
-      console.error("❌ Avatar manager not loaded");
+      // Fallback: use email
+      const email = this.profileData?.email || this.currentUser?.email || "";
+      if (email) {
+        return email[0].toUpperCase();
+      }
+      return "?";
+    };
+
+    // Helper: Render fallback initials avatar
+    const renderInitials = () => {
+      const initials = getInitials();
+      const fallbackDiv = document.createElement("div");
+      fallbackDiv.className = "avatar-fallback";
+      fallbackDiv.setAttribute("aria-label", `Avatar fallback: ${initials}`);
+      fallbackDiv.style.cssText = `
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: var(--avatar-fallback-bg, #b6e3f4);
+        color: var(--avatar-fallback-fg, #222);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        user-select: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      `;
+      fallbackDiv.textContent = initials;
+      previewContainer.innerHTML = "";
+      previewContainer.appendChild(fallbackDiv);
+    };
+
+    // Helper: Render accessible loading spinner
+    const renderSpinner = () => {
+      const spinnerWrapper = document.createElement("div");
+      spinnerWrapper.className = "avatar-spinner-wrapper";
+      spinnerWrapper.style.cssText = `
+        width: 96px;
+        height: 96px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      // Visually hidden text for screen readers
+      const srText = document.createElement("span");
+      srText.className = "sr-only";
+      srText.textContent = "Loading avatar...";
+      srText.style.cssText = `
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0,0,0,0);
+        border: 0;
+      `;
+      // SVG spinner (accessible, contrast-friendly)
+      const spinner = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "svg"
+      );
+      spinner.setAttribute("width", "48");
+      spinner.setAttribute("height", "48");
+      spinner.setAttribute("viewBox", "0 0 50 50");
+      spinner.setAttribute("role", "status");
+      spinner.setAttribute("aria-label", "Loading avatar");
+      spinner.innerHTML = `
+        <circle cx="25" cy="25" r="20" fill="none" stroke="#3b82f6" stroke-width="5" opacity="0.2"/>
+        <circle cx="25" cy="25" r="20" fill="none" stroke="#3b82f6" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 94.2" stroke-dashoffset="0">
+          <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.9s" repeatCount="indefinite"/>
+        </circle>
+      `;
+      spinnerWrapper.appendChild(spinner);
+      spinnerWrapper.appendChild(srText);
+      previewContainer.appendChild(spinnerWrapper);
+    };
+
+    // If no avatar config or avatarManager, show fallback
+    if (!this.avatarConfig || !window.avatarManager) {
+      renderInitials();
+      return;
     }
+
+    // Try to generate avatar image URL
+    let avatarUrl = "";
+    try {
+      avatarUrl = window.avatarManager.generateAvatarUrl(this.avatarConfig);
+    } catch (e) {
+      console.error("❌ Failed to generate avatar URL:", e);
+      renderInitials();
+      return;
+    }
+
+    // Show spinner while loading
+    renderSpinner();
+
+    let didFinish = false; // Track if image loaded or errored
+
+    // Create image element for avatar
+    const img = document.createElement("img");
+    img.src = avatarUrl;
+    img.alt = "User avatar";
+    img.width = 96;
+    img.height = 96;
+    img.loading = "lazy";
+    img.style.cssText = `
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #f3f4f6;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: block;
+    `;
+    img.setAttribute("aria-label", "User avatar preview");
+
+    // If image fails to load, show fallback
+    img.onerror = () => {
+      if (didFinish) return;
+      didFinish = true;
+      previewContainer.innerHTML = "";
+      renderInitials();
+    };
+
+    // When image loads, replace spinner with image
+    img.onload = () => {
+      if (didFinish) return;
+      didFinish = true;
+      previewContainer.innerHTML = "";
+      previewContainer.appendChild(img);
+    };
+
+    // Timeout fallback: if image doesn't load in 5 seconds, show initials
+    setTimeout(() => {
+      if (!didFinish) {
+        didFinish = true;
+        previewContainer.innerHTML = "";
+        renderInitials();
+      }
+    }, 5000);
+
+    // Start loading image (browser will handle caching)
+    // Spinner remains until image loads or fails
   }
 
   /**
-   * Clear cached profile data to force fresh reload
+   * Show or hide an offline status banner at the top of the profile setup page.
+   * This helps users know when they are offline and that changes will sync later.
    */
-  clearProfileCache() {
-    console.log("🗑️ Clearing cached profile data");
-    this.existingProfileData = null;
-    this.avatarConfig = null;
+  showOfflineBanner(isOffline) {
+    let banner = document.getElementById("offline-status-banner");
+    if (isOffline) {
+      if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "offline-status-banner";
+        banner.setAttribute("role", "status");
+        banner.setAttribute("aria-live", "polite");
+        banner.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          z-index: 20000;
+          background: #f87171;
+          color: #fff;
+          text-align: center;
+          font-size: 1rem;
+          font-weight: 600;
+          padding: 0.75rem 0.5rem;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          letter-spacing: 0.02em;
+        `;
+        banner.innerHTML =
+          '<span style="display:inline-block;margin-right:0.5em;vertical-align:middle;">⚠️</span>' +
+          '<span style="vertical-align:middle;">You are offline. Changes will be saved locally and synced when you are back online.</span>';
+        document.body.appendChild(banner);
+      } else {
+        banner.style.display = "block";
+      }
+    } else if (banner) {
+      banner.style.display = "none";
+    }
   }
 }
 

@@ -18,6 +18,7 @@ import {
   setupExportImportListeners,
 } from "./export-import.js";
 import { authManager } from "../firebase/auth/auth-manager.js";
+import { dataManager } from "./data-manager.js";
 
 /* ================================
    APPLICATION STATE
@@ -2806,16 +2807,9 @@ function setupAuthenticationCallbacks() {
     console.log("🎉 User signed in successfully:", data.user.email);
 
     try {
-      // Check if user has completed profile setup using modern Firebase API
-      const { doc, getDoc } = await import("firebase/firestore");
-      const { db } = await import("../firebase/config/firebase-config.js");
-      const userDocRef = doc(db, "users", data.user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (
-        !userDoc.exists() ||
-        !userDoc.data().systemInfo?.profileSetupComplete
-      ) {
+      // Use dataManager to check if user has completed profile setup
+      const userProfile = await dataManager.getUserProfile(data.user.uid);
+      if (!userProfile || !userProfile.systemInfo?.profileSetupComplete) {
         // Navigate to profile setup for new or incomplete profiles using SPA router
         console.log("📝 Navigating to profile setup...");
         if (window.spaRouter) {
@@ -3141,25 +3135,24 @@ document.addEventListener("spa:home:loaded", async () => {
 window.resetUserProfileForTesting = async function () {
   try {
     const { getCurrentUser } = await import("../firebase/auth/auth-manager.js");
-    const { doc, updateDoc } = await import("firebase/firestore");
-    const { db } = await import("../firebase/config/firebase-config.js");
-
     const user = getCurrentUser();
     if (!user) {
       console.log("❌ No user signed in for testing");
       return;
     }
-
-    const userDocRef = doc(db, "users", user.uid);
-    await updateDoc(userDocRef, {
-      "systemInfo.profileSetupComplete": false,
-    });
-
+    // Use dataManager to update profileSetupComplete
+    const userProfile = await dataManager.getUserProfile(user.uid);
+    if (!userProfile) {
+      console.log("❌ No profile found for user");
+      return;
+    }
+    userProfile.systemInfo = userProfile.systemInfo || {};
+    userProfile.systemInfo.profileSetupComplete = false;
+    await dataManager.saveUserProfile(user.uid, userProfile);
     console.log(
       "✅ User profile reset for testing - refresh page to see profile setup"
     );
     console.log("🔄 Refreshing page in 2 seconds...");
-
     setTimeout(() => {
       window.location.reload();
     }, 2000);
@@ -3168,32 +3161,25 @@ window.resetUserProfileForTesting = async function () {
   }
 };
 
-/**
- * Helper function to check current user's profile status
- */
 window.checkCurrentUserProfile = async function () {
   try {
     const { getCurrentUser } = await import("../firebase/auth/auth-manager.js");
-    const { doc, getDoc } = await import("firebase/firestore");
-    const { db } = await import("../firebase/config/firebase-config.js");
-
     const user = getCurrentUser();
     if (!user) {
       console.log("❌ No user signed in");
       return;
     }
-
-    const userDocRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userDocRef);
-
-    if (userDoc.exists()) {
-      const data = userDoc.data();
+    // Use dataManager to fetch profile
+    const userProfile = await dataManager.getUserProfile(user.uid);
+    if (userProfile) {
       console.log("👤 Current user profile:", {
         email: user.email,
-        profileSetupComplete: data.systemInfo?.profileSetupComplete,
-        hasName: !!(data.profile?.firstName && data.profile?.lastName),
-        hasMajor: !!data.profile?.major,
-        profileData: data,
+        profileSetupComplete: userProfile.systemInfo?.profileSetupComplete,
+        hasName: !!(
+          userProfile.profile?.firstName && userProfile.profile?.lastName
+        ),
+        hasMajor: !!userProfile.profile?.major,
+        profileData: userProfile,
       });
     } else {
       console.log("❌ No profile document found for user");

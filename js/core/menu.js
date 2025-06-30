@@ -1,5 +1,8 @@
 // js/menu.js - Enhanced dark/light mode toggle with glassmorphism design
 
+// Import DataManager for all user data operations
+import { dataManager } from "./data-manager.js";
+
 document.addEventListener("DOMContentLoaded", () => {
   // Apply saved theme on page load
   applyTheme();
@@ -485,7 +488,8 @@ function updateAuthenticationUI(isAuthenticated, userData = null) {
     localStorage.setItem("user", JSON.stringify(userData));
 
     // Update user information in the UI
-    updateUserDisplayInfo(userData);
+    // Always use UID for minimal fetch
+    updateUserDisplayInfo(userData.uid || userData);
   } else {
     // Hide user menu, show login button
     userMenu.style.display = "none";
@@ -501,72 +505,56 @@ function updateAuthenticationUI(isAuthenticated, userData = null) {
 }
 
 /**
- * Update user display information in the dropdown
- * Enhanced to display custom avatar from Firestore profile
+ * Update user display information in the dropdown header only
+ * Fetches only firstName, email, and avatarConfig using dataManager
+ * for performance and clarity.
+ *
+ * @param {string} userId - The user's UID
  */
-function updateUserDisplayInfo(userData) {
-  console.log("🔄 Updating user display info:", userData);
+async function updateUserDisplayInfo(userId) {
+  try {
+    // Fetch only the minimal fields needed for the dropdown header
 
-  // 🛡️ CRITICAL SAFEGUARD: Don't update with empty/invalid data
-  if (!userData || !userData.name || !userData.email) {
-    console.warn("⚠️ Skipping user display update - invalid data:", userData);
-    return;
+    const minimalProfile = await dataManager.getUserProfileMinimal(userId);
+    console.log(
+      "[DEBUG] minimalProfile fetched from dataManager:",
+      minimalProfile
+    );
+    if (!minimalProfile) {
+      console.warn("No minimal profile found for user:", userId);
+      return;
+    }
+    const { firstName, email, avatarConfig } = minimalProfile;
+    const displayName =
+      typeof firstName === "string" && firstName ? firstName : "User";
+    // Wait for DOM elements
+    const waitForElements = () => {
+      const userDropdownName = document.getElementById("userDropdownName");
+      const userDropdownEmail = document.getElementById("userDropdownEmail");
+      if (!userDropdownName || !userDropdownEmail) {
+        setTimeout(waitForElements, 100);
+        return;
+      }
+      userDropdownName.textContent = displayName;
+      userDropdownEmail.textContent = email || "";
+      // Update tooltip
+      const userMenuTrigger = document.getElementById("userMenuTrigger");
+      if (userMenuTrigger) {
+        userMenuTrigger.setAttribute(
+          "title",
+          `${displayName} - Click to open menu`
+        );
+      }
+    };
+    waitForElements();
+    // Update avatar displays
+    updateUserAvatarDisplays({
+      name: displayName,
+      avatarConfig: avatarConfig || {},
+    });
+  } catch (error) {
+    console.error("Error updating user display info:", error);
   }
-
-  // 🎯 CRITICAL FIX: Wait for elements to be available in the DOM
-  const waitForElements = () => {
-    const userDropdownName = document.getElementById("userDropdownName");
-    const userDropdownEmail = document.getElementById("userDropdownEmail");
-
-    if (!userDropdownName || !userDropdownEmail) {
-      console.log("⏳ Waiting for dropdown elements to be available...");
-      setTimeout(waitForElements, 100);
-      return;
-    }
-
-    // 🛡️ ADDITIONAL SAFEGUARD: Don't overwrite existing data with empty data
-    const currentName = userDropdownName.textContent?.trim();
-    const currentEmail = userDropdownEmail.textContent?.trim();
-
-    if (
-      currentName &&
-      currentEmail &&
-      (!userData.name?.trim() || !userData.email?.trim())
-    ) {
-      console.warn(
-        "🛡️ Preserving existing user data - new data seems invalid",
-        {
-          current: { name: currentName, email: currentEmail },
-          new: { name: userData.name, email: userData.email },
-        }
-      );
-      return;
-    }
-
-    // Elements are available, update them
-    userDropdownName.textContent = userData.name;
-    console.log("👤 Set user name:", userData.name);
-
-    userDropdownEmail.textContent = userData.email;
-    console.log("📧 Set user email:", userData.email);
-
-    // Update the user menu trigger tooltip for better UX
-    const userMenuTrigger = document.getElementById("userMenuTrigger");
-    if (userMenuTrigger && userData.name) {
-      userMenuTrigger.setAttribute(
-        "title",
-        `${userData.name} - Click to open menu`
-      );
-    }
-
-    console.log("✅ User display info update completed");
-  };
-
-  // Start the element waiting process
-  waitForElements();
-
-  // Update avatar displays with custom avatar from Firestore (this has its own retry logic)
-  updateUserAvatarDisplays(userData);
 }
 
 /**
@@ -698,36 +686,40 @@ function displayDefaultAvatarIcons(triggerElement, largeElement) {
  * Check current authentication state on page load
  * 🐛 BUG FIX: Only use cached data if Firebase auth is not available yet
  */
-function checkAuthenticationState() {
-  // First, check if Firebase auth manager is available
+async function checkAuthenticationState() {
+  // Try to get the current user from Firebase auth manager
+  let userId = null;
   if (window.authManager && window.authManager.getCurrentUser) {
     const currentUser = window.authManager.getCurrentUser();
     if (currentUser) {
-      console.log("🔥 Firebase auth available, will fetch fresh data");
-      // Firebase auth is available and user is signed in
-      // Don't use cached data - let Firebase auth listener handle this
-      return;
+      userId = currentUser.uid;
     }
   }
 
-  // Only fall back to cached data if Firebase auth is not available yet
-  try {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
+  // If we have a userId, fetch profile from Firestore via dataManager
+  if (userId) {
+    try {
+      const userProfile = await dataManager.getUserProfile(userId);
+      if (userProfile) {
+        updateAuthenticationUI(true, userProfile);
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  }
 
-      console.log(
-        "📱 Using cached user data while Firebase loads:",
-        userData.email
-      );
-      updateAuthenticationUI(true, userData);
+  // Fallback: Try to get cached user data from dataManager
+  try {
+    const cachedUser =
+      dataManager.getCachedData && dataManager.getCachedData(`user_${userId}`);
+    if (cachedUser) {
+      updateAuthenticationUI(true, cachedUser);
     } else {
       updateAuthenticationUI(false);
     }
   } catch (error) {
     console.error("Error checking authentication state:", error);
-    // Clear corrupted cached data
-    localStorage.removeItem("user");
     updateAuthenticationUI(false);
   }
 }
@@ -761,14 +753,14 @@ function updateUserDataAfterProfileCompletion(newUserData) {
     const userDropdownEmail = document.getElementById("userDropdownEmail");
 
     if (userDropdownName && userDropdownEmail) {
-      updateUserDisplayInfo(newUserData);
+      // Always use UID for minimal fetch
+      updateUserDisplayInfo(newUserData.uid || newUserData);
       console.log("✅ User data successfully updated after profile completion");
     } else {
       console.log("⏳ Elements not ready, retrying user data update...");
       setTimeout(forceUpdate, 200);
     }
   };
-
   forceUpdate();
 }
 
