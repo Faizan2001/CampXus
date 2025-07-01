@@ -13,6 +13,7 @@
  */
 
 import { authManager } from "../../firebase/auth/auth-manager.js";
+import { dataManager } from "../data-manager.js";
 
 class FriendsManager {
   constructor() {
@@ -43,12 +44,29 @@ class FriendsManager {
    * 🚀 Initialize the friends system for the current user
    */
   async initializeFriendsSystem() {
+    if (!this.currentUser) return;
+
     try {
-      // Get current user's profile from Firestore
-      // TODO: Implement this when we add the actual Firestore integration
-      console.log("🎯 Friends system ready for:", this.currentUser?.email);
+      // Get current user's profile from Firestore using the Data Manager
+      const userProfile = await dataManager.getUserProfile(
+        this.currentUser.uid
+      );
+
+      if (userProfile) {
+        this.userProfile = userProfile;
+        console.log(
+          "🎯 Friends system ready for:",
+          this.userProfile.profile.displayName
+        );
+      } else {
+        console.warn(
+          "⚠️ Could not find user profile for UID:",
+          this.currentUser.uid
+        );
+      }
     } catch (error) {
       console.error("❌ Error initializing friends system:", error);
+      // We can add more robust error handling here later
     }
   }
 
@@ -58,14 +76,46 @@ class FriendsManager {
    * @returns {Promise<Array>} Array of matching students
    */
   async searchStudents(searchTerm) {
-    try {
-      // TODO: Implement university-specific student search
-      console.log("🔍 Searching for:", searchTerm);
+    // 1. Guard clauses: Ensure we have the necessary data to proceed.
+    if (!this.userProfile || !this.currentUser) {
+      console.error("❌ User profile not loaded. Cannot search.");
+      return []; // Return empty if profile isn't loaded
+    }
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return []; // Don't search for very short terms
+    }
 
-      // Placeholder: Return empty array for now
-      return [];
+    try {
+      console.log(`🔍 Searching for: "${searchTerm}"`);
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+      // 2. Fetch all users from the same university using the data manager.
+      const allStudents = await dataManager.findUsersByUniversity(
+        this.userProfile.universityInfo.university
+      );
+
+      // 3. Filter the results on the client-side.
+      const filteredStudents = allStudents.filter((student) => {
+        // Exclude the current user from the results.
+        if (student.id === this.currentUser.uid) {
+          return false;
+        }
+
+        // Check for a match in displayName or major (case-insensitive).
+        const displayName = student.profile?.displayName?.toLowerCase() || "";
+        const major = student.profile?.major?.toLowerCase() || "";
+
+        return (
+          displayName.includes(lowerCaseSearchTerm) ||
+          major.includes(lowerCaseSearchTerm)
+        );
+      });
+
+      // 4. Return the top 10 results for performance.
+      return filteredStudents.slice(0, 10);
     } catch (error) {
       console.error("❌ Error searching students:", error);
+      // In case of an error, return an empty array to prevent UI breakage.
       return [];
     }
   }

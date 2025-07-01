@@ -54,6 +54,10 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase/config/firebase-config.js";
 
@@ -79,6 +83,32 @@ export const FIELD_PATHS = {
   LAST_ACTIVE: "systemInfo.lastActive",
   CREATED_AT: "systemInfo.createdAt",
 };
+
+/**
+ * =============================================================================
+ *                          DATA MANAGER - Firestore Operations
+ * =============================================================================
+ *
+ * This section contains all direct interactions with the Firestore database.
+ * Each function is designed to be a single, reusable unit for data retrieval
+ * or modification. This separation of concerns makes the code easier to
+ * maintain, test, and debug.
+ *
+ * Key principles:
+ *   - **Atomicity**: Operations should be as small and focused as possible.
+ *   - **Reusability**: Functions should be generic enough to be used in
+ *     multiple contexts.
+ *   - **Error Handling**: Each function includes robust try-catch blocks to
+ *     handle Firestore-specific errors gracefully.
+ *   - **Caching**: The DataManager leverages a caching layer to reduce
+ *     unnecessary database reads and improve performance.
+ *
+ * 🎓 Learning: This is a practical application of the "Repository Pattern,"
+ * where we abstract the data source (Firestore) from the business logic
+ * of the application. The rest of the app doesn't need to know HOW the
+ * data is stored, only that it can be retrieved or saved through this manager.
+ *
+ */
 
 class DataManager {
   constructor() {
@@ -199,56 +229,126 @@ class DataManager {
 
     this.cache.set(key, {
       data,
-      timestamp: Date.now(),
+      expiry: Date.now() + this.cacheExpiry,
     });
   }
 
   /**
-   * Get cached data if not expired
+   * Get data from cache if available and not expired
    * @private
    */
   getCachedData(key) {
     const cached = this.cache.get(key);
-    if (!cached) return null;
-
-    const now = Date.now();
-    if (now - cached.timestamp > this.cacheExpiry) {
-      this.cache.delete(key);
-      return null;
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
     }
-
-    return cached.data;
+    this.cache.delete(key); // Remove expired entry
+    return null;
   }
 
   /**
-   * Invalidate specific cache entry
-   * @param {string} key - Cache key to invalidate
+   * Clear the entire cache
+   */
+  clearCache() {
+    this.cache.clear();
+    console.log("🧹 Cache cleared.");
+  }
+
+  /**
+   * Invalidate a specific cache entry
+   * @param {string} key The key of the cache entry to invalidate
    */
   invalidateCache(key) {
-    this.cache.delete(key);
-  }
-
-  /**
-   * Invalidate all cache entries for a user
-   * @param {string} userId - User ID to invalidate cache for
-   */
-  invalidateUserCache(userId) {
-    const keysToDelete = [];
-    for (const key of this.cache.keys()) {
-      if (key.includes(userId)) {
-        keysToDelete.push(key);
-      }
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+      console.log(`♻️ Invalidated cache for key: ${key}`);
     }
-    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   // =========================
-  // USER PROFILE FUNCTIONS
+  // NOTIFICATION UI
   // =========================
 
   /**
-   * Get a user's full profile from Firestore (with caching).
-   * @param {string} userId - The user's UID
+   * Show a notification toast
+   * @param {string} message The message to display
+   * @param {string} type "success" | "error" | "warning" | "info"
+   * @param {object} options Toastify options
+   * @private
+   */
+  showNotification(message, type = "info", options = {}) {
+    const defaultOptions = {
+      duration: 3000,
+      gravity: "top", // `top` or `bottom`
+      position: "right", // `left`, `center` or `right`
+      backgroundColor: `var(--color-${type}-notification, #888)`,
+      stopOnFocus: true, // Prevents dismissing of toast on hover
+    };
+
+    Toastify({
+      text: message,
+      ...defaultOptions,
+      ...options,
+    }).showToast();
+  }
+
+  /**
+   * Removes legacy offline banners if they exist.
+   * @private
+   */
+  removeLegacyOfflineBanners() {
+    const banner = document.getElementById("offline-banner");
+    if (banner) {
+      banner.remove();
+    }
+  }
+
+  // =========================
+  // USER DATA OPERATIONS
+  // =========================
+
+  /**
+   * 🧑‍🤝‍🧑 Find users by university (for friend search)
+   * @param {string} universityId - The university ID to search within
+   * @returns {Promise<Array>} A list of user profiles
+   */
+  async findUsersByUniversity(universityId) {
+    if (!universityId) {
+      console.error("❌ University ID is required to find users.");
+      return [];
+    }
+
+    // Note: Caching for search results might be complex due to the dynamic nature.
+    // For now, we fetch fresh results each time. We can add caching later if needed.
+
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(
+        usersRef,
+        where(FIELD_PATHS.UNIVERSITY, "==", universityId),
+        where(FIELD_PATHS.PROFILE_COMPLETE, "==", true)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+      querySnapshot.forEach((doc) => {
+        users.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      return users;
+    } catch (error) {
+      console.error("❌ Error finding users by university:", error);
+      this.showNotification("Could not search for students.", "error");
+      return [];
+    }
+  }
+
+  /**
+   * Get a user's full profile data
+   * @param {string} userId The user's ID
    * @returns {Promise<Object|null>} User profile or null if not found
    * @example
    *   const profile = await dataManager.getUserProfile("abc123");
