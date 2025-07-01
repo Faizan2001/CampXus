@@ -6,8 +6,8 @@ import {
   sendEmailVerification,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"; // Added getDoc
-import { auth, db } from "../config/firebase-config.js";
+import { serverTimestamp } from "firebase/firestore";
+import { auth } from "../config/firebase-config.js";
 import {
   validateUniversityEmail,
   getFriendlyEmailError,

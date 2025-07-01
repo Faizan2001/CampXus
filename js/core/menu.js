@@ -873,19 +873,12 @@ function setupFirebaseAuthListener() {
 
               while (retryCount < maxRetries && !userData) {
                 try {
-                  // Import Firestore functions dynamically
-                  const { doc, getDoc } = await import("firebase/firestore");
-                  const { db } = await import(
-                    "../firebase/config/firebase-config.js"
+                  // Use dataManager for consistent data access
+                  const firestoreData = await dataManager.getUserProfile(
+                    user.uid
                   );
 
-                  // Fetch user profile data from Firestore
-                  const userDocRef = doc(db, "users", user.uid);
-                  const userDoc = await getDoc(userDocRef);
-
-                  if (userDoc.exists()) {
-                    const firestoreData = userDoc.data();
-
+                  if (firestoreData) {
                     userData = {
                       uid: user.uid,
                       name:
@@ -909,12 +902,9 @@ function setupFirebaseAuthListener() {
 
                     break; // Success! Exit the retry loop
                   } else {
-                    // If this was from cache and we have retries left, try again
-                    if (
-                      userDoc.metadata.fromCache &&
-                      retryCount < maxRetries - 1
-                    ) {
-                      console.log("🔄 Retrying for fresh server data...");
+                    // Retry if data not found and we have retries left
+                    if (retryCount < maxRetries - 1) {
+                      console.log("🔄 Retrying profile data fetch...");
                       retryCount++;
                       await new Promise((resolve) => setTimeout(resolve, 500));
                       continue;

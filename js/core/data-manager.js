@@ -57,6 +57,29 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase/config/firebase-config.js";
 
+// Common field paths for queries
+export const FIELD_PATHS = {
+  // Profile fields
+  FIRST_NAME: "profile.firstName",
+  LAST_NAME: "profile.lastName",
+  BIO: "profile.bio",
+  MAJOR: "profile.major",
+  STARTING_YEAR: "profile.startingYear",
+  EMAIL: "profile.email",
+  DISPLAY_NAME: "profile.displayName",
+
+  // University fields
+  UNIVERSITY: "universityInfo.university",
+  UNIVERSITY_NAME: "universityInfo.universityName",
+  STUDENT_ID: "universityInfo.studentId",
+
+  // System fields
+  PROFILE_COMPLETE: "systemInfo.profileSetupComplete",
+  STATUS: "systemInfo.status",
+  LAST_ACTIVE: "systemInfo.lastActive",
+  CREATED_AT: "systemInfo.createdAt",
+};
+
 class DataManager {
   constructor() {
     // Network status tracking
@@ -509,6 +532,285 @@ class DataManager {
       }
     }
     return true;
+  }
+
+  // =========================
+  // ENHANCED UTILITIES (migrated from firestore-utils.js)
+  // =========================
+
+  /**
+   * Get formatted user data for display
+   * @param {Object} userData - Raw user data from Firestore
+   * @returns {Object} Formatted user data
+   */
+  formatUserData(userData) {
+    if (!userData) return null;
+
+    return {
+      // Basic identity
+      uid: userData.uid,
+      email: userData.profile?.email || "",
+      displayName: userData.profile?.displayName || "",
+
+      // Personal info
+      fullName: `${userData.profile?.firstName || ""} ${
+        userData.profile?.lastName || ""
+      }`.trim(),
+      firstName: userData.profile?.firstName || "",
+      lastName: userData.profile?.lastName || "",
+      bio: userData.profile?.bio || "",
+      major: userData.profile?.major || "",
+      startingYear: userData.profile?.startingYear || "",
+
+      // University info
+      university: userData.universityInfo?.university || "",
+      universityName: userData.universityInfo?.universityName || "",
+      studentId: userData.universityInfo?.studentId || "",
+
+      // Avatar data
+      avatarConfig: userData.avatarConfig || null,
+
+      // System status
+      isOnline: userData.systemInfo?.status === "online",
+      isProfileComplete: userData.systemInfo?.profileSetupComplete || false,
+      lastActive: userData.systemInfo?.lastActive,
+      createdAt: userData.systemInfo?.createdAt,
+    };
+  }
+
+  /**
+   * Get user's display name and avatar for UI components
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Display data
+   */
+  async getUserDisplayData(userId) {
+    const userData = await this.getUserProfile(userId);
+    if (!userData) return null;
+
+    return {
+      name:
+        `${userData.profile?.firstName || ""} ${
+          userData.profile?.lastName || ""
+        }`.trim() ||
+        userData.profile?.displayName ||
+        "",
+      avatar: userData.avatarConfig,
+      isOnline: userData.systemInfo?.status === "online",
+      lastActive: userData.systemInfo?.lastActive,
+    };
+  }
+
+  /**
+   * Get user's university information
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} University data
+   */
+  async getUserUniversityInfo(userId) {
+    const userData = await this.getUserProfile(userId);
+    if (!userData) return null;
+
+    return {
+      university: userData.universityInfo?.university,
+      universityName: userData.universityInfo?.universityName,
+      studentId: userData.universityInfo?.studentId,
+      major: userData.profile?.major,
+      startingYear: userData.profile?.startingYear,
+    };
+  }
+
+  /**
+   * Check if user has completed profile setup
+   * @param {Object} userData - User data
+   * @returns {boolean} True if profile is complete
+   */
+  isProfileComplete(userData) {
+    if (!userData) return false;
+
+    return !!(
+      userData.systemInfo?.profileSetupComplete &&
+      userData.profile?.firstName &&
+      userData.profile?.lastName &&
+      userData.profile?.major &&
+      userData.profile?.startingYear &&
+      userData.universityInfo?.studentId &&
+      userData.profile?.email
+    );
+  }
+
+  /**
+   * Check if user is online
+   * @param {Object} userData - User data
+   * @returns {boolean} True if user is online
+   */
+  isUserOnline(userData) {
+    return userData?.systemInfo?.status === "online";
+  }
+
+  /**
+   * Update user's profile information with field paths
+   * @param {string} userId - User ID
+   * @param {Object} profileData - Profile data to update
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateUserProfile(userId, profileData) {
+    try {
+      const updates = {
+        "systemInfo.lastUpdated": serverTimestamp(),
+      };
+
+      // Add profile updates with proper paths
+      if (profileData.firstName !== undefined)
+        updates["profile.firstName"] = profileData.firstName;
+      if (profileData.lastName !== undefined)
+        updates["profile.lastName"] = profileData.lastName;
+      if (profileData.bio !== undefined)
+        updates["profile.bio"] = profileData.bio;
+      if (profileData.major !== undefined)
+        updates["profile.major"] = profileData.major;
+      if (profileData.startingYear !== undefined)
+        updates["profile.startingYear"] = profileData.startingYear;
+      if (profileData.email !== undefined)
+        updates["profile.email"] = profileData.email;
+      if (profileData.displayName !== undefined)
+        updates["profile.displayName"] = profileData.displayName;
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() =>
+          this.updateUserProfile(userId, profileData)
+        );
+        this.showNetworkStatus("Changes will sync when online");
+        return { success: true, offline: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), updates);
+
+      // Update cache
+      const cacheKey = `user_${userId}`;
+      const cachedData = this.getCachedData(cacheKey);
+      if (cachedData) {
+        // Update cached data with new values
+        Object.keys(updates).forEach((path) => {
+          if (path.includes(".")) {
+            const [section, field] = path.split(".");
+            if (!cachedData[section]) cachedData[section] = {};
+            cachedData[section][field] = updates[path];
+          }
+        });
+        this.setCachedData(cacheKey, cachedData);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      this.showError(error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update user's online status
+   * @param {string} userId - User ID
+   * @param {string} status - "online" or "offline"
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateUserStatus(userId, status) {
+    try {
+      const updates = {
+        "systemInfo.status": status,
+        "systemInfo.lastActive": serverTimestamp(),
+        "systemInfo.lastUpdated": serverTimestamp(),
+      };
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() =>
+          this.updateUserStatus(userId, status)
+        );
+        return { success: true, offline: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), updates);
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Mark user as online
+   * @param {string} userId - User ID
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async setUserOnline(userId) {
+    return this.updateUserStatus(userId, "online");
+  }
+
+  /**
+   * Mark user as offline
+   * @param {string} userId - User ID
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async setUserOffline(userId) {
+    return this.updateUserStatus(userId, "offline");
+  }
+
+  /**
+   * Update user's bio
+   * @param {string} userId - User ID
+   * @param {string} bio - New bio text
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateUserBio(userId, bio) {
+    try {
+      const updates = {
+        "profile.bio": bio,
+        "systemInfo.lastUpdated": serverTimestamp(),
+      };
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() => this.updateUserBio(userId, bio));
+        this.showNetworkStatus("Changes will sync when online");
+        return { success: true, offline: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), updates);
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating user bio:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Generate avatar URL from user data
+   * @param {Object} userData - User data containing avatarConfig
+   * @returns {string|null} Avatar URL or null
+   */
+  getAvatarUrl(userData) {
+    if (!userData?.avatarConfig || !window.avatarManager) {
+      return null;
+    }
+
+    return window.avatarManager.generateAvatarUrl(userData.avatarConfig);
+  }
+
+  /**
+   * Get avatar configuration for editing
+   * @param {Object} userData - User data
+   * @returns {Object|null} Avatar config or null
+   */
+  getAvatarConfig(userData) {
+    return userData?.avatarConfig || null;
+  }
+
+  /**
+   * Get field path for Firestore queries
+   * @param {string} section - Data section (profile, universityInfo, systemInfo)
+   * @param {string} field - Field name
+   * @returns {string} Firestore field path
+   */
+  getFieldPath(section, field) {
+    return `${section}.${field}`;
   }
 }
 

@@ -26,8 +26,7 @@
  */
 
 // Import Firebase functions we need - using import map from index.html
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase/config/firebase-config.js";
+import { serverTimestamp } from "firebase/firestore";
 
 // Import avatar management system
 import AvatarManager from "./avatars.js";
@@ -84,7 +83,7 @@ class ProfileSetup {
    */
 
   /**
-   * Load existing profile data from Firestore
+   * Load existing profile data from Firestore using dataManager
    * @param {string} userId - User ID to fetch data for
    * @returns {Promise<Object|null>} Profile data or null if not found
    */
@@ -101,18 +100,13 @@ class ProfileSetup {
       // Show loading state
       this.showLoadingState("Loading your profile...");
 
-      const userDocRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userDocRef);
+      // Use dataManager instead of direct Firestore calls
+      const data = await dataManager.getUserProfile(userId);
 
-      if (userDoc.exists()) {
-        const data = userDoc.data();
+      if (data) {
         console.log("✅ Profile data loaded successfully:", data);
-
         this.existingProfileData = data;
-
-        // Hide loading state
         this.hideLoadingState();
-
         return data;
       } else {
         console.log("📝 No existing profile data found, starting fresh setup");
@@ -521,32 +515,13 @@ class ProfileSetup {
   }
 
   /**
-   * Check if user has completed profile setup
+   * Check if user has completed profile setup (using dataManager)
    * @param {Object} profileData - Profile data to check
    * @returns {boolean} True if profile is complete
    */
   isProfileComplete(profileData) {
-    if (!profileData) return false;
-
-    // 🗂️ ORGANIZED STRUCTURE: Check new organized structure
-    const systemComplete = profileData.systemInfo?.profileSetupComplete;
-
-    // Check profile fields
-    const hasFirstName = profileData.profile?.firstName;
-    const hasLastName = profileData.profile?.lastName;
-    const hasMajor = profileData.profile?.major;
-    const hasStartingYear = profileData.profile?.startingYear;
-    const hasStudentId = profileData.universityInfo?.studentId;
-
-    return !!(
-      systemComplete &&
-      hasFirstName &&
-      hasLastName &&
-      profileData.email &&
-      hasStudentId &&
-      hasStartingYear &&
-      hasMajor
-    );
+    // Use dataManager's enhanced validation logic
+    return dataManager.isProfileComplete(profileData);
   }
 
   /**
