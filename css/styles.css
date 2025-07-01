@@ -200,8 +200,7 @@ body.page-friends .nav-link[data-spa-route="friends"] {
   margin-bottom: 1rem;
 }
 
-/* Friends and About Page Styles */
-.friends-container,
+/* About Page Styles */
 .about-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -225,61 +224,6 @@ body.page-friends .nav-link[data-spa-route="friends"] {
   color: var(--text-secondary);
   font-size: 1.1rem;
   line-height: 1.6;
-}
-
-.search-input-wrapper {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.search-input {
-  flex: 1;
-  padding: 0.75rem;
-  border: 1px solid var(--input-border);
-  border-radius: var(--radius-md);
-  background: var(--input-bg);
-  color: var(--text-primary);
-}
-
-.search-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--accent-primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.search-btn:hover {
-  background: var(--accent-secondary);
-  transform: translateY(-1px);
-}
-
-.friends-grid,
-.requests-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem 2rem;
-  color: var(--text-secondary);
-}
-
-.empty-state .empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  opacity: 0.7;
-}
-
-.empty-state h4 {
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
 }
 
 /* About page specific styles */
@@ -365,7 +309,6 @@ body.page-friends .nav-link[data-spa-route="friends"] {
 
 /* Responsive adjustments for SPA */
 @media (max-width: 768px) {
-  .friends-container,
   .about-container {
     padding: 1rem;
   }

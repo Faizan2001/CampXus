@@ -41,8 +41,14 @@ class SPARouter {
       friends: {
         title: "Friends - CampXus",
         template: "templates/friends.html",
-        cssFiles: [],
-        jsFiles: [],
+        cssFiles: [
+          "css/styles.css", // ✅ Base styles with all components
+          "css/friends-page.css", // ✅ Friends-specific styling
+        ],
+        jsFiles: [
+          "js/core/friends/friends-manager.js", // ✅ Core friends business logic
+          "js/core/friends/friends-ui.js", // ✅ Friends UI controller
+        ],
         description: "Connect with your classmates and study buddies",
       },
       about: {
