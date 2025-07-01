@@ -487,14 +487,30 @@ class SPARouter {
           );
           sessionStorage.removeItem("profileJustCompleted"); // Clear the flag
 
-          // Force refresh user data from Firebase
-          if (window.setupFirebaseAuthListener) {
-            setTimeout(() => {
-              console.log("🔄 Forcing Firebase auth state refresh...");
-              // The auth listener will automatically fetch fresh data
-              window.location.hash = window.location.hash; // Trigger refresh
-            }, 500);
-          }
+          // Force refresh user data without causing re-navigation
+          setTimeout(() => {
+            console.log(
+              "🔄 Triggering user data refresh for profile completion..."
+            );
+            // Just refresh the menu data, don't trigger navigation events
+            if (
+              window.updateUserDataAfterProfileCompletion &&
+              window.authManager
+            ) {
+              const user = window.authManager.getCurrentUser();
+              if (user) {
+                // Force a menu refresh without navigation side effects
+                const menuUserData = {
+                  uid: user.uid,
+                  name: user.displayName || user.email?.split("@")[0] || "User",
+                  email: user.email,
+                  avatarConfig: null, // Will be fetched by menu
+                  profileSetupComplete: true,
+                };
+                window.updateUserDataAfterProfileCompletion(menuUserData);
+              }
+            }
+          }, 500);
         }
       }
 
@@ -668,8 +684,37 @@ class SPARouter {
   /**
    * Show error page when something goes wrong
    * 🎯 Learning: Always have a fallback for when things break
+   * Enhanced to handle offline scenarios gracefully
    */
   showErrorPage(error) {
+    console.log("🔍 Analyzing error for appropriate response:", error);
+
+    // Check if this is an offline/network error
+    const isOfflineError =
+      !navigator.onLine ||
+      error.message.includes("fetch") ||
+      error.message.includes("Failed to fetch") ||
+      error.message.includes("NetworkError") ||
+      (error.name === "TypeError" && error.message.includes("fetch"));
+
+    if (isOfflineError) {
+      console.log("📱 Detected offline error - showing appropriate message");
+
+      // Use the notification system for offline errors instead of replacing content
+      if (window.dataManager) {
+        window.dataManager.showNotification(
+          "📱 You're offline! Some features may not work until you reconnect.",
+          "warning",
+          { duration: 8000 }
+        );
+      }
+
+      // Don't replace the current page content when offline
+      // Instead, just stay where we are with a helpful message
+      return;
+    }
+
+    // For genuine errors (not offline), show the error page
     this.mainContentContainer.innerHTML = `
       <div class="error-page" style="text-align: center; padding: 3rem;">
         <div style="font-size: 4rem; margin-bottom: 1rem;">😔</div>

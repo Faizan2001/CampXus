@@ -88,11 +88,14 @@ class DataManager {
     this.retryTimeout = null;
     this.maxRetries = 3;
 
-    // Cache settings
+    // Cache settings with size management
     this.cache = new Map();
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
+    this.maxCacheSize = 100; // Maximum number of cached items
+    this.lastSyncTime = null;
 
     // Initialize
+    this.removeLegacyOfflineBanners(); // Clean up any existing banners first
     this.setupNetworkListeners();
   }
 
@@ -107,100 +110,93 @@ class DataManager {
   setupNetworkListeners() {
     window.addEventListener("online", () => {
       this.isOnline = true;
-      this.showNetworkStatus("Connected");
-      this.showOfflineBanner(false); // Hide persistent banner
+      this.showNotification("✅ Back online! Syncing changes...", "success", {
+        duration: 3000,
+      });
       this.processPendingOperations();
     });
 
     window.addEventListener("offline", () => {
       this.isOnline = false;
-      this.showNetworkStatus("Working Offline");
-      this.showOfflineBanner(true); // Show persistent banner
+      this.showNotification(
+        "⚠️ You're offline. Changes will be saved locally and synced when you reconnect.",
+        "warning",
+        { duration: 5000 }
+      );
     });
   }
 
   /**
-   * Show network status to user
-   * @private
-   */
-  showNetworkStatus(message) {
-    const statusDiv = document.createElement("div");
-    statusDiv.className = "network-status";
-    statusDiv.textContent = message;
-
-    // Add status-specific styling
-    if (this.isOnline) {
-      statusDiv.classList.add("online");
-    } else {
-      statusDiv.classList.add("offline");
-    }
-
-    document.body.appendChild(statusDiv);
-    setTimeout(() => statusDiv.remove(), 3000);
-  }
-
-  /**
-   * Show or hide a persistent offline status banner at the top of the page.
-   * This is a global, accessible banner for all app pages.
-   * @param {boolean} isOffline - True to show, false to hide
-   */
-  showOfflineBanner(isOffline) {
-    let banner = document.getElementById("offline-status-banner");
-    if (isOffline) {
-      if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "offline-status-banner";
-        banner.setAttribute("role", "status");
-        banner.setAttribute("aria-live", "polite");
-        banner.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          z-index: 20000;
-          background: #f87171;
-          color: #fff;
-          text-align: center;
-          font-size: 1rem;
-          font-weight: 600;
-          padding: 0.75rem 0.5rem;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-          letter-spacing: 0.02em;
-        `;
-        banner.innerHTML =
-          '<span style="display:inline-block;margin-right:0.5em;vertical-align:middle;">⚠️</span>' +
-          '<span style="vertical-align:middle;">You are offline. Changes will be saved locally and synced when you are back online.</span>';
-        document.body.appendChild(banner);
-      } else {
-        banner.style.display = "block";
-      }
-    } else if (banner) {
-      banner.style.display = "none";
-    }
-  }
-
-  /**
-   * Process operations that were queued while offline
+   * Process operations that were queued while offline with retry logic
    * @private
    */
   async processPendingOperations() {
     if (!this.isOnline || this.pendingOperations.length === 0) return;
 
-    while (this.pendingOperations.length > 0) {
-      const operation = this.pendingOperations.shift();
+    console.log(
+      `🔄 Processing ${this.pendingOperations.length} pending operations...`
+    );
+    this.lastSyncTime = Date.now();
+
+    const operations = [...this.pendingOperations]; // Copy to avoid mutation during processing
+    this.pendingOperations = []; // Clear original array
+
+    for (const operation of operations) {
       try {
-        await operation();
+        await this.retryOperation(operation);
       } catch (error) {
-        console.error("Failed to process pending operation:", error);
+        console.error(
+          "Failed to process pending operation after retries:",
+          error
+        );
+        // Re-queue failed operations
+        this.pendingOperations.push(operation);
       }
+    }
+
+    if (this.pendingOperations.length === 0) {
+      this.showNotification("All changes synced successfully", "success");
+    } else {
+      this.showNotification(
+        `${this.pendingOperations.length} operations still pending`,
+        "warning"
+      );
     }
   }
 
   /**
-   * Cache data with expiration
+   * Retry an operation with exponential backoff
+   * @private
+   */
+  async retryOperation(operation, attempt = 1) {
+    try {
+      await operation();
+    } catch (error) {
+      if (attempt >= this.maxRetries) {
+        throw error;
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Cap at 10 seconds
+      console.log(
+        `⏳ Retrying operation in ${delay}ms (attempt ${attempt}/${this.maxRetries})`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.retryOperation(operation, attempt + 1);
+    }
+  }
+
+  /**
+   * Cache data with expiration and size management
    * @private
    */
   setCachedData(key, data) {
+    // Remove oldest entries if cache is too large
+    if (this.cache.size >= this.maxCacheSize) {
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+    }
+
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -222,6 +218,28 @@ class DataManager {
     }
 
     return cached.data;
+  }
+
+  /**
+   * Invalidate specific cache entry
+   * @param {string} key - Cache key to invalidate
+   */
+  invalidateCache(key) {
+    this.cache.delete(key);
+  }
+
+  /**
+   * Invalidate all cache entries for a user
+   * @param {string} userId - User ID to invalidate cache for
+   */
+  invalidateUserCache(userId) {
+    const keysToDelete = [];
+    for (const key of this.cache.keys()) {
+      if (key.includes(userId)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   // =========================
@@ -301,7 +319,9 @@ class DataManager {
         // Cache immediately for offline access
         this.setCachedData(`user_${userId}`, profileData);
 
-        this.showNetworkStatus("Changes will sync when online");
+        this.showNotification("Changes will sync when online", "info", {
+          duration: 4000,
+        });
         return { success: true, offline: true };
       }
 
@@ -339,11 +359,7 @@ class DataManager {
       return null;
     }
     try {
-      // Dynamically import Firestore functions for tree-shaking and performance
-      const { doc, getDoc } = await import("firebase/firestore");
-      const { db } = await import("../firebase/config/firebase-config.js");
-
-      // Reference the user document
+      // Use consistent static imports
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
       if (!userDoc.exists()) {
@@ -402,10 +418,7 @@ class DataManager {
     try {
       if (!userId || typeof userId !== "string")
         throw new Error("Invalid userId");
-      const { updateDoc, doc, serverTimestamp } = await import(
-        "firebase/firestore"
-      );
-      const { db } = await import("../firebase/config/firebase-config.js");
+
       await updateDoc(doc(db, "users", userId), {
         "systemInfo.lastActive": serverTimestamp(),
       });
@@ -435,7 +448,9 @@ class DataManager {
           this.saveUserSchedule(userId, scheduleData)
         );
         this.setCachedData(`schedule_${userId}`, scheduleData);
-        this.showNetworkStatus("Schedule will sync when online");
+        this.showNotification("Schedule will sync when online", "info", {
+          duration: 4000,
+        });
         return { success: true, offline: true };
       }
 
@@ -506,15 +521,75 @@ class DataManager {
   }
 
   /**
-   * Show error message to user
+   * Show error message to user with consistent styling
    * @private
    */
   showError(message) {
-    const errorDiv = document.createElement("div");
-    errorDiv.className = "error-message";
-    errorDiv.textContent = message;
-    document.body.appendChild(errorDiv);
-    setTimeout(() => errorDiv.remove(), 5000);
+    this.showNotification(message, "error");
+  }
+
+  /**
+   * Show user notifications with consistent styling and accessibility
+   * @param {string} message - Message to show
+   * @param {string} type - 'error' | 'success' | 'info' | 'warning'
+   * @private
+   */
+  showNotification(message, type = "info") {
+    const notification = document.createElement("div");
+    notification.className = `data-manager-notification ${type}`;
+    notification.setAttribute("role", "alert");
+    notification.setAttribute("aria-live", "polite");
+
+    // Apply consistent styling
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      max-width: 400px;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateX(450px);
+      transition: transform 0.3s ease-in-out;
+      ${this.getNotificationStyles(type)}
+    `;
+
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      notification.style.transform = "translateX(0)";
+    });
+
+    // Auto-remove after delay
+    setTimeout(
+      () => {
+        notification.style.transform = "translateX(450px)";
+        setTimeout(() => notification.remove(), 300);
+      },
+      type === "error" ? 5000 : 3000
+    );
+  }
+
+  /**
+   * Get notification styles based on type
+   * @private
+   */
+  getNotificationStyles(type) {
+    const styles = {
+      error:
+        "background: #fecaca; color: #b91c1c; border-left: 4px solid #ef4444;",
+      success:
+        "background: #bbf7d0; color: #166534; border-left: 4px solid #10b981;",
+      warning:
+        "background: #fef3c7; color: #d97706; border-left: 4px solid #f59e0b;",
+      info: "background: #dbeafe; color: #1d4ed8; border-left: 4px solid #3b82f6;",
+    };
+    return styles[type] || styles.info;
   }
 
   /**
@@ -532,6 +607,36 @@ class DataManager {
       }
     }
     return true;
+  }
+
+  /**
+   * Remove any legacy offline banners from the DOM
+   * @private
+   */
+  removeLegacyOfflineBanners() {
+    // Remove any existing offline banners that might be left over
+    const legacyBanners = [
+      "offline-status-banner",
+      "offline-banner",
+      "network-status-banner",
+    ];
+
+    legacyBanners.forEach((bannerId) => {
+      const banner = document.getElementById(bannerId);
+      if (banner) {
+        console.log(`🧹 Removing legacy offline banner: ${bannerId}`);
+        banner.remove();
+      }
+    });
+
+    // Also remove any elements with offline-related classes
+    const legacyElements = document.querySelectorAll(
+      ".offline-banner, .network-status, .offline-status"
+    );
+    legacyElements.forEach((element) => {
+      console.log("🧹 Removing legacy offline element:", element.className);
+      element.remove();
+    });
   }
 
   // =========================
@@ -678,7 +783,9 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateUserProfile(userId, profileData)
         );
-        this.showNetworkStatus("Changes will sync when online");
+        this.showNotification("Changes will sync when online", "info", {
+          duration: 4000,
+        });
         return { success: true, offline: true };
       }
 
@@ -769,7 +876,9 @@ class DataManager {
 
       if (!this.isOnline) {
         this.pendingOperations.push(() => this.updateUserBio(userId, bio));
-        this.showNetworkStatus("Changes will sync when online");
+        this.showNotification("Changes will sync when online", "info", {
+          duration: 4000,
+        });
         return { success: true, offline: true };
       }
 
@@ -812,9 +921,126 @@ class DataManager {
   getFieldPath(section, field) {
     return `${section}.${field}`;
   }
+
+  /**
+   * Get current sync status for offline operations
+   * Used by profile-setup.js to show sync status to users
+   * @returns {Object} Sync status with pending operations count
+   * @example
+   *   const status = dataManager.getSyncStatus();
+   *   // { isOnline: true, pendingWrites: 2, cacheSize: 5 }
+   */
+  getSyncStatus() {
+    return {
+      isOnline: this.isOnline,
+      pendingWrites: this.pendingOperations.length,
+      cacheSize: this.cache.size,
+      lastSync: this.lastSyncTime || null,
+    };
+  }
+
+  /**
+   * Delete a user's profile (admin function)
+   * @param {string} userId - User ID to delete
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async deleteUserProfile(userId) {
+    try {
+      if (!userId || typeof userId !== "string") {
+        throw new Error("Invalid userId");
+      }
+
+      if (!this.isOnline) {
+        throw new Error("Cannot delete profiles while offline");
+      }
+
+      await updateDoc(doc(db, "users", userId), {
+        "systemInfo.deleted": true,
+        "systemInfo.deletedAt": serverTimestamp(),
+        "systemInfo.status": "deleted",
+      });
+
+      // Remove from cache
+      this.invalidateUserCache(userId);
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting user profile:", error);
+      this.showError(error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Batch update multiple users (admin function)
+   * @param {Array<{userId: string, updates: Object}>} userUpdates - Array of user updates
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async batchUpdateUsers(userUpdates) {
+    try {
+      if (!this.isOnline) {
+        throw new Error("Cannot perform batch updates while offline");
+      }
+
+      const promises = userUpdates.map(({ userId, updates }) =>
+        updateDoc(doc(db, "users", userId), {
+          ...updates,
+          "systemInfo.lastUpdated": serverTimestamp(),
+        })
+      );
+
+      await Promise.all(promises);
+
+      // Invalidate cache for affected users
+      userUpdates.forEach(({ userId }) => this.invalidateUserCache(userId));
+
+      this.showNotification(
+        `Updated ${userUpdates.length} users successfully`,
+        "success"
+      );
+      return { success: true };
+    } catch (error) {
+      console.error("Error in batch update:", error);
+      this.showError(error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Search users by criteria (admin function)
+   * @param {Object} criteria - Search criteria
+   * @returns {Promise<Array|null>} Array of matching users or null
+   */
+  async searchUsers(criteria) {
+    try {
+      if (!this.isOnline) {
+        this.showError("Search requires internet connection");
+        return null;
+      }
+
+      // This would require implementing Firestore queries
+      // For now, return a placeholder
+      console.warn(
+        "searchUsers not fully implemented - requires Firestore query setup"
+      );
+      return [];
+    } catch (error) {
+      console.error("Error searching users:", error);
+      this.showError("Search failed");
+      return null;
+    }
+  }
 }
 
 // Create and export a singleton instance
 export const dataManager = new DataManager();
+
+// Expose to global scope for easy console testing (development only)
+if (typeof window !== "undefined") {
+  window.dataManager = dataManager;
+  console.log(
+    "🛠️ DataManager available globally as window.dataManager for testing"
+  );
+}
 
 // --- END OF FILE ---
