@@ -43,6 +43,11 @@ class AuthManager {
     this.currentUser = null;
     this.authModal = null;
     this.authStateListeners = [];
+    // A promise that resolves when the initial auth state is known
+    this.authReady = new Promise((resolve) => {
+      this.resolveAuthReady = resolve;
+    });
+
     // Simple auth event callbacks - much simpler than full event system
     this.onSigninSuccess = null;
     this.onSigninError = null;
@@ -555,12 +560,26 @@ class AuthManager {
       }
 
       // 🛡️ FIX: Prevent rapid successive auth state changes
-      if (this.currentUser === user) {
+      if (this.currentUser === user && this.resolveAuthReady === null) {
         console.log("🔄 Auth state unchanged, skipping processing");
+        // Even if state is unchanged, we must resolve the promise if it's the first run.
+        if (this.resolveAuthReady) {
+          this.resolveAuthReady();
+          this.resolveAuthReady = null;
+        }
         return;
       }
 
       this.currentUser = user;
+
+      // 🛡️ This is the crucial part of our fix!
+      // The first time this runs, it means Firebase has established the initial auth state.
+      // We can now resolve the authReady promise to signal that the app can proceed.
+      if (this.resolveAuthReady) {
+        this.resolveAuthReady();
+        // Set to null so it doesn't get called again unnecessarily
+        this.resolveAuthReady = null;
+      }
 
       if (user) {
         // Check if user should be allowed access
@@ -652,6 +671,22 @@ class AuthManager {
       // 🛡️ SILENT FAIL: Don't let lastActive updates break the app
       console.log("⚠️ LastActive update failed (non-critical):", error.message);
     }
+  }
+
+  /**
+   * Check if a user is currently authenticated.
+   * @returns {boolean} True if a user is authenticated, false otherwise.
+   */
+  isAuthenticated() {
+    return !!this.currentUser;
+  }
+
+  /**
+   * Get the current user's data.
+   * @returns {object|null} The current user object or null if not signed in.
+   */
+  getCurrentUserData() {
+    return this.currentUser;
   }
 
   // ===== UI HELPER METHODS =====

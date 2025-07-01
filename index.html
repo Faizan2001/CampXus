@@ -55,6 +55,7 @@
     </script>
   </head>
   <body>
+    <!-- App container is now visible by default again -->
     <div class="app-container">
       <!-- Top Navigation Bar -->
       <nav class="top-nav">
@@ -151,19 +152,7 @@
 
       <!-- Main Content Area - SPA Dynamic Container -->
       <main class="main-content">
-        <!-- 🎯 Learning: This area will be dynamically filled by our SPA router -->
-        <div
-          class="spa-loading-placeholder"
-          style="text-align: center; padding: 3rem"
-        >
-          <div style="font-size: 2rem; margin-bottom: 1rem">
-            <i class="fas fa-spinner fa-spin"></i>
-          </div>
-          <h3>Loading CampXus...</h3>
-          <p style="color: #666">
-            Setting up your schedule management experience
-          </p>
-        </div>
+        <!-- 🎯 Learning: This area will be dynamically filled by our SPA router. It starts empty. -->
       </main>
 
       <!-- Tooltip for schedule slots -->
@@ -243,9 +232,15 @@
     <!-- 📊 Load Data Manager globally for offline support and caching -->
     <script type="module" src="./js/core/data-manager.js"></script>
 
-    <!-- 🎯 Learning: Load SPA Router first, then initialize the app -->
-    <script type="module" src="./js/core/spa-router.js"></script>
+    <!-- Main application logic -->
+    <script
+      type="module"
+      src="./js/firebase/config/firebase-config.js"
+    ></script>
+    <script type="module" src="./js/core/data-manager.js"></script>
+    <script type="module" src="./js/firebase/auth/auth-manager.js"></script>
     <script type="module" src="./js/core/spa-init.js"></script>
+    <script type="module" src="./js/core/script.js"></script>
     <script type="module" src="./js/core/menu.js"></script>
   </body>
 </html>

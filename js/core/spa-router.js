@@ -50,6 +50,7 @@ class SPARouter {
           "js/core/friends/friends-ui.js", // ✅ Friends UI controller
         ],
         description: "Connect with your classmates and study buddies",
+        requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       about: {
         title: "About - CampXus",
@@ -417,24 +418,55 @@ class SPARouter {
    */
   async navigateTo(route, updateHistory = true) {
     if (!this.routes[route]) {
-      console.error(`❌ Route '${route}' not found!`);
+      console.error(`❌ Route not found: ${route}`);
+      this.showErrorFeedback(`Page not found: ${route}`);
       return;
     }
 
-    console.log(`🧭 Navigating to: ${route}`);
-
-    // Update browser history if requested
-    if (updateHistory) {
-      const routeData = this.routes[route];
-      history.pushState(
-        { route },
-        routeData.title,
-        `#${route}` // Use hash for simplicity
-      );
+    // 🛡️ New Authentication Check!
+    const routeConfig = this.routes[route];
+    if (routeConfig.requiresAuth) {
+      // We need to check if the user is logged in.
+      // We'll assume an authManager is available globally or passed to the router.
+      if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.warn(
+          `🔒 Access denied to route: ${route}. User not authenticated.`
+        );
+        // Use our friendly dataManager notification system!
+        window.dataManager.showNotification(
+          "You must be logged in to view this page.",
+          "warning"
+        );
+        return; // Stop navigation!
+      }
     }
 
-    // Load the page content
-    await this.loadPage(route);
+    console.log(`🚀 Navigating to: ${route}`);
+
+    try {
+      // 🎯 LEARNING: Show the loading indicator at the start of the navigation process.
+      this.showLoading();
+
+      // Update browser history if requested
+      if (updateHistory) {
+        const routeData = this.routes[route];
+        history.pushState(
+          { route },
+          routeData.title,
+          `#${route}` // Use hash for simplicity
+        );
+      }
+
+      // Load the page content
+      await this.loadPage(route);
+    } catch (error) {
+      console.error(`❌ Error loading page ${route}:`, error);
+      this.showErrorFeedback(`Failed to load ${route}.`);
+    } finally {
+      // 🎯 LEARNING: The finally block ensures the loading indicator is always hidden,
+      // even if an error occurs during page load.
+      this.hideLoading();
+    }
   }
 
   /**
@@ -453,9 +485,6 @@ class SPARouter {
 
     try {
       console.log(`🔄 Loading page: ${route}, current: ${this.currentPage}`);
-
-      // Show loading indicator
-      this.showLoading();
 
       // Update page title
       document.title = routeData.title;
@@ -531,16 +560,13 @@ class SPARouter {
         history.replaceState({ route }, routeData.title, `#${route}`);
       }
 
-      // Hide loading indicator
-      this.hideLoading();
-
       // Dispatch custom event for other parts of the app
       this.dispatchNavigationEvent(route);
 
       console.log(`✅ Successfully loaded page: ${route}`);
     } catch (error) {
       console.error(`❌ Error loading page ${route}:`, error);
-      this.hideLoading();
+      // 🎯 REFACTOR: The navigateTo method's finally block will handle hiding the loader.
       this.showErrorPage(error);
     }
   }

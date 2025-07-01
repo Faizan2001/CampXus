@@ -17,14 +17,26 @@ import SPARouter from "./spa-router.js";
  * Initialize the SPA when DOM is ready
  * 🎯 Learning: We wait for the DOM to load before setting up our app
  */
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Starting CampXus SPA...");
 
-  // Create global router instance
-  window.spaRouter = new SPARouter();
+  // 🎯 LEARNING: This is the critical fix for our race condition.
+  // We're telling our app to PAUSE and wait until the AuthManager
+  // confirms the user's login status from Firebase.
+  // The `authReady` is a Promise we created in AuthManager that resolves
+  // only after the initial `onAuthStateChanged` event has fired.
+  if (window.authManager?.authReady) {
+    console.log("⏳ Waiting for authentication to be ready...");
+    await window.authManager.authReady;
+    console.log("✅ Authentication ready!");
+  } else {
+    console.warn(
+      "AuthManager or authReady promise not found. Proceeding without auth check."
+    );
+  }
 
-  // Set up authentication-aware navigation
-  setupAuthenticationIntegration();
+  // Now that we're sure about the auth status, we can initialize the router.
+  window.spaRouter = new SPARouter();
 
   // Set up profile completion redirects
   setupProfileCompletionFlow();
@@ -34,24 +46,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log("✅ CampXus SPA initialized successfully!");
 });
-
-/**
- * Integrate SPA with Firebase Authentication
- * 🎯 Learning: SPAs need to work with your existing authentication system
- */
-function setupAuthenticationIntegration() {
-  // Listen for authentication state changes
-  document.addEventListener("spa:navigation", (event) => {
-    const { route } = event.detail;
-
-    // Some pages might require authentication
-    if (route === "profile") {
-      // Check if user is authenticated before showing profile
-      // This integrates with your existing Firebase auth
-      checkAuthenticationForProfile();
-    }
-  });
-}
 
 /**
  * Handle profile setup completion flow
@@ -127,27 +121,6 @@ function setupSPAEventListeners() {
 }
 
 /**
- * Check authentication for profile page
- * 🎯 Learning: Integrate SPA routing with your existing auth system
- */
-function checkAuthenticationForProfile() {
-  // This integrates with your existing Firebase authentication
-  if (typeof firebase !== "undefined" && firebase.auth) {
-    const user = firebase.auth().currentUser;
-
-    if (!user) {
-      console.log(
-        "🔒 Profile requires authentication, staying on current page"
-      );
-      // Could show login modal or redirect to a different page
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * Update page title based on current route
  * 🎯 Learning: Good SPAs update the browser title for each "page"
  */
@@ -213,8 +186,4 @@ window.navigateTo = function (route) {
  * Export for use in other modules
  * 🎯 Learning: Modern JavaScript modules can export functions
  */
-export {
-  setupAuthenticationIntegration,
-  setupProfileCompletionFlow,
-  updatePageTitle,
-};
+export { setupProfileCompletionFlow, updatePageTitle };
