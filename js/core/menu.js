@@ -524,9 +524,13 @@ async function updateUserDisplayInfo(userId) {
       console.warn("No minimal profile found for user:", userId);
       return;
     }
-    const { firstName, email, avatarConfig } = minimalProfile;
-    const displayName =
-      typeof firstName === "string" && firstName ? firstName : "User";
+    //  CHANGE: Destructure displayName directly from the minimal profile.
+    const { displayName, email, avatarConfig } = minimalProfile;
+
+    // Use the displayName, with a fallback to "User" if it's null or empty.
+    const finalDisplayName =
+      typeof displayName === "string" && displayName ? displayName : "User";
+
     // Wait for DOM elements
     const waitForElements = () => {
       const userDropdownName = document.getElementById("userDropdownName");
@@ -535,21 +539,22 @@ async function updateUserDisplayInfo(userId) {
         setTimeout(waitForElements, 100);
         return;
       }
-      userDropdownName.textContent = displayName;
+      //  CHANGE: Use the finalDisplayName.
+      userDropdownName.textContent = finalDisplayName;
       userDropdownEmail.textContent = email || "";
       // Update tooltip
       const userMenuTrigger = document.getElementById("userMenuTrigger");
       if (userMenuTrigger) {
         userMenuTrigger.setAttribute(
           "title",
-          `${displayName} - Click to open menu`
+          `${finalDisplayName} - Click to open menu`
         );
       }
     };
     waitForElements();
     // Update avatar displays
     updateUserAvatarDisplays({
-      name: displayName,
+      name: finalDisplayName,
       avatarConfig: avatarConfig || {},
     });
   } catch (error) {

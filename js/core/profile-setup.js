@@ -1517,15 +1517,13 @@ class ProfileSetup {
       if (window.updateUserDataAfterProfileCompletion) {
         const updatedUserData = {
           uid: this.currentUser.uid,
-          name: this.getDisplayName(),
+          name: this.currentUser.displayName,
           email: this.currentUser.email,
           avatarConfig: avatarConfig,
           profileSetupComplete: true,
         };
         window.updateUserDataAfterProfileCompletion(updatedUserData);
       }
-      // Show success feedback
-      this.showAvatarSaveSuccess();
     } catch (error) {
       console.error("❌ Error saving avatar:", error);
       alert("Failed to save avatar. Please try again.");
@@ -2486,66 +2484,43 @@ document.addEventListener("spa:navigation", (event) => {
   }
 });
 
-// 🎯 TRADITIONAL: Handle traditional page loads with DOMContentLoaded
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("🎯 Profile setup DOM loaded, checking auth system...");
+// 🎯 NEW: Event listener for SPA page loads
+document.addEventListener("spa:page:load", (event) => {
+  const { route } = event.detail;
+  console.log(`[profile-setup.js] Received spa:page:load for route: ${route}`);
 
-  // Only initialize if we don't already have an instance
-  if (!profileSetupInstance) {
-    // Add a small delay to ensure SPA navigation has had a chance to run first
-    setTimeout(() => {
-      if (!profileSetupInstance) {
-        console.log("🎯 No instance created by SPA, creating via DOM ready...");
-        initializeProfileSetup();
-      } else {
-        console.log(
-          "🎯 Instance already exists from SPA navigation, skipping DOM ready init"
-        );
-      }
-    }, 50);
-  } else {
-    console.log(
-      "🎯 Instance already exists, skipping DOM ready initialization"
-    );
+  if (route === "profile") {
+    console.log("🚀 Initializing Profile Setup page...");
+    // The core initialization logic from the old DOMContentLoaded listener
+    initializeProfileSetup();
   }
 });
 
-// 🎯 FIX #2: FALLBACK - If DOM is already loaded (SPA case), initialize immediately
-if (document.readyState === "loading") {
-  // DOM still loading, DOMContentLoaded will fire
-  console.log("📄 DOM still loading, waiting for DOMContentLoaded...");
-} else {
-  // DOM already loaded, initialize now if we're on the profile page
-  console.log("📄 DOM already loaded, checking if we're on profile page...");
+// 🗑️ LEGACY: The traditional DOMContentLoaded listener is no longer needed for the SPA.
+// The logic has been moved into the `spa:page:load` event listener above to ensure
+// it runs every time the profile page is loaded via the router.
+// document.addEventListener("DOMContentLoaded", () => {
+//   if (document.readyState === "interactive" || document.readyState === "complete") {
+//     console.log("🚀 DOM fully loaded and parsed, initializing profile setup...");
+//     initializeProfileSetup();
+//   } else {
+//     console.log("📄 DOM still loading, waiting for DOMContentLoaded...");
+//   }
+// });
 
-  // Check if profile setup elements are present
-  const profileElements = document.querySelector(
-    "#setup-email, #setup-student-id"
-  );
-  if (profileElements && !profileSetupInstance) {
-    console.log(
-      "🎯 Profile page detected and setup not initialized, starting now..."
-    );
+/* ===============================================================================================
+ * 🎓 LEARNING MOMENT: From DOMContentLoaded to SPA Events
+ * 
+ * In traditional web development, we often rely on the `DOMContentLoaded` event to initialize scripts
+ * that depend on the DOM being fully loaded. However, in Single Page Applications (SPAs), navigation
+ * between pages doesn't trigger a full page reload, and thus `DOMContentLoaded` may not fire as expected.
+ * 
+ * To adapt to SPAs, we listen for custom events like `spa:page:load` that signal when a new page is
+ * fully loaded and ready for interaction. This ensures our initialization code runs at the right time,
+ * every time the user navigates to the profile page, regardless of how they got there.
+ * 
+ * =============================================================================================== */
 
-    // Small delay to ensure elements are fully rendered
-    setTimeout(() => {
-      if (!profileSetupInstance) {
-        console.log("🎯 Creating instance via immediate DOM check...");
-        initializeProfileSetup();
-      } else {
-        console.log(
-          "🎯 Instance already created, skipping immediate DOM check"
-        );
-      }
-    }, 100);
-  } else if (profileSetupInstance) {
-    console.log("🎯 Instance already exists, skipping immediate DOM check");
-  }
-}
-
-// =============================================================================
-//                                    END
-// =============================================================================
 
 // =============================================================================
 //                         UTILITY FUNCTIONS FOR TESTING
