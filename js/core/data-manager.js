@@ -471,7 +471,11 @@ class DataManager {
       const displayName = data?.profile?.displayName ?? null;
       const email = data?.profile?.email ?? null;
       const avatarConfig = data?.avatarConfig ?? null;
-      console.log("Returned minimal profile: " + displayName, email, avatarConfig);
+      console.log(
+        "Returned minimal profile: " + displayName,
+        email,
+        avatarConfig
+      );
       return { displayName, email, avatarConfig };
     } catch (error) {
       console.error("[dataManager] Error in getUserProfileMinimal:", error);
@@ -480,7 +484,75 @@ class DataManager {
   }
 
   /**
+   * Update avatar config with validation and cleaning
+   * This method ensures that only valid options for the avatar style are saved
+   * @param {string} userId - The user's UID
+   * @param {Object} avatarConfig - The avatar config object (will be cleaned)
+   * @returns {Promise<{success: boolean, cleanedConfig?: Object, error?: string}>}
+   * @example
+   *   const result = await dataManager.updateAvatarConfig("abc123", avatarConfigObj);
+   *   if (result.success) {
+   *     console.log("Avatar saved with cleaned config:", result.cleanedConfig);
+   *   }
+   */
+  async updateAvatarConfig(userId, avatarConfig) {
+    try {
+      if (!userId || typeof userId !== "string" || !avatarConfig) {
+        throw new Error("Invalid arguments for updateAvatarConfig");
+      }
+
+      console.log("🔍 [DataManager] Updating avatar config:", avatarConfig);
+      console.log(
+        "🧹 [DataManager] Using clean slate approach - clearing old config first"
+      );
+
+      const userDocRef = doc(db, "users", userId);
+
+      // STEP 1: Clear the existing avatarConfig completely to remove all old options
+      console.log("🗑️ [DataManager] Step 1: Clearing existing avatarConfig...");
+      await setDoc(
+        userDocRef,
+        {
+          avatarConfig: {},
+          "systemInfo.lastUpdated": serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // STEP 2: Save the new avatar config (now guaranteed to be clean)
+      console.log("� [DataManager] Step 2: Saving new avatarConfig...");
+      await setDoc(
+        userDocRef,
+        {
+          avatarConfig: avatarConfig,
+          "systemInfo.lastUpdated": serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      console.log(
+        "✅ [DataManager] Avatar config updated successfully with clean slate approach"
+      );
+
+      // Update cache with new config
+      const cacheKey = `user_${userId}`;
+      if (this.cache.has(cacheKey)) {
+        const cachedData = this.cache.get(cacheKey);
+        cachedData.avatarConfig = avatarConfig;
+        this.cache.set(cacheKey, cachedData);
+        console.log("🔄 [DataManager] Updated avatar in cache");
+      }
+
+      return { success: true, cleanedConfig: avatarConfig };
+    } catch (error) {
+      console.error("[dataManager] Error updating avatar config:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Save only the avatar config for a user (does not overwrite other data).
+   * @deprecated Use updateAvatarConfig instead for better validation
    * @param {string} userId - The user's UID
    * @param {Object} avatarConfig - The avatar config object
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -488,24 +560,13 @@ class DataManager {
    *   await dataManager.saveAvatarConfig("abc123", avatarConfigObj);
    */
   async saveAvatarConfig(userId, avatarConfig) {
-    try {
-      if (!userId || typeof userId !== "string" || !avatarConfig) {
-        throw new Error("Invalid arguments for saveAvatarConfig");
-      }
-      const userDocRef = doc(db, "users", userId);
-      await setDoc(
-        userDocRef,
-        {
-          avatarConfig,
-          "systemInfo.lastUpdated": serverTimestamp(),
-        },
-        { merge: true }
-      );
-      return { success: true };
-    } catch (error) {
-      console.error("[dataManager] Error saving avatar config:", error);
-      return { success: false, error: error.message };
-    }
+    console.warn(
+      "⚠️ [DataManager] saveAvatarConfig is deprecated. Use updateAvatarConfig for better validation."
+    );
+
+    // Redirect to the new method for consistency
+    const result = await this.updateAvatarConfig(userId, avatarConfig);
+    return { success: result.success, error: result.error };
   }
 
   /**

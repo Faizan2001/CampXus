@@ -50,8 +50,6 @@ class ProfileSetup {
       return profileSetupInstance;
     }
 
-    console.log("🆕 Creating new ProfileSetup instance");
-
     this.currentStep = 0;
     this.totalSteps = 2; // Basic Info, Avatar & Bio
     this.currentUser = null;
@@ -89,12 +87,10 @@ class ProfileSetup {
    */
   async loadProfileData(userId) {
     if (this.dataLoadInProgress) {
-      console.log("🔄 Profile data loading already in progress, skipping...");
       return this.existingProfileData;
     }
 
     this.dataLoadInProgress = true;
-    console.log("📥 Loading profile data for user:", userId);
 
     try {
       // Show loading state
@@ -104,12 +100,10 @@ class ProfileSetup {
       const data = await dataManager.getUserProfile(userId);
 
       if (data) {
-        console.log("✅ Profile data loaded successfully:", data);
         this.existingProfileData = data;
         this.hideLoadingState();
         return data;
       } else {
-        console.log("📝 No existing profile data found, starting fresh setup");
         this.existingProfileData = null;
         this.hideLoadingState();
         return null;
@@ -129,8 +123,6 @@ class ProfileSetup {
    * @param {Object} profileData - Profile data from Firestore
    */
   populateFormFields(profileData) {
-    console.log("📝 Populating form fields with existing data...");
-
     // Wait for DOM elements to be available
     const populateFields = () => {
       // Basic Information fields
@@ -144,7 +136,6 @@ class ProfileSetup {
 
       // Check if elements are available
       if (!firstName || !lastName) {
-        console.log("🔄 Form elements not ready, retrying in 200ms...");
         setTimeout(populateFields, 200);
         return;
       }
@@ -169,11 +160,6 @@ class ProfileSetup {
         const extractedStudentId = this.currentUser.email.split("@")[0];
 
         studentId.value = savedStudentId || extractedStudentId;
-        console.log(
-          `🆔 Student ID populated: ${studentId.value} (from ${
-            savedStudentId ? "saved data" : "email extraction"
-          })`
-        );
       }
 
       if (startingYear) startingYear.value = getProfileValue("startingYear");
@@ -192,13 +178,8 @@ class ProfileSetup {
       // Handle avatar configuration
       if (profileData.avatarConfig) {
         this.avatarConfig = profileData.avatarConfig;
-        console.log("🎨 Loaded avatar config:", this.avatarConfig);
-        // 🎯 FIX: Don't update avatar preview here - only do it when we're on step 1
-        console.log(
-          "🎨 Avatar config loaded, will update preview when on avatar step"
-        );
       } else {
-        console.log("🎨 No avatar config found in profile data");
+        this.avatarConfig = null;
       }
 
       // 🗂️ ORGANIZED DATA STRUCTURE: Update internal profile data
@@ -217,11 +198,6 @@ class ProfileSetup {
         major: getProfileValue("major"),
         bio: getProfileValue("bio"),
       };
-
-      console.log("✅ Form fields populated successfully");
-      console.log(
-        `🆔 Final student ID in profileData: "${this.profileData.studentId}"`
-      );
 
       // Add visual indicators for readonly fields (especially email and student ID)
       this.styleReadonlyFields();
@@ -537,22 +513,17 @@ class ProfileSetup {
   async checkAuthentication() {
     // Prevent multiple authentication checks
     if (this.authCheckInProgress) {
-      console.log("🔄 Authentication check already in progress, skipping...");
       return;
     }
 
     this.authCheckInProgress = true;
-    console.log("🔐 Starting authentication check...");
 
     // Check if auth manager is available (modern approach)
     if (window.authManager) {
-      console.log("🔥 Using modern auth manager");
-
       // 🎯 IMMEDIATE USER CHECK: First, try to get current user immediately
       const currentUser = window.authManager.getCurrentUser();
       if (currentUser) {
         this.currentUser = currentUser;
-        console.log("✅ Found immediate user:", this.currentUser.email);
         // Initialize setup immediately without delay
         this.initializeSetup();
         return; // Exit early if we found a user
@@ -563,14 +534,9 @@ class ProfileSetup {
         if (user && !this.currentUser) {
           // Only process if we don't already have a user
           this.currentUser = user;
-          console.log(
-            "✅ User authenticated via auth manager callback:",
-            user.email
-          );
           // Initialize setup immediately without delay for callback
           this.initializeSetup();
         } else if (!user) {
-          console.log("❌ No user authenticated, navigating to home...");
           if (window.spaRouter) {
             window.spaRouter.navigateTo("home");
           } else {
@@ -582,10 +548,6 @@ class ProfileSetup {
       // Also check the direct property as fallback
       if (!this.currentUser && window.authManager.currentUser) {
         this.currentUser = window.authManager.currentUser;
-        console.log(
-          "✅ Found user via direct property:",
-          this.currentUser.email
-        );
         // Initialize setup immediately
         this.initializeSetup();
       }
@@ -630,25 +592,16 @@ class ProfileSetup {
    * Initialize the profile setup UI and functionality
    */
   async initializeSetup() {
-    console.log("🎯 Initializing profile setup...");
-    console.log("🔍 Auth Manager available:", !!window.authManager);
-    console.log("🔍 Current user:", this.currentUser?.email || "None");
-
     // CRITICAL: Check if profile template is loaded first
     const profileCard = document.querySelector(".profile-setup-card");
     const setupBody = document.querySelector(".setup-body");
 
     if (!profileCard || !setupBody) {
-      console.log("⚠️ Profile template not fully loaded, waiting...");
       setTimeout(() => {
         this.initializeSetup();
       }, 200);
       return;
     }
-
-    console.log(
-      "✅ Profile template is loaded, proceeding with initialization"
-    );
 
     // Add debug info to page for development
     this.addDebugInfo();
@@ -659,23 +612,19 @@ class ProfileSetup {
         const existingData = await this.loadProfileData(this.currentUser.uid);
 
         if (existingData) {
-          console.log("📋 Found existing profile data, populating fields...");
           this.populateFormFields(existingData);
 
           // If profile is complete, show in edit mode
           if (this.isProfileComplete(existingData)) {
-            console.log("✅ Profile is complete, entering edit mode");
             // 🎯 CRITICAL FIX: Always start from step 0 when editing profile
             // This ensures consistent navigation regardless of which step has data
             this.currentStep = 0;
             this.updateStepTitles("edit");
             this.updateStepDisplay();
           } else {
-            console.log("📝 Profile incomplete, starting from step 0");
             this.currentStep = 0;
           }
         } else {
-          console.log("📝 No existing data, starting fresh setup");
           // 🎯 IMMEDIATE DATA PREFILL: Pre-fill email and student ID for new setup
           this.prefillUserData();
         }
@@ -696,18 +645,9 @@ class ProfileSetup {
     this.setupEventListeners();
 
     // Initialize display and validation - CRITICAL FOR VISIBILITY
-    console.log(
-      "🎯 CRITICAL: About to call updateStepDisplay() - this should make step 0 visible"
-    );
     this.updateStepDisplay();
-
-    console.log("🎯 CRITICAL: About to call updateProgress()");
     this.updateProgress();
-
-    console.log("🎯 CRITICAL: About to call validateCurrentStep()");
     this.validateCurrentStep();
-
-    console.log("✅ Profile setup initialized with immediate data prefill");
 
     // 🧪 IMMEDIATE VERIFICATION: Check if step 0 is actually visible now
     setTimeout(() => {
@@ -731,14 +671,11 @@ class ProfileSetup {
    * and the template has been reloaded but the instance still exists
    */
   async reinitializeForFreshTemplate() {
-    console.log("🔄 Re-initializing profile setup for fresh template...");
-
     // Check if template is loaded
     const profileCard = document.querySelector(".profile-setup-card");
     const setupBody = document.querySelector(".setup-body");
 
     if (!profileCard || !setupBody) {
-      console.log("⚠️ Template not ready yet, retrying...");
       setTimeout(() => this.reinitializeForFreshTemplate(), 100);
       return;
     }
@@ -747,27 +684,20 @@ class ProfileSetup {
     if (this.currentUser && this.currentUser.uid) {
       try {
         // Always load fresh data from database to ensure we have latest avatar config
-        console.log("� Loading fresh profile data from database...");
         const freshData = await this.loadProfileData(this.currentUser.uid);
 
         if (freshData) {
-          console.log(
-            "📋 Found fresh profile data, updating cache and populating fields..."
-          );
           this.existingProfileData = freshData; // Update cache with fresh data
           this.populateFormFields(freshData);
 
           // If profile is complete, show in edit mode
           if (this.isProfileComplete(freshData)) {
-            console.log("✅ Profile is complete, entering edit mode");
             this.currentStep = 0;
             this.updateStepTitles("edit");
           } else {
-            console.log("📝 Profile incomplete, starting from step 0");
             this.currentStep = 0;
           }
         } else {
-          console.log("📝 No profile found, using basic prefill");
           this.currentStep = 0;
           this.prefillUserData();
         }
@@ -787,9 +717,6 @@ class ProfileSetup {
     // Re-initialize avatar system
     this.initializeAvatarSystem();
 
-    // 🎯 FIX: Don't force refresh avatar on re-initialization - only when on step 1
-    console.log("🎨 Avatar system re-initialized, will refresh when needed");
-
     // Re-setup event listeners (in case they were lost)
     this.setupEventListeners();
 
@@ -797,10 +724,6 @@ class ProfileSetup {
     this.updateStepDisplay();
     this.updateProgress();
     this.validateCurrentStep();
-
-    console.log(
-      "✅ Profile setup re-initialized for fresh template with data loading"
-    );
   }
 
   /**
@@ -818,19 +741,15 @@ class ProfileSetup {
 
     // If fields aren't available yet, retry after a short delay
     if (!emailInput || !studentIdInput) {
-      console.log("🔄 Form fields not ready, retrying in 200ms...");
       setTimeout(() => this.prefillUserData(), 200);
       return;
     }
 
     if (!this.currentUser) {
-      console.warn("⚠️ No current user available for prefilling");
-
       // Try one more time to get user from auth manager
       if (window.authManager) {
         const user = window.authManager.getCurrentUser();
         if (user) {
-          console.log("🔄 Retry successful: Found user", user.email);
           this.currentUser = user;
         } else {
           // Update placeholders to show no user found
@@ -845,11 +764,8 @@ class ProfileSetup {
       }
     }
 
-    console.log("🔍 Current user for prefilling:", this.currentUser.email);
-
     // Check if this is a development email
     const isDev = this.isDevelopmentEmail(this.currentUser.email);
-    console.log("🔧 Is development email?", isDev);
 
     // 🎯 IMMEDIATE AUTO-FILL: Pre-fill email immediately without any loading text
     if (emailInput) {
@@ -858,7 +774,6 @@ class ProfileSetup {
       emailInput.placeholder = isDev
         ? "Development email"
         : "Your university email";
-      console.log("✅ Email populated immediately:", emailInput.value);
     }
 
     // 🎯 IMMEDIATE AUTO-FILL: Automatically extract and populate Student ID from email immediately
@@ -870,20 +785,7 @@ class ProfileSetup {
         studentIdInput.placeholder = isDev
           ? "Development ID"
           : "Student ID (from email)";
-        console.log(
-          "✅ Student ID extracted and populated immediately:",
-          studentIdInput.value
-        );
       }
-    }
-
-    // 🎉 SUCCESS LOG: Check if both fields were successfully populated
-    if (emailInput.value && studentIdInput.value) {
-      console.log(
-        "🎉 SUCCESS: Both email and student ID fields have been auto-filled instantly!"
-      );
-      console.log(`📧 Email: ${emailInput.value}`);
-      console.log(`🆔 Student ID: ${studentIdInput.value}`);
     }
 
     // Add visual indicators for readonly fields
@@ -926,8 +828,6 @@ class ProfileSetup {
    * Move to the next step in the setup process - SIMPLIFIED
    */
   async nextStep() {
-    console.log("🔄 Moving to next step, current step:", this.currentStep);
-
     // Validate current step before proceeding
     if (!this.validateStepData()) {
       return; // Don't proceed if validation fails
@@ -939,20 +839,17 @@ class ProfileSetup {
     if (this.currentStep < this.totalSteps - 1) {
       // Move to next step
       this.currentStep++;
-      console.log("✅ Advanced to step:", this.currentStep + 1);
       this.updateStepDisplay();
       this.updateProgress();
       this.validateCurrentStep();
 
       // Update avatar preview when navigating to avatar step (step 1)
       if (this.currentStep === 1) {
-        console.log("👤 Navigated to avatar step, updating preview...");
         // Simple single preview update
         this.updateAvatarPreview();
       }
     } else {
       // Final step - save the profile
-      console.log("💾 Saving profile...");
       await this.saveProfile();
     }
   }
@@ -969,7 +866,6 @@ class ProfileSetup {
 
       // Update avatar preview when navigating back to avatar step (step 1)
       if (this.currentStep === 1) {
-        console.log("👤 Navigated back to avatar step, updating preview...");
         // Simple single preview update
         this.updateAvatarPreview();
       }
@@ -1145,8 +1041,6 @@ class ProfileSetup {
     setTimeout(() => {
       nextBtn.classList.remove("red-glow-pulse");
     }, 800);
-
-    console.log("🔴 Incomplete fields feedback shown");
   }
 
   /**
@@ -1246,20 +1140,7 @@ class ProfileSetup {
    * Update the step display to show current step
    */
   updateStepDisplay() {
-    console.log("🔄 Updating step display, current step:", this.currentStep);
-
     const steps = document.querySelectorAll(".setup-step");
-    console.log("🔍 Found steps:", steps.length);
-
-    // Log current state before making changes
-    steps.forEach((step, index) => {
-      const dataStep = step.getAttribute("data-step");
-      const hasActive = step.classList.contains("active");
-      console.log(
-        `📋 BEFORE: Step ${index} (data-step=${dataStep}) has active=${hasActive}`
-      );
-    });
-
     steps.forEach((step) => step.classList.remove("active")); // More robust way to hide
 
     const currentStepElement = document.querySelector(
@@ -1267,37 +1148,13 @@ class ProfileSetup {
     );
 
     if (currentStepElement) {
-      console.log("✅ Found current step element, making it active");
       currentStepElement.classList.add("active"); // More robust way to show
-
-      // Verify it was actually added
-      const hasActiveNow = currentStepElement.classList.contains("active");
-      console.log("✅ Active class added successfully:", hasActiveNow);
     } else {
       console.error(
         "❌ Could not find step element for step:",
         this.currentStep
       );
-      console.log("🔍 Available steps:");
-      steps.forEach((step, index) => {
-        console.log(
-          `  Step ${index}: data-step="${step.getAttribute("data-step")}"`
-        );
-      });
     }
-
-    // Log final state after making changes
-    setTimeout(() => {
-      const stepsAfter = document.querySelectorAll(".setup-step");
-      stepsAfter.forEach((step, index) => {
-        const dataStep = step.getAttribute("data-step");
-        const hasActive = step.classList.contains("active");
-        const isVisible = window.getComputedStyle(step).display !== "none";
-        console.log(
-          `📋 AFTER: Step ${index} (data-step=${dataStep}) active=${hasActive}, visible=${isVisible}`
-        );
-      });
-    }, 50);
 
     // Update navigation button visibility
     this.updateNavigationButtons();
@@ -1353,12 +1210,6 @@ class ProfileSetup {
     if (totalStepsElement) {
       totalStepsElement.textContent = `${this.totalSteps}`;
     }
-
-    console.log(
-      `📊 Progress: Step ${this.currentStep + 1}/${this.totalSteps} - Block ${
-        this.currentStep
-      } active`
-    );
   }
 
   /**
@@ -1435,26 +1286,20 @@ class ProfileSetup {
 
     // Use existing avatar config from loaded profile data (always fresh)
     if (this.existingProfileData?.avatarConfig) {
-      console.log("🎨 Using fresh avatar config from profile data");
       this.avatarConfig = this.existingProfileData.avatarConfig;
     }
     // Generate default avatar if none exists
     else if (!this.avatarConfig && window.avatarManager) {
-      console.log("🎨 Generating default avatar config");
       this.avatarConfig = window.avatarManager.generateDefaultAvatar(
         this.currentUser.uid
       );
     }
-
-    console.log("🎨 Avatar system initialized with config:", this.avatarConfig);
   }
 
   /**
    * Open avatar editor modal - SIMPLIFIED
    */
   openAvatarEditor() {
-    console.log("🎨 Opening avatar editor...");
-
     if (!window.avatarManager) {
       console.error("❌ Avatar manager not available");
       alert("Avatar system is not loaded. Please refresh the page.");
@@ -1472,13 +1317,10 @@ class ProfileSetup {
       this.avatarConfig ||
       window.avatarManager.generateDefaultAvatar(this.currentUser.uid);
 
-    console.log("🎨 Opening editor with avatar config:", currentAvatar);
-
     // Open avatar editor with callback
     window.avatarManager.openAvatarEditor(
       currentAvatar,
       async (newAvatarConfig) => {
-        console.log("✅ Avatar updated:", newAvatarConfig);
         this.avatarConfig = newAvatarConfig;
 
         // Update the preview immediately
@@ -1499,27 +1341,28 @@ class ProfileSetup {
    * Save avatar change to database (for completed profiles)
    */
   async saveAvatarChange(avatarConfig) {
-    console.log("💾 Saving avatar change for completed profile...");
     try {
-      // Use dataManager for avatar save
-      const result = await dataManager.saveAvatarConfig(
+      // Use dataManager's new updateAvatarConfig method for proper validation
+      const result = await dataManager.updateAvatarConfig(
         this.currentUser.uid,
         avatarConfig
       );
       if (!result.success) throw new Error(result.error);
-      console.log("✅ Avatar saved to Firestore");
-      // Update cached profile data immediately
+
+      // Use the cleaned config that was actually saved
+      const cleanedAvatarConfig = result.cleanedConfig || avatarConfig;
+
+      // Update cached profile data immediately with the cleaned config
       if (this.existingProfileData) {
-        this.existingProfileData.avatarConfig = avatarConfig;
-        console.log("🔄 Updated cached profile data with new avatar config");
+        this.existingProfileData.avatarConfig = cleanedAvatarConfig;
       }
-      // Update menu with new avatar
+      // Update menu with new avatar (use cleaned config)
       if (window.updateUserDataAfterProfileCompletion) {
         const updatedUserData = {
           uid: this.currentUser.uid,
           name: this.currentUser.displayName,
           email: this.currentUser.email,
-          avatarConfig: avatarConfig,
+          avatarConfig: cleanedAvatarConfig,
           profileSetupComplete: true,
         };
         window.updateUserDataAfterProfileCompletion(updatedUserData);
@@ -1599,7 +1442,6 @@ class ProfileSetup {
         })
       );
       if (window.updateUserDataAfterProfileCompletion) {
-        console.log("🔄 Forcing user data refresh after profile completion...");
         const menuUserData = {
           uid: userData.uid,
           name: `${userData.profile.firstName} ${userData.profile.lastName}`,
@@ -1698,17 +1540,9 @@ class ProfileSetup {
     const avatarEditBtn = document.getElementById("avatar-edit-btn");
     const bioInput = document.getElementById("setup-bio");
 
-    console.log("🔗 Setting up event listeners...");
-    console.log("Next button found:", !!nextBtn);
-    console.log("Previous button found:", !!prevBtn);
-    console.log("Skip button found:", !!skipBtn);
-    console.log("Avatar edit button found:", !!avatarEditBtn);
-
     // 🎯 DEFENSIVE: Remove existing listeners first to prevent duplicates
     if (nextBtn && !nextBtn.hasAttribute("data-listener-attached")) {
       nextBtn.addEventListener("click", (e) => {
-        console.log("🖱️ Next button clicked");
-
         // If button is disabled, show visual feedback and scroll to button
         if (nextBtn.disabled) {
           e.preventDefault();
@@ -1798,23 +1632,16 @@ class ProfileSetup {
    */
   verifyInitialization() {
     const step0 = document.querySelector('.setup-step[data-step="0"]');
-    if (step0) {
-      const hasActive = step0.classList.contains("active");
-      const isVisible = window.getComputedStyle(step0).display !== "none";
-      console.log(`🧪 VERIFICATION: Step 0 has active class: ${hasActive}`);
-      console.log(`🧪 VERIFICATION: Step 0 is visible: ${isVisible}`);
+    if (!step0) {
+      console.error("❌ Step 0 element not found during verification");
+      return;
+    }
 
-      // Also verify that the email and student ID fields have been populated
-      const emailInput = document.getElementById("setup-email");
-      const studentIdInput = document.getElementById("setup-student-id");
-      if (emailInput && studentIdInput) {
-        console.log(
-          `🧪 VERIFICATION: Email field value: "${emailInput.value}"`
-        );
-        console.log(
-          `🧪 VERIFICATION: Student ID field value: "${studentIdInput.value}"`
-        );
-      }
+    const hasActive = step0.classList.contains("active");
+    const isVisible = window.getComputedStyle(step0).display !== "none";
+
+    if (!hasActive || !isVisible) {
+      console.error("❌ Step 0 is not properly visible or active");
     }
   }
 
@@ -1822,53 +1649,13 @@ class ProfileSetup {
    * Add diagnostic information for debugging display issues
    */
   addDiagnosticInfo() {
-    console.log("🔍 DIAGNOSTIC: Profile setup DOM analysis");
-
-    // Check current page context
-    const currentHash = window.location.hash;
-    const currentBodyClass = document.body.className;
-    console.log("🔍 Current URL hash:", currentHash);
-    console.log("🔍 Body classes:", currentBodyClass);
-
-    // Check main containers
-    const profileCard = document.querySelector(".profile-setup-card");
-    const setupBody = document.querySelector(".setup-body");
-    const steps = document.querySelectorAll(".setup-step");
-
-    console.log("📋 Profile card found:", !!profileCard);
-    console.log("📋 Setup body found:", !!setupBody);
-    console.log("📋 Total steps found:", steps.length);
-
-    // Check for email/student ID inputs specifically
-    const emailInput = document.getElementById("setup-email");
-    const studentIdInput = document.getElementById("setup-student-id");
-    console.log("📋 Email input found:", !!emailInput);
-    console.log("📋 Student ID input found:", !!studentIdInput);
-
-    // Check individual steps
-    steps.forEach((step, index) => {
-      const dataStep = step.getAttribute("data-step");
-      const isActive = step.classList.contains("active");
-      const isVisible = window.getComputedStyle(step).display !== "none";
-      console.log(
-        `📋 Step ${index}: data-step=${dataStep}, active=${isActive}, visible=${isVisible}`
-      );
-    });
-
-    // Check current step specifically
+    // Only show critical diagnostic info - current step not found
     const currentStepEl = document.querySelector(
       `[data-step="${this.currentStep}"]`
     );
-    if (currentStepEl) {
-      console.log("✅ Current step element found and should be active");
-      console.log("🎯 Current step classes:", currentStepEl.className);
-      console.log(
-        "🎯 Current step display:",
-        window.getComputedStyle(currentStepEl).display
-      );
-    } else {
+    if (!currentStepEl) {
       console.error("❌ Current step element NOT found!");
-      console.log(
+      console.error(
         "🔍 Looking for selector:",
         `[data-step="${this.currentStep}"]`
       );
@@ -1926,7 +1713,6 @@ class ProfileSetup {
     `;
 
     testButton.addEventListener("click", () => {
-      console.log("🧪 MANUAL TEST: Calling updateStepDisplay()");
       this.updateStepDisplay();
     });
 
@@ -1967,22 +1753,13 @@ class ProfileSetup {
    * Test DiceBear API connectivity and provide debugging info
    */
   async testAvatarAPIConnectivity() {
-    console.log("🧪 Testing DiceBear API connectivity...");
-
     try {
       // Test with the simplest possible URL
       const testUrl = "https://api.dicebear.com/9.x/initials/svg?seed=test";
-      console.log("🔗 Testing URL:", testUrl);
 
       const response = await fetch(testUrl, { method: "HEAD" });
-      console.log("📡 API Response Status:", response.status);
-      console.log(
-        "📡 API Response Headers:",
-        Object.fromEntries(response.headers.entries())
-      );
 
       if (response.ok) {
-        console.log("✅ DiceBear API is accessible");
         return true;
       } else {
         console.error(
@@ -1993,11 +1770,6 @@ class ProfileSetup {
       }
     } catch (error) {
       console.error("❌ DiceBear API connectivity test failed:", error);
-      console.log("🌐 Possible issues:");
-      console.log("   - Network connectivity problems");
-      console.log("   - CORS restrictions");
-      console.log("   - API service temporarily down");
-      console.log("   - Firewall or proxy blocking requests");
       return false;
     }
   }
@@ -2006,21 +1778,14 @@ class ProfileSetup {
    * Test avatar API connectivity with a simple request
    */
   async testAvatarAPI() {
-    console.log("🧪 Testing avatar API connectivity...");
-
     try {
       // Test with the simplest possible request
       const testUrl =
         "https://api.dicebear.com/9.x/initials/svg?seed=test&backgroundColor=b6e3f4";
-      console.log("🔗 Testing simple URL:", testUrl);
 
       const response = await fetch(testUrl, { method: "HEAD" });
-      console.log("📡 API Response Status:", response.status);
 
       if (response.ok) {
-        console.log(
-          "✅ Avatar API is working - issue might be with complex configurations"
-        );
         return true;
       } else {
         console.error("❌ Avatar API returned error:", response.status);
@@ -2510,17 +2275,16 @@ document.addEventListener("spa:page:load", (event) => {
 
 /* ===============================================================================================
  * 🎓 LEARNING MOMENT: From DOMContentLoaded to SPA Events
- * 
+ *
  * In traditional web development, we often rely on the `DOMContentLoaded` event to initialize scripts
  * that depend on the DOM being fully loaded. However, in Single Page Applications (SPAs), navigation
  * between pages doesn't trigger a full page reload, and thus `DOMContentLoaded` may not fire as expected.
- * 
+ *
  * To adapt to SPAs, we listen for custom events like `spa:page:load` that signal when a new page is
  * fully loaded and ready for interaction. This ensures our initialization code runs at the right time,
  * every time the user navigates to the profile page, regardless of how they got there.
- * 
+ *
  * =============================================================================================== */
-
 
 // =============================================================================
 //                         UTILITY FUNCTIONS FOR TESTING

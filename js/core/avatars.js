@@ -287,11 +287,33 @@ class AvatarManager {
             "a7ffc4,d1d4f9",
           ],
           backgroundType: ["gradientLinear", "solid"],
-          body: ["variant01", "variant02", "variant03", "variant04", "variant05", 
-            "variant06", "variant07", "variant08", "variant09", "variant10", "variant11",
-            "variant12", "variant13", "variant14", "variant15", "variant16", "variant17",
-            "variant18", "variant19", "variant20", "variant21", "variant22", "variant23",
-            "variant24", "variant25",],
+          body: [
+            "variant01",
+            "variant02",
+            "variant03",
+            "variant04",
+            "variant05",
+            "variant06",
+            "variant07",
+            "variant08",
+            "variant09",
+            "variant10",
+            "variant11",
+            "variant12",
+            "variant13",
+            "variant14",
+            "variant15",
+            "variant16",
+            "variant17",
+            "variant18",
+            "variant19",
+            "variant20",
+            "variant21",
+            "variant22",
+            "variant23",
+            "variant24",
+            "variant25",
+          ],
         },
       },
       "bottts-neutral": {
@@ -761,10 +783,21 @@ class AvatarManager {
 
   handleSaveAvatar() {
     console.log("💾 Saving avatar configuration:", this.currentConfig);
-    if (this.onSaveCallback) this.onSaveCallback(this.currentConfig);
+
+    // No need to clean here - DataManager will use clean slate approach
+    // Just pass the current config directly to the callback
+    if (this.onSaveCallback) {
+      this.onSaveCallback(this.currentConfig);
+    }
     return true;
   }
 
+  /**
+   * Get avatar URL with fallback
+   * @param {Object} userConfig - User's avatar configuration
+   * @param {string} fallbackUserId - Fallback user ID for default avatar
+   * @returns {string} Avatar URL
+   */
   getAvatarUrl(userConfig, fallbackUserId = "default") {
     const config =
       userConfig && this.isValidAvatarConfig(userConfig)
@@ -773,6 +806,11 @@ class AvatarManager {
     return this.generateAvatarUrl(config);
   }
 
+  /**
+   * Validate avatar configuration
+   * @param {Object} config - Avatar configuration to validate
+   * @returns {boolean} True if valid
+   */
   isValidAvatarConfig(config) {
     return (
       config &&
