@@ -15,8 +15,7 @@ import {
 import { dataManager } from "../../../js/core/data-manager.js";
 
 /**
- * Custom error class for authentication-related errors
- * This helps us identify auth errors vs other types of errors
+ * Custom error class for authentication vs other types of errors
  */
 class AuthError extends Error {
   constructor(message, code = null) {
@@ -545,7 +544,11 @@ class AuthManager {
    * This is the security guard that watches for auth changes
    */
   setupAuthStateListener() {
+    console.log("🔧 Setting up auth state listener...");
+    
     onAuthStateChanged(auth, async (user) => {
+      console.log("🔥 Auth state changed:", user ? `User: ${user.email}` : "No user");
+      
       // 🔧 FIX: Add security logging here to consolidate auth listeners
       if (user) {
         console.log("Security: User authenticated", {
@@ -970,6 +973,12 @@ export const authManager = new AuthManager();
 
 // Expose auth manager to window for inline handlers
 window.authManager = authManager;
+
+// 🔥 CRITICAL: Initialize the auth manager immediately when module loads
+// This ensures the auth state listener is set up as soon as possible
+authManager.initialize().catch(error => {
+  console.error("❌ Failed to initialize AuthManager:", error);
+});
 
 // Example: How to use the simple callback system (much easier!)
 // authManager.setSigninSuccessCallback((data) => {

@@ -106,7 +106,7 @@ IMPORTED MODULES:
 /* SPA Page Transitions */
 .main-content {
   /* Ensure dynamic content displays properly */
-  min-height: 50vh;
+  
   opacity: 1;
   transition: opacity 0.3s ease-in-out;
   position: relative;

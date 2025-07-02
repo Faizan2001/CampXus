@@ -20,6 +20,8 @@ import {
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { dataManager } from "./data-manager.js";
 
+window.dataManager = dataManager;
+
 /* ================================
    APPLICATION STATE
 ================================== */
@@ -593,7 +595,7 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   ) {
     showModal({
       content:
-        "Invalid time format. Please use formats like '8:00 AM', '08:00', '5:30 PM', or '17:30'.",
+        "Invalid time format. Use HH:MM or H:MM AM/PM (e.g., '08:00', '5:30 PM').",
       title: "Invalid Time Format",
     });
     return false;
@@ -804,7 +806,6 @@ export function handleAddNewTimeSlotClick() {
         if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
           errorMessageElement.textContent =
             "Invalid time format. Use HH:MM or H:MM AM/PM (e.g., '08:00', '5:30 PM').";
-          errorMessageElement.style.display = "block";
           return false; // Prevent modal close
         }
         // More advanced validation (start < end, no overlap) could go here or in addCustomTimeSlotToActiveUser
@@ -2875,8 +2876,8 @@ async function initializeApp() {
   setupEventListeners();
   setupExportImportListeners(state, saveStateToStorage, updateUI);
 
-  // Initialize authentication system
-  await authManager.initialize();
+  // Note: AuthManager is now initialized automatically when its module loads
+  // No need to call authManager.initialize() here
 
   // Set up login button click handler
   const loginButton = document.getElementById("login-btn");
@@ -2893,14 +2894,73 @@ async function initializeApp() {
   updateUI();
   console.log("✅ CampXus loaded successfully!");
 
-  // Set up authentication callback for profile check
+  // Callbacks should also be set up only once, not per page load.
+  // This might be better placed in a main app entry point like spa-init.js
+  // For now, we'll leave it here but be mindful of re-registering callbacks.
   setupAuthenticationCallbacks();
-
-  // Note: Profile completion check is now handled by the authentication callback
 }
 
+/**
+ * 🎯 NEW: Event listener to initialize the app when the SPA router signals
+ * that the home page's content has been loaded into the DOM.
+ * This replaces the old, less reliable `DOMContentLoaded` and custom event listeners.
+ */
+document.addEventListener("spa:page:load", (event) => {
+  const { route } = event.detail;
+  console.log(`[script.js] Received spa:page:load event for route: ${route}`);
+
+  if (route === "home") {
+    // Only initialize the schedule app when the home page is loaded.
+    console.log("🚀 Starting CampXus Schedule App (via SPA event)...");
+
+    // Essential: Always load state first so user data is available
+    console.log("💾 Loading state from storage...");
+    loadStateFromStorage();
+    
+    console.log("� Current state after loading:", {
+      activeUserId: state.activeUserId,
+      userCount: Object.keys(state.users).length,
+      users: Object.keys(state.users)
+    });
+
+    // Initialize DOM elements for the home page
+    console.log("📋 Checking DOM elements...");
+    initializeDomElements();
+
+    // Create tooltip if it doesn't exist
+    if (!DOM_ELEMENTS.slotTooltip) {
+      const tooltip = document.createElement("div");
+      tooltip.id = "slotTooltip";
+      tooltip.className = "slot-tooltip";
+      tooltip.style.display = "none";
+      document.body.appendChild(tooltip);
+      DOM_ELEMENTS.slotTooltip = tooltip;
+      console.log("Tooltip element created dynamically");
+    }
+
+    // Initialize modal system
+    console.log("🎛️ Initializing modal...");
+    initModal(DOM_ELEMENTS);
+    
+    // Set up UI interactions
+    console.log("🔧 Setting up validation and listeners...");
+    setupInputValidation();
+    setupEventListeners();
+    setupExportImportListeners(state, saveStateToStorage, updateUI);
+
+    // Render UI with loaded data (this includes renderUserList())
+    console.log("🎨 Updating UI with loaded data...");
+    updateUI();
+
+    // Set up authentication callbacks (only once)
+    setupAuthenticationCallbacks();
+
+    console.log("✅ CampXus Schedule App loaded successfully!");
+  }
+});
+
 // Make initializeApp available globally for SPA
-window.initializeApp = initializeApp;
+// window.initializeApp = initializeApp; // 🗑️ REMOVED - We now use the event listener above.
 
 /**
  * Shows a detailed tooltip for pin indicators in compare mode

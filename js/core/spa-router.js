@@ -77,13 +77,17 @@ class SPARouter {
     console.log("🚀 Initializing SPA Router...");
 
     // Find the main content container
+    console.log("🔍 Looking for .main-content container...");
     this.mainContentContainer = document.querySelector(".main-content");
     if (!this.mainContentContainer) {
       console.error(
         "❌ Main content container not found! SPA Router cannot work."
       );
+      console.log("📋 Available elements with class 'main':", document.querySelectorAll("[class*='main']"));
+      console.log("📋 Body contents:", document.body.innerHTML.substring(0, 500) + "...");
       return;
     }
+    console.log("✅ Found main content container:", this.mainContentContainer);
 
     // Create loading indicator
     this.createLoadingIndicator();
@@ -95,7 +99,8 @@ class SPARouter {
     this.setupBrowserNavigation();
 
     // Load the initial page based on URL
-    this.loadInitialPage();
+    console.log("📄 Loading initial page...");
+    // this.loadInitialPage(); // 🎯 FIXED: We now call this from spa-init.js
 
     console.log("✅ SPA Router initialized successfully!");
   }
@@ -399,13 +404,17 @@ class SPARouter {
    * 🎯 Learning: When someone visits a direct link, show the right page
    */
   loadInitialPage() {
+    console.log("📄 loadInitialPage() called");
+    
     // Parse the current URL to determine which page to load
     const hash = window.location.hash.slice(1); // Remove the # symbol
     const route = hash && this.routes[hash] ? hash : "home";
 
     console.log(`🎯 Initial page load: hash="${hash}", route="${route}"`);
+    console.log("🗺️ Available routes:", Object.keys(this.routes));
 
     // Load the determined route without updating history (since we're loading from URL)
+    console.log(`🚀 Calling navigateTo("${route}") for initial load...`);
     this.navigateTo(route, false);
   }
 
@@ -507,48 +516,6 @@ class SPARouter {
       // Load and execute JavaScript files
       await this.loadJS(routeData.jsFiles);
 
-      // Special initialization for home page after content and scripts are loaded
-      if (route === "home") {
-        await this.initializeHomePage();
-
-        // 🎯 CRITICAL FIX: Check if we just came from profile setup completion
-        // This ensures user data is refreshed when redirected from profile
-        const justCompletedProfile = sessionStorage.getItem(
-          "profileJustCompleted"
-        );
-        if (justCompletedProfile === "true") {
-          console.log(
-            "🔄 Just completed profile, forcing user data refresh..."
-          );
-          sessionStorage.removeItem("profileJustCompleted"); // Clear the flag
-
-          // Force refresh user data without causing re-navigation
-          setTimeout(() => {
-            console.log(
-              "🔄 Triggering user data refresh for profile completion..."
-            );
-            // Just refresh the menu data, don't trigger navigation events
-            if (
-              window.updateUserDataAfterProfileCompletion &&
-              window.authManager
-            ) {
-              const user = window.authManager.getCurrentUser();
-              if (user) {
-                // Force a menu refresh without navigation side effects
-                const menuUserData = {
-                  uid: user.uid,
-                  name: user.displayName || user.email?.split("@")[0] || "User",
-                  email: user.email,
-                  avatarConfig: null, // Will be fetched by menu
-                  profileSetupComplete: true,
-                };
-                window.updateUserDataAfterProfileCompletion(menuUserData);
-              }
-            }
-          }, 500);
-        }
-      }
-
       // Update current page BEFORE navigation states to ensure consistency
       this.currentPage = route;
 
@@ -562,6 +529,9 @@ class SPARouter {
 
       // Dispatch custom event for other parts of the app
       this.dispatchNavigationEvent(route);
+
+      // 🎯 NEW: Announce that the page content is loaded and ready for initialization
+      this.dispatchPageLoadEvent(route);
 
       console.log(`✅ Successfully loaded page: ${route}`);
     } catch (error) {
@@ -615,23 +585,39 @@ class SPARouter {
    * 🎯 Learning: Each page can have its own functionality
    */
   async loadJS(jsFiles) {
-    if (!jsFiles || jsFiles.length === 0) return;
+    if (!jsFiles || jsFiles.length === 0) {
+      console.log("  -> No JS files to load for this route.");
+      return;
+    }
+
+    console.log(`  -> Preparing to load ${jsFiles.length} JS file(s):`, jsFiles);
 
     for (const jsFile of jsFiles) {
-      // Check if already loaded
+      // Check if a script with this src already exists in the document
       if (document.querySelector(`script[src="${jsFile}"]`)) {
+        console.log(`  -> 🤔 JS file already exists, skipping: ${jsFile}`);
         continue;
       }
 
+      console.log(`  -> ⏳ Loading JS file: ${jsFile}`);
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
-        script.type = "module"; // Use ES6 modules
+        script.type = "module"; // Use ES6 modules for modern JS
         script.src = jsFile;
-        script.onload = resolve;
-        script.onerror = reject;
+        script.onload = () => {
+          console.log(`  -> ✅ Successfully loaded JS file: ${jsFile}`);
+          resolve();
+        };
+        script.onerror = (error) => {
+          console.error(`  -> ❌ Failed to load JS file: ${jsFile}`, error);
+          // We reject here to stop the page load process if a critical script fails
+          reject(new Error(`Failed to load script: ${jsFile}`));
+        };
+        // Append to head to ensure it's processed before the body is fully rendered
         document.head.appendChild(script);
       });
     }
+    console.log("  -> All JS files for this route have been processed.");
   }
 
   /**
@@ -780,6 +766,18 @@ ${error.stack || ""}
   }
 
   /**
+   * 🎯 NEW: Dispatch event after page content is loaded into the DOM.
+   * This is the signal for page-specific scripts to initialize.
+   */
+  dispatchPageLoadEvent(route) {
+    const event = new CustomEvent("spa:page:load", {
+      detail: { route, router: this },
+    });
+    document.dispatchEvent(event);
+    console.log(`🔔 Dispatched spa:page:load event for route: ${route}`);
+  }
+
+  /**
    * Get current page
    * 🎯 Learning: Other parts of your app might need to know the current page
    */
@@ -792,45 +790,6 @@ ${error.stack || ""}
    */
   hasRoute(route) {
     return !!this.routes[route];
-  }
-
-  /**
-   * Initialize the home page after content and scripts are loaded
-   * 🎯 Learning: This ensures the schedule app starts properly in SPA mode
-   */
-  async initializeHomePage() {
-    console.log("🏠 Initializing home page...");
-
-    try {
-      // Wait a short time for script.js to fully load and initialize
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // Check if the main app functions are available
-      if (typeof window.initializeApp === "function") {
-        console.log("✅ Found initializeApp function, calling it...");
-        await window.initializeApp();
-      } else {
-        console.log("⚠️ initializeApp not found, dispatching event...");
-
-        // Dispatch an event that the home page script can listen for
-        document.dispatchEvent(new CustomEvent("spa:home:loaded"));
-
-        // Wait a bit more and try again
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        if (typeof window.initializeApp === "function") {
-          console.log("✅ Found initializeApp after delay, calling it...");
-          await window.initializeApp();
-        } else {
-          console.error("❌ Still cannot find initializeApp function");
-        }
-      }
-
-      console.log("✅ Home page initialization complete");
-    } catch (error) {
-      console.error("❌ Error initializing home page:", error);
-      // Don't throw error to prevent SPA navigation from failing
-    }
   }
 }
 

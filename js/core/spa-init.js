@@ -17,35 +17,84 @@ import SPARouter from "./spa-router.js";
  * Initialize the SPA when DOM is ready
  * 🎯 Learning: We wait for the DOM to load before setting up our app
  */
-document.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 Starting CampXus SPA...");
+async function initializeSPA() {
+    console.groupCollapsed("🚀 CampXus SPA Initialization");
+    console.log("Document ready state:", document.readyState);
 
-  // 🎯 LEARNING: This is the critical fix for our race condition.
-  // We're telling our app to PAUSE and wait until the AuthManager
-  // confirms the user's login status from Firebase.
-  // The `authReady` is a Promise we created in AuthManager that resolves
-  // only after the initial `onAuthStateChanged` event has fired.
-  if (window.authManager?.authReady) {
-    console.log("⏳ Waiting for authentication to be ready...");
-    await window.authManager.authReady;
-    console.log("✅ Authentication ready!");
-  } else {
-    console.warn(
-      "AuthManager or authReady promise not found. Proceeding without auth check."
-    );
+    // Double-check that essential DOM elements exist
+    const mainContent = document.querySelector(".main-content");
+    const topNav = document.querySelector(".top-nav");
+    
+    console.log("🔍 Essential DOM elements check:");
+    console.log("  - .main-content:", mainContent ? "✅ Found" : "❌ Missing");
+    console.log("  - .top-nav:", topNav ? "✅ Found" : "❌ Missing");
+    
+    if (!mainContent) {
+      console.error("CRITICAL: .main-content not found. Cannot initialize SPA.");
+      console.groupEnd();
+      return;
+    }
+
+    // 🎯 LEARNING: This is the critical fix for our race condition.
+    // We're telling our app to PAUSE and wait until the AuthManager
+    // confirms the user's login status from Firebase.
+    // The `authReady` is a Promise we created in AuthManager that resolves
+    // only after the initial `onAuthStateChanged` event has fired.
+    if (window.authManager?.authReady) {
+      console.log("⏳ Waiting for authentication to be ready...");
+      
+      try {
+        // Add a timeout to prevent waiting forever
+        const authTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([window.authManager.authReady, authTimeout]);
+        console.log("✅ Authentication ready!");
+      } catch (error) {
+        console.warn("⚠️ Authentication timeout or error, proceeding anyway:", error.message);
+        // Continue initialization even if auth times out
+      }
+    } else {
+      console.warn(
+        "AuthManager or authReady promise not found. Proceeding without auth check."
+      );
+    }
+
+    // Now that we're sure about the auth status, we can initialize the router.
+    console.log("🔧 Creating SPA Router instance...");
+    
+    // Check if main-content container exists
+    const mainContentContainer = document.querySelector(".main-content");
+    if (!mainContentContainer) {
+      console.error("CRITICAL: .main-content container not found! SPA Router cannot work.");
+      console.groupEnd();
+      return;
+    }
+    console.log("✅ Main content container found:", mainContentContainer);
+    
+    window.spaRouter = new SPARouter();
+
+    // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
+    window.spaRouter.loadInitialPage();
+
+    // Set up profile completion redirects
+    setupProfileCompletionFlow();
+
+    // Listen for SPA navigation events
+    setupSPAEventListeners();
+
+    console.groupEnd();
   }
 
-  // Now that we're sure about the auth status, we can initialize the router.
-  window.spaRouter = new SPARouter();
-
-  // Set up profile completion redirects
-  setupProfileCompletionFlow();
-
-  // Listen for SPA navigation events
-  setupSPAEventListeners();
-
-  console.log("✅ CampXus SPA initialized successfully!");
-});
+  // Initialize when DOM is ready, or immediately if already ready
+  if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initializeSPA);
+  } else {
+    // DOM is already ready, execute immediately
+    console.log("🏃‍♂️ DOM already ready, initializing SPA immediately...");
+    initializeSPA();
+  }
 
 /**
  * Handle profile setup completion flow

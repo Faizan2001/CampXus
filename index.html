@@ -8,7 +8,7 @@
       http-equiv="Content-Security-Policy"
       content="
        default-src 'self';
-       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebase.com https://*.firebaseapp.com https://www.gstatic.com;
+       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebase.com https://*.firebaseapp.com https://www.gstatic.com https://apis.google.com;
        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://use.fontawesome.com;
        font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://use.fontawesome.com;
        img-src 'self' data: https://*.googleusercontent.com https://api.dicebear.com https://www.google.com;
@@ -151,7 +151,7 @@
       </nav>
 
       <!-- Main Content Area - SPA Dynamic Container -->
-      <main class="main-content">
+      <main class="main-content" style="height: 100vh;">
         <!-- 🎯 Learning: This area will be dynamically filled by our SPA router. It starts empty. -->
       </main>
 
@@ -237,10 +237,8 @@
       type="module"
       src="./js/firebase/config/firebase-config.js"
     ></script>
-    <script type="module" src="./js/core/data-manager.js"></script>
     <script type="module" src="./js/firebase/auth/auth-manager.js"></script>
     <script type="module" src="./js/core/spa-init.js"></script>
-    <script type="module" src="./js/core/script.js"></script>
-    <script type="module" src="./js/core/menu.js"></script>
+    <script type="module" src="./js/core/menu.js"></script> 
   </body>
 </html>
