@@ -127,14 +127,93 @@ class FriendsManager {
    * @returns {Promise<Object>} Success/failure result
    */
   async sendFriendRequest(targetUserId, targetUserData) {
-    try {
-      // TODO: Implement friend request sending
-      console.log("📩 Sending friend request to:", targetUserId);
+    // 🛡️ Input validation: Make sure we have everything we need
+    if (!this.currentUser || !this.userProfile) {
+      console.error("❌ User not authenticated or profile not loaded");
+      return {
+        success: false,
+        message: "Please log in and complete your profile",
+      };
+    }
 
-      return { success: true, message: "Friend request sent!" };
+    if (!targetUserId || !targetUserData) {
+      console.error("❌ Target user information missing");
+      return { success: false, message: "Invalid user selected" };
+    }
+
+    // 🚫 Prevent sending request to yourself
+    if (targetUserId === this.currentUser.uid) {
+      return {
+        success: false,
+        message: "You cannot send a friend request to yourself!",
+      };
+    }
+
+    try {
+      console.log(
+        "📩 Sending friend request to:",
+        targetUserData.profile?.displayName
+      );
+
+      // 🔍 Check if request already exists (prevents duplicates)
+      const existingRequest = await dataManager.checkExistingFriendRequest(
+        this.currentUser.uid,
+        targetUserId
+      );
+
+      if (existingRequest) {
+        if (existingRequest.status === "pending") {
+          return { success: false, message: "Friend request already sent!" };
+        } else if (existingRequest.status === "accepted") {
+          return { success: false, message: "You are already friends!" };
+        }
+      }
+
+      // 📝 Create the friend request data using our data structure
+      const requestData = {
+        fromUserId: this.currentUser.uid,
+        toUserId: targetUserId,
+        status: "pending",
+        requestType: "direct",
+        message: "",
+
+        // 👤 Cache user info for quick display (no extra queries needed later)
+        fromUserInfo: {
+          displayName: this.userProfile.profile.displayName,
+          major: this.userProfile.profile.major,
+          university: this.userProfile.universityInfo.university,
+          avatar: this.userProfile.avatarConfig,
+        },
+
+        toUserInfo: {
+          displayName: targetUserData.profile.displayName,
+          major: targetUserData.profile.major,
+          university: targetUserData.universityInfo.university,
+          avatar: targetUserData.avatarConfig,
+        },
+      };
+
+      // 💾 Save to database using our data manager
+      const result = await dataManager.createFriendRequest(requestData);
+
+      if (result.success) {
+        console.log("✅ Friend request sent successfully!");
+        return {
+          success: true,
+          message: `Friend request sent to ${targetUserData.profile.displayName}!`,
+        };
+      } else {
+        return {
+          success: false,
+          message: "Failed to send friend request. Please try again.",
+        };
+      }
     } catch (error) {
       console.error("❌ Error sending friend request:", error);
-      return { success: false, message: error.message };
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
     }
   }
 
@@ -143,11 +222,33 @@ class FriendsManager {
    * @returns {Promise<Array>} Array of pending requests
    */
   async getPendingRequests() {
-    try {
-      // TODO: Implement fetching pending requests
-      console.log("📬 Getting pending requests...");
-
+    // 🛡️ Ensure user is authenticated and profile is loaded
+    if (!this.currentUser || !this.userProfile) {
+      console.error("❌ User not authenticated or profile not loaded");
       return [];
+    }
+
+    try {
+      console.log(
+        "📬 Getting pending requests for:",
+        this.userProfile.profile.displayName
+      );
+
+      // 🔍 Use our data manager to fetch pending requests
+      const pendingRequests = await dataManager.getPendingFriendRequests(
+        this.currentUser.uid
+      );
+
+      console.log(`✅ Found ${pendingRequests.length} pending friend requests`);
+
+      // 🎯 Return the requests with all cached user info for quick display
+      return pendingRequests.map((request) => ({
+        ...request,
+        // Add a helper property for easy UI display
+        displayName: request.fromUserInfo?.displayName || "Unknown User",
+        major: request.fromUserInfo?.major || "Unknown Major",
+        university: request.fromUserInfo?.university || "Unknown University",
+      }));
     } catch (error) {
       console.error("❌ Error getting pending requests:", error);
       return [];
@@ -161,44 +262,211 @@ class FriendsManager {
    * @returns {Promise<Object>} Success/failure result
    */
   async acceptFriendRequest(requestId, requestData) {
-    try {
-      // TODO: Implement friend request acceptance
-      console.log("✅ Accepting friend request:", requestId);
+    // 🛡️ Input validation
+    if (!this.currentUser || !this.userProfile) {
+      console.error("❌ User not authenticated or profile not loaded");
+      return { success: false, message: "Please log in first" };
+    }
 
-      return { success: true, message: "Friend request accepted!" };
+    if (!requestId || !requestData) {
+      console.error("❌ Missing request ID or data");
+      return { success: false, message: "Invalid request data" };
+    }
+
+    // 🔒 Security check: Make sure this request is actually for the current user
+    if (requestData.toUserId !== this.currentUser.uid) {
+      console.error("❌ Security violation: Request not for current user");
+      return {
+        success: false,
+        message: "You can only accept your own friend requests",
+      };
+    }
+
+    try {
+      console.log(
+        "✅ Accepting friend request from:",
+        requestData.fromUserInfo?.displayName
+      );
+
+      // 🎯 STEP 1: Update the friend request status to "accepted"
+      const updateResult = await dataManager.updateFriendRequestStatus(
+        requestId,
+        "accepted"
+      );
+
+      if (!updateResult.success) {
+        return { success: false, message: "Failed to update request status" };
+      }
+
+      // 🎯 STEP 2: Create the friendship document
+      const friendshipData = {
+        users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
+        user1Id: requestData.fromUserId,
+        user2Id: requestData.toUserId,
+
+        // Cache user info from the request (already available!)
+        user1Info: {
+          displayName: requestData.fromUserInfo.displayName,
+          major: requestData.fromUserInfo.major,
+          avatar: requestData.fromUserInfo.avatar,
+        },
+
+        user2Info: {
+          displayName: requestData.toUserInfo.displayName,
+          major: requestData.toUserInfo.major,
+          avatar:
+            requestData.toUserInfo.avatar || this.userProfile.avatarConfig,
+        },
+
+        // Metadata
+        friendshipType: "classmate",
+        mutualFriends: 0,
+        connectionStrength: "normal",
+      };
+
+      const friendshipResult = await dataManager.createFriendship(
+        friendshipData
+      );
+
+      if (!friendshipResult.success) {
+        console.error("❌ Failed to create friendship");
+        return { success: false, message: "Failed to create friendship" };
+      }
+
+      // 🎯 STEP 3: Update user social info (friend counts) - TODO in future
+      // For now, we'll just log success. In Phase 4, we'll add batch operations
+      // to update both users' socialInfo.friendsCount
+
+      console.log("🎉 Friend request accepted successfully!");
+      const friendName = requestData.fromUserInfo?.displayName || "New friend";
+
+      return {
+        success: true,
+        message: `You are now friends with ${friendName}!`,
+        friendshipId: friendshipResult.friendshipId,
+      };
     } catch (error) {
       console.error("❌ Error accepting friend request:", error);
-      return { success: false, message: "Failed to accept request" };
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
     }
   }
 
   /**
    * ❌ Reject a friend request
    * @param {string} requestId - The request ID to reject
+   * @param {Object} requestData - The request data (optional, for user feedback)
    * @returns {Promise<Object>} Success/failure result
    */
-  async rejectFriendRequest(requestId) {
-    try {
-      // TODO: Implement friend request rejection
-      console.log("❌ Rejecting friend request:", requestId);
+  async rejectFriendRequest(requestId, requestData = null) {
+    // 🛡️ Input validation
+    if (!this.currentUser || !this.userProfile) {
+      console.error("❌ User not authenticated or profile not loaded");
+      return { success: false, message: "Please log in first" };
+    }
 
-      return { success: true, message: "Friend request rejected" };
+    if (!requestId) {
+      console.error("❌ Missing request ID");
+      return { success: false, message: "Invalid request" };
+    }
+
+    try {
+      const senderName = requestData?.fromUserInfo?.displayName || "User";
+      console.log("❌ Rejecting friend request from:", senderName);
+
+      // 🎯 Simply update the request status to "rejected"
+      // No friendship document is created, no counters updated
+      const result = await dataManager.updateFriendRequestStatus(
+        requestId,
+        "rejected"
+      );
+
+      if (result.success) {
+        console.log("✅ Friend request rejected successfully");
+        return {
+          success: true,
+          message: `Friend request from ${senderName} was declined`,
+        };
+      } else {
+        return {
+          success: false,
+          message: "Failed to reject request. Please try again.",
+        };
+      }
     } catch (error) {
       console.error("❌ Error rejecting friend request:", error);
-      return { success: false, message: "Failed to reject request" };
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
     }
   }
 
   /**
    * 👥 Get the current user's friends list
-   * @returns {Promise<Array>} Array of friends
+   * @returns {Promise<Array>} Array of friends with their info
    */
   async getFriendsList() {
-    try {
-      // TODO: Implement friends list retrieval
-      console.log("👥 Getting friends list...");
-
+    // 🛡️ Ensure user is authenticated and profile is loaded
+    if (!this.currentUser || !this.userProfile) {
+      console.error("❌ User not authenticated or profile not loaded");
       return [];
+    }
+
+    try {
+      console.log(
+        "👥 Getting friends list for:",
+        this.userProfile.profile.displayName
+      );
+
+      // 🔍 Use our data manager to fetch friendships
+      const friendships = await dataManager.getUserFriendships(
+        this.currentUser.uid
+      );
+
+      console.log(`✅ Found ${friendships.length} friendships`);
+
+      // 🎯 Transform friendship documents into friend objects for easy UI display
+      const friends = friendships.map((friendship) => {
+        // Determine which user info to show (the friend, not the current user)
+        const isUser1 = friendship.user1Id === this.currentUser.uid;
+        const friendInfo = isUser1
+          ? friendship.user2Info
+          : friendship.user1Info;
+        const friendId = isUser1 ? friendship.user2Id : friendship.user1Id;
+
+        return {
+          // Friend identification
+          id: friendId,
+          friendshipId: friendship.id,
+
+          // Friend details (cached in friendship document - no extra queries!)
+          displayName: friendInfo?.displayName || "Unknown User",
+          major: friendInfo?.major || "Unknown Major",
+          avatar: friendInfo?.avatar || null,
+
+          // Friendship metadata
+          friendsSince: friendship.createdAt,
+          lastInteraction: friendship.lastInteraction,
+          connectionStrength: friendship.connectionStrength || "normal",
+
+          // UI helpers
+          isOnline: false, // TODO: Add real-time status in Phase 5
+          mutualFriends: friendship.mutualFriends || 0,
+        };
+      });
+
+      // 🎯 Sort friends by when they became friends (newest first)
+      friends.sort((a, b) => {
+        const dateA = a.friendsSince?.toDate?.() || new Date(a.friendsSince);
+        const dateB = b.friendsSince?.toDate?.() || new Date(b.friendsSince);
+        return dateB - dateA;
+      });
+
+      console.log(`🎉 Successfully processed ${friends.length} friends`);
+      return friends;
     } catch (error) {
       console.error("❌ Error getting friends list:", error);
       return [];

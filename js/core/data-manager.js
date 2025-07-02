@@ -1192,6 +1192,196 @@ class DataManager {
       return null;
     }
   }
+
+  // =========================
+  // FRIENDS DATA OPERATIONS
+  // =========================
+
+  /**
+   * 📩 Create a friend request document in Firestore
+   * @param {Object} requestData - The friend request data
+   * @returns {Promise<{success: boolean, requestId?: string, error?: string}>}
+   */
+  async createFriendRequest(requestData) {
+    try {
+      console.log("📩 Creating friend request...", requestData);
+
+      const friendRequestsRef = collection(db, "friendRequests");
+      const docRef = await setDoc(doc(friendRequestsRef), {
+        ...requestData,
+        createdAt: serverTimestamp(),
+        respondedAt: null,
+      });
+
+      console.log("✅ Friend request created successfully");
+      return { success: true, requestId: docRef.id };
+    } catch (error) {
+      console.error("❌ Error creating friend request:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📬 Get pending friend requests for a user
+   * @param {string} userId - The user ID to get requests for
+   * @returns {Promise<Array>} Array of pending requests
+   */
+  async getPendingFriendRequests(userId) {
+    try {
+      console.log("📬 Fetching pending requests for:", userId);
+
+      const requestsRef = collection(db, "friendRequests");
+      const q = query(
+        requestsRef,
+        where("toUserId", "==", userId),
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const requests = [];
+      querySnapshot.forEach((doc) => {
+        requests.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log("✅ Found", requests.length, "pending requests");
+      return requests;
+    } catch (error) {
+      console.error("❌ Error fetching pending requests:", error);
+      return [];
+    }
+  }
+
+  /**
+   * ✅ Update friend request status (accept/reject)
+   * @param {string} requestId - The request ID to update
+   * @param {string} status - New status ("accepted" or "rejected")
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateFriendRequestStatus(requestId, status) {
+    try {
+      console.log(`✅ Updating request ${requestId} to ${status}`);
+
+      const requestRef = doc(db, "friendRequests", requestId);
+      await updateDoc(requestRef, {
+        status: status,
+        respondedAt: serverTimestamp(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error updating friend request:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🤝 Create a friendship document
+   * @param {Object} friendshipData - The friendship data
+   * @returns {Promise<{success: boolean, friendshipId?: string, error?: string}>}
+   */
+  async createFriendship(friendshipData) {
+    try {
+      console.log("🤝 Creating friendship...", friendshipData);
+
+      const friendshipsRef = collection(db, "friendships");
+      const docRef = await setDoc(doc(friendshipsRef), {
+        ...friendshipData,
+        createdAt: serverTimestamp(),
+        lastInteraction: serverTimestamp(),
+        isActive: true,
+      });
+
+      console.log("✅ Friendship created successfully");
+      return { success: true, friendshipId: docRef.id };
+    } catch (error) {
+      console.error("❌ Error creating friendship:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 👥 Get user's friends list
+   * @param {string} userId - The user ID to get friends for
+   * @returns {Promise<Array>} Array of friendships
+   */
+  async getUserFriendships(userId) {
+    try {
+      console.log("👥 Fetching friends for:", userId);
+
+      const friendshipsRef = collection(db, "friendships");
+      const q = query(
+        friendshipsRef,
+        where("users", "array-contains", userId),
+        where("isActive", "==", true)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const friendships = [];
+      querySnapshot.forEach((doc) => {
+        friendships.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log("✅ Found", friendships.length, "friendships");
+      return friendships;
+    } catch (error) {
+      console.error("❌ Error fetching friendships:", error);
+      return [];
+    }
+  }
+
+  /**
+   * 🔍 Check if friend request already exists between two users
+   * @param {string} fromUserId - Sender's user ID
+   * @param {string} toUserId - Receiver's user ID
+   * @returns {Promise<Object|null>} Existing request or null
+   */
+  async checkExistingFriendRequest(fromUserId, toUserId) {
+    try {
+      const requestsRef = collection(db, "friendRequests");
+
+      // Check for any pending or accepted requests between these users
+      const q = query(
+        requestsRef,
+        where("fromUserId", "==", fromUserId),
+        where("toUserId", "==", toUserId),
+        where("status", "in", ["pending", "accepted"])
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+
+      // Also check the reverse direction
+      const reverseQ = query(
+        requestsRef,
+        where("fromUserId", "==", toUserId),
+        where("toUserId", "==", fromUserId),
+        where("status", "in", ["pending", "accepted"])
+      );
+
+      const reverseSnapshot = await getDocs(reverseQ);
+      if (!reverseSnapshot.empty) {
+        const doc = reverseSnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+
+      return null;
+    } catch (error) {
+      console.error("❌ Error checking existing request:", error);
+      return null;
+    }
+  }
+
+  // ...existing code...
 }
 
 // Create and export a singleton instance
