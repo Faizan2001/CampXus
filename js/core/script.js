@@ -2854,51 +2854,11 @@ function setupAuthenticationCallbacks() {
 /* ================================
    INITIALIZATION
 ================================== */
-async function initializeApp() {
-  console.log("🚀 Starting CampXus...");
-
-  initializeDomElements();
-
-  // Create tooltip if it doesn't exist
-  if (!DOM_ELEMENTS.slotTooltip) {
-    const tooltip = document.createElement("div");
-    tooltip.id = "slotTooltip";
-    tooltip.className = "slot-tooltip";
-    tooltip.style.display = "none";
-    document.body.appendChild(tooltip);
-    DOM_ELEMENTS.slotTooltip = tooltip;
-    console.log("Tooltip element created dynamically");
-  }
-
-  initModal(DOM_ELEMENTS);
-  loadStateFromStorage();
-  setupInputValidation();
-  setupEventListeners();
-  setupExportImportListeners(state, saveStateToStorage, updateUI);
-
-  // Note: AuthManager is now initialized automatically when its module loads
-  // No need to call authManager.initialize() here
-
-  // Set up login button click handler
-  const loginButton = document.getElementById("login-btn");
-  if (loginButton) {
-    loginButton.addEventListener("click", (e) => {
-      e.preventDefault();
-      console.log("🎓 Login button clicked, showing auth modal");
-      authManager.showAuthModal();
-    });
-  } else {
-    console.warn("Login button not found in DOM");
-  }
-
-  updateUI();
-  console.log("✅ CampXus loaded successfully!");
-
-  // Callbacks should also be set up only once, not per page load.
-  // This might be better placed in a main app entry point like spa-init.js
-  // For now, we'll leave it here but be mindful of re-registering callbacks.
-  setupAuthenticationCallbacks();
-}
+// 🗑️ LEGACY CODE REMOVED: The initializeApp function and its related listeners
+// have been removed. The `spa:page:load` event listener below is now the
+// single source of truth for initializing the schedule page logic. This
+// prevents race conditions and ensures code runs only when the 'home'
+// page is loaded by the SPA router.
 
 /**
  * 🎯 NEW: Event listener to initialize the app when the SPA router signals
@@ -2958,9 +2918,6 @@ document.addEventListener("spa:page:load", (event) => {
     console.log("✅ CampXus Schedule App loaded successfully!");
   }
 });
-
-// Make initializeApp available globally for SPA
-// window.initializeApp = initializeApp; // 🗑️ REMOVED - We now use the event listener above.
 
 /**
  * Shows a detailed tooltip for pin indicators in compare mode
@@ -3142,109 +3099,3 @@ export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
     }
   }
 }
-
-// Make initializeApp available globally for SPA
-window.initializeApp = initializeApp;
-
-// Traditional initialization for non-SPA mode
-document.addEventListener("DOMContentLoaded", async () => {
-  // Only initialize if we're not in SPA mode
-  if (!window.spaRouter) {
-    await initializeApp();
-  }
-});
-
-// SPA initialization - listen for the home page loaded event
-document.addEventListener("spa:home:loaded", async () => {
-  console.log("📱 SPA home page loaded, initializing...");
-  await initializeApp();
-});
-
-/* ================================
-   🎓 LEARNING MOMENT: Authentication Flow
-================================== */
-
-/**
- * Hey there! Let me explain what we just set up for the authentication flow:
- *
- * 1. **Sign-in Success Callback**: When a user successfully signs in, we immediately
- *    check if they have completed their profile setup.
- *
- * 2. **Profile Completion Check**: We look in Firestore for the user's document
- *    and check the `profileSetupComplete` field.
- *
- * 3. **Smart Routing**:
- *    - If profile is incomplete → Redirect to profile-setup.html
- *    - If profile is complete → Continue to main dashboard
- *
- * 4. **Error Handling**: If something goes wrong, we default to profile setup
- *    to ensure users don't get stuck.
- *
- * This creates a smooth "onboarding" experience where new users automatically
- * go through profile setup after their first sign-in!
- */
-
-/* ================================
-   🧪 TESTING HELPER FUNCTIONS
-================================== */
-
-/**
- * Helper function for testing the profile setup flow
- * Call this in browser console to reset a user's profile setup status
- */
-window.resetUserProfileForTesting = async function () {
-  try {
-    const { getCurrentUser } = await import("../firebase/auth/auth-manager.js");
-    const user = getCurrentUser();
-    if (!user) {
-      console.log("❌ No user signed in for testing");
-      return;
-    }
-    // Use dataManager to update profileSetupComplete
-    const userProfile = await dataManager.getUserProfile(user.uid);
-    if (!userProfile) {
-      console.log("❌ No profile found for user");
-      return;
-    }
-    userProfile.systemInfo = userProfile.systemInfo || {};
-    userProfile.systemInfo.profileSetupComplete = false;
-    await dataManager.saveUserProfile(user.uid, userProfile);
-    console.log(
-      "✅ User profile reset for testing - refresh page to see profile setup"
-    );
-    console.log("🔄 Refreshing page in 2 seconds...");
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000);
-  } catch (error) {
-    console.error("❌ Error resetting user profile:", error);
-  }
-};
-
-window.checkCurrentUserProfile = async function () {
-  try {
-    const { getCurrentUser } = await import("../firebase/auth/auth-manager.js");
-    const user = getCurrentUser();
-    if (!user) {
-      console.log("❌ No user signed in");
-      return;
-    }
-    // Use dataManager to fetch profile
-    const userProfile = await dataManager.getUserProfile(user.uid);
-    if (userProfile) {
-      console.log("👤 Current user profile:", {
-        email: user.email,
-        profileSetupComplete: userProfile.systemInfo?.profileSetupComplete,
-        hasName: !!(
-          userProfile.profile?.firstName && userProfile.profile?.lastName
-        ),
-        hasMajor: !!userProfile.profile?.major,
-        profileData: userProfile,
-      });
-    } else {
-      console.log("❌ No profile document found for user");
-    }
-  } catch (error) {
-    console.error("❌ Error checking profile:", error);
-  }
-};
