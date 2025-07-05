@@ -1194,13 +1194,14 @@ class ProfileSetup {
             <p class="setup-subtitle">${subtitle}</p>
           </div>
         </div>
-        <div class="setup-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 250px;">
+        <div class="setup-body" style="display: flex; align-items: center; justify-content: center; min-height: 300px;">
           <div class="success-message">
             <div class="success-icon">
-              <i class="fas fa-rocket"></i>
+              <i class="fas fa-check-circle"></i>
             </div>
             <h3>Welcome Aboard!</h3>
-            <p>Your changes have been saved successfully.</p>
+            <p>Your profile has been set up successfully.</p>
+            <div class="success-animation-overlay"></div>
           </div>
         </div>
       `;
