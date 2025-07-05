@@ -1381,7 +1381,102 @@ class DataManager {
     }
   }
 
-  // ...existing code...
+  /**
+   * 🔄 Migrate user to new structure with social info and search fields
+   * @param {string} userId - The user's UID
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async migrateUserToNewStructure(userId) {
+    try {
+      console.log("🔄 Migrating user to new structure:", userId);
+
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        return { success: false, error: "User not found" };
+      }
+
+      const userData = userDoc.data();
+
+      // Create the new structure
+      const updates = {};
+
+      // Add socialInfo if it doesn't exist
+      if (!userData.socialInfo) {
+        updates["socialInfo"] = {
+          friendsCount: 0,
+          pendingRequestsCount: 0,
+          privacy: "university",
+          searchable: true,
+          lastFriendActivity: null
+        };
+      }
+
+      // Add search optimization fields
+      if (userData.profile?.displayName && !userData.profile?.displayName_lower) {
+        updates["profile.displayName_lower"] = userData.profile.displayName.toLowerCase();
+      }
+
+      if (userData.profile?.firstName && !userData.profile?.firstName_lower) {
+        updates["profile.firstName_lower"] = userData.profile.firstName.toLowerCase();
+      }
+
+      if (userData.profile?.lastName && !userData.profile?.lastName_lower) {
+        updates["profile.lastName_lower"] = userData.profile.lastName.toLowerCase();
+      }
+
+      if (userData.profile?.major && !userData.profile?.major_lower) {
+        updates["profile.major_lower"] = userData.profile.major.toLowerCase();
+      }
+
+      // Only update if there are changes
+      if (Object.keys(updates).length > 0) {
+        updates["systemInfo.lastUpdated"] = serverTimestamp();
+        await updateDoc(userRef, updates);
+        console.log("✅ User migration completed:", userId);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error migrating user:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🔄 Migrate all users to new structure (admin function)
+   * @returns {Promise<{success: boolean, migrated: number, error?: string}>}
+   */
+  async migrateAllUsersToNewStructure() {
+    try {
+      console.log("🔄 Starting migration of all users...");
+
+      const usersRef = collection(db, "users");
+      const querySnapshot = await getDocs(usersRef);
+
+      let migratedCount = 0;
+      const migrationPromises = [];
+
+      querySnapshot.forEach((doc) => {
+        migrationPromises.push(
+          this.migrateUserToNewStructure(doc.id).then((result) => {
+            if (result.success) migratedCount++;
+          })
+        );
+      });
+
+      await Promise.all(migrationPromises);
+
+      console.log(`✅ Migration completed: ${migratedCount} users migrated`);
+      return { success: true, migrated: migratedCount };
+    } catch (error) {
+      console.error("❌ Error in bulk migration:", error);
+      return { success: false, migrated: 0, error: error.message };
+    }
+  }
+
+// --- END OF MIGRATION FUNCTIONS ---
 }
 
 // Create and export a singleton instance
