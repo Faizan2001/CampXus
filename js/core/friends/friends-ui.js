@@ -11,7 +11,9 @@
  * It manages the UI and connects user actions to the friends manager
  */
 
-import { friendsManager } from "./friends-manager.js";
+import { FriendsManager } from "./friends-manager.js";
+
+const friendsManager = new FriendsManager();
 
 class FriendsUI {
   constructor() {
@@ -258,45 +260,40 @@ class FriendsUI {
    * ⏳ Show loading state
    */
   showLoadingState() {
-    console.log("⏳ Showing loading state");
-    // TODO: Implement loading spinner
+    // TODO: Implement a proper loading skeleton
+    console.log("⏳ Loading initial data...");
   }
 
   /**
    * ✅ Hide loading state
    */
   hideLoadingState() {
-    console.log("✅ Hiding loading state");
-    // TODO: Hide loading spinner
+    // TODO: Hide loading skeleton
+    console.log("✅ Initial data loaded.");
   }
 
   /**
    * 🔍 Show search loading state
    */
   showSearchLoading() {
-    if (this.elements.searchBtn) {
-      this.elements.searchBtn.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i>';
-      this.elements.searchBtn.disabled = true;
-    }
+    // TODO: Implement search loading state
+    console.log("⏳ Performing search...");
   }
 
   /**
    * 🔍 Hide search loading state
    */
   hideSearchLoading() {
-    if (this.elements.searchBtn) {
-      this.elements.searchBtn.innerHTML = '<i class="fas fa-search"></i>';
-      this.elements.searchBtn.disabled = false;
-    }
+    // TODO: Hide search loading state
+    console.log("✅ Search complete.");
   }
 
   /**
    * 💬 Show user feedback messages
    */
   showMessage(message, type = "info") {
-    console.log(`💬 ${type.toUpperCase()}: ${message}`);
-    // TODO: Implement actual user notifications
+    // TODO: Implement a nicer notification system
+    console.log(`[${type.toUpperCase()}] ${message}`);
   }
 
   /**
@@ -321,3 +318,17 @@ setTimeout(() => {
     friendsUI.init();
   }
 }, 100);
+
+// 🎯 This is the crucial part that connects the UI to the router.
+// We listen for the event dispatched by the router when a page is loaded.
+document.addEventListener("spa:page:load", (event) => {
+  if (event.detail.route === "friends") {
+    console.log("🎨 Friends page loaded, initializing UI...");
+    // Create a new instance of our UI controller and initialize it.
+    const friendsUI = new FriendsUI();
+    friendsUI.init();
+
+    // For debugging purposes, make the manager globally available
+    window.friendsManager = friendsManager;
+  }
+});

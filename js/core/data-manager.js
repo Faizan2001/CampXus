@@ -58,6 +58,8 @@ import {
   query,
   where,
   getDocs,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { db } from "../firebase/config/firebase-config.js";
 
@@ -308,26 +310,46 @@ class DataManager {
   // =========================
 
   /**
-   * 🧑‍🤝‍🧑 Find users by university (for friend search)
+   * 🔍 Find users by university with search optimization
    * @param {string} universityId - The university ID to search within
+   * @param {string} searchTerm - Optional search term for name/major
+   * @param {number} maxResults - Maximum results to return (default: 20)
    * @returns {Promise<Array>} A list of user profiles
    */
-  async findUsersByUniversity(universityId) {
+  async findUsersByUniversity(universityId, searchTerm = null, maxResults = 20) {
     if (!universityId) {
       console.error("❌ University ID is required to find users.");
       return [];
     }
 
-    // Note: Caching for search results might be complex due to the dynamic nature.
-    // For now, we fetch fresh results each time. We can add caching later if needed.
-
     try {
       const usersRef = collection(db, "users");
-      const q = query(
-        usersRef,
-        where(FIELD_PATHS.UNIVERSITY, "==", universityId),
-        where(FIELD_PATHS.PROFILE_COMPLETE, "==", true)
-      );
+      let q;
+
+      if (searchTerm && searchTerm.trim().length >= 2) {
+        // Search by display name (prefix search)
+        const term = searchTerm.toLowerCase();
+        q = query(
+          usersRef,
+          where("universityInfo.university", "==", universityId),
+          where("socialInfo.searchable", "==", true),
+          where("systemInfo.profileSetupComplete", "==", true),
+          where("profile.displayName_lower", ">=", term),
+          where("profile.displayName_lower", "<=", term + '\uf8ff'),
+          orderBy("profile.displayName_lower"),
+          limit(maxResults)
+        );
+      } else {
+        // General university query
+        q = query(
+          usersRef,
+          where("universityInfo.university", "==", universityId),
+          where("socialInfo.searchable", "==", true),
+          where("systemInfo.profileSetupComplete", "==", true),
+          orderBy("profile.firstName"),
+          limit(maxResults)
+        );
+      }
 
       const querySnapshot = await getDocs(q);
       const users = [];
@@ -338,6 +360,7 @@ class DataManager {
         });
       });
 
+      console.log(`🔍 Found ${users.length} users for university ${universityId}`);
       return users;
     } catch (error) {
       console.error("❌ Error finding users by university:", error);
@@ -549,7 +572,7 @@ class DataManager {
       );
 
       // STEP 2: Save the new avatar config (now guaranteed to be clean)
-      console.log("� [DataManager] Step 2: Saving new avatarConfig...");
+      console.log("💾 [DataManager] Step 2: Saving new avatarConfig...");
       await setDoc(
         userDocRef,
         {
@@ -1409,116 +1432,13 @@ class DataManager {
       return null;
     }
   }
-
-  
-  /**
-   * 🔄 Migrate user to new structure with social info and search fields
-   * @param {string} userId - The user's UID
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
-  async migrateUserToNewStructure(userId) {
-    try {
-      console.log("🔄 Migrating user to new structure:", userId);
-
-      const userRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userRef);
-
-      if (!userDoc.exists()) {
-        return { success: false, error: "User not found" };
-      }
-
-      const userData = userDoc.data();
-
-      // Create the new structure
-      const updates = {};
-
-      // Add socialInfo if it doesn't exist
-      if (!userData.socialInfo) {
-        updates["socialInfo"] = {
-          friendsCount: 0,
-          pendingRequestsCount: 0,
-          privacy: "university",
-          searchable: true,
-          lastFriendActivity: null
-        };
-      }
-
-      // Add search optimization fields
-      if (userData.profile?.displayName && !userData.profile?.displayName_lower) {
-        updates["profile.displayName_lower"] = userData.profile.displayName.toLowerCase();
-      }
-
-      if (userData.profile?.firstName && !userData.profile?.firstName_lower) {
-        updates["profile.firstName_lower"] = userData.profile.firstName.toLowerCase();
-      }
-
-      if (userData.profile?.lastName && !userData.profile?.lastName_lower) {
-        updates["profile.lastName_lower"] = userData.profile.lastName.toLowerCase();
-      }
-
-      if (userData.profile?.major && !userData.profile?.major_lower) {
-        updates["profile.major_lower"] = userData.profile.major.toLowerCase();
-      }
-
-      // Only update if there are changes
-      if (Object.keys(updates).length > 0) {
-        updates["systemInfo.lastUpdated"] = serverTimestamp();
-        await updateDoc(userRef, updates);
-        console.log("✅ User migration completed:", userId);
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("❌ Error migrating user:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 🔄 Migrate all users to new structure (admin function)
-   * @returns {Promise<{success: boolean, migrated: number, error?: string}>}
-   */
-  async migrateAllUsersToNewStructure() {
-    try {
-      console.log("🔄 Starting migration of all users...");
-
-      const usersRef = collection(db, "users");
-      const querySnapshot = await getDocs(usersRef);
-
-      let migratedCount = 0;
-      const migrationPromises = [];
-
-      querySnapshot.forEach((doc) => {
-        migrationPromises.push(
-          this.migrateUserToNewStructure(doc.id).then((result) => {
-            if (result.success) migratedCount++;
-          })
-        );
-      });
-
-      await Promise.all(migrationPromises);
-
-      console.log(`✅ Migration completed: ${migratedCount} users migrated`);
-      return { success: true, migrated: migratedCount };
-    } catch (error) {
-      console.error("❌ Error in bulk migration:", error);
-      return { success: false, migrated: 0, error: error.message };
-    }
-  }
-
-// --- END OF MIGRATION FUNCTIONS ---
-
 }
 
-// Create and export a singleton instance of dataManager
+// Export a single instance of the DataManager (Singleton Pattern)
 export const dataManager = new DataManager();
 
-// Expose to global scope for easy console testing (development only)
-if (typeof window !== "undefined") {
-  window.dataManager = dataManager;
-  console.log(
-    "🛠️ DataManager available globally as window.dataManager for testing"
-  );
-}
+// Also expose it on the window for easy debugging from the console
+window.dataManager = dataManager;
+console.log("🛠️ DataManager available globally as window.dataManager for testing");
 
 // --- END OF FILE ---

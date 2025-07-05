@@ -78,9 +78,6 @@ async function initializeSPA() {
     // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
     window.spaRouter.loadInitialPage();
 
-    // Set up profile completion redirects
-    setupProfileCompletionFlow();
-
     // Listen for SPA navigation events
     setupSPAEventListeners();
 

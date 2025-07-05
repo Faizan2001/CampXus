@@ -12,62 +12,14 @@
  * It contains all the business logic and data management for friends
  */
 
-import { authManager } from "../../firebase/auth/auth-manager.js";
+import { currentUser } from "../currentUser.js";
 import { dataManager } from "../data-manager.js";
 
-class FriendsManager {
+export class FriendsManager {
   constructor() {
-    this.currentUser = null;
-    this.userProfile = null;
     this.unsubscribers = []; // For cleaning up Firestore listeners
-
-    // Initialize when authentication state changes
-    this.setupAuthentication();
-  }
-
-  /**
-   * 🔐 Set up authentication integration
-   * This connects our friends system to the auth system
-   */
-  setupAuthentication() {
-    authManager.onAuthStateChanged((user) => {
-      if (user) {
-        this.currentUser = user;
-        this.initializeFriendsSystem();
-      } else {
-        this.cleanup();
-      }
-    });
-  }
-
-  /**
-   * 🚀 Initialize the friends system for the current user
-   */
-  async initializeFriendsSystem() {
-    if (!this.currentUser) return;
-
-    try {
-      // Get current user's profile from Firestore using the Data Manager
-      const userProfile = await dataManager.getUserProfile(
-        this.currentUser.uid
-      );
-
-      if (userProfile) {
-        this.userProfile = userProfile;
-        console.log(
-          "🎯 Friends system ready for:",
-          this.userProfile.profile.displayName
-        );
-      } else {
-        console.warn(
-          "⚠️ Could not find user profile for UID:",
-          this.currentUser.uid
-        );
-      }
-    } catch (error) {
-      console.error("❌ Error initializing friends system:", error);
-      // We can add more robust error handling here later
-    }
+    // No more setupAuthentication or initialization here!
+    // We will get the user data on-demand.
   }
 
   /**
@@ -76,46 +28,33 @@ class FriendsManager {
    * @returns {Promise<Array>} Array of matching students
    */
   async searchStudents(searchTerm) {
-    // 1. Guard clauses: Ensure we have the necessary data to proceed.
-    if (!this.userProfile || !this.currentUser) {
-      console.error("❌ User profile not loaded. Cannot search.");
-      return []; // Return empty if profile isn't loaded
+    // 1. Get the current user's profile, waiting for it if necessary.
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      console.error("❌ User profile not loaded or user not logged in. Cannot search.");
+      return [];
     }
+
     if (!searchTerm || searchTerm.trim().length < 2) {
       return []; // Don't search for very short terms
     }
 
     try {
       console.log(`🔍 Searching for: "${searchTerm}"`);
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-      // 2. Fetch all users from the same university using the data manager.
-      const allStudents = await dataManager.findUsersByUniversity(
-        this.userProfile.universityInfo.university
+      
+      // 2. Fetch users directly using the optimized search function
+      const students = await dataManager.findUsersByUniversity(
+        userProfile.universityInfo.university,
+        searchTerm
       );
 
-      // 3. Filter the results on the client-side.
-      const filteredStudents = allStudents.filter((student) => {
-        // Exclude the current user from the results.
-        if (student.id === this.currentUser.uid) {
-          return false;
-        }
+      // 3. Filter out the current user from the results.
+      const filteredStudents = students.filter(student => student.id !== currentUser.uid);
 
-        // Check for a match in displayName or major (case-insensitive).
-        const displayName = student.profile?.displayName?.toLowerCase() || "";
-        const major = student.profile?.major?.toLowerCase() || "";
-
-        return (
-          displayName.includes(lowerCaseSearchTerm) ||
-          major.includes(lowerCaseSearchTerm)
-        );
-      });
-
-      // 4. Return the top 10 results for performance.
-      return filteredStudents.slice(0, 10);
+      console.log(`✅ Found ${filteredStudents.length} students.`);
+      return filteredStudents;
     } catch (error) {
       console.error("❌ Error searching students:", error);
-      // In case of an error, return an empty array to prevent UI breakage.
       return [];
     }
   }
@@ -127,13 +66,10 @@ class FriendsManager {
    * @returns {Promise<Object>} Success/failure result
    */
   async sendFriendRequest(targetUserId, targetUserData) {
-    // 🛡️ Input validation: Make sure we have everything we need
-    if (!this.currentUser || !this.userProfile) {
-      console.error("❌ User not authenticated or profile not loaded");
-      return {
-        success: false,
-        message: "Please log in and complete your profile",
-      };
+    // 1. Get the current user's profile, waiting for it if necessary.
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to send friend requests." };
     }
 
     if (!targetUserId || !targetUserData) {
@@ -141,12 +77,8 @@ class FriendsManager {
       return { success: false, message: "Invalid user selected" };
     }
 
-    // 🚫 Prevent sending request to yourself
-    if (targetUserId === this.currentUser.uid) {
-      return {
-        success: false,
-        message: "You cannot send a friend request to yourself!",
-      };
+    if (targetUserId === currentUser.uid) {
+      return { success: false, message: "You cannot send a friend request to yourself!" };
     }
 
     try {
@@ -155,9 +87,9 @@ class FriendsManager {
         targetUserData.profile?.displayName
       );
 
-      // 🔍 Check if request already exists (prevents duplicates)
+      // 2. Check if request already exists
       const existingRequest = await dataManager.checkExistingFriendRequest(
-        this.currentUser.uid,
+        currentUser.uid,
         targetUserId
       );
 
@@ -169,22 +101,19 @@ class FriendsManager {
         }
       }
 
-      // 📝 Create the friend request data using our data structure
+      // 3. Create the friend request object
       const requestData = {
-        fromUserId: this.currentUser.uid,
+        fromUserId: currentUser.uid,
         toUserId: targetUserId,
         status: "pending",
         requestType: "direct",
         message: "",
-
-        // 👤 Cache user info for quick display (no extra queries needed later)
         fromUserInfo: {
-          displayName: this.userProfile.profile.displayName,
-          major: this.userProfile.profile.major,
-          university: this.userProfile.universityInfo.university,
-          avatar: this.userProfile.avatarConfig,
+          displayName: userProfile.profile.displayName,
+          major: userProfile.profile.major,
+          university: userProfile.universityInfo.university,
+          avatar: userProfile.avatarConfig,
         },
-
         toUserInfo: {
           displayName: targetUserData.profile.displayName,
           major: targetUserData.profile.major,
@@ -193,27 +122,18 @@ class FriendsManager {
         },
       };
 
-      // 💾 Save to database using our data manager
+      // 4. Save to database
       const result = await dataManager.createFriendRequest(requestData);
 
       if (result.success) {
         console.log("✅ Friend request sent successfully!");
-        return {
-          success: true,
-          message: `Friend request sent to ${targetUserData.profile.displayName}!`,
-        };
+        return { success: true, message: `Friend request sent to ${targetUserData.profile.displayName}!` };
       } else {
-        return {
-          success: false,
-          message: "Failed to send friend request. Please try again.",
-        };
+        return { success: false, message: "Failed to send friend request. Please try again." };
       }
     } catch (error) {
       console.error("❌ Error sending friend request:", error);
-      return {
-        success: false,
-        message: "Something went wrong. Please try again.",
-      };
+      return { success: false, message: "Something went wrong. Please try again." };
     }
   }
 
@@ -222,29 +142,18 @@ class FriendsManager {
    * @returns {Promise<Array>} Array of pending requests
    */
   async getPendingRequests() {
-    // 🛡️ Ensure user is authenticated and profile is loaded
-    if (!this.currentUser || !this.userProfile) {
-      console.error("❌ User not authenticated or profile not loaded");
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      console.error("❌ User not logged in. Cannot get pending requests.");
       return [];
     }
 
     try {
-      console.log(
-        "📬 Getting pending requests for:",
-        this.userProfile.profile.displayName
-      );
-
-      // 🔍 Use our data manager to fetch pending requests
-      const pendingRequests = await dataManager.getPendingFriendRequests(
-        this.currentUser.uid
-      );
-
+      console.log("📬 Getting pending requests for:", userProfile.profile.displayName);
+      const pendingRequests = await dataManager.getPendingFriendRequests(currentUser.uid);
       console.log(`✅ Found ${pendingRequests.length} pending friend requests`);
-
-      // 🎯 Return the requests with all cached user info for quick display
       return pendingRequests.map((request) => ({
         ...request,
-        // Add a helper property for easy UI display
         displayName: request.fromUserInfo?.displayName || "Unknown User",
         major: request.fromUserInfo?.major || "Unknown Major",
         university: request.fromUserInfo?.university || "Unknown University",
@@ -262,10 +171,9 @@ class FriendsManager {
    * @returns {Promise<Object>} Success/failure result
    */
   async acceptFriendRequest(requestId, requestData) {
-    // 🛡️ Input validation
-    if (!this.currentUser || !this.userProfile) {
-      console.error("❌ User not authenticated or profile not loaded");
-      return { success: false, message: "Please log in first" };
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to accept requests." };
     }
 
     if (!requestId || !requestData) {
@@ -274,7 +182,7 @@ class FriendsManager {
     }
 
     // 🔒 Security check: Make sure this request is actually for the current user
-    if (requestData.toUserId !== this.currentUser.uid) {
+    if (requestData.toUserId !== currentUser.uid) {
       console.error("❌ Security violation: Request not for current user");
       return {
         success: false,
@@ -315,7 +223,7 @@ class FriendsManager {
           displayName: requestData.toUserInfo.displayName,
           major: requestData.toUserInfo.major,
           avatar:
-            requestData.toUserInfo.avatar || this.userProfile.avatarConfig,
+            requestData.toUserInfo.avatar || userProfile.avatarConfig,
         },
 
         // Metadata
@@ -361,10 +269,9 @@ class FriendsManager {
    * @returns {Promise<Object>} Success/failure result
    */
   async rejectFriendRequest(requestId, requestData = null) {
-    // 🛡️ Input validation
-    if (!this.currentUser || !this.userProfile) {
-      console.error("❌ User not authenticated or profile not loaded");
-      return { success: false, message: "Please log in first" };
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to reject requests." };
     }
 
     if (!requestId) {
@@ -409,29 +316,25 @@ class FriendsManager {
    * @returns {Promise<Array>} Array of friends with their info
    */
   async getFriendsList() {
-    // 🛡️ Ensure user is authenticated and profile is loaded
-    if (!this.currentUser || !this.userProfile) {
-      console.error("❌ User not authenticated or profile not loaded");
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      console.error("❌ Cannot get friends list, user not logged in.");
       return [];
     }
 
     try {
-      console.log(
-        "👥 Getting friends list for:",
-        this.userProfile.profile.displayName
-      );
+      console.log("👥 Getting friends list for:", userProfile.profile.displayName);
+      const friendships = await dataManager.getUserFriendships(currentUser.uid);
 
-      // 🔍 Use our data manager to fetch friendships
-      const friendships = await dataManager.getUserFriendships(
-        this.currentUser.uid
-      );
-
-      console.log(`✅ Found ${friendships.length} friendships`);
+      if (!friendships.length) {
+        console.log("👥 No friends found");
+        return [];
+      }
 
       // 🎯 Transform friendship documents into friend objects for easy UI display
       const friends = friendships.map((friendship) => {
         // Determine which user info to show (the friend, not the current user)
-        const isUser1 = friendship.user1Id === this.currentUser.uid;
+        const isUser1 = friendship.user1Id === currentUser.uid;
         const friendInfo = isUser1
           ? friendship.user2Info
           : friendship.user1Info;
@@ -471,16 +374,6 @@ class FriendsManager {
       console.error("❌ Error getting friends list:", error);
       return [];
     }
-  }
-
-  /**
-   * 🔴 Clean up listeners when user logs out
-   */
-  cleanup() {
-    this.unsubscribers.forEach((unsubscribe) => unsubscribe());
-    this.unsubscribers = [];
-    this.currentUser = null;
-    this.userProfile = null;
   }
 }
 

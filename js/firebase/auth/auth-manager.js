@@ -13,6 +13,7 @@ import {
   getFriendlyEmailError,
 } from "./university-validator.js";
 import { dataManager } from "../../../js/core/data-manager.js";
+import { currentUser } from "../../core/currentUser.js";
 
 /**
  * Custom error class for authentication vs other types of errors
@@ -39,7 +40,6 @@ class ValidationError extends Error {
 
 class AuthManager {
   constructor() {
-    this.currentUser = null;
     this.authModal = null;
     this.authStateListeners = [];
     // A promise that resolves when the initial auth state is known
@@ -447,8 +447,6 @@ class AuthManager {
         await sendEmailVerification(user);
       }
 
-
-
       // Immediately sign out after successful signup so user is not auto-signed in
       await signOut(auth);
 
@@ -555,66 +553,61 @@ class AuthManager {
   }
 
   /**
-   * Set up Firebase auth state listener
-   * This is the security guard that watches for auth changes
+   * Sets up the listener that responds to Firebase's auth state changes.
+   * This is the central point for handling logins, logouts, and session persistence.
    */
   setupAuthStateListener() {
-    console.log("🔧 Setting up auth state listener...");
-    
     onAuthStateChanged(auth, async (user) => {
-      console.log("🔥 Auth state changed:", user ? `User: ${user.email}` : "No user");
-      
-      // 🔧 FIX: Add security logging here to consolidate auth listeners
       if (user) {
-        console.log("Security: User authenticated", {
-          uid: user.uid,
-          email: user.email,
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        console.log("Security: User signed out", {
-          timestamp: new Date().toISOString(),
-        });
-      }
+        // --- User is signed in ---
+        console.log("🔒 Auth state changed: User is logged in.", user.uid);
 
-      // 🛡️ FIX: Prevent rapid successive auth state changes
-      if (this.currentUser === user && this.resolveAuthReady === null) {
-        console.log("🔄 Auth state unchanged, skipping processing");
-        // Even if state is unchanged, we must resolve the promise if it's the first run.
-        if (this.resolveAuthReady) {
-          this.resolveAuthReady();
-          this.resolveAuthReady = null;
-        }
-        return;
-      }
+        // 1. Set the user in our central state manager
+        currentUser.setUser(user);
 
-      this.currentUser = user;
-
-      // 🛡️ This is the crucial part of our fix!
-      // The first time this runs, it means Firebase has established the initial auth state.
-      // We can now resolve the authReady promise to signal that the app can proceed.
-      if (this.resolveAuthReady) {
-        this.resolveAuthReady();
-        // Set to null so it doesn't get called again unnecessarily
-        this.resolveAuthReady = null;
-      }
-
-      if (user) {
-        // Check if user should be allowed access
-        const isAllowed = this.isUserAllowed(user);
-
-        if (isAllowed) {
-          console.log("✅ User allowed access:", user.email);
-          this.updateUserLastActive();
-          this.notifyAuthStateChange(user);
-        } else {
-          console.log("❌ User not allowed - signing out:", user.email);
+        // 2. Check if the user's email is verified
+        if (!this.isUserAllowed(user)) {
+          console.warn("🚫 User not allowed, handling unverified user.");
           await this.handleUnverifiedUser();
+          currentUser.setProfile(null); // Ensure profile is null for unverified users
+          this.notifyAuthStateChange(null);
+          this.resolveAuthReady(); // Auth state is known, even if not fully logged in
+          return;
+        }
+
+        // 3. Fetch the user's profile from Firestore
+        try {
+          console.log("👤 Fetching user profile...");
+          const userProfile = await dataManager.getUserProfile(user.uid);
+
+          if (userProfile) {
+            console.log("✅ Profile loaded successfully.");
+            // 4. Set the profile in our central state manager
+            currentUser.setProfile(userProfile);
+            // For backward compatibility, you might still notify listeners with the user object
+            this.notifyAuthStateChange(user);
+          } else {
+            // This case might happen if profile creation failed or is delayed.
+            console.warn("🤔 User is authenticated, but profile not found.");
+            // Decide how to handle this - maybe force profile setup?
+            // For now, we'll treat them as not fully logged in.
+            currentUser.setProfile(null);
+            this.notifyAuthStateChange(null);
+          }
+        } catch (error) {
+          console.error("❌ Error fetching user profile:", error);
+          currentUser.setProfile(null);
+          this.notifyAuthStateChange(null);
         }
       } else {
-        console.log("👋 User signed out");
+        // --- User is signed out ---
+        console.log("🔒 Auth state changed: User is logged out.");
+        currentUser.reset();
         this.notifyAuthStateChange(null);
       }
+
+      // Signal that the initial auth check is complete.
+      this.resolveAuthReady();
     });
   }
 
@@ -658,18 +651,22 @@ class AuthManager {
   }
 
   /**
-   * Add listener for auth state changes
+   * Registers a callback to be executed when auth state changes.
+   * @param {function} callback - The function to call with the user object (or null).
    */
   onAuthStateChanged(callback) {
     this.authStateListeners.push(callback);
+    // If auth state is already known, call it immediately
+    this.authReady.then(() => callback(currentUser.user));
   }
 
   /**
-   * Get current user - used by profile setup and other modules
-   * @returns {Object|null} - Current user object or null
+   * Gets the current authenticated user object.
+   * DEPRECATED: Use `import { currentUser } from './currentUser.js'` instead.
+   * @returns {object|null} The current Firebase user object or null.
    */
   getCurrentUser() {
-    return this.currentUser;
+    return currentUser.user;
   }
 
   /**
@@ -706,15 +703,17 @@ class AuthManager {
   }
 
   /**
-   * Check if a user is currently authenticated.
-   * @returns {boolean} True if a user is authenticated, false otherwise.
+   * Check if a user is currently authenticated and their profile is loaded.
+   * This is the authoritative check for accessing protected routes.
+   * @returns {boolean} True if the user is authenticated.
    */
   isAuthenticated() {
-    return !!this.currentUser;
+    // The most reliable check is to see if our currentUser module has a UID.
+    return currentUser.isLoggedIn();
   }
 
   /**
-   * Get the current user's data.
+   * Get current user's profile data (if available).
    * @returns {object|null} The current user object or null if not signed in.
    */
   getCurrentUserData() {

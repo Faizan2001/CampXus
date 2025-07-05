@@ -586,26 +586,22 @@ class SPARouter {
    */
   async loadJS(jsFiles) {
     if (!jsFiles || jsFiles.length === 0) {
-      console.log("  -> No JS files to load for this route.");
       return;
     }
-
-    console.log(`  -> Preparing to load ${jsFiles.length} JS file(s):`, jsFiles);
+    
+    console.log(`  -> Loading ${jsFiles.length} JS file(s) for /${this.currentPage}`);
 
     for (const jsFile of jsFiles) {
       // Check if a script with this src already exists in the document
       if (document.querySelector(`script[src="${jsFile}"]`)) {
-        console.log(`  -> 🤔 JS file already exists, skipping: ${jsFile}`);
         continue;
       }
 
-      console.log(`  -> ⏳ Loading JS file: ${jsFile}`);
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.type = "module"; // Use ES6 modules for modern JS
         script.src = jsFile;
         script.onload = () => {
-          console.log(`  -> ✅ Successfully loaded JS file: ${jsFile}`);
           resolve();
         };
         script.onerror = (error) => {
@@ -617,7 +613,6 @@ class SPARouter {
         document.head.appendChild(script);
       });
     }
-    console.log("  -> All JS files for this route have been processed.");
   }
 
   /**

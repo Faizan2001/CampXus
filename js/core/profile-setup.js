@@ -33,6 +33,7 @@ import AvatarManager from "./avatars.js";
 
 // Import data manager for Firestore operations
 import { dataManager } from "./data-manager.js";
+import { currentUser } from "./currentUser.js";
 
 /**
  * =============================================================================
@@ -43,27 +44,23 @@ import { dataManager } from "./data-manager.js";
 class ProfileSetup {
   constructor() {
     // CRITICAL: Prevent multiple instances from being created
-    if (profileSetupInstance) {
+    if (window.profileSetupInstance) {
       console.warn(
         "⚠️ ProfileSetup instance already exists! Returning existing instance."
       );
-      return profileSetupInstance;
+      return window.profileSetupInstance;
     }
 
     this.currentStep = 0;
     this.totalSteps = 2; // Basic Info, Avatar & Bio
-    this.currentUser = null;
     this.profileData = {};
     this.avatarConfig = null; // Stores user's avatar configuration
-    this.authCheckInProgress = false;
     this.dataLoadInProgress = false; // Prevent duplicate data loading
     this.existingProfileData = null; // Cache for existing profile data
+    this.isInitialized = false; // Flag to prevent re-initialization
 
     // Store this instance globally to prevent duplicates
-    profileSetupInstance = this;
-
-    // Initialize the setup
-    this.checkAuthentication();
+    window.profileSetupInstance = this;
 
     // Add offline/online event listeners for UI feedback
     window.addEventListener("offline", () => this.showOfflineBanner(true));
@@ -155,9 +152,10 @@ class ProfileSetup {
       if (email) email.value = getProfileValue("email") || "";
 
       // 🆔 Always populate student ID from organized structure or email fallback
-      if (studentId && this.currentUser && this.currentUser.email) {
+      const loggedInUser = currentUser.user;
+      if (studentId && loggedInUser && loggedInUser.email) {
         const savedStudentId = getUniversityValue("studentId");
-        const extractedStudentId = this.currentUser.email.split("@")[0];
+        const extractedStudentId = loggedInUser.email.split("@")[0];
 
         studentId.value = savedStudentId || extractedStudentId;
       }
@@ -185,8 +183,8 @@ class ProfileSetup {
       // 🗂️ ORGANIZED DATA STRUCTURE: Update internal profile data
       const finalStudentId =
         getUniversityValue("studentId") ||
-        (this.currentUser && this.currentUser.email
-          ? this.currentUser.email.split("@")[0]
+        (loggedInUser && loggedInUser.email
+          ? loggedInUser.email.split("@")[0]
           : "");
 
       this.profileData = {
@@ -507,62 +505,7 @@ class ProfileSetup {
    */
 
   /**
-   * Check if user is authenticated and setup auth state listeners
-   * Handles both immediate auth and auth state changes
-   */
-  async checkAuthentication() {
-    // Prevent multiple authentication checks
-    if (this.authCheckInProgress) {
-      return;
-    }
-
-    this.authCheckInProgress = true;
-
-    // Check if auth manager is available (modern approach)
-    if (window.authManager) {
-      // 🎯 IMMEDIATE USER CHECK: First, try to get current user immediately
-      const currentUser = window.authManager.getCurrentUser();
-      if (currentUser) {
-        this.currentUser = currentUser;
-        // Initialize setup immediately without delay
-        this.initializeSetup();
-        return; // Exit early if we found a user
-      }
-
-      // Listen for auth state changes through auth manager
-      window.authManager.onAuthStateChanged((user) => {
-        if (user && !this.currentUser) {
-          // Only process if we don't already have a user
-          this.currentUser = user;
-          // Initialize setup immediately without delay for callback
-          this.initializeSetup();
-        } else if (!user) {
-          if (window.spaRouter) {
-            window.spaRouter.navigateTo("home");
-          } else {
-            window.location.href = "../index.html";
-          }
-        }
-      });
-
-      // Also check the direct property as fallback
-      if (!this.currentUser && window.authManager.currentUser) {
-        this.currentUser = window.authManager.currentUser;
-        // Initialize setup immediately
-        this.initializeSetup();
-      }
-    }
-    // No auth system available
-    else {
-      console.error("❌ No authentication system available");
-      if (window.spaRouter) {
-        window.spaRouter.navigateTo("home");
-      }
-    }
-  }
-
-  /**
-   * Navigate to home page using available navigation method
+   * Navigate to the home page (SPA-style)
    */
   navigateToHome() {
     if (window.spaRouter) {
@@ -583,28 +526,55 @@ class ProfileSetup {
   }
 
   /**
+   * Initializes the profile setup process once the user is authenticated.
+   * This replaces the old checkAuthentication method.
+   */
+  async initializeWhenReady() {
+    try {
+      console.log("⏳ Waiting for user profile to initialize setup...");
+      const userProfile = await currentUser.waitForProfile();
+
+      if (userProfile) {
+        console.log("✅ User profile loaded, initializing profile setup.");
+        this.existingProfileData = userProfile;
+        
+        // The user is authenticated and has a profile,
+        // so let's initialize the setup page. It will either be
+        // pre-filled for editing or empty for a new user.
+        await this.initializeSetup();
+
+      } else {
+        console.warn("🤷 No user logged in. Profile setup will not initialize.");
+        // We can optionally hide the setup form or show a login prompt here.
+      }
+    } catch (error) {
+      console.error("❌ Error during profile setup initialization:", error);
+      this.showError("Could not start the profile setup process.");
+    }
+  }
+
+  /**
    * =============================================================================
    *                      3. INITIALIZATION & SETUP METHODS
    * =============================================================================
    */
 
   /**
-   * Initialize the profile setup UI and functionality
+   * Initialize the profile setup UI, populates fields, and sets up listeners.
+   * This is the main entry point after the user is authenticated.
    */
   async initializeSetup() {
-    // CRITICAL: Check if profile template is loaded first
-    const profileCard = document.querySelector(".profile-setup-card");
-    const setupBody = document.querySelector(".setup-body");
+    // 🎯 FIX for race condition: Wait for the DOM to be ready for painting.
+    // This ensures the template from the SPA router has been rendered.
+    await new Promise(resolve => requestAnimationFrame(resolve));
 
-    if (!profileCard || !setupBody) {
-      setTimeout(() => {
-        this.initializeSetup();
-      }, 200);
-      return;
-    }
+    // Cache DOM elements for performance
+    this.cacheDOMElements();
 
     // Add debug info to page for development
-    this.addDebugInfo();
+    if (window.ENV === "development") {
+      this.addDebugInfo();
+    }
 
     // 🎯 LOAD EXISTING PROFILE DATA: Check for existing profile data first
     if (this.currentUser && this.currentUser.uid) {
@@ -638,31 +608,10 @@ class ProfileSetup {
       this.prefillUserData();
     }
 
-    // Initialize avatar system
-    this.initializeAvatarSystem();
-
-    // Setup all event listeners
-    this.setupEventListeners();
-
-    // Initialize display and validation - CRITICAL FOR VISIBILITY
+    this.populateFormFields(this.existingProfileData);
     this.updateStepDisplay();
-    this.updateProgress();
-    this.validateCurrentStep();
-
-    // 🧪 IMMEDIATE VERIFICATION: Check if step 0 is actually visible now
-    setTimeout(() => {
-      this.verifyInitialization();
-    }, 50);
-
-    // Add diagnostic information for debugging display issues (with delay)
-    setTimeout(() => {
-      this.addDiagnosticInfo();
-    }, 200);
-
-    // 🧪 Add a test button for manual debugging (development only)
-    if (this.currentUser && this.isDevelopmentEmail(this.currentUser.email)) {
-      this.addTestButton();
-    }
+    this.setupEventListeners(); // Re-add event listeners
+    this.initializeAvatarSystem();
   }
 
   /**
@@ -1169,6 +1118,8 @@ class ProfileSetup {
   updateNavigationButtons() {
     const prevBtn = document.getElementById("setup-prev-btn");
     const skipBtn = document.getElementById("setup-skip-btn");
+    const nextButton = document.getElementById("setup-next-btn");
+    const finishButton = document.getElementById("finish-setup-button");
 
     if (prevBtn) {
       prevBtn.style.display = this.currentStep === 0 ? "none" : "flex";
@@ -1178,6 +1129,20 @@ class ProfileSetup {
       // Show skip button on step 0 and 1, hide on final step
       skipBtn.style.display =
         this.currentStep < this.totalSteps - 1 ? "flex" : "none";
+    }
+
+    if (nextButton) {
+      nextButton.style.display = "inline-block";
+    }
+
+    if (finishButton) {
+      if (this.currentStep === this.totalSteps - 1) {
+        nextButton.style.display = "none";
+        finishButton.style.display = "inline-block";
+      } else {
+        nextButton.style.display = "inline-block";
+        finishButton.style.display = "none";
+      }
     }
   }
 
@@ -1213,56 +1178,29 @@ class ProfileSetup {
   }
 
   /**
-   * Display success message after profile completion
-   * Shows an extra message if offline, and attempts to show sync status if available.
+   * Shows a success message that replaces the form content.
+   * @param {string} message - The main message to display.
+   * @param {string} subtitle - A subtitle for the message.
    */
-  showSuccessMessage() {
-    const setupCard = document.querySelector(".profile-setup-card");
-    if (setupCard) {
-      // Check if offline and optionally get sync status from dataManager
-      let offlineMsg = "";
-      if (!navigator.onLine) {
-        offlineMsg = `
-          <div class="offline-success-info" style="margin-top:1.5rem; background:#f87171; color:#fff; padding:0.75rem 1rem; border-radius:8px; font-size:1rem; text-align:center; max-width:400px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-            <span style="display:inline-block;margin-right:0.5em;vertical-align:middle;">⚠️</span>
-            <span style="vertical-align:middle;">You are offline. Your profile is saved locally and will sync to the cloud when you reconnect.</span>
-          </div>
-        `;
-      }
-      // Optionally, show more info if dataManager provides sync state (for advanced users)
-      if (
-        window.dataManager &&
-        typeof window.dataManager.getSyncStatus === "function"
-      ) {
-        try {
-          const syncStatus = window.dataManager.getSyncStatus();
-          if (syncStatus && syncStatus.pendingWrites > 0) {
-            offlineMsg += `
-              <div class="sync-status-info" style="margin-top:0.5rem; color:#fbbf24; font-size:0.95rem;">
-                <span style="display:inline-block;margin-right:0.3em;">⏳</span>
-                <span>Pending changes: ${syncStatus.pendingWrites}. They will sync automatically.</span>
-              </div>
-            `;
-          }
-        } catch (e) {
-          // Ignore errors, just don't show sync status
-        }
-      }
-      setupCard.innerHTML = `
+  showSuccessMessage(
+    message = "All Set! 🎉",
+    subtitle = "Your profile is ready. Redirecting..."
+  ) {
+    if (this.dom.card) {
+      this.dom.card.innerHTML = `
         <div class="setup-header">
           <div class="setup-title-section">
-            <h1 class="setup-title">All Set! 🎉</h1>
-            <p class="setup-subtitle">Your profile is ready</p>
+            <h1 class="setup-title">${message}</h1>
+            <p class="setup-subtitle">${subtitle}</p>
           </div>
         </div>
-        <div class="setup-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 350px; padding: 3rem 1rem;">
-          <div class="success-message" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
-            <div class="success-icon" style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;">
-              <i class="fas fa-rocket" aria-hidden="true"></i>
+        <div class="setup-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 250px;">
+          <div class="success-message">
+            <div class="success-icon">
+              <i class="fas fa-rocket"></i>
             </div>
-            <h3 style="color: #059669; margin-bottom: 1rem; text-align: center;">Welcome Aboard!</h3>
-            <p style="color:rgb(248, 248, 248); text-align: center; max-width: 350px;">You'll be redirected to your dashboard shortly.</p>
-            ${offlineMsg}
+            <h3>Welcome Aboard!</h3>
+            <p>Your changes have been saved successfully.</p>
           </div>
         </div>
       `;
@@ -1377,42 +1315,14 @@ class ProfileSetup {
    * Save the complete profile to Firebase Firestore
    */
   async saveProfile() {
-    const nextBtn = document.getElementById("setup-next-btn");
-    const originalText = nextBtn ? nextBtn.textContent : "Complete Setup";
-    if (nextBtn) {
-      nextBtn.textContent = "Saving...";
-      nextBtn.disabled = true;
-    }
-    // Ensure data from the final step is collected
-    this.collectCurrentStepData();
     try {
-      // Ensure we have an avatar configuration
-      if (!this.avatarConfig && this.currentUser) {
-        this.avatarConfig = window.avatarManager.generateDefaultAvatar(
-          this.currentUser.uid
-        );
-        console.log(
-          "🎨 Generated default avatar for saving:",
-          this.avatarConfig
-        );
-      }
-      // 🗂️ ORGANIZED STRUCTURE: Group related fields for better data management
-      const userData = {
-        uid: this.currentUser.uid,
+      // Combine all data for saving
+      const combinedData = {
+        profile: this.profileData,
         universityInfo: {
           university: this.currentUser.email.split("@")[1].split(".")[0],
           universityName: "Independent University, Bangladesh",
           studentId: this.profileData.studentId,
-        },
-        profile: {
-          firstName: this.profileData.firstName,
-          lastName: this.profileData.lastName,
-          bio: this.profileData.bio || "",
-          major: this.profileData.major,
-          startingYear: this.profileData.startingYear,
-          email: this.currentUser.email,
-          displayName:
-            this.profileData.firstName || this.currentUser.email.split("@")[0],
         },
         avatarConfig: this.avatarConfig,
         systemInfo: {
@@ -1422,52 +1332,23 @@ class ProfileSetup {
           lastUpdated: serverTimestamp(),
         },
       };
-      Object.keys(userData).forEach(
-        (key) => userData[key] === undefined && delete userData[key]
-      );
-      // Use dataManager for profile save
-      const result = await dataManager.saveUserProfile(
-        this.currentUser.uid,
-        userData
-      );
-      if (!result.success) throw new Error(result.error);
-      console.log(
-        "💾 Profile saved successfully with avatar config:",
-        this.avatarConfig
-      );
+
+      // Save the combined data to Firestore
+      await dataManager.saveUserProfile(currentUser.uid, combinedData);
+
+      // Show success message and then redirect
       this.showSuccessMessage();
-      document.dispatchEvent(
-        new CustomEvent("profile:setup:complete", {
-          detail: { userData },
-        })
-      );
-      if (window.updateUserDataAfterProfileCompletion) {
-        const menuUserData = {
-          uid: userData.uid,
-          name: `${userData.profile.firstName} ${userData.profile.lastName}`,
-          email: userData.profile.email,
-          avatarConfig: userData.avatarConfig,
-          profileSetupComplete: userData.systemInfo.profileSetupComplete,
-        };
-        window.updateUserDataAfterProfileCompletion(menuUserData);
-      }
-      sessionStorage.setItem("profileJustCompleted", "true");
+
+      // Redirect to home page after a short delay
       setTimeout(() => {
-        if (!window.spaRouter) {
-          window.location.href = "../index.html";
-        } else {
-          window.spaRouter.navigateTo("home");
-        }
-      }, 3000);
+        this.navigateToHome();
+      }, 2000); // 2-second delay
+
     } catch (error) {
-      console.error("Error saving profile:", error);
+      console.error("❌ Final profile save failed:", error);
       alert(
         "Oh no! Something went wrong while saving your profile. Please check your connection and try again."
       );
-      if (nextBtn) {
-        nextBtn.textContent = originalText;
-        nextBtn.disabled = false;
-      }
     }
   }
 
@@ -2020,6 +1901,40 @@ class ProfileSetup {
       banner.style.display = "none";
     }
   }
+
+  /**
+   * Caches frequently accessed DOM elements for performance.
+   */
+  cacheDOMElements() {
+    this.dom = {
+      // Form fields
+      firstName: document.getElementById("setup-first-name"),
+      lastName: document.getElementById("setup-last-name"),
+      email: document.getElementById("setup-email"),
+      studentId: document.getElementById("setup-student-id"),
+      startingYear: document.getElementById("setup-starting-year"),
+      major: document.getElementById("setup-major"),
+      bio: document.getElementById("setup-bio"),
+      bioCount: document.getElementById("bio-count"),
+
+      // Buttons
+      nextButton: document.getElementById("setup-next-btn"),
+      prevButton: document.getElementById("setup-prev-btn"),
+      finishButton: document.getElementById("finish-setup-button"),
+      skipButton: document.getElementById("setup-skip-btn"),
+
+      // Containers and structural elements
+      card: document.querySelector(".profile-setup-card"),
+      body: document.querySelector(".setup-body"),
+      stepsContainer: document.querySelector(".setup-steps"),
+      stepIndicators: document.querySelectorAll(".step-indicator"),
+      stepTitle: document.querySelector(".step-title"),
+      formSteps: document.querySelectorAll(".form-step"),
+      avatarEditorTrigger: document.querySelector(".avatar-editor-trigger"),
+      avatarPreview: document.querySelector(".avatar-preview-container"),
+      form: document.querySelector(".profile-setup-form"),
+    };
+  }
 }
 
 /**
@@ -2033,7 +1948,6 @@ let profileSetupInstance = null;
 let initializationInProgress = false;
 
 /**
-
  * Wait for auth manager to be available
  * @param {number} maxWaitTime - Maximum time to wait in milliseconds
  * @param {number} checkInterval - Interval between checks in milliseconds
@@ -2127,48 +2041,15 @@ function checkAuthenticationAndInitialize() {
  * Main initialization function for profile setup
  */
 function initializeProfileSetup() {
-  console.log("🚀 Starting profile setup initialization...");
-
-  // Prevent multiple simultaneous initializations
-  if (initializationInProgress) {
-    console.log("⚠️ Initialization already in progress, skipping...");
-    return;
+  console.log("🚀 [DEBUG] initializeProfileSetup triggered.");
+  if (!window.profileSetupInstance) {
+    console.log("🚀 [DEBUG] No ProfileSetup instance found, creating one.");
+    window.profileSetupInstance = new ProfileSetup();
   }
-
-  // If instance already exists, don't create another
-  if (profileSetupInstance) {
-    console.log("⚠️ Profile setup instance already exists, skipping...");
-    return;
-  }
-
-  initializationInProgress = true;
-
-  // Debug what's available
-  console.log("🔍 Debugging available auth systems:");
-  console.log("   - window.authManager:", !!window.authManager);
-  console.log(
-    "   - window.authManager.getCurrentUser:",
-    typeof window.authManager?.getCurrentUser
-  );
-
-  // Wait for auth manager if it's not available yet
-  waitForAuthManager()
-    .then(() => {
-      console.log(
-        "✅ Auth manager is now available, checking authentication..."
-      );
-      checkAuthenticationAndInitialize();
-    })
-    .catch((error) => {
-      console.error("❌ Timeout waiting for auth manager:", error);
-      console.log("❌ Redirecting to home page...");
-      if (window.spaRouter) {
-        window.spaRouter.navigateTo("home");
-      }
-    })
-    .finally(() => {
-      initializationInProgress = false;
-    });
+  
+  // Trigger the initialization process.
+  // This is now the official entry point.
+  window.profileSetupInstance.initializeWhenReady();
 }
 
 /**
