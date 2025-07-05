@@ -1,4 +1,4 @@
-rules_version = '3';
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Security baseline - deny all by default
@@ -6,16 +6,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Simplified user rules for development and organized structure
+    // User document rules - allow users to manage their own documents
     match /users/{userId} {
       // Allow read if user is authenticated and accessing their own document
       allow read: if request.auth != null && request.auth.uid == userId;
       
       // Allow write if user is authenticated and accessing their own document
-      // Simplified validation for development
-      allow write: if request.auth != null 
-        && request.auth.uid == userId
-        && request.resource.data.uid == userId;
+      // Simplified rule for better compatibility
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Universities collection - read only for authenticated users

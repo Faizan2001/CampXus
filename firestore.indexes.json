@@ -1,4 +1,44 @@
 {
-  "indexes": [],
+  "indexes": [
+   
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "universityInfo.university", "order": "ASCENDING" },
+        { "fieldPath": "profile.major_lower", "order": "ASCENDING" },
+        { "fieldPath": "socialInfo.searchable", "order": "ASCENDING" },
+        { "fieldPath": "systemInfo.profileSetupComplete", "order": "ASCENDING" }
+      ]
+    },
+   
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "profile.displayName_lower", "order": "ASCENDING" },
+        { "fieldPath": "socialInfo.searchable", "order": "ASCENDING" }
+      ]
+    },
+   
+    {
+      "collectionGroup": "friendRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "toUserId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+   
+    {
+      "collectionGroup": "friendships",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "users", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

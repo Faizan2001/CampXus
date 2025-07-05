@@ -56,6 +56,9 @@ class AuthManager {
     // 🛡️ Prevent multiple rapid submissions
     this.signupInProgress = false;
     this.signinInProgress = false;
+
+    // Track last auth action ("signIn" or "signUp")
+    this.lastAuthAction = null;
   }
 
   /**
@@ -302,6 +305,7 @@ class AuthManager {
    * Handle sign in form submission
    */
   async handleSignIn() {
+    this.lastAuthAction = 'signIn';
     // 🛡️ Prevent multiple rapid submissions
     if (this.signinInProgress) {
       console.log("🔄 Sign in already in progress, ignoring duplicate request");
@@ -346,18 +350,42 @@ class AuthManager {
       // For production emails, check Firebase Auth's built-in emailVerified
       if (!user.emailVerified) {
         // Sign out the user immediately since they're not verified
-        // This prevents them from being considered "signed in" even briefly
         await signOut(auth);
-        throw new AuthError(
-          "Please verify your email before signing in. Check your inbox. 📧",
-          "email-not-verified"
-        );
+        // Show notification to prompt email verification
+        if (typeof dataManager !== 'undefined' && dataManager.showNotification) {
+          dataManager.showNotification(
+            "Please verify your email address before signing in. Check your inbox for a verification link.",
+            "warning",
+            { duration: 6000 }
+          );
+        }
+        return;
       }
 
       // If Firebase Auth's emailVerified is true, proceed
       console.log(
         "🎉 Successfully signed in! (Firebase Auth emailVerified check passed)"
       );
+
+      // Check if Firestore profile exists; if not, create it
+      let profile = null;
+      try {
+        profile = await dataManager.getUserProfile(user.uid);
+      } catch (e) {
+        console.warn("Could not check for existing Firestore profile:", e);
+      }
+      if (!profile) {
+        try {
+          await this.createUserProfile(user, email);
+          console.log("✅ Firestore profile created after verified sign in.");
+        } catch (profileError) {
+          console.error("❌ Failed to create Firestore profile after sign in:", profileError);
+          showFormError("signin-form", "Failed to create your profile. Please try again or contact support.");
+          // Optionally, sign out user if profile creation fails
+          await signOut(auth);
+          return;
+        }
+      }
       this.hideAuthModal();
       // Call success callback if set
       this.triggerSigninSuccess({ user, isDevelopment: false });
@@ -377,6 +405,7 @@ class AuthManager {
    * Handle sign up form submission
    */
   async handleSignUp() {
+    this.lastAuthAction = 'signUp';
     // 🛡️ Prevent multiple rapid submissions
     if (this.signupInProgress) {
       console.log("🔄 Sign up already in progress, ignoring duplicate request");
@@ -418,27 +447,7 @@ class AuthManager {
         await sendEmailVerification(user);
       }
 
-      // Create user profile in Firestore (removed emailVerified field)
-      try {
-        await this.createUserProfile(user, email);
-      } catch (profileError) {
-        // If profile creation fails, delete the Auth user to avoid orphaned accounts
-        console.error(
-          "🧹 Cleaning up Auth user due to profile creation failure..."
-        );
-        try {
-          await user.delete();
-          console.log("🗑️ Auth user deleted after profile creation failure.");
-        } catch (deleteError) {
-          // If user.delete() fails (e.g., due to recent login requirements), sign out instead
-          console.error(
-            "⚠️ Failed to delete Auth user directly. Signing out instead.",
-            deleteError
-          );
-          await signOut(auth);
-        }
-        throw new Error(profileError.message || "Profile creation failed");
-      }
+
 
       // Immediately sign out after successful signup so user is not auto-signed in
       await signOut(auth);
@@ -523,6 +532,11 @@ class AuthManager {
 
     try {
       // Use dataManager to save user profile instead of direct setDoc
+      console.log("💾 Attempting to save user profile to Firestore...");
+      console.log("🔑 User UID:", user.uid);
+      console.log("📧 User email:", user.email);
+      console.log("✅ User emailVerified:", user.emailVerified);
+      
       const result = await dataManager.saveUserProfile(user.uid, userProfile);
       if (!result.success) {
         throw new Error(result.error || "Unknown error saving profile");
@@ -534,6 +548,7 @@ class AuthManager {
       console.error("❌ Failed to create user profile in Firestore:", error);
       console.error("❌ Error code:", error.code);
       console.error("❌ Error message:", error.message);
+      console.error("❌ Error details:", error);
       console.error("📊 Profile data that failed to save:", userProfile);
       throw new Error(`Profile creation failed: ${error.message}`);
     }
@@ -609,7 +624,13 @@ class AuthManager {
    * @returns {boolean} - True if user is allowed
    */
   isUserAllowed(user) {
-    return this.isDevelopmentEmail(user.email) || user.emailVerified;
+    // Allow development emails without verification
+    if (this.isDevelopmentEmail(user.email)) {
+      return true;
+    }
+
+    // Only allow verified emails for all other users
+    return !!user.emailVerified;
   }
 
   /**
@@ -617,6 +638,14 @@ class AuthManager {
    */
   async handleUnverifiedUser() {
     await signOut(auth);
+    // Only show notification if last action was signIn
+    if (this.lastAuthAction === 'signIn' && typeof dataManager !== 'undefined' && dataManager.showNotification) {
+      dataManager.showNotification(
+        "Please verify your email address before signing in. Check your inbox for a verification link.",
+        "warning",
+        { duration: 6000 }
+      );
+    }
     this.showAuthModal();
   }
 

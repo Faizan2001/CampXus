@@ -404,10 +404,39 @@ class DataManager {
         throw new Error("Invalid profile data");
       }
 
-      // Add timestamps
+      // --- BEGIN: Auto-generate search fields and ensure socialInfo ---
+      if (profileData.profile) {
+        if (profileData.profile.displayName) {
+          profileData.profile.displayName_lower = profileData.profile.displayName.toLowerCase();
+        }
+        if (profileData.profile.firstName) {
+          profileData.profile.firstName_lower = profileData.profile.firstName.toLowerCase();
+        }
+        if (profileData.profile.lastName) {
+          profileData.profile.lastName_lower = profileData.profile.lastName.toLowerCase();
+        }
+        if (profileData.profile.major) {
+          profileData.profile.major_lower = profileData.profile.major.toLowerCase();
+        }
+      }
+      if (!profileData.socialInfo) {
+        profileData.socialInfo = {
+          friendsCount: 0,
+          pendingRequestsCount: 0,
+          privacy: "university",
+          searchable: true,
+          lastFriendActivity: null,
+        };
+      }
+      // --- END: Auto-generate search fields and ensure socialInfo ---
+
+      // Add timestamps properly within systemInfo structure
       const dataToSave = {
         ...profileData,
-        "systemInfo.lastUpdated": serverTimestamp(),
+        systemInfo: {
+          ...profileData.systemInfo,
+          lastUpdated: serverTimestamp(),
+        },
       };
 
       if (!this.isOnline) {
@@ -1381,6 +1410,7 @@ class DataManager {
     }
   }
 
+  
   /**
    * 🔄 Migrate user to new structure with social info and search fields
    * @param {string} userId - The user's UID
@@ -1477,9 +1507,10 @@ class DataManager {
   }
 
 // --- END OF MIGRATION FUNCTIONS ---
+
 }
 
-// Create and export a singleton instance
+// Create and export a singleton instance of dataManager
 export const dataManager = new DataManager();
 
 // Expose to global scope for easy console testing (development only)
