@@ -81,6 +81,52 @@ class CurrentUserManager {
   }
 
   /**
+   * Checks if the user has completed their profile setup.
+   * @returns {boolean}
+   */
+  isProfileComplete() {
+    return !!(
+      this._profile?.systemInfo?.profileSetupComplete &&
+      this._profile?.profile?.firstName &&
+      this._profile?.profile?.lastName &&
+      this._profile?.profile?.email
+    );
+  }
+
+  /**
+   * Gets safe display information for the current user.
+   * @returns {object} Display information with fallbacks
+   */
+  getDisplayInfo() {
+    if (!this.isLoggedIn()) {
+      return {
+        displayName: 'Guest',
+        email: '',
+        firstName: '',
+        lastName: '',
+        avatarConfig: null,
+        isComplete: false
+      };
+    }
+
+    const profile = this._profile?.profile || {};
+    const firstName = profile.firstName || '';
+    const lastName = profile.lastName || '';
+    
+    return {
+      displayName: profile.displayName || 
+                   (firstName && lastName ? `${firstName} ${lastName}` : '') ||
+                   this._user?.email?.split('@')[0] || 
+                   'User',
+      email: profile.email || this._user?.email || '',
+      firstName,
+      lastName,
+      avatarConfig: this._profile?.avatarConfig || null,
+      isComplete: this.isProfileComplete()
+    };
+  }
+
+  /**
    * Sets the authenticated user. Called from auth-manager.
    * @param {object|null} user - The Firebase Auth user object.
    */
@@ -126,11 +172,30 @@ class CurrentUserManager {
       return Promise.resolve(this._profile);
     }
     // If a user is logged in but the profile isn't loaded yet, return the promise.
-    if (this.isLoggedIn()) {
+    if (this.isLoggedIn() && this._profilePromise) {
       return this._profilePromise;
     }
     // If no user is logged in, resolve with null.
     return Promise.resolve(null);
+  }
+
+  /**
+   * Returns a promise that resolves when the user profile is loaded, with timeout protection.
+   * @param {number} timeoutMs - Timeout in milliseconds (default: 10000)
+   * @returns {Promise<object|null>}
+   */
+  waitForProfileWithTimeout(timeoutMs = 10000) {
+    const profilePromise = this.waitForProfile();
+    
+    // Create a timeout promise that rejects after the specified time
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Profile loading timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+
+    // Race between profile loading and timeout
+    return Promise.race([profilePromise, timeoutPromise]);
   }
 
   /**
@@ -163,11 +228,14 @@ class CurrentUserManager {
     this._uid = null;
     this._user = null;
     this._profile = null;
-    // Create a new, pending promise for the next time a user logs in.
-    this._profilePromise = new Promise(resolve => {
-      this._resolveProfilePromise = resolve;
-    });
+    this._profilePromise = null;
+    this._resolveProfilePromise = null;
+    // Notify subscribers of the reset state
+    this._notifySubscribers();
   }
 }
 
-export const currentUser = new CurrentUserManager(); 
+export const currentUser = new CurrentUserManager();
+
+// Make currentUser available globally for profile completion flow
+window.currentUser = currentUser; 

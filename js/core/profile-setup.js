@@ -1306,6 +1306,7 @@ class ProfileSetup {
 
       // 3. Update the in-memory profile so the UI updates immediately
       currentUser.setProfile(updatedProfile);
+      console.log("🎨 Avatar updated in currentUser store");
 
       // Optionally, show a success message or trigger a UI update here
       // showFormSuccess("profile-form", "Avatar updated successfully!");
@@ -1342,6 +1343,11 @@ class ProfileSetup {
 
       // Save the combined data to Firestore
       await dataManager.saveUserProfile(currentUser.uid, combinedData);
+
+      // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
+      console.log("🔄 Updating currentUser store with fresh profile data after save...");
+      currentUser.setProfile(combinedData);
+      console.log("✅ currentUser store updated with fresh profile data");
 
       // Show success message and then redirect
       this.showSuccessMessage();

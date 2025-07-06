@@ -600,8 +600,8 @@ function setupProfileCompletionListeners() {
         profileSetupComplete: userData.systemInfo.profileSetupComplete,
       };
 
-      // Force immediate update of user data in menu
-      updateUserDataAfterProfileCompletion(menuUserData);
+      // Force immediate update of user data in menu via currentUser store
+      // The currentUser subscription will automatically update the menu
     }
   });
 
@@ -623,20 +623,18 @@ function setupProfileCompletionListeners() {
         profileSetupComplete: userData.systemInfo.profileSetupComplete,
       };
 
-      updateUserDataAfterProfileCompletion(menuUserData);
+      // The currentUser subscription will automatically update the menu
     }
   });
 }
 
 /**
  * This function is called from profile-setup.js after the profile is saved.
- *
- * @param {object} newUserData - The updated user profile data.
+ * @deprecated - Now handled automatically via currentUser subscription
  */
 function updateUserDataAfterProfileCompletion(newUserData) {
-  console.log("✅ Profile completion detected, forcing menu UI update...");
-  // Directly update the UI with the fresh data.
-  updateUserDisplayInfo(newUserData);
+  console.log("⚠️ updateUserDataAfterProfileCompletion is deprecated - using currentUser subscription instead");
+  // The currentUser subscription system now handles this automatically
 }
 
 // Legacy functions for backward compatibility (if needed by other scripts)

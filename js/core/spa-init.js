@@ -105,22 +105,23 @@ async function initializeSPA() {
  */
 function setupProfileCompletionFlow() {
   // Listen for profile setup completion
-  document.addEventListener("profile:setup:complete", (event) => {
-    console.log("📝 Profile setup completed, redirecting to home...");
+  document.addEventListener("profile:setup:complete", async (event) => {
+    console.log("📝 Profile setup completed, refreshing user data and redirecting...");
 
-    // 🎯 CRITICAL FIX: Ensure user data is refreshed immediately
+    // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data
     const userData = event.detail.userData;
-    if (userData && window.updateUserDataAfterProfileCompletion) {
-      // 🎯 CRITICAL: Create flat structure for menu system
-      const menuUserData = {
-        uid: userData.uid,
-        name: `${userData.profile.firstName} ${userData.profile.lastName}`,
-        email: userData.profile.email,
-        avatarConfig: userData.avatarConfig,
-        profileSetupComplete: userData.systemInfo.profileSetupComplete,
-      };
-
-      window.updateUserDataAfterProfileCompletion(menuUserData);
+    if (userData && window.currentUser) {
+      console.log("🔄 Updating currentUser store with fresh profile data...");
+      
+      // Update the currentUser store with the fresh profile data
+      window.currentUser.setProfile(userData);
+      
+      // Also ensure the user object is set if it wasn't already
+      if (!window.currentUser.user && window.authManager?.getCurrentUser()) {
+        window.currentUser.setUser(window.authManager.getCurrentUser());
+      }
+      
+      console.log("✅ currentUser store updated with fresh profile data");
     }
 
     // Show success message briefly, then redirect
@@ -134,13 +135,23 @@ function setupProfileCompletionFlow() {
   });
 
   // Listen for profile setup skip
-  document.addEventListener("profile:setup:skip", (event) => {
-    console.log("⏭️ Profile setup skipped, redirecting to home...");
+  document.addEventListener("profile:setup:skip", async (event) => {
+    console.log("⏭️ Profile setup skipped, updating user data and redirecting...");
 
-    // Also refresh user data for skip case
+    // 🎯 CRITICAL FIX: Update currentUser store for skip case too
     const userData = event.detail.userData;
-    if (userData && window.updateUserDataAfterProfileCompletion) {
-      window.updateUserDataAfterProfileCompletion(userData);
+    if (userData && window.currentUser) {
+      console.log("🔄 Updating currentUser store for skipped profile...");
+      
+      // Update the currentUser store with the minimal profile data
+      window.currentUser.setProfile(userData);
+      
+      // Also ensure the user object is set if it wasn't already
+      if (!window.currentUser.user && window.authManager?.getCurrentUser()) {
+        window.currentUser.setUser(window.authManager.getCurrentUser());
+      }
+      
+      console.log("✅ currentUser store updated for skipped profile");
     }
 
     if (window.spaRouter) {
