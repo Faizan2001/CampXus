@@ -130,6 +130,7 @@ class ProfileSetup {
       const startingYear = document.getElementById("setup-starting-year");
       const major = document.getElementById("setup-major");
       const bio = document.getElementById("setup-bio");
+      const bioCount = document.getElementById("bio-count");
 
       // Check if elements are available
       if (!firstName || !lastName) {
@@ -137,13 +138,19 @@ class ProfileSetup {
         return;
       }
 
-      // 🗂️ ORGANIZED DATA ACCESS: Extract from grouped structure
+      // 🎯 FINAL FIX: Handle both nested (from DB) and flat (from sign-in) data structures.
+      // This is the key to fixing the pre-filling bug on first sign-in.
+      const isNested = profileData.profile && profileData.universityInfo;
+      const profile = isNested ? profileData.profile : profileData;
+      const universityInfo = isNested ? profileData.universityInfo : {};
+
+      // 🗂️ ORGANIZED DATA ACCESS: Extract from the correct structure
       const getProfileValue = (path, defaultValue = "") => {
-        return profileData.profile?.[path] || defaultValue;
+        return profile[path] || defaultValue;
       };
 
       const getUniversityValue = (path, defaultValue = "") => {
-        return profileData.universityInfo?.[path] || defaultValue;
+        return universityInfo[path] || defaultValue;
       };
 
       // Populate basic info from organized structure
@@ -166,16 +173,14 @@ class ProfileSetup {
 
       // Update bio character counter
       const bioValue = getProfileValue("bio");
-      if (bioValue && bio) {
-        const bioCount = document.getElementById("bio-count");
-        if (bioCount) {
-          bioCount.textContent = bioValue.length;
-        }
+      if (bioCount) {
+        bioCount.textContent = bioValue.length;
       }
 
       // Handle avatar configuration
-      if (profileData.avatarConfig) {
-        this.avatarConfig = profileData.avatarConfig;
+      const avatarSource = isNested ? profileData : profile;
+      if (avatarSource.avatarConfig) {
+        this.avatarConfig = avatarSource.avatarConfig;
       } else {
         this.avatarConfig = null;
       }
@@ -544,7 +549,9 @@ class ProfileSetup {
         await this.initializeSetup();
 
       } else {
+        console.error("No user profile found", error);
         console.warn("🤷 No user logged in. Profile setup will not initialize.");
+        
         // We can optionally hide the setup form or show a login prompt here.
       }
     } catch (error) {
@@ -608,7 +615,6 @@ class ProfileSetup {
       this.prefillUserData();
     }
 
-    this.populateFormFields(this.existingProfileData);
     this.updateStepDisplay();
     this.setupEventListeners(); // Re-add event listeners
     this.initializeAvatarSystem();
@@ -1276,39 +1282,39 @@ class ProfileSetup {
     );
   }
 
-  /**
-   * Save avatar change to database (for completed profiles)
+     /**
+   * Save avatar changes to Firestore and update the in-memory profile.
+   * This ensures the UI updates immediately after a successful change.
+   * @param {object} newAvatarConfig - The new avatar configuration object
+   * @returns {Promise<void>}
    */
-  async saveAvatarChange(avatarConfig) {
+  async saveAvatarChange(newAvatarConfig) {
     try {
-      // Use dataManager's new updateAvatarConfig method for proper validation
-      const result = await dataManager.updateAvatarConfig(
-        this.currentUser.uid,
-        avatarConfig
-      );
-      if (!result.success) throw new Error(result.error);
+      // 1. Get the current profile and update avatarConfig
+      const currentProfile = { ...currentUser.profile };
+      const updatedProfile = {
+        ...currentProfile,
+        avatarConfig: newAvatarConfig,
+      };
 
-      // Use the cleaned config that was actually saved
-      const cleanedAvatarConfig = result.cleanedConfig || avatarConfig;
+      // 2. Save the updated profile to Firestore
+      const result = await dataManager.saveUserProfile(currentUser.user.uid, updatedProfile);
 
-      // Update cached profile data immediately with the cleaned config
-      if (this.existingProfileData) {
-        this.existingProfileData.avatarConfig = cleanedAvatarConfig;
+      if (!result.success) {
+        throw new Error(result.error || "Unknown error updating avatar");
       }
-      // Update menu with new avatar (use cleaned config)
-      if (window.updateUserDataAfterProfileCompletion) {
-        const updatedUserData = {
-          uid: this.currentUser.uid,
-          name: this.currentUser.displayName,
-          email: this.currentUser.email,
-          avatarConfig: cleanedAvatarConfig,
-          profileSetupComplete: true,
-        };
-        window.updateUserDataAfterProfileCompletion(updatedUserData);
-      }
+
+      // 3. Update the in-memory profile so the UI updates immediately
+      currentUser.setProfile(updatedProfile);
+
+      // Optionally, show a success message or trigger a UI update here
+      // showFormSuccess("profile-form", "Avatar updated successfully!");
+
     } catch (error) {
-      console.error("❌ Error saving avatar:", error);
-      alert("Failed to save avatar. Please try again.");
+      console.error("❌ Failed to update avatar:", error);
+      // Optionally, show an error message to the user
+      // showFormError("profile-form", "Failed to update avatar. Please try again.");
+      throw error;
     }
   }
 

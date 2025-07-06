@@ -7,7 +7,10 @@ service cloud.firestore {
     // They can also read the public profiles of other users.
     match /users/{userId} {
       allow read: if request.auth != null; // Allow any authenticated user to read profiles (for searching)
-      allow write: if request.auth.uid == userId; // Allow users to write ONLY to their own profile
+      // A user can create their own profile document, but cannot create one for someone else.
+      allow create: if request.auth.uid == userId;
+      // A user can only update or delete their own profile.
+      allow update, delete: if request.auth.uid == userId;
     }
 
     // --- Universities (Read-Only) ---

@@ -42,6 +42,8 @@ class AuthManager {
   constructor() {
     this.authModal = null;
     this.authStateListeners = [];
+    this.isSigningUp = false;
+    this.isSigningIn = false;
     // A promise that resolves when the initial auth state is known
     this.authReady = new Promise((resolve) => {
       this.resolveAuthReady = resolve;
@@ -325,6 +327,8 @@ class AuthManager {
     this.signinInProgress = true;
     setLoadingState(button, true); // Use external function
 
+    this.isSigningIn = true;
+
     try {
       // Sign in with Firebase
       const userCredential = await signInWithEmailAndPassword(
@@ -334,67 +338,53 @@ class AuthManager {
       );
       const user = userCredential.user;
 
-      // Check if this is a development email
-      if (this.isDevelopmentEmail(email)) {
-        console.log(
-          "🔧 Development mode: Bypassing email verification for:",
-          email
-        );
-        console.log("🎉 Successfully signed in! (Development email bypass)");
-        this.hideAuthModal();
-        // Call success callback if set
-        this.triggerSigninSuccess({ user, isDevelopment: true });
-        return;
-      }
+      // 🎯 THE FINAL FIX: Set the user in our central state manager immediately.
+      // This was the missing piece. Without this, `currentUser.isLoggedIn()` would
+      // return false, causing the profile page to fail.
+      currentUser.setUser(user);
 
-      // For production emails, check Firebase Auth's built-in emailVerified
-      if (!user.emailVerified) {
-        // Sign out the user immediately since they're not verified
-        await signOut(auth);
-        // Show notification to prompt email verification
-        if (typeof dataManager !== 'undefined' && dataManager.showNotification) {
-          dataManager.showNotification(
-            "Please verify your email address before signing in. Check your inbox for a verification link.",
-            "warning",
-            { duration: 6000 }
-          );
-        }
-        return;
-      }
+      // 1. Determine if user is allowed to proceed.
+      const isDev = this.isDevelopmentEmail(email);
+      const isVerified = user.emailVerified;
 
-      // If Firebase Auth's emailVerified is true, proceed
-      console.log(
-        "🎉 Successfully signed in! (Firebase Auth emailVerified check passed)"
-      );
-
-      // Check if Firestore profile exists; if not, create it
-      let profile = null;
-      try {
-        profile = await dataManager.getUserProfile(user.uid);
-      } catch (e) {
-        console.warn("Could not check for existing Firestore profile:", e);
+      // This is your security gate. Only allow verified users OR dev users.
+      if (!isDev && !isVerified) {
+        console.log(`🚫 Sign-in blocked for unverified user: ${email}`);
+        await this.handleUnverifiedUser();
+        return; // Stop execution.
       }
+      
+      // 2. If we reach here, the user is allowed. Now, ensure their profile exists.
+      console.log(`✅ User ${email} authenticated. Checking for Firestore profile...`);
+      let profile = await dataManager.getUserProfile(user.uid);
+
       if (!profile) {
+        console.log(`First valid login for ${email}. Creating Firestore profile...`);
         try {
-          await this.createUserProfile(user, email);
-          console.log("✅ Firestore profile created after verified sign in.");
+          profile = await this.createUserProfile(user, email);
+          console.log("✅ Firestore profile created successfully during sign-in.");
         } catch (profileError) {
-          console.error("❌ Failed to create Firestore profile after sign in:", profileError);
-          showFormError("signin-form", "Failed to create your profile. Please try again or contact support.");
-          // Optionally, sign out user if profile creation fails
-          await signOut(auth);
+          console.error("❌ Failed to create Firestore profile during sign in:", profileError);
+          showFormError("signin-form", "Couldn't create your profile. Please try again.");
+          await signOut(auth); // Sign out if profile creation fails.
           return;
         }
       }
+
+      // *** Immediately set the profile so UI subscribers in menu.js fire ***
+      currentUser.setProfile(profile);
+
+      // 3. Success! Hide modal and trigger success event.
+      console.log(`🎉 Successfully signed in user: ${email}`);
       this.hideAuthModal();
-      // Call success callback if set
-      this.triggerSigninSuccess({ user, isDevelopment: false });
+      this.triggerSigninSuccess({ user, isDevelopment: isDev });
     } catch (error) {
       console.error("Sign in error:", error);
       showFormError("signin-form", this.getReadableError(error)); // Use external function
       // Call error callback if set
       this.triggerSigninError({ error, email });
     } finally {
+      this.isSigningIn = false;
       // 🛡️ Reset submission flag and loading state
       this.signinInProgress = false;
       setLoadingState(button, false); // Use external function
@@ -426,6 +416,7 @@ class AuthManager {
 
     // 🛡️ Set submission flag and show loading state
     this.signupInProgress = true;
+    this.isSigningUp = true;
     setLoadingState(button, true); // Use external function
 
     try {
@@ -474,6 +465,7 @@ class AuthManager {
     } finally {
       // 🛡️ Reset submission flag and loading state
       this.signupInProgress = false;
+      this.isSigningUp = false;
       setLoadingState(button, false); // Use external function
     }
   }
@@ -542,6 +534,9 @@ class AuthManager {
       console.log(
         "👤 User profile created in Firestore with organized structure matching profile-setup.js"
       );
+      
+      // *** Return the profile so handleSignIn can call currentUser.setProfile(...) immediately
+      return userProfile;
     } catch (error) {
       console.error("❌ Failed to create user profile in Firestore:", error);
       console.error("❌ Error code:", error.code);
@@ -558,6 +553,9 @@ class AuthManager {
    */
   setupAuthStateListener() {
     onAuthStateChanged(auth, async (user) => {
+      // 🛡️ Guard clauses to prevent race conditions
+      if (this.isSigningUp || this.isSigningIn) return;
+
       if (user) {
         // --- User is signed in ---
         console.log("🔒 Auth state changed: User is logged in.", user.uid);
@@ -587,16 +585,26 @@ class AuthManager {
             // For backward compatibility, you might still notify listeners with the user object
             this.notifyAuthStateChange(user);
           } else {
-            // This case might happen if profile creation failed or is delayed.
-            console.warn("🤔 User is authenticated, but profile not found.");
-            // Decide how to handle this - maybe force profile setup?
-            // For now, we'll treat them as not fully logged in.
-            currentUser.setProfile(null);
-            this.notifyAuthStateChange(null);
+            // 🎯 FINAL FIX: This is the critical change.
+            // During a race condition on first sign-in, the profile might not be available
+            // in Firestore *immediately* when this listener runs.
+            // Previously, we would set the profile to `null`, wiping out the data that
+            // `handleSignIn` was in the process of setting.
+            // Now, we simply log it and do nothing. We trust that another process
+            // (like `handleSignIn`) is responsible for setting the profile.
+            console.warn(
+              "🤔 Auth listener: User is authenticated, but Firestore profile not (yet) found. This is expected during first sign-in."
+            );
           }
         } catch (error) {
-          console.error("❌ Error fetching user profile:", error);
-          currentUser.setProfile(null);
+          console.error(
+            "❌ Error fetching user profile inside auth state listener:",
+            error
+          );
+          // 🎯 FINAL FIX: Do NOT set the profile to null here.
+          // An error fetching the profile (e.g., a permission error during a race
+          // condition) should not wipe out the state that might have just been
+          // set by another process like `handleSignIn`. We just log the error.
           this.notifyAuthStateChange(null);
         }
       } else {
@@ -672,7 +680,7 @@ class AuthManager {
   /**
    * Sign out current user
    */
-  async signOut() {
+  async handleSignOut() {
     try {
       await signOut(auth);
       console.log("👋 Successfully signed out");

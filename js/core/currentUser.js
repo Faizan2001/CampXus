@@ -32,6 +32,7 @@ class CurrentUserManager {
     this._profile = null; // Firestore user profile
     this._profilePromise = null;
     this._resolveProfilePromise = null;
+    this._subscribers = new Set();
     this.reset();
   }
 
@@ -60,6 +61,18 @@ class CurrentUserManager {
   }
 
   /**
+   * Gets the complete current user state.
+   * @returns {{user: object|null, profile: object|null, isLoggedIn: boolean}}
+   */
+  get state() {
+    return {
+      user: this._user,
+      profile: this._profile,
+      isLoggedIn: this.isLoggedIn(),
+    };
+  }
+
+  /**
    * Checks if a user is currently logged in.
    * @returns {boolean}
    */
@@ -76,13 +89,14 @@ class CurrentUserManager {
       this._user = user;
       this._uid = user.uid;
       // Create a new promise for the profile loading
-      this._profilePromise = new Promise(resolve => {
+      this._profilePromise = new Promise((resolve) => {
         this._resolveProfilePromise = resolve;
       });
     } else {
       // If user is null (logged out), reset everything.
       this.reset();
     }
+    this._notifySubscribers();
   }
 
   /**
@@ -91,11 +105,14 @@ class CurrentUserManager {
    */
   setProfile(profile) {
     this._profile = profile;
-    // If the promise exists and its resolver function is available, call it.
+    // When the profile is set (even to null on logout), resolve the promise.
     if (this._resolveProfilePromise) {
       this._resolveProfilePromise(this._profile);
-      this._resolveProfilePromise = null; // Ensure it's only called once
+      // Nullify the resolver so the promise can't be resolved again.
+      // A new promise will be created on the next login.
+      this._resolveProfilePromise = null;
     }
+    this._notifySubscribers();
   }
 
   /**
@@ -117,18 +134,39 @@ class CurrentUserManager {
   }
 
   /**
+   * Subscribes a callback function to state changes.
+   * @param {function} callback - The function to call when state changes.
+   * @returns {function} - A function to unsubscribe.
+   */
+  subscribe(callback) {
+    this._subscribers.add(callback);
+    // Immediately call the callback with the current state upon subscription
+    callback(this.state);
+    // Return an unsubscribe function
+    return () => this._subscribers.delete(callback);
+  }
+
+  /**
+   * Notifies all subscribers of a state change.
+   * @private
+   */
+  _notifySubscribers() {
+    for (const callback of this._subscribers) {
+      callback(this.state);
+    }
+  }
+
+  /**
    * Resets the user state upon logout.
    */
   reset() {
     this._uid = null;
     this._user = null;
     this._profile = null;
-    // Reset the promise so that next login gets a new one.
+    // Create a new, pending promise for the next time a user logs in.
     this._profilePromise = new Promise(resolve => {
       this._resolveProfilePromise = resolve;
     });
-    // Immediately resolve the promise with null, as there's no user.
-    this._resolveProfilePromise(null);
   }
 }
 

@@ -2,6 +2,7 @@
 
 // Import DataManager for all user data operations
 import { dataManager } from "./data-manager.js";
+import { currentUser } from "./currentUser.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // Apply saved theme on page load
@@ -207,11 +208,9 @@ function initializeUserMenu() {
   // Add event listeners to all dropdown items to close dropdown when clicked
   setupDropdownItemsCloseHandler();
 
-  // Initialize authentication state
-  checkAuthenticationState();
-
-  // Set up Firebase auth state listener if available
-  setupFirebaseAuthListener();
+  // Subscribe to the central currentUser store for all auth-related UI updates.
+  // This is the new, single source of truth for the menu's auth state.
+  currentUser.subscribe(handleAuthStateChange);
 
   // Set up profile completion listeners for immediate data refresh
   setupProfileCompletionListeners();
@@ -374,71 +373,29 @@ function setupDropdownItemsCloseHandler() {
  * Handle user sign out
  */
 async function handleSignOut() {
-  // Add visual feedback
-  const signOutBtn = document.getElementById("signOutBtn");
-  if (signOutBtn) {
-    signOutBtn.style.opacity = "0.7";
-    signOutBtn.innerHTML =
-      '<i class="fas fa-spinner fa-spin"></i><span>Signing out...</span>';
-  }
-
   try {
-    // 🐛 BUG FIX: Clear all cached data BEFORE Firebase sign out
     console.log("🧹 Clearing cached user data...");
-    localStorage.removeItem("user");
-    localStorage.removeItem("authToken");
+    // await dataManager.clearLocalCache(); // Optional: clear cache on sign-out
 
-    // Clear UI immediately
-    clearUserDisplayInfo();
-
-    // Use Firebase auth manager to sign out
+    // Call the central sign-out method
     if (window.authManager) {
-      await window.authManager.signOut();
+      await window.authManager.handleSignOut();
       console.log("Successfully signed out");
+      // Force clear user display info to guarantee UI reset
+      if (window.userMenuUtils && typeof window.userMenuUtils.clearUserDisplayInfo === 'function') {
+        window.userMenuUtils.clearUserDisplayInfo();
+      }
+      // Also force visibility update for login button and user menu
+      const loginBtn = document.getElementById("login-btn");
+      const userMenu = document.getElementById("userMenu");
+      if (loginBtn) loginBtn.style.display = "flex";
+      if (userMenu) userMenu.style.display = "none";
     } else {
-      console.log("User signed out successfully");
+      console.error("AuthManager not available.");
     }
-
-    // Close dropdown
-    closeUserDropdown();
-
-    // Hide user menu and show login button
-    updateAuthenticationUI(false);
-
-    // Navigate to home page (main schedule screen) using SPA router
-    if (window.spaRouter) {
-      console.log("🏠 Redirecting to home after sign out...");
-      window.spaRouter.navigateTo("home");
-    } else {
-      // Fallback: Traditional navigation if SPA router isn't available
-      console.log("⚠️ SPA router not available, using traditional navigation");
-      window.location.href = "#home";
-    }
-
-    // Dispatch custom event for other components to react
-    window.dispatchEvent(
-      new CustomEvent("userSignedOut", {
-        detail: { timestamp: Date.now() },
-      })
-    );
   } catch (error) {
     console.error("Error during sign out:", error);
-    // Even on error, clear cached data and navigate to home for better UX
-    localStorage.removeItem("user");
-    localStorage.removeItem("authToken");
-    clearUserDisplayInfo();
-    updateAuthenticationUI(false);
-
-    if (window.spaRouter) {
-      window.spaRouter.navigateTo("home");
-    }
-  } finally {
-    // Always reset button state (whether success or error)
-    if (signOutBtn) {
-      signOutBtn.style.opacity = "1";
-      signOutBtn.innerHTML =
-        '<i class="fas fa-sign-out-alt"></i><span>Sign Out</span>';
-    }
+    // Optionally show a user-facing error message here
   }
 }
 
@@ -471,35 +428,28 @@ function handleLogin() {
 }
 
 /**
- * Update UI based on authentication state
+ * Handles changes from the currentUser store subscription.
+ * This is the new central point for updating the menu's UI based on auth state.
+ *
+ * @param {object} state - The current user state from the store.
+ * @param {boolean} state.isLoggedIn - Whether the user is logged in.
+ * @param {object|null} state.profile - The user's profile data.
  */
-function updateAuthenticationUI(isAuthenticated, userData = null) {
+function handleAuthStateChange({ isLoggedIn, profile }) {
   const userMenu = document.getElementById("userMenu");
   const loginBtn = document.getElementById("login-btn");
 
   if (!userMenu || !loginBtn) return;
 
-  if (isAuthenticated && userData) {
-    // Show user menu, hide login button
-    userMenu.style.display = "flex";
+  if (isLoggedIn && profile) {
+    // User is logged in and has a profile, show the user menu
     loginBtn.style.display = "none";
-
-    // Store user data in localStorage for page reload persistence
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    // Update user information in the UI
-    // Always use UID for minimal fetch
-    updateUserDisplayInfo(userData.uid || userData);
+    userMenu.style.display = "flex";
+    updateUserDisplayInfo(profile);
   } else {
-    // Hide user menu, show login button
+    // User is logged out or profile is not yet available
+    loginBtn.style.display = "flex";
     userMenu.style.display = "none";
-    loginBtn.style.display = "block";
-
-    // BUG FIX: Clear all cached user data on sign out
-    localStorage.removeItem("user");
-    localStorage.removeItem("authToken");
-
-    // Clear displayed user info
     clearUserDisplayInfo();
   }
 }
@@ -511,54 +461,26 @@ function updateAuthenticationUI(isAuthenticated, userData = null) {
  *
  * @param {string} userId - The user's UID
  */
-async function updateUserDisplayInfo(userId) {
-  try {
-    // Fetch only the minimal fields needed for the dropdown header
+async function updateUserDisplayInfo(userData) {
+  const nameElement = document.getElementById("userDropdownName");
+  const emailElement = document.getElementById("userDropdownEmail");
 
-    const minimalProfile = await dataManager.getUserProfileMinimal(userId);
-    console.log(
-      "[DEBUG] minimalProfile fetched from dataManager:",
-      minimalProfile
-    );
-    if (!minimalProfile) {
-      console.warn("No minimal profile found for user:", userId);
-      return;
-    }
-    //  CHANGE: Destructure displayName directly from the minimal profile.
-    const { displayName, email, avatarConfig } = minimalProfile;
+  if (!nameElement || !emailElement) {
+    console.warn("User dropdown elements not found for updateUserDisplayInfo");
+    return;
+  }
 
-    // Use the displayName, with a fallback to "User" if it's null or empty.
-    const finalDisplayName =
-      typeof displayName === "string" && displayName ? displayName : "User";
-
-    // Wait for DOM elements
-    const waitForElements = () => {
-      const userDropdownName = document.getElementById("userDropdownName");
-      const userDropdownEmail = document.getElementById("userDropdownEmail");
-      if (!userDropdownName || !userDropdownEmail) {
-        setTimeout(waitForElements, 100);
-        return;
-      }
-      //  CHANGE: Use the finalDisplayName.
-      userDropdownName.textContent = finalDisplayName;
-      userDropdownEmail.textContent = email || "";
-      // Update tooltip
-      const userMenuTrigger = document.getElementById("userMenuTrigger");
-      if (userMenuTrigger) {
-        userMenuTrigger.setAttribute(
-          "title",
-          `${finalDisplayName} - Click to open menu`
-        );
-      }
-    };
-    waitForElements();
-    // Update avatar displays
-    updateUserAvatarDisplays({
-      name: finalDisplayName,
-      avatarConfig: avatarConfig || {},
-    });
-  } catch (error) {
-    console.error("Error updating user display info:", error);
+  // Handle both profile object directly and userData.profile structure
+  const profileData = userData?.profile || userData;
+  
+  if (profileData) {
+    if (nameElement)
+      nameElement.textContent = profileData.displayName || profileData.firstName || "User";
+    if (emailElement)
+      emailElement.textContent = profileData.email || "No email";
+    updateUserAvatarDisplays(userData);
+  } else {
+    clearUserDisplayInfo({ preventFlag: "updateUserDisplayInfo" });
   }
 }
 
@@ -568,404 +490,90 @@ async function updateUserDisplayInfo(userId) {
  * @param {Object} userData - User data containing avatarConfig
  */
 function updateUserAvatarDisplays(userData) {
+  const avatarTrigger = document.getElementById("userAvatarTrigger");
+  const avatarLarge = document.getElementById("userAvatarLarge");
+  
+  // Handle both direct profile data and nested userData structure
+  const avatarConfig = userData?.avatarConfig || userData?.profile?.avatarConfig;
+  const hasAvatarConfig = !!avatarConfig;
+
+  // 🎯 FIX: Check for avatarManager and the correct function `generateAvatarUrl`
+  if (hasAvatarConfig && window.avatarManager && typeof window.avatarManager.generateAvatarUrl === 'function') {
+    try {
+      const avatarUrl = window.avatarManager.generateAvatarUrl(avatarConfig);
+      const avatarHtml = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
+
+      if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
+      if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
+      console.log("🎨 Custom avatar rendered successfully.");
+
+    } catch (error) {
+      console.error("❌ Error generating avatar URL, falling back to default.", error);
+      displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
+    }
+  } else {
+    // Fallback for no config or no avatar manager
+    displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
+  }
+}
+
+/**
+ * Displays the default FontAwesome user icon in avatar elements.
+ * @param {HTMLElement} triggerElement - The small avatar element in the nav.
+ * @param {HTMLElement} largeElement - The large avatar element in the dropdown.
+ */
+function displayDefaultAvatarIcons(triggerElement, largeElement) {
+  const defaultIcon = '<i class="fas fa-user-circle"></i>';
+  if (triggerElement) triggerElement.innerHTML = defaultIcon;
+  if (largeElement) largeElement.innerHTML = defaultIcon;
+}
+
+/**
+ * Clear user display information from the UI
+ * 🐛 BUG FIX: Ensures no stale data remains when users sign out
+ */
+function clearUserDisplayInfo() {
+  // 🛡️ CRITICAL SAFEGUARD: Don't clear if we just completed profile setup
+  if (window.preventUserDataClearing) {
+    console.log(
+      "🛡️ Prevented clearing user data - profile completion in progress"
+    );
+    return;
+  }
+
+  console.log("🧹 clearUserDisplayInfo called", {
+    stack: new Error().stack?.split("\n").slice(1, 4).join("\n"),
+    timestamp: new Date().toISOString(),
+    preventFlag: window.preventUserDataClearing,
+  });
+
+  // Clear dropdown header user details
+  const userDropdownName = document.getElementById("userDropdownName");
+  const userDropdownEmail = document.getElementById("userDropdownEmail");
+
+  if (userDropdownName) {
+    console.log("🧹 Clearing user name:", userDropdownName.textContent);
+    userDropdownName.textContent = "";
+  }
+
+  if (userDropdownEmail) {
+    console.log("🧹 Clearing user email:", userDropdownEmail.textContent);
+    userDropdownEmail.textContent = "";
+  }
+
+  // Clear avatar displays and reset to default icons
   const userAvatarTrigger = document.getElementById("userAvatarTrigger");
   const userAvatarLarge = document.getElementById("userAvatarLarge");
 
-  // Check if we have avatar configuration from Firestore
-  const hasCustomAvatar =
-    userData.avatarConfig &&
-    userData.avatarConfig.style &&
-    userData.avatarConfig.seed;
+  displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
 
-  // 🏆 DEBUG: Keep basic avatar debugging for development
-  console.log("🎨 Avatar Status:", {
-    hasAvatarConfig: !!userData.avatarConfig,
-    hasAvatarManager: !!window.avatarManager,
-    hasCustomAvatar,
-  });
-
-  if (hasCustomAvatar && window.avatarManager) {
-    try {
-      // Generate avatar URL using avatar manager
-      const avatarUrl = window.avatarManager.generateAvatarUrl(
-        userData.avatarConfig
-      );
-
-      console.log("🎨 Displaying custom avatar:", {
-        style: userData.avatarConfig.style,
-        seed: userData.avatarConfig.seed,
-        url: avatarUrl,
-      });
-
-      // Update navigation trigger avatar
-      if (userAvatarTrigger) {
-        userAvatarTrigger.innerHTML = `
-          <div class="avatar-content">
-            <img src="${avatarUrl}" alt="${userData.name}'s Avatar" />
-          </div>
-        `;
-      }
-
-      // Update dropdown header avatar
-      if (userAvatarLarge) {
-        userAvatarLarge.innerHTML = `
-          <div class="avatar-content">
-            <img src="${avatarUrl}" alt="${userData.name}'s Avatar" />
-          </div>
-        `;
-      }
-    } catch (error) {
-      console.error("❌ Error generating avatar URL:", error);
-      // Fallback to default icon
-      displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
-    }
-  } else {
-    console.log("⚠️ No custom avatar found or avatar manager not available");
-
-    // 🔄 If we have avatar config but no avatar manager, retry when it loads
-    if (userData.avatarConfig && !window.avatarManager) {
-      console.log(
-        "🔄 Avatar config exists but avatar manager not ready, will retry..."
-      );
-
-      // Store user data for retry
-      window.pendingAvatarUpdate = userData;
-
-      // Set up a listener for when avatar manager loads
-      const checkAvatarManager = () => {
-        if (window.avatarManager && window.pendingAvatarUpdate) {
-          console.log(
-            "✅ Avatar manager now available, retrying avatar display..."
-          );
-          const pendingData = window.pendingAvatarUpdate;
-          window.pendingAvatarUpdate = null; // Clear the pending data
-          updateUserAvatarDisplays(pendingData); // Retry the avatar display
-        } else if (!window.avatarManager) {
-          // Retry after a short delay
-          setTimeout(checkAvatarManager, 500);
-        }
-      };
-
-      // Start checking for avatar manager immediately and with retries
-      setTimeout(checkAvatarManager, 100);
-
-      // 🎯 CRITICAL FIX: Also check when scripts are loaded via SPA router
-      document.addEventListener("DOMContentLoaded", checkAvatarManager);
-      document.addEventListener("spa:navigation", checkAvatarManager);
-
-      // 🎯 ADDITIONAL FIX: Check periodically for avatar manager
-      const avatarManagerInterval = setInterval(() => {
-        if (window.avatarManager && window.pendingAvatarUpdate) {
-          clearInterval(avatarManagerInterval);
-          console.log("🎨 Avatar manager detected during periodic check...");
-          checkAvatarManager();
-        }
-      }, 1000); // Check every second for up to 10 seconds
-
-      setTimeout(() => {
-        clearInterval(avatarManagerInterval);
-      }, 10000);
-    }
-
-    // Display default avatar icons while waiting
-    displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
-  }
-}
-
-/**
- * Display default avatar icons when no custom avatar is available
- * @param {HTMLElement} triggerElement - Navigation trigger element
- * @param {HTMLElement} largeElement - Dropdown header element
- */
-function displayDefaultAvatarIcons(triggerElement, largeElement) {
-  if (triggerElement) {
-    triggerElement.innerHTML = '<i class="fas fa-user-circle"></i>';
+  // Clear user menu trigger tooltip
+  const userMenuTrigger = document.getElementById("userMenuTrigger");
+  if (userMenuTrigger) {
+    userMenuTrigger.setAttribute("title", "User menu");
   }
 
-  if (largeElement) {
-    largeElement.innerHTML = '<i class="fas fa-user-circle"></i>';
-  }
-}
-
-/**
- * Check current authentication state on page load
- * 🐛 BUG FIX: Only use cached data if Firebase auth is not available yet
- */
-async function checkAuthenticationState() {
-  // Try to get the current user from Firebase auth manager
-  let userId = null;
-  if (window.authManager && window.authManager.getCurrentUser) {
-    const currentUser = window.authManager.getCurrentUser();
-    if (currentUser) {
-      userId = currentUser.uid;
-    }
-  }
-
-  // If we have a userId, fetch profile from Firestore via dataManager
-  if (userId) {
-    try {
-      const userProfile = await dataManager.getUserProfile(userId);
-      if (userProfile) {
-        updateAuthenticationUI(true, userProfile);
-        return;
-      }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-    }
-  }
-
-  // Fallback: Try to get cached user data from dataManager
-  try {
-    const cachedUser =
-      dataManager.getCachedData && dataManager.getCachedData(`user_${userId}`);
-    if (cachedUser) {
-      updateAuthenticationUI(true, cachedUser);
-    } else {
-      updateAuthenticationUI(false);
-    }
-  } catch (error) {
-    console.error("Error checking authentication state:", error);
-    updateAuthenticationUI(false);
-  }
-}
-
-/**
- * Force update user data after profile completion
- * 🎯 CRITICAL FIX: This ensures avatar and display name appear immediately after profile setup
- * @param {Object} newUserData - Fresh user data from profile completion
- */
-function updateUserDataAfterProfileCompletion(newUserData) {
-  console.log(
-    "🔄 Forcing user data update after profile completion:",
-    newUserData
-  );
-
-  // 🛡️ Set a flag to prevent clearing operations for a short time
-  window.preventUserDataClearing = true;
-  setTimeout(() => {
-    window.preventUserDataClearing = false;
-  }, 3000); // Protect for 3 seconds
-
-  // Store in localStorage first for persistence across page reloads
-  localStorage.setItem("user", JSON.stringify(newUserData));
-
-  // Update authentication UI with the fresh data
-  updateAuthenticationUI(true, newUserData);
-
-  // 🎯 CRITICAL: Force immediate update of display info with retry
-  const forceUpdate = () => {
-    const userDropdownName = document.getElementById("userDropdownName");
-    const userDropdownEmail = document.getElementById("userDropdownEmail");
-
-    if (userDropdownName && userDropdownEmail) {
-      // Always use UID for minimal fetch
-      updateUserDisplayInfo(newUserData.uid || newUserData);
-      console.log("✅ User data successfully updated after profile completion");
-    } else {
-      console.log("⏳ Elements not ready, retrying user data update...");
-      setTimeout(forceUpdate, 200);
-    }
-  };
-  forceUpdate();
-}
-
-// 🎯 EXPORT FUNCTION: Make this available globally for profile-setup.js to call
-window.updateUserDataAfterProfileCompletion =
-  updateUserDataAfterProfileCompletion;
-
-/**
- * =============================================================================
- *                  🎯 CRITICAL FIX: AVATAR & DISPLAY NAME UPDATE SYSTEM
- * =============================================================================
- *
- * 🚨 PROBLEM SOLVED:
- * Previously, when users completed profile setup (including setting an avatar),
- * they had to manually reload the page to see their avatar and display name.
- *
- * 🔍 ROOT CAUSE:
- * 1. Profile data was saved to Firebase successfully
- * 2. User was redirected to home page via SPA router
- * 3. Menu system tried to fetch fresh user data from Firestore
- * 4. BUT there was a timing issue - sometimes cached data was displayed
- * 5. Avatar manager wasn't always loaded when avatar display was attempted
- *
- * 💡 SOLUTION IMPLEMENTED:
- * 1. Force immediate refresh of user data after profile completion
- * 2. Enhanced retry mechanism for avatar manager loading
- * 3. Session storage flag to detect profile completion
- * 4. Multiple fallback checks for avatar display
- * 5. Event-driven updates instead of relying solely on auth state changes
- *
- * 🎯 TEACHING MOMENT:
- * This fix demonstrates several important web development concepts:
- * - Data synchronization in single-page applications
- * - Event-driven architecture for real-time updates
- * - Graceful handling of async resource loading
- * - User experience optimization (no manual refresh needed)
- * - Defensive programming with multiple fallback mechanisms
- *
- * =============================================================================
- */
-
-/**
- * Set up Firebase authentication state listener
- * 🏆 BEST PRACTICE: Use debouncing to prevent race conditions
- */
-function setupFirebaseAuthListener() {
-  // 🛡️ Debouncing variables to prevent rapid auth state changes
-  let authProcessingTimer = null;
-  let isProcessingAuthChange = false;
-
-  // Wait for Firebase auth manager to be available
-  const checkAuthManager = () => {
-    if (
-      window.authManager &&
-      typeof window.authManager.onAuthStateChanged === "function"
-    ) {
-      console.log("🔥 Setting up Firebase auth state listener for menu");
-
-      window.authManager.onAuthStateChanged(async (user) => {
-        // 🏆 DEBOUNCING: Clear any pending auth processing
-        clearTimeout(authProcessingTimer);
-
-        // 🛡️ Prevent overlapping auth processing
-        if (isProcessingAuthChange) {
-          console.log("🔄 Auth change already being processed, debouncing...");
-          return;
-        }
-
-        // 🏆 DEBOUNCE: Wait 200ms before processing to let Firestore settle
-        authProcessingTimer = setTimeout(async () => {
-          isProcessingAuthChange = true;
-
-          try {
-            if (user) {
-              // User is signed in - fetch fresh profile data from Firestore
-              console.log(
-                "👤 User authenticated, fetching fresh profile data for:",
-                user.email
-              );
-
-              // 🎯 CRITICAL FIX: Be more careful about clearing display info
-              // Only clear if we truly have no user data AND no display elements are populated
-              const currentUserData = localStorage.getItem("user");
-              const userDropdownName =
-                document.getElementById("userDropdownName");
-              const userDropdownEmail =
-                document.getElementById("userDropdownEmail");
-
-              // Only clear if we have no stored data AND no displayed data
-              const hasDisplayedData =
-                userDropdownName?.textContent?.trim() ||
-                userDropdownEmail?.textContent?.trim();
-
-              if (!currentUserData && !hasDisplayedData) {
-                console.log(
-                  "🧹 Clearing user display info - no stored or displayed data"
-                );
-                clearUserDisplayInfo();
-              } else {
-                console.log("🛡️ Preserving user display info - data exists", {
-                  hasStoredData: !!currentUserData,
-                  hasDisplayedData: hasDisplayedData,
-                });
-              }
-
-              // 🏆 ROBUST: Retry system for reliable Firestore access
-              const maxRetries = 3;
-              let retryCount = 0;
-              let userData = null;
-
-              while (retryCount < maxRetries && !userData) {
-                try {
-                  // Use dataManager for consistent data access
-                  const firestoreData = await dataManager.getUserProfile(
-                    user.uid
-                  );
-
-                  if (firestoreData) {
-                    userData = {
-                      uid: user.uid,
-                      name:
-                        // 🗂️ ORGANIZED STRUCTURE: Access from profile group
-                        firestoreData.profile?.firstName &&
-                        firestoreData.profile?.lastName
-                          ? `${firestoreData.profile.firstName} ${firestoreData.profile.lastName}`
-                          : firestoreData.displayName ||
-                            user.email.split("@")[0],
-                      email: user.email,
-                      avatarConfig: firestoreData.avatarConfig || null,
-                      profileSetupComplete:
-                        // 🗂️ ORGANIZED STRUCTURE: Access from systemInfo group
-                        firestoreData.systemInfo?.profileSetupComplete || false,
-                    };
-
-                    console.log("✅ Profile loaded for:", user.email, {
-                      hasAvatar: !!userData.avatarConfig,
-                      profileSetupComplete: userData.profileSetupComplete,
-                    });
-
-                    break; // Success! Exit the retry loop
-                  } else {
-                    // Retry if data not found and we have retries left
-                    if (retryCount < maxRetries - 1) {
-                      console.log("🔄 Retrying profile data fetch...");
-                      retryCount++;
-                      await new Promise((resolve) => setTimeout(resolve, 500));
-                      continue;
-                    }
-                  }
-                } catch (error) {
-                  console.error(
-                    `❌ Attempt ${retryCount + 1} failed:`,
-                    error.message
-                  );
-
-                  retryCount++;
-                  if (retryCount < maxRetries) {
-                    const delay = retryCount * 300;
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                  }
-                }
-              }
-
-              // If we still don't have userData after all retries, create fallback
-              if (!userData) {
-                console.log("⚠️ Using fallback user data for:", user.email);
-                userData = {
-                  uid: user.uid,
-                  name: user.displayName || user.email.split("@")[0],
-                  email: user.email,
-                  avatarConfig: null,
-                  profileSetupComplete: false,
-                };
-              }
-
-              updateAuthenticationUI(true, userData);
-            } else {
-              // User is signed out - clear everything
-              console.log(
-                "👤 User signed out, clearing all data and updating UI"
-              );
-
-              localStorage.removeItem("user");
-              localStorage.removeItem("authToken");
-              clearUserDisplayInfo();
-              updateAuthenticationUI(false);
-            }
-          } finally {
-            // 🛡️ Reset processing flag when done
-            isProcessingAuthChange = false;
-          }
-        }, 200); // 200ms debounce delay
-      });
-    } else {
-      // Retry after a short delay if auth manager isn't ready yet
-      setTimeout(checkAuthManager, 100);
-    }
-  };
-
-  checkAuthManager();
+  console.log("🧹 Cleared all user display information");
 }
 
 /**
@@ -1018,6 +626,17 @@ function setupProfileCompletionListeners() {
       updateUserDataAfterProfileCompletion(menuUserData);
     }
   });
+}
+
+/**
+ * This function is called from profile-setup.js after the profile is saved.
+ *
+ * @param {object} newUserData - The updated user profile data.
+ */
+function updateUserDataAfterProfileCompletion(newUserData) {
+  console.log("✅ Profile completion detected, forcing menu UI update...");
+  // Directly update the UI with the fresh data.
+  updateUserDisplayInfo(newUserData);
 }
 
 // Legacy functions for backward compatibility (if needed by other scripts)
@@ -1143,59 +762,8 @@ window.userMenuUtils = {
   toggleUserDropdown,
   openUserDropdown,
   closeUserDropdown,
-  updateAuthenticationUI,
   updateUserDisplayInfo,
   clearUserDisplayInfo, // 🐛 BUG FIX: Expose clear function for external use
   handleSignOut,
   handleLogin,
-  checkAuthenticationState,
-  setupFirebaseAuthListener,
 };
-
-/**
- * Clear user display information from the UI
- * 🐛 BUG FIX: Ensures no stale data remains when users sign out
- */
-function clearUserDisplayInfo() {
-  // 🛡️ CRITICAL SAFEGUARD: Don't clear if we just completed profile setup
-  if (window.preventUserDataClearing) {
-    console.log(
-      "🛡️ Prevented clearing user data - profile completion in progress"
-    );
-    return;
-  }
-
-  console.log("🧹 clearUserDisplayInfo called", {
-    stack: new Error().stack?.split("\n").slice(1, 4).join("\n"),
-    timestamp: new Date().toISOString(),
-    preventFlag: window.preventUserDataClearing,
-  });
-
-  // Clear dropdown header user details
-  const userDropdownName = document.getElementById("userDropdownName");
-  const userDropdownEmail = document.getElementById("userDropdownEmail");
-
-  if (userDropdownName) {
-    console.log("🧹 Clearing user name:", userDropdownName.textContent);
-    userDropdownName.textContent = "";
-  }
-
-  if (userDropdownEmail) {
-    console.log("🧹 Clearing user email:", userDropdownEmail.textContent);
-    userDropdownEmail.textContent = "";
-  }
-
-  // Clear avatar displays and reset to default icons
-  const userAvatarTrigger = document.getElementById("userAvatarTrigger");
-  const userAvatarLarge = document.getElementById("userAvatarLarge");
-
-  displayDefaultAvatarIcons(userAvatarTrigger, userAvatarLarge);
-
-  // Clear user menu trigger tooltip
-  const userMenuTrigger = document.getElementById("userMenuTrigger");
-  if (userMenuTrigger) {
-    userMenuTrigger.setAttribute("title", "User menu");
-  }
-
-  console.log("🧹 Cleared all user display information");
-}
