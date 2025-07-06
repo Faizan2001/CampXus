@@ -78,6 +78,12 @@ async function initializeSPA() {
     // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
     window.spaRouter.loadInitialPage();
 
+    // ── BUG FIX ──
+    // Register the profile setup completion listeners so that
+    // `profile:setup:complete` and `profile:setup:skip` events
+    // actually drive menu refresh and navigation.
+    setupProfileCompletionFlow();
+
     // Listen for SPA navigation events
     setupSPAEventListeners();
 
