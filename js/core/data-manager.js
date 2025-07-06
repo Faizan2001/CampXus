@@ -310,7 +310,7 @@ class DataManager {
   // =========================
 
   /**
-   * 🔍 Find users by university with search optimization
+   * 🔍 Find users by university with multi-field search optimization
    * @param {string} universityId - The university ID to search within
    * @param {string} searchTerm - Optional search term for name/major
    * @param {number} maxResults - Maximum results to return (default: 20)
@@ -322,43 +322,86 @@ class DataManager {
       return [];
     }
 
+    const usersRef = collection(db, "users");
+
+    // Common filters for all queries
+    const baseFilters = [
+      where("universityInfo.university", "==", universityId),
+      where("socialInfo.searchable", "==", true),
+      // Note: Removed profileSetupComplete filter as it may not be set for all users
+      // Uncomment the line below if you want to enforce profile completion:
+      // where("systemInfo.profileSetupComplete", "==", true),
+    ];
+
     try {
-      const usersRef = collection(db, "users");
-      let q;
+      let usersMap = new Map();
 
       if (searchTerm && searchTerm.trim().length >= 2) {
-        // Search by display name (prefix search)
         const term = searchTerm.toLowerCase();
-        q = query(
-          usersRef,
-          where("universityInfo.university", "==", universityId),
-          where("socialInfo.searchable", "==", true),
-          where("systemInfo.profileSetupComplete", "==", true),
-          where("profile.displayName_lower", ">=", term),
-          where("profile.displayName_lower", "<=", term + '\uf8ff'),
-          orderBy("profile.displayName_lower"),
-          limit(maxResults)
+        
+        // Fields we want to search across
+        const fieldsToSearch = [
+          "profile.displayName_lower",
+          "profile.firstName_lower", 
+          "profile.lastName_lower",
+          "profile.major_lower"
+        ];
+        
+        // Limit per individual query (we'll dedupe and limit final results)
+        const perQueryLimit = Math.min(maxResults, 10);
+
+        // Build one query per searchable field
+        const queries = fieldsToSearch.map(fieldPath => {
+          return query(
+            usersRef,
+            ...baseFilters,
+            where(fieldPath, ">=", term),
+            where(fieldPath, "<=", term + "\uf8ff"),
+            orderBy(fieldPath),
+            limit(perQueryLimit)
+          );
+        });
+
+        // Execute all queries in parallel
+        const snapshots = await Promise.all(
+          queries.map(async (q, index) => {
+            try {
+              return await getDocs(q);
+            } catch (error) {
+              console.warn(`⚠️ Search query ${index} failed (likely missing index):`, error.message);
+              return null;
+            }
+          })
         );
+
+        // Merge results and deduplicate
+        snapshots.forEach((snapshot) => {
+          if (snapshot) {
+            snapshot.forEach(docSnap => {
+              if (!usersMap.has(docSnap.id)) {
+                usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+              }
+            });
+          }
+        });
       } else {
-        // General university query
-        q = query(
-          usersRef,
-          where("universityInfo.university", "==", universityId),
-          where("socialInfo.searchable", "==", true),
-          where("systemInfo.profileSetupComplete", "==", true),
-          orderBy("profile.firstName"),
-          limit(maxResults)
+        // General university listing (no search term)
+        const snapshot = await getDocs(
+          query(
+            usersRef,
+            ...baseFilters,
+            orderBy("profile.firstName"),
+            limit(maxResults)
+          )
         );
+        
+        snapshot.forEach(docSnap => {
+          usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+        });
       }
 
-      const querySnapshot = await getDocs(q);
-      const users = [];
-      querySnapshot.forEach((doc) => {
-        users.push({
-          id: doc.id,
-          ...doc.data(),
-        });
-      });
+      // Convert to array and limit to maxResults
+      const users = Array.from(usersMap.values()).slice(0, maxResults);
 
       console.log(`🔍 Found ${users.length} users for university ${universityId}`);
       return users;

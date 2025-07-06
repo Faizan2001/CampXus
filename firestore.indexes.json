@@ -13,10 +13,6 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "systemInfo.profileSetupComplete",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "profile.displayName_lower",
           "order": "ASCENDING"
         }
@@ -35,11 +31,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "systemInfo.profileSetupComplete",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "profile.firstName",
+          "fieldPath": "profile.firstName_lower",
           "order": "ASCENDING"
         }
       ]
@@ -53,7 +45,47 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "socialInfo.searchable",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "profile.lastName_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "universityInfo.university",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "socialInfo.searchable",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "profile.major_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "universityInfo.university",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "socialInfo.searchable",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "profile.firstName",
           "order": "ASCENDING"
         }
       ]

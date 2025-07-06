@@ -40,8 +40,6 @@ export class FriendsManager {
     }
 
     try {
-      console.log(`🔍 Searching for: "${searchTerm}"`);
-      
       // 2. Fetch users directly using the optimized search function
       const students = await dataManager.findUsersByUniversity(
         userProfile.universityInfo.university,
@@ -51,7 +49,7 @@ export class FriendsManager {
       // 3. Filter out the current user from the results.
       const filteredStudents = students.filter(student => student.id !== currentUser.uid);
 
-      console.log(`✅ Found ${filteredStudents.length} students.`);
+      console.log(`✅ Found ${filteredStudents.length} students matching "${searchTerm}"`);
       return filteredStudents;
     } catch (error) {
       console.error("❌ Error searching students:", error);

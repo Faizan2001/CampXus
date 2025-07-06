@@ -11,9 +11,7 @@
  * It manages the UI and connects user actions to the friends manager
  */
 
-import { FriendsManager } from "./friends-manager.js";
-
-const friendsManager = new FriendsManager();
+import { friendsManager } from "./friends-manager.js";
 
 class FriendsUI {
   constructor() {
@@ -25,19 +23,17 @@ class FriendsUI {
    * 🚀 Initialize the friends UI when the page loads
    */
   init() {
-    if (this.isInitialized) return;
-
     try {
-      // Get references to DOM elements
+      // Always re-cache elements since DOM might have changed
       this.cacheElements();
 
-      // Set up event listeners
+      // Always set up event listeners since DOM elements are recreated
       this.setupEventListeners();
+      this.isInitialized = true;
 
-      // Load initial data
+      // Always load initial data on page visit
       this.loadInitialData();
 
-      this.isInitialized = true;
       console.log("🎨 Friends UI initialized successfully");
     } catch (error) {
       console.error("❌ Error initializing Friends UI:", error);
@@ -72,26 +68,55 @@ class FriendsUI {
    * 🎯 Set up event listeners for user interactions
    */
   setupEventListeners() {
+    // Store bound functions for consistent reference
+    if (!this.boundHandlers) {
+      this.boundHandlers = {
+        searchInput: (e) => this.handleSearchInput(e),
+        searchKeypress: (e) => {
+          if (e.key === "Enter") {
+            this.handleSearch();
+          }
+        },
+        searchClick: () => this.handleSearch()
+      };
+    }
+
     // Search functionality
     if (this.elements.searchInput) {
-      this.elements.searchInput.addEventListener("input", (e) => {
-        this.handleSearchInput(e);
-      });
-
-      this.elements.searchInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          this.handleSearch();
-        }
-      });
+      // Remove any existing listeners first (in case DOM was recreated)
+      this.elements.searchInput.removeEventListener("input", this.boundHandlers.searchInput);
+      this.elements.searchInput.removeEventListener("keypress", this.boundHandlers.searchKeypress);
+      
+      // Add fresh listeners
+      this.elements.searchInput.addEventListener("input", this.boundHandlers.searchInput);
+      this.elements.searchInput.addEventListener("keypress", this.boundHandlers.searchKeypress);
     }
 
     if (this.elements.searchBtn) {
-      this.elements.searchBtn.addEventListener("click", () => {
-        this.handleSearch();
-      });
+      // Remove any existing listeners first
+      this.elements.searchBtn.removeEventListener("click", this.boundHandlers.searchClick);
+      
+      // Add fresh listener
+      this.elements.searchBtn.addEventListener("click", this.boundHandlers.searchClick);
     }
 
     console.log("🎯 Event listeners set up");
+  }
+
+  /**
+   * 🧹 Remove event listeners to prevent duplicates
+   */
+  removeEventListeners() {
+    if (this.boundHandlers) {
+      if (this.elements.searchInput) {
+        this.elements.searchInput.removeEventListener("input", this.boundHandlers.searchInput);
+        this.elements.searchInput.removeEventListener("keypress", this.boundHandlers.searchKeypress);
+      }
+
+      if (this.elements.searchBtn) {
+        this.elements.searchBtn.removeEventListener("click", this.boundHandlers.searchClick);
+      }
+    }
   }
 
   /**
@@ -107,8 +132,6 @@ class FriendsUI {
 
       // Load pending requests
       await this.refreshFriendRequests();
-
-      console.log("📊 Initial data loaded");
     } catch (error) {
       console.error("❌ Error loading initial data:", error);
     } finally {
@@ -159,8 +182,6 @@ class FriendsUI {
    */
   async performSearch(searchTerm) {
     try {
-      console.log("🔍 Searching for:", searchTerm);
-
       // Show search loading state
       this.showSearchLoading();
 
@@ -261,7 +282,7 @@ class FriendsUI {
    */
   showLoadingState() {
     // TODO: Implement a proper loading skeleton
-    console.log("⏳ Loading initial data...");
+    // Reduced logging for cleaner console
   }
 
   /**
@@ -269,7 +290,7 @@ class FriendsUI {
    */
   hideLoadingState() {
     // TODO: Hide loading skeleton
-    console.log("✅ Initial data loaded.");
+    // Reduced logging for cleaner console
   }
 
   /**
@@ -277,7 +298,7 @@ class FriendsUI {
    */
   showSearchLoading() {
     // TODO: Implement search loading state
-    console.log("⏳ Performing search...");
+    // Reduced logging for cleaner console
   }
 
   /**
@@ -285,7 +306,7 @@ class FriendsUI {
    */
   hideSearchLoading() {
     // TODO: Hide search loading state
-    console.log("✅ Search complete.");
+    // Reduced logging for cleaner console
   }
 
   /**
@@ -302,8 +323,12 @@ class FriendsUI {
   cleanup() {
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout);
+      this.searchTimeout = null;
     }
-    this.isInitialized = false;
+    
+    // Remove event listeners to prevent memory leaks
+    this.removeEventListeners();
+    
     console.log("🧹 Friends UI cleaned up");
   }
 }
@@ -311,24 +336,22 @@ class FriendsUI {
 // 🌟 Export a single instance
 export const friendsUI = new FriendsUI();
 
-// 🎯 Auto-initialize when this module loads (SPA style)
-// This will run when the friends page is loaded via the SPA router
-setTimeout(() => {
-  if (document.getElementById("friendSearch")) {
-    friendsUI.init();
-  }
-}, 100);
-
 // 🎯 This is the crucial part that connects the UI to the router.
 // We listen for the event dispatched by the router when a page is loaded.
 document.addEventListener("spa:page:load", (event) => {
   if (event.detail.route === "friends") {
     console.log("🎨 Friends page loaded, initializing UI...");
-    // Create a new instance of our UI controller and initialize it.
-    const friendsUI = new FriendsUI();
+    // Use the singleton instance instead of creating a new one
     friendsUI.init();
 
     // For debugging purposes, make the manager globally available
     window.friendsManager = friendsManager;
+  }
+});
+
+// Clean up when leaving the friends page
+document.addEventListener("spa:page:unload", (event) => {
+  if (event.detail.route === "friends") {
+    friendsUI.cleanup();
   }
 });
