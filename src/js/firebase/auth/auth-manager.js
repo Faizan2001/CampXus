@@ -125,7 +125,7 @@ class AuthManager {
    */
   createAuthModal() {
     const modalHTML = `
-      <div id="auth-modal" class="auth-modal">
+      <div id="auth-modal" class="auth-modal" style="display: none;">
         <div class="auth-container">
           <button class="auth-close" id="auth-close-btn">&times;</button>
           
@@ -237,6 +237,75 @@ class AuthManager {
     // Add modal to page
     document.body.insertAdjacentHTML("beforeend", modalHTML);
     this.authModal = document.getElementById("auth-modal");
+
+    // 🎯 CRITICAL FIX: Add CSS styles for the modal if not already present
+    if (!document.getElementById("auth-modal-styles")) {
+      const modalStyles = document.createElement("style");
+      modalStyles.id = "auth-modal-styles";
+      modalStyles.textContent = `
+        .auth-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          z-index: 10000;
+          display: none !important;
+          justify-content: center;
+          align-items: center;
+          backdrop-filter: blur(5px);
+        }
+        
+        .auth-modal.active {
+          display: flex !important;
+        }
+        
+        .auth-container {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          max-width: 400px;
+          width: 90%;
+          max-height: 90vh;
+          overflow-y: auto;
+          position: relative;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .auth-close {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: #666;
+          z-index: 1;
+        }
+        
+        .auth-close:hover {
+          color: #333;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+          .auth-container {
+            background: #1a1a1a;
+            color: white;
+          }
+          
+          .auth-close {
+            color: #ccc;
+          }
+          
+          .auth-close:hover {
+            color: white;
+          }
+        }
+      `;
+      document.head.appendChild(modalStyles);
+    }
 
     // Set up event listeners
     this.setupModalEventListeners();
@@ -479,7 +548,7 @@ class AuthManager {
 
     console.log("🔍 Creating user profile with validation data:", validation);
 
-    // 🗂️ ORGANIZED STRUCTURE: Match EXACTLY what profile-setup.js creates
+    // 🗂️ ORGANIZED STRUCTURE: Match EXACTLY what profile completion creates
     const userProfile = {
       // Core Identity (root level - only uid)
       uid: user.uid,
@@ -735,8 +804,17 @@ class AuthManager {
    * Show authentication modal
    */
   showAuthModal() {
+    // 🎯 SAFEGUARD: Don't show auth modal if user is already logged in
+    if (this.getCurrentUser()) {
+      console.log("🚫 User already logged in, not showing auth modal");
+      return;
+    }
+    
     if (!this.authModal) this.createAuthModal();
-    this.authModal.classList.add("active");
+    if (this.authModal) {
+      this.authModal.style.display = "flex";
+      this.authModal.classList.add("active");
+    }
     document.body.style.overflow = "hidden";
   }
 
@@ -745,6 +823,7 @@ class AuthManager {
    */
   hideAuthModal() {
     if (this.authModal) {
+      this.authModal.style.display = "none";
       this.authModal.classList.remove("active");
       document.body.style.overflow = "";
       clearAllErrors(); // Use external function
@@ -936,7 +1015,8 @@ function showFieldError(input, message) {
  * @param {HTMLElement} input - The input element
  */
 function clearFieldError(input) {
-  input.classList.remove("error", "success");
+  input.classList.remove("error");
+  input.classList.remove("success");
   const errorEl = input.parentNode.querySelector(".form-error");
   if (errorEl) {
     errorEl.classList.remove("show");
@@ -981,38 +1061,47 @@ function showFormSuccess(formId, message) {
  * Clear all errors and messages from forms
  */
 function clearAllErrors() {
-  // Clear field errors
-  document.querySelectorAll(".form-input").forEach((input) => {
-    clearFieldError(input);
-  });
-
-  // Clear form messages
   document
-    .querySelectorAll(".error-message, .success-message")
-    .forEach((msg) => {
-      msg.remove();
-    });
+    .querySelectorAll(".form-error")
+    .forEach((el) => (el.textContent = ""));
+  document
+    .querySelectorAll(".form-success")
+    .forEach((el) => (el.textContent = ""));
+  document.querySelectorAll(".form-input").forEach((el) => {
+    el.classList.remove("error");
+    el.classList.remove("success");
+  });
 }
 
 /**
- * Set loading state for buttons
- * @param {HTMLElement} button - The button element
- * @param {boolean} isLoading - Whether to show loading state
+ * Show or hide the loading state of a button
+ * @param {HTMLButtonElement} button - The button element
+ * @param {boolean} isLoading - True to show loading, false to hide
  */
 function setLoadingState(button, isLoading) {
-  button.classList.toggle("loading", isLoading);
-  button.disabled = isLoading;
+  const buttonText = button.querySelector(".button-text");
+  const loadingDots = button.querySelector(".loading-dots");
+
+  if (isLoading) {
+    button.classList.add("loading");
+    if (buttonText) buttonText.style.display = "none";
+    if (loadingDots) loadingDots.style.display = "flex";
+    button.disabled = true;
+  } else {
+    button.classList.remove("loading");
+    if (buttonText) buttonText.style.display = "block";
+    if (loadingDots) loadingDots.style.display = "none";
+    button.disabled = false;
+  }
 }
 
-// Create and export global auth manager instance
-export const authManager = new AuthManager();
-
-// Expose auth manager to window for inline handlers
-window.authManager = authManager;
+// Export singleton instance for ES6 modules
+const authManagerInstance = new AuthManager();
+export const authManager = authManagerInstance;
 
 // 🔥 CRITICAL: Initialize the auth manager immediately when module loads
 // This ensures the auth state listener is set up as soon as possible
-authManager.initialize().catch(error => {
+authManagerInstance.initialize().catch(error => {
   console.error("❌ Failed to initialize AuthManager:", error);
 });
 

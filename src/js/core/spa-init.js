@@ -6,12 +6,26 @@
  *
  * This script:
  * - Creates the router instance
+ * - Handles /**
+ * CampXus SPA Initialization
+ *
+ * 🎯 Learning: This file initializes our Single Page Application
+ * It's like the "conductor" that makes sure everything starts up correctly!
+ *
+ * This script:
+ * - Creates the router instance
  * - Handles authentication state
  * - Manages navigation redirects
  * - Integrates with existing app functionality
  */
 
 import SPARouter from "./spa-router.js";
+import "./menu.js"; // 🎯 CRITICAL FIX: Import menu system for authentication state management
+import { currentUser } from "./currentUser.js"; // 🎯 FIX: Import currentUser for profile updates
+import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager instead of using window
+
+// 🎯 NEW: Create module-level variables instead of window globals
+let spaRouter = null;
 
 /**
  * Initialize the SPA when DOM is ready
@@ -40,7 +54,7 @@ async function initializeSPA() {
     // confirms the user's login status from Firebase.
     // The `authReady` is a Promise we created in AuthManager that resolves
     // only after the initial `onAuthStateChanged` event has fired.
-    if (window.authManager?.authReady) {
+    if (authManager?.authReady) {
       console.log("⏳ Waiting for authentication to be ready...");
       
       try {
@@ -49,7 +63,7 @@ async function initializeSPA() {
           setTimeout(() => reject(new Error('Auth timeout after 3 seconds')), 3000)
         );
         
-        await Promise.race([window.authManager.authReady, authTimeout]);
+        await Promise.race([authManager.authReady, authTimeout]);
         console.log("✅ Authentication ready!");
       } catch (error) {
         console.warn("⚠️ Authentication timeout or error, proceeding anyway:", error.message);
@@ -73,10 +87,10 @@ async function initializeSPA() {
     }
     console.log("✅ Main content container found:", mainContentContainer);
     
-    window.spaRouter = new SPARouter();
+    spaRouter = new SPARouter();
 
     // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
-    window.spaRouter.loadInitialPage();
+    spaRouter.loadInitialPage();
 
     // ── BUG FIX ──
     // Register the profile setup completion listeners so that
@@ -110,28 +124,31 @@ function setupProfileCompletionFlow() {
 
     // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data
     const userData = event.detail.userData;
-    if (userData && window.currentUser) {
+    if (userData && currentUser) {
       console.log("🔄 Updating currentUser store with fresh profile data...");
       
       // Update the currentUser store with the fresh profile data
-      window.currentUser.setProfile(userData);
+      currentUser.setProfile(userData);
       
       // Also ensure the user object is set if it wasn't already
-      if (!window.currentUser.user && window.authManager?.getCurrentUser()) {
-        window.currentUser.setUser(window.authManager.getCurrentUser());
+      if (!currentUser.user && authManager?.getCurrentUser()) {
+        currentUser.setUser(authManager.getCurrentUser());
       }
       
       console.log("✅ currentUser store updated with fresh profile data");
     }
 
-    // Show success message briefly, then redirect
+    // Show success message briefly, then redirect  
     setTimeout(() => {
-      if (window.spaRouter) {
+      if (spaRouter) {
+        console.log("🏠 Navigating to home after profile completion...");
         // Set completion flag for the SPA router to handle
         sessionStorage.setItem("profileJustCompleted", "true");
-        window.spaRouter.navigateTo("home");
+        spaRouter.navigateTo("home");
+      } else {
+        console.error("❌ SPA Router not available for profile completion navigation!");
       }
-    }, 2000); // 2 second delay to show success message
+    }, 500); // Reduced to 0.5 second delay
   });
 
   // Listen for profile setup skip
@@ -140,22 +157,22 @@ function setupProfileCompletionFlow() {
 
     // 🎯 CRITICAL FIX: Update currentUser store for skip case too
     const userData = event.detail.userData;
-    if (userData && window.currentUser) {
+    if (userData && currentUser) {
       console.log("🔄 Updating currentUser store for skipped profile...");
       
       // Update the currentUser store with the minimal profile data
-      window.currentUser.setProfile(userData);
+      currentUser.setProfile(userData);
       
       // Also ensure the user object is set if it wasn't already
-      if (!window.currentUser.user && window.authManager?.getCurrentUser()) {
-        window.currentUser.setUser(window.authManager.getCurrentUser());
+      if (!currentUser.user && authManager?.getCurrentUser()) {
+        currentUser.setUser(authManager.getCurrentUser());
       }
       
       console.log("✅ currentUser store updated for skipped profile");
     }
 
-    if (window.spaRouter) {
-      window.spaRouter.navigateTo("home");
+    if (spaRouter) {
+      spaRouter.navigateTo("home");
     }
   });
 }
@@ -234,16 +251,16 @@ function updateGlobalUIForPage(route) {
 }
 
 /**
- * Global SPA navigation helper function
+ * Export navigateTo function for external use instead of window global
  * 🎯 Learning: Provide a simple way for other scripts to navigate
  */
-window.navigateTo = function (route) {
-  if (window.spaRouter) {
-    window.spaRouter.navigateTo(route);
+export function navigateTo(route) {
+  if (spaRouter) {
+    spaRouter.navigateTo(route);
   } else {
     console.error("SPA Router not initialized yet");
   }
-};
+}
 
 /**
  * Export for use in other modules

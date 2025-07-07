@@ -1480,8 +1480,10 @@ class DataManager {
 // Export a single instance of the DataManager (Singleton Pattern)
 export const dataManager = new DataManager();
 
-// Also expose it on the window for easy debugging from the console
-window.dataManager = dataManager;
-console.log("🛠️ DataManager available globally as window.dataManager for testing");
+// Only expose globally for development/debugging
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  window.dataManager = dataManager;
+  console.log("🛠️ DataManager available globally as window.dataManager for debugging");
+}
 
 // --- END OF FILE ---

@@ -344,8 +344,7 @@ document.addEventListener("spa:page:load", (event) => {
     // Use the singleton instance instead of creating a new one
     friendsUI.init();
 
-    // For debugging purposes, make the manager globally available
-    window.friendsManager = friendsManager;
+    // (window.friendsManager removed; use ES module import instead)
   }
 });
 

@@ -20,8 +20,6 @@ import {
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { dataManager } from "./data-manager.js";
 
-window.dataManager = dataManager;
-
 /* ================================
    APPLICATION STATE
 ================================== */

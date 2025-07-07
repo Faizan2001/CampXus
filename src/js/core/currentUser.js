@@ -237,5 +237,4 @@ class CurrentUserManager {
 
 export const currentUser = new CurrentUserManager();
 
-// Make currentUser available globally for profile completion flow
-window.currentUser = currentUser; 
+// (window.currentUser removed; use ES module import instead)

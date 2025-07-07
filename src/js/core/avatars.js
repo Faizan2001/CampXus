@@ -822,9 +822,11 @@ class AvatarManager {
   }
 }
 
-// Global instance to be used by other scripts
-window.avatarManager = new AvatarManager();
-console.log(
-  "🎨 Avatar Manager loaded globally and available at window.avatarManager"
-);
-export default window.avatarManager;
+// Export singleton instance for ES6 modules
+const avatarManagerInstance = new AvatarManager();
+export const avatarManager = avatarManagerInstance;
+
+// Only expose on window in development mode for debugging
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  window.avatarManager = avatarManagerInstance;
+}

@@ -29,11 +29,13 @@
 import { serverTimestamp } from "firebase/firestore";
 
 // Import avatar management system
-import AvatarManager from "./avatars.js";
+import { avatarManager } from "./avatars.js";
 
 // Import data manager for Firestore operations
 import { dataManager } from "./data-manager.js";
 import { currentUser } from "./currentUser.js";
+import { authManager } from "../firebase/auth/auth-manager.js";
+import { navigateTo } from "./spa-init.js"; // 🎯 NEW: Import navigateTo for SPA navigation
 
 /**
  * =============================================================================
@@ -513,11 +515,7 @@ class ProfileSetup {
    * Navigate to the home page (SPA-style)
    */
   navigateToHome() {
-    if (window.spaRouter) {
-      window.spaRouter.navigateTo("home");
-    } else {
-      window.location.href = "../index.html";
-    }
+    navigateTo("home");
   }
 
   /**
@@ -541,6 +539,9 @@ class ProfileSetup {
 
       if (userProfile) {
         console.log("✅ User profile loaded, initializing profile setup.");
+        
+        // 🎯 CRITICAL: Set this.currentUser from the global currentUser
+        this.currentUser = currentUser.user;
         this.existingProfileData = userProfile;
         
         // The user is authenticated and has a profile,
@@ -549,7 +550,6 @@ class ProfileSetup {
         await this.initializeSetup();
 
       } else {
-        console.error("No user profile found", error);
         console.warn("🤷 No user logged in. Profile setup will not initialize.");
         
         // We can optionally hide the setup form or show a login prompt here.
@@ -579,7 +579,7 @@ class ProfileSetup {
     this.cacheDOMElements();
 
     // Add debug info to page for development
-    if (window.ENV === "development") {
+    if (import.meta.env.DEV) {
       this.addDebugInfo();
     }
 
@@ -702,8 +702,8 @@ class ProfileSetup {
 
     if (!this.currentUser) {
       // Try one more time to get user from auth manager
-      if (window.authManager) {
-        const user = window.authManager.getCurrentUser();
+      if (authManager) {
+        const user = authManager.getCurrentUser();
         if (user) {
           this.currentUser = user;
         } else {
@@ -861,10 +861,12 @@ class ProfileSetup {
         })
       );
       setTimeout(() => {
-        if (!window.spaRouter) {
-          window.location.href = "../index.html";
-        } else {
+        if (window.spaRouter) {
           window.spaRouter.navigateTo("home");
+        } else {
+          console.error("⚠️ SPA Router not available during skip! Cannot navigate to home.");
+          // In Vite/SPA mode, we should never fall back to hard refresh
+          // This indicates a setup issue that needs to be fixed
         }
       }, 1000);
     } catch (error) {
@@ -1219,7 +1221,6 @@ class ProfileSetup {
    *                        8. AVATAR MANAGEMENT SYSTEM
    * =============================================================================
    */
-
   /**
    * Initialize avatar system with default avatar for user - SIMPLIFIED
    */
@@ -1234,8 +1235,8 @@ class ProfileSetup {
       this.avatarConfig = this.existingProfileData.avatarConfig;
     }
     // Generate default avatar if none exists
-    else if (!this.avatarConfig && window.avatarManager) {
-      this.avatarConfig = window.avatarManager.generateDefaultAvatar(
+    else if (!this.avatarConfig && avatarManager) {
+      this.avatarConfig = avatarManager.generateDefaultAvatar(
         this.currentUser.uid
       );
     }
@@ -1245,7 +1246,7 @@ class ProfileSetup {
    * Open avatar editor modal - SIMPLIFIED
    */
   openAvatarEditor() {
-    if (!window.avatarManager) {
+    if (!avatarManager) {
       console.error("❌ Avatar manager not available");
       alert("Avatar system is not loaded. Please refresh the page.");
       return;
@@ -1260,10 +1261,10 @@ class ProfileSetup {
     // Use current avatar or generate default
     const currentAvatar =
       this.avatarConfig ||
-      window.avatarManager.generateDefaultAvatar(this.currentUser.uid);
+      avatarManager.generateDefaultAvatar(this.currentUser.uid);
 
     // Open avatar editor with callback
-    window.avatarManager.openAvatarEditor(
+    avatarManager.openAvatarEditor(
       currentAvatar,
       async (newAvatarConfig) => {
         this.avatarConfig = newAvatarConfig;
@@ -1341,21 +1342,39 @@ class ProfileSetup {
         },
       };
 
+      console.log("💾 Saving profile to Firestore...", {
+        userId: this.currentUser.uid,
+        profileData: this.profileData
+      });
+
       // Save the combined data to Firestore
-      await dataManager.saveUserProfile(currentUser.uid, combinedData);
+      await dataManager.saveUserProfile(this.currentUser.uid, combinedData);
+      
+      console.log("✅ Profile saved successfully to Firestore");
 
       // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
       console.log("🔄 Updating currentUser store with fresh profile data after save...");
-      currentUser.setProfile(combinedData);
-      console.log("✅ currentUser store updated with fresh profile data");
+      
+      // Use the imported currentUser module, not window.currentUser
+      if (currentUser && typeof currentUser.setProfile === 'function') {
+        currentUser.setProfile(combinedData);
+        console.log("✅ currentUser store updated with fresh profile data");
+      } else {
+        console.error("❌ currentUser store not available for profile update");
+      }
 
-      // Show success message and then redirect
+      // Show success message and then dispatch event for SPA navigation
       this.showSuccessMessage();
 
-      // Redirect to home page after a short delay
+      // Dispatch event after a short delay so the router handles navigation
       setTimeout(() => {
-        this.navigateToHome();
-      }, 2000); // 2-second delay
+        console.log("🚀 Dispatching profile:setup:complete event for navigation...");
+        document.dispatchEvent(
+          new CustomEvent("profile:setup:complete", {
+            detail: { userData: combinedData },
+          })
+        );
+      }, 1500); // 1.5-second delay
 
     } catch (error) {
       console.error("❌ Final profile save failed:", error);
@@ -1405,11 +1424,7 @@ class ProfileSetup {
         })
       );
       setTimeout(() => {
-        if (!window.spaRouter) {
-          window.location.href = "../index.html";
-        } else {
-          window.spaRouter.navigateTo("home");
-        }
+        navigateTo("home");
       }, 1000);
     } catch (error) {
       console.error("Error during skip setup:", error);
@@ -1809,7 +1824,7 @@ class ProfileSetup {
     };
 
     // If no avatar config or avatarManager, show fallback
-    if (!this.avatarConfig || !window.avatarManager) {
+    if (!this.avatarConfig || !avatarManager) {
       renderInitials();
       return;
     }
@@ -1817,7 +1832,7 @@ class ProfileSetup {
     // Try to generate avatar image URL
     let avatarUrl = "";
     try {
-      avatarUrl = window.avatarManager.generateAvatarUrl(this.avatarConfig);
+      avatarUrl = avatarManager.generateAvatarUrl(this.avatarConfig);
     } catch (e) {
       console.error("❌ Failed to generate avatar URL:", e);
       renderInitials();
@@ -1972,11 +1987,11 @@ function waitForAuthManager(maxWaitTime = 5000, checkInterval = 100) {
 
     function checkAuthManager() {
       if (
-        window.authManager &&
-        typeof window.authManager.getCurrentUser === "function"
+        authManager &&
+        typeof authManager.getCurrentUser === "function"
       ) {
         console.log("✅ Auth manager is ready!");
-        resolve(window.authManager);
+        resolve(authManager);
       } else if (Date.now() - startTime >= maxWaitTime) {
         reject(new Error("Timeout waiting for auth manager"));
       } else {
@@ -1993,7 +2008,7 @@ function waitForAuthManager(maxWaitTime = 5000, checkInterval = 100) {
  */
 function checkAuthenticationAndInitialize() {
   // Check if user is already signed in
-  const currentUser = window.authManager.getCurrentUser();
+  const currentUser = authManager.getCurrentUser();
   console.log(
     "🔍 Current user from auth manager:",
     currentUser?.email || "None"
@@ -2020,7 +2035,7 @@ function checkAuthenticationAndInitialize() {
 
   // No user signed in, listen for auth state changes
   console.log("👂 No user signed in, setting up auth state listener...");
-  window.authManager.onAuthStateChanged((user) => {
+  authManager.onAuthStateChanged((user) => {
     if (user && !profileSetupInstance) {
       console.log(
         "✅ User signed in via state change, checking if on profile page"

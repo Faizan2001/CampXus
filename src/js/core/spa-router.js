@@ -17,44 +17,44 @@ class SPARouter {
     this.routes = {
       home: {
         title: "Schedule - CampXus",
-        template: "templates/home.html",
+        template: "/templates/home.html",
         cssFiles: [
-          "css/styles.css", // ✅ Master stylesheet imports all components
+          "/src/css/styles.css", // ✅ Master stylesheet imports all components
         ], // Simplified: styles.css imports everything we need
-        jsFiles: ["js/core/script.js"], // Schedule functionality
+        jsFiles: ["/src/js/core/script.js"], // Schedule functionality
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
         title: "Profile Setup - CampXus",
-        template: "templates/profile.html",
+        template: "/templates/profile.html",
         cssFiles: [
-          "css/styles.css", // ✅ Base styles with all components
-          "css/profile-setup.css", // ✅ Profile-specific extensions
+          "/src/css/styles.css", // ✅ Base styles with all components
+          "/src/css/profile-setup.css", // ✅ Profile-specific extensions
         ],
         jsFiles: [
-          "js/firebase/auth/auth-manager.js", // ✅ Authentication system
-          "js/core/avatars.js", // ✅ Avatar management system
-          "js/core/profile-setup.js", // ✅ Profile functionality
+          "/src/js/firebase/auth/auth-manager.js", // ✅ Authentication system
+          "/src/js/core/avatars.js", // ✅ Avatar management system
+          "/src/js/core/profile-setup.js", // ✅ Profile functionality
         ],
         description: "Set up your student profile and preferences",
       },
       friends: {
         title: "Friends - CampXus",
-        template: "templates/friends.html",
+        template: "/templates/friends.html",
         cssFiles: [
-          "css/styles.css", // ✅ Base styles with all components
-          "css/friends-page.css", // ✅ Friends-specific styling
+          "/src/css/styles.css", // ✅ Base styles with all components
+          "/src/css/friends-page.css", // ✅ Friends-specific styling
         ],
         jsFiles: [
-          "js/core/friends/friends-manager.js", // ✅ Core friends business logic
-          "js/core/friends/friends-ui.js", // ✅ Friends UI controller
+          "/src/js/core/friends/friends-manager.js", // ✅ Core friends business logic
+          "/src/js/core/friends/friends-ui.js", // ✅ Friends UI controller
         ],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       about: {
         title: "About - CampXus",
-        template: "templates/about.html",
+        template: "/templates/about.html",
         cssFiles: [],
         jsFiles: [],
         description: "Learn about the developer and the app",

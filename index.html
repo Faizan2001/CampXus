@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="MeetchuThere - Schedule Comparison App" />
+    <meta name="description" content="CampXus - Schedule & Availability Tracker" />
     <meta
       http-equiv="Content-Security-Policy"
       content="
@@ -26,10 +26,7 @@
        form-action 'self';
        "
     />
-    <title>MeetchuThere</title>
-
-    <!-- Link to main styles -->
-    <link href="./css/styles.css" rel="stylesheet" type="text/css" />
+    <title>CampXus - Schedule & Availability Tracker</title>
 
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
@@ -39,20 +36,11 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
-    <!-- Add Authentication CSS -->
-    <link rel="stylesheet" href="css/auth.css" />
+    
+    <meta name="theme-color" content="#fafafa" />
 
-    <!-- Firebase Import Map for ES6 Modules -->
-    <script type="importmap">
-      {
-        "imports": {
-          "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
-          "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
-          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
-          "firebase/storage": "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js"
-        }
-      }
-    </script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
   </head>
   <body>
     <!-- App container is now visible by default again -->
@@ -161,6 +149,9 @@
       <!-- Modal Structure -->
       <div id="appModal" class="modal-overlay" style="display: none">
         <div class="modal-content glass-card">
+          <button id="modalCloseBtn" class="modal-close-btn" type="button" aria-label="Close modal">
+            <i class="fas fa-times"></i>
+          </button>
           <h3 id="modalTitle" class="modal-title">Notification</h3>
           <p id="modalMessage" class="modal-message">
             This is a sample message.
@@ -194,51 +185,39 @@
                   type="text"
                   id="userId"
                   class="modal-input"
-                  placeholder="Enter your student ID"
+                  placeholder="Enter student ID"
                   maxlength="20"
                 />
               </div>
             </div>
           </div>
-
+          <!-- Edit Time Slot Content (Hidden by default) -->
           <div
-            id="modalActionButtons"
-            class="modal-action-buttons"
+            id="editTimeSlotContent"
+            class="edit-time-slot-content"
             style="display: none"
           >
-            <button id="modalConfirmBtn" class="modal-button primary-btn">
-              Yes
+            <div class="form-group">
+              <label for="newStartTime">New Start Time</label>
+              <input type="time" id="newStartTime" class="modal-input" />
+            </div>
+            <div class="form-group">
+              <label for="newEndTime">New End Time</label>
+              <input type="time" id="newEndTime" class="modal-input" />
+            </div>
+          </div>
+          <div class="modal-buttons">
+            <button id="modalConfirmBtn" class="btn btn-primary">
+              Confirm
             </button>
-            <button id="modalCancelBtn" class="modal-button secondary-btn">
-              No
+            <button id="modalCancelBtn" class="btn btn-secondary">
+              Cancel
             </button>
           </div>
-
-          <button id="modalCloseBtn" class="modal-close-btn secondary-btn">
-            OK
-          </button>
         </div>
       </div>
     </div>
 
-    <!-- Load production Firebase configuration -->
-    <script src="./js/firebase/config/firebase-config-production.js"></script>
-    <!-- Load environment configuration for development -->
-    <script src="./js/firebase/config/env-config.js"></script>
-
-    <!-- 🎨 Load Avatar Manager globally for navigation and menu usage -->
-    <script type="module" src="./js/core/avatars.js"></script>
-
-    <!-- 📊 Load Data Manager globally for offline support and caching -->
-    <script type="module" src="./js/core/data-manager.js"></script>
-
-    <!-- Main application logic -->
-    <script
-      type="module"
-      src="./js/firebase/config/firebase-config.js"
-    ></script>
-    <script type="module" src="./js/firebase/auth/auth-manager.js"></script>
-    <script type="module" src="./js/core/spa-init.js"></script>
-    <script type="module" src="./js/core/menu.js"></script> 
+    <script type="module" src="/src/js/core/spa-init.js"></script>
   </body>
 </html>
