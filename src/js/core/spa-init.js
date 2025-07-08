@@ -36,7 +36,6 @@ import "./friends/friends-manager.js";
 import "./friends/friends-ui.js";
 import "./profile-setup.js";
 import "./avatars.js";
-import "../firebase/auth/auth-manager.js";
 
 // 🎯 DEBUG: Log that modules are imported
 console.log("🔧 SPA Init: All page-specific modules imported and ready");
