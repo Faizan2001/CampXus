@@ -338,7 +338,9 @@ export const friendsUI = new FriendsUI();
 
 // 🎯 This is the crucial part that connects the UI to the router.
 // We listen for the event dispatched by the router when a page is loaded.
+console.log("🎧 Friends UI: Registering spa:page:load event listener...");
 document.addEventListener("spa:page:load", (event) => {
+  console.log(`🎧 Friends UI: Received spa:page:load event for route: ${event.detail.route}`);
   if (event.detail.route === "friends") {
     console.log("🎨 Friends page loaded, initializing UI...");
     // Use the singleton instance instead of creating a new one

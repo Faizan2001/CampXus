@@ -614,16 +614,15 @@ class SPARouter {
   async loadCSS(cssFiles) {
     if (!cssFiles || cssFiles.length === 0) return;
 
-    // 🏗️ PRODUCTION FIX: Skip dynamic CSS loading in production builds
-    // In production, Vite bundles all CSS into the main bundle
-    const isProduction =
-      !window.location.hostname.includes("localhost") &&
-      !window.location.hostname.includes("127.0.0.1") &&
-      !window.location.port;
-
-    if (isProduction) {
+    // 🏗️ PRODUCTION FIX: Use Vite's native production detection + preview mode detection
+    // In Vite builds (including `vite preview`), all CSS is already extracted by Vite
+    // Check both import.meta.env.PROD and if we're running from built files (preview mode)
+    const isBuiltMode = import.meta.env.PROD || 
+      (window.location.port && parseInt(window.location.port) >= 4173);
+    
+    if (isBuiltMode) {
       console.log(
-        "🏗️ Production mode detected - skipping dynamic CSS loading (CSS is bundled)"
+        "🏗️ Production/preview mode detected - skipping dynamic CSS loading (CSS is bundled by Vite)"
       );
       return;
     }
@@ -716,22 +715,14 @@ class SPARouter {
       return;
     }
 
-    // 🏗️ PRODUCTION FIX: Skip dynamic JS loading in production builds
-    // In production, Vite bundles all JavaScript into the main bundle
-    // Check if we're running from a built dist directory or if modules are already bundled
-    const isProduction = 
-      // Running from Vite preview (built files) - any port 4173+
-      (window.location.port && parseInt(window.location.port) >= 4173) ||
-      // Running from a deployed environment (no port or standard web ports)
-      (!window.location.port || 
-       window.location.port === "80" || 
-       window.location.port === "443") &&
-      !window.location.hostname.includes("localhost") &&
-      !window.location.hostname.includes("127.0.0.1");
-
-    if (isProduction) {
+    // 🏗️ PRODUCTION FIX: Use Vite's native production detection + preview mode detection
+    // Skip dynamic JS loading in real builds (after `vite build` / `vite preview`)
+    const isBuiltMode = import.meta.env.PROD || 
+      (window.location.port && parseInt(window.location.port) >= 4173);
+    
+    if (isBuiltMode) {
       console.log(
-        "🏗️ Production mode detected - skipping dynamic JS loading (JS is bundled)"
+        "🏗️ Production/preview mode detected - skipping dynamic JS loading (JS is bundled by Vite)"
       );
       return;
     }

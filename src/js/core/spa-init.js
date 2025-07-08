@@ -23,8 +23,23 @@ import SPARouter from "./spa-router.js";
 import "./menu.js"; // 🎯 CRITICAL FIX: Import menu system for authentication state management
 import { currentUser } from "./currentUser.js"; // 🎯 FIX: Import currentUser for profile updates
 import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager instead of using window
-import "./script.js"; // 🎯 CRITICAL FIX: Import schedule functionality for home page
-import "../../css/styles.css"; // 🎯 ENSURE: Load all CSS including auth.css early
+
+// 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
+import "/src/css/styles.css";
+import "/src/css/profile-setup.css";
+import "/src/css/friends-page.css";
+
+// 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
+// Import in dependency order: manager first, then UI that depends on it
+import "./script.js";  // 🎯 CRITICAL: Schedule page functionality
+import "./friends/friends-manager.js";
+import "./friends/friends-ui.js";
+import "./profile-setup.js";
+import "./avatars.js";
+import "../firebase/auth/auth-manager.js";
+
+// 🎯 DEBUG: Log that modules are imported
+console.log("🔧 SPA Init: All page-specific modules imported and ready");
 
 // 🎯 NEW: Create module-level variables instead of window globals
 let spaRouter = null;
