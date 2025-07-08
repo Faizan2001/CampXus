@@ -15,6 +15,7 @@ IMPORTED MODULES:
 - schedule.css: Schedule grid, time slots, and slot interactions
 - menu.css: Menu navigation and theme toggle styles
 - modal.css: Modal dialogs and overlay styles
+- auth.css: Authentication modal glassmorphism styling
 - animations.css: Transitions, hover effects, and motion
 - responsive-enhancements.css: Modern responsive design features
 
@@ -35,6 +36,7 @@ IMPORTED MODULES:
 @import url("./schedule.css"); /* Schedule grid & interactions */
 @import url("./menu.css"); /* Menu & theme toggle styles */
 @import url("./modal.css"); /* Modal & dialog styles */
+@import url("./auth.css"); /* Authentication modal styles */
 @import url("./animations.css"); /* Transitions & effects */
 @import url("./responsive-enhancements.css"); /* Modern responsive features */
 
@@ -51,6 +53,7 @@ IMPORTED MODULES:
 ✅ Schedule grid & interactions - schedule.css
 ✅ Menu & theme toggle styles - menu.css
 ✅ Modal & dialog styles - modal.css
+✅ Authentication modal styling - auth.css
 ✅ Transitions & effects - animations.css
 ✅ Modern responsive features - responsive-enhancements.css
 

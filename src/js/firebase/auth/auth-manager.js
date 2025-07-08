@@ -238,74 +238,7 @@ class AuthManager {
     document.body.insertAdjacentHTML("beforeend", modalHTML);
     this.authModal = document.getElementById("auth-modal");
 
-    // 🎯 CRITICAL FIX: Add CSS styles for the modal if not already present
-    if (!document.getElementById("auth-modal-styles")) {
-      const modalStyles = document.createElement("style");
-      modalStyles.id = "auth-modal-styles";
-      modalStyles.textContent = `
-        .auth-modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.7);
-          z-index: 10000;
-          display: none !important;
-          justify-content: center;
-          align-items: center;
-          backdrop-filter: blur(5px);
-        }
-        
-        .auth-modal.active {
-          display: flex !important;
-        }
-        
-        .auth-container {
-          background: white;
-          border-radius: 12px;
-          padding: 2rem;
-          max-width: 400px;
-          width: 90%;
-          max-height: 90vh;
-          overflow-y: auto;
-          position: relative;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-        
-        .auth-close {
-          position: absolute;
-          top: 1rem;
-          right: 1rem;
-          background: none;
-          border: none;
-          font-size: 1.5rem;
-          cursor: pointer;
-          color: #666;
-          z-index: 1;
-        }
-        
-        .auth-close:hover {
-          color: #333;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-          .auth-container {
-            background: #1a1a1a;
-            color: white;
-          }
-          
-          .auth-close {
-            color: #ccc;
-          }
-          
-          .auth-close:hover {
-            color: white;
-          }
-        }
-      `;
-      document.head.appendChild(modalStyles);
-    }
+    // 🎯 CSS styles are now loaded via auth.css import in styles.css
 
     // Set up event listeners
     this.setupModalEventListeners();
