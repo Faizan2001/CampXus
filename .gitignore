@@ -32,6 +32,7 @@ Thumbs.db
 *~
 
 # Build outputs
-dist/
+# Ignore Vite/production build output
+/dist/
 build/
 *.log

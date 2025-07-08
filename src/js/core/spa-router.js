@@ -98,8 +98,14 @@ class SPARouter {
       console.error(
         "❌ Main content container not found! SPA Router cannot work."
       );
-      console.log("📋 Available elements with class 'main':", document.querySelectorAll("[class*='main']"));
-      console.log("📋 Body contents:", document.body.innerHTML.substring(0, 500) + "...");
+      console.log(
+        "📋 Available elements with class 'main':",
+        document.querySelectorAll("[class*='main']")
+      );
+      console.log(
+        "📋 Body contents:",
+        document.body.innerHTML.substring(0, 500) + "..."
+      );
       return;
     }
     console.log("✅ Found main content container:", this.mainContentContainer);
@@ -420,7 +426,7 @@ class SPARouter {
    */
   loadInitialPage() {
     console.log("📄 loadInitialPage() called");
-    
+
     // Parse the current URL to determine which page to load
     const hash = window.location.hash.slice(1); // Remove the # symbol
     const route = hash && this.routes[hash] ? hash : "home";
@@ -452,7 +458,7 @@ class SPARouter {
     if (routeConfig.requiresAuth) {
       // 🎯 FIXED: Use imported authManager and currentUser instead of window globals
       const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
-      
+
       if (!isAuthenticated) {
         console.warn(
           `🔒 Access denied to route: ${route}. User not authenticated.`
@@ -460,9 +466,9 @@ class SPARouter {
         console.log("🔍 Debug auth state:", {
           hasUser: !!currentUser.user,
           isLoggedIn: currentUser.isLoggedIn(),
-          userUID: currentUser.user?.uid
+          userUID: currentUser.user?.uid,
         });
-        
+
         // Show notification using imported dataManager
         dataManager.showNotification(
           "You must be logged in to view this page.",
@@ -520,7 +526,7 @@ class SPARouter {
         title: routeData.title,
         template: routeData.template,
         cssFiles: routeData.cssFiles?.length || 0,
-        jsFiles: routeData.jsFiles?.length || 0
+        jsFiles: routeData.jsFiles?.length || 0,
       });
 
       // Update page title
@@ -545,18 +551,31 @@ class SPARouter {
 
       // 🧹 Clear main content container completely before injecting new content
       // This prevents any residual content from previous pages
-      this.mainContentContainer.innerHTML = '';
-      
+      this.mainContentContainer.innerHTML = "";
+
       // 🛡️ Final validation: Check if content contains navigation elements
       // (which would indicate we accidentally loaded index.html)
-      if (htmlContent.includes('<nav') || htmlContent.includes('class="top-nav"') || htmlContent.includes('class="nav-')) {
-        console.error(`🚨 Template content contains navigation elements - this indicates index.html was loaded instead of template`);
-        console.error("Template content preview:", htmlContent.substring(0, 500));
-        throw new Error(`Template ${routeData.template} contains navigation elements, indicating wrong content was loaded`);
+      if (
+        htmlContent.includes("<nav") ||
+        htmlContent.includes('class="top-nav"') ||
+        htmlContent.includes('class="nav-')
+      ) {
+        console.error(
+          `🚨 Template content contains navigation elements - this indicates index.html was loaded instead of template`
+        );
+        console.error(
+          "Template content preview:",
+          htmlContent.substring(0, 500)
+        );
+        throw new Error(
+          `Template ${routeData.template} contains navigation elements, indicating wrong content was loaded`
+        );
       }
-      
+
       // Update the main content
-      console.log(`📝 Injecting template content into main-content (${htmlContent.length} chars)`);
+      console.log(
+        `📝 Injecting template content into main-content (${htmlContent.length} chars)`
+      );
       this.mainContentContainer.innerHTML = htmlContent;
 
       // Load and execute JavaScript files
@@ -590,14 +609,36 @@ class SPARouter {
   /**
    * Load CSS files dynamically
    * 🎯 Learning: Each page can have its own styles that load on demand
+   * 🏗️ Production Fix: Skip CSS loading in production since Vite bundles all CSS
    */
   async loadCSS(cssFiles) {
     if (!cssFiles || cssFiles.length === 0) return;
+
+    // 🏗️ PRODUCTION FIX: Skip dynamic CSS loading in production builds
+    // In production, Vite bundles all CSS into the main bundle
+    const isProduction =
+      !window.location.hostname.includes("localhost") &&
+      !window.location.hostname.includes("127.0.0.1") &&
+      !window.location.port;
+
+    if (isProduction) {
+      console.log(
+        "🏗️ Production mode detected - skipping dynamic CSS loading (CSS is bundled)"
+      );
+      return;
+    }
+
+    // 🔧 Development mode: Load CSS dynamically for hot reloading
+    console.log(
+      "🔧 Development mode - loading CSS files dynamically:",
+      cssFiles
+    );
 
     const promises = cssFiles.map((cssFile) => {
       return new Promise((resolve, reject) => {
         // Check if already loaded
         if (document.querySelector(`link[href="${cssFile}"]`)) {
+          console.log(`✅ CSS already loaded: ${cssFile}`);
           resolve();
           return;
         }
@@ -605,8 +646,14 @@ class SPARouter {
         const link = document.createElement("link");
         link.rel = "stylesheet";
         link.href = cssFile;
-        link.onload = resolve;
-        link.onerror = reject;
+        link.onload = () => {
+          console.log(`✅ CSS loaded successfully: ${cssFile}`);
+          resolve();
+        };
+        link.onerror = (error) => {
+          console.error(`❌ Failed to load CSS: ${cssFile}`, error);
+          reject(error);
+        };
         document.head.appendChild(link);
       });
     });
@@ -621,29 +668,41 @@ class SPARouter {
    */
   async loadTemplate(templatePath) {
     // Ensure absolute path to prevent routing context issues
-    const url = templatePath.startsWith("/") ? templatePath : "/" + templatePath;
-    
+    const url = templatePath.startsWith("/")
+      ? templatePath
+      : "/" + templatePath;
+
     console.log(`📄 Loading template: ${url}`);
-    
+
     const response = await fetch(url);
     if (!response.ok) {
       console.error(`❌ Template fetch failed: ${url} (${response.status})`);
-      throw new Error(`Failed to load template: ${url} - ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Failed to load template: ${url} - ${response.status} ${response.statusText}`
+      );
     }
-    
+
     const html = await response.text();
-    
+
     // 🛡️ CRITICAL FIX: Detect if we accidentally got a full HTML document
     // instead of a template fragment (happens when Vite's history API fallback
     // serves index.html for 404'd template requests)
     if (looksLikeFullDocument(html)) {
-      console.error(`🚨 Template fetch returned full HTML document instead of fragment: ${url}`);
-      console.error("This usually means the template file wasn't found and Vite served index.html as fallback");
+      console.error(
+        `🚨 Template fetch returned full HTML document instead of fragment: ${url}`
+      );
+      console.error(
+        "This usually means the template file wasn't found and Vite served index.html as fallback"
+      );
       console.error("First 200 chars of response:", html.substring(0, 200));
-      throw new Error(`Template loading error: ${url} returned a full HTML document instead of a template fragment. Check that the template file exists.`);
+      throw new Error(
+        `Template loading error: ${url} returned a full HTML document instead of a template fragment. Check that the template file exists.`
+      );
     }
-    
-    console.log(`✅ Template loaded successfully: ${url} (${html.length} chars)`);
+
+    console.log(
+      `✅ Template loaded successfully: ${url} (${html.length} chars)`
+    );
     return html;
   }
 
@@ -655,8 +714,10 @@ class SPARouter {
     if (!jsFiles || jsFiles.length === 0) {
       return;
     }
-    
-    console.log(`  -> Loading ${jsFiles.length} JS file(s) for /${this.currentPage}`);
+
+    console.log(
+      `  -> Loading ${jsFiles.length} JS file(s) for /${this.currentPage}`
+    );
 
     for (const jsFile of jsFiles) {
       // Check if a script with this src already exists in the document
@@ -769,23 +830,34 @@ class SPARouter {
   showErrorPage(error) {
     console.log("🔍 Analyzing error for appropriate response:", error);
 
+    // 🛡️ SAFETY: Ensure error has a message property
+    const errorMessage =
+      error?.message || error?.toString() || "Unknown error occurred";
+    const errorName = error?.name || "Error";
+
     // Check if this is an offline/network error
     const isOfflineError =
       !navigator.onLine ||
-      error.message.includes("fetch") ||
-      error.message.includes("Failed to fetch") ||
-      error.message.includes("NetworkError") ||
-      (error.name === "TypeError" && error.message.includes("fetch"));
+      errorMessage.includes("fetch") ||
+      errorMessage.includes("Failed to fetch") ||
+      errorMessage.includes("NetworkError") ||
+      (errorName === "TypeError" && errorMessage.includes("fetch"));
 
     if (isOfflineError) {
       console.log("📱 Detected offline error - showing appropriate message");
 
       // Use the notification system for offline errors instead of replacing content
-      dataManager.showNotification(
-        "📱 You're offline! Some features may not work until you reconnect.",
-        "warning",
-        { duration: 8000 }
-      );
+      if (window.dataManager?.showNotification) {
+        window.dataManager.showNotification(
+          "📱 You're offline! Some features may not work until you reconnect.",
+          "warning",
+          { duration: 8000 }
+        );
+      } else {
+        console.warn(
+          "📱 Offline detected but notification system not available"
+        );
+      }
 
       // Don't replace the current page content when offline
       // Instead, just stay where we are with a helpful message
@@ -793,19 +865,21 @@ class SPARouter {
     }
 
     // For genuine errors (not offline), show the error page
-    const isTemplateError = error.message && error.message.includes('template');
-    const errorIcon = isTemplateError ? '📄' : '😔';
-    const errorTitle = isTemplateError ? 'Template Loading Error' : 'Oops! Something went wrong';
-    const errorMessage = isTemplateError 
-      ? 'We had trouble loading the page template. This might be a temporary issue.'
-      : 'We couldn\'t load this page. Please try again.';
+    const isTemplateError = errorMessage && errorMessage.includes("template");
+    const errorIcon = isTemplateError ? "📄" : "😔";
+    const errorTitle = isTemplateError
+      ? "Template Loading Error"
+      : "Oops! Something went wrong";
+    const displayMessage = isTemplateError
+      ? "We had trouble loading the page template. This might be a temporary issue."
+      : "We couldn't load this page. Please try again.";
 
     this.mainContentContainer.innerHTML = `
       <div class="error-page" style="text-align: center; padding: 3rem;">
         <div style="font-size: 4rem; margin-bottom: 1rem;">${errorIcon}</div>
         <h2>${errorTitle}</h2>
         <p style="color: #666; margin-bottom: 2rem;">
-          ${errorMessage}
+          ${displayMessage}
         </p>
         <div style="margin-bottom: 2rem;">
           <button onclick="window.location.reload()" class="btn btn-secondary" style="margin-right: 1rem;">
@@ -818,8 +892,9 @@ class SPARouter {
         <details style="margin-top: 2rem; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
           <summary style="cursor: pointer; color: #666;">Technical Details</summary>
           <pre style="background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow: auto; margin-top: 1rem;">
-${error.message}
-${error.stack || ""}
+Error: ${errorMessage}
+Type: ${errorName}
+Stack: ${error?.stack || "No stack trace available"}
           </pre>
         </details>
       </div>
@@ -847,6 +922,22 @@ ${error.stack || ""}
     });
     document.dispatchEvent(event);
     console.log(`🔔 Dispatched spa:page:load event for route: ${route}`);
+  }
+
+  /**
+   * Show error feedback to user
+   * 🎯 Learning: Provide user-friendly error messages
+   */
+  showErrorFeedback(message) {
+    console.error("🚨 SPA Router Error:", message);
+
+    // Use data manager for notifications if available
+    if (window.dataManager?.showNotification) {
+      window.dataManager.showNotification(message, "error", { duration: 5000 });
+    } else {
+      // Fallback to alert if notification system not available
+      alert(message);
+    }
   }
 
   /**
