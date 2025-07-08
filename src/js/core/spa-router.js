@@ -36,7 +36,7 @@ class SPARouter {
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsFiles: ["/src/js/core/script.js"], // ✅ Fixed: Absolute path from root for Vite
+        jsFiles: [], // ✅ FIXED: Remove script.js - it's now imported in spa-init.js
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
@@ -709,12 +709,34 @@ class SPARouter {
   /**
    * Load JavaScript files dynamically
    * 🎯 Learning: Each page can have its own functionality
+   * 🏗️ Production Fix: Skip JS loading in production since Vite bundles all JS
    */
   async loadJS(jsFiles) {
     if (!jsFiles || jsFiles.length === 0) {
       return;
     }
 
+    // 🏗️ PRODUCTION FIX: Skip dynamic JS loading in production builds
+    // In production, Vite bundles all JavaScript into the main bundle
+    // Check if we're running from a built dist directory or if modules are already bundled
+    const isProduction = 
+      // Running from Vite preview (built files) - any port 4173+
+      (window.location.port && parseInt(window.location.port) >= 4173) ||
+      // Running from a deployed environment (no port or standard web ports)
+      (!window.location.port || 
+       window.location.port === "80" || 
+       window.location.port === "443") &&
+      !window.location.hostname.includes("localhost") &&
+      !window.location.hostname.includes("127.0.0.1");
+
+    if (isProduction) {
+      console.log(
+        "🏗️ Production mode detected - skipping dynamic JS loading (JS is bundled)"
+      );
+      return;
+    }
+
+    // 🔧 Development mode: Load JS dynamically for development
     console.log(
       `  -> Loading ${jsFiles.length} JS file(s) for /${this.currentPage}`
     );

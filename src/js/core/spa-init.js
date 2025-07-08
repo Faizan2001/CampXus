@@ -23,6 +23,7 @@ import SPARouter from "./spa-router.js";
 import "./menu.js"; // 🎯 CRITICAL FIX: Import menu system for authentication state management
 import { currentUser } from "./currentUser.js"; // 🎯 FIX: Import currentUser for profile updates
 import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager instead of using window
+import "./script.js"; // 🎯 CRITICAL FIX: Import schedule functionality for home page
 import "../../css/styles.css"; // 🎯 ENSURE: Load all CSS including auth.css early
 
 // 🎯 NEW: Create module-level variables instead of window globals
