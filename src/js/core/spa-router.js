@@ -11,50 +11,54 @@
  * - Handle browser back/forward buttons
  */
 
+import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager for authentication checks
+import { currentUser } from "./currentUser.js"; // 🎯 NEW: Import currentUser for better auth state checking
+import { dataManager } from "./data-manager.js"; // 🎯 NEW: Import dataManager for notifications
+
 class SPARouter {
   constructor() {
     // 📚 Learning: These are the "routes" - like a map of your app's pages
     this.routes = {
       home: {
         title: "Schedule - CampXus",
-        template: "/templates/home.html",
+        template: "templates/home.html", // ✅ Vite serves public folder as root
         cssFiles: [
-          "/src/css/styles.css", // ✅ Master stylesheet imports all components
-        ], // Simplified: styles.css imports everything we need
-        jsFiles: ["/src/js/core/script.js"], // Schedule functionality
+          "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
+        ],
+        jsFiles: ["/src/js/core/script.js"], // ✅ Fixed: Absolute path from root for Vite
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
         title: "Profile Setup - CampXus",
-        template: "/templates/profile.html",
+        template: "templates/profile.html", // ✅ Vite serves public folder as root
         cssFiles: [
-          "/src/css/styles.css", // ✅ Base styles with all components
-          "/src/css/profile-setup.css", // ✅ Profile-specific extensions
+          "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
+          "/src/css/profile-setup.css", // ✅ Fixed: Absolute path from root for Vite
         ],
         jsFiles: [
-          "/src/js/firebase/auth/auth-manager.js", // ✅ Authentication system
-          "/src/js/core/avatars.js", // ✅ Avatar management system
-          "/src/js/core/profile-setup.js", // ✅ Profile functionality
+          "/src/js/firebase/auth/auth-manager.js", // ✅ Fixed: Absolute path from root for Vite
+          "/src/js/core/avatars.js", // ✅ Fixed: Absolute path from root for Vite
+          "/src/js/core/profile-setup.js", // ✅ Fixed: Absolute path from root for Vite
         ],
         description: "Set up your student profile and preferences",
       },
       friends: {
         title: "Friends - CampXus",
-        template: "/templates/friends.html",
+        template: "templates/friends.html", // ✅ Vite serves public folder as root
         cssFiles: [
-          "/src/css/styles.css", // ✅ Base styles with all components
-          "/src/css/friends-page.css", // ✅ Friends-specific styling
+          "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
+          "/src/css/friends-page.css", // ✅ Fixed: Absolute path from root for Vite
         ],
         jsFiles: [
-          "/src/js/core/friends/friends-manager.js", // ✅ Core friends business logic
-          "/src/js/core/friends/friends-ui.js", // ✅ Friends UI controller
+          "/src/js/core/friends/friends-manager.js", // ✅ Fixed: Absolute path from root for Vite
+          "/src/js/core/friends/friends-ui.js", // ✅ Fixed: Absolute path from root for Vite
         ],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       about: {
         title: "About - CampXus",
-        template: "/templates/about.html",
+        template: "templates/about.html", // ✅ Vite serves public folder as root
         cssFiles: [],
         jsFiles: [],
         description: "Learn about the developer and the app",
@@ -432,17 +436,24 @@ class SPARouter {
       return;
     }
 
-    // 🛡️ New Authentication Check!
+    // 🛡️ Authentication Check with proper ES6 imports!
     const routeConfig = this.routes[route];
     if (routeConfig.requiresAuth) {
-      // We need to check if the user is logged in.
-      // We'll assume an authManager is available globally or passed to the router.
-      if (!window.authManager || !window.authManager.isAuthenticated()) {
+      // 🎯 FIXED: Use imported authManager and currentUser instead of window globals
+      const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
+      
+      if (!isAuthenticated) {
         console.warn(
           `🔒 Access denied to route: ${route}. User not authenticated.`
         );
-        // Use our friendly dataManager notification system!
-        window.dataManager.showNotification(
+        console.log("🔍 Debug auth state:", {
+          hasUser: !!currentUser.user,
+          isLoggedIn: currentUser.isLoggedIn(),
+          userUID: currentUser.user?.uid
+        });
+        
+        // Show notification using imported dataManager
+        dataManager.showNotification(
           "You must be logged in to view this page.",
           "warning"
         );
@@ -714,13 +725,11 @@ class SPARouter {
       console.log("📱 Detected offline error - showing appropriate message");
 
       // Use the notification system for offline errors instead of replacing content
-      if (window.dataManager) {
-        window.dataManager.showNotification(
-          "📱 You're offline! Some features may not work until you reconnect.",
-          "warning",
-          { duration: 8000 }
-        );
-      }
+      dataManager.showNotification(
+        "📱 You're offline! Some features may not work until you reconnect.",
+        "warning",
+        { duration: 8000 }
+      );
 
       // Don't replace the current page content when offline
       // Instead, just stay where we are with a helpful message
@@ -789,7 +798,5 @@ ${error.stack || ""}
 }
 
 // 🎯 Learning: Export the class so other files can use it
-// Also create a global instance for easy access
-window.SPARouter = SPARouter;
-
+// Export the SPARouter class for ES6 modules
 export default SPARouter;
