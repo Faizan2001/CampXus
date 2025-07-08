@@ -15,13 +15,24 @@ import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Imp
 import { currentUser } from "./currentUser.js"; // 🎯 NEW: Import currentUser for better auth state checking
 import { dataManager } from "./data-manager.js"; // 🎯 NEW: Import dataManager for notifications
 
+/**
+ * Helper function to detect if fetched content is a full HTML document
+ * instead of a template fragment. This prevents accidentally injecting
+ * the entire index.html into the main content area.
+ * @param {string} html - The HTML content to check
+ * @returns {boolean} True if this looks like a full HTML document
+ */
+function looksLikeFullDocument(html) {
+  return /^\s*<!DOCTYPE html>/i.test(html) || /\<html[\s\S]*\>/i.test(html);
+}
+
 class SPARouter {
   constructor() {
     // 📚 Learning: These are the "routes" - like a map of your app's pages
     this.routes = {
       home: {
         title: "Schedule - CampXus",
-        template: "templates/home.html", // ✅ Vite serves public folder as root
+        template: "/templates/home.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
         ],
@@ -30,7 +41,7 @@ class SPARouter {
       },
       profile: {
         title: "Profile Setup - CampXus",
-        template: "templates/profile.html", // ✅ Vite serves public folder as root
+        template: "/templates/profile.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
           "/src/css/profile-setup.css", // ✅ Fixed: Absolute path from root for Vite
@@ -44,7 +55,7 @@ class SPARouter {
       },
       friends: {
         title: "Friends - CampXus",
-        template: "templates/friends.html", // ✅ Vite serves public folder as root
+        template: "/templates/friends.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
           "/src/css/friends-page.css", // ✅ Fixed: Absolute path from root for Vite
@@ -58,7 +69,7 @@ class SPARouter {
       },
       about: {
         title: "About - CampXus",
-        template: "templates/about.html", // ✅ Vite serves public folder as root
+        template: "/templates/about.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [],
         jsFiles: [],
         description: "Learn about the developer and the app",
@@ -505,6 +516,12 @@ class SPARouter {
 
     try {
       console.log(`🔄 Loading page: ${route}, current: ${this.currentPage}`);
+      console.log(`📋 Route config:`, {
+        title: routeData.title,
+        template: routeData.template,
+        cssFiles: routeData.cssFiles?.length || 0,
+        jsFiles: routeData.jsFiles?.length || 0
+      });
 
       // Update page title
       document.title = routeData.title;
@@ -521,7 +538,25 @@ class SPARouter {
       // Load the HTML template
       const htmlContent = await this.loadTemplate(routeData.template);
 
+      // 🛡️ Additional validation before injecting content
+      if (!htmlContent || htmlContent.trim().length === 0) {
+        throw new Error(`Template ${routeData.template} is empty`);
+      }
+
+      // 🧹 Clear main content container completely before injecting new content
+      // This prevents any residual content from previous pages
+      this.mainContentContainer.innerHTML = '';
+      
+      // 🛡️ Final validation: Check if content contains navigation elements
+      // (which would indicate we accidentally loaded index.html)
+      if (htmlContent.includes('<nav') || htmlContent.includes('class="top-nav"') || htmlContent.includes('class="nav-')) {
+        console.error(`🚨 Template content contains navigation elements - this indicates index.html was loaded instead of template`);
+        console.error("Template content preview:", htmlContent.substring(0, 500));
+        throw new Error(`Template ${routeData.template} contains navigation elements, indicating wrong content was loaded`);
+      }
+      
       // Update the main content
+      console.log(`📝 Injecting template content into main-content (${htmlContent.length} chars)`);
       this.mainContentContainer.innerHTML = htmlContent;
 
       // Load and execute JavaScript files
@@ -580,15 +615,36 @@ class SPARouter {
   }
 
   /**
-   * Load HTML template
+   * Load HTML template with validation to prevent loading full documents
    * 🎯 Learning: Fetch content from separate HTML files
+   * 🛡️ Security: Validate that we get template fragments, not full HTML documents
    */
   async loadTemplate(templatePath) {
-    const response = await fetch(templatePath);
+    // Ensure absolute path to prevent routing context issues
+    const url = templatePath.startsWith("/") ? templatePath : "/" + templatePath;
+    
+    console.log(`📄 Loading template: ${url}`);
+    
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to load template: ${templatePath}`);
+      console.error(`❌ Template fetch failed: ${url} (${response.status})`);
+      throw new Error(`Failed to load template: ${url} - ${response.status} ${response.statusText}`);
     }
-    return await response.text();
+    
+    const html = await response.text();
+    
+    // 🛡️ CRITICAL FIX: Detect if we accidentally got a full HTML document
+    // instead of a template fragment (happens when Vite's history API fallback
+    // serves index.html for 404'd template requests)
+    if (looksLikeFullDocument(html)) {
+      console.error(`🚨 Template fetch returned full HTML document instead of fragment: ${url}`);
+      console.error("This usually means the template file wasn't found and Vite served index.html as fallback");
+      console.error("First 200 chars of response:", html.substring(0, 200));
+      throw new Error(`Template loading error: ${url} returned a full HTML document instead of a template fragment. Check that the template file exists.`);
+    }
+    
+    console.log(`✅ Template loaded successfully: ${url} (${html.length} chars)`);
+    return html;
   }
 
   /**
@@ -737,16 +793,28 @@ class SPARouter {
     }
 
     // For genuine errors (not offline), show the error page
+    const isTemplateError = error.message && error.message.includes('template');
+    const errorIcon = isTemplateError ? '📄' : '😔';
+    const errorTitle = isTemplateError ? 'Template Loading Error' : 'Oops! Something went wrong';
+    const errorMessage = isTemplateError 
+      ? 'We had trouble loading the page template. This might be a temporary issue.'
+      : 'We couldn\'t load this page. Please try again.';
+
     this.mainContentContainer.innerHTML = `
       <div class="error-page" style="text-align: center; padding: 3rem;">
-        <div style="font-size: 4rem; margin-bottom: 1rem;">😔</div>
-        <h2>Oops! Something went wrong</h2>
+        <div style="font-size: 4rem; margin-bottom: 1rem;">${errorIcon}</div>
+        <h2>${errorTitle}</h2>
         <p style="color: #666; margin-bottom: 2rem;">
-          We couldn't load this page. Please try again.
+          ${errorMessage}
         </p>
-        <button onclick="window.spaRouter.navigateTo('home')" class="btn btn-primary">
-          <i class="fas fa-home"></i> Go Home
-        </button>
+        <div style="margin-bottom: 2rem;">
+          <button onclick="window.location.reload()" class="btn btn-secondary" style="margin-right: 1rem;">
+            <i class="fas fa-refresh"></i> Refresh Page
+          </button>
+          <button onclick="window.spaRouter.navigateTo('home')" class="btn btn-primary">
+            <i class="fas fa-home"></i> Go Home
+          </button>
+        </div>
         <details style="margin-top: 2rem; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
           <summary style="cursor: pointer; color: #666;">Technical Details</summary>
           <pre style="background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow: auto; margin-top: 1rem;">
