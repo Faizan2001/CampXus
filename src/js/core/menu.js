@@ -2,6 +2,7 @@
 
 // Import DataManager for all user data operations
 import { currentUser } from "./currentUser.js";
+import { navigateTo } from "./spa-init.js";
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { avatarManager } from "./avatars.js";
 
@@ -437,6 +438,10 @@ async function handleSignOut() {
       const userMenu = document.getElementById("userMenu");
       if (loginBtn) loginBtn.style.display = "flex";
       if (userMenu) userMenu.style.display = "none";
+
+      // Redirect to home/schedule page after sign out using SPA router
+      navigateTo("home");
+      
     } else {
       console.error("AuthManager not available.");
     }
@@ -803,19 +808,3 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Expose theme functions and user menu functions for external access
-window.themeUtils = {
-  toggleDarkMode,
-  applyTheme,
-  getCurrentTheme: () => localStorage.getItem("theme") || "system",
-};
-
-window.userMenuUtils = {
-  toggleUserDropdown,
-  openUserDropdown,
-  closeUserDropdown,
-  updateUserDisplayInfo,
-  clearUserDisplayInfo, // 🐛 BUG FIX: Expose clear function for external use
-  handleSignOut,
-  handleLogin,
-};
