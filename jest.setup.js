@@ -1,5 +1,7 @@
+
 // jest.setup.js
-// Note: Using require syntax for Jest setup compatibility
+// Import jest for ESM compatibility
+import { jest } from '@jest/globals';
 
 // jest.setup.js
 // Note: Using require syntax for Jest setup compatibility
@@ -47,4 +49,18 @@ Object.defineProperty(window, "ENV", {
   writable: true,
 });
 
-// Note: Firebase mocking will be handled in individual test files if needed
+
+// Mock window.matchMedia for tests (jsdom does not implement it by default)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(), // deprecated
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+});
