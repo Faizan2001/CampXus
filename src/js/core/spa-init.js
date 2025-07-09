@@ -26,8 +26,6 @@ import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Imp
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
-import "/src/css/profile-setup.css";
-import "/src/css/friends-page.css";
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it

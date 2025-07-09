@@ -39,6 +39,8 @@ IMPORTED MODULES:
 @import url("./auth.css"); /* Authentication modal styles */
 @import url("./animations.css"); /* Transitions & effects */
 @import url("./responsive-enhancements.css"); /* Modern responsive features */
+@import url("./profile-setup.css"); /* Profile setup styles */
+@import url("./friends-page.css"); /* Friends page styles */
 
 /*
 ====================================================================================

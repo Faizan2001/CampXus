@@ -1,7 +1,6 @@
 // js/menu.js - Enhanced dark/light mode toggle with glassmorphism design
 
 // Import DataManager for all user data operations
-import { dataManager } from "./data-manager.js";
 import { currentUser } from "./currentUser.js";
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { avatarManager } from "./avatars.js";
