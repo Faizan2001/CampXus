@@ -362,7 +362,7 @@ describe("Modal System (js/modal.js)", () => {
                 <div class="modal-content">
                     <h3 id="modalTitle"></h3>
                     <p id="modalMessage"></p>
-                    <div id="modalActionButtons" style="display: none;">
+                    <div class="modal-action-buttons" style="display: none;">
                         <button id="modalConfirmBtn">Yes</button>
                         <button id="modalCancelBtn">No</button>
                     </div>
@@ -577,8 +577,16 @@ describe("Modal System (js/modal.js)", () => {
       showModal({ content: "Click outside", onCancel: onCancelCallback });
       jest.runAllTimers(); // Ensure modal is active
 
-      // Simulate click directly on the modal overlay
-      DOM_ELEMENTS.appModal.click();
+      // Simulate click directly on the modal overlay with proper event
+      const clickEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(clickEvent, 'target', {
+        value: DOM_ELEMENTS.appModal,
+        enumerable: true
+      });
+      DOM_ELEMENTS.appModal.dispatchEvent(clickEvent);
 
       expect(onCancelCallback).toHaveBeenCalled();
       jest.runAllTimers(); // For hideModal's setTimeout

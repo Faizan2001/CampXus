@@ -35,7 +35,7 @@ const setupBaseTestDOM = () => {
             <div class="modal-content">
                 <h3 id="modalTitle"></h3>
                 <div id="modalMessage"></div>
-                <div id="modalActionButtons" style="display: none;">
+                <div class="modal-action-buttons" style="display: none;">
                     <button id="modalConfirmBtn"></button>
                     <button id="modalCancelBtn"></button>
                 </div>

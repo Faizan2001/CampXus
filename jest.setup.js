@@ -25,6 +25,7 @@ Object.defineProperty(window, "localStorage", { value: localStorageMock });
 
 // Mock global functions
 global.alert = () => {};
+global.confirm = () => true;
 
 // Mock clipboard API
 Object.defineProperty(navigator, "clipboard", {
@@ -64,3 +65,13 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
+
+// Add missing DOM elements globally for SPA initialization
+// Create main content and top nav for SPA to prevent errors
+const mainContent = document.createElement('div');
+mainContent.className = 'main-content';
+document.body.appendChild(mainContent);
+
+const topNav = document.createElement('nav');
+topNav.className = 'top-nav';
+document.body.appendChild(topNav);

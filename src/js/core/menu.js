@@ -687,20 +687,6 @@ function setupProfileCompletionListeners() {
   });
 }
 
-/**
- * This function is called from profile-setup.js after the profile is saved.
- * @deprecated - Now handled automatically via currentUser subscription
- */
-function updateUserDataAfterProfileCompletion(newUserData) {
-  console.log("⚠️ updateUserDataAfterProfileCompletion is deprecated - using currentUser subscription instead");
-  // The currentUser subscription system now handles this automatically
-}
-
-// Legacy functions for backward compatibility (if needed by other scripts)
-function toggleMenu() {
-  // No-op for backward compatibility
-  console.warn("toggleMenu() is deprecated in the new glassmorphism design");
-}
 
 /**
  * Initialize mobile-specific optimizations
