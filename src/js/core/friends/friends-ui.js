@@ -186,7 +186,7 @@ class FriendsUI {
       this.showSearchLoading();
 
       // Search using friends manager
-      const results = await friendsManager.searchStudents(searchTerm);
+      const results = await friendsManager.searchStudentsWithCache(searchTerm);
 
       // Display results
       this.displaySearchResults(results);

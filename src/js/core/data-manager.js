@@ -413,6 +413,53 @@ class DataManager {
   }
 
   /**
+   * 🎓 Find users by major at the same university
+   * @param {string} universityId - The university ID to search within
+   * @param {string} major - Major to search for (e.g., "Computer Science")
+   * @param {number} maxResults - Maximum results to return (default: 15)
+   * @returns {Promise<Array>} A list of user profiles in that major
+   */
+  async findUsersByMajor(universityId, major, maxResults = 15) {
+    if (!universityId || !major) {
+      console.error("❌ University ID and major are required.");
+      return [];
+    }
+
+    try {
+      const usersRef = collection(db, "users");
+      const majorLower = major.toLowerCase();
+
+      // Query for exact major match
+      const q = query(
+        usersRef,
+        where("universityInfo.university", "==", universityId),
+        where("profile.major_lower", "==", majorLower),
+        where("socialInfo.searchable", "==", true),
+        // Uncomment the line below if you want to enforce profile completion:
+        // where("systemInfo.profileSetupComplete", "==", true),
+        orderBy("profile.firstName"),
+        limit(maxResults)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+      querySnapshot.forEach((doc) => {
+        users.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log(`🎓 Found ${users.length} ${major} students at ${universityId}`);
+      return users;
+    } catch (error) {
+      console.error("❌ Error finding users by major:", error);
+      this.showNotification("Could not search for students by major.", "error");
+      return [];
+    }
+  }
+
+  /**
    * Get a user's full profile data
    * @param {string} userId The user's ID
    * @returns {Promise<Object|null>} User profile or null if not found
