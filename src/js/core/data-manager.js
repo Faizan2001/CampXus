@@ -142,7 +142,7 @@ class DataManager {
   setupNetworkListeners() {
     window.addEventListener("online", () => {
       this.isOnline = true;
-      this.showNotification("✅ Back online! Syncing changes...", "success", {
+      this.showNotification("Back online! Syncing changes...", "success", {
         duration: 3000,
       });
       this.processPendingOperations();
@@ -151,7 +151,7 @@ class DataManager {
     window.addEventListener("offline", () => {
       this.isOnline = false;
       this.showNotification(
-        "⚠️ You're offline. Changes will be saved locally and synced when you reconnect.",
+        "You're offline. Changes will be saved locally and synced when you reconnect.",
         "warning",
         { duration: 5000 }
       );
@@ -279,19 +279,11 @@ class DataManager {
    * @private
    */
   showNotification(message, type = "info", options = {}) {
-    const defaultOptions = {
-      duration: 3000,
-      gravity: "top", // `top` or `bottom`
-      position: "right", // `left`, `center` or `right`
-      backgroundColor: `var(--color-${type}-notification, #888)`,
-      stopOnFocus: true, // Prevents dismissing of toast on hover
-    };
-
-    Toastify({
-      text: message,
-      ...defaultOptions,
-      ...options,
-    }).showToast();
+    // Simple console logging for development - clean and clear
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    
+    // TODO: Add proper visual notifications later (Toastify or custom modal)
+    // For now, prevents console errors while maintaining functionality
   }
 
   /**

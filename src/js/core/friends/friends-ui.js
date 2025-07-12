@@ -81,23 +81,35 @@ class FriendsUI {
       };
     }
 
-    // Search functionality
+    // Search functionality with safety checks
     if (this.elements.searchInput) {
-      // Remove any existing listeners first (in case DOM was recreated)
-      this.elements.searchInput.removeEventListener("input", this.boundHandlers.searchInput);
-      this.elements.searchInput.removeEventListener("keypress", this.boundHandlers.searchKeypress);
-      
-      // Add fresh listeners
-      this.elements.searchInput.addEventListener("input", this.boundHandlers.searchInput);
-      this.elements.searchInput.addEventListener("keypress", this.boundHandlers.searchKeypress);
+      try {
+        // Remove any existing listeners first (in case DOM was recreated)
+        this.elements.searchInput.removeEventListener("input", this.boundHandlers.searchInput);
+        this.elements.searchInput.removeEventListener("keypress", this.boundHandlers.searchKeypress);
+        
+        // Add fresh listeners
+        this.elements.searchInput.addEventListener("input", this.boundHandlers.searchInput);
+        this.elements.searchInput.addEventListener("keypress", this.boundHandlers.searchKeypress);
+      } catch (error) {
+        console.warn("⚠️ Could not set up search input listeners:", error);
+      }
+    } else {
+      console.warn("⚠️ Search input element not found - search functionality disabled");
     }
 
     if (this.elements.searchBtn) {
-      // Remove any existing listeners first
-      this.elements.searchBtn.removeEventListener("click", this.boundHandlers.searchClick);
-      
-      // Add fresh listener
-      this.elements.searchBtn.addEventListener("click", this.boundHandlers.searchClick);
+      try {
+        // Remove any existing listeners first
+        this.elements.searchBtn.removeEventListener("click", this.boundHandlers.searchClick);
+        
+        // Add fresh listener
+        this.elements.searchBtn.addEventListener("click", this.boundHandlers.searchClick);
+      } catch (error) {
+        console.warn("⚠️ Could not set up search button listener:", error);
+      }
+    } else {
+      console.warn("⚠️ Search button element not found");
     }
 
     console.log("🎯 Event listeners set up");
@@ -108,13 +120,17 @@ class FriendsUI {
    */
   removeEventListeners() {
     if (this.boundHandlers) {
-      if (this.elements.searchInput) {
-        this.elements.searchInput.removeEventListener("input", this.boundHandlers.searchInput);
-        this.elements.searchInput.removeEventListener("keypress", this.boundHandlers.searchKeypress);
-      }
+      try {
+        if (this.elements.searchInput) {
+          this.elements.searchInput.removeEventListener("input", this.boundHandlers.searchInput);
+          this.elements.searchInput.removeEventListener("keypress", this.boundHandlers.searchKeypress);
+        }
 
-      if (this.elements.searchBtn) {
-        this.elements.searchBtn.removeEventListener("click", this.boundHandlers.searchClick);
+        if (this.elements.searchBtn) {
+          this.elements.searchBtn.removeEventListener("click", this.boundHandlers.searchClick);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error removing event listeners:", error);
       }
     }
   }
