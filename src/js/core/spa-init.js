@@ -23,6 +23,8 @@ import SPARouter from "./spa-router.js";
 import "./menu.js"; // 🎯 CRITICAL FIX: Import menu system for authentication state management
 import { currentUser } from "./currentUser.js"; // 🎯 FIX: Import currentUser for profile updates
 import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager instead of using window
+import { initModal } from "./modal.js"; // 🎯 FIX: Import modal system for app-wide availability
+import { DOM_ELEMENTS, initializeDomElements } from "./domElements.js"; // 🎯 FIX: Import DOM elements for modal
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
@@ -101,6 +103,12 @@ async function initializeSPA() {
     }
     console.log("✅ Main content container found:", mainContentContainer);
     
+    // 🎯 FIX: Initialize DOM elements and modal system for app-wide availability
+    console.log("🔧 Initializing DOM elements and modal system...");
+    initializeDomElements();
+    initModal(DOM_ELEMENTS);
+    console.log("✅ Modal system initialized successfully!");
+    
     spaRouter = new SPARouter();
 
     // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
@@ -163,31 +171,6 @@ function setupProfileCompletionFlow() {
         console.error("❌ SPA Router not available for profile completion navigation!");
       }
     }, 500); // Reduced to 0.5 second delay
-  });
-
-  // Listen for profile setup skip
-  document.addEventListener("profile:setup:skip", async (event) => {
-    console.log("⏭️ Profile setup skipped, updating user data and redirecting...");
-
-    // 🎯 CRITICAL FIX: Update currentUser store for skip case too
-    const userData = event.detail.userData;
-    if (userData && currentUser) {
-      console.log("🔄 Updating currentUser store for skipped profile...");
-      
-      // Update the currentUser store with the minimal profile data
-      currentUser.setProfile(userData);
-      
-      // Also ensure the user object is set if it wasn't already
-      if (!currentUser.user && authManager?.getCurrentUser()) {
-        currentUser.setUser(authManager.getCurrentUser());
-      }
-      
-      console.log("✅ currentUser store updated for skipped profile");
-    }
-
-    if (spaRouter) {
-      spaRouter.navigateTo("home");
-    }
   });
 }
 

@@ -3,7 +3,7 @@
 // --- Module Imports ---
 import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "./constants.js";
 import { DOM_ELEMENTS, initializeDomElements } from "./domElements.js";
-import { initModal, showModal } from "./modal.js";
+import { showModal } from "./modal.js"; // Only import showModal, initModal is handled in spa-init.js
 import {
   parseTime,
   isTimeBefore,
@@ -2896,9 +2896,9 @@ document.addEventListener("spa:page:load", (event) => {
       console.log("Tooltip element created dynamically");
     }
 
-    // Initialize modal system
-    console.log("🎛️ Initializing modal...");
-    initModal(DOM_ELEMENTS);
+    // Initialize modal system - This is now handled in spa-init.js
+    // console.log("🎛️ Initializing modal...");
+    // initModal(DOM_ELEMENTS);
     
     // Set up UI interactions
     console.log("🔧 Setting up validation and listeners...");

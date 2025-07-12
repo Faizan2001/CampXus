@@ -539,19 +539,20 @@ class ProfileSetup {
 
       if (userProfile) {
         console.log("✅ User profile loaded, initializing profile setup.");
-        
+
         // 🎯 CRITICAL: Set this.currentUser from the global currentUser
         this.currentUser = currentUser.user;
         this.existingProfileData = userProfile;
-        
+
         // The user is authenticated and has a profile,
         // so let's initialize the setup page. It will either be
         // pre-filled for editing or empty for a new user.
         await this.initializeSetup();
-
       } else {
-        console.warn("🤷 No user logged in. Profile setup will not initialize.");
-        
+        console.warn(
+          "🤷 No user logged in. Profile setup will not initialize."
+        );
+
         // We can optionally hide the setup form or show a login prompt here.
       }
     } catch (error) {
@@ -573,7 +574,7 @@ class ProfileSetup {
   async initializeSetup() {
     // 🎯 FIX for race condition: Wait for the DOM to be ready for painting.
     // This ensures the template from the SPA router has been rendered.
-    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
 
     // Cache DOM elements for performance
     this.cacheDOMElements();
@@ -835,40 +836,15 @@ class ProfileSetup {
     if (nextBtn) nextBtn.disabled = true;
 
     try {
-      // Use dataManager for skip profile save
-      const userData = {
-        uid: this.currentUser.uid,
-        profile: {
-          email: this.currentUser.email,
-          displayName:
-            this.currentUser.displayName ||
-            this.currentUser.email.split("@")[0],
-        },
-        systemInfo: {
-          profileSetupComplete: false,
-          status: "offline",
-          lastUpdated: serverTimestamp(),
-        },
-      };
-      const result = await dataManager.saveUserProfile(
-        this.currentUser.uid,
-        userData
-      );
-      if (!result.success) throw new Error(result.error);
-      document.dispatchEvent(
-        new CustomEvent("profile:setup:skip", {
-          detail: { userData },
-        })
-      );
-      setTimeout(() => {
-        if (window.spaRouter) {
-          window.spaRouter.navigateTo("home");
-        } else {
-          console.error("⚠️ SPA Router not available during skip! Cannot navigate to home.");
-          // In Vite/SPA mode, we should never fall back to hard refresh
-          // This indicates a setup issue that needs to be fixed
-        }
-      }, 1000);
+      try {
+        navigateTo("home");
+      } catch (error) {
+        console.error(
+          "⚠️ SPA Router not available during skip! Cannot navigate to home.",
+          error
+        );
+        // In Vite/SPA mode, we should never fall back to hard refresh
+      }
     } catch (error) {
       console.error("Error during skip setup:", error);
       alert("Could not process skip action. Please try again.");
@@ -1218,7 +1194,7 @@ class ProfileSetup {
 
   /**
    * =============================================================================
-   *                        8. AVATAR MANAGEMENT SYSTEM
+   *                        8. AVATAR MANAGEMENT SYSTEM & DATABASE OPERATIONS
    * =============================================================================
    */
   /**
@@ -1264,26 +1240,23 @@ class ProfileSetup {
       avatarManager.generateDefaultAvatar(this.currentUser.uid);
 
     // Open avatar editor with callback
-    avatarManager.openAvatarEditor(
-      currentAvatar,
-      async (newAvatarConfig) => {
-        this.avatarConfig = newAvatarConfig;
+    avatarManager.openAvatarEditor(currentAvatar, async (newAvatarConfig) => {
+      this.avatarConfig = newAvatarConfig;
 
-        // Update the preview immediately
-        this.updateAvatarPreview();
+      // Update the preview immediately
+      this.updateAvatarPreview();
 
-        // If profile is complete, save the avatar change immediately
-        if (
-          this.currentUser &&
-          this.isProfileComplete(this.existingProfileData || this.profileData)
-        ) {
-          await this.saveAvatarChange(newAvatarConfig);
-        }
+      // If profile is complete, save the avatar change immediately
+      if (
+        this.currentUser &&
+        this.isProfileComplete(this.existingProfileData || this.profileData)
+      ) {
+        await this.saveAvatarChange(newAvatarConfig);
       }
-    );
+    });
   }
 
-     /**
+  /**
    * Save avatar changes to Firestore and update the in-memory profile.
    * This ensures the UI updates immediately after a successful change.
    * @param {object} newAvatarConfig - The new avatar configuration object
@@ -1299,7 +1272,10 @@ class ProfileSetup {
       };
 
       // 2. Save the updated profile to Firestore
-      const result = await dataManager.saveUserProfile(currentUser.user.uid, updatedProfile);
+      const result = await dataManager.saveUserProfile(
+        currentUser.user.uid,
+        updatedProfile
+      );
 
       if (!result.success) {
         throw new Error(result.error || "Unknown error updating avatar");
@@ -1311,7 +1287,6 @@ class ProfileSetup {
 
       // Optionally, show a success message or trigger a UI update here
       // showFormSuccess("profile-form", "Avatar updated successfully!");
-
     } catch (error) {
       console.error("❌ Failed to update avatar:", error);
       // Optionally, show an error message to the user
@@ -1344,19 +1319,21 @@ class ProfileSetup {
 
       console.log("💾 Saving profile to Firestore...", {
         userId: this.currentUser.uid,
-        profileData: this.profileData
+        profileData: this.profileData,
       });
 
       // Save the combined data to Firestore
       await dataManager.saveUserProfile(this.currentUser.uid, combinedData);
-      
+
       console.log("✅ Profile saved successfully to Firestore");
 
       // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
-      console.log("🔄 Updating currentUser store with fresh profile data after save...");
-      
+      console.log(
+        "🔄 Updating currentUser store with fresh profile data after save..."
+      );
+
       // Use the imported currentUser module, not window.currentUser
-      if (currentUser && typeof currentUser.setProfile === 'function') {
+      if (currentUser && typeof currentUser.setProfile === "function") {
         currentUser.setProfile(combinedData);
         console.log("✅ currentUser store updated with fresh profile data");
       } else {
@@ -1368,14 +1345,15 @@ class ProfileSetup {
 
       // Dispatch event after a short delay so the router handles navigation
       setTimeout(() => {
-        console.log("🚀 Dispatching profile:setup:complete event for navigation...");
+        console.log(
+          "🚀 Dispatching profile:setup:complete event for navigation..."
+        );
         document.dispatchEvent(
           new CustomEvent("profile:setup:complete", {
             detail: { userData: combinedData },
           })
         );
       }, 1500); // 1.5-second delay
-
     } catch (error) {
       console.error("❌ Final profile save failed:", error);
       alert(
@@ -1386,56 +1364,7 @@ class ProfileSetup {
 
   /**
    * =============================================================================
-   *                       9. DATABASE OPERATIONS
-   * =============================================================================
-   */
-
-  /**
-   * Skip the entire setup process
-   */
-  async skipSetup() {
-    const nextBtn = document.getElementById("setup-next-btn");
-    if (nextBtn) nextBtn.disabled = true;
-
-    try {
-      // Use dataManager for skip profile save
-      const userData = {
-        uid: this.currentUser.uid,
-        profile: {
-          email: this.currentUser.email,
-          displayName:
-            this.currentUser.displayName ||
-            this.currentUser.email.split("@")[0],
-        },
-        systemInfo: {
-          profileSetupComplete: false,
-          status: "offline",
-          lastUpdated: serverTimestamp(),
-        },
-      };
-      const result = await dataManager.saveUserProfile(
-        this.currentUser.uid,
-        userData
-      );
-      if (!result.success) throw new Error(result.error);
-      document.dispatchEvent(
-        new CustomEvent("profile:setup:skip", {
-          detail: { userData },
-        })
-      );
-      setTimeout(() => {
-        navigateTo("home");
-      }, 1000);
-    } catch (error) {
-      console.error("Error during skip setup:", error);
-      alert("Could not process skip action. Please try again.");
-      if (nextBtn) nextBtn.disabled = false;
-    }
-  }
-
-  /**
-   * =============================================================================
-   *                      10. EVENT LISTENERS & DOM MANIPULATION
+   *                      9. EVENT LISTENERS & DOM MANIPULATION
    * =============================================================================
    */
 
@@ -1522,7 +1451,7 @@ class ProfileSetup {
 
   /**
    * =============================================================================
-   *                       11. UTILITY & HELPER METHODS
+   *                       10. UTILITY & HELPER METHODS
    * =============================================================================
    */
 
@@ -1986,10 +1915,7 @@ function waitForAuthManager(maxWaitTime = 5000, checkInterval = 100) {
     const startTime = Date.now();
 
     function checkAuthManager() {
-      if (
-        authManager &&
-        typeof authManager.getCurrentUser === "function"
-      ) {
+      if (authManager && typeof authManager.getCurrentUser === "function") {
         console.log("✅ Auth manager is ready!");
         resolve(authManager);
       } else if (Date.now() - startTime >= maxWaitTime) {
@@ -2058,9 +1984,7 @@ function checkAuthenticationAndInitialize() {
   setTimeout(() => {
     if (!profileSetupInstance) {
       console.log("❌ Still no user after waiting, redirecting to home");
-      if (window.spaRouter) {
-        window.spaRouter.navigateTo("home");
-      }
+      navigateTo("home");
     }
   }, 2000);
 }
@@ -2074,7 +1998,7 @@ function initializeProfileSetup() {
     console.log("🚀 [DEBUG] No ProfileSetup instance found, creating one.");
     window.profileSetupInstance = new ProfileSetup();
   }
-  
+
   // Trigger the initialization process.
   // This is now the official entry point.
   window.profileSetupInstance.initializeWhenReady();
@@ -2269,18 +2193,3 @@ export { ProfileSetup };
 // =============================================================================
 //                                    END
 // =============================================================================
-
-/**
- * Global function to refresh avatar preview (can be called from other modules)
- */
-window.refreshProfileAvatarPreview = function () {
-  if (
-    profileSetupInstance &&
-    typeof profileSetupInstance.refreshAvatarFromDatabase === "function"
-  ) {
-    console.log("🔄 Global avatar refresh called");
-    profileSetupInstance.refreshAvatarFromDatabase();
-  } else {
-    console.log("⚠️ Profile setup instance not available for avatar refresh");
-  }
-};

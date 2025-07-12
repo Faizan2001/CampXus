@@ -222,4 +222,4 @@ function hideModal() {
 //                           GLOBAL EXPORTS
 // =============================================================================
 
-// No global exports needed - modal system is initialized via initModal()
+
