@@ -19,6 +19,7 @@ import {
 } from "./export-import.js";
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { dataManager } from "./data-manager.js";
+import { navigateTo } from "./spa-init.js"; // Import navigateTo for SPA navigation
 
 /* ================================
    APPLICATION STATE
@@ -2811,34 +2812,20 @@ function setupAuthenticationCallbacks() {
       if (!userProfile || !userProfile.systemInfo?.profileSetupComplete) {
         // Navigate to profile setup for new or incomplete profiles using SPA router
         console.log("📝 Navigating to profile setup...");
-        if (window.spaRouter) {
-          window.spaRouter.navigateTo("profile");
-        } else {
-          // Fallback for non-SPA environments
-          window.location.href = "pages/profile-setup.html";
-        }
+        navigateTo("profile");
       } else {
         // Profile is complete, navigate to main schedule screen
         console.log(
           "✅ Profile complete, navigating to home/schedule screen..."
         );
-        if (window.spaRouter) {
-          window.spaRouter.navigateTo("home");
-        } else {
-          // Fallback for non-SPA environments
-          window.location.href = "index.html";
-        }
+        navigateTo("home");
       }
     } catch (error) {
       console.error("Error checking profile completion after sign-in:", error);
       // On error, navigate to home to avoid getting stuck in profile setup
       // Users can manually navigate to profile setup if needed
       console.log("⚠️ Error occurred, navigating to home for safety...");
-      if (window.spaRouter) {
-        window.spaRouter.navigateTo("home");
-      } else {
-        window.location.href = "index.html";
-      }
+      navigateTo("home");
     }
   });
 

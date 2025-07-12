@@ -879,7 +879,7 @@ class SPARouter {
 
     // For genuine errors (not offline), show the error page
     const isTemplateError = errorMessage && errorMessage.includes("template");
-    const errorIcon = isTemplateError ? "📄" : "😔";
+    const errorIcon = isTemplateError ? "📄" : "Error 404";
     const errorTitle = isTemplateError
       ? "Template Loading Error"
       : "Oops! Something went wrong";
