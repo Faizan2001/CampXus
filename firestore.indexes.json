@@ -113,6 +113,24 @@
       ]
     },
     {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "universityInfo.university",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "socialInfo.searchable",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "friendRequests",
       "queryScope": "COLLECTION",
       "fields": [

@@ -344,7 +344,7 @@ export class FriendsManager {
   }
 
   /**
-   * 🧠 Perform intelligent search across names AND majors simultaneously
+   * 🧠 Perform intelligent search across names, majors, AND student IDs
    * @param {string} searchTerm - What the user typed
    * @returns {Promise<Array>} Combined and ranked results
    */
@@ -352,14 +352,27 @@ export class FriendsManager {
     const startTime = performance.now();
 
     try {
-      // Run BOTH searches in parallel for maximum speed! 🚀
-      const [nameResults, majorResults] = await Promise.all([
+      // Determine search type and run appropriate searches in parallel
+      const searchPromises = [];
+      
+      // Always search names and majors
+      searchPromises.push(
         this.searchStudentsWithMetrics(searchTerm),      // Search names
         this.searchByMajorWithMetrics(searchTerm)        // Search majors
-      ]);
+      );
 
-      // Combine and deduplicate results (name matches get priority)
-      const combinedResults = this.combineAndRankResults(nameResults, majorResults, searchTerm);
+      // Add ID/email search if the term looks like a student ID
+      if (this.isLikelyStudentId(searchTerm)) {
+        searchPromises.push(this.searchByIdWithMetrics(searchTerm));
+      }
+
+      // Run all searches in parallel for maximum speed! 🚀
+      const searchResults = await Promise.all(searchPromises);
+      
+      const [nameResults, majorResults, idResults = []] = searchResults;
+
+      // Combine and deduplicate results with intelligent ranking
+      const combinedResults = this.combineAndRankResults(nameResults, majorResults, idResults, searchTerm);
 
       const endTime = performance.now();
       const searchTime = endTime - startTime;
@@ -373,33 +386,143 @@ export class FriendsManager {
       const endTime = performance.now();
       this.logSearchMetrics('smart_search_error', 0, endTime - startTime, searchTerm);
       
-      // Fallback to name search only if major search fails
+      // Fallback to name search only if other searches fail
       console.warn("🔄 Smart search partially failed, falling back to name search:", error);
       return await this.searchStudentsWithMetrics(searchTerm);
     }
   }
 
   /**
+   * 🔍 Check if search term looks like a student ID
+   * @param {string} term - Search term to analyze
+   * @returns {boolean} True if it looks like a student ID
+   */
+  isLikelyStudentId(term) {
+    const cleanTerm = term.trim();
+    
+    // Check if it's all digits (student ID pattern)
+    const isAllDigits = /^\d+$/.test(cleanTerm);
+    
+    // Check if it's an email with ID pattern (2230992@iub.edu.bd)
+    const isStudentEmail = /^\d{7}@\w+\.\w+\.\w+$/.test(cleanTerm);
+    
+    // Privacy protection: require at least 4 digits for ID search
+    const isLongEnough = cleanTerm.length >= 4;
+    
+    return isLongEnough && (isAllDigits || isStudentEmail);
+  }
+
+  /**
+   * 🎓 Search students by ID or email with progressive privacy
+   * @param {string} searchTerm - Student ID or email to search for
+   * @returns {Promise<Array>} Matching students
+   */
+  async searchByIdWithMetrics(searchTerm) {
+    const startTime = performance.now();
+
+    try {
+      const results = await this.searchById(searchTerm);
+      const endTime = performance.now();
+      const searchTime = endTime - startTime;
+
+      this.logSearchMetrics('id_search', results.length, searchTime, searchTerm);
+      return results;
+
+    } catch (error) {
+      const endTime = performance.now();
+      this.logSearchMetrics('id_search_error', 0, endTime - startTime, searchTerm);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 Search students by ID or email (core implementation)
+   * @param {string} searchTerm - Student ID or email
+   * @returns {Promise<Array>} Matching students with privacy controls
+   */
+  async searchById(searchTerm) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile || !searchTerm) {
+      return [];
+    }
+
+    const cleanTerm = searchTerm.trim().toLowerCase();
+    
+    try {
+      console.log(`🆔 Searching by ID/email: "${cleanTerm}"`);
+
+      // Progressive privacy based on term length
+      let maxResults = this.getIdSearchLimit(cleanTerm);
+      
+      // Use the data manager to find users by ID/email
+      const students = await dataManager.findUsersByIdOrEmail(
+        userProfile.universityInfo.university,
+        cleanTerm,
+        maxResults
+      );
+
+      // Apply smart filtering to exclude friends/pending requests
+      const filteredStudents = await this.filterSearchResults(students);
+
+      console.log(`✅ Found ${filteredStudents.length} students matching ID/email "${cleanTerm}"`);
+      return filteredStudents;
+
+    } catch (error) {
+      console.error("❌ Error searching by ID/email:", error);
+      return [];
+    }
+  }
+
+  /**
+   * 🛡️ Get search result limit based on privacy considerations
+   * @param {string} term - Search term
+   * @returns {number} Maximum results to return
+   */
+  getIdSearchLimit(term) {
+    const length = term.length;
+    
+    if (length >= 7) {
+      return 10; // Full ID (7+ digits) - more specific, allow more results
+    } else if (length >= 5) {
+      return 5;  // Partial but specific (5-6 digits) - moderate results
+    } else {
+      return 3;  // Short partial (4 digits) - very limited results for privacy
+    }
+  }
+
+  /**
    * 🎯 Combine and intelligently rank search results
    * @param {Array} nameResults - Results from name search
-   * @param {Array} majorResults - Results from major search  
+   * @param {Array} majorResults - Results from major search
+   * @param {Array} idResults - Results from ID/email search
    * @param {string} searchTerm - Original search term for ranking
    * @returns {Array} Ranked and deduplicated results
    */
-  combineAndRankResults(nameResults, majorResults, searchTerm) {
+  combineAndRankResults(nameResults, majorResults, idResults = [], searchTerm) {
     const resultsMap = new Map();
     const term = searchTerm.toLowerCase();
 
-    // Add name results first (higher priority)
-    nameResults.forEach(user => {
+    // Add ID/email results first (highest priority - most specific)
+    idResults.forEach(user => {
       resultsMap.set(user.id, {
         ...user,
-        matchType: 'name',
-        relevance: this.calculateNameRelevance(user, term)
+        matchType: 'id',
+        relevance: this.calculateIdRelevance(user, term)
       });
     });
 
-    // Add major results (only if not already included from name search)
+    // Add name results (high priority)
+    nameResults.forEach(user => {
+      if (!resultsMap.has(user.id)) {
+        resultsMap.set(user.id, {
+          ...user,
+          matchType: 'name',
+          relevance: this.calculateNameRelevance(user, term)
+        });
+      }
+    });
+
+    // Add major results (lower priority - least specific)
     majorResults.forEach(user => {
       if (!resultsMap.has(user.id)) {
         resultsMap.set(user.id, {
@@ -415,9 +538,54 @@ export class FriendsManager {
       .sort((a, b) => b.relevance - a.relevance)
       .slice(0, 15); // Limit to top 15 results
 
-    console.log(`🧠 Smart search combined: ${nameResults.length} name + ${majorResults.length} major = ${rankedResults.length} total results`);
+    console.log(`🧠 Smart search combined: ${idResults.length} ID + ${nameResults.length} name + ${majorResults.length} major = ${rankedResults.length} total results`);
     
     return rankedResults;
+  }
+
+  /**
+   * 📊 Calculate relevance score for ID/email matches
+   * @param {Object} user - User object
+   * @param {string} term - Search term (ID or email)
+   * @returns {number} Relevance score (higher = better match)
+   */
+  calculateIdRelevance(user, term) {
+    const userEmail = user.email?.toLowerCase() || '';
+    const userId = this.extractIdFromEmail(userEmail);
+    
+    let score = 0;
+
+    // Check if term is an email or just an ID
+    const isEmailSearch = term.includes('@');
+    
+    if (isEmailSearch) {
+      // Exact email match = highest score
+      if (userEmail === term) score += 200;
+      // Email starts with term (partial email)
+      else if (userEmail.startsWith(term)) score += 180;
+    } else {
+      // ID search - check against extracted user ID
+      if (userId) {
+        // Exact ID match = highest score
+        if (userId === term) score += 190;
+        // ID starts with term (partial ID)
+        else if (userId.startsWith(term)) score += 170;
+        // ID contains term
+        else if (userId.includes(term)) score += 150;
+      }
+    }
+
+    return score;
+  }
+
+  /**
+   * 🔢 Extract student ID from email
+   * @param {string} email - Student email (e.g., "2230992@iub.edu.bd")
+   * @returns {string} Student ID (e.g., "2230992")
+   */
+  extractIdFromEmail(email) {
+    if (!email || !email.includes('@')) return '';
+    return email.split('@')[0];
   }
 
   /**
@@ -481,21 +649,44 @@ export class FriendsManager {
    * @returns {boolean} True if it's a common abbreviation match
    */
   isCommonMajorAbbreviation(term, major) {
-    const abbreviations = {
-      'cse': ['computer science', 'computer science and engineering'],
-      'csc': ['computer science'],
-      'cs': ['computer science'],
-      'ece': ['electrical and computer engineering', 'electronics and communication'],
-      'eee': ['electrical and electronics engineering'],
-      'me': ['mechanical engineering'],
-      'ce': ['civil engineering'],
-      'bba': ['bachelor of business administration', 'business administration'],
-      'mba': ['master of business administration'],
-      'eng': ['engineering'],
-      'math': ['mathematics'],
-      'bio': ['biology', 'biotechnology'],
-      'chem': ['chemistry'],
-      'phys': ['physics']
+   const abbreviations = {
+      // Computer Science & Engineering
+      'cse': ['CSE', 'computer', 'computer science', 'computer science and engineering'],
+      'csc': ['CSC', 'computer','computer science'],
+      'cs': ['CS', 'computer', 'computer science'],
+      'cen' : ['CEN', 'computer engineering'],
+      'ece': ['ECE', 'electric','electrical','electrical and computer engineering', 'electronics and communication'],
+      'eee': ['EEE', 'electric','electrical', 'electrical and electronics engineering'],
+      'mecha': ['ME', 'mechanical','mechanical engineering'],
+      'ce': ['CE', 'civil engineering'],
+
+      // Business Majors
+      'bba': ['BBA', 'business', 'bachelor of business administration', 'business administration'],
+      'mba': ['MBA', 'master of business administration'],
+      'inb': ['INB', 'iternational business', 'international business studies'],
+      'bus': ['BUS', 'business', 'business studies'],
+      'fin': ['FIN', 'finance', 'financial studies'],
+      'acn': ['ACN', 'accounting', 'accountancy'],
+      'mgt': ['MGT', 'management', 'management studies'],
+      'mkt': ['MKT', 'marketing', 'marketing studies'],
+      'hrm': ['HRM', 'human resource management', 'human resources'],
+
+      // Science Majors
+      'math': ['MATH', 'mathematics'],
+      'bio': ['BIO', 'biology', 'biotechnology'],
+      'chem': ['CHEM', 'chemistry'],
+      'phy': ['PHY', 'physics'],
+      'microbio': ['MCB','MICROBIO', 'microbiology', 'microbial biology'],
+      'env': ['ENV', 'environmental science', 'environmental studies'],
+
+      // Communication & Law
+      'cmn' : ['CMN', 'communication', 'mass communication'],
+      'law': ['LAW', 'legal', 'law studies'],
+      'eng': ['ENG', 'english', 'english studies'],
+
+      // Economics & Global Studies
+      'econ': ['ECON', 'economics'],
+      'gsg': ['GSG', 'global studies', 'global affairs'],
     };
 
     const possibleMajors = abbreviations[term];

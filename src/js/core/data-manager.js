@@ -460,6 +460,87 @@ class DataManager {
   }
 
   /**
+   * 🆔 Find users by student ID or email at the same university
+   * @param {string} universityId - The university ID to search within
+   * @param {string} searchTerm - Student ID (e.g., "2230992") or email (e.g., "2230992@iub.edu.bd")
+   * @param {number} maxResults - Maximum results to return (default: 10)
+   * @returns {Promise<Array>} A list of user profiles matching the ID/email
+   */
+  async findUsersByIdOrEmail(universityId, searchTerm, maxResults = 10) {
+    if (!universityId || !searchTerm) {
+      console.error("❌ University ID and search term are required for ID/email search.");
+      return [];
+    }
+
+    try {
+      const usersRef = collection(db, "users");
+      const cleanTerm = searchTerm.trim().toLowerCase();
+      
+      let q;
+
+      if (cleanTerm.includes('@')) {
+        // Email search - exact match for full email
+        q = query(
+          usersRef,
+          where("universityInfo.university", "==", universityId),
+          where("email", "==", cleanTerm),
+          where("socialInfo.searchable", "==", true),
+          limit(maxResults)
+        );
+      } else {
+        // ID search - need to construct email pattern and search
+        // Since Firestore doesn't support regex, we'll search by email prefix
+        const emailPrefix = cleanTerm;
+        const emailEnd = cleanTerm + '\uf8ff'; // Unicode character for range queries
+        
+        q = query(
+          usersRef,
+          where("universityInfo.university", "==", universityId),
+          where("email", ">=", emailPrefix),
+          where("email", "<=", emailEnd),
+          where("socialInfo.searchable", "==", true),
+          limit(maxResults)
+        );
+      }
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+      
+      querySnapshot.forEach((doc) => {
+        const userData = doc.data();
+        
+        // Additional filtering for ID search (since Firestore range query is approximate)
+        if (!cleanTerm.includes('@')) {
+          const userEmail = userData.email || '';
+          const userId = userEmail.split('@')[0];
+          
+          // Only include if the ID actually starts with our search term
+          if (userId.startsWith(cleanTerm)) {
+            users.push({
+              id: doc.id,
+              ...userData,
+            });
+          }
+        } else {
+          // Email search - exact match already handled by query
+          users.push({
+            id: doc.id,
+            ...userData,
+          });
+        }
+      });
+
+      console.log(`🆔 Found ${users.length} users matching ID/email "${cleanTerm}" at ${universityId}`);
+      return users;
+
+    } catch (error) {
+      console.error("❌ Error finding users by ID/email:", error);
+      this.showNotification("Could not search by student ID or email.", "error");
+      return [];
+    }
+  }
+
+  /**
    * Get a user's full profile data
    * @param {string} userId The user's ID
    * @returns {Promise<Object|null>} User profile or null if not found
