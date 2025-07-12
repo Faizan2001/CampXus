@@ -70,9 +70,9 @@ export function initializeDomElements() {
   DOM_ELEMENTS.modalTitle = document.getElementById("modalTitle") || null;
   DOM_ELEMENTS.modalMessage = document.getElementById("modalMessage") || null;
   DOM_ELEMENTS.modalCloseBtn = document.getElementById("modalCloseBtn") || null;
-  // Fix: The modal buttons are wrapped in a div with class "modal-buttons", not ID "modalActionButtons"
+  // Fix: The modal buttons are wrapped in a div with class "modal-action-buttons"
   DOM_ELEMENTS.modalActionButtons =
-    document.querySelector(".modal-buttons") || null;
+    document.querySelector(".modal-action-buttons") || null;
   DOM_ELEMENTS.modalConfirmBtn =
     document.getElementById("modalConfirmBtn") || null;
   DOM_ELEMENTS.modalCancelBtn =

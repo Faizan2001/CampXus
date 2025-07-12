@@ -2874,11 +2874,11 @@ document.addEventListener("spa:page:load", (event) => {
     // Essential: Always load state first so user data is available
     console.log("💾 Loading state from storage...");
     loadStateFromStorage();
-    
+
     console.log("� Current state after loading:", {
       activeUserId: state.activeUserId,
       userCount: Object.keys(state.users).length,
-      users: Object.keys(state.users)
+      users: Object.keys(state.users),
     });
 
     // Initialize DOM elements for the home page
@@ -2899,7 +2899,7 @@ document.addEventListener("spa:page:load", (event) => {
     // Initialize modal system - This is now handled in spa-init.js
     // console.log("🎛️ Initializing modal...");
     // initModal(DOM_ELEMENTS);
-    
+
     // Set up UI interactions
     console.log("🔧 Setting up validation and listeners...");
     setupInputValidation();

@@ -135,6 +135,28 @@
 
 .modal-button:hover {
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-button.confirm:hover {
+  background: linear-gradient(
+    135deg,
+    var(--success),
+    var(--modal-confirm-bg-end)
+  );
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+}
+
+.modal-button.cancel:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-primary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.modal-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .modal-close-btn {
@@ -305,7 +327,7 @@
 
 .add-user-form-content .input-wrapper i {
   position: absolute;
-  left: 1rem;
+  left: 1rem !important;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-tertiary);
@@ -317,6 +339,27 @@
 .add-user-form-content .input-wrapper .modal-input:focus + i,
 .add-user-form-content .input-wrapper i:has(+ .modal-input:focus) {
   color: var(--accent-primary);
+}
+
+/* Fix for glass-card input-wrapper (import/export section) */
+.glass-card .input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.glass-card .input-wrapper i {
+  position: absolute;
+  left: 1rem !important;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.glass-card .input-wrapper textarea {
+  padding-left: 3rem;
 }
 
 .add-timeslot-form-content

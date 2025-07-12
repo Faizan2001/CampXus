@@ -31,7 +31,7 @@ import "/src/css/styles.css";
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
-import "./script.js";  // 🎯 CRITICAL: Schedule page functionality
+import "./script.js"; // 🎯 CRITICAL: Schedule page functionality
 import "./friends/friends-manager.js";
 import "./friends/friends-ui.js";
 import "./profile-setup.js";
@@ -48,92 +48,100 @@ let spaRouter = null;
  * 🎯 Learning: We wait for the DOM to load before setting up our app
  */
 async function initializeSPA() {
-    console.groupCollapsed("🚀 CampXus SPA Initialization");
-    console.log("Document ready state:", document.readyState);
+  console.groupCollapsed("🚀 CampXus SPA Initialization");
+  console.log("Document ready state:", document.readyState);
 
-    // Double-check that essential DOM elements exist
-    const mainContent = document.querySelector(".main-content");
-    const topNav = document.querySelector(".top-nav");
-    
-    console.log("🔍 Essential DOM elements check:");
-    console.log("  - .main-content:", mainContent ? "✅ Found" : "❌ Missing");
-    console.log("  - .top-nav:", topNav ? "✅ Found" : "❌ Missing");
-    
-    if (!mainContent) {
-      console.error("CRITICAL: .main-content not found. Cannot initialize SPA.");
-      console.groupEnd();
-      return;
-    }
+  // Double-check that essential DOM elements exist
+  const mainContent = document.querySelector(".main-content");
+  const topNav = document.querySelector(".top-nav");
 
-    // 🎯 LEARNING: This is the critical fix for our race condition.
-    // We're telling our app to PAUSE and wait until the AuthManager
-    // confirms the user's login status from Firebase.
-    // The `authReady` is a Promise we created in AuthManager that resolves
-    // only after the initial `onAuthStateChanged` event has fired.
-    if (authManager?.authReady) {
-      console.log("⏳ Waiting for authentication to be ready...");
-      
-      try {
-        // Add a timeout to prevent waiting forever
-        const authTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth timeout after 3 seconds')), 3000)
-        );
-        
-        await Promise.race([authManager.authReady, authTimeout]);
-        console.log("✅ Authentication ready!");
-      } catch (error) {
-        console.warn("⚠️ Authentication timeout or error, proceeding anyway:", error.message);
-        // Continue initialization even if auth times out
-      }
-    } else {
-      console.warn(
-        "AuthManager or authReady promise not found. Proceeding without auth check."
-      );
-    }
+  console.log("🔍 Essential DOM elements check:");
+  console.log("  - .main-content:", mainContent ? "✅ Found" : "❌ Missing");
+  console.log("  - .top-nav:", topNav ? "✅ Found" : "❌ Missing");
 
-    // Now that we're sure about the auth status, we can initialize the router.
-    console.log("🔧 Creating SPA Router instance...");
-    
-    // Check if main-content container exists
-    const mainContentContainer = document.querySelector(".main-content");
-    if (!mainContentContainer) {
-      console.error("CRITICAL: .main-content container not found! SPA Router cannot work.");
-      console.groupEnd();
-      return;
-    }
-    console.log("✅ Main content container found:", mainContentContainer);
-    
-    // 🎯 FIX: Initialize DOM elements and modal system for app-wide availability
-    console.log("🔧 Initializing DOM elements and modal system...");
-    initializeDomElements();
-    initModal(DOM_ELEMENTS);
-    console.log("✅ Modal system initialized successfully!");
-    
-    spaRouter = new SPARouter();
-
-    // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
-    spaRouter.loadInitialPage();
-
-    // ── BUG FIX ──
-    // Register the profile setup completion listeners so that
-    // `profile:setup:complete` and `profile:setup:skip` events
-    // actually drive menu refresh and navigation.
-    setupProfileCompletionFlow();
-
-    // Listen for SPA navigation events
-    setupSPAEventListeners();
-
+  if (!mainContent) {
+    console.error("CRITICAL: .main-content not found. Cannot initialize SPA.");
     console.groupEnd();
+    return;
   }
 
-  // Initialize when DOM is ready, or immediately if already ready
-  if (document.readyState === 'loading') {
-    document.addEventListener("DOMContentLoaded", initializeSPA);
+  // 🎯 LEARNING: This is the critical fix for our race condition.
+  // We're telling our app to PAUSE and wait until the AuthManager
+  // confirms the user's login status from Firebase.
+  // The `authReady` is a Promise we created in AuthManager that resolves
+  // only after the initial `onAuthStateChanged` event has fired.
+  if (authManager?.authReady) {
+    console.log("⏳ Waiting for authentication to be ready...");
+
+    try {
+      // Add a timeout to prevent waiting forever
+      const authTimeout = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Auth timeout after 3 seconds")),
+          3000
+        )
+      );
+
+      await Promise.race([authManager.authReady, authTimeout]);
+      console.log("✅ Authentication ready!");
+    } catch (error) {
+      console.warn(
+        "⚠️ Authentication timeout or error, proceeding anyway:",
+        error.message
+      );
+      // Continue initialization even if auth times out
+    }
   } else {
-    // DOM is already ready, execute immediately
-    console.log("🏃‍♂️ DOM already ready, initializing SPA immediately...");
-    initializeSPA();
+    console.warn(
+      "AuthManager or authReady promise not found. Proceeding without auth check."
+    );
   }
+
+  // Now that we're sure about the auth status, we can initialize the router.
+  console.log("🔧 Creating SPA Router instance...");
+
+  // Check if main-content container exists
+  const mainContentContainer = document.querySelector(".main-content");
+  if (!mainContentContainer) {
+    console.error(
+      "CRITICAL: .main-content container not found! SPA Router cannot work."
+    );
+    console.groupEnd();
+    return;
+  }
+  console.log("✅ Main content container found:", mainContentContainer);
+
+  // 🎯 FIX: Initialize DOM elements and modal system for app-wide availability
+  console.log("🔧 Initializing DOM elements and modal system...");
+  initializeDomElements();
+  initModal(DOM_ELEMENTS);
+  console.log("✅ Modal system initialized successfully!");
+
+  spaRouter = new SPARouter();
+
+  // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
+  spaRouter.loadInitialPage();
+
+  // ── BUG FIX ──
+  // Register the profile setup completion listeners so that
+  // `profile:setup:complete` and `profile:setup:skip` events
+  // actually drive menu refresh and navigation.
+  setupProfileCompletionFlow();
+
+  // Listen for SPA navigation events
+  setupSPAEventListeners();
+
+  console.groupEnd();
+}
+
+// Initialize when DOM is ready, or immediately if already ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeSPA);
+} else {
+  // DOM is already ready, execute immediately
+  console.log("🏃‍♂️ DOM already ready, initializing SPA immediately...");
+  initializeSPA();
+}
 
 /**
  * Handle profile setup completion flow
@@ -142,25 +150,27 @@ async function initializeSPA() {
 function setupProfileCompletionFlow() {
   // Listen for profile setup completion
   document.addEventListener("profile:setup:complete", async (event) => {
-    console.log("📝 Profile setup completed, refreshing user data and redirecting...");
+    console.log(
+      "📝 Profile setup completed, refreshing user data and redirecting..."
+    );
 
     // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data
     const userData = event.detail.userData;
     if (userData && currentUser) {
       console.log("🔄 Updating currentUser store with fresh profile data...");
-      
+
       // Update the currentUser store with the fresh profile data
       currentUser.setProfile(userData);
-      
+
       // Also ensure the user object is set if it wasn't already
       if (!currentUser.user && authManager?.getCurrentUser()) {
         currentUser.setUser(authManager.getCurrentUser());
       }
-      
+
       console.log("✅ currentUser store updated with fresh profile data");
     }
 
-    // Show success message briefly, then redirect  
+    // Show success message briefly, then redirect
     setTimeout(() => {
       if (spaRouter) {
         console.log("🏠 Navigating to home after profile completion...");
@@ -168,7 +178,9 @@ function setupProfileCompletionFlow() {
         sessionStorage.setItem("profileJustCompleted", "true");
         spaRouter.navigateTo("home");
       } else {
-        console.error("❌ SPA Router not available for profile completion navigation!");
+        console.error(
+          "❌ SPA Router not available for profile completion navigation!"
+        );
       }
     }, 500); // Reduced to 0.5 second delay
   });

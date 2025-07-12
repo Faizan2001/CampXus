@@ -247,7 +247,7 @@ This file contains all UI component styles for the MeetchuThere app:
     var(--accent-primary),
     var(--accent-secondary)
   );
-  margin-bottom: 10px;
+  margin-bottom: 1rem;
   color: var(--text-primary);
   border: 1px solid var(--border);
 }
@@ -345,7 +345,7 @@ This file contains all UI component styles for the MeetchuThere app:
 
 .input-wrapper i {
   position: absolute;
-  right: 1rem;
+  left: 1rem;
   color: var(--text-tertiary);
   font-size: 1rem;
   pointer-events: none;
@@ -355,7 +355,7 @@ This file contains all UI component styles for the MeetchuThere app:
 .input-wrapper textarea + i,
 .input-wrapper i + textarea {
   top: 1rem;
-  right: 1rem;
+  left: 1rem;
 }
 
 /* Input field base styling */
@@ -363,7 +363,7 @@ This file contains all UI component styles for the MeetchuThere app:
 .input-wrapper textarea {
   width: 100%;
   padding: 1rem;
-  padding-right: 3rem;
+  padding-left: 3rem;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
@@ -408,20 +408,20 @@ textarea {
 
 .input-wrapper i + #importText,
 #importText + i {
-  top: 1rem;
-  right: 1rem;
+  top: 2rem;
+  left: 1rem;
 }
 
 /* Import textarea specific styling */
 .import-section .input-wrapper textarea {
-  min-height: 120px;
+  min-height: 50px;
   padding: 1rem;
-  padding-right: 3rem;
+  padding-left: 3rem;
 }
 
 .import-section .input-wrapper i {
   top: 1rem;
-  right: 1rem;
+  left: 1rem;
 }
 
 /* ===== USER MANAGEMENT & SELECTION ===== */
