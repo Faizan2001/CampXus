@@ -151,12 +151,26 @@ export function showModal({
     modalDomElements.modalActionButtons.style.display = "flex";
     modalDomElements.modalConfirmBtn.textContent = confirmText;
     modalDomElements.modalCancelBtn.textContent = cancelText;
-    modalDomElements.modalCancelBtn.style.display = "inline-block"; // Ensure cancel is visible
+    
+    // Hide cancel button if cancelText is empty
+    if (cancelText === "" || cancelText === null || cancelText === undefined) {
+      modalDomElements.modalCancelBtn.style.display = "none";
+      // Style the confirm button as a success/ok button when it's the only button
+      modalDomElements.modalConfirmBtn.classList.add("success-btn");
+      modalDomElements.modalConfirmBtn.classList.remove("delete-btn");
+    } else {
+      modalDomElements.modalCancelBtn.style.display = "inline-block";
+      // Reset to default styling when both buttons are shown
+      modalDomElements.modalConfirmBtn.classList.remove("success-btn");
+    }
+    
     modalDomElements.modalCloseBtn.style.display = "none"; // Hide 'OK' (X) button
   } else {
     modalDomElements.modalActionButtons.style.display = "none";
     modalDomElements.modalConfirmBtn.textContent = "OK"; // Or keep its default
     modalDomElements.modalCloseBtn.style.display = "inline-block"; // Show 'OK' (X) button
+    // Reset confirm button styling for regular modals
+    modalDomElements.modalConfirmBtn.classList.remove("success-btn", "delete-btn");
   }
 
   // Ensure the modal is displayed and active, even if a previous modal was still hiding

@@ -78,46 +78,133 @@ function isMobileOrTablet() {
   return mobileRegex.test(userAgent) || (isSmallScreen && hasTouchScreen);
 }
 
+/**
+ * Creates a weekly matrix (7 days) with specified dimensions and default values
+ * Reduces code duplication for schedule/pin matrix initialization
+ * @param {number} timeSlots - Number of time slots per day
+ * @param {*} defaultValue - Default value for each cell
+ * @returns {Array<Array>} 7x timeSlots matrix
+ */
+function createWeeklyMatrix(timeSlots, defaultValue = false) {
+  return Array(7).fill(null).map(() => Array(timeSlots).fill(defaultValue));
+}
+
+/**
+ * Creates slot info matrix with course and classroom data structure
+ * @param {number} timeSlots - Number of time slots per day
+ * @returns {Array<Array<Object>>} 7x timeSlots matrix with slot info objects
+ */
+function createSlotInfoMatrix(timeSlots) {
+  return Array(7).fill(null).map(() => 
+    Array(timeSlots).fill(null).map(() => ({ 
+      courseCode: "", 
+      classroomNumber: "" 
+    }))
+  );
+}
+
+/**
+ * Gets slot information safely with fallback defaults
+ * @param {Object} user - User object
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @returns {Object} Slot info with courseCode and classroomNumber
+ */
+function getSlotInfo(user, dayIndex, timeIndex) {
+  return user?.slotInfo?.[dayIndex]?.[timeIndex] || { 
+    courseCode: "", 
+    classroomNumber: "" 
+  };
+}
+
+/**
+ * Determines if unified schedule is needed for heterogeneous time structures
+ * Consolidates the repeated logic across multiple functions
+ * @param {Array} selectedUsers - Array of selected user objects
+ * @returns {boolean} True if unified schedule should be used
+ */
+function shouldUseUnifiedSchedule(selectedUsers) {
+  if (selectedUsers.length === 0) return false;
+  
+  const allUsersHaveTimeSlots = selectedUsers.every(
+    user => user.timeSlots && Array.isArray(user.timeSlots)
+  );
+  
+  if (!allUsersHaveTimeSlots) return false;
+  
+  const firstUserTimeSlots = selectedUsers[0].timeSlots;
+  return selectedUsers.some(user => {
+    return (
+      user.timeSlots.length !== firstUserTimeSlots.length ||
+      user.timeSlots.some((slot, idx) =>
+        !firstUserTimeSlots[idx] ||
+        slot.start !== firstUserTimeSlots[idx].start ||
+        slot.end !== firstUserTimeSlots[idx].end
+      )
+    );
+  });
+}
+
 /* ================================
    CORE LOGIC FUNCTIONS (Data Manipulation)
 ================================== */
+/**
+ * Creates a new user object with proper initialization of all matrices
+ * @param {string} name - User's display name
+ * @param {string} userId - Unique user identifier
+ * @param {Object} currentUsers - Existing users object
+ * @returns {Object|null} New user object or null if user already exists
+ */
 export function createUserObject(name, userId, currentUsers) {
-  if (!currentUsers[userId]) {
-    const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)); // Deep copy
-    const schedule = Array(7)
-      .fill(null)
-      .map(() => Array(userTimeSlots.length).fill(false));
-    const pinnedSlots = Array(7)
-      .fill(null)
-      .map(() => Array(userTimeSlots.length).fill(false));
-    const slotInfo = Array(7)
-      .fill(null)
-      .map(() =>
-        Array(userTimeSlots.length)
-          .fill(null)
-          .map(() => ({ courseCode: "", classroomNumber: "" }))
-      );
-    return {
-      id: userId,
-      name: name,
-      timeSlots: userTimeSlots,
-      schedule: schedule,
-      pinnedSlots: pinnedSlots, // <-- ADD THIS
-      slotInfo: slotInfo, // <-- ADD SLOT INFORMATION MATRIX
-    };
+  if (currentUsers[userId]) {
+    console.warn(`[State] Attempted to create duplicate user: ${userId} (${name})`);
+    return null;
   }
-  return null;
+  
+  const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)); // Deep copy
+  const timeSlotCount = userTimeSlots.length;
+  
+  console.log(`[State] Creating new user: ${name} (${userId}) with ${timeSlotCount} time slots`);
+  
+  return {
+    id: userId,
+    name: name,
+    timeSlots: userTimeSlots,
+    schedule: createWeeklyMatrix(timeSlotCount, false),
+    pinnedSlots: createWeeklyMatrix(timeSlotCount, false),
+    slotInfo: createSlotInfoMatrix(timeSlotCount),
+  };
 }
 
+/**
+ * Removes a user from the application state and updates related references
+ * @param {string} userId - User ID to remove
+ * @param {Object} currentState - Current application state
+ * @returns {Object} Updated state with user removed
+ */
 export function deleteUserFromState(userId, currentState) {
   const newUsers = { ...currentState.users };
   let newActiveUserId = currentState.activeUserId;
   const newSelectedUserIds = new Set(currentState.selectedUserIds);
 
-  if (!newUsers[userId]) return currentState;
+  if (!newUsers[userId]) {
+    console.warn(`[State] Attempted to delete non-existent user: ${userId}`);
+    return currentState;
+  }
+  
+  const userName = newUsers[userId]?.name || 'Unknown';
+  const wasActive = newActiveUserId === userId;
+  const wasInCompare = newSelectedUserIds.has(userId);
+  
   delete newUsers[userId];
   if (newActiveUserId === userId) newActiveUserId = null;
   newSelectedUserIds.delete(userId);
+
+  console.log(`[State] Deleted user: ${userName} (${userId})`, {
+    wasActive,
+    wasInCompare,
+    remainingUsers: Object.keys(newUsers).length
+  });
 
   return {
     ...currentState,
@@ -127,6 +214,13 @@ export function deleteUserFromState(userId, currentState) {
   };
 }
 
+/**
+ * Toggles a time slot in a user's schedule matrix
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @param {Array<Array<boolean>>} userSchedule - User's schedule matrix
+ * @returns {Array<Array<boolean>>} Updated schedule matrix
+ */
 export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
   return userSchedule.map((daySlots, dIdx) =>
     dIdx === dayIndex
@@ -137,6 +231,14 @@ export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
   );
 }
 
+/**
+ * Determines the visual status/CSS class for a time slot based on current state
+ * Handles both individual user mode and compare mode with unified schedules
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @param {Object} currentState - Current application state
+ * @returns {string} CSS class name for slot status (slot, slot-free, slot-conflict, etc.)
+ */
 export function determineSlotStatus(dayIndex, timeIndex, currentState) {
   const { compareMode, selectedUserIds, users, activeUserId } = currentState;
 
@@ -150,29 +252,10 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
       return "slot";
     }
 
-    // Check if we need unified schedule (users have different time structures)
-    // Only use unified schedule if all users have timeSlots defined
-    const allUsersHaveTimeSlots = selectedUsers.every(
-      (user) => user.timeSlots && Array.isArray(user.timeSlots)
-    );
-
-    const needsUnifiedSchedule =
-      allUsersHaveTimeSlots &&
-      selectedUsers.some((user) => {
-        const firstUserTimeSlots = selectedUsers[0].timeSlots;
-        return (
-          user.timeSlots.length !== firstUserTimeSlots.length ||
-          user.timeSlots.some(
-            (slot, idx) =>
-              !firstUserTimeSlots[idx] ||
-              slot.start !== firstUserTimeSlots[idx].start ||
-              slot.end !== firstUserTimeSlots[idx].end
-          )
-        );
-      });
-
-    if (needsUnifiedSchedule) {
+    // Check if we need unified schedule for heterogeneous comparison
+    if (shouldUseUnifiedSchedule(selectedUsers)) {
       // Use UnifiedSchedule for heterogeneous time structures
+      console.log(`[Performance] Creating unified schedule for ${selectedUsers.length} users with different time structures`);
       const unifiedSchedule = createUnifiedSchedule(selectedUsers);
 
       if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
@@ -234,6 +317,13 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
   return "slot"; // Default
 }
 
+/**
+ * Generates tooltip message showing user availability for a specific time slot
+ * @param {number} dayIndex - Day index (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @param {Object} currentState - Current application state
+ * @returns {string} Formatted tooltip message
+ */
 export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
   const { users, selectedUserIds, compareMode } = currentState;
   if (selectedUserIds.size === 0) return "";
@@ -245,26 +335,7 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 
   if (selectedUsers.length === 0) return "";
 
-  const allUsersHaveTimeSlots = selectedUsers.every(
-    (user) => user.timeSlots && Array.isArray(user.timeSlots)
-  );
-
-  const needsUnifiedSchedule =
-    allUsersHaveTimeSlots &&
-    selectedUsers.some((user) => {
-      const firstUserTimeSlots = selectedUsers[0].timeSlots;
-      return (
-        user.timeSlots.length !== firstUserTimeSlots.length ||
-        user.timeSlots.some(
-          (slot, idx) =>
-            !firstUserTimeSlots[idx] ||
-            slot.start !== firstUserTimeSlots[idx].start ||
-            slot.end !== firstUserTimeSlots[idx].end
-        )
-      );
-    });
-
-  if (needsUnifiedSchedule) {
+  if (shouldUseUnifiedSchedule(selectedUsers)) {
     // Use UnifiedSchedule for heterogeneous tooltip generation
     const unifiedSchedule = createUnifiedSchedule(selectedUsers);
 
@@ -318,16 +389,9 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
   const { users, selectedUserIds, compareMode } = currentState;
 
-  // Debug logging
-  console.log(`Aggregating pins for slot [${dayIndex}, ${timeIndex}]`, {
-    compareMode,
-    selectedUserIds: Array.from(selectedUserIds),
-    usersCount: Object.keys(users).length,
-  });
 
   // Only aggregate pins in compare mode with selected users
   if (!compareMode || selectedUserIds.size === 0) {
-    console.log("Early return: not in compare mode or no selected users");
     return { count: 0, userNames: [], userIds: [] };
   }
 
@@ -336,16 +400,6 @@ export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
 
   selectedUserIds.forEach((userId) => {
     const user = users[userId];
-    console.log(`Checking user ${userId}:`, {
-      userExists: !!user,
-      hasPinnedSlots: !!(user && user.pinnedSlots),
-      hasDayData: !!(user && user.pinnedSlots && user.pinnedSlots[dayIndex]),
-      slotValue:
-        user &&
-        user.pinnedSlots &&
-        user.pinnedSlots[dayIndex] &&
-        user.pinnedSlots[dayIndex][timeIndex],
-    });
 
     if (
       user &&
@@ -355,7 +409,6 @@ export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
     ) {
       pinnedByUsers.push(userId);
       pinnedUserNames.push(user.name);
-      console.log(`User ${user.name} has pinned this slot`);
     }
   });
 
@@ -365,7 +418,6 @@ export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
     userIds: pinnedByUsers,
   };
 
-  console.log("Aggregation result:", result);
   return result;
 }
 
@@ -709,13 +761,7 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   });
   // Expand the slotInfo matrix for the new slot
   if (!user.slotInfo) {
-    user.slotInfo = Array(7)
-      .fill(null)
-      .map(() =>
-        Array(user.timeSlots.length - 1)
-          .fill(null)
-          .map(() => ({ courseCode: "", classroomNumber: "" }))
-      );
+    user.slotInfo = createSlotInfoMatrix(user.timeSlots.length - 1);
   }
   user.slotInfo.forEach((daySlotInfo) => {
     daySlotInfo.push({ courseCode: "", classroomNumber: "" });
@@ -723,6 +769,14 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
   // Migrate pins to preserve pin intentions when schedule structure changes
   migratePinsToTimeBased(user);
+
+  console.log('[Interaction] Custom time slot added', {
+    user: user.name,
+    timeSlot: newSlotLabel,
+    totalSlots: user.timeSlots.length,
+    startTime: hhmmStartTime,
+    endTime: hhmmEndTime
+  });
 
   saveStateToStorage();
   updateUI();
@@ -750,12 +804,8 @@ export function handleAddNewTimeSlotClick() {
     // This ensures the schedule matrix is compatible.
     // This scenario should be less common with the migration in loadState.
     user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
-    user.schedule = Array(7)
-      .fill(null)
-      .map(() => Array(user.timeSlots.length).fill(false));
-    user.pinnedSlots = Array(7)
-      .fill(null)
-      .map(() => Array(user.timeSlots.length).fill(false)); // <-- ADD/ENSURE THIS
+    user.schedule = createWeeklyMatrix(user.timeSlots.length, false);
+    user.pinnedSlots = createWeeklyMatrix(user.timeSlots.length, false);
 
     console.warn(
       `User ${user.id} had no timeSlots. Initialized with defaults before adding new custom slot.`
@@ -818,13 +868,16 @@ export function handleAddNewTimeSlotClick() {
 }
 
 function handleTogglePinMode() {
+  const previousState = state.pinModeActive;
+  
   if (!state.activeUserId || state.compareMode) {
     // This case means the button was clicked while it should have been disabled,
     // or state changed between render and click. Defensive coding:
     state.pinModeActive = false; // Ensure it's off if conditions aren't met
-    console.warn(
-      "Pin Mode toggle attempted when conditions not met. Forcing off."
-    );
+    console.warn("[Mode] Pin Mode toggle attempted when conditions not met. Forcing off.", {
+      hasActiveUser: !!state.activeUserId,
+      inCompareMode: state.compareMode
+    });
   } else {
     // Toggle the pin mode state
     state.pinModeActive = !state.pinModeActive;
@@ -833,6 +886,11 @@ function handleTogglePinMode() {
       state.compareMode = false;
       // activeUserId should still be set if we entered here
     }
+    
+    console.log(`[Mode] Pin Mode ${state.pinModeActive ? 'enabled' : 'disabled'}`, {
+      activeUser: state.users[state.activeUserId]?.name,
+      previousState
+    });
   }
   updateUI(); // This will re-apply the .active class to the button based on the new state.pinModeActive
 }
@@ -902,9 +960,15 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   // Update time-based pins for persistence across schedule changes
   updateTimeBasedPin(activeUserObject, dayIndex, slotIndex, newPinState);
 
-  console.log(
-    `Slot (${dayIndex}, ${slotIndex}) for user ${activeUserObject.id} pinned state: ${newPinState}`
-  );
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const timeSlot = activeUserObject.timeSlots[slotIndex];
+  
+  console.log(`[Interaction] Pin ${newPinState ? 'added' : 'removed'}`, {
+    user: activeUserObject.name,
+    day: dayNames[dayIndex],
+    time: timeSlot?.label || `slot-${slotIndex}`,
+    coordinates: `[${dayIndex}, ${slotIndex}]`
+  });
 
   saveStateToStorage();
   updateUI();
@@ -930,12 +994,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
   const timeSlot = user.timeSlots[timeIndex];
 
   // Get existing slot info
-  const existingInfo =
-    user.slotInfo &&
-    user.slotInfo[dayIndex] &&
-    user.slotInfo[dayIndex][timeIndex]
-      ? user.slotInfo[dayIndex][timeIndex]
-      : { courseCode: "", classroomNumber: "" };
+  const existingInfo = getSlotInfo(user, dayIndex, timeIndex);
 
   const modalContent = `
     <div class="slot-info-form">
@@ -988,13 +1047,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
         // Initialize slotInfo structure if needed
         if (!user.slotInfo) {
-          user.slotInfo = Array(7)
-            .fill(null)
-            .map(() =>
-              Array(user.timeSlots.length)
-                .fill(null)
-                .map(() => ({ courseCode: "", classroomNumber: "" }))
-            );
+          user.slotInfo = createSlotInfoMatrix(user.timeSlots.length);
         }
 
         // Store updated slot information
@@ -1092,12 +1145,7 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
   const timeSlot = user.timeSlots[timeIndex];
 
   // Get existing slot info if any
-  const existingInfo =
-    user.slotInfo &&
-    user.slotInfo[dayIndex] &&
-    user.slotInfo[dayIndex][timeIndex]
-      ? user.slotInfo[dayIndex][timeIndex]
-      : { courseCode: "", classroomNumber: "" };
+  const existingInfo = getSlotInfo(user, dayIndex, timeIndex);
 
   const modalContent = `
     <div class="slot-info-form">
@@ -1158,13 +1206,7 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
 
         // Initialize slotInfo structure if needed
         if (!user.slotInfo) {
-          user.slotInfo = Array(7)
-            .fill(null)
-            .map(() =>
-              Array(user.timeSlots.length)
-                .fill(null)
-                .map(() => ({ courseCode: "", classroomNumber: "" }))
-            );
+          user.slotInfo = createSlotInfoMatrix(user.timeSlots.length);
         }
 
         // Store slot information
@@ -1210,10 +1252,18 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
    STATE PERSISTENCE (LocalStorage)
 ================================== */
 function loadStateFromStorage() {
-  const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
-  if (savedStateString) {
+  try {
+    const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!savedStateString) {
+      console.log('[Storage] No saved data found in localStorage');
+      return;
+    }
+    
     const parsedSavedState = JSON.parse(savedStateString);
     const loadedUsers = parsedSavedState.users || {};
+    const userCount = Object.keys(loadedUsers).length;
+    
+    console.log(`[Storage] Loading ${userCount} users from localStorage`);
 
     Object.values(loadedUsers).forEach((user) => {
       if (
@@ -1221,10 +1271,17 @@ function loadStateFromStorage() {
         !Array.isArray(user.timeSlots) ||
         user.timeSlots.length === 0
       ) {
-        console.warn(`User ${user.id} missing timeSlots, applying defaults.`);
+        console.warn(`[Storage] User ${user.id} missing timeSlots, applying defaults`);
         user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
       }
       if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
+        const originalSlotCount = user.schedule[0]?.length || 0;
+        const newSlotCount = user.timeSlots.length;
+        
+        if (originalSlotCount !== newSlotCount) {
+          console.log(`[Recovery] Resizing schedule matrix for ${user.name}: ${originalSlotCount} → ${newSlotCount} slots`);
+        }
+        
         user.schedule = user.schedule.map((daySchedule) => {
           const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
           const limit = Math.min(
@@ -1236,9 +1293,8 @@ function loadStateFromStorage() {
           return newDayScheduleArray;
         });
       } else {
-        user.schedule = Array(7)
-          .fill(null)
-          .map(() => Array(user.timeSlots.length).fill(false));
+        console.warn(`[Recovery] Rebuilding schedule matrix for ${user.name} - invalid or missing data`);
+        user.schedule = createWeeklyMatrix(user.timeSlots.length, false);
       }
       // Check if pinnedSlots is missing or has incorrect structure
       if (
@@ -1261,15 +1317,36 @@ function loadStateFromStorage() {
       }
 
       // Migrate existing pins to time-based format for cross-user compatibility
+      console.log(`[Migration] Migrating pins for user ${user.name} (${user.id})`);
       migratePinsToTimeBased(user);
     });
     state.users = loadedUsers;
+    
+    console.log(`[Storage] Successfully loaded ${userCount} users from localStorage`);
+  } catch (error) {
+    console.error('[Storage] Failed to load state from localStorage:', error);
+    console.warn('[Storage] Starting with empty state');
   }
 }
 
 function saveStateToStorage() {
-  const dataToSave = { users: state.users };
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+  try {
+    const userCount = Object.keys(state.users).length;
+    const dataToSave = { 
+      users: state.users,
+      savedAt: new Date().toISOString()
+    };
+    
+    const serializedData = JSON.stringify(dataToSave);
+    localStorage.setItem(LOCAL_STORAGE_KEY, serializedData);
+    
+    console.log(`[Storage] Saved ${userCount} users to localStorage (${Math.round(serializedData.length / 1024)}KB)`);
+  } catch (error) {
+    console.error('[Storage] Failed to save state to localStorage:', error);
+    if (error.name === 'QuotaExceededError') {
+      console.warn('[Storage] localStorage quota exceeded - consider clearing old data');
+    }
+  }
 }
 
 /* ================================
@@ -2202,6 +2279,10 @@ function handleAddNewUser() {
           showModal({
             content: `User "${name}" (ID: ${userId}) has been added successfully!`,
             title: "User Added",
+            showConfirmationButtons: true,
+            confirmText: "Ok",
+            cancelText: "", // Hide cancel button
+            onConfirm: () => true, // Just close the modal
           });
           return true; // Allow modal to close
         } else {
@@ -2272,11 +2353,19 @@ function handleDeleteUser(userIdToDelete) {
 }
 
 function handleSetActiveUser(userId) {
+  const previousActiveUser = state.users[state.activeUserId]?.name;
+  const targetUser = state.users[userId]?.name;
+  
   // Deselect Logic
   if (state.activeUserId === userId) {
     state.activeUserId = null;
     state.pinModeActive = false; // Reset pin mode if active user is cleared
     state.selectedUserIds.clear(); // Clear selected user IDs
+
+    console.log('[State] Active user deselected', {
+      user: previousActiveUser || userId,
+      wasInPinMode: state.pinModeActive
+    });
 
     saveStateToStorage();
     updateUI();
@@ -2285,10 +2374,21 @@ function handleSetActiveUser(userId) {
 
   // Select Logic
   if (state.users[userId]) {
+    const wasInCompareMode = state.compareMode;
+    const selectedCount = state.selectedUserIds.size;
+    
     state.activeUserId = userId;
     state.compareMode = false;
     state.pinModeActive = false;
     state.selectedUserIds.clear();
+    
+    console.log('[State] Active user changed', {
+      from: previousActiveUser || 'none',
+      to: targetUser,
+      exitedCompareMode: wasInCompareMode,
+      clearedSelections: selectedCount
+    });
+    
     saveStateToStorage(); // Save state if active user change implies persistent view change
     updateUI();
   } else if (userId === null && state.activeUserId !== null) {
@@ -2296,19 +2396,38 @@ function handleSetActiveUser(userId) {
     state.activeUserId = null;
     state.pinModeActive = false; // Reset pin mode if active user is cleared
     state.selectedUserIds.clear(); // Clear selected user IDs
+    
+    console.log('[State] Active user cleared', {
+      previousUser: previousActiveUser
+    });
+    
     saveStateToStorage();
     updateUI();
   }
 }
 
 function handleToggleCompareMode() {
+  const previousActiveUser = state.users[state.activeUserId]?.name;
+  const selectedCount = state.selectedUserIds.size;
+  
   state.compareMode = !state.compareMode;
+  
   if (state.compareMode) {
     state.activeUserId = null; // Clear active user when entering compare mode
     state.pinModeActive = false; // Disable pin mode in compare mode
     state.selectedUserIds.clear(); // Clear selected user IDs
-  } else if (!state.compareMode) {
+    
+    console.log('[Mode] Compare Mode enabled', {
+      previousActiveUser,
+      totalUsers: Object.keys(state.users).length
+    });
+  } else {
     state.selectedUserIds.clear(); // Clear selected user IDs when exiting compare mode
+    
+    console.log('[Mode] Compare Mode disabled', {
+      previouslySelected: selectedCount,
+      totalUsers: Object.keys(state.users).length
+    });
   }
 
   updateUI();
