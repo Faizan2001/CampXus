@@ -76,6 +76,7 @@ const topNav = document.createElement('nav');
 topNav.className = 'top-nav';
 document.body.appendChild(topNav);
 
+
 // Cleanup function to prevent async operations after test completion
 global.afterEach = global.afterEach || (() => {});
 const originalAfterEach = global.afterEach;
