@@ -75,3 +75,18 @@ document.body.appendChild(mainContent);
 const topNav = document.createElement('nav');
 topNav.className = 'top-nav';
 document.body.appendChild(topNav);
+
+// Cleanup function to prevent async operations after test completion
+global.afterEach = global.afterEach || (() => {});
+const originalAfterEach = global.afterEach;
+global.afterEach = (fn) => {
+  return originalAfterEach(() => {
+    // Clear any remaining timeouts/intervals
+    if (typeof fn === 'function') {
+      fn();
+    }
+    // Wait a tick to ensure cleanup
+    return new Promise(resolve => setTimeout(resolve, 0));
+  });
+};
+

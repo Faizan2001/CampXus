@@ -53,8 +53,13 @@
     ],
     "moduleNameMapper": {
       "^firebase/(.*)$": "<rootDir>/node_modules/firebase/$1",
-      "^.+\\.(css|scss|sass)$": "identity-obj-proxy"
-    }
+      "^/src/.*\\.(css|scss|sass)$": "identity-obj-proxy",
+      "^.+\\.(css|scss|sass)$": "identity-obj-proxy",
+      "^.*spa-init\\.js$": "<rootDir>/__mocks__/spa-init.js"
+    },
+    "testTimeout": 10000,
+    "maxWorkers": 1,
+    "forceExit": true
   },
   "dependencies": {
     "firebase": "^11.8.1"
