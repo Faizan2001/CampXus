@@ -90,10 +90,17 @@ export function initializeDomElements() {
     "userListContainer",
     "compareButton",
   ];
-  const missingCritical = criticalElements.filter((key) => !DOM_ELEMENTS[key]);
-
-  if (missingCritical.length > 0) {
-    console.error("Critical DOM elements missing:", missingCritical);
+  
+  // Only check for critical elements if we're on the home page
+  const currentRoute = window.location.hash.slice(1) || "home";
+  const shouldCheckCritical = currentRoute === "home";
+  
+  if (shouldCheckCritical) {
+    const missingCritical = criticalElements.filter((key) => !DOM_ELEMENTS[key]);
+    
+    if (missingCritical.length > 0) {
+      console.error("Critical DOM elements missing:", missingCritical);
+    }
   }
 
   // Log optional missing elements as warnings

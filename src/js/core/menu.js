@@ -591,7 +591,10 @@ function displayDefaultAvatarIcons(triggerElement, largeElement) {
  * Clear user display information from the UI
  * 🐛 BUG FIX: Ensures no stale data remains when users sign out
  */
-function clearUserDisplayInfo() {
+function clearUserDisplayInfo(options = {}) {
+  // Handle the preventFlag parameter
+  const { preventFlag } = options;
+  
   // 🛡️ CRITICAL SAFEGUARD: Don't clear if we just completed profile setup
   if (window.preventUserDataClearing) {
     console.log(
@@ -603,7 +606,7 @@ function clearUserDisplayInfo() {
   console.log("🧹 clearUserDisplayInfo called", {
     stack: new Error().stack?.split("\n").slice(1, 4).join("\n"),
     timestamp: new Date().toISOString(),
-    preventFlag: window.preventUserDataClearing,
+    preventFlag: preventFlag || window.preventUserDataClearing,
   });
 
   // Clear dropdown header user details
