@@ -92,12 +92,13 @@ export const FRIENDSHIP_STRUCTURE = {
   user1Id: "user123",                   // For compatibility with existing queries
   user2Id: "user456", 
   createdAt: "timestamp",
+  mutualFriends: 0,                     // Count of mutual friends
   lastInteraction: "timestamp",         // For future features (last message, etc.)
 
   // 👥 Cached user info for quick friend list display
   user1Info: {
     displayName: "John Doe",
-    major: "Computer Science",
+    major: "CSE",
     avatar: {
       style: "miniavs", 
       seed: "abc123"
@@ -106,20 +107,12 @@ export const FRIENDSHIP_STRUCTURE = {
 
   user2Info: {
     displayName: "Jane Smith",
-    major: "Business Administration", 
+    major: "BBA", 
     avatar: {
       style: "adventurer",
       seed: "xyz789"
     }
-  },
-
-  // 📊 Metadata
-  friendshipType: "classmate",          // "classmate" | "general" (future)
-  mutualFriends: 0,                     // Count of mutual friends (future)
-  
-  // 🔄 Status tracking
-  isActive: true,                       // For soft deletion if needed
-  connectionStrength: "normal"          // "weak" | "normal" | "strong" (future)
+  }
 };
 
 // 🎯 **Optimized Query Patterns for CampXus**
@@ -255,6 +248,7 @@ export const createFriendshipData = (user1, user2) => ({
   user1Id: user1.uid,
   user2Id: user2.uid,
   createdAt: new Date(),
+  mutualFriends: 0,
   lastInteraction: new Date(),
   
   user1Info: {
@@ -267,12 +261,7 @@ export const createFriendshipData = (user1, user2) => ({
     displayName: user2.profile.displayName,
     major: user2.profile.major, 
     avatar: user2.avatarConfig
-  },
-  
-  friendshipType: "classmate",
-  mutualFriends: 0,
-  isActive: true,
-  connectionStrength: "normal"
+  }
 });
 
 // 📚 **Best Practices Summary**

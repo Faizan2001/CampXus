@@ -78,6 +78,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
     │   ├── user1Id: "user123"                 // For compatibility
     │   ├── user2Id: "user456"                 // For compatibility
     │   ├── createdAt: timestamp
+    |   ├── mutualFriends: <number>
     │   ├── lastInteraction: timestamp         // For future features
     │   ├── user1Info: {                       // Cached user data
     │   │     displayName: "John Doe",
