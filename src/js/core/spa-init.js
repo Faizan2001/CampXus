@@ -35,6 +35,8 @@ import "./script.js"; // 🎯 CRITICAL: Schedule page functionality
 import "./friends/friends-manager.js";
 import "./friends/friends-ui.js";
 import "./realtime-manager.js"; // 🎯 NEW: Real-time event coordination system
+import "./notification-manager.js"; // 🎯 NEW: Toast notification system
+import "./debug-helpers.js"; // 🎯 NEW: Debug tools and console helpers
 import "./profile-setup.js";
 import "./avatars.js";
 

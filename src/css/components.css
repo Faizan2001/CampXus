@@ -14,6 +14,264 @@ This file contains all UI component styles for the MeetchuThere app:
 =============================================================================
 */
 
+/* ===== NOTIFICATION SYSTEM ===== */
+/* Real-time notification toasts with glassmorphism design */
+
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  pointer-events: none;
+  max-width: 400px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .notification-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
+
+.notification {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  
+  box-shadow: 
+    var(--glass-outer-glow),
+    0 8px 32px var(--glass-shadow),
+    inset 0 0 0 1px var(--glass-highlight-faint);
+  
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(100%) scale(0.95);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  position: relative;
+  overflow: hidden;
+}
+
+.notification::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  opacity: 0.6;
+}
+
+.notification-show {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.notification-hide {
+  opacity: 0;
+  transform: translateX(100%) scale(0.95);
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  max-height: 0;
+}
+
+.notification-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+}
+
+.notification-icon {
+  font-size: 24px;
+  line-height: 1;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.notification-message {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.notification-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.notification-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+/* Notification Type Variations */
+.notification-friend_request {
+  border-left: 4px solid var(--accent-primary);
+}
+
+.notification-friend_accepted {
+  border-left: 4px solid var(--success-color);
+}
+
+.notification-success {
+  border-left: 4px solid var(--success-color);
+}
+
+.notification-error {
+  border-left: 4px solid var(--error-color);
+}
+
+.notification-warning {
+  border-left: 4px solid var(--warning-color);
+}
+
+.notification-connected {
+  border-left: 4px solid var(--success-color);
+}
+
+.notification-disconnected {
+  border-left: 4px solid var(--error-color);
+}
+
+/* Interactive notifications */
+.notification-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    var(--glass-outer-glow),
+    0 12px 48px var(--glass-shadow),
+    inset 0 0 0 1px var(--glass-highlight-faint);
+}
+
+/* Priority styling */
+.notification-high {
+  border-width: 2px;
+  box-shadow: 
+    var(--glass-outer-glow),
+    0 12px 48px var(--glass-shadow),
+    inset 0 0 0 1px var(--glass-highlight-faint),
+    0 0 0 2px rgba(106, 90, 205, 0.2);
+}
+
+.notification-medium {
+  /* Use default styling */
+}
+
+.notification-low {
+  opacity: 0.9;
+  border-width: 1px;
+}
+
+/* Pause on hover */
+.notification-paused {
+  animation-play-state: paused;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .notification {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  
+  .notification-icon {
+    font-size: 20px;
+  }
+  
+  .notification-title {
+    font-size: 0.9rem;
+  }
+  
+  .notification-message {
+    font-size: 0.8rem;
+  }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+  .notification {
+    background: rgba(26, 32, 44, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .notification::before {
+    opacity: 0.8;
+  }
+  
+  .notification-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .notification {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+  
+  .notification-show {
+    transform: none;
+  }
+  
+  .notification-hide {
+    transform: none;
+  }
+  
+  .notification-clickable:hover {
+    transform: none;
+  }
+}
+
 /* ===== GLASS CARD COMPONENT ===== */
 /* ===== ENHANCED GLASSMORPHISM CARD SYSTEM ===== */
 .glass-card {

@@ -12,6 +12,7 @@
  */
 
 import { friendsManager } from "./friends-manager.js";
+import { notificationManager } from "../notification-manager.js";
 
 class FriendsUI {
   constructor() {
@@ -145,28 +146,50 @@ class FriendsUI {
   setupRealTimeCallbacks() {
     console.log("🎛️ Setting up real-time UI callbacks...");
 
-    // Register callbacks with the friends manager
-    friendsManager.registerUICallbacks({
-      onFriendRequestsChange: (requests) => {
-        console.log("📬 Real-time friend requests update in UI:", requests.length);
-        this.displayFriendRequests(requests);
-        this.showRealTimeNotification(`${requests.length} friend request${requests.length !== 1 ? 's' : ''}`);
-      },
-      
-      onFriendsListChange: (friends) => {
-        console.log("🤝 Real-time friends list update in UI:", friends.length);
-        this.displayFriendsList(friends);
-        this.showRealTimeNotification(`${friends.length} friend${friends.length !== 1 ? 's' : ''} connected`);
-      },
-      
-      onConnectionStatusChange: (status) => {
-        console.log("📡 Real-time connection status in UI:", status);
-        this.displayConnectionStatus(status);
-      }
-    });
+    // Register callbacks with the friends manager using the registerUICallbacks method
+    if (friendsManager.registerUICallbacks) {
+      friendsManager.registerUICallbacks({
+        onFriendRequestsChange: (requests) => {
+          console.log("📬 Real-time friend requests update in UI:", requests.length);
+          this.displayFriendRequests(requests);
+          
+          // Show a more subtle notification for request updates
+          if (requests.length > 0) {
+            this.showRealTimeNotification(`${requests.length} friend request${requests.length !== 1 ? 's' : ''}`);
+          }
+        },
+        
+        onFriendsListChange: (friends) => {
+          console.log("🤝 Real-time friends list update in UI:", friends.length);
+          this.displayFriendsList(friends);
+          
+          // Show a more subtle notification for friends list updates
+          if (friends.length > 0) {
+            this.showRealTimeNotification(`${friends.length} friend${friends.length !== 1 ? 's' : ''} connected`);
+          }
+        },
+        
+        onConnectionStatusChange: (status) => {
+          console.log("📡 Real-time connection status in UI:", status);
+          this.displayConnectionStatus(status);
+          
+          // Show connection status notifications
+          notificationManager.showConnectionStatusNotification(status);
+        },
+        
+        onNewFriendRequest: (request) => {
+          console.log("🔔 New friend request received in UI:", request.displayName);
+          
+          // Show prominent notification for new friend requests
+          notificationManager.showFriendRequestNotification(request);
+        }
+      });
+    }
 
     // Start real-time listening in the friends manager
-    friendsManager.startRealTimeListening();
+    if (friendsManager.startRealTimeListening) {
+      friendsManager.startRealTimeListening();
+    }
 
     console.log("✅ Real-time UI callbacks set up successfully");
   }
@@ -176,44 +199,8 @@ class FriendsUI {
    * @param {string} message - Message to show
    */
   showRealTimeNotification(message) {
-    // Create a subtle notification that auto-disappears
-    const notification = document.createElement('div');
-    notification.className = 'realtime-notification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(106, 90, 205, 0.9);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      z-index: 1000;
-      opacity: 0;
-      transform: translateX(300px);
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    `;
-    notification.textContent = `🔄 ${message}`;
-    
-    document.body.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-      notification.style.opacity = '1';
-      notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-      notification.style.opacity = '0';
-      notification.style.transform = 'translateX(300px)';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }, 3000);
+    // Use the notification manager for consistent notifications
+    notificationManager.showSystemNotification(message, "info", "Real-time Update");
   }
 
   /**
@@ -711,6 +698,12 @@ class FriendsUI {
       if (result.success) {
         this.showMessage(result.message, 'success');
         
+        // Show success notification
+        notificationManager.showSystemNotification(
+          `Friend request sent to ${studentData.profile?.displayName}`,
+          "success"
+        );
+        
         // Update button to show sent state
         if (button) {
           button.innerHTML = '<i class="fas fa-check"></i> Request Sent';
@@ -720,6 +713,12 @@ class FriendsUI {
       } else {
         this.showMessage(result.message, 'error');
         
+        // Show error notification
+        notificationManager.showSystemNotification(
+          result.message,
+          "error"
+        );
+        
         // Reset button
         if (button) {
           button.disabled = false;
@@ -728,7 +727,11 @@ class FriendsUI {
       }
     } catch (error) {
       console.error('❌ Error sending friend request:', error);
-      this.showMessage('Failed to send friend request. Please try again.', 'error');
+      const errorMessage = 'Failed to send friend request. Please try again.';
+      this.showMessage(errorMessage, 'error');
+      
+      // Show error notification
+      notificationManager.showSystemNotification(errorMessage, "error");
     }
   }
 
@@ -753,6 +756,9 @@ class FriendsUI {
       if (result.success) {
         this.showMessage(result.message, 'success');
         
+        // Show friend accepted notification
+        notificationManager.showFriendAcceptedNotification(requestData);
+        
         // Remove the request card
         const card = document.querySelector(`[data-request-id="${requestId}"]`);
         if (card) {
@@ -774,7 +780,11 @@ class FriendsUI {
       }
     } catch (error) {
       console.error('❌ Error accepting friend request:', error);
-      this.showMessage('Failed to accept friend request. Please try again.', 'error');
+      const errorMessage = 'Failed to accept friend request. Please try again.';
+      this.showMessage(errorMessage, 'error');
+      
+      // Show error notification
+      notificationManager.showSystemNotification(errorMessage, "error");
     }
   }
 
@@ -819,7 +829,11 @@ class FriendsUI {
       }
     } catch (error) {
       console.error('❌ Error rejecting friend request:', error);
-      this.showMessage('Failed to reject friend request. Please try again.', 'error');
+      const errorMessage = 'Failed to reject friend request. Please try again.';
+      this.showMessage(errorMessage, 'error');
+      
+      // Show error notification
+      notificationManager.showSystemNotification(errorMessage, "error");
     }
   }
 

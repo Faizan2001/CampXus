@@ -84,6 +84,8 @@ The codebase uses ES6 modules with careful dependency management:
 
 - **Core Modules**: Located in `src/js/core/` - foundation functionality
 - **Firebase Integration**: Located in `src/js/firebase/` - authentication and database
+- **Friends System**: Located in `src/js/core/friends/` - social features with real-time updates
+- **Real-Time System**: Real-time event coordination and notifications
 - **Development Tools**: Located in `src/js/dev-tools/` - environment setup utilities
 - **Security Layer**: Located in `src/js/security/` - privacy and security management
 
@@ -92,16 +94,19 @@ The application uses a centralized state pattern:
 
 - **Main App State**: Managed in `src/js/core/script.js` with exported getState() function
 - **User Authentication State**: Managed by AuthManager with event listeners
-- **Friends/Social State**: Managed by dedicated friends modules
+- **Friends/Social State**: Managed by dedicated friends modules with real-time updates
+- **Real-Time Data**: Managed by `realtime-manager.js` with event-driven architecture
+- **Notifications**: Managed by `notification-manager.js` for toast notifications
 - **Local Storage**: Used for persistence with Firebase cloud sync
 
 ### CSS Architecture
-Modular CSS system with 9 specialized stylesheets:
+Modular CSS system with specialized stylesheets:
 
 - `variables.css`: Design system & CSS custom properties
 - `layout.css`: SPA structure & navigation
-- `components.css`: Reusable UI components with glassmorphism
+- `components.css`: Reusable UI components with glassmorphism + notification system
 - `schedule.css`: Schedule grid & time slot interactions
+- `friends-page.css`: Friends system styling with real-time updates
 - All CSS is imported through `spa-init.js` for proper bundling
 
 ## Development Environment Setup
@@ -158,7 +163,9 @@ The project uses Jest with ESM support and custom configuration:
 ### Firestore Database
 - User profiles stored with university validation
 - Schedule data synchronized across devices
-- Friends/social connections (Phase 3 feature)
+- Friends/social connections with real-time updates
+- Friend requests with instant notifications
+- Real-time listeners for live data synchronization
 
 ### Security Rules
 Located in `firestore.rules` - university-only access with proper authentication checks
@@ -177,8 +184,10 @@ Located in `firestore.rules` - university-only access with proper authentication
 
 ### Module Communication
 - Event-driven architecture for loose coupling
+- Real-time event system with publish/subscribe pattern
 - State managers with observer patterns
 - Careful import/export to avoid circular dependencies
+- Memory management with proper cleanup for real-time listeners
 
 ### Performance Considerations
 - DOM element caching in `domElements.js`
@@ -207,6 +216,20 @@ Located in `firestore.rules` - university-only access with proper authentication
 - Add new operations to `data-manager.js`
 - Update Firestore security rules as needed
 - Test with Firebase emulators first
+
+### Friends System Features
+- Core logic in `src/js/core/friends/friends-manager.js`
+- UI components in `src/js/core/friends/friends-ui.js`
+- Real-time updates via `src/js/core/realtime-manager.js`
+- Toast notifications via `src/js/core/notification-manager.js`
+- Styling in `src/css/friends-page.css`
+
+### Real-Time System
+- **Data Layer**: `listenToPendingFriendRequests()`, `listenToUserFriendships()`, `listenToUserProfile()` in `data-manager.js`
+- **Event Coordination**: `realtime-manager.js` with publish/subscribe pattern
+- **Memory Management**: Automatic cleanup of listeners to prevent memory leaks
+- **Fallback Systems**: Manual data fetching when real-time fails
+- **Debug Tools**: `debug-helpers.js` with console commands for testing
 
 ## Code Style Guidelines
 
@@ -250,6 +273,13 @@ Located in `firestore.rules` - university-only access with proper authentication
 - Always run `npm run dev:config` after changing `.env.local`
 - Use `npm run dev:serve` for full Firebase integration testing
 - Check browser console for module import errors
+
+### Real-Time System Debugging
+- Use `debug.help()` in browser console for available commands
+- Test notifications with `debug.testNotification()`
+- Check system status with `debug.status()`
+- Monitor real-time events with `realTimeManager.getStatus()`
+- Force cleanup with `realTimeManager.cleanup()`
 
 ### SPA Navigation
 - Don't use traditional `<a href>` links - use `data-spa-route` or `navigateTo()`

@@ -1,9 +1,9 @@
 # 🗺️ CampXus: UI Reference Map & Developer Guide
 
-**Version:** 4.0 (SPA + Firebase Architecture)  
-**Last Updated:** June 2025
+**Version:** 5.0 (SPA + Firebase + Real-Time Friends System)  
+**Last Updated:** July 2025
 
-A comprehensive guide to the Single Page Application architecture, Firebase integration, DOM elements, and their interactions in CampXus. This document reflects the current **SPA + Firebase** architecture with authentication, profile management, and social features.
+A comprehensive guide to the Single Page Application architecture, Firebase integration, DOM elements, and their interactions in CampXus. This document reflects the current **SPA + Firebase + Real-Time Friends System** architecture with authentication, profile management, social features, and real-time notifications.
 
 ---
 
@@ -13,12 +13,13 @@ A comprehensive guide to the Single Page Application architecture, Firebase inte
 2. [Firebase Integration Layer](#-firebase-integration-layer)
 3. [Authentication System](#-authentication-system)
 4. [Profile Management System](#-profile-management-system)
-5. [Schedule Management](#-schedule-management)
-6. [Key DOM Elements](#-key-dom-elements)
-7. [SPA Router & Navigation](#-spa-router--navigation)
-8. [CSS Architecture](#-css-architecture)
-9. [Testing Framework](#-testing-framework)
-10. [Development Workflows](#-development-workflows)
+5. [Friends System & Real-Time Features](#-friends-system--real-time-features)
+6. [Schedule Management](#-schedule-management)
+7. [Key DOM Elements](#-key-dom-elements)
+8. [SPA Router & Navigation](#-spa-router--navigation)
+9. [CSS Architecture](#-css-architecture)
+10. [Testing Framework](#-testing-framework)
+11. [Development Workflows](#-development-workflows)
 
 ---
 
@@ -44,6 +45,10 @@ CampXus is built as a **Single Page Application** with Firebase backend integrat
 | `pinModeActive`         | `script.js`       | Lock editing to active user         | Memory        |
 | `currentUser`           | `auth-manager.js` | Firebase authenticated user         | Firebase Auth |
 | `spaRouter.currentPage` | `spa-router.js`   | Current route/template              | Memory        |
+| `currentRequests`       | `friends-manager.js` | Cached friend requests           | Real-time     |
+| `currentFriends`        | `friends-manager.js` | Cached friends list              | Real-time     |
+| `activeListeners`       | `realtime-manager.js` | Active Firestore listeners       | Memory        |
+| `notifications`         | `notification-manager.js` | Active toast notifications    | Memory        |
 
 ---
 
@@ -170,6 +175,107 @@ document.addEventListener("spa:navigation", (event) => {
     // Handle profile page initialization
   }
 });
+```
+
+---
+
+## 👥 Friends System & Real-Time Features
+
+### Architecture Overview
+
+The friends system implements a modern, real-time social experience with instant notifications and live updates:
+
+| Component | File | Purpose | Key Features |
+| --- | --- | --- | --- |
+| **Friends Manager** | `core/friends/friends-manager.js` | Core friends logic | Search, requests, friendships management |
+| **Friends UI** | `core/friends/friends-ui.js` | User interface controller | Real-time UI updates, event handling |
+| **Real-Time Manager** | `core/realtime-manager.js` | Event coordination | Publish/subscribe system, memory management |
+| **Notification Manager** | `core/notification-manager.js` | Toast notifications | Glassmorphism design, auto-dismiss |
+| **Debug Helpers** | `core/debug-helpers.js` | Development tools | Console commands, system monitoring |
+
+### Real-Time Data Flow
+
+```javascript
+// Real-time event flow
+Firebase Database Change → Firestore Listener → Real-Time Manager → Friends Manager → UI Components
+                                                     ↓
+                                            Notification Manager
+```
+
+### Key UI Elements
+
+| Element | Selector | Purpose | Real-Time Updates |
+| --- | --- | --- | --- |
+| **Friends Search** | `#friendSearch` | Find students by name/major | Debounced search with caching |
+| **Friends List** | `#friendsList` | Display current friends | Live updates when friendships change |
+| **Friend Requests** | `#friendRequests` | Pending requests | Instant notifications for new requests |
+| **Search Results** | `#searchResults` | Student search results | Send friend request buttons |
+| **Notification Container** | `#notification-container` | Toast notifications | Auto-generated, glassmorphism styled |
+
+### Real-Time Features
+
+#### Friend Request System
+- **Instant Notifications**: Toast notifications appear immediately when requests are received
+- **Live UI Updates**: Request counts and lists update without page refresh
+- **Accept/Reject Actions**: Real-time feedback with success/error notifications
+
+#### Notification System
+```javascript
+// Notification types and styling
+{
+  friend_request: "👋 New Friend Request",
+  friend_accepted: "🎉 Friend Request Accepted", 
+  success: "✅ Action Successful",
+  error: "❌ Something went wrong",
+  connected: "📡 Real-time updates active"
+}
+```
+
+#### Memory Management
+- **Automatic Cleanup**: Listeners are cleaned up when users logout or navigate away
+- **Garbage Collection**: Periodic cleanup of stale event subscribers
+- **Performance Monitoring**: Memory usage tracking and leak prevention
+
+### Database Structure
+
+```javascript
+// Friend Requests Collection
+{
+  id: "request-id",
+  fromUserId: "sender-uid",
+  toUserId: "recipient-uid", 
+  fromUserInfo: { displayName, major, avatar },
+  toUserInfo: { displayName, major, avatar },
+  status: "pending|accepted|rejected",
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+
+// Friendships Collection
+{
+  id: "friendship-id",
+  user1Id: "user-1-uid",
+  user2Id: "user-2-uid",
+  user1Info: { displayName, major, avatar },
+  user2Info: { displayName, major, avatar },
+  users: ["user-1-uid", "user-2-uid"], // For querying
+  isActive: true,
+  createdAt: timestamp,
+  lastInteraction: timestamp,
+  connectionStrength: "normal|strong|close"
+}
+```
+
+### Debug Commands
+
+```javascript
+// Available in browser console
+debug.help()                    // Show all available commands
+debug.status()                  // System status overview
+debug.testNotification()        // Test notification system
+debug.simulateFriendRequest()   // Create test friend request
+debug.clearNotifications()      // Clear all notifications
+realTimeManager.getStatus()     // Real-time system status
 ```
 
 ---
