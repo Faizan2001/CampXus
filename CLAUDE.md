@@ -349,6 +349,37 @@ const myFriends = query(
 - **✅ Performance**: Efficient queries with minimal database reads
 - **✅ Future-proof**: Extensible for mutual friends, messaging, etc.
 
+### Friend Request Lifecycle (Logical Data Management)
+
+Friend requests follow a clean, logical lifecycle:
+
+1. **📩 Pending Requests** → Stored in `friendRequests/` collection
+2. **✅ Accepted Requests** → Move to `friendships/` collection, **delete** from `friendRequests/`
+3. **❌ Rejected Requests** → **Delete** from `friendRequests/` (no permanent storage needed)
+
+This approach:
+- ✅ **Reduces database clutter** - No "accepted" or "rejected" requests lingering around
+- ✅ **Improves query performance** - Smaller `friendRequests/` collection with only active requests
+- ✅ **Follows logical data lifecycle** - Requests are temporary, friendships are permanent
+- ✅ **Prevents data confusion** - Clear separation between active requests and established friendships
+
+```javascript
+// ✅ Accept Request: Create friendship + Delete request
+async function acceptFriendRequest(requestId, requestData) {
+  // 1. Create friendship document
+  await createFriendship(friendshipData);
+  
+  // 2. Delete the friend request (cleanup)
+  await deleteFriendRequest(requestId);
+}
+
+// ❌ Reject Request: Simply delete request
+async function rejectFriendRequest(requestId) {
+  // Just delete - no friendship created
+  await deleteFriendRequest(requestId);
+}
+```
+
 This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.
 
 ## Key Architectural Patterns

@@ -53,6 +53,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,   // ← Added for deleting documents
   serverTimestamp,
   collection,
   query,
@@ -1514,7 +1515,6 @@ class DataManager {
         ...friendshipData,
         createdAt: serverTimestamp(),
         lastInteraction: serverTimestamp(),
-        isActive: true,
       });
 
       console.log("✅ Friendship created successfully with ID:", docRef.id);
@@ -1537,8 +1537,7 @@ class DataManager {
       const friendshipsRef = collection(db, "friendships");
       const q = query(
         friendshipsRef,
-        where("users", "array-contains", userId),
-        where("isActive", "==", true)
+        where("users", "array-contains", userId)
       );
 
       const querySnapshot = await getDocs(q);
@@ -1601,6 +1600,26 @@ class DataManager {
     } catch (error) {
       console.error("❌ Error checking existing request:", error);
       return null;
+    }
+  }
+
+  /**
+   * 🗑️ Delete a friend request (for cleanup after accept/reject)
+   * @param {string} requestId - The request ID to delete
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async deleteFriendRequest(requestId) {
+    try {
+      console.log(`🗑️ Deleting friend request: ${requestId}`);
+
+      const requestRef = doc(db, "friendRequests", requestId);
+      await deleteDoc(requestRef);
+
+      console.log("✅ Friend request deleted successfully");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error deleting friend request:", error);
+      return { success: false, error: error.message };
     }
   }
 

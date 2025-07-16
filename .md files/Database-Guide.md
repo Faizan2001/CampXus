@@ -520,22 +520,14 @@ async function acceptFriendRequest(requestId, requestData) {
     user2Id: requestData.toUserId,
     createdAt: serverTimestamp(),
     lastInteraction: serverTimestamp(),
+    mutualFriends: 0,
     user1Info: requestData.fromUserInfo,
-    user2Info: requestData.toUserInfo,
-    isActive: true,                       // boolean - For soft-delete unfriending
-    status: "active",                     // string - "active" | "blocked" | "unfriended"
-    connectionStrength: "normal",         // string - "normal" | "strong" | "close"
-    mutualFriendsCount: 0,                // number - Count of mutual friends
-    unfriendedAt: null,                   // timestamp - When unfriended (if applicable)
-    unfriendedBy: null,                   // string - Who initiated unfriending
+    user2Info: requestData.toUserInfo
   });
 
-  // Update request status
+  // Delete the friend request (cleanup - requests are temporary)
   const requestRef = doc(db, "friendRequests", requestId);
-  batch.update(requestRef, {
-    status: "accepted",
-    respondedAt: serverTimestamp(),
-  });
+  batch.delete(requestRef);
 
   // Update both users' friend counts
   const user1Ref = doc(db, "users", requestData.fromUserId);
@@ -551,6 +543,19 @@ async function acceptFriendRequest(requestId, requestData) {
   });
 
   await batch.commit();
+}
+
+// 3️⃣ Reject Friend Request  
+async function rejectFriendRequest(requestId, requestData) {
+  // Simply delete the request - no friendship created
+  const requestRef = doc(db, "friendRequests", requestId);
+  await deleteDoc(requestRef);
+  
+  // Update recipient's pending count
+  const userRef = doc(db, "users", requestData.toUserId);
+  await updateDoc(userRef, {
+    "socialInfo.pendingRequestsCount": increment(-1),
+  });
 }
 ```
 

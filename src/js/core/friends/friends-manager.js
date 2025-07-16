@@ -1122,17 +1122,10 @@ export class FriendsManager {
         requestData.fromUserInfo?.displayName
       );
 
-      // 🎯 STEP 1: Update the friend request status to "accepted"
-      const updateResult = await dataManager.updateFriendRequestStatus(
-        requestId,
-        "accepted"
-      );
+      // 🎯 STEP 1: Create the friendship document first
+      // (We'll delete the request after successful friendship creation)
 
-      if (!updateResult.success) {
-        return { success: false, message: "Failed to update request status" };
-      }
-
-      // 🎯 STEP 2: Create the friendship document
+      // 🎯 STEP 1: Create the friendship document
       const friendshipData = {
         users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
         user1Id: requestData.fromUserId,
@@ -1163,6 +1156,13 @@ export class FriendsManager {
       if (!friendshipResult.success) {
         console.error("❌ Failed to create friendship");
         return { success: false, message: "Failed to create friendship" };
+      }
+
+      // 🎯 STEP 2: Delete the friend request (cleanup)
+      const deleteResult = await dataManager.deleteFriendRequest(requestId);
+      if (!deleteResult.success) {
+        console.warn("⚠️ Friendship created but failed to delete request:", deleteResult.error);
+        // Don't fail the operation, just log the warning
       }
 
       // 🎯 STEP 3: Update user social info (friend counts) - TODO in future
@@ -1207,12 +1207,9 @@ export class FriendsManager {
       const senderName = requestData?.fromUserInfo?.displayName || "User";
       console.log("❌ Rejecting friend request from:", senderName);
 
-      // 🎯 Simply update the request status to "rejected"
+      // 🎯 Simply delete the friend request
       // No friendship document is created, no counters updated
-      const result = await dataManager.updateFriendRequestStatus(
-        requestId,
-        "rejected"
-      );
+      const result = await dataManager.deleteFriendRequest(requestId);
 
       if (result.success) {
         console.log("✅ Friend request rejected successfully");
