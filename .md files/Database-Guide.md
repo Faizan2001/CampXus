@@ -32,7 +32,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │   ├── uid: "abc123"
 │   │   ├── profile: { displayName, displayName_lower, firstName, firstName_lower, lastName, lastName_lower, email, major, major_lower, bio, startingYear, studentId }
 │   │   ├── universityInfo: { university, universityName, studentId }
-│   │   ├── systemInfo: { uid, profileSetupComplete, status, lastActive, createdAt, lastUpdated }
+│   │   ├── systemInfo: { profileSetupComplete, status, lastActive, createdAt, lastUpdated }
 │   │   ├── avatarConfig: { style, seed, options } // Flexible structure for DiceBear API
 │   │   └── socialInfo: {                    // NEW: Social metadata
 │   │         friendsCount: 0,                    // number
@@ -53,7 +53,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │       ├── name: "North South University"
 │       ├── domain: "northsouth.edu"
 │       └── ...
-├── 📩 friendRequests/ (Phase 3+)
+├── 📩 friendRequests/ 
 │   ├── {requestId}/
 │   │   ├── fromUserId: "user123"
 │   │   ├── toUserId: "user456"

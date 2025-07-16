@@ -1034,8 +1034,6 @@ export class FriendsManager {
         fromUserId: currentUser.uid,
         toUserId: targetUserId,
         status: "pending",
-        requestType: "direct",
-        message: "",
         fromUserInfo: {
           displayName: userProfile.profile.displayName,
           major: userProfile.profile.major,

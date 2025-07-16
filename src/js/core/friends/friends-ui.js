@@ -357,12 +357,21 @@ class FriendsUI {
       </div>
     `;
 
+    // Remove existing event listeners to prevent duplicates
+    const existingListener = resultsContainer.__friendsEventListener;
+    if (existingListener) {
+      resultsContainer.removeEventListener('click', existingListener);
+    }
+
     // Add event listeners for Send Friend Request buttons
-    resultsContainer.addEventListener('click', async (e) => {
+    const clickHandler = async (e) => {
       if (e.target.closest('.btn-send-request')) {
         const button = e.target.closest('.btn-send-request');
         const studentId = button.dataset.studentId;
         const studentName = button.dataset.studentName;
+        
+        // Prevent multiple clicks while processing
+        if (button.disabled) return;
         
         await this.handleSendFriendRequest(studentId, results.find(s => s.id === studentId));
       }
@@ -370,7 +379,11 @@ class FriendsUI {
       if (e.target.closest('.btn-clear-search')) {
         this.clearSearchResults();
       }
-    });
+    };
+    
+    resultsContainer.addEventListener('click', clickHandler);
+    // Store reference to remove it later
+    resultsContainer.__friendsEventListener = clickHandler;
   }
 
   /**
