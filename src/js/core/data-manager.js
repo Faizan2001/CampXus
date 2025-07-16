@@ -1604,6 +1604,39 @@ class DataManager {
   }
 
   /**
+   * 📤 Get outgoing friend requests for a user (requests they sent)
+   * @param {string} userId - The user ID to get outgoing requests for
+   * @returns {Promise<Array>} Array of outgoing pending requests
+   */
+  async getOutgoingFriendRequests(userId) {
+    try {
+      console.log("📤 Fetching outgoing requests for:", userId);
+
+      const requestsRef = collection(db, "friendRequests");
+      const q = query(
+        requestsRef,
+        where("fromUserId", "==", userId),
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const requests = [];
+      querySnapshot.forEach((doc) => {
+        requests.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log("✅ Found", requests.length, "outgoing pending requests");
+      return requests;
+    } catch (error) {
+      console.error("❌ Error fetching outgoing requests:", error);
+      return [];
+    }
+  }
+
+  /**
    * 🗑️ Delete a friend request (for cleanup after accept/reject)
    * @param {string} requestId - The request ID to delete
    * @returns {Promise<{success: boolean, error?: string}>}
