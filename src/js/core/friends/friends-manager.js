@@ -1137,6 +1137,9 @@ export class FriendsManager {
         users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
         user1Id: requestData.fromUserId,
         user2Id: requestData.toUserId,
+        createdAt: new Date(),
+        mutualFriends: 0,
+        lastInteraction: new Date(),
 
         // Cache user info from the request (already available!)
         user1Info: {
@@ -1150,12 +1153,7 @@ export class FriendsManager {
           major: requestData.toUserInfo.major,
           avatar:
             requestData.toUserInfo.avatar || userProfile.avatarConfig,
-        },
-
-        // Metadata
-        friendshipType: "classmate",
-        mutualFriends: 0,
-        connectionStrength: "normal",
+        }
       };
 
       const friendshipResult = await dataManager.createFriendship(

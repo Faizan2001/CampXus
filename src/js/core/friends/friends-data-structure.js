@@ -213,56 +213,6 @@ export const initializeSocialInfo = () => ({
   lastFriendActivity: null
 });
 
-/**
- * Create friend request data structure
- */
-export const createFriendRequestData = (fromUser, toUser) => ({
-  fromUserId: fromUser.uid,
-  toUserId: toUser.uid,
-  status: "pending",
-  createdAt: new Date(),
-  respondedAt: null,
-  
-  fromUserInfo: {
-    displayName: fromUser.profile.displayName,
-    major: fromUser.profile.major,
-    university: fromUser.universityInfo.university,
-    avatar: fromUser.avatarConfig
-  },
-  
-  toUserInfo: {
-    displayName: toUser.profile.displayName, 
-    major: toUser.profile.major,
-    university: toUser.universityInfo.university
-  },
-  
-  requestType: "direct",
-  message: ""
-});
-
-/**
- * Create friendship data structure
- */
-export const createFriendshipData = (user1, user2) => ({
-  users: [user1.uid, user2.uid],
-  user1Id: user1.uid,
-  user2Id: user2.uid,
-  createdAt: new Date(),
-  mutualFriends: 0,
-  lastInteraction: new Date(),
-  
-  user1Info: {
-    displayName: user1.profile.displayName,
-    major: user1.profile.major,
-    avatar: user1.avatarConfig
-  },
-  
-  user2Info: {
-    displayName: user2.profile.displayName,
-    major: user2.profile.major, 
-    avatar: user2.avatarConfig
-  }
-});
 
 // 📚 **Best Practices Summary**
 
