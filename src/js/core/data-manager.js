@@ -58,6 +58,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,  // ← Added for real-time listeners
   orderBy,
   limit,
 } from "firebase/firestore";
@@ -592,6 +593,12 @@ class DataManager {
 
       // --- BEGIN: Auto-generate search fields and ensure socialInfo ---
       if (profileData.profile) {
+        // 🎯 Auto-generate displayName from firstName if not set
+        if (!profileData.profile.displayName && profileData.profile.firstName) {
+          profileData.profile.displayName = profileData.profile.firstName;
+          console.log("🎯 Auto-generated displayName from firstName:", profileData.profile.displayName);
+        }
+        
         if (profileData.profile.displayName) {
           profileData.profile.displayName_lower = profileData.profile.displayName.toLowerCase();
         }
@@ -1595,6 +1602,208 @@ class DataManager {
       return null;
     }
   }
+
+  // ===================================================================
+  //                    REAL-TIME LISTENERS
+  // ===================================================================
+
+  /**
+   * 📡 Listen for pending friend requests in real-time
+   * 
+   * This function sets up a real-time listener for friend requests sent TO the specified user.
+   * When someone sends a friend request, the callback will be triggered instantly!
+   * 
+   * @param {string} userId - User ID to listen for incoming requests
+   * @param {function} callback - Function called when requests change: callback(requests)
+   * @returns {function} Unsubscribe function to stop listening
+   * 
+   * Example usage:
+   *   const unsubscribe = dataManager.listenToPendingFriendRequests(
+   *     "user123", 
+   *     (requests) => console.log("Got", requests.length, "requests!")
+   *   );
+   *   // Later: unsubscribe(); // Stop listening
+   */
+  listenToPendingFriendRequests(userId, callback) {
+    try {
+      console.log("📡 Setting up real-time listener for friend requests:", userId);
+
+      const requestsRef = collection(db, "friendRequests");
+      const q = query(
+        requestsRef,
+        where("toUserId", "==", userId),
+        where("status", "==", "pending"),
+        orderBy("createdAt", "desc")
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const requests = [];
+          querySnapshot.forEach((doc) => {
+            requests.push({
+              id: doc.id,
+              ...doc.data(),
+            });
+          });
+
+          console.log(`📬 Real-time update: ${requests.length} pending requests for ${userId}`);
+
+          // Transform for UI consumption (same format as existing functions)
+          const transformedRequests = requests.map(request => ({
+            ...request,
+            displayName: request.fromUserInfo?.displayName || "Unknown User",
+            major: request.fromUserInfo?.major || "Unknown Major",
+            university: request.fromUserInfo?.university || "Unknown University"
+          }));
+
+          // Call the callback with the fresh data
+          callback(transformedRequests);
+        },
+        (error) => {
+          console.error("❌ Error in friend requests listener:", error);
+          callback([]); // Fallback to empty array on error
+        }
+      );
+
+      console.log("✅ Friend requests listener established successfully");
+      return unsubscribe;
+    } catch (error) {
+      console.error("❌ Error setting up friend requests listener:", error);
+      return () => {}; // Return empty unsubscribe function
+    }
+  }
+
+  /**
+   * 👥 Listen for user's friendships in real-time
+   * 
+   * This function sets up a real-time listener for the user's friends list.
+   * When someone accepts your friend request or friendships change, the callback triggers instantly!
+   * 
+   * @param {string} userId - User ID to listen for friendship changes
+   * @param {function} callback - Function called when friendships change: callback(friendships)
+   * @returns {function} Unsubscribe function to stop listening
+   * 
+   * Example usage:
+   *   const unsubscribe = dataManager.listenToUserFriendships(
+   *     "user123", 
+   *     (friendships) => console.log("You have", friendships.length, "friends!")
+   *   );
+   *   // Later: unsubscribe(); // Stop listening
+   */
+  listenToUserFriendships(userId, callback) {
+    try {
+      console.log("👥 Setting up real-time listener for friendships:", userId);
+
+      const friendshipsRef = collection(db, "friendships");
+      const q = query(
+        friendshipsRef,
+        where("users", "array-contains", userId),
+        where("isActive", "==", true),
+        orderBy("createdAt", "desc")
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const friendships = [];
+          querySnapshot.forEach((doc) => {
+            friendships.push({
+              id: doc.id,
+              ...doc.data(),
+            });
+          });
+
+          console.log(`🤝 Real-time update: ${friendships.length} active friendships for ${userId}`);
+
+          // Transform for UI consumption - extract friend info for each friendship
+          const transformedFriendships = friendships.map(friendship => {
+            // Find the friend's user ID (the one that's not the current user)
+            const friendId = friendship.users.find(id => id !== userId);
+            
+            return {
+              ...friendship,
+              friendId: friendId,
+              friendInfo: friendship.userInfo && friendship.userInfo[friendId] 
+                ? friendship.userInfo[friendId] 
+                : { displayName: "Unknown User", major: "Unknown Major" }
+            };
+          });
+
+          // Call the callback with the fresh data
+          callback(transformedFriendships);
+        },
+        (error) => {
+          console.error("❌ Error in friendships listener:", error);
+          callback([]); // Fallback to empty array on error
+        }
+      );
+
+      console.log("✅ Friendships listener established successfully");
+      return unsubscribe;
+    } catch (error) {
+      console.error("❌ Error setting up friendships listener:", error);
+      return () => {}; // Return empty unsubscribe function
+    }
+  }
+
+  /**
+   * 👤 Listen for user's profile changes in real-time
+   * 
+   * This function sets up a real-time listener for changes to a user's profile.
+   * Useful for detecting when friends update their profiles, avatars, or status!
+   * 
+   * @param {string} userId - User ID to listen for profile changes
+   * @param {function} callback - Function called when profile changes: callback(profileData)
+   * @returns {function} Unsubscribe function to stop listening
+   * 
+   * Example usage:
+   *   const unsubscribe = dataManager.listenToUserProfile(
+   *     "user123", 
+   *     (profile) => console.log("Profile updated:", profile.profile?.displayName)
+   *   );
+   *   // Later: unsubscribe(); // Stop listening
+   */
+  listenToUserProfile(userId, callback) {
+    try {
+      console.log("👤 Setting up real-time listener for user profile:", userId);
+
+      const userDocRef = doc(db, "users", userId);
+
+      const unsubscribe = onSnapshot(
+        userDocRef,
+        (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const profileData = {
+              id: docSnapshot.id,
+              ...docSnapshot.data()
+            };
+
+            console.log(`👤 Real-time update: Profile changed for ${userId}`);
+            
+            // Update local cache with fresh data
+            this.setCachedData(`user_${userId}`, profileData);
+
+            // Call the callback with the fresh profile data
+            callback(profileData);
+          } else {
+            console.warn(`👤 User profile not found: ${userId}`);
+            callback(null);
+          }
+        },
+        (error) => {
+          console.error("❌ Error in user profile listener:", error);
+          callback(null); // Fallback to null on error
+        }
+      );
+
+      console.log("✅ User profile listener established successfully");
+      return unsubscribe;
+    } catch (error) {
+      console.error("❌ Error setting up user profile listener:", error);
+      return () => {}; // Return empty unsubscribe function
+    }
+  }
 }
 
 // Export a single instance of the DataManager (Singleton Pattern)
@@ -1604,6 +1813,178 @@ export const dataManager = new DataManager();
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   window.dataManager = dataManager;
   console.log("🛠️ DataManager available globally as window.dataManager for debugging");
+}
+
+// =========================
+// DEVELOPMENT TESTING HELPERS (Console Tools)
+// =========================
+
+/**
+ * Add console testing helpers for real-time listeners (development only)
+ * These functions are available in the browser console for testing real-time functionality
+ */
+if (typeof window !== 'undefined') {
+  // Global testing helpers for real-time listeners
+  window.testRealTimeListeners = {
+    /**
+     * Test friend requests listener
+     * Usage: testRealTimeListeners.friendRequests("your-user-id")
+     */
+    friendRequests: (userId) => {
+      console.log("🧪 Testing friend requests listener for:", userId);
+      
+      const unsubscribe = dataManager.listenToPendingFriendRequests(
+        userId,
+        (requests) => {
+          console.log("📬 REAL-TIME UPDATE - Friend Requests:", {
+            count: requests.length,
+            requests: requests.map(r => ({
+              id: r.id,
+              from: r.displayName || r.fromUserInfo?.displayName,
+              major: r.major || r.fromUserInfo?.major,
+              university: r.university || r.fromUserInfo?.university,
+              createdAt: r.createdAt
+            }))
+          });
+        }
+      );
+      
+      console.log("✅ Friend requests listener started. To stop: testRealTimeListeners.stopAll()");
+      window.testRealTimeListeners._unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+      window.testRealTimeListeners._unsubscribers.push(unsubscribe);
+      
+      return unsubscribe;
+    },
+
+    /**
+     * Test friendships listener  
+     * Usage: testRealTimeListeners.friendships("your-user-id")
+     */
+    friendships: (userId) => {
+      console.log("🧪 Testing friendships listener for:", userId);
+      
+      const unsubscribe = dataManager.listenToUserFriendships(
+        userId,
+        (friendships) => {
+          console.log("🤝 REAL-TIME UPDATE - Friendships:", {
+            count: friendships.length,
+            friends: friendships.map(f => ({
+              id: f.id,
+              friendId: f.friendId,
+              friendName: f.friendInfo?.displayName || "Unknown",
+              friendMajor: f.friendInfo?.major || "Unknown",
+              createdAt: f.createdAt
+            }))
+          });
+        }
+      );
+      
+      console.log("✅ Friendships listener started. To stop: testRealTimeListeners.stopAll()");
+      window.testRealTimeListeners._unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+      window.testRealTimeListeners._unsubscribers.push(unsubscribe);
+      
+      return unsubscribe;
+    },
+
+    /**
+     * Test user profile listener
+     * Usage: testRealTimeListeners.profile("user-id-to-watch")
+     */
+    profile: (userId) => {
+      console.log("🧪 Testing user profile listener for:", userId);
+      
+      const unsubscribe = dataManager.listenToUserProfile(
+        userId,
+        (profile) => {
+          if (profile) {
+            console.log("👤 REAL-TIME UPDATE - Profile:", {
+              userId: profile.id,
+              displayName: profile.profile?.displayName,
+              firstName: profile.profile?.firstName,
+              lastName: profile.profile?.lastName,
+              major: profile.profile?.major,
+              status: profile.systemInfo?.status,
+              lastActive: profile.systemInfo?.lastActive,
+              avatarConfig: profile.avatarConfig ? "Has Avatar" : "No Avatar"
+            });
+          } else {
+            console.log("👤 REAL-TIME UPDATE - Profile: User not found or deleted");
+          }
+        }
+      );
+      
+      console.log("✅ Profile listener started. To stop: testRealTimeListeners.stopAll()");
+      window.testRealTimeListeners._unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+      window.testRealTimeListeners._unsubscribers.push(unsubscribe);
+      
+      return unsubscribe;
+    },
+
+    /**
+     * Test all listeners at once
+     * Usage: testRealTimeListeners.all("your-user-id")
+     */
+    all: (userId) => {
+      console.log("🧪 Testing ALL real-time listeners for:", userId);
+      
+      this.friendRequests(userId);
+      this.friendships(userId);
+      this.profile(userId);
+      
+      console.log("✅ All listeners started! Check console for real-time updates.");
+      console.log("💡 Try these actions in another tab/browser:");
+      console.log("   1. Send a friend request to this user");
+      console.log("   2. Accept a friend request from this user");
+      console.log("   3. Update this user's profile");
+    },
+
+    /**
+     * Stop all active test listeners
+     * Usage: testRealTimeListeners.stopAll()
+     */
+    stopAll: () => {
+      const unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+      console.log(`🛑 Stopping ${unsubscribers.length} active listeners...`);
+      
+      unsubscribers.forEach((unsubscribe, index) => {
+        try {
+          unsubscribe();
+          console.log(`✅ Stopped listener ${index + 1}`);
+        } catch (error) {
+          console.error(`❌ Error stopping listener ${index + 1}:`, error);
+        }
+      });
+      
+      window.testRealTimeListeners._unsubscribers = [];
+      console.log("🔕 All test listeners stopped");
+    },
+
+    /**
+     * Get status of active listeners
+     * Usage: testRealTimeListeners.status()
+     */
+    status: () => {
+      const count = (window.testRealTimeListeners._unsubscribers || []).length;
+      console.log(`📊 Real-time listener status: ${count} active listeners`);
+      
+      if (count > 0) {
+        console.log("💡 Use testRealTimeListeners.stopAll() to stop all listeners");
+      } else {
+        console.log("💡 Use testRealTimeListeners.all('your-user-id') to start testing");
+      }
+      
+      return count;
+    }
+  };
+
+  console.log("🧪 Real-time testing helpers loaded!");
+  console.log("💡 Usage:");
+  console.log("   testRealTimeListeners.all('your-user-id')     - Test all listeners");
+  console.log("   testRealTimeListeners.friendRequests('id')   - Test friend requests only");
+  console.log("   testRealTimeListeners.friendships('id')      - Test friendships only");
+  console.log("   testRealTimeListeners.profile('id')          - Test profile changes only");
+  console.log("   testRealTimeListeners.stopAll()              - Stop all listeners");
+  console.log("   testRealTimeListeners.status()               - Check listener status");
 }
 
 // --- END OF FILE ---

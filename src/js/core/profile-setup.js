@@ -1300,9 +1300,15 @@ class ProfileSetup {
    */
   async saveProfile() {
     try {
+      // 🎯 Add displayName to profile data (use firstName as displayName)
+      const profileWithDisplayName = {
+        ...this.profileData,
+        displayName: this.profileData.firstName || this.profileData.email?.split('@')[0] || 'User'
+      };
+
       // Combine all data for saving
       const combinedData = {
-        profile: this.profileData,
+        profile: profileWithDisplayName,
         universityInfo: {
           university: this.currentUser.email.split("@")[1].split(".")[0],
           universityName: "Independent University, Bangladesh",

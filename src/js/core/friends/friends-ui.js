@@ -29,12 +29,16 @@ class FriendsUI {
 
       // Always set up event listeners since DOM elements are recreated
       this.setupEventListeners();
+      
+      // 🎛️ Set up real-time integration
+      this.setupRealTimeCallbacks();
+      
       this.isInitialized = true;
 
       // Always load initial data on page visit
       this.loadInitialData();
 
-      console.log("🎨 Friends UI initialized successfully");
+      console.log("🎨 Friends UI initialized successfully with real-time updates");
     } catch (error) {
       console.error("❌ Error initializing Friends UI:", error);
     }
@@ -136,6 +140,96 @@ class FriendsUI {
   }
 
   /**
+   * 🎛️ Set up real-time callbacks for instant UI updates
+   */
+  setupRealTimeCallbacks() {
+    console.log("🎛️ Setting up real-time UI callbacks...");
+
+    // Register callbacks with the friends manager
+    friendsManager.registerUICallbacks({
+      onFriendRequestsChange: (requests) => {
+        console.log("📬 Real-time friend requests update in UI:", requests.length);
+        this.displayFriendRequests(requests);
+        this.showRealTimeNotification(`${requests.length} friend request${requests.length !== 1 ? 's' : ''}`);
+      },
+      
+      onFriendsListChange: (friends) => {
+        console.log("🤝 Real-time friends list update in UI:", friends.length);
+        this.displayFriendsList(friends);
+        this.showRealTimeNotification(`${friends.length} friend${friends.length !== 1 ? 's' : ''} connected`);
+      },
+      
+      onConnectionStatusChange: (status) => {
+        console.log("📡 Real-time connection status in UI:", status);
+        this.displayConnectionStatus(status);
+      }
+    });
+
+    // Start real-time listening in the friends manager
+    friendsManager.startRealTimeListening();
+
+    console.log("✅ Real-time UI callbacks set up successfully");
+  }
+
+  /**
+   * 🔔 Show a subtle real-time update notification
+   * @param {string} message - Message to show
+   */
+  showRealTimeNotification(message) {
+    // Create a subtle notification that auto-disappears
+    const notification = document.createElement('div');
+    notification.className = 'realtime-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(106, 90, 205, 0.9);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateX(300px);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    notification.textContent = `🔄 ${message}`;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(300px)';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  }
+
+  /**
+   * 📡 Display connection status
+   * @param {Object} status - Connection status object
+   */
+  displayConnectionStatus(status) {
+    // For now, just log it. In a full implementation, you might show an indicator
+    if (status.isConnected) {
+      console.log("📡 Connected to real-time updates");
+    } else {
+      console.log("📡 Disconnected from real-time updates");
+    }
+  }
+
+  /**
    * 📊 Load initial data when page opens
    */
   async loadInitialData() {
@@ -221,20 +315,92 @@ class FriendsUI {
    * 📋 Display search results
    */
   displaySearchResults(results) {
-    // TODO: Implement search results display
     console.log("📋 Displaying search results:", results);
 
-    if (results.length === 0) {
-      this.showMessage("No students found matching your search", "info");
+    // Find or create search results container
+    const searchSection = document.querySelector('.friends-search');
+    let resultsContainer = document.getElementById('searchResults');
+    
+    if (!resultsContainer) {
+      resultsContainer = document.createElement('div');
+      resultsContainer.id = 'searchResults';
+      resultsContainer.className = 'search-results';
+      searchSection.appendChild(resultsContainer);
     }
+
+    if (results.length === 0) {
+      resultsContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>No students found matching your search</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Display search results with Send Friend Request buttons
+    const resultsHTML = results.map(student => `
+      <div class="student-card" data-student-id="${student.id}">
+        <div class="student-avatar">
+          ${this.renderAvatar(student.avatarConfig)}
+        </div>
+        <div class="student-info">
+          <h4 class="student-name">${student.profile?.displayName || 'Unknown'}</h4>
+          <p class="student-major">${student.profile?.major || 'Unknown Major'}</p>
+          <p class="student-university">${student.universityInfo?.universityName || 'Unknown University'}</p>
+        </div>
+        <div class="student-actions">
+          <button class="btn-send-request" data-student-id="${student.id}" data-student-name="${student.profile?.displayName}">
+            <i class="fas fa-user-plus"></i>
+            Send Friend Request
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    resultsContainer.innerHTML = `
+      <div class="search-results-header">
+        <h4>Search Results (${results.length})</h4>
+        <button class="btn-clear-search" title="Clear search results">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="students-grid">
+        ${resultsHTML}
+      </div>
+    `;
+
+    // Add event listeners for Send Friend Request buttons
+    resultsContainer.addEventListener('click', async (e) => {
+      if (e.target.closest('.btn-send-request')) {
+        const button = e.target.closest('.btn-send-request');
+        const studentId = button.dataset.studentId;
+        const studentName = button.dataset.studentName;
+        
+        await this.handleSendFriendRequest(studentId, results.find(s => s.id === studentId));
+      }
+      
+      if (e.target.closest('.btn-clear-search')) {
+        this.clearSearchResults();
+      }
+    });
   }
 
   /**
    * 🧹 Clear search results
    */
   clearSearchResults() {
-    // TODO: Implement clearing search results
     console.log("🧹 Clearing search results");
+    
+    const resultsContainer = document.getElementById('searchResults');
+    if (resultsContainer) {
+      resultsContainer.remove();
+    }
+    
+    // Clear search input
+    if (this.elements.searchInput) {
+      this.elements.searchInput.value = '';
+    }
   }
 
   /**
@@ -257,12 +423,77 @@ class FriendsUI {
 
     if (friends.length === 0) {
       // Show empty state (it's already in the HTML)
+      this.elements.friendsList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">👥</div>
+          <h4>No friends yet!</h4>
+          <p>Start connecting with your classmates to see shared study times and plan group sessions.</p>
+        </div>
+      `;
       console.log("👥 No friends to display");
       return;
     }
 
-    // TODO: Implement friends list rendering
     console.log("👥 Displaying friends:", friends);
+    
+    const friendsHTML = friends.map(friend => `
+      <div class="friend-card" data-friend-id="${friend.id}">
+        <div class="friend-avatar">
+          ${this.renderAvatar(friend.avatar)}
+          ${friend.isOnline ? '<div class="online-indicator"></div>' : ''}
+        </div>
+        <div class="friend-info">
+          <h4 class="friend-name">${friend.displayName}</h4>
+          <p class="friend-major">${friend.major}</p>
+          <p class="friend-since">
+            <i class="fas fa-calendar"></i>
+            Friends since ${this.formatFriendsSince(friend.friendsSince)}
+          </p>
+          ${friend.mutualFriends > 0 ? `
+            <p class="mutual-friends">
+              <i class="fas fa-users"></i>
+              ${friend.mutualFriends} mutual friends
+            </p>
+          ` : ''}
+        </div>
+        <div class="friend-actions">
+          <button class="btn-view-schedule" data-friend-id="${friend.id}" data-friend-name="${friend.displayName}">
+            <i class="fas fa-calendar-alt"></i>
+            View Schedule
+          </button>
+          <button class="btn-friend-menu" data-friend-id="${friend.id}">
+            <i class="fas fa-ellipsis-v"></i>
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    this.elements.friendsList.innerHTML = `
+      <div class="friends-header">
+        <h4>Your Friends (${friends.length})</h4>
+      </div>
+      <div class="friends-grid">
+        ${friendsHTML}
+      </div>
+    `;
+
+    // Add event listeners for friend actions
+    this.elements.friendsList.addEventListener('click', async (e) => {
+      if (e.target.closest('.btn-view-schedule')) {
+        const button = e.target.closest('.btn-view-schedule');
+        const friendId = button.dataset.friendId;
+        const friendName = button.dataset.friendName;
+        
+        this.handleViewFriendSchedule(friendId, friendName);
+      }
+      
+      if (e.target.closest('.btn-friend-menu')) {
+        const button = e.target.closest('.btn-friend-menu');
+        const friendId = button.dataset.friendId;
+        
+        this.handleFriendMenu(friendId, e);
+      }
+    });
   }
 
   /**
@@ -285,12 +516,72 @@ class FriendsUI {
 
     if (requests.length === 0) {
       // Show empty state (it's already in the HTML)
+      this.elements.friendRequests.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📬</div>
+          <p>No pending friend requests</p>
+        </div>
+      `;
       console.log("📬 No friend requests to display");
       return;
     }
 
-    // TODO: Implement friend requests rendering
     console.log("📬 Displaying friend requests:", requests);
+    
+    const requestsHTML = requests.map(request => `
+      <div class="friend-request-card" data-request-id="${request.id}">
+        <div class="request-avatar">
+          ${this.renderAvatar(request.fromUserInfo?.avatar)}
+        </div>
+        <div class="request-info">
+          <h4 class="request-name">${request.displayName}</h4>
+          <p class="request-major">${request.major}</p>
+          <p class="request-university">${request.university}</p>
+          <p class="request-time">
+            <i class="fas fa-clock"></i>
+            ${this.formatTimeAgo(request.createdAt)}
+          </p>
+        </div>
+        <div class="request-actions">
+          <button class="btn-accept-request" data-request-id="${request.id}" data-request-name="${request.displayName}">
+            <i class="fas fa-check"></i>
+            Accept
+          </button>
+          <button class="btn-reject-request" data-request-id="${request.id}" data-request-name="${request.displayName}">
+            <i class="fas fa-times"></i>
+            Decline
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    this.elements.friendRequests.innerHTML = `
+      <div class="requests-header">
+        <h4>Pending Requests (${requests.length})</h4>
+      </div>
+      <div class="requests-list">
+        ${requestsHTML}
+      </div>
+    `;
+
+    // Add event listeners for Accept/Reject buttons
+    this.elements.friendRequests.addEventListener('click', async (e) => {
+      if (e.target.closest('.btn-accept-request')) {
+        const button = e.target.closest('.btn-accept-request');
+        const requestId = button.dataset.requestId;
+        const requestName = button.dataset.requestName;
+        
+        await this.handleAcceptFriendRequest(requestId, requests.find(r => r.id === requestId));
+      }
+      
+      if (e.target.closest('.btn-reject-request')) {
+        const button = e.target.closest('.btn-reject-request');
+        const requestId = button.dataset.requestId;
+        const requestName = button.dataset.requestName;
+        
+        await this.handleRejectFriendRequest(requestId, requests.find(r => r.id === requestId));
+      }
+    });
   }
 
   /**
@@ -331,6 +622,231 @@ class FriendsUI {
   showMessage(message, type = "info") {
     // TODO: Implement a nicer notification system
     console.log(`[${type.toUpperCase()}] ${message}`);
+  }
+
+  /**
+   * 🎨 Render avatar from avatar config
+   * @param {Object} avatarConfig - Avatar configuration
+   * @returns {string} HTML for avatar
+   */
+  renderAvatar(avatarConfig) {
+    if (!avatarConfig) {
+      return '<div class="avatar-placeholder">👤</div>';
+    }
+
+    // Simple avatar rendering - you can enhance this later
+    const { skin, hair, eyes, clothes } = avatarConfig;
+    return `
+      <div class="user-avatar" style="
+        background-color: ${skin || '#F4C2A1'};
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+      ">
+        👤
+      </div>
+    `;
+  }
+
+  /**
+   * ⏰ Format time ago for friend requests
+   * @param {Date|Object} timestamp - Timestamp from Firestore
+   * @returns {string} Formatted time string
+   */
+  formatTimeAgo(timestamp) {
+    if (!timestamp) return 'Recently';
+    
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    
+    return date.toLocaleDateString();
+  }
+
+  /**
+   * 📅 Format friends since date
+   * @param {Date|Object} timestamp - Friendship start date
+   * @returns {string} Formatted date string
+   */
+  formatFriendsSince(timestamp) {
+    if (!timestamp) return 'Recently';
+    
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short' 
+    });
+  }
+
+  /**
+   * 📩 Handle sending friend request
+   * @param {string} studentId - Target student ID
+   * @param {Object} studentData - Student data object
+   */
+  async handleSendFriendRequest(studentId, studentData) {
+    try {
+      console.log(`📩 Sending friend request to: ${studentData.profile?.displayName}`);
+      
+      // Show loading state on button
+      const button = document.querySelector(`[data-student-id="${studentId}"].btn-send-request`);
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+      }
+
+      const result = await friendsManager.sendFriendRequest(studentId, studentData);
+      
+      if (result.success) {
+        this.showMessage(result.message, 'success');
+        
+        // Update button to show sent state
+        if (button) {
+          button.innerHTML = '<i class="fas fa-check"></i> Request Sent';
+          button.className = 'btn-request-sent';
+          button.disabled = true;
+        }
+      } else {
+        this.showMessage(result.message, 'error');
+        
+        // Reset button
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = '<i class="fas fa-user-plus"></i> Send Friend Request';
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error sending friend request:', error);
+      this.showMessage('Failed to send friend request. Please try again.', 'error');
+    }
+  }
+
+  /**
+   * ✅ Handle accepting friend request
+   * @param {string} requestId - Request ID
+   * @param {Object} requestData - Request data object
+   */
+  async handleAcceptFriendRequest(requestId, requestData) {
+    try {
+      console.log(`✅ Accepting friend request from: ${requestData.displayName}`);
+      
+      // Show loading state on button
+      const button = document.querySelector(`[data-request-id="${requestId}"].btn-accept-request`);
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accepting...';
+      }
+
+      const result = await friendsManager.acceptFriendRequest(requestId, requestData);
+      
+      if (result.success) {
+        this.showMessage(result.message, 'success');
+        
+        // Remove the request card
+        const card = document.querySelector(`[data-request-id="${requestId}"]`);
+        if (card) {
+          card.style.opacity = '0.5';
+          setTimeout(() => card.remove(), 500);
+        }
+        
+        // Refresh the friend requests and friends list
+        await this.refreshFriendRequests();
+        await this.refreshFriendsList();
+      } else {
+        this.showMessage(result.message, 'error');
+        
+        // Reset button
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = '<i class="fas fa-check"></i> Accept';
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error accepting friend request:', error);
+      this.showMessage('Failed to accept friend request. Please try again.', 'error');
+    }
+  }
+
+  /**
+   * ❌ Handle rejecting friend request
+   * @param {string} requestId - Request ID
+   * @param {Object} requestData - Request data object
+   */
+  async handleRejectFriendRequest(requestId, requestData) {
+    try {
+      console.log(`❌ Rejecting friend request from: ${requestData.displayName}`);
+      
+      // Show loading state on button
+      const button = document.querySelector(`[data-request-id="${requestId}"].btn-reject-request`);
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Declining...';
+      }
+
+      const result = await friendsManager.rejectFriendRequest(requestId, requestData);
+      
+      if (result.success) {
+        this.showMessage(result.message, 'info');
+        
+        // Remove the request card
+        const card = document.querySelector(`[data-request-id="${requestId}"]`);
+        if (card) {
+          card.style.opacity = '0.5';
+          setTimeout(() => card.remove(), 500);
+        }
+        
+        // Refresh the friend requests
+        await this.refreshFriendRequests();
+      } else {
+        this.showMessage(result.message, 'error');
+        
+        // Reset button
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = '<i class="fas fa-times"></i> Decline';
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error rejecting friend request:', error);
+      this.showMessage('Failed to reject friend request. Please try again.', 'error');
+    }
+  }
+
+  /**
+   * 📅 Handle viewing friend's schedule
+   * @param {string} friendId - Friend's user ID
+   * @param {string} friendName - Friend's display name
+   */
+  handleViewFriendSchedule(friendId, friendName) {
+    console.log(`📅 Viewing schedule for: ${friendName}`);
+    this.showMessage(`Schedule comparison with ${friendName} coming soon!`, 'info');
+    
+    // TODO: Implement schedule comparison view
+    // This could navigate to a schedule comparison page or open a modal
+  }
+
+  /**
+   * ⚙️ Handle friend menu options
+   * @param {string} friendId - Friend's user ID
+   * @param {Event} event - Click event for positioning
+   */
+  handleFriendMenu(friendId, event) {
+    console.log(`⚙️ Friend menu for: ${friendId}`);
+    this.showMessage('Friend options menu coming soon!', 'info');
+    
+    // TODO: Implement friend options menu
+    // This could show options like: View Profile, Remove Friend, Block User, etc.
   }
 
   /**

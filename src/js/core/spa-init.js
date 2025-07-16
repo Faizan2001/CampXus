@@ -34,6 +34,7 @@ import "/src/css/styles.css";
 import "./script.js"; // 🎯 CRITICAL: Schedule page functionality
 import "./friends/friends-manager.js";
 import "./friends/friends-ui.js";
+import "./realtime-manager.js"; // 🎯 NEW: Real-time event coordination system
 import "./profile-setup.js";
 import "./avatars.js";
 

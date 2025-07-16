@@ -14,6 +14,7 @@
 
 import { currentUser } from "../currentUser.js";
 import { dataManager } from "../data-manager.js";
+import { realTimeManager, REALTIME_EVENTS } from "../realtime-manager.js";
 
 export class FriendsManager {
   constructor() {
@@ -25,6 +26,16 @@ export class FriendsManager {
     this.searchCache = new Map();
     this.maxCacheSize = 20; // Store up to 20 recent searches
     this.cacheExpiry = 5 * 60 * 1000; // Cache expires after 5 minutes
+    
+    // 🎛️ Real-time integration
+    this.isRealTimeActive = false;
+    this.uiCallbacks = {
+      onFriendRequestsChange: null,
+      onFriendsListChange: null,
+      onConnectionStatusChange: null
+    };
+    
+    console.log("🎛️ FriendsManager initialized with real-time capabilities");
   }
 
   /**
@@ -88,6 +99,168 @@ export class FriendsManager {
     if (cleanedCount > 0) {
       console.log(`🧹 Cleaned up ${cleanedCount} expired cache entries`);
     }
+  }
+
+  // =========================
+  // REAL-TIME INTEGRATION
+  // =========================
+
+  /**
+   * 🎛️ Start real-time listening for friend updates
+   * This connects the FriendsManager to the RealTimeManager for instant updates
+   */
+  async startRealTimeListening() {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      console.error("❌ Cannot start real-time listening: User not logged in");
+      return;
+    }
+
+    if (this.isRealTimeActive) {
+      console.log("🎛️ Real-time listening already active");
+      return;
+    }
+
+    console.log("🎛️ Starting real-time listening for friends...");
+
+    // Subscribe to friend requests changes
+    const friendRequestsUnsubscribe = realTimeManager.on(
+      REALTIME_EVENTS.FRIEND_REQUESTS,
+      (requests) => {
+        console.log("📬 Real-time friend requests update:", requests.length);
+        this.handleFriendRequestsUpdate(requests);
+      }
+    );
+
+    // Subscribe to friendships changes  
+    const friendshipsUnsubscribe = realTimeManager.on(
+      REALTIME_EVENTS.FRIENDSHIPS,
+      (friendships) => {
+        console.log("🤝 Real-time friendships update:", friendships.length);
+        this.handleFriendshipsUpdate(friendships);
+      }
+    );
+
+    // Subscribe to connection status
+    const connectionUnsubscribe = realTimeManager.on(
+      REALTIME_EVENTS.CONNECTION_STATUS,
+      (status) => {
+        console.log("📡 Real-time connection status:", status);
+        this.handleConnectionStatusUpdate(status);
+      }
+    );
+
+    // Store unsubscribers for cleanup
+    this.unsubscribers.push(
+      friendRequestsUnsubscribe,
+      friendshipsUnsubscribe,
+      connectionUnsubscribe
+    );
+
+    // Start the RealTimeManager if it's not already listening
+    realTimeManager.startListening(currentUser.uid);
+
+    this.isRealTimeActive = true;
+    console.log("✅ Real-time listening started for friends");
+  }
+
+  /**
+   * 🛑 Stop real-time listening
+   */
+  stopRealTimeListening() {
+    if (!this.isRealTimeActive) {
+      return;
+    }
+
+    console.log("🛑 Stopping real-time listening for friends...");
+
+    // Unsubscribe from all real-time events
+    this.unsubscribers.forEach(unsubscribe => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        console.error("❌ Error unsubscribing:", error);
+      }
+    });
+
+    this.unsubscribers = [];
+    this.isRealTimeActive = false;
+
+    console.log("✅ Real-time listening stopped");
+  }
+
+  /**
+   * 📬 Handle real-time friend requests updates
+   * @param {Array} requests - Updated friend requests
+   * @private
+   */
+  handleFriendRequestsUpdate(requests) {
+    // Transform the data for UI consistency
+    const transformedRequests = requests.map(request => ({
+      ...request,
+      displayName: request.displayName || request.fromUserInfo?.displayName || "Unknown User",
+      major: request.major || request.fromUserInfo?.major || "Unknown Major",
+      university: request.university || request.fromUserInfo?.university || "Unknown University"
+    }));
+
+    // Notify UI callback if registered
+    if (this.uiCallbacks.onFriendRequestsChange) {
+      this.uiCallbacks.onFriendRequestsChange(transformedRequests);
+    }
+  }
+
+  /**
+   * 🤝 Handle real-time friendships updates
+   * @param {Array} friendships - Updated friendships
+   * @private
+   */
+  handleFriendshipsUpdate(friendships) {
+    // Transform friendships data to match existing format
+    const transformedFriends = friendships.map(friendship => ({
+      id: friendship.friendId,
+      friendshipId: friendship.id,
+      displayName: friendship.friendInfo?.displayName || "Unknown User",
+      major: friendship.friendInfo?.major || "Unknown Major",
+      avatar: friendship.friendInfo?.avatar || null,
+      friendsSince: friendship.createdAt,
+      lastInteraction: friendship.lastInteraction,
+      connectionStrength: friendship.connectionStrength || "normal",
+      isOnline: false,
+      mutualFriends: friendship.mutualFriends || 0
+    }));
+
+    // Notify UI callback if registered
+    if (this.uiCallbacks.onFriendsListChange) {
+      this.uiCallbacks.onFriendsListChange(transformedFriends);
+    }
+  }
+
+  /**
+   * 📡 Handle real-time connection status updates
+   * @param {Object} status - Connection status
+   * @private
+   */
+  handleConnectionStatusUpdate(status) {
+    console.log("📡 Connection status update:", status);
+    
+    // Notify UI callback if registered
+    if (this.uiCallbacks.onConnectionStatusChange) {
+      this.uiCallbacks.onConnectionStatusChange(status);
+    }
+  }
+
+  /**
+   * 🎯 Register UI callbacks for real-time updates
+   * @param {Object} callbacks - Object with callback functions
+   */
+  registerUICallbacks(callbacks) {
+    this.uiCallbacks = {
+      onFriendRequestsChange: callbacks.onFriendRequestsChange || null,
+      onFriendsListChange: callbacks.onFriendsListChange || null,
+      onConnectionStatusChange: callbacks.onConnectionStatusChange || null
+    };
+
+    console.log("🎯 UI callbacks registered for real-time updates");
   }
 
   /**

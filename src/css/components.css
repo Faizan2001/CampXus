@@ -439,7 +439,7 @@ textarea {
 
 .input-wrapper i + #importText,
 #importText + i {
-  top: 2rem;
+  top: 1.6rem;
   left: 1rem;
 }
 
