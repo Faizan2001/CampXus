@@ -30,16 +30,16 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 ├── 👥 users/
 │   ├── {userId}/
 │   │   ├── uid: "abc123"
-│   │   ├── profile: { firstName, lastName, bio, major, email, displayName }
-│   │   ├── universityInfo: { university: "iub", universityName: "...", studentId }
-│   │   ├── systemInfo: { profileSetupComplete, status, lastActive }
-│   │   ├── avatarConfig: { style, seed, options }
+│   │   ├── profile: { displayName, displayName_lower, firstName, firstName_lower, lastName, lastName_lower, email, major, major_lower, bio, startingYear, studentId }
+│   │   ├── universityInfo: { university, universityName, studentId }
+│   │   ├── systemInfo: { uid, profileSetupComplete, status, lastActive, createdAt, lastUpdated }
+│   │   ├── avatarConfig: { style, seed, options } // Flexible structure for DiceBear API
 │   │   └── socialInfo: {                    // NEW: Social metadata
-│   │         friendsCount: 0,
-│   │         pendingRequestsCount: 0,
-│   │         privacy: "university",            // "university" | "public"
-│   │         searchable: true,
-│   │         lastFriendActivity: timestamp
+│   │         friendsCount: 0,                    // number
+│   │         pendingRequestsCount: 0,            // number
+│   │         privacy: "university",              // "university" | "public"
+│   │         searchable: true,                   // boolean
+│   │         lastFriendActivity: timestamp       // timestamp
 │   │       }
 │   └── {anotherUserId}/
 ├── 🏫 universities/
@@ -159,22 +159,24 @@ const universityInfo = await getDoc(doc(db, "universities", "iub"));
 
 ## 🎯 **Data Structure Guide**
 
-### 🚨 **RECENT UPDATES - June 23, 2025**
+### 🚨 **RECENT UPDATES - July 2025**
 
-#### 🔄 **Field Relocations for Better Organization**
+#### 🔄 **Enhanced Structure for Real-time Social Features**
 
-We've moved some fields to create a **super clean, 4-group structure**:
+We've enhanced the structure to support **industry-standard Firebase best practices** for real-time social applications:
 
-- **✅ `email`** moved from root → `profile.email` (makes more sense with personal info!)
-- **✅ `displayName`** moved from root → `profile.displayName` (grouped with identity!)
-- **✅ `lastActive`** moved from root → `systemInfo.lastActive` (system-related data!)
+- **✅ Added `_lower` fields** for case-insensitive search optimization
+- **✅ Enhanced `socialInfo` section** with comprehensive social metadata
+- **✅ Added `requestType` and `message`** fields to friend requests
+- **✅ Enhanced friendship structure** with advanced relationship metadata
 
 #### 🎯 **Why These Changes Rock:**
 
-1. **🧹 Cleaner Root Level** - Only `uid` at the root (super minimal!)
-2. **📦 Better Grouping** - Related fields are together (easier to find!)
-3. **🔍 Easier Queries** - Consistent paths for similar data types
-4. **🛠️ Future-Proof** - Scalable structure that grows with your app
+1. **🚀 Real-time Optimized** - Built for instant notifications and live updates
+2. **🔍 Search-Friendly** - `_lower` fields enable efficient case-insensitive searches
+3. **📈 Scalable** - Supports university-wide and cross-university features
+4. **⚡ Performance** - Efficient queries with minimal database reads
+5. **🛠️ Future-Proof** - Extensible for mutual friends, messaging, etc.
 
 ### 🌟 **The Magic Transformation**
 
@@ -197,52 +199,62 @@ We've moved some fields to create a **super clean, 4-group structure**:
 #### ✨ **After: The Organized Paradise** 🏰
 
 ```javascript
-// New way - everything in its perfect place!
+// New way - everything in its perfect place with search optimization!
 {
-  // 🔑 Core Identity (root level - only uid)
-  uid: "abc123",
-
-  // 👤 Personal Profile (grouped - NOW INCLUDES email & displayName!)
+  // 👤 Personal Profile (grouped identity data)
   profile: {
-    firstName: "John",
-    lastName: "Doe",
-    bio: "Love coding and building awesome apps!",
+    displayName: "Rollie",
+    displayName_lower: "rollie",        // Search optimization
+    email: "student@iub.edu.bd",
+    firstName: "Rollie", 
+    firstName_lower: "rollie",          // Search optimization
+    lastName: "Mcklean",
+    lastName_lower: "mcklean",          // Search optimization
     major: "CSE",
-    startingYear: "2022",
-    email: "student@iub.edu.bd",        // ✅ MOVED HERE from root!
-    displayName: "John Doe"             // ✅ MOVED HERE from root!
+    major_lower: "cse",                 // Search optimization
+    startingYear: "2021",
+    studentId: "1111.dev",
+    bio: "Love coding and building awesome apps!"
   },
 
-  // 🏫 University info (nicely grouped!)
+  // 🏫 University Information (institutional data)
   universityInfo: {
-    university: "iub",
+    university: "iub",                  // Short code
     universityName: "Independent University, Bangladesh",
-    studentId: "2230001"
+    studentId: "1111.dev"               // University-specific ID
   },
 
-  // 🎨 Your awesome avatar (standalone)
+  // 🎨 Avatar Configuration (visual identity)
+  // NOTE: Flexible structure for DiceBear API - different styles have different options
   avatarConfig: {
-    style: "miniavs",
-    seed: "abc123",
-    options: { mood: "happy", backgroundColor: "b6e3f4" }
+    style: "miniavs",                   // Avatar style system
+    seed: "mi5m6st0xf",                 // Unique seed for generation
+    options: {
+      // Dynamic fields based on DiceBear style
+      backgroundColor: "c0aede,ffd93d", // Example: Gradient colors
+      backgroundType: "gradientLinear", // Example: Background style
+      hair: "curly",                    // Example: Hair style (style-specific)
+      // ... other style-specific options
+    }
   },
 
-  // ⚙️ System info (grouped - NOW INCLUDES lastActive!)
+  // ⚙️ System Information (app metadata)
   systemInfo: {
+    uid: "NdLNgYHbg4XoECtUiEjXm9W13xy1",
     profileSetupComplete: true,
-    status: "online",
-    lastActive: timestamp,              // ✅ MOVED HERE from root!
+    status: "offline",                  // "online" | "offline"
+    lastActive: timestamp,
     createdAt: timestamp,
     lastUpdated: timestamp
   },
 
-  // 🤝 Social info (NEW: for friends and privacy settings!)
+  // 🤝 Social Information (friends & privacy)
   socialInfo: {
-    friendsCount: 0,
-    pendingRequestsCount: 0,
-    privacy: "university",            // "university" | "public"
-    searchable: true,
-    lastFriendActivity: timestamp
+    friendsCount: 0,                    // number - Current friends count
+    pendingRequestsCount: 0,            // number - Incoming requests
+    privacy: "university",              // string - "university" | "public"
+    searchable: true,                   // boolean - Can be found in search
+    lastFriendActivity: timestamp       // timestamp - Last social interaction
   }
 }
 ```
@@ -255,12 +267,14 @@ Think of your user data like a well-organized house! 🏠
 Your User Data House 🏠 (Updated Structure!)
 ├── 🚪 Front Door (uid only - super clean!)
 ├── 👤 Personal Room (profile.*)
-│   ├── firstName & lastName
+│   ├── displayName & displayName_lower (search optimized!)
+│   ├── firstName & firstName_lower (search optimized!)
+│   ├── lastName & lastName_lower (search optimized!)
+│   ├── major & major_lower (search optimized!)
+│   ├── email (your contact info)
 │   ├── bio (your story!)
-│   ├── major (what you study)
 │   ├── startingYear (when you started)
-│   ├── email (✅ NOW HERE!)
-│   └── displayName (✅ NOW HERE!)
+│   └── studentId (your university ID)
 ├── 🏫 University Room (universityInfo.*)
 │   ├── university (short name)
 │   ├── universityName (full name)
@@ -268,9 +282,10 @@ Your User Data House 🏠 (Updated Structure!)
 ├── 🎨 Art Studio (avatarConfig.*)
 │   └── All your avatar magic!
 ├── 🔧 Utility Room (systemInfo.*)
+│   ├── uid (user identifier)
 │   ├── profileSetupComplete
 │   ├── status (online/offline)
-│   ├── lastActive (✅ NOW HERE!)
+│   ├── lastActive (when last seen)
 │   └── timestamps (createdAt, lastUpdated)
 └── 🆕 🤝 Social Lounge (socialInfo.*)
     ├── friendsCount (how many friends you have)
@@ -312,37 +327,46 @@ Your existing structure is perfect! Here's how we extend it for Phase 3 social f
 │   │   ├── fromUserId: "user123"
 │   │   ├── toUserId: "user456"
 │   │   ├── status: "pending"                  // "pending" | "accepted" | "rejected"
+│   │   ├── requestType: "direct"              // Type of friend request
+│   │   ├── message: ""                        // Optional message
 │   │   ├── createdAt: timestamp
 │   │   ├── respondedAt: timestamp             // When accepted/rejected
 │   │   ├── fromUserInfo: {                    // Cached for quick display
 │   │   │     displayName: "John Doe",
-│   │   │     major: "CSE",
+│   │   │     major: "Computer Science",
 │   │   │     university: "iub",
-│   │   │     avatar: { style: "miniavs", seed: "abc123" }
+│   │   │     avatar: { style: "miniavs", seed: "abc123", ... }
 │   │   │   }
 │   │   └── toUserInfo: {                      // Cached for notifications
 │   │         displayName: "Jane Smith",
-│   │         major: "BBA",
-│   │         university: "iub"
+│   │         major: "Business Administration",
+│   │         university: "iub",
+│   │         avatar: { style: "adventurer", seed: "xyz789", ... }
 │   │       }
 │   └── ...
 └── 🤝 🆕 friendships/                         // NEW: Active friendships
     ├── {friendshipId}/
-    │   ├── users: ["user123", "user456"]      // Array for easy querying
-    │   ├── user1Id: "user123"                 // For compatibility
-    │   ├── user2Id: "user456"                 // For compatibility
-    │   ├── createdAt: timestamp
-    │   ├── lastInteraction: timestamp         // For future features
-    │   ├── user1Info: {                       // Cached user data
+    │   ├── users: ["user123", "user456"]      // Array for efficient querying
+    │   ├── user1Id: "user123"                 // Direct reference
+    │   ├── user2Id: "user456"                 // Direct reference
+    │   ├── user1Info: {                       // Cached user info (eliminates extra queries)
     │   │     displayName: "John Doe",
-    │   │     major: "CSE",
-    │   │     avatar: { style: "miniavs", seed: "abc123" }
+    │   │     major: "Computer Science",
+    │   │     avatar: { /* Flexible DiceBear structure */ }
     │   │   }
-    │   └── user2Info: {
-    │         displayName: "Jane Smith",
-    │         major: "BBA",
-    │         avatar: { style: "adventurer", seed: "xyz789" }
-    │       }
+    │   ├── user2Info: {
+    │   │     displayName: "Jane Smith", 
+    │   │     major: "Business Administration",
+    │   │     avatar: { /* Flexible DiceBear structure */ }
+    │   │   }
+    │   ├── isActive: true,                     // boolean - For soft-delete unfriending
+    │   ├── status: "active",                   // string - "active" | "blocked" | "unfriended"
+    │   ├── connectionStrength: "normal",       // string - "normal" | "strong" | "close"
+    │   ├── mutualFriendsCount: 0,              // number - Count of mutual friends
+    │   ├── createdAt: timestamp,               // When friendship was created
+    │   ├── lastInteraction: timestamp,         // Last interaction between friends
+    │   ├── unfriendedAt: null,                 // When unfriended (if applicable)
+    │   └── unfriendedBy: null                  // Who initiated unfriending
     └── ...
 ```
 
@@ -392,38 +416,39 @@ console.log(`👋 Your friend ${friendshipDoc.user1Info.displayName}
             studies ${friendshipDoc.user1Info.major}!`);
 ```
 
-### 📋 **Updated Query Patterns (Phase 3 Edition)**
+### 📋 **Database Query Patterns (Industry Standard)**
+
+The structure supports efficient real-time queries:
 
 ```javascript
-// 🎯 **Your Most Important Queries**
-
-// 🔍 Search for classmates at your university
-const searchClassmates = query(
+// 🔍 Find classmates at your university
+const classmates = query(
   collection(db, "users"),
-  where("universityInfo.university", "==", userUniversity),
-  where("socialInfo.searchable", "==", true),
-  where("systemInfo.profileSetupComplete", "==", true)
+  where("universityInfo.university", "==", "iub"),
+  where("profile.major", "==", "Computer Science"),
+  where("socialInfo.searchable", "==", true)
 );
 
-// 📩 Get your friend requests
-const myRequests = query(
+// 📩 Get pending friend requests (real-time)
+const pendingRequests = query(
   collection(db, "friendRequests"),
   where("toUserId", "==", currentUserId),
   where("status", "==", "pending"),
   orderBy("createdAt", "desc")
 );
 
-// 👥 Get your complete friends list
-const myFriendsList = query(
+// 👥 Get friends list (bi-directional)
+const myFriends = query(
   collection(db, "friendships"),
   where("users", "array-contains", currentUserId),
-  orderBy("createdAt", "desc")
+  where("isActive", "==", true)
 );
 
 // 🚫 Check if already friends (prevent duplicate requests)
 const existingFriendship = query(
   collection(db, "friendships"),
-  where("users", "==", [currentUserId, targetUserId].sort())
+  where("users", "array-contains", currentUserId),
+  where("isActive", "==", true)
 );
 
 // 📊 University stats with friends data
@@ -433,6 +458,14 @@ const universityFriendsStats = query(
   where("socialInfo.friendsCount", ">", 0)
 );
 ```
+
+### 🚀 **Performance Optimizations**
+
+1. **Data Caching**: User info cached in friend requests and friendships
+2. **Search Optimization**: `_lower` fields for case-insensitive search
+3. **Bi-directional Queries**: `users` array enables efficient friendship queries
+4. **Real-time Listeners**: `onSnapshot()` for instant updates
+5. **Soft Deletes**: `isActive` flag for unfriending without data loss
 
 ### 🔄 **Smart Friend Request Workflow**
 
@@ -449,6 +482,8 @@ async function sendFriendRequest(fromUser, toUser) {
     fromUserId: fromUser.uid,
     toUserId: toUser.uid,
     status: "pending",
+    requestType: "direct",
+    message: "",
     createdAt: serverTimestamp(),
     fromUserInfo: {
       displayName: fromUser.profile.displayName,
@@ -483,9 +518,15 @@ async function acceptFriendRequest(requestId, requestData) {
     user1Id: requestData.fromUserId,
     user2Id: requestData.toUserId,
     createdAt: serverTimestamp(),
+    lastInteraction: serverTimestamp(),
     user1Info: requestData.fromUserInfo,
     user2Info: requestData.toUserInfo,
-    isActive: true,
+    isActive: true,                       // boolean - For soft-delete unfriending
+    status: "active",                     // string - "active" | "blocked" | "unfriended"
+    connectionStrength: "normal",         // string - "normal" | "strong" | "close"
+    mutualFriendsCount: 0,                // number - Count of mutual friends
+    unfriendedAt: null,                   // timestamp - When unfriended (if applicable)
+    unfriendedBy: null,                   // string - Who initiated unfriending
   });
 
   // Update request status
@@ -547,3 +588,13 @@ match /friendships/{friendshipId} {
                 request.auth.uid in request.resource.data.users;
 }
 ```
+
+### 🎯 **Database Architecture Benefits**
+
+- **✅ Industry Standard**: Follows Firebase best practices for social apps
+- **✅ Real-time Ready**: Optimized for instant notifications and live updates
+- **✅ Scalable**: Supports university-wide and cross-university features
+- **✅ Performance**: Efficient queries with minimal database reads
+- **✅ Future-proof**: Extensible for mutual friends, messaging, etc.
+
+This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.

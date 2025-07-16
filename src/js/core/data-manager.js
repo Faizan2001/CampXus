@@ -58,6 +58,7 @@ import {
   query,
   where,
   getDocs,
+  addDoc,     // ← Added for creating documents with auto-generated IDs
   onSnapshot,  // ← Added for real-time listeners
   orderBy,
   limit,
@@ -1429,13 +1430,13 @@ class DataManager {
       console.log("📩 Creating friend request...", requestData);
 
       const friendRequestsRef = collection(db, "friendRequests");
-      const docRef = await setDoc(doc(friendRequestsRef), {
+      const docRef = await addDoc(friendRequestsRef, {
         ...requestData,
         createdAt: serverTimestamp(),
         respondedAt: null,
       });
 
-      console.log("✅ Friend request created successfully");
+      console.log("✅ Friend request created successfully with ID:", docRef.id);
       return { success: true, requestId: docRef.id };
     } catch (error) {
       console.error("❌ Error creating friend request:", error);
@@ -1509,14 +1510,14 @@ class DataManager {
       console.log("🤝 Creating friendship...", friendshipData);
 
       const friendshipsRef = collection(db, "friendships");
-      const docRef = await setDoc(doc(friendshipsRef), {
+      const docRef = await addDoc(friendshipsRef, {
         ...friendshipData,
         createdAt: serverTimestamp(),
         lastInteraction: serverTimestamp(),
         isActive: true,
       });
 
-      console.log("✅ Friendship created successfully");
+      console.log("✅ Friendship created successfully with ID:", docRef.id);
       return { success: true, friendshipId: docRef.id };
     } catch (error) {
       console.error("❌ Error creating friendship:", error);

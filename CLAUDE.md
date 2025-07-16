@@ -170,6 +170,204 @@ The project uses Jest with ESM support and custom configuration:
 ### Security Rules
 Located in `firestore.rules` - university-only access with proper authentication checks
 
+## Database Architecture & Structure
+
+### Database Design Philosophy
+CampXus follows **industry-standard Firebase best practices** for real-time social applications. The database structure is designed for:
+- **University-focused social features** (classmate discovery, friend requests)
+- **Real-time updates** (instant notifications, live data sync)
+- **Scalable architecture** (supports cross-university features)
+- **Performance optimization** (efficient queries, data caching)
+
+### Core Collections Structure
+
+```
+📦 Firestore Database
+├── 👥 users/           # User profiles and data
+├── 🏫 universities/    # University metadata
+├── 📩 friendRequests/  # Friend request management
+└── 🤝 friendships/     # Active friendship connections
+```
+
+### User Document Structure (Industry Standard)
+
+Each user document follows a **5-section organized structure** that perfectly matches Firebase best practices:
+
+```javascript
+{
+  // 👤 Personal Profile (grouped identity data)
+  profile: {
+    displayName: "Rollie",
+    displayName_lower: "rollie",        // Search optimization
+    email: "student@iub.edu.bd",
+    firstName: "Rollie", 
+    firstName_lower: "rollie",          // Search optimization
+    lastName: "Mcklean",
+    lastName_lower: "mcklean",          // Search optimization
+    major: "CSE",
+    major_lower: "cse",                 // Search optimization
+    startingYear: "2021",
+    studentId: "1111.dev",
+    bio: "Love coding and building awesome apps!"
+  },
+
+  // 🏫 University Information (institutional data)
+  universityInfo: {
+    university: "iub",                  // Short code
+    universityName: "Independent University, Bangladesh",
+    studentId: "1111.dev"               // University-specific ID
+  },
+
+  // 🎨 Avatar Configuration (visual identity)
+  // NOTE: Flexible structure for DiceBear API - different styles have different options
+  avatarConfig: {
+    style: "miniavs",                   // Avatar style system
+    seed: "mi5m6st0xf",                 // Unique seed for generation
+    options: {
+      // Dynamic fields based on DiceBear style
+      backgroundColor: "c0aede,ffd93d", // Example: Gradient colors
+      backgroundType: "gradientLinear", // Example: Background style
+      hair: "curly",                    // Example: Hair style (style-specific)
+      // ... other style-specific options
+    }
+  },
+
+  // ⚙️ System Information (app metadata)
+  systemInfo: {
+    uid: "NdLNgYHbg4XoECtUiEjXm9W13xy1",
+    profileSetupComplete: true,
+    status: "offline",                  // "online" | "offline"
+    lastActive: timestamp,
+    createdAt: timestamp,
+    lastUpdated: timestamp
+  },
+
+  // 🤝 Social Information (friends & privacy)
+  socialInfo: {
+    friendsCount: 0,                    // number - Current friends count
+    pendingRequestsCount: 0,            // number - Incoming requests
+    privacy: "university",              // string - "university" | "public"
+    searchable: true,                   // boolean - Can be found in search
+    lastFriendActivity: timestamp       // timestamp - Last social interaction
+  }
+}
+```
+
+### Friend Requests Structure (Real-time Optimized)
+
+```javascript
+{
+  // Core request data
+  fromUserId: "sender-uid",
+  toUserId: "recipient-uid", 
+  status: "pending",                    // "pending" | "accepted" | "rejected"
+  requestType: "direct",                // Type of friend request
+  message: "",                          // Optional message
+  
+  // Cached sender info (performance optimization)
+  fromUserInfo: {
+    displayName: "John Doe",
+    major: "Computer Science",
+    university: "iub", 
+    avatar: { /* Flexible DiceBear structure */ }
+  },
+  
+  // Cached recipient info (for notifications)
+  toUserInfo: {
+    displayName: "Jane Smith",
+    major: "Business Administration",
+    university: "iub",
+    avatar: { /* Flexible DiceBear structure */ }
+  },
+  
+  // Timestamps
+  createdAt: timestamp,                 // When request was sent
+  respondedAt: null                     // When request was responded to
+}
+```
+
+### Friendships Structure (Bi-directional Optimized)
+
+```javascript
+{
+  // Bi-directional relationship data
+  users: ["user1-uid", "user2-uid"],    // Array for efficient querying
+  user1Id: "user1-uid",                 // Direct reference
+  user2Id: "user2-uid",                 // Direct reference
+  
+  // Cached user info (eliminates extra queries)
+  user1Info: {
+    displayName: "John Doe",
+    major: "Computer Science",
+    avatar: { /* Flexible DiceBear structure */ }
+  },
+  user2Info: {
+    displayName: "Jane Smith", 
+    major: "Business Administration",
+    avatar: { /* Flexible DiceBear structure */ }
+  },
+  
+  // Relationship metadata
+  isActive: true,                       // boolean - For soft-delete unfriending
+  status: "active",                     // string - "active" | "blocked" | "unfriended"
+  connectionStrength: "normal",         // string - "normal" | "strong" | "close"
+  mutualFriendsCount: 0,                // number - Count of mutual friends
+  
+  // Timestamps
+  createdAt: timestamp,                 // When friendship was created
+  lastInteraction: timestamp,           // Last interaction between friends
+  unfriendedAt: null,                   // When unfriended (if applicable)
+  unfriendedBy: null                    // Who initiated unfriending
+}
+```
+
+### Database Query Patterns
+
+The structure supports efficient real-time queries:
+
+```javascript
+// Find classmates at your university
+const classmates = query(
+  collection(db, "users"),
+  where("universityInfo.university", "==", "iub"),
+  where("profile.major", "==", "Computer Science"),
+  where("socialInfo.searchable", "==", true)
+);
+
+// Get pending friend requests (real-time)
+const pendingRequests = query(
+  collection(db, "friendRequests"),
+  where("toUserId", "==", currentUserId),
+  where("status", "==", "pending"),
+  orderBy("createdAt", "desc")
+);
+
+// Get friends list (bi-directional)
+const myFriends = query(
+  collection(db, "friendships"),
+  where("users", "array-contains", currentUserId),
+  where("isActive", "==", true)
+);
+```
+
+### Performance Optimizations
+
+1. **Data Caching**: User info cached in friend requests and friendships
+2. **Search Optimization**: `_lower` fields for case-insensitive search
+3. **Bi-directional Queries**: `users` array enables efficient friendship queries
+4. **Real-time Listeners**: `onSnapshot()` for instant updates
+5. **Soft Deletes**: `isActive` flag for unfriending without data loss
+
+### Database Architecture Benefits
+
+- **✅ Industry Standard**: Follows Firebase best practices for social apps
+- **✅ Real-time Ready**: Optimized for instant notifications and live updates
+- **✅ Scalable**: Supports university-wide and cross-university features
+- **✅ Performance**: Efficient queries with minimal database reads
+- **✅ Future-proof**: Extensible for mutual friends, messaging, etc.
+
+This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.
+
 ## Key Architectural Patterns
 
 ### SPA Navigation
