@@ -9,12 +9,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Generate environment config from .env.local (required for development)
 npm run dev:config
 
-# Validate development setup
-npm run dev:check
-
-# Start development server with Firebase serving
-npm run dev:serve
-
 # Start Vite development server (for frontend development)
 npm run dev
 
@@ -261,8 +255,6 @@ Each user document follows a **5-section organized structure** that perfectly ma
   fromUserId: "sender-uid",
   toUserId: "recipient-uid", 
   status: "pending",                    // "pending" | "accepted" | "rejected"
-  requestType: "direct",                // Type of friend request
-  message: "",                          // Optional message
   
   // Cached sender info (performance optimization)
   fromUserInfo: {
@@ -308,16 +300,9 @@ Each user document follows a **5-section organized structure** that perfectly ma
   },
   
   // Relationship metadata
-  isActive: true,                       // boolean - For soft-delete unfriending
-  status: "active",                     // string - "active" | "blocked" | "unfriended"
-  connectionStrength: "normal",         // string - "normal" | "strong" | "close"
-  mutualFriendsCount: 0,                // number - Count of mutual friends
-  
-  // Timestamps
   createdAt: timestamp,                 // When friendship was created
-  lastInteraction: timestamp,           // Last interaction between friends
-  unfriendedAt: null,                   // When unfriended (if applicable)
-  unfriendedBy: null                    // Who initiated unfriending
+  mutualFriends: 0,                     // number - Count of mutual friends
+  lastInteraction: timestamp            // Last interaction between friends
 }
 ```
 
@@ -345,8 +330,7 @@ const pendingRequests = query(
 // Get friends list (bi-directional)
 const myFriends = query(
   collection(db, "friendships"),
-  where("users", "array-contains", currentUserId),
-  where("isActive", "==", true)
+  where("users", "array-contains", currentUserId)
 );
 ```
 
@@ -356,7 +340,6 @@ const myFriends = query(
 2. **Search Optimization**: `_lower` fields for case-insensitive search
 3. **Bi-directional Queries**: `users` array enables efficient friendship queries
 4. **Real-time Listeners**: `onSnapshot()` for instant updates
-5. **Soft Deletes**: `isActive` flag for unfriending without data loss
 
 ### Database Architecture Benefits
 

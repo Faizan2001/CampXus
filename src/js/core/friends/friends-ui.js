@@ -317,11 +317,20 @@ class FriendsUI {
 
     if (results.length === 0) {
       resultsContainer.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">🔍</div>
-          <p>No students found matching your search</p>
+        <div class="search-results-header">
+          <h4>Search Results (0)</h4>
+          <button class="btn-clear-search" title="Clear search results">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="search-results-container">
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <p>No students found matching your search</p>
+          </div>
         </div>
       `;
+      resultsContainer.classList.add('show');
       return;
     }
 
@@ -352,10 +361,15 @@ class FriendsUI {
           <i class="fas fa-times"></i>
         </button>
       </div>
-      <div class="students-grid">
-        ${resultsHTML}
+      <div class="search-results-container">
+        <div class="students-grid">
+          ${resultsHTML}
+        </div>
       </div>
     `;
+    
+    // Add smooth dropdown animation
+    resultsContainer.classList.add('show');
 
     // Remove existing event listeners to prevent duplicates
     const existingListener = resultsContainer.__friendsEventListener;
@@ -387,14 +401,22 @@ class FriendsUI {
   }
 
   /**
-   * 🧹 Clear search results
+   * 🧹 Clear search results with smooth animation
    */
   clearSearchResults() {
     console.log("🧹 Clearing search results");
     
     const resultsContainer = document.getElementById('searchResults');
     if (resultsContainer) {
-      resultsContainer.remove();
+      // Remove show class for smooth animation
+      resultsContainer.classList.remove('show');
+      
+      // Remove element after animation completes
+      setTimeout(() => {
+        if (resultsContainer.parentNode) {
+          resultsContainer.remove();
+        }
+      }, 300); // Match CSS transition duration
     }
     
     // Clear search input
@@ -445,10 +467,6 @@ class FriendsUI {
         <div class="friend-info">
           <h4 class="friend-name">${friend.displayName}</h4>
           <p class="friend-major">${friend.major}</p>
-          <p class="friend-since">
-            <i class="fas fa-calendar"></i>
-            Friends since ${this.formatFriendsSince(friend.friendsSince)}
-          </p>
           ${friend.mutualFriends > 0 ? `
             <p class="mutual-friends">
               <i class="fas fa-users"></i>
@@ -457,10 +475,6 @@ class FriendsUI {
           ` : ''}
         </div>
         <div class="friend-actions">
-          <button class="btn-view-schedule" data-friend-id="${friend.id}" data-friend-name="${friend.displayName}">
-            <i class="fas fa-calendar-alt"></i>
-            View Schedule
-          </button>
           <button class="btn-friend-menu" data-friend-id="${friend.id}">
             <i class="fas fa-ellipsis-v"></i>
           </button>
@@ -468,25 +482,10 @@ class FriendsUI {
       </div>
     `).join('');
 
-    this.elements.friendsList.innerHTML = `
-      <div class="friends-header">
-        <h4>Your Friends (${friends.length})</h4>
-      </div>
-      <div class="friends-grid">
-        ${friendsHTML}
-      </div>
-    `;
+    this.elements.friendsList.innerHTML = friendsHTML;
 
     // Add event listeners for friend actions
     this.elements.friendsList.addEventListener('click', async (e) => {
-      if (e.target.closest('.btn-view-schedule')) {
-        const button = e.target.closest('.btn-view-schedule');
-        const friendId = button.dataset.friendId;
-        const friendName = button.dataset.friendName;
-        
-        this.handleViewFriendSchedule(friendId, friendName);
-      }
-      
       if (e.target.closest('.btn-friend-menu')) {
         const button = e.target.closest('.btn-friend-menu');
         const friendId = button.dataset.friendId;
@@ -555,14 +554,7 @@ class FriendsUI {
       </div>
     `).join('');
 
-    this.elements.friendRequests.innerHTML = `
-      <div class="requests-header">
-        <h4>Pending Requests (${requests.length})</h4>
-      </div>
-      <div class="requests-list">
-        ${requestsHTML}
-      </div>
-    `;
+    this.elements.friendRequests.innerHTML = requestsHTML;
 
     // Add event listeners for Accept/Reject buttons
     this.elements.friendRequests.addEventListener('click', async (e) => {
