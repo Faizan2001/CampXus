@@ -168,7 +168,6 @@ We've enhanced the structure to support **industry-standard Firebase best practi
 
 - **✅ Added `_lower` fields** for case-insensitive search optimization
 - **✅ Enhanced `socialInfo` section** with comprehensive social metadata
-- **✅ Added `requestType` and `message`** fields to friend requests
 - **✅ Enhanced friendship structure** with advanced relationship metadata
 
 #### 🎯 **Why These Changes Rock:**
@@ -328,8 +327,6 @@ Your existing structure is perfect! Here's how we extend it for Phase 3 social f
 │   │   ├── fromUserId: "user123"
 │   │   ├── toUserId: "user456"
 │   │   ├── status: "pending"                  // "pending" | "accepted" | "rejected"
-│   │   ├── requestType: "direct"              // Type of friend request
-│   │   ├── message: ""                        // Optional message
 │   │   ├── createdAt: timestamp
 │   │   ├── respondedAt: timestamp             // When accepted/rejected
 │   │   ├── fromUserInfo: {                    // Cached for quick display
@@ -360,14 +357,9 @@ Your existing structure is perfect! Here's how we extend it for Phase 3 social f
     │   │     major: "Business Administration",
     │   │     avatar: { /* Flexible DiceBear structure */ }
     │   │   }
-    │   ├── isActive: true,                     // boolean - For soft-delete unfriending
-    │   ├── status: "active",                   // string - "active" | "blocked" | "unfriended"
-    │   ├── connectionStrength: "normal",       // string - "normal" | "strong" | "close"
-    │   ├── mutualFriendsCount: 0,              // number - Count of mutual friends
+    │   ├── mutualFriends: 0,                   // number of mutual friends
     │   ├── createdAt: timestamp,               // When friendship was created
     │   ├── lastInteraction: timestamp,         // Last interaction between friends
-    │   ├── unfriendedAt: null,                 // When unfriended (if applicable)
-    │   └── unfriendedBy: null                  // Who initiated unfriending
     └── ...
 ```
 
@@ -441,15 +433,13 @@ const pendingRequests = query(
 // 👥 Get friends list (bi-directional)
 const myFriends = query(
   collection(db, "friendships"),
-  where("users", "array-contains", currentUserId),
-  where("isActive", "==", true)
+  where("users", "array-contains", currentUserId)
 );
 
 // 🚫 Check if already friends (prevent duplicate requests)
 const existingFriendship = query(
   collection(db, "friendships"),
-  where("users", "array-contains", currentUserId),
-  where("isActive", "==", true)
+  where("users", "array-contains", currentUserId)
 );
 
 // 📊 University stats with friends data
@@ -466,7 +456,6 @@ const universityFriendsStats = query(
 2. **Search Optimization**: `_lower` fields for case-insensitive search
 3. **Bi-directional Queries**: `users` array enables efficient friendship queries
 4. **Real-time Listeners**: `onSnapshot()` for instant updates
-5. **Soft Deletes**: `isActive` flag for unfriending without data loss
 
 ### 🔄 **Smart Friend Request Workflow**
 
@@ -483,8 +472,6 @@ async function sendFriendRequest(fromUser, toUser) {
     fromUserId: fromUser.uid,
     toUserId: toUser.uid,
     status: "pending",
-    requestType: "direct",
-    message: "",
     createdAt: serverTimestamp(),
     fromUserInfo: {
       displayName: fromUser.profile.displayName,
