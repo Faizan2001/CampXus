@@ -63,6 +63,7 @@ import {
   onSnapshot, // ← Added for real-time listeners
   orderBy,
   limit,
+  writeBatch, // ← Added for batch operations
 } from "firebase/firestore";
 import { db } from "../firebase/config/firebase-config.js";
 
@@ -2259,6 +2260,98 @@ if (typeof window !== "undefined") {
   console.log(
     "   testRealTimeListeners.status()               - Check listener status"
   );
+}
+
+/**
+ * Updates cached user data in friendRequests and friendships collections
+ * when profile changes (name, avatar, major, etc.)
+ *
+ * @param {string} userId - The user ID whose cached data should be updated
+ * @param {object} newUserInfo - The new user information to cache
+ */
+export async function updateCachedUserData(userId, newUserInfo) {
+  console.log("🔄 Updating cached user data for friends...");
+  console.log("📋 User ID:", userId);
+  console.log("📋 New user info:", newUserInfo);
+
+  try {
+    const batch = writeBatch(db);
+    let updateCount = 0;
+
+    // 1. Update friend requests where you're the sender
+    const outgoingRequests = await getDocs(
+      query(collection(db, "friendRequests"), where("fromUserId", "==", userId))
+    );
+
+    console.log(
+      `📤 Found ${outgoingRequests.size} outgoing friend requests to update`
+    );
+    outgoingRequests.forEach((doc) => {
+      console.log(
+        "📤 Updating outgoing request:",
+        doc.id,
+        "with:",
+        newUserInfo
+      );
+      batch.update(doc.ref, { fromUserInfo: newUserInfo });
+      updateCount++;
+    });
+
+    // 2. Update friend requests where you're the receiver
+    const incomingRequests = await getDocs(
+      query(collection(db, "friendRequests"), where("toUserId", "==", userId))
+    );
+
+    console.log(
+      `📥 Found ${incomingRequests.size} incoming friend requests to update`
+    );
+    incomingRequests.forEach((doc) => {
+      console.log(
+        "📥 Updating incoming request:",
+        doc.id,
+        "with:",
+        newUserInfo
+      );
+      batch.update(doc.ref, { toUserInfo: newUserInfo });
+      updateCount++;
+    });
+
+    // 3. Update friendships where you're involved
+    const friendships = await getDocs(
+      query(
+        collection(db, "friendships"),
+        where("users", "array-contains", userId)
+      )
+    );
+
+    console.log(`👥 Found ${friendships.size} friendships to update`);
+    friendships.forEach((doc) => {
+      const data = doc.data();
+      console.log("👥 Friendship data:", doc.id, data);
+      if (data.user1Id === userId) {
+        console.log("👥 Updating user1Info for friendship:", doc.id);
+        batch.update(doc.ref, { user1Info: newUserInfo });
+        updateCount++;
+      } else if (data.user2Id === userId) {
+        console.log("👥 Updating user2Info for friendship:", doc.id);
+        batch.update(doc.ref, { user2Info: newUserInfo });
+        updateCount++;
+      }
+    });
+
+    // 4. Save all updates at once
+    if (updateCount > 0) {
+      await batch.commit();
+      console.log(
+        `✅ Updated ${updateCount} cached entries with your new info`
+      );
+    } else {
+      console.log("ℹ️ No cached data to update");
+    }
+  } catch (error) {
+    console.error("❌ Error updating cached data:", error);
+    // Don't throw - this is not critical for profile saving
+  }
 }
 
 // --- END OF FILE ---

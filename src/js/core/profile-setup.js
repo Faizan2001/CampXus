@@ -36,6 +36,7 @@ import { dataManager } from "./data-manager.js";
 import { currentUser } from "./currentUser.js";
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { navigateTo } from "./spa-init.js"; // 🎯 NEW: Import navigateTo for SPA navigation
+import { updateCachedUserData } from "./data-manager.js"; // 🔄 Cache updater (moved to data-manager)
 
 /**
  * =============================================================================
@@ -1303,7 +1304,10 @@ class ProfileSetup {
       // 🎯 Add displayName to profile data (use firstName as displayName)
       const profileWithDisplayName = {
         ...this.profileData,
-        displayName: this.profileData.firstName || this.profileData.email?.split('@')[0] || 'User'
+        displayName:
+          this.profileData.firstName ||
+          this.profileData.email?.split("@")[0] ||
+          "User",
       };
 
       // Combine all data for saving
@@ -1332,6 +1336,21 @@ class ProfileSetup {
       await dataManager.saveUserProfile(this.currentUser.uid, combinedData);
 
       console.log("✅ Profile saved successfully to Firestore");
+
+      // 🔄 NEW: Update cached user data so friends see changes immediately
+      const userInfoForCache = {
+        displayName: profileWithDisplayName.displayName,
+        major: profileWithDisplayName.major,
+        university: this.currentUser.email.split("@")[1].split(".")[0],
+        avatarConfig: this.avatarConfig,
+      };
+
+      // Update cache in background (don't wait for it)
+      updateCachedUserData(this.currentUser.uid, userInfoForCache)
+        .then(() => console.log("✅ Friends will see your updated info!"))
+        .catch((err) =>
+          console.log("⚠️ Cache update failed, but profile saved:", err)
+        );
 
       // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
       console.log(

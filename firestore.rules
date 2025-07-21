@@ -30,10 +30,10 @@ service cloud.firestore {
     }
 
     // --- Friendships (/friendships) ---
-    // Users can read/delete friendships they are a part of.
+    // Users can read/update/delete friendships they are a part of.
     // Users can create friendships.
     match /friendships/{friendshipId} {
-      allow read, delete: if request.auth != null && request.auth.uid in resource.data.users;
+      allow read, update, delete: if request.auth != null && request.auth.uid in resource.data.users;
       allow create: if request.auth != null;
     }
   }
