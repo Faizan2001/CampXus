@@ -16,6 +16,7 @@ import { notificationManager } from "../notification-manager.js";
 import { realTimeManager, REALTIME_EVENTS } from "../realtime-manager.js";
 import { dataManager } from "../data-manager.js";
 import { currentUser } from "../currentUser.js";
+import { avatarManager } from "../avatars.js";
 
 class FriendsUI {
   constructor() {
@@ -815,7 +816,7 @@ class FriendsUI {
         (friend) => `
       <div class="friend-card" data-friend-id="${friend.id}">
         <div class="friend-avatar">
-          ${this.renderAvatar(friend.avatar)}
+          ${this.renderAvatar(friend.avatarConfig)}
           ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
         </div>
         <div class="friend-info">
@@ -905,8 +906,8 @@ class FriendsUI {
       .map(
         (request) => `
       <div class="friend-request-card" data-request-id="${request.id}">
-        <div class="request-avatar">
-          ${this.renderAvatar(request.fromUserInfo?.avatar)}
+                <div class="request-avatar">
+          ${this.renderAvatar(request.fromUserInfo?.avatarConfig)}
         </div>
         <div class="request-info">
           <h4 class="request-name">${request.displayName}</h4>
@@ -1037,29 +1038,54 @@ class FriendsUI {
   }
 
   /**
-   * 🎨 Render avatar from avatar config
-   * @param {Object} avatarConfig - Avatar configuration
+   * 🎨 Render avatar from avatar config using avatarManager
+   * @param {Object} avatarConfig - Avatar configuration from user data or cached data
    * @returns {string} HTML for avatar
    */
   renderAvatar(avatarConfig) {
     if (!avatarConfig) {
-      return '<div class="avatar-placeholder">👤</div>';
+      return this.getAvatarFallback();
     }
 
-    // Simple avatar rendering - you can enhance this later
-    const { skin, hair, eyes, clothes } = avatarConfig;
+    try {
+      // Handle different possible avatar data structures
+      let avatarData = avatarConfig;
+      
+      // If avatarConfig has nested structure, extract the actual config
+      if (avatarConfig.avatarConfig) {
+        avatarData = avatarConfig.avatarConfig;
+      }
+      
+      // Generate avatar URL using avatarManager
+      const avatarUrl = avatarManager.generateAvatarUrl(avatarData);
+      
+      return `
+        <div class="user-avatar">
+          <img 
+            src="${avatarUrl}" 
+            alt="User Avatar" 
+            class="user-avatar-img"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          >
+          <div class="avatar-fallback" style="display: none;">
+            <i class="fas fa-user-circle"></i>
+          </div>
+        </div>
+      `;
+    } catch (error) {
+      console.warn("⚠️ Error generating avatar:", error);
+      return this.getAvatarFallback();
+    }
+  }
+
+  /**
+   * 🎨 Get avatar fallback HTML
+   * @returns {string} Fallback avatar HTML
+   */
+  getAvatarFallback() {
     return `
-      <div class="user-avatar" style="
-        background-color: ${skin || "#F4C2A1"};
-        border-radius: 50%;
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-      ">
-        👤
+      <div class="user-avatar">
+        <i class="fas fa-user-circle"></i>
       </div>
     `;
   }

@@ -1228,13 +1228,13 @@ export class FriendsManager {
           displayName: userProfile.profile.displayName,
           major: userProfile.profile.major,
           university: userProfile.universityInfo.university,
-          avatar: userProfile.avatarConfig,
+          avatarConfig: userProfile.avatarConfig,
         },
         toUserInfo: {
           displayName: targetUserData.profile.displayName,
           major: targetUserData.profile.major,
           university: targetUserData.universityInfo.university,
-          avatar: targetUserData.avatarConfig,
+          avatarConfig: targetUserData.avatarConfig,
         },
       };
 
@@ -1342,13 +1342,13 @@ export class FriendsManager {
         user1Info: {
           displayName: requestData.fromUserInfo.displayName,
           major: requestData.fromUserInfo.major,
-          avatar: requestData.fromUserInfo.avatar,
+          avatarConfig: requestData.fromUserInfo.avatarConfig || requestData.fromUserInfo.avatar,
         },
 
         user2Info: {
           displayName: requestData.toUserInfo.displayName,
           major: requestData.toUserInfo.major,
-          avatar: requestData.toUserInfo.avatar || userProfile.avatarConfig,
+          avatarConfig: requestData.toUserInfo.avatarConfig || requestData.toUserInfo.avatar || userProfile.avatarConfig,
         },
       };
 

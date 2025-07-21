@@ -1109,7 +1109,7 @@ class DataManager {
         }`.trim() ||
         userData.profile?.displayName ||
         "",
-      avatar: userData.avatarConfig,
+      avatarConfig: userData.avatarConfig,
       isOnline: userData.systemInfo?.status === "online",
       lastActive: userData.systemInfo?.lastActive,
     };

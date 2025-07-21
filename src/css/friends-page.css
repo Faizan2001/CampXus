@@ -840,6 +840,38 @@
   border-radius: 50%;
 }
 
+/* Avatar image styling for friends */
+.user-avatar .user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Avatar fallback styling */
+.user-avatar .avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 1;
+}
+
+/* FontAwesome icon styling for avatars */
+.user-avatar i.fas {
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 1;
+}
+
 /* =================================
    MOBILE-FIRST RESPONSIVE DESIGN
 ================================= */
@@ -886,6 +918,15 @@
   width: 38px;
   height: 38px;
   font-size: 18px;
+}
+
+.user-avatar .user-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.user-avatar i.fas {
+  font-size: 1.2rem;
 }
 
 .btn-friend-menu {
@@ -944,6 +985,15 @@
     width: 44px;
     height: 44px;
     font-size: 20px;
+  }
+
+  .user-avatar .user-avatar-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  .user-avatar i.fas {
+    font-size: 1.5rem;
   }
 
   .btn-friend-menu {

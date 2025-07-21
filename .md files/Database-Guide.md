@@ -64,7 +64,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │   │     displayName: "John Doe",
 │   │   │     major: "CSE",
 │   │   │     university: "iub",
-│   │   │     avatar: { style: "miniavs", seed: "abc123" }
+│   │   │     avatarConfig: { style: "miniavs", seed: "abc123" }
 │   │   │   }
 │   │   └── toUserInfo: {                      // Cached for notifications
 │   │         displayName: "Jane Smith",
@@ -83,12 +83,12 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
     │   ├── user1Info: {                       // Cached user data
     │   │     displayName: "John Doe",
     │   │     major: "CSE",
-    │   │     avatar: { style: "miniavs", seed: "abc123" }
+    │   │     avatarConfig: { style: "miniavs", seed: "abc123" }
     │   │   }
     │   └── user2Info: {
     │         displayName: "Jane Smith",
     │         major: "BBA",
-    │         avatar: { style: "adventurer", seed: "xyz789" }
+    │         avatarConfig: { style: "adventurer", seed: "xyz789" }
     │       }
     └── ...
 ```
@@ -333,13 +333,13 @@ Your existing structure is perfect! Here's how we extend it for Phase 3 social f
 │   │   │     displayName: "John Doe",
 │   │   │     major: "Computer Science",
 │   │   │     university: "iub",
-│   │   │     avatar: { style: "miniavs", seed: "abc123", ... }
+│   │   │     avatarConfig: { style: "miniavs", seed: "abc123", ... }
 │   │   │   }
 │   │   └── toUserInfo: {                      // Cached for notifications
 │   │         displayName: "Jane Smith",
 │   │         major: "Business Administration",
 │   │         university: "iub",
-│   │         avatar: { style: "adventurer", seed: "xyz789", ... }
+│   │         avatarConfig: { style: "adventurer", seed: "xyz789", ... }
 │   │       }
 │   └── ...
 └── 🤝 🆕 friendships/                         // NEW: Active friendships
@@ -350,12 +350,12 @@ Your existing structure is perfect! Here's how we extend it for Phase 3 social f
     │   ├── user1Info: {                       // Cached user info (eliminates extra queries)
     │   │     displayName: "John Doe",
     │   │     major: "Computer Science",
-    │   │     avatar: { /* Flexible DiceBear structure */ }
+    │   │     avatarConfig: { /* Flexible DiceBear structure */ }
     │   │   }
     │   ├── user2Info: {
     │   │     displayName: "Jane Smith", 
     │   │     major: "Business Administration",
-    │   │     avatar: { /* Flexible DiceBear structure */ }
+    │   │     avatarConfig: { /* Flexible DiceBear structure */ }
     │   │   }
     │   ├── mutualFriends: 0,                   // number of mutual friends
     │   ├── createdAt: timestamp,               // When friendship was created
@@ -400,7 +400,7 @@ const friendshipDoc = {
   user1Info: {
     displayName: "John Doe", // 🚀 Instant display!
     major: "CSE", // 🚀 No extra user query!
-    avatar: { style: "miniavs" }, // 🚀 Ready to show!
+    avatarConfig : { style: "miniavs" }, // 🚀 Ready to show!
   },
 };
 
@@ -477,7 +477,7 @@ async function sendFriendRequest(fromUser, toUser) {
       displayName: fromUser.profile.displayName,
       major: fromUser.profile.major,
       university: fromUser.universityInfo.university,
-      avatar: fromUser.avatarConfig,
+      avatarConfig: fromUser.avatarConfig,
     },
     toUserInfo: {
       displayName: toUser.profile.displayName,
