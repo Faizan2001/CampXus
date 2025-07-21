@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Common Development Commands
 
 ### Development Environment
+
 ```bash
 # Generate environment config from .env.local (required for development)
 npm run dev:config
@@ -20,6 +21,7 @@ npm run preview
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 npm test
@@ -32,6 +34,7 @@ npm test src/js/tests/firebase/
 ```
 
 ### Firebase Development
+
 ```bash
 # Start Firebase emulators for local development
 npm run firebase:emulators
@@ -44,6 +47,7 @@ npm run firebase:deploy
 ```
 
 ### Security & Auditing
+
 ```bash
 # Run security audit
 npm run security:audit
@@ -58,6 +62,7 @@ npm run security:check
 ## Architecture Overview
 
 ### Single Page Application (SPA) Structure
+
 CampXus is built as a modern SPA with a custom router system:
 
 - **Entry Point**: `index.html` serves as the shell, all content is dynamically loaded
@@ -66,6 +71,7 @@ CampXus is built as a modern SPA with a custom router system:
 - **Templates**: HTML fragments in `/public/templates/` loaded dynamically by the router
 
 ### Authentication & Data Flow
+
 The app uses Firebase Authentication with university email validation:
 
 1. **Authentication Manager** (`src/js/firebase/auth/auth-manager.js`): Handles all Firebase auth operations
@@ -74,6 +80,7 @@ The app uses Firebase Authentication with university email validation:
 4. **Data Manager** (`src/js/core/data-manager.js`): Handles Firestore operations and data persistence
 
 ### Module System & Dependencies
+
 The codebase uses ES6 modules with careful dependency management:
 
 - **Core Modules**: Located in `src/js/core/` - foundation functionality
@@ -84,6 +91,7 @@ The codebase uses ES6 modules with careful dependency management:
 - **Security Layer**: Located in `src/js/security/` - privacy and security management
 
 ### State Management
+
 The application uses a centralized state pattern:
 
 - **Main App State**: Managed in `src/js/core/script.js` with exported getState() function
@@ -94,6 +102,7 @@ The application uses a centralized state pattern:
 - **Local Storage**: Used for persistence with Firebase cloud sync
 
 ### CSS Architecture
+
 Modular CSS system with specialized stylesheets:
 
 - `variables.css`: Design system & CSS custom properties
@@ -106,6 +115,7 @@ Modular CSS system with specialized stylesheets:
 ## Development Environment Setup
 
 ### Required Environment Variables (.env.local)
+
 ```
 FIREBASE_API_KEY=your_api_key_here
 FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
@@ -116,10 +126,12 @@ FIREBASE_APP_ID=your_app_id
 ```
 
 ### Auto-Generated Files (DO NOT EDIT)
+
 - `src/js/firebase/config/env-config.js`: Browser-compatible config generated from .env.local
 - Files in `dist/`: Build output from Vite
 
 ### Development Workflow
+
 1. Set up `.env.local` with Firebase credentials
 2. Run `npm run dev:config` to generate browser config
 3. Use `npm run dev:serve` for full Firebase integration
@@ -128,6 +140,7 @@ FIREBASE_APP_ID=your_app_id
 ## Testing Configuration
 
 ### Jest Setup
+
 The project uses Jest with ESM support and custom configuration:
 
 - **Test Environment**: jsdom for DOM testing
@@ -136,12 +149,14 @@ The project uses Jest with ESM support and custom configuration:
 - **Setup File**: `jest.setup.js` provides global mocks and DOM elements
 
 ### Test Structure
+
 - `src/js/tests/core/`: Tests for core application logic
 - `src/js/tests/firebase/`: Tests for Firebase integration
 - `src/js/tests/__mocks__/spa-init.mock.js`: Mock file to prevent CSS imports during testing
 - Tests run with `NODE_OPTIONS=--experimental-vm-modules` for ESM support
 
 ### Common Test Issues
+
 - CSS import errors: Fixed with moduleNameMapper for absolute paths (`^/src/.*\.(css|scss|sass)$`)
 - SPA module imports: Mocked via `^.*/spa-init\.js$` pattern to prevent CSS loading
 - Async teardown issues: Handled with `forceExit: true` and cleanup functions
@@ -149,12 +164,14 @@ The project uses Jest with ESM support and custom configuration:
 ## Firebase Integration
 
 ### Authentication Flow
+
 1. University email validation using domain patterns
 2. Firebase Authentication with email/password
 3. Email verification required before full access
 4. Profile setup process with avatar customization
 
 ### Firestore Database
+
 - User profiles stored with university validation
 - Schedule data synchronized across devices
 - Friends/social connections with real-time updates
@@ -162,12 +179,15 @@ The project uses Jest with ESM support and custom configuration:
 - Real-time listeners for live data synchronization
 
 ### Security Rules
+
 Located in `firestore.rules` - university-only access with proper authentication checks
 
 ## Database Architecture & Structure
 
 ### Database Design Philosophy
+
 CampXus follows **industry-standard Firebase best practices** for real-time social applications. The database structure is designed for:
+
 - **University-focused social features** (classmate discovery, friend requests)
 - **Real-time updates** (instant notifications, live data sync)
 - **Scalable architecture** (supports cross-university features)
@@ -194,7 +214,7 @@ Each user document follows a **5-section organized structure** that perfectly ma
     displayName: "Rollie",
     displayName_lower: "rollie",        // Search optimization
     email: "student@iub.edu.bd",
-    firstName: "Rollie", 
+    firstName: "Rollie",
     firstName_lower: "rollie",          // Search optimization
     lastName: "Mcklean",
     lastName_lower: "mcklean",          // Search optimization
@@ -253,25 +273,25 @@ Each user document follows a **5-section organized structure** that perfectly ma
 {
   // Core request data
   fromUserId: "sender-uid",
-  toUserId: "recipient-uid", 
+  toUserId: "recipient-uid",
   status: "pending",                    // "pending" | "accepted" | "rejected"
-  
+
   // Cached sender info (performance optimization)
   fromUserInfo: {
     displayName: "John Doe",
     major: "Computer Science",
-    university: "iub", 
-    avatar: { /* Flexible DiceBear structure */ }
+    university: "iub",
+    avatarConfig: { /* Flexible DiceBear structure */ }
   },
-  
+
   // Cached recipient info (for notifications)
   toUserInfo: {
     displayName: "Jane Smith",
     major: "Business Administration",
     university: "iub",
-    avatar: { /* Flexible DiceBear structure */ }
+    avatarConfig: { /* Flexible DiceBear structure */ }
   },
-  
+
   // Timestamps
   createdAt: timestamp,                 // When request was sent
   respondedAt: null                     // When request was responded to
@@ -286,19 +306,19 @@ Each user document follows a **5-section organized structure** that perfectly ma
   users: ["user1-uid", "user2-uid"],    // Array for efficient querying
   user1Id: "user1-uid",                 // Direct reference
   user2Id: "user2-uid",                 // Direct reference
-  
+
   // Cached user info (eliminates extra queries)
   user1Info: {
     displayName: "John Doe",
     major: "Computer Science",
-    avatar: { /* Flexible DiceBear structure */ }
+    avatarConfig: { /* Flexible DiceBear structure */ }
   },
   user2Info: {
-    displayName: "Jane Smith", 
+    displayName: "Jane Smith",
     major: "Business Administration",
-    avatar: { /* Flexible DiceBear structure */ }
+    avatarConfig: { /* Flexible DiceBear structure */ }
   },
-  
+
   // Relationship metadata
   createdAt: timestamp,                 // When friendship was created
   mutualFriends: 0,                     // number - Count of mutual friends
@@ -358,6 +378,7 @@ Friend requests follow a clean, logical lifecycle:
 3. **❌ Rejected Requests** → **Delete** from `friendRequests/` (no permanent storage needed)
 
 This approach:
+
 - ✅ **Reduces database clutter** - No "accepted" or "rejected" requests lingering around
 - ✅ **Improves query performance** - Smaller `friendRequests/` collection with only active requests
 - ✅ **Follows logical data lifecycle** - Requests are temporary, friendships are permanent
@@ -368,7 +389,7 @@ This approach:
 async function acceptFriendRequest(requestId, requestData) {
   // 1. Create friendship document
   await createFriendship(friendshipData);
-  
+
   // 2. Delete the friend request (cleanup)
   await deleteFriendRequest(requestId);
 }
@@ -385,16 +406,19 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ## Key Architectural Patterns
 
 ### SPA Navigation
+
 - Use `navigateTo(route)` function for programmatic navigation
 - Add `data-spa-route="route-name"` to links for automatic routing
 - Templates loaded dynamically with proper cleanup
 
 ### Error Handling
+
 - Custom error classes: `AuthError`, `ValidationError`
 - Centralized error handling in auth operations
 - User-friendly error messages with technical logging
 
 ### Module Communication
+
 - Event-driven architecture for loose coupling
 - Real-time event system with publish/subscribe pattern
 - State managers with observer patterns
@@ -402,6 +426,7 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 - Memory management with proper cleanup for real-time listeners
 
 ### Performance Considerations
+
 - DOM element caching in `domElements.js`
 - Lazy loading of modules through dynamic imports
 - CSS and JS bundling through Vite for production
@@ -409,34 +434,41 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ## Adding New Features
 
 ### New SPA Pages
+
 1. Create template in `/public/templates/your-page.html`
 2. Add route configuration in `spa-router.js`
 3. Add navigation links with `data-spa-route="your-page"`
 4. Import any required CSS/JS in `spa-init.js`
 
 ### Schedule Features
+
 - Core logic in `src/js/core/script.js`
 - UI updates in templates, specifically `home.html`
 - Styling in `src/css/schedule.css`
 
 ### Authentication Features
+
 - Extend `auth-manager.js` for new auth operations
 - Update `university-validator.js` for new domain patterns
 - Modify `profile-setup.js` for additional profile fields
 
 ### Firebase Operations
+
 - Add new operations to `data-manager.js`
 - Update Firestore security rules as needed
 - Test with Firebase emulators first
 
 ### Friends System Features
+
 - Core logic in `src/js/core/friends/friends-manager.js`
 - UI components in `src/js/core/friends/friends-ui.js`
+- Avatar rendering via `avatarManager.generateAvatarUrl()` from `src/js/core/avatars.js`
 - Real-time updates via `src/js/core/realtime-manager.js`
 - Toast notifications via `src/js/core/notification-manager.js`
 - Styling in `src/css/friends-page.css`
 
 ### Real-Time System
+
 - **Data Layer**: `listenToPendingFriendRequests()`, `listenToUserFriendships()`, `listenToUserProfile()` in `data-manager.js`
 - **Event Coordination**: `realtime-manager.js` with publish/subscribe pattern
 - **Memory Management**: Automatic cleanup of listeners to prevent memory leaks
@@ -446,18 +478,21 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ## Code Style Guidelines
 
 ### JavaScript
+
 - Use ES6+ features consistently (const/let, arrow functions, async/await)
 - Follow modular architecture with clear imports/exports
 - Include JSDoc comments for complex functions
 - Handle errors explicitly with try-catch blocks
 
 ### CSS
+
 - Use CSS custom properties for consistent theming
 - Follow BEM methodology for class naming
 - Responsive design with mobile-first approach
 - Leverage CSS Grid and Flexbox appropriately
 
 ### HTML
+
 - Semantic HTML5 elements
 - Accessibility attributes (ARIA labels, alt text)
 - Progressive enhancement principles
@@ -465,16 +500,19 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ## Security Considerations
 
 ### Environment Security
+
 - Never commit `.env.local` or `env-config.js`
 - Firebase API keys are safe in client code (protected by security rules)
 - Use HTTPS in production (enforced by hosting config)
 
 ### User Data Protection
+
 - University email validation prevents unauthorized access
 - Firestore security rules enforce authentication
 - Privacy controls in `privacy-manager.js`
 
 ### Development Security
+
 - Regular security audits with `npm run security:audit`
 - Content Security Policy headers in hosting config
 - Input validation for all user-provided data
@@ -482,11 +520,13 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ## Common Pitfalls
 
 ### Development Issues
+
 - Always run `npm run dev:config` after changing `.env.local`
 - Use `npm run dev:serve` for full Firebase integration testing
 - Check browser console for module import errors
 
 ### Real-Time System Debugging
+
 - Use `debug.help()` in browser console for available commands
 - Test notifications with `debug.testNotification()`
 - Check system status with `debug.status()`
@@ -494,16 +534,19 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 - Force cleanup with `realTimeManager.cleanup()`
 
 ### SPA Navigation
+
 - Don't use traditional `<a href>` links - use `data-spa-route` or `navigateTo()`
 - Always clean up event listeners when navigating between pages
 - Test browser back/forward button functionality
 
 ### Firebase Authentication
+
 - Handle authentication state changes with listeners
 - Check if user is authenticated before accessing protected features
 - Implement proper loading states during auth operations
 
 ### CSS and Styling
+
 - Import CSS through `spa-init.js`, not individual HTML templates
 - Use absolute paths for assets (`/src/css/` not `../css/`)
 - Test both development and production builds for styling consistency
@@ -511,6 +554,7 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ## Useful Files for Reference
 
 - `README.md`: Complete project overview and setup instructions
+- `FRIENDS-SYSTEM-LIFECYCLE.md`: Comprehensive technical documentation of the complete friends system lifecycle (145 lines)
 - `/Phases/`: Step-by-step learning guides for different development phases
 - `/.md files/`: Detailed documentation including UI maps and SPA development guides
 - `src/js/dev-tools/firebase-dev-tools-README.md`: Firebase development setup guide

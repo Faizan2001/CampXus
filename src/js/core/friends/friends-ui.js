@@ -610,7 +610,7 @@ class FriendsUI {
         (student) => `
       <div class="student-card" data-student-id="${student.id}">
         <div class="student-avatar">
-          ${this.renderAvatar(student.avatarConfig)}
+          ${this.renderAvatar(student)}
         </div>
         <div class="student-info">
           <h4 class="student-name">${
@@ -816,7 +816,7 @@ class FriendsUI {
         (friend) => `
       <div class="friend-card" data-friend-id="${friend.id}">
         <div class="friend-avatar">
-          ${this.renderAvatar(friend.avatarConfig)}
+          ${this.renderAvatar(friend)}
           ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
         </div>
         <div class="friend-info">
@@ -907,7 +907,7 @@ class FriendsUI {
         (request) => `
       <div class="friend-request-card" data-request-id="${request.id}">
                 <div class="request-avatar">
-          ${this.renderAvatar(request.fromUserInfo?.avatarConfig)}
+          ${this.renderAvatar(request)}
         </div>
         <div class="request-info">
           <h4 class="request-name">${request.displayName}</h4>
@@ -1038,42 +1038,30 @@ class FriendsUI {
   }
 
   /**
-   * 🎨 Render avatar from avatar config using avatarManager
-   * @param {Object} avatarConfig - Avatar configuration from user data or cached data
+   * 🎨 Render avatar using existing avatarManager approach (like menu.js)
+   * @param {Object} userData - User data object from any source  
    * @returns {string} HTML for avatar
    */
-  renderAvatar(avatarConfig) {
-    if (!avatarConfig) {
-      return this.getAvatarFallback();
-    }
+  renderAvatar(userData) {
+    // Extract avatar config from different data structures
+    const avatarConfig = userData?.avatarConfig || 
+                        userData?.fromUserInfo?.avatarConfig || 
+                        userData?.user1Info?.avatarConfig || 
+                        userData?.user2Info?.avatarConfig;
 
-    try {
-      // Handle different possible avatar data structures
-      let avatarData = avatarConfig;
-      
-      // If avatarConfig has nested structure, extract the actual config
-      if (avatarConfig.avatarConfig) {
-        avatarData = avatarConfig.avatarConfig;
+    const hasAvatarConfig = !!avatarConfig;
+
+    // Use avatarManager like in menu.js
+    if (hasAvatarConfig && avatarManager && typeof avatarManager.generateAvatarUrl === 'function') {
+      try {
+        const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
+        return `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
+      } catch (error) {
+        console.error("❌ Error generating avatar URL, falling back to default.", error);
+        return this.getAvatarFallback();
       }
-      
-      // Generate avatar URL using avatarManager
-      const avatarUrl = avatarManager.generateAvatarUrl(avatarData);
-      
-      return `
-        <div class="user-avatar">
-          <img 
-            src="${avatarUrl}" 
-            alt="User Avatar" 
-            class="user-avatar-img"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-          >
-          <div class="avatar-fallback" style="display: none;">
-            <i class="fas fa-user-circle"></i>
-          </div>
-        </div>
-      `;
-    } catch (error) {
-      console.warn("⚠️ Error generating avatar:", error);
+    } else {
+      // Fallback for no config or no avatar manager
       return this.getAvatarFallback();
     }
   }

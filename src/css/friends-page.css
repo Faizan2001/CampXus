@@ -658,11 +658,12 @@
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
 
-  padding: 14px;
-  margin-bottom: 6px;
+  padding: 16px;
+  margin-bottom: 8px;
+  min-height: 64px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
-  gap: 14px;
+  gap: 16px;
   align-items: center;
   position: relative;
   overflow: hidden;
@@ -898,6 +899,12 @@
   padding: 12px;
   gap: 12px;
   border-radius: 8px;
+  min-height: 56px;
+}
+
+.friend-card .friend-avatar {
+  width: 40px !important;
+  height: 40px !important;
 }
 
 .friend-name,
@@ -965,6 +972,12 @@
     padding: 14px;
     gap: 14px;
     border-radius: 10px;
+    min-height: 60px;
+  }
+
+  .friend-card .friend-avatar {
+    width: 44px !important;
+    height: 44px !important;
   }
 
   .friend-name,
@@ -1015,6 +1028,26 @@
   .friends-scrollable-container,
   .requests-scrollable-container {
     max-height: 500px;
+  }
+
+  .friend-card,
+  .friend-request-card {
+    padding: 16px;
+    gap: 16px;
+    min-height: 68px;
+  }
+
+  .friend-card .friend-avatar {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .friend-card .friend-name {
+    font-size: 1.1rem;
+  }
+
+  .friend-card .friend-major {
+    font-size: 0.9rem;
   }
 }
 
@@ -1210,47 +1243,51 @@ body.page-friends .schedule-section {
 }
 
 /* =================================
-   FRIEND CARDS (for future expansion)
+   FRIEND CARDS AVATAR STYLING
 ================================= */
 
-.friend-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  transition: all 0.2s ease;
-}
-
-.friend-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--accent-primary);
-}
-
 .friend-card .friend-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
   background: var(--accent-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
-  margin-bottom: 1rem;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.friend-card .friend-avatar .user-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 50% !important;
+  border: none !important;
+}
+
+.friend-card .friend-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .friend-card .friend-name {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  margin: 0 0 2px 0;
+  line-height: 1.4;
 }
 
 .friend-card .friend-major {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.4;
 }
 
 /* =================================
@@ -1521,10 +1558,6 @@ body.page-friends .schedule-section {
 ================================= */
 
 @media (prefers-color-scheme: dark) {
-  .friend-card {
-    background: var(--card-bg-dark, #1f2937);
-    border-color: var(--card-border-dark, #374151);
-  }
 
   .request-card {
     background: var(--card-bg-dark, #1f2937);

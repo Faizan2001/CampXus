@@ -27,6 +27,12 @@ export class FriendsManager {
     this.maxCacheSize = 20; // Store up to 20 recent searches
     this.cacheExpiry = 5 * 60 * 1000; // Cache expires after 5 minutes
 
+    // 🎨 Avatar cache for efficient friends list loading
+    this.avatarCache = new Map();
+    this.maxAvatarCacheSize = 150; // Cache up to 150 user avatars
+    this.avatarCacheExpiry = 30 * 60 * 1000; // Avatar cache expires after 30 minutes
+    this.avatarStaleThreshold = 10 * 60 * 1000; // Consider avatar stale after 10 minutes
+
     // 🎛️ Real-time integration
     this.isRealTimeActive = false;
     this.uiCallbacks = {
@@ -107,6 +113,134 @@ export class FriendsManager {
 
     if (cleanedCount > 0) {
       console.log(`🧹 Cleaned up ${cleanedCount} expired cache entries`);
+    }
+  }
+
+  // =========================
+  // AVATAR CACHING SYSTEM
+  // =========================
+
+  /**
+   * 🎨 Get cached avatar data for a user
+   * @param {string} userId - User ID to look up
+   * @returns {Object|null} Cached avatar data or null
+   */
+  getCachedAvatarData(userId) {
+    const cached = this.avatarCache.get(userId);
+    
+    if (!cached) {
+      return null;
+    }
+
+    const now = Date.now();
+    
+    // If expired, remove and return null
+    if (now - cached.timestamp > this.avatarCacheExpiry) {
+      this.avatarCache.delete(userId);
+      console.log(`🎨 Avatar cache expired for user: ${userId}`);
+      return null;
+    }
+
+    // Mark if stale (but still usable)
+    cached.isStale = now - cached.timestamp > this.avatarStaleThreshold;
+    
+    return cached;
+  }
+
+  /**
+   * 🎨 Cache avatar data for a user
+   * @param {string} userId - User ID
+   * @param {Object} avatarConfig - Avatar configuration
+   * @param {Object} userInfo - Additional user info (displayName, major)
+   */
+  setCachedAvatarData(userId, avatarConfig, userInfo = {}) {
+    // Remove oldest entries if at capacity
+    if (this.avatarCache.size >= this.maxAvatarCacheSize) {
+      const oldestKey = this.avatarCache.keys().next().value;
+      this.avatarCache.delete(oldestKey);
+      console.log(`🗑️ Removed old avatar cache entry: ${oldestKey}`);
+    }
+
+    this.avatarCache.set(userId, {
+      avatarConfig,
+      userInfo,
+      timestamp: Date.now(),
+      isStale: false
+    });
+
+    console.log(`🎨 Cached avatar data for user: ${userId}`);
+  }
+
+  /**
+   * 🎨 Get fresh avatar data for users whose cached data is stale
+   * @param {Array<string>} userIds - Array of user IDs to refresh
+   * @returns {Promise<Map>} Map of userId -> fresh avatar data
+   */
+  async refreshStaleAvatars(userIds) {
+    if (!userIds.length) return new Map();
+    
+    console.log(`🔄 Refreshing ${userIds.length} stale avatars...`);
+    
+    try {
+      const refreshedAvatars = new Map();
+      
+      // Fetch fresh user data one by one (since no batch method exists)
+      // Limit concurrent requests to avoid overwhelming the database
+      const batchSize = 5;
+      for (let i = 0; i < userIds.length; i += batchSize) {
+        const batch = userIds.slice(i, i + batchSize);
+        
+        const promises = batch.map(async (userId) => {
+          try {
+            const userData = await dataManager.getUserProfile(userId);
+            if (userData?.avatarConfig) {
+              // Update cache with fresh data
+              this.setCachedAvatarData(userId, userData.avatarConfig, {
+                displayName: userData.profile?.displayName,
+                major: userData.profile?.major
+              });
+              
+              return { userId, avatarConfig: userData.avatarConfig };
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to refresh avatar for user ${userId}:`, error);
+          }
+          return null;
+        });
+        
+        const results = await Promise.all(promises);
+        results.forEach(result => {
+          if (result) {
+            refreshedAvatars.set(result.userId, result.avatarConfig);
+          }
+        });
+      }
+      
+      console.log(`✅ Refreshed ${refreshedAvatars.size} avatars`);
+      return refreshedAvatars;
+      
+    } catch (error) {
+      console.error('❌ Error refreshing stale avatars:', error);
+      return new Map();
+    }
+  }
+
+  /**
+   * 🧹 Clean up expired avatar cache entries
+   */
+  cleanupExpiredAvatarCache() {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [userId, cached] of this.avatarCache.entries()) {
+      if (now - cached.timestamp > this.avatarCacheExpiry) {
+        this.avatarCache.delete(userId);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`🧹 Cleaned up ${cleanedCount} expired avatar cache entries`);
     }
   }
 
@@ -1342,13 +1476,18 @@ export class FriendsManager {
         user1Info: {
           displayName: requestData.fromUserInfo.displayName,
           major: requestData.fromUserInfo.major,
-          avatarConfig: requestData.fromUserInfo.avatarConfig || requestData.fromUserInfo.avatar,
+          avatarConfig:
+            requestData.fromUserInfo.avatarConfig ||
+            requestData.fromUserInfo.avatar,
         },
 
         user2Info: {
           displayName: requestData.toUserInfo.displayName,
           major: requestData.toUserInfo.major,
-          avatarConfig: requestData.toUserInfo.avatarConfig || requestData.toUserInfo.avatar || userProfile.avatarConfig,
+          avatarConfig:
+            requestData.toUserInfo.avatarConfig ||
+            requestData.toUserInfo.avatar ||
+            userProfile.avatarConfig,
         },
       };
 
@@ -1445,7 +1584,7 @@ export class FriendsManager {
   }
 
   /**
-   * 👥 Get the current user's friends list
+   * 👥 Get the current user's friends list with smart avatar caching
    * @returns {Promise<Array>} Array of friends with their info
    */
   async getFriendsList() {
@@ -1467,8 +1606,11 @@ export class FriendsManager {
         return [];
       }
 
-      // 🎯 Transform friendship documents into friend objects for easy UI display
-      const friends = friendships.map((friendship) => {
+      // 🎯 Transform friendship documents with smart avatar caching
+      const friends = [];
+      const staleAvatarUserIds = [];
+
+      for (const friendship of friendships) {
         // Determine which user info to show (the friend, not the current user)
         const isUser1 = friendship.user1Id === currentUser.uid;
         const friendInfo = isUser1
@@ -1476,7 +1618,28 @@ export class FriendsManager {
           : friendship.user1Info;
         const friendId = isUser1 ? friendship.user2Id : friendship.user1Id;
 
-        return {
+        // Check avatar cache first
+        const cachedAvatar = this.getCachedAvatarData(friendId);
+        let avatarConfig = friendInfo?.avatarConfig || null;
+
+        if (cachedAvatar) {
+          // Use cached avatar data
+          avatarConfig = cachedAvatar.avatarConfig;
+          
+          // Mark for refresh if stale
+          if (cachedAvatar.isStale) {
+            staleAvatarUserIds.push(friendId);
+            console.log(`📊 Avatar is stale for user: ${friendId}, will refresh`);
+          }
+        } else if (avatarConfig) {
+          // Cache the avatar data from friendship document
+          this.setCachedAvatarData(friendId, avatarConfig, {
+            displayName: friendInfo?.displayName,
+            major: friendInfo?.major
+          });
+        }
+
+        friends.push({
           // Friend identification
           id: friendId,
           friendshipId: friendship.id,
@@ -1484,7 +1647,7 @@ export class FriendsManager {
           // Friend details (cached in friendship document - no extra queries!)
           displayName: friendInfo?.displayName || "Unknown User",
           major: friendInfo?.major || "Unknown Major",
-          avatar: friendInfo?.avatar || null,
+          avatarConfig,
 
           // Friendship metadata
           friendsSince: friendship.createdAt,
@@ -1494,8 +1657,32 @@ export class FriendsManager {
           // UI helpers
           isOnline: false, // TODO: Add real-time status in Phase 5
           mutualFriends: friendship.mutualFriends || 0,
-        };
-      });
+        });
+      }
+
+      // 🔄 Asynchronously refresh stale avatars in background (non-blocking)
+      if (staleAvatarUserIds.length > 0) {
+        console.log(`🔄 Refreshing ${staleAvatarUserIds.length} stale avatars in background...`);
+        
+        // Don't await this - let it happen in background
+        this.refreshStaleAvatars(staleAvatarUserIds)
+          .then((refreshedAvatars) => {
+            if (refreshedAvatars.size > 0) {
+              console.log(`✅ Background refresh completed: ${refreshedAvatars.size} avatars updated`);
+              
+              // Trigger UI update if we have callbacks
+              if (this.uiCallbacks.onFriendsListChange) {
+                // Re-get friends list with fresh avatars and update UI
+                this.getFriendsList().then(updatedFriends => {
+                  this.uiCallbacks.onFriendsListChange(updatedFriends);
+                });
+              }
+            }
+          })
+          .catch(error => {
+            console.error('❌ Background avatar refresh failed:', error);
+          });
+      }
 
       // 🎯 Sort friends by when they became friends (newest first)
       friends.sort((a, b) => {
@@ -1504,7 +1691,12 @@ export class FriendsManager {
         return dateB - dateA;
       });
 
-      console.log(`🎉 Successfully processed ${friends.length} friends`);
+      // 🧹 Cleanup expired caches periodically
+      if (Math.random() < 0.1) { // 10% chance to run cleanup
+        this.cleanupExpiredAvatarCache();
+      }
+
+      console.log(`🎉 Successfully processed ${friends.length} friends with smart avatar caching`);
       return friends;
     } catch (error) {
       console.error("❌ Error getting friends list:", error);
