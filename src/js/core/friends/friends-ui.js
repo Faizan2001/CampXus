@@ -27,6 +27,9 @@ class FriendsUI {
     this.pendingRequestsMap = new Map(); // userId -> requestId
     this.outgoingRequestsMap = new Map(); // userId -> requestData (includes status)
     this.realTimeSubscriptions = [];
+
+    // 🔔 Notification debouncing
+    this.lastFriendsNotificationTime = 0;
   }
 
   /**
@@ -199,6 +202,13 @@ class FriendsUI {
           );
           this.displayFriendRequests(requests);
 
+          // Update pending requests map for search button states
+          const currentUserData = currentUser;
+          if (currentUserData?.uid) {
+            this.updatePendingRequestsMap(requests, currentUserData.uid);
+            this.updateSearchResultsButtons();
+          }
+
           // Show a more subtle notification for request updates
           if (requests.length > 0) {
             this.showRealTimeNotification(
@@ -232,13 +242,19 @@ class FriendsUI {
           );
           this.displayFriendsList(friends);
 
-          // Show a more subtle notification for friends list updates
-          if (friends.length > 0) {
+          // Update search button states (hide buttons for existing friends)
+          this.updateSearchResultsButtons();
+
+          // Show a more subtle notification for friends list updates (debounced)
+          if (friends.length > 0 && 
+              (!this.lastFriendsNotificationTime || 
+               Date.now() - this.lastFriendsNotificationTime > 2000)) {
             this.showRealTimeNotification(
               `${friends.length} friend${
                 friends.length !== 1 ? "s" : ""
               } connected`
             );
+            this.lastFriendsNotificationTime = Date.now();
           }
         },
 
@@ -283,28 +299,8 @@ class FriendsUI {
 
     console.log("📋 Setting up real-time friend request status tracking...");
 
-    // Subscribe to friend requests changes
-    const friendRequestsUnsubscribe = realTimeManager.on(
-      REALTIME_EVENTS.FRIEND_REQUESTS,
-      (requests) => {
-        this.updatePendingRequestsMap(requests, currentUserData.uid);
-        this.updateSearchResultsButtons();
-      }
-    );
-
-    // Subscribe to friendships changes (to hide buttons for existing friends)
-    const friendshipsUnsubscribe = realTimeManager.on(
-      REALTIME_EVENTS.FRIENDSHIPS,
-      (friendships) => {
-        this.updateSearchResultsButtons();
-      }
-    );
-
-    // Store subscriptions for cleanup
-    this.realTimeSubscriptions.push(
-      friendRequestsUnsubscribe,
-      friendshipsUnsubscribe
-    );
+    // NOTE: Real-time subscriptions are handled by setupRealTimeCallbacks() 
+    // to avoid duplicate subscribers. This method only loads initial data.
 
     // Initial load of pending requests
     this.loadInitialPendingRequests(currentUserData.uid);
@@ -1054,8 +1050,11 @@ class FriendsUI {
     // Use avatarManager like in menu.js
     if (hasAvatarConfig && avatarManager && typeof avatarManager.generateAvatarUrl === 'function') {
       try {
-        const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
-        return `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
+        // Always use cache-busting in friends list to ensure fresh avatars
+        // This solves the browser caching issue when avatars change
+        const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig, true);
+        
+        return `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" loading="lazy">`;
       } catch (error) {
         console.error("❌ Error generating avatar URL, falling back to default.", error);
         return this.getAvatarFallback();

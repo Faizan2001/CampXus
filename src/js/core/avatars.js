@@ -409,7 +409,7 @@ class AvatarManager {
    * @param {Object} config - Avatar configuration
    * @returns {string} Complete DiceBear API URL
    */
-  generateAvatarUrl(config) {
+  generateAvatarUrl(config, bustCache = false) {
     if (!config || !config.style || !config.seed) {
       console.warn(
         "⚠️ Invalid config passed to generateAvatarUrl, using fallback."
@@ -423,6 +423,12 @@ class AvatarManager {
     Object.entries(options).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
+    
+    // Optional: Add cache-busting parameter for avatar updates
+    if (bustCache) {
+      params.append('t', Date.now().toString());
+    }
+    
     return `${baseUrl}?${params.toString()}`;
   }
 

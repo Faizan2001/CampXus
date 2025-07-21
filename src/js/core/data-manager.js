@@ -2028,8 +2028,29 @@ class DataManager {
 
             console.log(`👤 Real-time update: Profile changed for ${userId}`);
 
+            // 🔄 Compare with previous cached data to avoid unnecessary syncs
+            const cachedData = this.getCachedData(`user_${userId}`);
+            const hasSignificantChange = !cachedData || 
+              JSON.stringify(cachedData.avatarConfig) !== JSON.stringify(profileData.avatarConfig) ||
+              cachedData.profile?.displayName !== profileData.profile?.displayName ||
+              cachedData.profile?.major !== profileData.profile?.major;
+            
             // Update local cache with fresh data
             this.setCachedData(`user_${userId}`, profileData);
+            
+            if (hasSignificantChange) {
+              console.log("🎨 Significant profile change detected, syncing cached data for friends...");
+              
+              // Clear any avatar cache in friends manager to force fresh data
+              if (typeof window !== 'undefined' && window.friendsManager?.clearAvatarCache) {
+                window.friendsManager.clearAvatarCache(userId);
+              }
+              
+              // Use the function from the same file
+              syncUserDataCache(userId).catch((error) => 
+                console.warn("⚠️ Friend cache sync failed:", error)
+              );
+            }
 
             // Call the callback with the fresh profile data
             callback(profileData);
@@ -2198,6 +2219,7 @@ if (typeof window !== "undefined") {
     },
 
     /**
+     * 
      * Stop all active test listeners
      * Usage: testRealTimeListeners.stopAll()
      */
@@ -2263,18 +2285,49 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Updates cached user data in friendRequests and friendships collections
- * when profile changes (name, avatar, major, etc.)
- *
- * @param {string} userId - The user ID whose cached data should be updated
- * @param {object} newUserInfo - The new user information to cache
+ * 🔄 Synchronize user data across all cached locations (Single Responsibility)
+ * 
+ * This function follows DRY principles by combining data fetching and cache updating.
+ * Call this whenever profile, avatar, name, or major changes.
+ * 
+ * What it does:
+ * 1. Gets fresh user data from database  
+ * 2. Updates cached user info in all friend requests and friendships
+ * 3. Uses batch operations for efficiency
+ * 
+ * @param {string} userId - The user ID whose cache needs synchronization
+ * @param {object} [customUserInfo] - Optional: provide custom user info instead of fetching from DB
+ * @returns {Promise<void>}
  */
-export async function updateCachedUserData(userId, newUserInfo) {
-  console.log("🔄 Updating cached user data for friends...");
-  console.log("📋 User ID:", userId);
-  console.log("📋 New user info:", newUserInfo);
-
+export async function syncUserDataCache(userId, customUserInfo = null) {
   try {
+    console.log("🔄 Synchronizing user data cache for:", userId);
+    
+    let userInfoForCache;
+    
+    if (customUserInfo) {
+      // Use provided data (for efficiency when we already have fresh data)
+      userInfoForCache = customUserInfo;
+      console.log("📋 Using provided user info:", userInfoForCache);
+    } else {
+      // Get latest user data from database
+      const userData = await dataManager.getUserProfile(userId);
+      if (!userData) {
+        console.warn("⚠️ No user data found for cache sync:", userId);
+        return;
+      }
+
+      // Build consistent cache object
+      userInfoForCache = {
+        displayName: userData.profile?.displayName || userData.profile?.firstName || "Unknown",
+        major: userData.profile?.major || "Unknown", 
+        university: userData.universityInfo?.university || "unknown",
+        avatarConfig: userData.avatarConfig || null
+      };
+      console.log("📋 Built cache info from database:", userInfoForCache);
+    }
+
+    // Update all cached locations using batch operations
     const batch = writeBatch(db);
     let updateCount = 0;
 
@@ -2283,17 +2336,9 @@ export async function updateCachedUserData(userId, newUserInfo) {
       query(collection(db, "friendRequests"), where("fromUserId", "==", userId))
     );
 
-    console.log(
-      `📤 Found ${outgoingRequests.size} outgoing friend requests to update`
-    );
+    console.log(`📤 Found ${outgoingRequests.size} outgoing friend requests to update`);
     outgoingRequests.forEach((doc) => {
-      console.log(
-        "📤 Updating outgoing request:",
-        doc.id,
-        "with:",
-        newUserInfo
-      );
-      batch.update(doc.ref, { fromUserInfo: newUserInfo });
+      batch.update(doc.ref, { fromUserInfo: userInfoForCache });
       updateCount++;
     });
 
@@ -2302,39 +2347,25 @@ export async function updateCachedUserData(userId, newUserInfo) {
       query(collection(db, "friendRequests"), where("toUserId", "==", userId))
     );
 
-    console.log(
-      `📥 Found ${incomingRequests.size} incoming friend requests to update`
-    );
+    console.log(`📥 Found ${incomingRequests.size} incoming friend requests to update`);
     incomingRequests.forEach((doc) => {
-      console.log(
-        "📥 Updating incoming request:",
-        doc.id,
-        "with:",
-        newUserInfo
-      );
-      batch.update(doc.ref, { toUserInfo: newUserInfo });
+      batch.update(doc.ref, { toUserInfo: userInfoForCache });
       updateCount++;
     });
 
     // 3. Update friendships where you're involved
     const friendships = await getDocs(
-      query(
-        collection(db, "friendships"),
-        where("users", "array-contains", userId)
-      )
+      query(collection(db, "friendships"), where("users", "array-contains", userId))
     );
 
     console.log(`👥 Found ${friendships.size} friendships to update`);
     friendships.forEach((doc) => {
       const data = doc.data();
-      console.log("👥 Friendship data:", doc.id, data);
       if (data.user1Id === userId) {
-        console.log("👥 Updating user1Info for friendship:", doc.id);
-        batch.update(doc.ref, { user1Info: newUserInfo });
+        batch.update(doc.ref, { user1Info: userInfoForCache });
         updateCount++;
       } else if (data.user2Id === userId) {
-        console.log("👥 Updating user2Info for friendship:", doc.id);
-        batch.update(doc.ref, { user2Info: newUserInfo });
+        batch.update(doc.ref, { user2Info: userInfoForCache });
         updateCount++;
       }
     });
@@ -2342,16 +2373,24 @@ export async function updateCachedUserData(userId, newUserInfo) {
     // 4. Save all updates at once
     if (updateCount > 0) {
       await batch.commit();
-      console.log(
-        `✅ Updated ${updateCount} cached entries with your new info`
-      );
+      console.log(`✅ Updated ${updateCount} cached entries with fresh user info`);
     } else {
       console.log("ℹ️ No cached data to update");
     }
+    
   } catch (error) {
-    console.error("❌ Error updating cached data:", error);
-    // Don't throw - this is not critical for profile saving
+    console.error("❌ Cache sync failed:", error);
+    // Don't throw - this is a background operation
   }
+}
+
+/**
+ * @deprecated Use syncUserDataCache() instead - this function is kept for backward compatibility
+ * Will be removed in future versions
+ */
+export async function updateCachedUserData(userId, newUserInfo) {
+  console.warn("⚠️ updateCachedUserData is deprecated. Use syncUserDataCache() instead.");
+  return syncUserDataCache(userId, newUserInfo);
 }
 
 // --- END OF FILE ---

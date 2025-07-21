@@ -82,7 +82,7 @@ export class FriendsManager {
     if (this.searchCache.size >= this.maxCacheSize) {
       const firstKey = this.searchCache.keys().next().value;
       this.searchCache.delete(firstKey);
-      console.log("🗑️ Removed old cache entry:", firstKey);
+      // Removed old cache entry
     }
 
     this.searchCache.set(cacheKey, {
@@ -137,7 +137,7 @@ export class FriendsManager {
     // If expired, remove and return null
     if (now - cached.timestamp > this.avatarCacheExpiry) {
       this.avatarCache.delete(userId);
-      console.log(`🎨 Avatar cache expired for user: ${userId}`);
+      // Avatar cache expired
       return null;
     }
 
@@ -158,7 +158,7 @@ export class FriendsManager {
     if (this.avatarCache.size >= this.maxAvatarCacheSize) {
       const oldestKey = this.avatarCache.keys().next().value;
       this.avatarCache.delete(oldestKey);
-      console.log(`🗑️ Removed old avatar cache entry: ${oldestKey}`);
+      // Removed old avatar cache entry
     }
 
     this.avatarCache.set(userId, {
@@ -216,7 +216,7 @@ export class FriendsManager {
         });
       }
       
-      console.log(`✅ Refreshed ${refreshedAvatars.size} avatars`);
+      // Refreshed avatars
       return refreshedAvatars;
       
     } catch (error) {
@@ -242,6 +242,26 @@ export class FriendsManager {
     if (cleanedCount > 0) {
       console.log(`🧹 Cleaned up ${cleanedCount} expired avatar cache entries`);
     }
+  }
+
+  /**
+   * 🗑️ Clear avatar cache for a specific user (when their avatar changes)
+   * @param {string} userId - User ID to clear cache for
+   */
+  clearAvatarCache(userId) {
+    if (this.avatarCache.has(userId)) {
+      this.avatarCache.delete(userId);
+      // Cleared avatar cache
+    }
+  }
+
+  /**
+   * 🧹 Clear all avatar cache (for debugging or complete refresh)
+   */
+  clearAllAvatarCache() {
+    const count = this.avatarCache.size;
+    this.avatarCache.clear();
+    console.log(`🧹 Cleared all avatar cache: ${count} entries removed`);
   }
 
   // =========================
@@ -471,7 +491,7 @@ export class FriendsManager {
       friendshipId: friendship.id,
       displayName: friendship.friendInfo?.displayName || "Unknown User",
       major: friendship.friendInfo?.major || "Unknown Major",
-      avatar: friendship.friendInfo?.avatar || null,
+      avatarConfig: friendship.friendInfo?.avatarConfig || null, // ← Fixed: use avatarConfig not avatar
       friendsSince: friendship.createdAt,
       lastInteraction: friendship.lastInteraction,
       connectionStrength: friendship.connectionStrength || "normal",
@@ -535,7 +555,7 @@ export class FriendsManager {
     }
 
     try {
-      console.log(`🔍 Searching for: "${searchTerm}"`);
+      // Searching for students
 
       // 2. Fetch users directly using the optimized search function
       const students = await dataManager.findUsersByUniversity(
@@ -568,7 +588,7 @@ export class FriendsManager {
     }
 
     try {
-      console.log(`🔍 Filtering ${searchResults.length} search results...`);
+      // Filtering search results
 
       // Get current friendships and pending requests for filtering
       // This runs both queries at the same time (parallel = faster!)
@@ -1218,9 +1238,8 @@ export class FriendsManager {
    * 🔄 Clear all cached search results (use when friends list changes)
    */
   clearSearchCache() {
-    const cacheSize = this.searchCache.size;
     this.searchCache.clear();
-    console.log(`🗑️ Cleared ${cacheSize} cached search results`);
+    // Cleared cached search results
   }
 
   /**
@@ -1297,7 +1316,7 @@ export class FriendsManager {
   clearSearchHistory() {
     try {
       localStorage.removeItem("campxus_search_history");
-      console.log("🗑️ Search history cleared");
+      // Search history cleared
     } catch (error) {
       console.warn("Could not clear search history:", error);
     }
@@ -1618,25 +1637,31 @@ export class FriendsManager {
           : friendship.user1Info;
         const friendId = isUser1 ? friendship.user2Id : friendship.user1Id;
 
-        // Check avatar cache first
-        const cachedAvatar = this.getCachedAvatarData(friendId);
+        // Prioritize fresh data from friendship document over cache
         let avatarConfig = friendInfo?.avatarConfig || null;
+        const cachedAvatar = this.getCachedAvatarData(friendId);
 
-        if (cachedAvatar) {
-          // Use cached avatar data
-          avatarConfig = cachedAvatar.avatarConfig;
-          
-          // Mark for refresh if stale
-          if (cachedAvatar.isStale) {
-            staleAvatarUserIds.push(friendId);
-            console.log(`📊 Avatar is stale for user: ${friendId}, will refresh`);
-          }
-        } else if (avatarConfig) {
-          // Cache the avatar data from friendship document
+        // Clear cache if avatar seed has changed to prevent stale data
+        if (avatarConfig?.seed && cachedAvatar?.avatarConfig?.seed && 
+            avatarConfig.seed !== cachedAvatar.avatarConfig.seed) {
+          this.clearAvatarCache(friendId);
+        }
+
+        if (avatarConfig) {
+          // Always use fresh data from friendship document if available
+          // Update cache with the fresh data
           this.setCachedAvatarData(friendId, avatarConfig, {
             displayName: friendInfo?.displayName,
             major: friendInfo?.major
           });
+        } else if (cachedAvatar && !cachedAvatar.isStale) {
+          // Only use cached data if no fresh data AND cache isn't stale
+          avatarConfig = cachedAvatar.avatarConfig;
+        }
+
+        // Mark for background refresh if we have stale cache
+        if (cachedAvatar?.isStale) {
+          staleAvatarUserIds.push(friendId);
         }
 
         friends.push({
@@ -1662,13 +1687,10 @@ export class FriendsManager {
 
       // 🔄 Asynchronously refresh stale avatars in background (non-blocking)
       if (staleAvatarUserIds.length > 0) {
-        console.log(`🔄 Refreshing ${staleAvatarUserIds.length} stale avatars in background...`);
-        
         // Don't await this - let it happen in background
         this.refreshStaleAvatars(staleAvatarUserIds)
           .then((refreshedAvatars) => {
             if (refreshedAvatars.size > 0) {
-              console.log(`✅ Background refresh completed: ${refreshedAvatars.size} avatars updated`);
               
               // Trigger UI update if we have callbacks
               if (this.uiCallbacks.onFriendsListChange) {

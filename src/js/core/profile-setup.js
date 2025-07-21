@@ -36,7 +36,7 @@ import { dataManager } from "./data-manager.js";
 import { currentUser } from "./currentUser.js";
 import { authManager } from "../firebase/auth/auth-manager.js";
 import { navigateTo } from "./spa-init.js"; // 🎯 NEW: Import navigateTo for SPA navigation
-import { updateCachedUserData } from "./data-manager.js"; // 🔄 Cache updater (moved to data-manager)
+import { syncUserDataCache } from "./data-manager.js"; // 🔄 Combined cache sync function (follows DRY principles)
 
 /**
  * =============================================================================
@@ -1286,6 +1286,12 @@ class ProfileSetup {
       currentUser.setProfile(updatedProfile);
       console.log("🎨 Avatar updated in currentUser store");
 
+      // 4. 🔄 NEW: Sync cached user data so friends see avatar changes immediately
+      // Using centralized cache sync for consistency and reliability
+      syncUserDataCache(this.currentUser.uid)
+        .then(() => console.log("✅ Friends will see your updated avatar in real-time!"))
+        .catch((err) => console.log("⚠️ Avatar cache update failed (but profile saved):", err));
+
       // Optionally, show a success message or trigger a UI update here
       // showFormSuccess("profile-form", "Avatar updated successfully!");
     } catch (error) {
@@ -1337,7 +1343,8 @@ class ProfileSetup {
 
       console.log("✅ Profile saved successfully to Firestore");
 
-      // 🔄 NEW: Update cached user data so friends see changes immediately
+      // 🔄 NEW: Sync cached user data so friends see changes immediately
+      // Using the combined function that follows DRY principles
       const userInfoForCache = {
         displayName: profileWithDisplayName.displayName,
         major: profileWithDisplayName.major,
@@ -1346,7 +1353,7 @@ class ProfileSetup {
       };
 
       // Update cache in background (don't wait for it)
-      updateCachedUserData(this.currentUser.uid, userInfoForCache)
+      syncUserDataCache(this.currentUser.uid, userInfoForCache)
         .then(() => console.log("✅ Friends will see your updated info!"))
         .catch((err) =>
           console.log("⚠️ Cache update failed, but profile saved:", err)
