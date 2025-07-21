@@ -157,7 +157,17 @@
           "arrayConfig": "CONTAINS"
         },
         {
-          "fieldPath": "isActive",
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "friendRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "fromUserId",
           "order": "ASCENDING"
         },
         {

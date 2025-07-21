@@ -21,20 +21,21 @@ export class FriendsManager {
     this.unsubscribers = []; // For cleaning up Firestore listeners
     // No more setupAuthentication or initialization here!
     // We will get the user data on-demand.
-    
+
     // 🗄️ Initialize search cache for lightning-fast repeated searches
     this.searchCache = new Map();
     this.maxCacheSize = 20; // Store up to 20 recent searches
     this.cacheExpiry = 5 * 60 * 1000; // Cache expires after 5 minutes
-    
+
     // 🎛️ Real-time integration
     this.isRealTimeActive = false;
     this.uiCallbacks = {
       onFriendRequestsChange: null,
+      onOutgoingFriendRequestsChange: null,
       onFriendsListChange: null,
-      onConnectionStatusChange: null
+      onConnectionStatusChange: null,
     };
-    
+
     console.log("🎛️ FriendsManager initialized with real-time capabilities");
   }
 
@@ -57,7 +58,11 @@ export class FriendsManager {
       return null;
     }
 
-    console.log("📦 Using cached search results for:", cacheKey, `(${cached.results.length} results)`);
+    console.log(
+      "📦 Using cached search results for:",
+      cacheKey,
+      `(${cached.results.length} results)`
+    );
     return cached.results;
   }
 
@@ -76,10 +81,14 @@ export class FriendsManager {
 
     this.searchCache.set(cacheKey, {
       results,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
-    console.log("💾 Cached search results for:", cacheKey, `(${results.length} results)`);
+    console.log(
+      "💾 Cached search results for:",
+      cacheKey,
+      `(${results.length} results)`
+    );
   }
 
   /**
@@ -132,7 +141,19 @@ export class FriendsManager {
       }
     );
 
-    // Subscribe to friendships changes  
+    // Subscribe to outgoing friend requests changes
+    const outgoingRequestsUnsubscribe = realTimeManager.on(
+      REALTIME_EVENTS.OUTGOING_FRIEND_REQUESTS,
+      (requests) => {
+        console.log(
+          "📤 Real-time outgoing friend requests update:",
+          requests.length
+        );
+        this.handleOutgoingFriendRequestsUpdate(requests);
+      }
+    );
+
+    // Subscribe to friendships changes
     const friendshipsUnsubscribe = realTimeManager.on(
       REALTIME_EVENTS.FRIENDSHIPS,
       (friendships) => {
@@ -153,6 +174,7 @@ export class FriendsManager {
     // Store unsubscribers for cleanup
     this.unsubscribers.push(
       friendRequestsUnsubscribe,
+      outgoingRequestsUnsubscribe,
       friendshipsUnsubscribe,
       connectionUnsubscribe
     );
@@ -175,7 +197,7 @@ export class FriendsManager {
     console.log("🛑 Stopping real-time listening for friends...");
 
     // Unsubscribe from all real-time events
-    this.unsubscribers.forEach(unsubscribe => {
+    this.unsubscribers.forEach((unsubscribe) => {
       try {
         unsubscribe();
       } catch (error) {
@@ -196,11 +218,17 @@ export class FriendsManager {
    */
   handleFriendRequestsUpdate(requests) {
     // Transform the data for UI consistency
-    const transformedRequests = requests.map(request => ({
+    const transformedRequests = requests.map((request) => ({
       ...request,
-      displayName: request.displayName || request.fromUserInfo?.displayName || "Unknown User",
+      displayName:
+        request.displayName ||
+        request.fromUserInfo?.displayName ||
+        "Unknown User",
       major: request.major || request.fromUserInfo?.major || "Unknown Major",
-      university: request.university || request.fromUserInfo?.university || "Unknown University"
+      university:
+        request.university ||
+        request.fromUserInfo?.university ||
+        "Unknown University",
     }));
 
     // Notify UI callback if registered
@@ -210,13 +238,101 @@ export class FriendsManager {
   }
 
   /**
+   * 📤 Handle real-time outgoing friend requests updates
+   * @param {Array} requests - Updated outgoing friend requests
+   * @private
+   */
+  handleOutgoingFriendRequestsUpdate(requests) {
+    // Transform the data for UI consistency
+    const transformedRequests = requests.map((request) => ({
+      ...request,
+      displayName:
+        request.displayName ||
+        request.toUserInfo?.displayName ||
+        "Unknown User",
+      major: request.major || request.toUserInfo?.major || "Unknown Major",
+      university:
+        request.university ||
+        request.toUserInfo?.university ||
+        "Unknown University",
+    }));
+
+    // Check for status changes that need notifications
+    this.checkForFriendRequestStatusChanges(transformedRequests);
+
+    // Notify UI callback if registered
+    if (this.uiCallbacks.onOutgoingFriendRequestsChange) {
+      this.uiCallbacks.onOutgoingFriendRequestsChange(transformedRequests);
+    }
+  }
+
+  /**
+   * 🔔 Check for friend request status changes and show notifications
+   * @param {Array} currentRequests - Current outgoing requests
+   * @private
+   */
+  checkForFriendRequestStatusChanges(currentRequests) {
+    // Store previous requests for comparison
+    if (!this.previousOutgoingRequests) {
+      this.previousOutgoingRequests = currentRequests;
+      return;
+    }
+
+    // Find status changes
+    currentRequests.forEach((currentRequest) => {
+      const previousRequest = this.previousOutgoingRequests.find(
+        (req) => req.id === currentRequest.id
+      );
+
+      if (previousRequest && previousRequest.status !== currentRequest.status) {
+        this.showFriendRequestStatusNotification(
+          currentRequest,
+          previousRequest.status
+        );
+      }
+    });
+
+    // Update previous requests
+    this.previousOutgoingRequests = currentRequests;
+  }
+
+  /**
+   * 🔔 Show notification for friend request status change
+   * @param {Object} request - The friend request that changed
+   * @param {string} previousStatus - Previous status
+   * @private
+   */
+  showFriendRequestStatusNotification(request, previousStatus) {
+    // Only import notification manager when needed
+    import("../notification-manager.js")
+      .then(({ notificationManager }) => {
+        if (request.status === "accepted") {
+          notificationManager.showFriendAcceptedNotification({
+            displayName: request.displayName,
+            major: request.major,
+            university: request.university,
+          });
+        } else if (request.status === "rejected") {
+          notificationManager.showSystemNotification(
+            `${request.displayName} declined your friend request`,
+            "info",
+            "Friend Request Update"
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("❌ Error loading notification manager:", error);
+      });
+  }
+
+  /**
    * 🤝 Handle real-time friendships updates
    * @param {Array} friendships - Updated friendships
    * @private
    */
   handleFriendshipsUpdate(friendships) {
     // Transform friendships data to match existing format
-    const transformedFriends = friendships.map(friendship => ({
+    const transformedFriends = friendships.map((friendship) => ({
       id: friendship.friendId,
       friendshipId: friendship.id,
       displayName: friendship.friendInfo?.displayName || "Unknown User",
@@ -226,7 +342,7 @@ export class FriendsManager {
       lastInteraction: friendship.lastInteraction,
       connectionStrength: friendship.connectionStrength || "normal",
       isOnline: false,
-      mutualFriends: friendship.mutualFriends || 0
+      mutualFriends: friendship.mutualFriends || 0,
     }));
 
     // Notify UI callback if registered
@@ -242,7 +358,7 @@ export class FriendsManager {
    */
   handleConnectionStatusUpdate(status) {
     console.log("📡 Connection status update:", status);
-    
+
     // Notify UI callback if registered
     if (this.uiCallbacks.onConnectionStatusChange) {
       this.uiCallbacks.onConnectionStatusChange(status);
@@ -256,8 +372,10 @@ export class FriendsManager {
   registerUICallbacks(callbacks) {
     this.uiCallbacks = {
       onFriendRequestsChange: callbacks.onFriendRequestsChange || null,
+      onOutgoingFriendRequestsChange:
+        callbacks.onOutgoingFriendRequestsChange || null,
       onFriendsListChange: callbacks.onFriendsListChange || null,
-      onConnectionStatusChange: callbacks.onConnectionStatusChange || null
+      onConnectionStatusChange: callbacks.onConnectionStatusChange || null,
     };
 
     console.log("🎯 UI callbacks registered for real-time updates");
@@ -272,7 +390,9 @@ export class FriendsManager {
     // 1. Get the current user's profile, waiting for it if necessary.
     const userProfile = await currentUser.waitForProfile();
     if (!userProfile) {
-      console.error("❌ User profile not loaded or user not logged in. Cannot search.");
+      console.error(
+        "❌ User profile not loaded or user not logged in. Cannot search."
+      );
       return [];
     }
 
@@ -293,7 +413,9 @@ export class FriendsManager {
       // 3. Use our smart filtering to exclude friends and pending requests
       const filteredStudents = await this.filterSearchResults(students);
 
-      console.log(`✅ Found ${filteredStudents.length} students matching "${searchTerm}"`);
+      console.log(
+        `✅ Found ${filteredStudents.length} students matching "${searchTerm}"`
+      );
       return filteredStudents;
     } catch (error) {
       console.error("❌ Error searching students:", error);
@@ -318,17 +440,19 @@ export class FriendsManager {
       // This runs both queries at the same time (parallel = faster!)
       const [friendships, pendingRequests] = await Promise.all([
         this.getFriendsList(),
-        this.getPendingRequests()
+        this.getPendingRequests(),
       ]);
 
       // Create fast lookup sets (like a phone book index - super fast!)
-      const friendIds = new Set(friendships.map(f => f.id));
-      const pendingIds = new Set(pendingRequests.map(r => r.fromUserId));
+      const friendIds = new Set(friendships.map((f) => f.id));
+      const pendingIds = new Set(pendingRequests.map((r) => r.fromUserId));
 
-      console.log(`📊 Excluding: ${friendIds.size} friends, ${pendingIds.size} pending requests`);
+      console.log(
+        `📊 Excluding: ${friendIds.size} friends, ${pendingIds.size} pending requests`
+      );
 
       // Filter out unwanted results
-      const filteredResults = searchResults.filter(student => {
+      const filteredResults = searchResults.filter((student) => {
         // Exclude self (double-check, just in case)
         if (student.id === currentUser.uid) {
           return false;
@@ -342,20 +466,23 @@ export class FriendsManager {
 
         // Exclude users we already sent requests to
         if (pendingIds.has(student.id)) {
-          console.log(`📤 Skipping pending request: ${student.profile?.displayName}`);
+          console.log(
+            `📤 Skipping pending request: ${student.profile?.displayName}`
+          );
           return false;
         }
 
         return true; // This person is available for new friend request!
       });
 
-      console.log(`✅ ${filteredResults.length} students available for friend requests`);
+      console.log(
+        `✅ ${filteredResults.length} students available for friend requests`
+      );
       return filteredResults;
-
     } catch (error) {
       console.error("❌ Error filtering search results:", error);
       // If filtering fails, just return the original results minus current user
-      return searchResults.filter(student => student.id !== currentUser.uid);
+      return searchResults.filter((student) => student.id !== currentUser.uid);
     }
   }
 
@@ -386,7 +513,6 @@ export class FriendsManager {
 
       console.log(`✅ Found ${filteredStudents.length} ${major} students`);
       return filteredStudents;
-
     } catch (error) {
       console.error("❌ Error searching by major:", error);
       return [];
@@ -407,22 +533,22 @@ export class FriendsManager {
       results: resultCount,
       time: Math.round(searchTime), // Round to whole milliseconds
       timestamp: new Date().toISOString(),
-      university: currentUser.profile?.universityInfo?.university || 'unknown'
+      university: currentUser.profile?.universityInfo?.university || "unknown",
     };
 
     // Color-coded performance logging
-    const timeColor = searchTime < 500 ? '🟢' : searchTime < 1000 ? '🟡' : '🔴';
+    const timeColor = searchTime < 500 ? "🟢" : searchTime < 1000 ? "🟡" : "🔴";
     console.log(`📊 Search Performance ${timeColor}:`, {
       type: searchType,
       term: searchTerm,
       results: `${resultCount} results`,
       speed: `${Math.round(searchTime)}ms`,
-      rating: searchTime < 500 ? 'FAST' : searchTime < 1000 ? 'OK' : 'SLOW'
+      rating: searchTime < 500 ? "FAST" : searchTime < 1000 ? "OK" : "SLOW",
     });
 
     // TODO: In a real app, you'd send this to an analytics service
     // analytics.track('friend_search_performance', metrics);
-    
+
     return metrics;
   }
 
@@ -440,15 +566,20 @@ export class FriendsManager {
       const searchTime = endTime - startTime;
 
       // Log performance metrics
-      this.logSearchMetrics('name_search', results.length, searchTime, searchTerm);
+      this.logSearchMetrics(
+        "name_search",
+        results.length,
+        searchTime,
+        searchTerm
+      );
 
       return results;
     } catch (error) {
       const endTime = performance.now();
       const searchTime = endTime - startTime;
-      
+
       // Log failed search metrics
-      this.logSearchMetrics('name_search_error', 0, searchTime, searchTerm);
+      this.logSearchMetrics("name_search_error", 0, searchTime, searchTerm);
       throw error;
     }
   }
@@ -467,15 +598,15 @@ export class FriendsManager {
       const searchTime = endTime - startTime;
 
       // Log performance metrics
-      this.logSearchMetrics('major_search', results.length, searchTime, major);
+      this.logSearchMetrics("major_search", results.length, searchTime, major);
 
       return results;
     } catch (error) {
       const endTime = performance.now();
       const searchTime = endTime - startTime;
-      
+
       // Log failed search metrics
-      this.logSearchMetrics('major_search_error', 0, searchTime, major);
+      this.logSearchMetrics("major_search_error", 0, searchTime, major);
       throw error;
     }
   }
@@ -510,7 +641,7 @@ export class FriendsManager {
     if (results.length > 0) {
       this.setCachedSearchResults(cacheKey, results);
       // Add to search history for future suggestions
-      this.addToSearchHistory(searchTerm, 'smart');
+      this.addToSearchHistory(searchTerm, "smart");
     }
 
     return results;
@@ -527,11 +658,11 @@ export class FriendsManager {
     try {
       // Determine search type and run appropriate searches in parallel
       const searchPromises = [];
-      
+
       // Always search names and majors
       searchPromises.push(
-        this.searchStudentsWithMetrics(searchTerm),      // Search names
-        this.searchByMajorWithMetrics(searchTerm)        // Search majors
+        this.searchStudentsWithMetrics(searchTerm), // Search names
+        this.searchByMajorWithMetrics(searchTerm) // Search majors
       );
 
       // Add ID/email search if the term looks like a student ID
@@ -541,26 +672,43 @@ export class FriendsManager {
 
       // Run all searches in parallel for maximum speed! 🚀
       const searchResults = await Promise.all(searchPromises);
-      
+
       const [nameResults, majorResults, idResults = []] = searchResults;
 
       // Combine and deduplicate results with intelligent ranking
-      const combinedResults = this.combineAndRankResults(nameResults, majorResults, idResults, searchTerm);
+      const combinedResults = this.combineAndRankResults(
+        nameResults,
+        majorResults,
+        idResults,
+        searchTerm
+      );
 
       const endTime = performance.now();
       const searchTime = endTime - startTime;
 
       // Log smart search performance
-      this.logSearchMetrics('smart_search', combinedResults.length, searchTime, searchTerm);
+      this.logSearchMetrics(
+        "smart_search",
+        combinedResults.length,
+        searchTime,
+        searchTerm
+      );
 
       return combinedResults;
-
     } catch (error) {
       const endTime = performance.now();
-      this.logSearchMetrics('smart_search_error', 0, endTime - startTime, searchTerm);
-      
+      this.logSearchMetrics(
+        "smart_search_error",
+        0,
+        endTime - startTime,
+        searchTerm
+      );
+
       // Fallback to name search only if other searches fail
-      console.warn("🔄 Smart search partially failed, falling back to name search:", error);
+      console.warn(
+        "🔄 Smart search partially failed, falling back to name search:",
+        error
+      );
       return await this.searchStudentsWithMetrics(searchTerm);
     }
   }
@@ -572,16 +720,16 @@ export class FriendsManager {
    */
   isLikelyStudentId(term) {
     const cleanTerm = term.trim();
-    
+
     // Check if it's all digits (student ID pattern)
     const isAllDigits = /^\d+$/.test(cleanTerm);
-    
+
     // Check if it's an email with ID pattern (2230992@iub.edu.bd)
     const isStudentEmail = /^\d{7}@\w+\.\w+\.\w+$/.test(cleanTerm);
-    
+
     // Privacy protection: require at least 4 digits for ID search
     const isLongEnough = cleanTerm.length >= 4;
-    
+
     return isLongEnough && (isAllDigits || isStudentEmail);
   }
 
@@ -598,12 +746,21 @@ export class FriendsManager {
       const endTime = performance.now();
       const searchTime = endTime - startTime;
 
-      this.logSearchMetrics('id_search', results.length, searchTime, searchTerm);
+      this.logSearchMetrics(
+        "id_search",
+        results.length,
+        searchTime,
+        searchTerm
+      );
       return results;
-
     } catch (error) {
       const endTime = performance.now();
-      this.logSearchMetrics('id_search_error', 0, endTime - startTime, searchTerm);
+      this.logSearchMetrics(
+        "id_search_error",
+        0,
+        endTime - startTime,
+        searchTerm
+      );
       throw error;
     }
   }
@@ -620,13 +777,13 @@ export class FriendsManager {
     }
 
     const cleanTerm = searchTerm.trim().toLowerCase();
-    
+
     try {
       console.log(`🆔 Searching by ID/email: "${cleanTerm}"`);
 
       // Progressive privacy based on term length
       let maxResults = this.getIdSearchLimit(cleanTerm);
-      
+
       // Use the data manager to find users by ID/email
       const students = await dataManager.findUsersByIdOrEmail(
         userProfile.universityInfo.university,
@@ -637,9 +794,10 @@ export class FriendsManager {
       // Apply smart filtering to exclude friends/pending requests
       const filteredStudents = await this.filterSearchResults(students);
 
-      console.log(`✅ Found ${filteredStudents.length} students matching ID/email "${cleanTerm}"`);
+      console.log(
+        `✅ Found ${filteredStudents.length} students matching ID/email "${cleanTerm}"`
+      );
       return filteredStudents;
-
     } catch (error) {
       console.error("❌ Error searching by ID/email:", error);
       return [];
@@ -653,13 +811,13 @@ export class FriendsManager {
    */
   getIdSearchLimit(term) {
     const length = term.length;
-    
+
     if (length >= 7) {
       return 10; // Full ID (7+ digits) - more specific, allow more results
     } else if (length >= 5) {
-      return 5;  // Partial but specific (5-6 digits) - moderate results
+      return 5; // Partial but specific (5-6 digits) - moderate results
     } else {
-      return 3;  // Short partial (4 digits) - very limited results for privacy
+      return 3; // Short partial (4 digits) - very limited results for privacy
     }
   }
 
@@ -676,32 +834,32 @@ export class FriendsManager {
     const term = searchTerm.toLowerCase();
 
     // Add ID/email results first (highest priority - most specific)
-    idResults.forEach(user => {
+    idResults.forEach((user) => {
       resultsMap.set(user.id, {
         ...user,
-        matchType: 'id',
-        relevance: this.calculateIdRelevance(user, term)
+        matchType: "id",
+        relevance: this.calculateIdRelevance(user, term),
       });
     });
 
     // Add name results (high priority)
-    nameResults.forEach(user => {
+    nameResults.forEach((user) => {
       if (!resultsMap.has(user.id)) {
         resultsMap.set(user.id, {
           ...user,
-          matchType: 'name',
-          relevance: this.calculateNameRelevance(user, term)
+          matchType: "name",
+          relevance: this.calculateNameRelevance(user, term),
         });
       }
     });
 
     // Add major results (lower priority - least specific)
-    majorResults.forEach(user => {
+    majorResults.forEach((user) => {
       if (!resultsMap.has(user.id)) {
         resultsMap.set(user.id, {
           ...user,
-          matchType: 'major',
-          relevance: this.calculateMajorRelevance(user, term)
+          matchType: "major",
+          relevance: this.calculateMajorRelevance(user, term),
         });
       }
     });
@@ -711,8 +869,10 @@ export class FriendsManager {
       .sort((a, b) => b.relevance - a.relevance)
       .slice(0, 15); // Limit to top 15 results
 
-    console.log(`🧠 Smart search combined: ${idResults.length} ID + ${nameResults.length} name + ${majorResults.length} major = ${rankedResults.length} total results`);
-    
+    console.log(
+      `🧠 Smart search combined: ${idResults.length} ID + ${nameResults.length} name + ${majorResults.length} major = ${rankedResults.length} total results`
+    );
+
     return rankedResults;
   }
 
@@ -723,14 +883,14 @@ export class FriendsManager {
    * @returns {number} Relevance score (higher = better match)
    */
   calculateIdRelevance(user, term) {
-    const userEmail = user.email?.toLowerCase() || '';
+    const userEmail = user.email?.toLowerCase() || "";
     const userId = this.extractIdFromEmail(userEmail);
-    
+
     let score = 0;
 
     // Check if term is an email or just an ID
-    const isEmailSearch = term.includes('@');
-    
+    const isEmailSearch = term.includes("@");
+
     if (isEmailSearch) {
       // Exact email match = highest score
       if (userEmail === term) score += 200;
@@ -757,32 +917,31 @@ export class FriendsManager {
    * @returns {string} Student ID (e.g., "2230992")
    */
   extractIdFromEmail(email) {
-    if (!email || !email.includes('@')) return '';
-    return email.split('@')[0];
+    if (!email || !email.includes("@")) return "";
+    return email.split("@")[0];
   }
 
   /**
    * 📊 Calculate relevance score for name matches
    * @param {Object} user - User object
-   * @param {string} term - Search term  
+   * @param {string} term - Search term
    * @returns {number} Relevance score (higher = better match)
    */
   calculateNameRelevance(user, term) {
-    const displayName = user.profile?.displayName?.toLowerCase() || '';
-    const firstName = user.profile?.firstName?.toLowerCase() || '';
-    const lastName = user.profile?.lastName?.toLowerCase() || '';
+    const displayName = user.profile?.displayName?.toLowerCase() || "";
+    const firstName = user.profile?.firstName?.toLowerCase() || "";
+    const lastName = user.profile?.lastName?.toLowerCase() || "";
 
     let score = 0;
 
     // Exact name match = highest score
     if (displayName === term) score += 100;
     else if (firstName === term || lastName === term) score += 90;
-    
     // Name starts with term = high score
     else if (displayName.startsWith(term)) score += 80;
-    else if (firstName.startsWith(term) || lastName.startsWith(term)) score += 70;
-    
-    // Name contains term = medium score  
+    else if (firstName.startsWith(term) || lastName.startsWith(term))
+      score += 70;
+    // Name contains term = medium score
     else if (displayName.includes(term)) score += 50;
     else if (firstName.includes(term) || lastName.includes(term)) score += 40;
 
@@ -796,19 +955,16 @@ export class FriendsManager {
    * @returns {number} Relevance score (higher = better match)
    */
   calculateMajorRelevance(user, term) {
-    const major = user.profile?.major?.toLowerCase() || '';
-    
+    const major = user.profile?.major?.toLowerCase() || "";
+
     let score = 0;
 
     // Common major abbreviations (CSE, CSC, etc.)
     if (this.isCommonMajorAbbreviation(term, major)) score += 85;
-    
     // Exact major match
     else if (major === term) score += 80;
-    
     // Major starts with term
     else if (major.startsWith(term)) score += 70;
-    
     // Major contains term
     else if (major.includes(term)) score += 60;
 
@@ -822,48 +978,71 @@ export class FriendsManager {
    * @returns {boolean} True if it's a common abbreviation match
    */
   isCommonMajorAbbreviation(term, major) {
-   const abbreviations = {
+    const abbreviations = {
       // Computer Science & Engineering
-      'cse': ['CSE', 'computer', 'computer science', 'computer science and engineering'],
-      'csc': ['CSC', 'computer','computer science'],
-      'cs': ['CS', 'computer', 'computer science'],
-      'cen' : ['CEN', 'computer engineering'],
-      'ece': ['ECE', 'electric','electrical','electrical and computer engineering', 'electronics and communication'],
-      'eee': ['EEE', 'electric','electrical', 'electrical and electronics engineering'],
-      'mecha': ['ME', 'mechanical','mechanical engineering'],
-      'ce': ['CE', 'civil engineering'],
+      cse: [
+        "CSE",
+        "computer",
+        "computer science",
+        "computer science and engineering",
+      ],
+      csc: ["CSC", "computer", "computer science"],
+      cs: ["CS", "computer", "computer science"],
+      cen: ["CEN", "computer engineering"],
+      ece: [
+        "ECE",
+        "electric",
+        "electrical",
+        "electrical and computer engineering",
+        "electronics and communication",
+      ],
+      eee: [
+        "EEE",
+        "electric",
+        "electrical",
+        "electrical and electronics engineering",
+      ],
+      mecha: ["ME", "mechanical", "mechanical engineering"],
+      ce: ["CE", "civil engineering"],
 
       // Business Majors
-      'bba': ['BBA', 'business', 'bachelor of business administration', 'business administration'],
-      'mba': ['MBA', 'master of business administration'],
-      'inb': ['INB', 'iternational business', 'international business studies'],
-      'bus': ['BUS', 'business', 'business studies'],
-      'fin': ['FIN', 'finance', 'financial studies'],
-      'acn': ['ACN', 'accounting', 'accountancy'],
-      'mgt': ['MGT', 'management', 'management studies'],
-      'mkt': ['MKT', 'marketing', 'marketing studies'],
-      'hrm': ['HRM', 'human resource management', 'human resources'],
+      bba: [
+        "BBA",
+        "business",
+        "bachelor of business administration",
+        "business administration",
+      ],
+      mba: ["MBA", "master of business administration"],
+      inb: ["INB", "iternational business", "international business studies"],
+      bus: ["BUS", "business", "business studies"],
+      fin: ["FIN", "finance", "financial studies"],
+      acn: ["ACN", "accounting", "accountancy"],
+      mgt: ["MGT", "management", "management studies"],
+      mkt: ["MKT", "marketing", "marketing studies"],
+      hrm: ["HRM", "human resource management", "human resources"],
 
       // Science Majors
-      'math': ['MATH', 'mathematics'],
-      'bio': ['BIO', 'biology', 'biotechnology'],
-      'chem': ['CHEM', 'chemistry'],
-      'phy': ['PHY', 'physics'],
-      'microbio': ['MCB','MICROBIO', 'microbiology', 'microbial biology'],
-      'env': ['ENV', 'environmental science', 'environmental studies'],
+      math: ["MATH", "mathematics"],
+      bio: ["BIO", "biology", "biotechnology"],
+      chem: ["CHEM", "chemistry"],
+      phy: ["PHY", "physics"],
+      microbio: ["MCB", "MICROBIO", "microbiology", "microbial biology"],
+      env: ["ENV", "environmental science", "environmental studies"],
 
       // Communication & Law
-      'cmn' : ['CMN', 'communication', 'mass communication'],
-      'law': ['LAW', 'legal', 'law studies'],
-      'eng': ['ENG', 'english', 'english studies'],
+      cmn: ["CMN", "communication", "mass communication"],
+      law: ["LAW", "legal", "law studies"],
+      eng: ["ENG", "english", "english studies"],
 
       // Economics & Global Studies
-      'econ': ['ECON', 'economics'],
-      'gsg': ['GSG', 'global studies', 'global affairs'],
+      econ: ["ECON", "economics"],
+      gsg: ["GSG", "global studies", "global affairs"],
     };
 
     const possibleMajors = abbreviations[term];
-    return possibleMajors ? possibleMajors.some(maj => major.includes(maj)) : false;
+    return possibleMajors
+      ? possibleMajors.some((maj) => major.includes(maj))
+      : false;
   }
 
   /**
@@ -878,7 +1057,9 @@ export class FriendsManager {
     }
 
     // Create unique cache key for major searches
-    const cacheKey = `major_${major.toLowerCase()}_${userProfile.universityInfo.university}`;
+    const cacheKey = `major_${major.toLowerCase()}_${
+      userProfile.universityInfo.university
+    }`;
 
     // Try cache first
     const cachedResults = this.getCachedSearchResults(cacheKey);
@@ -893,7 +1074,7 @@ export class FriendsManager {
     if (results.length > 0) {
       this.setCachedSearchResults(cacheKey, results);
       // Add to search history for future suggestions
-      this.addToSearchHistory(major, 'major');
+      this.addToSearchHistory(major, "major");
     }
 
     return results;
@@ -913,25 +1094,26 @@ export class FriendsManager {
    * @param {string} searchTerm - Term that was searched
    * @param {string} searchType - Type of search ("name" or "major")
    */
-  addToSearchHistory(searchTerm, searchType = 'name') {
+  addToSearchHistory(searchTerm, searchType = "name") {
     if (!searchTerm || searchTerm.length < 2) return;
 
     try {
       // Get existing history from localStorage
-      const historyKey = 'campxus_search_history';
-      let history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      const historyKey = "campxus_search_history";
+      let history = JSON.parse(localStorage.getItem(historyKey) || "[]");
 
       // Create search entry
       const searchEntry = {
         term: searchTerm,
         type: searchType,
         timestamp: Date.now(),
-        university: currentUser.profile?.universityInfo?.university || 'unknown'
+        university:
+          currentUser.profile?.universityInfo?.university || "unknown",
       };
 
       // Remove if already exists (to move it to top)
-      history = history.filter(entry => 
-        entry.term !== searchTerm || entry.type !== searchType
+      history = history.filter(
+        (entry) => entry.term !== searchTerm || entry.type !== searchType
       );
 
       // Add to beginning of array
@@ -955,16 +1137,16 @@ export class FriendsManager {
    */
   getSearchHistory() {
     try {
-      const historyKey = 'campxus_search_history';
-      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
-      
+      const historyKey = "campxus_search_history";
+      const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
+
       // Filter to current university and recent searches (last 7 days)
-      const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
       const currentUniversity = currentUser.profile?.universityInfo?.university;
-      
-      const filteredHistory = history.filter(entry => 
-        entry.timestamp > weekAgo && 
-        entry.university === currentUniversity
+
+      const filteredHistory = history.filter(
+        (entry) =>
+          entry.timestamp > weekAgo && entry.university === currentUniversity
       );
 
       console.log(`📖 Found ${filteredHistory.length} recent searches`);
@@ -980,7 +1162,7 @@ export class FriendsManager {
    */
   clearSearchHistory() {
     try {
-      localStorage.removeItem('campxus_search_history');
+      localStorage.removeItem("campxus_search_history");
       console.log("🗑️ Search history cleared");
     } catch (error) {
       console.warn("Could not clear search history:", error);
@@ -997,7 +1179,10 @@ export class FriendsManager {
     // 1. Get the current user's profile, waiting for it if necessary.
     const userProfile = await currentUser.waitForProfile();
     if (!userProfile) {
-      return { success: false, message: "Please log in to send friend requests." };
+      return {
+        success: false,
+        message: "Please log in to send friend requests.",
+      };
     }
 
     if (!targetUserId || !targetUserData) {
@@ -1006,7 +1191,10 @@ export class FriendsManager {
     }
 
     if (targetUserId === currentUser.uid) {
-      return { success: false, message: "You cannot send a friend request to yourself!" };
+      return {
+        success: false,
+        message: "You cannot send a friend request to yourself!",
+      };
     }
 
     try {
@@ -1027,6 +1215,8 @@ export class FriendsManager {
         } else if (existingRequest.status === "accepted") {
           return { success: false, message: "You are already friends!" };
         }
+        // If status is "rejected", allow sending a new request
+        // The existing rejected request will remain in the database for history
       }
 
       // 3. Create the friend request object
@@ -1053,13 +1243,22 @@ export class FriendsManager {
 
       if (result.success) {
         console.log("✅ Friend request sent successfully!");
-        return { success: true, message: `Friend request sent to ${targetUserData.profile.displayName}!` };
+        return {
+          success: true,
+          message: `Friend request sent to ${targetUserData.profile.displayName}!`,
+        };
       } else {
-        return { success: false, message: "Failed to send friend request. Please try again." };
+        return {
+          success: false,
+          message: "Failed to send friend request. Please try again.",
+        };
       }
     } catch (error) {
       console.error("❌ Error sending friend request:", error);
-      return { success: false, message: "Something went wrong. Please try again." };
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
     }
   }
 
@@ -1075,8 +1274,13 @@ export class FriendsManager {
     }
 
     try {
-      console.log("📬 Getting pending requests for:", userProfile.profile.displayName);
-      const pendingRequests = await dataManager.getPendingFriendRequests(currentUser.uid);
+      console.log(
+        "📬 Getting pending requests for:",
+        userProfile.profile.displayName
+      );
+      const pendingRequests = await dataManager.getPendingFriendRequests(
+        currentUser.uid
+      );
       console.log(`✅ Found ${pendingRequests.length} pending friend requests`);
       return pendingRequests.map((request) => ({
         ...request,
@@ -1144,9 +1348,8 @@ export class FriendsManager {
         user2Info: {
           displayName: requestData.toUserInfo.displayName,
           major: requestData.toUserInfo.major,
-          avatar:
-            requestData.toUserInfo.avatar || userProfile.avatarConfig,
-        }
+          avatar: requestData.toUserInfo.avatar || userProfile.avatarConfig,
+        },
       };
 
       const friendshipResult = await dataManager.createFriendship(
@@ -1158,10 +1361,16 @@ export class FriendsManager {
         return { success: false, message: "Failed to create friendship" };
       }
 
-      // 🎯 STEP 2: Delete the friend request (cleanup)
-      const deleteResult = await dataManager.deleteFriendRequest(requestId);
-      if (!deleteResult.success) {
-        console.warn("⚠️ Friendship created but failed to delete request:", deleteResult.error);
+      // 🎯 STEP 2: Update friend request status to "accepted" (don't delete)
+      const updateResult = await dataManager.updateFriendRequestStatus(
+        requestId,
+        "accepted"
+      );
+      if (!updateResult.success) {
+        console.warn(
+          "⚠️ Friendship created but failed to update request status:",
+          updateResult.error
+        );
         // Don't fail the operation, just log the warning
       }
 
@@ -1207,9 +1416,12 @@ export class FriendsManager {
       const senderName = requestData?.fromUserInfo?.displayName || "User";
       console.log("❌ Rejecting friend request from:", senderName);
 
-      // 🎯 Simply delete the friend request
-      // No friendship document is created, no counters updated
-      const result = await dataManager.deleteFriendRequest(requestId);
+      // 🎯 Update friend request status to "rejected" (don't delete)
+      // This allows the sender to see the rejection and send a new request later
+      const result = await dataManager.updateFriendRequestStatus(
+        requestId,
+        "rejected"
+      );
 
       if (result.success) {
         console.log("✅ Friend request rejected successfully");
@@ -1244,7 +1456,10 @@ export class FriendsManager {
     }
 
     try {
-      console.log("👥 Getting friends list for:", userProfile.profile.displayName);
+      console.log(
+        "👥 Getting friends list for:",
+        userProfile.profile.displayName
+      );
       const friendships = await dataManager.getUserFriendships(currentUser.uid);
 
       if (!friendships.length) {

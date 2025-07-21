@@ -24,6 +24,7 @@ class FriendsUI {
 
     // 📋 Real-time friend request tracking for search results
     this.pendingRequestsMap = new Map(); // userId -> requestId
+    this.outgoingRequestsMap = new Map(); // userId -> requestData (includes status)
     this.realTimeSubscriptions = [];
   }
 
@@ -207,6 +208,22 @@ class FriendsUI {
           }
         },
 
+        onOutgoingFriendRequestsChange: (requests) => {
+          console.log(
+            "📤 Real-time outgoing friend requests update in UI:",
+            requests.length
+          );
+
+          // Update outgoing requests map for button states
+          this.updateOutgoingRequestsMap(requests);
+
+          // Update search results buttons based on outgoing request status
+          this.updateSearchResultsButtons();
+
+          // Re-filter search results to hide accepted friend requests
+          this.filterSearchResultsForAcceptedRequests();
+        },
+
         onFriendsListChange: (friends) => {
           console.log(
             "🤝 Real-time friends list update in UI:",
@@ -301,32 +318,22 @@ class FriendsUI {
   async loadInitialPendingRequests(currentUserId) {
     try {
       console.log(
-        `📋 Loading initial pending requests for user: ${currentUserId}`
+        `📋 Loading initial outgoing requests for user: ${currentUserId}`
       );
 
-      // Get outgoing pending requests (requests I sent)
-      const outgoingRequests = await dataManager.getOutgoingFriendRequests(
+      // Get ALL outgoing requests (not just pending ones)
+      const outgoingRequests = await dataManager.getAllOutgoingFriendRequests(
         currentUserId
       );
 
-      // Update the pending requests map
-      this.pendingRequestsMap.clear();
-      outgoingRequests.forEach((request) => {
-        console.log(
-          `📋 Adding pending request: ${request.fromUserId} -> ${request.toUserId}`
-        );
-        this.pendingRequestsMap.set(request.toUserId, request.id);
-      });
+      // Update the outgoing requests map
+      this.updateOutgoingRequestsMap(outgoingRequests);
 
       console.log(
-        `📋 Loaded ${outgoingRequests.length} pending outgoing requests`
-      );
-      console.log(
-        `📋 Pending requests map:`,
-        Array.from(this.pendingRequestsMap.entries())
+        `📋 Loaded ${outgoingRequests.length} initial outgoing requests`
       );
     } catch (error) {
-      console.error("❌ Error loading initial pending requests:", error);
+      console.error("❌ Error loading initial outgoing requests:", error);
     }
   }
 
@@ -339,18 +346,42 @@ class FriendsUI {
     // Clear and rebuild the map
     this.pendingRequestsMap.clear();
 
-    // Only track outgoing pending requests (requests current user sent)
-    const outgoingPendingRequests = requests.filter(
+    // Only track incoming pending requests (requests TO current user)
+    const incomingPendingRequests = requests.filter(
       (request) =>
-        request.fromUserId === currentUserId && request.status === "pending"
+        request.toUserId === currentUserId && request.status === "pending"
     );
 
-    outgoingPendingRequests.forEach((request) => {
-      this.pendingRequestsMap.set(request.toUserId, request.id);
+    incomingPendingRequests.forEach((request) => {
+      this.pendingRequestsMap.set(request.fromUserId, request.id);
     });
 
     console.log(
-      `📋 Updated pending requests map: ${this.pendingRequestsMap.size} pending`
+      `📋 Updated pending requests map: ${this.pendingRequestsMap.size} incoming pending`
+    );
+  }
+
+  /**
+   * 📋 Update the outgoing requests map when real-time changes occur
+   * @param {Array} requests - All outgoing friend requests from real-time listener
+   */
+  updateOutgoingRequestsMap(requests) {
+    // Clear and rebuild the map
+    this.outgoingRequestsMap.clear();
+
+    // Store all outgoing requests with their current status
+    requests.forEach((request) => {
+      this.outgoingRequestsMap.set(request.toUserId, {
+        id: request.id,
+        status: request.status,
+        displayName: request.displayName,
+        createdAt: request.createdAt,
+        respondedAt: request.respondedAt,
+      });
+    });
+
+    console.log(
+      `📋 Updated outgoing requests map: ${this.outgoingRequestsMap.size} total requests`
     );
   }
 
@@ -370,12 +401,12 @@ class FriendsUI {
     const studentCards = searchResults.querySelectorAll(".student-card");
     console.log(`📋 Updating ${studentCards.length} search result buttons`);
 
-    // If pending requests map is empty (e.g., after browser reload), reload it
-    if (this.pendingRequestsMap.size === 0) {
+    // If outgoing requests map is empty (e.g., after browser reload), reload it
+    if (this.outgoingRequestsMap.size === 0) {
       const currentUserData = currentUser;
       if (currentUserData?.uid) {
         console.log(
-          "📋 Pending requests map empty, reloading from database..."
+          "📋 Outgoing requests map empty, reloading from database..."
         );
         await this.loadInitialPendingRequests(currentUserData.uid);
       }
@@ -392,10 +423,15 @@ class FriendsUI {
         return;
       }
 
-      // Check if there's a pending request to this user
-      const hasPendingRequest = this.pendingRequestsMap.has(studentId);
+      // Check if there's a pending outgoing request to this user
+      const outgoingRequest = this.outgoingRequestsMap.get(studentId);
+      const hasPendingRequest =
+        outgoingRequest && outgoingRequest.status === "pending";
+
       console.log(
-        `📋 Student ${studentId}: hasPendingRequest = ${hasPendingRequest}`
+        `📋 Student ${studentId}: outgoingRequest =`,
+        outgoingRequest,
+        `hasPendingRequest = ${hasPendingRequest}`
       );
 
       if (hasPendingRequest) {
@@ -541,7 +577,14 @@ class FriendsUI {
       searchSection.appendChild(resultsContainer);
     }
 
-    if (results.length === 0) {
+    // Filter out users who are already friends (accepted requests)
+    const filteredResults = results.filter((student) => {
+      const outgoingRequest = this.outgoingRequestsMap.get(student.id);
+      // Hide users who have accepted friend requests - they should be in friends list
+      return !(outgoingRequest && outgoingRequest.status === "accepted");
+    });
+
+    if (filteredResults.length === 0) {
       resultsContainer.innerHTML = `
         <div class="search-results-header">
           <h4>Search Results (0)</h4>
@@ -561,7 +604,7 @@ class FriendsUI {
     }
 
     // Display search results with Send Friend Request buttons
-    const resultsHTML = results
+    const resultsHTML = filteredResults
       .map(
         (student) => `
       <div class="student-card" data-student-id="${student.id}">
@@ -589,7 +632,7 @@ class FriendsUI {
 
     resultsContainer.innerHTML = `
       <div class="search-results-header">
-        <h4>Search Results (${results.length})</h4>
+        <h4>Search Results (${filteredResults.length})</h4>
         <button class="btn-clear-search" title="Clear search results">
           <i class="fas fa-times"></i>
         </button>
@@ -668,6 +711,73 @@ class FriendsUI {
   }
 
   /**
+   * 🧹 Filter search results to hide cards for accepted friend requests
+   * This is called when outgoing requests are updated in real-time
+   */
+  filterSearchResultsForAcceptedRequests() {
+    const searchResults = document.getElementById("searchResults");
+    if (!searchResults) {
+      return; // No search results to filter
+    }
+
+    const studentCards = searchResults.querySelectorAll(".student-card");
+    let removedCount = 0;
+
+    studentCards.forEach((card) => {
+      const studentId = card.dataset.studentId;
+      const outgoingRequest = this.outgoingRequestsMap.get(studentId);
+
+      // Hide users who have accepted friend requests - they should be in friends list
+      if (outgoingRequest && outgoingRequest.status === "accepted") {
+        console.log(
+          `📋 Removing accepted friend request card for ${studentId}`
+        );
+        card.style.opacity = "0.5";
+        card.style.transform = "scale(0.9)";
+
+        // Remove card after animation
+        setTimeout(() => {
+          if (card.parentNode) {
+            card.remove();
+            removedCount++;
+
+            // Check if we need to show empty state
+            const remainingCards =
+              searchResults.querySelectorAll(".student-card");
+            if (remainingCards.length === 0) {
+              this.showSearchResultsEmptyState(searchResults);
+            }
+          }
+        }, 300);
+      }
+    });
+
+    if (removedCount > 0) {
+      console.log(
+        `📋 Filtered out ${removedCount} accepted friend requests from search results`
+      );
+    }
+  }
+
+  /**
+   * 🏳️ Show empty state for search results
+   * @param {HTMLElement} resultsContainer - Search results container
+   */
+  showSearchResultsEmptyState(resultsContainer) {
+    const resultsContentContainer = resultsContainer.querySelector(
+      ".search-results-container"
+    );
+    if (resultsContentContainer) {
+      resultsContentContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🤝</div>
+          <p>All found users are now your friends!</p>
+        </div>
+      `;
+    }
+  }
+
+  /**
    * 👥 Refresh the friends list display
    */
   async refreshFriendsList() {
@@ -735,9 +845,13 @@ class FriendsUI {
     this.elements.friendsList.innerHTML = friendsHTML;
 
     // Remove existing event listener to prevent duplicates
-    const existingFriendsListener = this.elements.friendsList.__friendsEventListener;
+    const existingFriendsListener =
+      this.elements.friendsList.__friendsEventListener;
     if (existingFriendsListener) {
-      this.elements.friendsList.removeEventListener("click", existingFriendsListener);
+      this.elements.friendsList.removeEventListener(
+        "click",
+        existingFriendsListener
+      );
     }
 
     // Add event listeners for friend actions
@@ -825,9 +939,13 @@ class FriendsUI {
     this.elements.friendRequests.innerHTML = requestsHTML;
 
     // Remove existing event listener to prevent duplicates
-    const existingRequestsListener = this.elements.friendRequests.__friendsEventListener;
+    const existingRequestsListener =
+      this.elements.friendRequests.__friendsEventListener;
     if (existingRequestsListener) {
-      this.elements.friendRequests.removeEventListener("click", existingRequestsListener);
+      this.elements.friendRequests.removeEventListener(
+        "click",
+        existingRequestsListener
+      );
     }
 
     // Add event listeners for Accept/Reject buttons
@@ -835,13 +953,13 @@ class FriendsUI {
       // Prevent multiple clicks while processing
       if (e.target.closest(".btn-accept-request")) {
         const button = e.target.closest(".btn-accept-request");
-        
+
         // Check if button is already disabled (processing)
         if (button.disabled) {
           console.log("🚫 Button already disabled, ignoring click");
           return;
         }
-        
+
         const requestId = button.dataset.requestId;
         const requestName = button.dataset.requestName;
 
@@ -853,13 +971,13 @@ class FriendsUI {
 
       if (e.target.closest(".btn-reject-request")) {
         const button = e.target.closest(".btn-reject-request");
-        
+
         // Check if button is already disabled (processing)
         if (button.disabled) {
           console.log("🚫 Button already disabled, ignoring click");
           return;
         }
-        
+
         const requestId = button.dataset.requestId;
         const requestName = button.dataset.requestName;
 
@@ -870,7 +988,10 @@ class FriendsUI {
       }
     };
 
-    this.elements.friendRequests.addEventListener("click", requestsClickHandler);
+    this.elements.friendRequests.addEventListener(
+      "click",
+      requestsClickHandler
+    );
     // Store reference to remove it later
     this.elements.friendRequests.__friendsEventListener = requestsClickHandler;
   }
@@ -1015,15 +1136,12 @@ class FriendsUI {
           "success"
         );
 
-        // 📋 Don't manually update the button - let the real-time system handle it
-        // The real-time friend request listener will automatically update the button
-        // to show the pending state when the request is created in the database
+        // 📋 Let the real-time system handle the button state updates
+        // The real-time outgoing friend request listener will automatically update the
+        // outgoingRequestsMap when the request is created in the database, which will
+        // trigger the button to show the pending state through updateSearchResultsButtons()
 
-        // Add the request to our pending map immediately for instant UI feedback
-        console.log(`📋 Adding ${studentId} to pending requests map`);
-        this.pendingRequestsMap.set(studentId, result.requestId || "pending");
-
-        // Update this specific button immediately
+        // Show immediate feedback by updating the button manually while we wait for real-time
         if (button) {
           console.log(
             `📋 Immediately updating button for ${studentId} to pending state`
@@ -1033,9 +1151,6 @@ class FriendsUI {
           button.disabled = true;
           button.setAttribute("title", "Friend request pending");
         }
-
-        // Also trigger a manual update of all buttons to ensure consistency
-        this.updateSearchResultsButtons();
       } else {
         this.showMessage(result.message, "error");
 
@@ -1226,10 +1341,10 @@ class FriendsUI {
     const studentId = student.id;
     const studentName = student.profile?.displayName;
 
-    // Check if there's a pending request to this user
-    const hasPendingRequest = this.pendingRequestsMap.has(studentId);
+    // Check if there's an outgoing request to this user
+    const outgoingRequest = this.outgoingRequestsMap.get(studentId);
 
-    if (hasPendingRequest) {
+    if (outgoingRequest && outgoingRequest.status === "pending") {
       return `
         <button class="btn-pending-request" data-student-id="${studentId}" data-student-name="${studentName}" disabled title="Friend request pending">
           <i class="fas fa-clock"></i>
@@ -1237,6 +1352,8 @@ class FriendsUI {
       `;
     }
 
+    // For any other case (no request, rejected, or accepted) - show send request button
+    // Users won't know if they were rejected, they can just send another request
     return `
       <button class="btn-send-request" data-student-id="${studentId}" data-student-name="${studentName}">
         <i class="fas fa-user-plus"></i>
@@ -1267,16 +1384,22 @@ class FriendsUI {
 
     // Remove event listeners to prevent memory leaks
     this.removeEventListeners();
-    
+
     // Clean up friends list event listener
     if (this.elements.friendsList?.__friendsEventListener) {
-      this.elements.friendsList.removeEventListener("click", this.elements.friendsList.__friendsEventListener);
+      this.elements.friendsList.removeEventListener(
+        "click",
+        this.elements.friendsList.__friendsEventListener
+      );
       this.elements.friendsList.__friendsEventListener = null;
     }
-    
+
     // Clean up friend requests event listener
     if (this.elements.friendRequests?.__friendsEventListener) {
-      this.elements.friendRequests.removeEventListener("click", this.elements.friendRequests.__friendsEventListener);
+      this.elements.friendRequests.removeEventListener(
+        "click",
+        this.elements.friendRequests.__friendsEventListener
+      );
       this.elements.friendRequests.__friendsEventListener = null;
     }
 

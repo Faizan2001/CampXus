@@ -53,14 +53,14 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  deleteDoc,   // ← Added for deleting documents
+  deleteDoc, // ← Added for deleting documents
   serverTimestamp,
   collection,
   query,
   where,
   getDocs,
-  addDoc,     // ← Added for creating documents with auto-generated IDs
-  onSnapshot,  // ← Added for real-time listeners
+  addDoc, // ← Added for creating documents with auto-generated IDs
+  onSnapshot, // ← Added for real-time listeners
   orderBy,
   limit,
 } from "firebase/firestore";
@@ -284,7 +284,7 @@ class DataManager {
   showNotification(message, type = "info", options = {}) {
     // Simple console logging for development - clean and clear
     console.log(`[${type.toUpperCase()}] ${message}`);
-    
+
     // TODO: Add proper visual notifications later (Toastify or custom modal)
     // For now, prevents console errors while maintaining functionality
   }
@@ -311,7 +311,11 @@ class DataManager {
    * @param {number} maxResults - Maximum results to return (default: 20)
    * @returns {Promise<Array>} A list of user profiles
    */
-  async findUsersByUniversity(universityId, searchTerm = null, maxResults = 20) {
+  async findUsersByUniversity(
+    universityId,
+    searchTerm = null,
+    maxResults = 20
+  ) {
     if (!universityId) {
       console.error("❌ University ID is required to find users.");
       return [];
@@ -333,20 +337,20 @@ class DataManager {
 
       if (searchTerm && searchTerm.trim().length >= 2) {
         const term = searchTerm.toLowerCase();
-        
+
         // Fields we want to search across
         const fieldsToSearch = [
           "profile.displayName_lower",
-          "profile.firstName_lower", 
+          "profile.firstName_lower",
           "profile.lastName_lower",
-          "profile.major_lower"
+          "profile.major_lower",
         ];
-        
+
         // Limit per individual query (we'll dedupe and limit final results)
         const perQueryLimit = Math.min(maxResults, 10);
 
         // Build one query per searchable field
-        const queries = fieldsToSearch.map(fieldPath => {
+        const queries = fieldsToSearch.map((fieldPath) => {
           return query(
             usersRef,
             ...baseFilters,
@@ -363,7 +367,10 @@ class DataManager {
             try {
               return await getDocs(q);
             } catch (error) {
-              console.warn(`⚠️ Search query ${index} failed (likely missing index):`, error.message);
+              console.warn(
+                `⚠️ Search query ${index} failed (likely missing index):`,
+                error.message
+              );
               return null;
             }
           })
@@ -372,7 +379,7 @@ class DataManager {
         // Merge results and deduplicate
         snapshots.forEach((snapshot) => {
           if (snapshot) {
-            snapshot.forEach(docSnap => {
+            snapshot.forEach((docSnap) => {
               if (!usersMap.has(docSnap.id)) {
                 usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
               }
@@ -389,8 +396,8 @@ class DataManager {
             limit(maxResults)
           )
         );
-        
-        snapshot.forEach(docSnap => {
+
+        snapshot.forEach((docSnap) => {
           usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
         });
       }
@@ -398,7 +405,9 @@ class DataManager {
       // Convert to array and limit to maxResults
       const users = Array.from(usersMap.values()).slice(0, maxResults);
 
-      console.log(`🔍 Found ${users.length} users for university ${universityId}`);
+      console.log(
+        `🔍 Found ${users.length} users for university ${universityId}`
+      );
       return users;
     } catch (error) {
       console.error("❌ Error finding users by university:", error);
@@ -445,7 +454,9 @@ class DataManager {
         });
       });
 
-      console.log(`🎓 Found ${users.length} ${major} students at ${universityId}`);
+      console.log(
+        `🎓 Found ${users.length} ${major} students at ${universityId}`
+      );
       return users;
     } catch (error) {
       console.error("❌ Error finding users by major:", error);
@@ -463,17 +474,19 @@ class DataManager {
    */
   async findUsersByIdOrEmail(universityId, searchTerm, maxResults = 10) {
     if (!universityId || !searchTerm) {
-      console.error("❌ University ID and search term are required for ID/email search.");
+      console.error(
+        "❌ University ID and search term are required for ID/email search."
+      );
       return [];
     }
 
     try {
       const usersRef = collection(db, "users");
       const cleanTerm = searchTerm.trim().toLowerCase();
-      
+
       let q;
 
-      if (cleanTerm.includes('@')) {
+      if (cleanTerm.includes("@")) {
         // Email search - exact match for full email
         q = query(
           usersRef,
@@ -486,8 +499,8 @@ class DataManager {
         // ID search - need to construct email pattern and search
         // Since Firestore doesn't support regex, we'll search by email prefix
         const emailPrefix = cleanTerm;
-        const emailEnd = cleanTerm + '\uf8ff'; // Unicode character for range queries
-        
+        const emailEnd = cleanTerm + "\uf8ff"; // Unicode character for range queries
+
         q = query(
           usersRef,
           where("universityInfo.university", "==", universityId),
@@ -500,15 +513,15 @@ class DataManager {
 
       const querySnapshot = await getDocs(q);
       const users = [];
-      
+
       querySnapshot.forEach((doc) => {
         const userData = doc.data();
-        
+
         // Additional filtering for ID search (since Firestore range query is approximate)
-        if (!cleanTerm.includes('@')) {
-          const userEmail = userData.email || '';
-          const userId = userEmail.split('@')[0];
-          
+        if (!cleanTerm.includes("@")) {
+          const userEmail = userData.email || "";
+          const userId = userEmail.split("@")[0];
+
           // Only include if the ID actually starts with our search term
           if (userId.startsWith(cleanTerm)) {
             users.push({
@@ -525,12 +538,16 @@ class DataManager {
         }
       });
 
-      console.log(`🆔 Found ${users.length} users matching ID/email "${cleanTerm}" at ${universityId}`);
+      console.log(
+        `🆔 Found ${users.length} users matching ID/email "${cleanTerm}" at ${universityId}`
+      );
       return users;
-
     } catch (error) {
       console.error("❌ Error finding users by ID/email:", error);
-      this.showNotification("Could not search by student ID or email.", "error");
+      this.showNotification(
+        "Could not search by student ID or email.",
+        "error"
+      );
       return [];
     }
   }
@@ -598,20 +615,27 @@ class DataManager {
         // 🎯 Auto-generate displayName from firstName if not set
         if (!profileData.profile.displayName && profileData.profile.firstName) {
           profileData.profile.displayName = profileData.profile.firstName;
-          console.log("🎯 Auto-generated displayName from firstName:", profileData.profile.displayName);
+          console.log(
+            "🎯 Auto-generated displayName from firstName:",
+            profileData.profile.displayName
+          );
         }
-        
+
         if (profileData.profile.displayName) {
-          profileData.profile.displayName_lower = profileData.profile.displayName.toLowerCase();
+          profileData.profile.displayName_lower =
+            profileData.profile.displayName.toLowerCase();
         }
         if (profileData.profile.firstName) {
-          profileData.profile.firstName_lower = profileData.profile.firstName.toLowerCase();
+          profileData.profile.firstName_lower =
+            profileData.profile.firstName.toLowerCase();
         }
         if (profileData.profile.lastName) {
-          profileData.profile.lastName_lower = profileData.profile.lastName.toLowerCase();
+          profileData.profile.lastName_lower =
+            profileData.profile.lastName.toLowerCase();
         }
         if (profileData.profile.major) {
-          profileData.profile.major_lower = profileData.profile.major.toLowerCase();
+          profileData.profile.major_lower =
+            profileData.profile.major.toLowerCase();
         }
       }
       if (!profileData.socialInfo) {
@@ -1535,10 +1559,7 @@ class DataManager {
       console.log("👥 Fetching friends for:", userId);
 
       const friendshipsRef = collection(db, "friendships");
-      const q = query(
-        friendshipsRef,
-        where("users", "array-contains", userId)
-      );
+      const q = query(friendshipsRef, where("users", "array-contains", userId));
 
       const querySnapshot = await getDocs(q);
       const friendships = [];
@@ -1637,6 +1658,39 @@ class DataManager {
   }
 
   /**
+   * 📤 Get ALL outgoing friend requests for a user (all statuses)
+   * @param {string} userId - The user ID to get outgoing requests for
+   * @returns {Promise<Array>} Array of all outgoing requests
+   */
+  async getAllOutgoingFriendRequests(userId) {
+    try {
+      console.log("📤 Fetching ALL outgoing requests for:", userId);
+
+      const requestsRef = collection(db, "friendRequests");
+      const q = query(
+        requestsRef,
+        where("fromUserId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const requests = [];
+      querySnapshot.forEach((doc) => {
+        requests.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      console.log("✅ Found", requests.length, "total outgoing requests");
+      return requests;
+    } catch (error) {
+      console.error("❌ Error fetching all outgoing requests:", error);
+      return [];
+    }
+  }
+
+  /**
    * 🗑️ Delete a friend request (for cleanup after accept/reject)
    * @param {string} requestId - The request ID to delete
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -1662,24 +1716,27 @@ class DataManager {
 
   /**
    * 📡 Listen for pending friend requests in real-time
-   * 
+   *
    * This function sets up a real-time listener for friend requests sent TO the specified user.
    * When someone sends a friend request, the callback will be triggered instantly!
-   * 
+   *
    * @param {string} userId - User ID to listen for incoming requests
    * @param {function} callback - Function called when requests change: callback(requests)
    * @returns {function} Unsubscribe function to stop listening
-   * 
+   *
    * Example usage:
    *   const unsubscribe = dataManager.listenToPendingFriendRequests(
-   *     "user123", 
+   *     "user123",
    *     (requests) => console.log("Got", requests.length, "requests!")
    *   );
    *   // Later: unsubscribe(); // Stop listening
    */
   listenToPendingFriendRequests(userId, callback) {
     try {
-      console.log("📡 Setting up real-time listener for friend requests:", userId);
+      console.log(
+        "📡 Setting up real-time listener for friend requests:",
+        userId
+      );
 
       const requestsRef = collection(db, "friendRequests");
       const q = query(
@@ -1700,14 +1757,17 @@ class DataManager {
             });
           });
 
-          console.log(`📬 Real-time update: ${requests.length} pending requests for ${userId}`);
+          console.log(
+            `📬 Real-time update: ${requests.length} pending requests for ${userId}`
+          );
 
           // Transform for UI consumption (same format as existing functions)
-          const transformedRequests = requests.map(request => ({
+          const transformedRequests = requests.map((request) => ({
             ...request,
             displayName: request.fromUserInfo?.displayName || "Unknown User",
             major: request.fromUserInfo?.major || "Unknown Major",
-            university: request.fromUserInfo?.university || "Unknown University"
+            university:
+              request.fromUserInfo?.university || "Unknown University",
           }));
 
           // Call the callback with the fresh data
@@ -1728,18 +1788,143 @@ class DataManager {
   }
 
   /**
+   * 📤 Listen for outgoing friend requests in real-time
+   *
+   * This function sets up a real-time listener for friend requests sent BY the specified user.
+   * When the user's sent requests get accepted/rejected, the callback will be triggered instantly!
+   *
+   * @param {string} userId - User ID to listen for outgoing requests
+   * @param {function} callback - Function called when requests change: callback(requests)
+   * @returns {function} Unsubscribe function to stop listening
+   *
+   * Example usage:
+   *   const unsubscribe = dataManager.listenToOutgoingFriendRequests(
+   *     "user123",
+   *     (requests) => console.log("Sent", requests.length, "requests!")
+   *   );
+   *   // Later: unsubscribe(); // Stop listening
+   */
+  listenToOutgoingFriendRequests(userId, callback) {
+    try {
+      console.log(
+        "📤 Setting up real-time listener for outgoing friend requests:",
+        userId
+      );
+
+      const requestsRef = collection(db, "friendRequests");
+      const q = query(
+        requestsRef,
+        where("fromUserId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const requests = [];
+          querySnapshot.forEach((doc) => {
+            requests.push({
+              id: doc.id,
+              ...doc.data(),
+            });
+          });
+
+          console.log(
+            `📤 Real-time update: ${requests.length} outgoing requests for ${userId}`
+          );
+
+          // Transform for UI consumption (same format as existing functions)
+          const transformedRequests = requests.map((request) => ({
+            ...request,
+            displayName: request.toUserInfo?.displayName || "Unknown User",
+            major: request.toUserInfo?.major || "Unknown Major",
+            university: request.toUserInfo?.university || "Unknown University",
+          }));
+
+          // Call the callback with the fresh data
+          callback(transformedRequests);
+        },
+        (error) => {
+          console.error(
+            "❌ Error in outgoing friend requests listener:",
+            error
+          );
+          callback([]); // Fallback to empty array on error
+        }
+      );
+
+      console.log(
+        "✅ Outgoing friend requests listener established successfully"
+      );
+      return unsubscribe;
+    } catch (error) {
+      console.error(
+        "❌ Error setting up outgoing friend requests listener:",
+        error
+      );
+      return () => {}; // Return empty unsubscribe function
+    }
+  }
+
+  /**
+   * 📋 Listen for ALL friend requests involving a user (incoming + outgoing)
+   *
+   * This is a convenience method that combines both incoming and outgoing requests
+   * for comprehensive friend request tracking.
+   *
+   * @param {string} userId - User ID to listen for all friend request activity
+   * @param {function} callback - Function called when requests change: callback({incoming, outgoing})
+   * @returns {function} Unsubscribe function to stop listening
+   */
+  listenToAllFriendRequests(userId, callback) {
+    let incomingRequests = [];
+    let outgoingRequests = [];
+
+    const updateCallback = () => {
+      callback({
+        incoming: incomingRequests,
+        outgoing: outgoingRequests,
+        total: incomingRequests.length + outgoingRequests.length,
+      });
+    };
+
+    // Set up both listeners
+    const unsubscribeIncoming = this.listenToPendingFriendRequests(
+      userId,
+      (requests) => {
+        incomingRequests = requests;
+        updateCallback();
+      }
+    );
+
+    const unsubscribeOutgoing = this.listenToOutgoingFriendRequests(
+      userId,
+      (requests) => {
+        outgoingRequests = requests;
+        updateCallback();
+      }
+    );
+
+    // Return combined unsubscribe function
+    return () => {
+      unsubscribeIncoming();
+      unsubscribeOutgoing();
+    };
+  }
+
+  /**
    * 👥 Listen for user's friendships in real-time
-   * 
+   *
    * This function sets up a real-time listener for the user's friends list.
    * When someone accepts your friend request or friendships change, the callback triggers instantly!
-   * 
+   *
    * @param {string} userId - User ID to listen for friendship changes
    * @param {function} callback - Function called when friendships change: callback(friendships)
    * @returns {function} Unsubscribe function to stop listening
-   * 
+   *
    * Example usage:
    *   const unsubscribe = dataManager.listenToUserFriendships(
-   *     "user123", 
+   *     "user123",
    *     (friendships) => console.log("You have", friendships.length, "friends!")
    *   );
    *   // Later: unsubscribe(); // Stop listening
@@ -1752,7 +1937,6 @@ class DataManager {
       const q = query(
         friendshipsRef,
         where("users", "array-contains", userId),
-        where("isActive", "==", true),
         orderBy("createdAt", "desc")
       );
 
@@ -1767,19 +1951,28 @@ class DataManager {
             });
           });
 
-          console.log(`🤝 Real-time update: ${friendships.length} active friendships for ${userId}`);
+          console.log(
+            `🤝 Real-time update: ${friendships.length} active friendships for ${userId}`
+          );
 
           // Transform for UI consumption - extract friend info for each friendship
-          const transformedFriendships = friendships.map(friendship => {
+          const transformedFriendships = friendships.map((friendship) => {
             // Find the friend's user ID (the one that's not the current user)
-            const friendId = friendship.users.find(id => id !== userId);
-            
+            const friendId = friendship.users.find((id) => id !== userId);
+
+            // Get friend info based on which user they are in the friendship
+            const isUser1 = friendship.user1Id === userId;
+            const friendInfo = isUser1
+              ? friendship.user2Info
+              : friendship.user1Info;
+
             return {
               ...friendship,
               friendId: friendId,
-              friendInfo: friendship.userInfo && friendship.userInfo[friendId] 
-                ? friendship.userInfo[friendId] 
-                : { displayName: "Unknown User", major: "Unknown Major" }
+              friendInfo: friendInfo || {
+                displayName: "Unknown User",
+                major: "Unknown Major",
+              },
             };
           });
 
@@ -1802,17 +1995,17 @@ class DataManager {
 
   /**
    * 👤 Listen for user's profile changes in real-time
-   * 
+   *
    * This function sets up a real-time listener for changes to a user's profile.
    * Useful for detecting when friends update their profiles, avatars, or status!
-   * 
+   *
    * @param {string} userId - User ID to listen for profile changes
    * @param {function} callback - Function called when profile changes: callback(profileData)
    * @returns {function} Unsubscribe function to stop listening
-   * 
+   *
    * Example usage:
    *   const unsubscribe = dataManager.listenToUserProfile(
-   *     "user123", 
+   *     "user123",
    *     (profile) => console.log("Profile updated:", profile.profile?.displayName)
    *   );
    *   // Later: unsubscribe(); // Stop listening
@@ -1829,11 +2022,11 @@ class DataManager {
           if (docSnapshot.exists()) {
             const profileData = {
               id: docSnapshot.id,
-              ...docSnapshot.data()
+              ...docSnapshot.data(),
             };
 
             console.log(`👤 Real-time update: Profile changed for ${userId}`);
-            
+
             // Update local cache with fresh data
             this.setCachedData(`user_${userId}`, profileData);
 
@@ -1863,9 +2056,11 @@ class DataManager {
 export const dataManager = new DataManager();
 
 // Only expose globally for development/debugging
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.dataManager = dataManager;
-  console.log("🛠️ DataManager available globally as window.dataManager for debugging");
+  console.log(
+    "🛠️ DataManager available globally as window.dataManager for debugging"
+  );
 }
 
 // =========================
@@ -1876,7 +2071,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
  * Add console testing helpers for real-time listeners (development only)
  * These functions are available in the browser console for testing real-time functionality
  */
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Global testing helpers for real-time listeners
   window.testRealTimeListeners = {
     /**
@@ -1885,57 +2080,63 @@ if (typeof window !== 'undefined') {
      */
     friendRequests: (userId) => {
       console.log("🧪 Testing friend requests listener for:", userId);
-      
+
       const unsubscribe = dataManager.listenToPendingFriendRequests(
         userId,
         (requests) => {
           console.log("📬 REAL-TIME UPDATE - Friend Requests:", {
             count: requests.length,
-            requests: requests.map(r => ({
+            requests: requests.map((r) => ({
               id: r.id,
               from: r.displayName || r.fromUserInfo?.displayName,
               major: r.major || r.fromUserInfo?.major,
               university: r.university || r.fromUserInfo?.university,
-              createdAt: r.createdAt
-            }))
+              createdAt: r.createdAt,
+            })),
           });
         }
       );
-      
-      console.log("✅ Friend requests listener started. To stop: testRealTimeListeners.stopAll()");
-      window.testRealTimeListeners._unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+
+      console.log(
+        "✅ Friend requests listener started. To stop: testRealTimeListeners.stopAll()"
+      );
+      window.testRealTimeListeners._unsubscribers =
+        window.testRealTimeListeners._unsubscribers || [];
       window.testRealTimeListeners._unsubscribers.push(unsubscribe);
-      
+
       return unsubscribe;
     },
 
     /**
-     * Test friendships listener  
+     * Test friendships listener
      * Usage: testRealTimeListeners.friendships("your-user-id")
      */
     friendships: (userId) => {
       console.log("🧪 Testing friendships listener for:", userId);
-      
+
       const unsubscribe = dataManager.listenToUserFriendships(
         userId,
         (friendships) => {
           console.log("🤝 REAL-TIME UPDATE - Friendships:", {
             count: friendships.length,
-            friends: friendships.map(f => ({
+            friends: friendships.map((f) => ({
               id: f.id,
               friendId: f.friendId,
               friendName: f.friendInfo?.displayName || "Unknown",
               friendMajor: f.friendInfo?.major || "Unknown",
-              createdAt: f.createdAt
-            }))
+              createdAt: f.createdAt,
+            })),
           });
         }
       );
-      
-      console.log("✅ Friendships listener started. To stop: testRealTimeListeners.stopAll()");
-      window.testRealTimeListeners._unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+
+      console.log(
+        "✅ Friendships listener started. To stop: testRealTimeListeners.stopAll()"
+      );
+      window.testRealTimeListeners._unsubscribers =
+        window.testRealTimeListeners._unsubscribers || [];
       window.testRealTimeListeners._unsubscribers.push(unsubscribe);
-      
+
       return unsubscribe;
     },
 
@@ -1945,31 +2146,33 @@ if (typeof window !== 'undefined') {
      */
     profile: (userId) => {
       console.log("🧪 Testing user profile listener for:", userId);
-      
-      const unsubscribe = dataManager.listenToUserProfile(
-        userId,
-        (profile) => {
-          if (profile) {
-            console.log("👤 REAL-TIME UPDATE - Profile:", {
-              userId: profile.id,
-              displayName: profile.profile?.displayName,
-              firstName: profile.profile?.firstName,
-              lastName: profile.profile?.lastName,
-              major: profile.profile?.major,
-              status: profile.systemInfo?.status,
-              lastActive: profile.systemInfo?.lastActive,
-              avatarConfig: profile.avatarConfig ? "Has Avatar" : "No Avatar"
-            });
-          } else {
-            console.log("👤 REAL-TIME UPDATE - Profile: User not found or deleted");
-          }
+
+      const unsubscribe = dataManager.listenToUserProfile(userId, (profile) => {
+        if (profile) {
+          console.log("👤 REAL-TIME UPDATE - Profile:", {
+            userId: profile.id,
+            displayName: profile.profile?.displayName,
+            firstName: profile.profile?.firstName,
+            lastName: profile.profile?.lastName,
+            major: profile.profile?.major,
+            status: profile.systemInfo?.status,
+            lastActive: profile.systemInfo?.lastActive,
+            avatarConfig: profile.avatarConfig ? "Has Avatar" : "No Avatar",
+          });
+        } else {
+          console.log(
+            "👤 REAL-TIME UPDATE - Profile: User not found or deleted"
+          );
         }
+      });
+
+      console.log(
+        "✅ Profile listener started. To stop: testRealTimeListeners.stopAll()"
       );
-      
-      console.log("✅ Profile listener started. To stop: testRealTimeListeners.stopAll()");
-      window.testRealTimeListeners._unsubscribers = window.testRealTimeListeners._unsubscribers || [];
+      window.testRealTimeListeners._unsubscribers =
+        window.testRealTimeListeners._unsubscribers || [];
       window.testRealTimeListeners._unsubscribers.push(unsubscribe);
-      
+
       return unsubscribe;
     },
 
@@ -1979,12 +2182,14 @@ if (typeof window !== 'undefined') {
      */
     all: (userId) => {
       console.log("🧪 Testing ALL real-time listeners for:", userId);
-      
+
       this.friendRequests(userId);
       this.friendships(userId);
       this.profile(userId);
-      
-      console.log("✅ All listeners started! Check console for real-time updates.");
+
+      console.log(
+        "✅ All listeners started! Check console for real-time updates."
+      );
       console.log("💡 Try these actions in another tab/browser:");
       console.log("   1. Send a friend request to this user");
       console.log("   2. Accept a friend request from this user");
@@ -1998,7 +2203,7 @@ if (typeof window !== 'undefined') {
     stopAll: () => {
       const unsubscribers = window.testRealTimeListeners._unsubscribers || [];
       console.log(`🛑 Stopping ${unsubscribers.length} active listeners...`);
-      
+
       unsubscribers.forEach((unsubscribe, index) => {
         try {
           unsubscribe();
@@ -2007,7 +2212,7 @@ if (typeof window !== 'undefined') {
           console.error(`❌ Error stopping listener ${index + 1}:`, error);
         }
       });
-      
+
       window.testRealTimeListeners._unsubscribers = [];
       console.log("🔕 All test listeners stopped");
     },
@@ -2019,25 +2224,41 @@ if (typeof window !== 'undefined') {
     status: () => {
       const count = (window.testRealTimeListeners._unsubscribers || []).length;
       console.log(`📊 Real-time listener status: ${count} active listeners`);
-      
+
       if (count > 0) {
-        console.log("💡 Use testRealTimeListeners.stopAll() to stop all listeners");
+        console.log(
+          "💡 Use testRealTimeListeners.stopAll() to stop all listeners"
+        );
       } else {
-        console.log("💡 Use testRealTimeListeners.all('your-user-id') to start testing");
+        console.log(
+          "💡 Use testRealTimeListeners.all('your-user-id') to start testing"
+        );
       }
-      
+
       return count;
-    }
+    },
   };
 
   console.log("🧪 Real-time testing helpers loaded!");
   console.log("💡 Usage:");
-  console.log("   testRealTimeListeners.all('your-user-id')     - Test all listeners");
-  console.log("   testRealTimeListeners.friendRequests('id')   - Test friend requests only");
-  console.log("   testRealTimeListeners.friendships('id')      - Test friendships only");
-  console.log("   testRealTimeListeners.profile('id')          - Test profile changes only");
-  console.log("   testRealTimeListeners.stopAll()              - Stop all listeners");
-  console.log("   testRealTimeListeners.status()               - Check listener status");
+  console.log(
+    "   testRealTimeListeners.all('your-user-id')     - Test all listeners"
+  );
+  console.log(
+    "   testRealTimeListeners.friendRequests('id')   - Test friend requests only"
+  );
+  console.log(
+    "   testRealTimeListeners.friendships('id')      - Test friendships only"
+  );
+  console.log(
+    "   testRealTimeListeners.profile('id')          - Test profile changes only"
+  );
+  console.log(
+    "   testRealTimeListeners.stopAll()              - Stop all listeners"
+  );
+  console.log(
+    "   testRealTimeListeners.status()               - Check listener status"
+  );
 }
 
 // --- END OF FILE ---
