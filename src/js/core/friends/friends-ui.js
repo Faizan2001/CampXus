@@ -27,6 +27,12 @@ class FriendsUI {
     this.pendingRequestsMap = new Map(); // userId -> requestId
     this.outgoingRequestsMap = new Map(); // userId -> requestData (includes status)
     this.realTimeSubscriptions = [];
+    
+    // 👥 Current friends data for unfriend functionality
+    this.currentFriendsData = [];
+    
+    // 📬 Current friend requests data for accept/reject functionality
+    this.currentFriendRequestsData = [];
 
     // 🔔 Notification debouncing
     this.lastFriendsNotificationTime = 0;
@@ -244,6 +250,9 @@ class FriendsUI {
 
           // Update search button states (hide buttons for existing friends)
           this.updateSearchResultsButtons();
+          
+          // Filter out friends from search results
+          this.filterSearchResultsForAcceptedRequests();
 
           // Show a more subtle notification for friends list updates (debounced)
           if (friends.length > 0 && 
@@ -664,10 +673,11 @@ class FriendsUI {
       }
     });
 
-    // Update button states based on current friend request status
-    // Use setTimeout to ensure DOM is fully rendered before updating buttons
+    // Update button states and filter friends from search results
+    // Use setTimeout to ensure DOM is fully rendered before updating
     setTimeout(() => {
       this.updateSearchResultsButtons();
+      this.filterSearchResultsForAcceptedRequests();
     }, 0);
   }
 
@@ -697,8 +707,8 @@ class FriendsUI {
   }
 
   /**
-   * 🧹 Filter search results to hide cards for accepted friend requests
-   * This is called when outgoing requests are updated in real-time
+   * 🧹 Filter search results to hide cards for accepted friend requests and current friends
+   * This is called when outgoing requests or friends list are updated in real-time
    */
   filterSearchResultsForAcceptedRequests() {
     const searchResults = document.getElementById("searchResults");
@@ -709,14 +719,21 @@ class FriendsUI {
     const studentCards = searchResults.querySelectorAll(".student-card");
     let removedCount = 0;
 
+    // Create a set of current friend IDs for fast lookup
+    const currentFriendIds = new Set(this.currentFriendsData.map(friend => friend.id));
+
     studentCards.forEach((card) => {
       const studentId = card.dataset.studentId;
       const outgoingRequest = this.outgoingRequestsMap.get(studentId);
+      
+      // Hide users who are now friends (either accepted requests or existing friends)
+      const shouldRemove = 
+        (outgoingRequest && outgoingRequest.status === "accepted") || // Old logic for non-clean lifecycle
+        currentFriendIds.has(studentId); // New logic: hide current friends
 
-      // Hide users who have accepted friend requests - they should be in friends list
-      if (outgoingRequest && outgoingRequest.status === "accepted") {
+      if (shouldRemove) {
         console.log(
-          `📋 Removing accepted friend request card for ${studentId}`
+          `📋 Removing search card for friend/accepted request: ${studentId}`
         );
         card.style.opacity = "0.5";
         card.style.transform = "scale(0.9)";
@@ -740,7 +757,7 @@ class FriendsUI {
 
     if (removedCount > 0) {
       console.log(
-        `📋 Filtered out ${removedCount} accepted friend requests from search results`
+        `📋 Filtered out ${removedCount} friends/accepted requests from search results`
       );
     }
   }
@@ -780,6 +797,9 @@ class FriendsUI {
    */
   displayFriendsList(friends) {
     if (!this.elements.friendsList) return;
+
+    // Store friends data for unfriend functionality
+    this.currentFriendsData = friends;
 
     if (friends.length === 0) {
       // Show empty state (it's already in the HTML)
@@ -858,6 +878,9 @@ class FriendsUI {
   displayFriendRequests(requests) {
     if (!this.elements.friendRequests) return;
 
+    // Store friend requests data for accept/reject functionality
+    this.currentFriendRequestsData = requests;
+
     if (requests.length === 0) {
       // Show empty state (it's already in the HTML)
       this.elements.friendRequests.innerHTML = `
@@ -920,7 +943,7 @@ class FriendsUI {
         const requestId = button.dataset.requestId;
         await this.handleAcceptFriendRequest(
           requestId,
-          requests.find((r) => r.id === requestId)
+          this.currentFriendRequestsData.find((r) => r.id === requestId)
         );
       }
 
@@ -933,7 +956,7 @@ class FriendsUI {
         const requestId = button.dataset.requestId;
         await this.handleRejectFriendRequest(
           requestId,
-          requests.find((r) => r.id === requestId)
+          this.currentFriendRequestsData.find((r) => r.id === requestId)
         );
       }
     });
@@ -1151,9 +1174,18 @@ class FriendsUI {
    */
   async handleAcceptFriendRequest(requestId, requestData) {
     try {
-      console.log(
-        `✅ Accepting friend request from: ${requestData.displayName}`
-      );
+      // Safety check for requestData
+      if (!requestData) {
+        console.error("❌ No request data provided for accept operation");
+        this.showMessage("Invalid request data", "error");
+        return;
+      }
+
+      const senderName = requestData.displayName || 
+                        requestData.fromUserInfo?.displayName || 
+                        "Unknown User";
+      
+      console.log(`✅ Accepting friend request from: ${senderName}`);
 
       // Show loading state on button
       const button = document.querySelector(
@@ -1212,9 +1244,18 @@ class FriendsUI {
    */
   async handleRejectFriendRequest(requestId, requestData) {
     try {
-      console.log(
-        `❌ Rejecting friend request from: ${requestData.displayName}`
-      );
+      // Safety check for requestData
+      if (!requestData) {
+        console.error("❌ No request data provided for reject operation");
+        this.showMessage("Invalid request data", "error");
+        return;
+      }
+
+      const senderName = requestData.displayName || 
+                        requestData.fromUserInfo?.displayName || 
+                        "Unknown User";
+      
+      console.log(`❌ Rejecting friend request from: ${senderName}`);
 
       // Show loading state on button
       const button = document.querySelector(
@@ -1268,7 +1309,7 @@ class FriendsUI {
    * @param {string} friendName - Friend's display name
    */
   handleViewFriendSchedule(friendId, friendName) {
-    console.log(`📅 Viewing schedule for: ${friendName}`);
+    console.log(`📅 Viewing schedule for: ${friendName} (ID: ${friendId})`);
     this.showMessage(
       `Schedule comparison with ${friendName} coming soon!`,
       "info"
@@ -1281,14 +1322,76 @@ class FriendsUI {
   /**
    * ⚙️ Handle friend menu options
    * @param {string} friendId - Friend's user ID
-   * @param {Event} event - Click event for positioning
    */
-  handleFriendMenu(friendId, event) {
+  handleFriendMenu(friendId) {
     console.log(`⚙️ Friend menu for: ${friendId}`);
-    this.showMessage("Friend options menu coming soon!", "info");
 
-    // TODO: Implement friend options menu
-    // This could show options like: View Profile, Remove Friend, Block User, etc.
+    // Find the friend's information from the current friends list
+    const friend = this.currentFriendsData.find(f => f.id === friendId);
+    if (!friend) {
+      console.error("❌ Friend not found in current data");
+      this.showMessage("Friend not found", "error");
+      return;
+    }
+
+    // Import and show unfriend confirmation modal
+    import("../modal.js")
+      .then(({ showModal }) => {
+        showModal({
+          title: "Unfriend Confirmation",
+          content: `Are you sure you want to unfriend <strong>${friend.displayName}</strong>?<br><br>This action cannot be undone.`,
+          isHtmlContent: true,
+          showConfirmationButtons: true,
+          confirmText: "Unfriend",
+          cancelText: "Cancel",
+          onConfirm: () => {
+            this.performUnfriend(friend);
+            return true; // Allow modal to close
+          },
+          onCancel: () => {
+            console.log("💭 Unfriend cancelled by user");
+          }
+        });
+      })
+      .catch((error) => {
+        console.error("❌ Error loading modal:", error);
+        this.showMessage("Error showing confirmation dialog", "error");
+      });
+  }
+
+  /**
+   * 💔 Perform the unfriend operation
+   * @param {Object} friend - Friend object to unfriend
+   * @private
+   */
+  async performUnfriend(friend) {
+    try {
+      console.log("💔 Performing unfriend operation for:", friend.displayName);
+      
+      // Show loading state
+      this.showMessage("Unfriending...", "info");
+
+      // Call the friends manager to unfriend the user
+      const result = await friendsManager.unfriendUser(
+        friend.id,
+        friend.friendshipId,
+        friend
+      );
+
+      if (result.success) {
+        console.log("✅ Unfriend successful");
+        this.showMessage(result.message, "success");
+        
+        // The real-time listener will automatically update the friends list
+        // No need to manually refresh since we have real-time updates
+      } else {
+        console.error("❌ Unfriend failed:", result.message);
+        this.showMessage(result.message, "error");
+      }
+    } catch (error) {
+      console.error("❌ Error during unfriend operation:", error);
+      this.showMessage("Failed to unfriend user. Please try again.", "error");
+    }
   }
 
   /**

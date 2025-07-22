@@ -99,6 +99,16 @@ export class FriendsManager {
     this.cache.clear();
   }
 
+  /**
+   * 🧹 Clear search filter cache when friendships change
+   * This ensures search results are updated when someone becomes a friend
+   */
+  clearSearchFilterCache() {
+    const cacheKey = `filter_data_${currentUser.uid}`;
+    this.clearCache(cacheKey);
+    console.log("🧹 Cleared search filter cache due to friendship change");
+  }
+
   // =========================
   // REAL-TIME INTEGRATION
   // =========================
@@ -257,17 +267,18 @@ export class FriendsManager {
 
   /**
    * 🔔 Check for friend request status changes and show notifications
+   * Enhanced to detect deletions for clean lifecycle approach
    * @param {Array} currentRequests - Current outgoing requests
    * @private
    */
-  checkForFriendRequestStatusChanges(currentRequests) {
+  async checkForFriendRequestStatusChanges(currentRequests) {
     // Store previous requests for comparison
     if (!this.previousOutgoingRequests) {
       this.previousOutgoingRequests = currentRequests;
       return;
     }
 
-    // Find status changes
+    // 1. Check for traditional status changes (pending → accepted/rejected)
     currentRequests.forEach((currentRequest) => {
       const previousRequest = this.previousOutgoingRequests.find(
         (req) => req.id === currentRequest.id
@@ -280,6 +291,40 @@ export class FriendsManager {
         );
       }
     });
+
+    // 2. NEW: Check for deleted requests (clean lifecycle approach)
+    const deletedRequests = this.previousOutgoingRequests.filter((previousRequest) => 
+      !currentRequests.find((currentRequest) => currentRequest.id === previousRequest.id)
+    );
+
+    // 3. For each deleted request, determine if it was accepted or rejected
+    for (const deletedRequest of deletedRequests) {
+      try {
+        // Check if a friendship was created between these users
+        const friendshipExists = await dataManager.checkFriendshipExists(
+          deletedRequest.fromUserId,
+          deletedRequest.toUserId
+        );
+
+        if (friendshipExists) {
+          // Request was deleted + friendship exists = ACCEPTED
+          console.log("🎉 Detected friend request acceptance via deletion + friendship");
+          this.showFriendRequestStatusNotification(
+            { ...deletedRequest, status: "accepted" },
+            deletedRequest.status
+          );
+        } else {
+          // Request was deleted + no friendship = REJECTED
+          console.log("❌ Detected friend request rejection via deletion");
+          this.showFriendRequestStatusNotification(
+            { ...deletedRequest, status: "rejected" },
+            deletedRequest.status
+          );
+        }
+      } catch (error) {
+        console.error("❌ Error checking friendship for deleted request:", error);
+      }
+    }
 
     // Update previous requests
     this.previousOutgoingRequests = currentRequests;
@@ -612,9 +657,11 @@ export class FriendsManager {
           return { success: false, message: "Friend request already sent!" };
         } else if (existingRequest.status === "accepted") {
           return { success: false, message: "You are already friends!" };
+        } else if (existingRequest.status === "rejected") {
+          // Delete the old rejected request before creating a new one
+          console.log("🗑️ Deleting old rejected request before sending new one");
+          await dataManager.deleteFriendRequest(existingRequest.id);
         }
-        // If status is "rejected", allow sending a new request
-        // The existing rejected request will remain in the database for history
       }
 
       // 3. Create the friend request object
@@ -640,6 +687,9 @@ export class FriendsManager {
       const result = await dataManager.createFriendRequest(requestData);
 
       if (result.success) {
+        // Clear search filter cache since pending request status changed
+        this.clearSearchFilterCache();
+        
         console.log("✅ Friend request sent successfully!");
         return {
           success: true,
@@ -764,22 +814,19 @@ export class FriendsManager {
         return { success: false, message: "Failed to create friendship" };
       }
 
-      // 🎯 STEP 2: Update friend request status to "accepted" (don't delete)
-      const updateResult = await dataManager.updateFriendRequestStatus(
-        requestId,
-        "accepted"
-      );
-      if (!updateResult.success) {
+      // 🎯 STEP 2: Delete the friend request (clean lifecycle approach)
+      console.log("🗑️ Deleting friend request after successful friendship creation");
+      const deleteResult = await dataManager.deleteFriendRequest(requestId);
+      if (!deleteResult.success) {
         console.warn(
-          "⚠️ Friendship created but failed to update request status:",
-          updateResult.error
+          "⚠️ Friendship created but failed to delete request:",
+          deleteResult.error
         );
         // Don't fail the operation, just log the warning
       }
 
-      // 🎯 STEP 3: Update user social info (friend counts) - TODO in future
-      // For now, we'll just log success. In Phase 4, we'll add batch operations
-      // to update both users' socialInfo.friendsCount
+      // 🎯 STEP 3: Clear search filter cache since friendship status changed
+      this.clearSearchFilterCache();
 
       console.log("🎉 Friend request accepted successfully!");
       const friendName = requestData.fromUserInfo?.displayName || "New friend";
@@ -819,15 +866,13 @@ export class FriendsManager {
       const senderName = requestData?.fromUserInfo?.displayName || "User";
       console.log("❌ Rejecting friend request from:", senderName);
 
-      // 🎯 Update friend request status to "rejected" (don't delete)
-      // This allows the sender to see the rejection and send a new request later
-      const result = await dataManager.updateFriendRequestStatus(
-        requestId,
-        "rejected"
-      );
+      // 🎯 Delete the friend request (clean lifecycle approach)
+      // Real-time listeners will detect the deletion and show rejection notification
+      console.log("🗑️ Deleting friend request to reject it");
+      const result = await dataManager.deleteFriendRequest(requestId);
 
       if (result.success) {
-        console.log("✅ Friend request rejected successfully");
+        console.log("✅ Friend request rejected successfully via deletion");
         return {
           success: true,
           message: `Friend request from ${senderName} was declined`,
@@ -840,6 +885,67 @@ export class FriendsManager {
       }
     } catch (error) {
       console.error("❌ Error rejecting friend request:", error);
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * 💔 Unfriend a user (remove friendship)
+   * @param {string} friendId - The ID of the friend to unfriend
+   * @param {string} friendshipId - The friendship document ID
+   * @param {Object} friendInfo - Friend's info for confirmation message
+   * @returns {Promise<Object>} Success/failure result
+   */
+  async unfriendUser(friendId, friendshipId, friendInfo = {}) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to manage friends." };
+    }
+
+    if (!friendId || !friendshipId) {
+      console.error("❌ Missing friend ID or friendship ID");
+      return { success: false, message: "Invalid friend data" };
+    }
+
+    if (friendId === currentUser.uid) {
+      return {
+        success: false,
+        message: "You cannot unfriend yourself!",
+      };
+    }
+
+    try {
+      const friendName = friendInfo.displayName || "Friend";
+      console.log("💔 Unfriending user:", friendName);
+
+      // Delete the friendship document
+      const result = await dataManager.deleteFriendship(friendshipId);
+
+      if (result.success) {
+        // Clear search filter cache since friendship status changed
+        this.clearSearchFilterCache();
+        
+        console.log("✅ Successfully unfriended user:", friendName);
+        return {
+          success: true,
+          message: `You are no longer friends with ${friendName}`,
+          unfriendedUser: {
+            id: friendId,
+            displayName: friendName,
+          },
+        };
+      } else {
+        console.error("❌ Failed to delete friendship:", result.error);
+        return {
+          success: false,
+          message: "Failed to unfriend user. Please try again.",
+        };
+      }
+    } catch (error) {
+      console.error("❌ Error unfriending user:", error);
       return {
         success: false,
         message: "Something went wrong. Please try again.",

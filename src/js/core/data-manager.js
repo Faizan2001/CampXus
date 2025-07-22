@@ -1562,6 +1562,26 @@ class DataManager {
   }
 
   /**
+   * 💔 Delete a friendship (unfriend users)
+   * @param {string} friendshipId - The friendship document ID to delete
+   * @returns {Promise<Object>} Success/failure result
+   */
+  async deleteFriendship(friendshipId) {
+    try {
+      console.log(`💔 Deleting friendship: ${friendshipId}`);
+
+      const friendshipRef = doc(db, "friendships", friendshipId);
+      await deleteDoc(friendshipRef);
+
+      console.log("✅ Friendship deleted successfully");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error deleting friendship:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 👥 Get user's friends list
    * @param {string} userId - The user ID to get friends for
    * @returns {Promise<Array>} Array of friendships
@@ -1600,12 +1620,12 @@ class DataManager {
     try {
       const requestsRef = collection(db, "friendRequests");
 
-      // Check for any pending or accepted requests between these users
+      // Check for any pending, accepted, or rejected requests between these users
       const q = query(
         requestsRef,
         where("fromUserId", "==", fromUserId),
         where("toUserId", "==", toUserId),
-        where("status", "in", ["pending", "accepted"])
+        where("status", "in", ["pending", "accepted", "rejected"])
       );
 
       const querySnapshot = await getDocs(q);
@@ -1620,7 +1640,7 @@ class DataManager {
         requestsRef,
         where("fromUserId", "==", toUserId),
         where("toUserId", "==", fromUserId),
-        where("status", "in", ["pending", "accepted"])
+        where("status", "in", ["pending", "accepted", "rejected"])
       );
 
       const reverseSnapshot = await getDocs(reverseQ);
@@ -1719,6 +1739,37 @@ class DataManager {
     } catch (error) {
       console.error("❌ Error deleting friend request:", error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🤝 Check if a friendship exists between two users
+   * @param {string} userId1 - First user ID
+   * @param {string} userId2 - Second user ID
+   * @returns {Promise<boolean>} True if friendship exists, false otherwise
+   */
+  async checkFriendshipExists(userId1, userId2) {
+    try {
+      const friendshipsRef = collection(db, "friendships");
+      const q = query(
+        friendshipsRef,
+        where("users", "array-contains", userId1)
+      );
+
+      const querySnapshot = await getDocs(q);
+      
+      // Check if any friendship document contains both users
+      for (const doc of querySnapshot.docs) {
+        const friendship = doc.data();
+        if (friendship.users.includes(userId2)) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("❌ Error checking friendship existence:", error);
+      return false;
     }
   }
 
