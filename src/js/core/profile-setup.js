@@ -1265,11 +1265,17 @@ class ProfileSetup {
    */
   async saveAvatarChange(newAvatarConfig) {
     try {
+      // 🛡️ SAFEGUARD: Ensure avatar config is clean (should already be clean from avatar editor)
+      console.log("🛡️ [ProfileSetup] Verifying avatar config is clean:", newAvatarConfig);
+      const { AvatarManager } = await import("./avatars.js");
+      const cleanedConfig = AvatarManager.cleanAvatarConfig(newAvatarConfig);
+      console.log("🛡️ [ProfileSetup] Verified clean avatar config:", cleanedConfig);
+
       // 1. Get the current profile and update avatarConfig
       const currentProfile = { ...currentUser.profile };
       const updatedProfile = {
         ...currentProfile,
-        avatarConfig: newAvatarConfig,
+        avatarConfig: cleanedConfig,
       };
 
       // 2. Save the updated profile to Firestore
@@ -1289,7 +1295,7 @@ class ProfileSetup {
       // 4. 🔄 NEW: Sync cached user data so friends see avatar changes immediately
       // Using centralized cache sync for consistency and reliability
       syncUserDataCache(this.currentUser.uid)
-        .then(() => console.log("✅ Friends will see your updated avatar in real-time!"))
+        .then(() => console.log("✅ Friends will see your cleaned avatar in real-time!"))
         .catch((err) => console.log("⚠️ Avatar cache update failed (but profile saved):", err));
 
       // Optionally, show a success message or trigger a UI update here
@@ -1924,6 +1930,7 @@ class ProfileSetup {
       form: document.querySelector(".profile-setup-form"),
     };
   }
+
 }
 
 /**

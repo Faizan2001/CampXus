@@ -51,7 +51,6 @@
 import {
   doc,
   getDoc,
-  setDoc,
   updateDoc,
   deleteDoc, // ← Added for deleting documents
   serverTimestamp,
@@ -282,7 +281,7 @@ class DataManager {
    * @param {object} options Toastify options
    * @private
    */
-  showNotification(message, type = "info", options = {}) {
+  showNotification(message, type = "info", _options = {}) {
     // Simple console logging for development - clean and clear
     console.log(`[${type.toUpperCase()}] ${message}`);
 
@@ -650,6 +649,14 @@ class DataManager {
       }
       // --- END: Auto-generate search fields and ensure socialInfo ---
 
+      // 🛡️ SAFEGUARD: Clean avatar config if present (using centralized method)
+      if (profileData.avatarConfig) {
+        console.log("🛡️ [DataManager] Cleaning avatar config in saveUserProfile");
+        const { AvatarManager } = await import("./avatars.js");
+        profileData.avatarConfig = AvatarManager.cleanAvatarConfig(profileData.avatarConfig);
+        console.log("🛡️ [DataManager] Avatar config cleaned:", profileData.avatarConfig);
+      }
+
       // Add timestamps properly within systemInfo structure
       const dataToSave = {
         ...profileData,
@@ -674,7 +681,8 @@ class DataManager {
         return { success: true, offline: true };
       }
 
-      await setDoc(doc(db, "users", userId), dataToSave, { merge: true });
+      // 🎯 OPTIMIZED: Use updateDoc for safer field-level updates (clean avatar guaranteed)
+      await updateDoc(doc(db, "users", userId), dataToSave);
 
       // Update cache with new data
       this.setCachedData(`user_${userId}`, profileData);
@@ -752,47 +760,50 @@ class DataManager {
 
       console.log("🔍 [DataManager] Updating avatar config:", avatarConfig);
       console.log(
-        "🧹 [DataManager] Using clean slate approach - clearing old config first"
+        "🧹 [DataManager] Using complete field replacement to prevent old options from lingering"
       );
+
+      // 🛡️ SAFEGUARD: Ensure avatar config is clean (using centralized method)
+      const { AvatarManager } = await import("./avatars.js");
+      const cleanedConfig = AvatarManager.cleanAvatarConfig(avatarConfig);
+      console.log("🛡️ [DataManager] Verified clean config:", cleanedConfig);
 
       const userDocRef = doc(db, "users", userId);
 
-      // STEP 1: Clear the existing avatarConfig completely to remove all old options
-      console.log("🗑️ [DataManager] Step 1: Clearing existing avatarConfig...");
-      await setDoc(
-        userDocRef,
-        {
-          avatarConfig: {},
-          "systemInfo.lastUpdated": serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // STEP 2: Save the new avatar config (now guaranteed to be clean)
-      console.log("💾 [DataManager] Step 2: Saving new avatarConfig...");
-      await setDoc(
-        userDocRef,
-        {
-          avatarConfig: avatarConfig,
-          "systemInfo.lastUpdated": serverTimestamp(),
-        },
-        { merge: true }
-      );
+      // 🧹 SINGLE STEP: Use updateDoc with field deletion and replacement for complete cleanup
+      console.log("🗑️ [DataManager] Completely replacing avatarConfig field...");
+      
+      // Use updateDoc to ensure field-level replacement (not merge)
+      await updateDoc(userDocRef, {
+        // Completely replace the avatarConfig field (this removes ALL old nested fields)
+        avatarConfig: cleanedConfig,
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
 
       console.log(
-        "✅ [DataManager] Avatar config updated successfully with clean slate approach"
+        "✅ [DataManager] Avatar config completely replaced - no old options lingering"
       );
 
-      // Update cache with new config
+      // Update cache with cleaned config
       const cacheKey = `user_${userId}`;
       if (this.cache.has(cacheKey)) {
         const cachedData = this.cache.get(cacheKey);
-        cachedData.avatarConfig = avatarConfig;
+        cachedData.avatarConfig = cleanedConfig;
         this.cache.set(cacheKey, cachedData);
         console.log("🔄 [DataManager] Updated avatar in cache");
       }
 
-      return { success: true, cleanedConfig: avatarConfig };
+      // 🔄 CRITICAL: Sync avatar changes to all cached locations (friendships, friend requests)
+      console.log("🔄 [DataManager] Syncing avatar changes to all cached locations...");
+      try {
+        await syncUserDataCache(userId);
+        console.log("✅ [DataManager] Avatar sync to cached locations completed");
+      } catch (syncError) {
+        console.error("⚠️ [DataManager] Avatar sync failed:", syncError);
+        // Don't fail the avatar update if sync fails
+      }
+
+      return { success: true, cleanedConfig: cleanedConfig };
     } catch (error) {
       console.error("[dataManager] Error updating avatar config:", error);
       return { success: false, error: error.message };
@@ -1372,7 +1383,7 @@ class DataManager {
       });
 
       // Remove from cache
-      this.invalidateUserCache(userId);
+      this.invalidateCache(`user_${userId}`);
 
       return { success: true };
     } catch (error) {
@@ -1403,7 +1414,7 @@ class DataManager {
       await Promise.all(promises);
 
       // Invalidate cache for affected users
-      userUpdates.forEach(({ userId }) => this.invalidateUserCache(userId));
+      userUpdates.forEach(({ userId }) => this.invalidateCache(`user_${userId}`));
 
       this.showNotification(
         `Updated ${userUpdates.length} users successfully`,
@@ -1422,7 +1433,7 @@ class DataManager {
    * @param {Object} criteria - Search criteria
    * @returns {Promise<Array|null>} Array of matching users or null
    */
-  async searchUsers(criteria) {
+  async searchUsers(_criteria) {
     try {
       if (!this.isOnline) {
         this.showError("Search requires internet connection");
@@ -2072,6 +2083,7 @@ class DataManager {
       return () => {}; // Return empty unsubscribe function
     }
   }
+
 }
 
 // Export a single instance of the DataManager (Singleton Pattern)
@@ -2338,7 +2350,13 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
 
     console.log(`📤 Found ${outgoingRequests.size} outgoing friend requests to update`);
     outgoingRequests.forEach((doc) => {
-      batch.update(doc.ref, { fromUserInfo: userInfoForCache });
+      // Completely replace fromUserInfo (don't merge nested objects)
+      batch.update(doc.ref, { 
+        "fromUserInfo.displayName": userInfoForCache.displayName,
+        "fromUserInfo.major": userInfoForCache.major,
+        "fromUserInfo.university": userInfoForCache.university,
+        "fromUserInfo.avatarConfig": userInfoForCache.avatarConfig
+      });
       updateCount++;
     });
 
@@ -2349,7 +2367,13 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
 
     console.log(`📥 Found ${incomingRequests.size} incoming friend requests to update`);
     incomingRequests.forEach((doc) => {
-      batch.update(doc.ref, { toUserInfo: userInfoForCache });
+      // Completely replace toUserInfo (don't merge nested objects)
+      batch.update(doc.ref, { 
+        "toUserInfo.displayName": userInfoForCache.displayName,
+        "toUserInfo.major": userInfoForCache.major,
+        "toUserInfo.university": userInfoForCache.university,
+        "toUserInfo.avatarConfig": userInfoForCache.avatarConfig
+      });
       updateCount++;
     });
 
@@ -2362,10 +2386,22 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
     friendships.forEach((doc) => {
       const data = doc.data();
       if (data.user1Id === userId) {
-        batch.update(doc.ref, { user1Info: userInfoForCache });
+        // Completely replace user1Info (don't merge nested objects)
+        batch.update(doc.ref, { 
+          "user1Info.displayName": userInfoForCache.displayName,
+          "user1Info.major": userInfoForCache.major,
+          "user1Info.university": userInfoForCache.university,
+          "user1Info.avatarConfig": userInfoForCache.avatarConfig
+        });
         updateCount++;
       } else if (data.user2Id === userId) {
-        batch.update(doc.ref, { user2Info: userInfoForCache });
+        // Completely replace user2Info (don't merge nested objects)
+        batch.update(doc.ref, { 
+          "user2Info.displayName": userInfoForCache.displayName,
+          "user2Info.major": userInfoForCache.major,
+          "user2Info.university": userInfoForCache.university,
+          "user2Info.avatarConfig": userInfoForCache.avatarConfig
+        });
         updateCount++;
       }
     });

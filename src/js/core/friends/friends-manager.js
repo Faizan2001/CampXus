@@ -22,16 +22,9 @@ export class FriendsManager {
     // No more setupAuthentication or initialization here!
     // We will get the user data on-demand.
 
-    // 🗄️ Initialize search cache for lightning-fast repeated searches
-    this.searchCache = new Map();
-    this.maxCacheSize = 20; // Store up to 20 recent searches
-    this.cacheExpiry = 5 * 60 * 1000; // Cache expires after 5 minutes
-
-    // 🎨 Avatar cache for efficient friends list loading
-    this.avatarCache = new Map();
-    this.maxAvatarCacheSize = 150; // Cache up to 150 user avatars
-    this.avatarCacheExpiry = 30 * 60 * 1000; // Avatar cache expires after 30 minutes
-    this.avatarStaleThreshold = 10 * 60 * 1000; // Consider avatar stale after 10 minutes
+    // 🗄️ Simple TTL-based cache for search results and user data
+    this.cache = new Map();
+    this.cacheExpiry = 5 * 60 * 1000; // 5 minutes TTL for all cached data
 
     // 🎛️ Real-time integration
     this.isRealTimeActive = false;
@@ -46,222 +39,64 @@ export class FriendsManager {
   }
 
   /**
-   * 🗄️ Get cached search results (if they exist and aren't expired)
-   * @param {string} cacheKey - Unique key for this search
-   * @returns {Array|null} Cached results or null if not found/expired
+   * 📦 Simple cache get with TTL expiration
+   * @param {string} key - Cache key
+   * @returns {*} Cached data or null if expired/missing
    */
-  getCachedSearchResults(cacheKey) {
-    const cached = this.searchCache.get(cacheKey);
+  getCached(key) {
+    const cached = this.cache.get(key);
+    if (!cached) return null;
 
-    if (!cached) {
-      return null; // No cache entry
-    }
-
-    // Check if cache has expired
     if (Date.now() - cached.timestamp > this.cacheExpiry) {
-      this.searchCache.delete(cacheKey);
-      console.log("📦 Cache expired for:", cacheKey);
+      this.cache.delete(key);
       return null;
     }
 
-    console.log(
-      "📦 Using cached search results for:",
-      cacheKey,
-      `(${cached.results.length} results)`
-    );
-    return cached.results;
+    return cached.data;
   }
 
   /**
-   * 💾 Cache search results for future instant access
-   * @param {string} cacheKey - Unique key for this search
-   * @param {Array} results - Search results to cache
+   * 💾 Simple cache set with automatic TTL cleanup
+   * @param {string} key - Cache key
+   * @param {*} data - Data to cache
    */
-  setCachedSearchResults(cacheKey, results) {
-    // Remove oldest cache entry if we're at max capacity
-    if (this.searchCache.size >= this.maxCacheSize) {
-      const firstKey = this.searchCache.keys().next().value;
-      this.searchCache.delete(firstKey);
-      // Removed old cache entry
+  setCached(key, data) {
+    // Auto-cleanup expired entries periodically
+    if (Math.random() < 0.1) { // 10% chance
+      this.cleanupExpiredCache();
     }
 
-    this.searchCache.set(cacheKey, {
-      results,
+    this.cache.set(key, {
+      data,
       timestamp: Date.now(),
     });
-
-    console.log(
-      "💾 Cached search results for:",
-      cacheKey,
-      `(${results.length} results)`
-    );
   }
 
   /**
-   * 🧹 Clean up expired cache entries (maintenance)
+   * 🧹 Clean up expired cache entries
    */
   cleanupExpiredCache() {
     const now = Date.now();
-    let cleanedCount = 0;
-
-    for (const [key, value] of this.searchCache.entries()) {
+    for (const [key, value] of this.cache.entries()) {
       if (now - value.timestamp > this.cacheExpiry) {
-        this.searchCache.delete(key);
-        cleanedCount++;
+        this.cache.delete(key);
       }
     }
-
-    if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned up ${cleanedCount} expired cache entries`);
-    }
-  }
-
-  // =========================
-  // AVATAR CACHING SYSTEM
-  // =========================
-
-  /**
-   * 🎨 Get cached avatar data for a user
-   * @param {string} userId - User ID to look up
-   * @returns {Object|null} Cached avatar data or null
-   */
-  getCachedAvatarData(userId) {
-    const cached = this.avatarCache.get(userId);
-    
-    if (!cached) {
-      return null;
-    }
-
-    const now = Date.now();
-    
-    // If expired, remove and return null
-    if (now - cached.timestamp > this.avatarCacheExpiry) {
-      this.avatarCache.delete(userId);
-      // Avatar cache expired
-      return null;
-    }
-
-    // Mark if stale (but still usable)
-    cached.isStale = now - cached.timestamp > this.avatarStaleThreshold;
-    
-    return cached;
   }
 
   /**
-   * 🎨 Cache avatar data for a user
-   * @param {string} userId - User ID
-   * @param {Object} avatarConfig - Avatar configuration
-   * @param {Object} userInfo - Additional user info (displayName, major)
+   * 🗑️ Clear specific cache entry
+   * @param {string} key - Cache key to clear
    */
-  setCachedAvatarData(userId, avatarConfig, userInfo = {}) {
-    // Remove oldest entries if at capacity
-    if (this.avatarCache.size >= this.maxAvatarCacheSize) {
-      const oldestKey = this.avatarCache.keys().next().value;
-      this.avatarCache.delete(oldestKey);
-      // Removed old avatar cache entry
-    }
-
-    this.avatarCache.set(userId, {
-      avatarConfig,
-      userInfo,
-      timestamp: Date.now(),
-      isStale: false
-    });
-
-    console.log(`🎨 Cached avatar data for user: ${userId}`);
+  clearCache(key) {
+    this.cache.delete(key);
   }
 
   /**
-   * 🎨 Get fresh avatar data for users whose cached data is stale
-   * @param {Array<string>} userIds - Array of user IDs to refresh
-   * @returns {Promise<Map>} Map of userId -> fresh avatar data
+   * 🧹 Clear all cache entries
    */
-  async refreshStaleAvatars(userIds) {
-    if (!userIds.length) return new Map();
-    
-    console.log(`🔄 Refreshing ${userIds.length} stale avatars...`);
-    
-    try {
-      const refreshedAvatars = new Map();
-      
-      // Fetch fresh user data one by one (since no batch method exists)
-      // Limit concurrent requests to avoid overwhelming the database
-      const batchSize = 5;
-      for (let i = 0; i < userIds.length; i += batchSize) {
-        const batch = userIds.slice(i, i + batchSize);
-        
-        const promises = batch.map(async (userId) => {
-          try {
-            const userData = await dataManager.getUserProfile(userId);
-            if (userData?.avatarConfig) {
-              // Update cache with fresh data
-              this.setCachedAvatarData(userId, userData.avatarConfig, {
-                displayName: userData.profile?.displayName,
-                major: userData.profile?.major
-              });
-              
-              return { userId, avatarConfig: userData.avatarConfig };
-            }
-          } catch (error) {
-            console.warn(`⚠️ Failed to refresh avatar for user ${userId}:`, error);
-          }
-          return null;
-        });
-        
-        const results = await Promise.all(promises);
-        results.forEach(result => {
-          if (result) {
-            refreshedAvatars.set(result.userId, result.avatarConfig);
-          }
-        });
-      }
-      
-      // Refreshed avatars
-      return refreshedAvatars;
-      
-    } catch (error) {
-      console.error('❌ Error refreshing stale avatars:', error);
-      return new Map();
-    }
-  }
-
-  /**
-   * 🧹 Clean up expired avatar cache entries
-   */
-  cleanupExpiredAvatarCache() {
-    const now = Date.now();
-    let cleanedCount = 0;
-
-    for (const [userId, cached] of this.avatarCache.entries()) {
-      if (now - cached.timestamp > this.avatarCacheExpiry) {
-        this.avatarCache.delete(userId);
-        cleanedCount++;
-      }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned up ${cleanedCount} expired avatar cache entries`);
-    }
-  }
-
-  /**
-   * 🗑️ Clear avatar cache for a specific user (when their avatar changes)
-   * @param {string} userId - User ID to clear cache for
-   */
-  clearAvatarCache(userId) {
-    if (this.avatarCache.has(userId)) {
-      this.avatarCache.delete(userId);
-      // Cleared avatar cache
-    }
-  }
-
-  /**
-   * 🧹 Clear all avatar cache (for debugging or complete refresh)
-   */
-  clearAllAvatarCache() {
-    const count = this.avatarCache.size;
-    this.avatarCache.clear();
-    console.log(`🧹 Cleared all avatar cache: ${count} entries removed`);
+  clearAllCache() {
+    this.cache.clear();
   }
 
   // =========================
@@ -587,57 +422,50 @@ export class FriendsManager {
       return [];
     }
 
-    try {
-      // Filtering search results
+    // Cache key for filtering data
+    const cacheKey = `filter_data_${currentUser.uid}`;
+    let filterData = this.getCached(cacheKey);
 
-      // Get current friendships and pending requests for filtering
-      // This runs both queries at the same time (parallel = faster!)
-      const [friendships, pendingRequests] = await Promise.all([
-        this.getFriendsList(),
-        this.getPendingRequests(),
-      ]);
+    if (!filterData) {
+      try {
+        // Get current friendships and pending requests for filtering
+        // This runs both queries at the same time (parallel = faster!)
+        const [friendships, pendingRequests] = await Promise.all([
+          this.getFriendsList(),
+          this.getPendingRequests(),
+        ]);
 
-      // Create fast lookup sets (like a phone book index - super fast!)
-      const friendIds = new Set(friendships.map((f) => f.id));
-      const pendingIds = new Set(pendingRequests.map((r) => r.fromUserId));
+        // Create fast lookup sets and cache them
+        filterData = {
+          friendIds: new Set(friendships.map((f) => f.id)),
+          pendingIds: new Set(pendingRequests.map((r) => r.fromUserId)),
+        };
 
-      console.log(
-        `📊 Excluding: ${friendIds.size} friends, ${pendingIds.size} pending requests`
-      );
-
-      // Filter out unwanted results
-      const filteredResults = searchResults.filter((student) => {
-        // Exclude self (double-check, just in case)
-        if (student.id === currentUser.uid) {
-          return false;
-        }
-
-        // Exclude existing friends
-        if (friendIds.has(student.id)) {
-          console.log(`🤝 Skipping friend: ${student.profile?.displayName}`);
-          return false;
-        }
-
-        // Exclude users we already sent requests to
-        if (pendingIds.has(student.id)) {
-          console.log(
-            `📤 Skipping pending request: ${student.profile?.displayName}`
-          );
-          return false;
-        }
-
-        return true; // This person is available for new friend request!
-      });
-
-      console.log(
-        `✅ ${filteredResults.length} students available for friend requests`
-      );
-      return filteredResults;
-    } catch (error) {
-      console.error("❌ Error filtering search results:", error);
-      // If filtering fails, just return the original results minus current user
-      return searchResults.filter((student) => student.id !== currentUser.uid);
+        // Cache for 2 minutes (shorter than general cache since this changes more often)
+        this.setCached(cacheKey, filterData);
+      } catch (error) {
+        console.error("❌ Error getting filter data:", error);
+        return searchResults.filter((student) => student.id !== currentUser.uid);
+      }
     }
+
+    console.log(
+      `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.pendingIds.size} pending requests`
+    );
+
+    // Filter out unwanted results
+    const filteredResults = searchResults.filter((student) => {
+      return (
+        student.id !== currentUser.uid &&
+        !filterData.friendIds.has(student.id) &&
+        !filterData.pendingIds.has(student.id)
+      );
+    });
+
+    console.log(
+      `✅ ${filteredResults.length} students available for friend requests`
+    );
+    return filteredResults;
   }
 
   /**
@@ -673,103 +501,11 @@ export class FriendsManager {
     }
   }
 
-  /**
-   * 📊 Monitor search performance and log metrics
-   * @param {string} searchType - Type of search ("name_search" or "major_search")
-   * @param {number} resultCount - Number of results returned
-   * @param {number} searchTime - Time taken in milliseconds
-   * @param {string} searchTerm - What was searched for
-   */
-  logSearchMetrics(searchType, resultCount, searchTime, searchTerm) {
-    const metrics = {
-      type: searchType,
-      term: searchTerm,
-      results: resultCount,
-      time: Math.round(searchTime), // Round to whole milliseconds
-      timestamp: new Date().toISOString(),
-      university: currentUser.profile?.universityInfo?.university || "unknown",
-    };
-
-    // Color-coded performance logging
-    const timeColor = searchTime < 500 ? "🟢" : searchTime < 1000 ? "🟡" : "🔴";
-    console.log(`📊 Search Performance ${timeColor}:`, {
-      type: searchType,
-      term: searchTerm,
-      results: `${resultCount} results`,
-      speed: `${Math.round(searchTime)}ms`,
-      rating: searchTime < 500 ? "FAST" : searchTime < 1000 ? "OK" : "SLOW",
-    });
-
-    // TODO: In a real app, you'd send this to an analytics service
-    // analytics.track('friend_search_performance', metrics);
-
-    return metrics;
-  }
 
   /**
-   * 🔍 Search with performance tracking (enhanced version)
+   * 🔍 Search students with simple caching
    * @param {string} searchTerm - Search term
-   * @returns {Promise<Array>} Search results with performance metrics
-   */
-  async searchStudentsWithMetrics(searchTerm) {
-    const startTime = performance.now();
-
-    try {
-      const results = await this.searchStudents(searchTerm);
-      const endTime = performance.now();
-      const searchTime = endTime - startTime;
-
-      // Log performance metrics
-      this.logSearchMetrics(
-        "name_search",
-        results.length,
-        searchTime,
-        searchTerm
-      );
-
-      return results;
-    } catch (error) {
-      const endTime = performance.now();
-      const searchTime = endTime - startTime;
-
-      // Log failed search metrics
-      this.logSearchMetrics("name_search_error", 0, searchTime, searchTerm);
-      throw error;
-    }
-  }
-
-  /**
-   * 🎓 Search by major with performance tracking
-   * @param {string} major - Major to search for
-   * @returns {Promise<Array>} Search results with performance metrics
-   */
-  async searchByMajorWithMetrics(major) {
-    const startTime = performance.now();
-
-    try {
-      const results = await this.searchByMajor(major);
-      const endTime = performance.now();
-      const searchTime = endTime - startTime;
-
-      // Log performance metrics
-      this.logSearchMetrics("major_search", results.length, searchTime, major);
-
-      return results;
-    } catch (error) {
-      const endTime = performance.now();
-      const searchTime = endTime - startTime;
-
-      // Log failed search metrics
-      this.logSearchMetrics("major_search_error", 0, searchTime, major);
-      throw error;
-    }
-  }
-
-  /**
-   * 🚀 Smart search with auto-detection (2025 UX best practice)
-   * Automatically searches both names AND majors in one intelligent query
-   * @param {string} searchTerm - Search term (name, major, or partial match)
-   * @returns {Promise<Array>} Combined search results (cached or fresh)
+   * @returns {Promise<Array>} Search results (cached or fresh)
    */
   async searchStudentsWithCache(searchTerm) {
     const userProfile = await currentUser.waitForProfile();
@@ -778,429 +514,26 @@ export class FriendsManager {
     }
 
     const cleanTerm = searchTerm.trim().toLowerCase();
-
-    // Create unique cache key for this smart search
-    const cacheKey = `smart_${cleanTerm}_${userProfile.universityInfo.university}`;
+    const cacheKey = `search_${cleanTerm}_${userProfile.universityInfo.university}`;
 
     // Try cache first
-    const cachedResults = this.getCachedSearchResults(cacheKey);
+    const cachedResults = this.getCached(cacheKey);
     if (cachedResults) {
-      return cachedResults; // Instant return! ⚡
+      console.log("📦 Using cached search results");
+      return cachedResults;
     }
 
-    // Cache miss - perform smart search with performance tracking
-    const results = await this.performSmartSearch(searchTerm);
-
-    // Cache the results for next time (but only if we got results)
+    // Perform search and cache results
+    const results = await this.searchStudents(searchTerm);
     if (results.length > 0) {
-      this.setCachedSearchResults(cacheKey, results);
-      // Add to search history for future suggestions
-      this.addToSearchHistory(searchTerm, "smart");
+      this.setCached(cacheKey, results);
     }
 
     return results;
   }
 
   /**
-   * 🧠 Perform intelligent search across names, majors, AND student IDs
-   * @param {string} searchTerm - What the user typed
-   * @returns {Promise<Array>} Combined and ranked results
-   */
-  async performSmartSearch(searchTerm) {
-    const startTime = performance.now();
-
-    try {
-      // Determine search type and run appropriate searches in parallel
-      const searchPromises = [];
-
-      // Always search names and majors
-      searchPromises.push(
-        this.searchStudentsWithMetrics(searchTerm), // Search names
-        this.searchByMajorWithMetrics(searchTerm) // Search majors
-      );
-
-      // Add ID/email search if the term looks like a student ID
-      if (this.isLikelyStudentId(searchTerm)) {
-        searchPromises.push(this.searchByIdWithMetrics(searchTerm));
-      }
-
-      // Run all searches in parallel for maximum speed! 🚀
-      const searchResults = await Promise.all(searchPromises);
-
-      const [nameResults, majorResults, idResults = []] = searchResults;
-
-      // Combine and deduplicate results with intelligent ranking
-      const combinedResults = this.combineAndRankResults(
-        nameResults,
-        majorResults,
-        idResults,
-        searchTerm
-      );
-
-      const endTime = performance.now();
-      const searchTime = endTime - startTime;
-
-      // Log smart search performance
-      this.logSearchMetrics(
-        "smart_search",
-        combinedResults.length,
-        searchTime,
-        searchTerm
-      );
-
-      return combinedResults;
-    } catch (error) {
-      const endTime = performance.now();
-      this.logSearchMetrics(
-        "smart_search_error",
-        0,
-        endTime - startTime,
-        searchTerm
-      );
-
-      // Fallback to name search only if other searches fail
-      console.warn(
-        "🔄 Smart search partially failed, falling back to name search:",
-        error
-      );
-      return await this.searchStudentsWithMetrics(searchTerm);
-    }
-  }
-
-  /**
-   * 🔍 Check if search term looks like a student ID
-   * @param {string} term - Search term to analyze
-   * @returns {boolean} True if it looks like a student ID
-   */
-  isLikelyStudentId(term) {
-    const cleanTerm = term.trim();
-
-    // Check if it's all digits (student ID pattern)
-    const isAllDigits = /^\d+$/.test(cleanTerm);
-
-    // Check if it's an email with ID pattern (2230992@iub.edu.bd)
-    const isStudentEmail = /^\d{7}@\w+\.\w+\.\w+$/.test(cleanTerm);
-
-    // Privacy protection: require at least 4 digits for ID search
-    const isLongEnough = cleanTerm.length >= 4;
-
-    return isLongEnough && (isAllDigits || isStudentEmail);
-  }
-
-  /**
-   * 🎓 Search students by ID or email with progressive privacy
-   * @param {string} searchTerm - Student ID or email to search for
-   * @returns {Promise<Array>} Matching students
-   */
-  async searchByIdWithMetrics(searchTerm) {
-    const startTime = performance.now();
-
-    try {
-      const results = await this.searchById(searchTerm);
-      const endTime = performance.now();
-      const searchTime = endTime - startTime;
-
-      this.logSearchMetrics(
-        "id_search",
-        results.length,
-        searchTime,
-        searchTerm
-      );
-      return results;
-    } catch (error) {
-      const endTime = performance.now();
-      this.logSearchMetrics(
-        "id_search_error",
-        0,
-        endTime - startTime,
-        searchTerm
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * 🔍 Search students by ID or email (core implementation)
-   * @param {string} searchTerm - Student ID or email
-   * @returns {Promise<Array>} Matching students with privacy controls
-   */
-  async searchById(searchTerm) {
-    const userProfile = await currentUser.waitForProfile();
-    if (!userProfile || !searchTerm) {
-      return [];
-    }
-
-    const cleanTerm = searchTerm.trim().toLowerCase();
-
-    try {
-      console.log(`🆔 Searching by ID/email: "${cleanTerm}"`);
-
-      // Progressive privacy based on term length
-      let maxResults = this.getIdSearchLimit(cleanTerm);
-
-      // Use the data manager to find users by ID/email
-      const students = await dataManager.findUsersByIdOrEmail(
-        userProfile.universityInfo.university,
-        cleanTerm,
-        maxResults
-      );
-
-      // Apply smart filtering to exclude friends/pending requests
-      const filteredStudents = await this.filterSearchResults(students);
-
-      console.log(
-        `✅ Found ${filteredStudents.length} students matching ID/email "${cleanTerm}"`
-      );
-      return filteredStudents;
-    } catch (error) {
-      console.error("❌ Error searching by ID/email:", error);
-      return [];
-    }
-  }
-
-  /**
-   * 🛡️ Get search result limit based on privacy considerations
-   * @param {string} term - Search term
-   * @returns {number} Maximum results to return
-   */
-  getIdSearchLimit(term) {
-    const length = term.length;
-
-    if (length >= 7) {
-      return 10; // Full ID (7+ digits) - more specific, allow more results
-    } else if (length >= 5) {
-      return 5; // Partial but specific (5-6 digits) - moderate results
-    } else {
-      return 3; // Short partial (4 digits) - very limited results for privacy
-    }
-  }
-
-  /**
-   * 🎯 Combine and intelligently rank search results
-   * @param {Array} nameResults - Results from name search
-   * @param {Array} majorResults - Results from major search
-   * @param {Array} idResults - Results from ID/email search
-   * @param {string} searchTerm - Original search term for ranking
-   * @returns {Array} Ranked and deduplicated results
-   */
-  combineAndRankResults(nameResults, majorResults, idResults = [], searchTerm) {
-    const resultsMap = new Map();
-    const term = searchTerm.toLowerCase();
-
-    // Add ID/email results first (highest priority - most specific)
-    idResults.forEach((user) => {
-      resultsMap.set(user.id, {
-        ...user,
-        matchType: "id",
-        relevance: this.calculateIdRelevance(user, term),
-      });
-    });
-
-    // Add name results (high priority)
-    nameResults.forEach((user) => {
-      if (!resultsMap.has(user.id)) {
-        resultsMap.set(user.id, {
-          ...user,
-          matchType: "name",
-          relevance: this.calculateNameRelevance(user, term),
-        });
-      }
-    });
-
-    // Add major results (lower priority - least specific)
-    majorResults.forEach((user) => {
-      if (!resultsMap.has(user.id)) {
-        resultsMap.set(user.id, {
-          ...user,
-          matchType: "major",
-          relevance: this.calculateMajorRelevance(user, term),
-        });
-      }
-    });
-
-    // Convert to array and sort by relevance
-    const rankedResults = Array.from(resultsMap.values())
-      .sort((a, b) => b.relevance - a.relevance)
-      .slice(0, 15); // Limit to top 15 results
-
-    console.log(
-      `🧠 Smart search combined: ${idResults.length} ID + ${nameResults.length} name + ${majorResults.length} major = ${rankedResults.length} total results`
-    );
-
-    return rankedResults;
-  }
-
-  /**
-   * 📊 Calculate relevance score for ID/email matches
-   * @param {Object} user - User object
-   * @param {string} term - Search term (ID or email)
-   * @returns {number} Relevance score (higher = better match)
-   */
-  calculateIdRelevance(user, term) {
-    const userEmail = user.email?.toLowerCase() || "";
-    const userId = this.extractIdFromEmail(userEmail);
-
-    let score = 0;
-
-    // Check if term is an email or just an ID
-    const isEmailSearch = term.includes("@");
-
-    if (isEmailSearch) {
-      // Exact email match = highest score
-      if (userEmail === term) score += 200;
-      // Email starts with term (partial email)
-      else if (userEmail.startsWith(term)) score += 180;
-    } else {
-      // ID search - check against extracted user ID
-      if (userId) {
-        // Exact ID match = highest score
-        if (userId === term) score += 190;
-        // ID starts with term (partial ID)
-        else if (userId.startsWith(term)) score += 170;
-        // ID contains term
-        else if (userId.includes(term)) score += 150;
-      }
-    }
-
-    return score;
-  }
-
-  /**
-   * 🔢 Extract student ID from email
-   * @param {string} email - Student email (e.g., "2230992@iub.edu.bd")
-   * @returns {string} Student ID (e.g., "2230992")
-   */
-  extractIdFromEmail(email) {
-    if (!email || !email.includes("@")) return "";
-    return email.split("@")[0];
-  }
-
-  /**
-   * 📊 Calculate relevance score for name matches
-   * @param {Object} user - User object
-   * @param {string} term - Search term
-   * @returns {number} Relevance score (higher = better match)
-   */
-  calculateNameRelevance(user, term) {
-    const displayName = user.profile?.displayName?.toLowerCase() || "";
-    const firstName = user.profile?.firstName?.toLowerCase() || "";
-    const lastName = user.profile?.lastName?.toLowerCase() || "";
-
-    let score = 0;
-
-    // Exact name match = highest score
-    if (displayName === term) score += 100;
-    else if (firstName === term || lastName === term) score += 90;
-    // Name starts with term = high score
-    else if (displayName.startsWith(term)) score += 80;
-    else if (firstName.startsWith(term) || lastName.startsWith(term))
-      score += 70;
-    // Name contains term = medium score
-    else if (displayName.includes(term)) score += 50;
-    else if (firstName.includes(term) || lastName.includes(term)) score += 40;
-
-    return score;
-  }
-
-  /**
-   * 📊 Calculate relevance score for major matches
-   * @param {Object} user - User object
-   * @param {string} term - Search term
-   * @returns {number} Relevance score (higher = better match)
-   */
-  calculateMajorRelevance(user, term) {
-    const major = user.profile?.major?.toLowerCase() || "";
-
-    let score = 0;
-
-    // Common major abbreviations (CSE, CSC, etc.)
-    if (this.isCommonMajorAbbreviation(term, major)) score += 85;
-    // Exact major match
-    else if (major === term) score += 80;
-    // Major starts with term
-    else if (major.startsWith(term)) score += 70;
-    // Major contains term
-    else if (major.includes(term)) score += 60;
-
-    return score;
-  }
-
-  /**
-   * 🎓 Check if search term matches common major abbreviations
-   * @param {string} term - Search term
-   * @param {string} major - User's major
-   * @returns {boolean} True if it's a common abbreviation match
-   */
-  isCommonMajorAbbreviation(term, major) {
-    const abbreviations = {
-      // Computer Science & Engineering
-      cse: [
-        "CSE",
-        "computer",
-        "computer science",
-        "computer science and engineering",
-      ],
-      csc: ["CSC", "computer", "computer science"],
-      cs: ["CS", "computer", "computer science"],
-      cen: ["CEN", "computer engineering"],
-      ece: [
-        "ECE",
-        "electric",
-        "electrical",
-        "electrical and computer engineering",
-        "electronics and communication",
-      ],
-      eee: [
-        "EEE",
-        "electric",
-        "electrical",
-        "electrical and electronics engineering",
-      ],
-      mecha: ["ME", "mechanical", "mechanical engineering"],
-      ce: ["CE", "civil engineering"],
-
-      // Business Majors
-      bba: [
-        "BBA",
-        "business",
-        "bachelor of business administration",
-        "business administration",
-      ],
-      mba: ["MBA", "master of business administration"],
-      inb: ["INB", "iternational business", "international business studies"],
-      bus: ["BUS", "business", "business studies"],
-      fin: ["FIN", "finance", "financial studies"],
-      acn: ["ACN", "accounting", "accountancy"],
-      mgt: ["MGT", "management", "management studies"],
-      mkt: ["MKT", "marketing", "marketing studies"],
-      hrm: ["HRM", "human resource management", "human resources"],
-
-      // Science Majors
-      math: ["MATH", "mathematics"],
-      bio: ["BIO", "biology", "biotechnology"],
-      chem: ["CHEM", "chemistry"],
-      phy: ["PHY", "physics"],
-      microbio: ["MCB", "MICROBIO", "microbiology", "microbial biology"],
-      env: ["ENV", "environmental science", "environmental studies"],
-
-      // Communication & Law
-      cmn: ["CMN", "communication", "mass communication"],
-      law: ["LAW", "legal", "law studies"],
-      eng: ["ENG", "english", "english studies"],
-
-      // Economics & Global Studies
-      econ: ["ECON", "economics"],
-      gsg: ["GSG", "global studies", "global affairs"],
-    };
-
-    const possibleMajors = abbreviations[term];
-    return possibleMajors
-      ? possibleMajors.some((maj) => major.includes(maj))
-      : false;
-  }
-
-  /**
-   * 🎓 Search by major with caching
+   * 🎓 Search by major with simple caching
    * @param {string} major - Major to search for
    * @returns {Promise<Array>} Search results (cached or fresh)
    */
@@ -1210,117 +543,29 @@ export class FriendsManager {
       return [];
     }
 
-    // Create unique cache key for major searches
-    const cacheKey = `major_${major.toLowerCase()}_${
-      userProfile.universityInfo.university
-    }`;
+    const cacheKey = `major_${major.toLowerCase()}_${userProfile.universityInfo.university}`;
 
     // Try cache first
-    const cachedResults = this.getCachedSearchResults(cacheKey);
+    const cachedResults = this.getCached(cacheKey);
     if (cachedResults) {
-      return cachedResults; // Instant return! ⚡
+      console.log("📦 Using cached major search results");
+      return cachedResults;
     }
 
-    // Cache miss - perform search with performance tracking
-    const results = await this.searchByMajorWithMetrics(major);
-
-    // Cache the results for next time
+    // Perform search and cache results
+    const results = await this.searchByMajor(major);
     if (results.length > 0) {
-      this.setCachedSearchResults(cacheKey, results);
-      // Add to search history for future suggestions
-      this.addToSearchHistory(major, "major");
+      this.setCached(cacheKey, results);
     }
 
     return results;
   }
 
-  /**
-   * 🔄 Clear all cached search results (use when friends list changes)
-   */
-  clearSearchCache() {
-    this.searchCache.clear();
-    // Cleared cached search results
-  }
 
-  /**
-   * 📜 Add search term to history for quick repeat access
-   * @param {string} searchTerm - Term that was searched
-   * @param {string} searchType - Type of search ("name" or "major")
-   */
-  addToSearchHistory(searchTerm, searchType = "name") {
-    if (!searchTerm || searchTerm.length < 2) return;
 
-    try {
-      // Get existing history from localStorage
-      const historyKey = "campxus_search_history";
-      let history = JSON.parse(localStorage.getItem(historyKey) || "[]");
 
-      // Create search entry
-      const searchEntry = {
-        term: searchTerm,
-        type: searchType,
-        timestamp: Date.now(),
-        university:
-          currentUser.profile?.universityInfo?.university || "unknown",
-      };
 
-      // Remove if already exists (to move it to top)
-      history = history.filter(
-        (entry) => entry.term !== searchTerm || entry.type !== searchType
-      );
 
-      // Add to beginning of array
-      history.unshift(searchEntry);
-
-      // Keep only recent 10 searches
-      history = history.slice(0, 10);
-
-      // Save back to localStorage
-      localStorage.setItem(historyKey, JSON.stringify(history));
-
-      console.log(`📜 Added "${searchTerm}" (${searchType}) to search history`);
-    } catch (error) {
-      console.warn("Could not save search history:", error);
-    }
-  }
-
-  /**
-   * 📖 Get recent search history for suggestions
-   * @returns {Array} Recent search terms
-   */
-  getSearchHistory() {
-    try {
-      const historyKey = "campxus_search_history";
-      const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
-
-      // Filter to current university and recent searches (last 7 days)
-      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      const currentUniversity = currentUser.profile?.universityInfo?.university;
-
-      const filteredHistory = history.filter(
-        (entry) =>
-          entry.timestamp > weekAgo && entry.university === currentUniversity
-      );
-
-      console.log(`📖 Found ${filteredHistory.length} recent searches`);
-      return filteredHistory;
-    } catch (error) {
-      console.warn("Could not load search history:", error);
-      return [];
-    }
-  }
-
-  /**
-   * 🗑️ Clear search history
-   */
-  clearSearchHistory() {
-    try {
-      localStorage.removeItem("campxus_search_history");
-      // Search history cleared
-    } catch (error) {
-      console.warn("Could not clear search history:", error);
-    }
-  }
 
   /**
    * 📩 Send a friend request to another student
@@ -1625,11 +870,8 @@ export class FriendsManager {
         return [];
       }
 
-      // 🎯 Transform friendship documents with smart avatar caching
-      const friends = [];
-      const staleAvatarUserIds = [];
-
-      for (const friendship of friendships) {
+      // 🎯 Transform friendship documents with simple avatar handling
+      const friends = friendships.map((friendship) => {
         // Determine which user info to show (the friend, not the current user)
         const isUser1 = friendship.user1Id === currentUser.uid;
         const friendInfo = isUser1
@@ -1637,34 +879,7 @@ export class FriendsManager {
           : friendship.user1Info;
         const friendId = isUser1 ? friendship.user2Id : friendship.user1Id;
 
-        // Prioritize fresh data from friendship document over cache
-        let avatarConfig = friendInfo?.avatarConfig || null;
-        const cachedAvatar = this.getCachedAvatarData(friendId);
-
-        // Clear cache if avatar seed has changed to prevent stale data
-        if (avatarConfig?.seed && cachedAvatar?.avatarConfig?.seed && 
-            avatarConfig.seed !== cachedAvatar.avatarConfig.seed) {
-          this.clearAvatarCache(friendId);
-        }
-
-        if (avatarConfig) {
-          // Always use fresh data from friendship document if available
-          // Update cache with the fresh data
-          this.setCachedAvatarData(friendId, avatarConfig, {
-            displayName: friendInfo?.displayName,
-            major: friendInfo?.major
-          });
-        } else if (cachedAvatar && !cachedAvatar.isStale) {
-          // Only use cached data if no fresh data AND cache isn't stale
-          avatarConfig = cachedAvatar.avatarConfig;
-        }
-
-        // Mark for background refresh if we have stale cache
-        if (cachedAvatar?.isStale) {
-          staleAvatarUserIds.push(friendId);
-        }
-
-        friends.push({
+        return {
           // Friend identification
           id: friendId,
           friendshipId: friendship.id,
@@ -1672,7 +887,7 @@ export class FriendsManager {
           // Friend details (cached in friendship document - no extra queries!)
           displayName: friendInfo?.displayName || "Unknown User",
           major: friendInfo?.major || "Unknown Major",
-          avatarConfig,
+          avatarConfig: friendInfo?.avatarConfig || null,
 
           // Friendship metadata
           friendsSince: friendship.createdAt,
@@ -1682,29 +897,8 @@ export class FriendsManager {
           // UI helpers
           isOnline: false, // TODO: Add real-time status in Phase 5
           mutualFriends: friendship.mutualFriends || 0,
-        });
-      }
-
-      // 🔄 Asynchronously refresh stale avatars in background (non-blocking)
-      if (staleAvatarUserIds.length > 0) {
-        // Don't await this - let it happen in background
-        this.refreshStaleAvatars(staleAvatarUserIds)
-          .then((refreshedAvatars) => {
-            if (refreshedAvatars.size > 0) {
-              
-              // Trigger UI update if we have callbacks
-              if (this.uiCallbacks.onFriendsListChange) {
-                // Re-get friends list with fresh avatars and update UI
-                this.getFriendsList().then(updatedFriends => {
-                  this.uiCallbacks.onFriendsListChange(updatedFriends);
-                });
-              }
-            }
-          })
-          .catch(error => {
-            console.error('❌ Background avatar refresh failed:', error);
-          });
-      }
+        };
+      });
 
       // 🎯 Sort friends by when they became friends (newest first)
       friends.sort((a, b) => {
@@ -1715,10 +909,10 @@ export class FriendsManager {
 
       // 🧹 Cleanup expired caches periodically
       if (Math.random() < 0.1) { // 10% chance to run cleanup
-        this.cleanupExpiredAvatarCache();
+        this.cleanupExpiredCache();
       }
 
-      console.log(`🎉 Successfully processed ${friends.length} friends with smart avatar caching`);
+      console.log(`🎉 Successfully processed ${friends.length} friends`);
       return friends;
     } catch (error) {
       console.error("❌ Error getting friends list:", error);

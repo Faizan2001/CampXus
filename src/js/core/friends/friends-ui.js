@@ -644,23 +644,16 @@ class FriendsUI {
     // Add smooth dropdown animation
     resultsContainer.classList.add("show");
 
-    // Remove existing event listeners to prevent duplicates
-    const existingListener = resultsContainer.__friendsEventListener;
-    if (existingListener) {
-      resultsContainer.removeEventListener("click", existingListener);
-    }
-
-    // Add event listeners for Send Friend Request buttons
-    const clickHandler = async (e) => {
+    // Use event delegation - single listener on container, no memory leaks
+    resultsContainer.addEventListener("click", (e) => {
       if (e.target.closest(".btn-send-request")) {
         const button = e.target.closest(".btn-send-request");
         const studentId = button.dataset.studentId;
-        const studentName = button.dataset.studentName;
 
         // Prevent multiple clicks while processing
         if (button.disabled) return;
 
-        await this.handleSendFriendRequest(
+        this.handleSendFriendRequest(
           studentId,
           results.find((s) => s.id === studentId)
         );
@@ -669,17 +662,13 @@ class FriendsUI {
       if (e.target.closest(".btn-clear-search")) {
         this.clearSearchResults();
       }
-    };
+    });
 
     // Update button states based on current friend request status
     // Use setTimeout to ensure DOM is fully rendered before updating buttons
     setTimeout(() => {
       this.updateSearchResultsButtons();
     }, 0);
-
-    resultsContainer.addEventListener("click", clickHandler);
-    // Store reference to remove it later
-    resultsContainer.__friendsEventListener = clickHandler;
   }
 
   /**
@@ -841,29 +830,14 @@ class FriendsUI {
 
     this.elements.friendsList.innerHTML = friendsHTML;
 
-    // Remove existing event listener to prevent duplicates
-    const existingFriendsListener =
-      this.elements.friendsList.__friendsEventListener;
-    if (existingFriendsListener) {
-      this.elements.friendsList.removeEventListener(
-        "click",
-        existingFriendsListener
-      );
-    }
-
-    // Add event listeners for friend actions
-    const friendsClickHandler = async (e) => {
+    // Use event delegation - single listener, no memory leaks
+    this.elements.friendsList.addEventListener("click", (e) => {
       if (e.target.closest(".btn-friend-menu")) {
         const button = e.target.closest(".btn-friend-menu");
         const friendId = button.dataset.friendId;
-
         this.handleFriendMenu(friendId, e);
       }
-    };
-
-    this.elements.friendsList.addEventListener("click", friendsClickHandler);
-    // Store reference to remove it later
-    this.elements.friendsList.__friendsEventListener = friendsClickHandler;
+    });
   }
 
   /**
@@ -935,31 +909,15 @@ class FriendsUI {
 
     this.elements.friendRequests.innerHTML = requestsHTML;
 
-    // Remove existing event listener to prevent duplicates
-    const existingRequestsListener =
-      this.elements.friendRequests.__friendsEventListener;
-    if (existingRequestsListener) {
-      this.elements.friendRequests.removeEventListener(
-        "click",
-        existingRequestsListener
-      );
-    }
-
-    // Add event listeners for Accept/Reject buttons
-    const requestsClickHandler = async (e) => {
-      // Prevent multiple clicks while processing
+    // Use event delegation - single listener, no memory leaks
+    this.elements.friendRequests.addEventListener("click", async (e) => {
       if (e.target.closest(".btn-accept-request")) {
         const button = e.target.closest(".btn-accept-request");
-
+        
         // Check if button is already disabled (processing)
-        if (button.disabled) {
-          console.log("🚫 Button already disabled, ignoring click");
-          return;
-        }
+        if (button.disabled) return;
 
         const requestId = button.dataset.requestId;
-        const requestName = button.dataset.requestName;
-
         await this.handleAcceptFriendRequest(
           requestId,
           requests.find((r) => r.id === requestId)
@@ -968,29 +926,17 @@ class FriendsUI {
 
       if (e.target.closest(".btn-reject-request")) {
         const button = e.target.closest(".btn-reject-request");
-
+        
         // Check if button is already disabled (processing)
-        if (button.disabled) {
-          console.log("🚫 Button already disabled, ignoring click");
-          return;
-        }
+        if (button.disabled) return;
 
         const requestId = button.dataset.requestId;
-        const requestName = button.dataset.requestName;
-
         await this.handleRejectFriendRequest(
           requestId,
           requests.find((r) => r.id === requestId)
         );
       }
-    };
-
-    this.elements.friendRequests.addEventListener(
-      "click",
-      requestsClickHandler
-    );
-    // Store reference to remove it later
-    this.elements.friendRequests.__friendsEventListener = requestsClickHandler;
+    });
   }
 
   /**
@@ -1397,24 +1343,6 @@ class FriendsUI {
 
     // Remove event listeners to prevent memory leaks
     this.removeEventListeners();
-
-    // Clean up friends list event listener
-    if (this.elements.friendsList?.__friendsEventListener) {
-      this.elements.friendsList.removeEventListener(
-        "click",
-        this.elements.friendsList.__friendsEventListener
-      );
-      this.elements.friendsList.__friendsEventListener = null;
-    }
-
-    // Clean up friend requests event listener
-    if (this.elements.friendRequests?.__friendsEventListener) {
-      this.elements.friendRequests.removeEventListener(
-        "click",
-        this.elements.friendRequests.__friendsEventListener
-      );
-      this.elements.friendRequests.__friendsEventListener = null;
-    }
 
     console.log("🧹 Friends UI cleaned up");
   }

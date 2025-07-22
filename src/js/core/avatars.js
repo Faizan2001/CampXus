@@ -790,12 +790,144 @@ class AvatarManager {
   handleSaveAvatar() {
     console.log("💾 Saving avatar configuration:", this.currentConfig);
 
-    // No need to clean here - DataManager will use clean slate approach
-    // Just pass the current config directly to the callback
+    // 🧹 CRITICAL: Clean the config to only include valid options for the current style
+    const cleanedConfig = this.cleanAvatarConfig(this.currentConfig);
+    console.log("🧹 Cleaned avatar config (removed invalid options):", cleanedConfig);
+
     if (this.onSaveCallback) {
-      this.onSaveCallback(this.currentConfig);
+      this.onSaveCallback(cleanedConfig);
     }
     return true;
+  }
+
+  /**
+   * 🎯 CENTRALIZED AVATAR CLEANING METHOD
+   * The single source of truth for cleaning avatar configurations
+   * This prevents old options from previous styles from lingering
+   * @param {Object} config - Avatar configuration to clean
+   * @returns {Object} Cleaned configuration with only valid options
+   * @static - Can be called without instance: AvatarManager.cleanConfig()
+   */
+  static cleanAvatarConfig(config) {
+    if (!config || !config.style) {
+      console.warn("⚠️ Invalid config passed to cleanAvatarConfig");
+      return config;
+    }
+
+    // Use the static avatar styles definition (source of truth)
+    const avatarStyles = AvatarManager.getAvatarStyles();
+    const styleInfo = avatarStyles[config.style];
+    
+    if (!styleInfo) {
+      console.warn(`⚠️ Unknown avatar style: ${config.style}`);
+      return config;
+    }
+
+    // Create cleaned config with basic properties
+    const cleanedConfig = {
+      style: config.style,
+      seed: config.seed || "default",
+      options: {}
+    };
+
+    // Only include options that are valid for the current style
+    if (config.options && styleInfo.options) {
+      const validOptionKeys = Object.keys(styleInfo.options);
+      
+      for (const [key, value] of Object.entries(config.options)) {
+        if (validOptionKeys.includes(key) && value) {
+          cleanedConfig.options[key] = value;
+        } else if (!validOptionKeys.includes(key)) {
+          console.log(`🗑️ [AvatarManager] Removing invalid option '${key}' for style '${config.style}'`);
+        }
+      }
+    }
+
+    return cleanedConfig;
+  }
+
+  /**
+   * 🎯 GET AVATAR STYLES (Static method for external access)
+   * @returns {Object} Avatar styles definition
+   * @static
+   */
+  static getAvatarStyles() {
+    // Return the authoritative avatar styles definition
+    return {
+      miniavs: {
+        name: "Mini Avatars",
+        description: "Cute minimalist avatars", 
+        options: {
+          hair: ["balndess", "classic01", "classic02", "curly", "elvis", "long", "ponyTail", "stylish"],
+          backgroundColor: ["b6e3f4", "c0aede", "ffd93d", "ffdfbf", "d1d4f9", "b6e3f4,c0aede", "ffd93d,ffdfbf", "d1d4f9,b6e3f4", "c0aede,ffd93d", "ffdfbf,d1d4f9"],
+          backgroundType: ["gradientLinear", "solid"]
+        }
+      },
+      adventurer: {
+        name: "Adventurer",
+        description: "Heroic adventure characters",
+        options: {
+          eyes: ["variant01", "variant02", "variant03", "variant04", "variant05", "variant06", "variant07", "variant08", "variant09", "variant10", "variant11", "variant12", "variant13", "variant14", "variant15"],
+          eyebrows: ["variant01", "variant02", "variant03", "variant04"],
+          mouth: ["variant01", "variant02", "variant03", "variant04", "variant05", "variant06", "variant07", "variant08", "variant09"],
+          glasses: ["variant01", "variant02", "variant03", "variant04", "variant05"],
+          hair: ["long01", "long02", "long03", "long04", "long05", "long06", "long07", "long08", "long09", "long10", "long11", "long12", "long13", "long14", "long15", "long16", "short01", "short02", "short03", "short04", "short05", "short06", "short07", "short08", "short09", "short10", "short11", "short12", "short13", "short14", "short15", "short16"],
+          hairColor: ["0e0e0e", "3eac2c", "6a4e35", "85c2c6", "796a45", "562306", "592454", "ab2a18", "ac6511", "afafaf", "b9a05f", "cb6820", "dba3be", "e5d7a3"],
+          backgroundColor: ["b6e3f4", "c0aede", "ffd93d", "ffdfbf", "d1d4f9", "b6e3f4,c0aede", "ffd93d,ffdfbf", "d1d4f9,b6e3f4", "c0aede,ffd93d", "ffdfbf,d1d4f9"],
+          backgroundType: ["gradientLinear", "solid"]
+        }
+      },
+      avataaars: {
+        name: "Avataaars",
+        description: "Detailed character avatars by Pablo Stanley",
+        options: {
+          accessories: ["eyepatch", "kurt", "prescription01", "prescription02", "round", "sunglasses", "wayfarers"],
+          clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
+          eyes: ["closed", "cry", "default", "eyeRoll", "happy", "hearts", "side", "squint", "surprised", "wink", "winkWacky", "xDizzy"],
+          skinColor: ["614335", "ae5d29", "d08b5b", "edb98a", "f8d25c", "fd9841", "ffdbb4"],
+          top: ["bigHair", "bob", "bun", "curly", "curvy", "dreads", "frida", "frizzle", "fro", "froBand", "hat", "hijab", "longButNotTooLong", "miaWallace", "shaggy", "shaggyMullet", "shavedSides", "shortCurly", "shortFlat", "shortRound", "shortWaved", "sides", "straight01", "straight02", "theCaesar", "theCaesarAndSidePart", "turban", "winterHat01", "winterHat02", "winterHat03", "winterHat04"],
+          backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf", "a7ffc4", "ffdeb5", "b6e3f4,c0aede", "d1d4f9,ffd5dc", "ffdfbf,a7ffc4", "c0aede,ffdeb5", "ffd5dc,b6e3f4", "a7ffc4,d1d4f9"],
+          backgroundType: ["gradientLinear", "solid"]
+        }
+      },
+      notionists: {
+        name: "Notionists",
+        description: "Professional avatars with clean design",
+        options: {
+          backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf", "a7ffc4", "ffdeb5", "b6e3f4,c0aede", "d1d4f9,ffd5dc", "ffdfbf,a7ffc4", "c0aede,ffdeb5", "ffd5dc,b6e3f4", "a7ffc4,d1d4f9"],
+          backgroundType: ["gradientLinear", "solid"],
+          body: ["variant01", "variant02", "variant03", "variant04", "variant05", "variant06", "variant07", "variant08", "variant09", "variant10", "variant11", "variant12", "variant13", "variant14", "variant15", "variant16", "variant17", "variant18", "variant19", "variant20", "variant21", "variant22", "variant23", "variant24", "variant25"]
+        }
+      },
+      "bottts-neutral": {
+        name: "Bottts Neutral",
+        description: "Friendly robot avatars with neutral expressions",
+        options: {
+          eyes: ["bulging", "dizzy", "eva", "frame1", "frame2", "glow", "happy", "hearts", "robocop", "round", "roundFrame01", "roundFrame02", "sensor", "shade01"],
+          mouth: ["bite", "diagram", "grill01", "grill02", "grill03", "smile01", "smile02", "square01", "square02"],
+          backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf", "a7ffc4", "ffdeb5"]
+        }
+      },
+      thumbs: {
+        name: "Thumbs", 
+        description: "Simple thumbs up avatars",
+        options: {
+          eyes: ["variant1W16", "variant2W10", "variant3W16", "variant4W14", "variant5W12", "variant7W14", "variant9W12"],
+          shapeColor: ["0a5b83", "1c799f", "69d2e7", "f1f4dc", "f88c49"],
+          backgroundColor: ["b6e3f4", "c0aede", "ffd93d", "ffdfbf", "d1d4f9", "b6e3f4,c0aede", "ffd93d,ffdfbf", "d1d4f9,b6e3f4", "c0aede,ffd93d", "ffdfbf,d1d4f9"],
+          backgroundType: ["gradientLinear", "solid"]
+        }
+      }
+    };
+  }
+
+  /**
+   * Instance method wrapper for backward compatibility
+   * @param {Object} config - Avatar configuration to clean
+   * @returns {Object} Cleaned configuration
+   */
+  cleanAvatarConfig(config) {
+    return AvatarManager.cleanAvatarConfig(config);
   }
 
   /**

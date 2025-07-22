@@ -73,35 +73,10 @@ class RealTimeManager {
     this.isListening = false;
     this.currentUserId = null;
 
-    // Performance monitoring
-    this.stats = {
-      totalEvents: 0,
-      eventsPerSecond: 0,
-      lastEventTime: null,
-      subscriberCount: 0,
-      activeListenerCount: 0,
-    };
-
-    // Memory management
-    this.memoryMonitor = {
-      maxSubscribers: 100, // Prevent memory leaks from too many subscribers
-      maxListeners: 20, // Prevent too many active listeners
-      gcInterval: 300000, // Garbage collection every 5 minutes
-      lastGC: Date.now(),
-      warnings: 0,
-    };
-
-    // Auto-cleanup timers
-    this.cleanupTimer = null;
-    this.gcTimer = null;
-
     // Debug mode flag
     this.debugMode = process.env.NODE_ENV === "development";
 
-    // Start memory monitoring
-    this.startMemoryMonitoring();
-
-    this.log("🎛️ RealTimeManager initialized with memory management");
+    this.log("🎛️ RealTimeManager initialized");
   }
 
   // =========================
@@ -132,13 +107,8 @@ class RealTimeManager {
 
     // Add the callback to subscribers
     this.subscribers.get(eventType).add(callback);
-    this.updateStats();
 
-    this.log(
-      `📡 New subscriber for ${eventType} (${
-        this.subscribers.get(eventType).size
-      } total)`
-    );
+    this.log(`📡 New subscriber for ${eventType}`);
 
     // Return unsubscribe function
     return () => {
@@ -160,7 +130,6 @@ class RealTimeManager {
         this.subscribers.delete(eventType);
       }
 
-      this.updateStats();
       this.log(`📡 Unsubscribed from ${eventType}`);
     }
   }
@@ -187,11 +156,6 @@ class RealTimeManager {
         console.error(`❌ Error in ${eventType} callback:`, error);
       }
     });
-
-    // Update performance stats
-    this.stats.totalEvents++;
-    this.stats.lastEventTime = Date.now();
-    this.updateEventsPerSecond();
   }
 
   // =========================
@@ -228,8 +192,6 @@ class RealTimeManager {
       userId: userId,
       timestamp: Date.now(),
     });
-
-    this.updateStats();
   }
 
   /**
@@ -266,7 +228,6 @@ class RealTimeManager {
     });
 
     this.currentUserId = null;
-    this.updateStats();
   }
 
   /**
@@ -368,250 +329,30 @@ class RealTimeManager {
   }
 
   // =========================
-  // PERFORMANCE & MONITORING
+  // STATUS & DEBUG
   // =========================
 
   /**
-   * Update performance statistics
-   * @private
-   */
-  updateStats() {
-    this.stats.subscriberCount = Array.from(this.subscribers.values()).reduce(
-      (total, set) => total + set.size,
-      0
-    );
-    this.stats.activeListenerCount = this.activeListeners.size;
-  }
-
-  /**
-   * Update events per second calculation
-   * @private
-   */
-  updateEventsPerSecond() {
-    // Simple sliding window calculation
-    const now = Date.now();
-    const timeWindow = 10000; // 10 seconds
-
-    // This is a simplified version - in production you'd want a proper sliding window
-    if (
-      this.stats.lastEventTime &&
-      now - this.stats.lastEventTime < timeWindow
-    ) {
-      this.stats.eventsPerSecond =
-        this.stats.totalEvents / ((now - this.stats.lastEventTime) / 1000);
-    }
-  }
-
-  /**
-   * Get current status and statistics
+   * Get current status
    * @returns {Object} Current status
    */
   getStatus() {
     return {
       isListening: this.isListening,
       currentUserId: this.currentUserId,
-      subscriberCount: this.stats.subscriberCount,
-      activeListenerCount: this.stats.activeListenerCount,
-      totalEvents: this.stats.totalEvents,
-      eventsPerSecond: Math.round(this.stats.eventsPerSecond * 100) / 100,
-      lastEventTime: this.stats.lastEventTime,
+      subscriberCount: Array.from(this.subscribers.values()).reduce(
+        (total, set) => total + set.size,
+        0
+      ),
+      activeListenerCount: this.activeListeners.size,
       subscribedEvents: Array.from(this.subscribers.keys()),
       activeListeners: Array.from(this.activeListeners.keys()),
     };
   }
 
-  /**
-   * Get debug information
-   * @returns {Object} Debug information
-   */
-  getDebugInfo() {
-    const status = this.getStatus();
-
-    return {
-      ...status,
-      detailedSubscribers: Object.fromEntries(
-        Array.from(this.subscribers.entries()).map(([event, callbacks]) => [
-          event,
-          callbacks.size,
-        ])
-      ),
-      memoryUsage: {
-        subscribersMap: this.subscribers.size,
-        activeListenersMap: this.activeListeners.size,
-        totalCallbacks: status.subscriberCount,
-      },
-    };
-  }
 
   // =========================
-  // MEMORY MANAGEMENT
-  // =========================
-
-  /**
-   * Start memory monitoring and auto-cleanup
-   * @private
-   */
-  startMemoryMonitoring() {
-    // Periodic garbage collection
-    this.gcTimer = setInterval(() => {
-      this.performGarbageCollection();
-    }, this.memoryMonitor.gcInterval);
-
-    // Monitor memory usage every minute
-    this.cleanupTimer = setInterval(() => {
-      this.checkMemoryUsage();
-    }, 60000);
-
-    this.log("🧠 Memory monitoring started");
-  }
-
-  /**
-   * Check memory usage and warn if limits exceeded
-   * @private
-   */
-  checkMemoryUsage() {
-    const totalSubscribers = this.stats.subscriberCount;
-    const totalListeners = this.stats.activeListenerCount;
-
-    // Check subscriber limits
-    if (totalSubscribers > this.memoryMonitor.maxSubscribers) {
-      this.memoryMonitor.warnings++;
-      console.warn(
-        `⚠️ [RealTimeManager] High subscriber count: ${totalSubscribers}/${this.memoryMonitor.maxSubscribers}`
-      );
-
-      if (this.memoryMonitor.warnings > 3) {
-        this.performEmergencyCleanup();
-      }
-    }
-
-    // Check listener limits
-    if (totalListeners > this.memoryMonitor.maxListeners) {
-      console.warn(
-        `⚠️ [RealTimeManager] High listener count: ${totalListeners}/${this.memoryMonitor.maxListeners}`
-      );
-    }
-
-    // Log memory status in debug mode
-    if (this.debugMode && (totalSubscribers > 10 || totalListeners > 5)) {
-      this.log(
-        `🧠 Memory check: ${totalSubscribers} subscribers, ${totalListeners} listeners`
-      );
-    }
-  }
-
-  /**
-   * Perform garbage collection on stale subscribers
-   * @private
-   */
-  performGarbageCollection() {
-    const before = this.stats.subscriberCount;
-    let cleaned = 0;
-
-    // Clean up empty subscriber sets
-    for (const [eventType, subscribers] of this.subscribers.entries()) {
-      if (subscribers.size === 0) {
-        this.subscribers.delete(eventType);
-        cleaned++;
-      }
-    }
-
-    this.memoryMonitor.lastGC = Date.now();
-    this.updateStats();
-
-    if (cleaned > 0) {
-      this.log(`🧹 Garbage collection: cleaned ${cleaned} empty event types`);
-    }
-
-    // Reset warnings if memory usage is back to normal
-    if (this.stats.subscriberCount < this.memoryMonitor.maxSubscribers * 0.8) {
-      this.memoryMonitor.warnings = 0;
-    }
-  }
-
-  /**
-   * Emergency cleanup when memory limits are exceeded
-   * @private
-   */
-  performEmergencyCleanup() {
-    console.warn(
-      "🚨 [RealTimeManager] Performing emergency cleanup due to high memory usage"
-    );
-
-    // Keep only the most recent subscribers for each event type
-    for (const [eventType, subscribers] of this.subscribers.entries()) {
-      if (subscribers.size > 10) {
-        const subscribersArray = Array.from(subscribers);
-        const keepCount = Math.min(5, subscribersArray.length);
-        const toKeep = subscribersArray.slice(-keepCount); // Keep last 5
-
-        this.subscribers.set(eventType, new Set(toKeep));
-        console.warn(
-          `🧹 Emergency cleanup: reduced ${eventType} subscribers from ${subscribersArray.length} to ${keepCount}`
-        );
-      }
-    }
-
-    this.updateStats();
-    this.memoryMonitor.warnings = 0;
-  }
-
-  /**
-   * Get memory usage statistics
-   * @returns {Object} Memory usage info
-   */
-  getMemoryInfo() {
-    return {
-      subscribers: {
-        current: this.stats.subscriberCount,
-        max: this.memoryMonitor.maxSubscribers,
-        utilization: Math.round(
-          (this.stats.subscriberCount / this.memoryMonitor.maxSubscribers) * 100
-        ),
-      },
-      listeners: {
-        current: this.stats.activeListenerCount,
-        max: this.memoryMonitor.maxListeners,
-        utilization: Math.round(
-          (this.stats.activeListenerCount / this.memoryMonitor.maxListeners) *
-            100
-        ),
-      },
-      garbageCollection: {
-        lastRun: this.memoryMonitor.lastGC,
-        interval: this.memoryMonitor.gcInterval,
-        warnings: this.memoryMonitor.warnings,
-      },
-      eventTypes: Array.from(this.subscribers.keys()),
-      totalMemoryFootprint: this.calculateMemoryFootprint(),
-    };
-  }
-
-  /**
-   * Estimate memory footprint
-   * @private
-   * @returns {Object} Memory footprint estimate
-   */
-  calculateMemoryFootprint() {
-    // Rough estimation of memory usage
-    const subscribersMemory = this.subscribers.size * 100; // Estimated bytes per Map entry
-    const listenersMemory = this.activeListeners.size * 200; // Estimated bytes per listener
-    const callbacksMemory = this.stats.subscriberCount * 50; // Estimated bytes per callback
-
-    const total = subscribersMemory + listenersMemory + callbacksMemory;
-
-    return {
-      total: `${Math.round((total / 1024) * 100) / 100} KB`,
-      breakdown: {
-        subscribers: `${Math.round((subscribersMemory / 1024) * 100) / 100} KB`,
-        listeners: `${Math.round((listenersMemory / 1024) * 100) / 100} KB`,
-        callbacks: `${Math.round((callbacksMemory / 1024) * 100) / 100} KB`,
-      },
-    };
-  }
-
-  // =========================
-  // CLEANUP & MEMORY MANAGEMENT
+  // CLEANUP
   // =========================
 
   /**
@@ -626,30 +367,6 @@ class RealTimeManager {
 
     // Clear all subscribers
     this.subscribers.clear();
-
-    // Stop memory monitoring timers
-    if (this.gcTimer) {
-      clearInterval(this.gcTimer);
-      this.gcTimer = null;
-    }
-
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
-
-    // Reset stats
-    this.stats = {
-      totalEvents: 0,
-      eventsPerSecond: 0,
-      lastEventTime: null,
-      subscriberCount: 0,
-      activeListenerCount: 0,
-    };
-
-    // Reset memory monitor
-    this.memoryMonitor.warnings = 0;
-    this.memoryMonitor.lastGC = Date.now();
 
     this.log("✅ RealTimeManager cleanup complete");
   }
