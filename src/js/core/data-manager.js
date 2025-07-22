@@ -65,6 +65,7 @@ import {
   writeBatch, // ← Added for batch operations
 } from "firebase/firestore";
 import { db } from "../firebase/config/firebase-config.js";
+import { avatarManager } from "./avatars.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {
@@ -652,8 +653,7 @@ class DataManager {
       // 🛡️ SAFEGUARD: Clean avatar config if present (using centralized method)
       if (profileData.avatarConfig) {
         console.log("🛡️ [DataManager] Cleaning avatar config in saveUserProfile");
-        const { AvatarManager } = await import("./avatars.js");
-        profileData.avatarConfig = AvatarManager.cleanAvatarConfig(profileData.avatarConfig);
+        profileData.avatarConfig = avatarManager.cleanAvatarConfig(profileData.avatarConfig);
         console.log("🛡️ [DataManager] Avatar config cleaned:", profileData.avatarConfig);
       }
 
@@ -764,8 +764,7 @@ class DataManager {
       );
 
       // 🛡️ SAFEGUARD: Ensure avatar config is clean (using centralized method)
-      const { AvatarManager } = await import("./avatars.js");
-      const cleanedConfig = AvatarManager.cleanAvatarConfig(avatarConfig);
+      const cleanedConfig = avatarManager.cleanAvatarConfig(avatarConfig);
       console.log("🛡️ [DataManager] Verified clean config:", cleanedConfig);
 
       const userDocRef = doc(db, "users", userId);

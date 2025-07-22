@@ -964,6 +964,9 @@ class AvatarManager {
 const avatarManagerInstance = new AvatarManager();
 export const avatarManager = avatarManagerInstance;
 
+// Export the class itself for static method access
+export { AvatarManager };
+
 // Only expose on window in development mode for debugging
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   window.avatarManager = avatarManagerInstance;

@@ -1267,8 +1267,7 @@ class ProfileSetup {
     try {
       // 🛡️ SAFEGUARD: Ensure avatar config is clean (should already be clean from avatar editor)
       console.log("🛡️ [ProfileSetup] Verifying avatar config is clean:", newAvatarConfig);
-      const { AvatarManager } = await import("./avatars.js");
-      const cleanedConfig = AvatarManager.cleanAvatarConfig(newAvatarConfig);
+      const cleanedConfig = avatarManager.cleanAvatarConfig(newAvatarConfig);
       console.log("🛡️ [ProfileSetup] Verified clean avatar config:", cleanedConfig);
 
       // 1. Get the current profile and update avatarConfig
