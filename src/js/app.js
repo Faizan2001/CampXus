@@ -19,26 +19,26 @@
  * - Integrates with existing app functionality
  */
 
-import SPARouter from "./spa-router.js";
-import "./menu.js"; // 🎯 CRITICAL FIX: Import menu system for authentication state management
-import { currentUser } from "./currentUser.js"; // 🎯 FIX: Import currentUser for profile updates
-import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager instead of using window
-import { initModal } from "./modal.js"; // 🎯 FIX: Import modal system for app-wide availability
-import { DOM_ELEMENTS, initializeDomElements } from "./domElements.js"; // 🎯 FIX: Import DOM elements for modal
+import SPARouter from "./router/Router.js";
+import "./components/navigation/Menu.js"; // 🎯 CRITICAL FIX: Import menu system for authentication state management
+import { currentUser } from "./store/userStore.js"; // 🎯 FIX: Import currentUser for profile updates
+import { authManager } from "./services/auth/AuthService.js"; // 🎯 NEW: Import authManager instead of using window
+import { initModal } from "./components/modals/Modal.js"; // 🎯 FIX: Import modal system for app-wide availability
+import { DOM_ELEMENTS, initializeDomElements } from "./utils/dom/domElements.js"; // 🎯 FIX: Import DOM elements for modal
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
-import "./script.js"; // 🎯 CRITICAL: Schedule page functionality
-import "./friends/friends-manager.js";
-import "./friends/friends-ui.js";
-import "./realtime-manager.js"; // 🎯 NEW: Real-time event coordination system
-import "./notification-manager.js"; // 🎯 NEW: Toast notification system
-import "./debug-helpers.js"; // 🎯 NEW: Debug tools and console helpers
-import "./profile-setup.js";
-import "./avatars.js";
+import "./pages/HomePage.js"; // 🎯 CRITICAL: Schedule page functionality
+import "./services/friends/FriendsService.js";
+import "./pages/FriendsPage.js";
+import "./services/realtime/RealtimeService.js"; // 🎯 NEW: Real-time event coordination system
+import "./services/realtime/NotificationService.js"; // 🎯 NEW: Toast notification system
+import "./utils/dev/debugHelpers.js"; // 🎯 NEW: Debug tools and console helpers
+import "./components/forms/ProfileSetup.js";
+import "./utils/avatar/avatarManager.js";
 
 // 🎯 DEBUG: Log that modules are imported
 console.log("🔧 SPA Init: All page-specific modules imported and ready");

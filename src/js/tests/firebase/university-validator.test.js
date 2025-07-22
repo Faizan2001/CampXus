@@ -3,7 +3,7 @@ import {
   validateUniversityEmail,
   getFriendlyEmailError,
   getSupportedUniversities,
-} from "../../firebase/auth/university-validator.js";
+} from "../../services/auth/UniversityValidator.js";
 
 describe("University Email Validator", () => {
   test("accepts valid IUB email", () => {

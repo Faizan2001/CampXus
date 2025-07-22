@@ -7,13 +7,13 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 import { serverTimestamp } from "firebase/firestore";
-import { auth } from "../config/firebase-config.js";
+import { auth } from "../../lib/firebase/firebase-config.js";
 import {
   validateUniversityEmail,
   getFriendlyEmailError,
-} from "./university-validator.js";
-import { dataManager } from "../../../js/core/data-manager.js";
-import { currentUser } from "../../core/currentUser.js";
+} from "./UniversityValidator.js";
+import { dataManager } from "../data/DataService.js";
+import { currentUser } from "../../store/userStore.js";
 
 /**
  * Custom error class for authentication vs other types of errors
@@ -672,7 +672,7 @@ class AuthManager {
 
   /**
    * Gets the current authenticated user object.
-   * DEPRECATED: Use `import { currentUser } from './currentUser.js'` instead.
+   * DEPRECATED: Use `import { currentUser } from '../../store/userStore.js'` instead.
    * @returns {object|null} The current Firebase user object or null.
    */
   getCurrentUser() {

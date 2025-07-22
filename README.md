@@ -101,41 +101,67 @@ CampXus/
 │   ├── modal.css                        # Glassmorphism modal dialogs
 │   ├── animations.css                   # Smooth transitions & effects
 │   └── responsive-enhancements.css      # Modern responsive features
-├── js/                                 # ⚙️ Modular JavaScript Architecture
-│   ├── core/                           # 🏗️ Core Application Systems
-│   │   ├── script.js                   # Main schedule logic & state
-│   │   ├── spa-router.js               # Single page navigation system
-│   │   ├── spa-init.js                 # SPA initialization & integration
-│   │   ├── profile-setup.js            # Multi-step profile system
-│   │   ├── avatars.js                  # Custom avatar generation
-│   │   ├── domElements.js              # Performance DOM caching
-│   │   ├── menu.js                     # Theme & navigation management
-│   │   ├── modal.js                    # Modal dialog system
-│   │   ├── timeUtils.js                # Time parsing & validation
-│   │   ├── export-import.js            # Data import/export tools
+├── src/js/                             # ⚙️ Modern JavaScript Architecture
+│   ├── components/                     # 🎨 Reusable UI Components
+│   │   ├── modals/                     # Modal dialogs
+│   │   │   └── Modal.js                # Glassmorphism modal system
+│   │   ├── navigation/                 # Navigation components
+│   │   │   └── Menu.js                 # Theme & navigation management
+│   │   └── forms/                      # Form components
+│   │       └── ProfileSetup.js         # Multi-step profile system
+│   ├── services/                       # 🔧 Business Logic Services
+│   │   ├── auth/                       # 🔐 Authentication Services
+│   │   │   ├── AuthService.js          # Firebase auth controller
+│   │   │   └── UniversityValidator.js  # University email validation
+│   │   ├── friends/                    # 👥 Social Features
+│   │   │   ├── FriendsService.js       # Friends management logic
+│   │   │   └── FriendsTypes.js         # Friends data structures
+│   │   ├── data/                       # 📊 Data Management
+│   │   │   └── DataService.js          # Firestore operations
+│   │   └── realtime/                   # ⚡ Real-time Features
+│   │       ├── RealtimeService.js      # Real-time coordination
+│   │       └── NotificationService.js  # Toast notifications
+│   ├── store/                          # 📦 State Management
+│   │   └── userStore.js                # Global user state
+│   ├── pages/                          # 📄 Page Controllers
+│   │   ├── HomePage.js                 # Main schedule logic & state
+│   │   └── FriendsPage.js              # Social connections interface
+│   ├── router/                         # 🧭 Navigation System
+│   │   └── Router.js                   # Single page navigation router
+│   ├── utils/                          # 🛠️ Utility Functions
+│   │   ├── time/                       # Time utilities
+│   │   │   └── timeUtils.js            # Time parsing & validation
+│   │   ├── avatar/                     # Avatar utilities
+│   │   │   ├── avatarManager.js        # Custom avatar generation
+│   │   │   └── avatarUtils.js          # Avatar rendering helpers
+│   │   ├── dom/                        # DOM utilities
+│   │   │   └── domElements.js          # Performance DOM caching
+│   │   ├── schedule/                   # Schedule utilities
+│   │   │   └── exportImport.js         # Data import/export tools
+│   │   ├── dev/                        # Development utilities
+│   │   │   └── debugHelpers.js         # Debug tools
 │   │   └── constants.js                # App configuration
-│   ├── firebase/                       # 🔥 Firebase Integration Layer
-│   │   ├── auth/                       # 🔐 Authentication System
-│   │   │   ├── auth-manager.js         # Firebase auth controller
-│   │   │   └── university-validator.js # University email validation
-│   │   └── config/                     # ⚙️ Firebase Configuration
-│   │       ├── firebase-config.js      # Environment-based config
-│   │       └── env-config.js           # Auto-generated browser config
+│   ├── lib/                            # 🏗️ Infrastructure & Config
+│   │   ├── firebase/                   # 🔥 Firebase Configuration
+│   │   │   ├── firebase-config.js      # Environment-based config
+│   │   │   └── env-config.js           # Auto-generated browser config
+│   │   └── security/                   # 🔐 Security & Privacy
+│   │       ├── privacyManager.js       # Privacy controls
+│   │       └── securityLogger.js       # Security event logging
+│   ├── app.js                          # 🚀 Main Application Entry Point
 │   ├── dev-tools/                      # 🛠️ Development Utilities
 │   │   ├── generate-env-config.js      # Environment setup
 │   │   ├── check-dev-setup.js          # Development validation
 │   │   └── env-loader.js               # Config loading utilities
-│   ├── security/                       # 🔐 Security & Privacy
-│   │   ├── privacy-manager.js          # Privacy controls
-│   │   └── security-logger.js          # Security event logging
 │   └── tests/                          # 🧪 Test Suites
 │       ├── core/                       # Core functionality tests
 │       └── firebase/                   # Firebase integration tests
-├── templates/                          # 📄 SPA Template System
-│   ├── home.html                       # Schedule interface template
-│   ├── profile.html                    # Profile setup template
-│   ├── friends.html                    # Social connections template
-│   └── about.html                      # About page template
+├── public/                            # 📄 Static Assets & Templates
+│   └── templates/                      # SPA Template System
+│       ├── home.html                   # Schedule interface template
+│       ├── profile.html                # Profile setup template
+│       ├── friends.html                # Social connections template
+│       └── about.html                  # About page template
 ├── pages/                              # 📄 Static Utility Pages
 │   └── privacy.html                    # Privacy policy page
 ├── index.html                          # 🏠 SPA Shell & Main Entry Point
@@ -233,7 +259,7 @@ CampXus is built as a **Single Page Application (SPA)** with Firebase backend in
 ### 🛡️ **What's Protected**
 
 - 🔐 Firebase API keys (stored securely in `.env.local`)
-- 🔐 Auto-generated browser config (`js/firebase/config/env-config.js`)
+- 🔐 Auto-generated browser config (`src/js/lib/firebase/env-config.js`)
 - 🔐 Firebase deployment files (`.firebase/` directory)
 - 🔐 University email validation rules
 

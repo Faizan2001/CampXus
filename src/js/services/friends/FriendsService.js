@@ -12,9 +12,9 @@
  * It contains all the business logic and data management for friends
  */
 
-import { currentUser } from "../currentUser.js";
-import { dataManager } from "../data-manager.js";
-import { realTimeManager, REALTIME_EVENTS } from "../realtime-manager.js";
+import { currentUser } from "../../store/userStore.js";
+import { dataManager } from "../data/DataService.js";
+import { realTimeManager, REALTIME_EVENTS } from "../realtime/RealtimeService.js";
 
 export class FriendsManager {
   constructor() {
@@ -350,7 +350,7 @@ export class FriendsManager {
    */
   showFriendRequestStatusNotification(request, previousStatus) {
     // Only import notification manager when needed
-    import("../notification-manager.js")
+    import("../realtime/NotificationService.js")
       .then(({ notificationManager }) => {
         if (request.status === "accepted") {
           notificationManager.showFriendAcceptedNotification({

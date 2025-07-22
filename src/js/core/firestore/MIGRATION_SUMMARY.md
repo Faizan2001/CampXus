@@ -81,7 +81,7 @@ const userData = await getUserProfile(userId);
 ### **Use:**
 
 ```javascript
-import { dataManager } from "../data-manager.js";
+import { dataManager } from "../../services/data/DataService.js";
 const userData = await dataManager.getUserProfile(userId);
 ```
 

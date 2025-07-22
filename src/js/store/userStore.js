@@ -13,7 +13,7 @@
  *    is loaded before executing profile-dependent code.
  *
  * --- USAGE ---
- * import { currentUser } from './currentUser.js';
+ * import { currentUser } from './userStore.js';
  *
  * // Accessing data directly:
  * const uid = currentUser.uid;

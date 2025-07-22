@@ -1,8 +1,8 @@
 // js/export-import.js
 // Import/Export functionality with cross-browser compatibility
 
-import { DOM_ELEMENTS } from "./domElements.js";
-import { showModal } from "./modal.js";
+import { DOM_ELEMENTS } from "../dom/domElements.js";
+import { showModal } from "../../components/modals/Modal.js";
 
 /**
  * Multi-method export system with fallbacks for cross-browser compatibility

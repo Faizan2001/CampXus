@@ -9,12 +9,12 @@ import {
   getState,
   _setStateForTesting,
   _resetStateForTesting,
-} from "../../core/script.js";
+} from "../../pages/HomePage.js";
 
 //Modules needed for setup
-import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../../core/constants.js";
-import { DOM_ELEMENTS, initializeDomElements } from "../../core/domElements.js";
-import { initModal } from "../../core/modal.js";
+import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../../utils/constants.js";
+import { DOM_ELEMENTS, initializeDomElements } from "../../utils/dom/domElements.js";
+import { initModal } from "../../components/modals/Modal.js";
 
 // Helper function to set up a comprehensive DOM structure
 const setupBaseTestDOM = () => {

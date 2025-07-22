@@ -9,7 +9,7 @@
  *
  * --- HOW TO USE ---
  * 1. Import the singleton instance:
- *    import { dataManager } from "../core/data-manager.js";
+ *    import { dataManager } from "../data/DataService.js";
  * 2. Call the methods you need (see examples below).
  *
  * --- EXAMPLES ---
@@ -64,9 +64,9 @@ import {
   limit,
   writeBatch, // ← Added for batch operations
 } from "firebase/firestore";
-import { db } from "../firebase/config/firebase-config.js";
-import { avatarManager } from "./avatars.js";
-import { getAvatarUrl } from "../utils/avatar-utils.js";
+import { db } from "../../lib/firebase/firebase-config.js";
+import { avatarManager } from "../../utils/avatar/avatarManager.js";
+import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {

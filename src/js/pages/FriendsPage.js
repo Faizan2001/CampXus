@@ -11,12 +11,12 @@
  * It manages the UI and connects user actions to the friends manager
  */
 
-import { friendsManager } from "./friends-manager.js";
-import { notificationManager } from "../notification-manager.js";
-import { realTimeManager, REALTIME_EVENTS } from "../realtime-manager.js";
-import { dataManager } from "../data-manager.js";
-import { currentUser } from "../currentUser.js";
-import { renderUserAvatar, getAvatarFallback } from "../../utils/avatar-utils.js";
+import { friendsManager } from "../services/friends/FriendsService.js";
+import { notificationManager } from "../services/realtime/NotificationService.js";
+import { realTimeManager, REALTIME_EVENTS } from "../services/realtime/RealtimeService.js";
+import { dataManager } from "../services/data/DataService.js";
+import { currentUser } from "../store/userStore.js";
+import { renderUserAvatar, getAvatarFallback } from "../utils/avatar/avatarUtils.js";
 
 class FriendsUI {
   constructor() {
@@ -1298,7 +1298,7 @@ class FriendsUI {
     }
 
     // Import and show unfriend confirmation modal
-    import("../modal.js")
+    import("../components/modals/Modal.js")
       .then(({ showModal }) => {
         showModal({
           title: "Unfriend Confirmation",

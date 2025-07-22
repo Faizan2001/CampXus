@@ -1,10 +1,10 @@
 // js/menu.js - Enhanced dark/light mode toggle with glassmorphism design
 
 // Import DataManager for all user data operations
-import { currentUser } from "./currentUser.js";
-import { navigateTo } from "./spa-init.js";
-import { authManager } from "../firebase/auth/auth-manager.js";
-import { avatarManager } from "./avatars.js";
+import { currentUser } from "../../store/userStore.js";
+import { navigateTo } from "../../app.js";
+import { authManager } from "../../services/auth/AuthService.js";
+import { avatarManager } from "../../utils/avatar/avatarManager.js";
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads

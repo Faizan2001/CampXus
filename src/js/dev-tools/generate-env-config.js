@@ -64,8 +64,8 @@ console.log('🔧 Development environment variables loaded');
     const outputPath = path.join(
       __dirname,
       "..",
+      "lib",
       "firebase",
-      "config",
       "env-config.js"
     );
     fs.writeFileSync(outputPath, configContent);

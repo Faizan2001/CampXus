@@ -11,9 +11,9 @@
  * - Handle browser back/forward buttons
  */
 
-import { authManager } from "../firebase/auth/auth-manager.js"; // 🎯 NEW: Import authManager for authentication checks
-import { currentUser } from "./currentUser.js"; // 🎯 NEW: Import currentUser for better auth state checking
-import { dataManager } from "./data-manager.js"; // 🎯 NEW: Import dataManager for notifications
+import { authManager } from "../services/auth/AuthService.js"; // 🎯 NEW: Import authManager for authentication checks
+import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import currentUser for better auth state checking
+import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
 
 /**
  * Helper function to detect if fetched content is a full HTML document
@@ -617,7 +617,7 @@ class SPARouter {
     // 🏗️ PRODUCTION FIX: Use Vite's native production detection + preview mode detection
     // In Vite builds (including `vite preview`), all CSS is already extracted by Vite
     // Check both import.meta.env.PROD and if we're running from built files (preview mode)
-    const isBuiltMode = import.meta.env.PROD || 
+    const isBuiltMode = (import.meta.env && import.meta.env.PROD) || 
       (window.location.port && parseInt(window.location.port) >= 4173);
     
     if (isBuiltMode) {

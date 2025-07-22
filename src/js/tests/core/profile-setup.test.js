@@ -36,7 +36,7 @@ import {
   generateStudentId, 
   isValidStartingYear, 
   validateRequiredFields 
-} from '../../core/profile-setup.js';
+} from '../../components/forms/ProfileSetup.js';
 
 // Mock Firebase and DOM for testing
 global.firebase = {

@@ -1,9 +1,9 @@
 // js/script.js
 
 // --- Module Imports ---
-import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "./constants.js";
-import { DOM_ELEMENTS, initializeDomElements } from "./domElements.js";
-import { showModal } from "./modal.js"; // Only import showModal, initModal is handled in spa-init.js
+import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../utils/constants.js";
+import { DOM_ELEMENTS, initializeDomElements } from "../utils/dom/domElements.js";
+import { showModal } from "../components/modals/Modal.js"; // Only import showModal, initModal is handled in spa-init.js
 import {
   parseTime,
   isTimeBefore,
@@ -11,15 +11,15 @@ import {
   isValidTimeFormat,
   isValidStrictHHMMTimeFormat,
   createUnifiedSchedule,
-} from "./timeUtils.js";
+} from "../utils/time/timeUtils.js";
 import {
   handleExportCurrentUser,
   handleImportSchedule,
   setupExportImportListeners,
-} from "./export-import.js";
-import { authManager } from "../firebase/auth/auth-manager.js";
-import { dataManager } from "./data-manager.js";
-import { navigateTo } from "./spa-init.js"; // Import navigateTo for SPA navigation
+} from "../utils/schedule/exportImport.js";
+import { authManager } from "../services/auth/AuthService.js";
+import { dataManager } from "../services/data/DataService.js";
+import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 
 /* ================================
    APPLICATION STATE

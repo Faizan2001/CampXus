@@ -46,7 +46,7 @@
  *
  */
 
-import { dataManager } from "./data-manager.js";
+import { dataManager } from "../data/DataService.js";
 
 /**
  * Real-Time Event Types

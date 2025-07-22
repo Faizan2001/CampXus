@@ -11,7 +11,7 @@
  * ✅ Reduces bundle size by eliminating duplicated code
  */
 
-import { avatarManager } from "../core/avatars.js";
+import { avatarManager } from "./avatarManager.js";
 
 /**
  * 🎨 Render user avatar with consistent fallback behavior

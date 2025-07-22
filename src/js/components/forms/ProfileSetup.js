@@ -29,14 +29,14 @@
 import { serverTimestamp } from "firebase/firestore";
 
 // Import avatar management system
-import { avatarManager } from "./avatars.js";
+import { avatarManager } from "../../utils/avatar/avatarManager.js";
 
 // Import data manager for Firestore operations
-import { dataManager } from "./data-manager.js";
-import { currentUser } from "./currentUser.js";
-import { authManager } from "../firebase/auth/auth-manager.js";
-import { navigateTo } from "./spa-init.js"; // 🎯 NEW: Import navigateTo for SPA navigation
-import { syncUserDataCache } from "./data-manager.js"; // 🔄 Combined cache sync function (follows DRY principles)
+import { dataManager } from "../../services/data/DataService.js";
+import { currentUser } from "../../store/userStore.js";
+import { authManager } from "../../services/auth/AuthService.js";
+import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
+import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
 
 /**
  * =============================================================================
