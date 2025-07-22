@@ -2519,8 +2519,13 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
 
     // 4. Save all updates at once
     if (updateCount > 0) {
-      await batch.commit();
-      console.log(`✅ Updated ${updateCount} cached entries with fresh user info`);
+      try {
+        await batch.commit();
+        console.log(`✅ Updated ${updateCount} cached entries with fresh user info`);
+      } catch (error) {
+        console.error(`❌ Batch update failed for ${updateCount} entries:`, error);
+        throw error; // Re-throw for upstream handling
+      }
     } else {
       console.log("ℹ️ No cached data to update");
     }

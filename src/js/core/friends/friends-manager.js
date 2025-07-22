@@ -297,15 +297,29 @@ export class FriendsManager {
       !currentRequests.find((currentRequest) => currentRequest.id === previousRequest.id)
     );
 
-    // 3. For each deleted request, determine if it was accepted or rejected
-    for (const deletedRequest of deletedRequests) {
-      try {
-        // Check if a friendship was created between these users
-        const friendshipExists = await dataManager.checkFriendshipExists(
-          deletedRequest.fromUserId,
-          deletedRequest.toUserId
-        );
+    // 3. For each deleted request, determine if it was accepted or rejected (parallel execution)
+    if (deletedRequests.length > 0) {
+      const friendshipChecks = deletedRequests.map(async (deletedRequest) => {
+        try {
+          const friendshipExists = await dataManager.checkFriendshipExists(
+            deletedRequest.fromUserId,
+            deletedRequest.toUserId
+          );
+          return { request: deletedRequest, friendshipExists, error: null };
+        } catch (error) {
+          console.error("❌ Error checking friendship for deleted request:", error);
+          return { request: deletedRequest, friendshipExists: false, error };
+        }
+      });
 
+      const results = await Promise.all(friendshipChecks);
+      
+      // Process results and show notifications
+      results.forEach(({ request: deletedRequest, friendshipExists, error }) => {
+        if (error) {
+          console.warn("⚠️ Friendship check failed, assuming rejection for:", deletedRequest.id);
+        }
+        
         if (friendshipExists) {
           // Request was deleted + friendship exists = ACCEPTED
           console.log("🎉 Detected friend request acceptance via deletion + friendship");
@@ -321,9 +335,7 @@ export class FriendsManager {
             deletedRequest.status
           );
         }
-      } catch (error) {
-        console.error("❌ Error checking friendship for deleted request:", error);
-      }
+      });
     }
 
     // Update previous requests
