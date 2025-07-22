@@ -350,6 +350,29 @@ class RealTimeManager {
     };
   }
 
+  /**
+   * Get comprehensive debug information
+   * @returns {Object} Detailed debug information
+   */
+  getDebugInfo() {
+    return {
+      ...this.getStatus(),
+      debugMode: this.debugMode,
+      subscriberDetails: Array.from(this.subscribers.entries()).map(([event, callbacks]) => ({
+        event,
+        callbackCount: callbacks.size
+      })),
+      memoryUsage: {
+        subscribers: this.subscribers.size,
+        activeListeners: this.activeListeners.size,
+        totalCallbacks: Array.from(this.subscribers.values()).reduce(
+          (total, set) => total + set.size,
+          0
+        )
+      }
+    };
+  }
+
 
   // =========================
   // CLEANUP
@@ -423,7 +446,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   console.log('   realTimeManager.startListening("user-id")');
   console.log('   realTimeManager.on("friendRequests", callback)');
   console.log("   realTimeManager.getStatus()");
-  console.log("   realTimeManager.getDebugInfo()");
 }
 
 // --- END OF FILE ---

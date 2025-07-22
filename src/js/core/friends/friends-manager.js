@@ -416,11 +416,12 @@ export class FriendsManager {
   }
 
   /**
-   * 🔍 Search for students at the same university
+   * 🔍 Search for students at the same university (with optional caching)
    * @param {string} searchTerm - Name or major to search for
+   * @param {boolean} useCache - Whether to use caching (default: false)
    * @returns {Promise<Array>} Array of matching students
    */
-  async searchStudents(searchTerm) {
+  async searchStudents(searchTerm, useCache = false) {
     // 1. Get the current user's profile, waiting for it if necessary.
     const userProfile = await currentUser.waitForProfile();
     if (!userProfile) {
@@ -434,9 +435,19 @@ export class FriendsManager {
       return []; // Don't search for very short terms
     }
 
-    try {
-      // Searching for students
+    const cleanTerm = searchTerm.trim().toLowerCase();
 
+    // If caching is requested, try cache first
+    if (useCache) {
+      const cacheKey = `search_${cleanTerm}_${userProfile.universityInfo.university}`;
+      const cachedResults = this.getCached(cacheKey);
+      if (cachedResults) {
+        console.log("📦 Using cached search results");
+        return cachedResults;
+      }
+    }
+
+    try {
       // 2. Fetch users directly using the optimized search function
       const students = await dataManager.findUsersByUniversity(
         userProfile.universityInfo.university,
@@ -446,6 +457,12 @@ export class FriendsManager {
 
       // 3. Use our smart filtering to exclude friends and pending requests
       const filteredStudents = await this.filterSearchResults(students);
+
+      // Cache results if caching was requested and we got results
+      if (useCache && filteredStudents.length > 0) {
+        const cacheKey = `search_${cleanTerm}_${userProfile.universityInfo.university}`;
+        this.setCached(cacheKey, filteredStudents);
+      }
 
       console.log(
         `✅ Found ${filteredStudents.length} students matching "${searchTerm}"`
@@ -548,41 +565,22 @@ export class FriendsManager {
 
 
   /**
-   * 🔍 Search students with simple caching
+   * 🔍 Search students with caching (convenience method)
    * @param {string} searchTerm - Search term
-   * @returns {Promise<Array>} Search results (cached or fresh)
+   * @returns {Promise<Array>} Search results (cached when possible)
    */
   async searchStudentsWithCache(searchTerm) {
-    const userProfile = await currentUser.waitForProfile();
-    if (!userProfile || !searchTerm || searchTerm.trim().length < 2) {
-      return [];
-    }
-
-    const cleanTerm = searchTerm.trim().toLowerCase();
-    const cacheKey = `search_${cleanTerm}_${userProfile.universityInfo.university}`;
-
-    // Try cache first
-    const cachedResults = this.getCached(cacheKey);
-    if (cachedResults) {
-      console.log("📦 Using cached search results");
-      return cachedResults;
-    }
-
-    // Perform search and cache results
-    const results = await this.searchStudents(searchTerm);
-    if (results.length > 0) {
-      this.setCached(cacheKey, results);
-    }
-
-    return results;
+    // Use the consolidated search function with caching enabled
+    return this.searchStudents(searchTerm, true);
   }
 
   /**
-   * 🎓 Search by major with simple caching
+   * 🎓 Search by major with caching (convenience method)
    * @param {string} major - Major to search for
-   * @returns {Promise<Array>} Search results (cached or fresh)
+   * @returns {Promise<Array>} Search results (cached when possible)
    */
   async searchByMajorWithCache(major) {
+    // Use the existing searchByMajor with caching logic
     const userProfile = await currentUser.waitForProfile();
     if (!userProfile || !major) {
       return [];

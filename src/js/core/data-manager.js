@@ -66,6 +66,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase/config/firebase-config.js";
 import { avatarManager } from "./avatars.js";
+import { getAvatarUrl } from "../utils/avatar-utils.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {
@@ -133,11 +134,45 @@ class DataManager {
     // Initialize
     this.removeLegacyOfflineBanners(); // Clean up any existing banners first
     this.setupNetworkListeners();
+    this.setupCacheCleanup();
   }
 
   // =========================
   // NETWORK & CACHE HELPERS
   // =========================
+
+  /**
+   * Set up automatic cache cleanup to prevent memory leaks
+   * @private
+   */
+  setupCacheCleanup() {
+    // Clean up expired cache entries every 2 minutes
+    this.cacheCleanupInterval = setInterval(() => {
+      this.cleanupExpiredCacheEntries();
+    }, 2 * 60 * 1000);
+
+    console.log("🧹 Cache cleanup interval started (every 2 minutes)");
+  }
+
+  /**
+   * Clean up expired cache entries proactively
+   * @private
+   */
+  cleanupExpiredCacheEntries() {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [key, cached] of this.cache.entries()) {
+      if (now > cached.expiry) {
+        this.cache.delete(key);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`🧹 Cleaned up ${cleanedCount} expired cache entries`);
+    }
+  }
 
   /**
    * Set up network status listeners
@@ -227,7 +262,12 @@ class DataManager {
    * @private
    */
   setCachedData(key, data) {
-    // Remove oldest entries if cache is too large
+    // Clean up expired entries before adding new ones (more efficient than size-based cleanup)
+    if (Math.random() < 0.05) { // 5% chance to run cleanup on each cache set
+      this.cleanupExpiredCacheEntries();
+    }
+
+    // Remove oldest entries if cache is still too large after cleanup
     if (this.cache.size >= this.maxCacheSize) {
       const oldestKey = this.cache.keys().next().value;
       this.cache.delete(oldestKey);
@@ -258,6 +298,26 @@ class DataManager {
   clearCache() {
     this.cache.clear();
     console.log("🧹 Cache cleared.");
+  }
+
+  /**
+   * Clean up resources when DataManager is destroyed
+   */
+  cleanup() {
+    // Clear the cache cleanup interval to prevent memory leaks
+    if (this.cacheCleanupInterval) {
+      clearInterval(this.cacheCleanupInterval);
+      this.cacheCleanupInterval = null;
+      console.log("🧹 Cache cleanup interval cleared");
+    }
+
+    // Clear the cache
+    this.clearCache();
+
+    // Clear pending operations
+    this.pendingOperations = [];
+
+    console.log("🧹 DataManager cleanup completed");
   }
 
   /**
@@ -1312,16 +1372,13 @@ class DataManager {
   }
 
   /**
-   * Generate avatar URL from user data
+   * Generate avatar URL from user data (using centralized utility)
    * @param {Object} userData - User data containing avatarConfig
    * @returns {string|null} Avatar URL or null
    */
   getAvatarUrl(userData) {
-    if (!userData?.avatarConfig || !window.avatarManager) {
-      return null;
-    }
-
-    return window.avatarManager.generateAvatarUrl(userData.avatarConfig);
+    // Use the centralized avatar utility
+    return getAvatarUrl(userData);
   }
 
   /**
@@ -2104,7 +2161,11 @@ class DataManager {
               
               // Clear any avatar cache in friends manager to force fresh data
               if (typeof window !== 'undefined' && window.friendsManager?.clearAvatarCache) {
-                window.friendsManager.clearAvatarCache(userId);
+                try {
+                  window.friendsManager.clearAvatarCache(userId);
+                } catch (error) {
+                  console.warn("⚠️ Avatar cache clear failed:", error);
+                }
               }
               
               // Use the function from the same file

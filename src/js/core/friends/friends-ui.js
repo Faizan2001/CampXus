@@ -16,7 +16,7 @@ import { notificationManager } from "../notification-manager.js";
 import { realTimeManager, REALTIME_EVENTS } from "../realtime-manager.js";
 import { dataManager } from "../data-manager.js";
 import { currentUser } from "../currentUser.js";
-import { avatarManager } from "../avatars.js";
+import { renderUserAvatar, getAvatarFallback } from "../../utils/avatar-utils.js";
 
 class FriendsUI {
   constructor() {
@@ -36,6 +36,10 @@ class FriendsUI {
 
     // 🔔 Notification debouncing
     this.lastFriendsNotificationTime = 0;
+
+    // 🎯 Event listener management to prevent memory leaks
+    this.listenersSetup = false;
+    this.boundHandlers = null;
   }
 
   /**
@@ -93,9 +97,15 @@ class FriendsUI {
   }
 
   /**
-   * 🎯 Set up event listeners for user interactions
+   * 🎯 Set up event listeners for user interactions (optimized to prevent memory leaks)
    */
   setupEventListeners() {
+    // Skip if listeners are already set up to prevent memory leaks
+    if (this.listenersSetup) {
+      console.log("🎯 Event listeners already set up, skipping...");
+      return;
+    }
+
     // Store bound functions for consistent reference
     if (!this.boundHandlers) {
       this.boundHandlers = {
@@ -112,17 +122,6 @@ class FriendsUI {
     // Search functionality with safety checks
     if (this.elements.searchInput) {
       try {
-        // Remove any existing listeners first (in case DOM was recreated)
-        this.elements.searchInput.removeEventListener(
-          "input",
-          this.boundHandlers.searchInput
-        );
-        this.elements.searchInput.removeEventListener(
-          "keypress",
-          this.boundHandlers.searchKeypress
-        );
-
-        // Add fresh listeners
         this.elements.searchInput.addEventListener(
           "input",
           this.boundHandlers.searchInput
@@ -133,6 +132,7 @@ class FriendsUI {
         );
       } catch (error) {
         console.warn("⚠️ Could not set up search input listeners:", error);
+        return;
       }
     } else {
       console.warn(
@@ -142,25 +142,21 @@ class FriendsUI {
 
     if (this.elements.searchBtn) {
       try {
-        // Remove any existing listeners first
-        this.elements.searchBtn.removeEventListener(
-          "click",
-          this.boundHandlers.searchClick
-        );
-
-        // Add fresh listener
         this.elements.searchBtn.addEventListener(
           "click",
           this.boundHandlers.searchClick
         );
       } catch (error) {
         console.warn("⚠️ Could not set up search button listener:", error);
+        return;
       }
     } else {
       console.warn("⚠️ Search button element not found");
     }
 
-    console.log("🎯 Event listeners set up");
+    // Mark listeners as set up to prevent duplicates
+    this.listenersSetup = true;
+    console.log("🎯 Event listeners set up successfully (optimized)");
   }
 
   /**
@@ -1003,47 +999,14 @@ class FriendsUI {
   }
 
   /**
-   * 🎨 Render avatar using existing avatarManager approach (like menu.js)
+   * 🎨 Render avatar using centralized utility (eliminates duplication)
    * @param {Object} userData - User data object from any source  
    * @returns {string} HTML for avatar
    */
   renderAvatar(userData) {
-    // Extract avatar config from different data structures
-    const avatarConfig = userData?.avatarConfig || 
-                        userData?.fromUserInfo?.avatarConfig || 
-                        userData?.user1Info?.avatarConfig || 
-                        userData?.user2Info?.avatarConfig;
-
-    const hasAvatarConfig = !!avatarConfig;
-
-    // Use avatarManager like in menu.js
-    if (hasAvatarConfig && avatarManager && typeof avatarManager.generateAvatarUrl === 'function') {
-      try {
-        // Always use cache-busting in friends list to ensure fresh avatars
-        // This solves the browser caching issue when avatars change
-        const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig, true);
-        
-        return `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" loading="lazy">`;
-      } catch (error) {
-        console.error("❌ Error generating avatar URL, falling back to default.", error);
-        return this.getAvatarFallback();
-      }
-    } else {
-      // Fallback for no config or no avatar manager
-      return this.getAvatarFallback();
-    }
-  }
-
-  /**
-   * 🎨 Get avatar fallback HTML
-   * @returns {string} Fallback avatar HTML
-   */
-  getAvatarFallback() {
-    return `
-      <div class="user-avatar">
-        <i class="fas fa-user-circle"></i>
-      </div>
-    `;
+    // Use the centralized avatar utility with cache-busting for fresh avatars
+    // This ensures consistent avatar rendering across the entire app
+    return renderUserAvatar(userData, true);
   }
 
   /**
@@ -1425,29 +1388,55 @@ class FriendsUI {
   }
 
   /**
-   * 🧹 Cleanup when leaving the page
+   * 🧹 Cleanup when leaving the page (improved memory leak prevention)
    */
   cleanup() {
-    if (this.searchTimeout) {
-      clearTimeout(this.searchTimeout);
-      this.searchTimeout = null;
-    }
-
-    // Clean up real-time subscriptions
-    this.realTimeSubscriptions.forEach((unsubscribe) => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
+    try {
+      if (this.searchTimeout) {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = null;
       }
-    });
-    this.realTimeSubscriptions = [];
 
-    // Clear pending requests map
-    this.pendingRequestsMap.clear();
+      // Clean up real-time subscriptions with error handling
+      if (this.realTimeSubscriptions && this.realTimeSubscriptions.length > 0) {
+        this.realTimeSubscriptions.forEach((unsubscribe) => {
+          try {
+            if (typeof unsubscribe === "function") {
+              unsubscribe();
+            }
+          } catch (error) {
+            console.warn("⚠️ Error unsubscribing from real-time listener:", error);
+          }
+        });
+        this.realTimeSubscriptions = [];
+      }
 
-    // Remove event listeners to prevent memory leaks
-    this.removeEventListeners();
+      // Clear pending requests map safely
+      if (this.pendingRequestsMap) {
+        this.pendingRequestsMap.clear();
+      }
+      if (this.outgoingRequestsMap) {
+        this.outgoingRequestsMap.clear();
+      }
 
-    console.log("🧹 Friends UI cleaned up");
+      // Clear friend data arrays
+      this.currentFriendsData = [];
+      this.currentFriendRequestsData = [];
+
+      // Remove event listeners to prevent memory leaks
+      try {
+        this.removeEventListeners();
+      } catch (error) {
+        console.warn("⚠️ Error removing event listeners:", error);
+      }
+
+      // Reset listener setup flag so they can be set up again if needed
+      this.listenersSetup = false;
+
+      console.log("🧹 Friends UI cleaned up completely");
+    } catch (error) {
+      console.error("❌ Error during Friends UI cleanup:", error);
+    }
   }
 }
 
