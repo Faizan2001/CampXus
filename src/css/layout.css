@@ -99,9 +99,9 @@ This file contains all layout-related styles for the MeetchuThere app:
 }
 
 .logo span::after {
-  content: '';
+  content: "";
   position: absolute;
-  left: 17.5%; /* Centered positioning for 70% width underline */
+  left: 15%; /* Centered positioning for 70% width underline */
   bottom: -2px; /* Slightly below text for better visual separation */
   height: 3px;
   width: 70%; /* 70% width centered under the text */
@@ -113,21 +113,21 @@ This file contains all layout-related styles for the MeetchuThere app:
 }
 
 .logo span::before {
-  content: '';
+  content: "";
   position: absolute;
   /* This shorthand sets top, right, bottom, and left to 0 */
-  inset: 0; 
-  
+  inset: 0;
+
   /* Sits above the gradient background */
-  z-index: 1; 
+  z-index: 1;
 
   /* Use CSS variable that matches the nav background dynamically - make it more opaque */
   background: var(--nav-bg);
   opacity: 1; /* Ensure full opacity for better coverage */
-  
+
   /* Animation starts from the right, wiping left */
-  transform-origin: right; 
-  
+  transform-origin: right;
+
   /* Synchronized timing with underline animation */
   animation: wipe-reveal 1.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
@@ -372,7 +372,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .logo span::after {
-    left: 17.5%; /* Maintain consistent centered underline positioning */
+    left: 15%; /* Maintain consistent centered underline positioning */
     bottom: -2px;
     width: 70%;
   }
@@ -406,7 +406,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .logo span::after {
-    left: 17.5%; /* Maintain consistent centered underline positioning */
+    left: 15%; /* Maintain consistent centered underline positioning */
     bottom: -2px;
     width: 70%;
   }
@@ -436,7 +436,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 @media (min-width: 650px) and (max-width: 899px) {
   .main-content {
     padding: clamp(1.25rem, 4vw, 2rem);
-    max-width: 100vw; 
+    max-width: 100vw;
   }
 
   .content-grid {
@@ -1266,7 +1266,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .logo span::after {
-    left: 17.5%; /* Maintain consistent centered underline positioning */
+    left: 15%; /* Maintain consistent centered underline positioning */
     bottom: -2px;
     width: 70%;
   }
