@@ -6,13 +6,118 @@
  */
 
 /* =================================
-   FRIENDS PAGE LAYOUT
+   LAYOUT & CONTAINERS
 ================================= */
+
+/* 🏗️ MAIN CONTENT OVERRIDE */
+/* Ensure main content area uses full viewport for friends page */
+body.page-friends .main-content {
+  padding: 0 !important; /* Remove any interfering padding */
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  display: flex !important; /* Enable flexbox for centering */
+  flex-direction: column !important; /* Stack elements vertically */
+}
+
+body.page-friends .content-grid {
+  display: flex !important;
+  justify-content: center !important; /* Center horizontally */
+  align-items: flex-start !important; /* Align to top for scrollable content */
+  grid-template-columns: unset !important; /* Reset grid columns */
+  grid-template-rows: unset !important; /* Reset grid rows */
+  min-height: calc(100vh - 120px) !important; /* Full viewport minus nav */
+  width: 100vw !important; /* Full viewport width */
+  max-width: 100vw !important; /* Ensure no constraints */
+  gap: 0 !important; /* Remove grid gap */
+}
+
+/* 🚫 HIDE UNNECESSARY COLUMNS */
+/* Hide default dashboard columns on friends page */
+body.page-friends .controls-column,
+body.page-friends .schedule-column {
+  display: none !important; /* Hide columns completely */
+}
+
+/* Reset any grid positioning for friends elements */
+body.page-friends .users-section,
+body.page-friends .compare-section,
+body.page-friends .import-export-section,
+body.page-friends .schedule-section {
+  grid-column: unset !important;
+  grid-row: unset !important;
+  order: unset !important;
+  display: none !important; /* These shouldn't exist on friends page */
+}
+
+.friends-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.friends-header .page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.friends-header .page-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
 
 /* =================================
-   SEARCH RESULTS STYLING
+   SEARCH FUNCTIONALITY  
 ================================= */
 
+/* Search input wrapper */
+.friends-search .search-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.friends-search .search-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.friends-search .search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--friends-purple-shadow-light);
+}
+
+.friends-search .search-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-primary);
+  color: var(--friends-color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.friends-search .search-btn:hover {
+  background: var(--accent-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--friends-purple-shadow-medium);
+}
+
+/* Search results dropdown */
 .search-results {
   /* Dropdown positioning */
   position: relative;
@@ -322,7 +427,7 @@
 }
 
 /* =================================
-   FRIEND REQUESTS STYLING
+   REQUEST CARDS
 ================================= */
 
 .requests-header {
@@ -487,7 +592,7 @@
 }
 
 /* =================================
-   FRIENDS LIST STYLING (NEW DESIGN)
+   FRIEND CARDS
 ================================= */
 
 .friends-scrollable-container,
@@ -559,6 +664,7 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   gap: 16px;
+  width: 100%;
   align-items: center;
   position: relative;
   overflow: hidden;
@@ -686,7 +792,7 @@
 }
 
 /* =================================
-   AVATAR STYLING (ULTRATHINK)
+   AVATAR COMPONENTS
 ================================= */
 
 .user-avatar,
@@ -751,7 +857,7 @@
 }
 
 /* =================================
-   MOBILE-FIRST RESPONSIVE DESIGN
+   RESPONSIVE DESIGN
 ================================= */
 
 /* Mobile styles (default) */
@@ -946,182 +1052,6 @@
   }
 }
 
-/* =================================
-   FRIENDS PAGE LAYOUT (ORIGINAL)
-================================= */
-
-/* 🏗️ MAIN CONTENT OVERRIDE */
-/* Ensure main content area uses full viewport for friends page */
-body.page-friends .main-content {
-  padding: 0 !important; /* Remove any interfering padding */
-  width: 100vw !important;
-  max-width: 100vw !important;
-  margin: 0 !important;
-  display: flex !important; /* Enable flexbox for centering */
-  flex-direction: column !important; /* Stack elements vertically */
-}
-
-body.page-friends .content-grid {
-  display: flex !important;
-  justify-content: center !important; /* Center horizontally */
-  align-items: flex-start !important; /* Align to top for scrollable content */
-  grid-template-columns: unset !important; /* Reset grid columns */
-  grid-template-rows: unset !important; /* Reset grid rows */
-  min-height: calc(100vh - 120px) !important; /* Full viewport minus nav */
-  width: 100vw !important; /* Full viewport width */
-  max-width: 100vw !important; /* Ensure no constraints */
-  gap: 0 !important; /* Remove grid gap */
-}
-
-/* 🚫 HIDE UNNECESSARY COLUMNS */
-/* Hide default dashboard columns on friends page */
-body.page-friends .controls-column,
-body.page-friends .schedule-column {
-  display: none !important; /* Hide columns completely */
-}
-
-/* Reset any grid positioning for friends elements */
-body.page-friends .users-section,
-body.page-friends .compare-section,
-body.page-friends .import-export-section,
-body.page-friends .schedule-section {
-  grid-column: unset !important;
-  grid-row: unset !important;
-  order: unset !important;
-  display: none !important; /* These shouldn't exist on friends page */
-}
-
-.friends-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-/* =================================
-   FRIENDS PAGE HEADER
-================================= */
-
-.friends-header .page-title {
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.friends-header .page-subtitle {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  line-height: 1.6;
-}
-
-/* =================================
-   SEARCH FUNCTIONALITY
-================================= */
-
-.friends-search .search-input-wrapper {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.friends-search .search-input {
-  flex: 1;
-  padding: 0.75rem;
-  border: 1px solid var(--input-border);
-  border-radius: var(--radius-md);
-  background: var(--input-bg);
-  color: var(--text-primary);
-  font-size: 1rem;
-  transition: all 0.2s ease;
-}
-
-.friends-search .search-input:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--friends-purple-shadow-light);
-}
-
-.friends-search .search-input:placeholder {
-  color: var(--text-secondary);
-}
-
-.friends-search .search-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--accent-primary);
-  color: var(--friends-color-white);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.friends-search .search-btn:hover {
-  background: var(--accent-secondary);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--friends-purple-shadow-medium);
-}
-
-.friends-search .search-btn:active {
-  transform: translateY(0);
-}
-
-/* ⚡ LOADING STATE FOR SEARCH BUTTON */
-/* Loading animation for search button (adapted from profile-setup.css) */
-.friends-search .search-btn.loading {
-  pointer-events: none;
-  position: relative;
-  color: var(--friends-color-transparent);
-}
-
-.friends-search .search-btn.loading::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
-  border: var(--friends-spinner-border);
-  border-top: var(--friends-spinner-border-top);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-/* 🎯 SEARCH INPUT VALIDATION */
-/* Visual feedback for search input validation */
-.friends-search .search-input:invalid:not(:placeholder-shown) {
-  border-color: var(--error-red);
-  background-color: var(--error-light);
-}
-
-.friends-search .search-input:valid:not(:placeholder-shown) {
-  border-color: var(--success);
-  background-color: var(--success-light);
-}
-
-/* =================================
-   FRIENDS GRID & LISTS
-================================= */
-
-.friends-grid,
-.requests-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-/* =================================
-   FRIEND CARDS AVATAR STYLING
-================================= */
-
 .friend-card .friend-avatar {
   width: 48px !important;
   height: 48px !important;
@@ -1167,7 +1097,7 @@ body.page-friends .schedule-section {
 }
 
 /* =================================
-   FRIEND REQUEST CARDS
+   INTERACTIVE STATES
 ================================= */
 
 .request-card {
@@ -1340,93 +1270,6 @@ body.page-friends .schedule-section {
   position: absolute;
   top: -5px;
   right: -5px;
-}
-
-/* =================================
-   RESPONSIVE DESIGN
-================================= */
-
-@media (max-width: 768px) {
-  /* 🏗️ LAYOUT ADJUSTMENTS */
-  body.page-friends .main-content {
-    padding: 0 !important;
-  }
-
-  body.page-friends .content-grid {
-    min-height: calc(100vh - 100px) !important;
-    width: 100vw !important;
-  }
-
-  .friends-container {
-    padding: var(--space-lg) !important;
-    margin: 0;
-    max-width: calc(100vw - 2rem) !important;
-    gap: 1.5rem;
-  }
-
-  /* 📝 TYPOGRAPHY SCALING */
-  .friends-header .page-title {
-    font-size: 1.5rem;
-  }
-
-  .friends-header .page-subtitle {
-    font-size: 1rem;
-  }
-
-  /* 🔍 SEARCH ADJUSTMENTS */
-  .friends-search .search-input-wrapper {
-    flex-direction: column;
-  }
-
-  .friends-search .search-btn {
-    width: 100%;
-    padding: 1rem 1.5rem; /* Larger touch target */
-  }
-
-  /* 📋 GRID ADJUSTMENTS */
-  .friends-grid,
-  .requests-list {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  /* 🎴 CARD ADJUSTMENTS */
-  .request-card .request-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-
-  .request-card .request-actions {
-    width: 100%;
-  }
-
-  .request-card .btn-accept,
-  .request-card .btn-reject {
-    flex: 1;
-    padding: 0.75rem 1rem; /* Larger touch targets */
-  }
-}
-
-@media (max-width: 480px) {
-  .friends-container {
-    padding: 0.75rem;
-  }
-
-  .friends-header .page-title {
-    font-size: 1.25rem;
-    gap: 0.5rem;
-  }
-
-  .friends-list .empty-state,
-  .friend-requests .empty-state {
-    padding: 2rem 1rem;
-  }
-
-  .friends-list .empty-state .empty-icon,
-  .friend-requests .empty-state .empty-icon {
-    font-size: 2.5rem;
-  }
 }
 
 /* =================================
