@@ -26,12 +26,12 @@
   overflow: hidden;
 
   /* Remove conflicting background - let header and container handle styling */
-  background: transparent;
+  background: var(--friends-color-transparent);
   border: none;
   border-radius: 8px;
 
   /* Dropdown shadow */
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--friends-search-shadow);
 }
 
 /* Active/visible state */
@@ -41,7 +41,7 @@
   max-height: 400px;
 
   /* Enhanced shadow when visible */
-  box-shadow: 0 12px 48px rgba(34, 197, 94, 0.1), 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--friends-search-shadow-active);
 }
 
 .search-results-header {
@@ -52,21 +52,15 @@
   margin-bottom: 8px;
 
   /* Enhanced glassmorphism header */
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.15) 0%,
-    rgba(16, 185, 129, 0.12) 50%,
-    rgba(34, 197, 94, 0.08) 100%
-  );
+  background: var(--friends-search-header-bg);
 
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  border: var(--friends-search-header-border);
   border-radius: 8px 8px 0 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
   /* Light reflection for header */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 1px 3px rgba(34, 197, 94, 0.1);
+  box-shadow: var(--friends-search-header-shadow);
 }
 
 /* Light reflection highlight for header */
@@ -77,14 +71,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.4) 20%,
-    rgba(34, 197, 94, 0.3) 50%,
-    rgba(255, 255, 255, 0.4) 80%,
-    transparent 100%
-  );
+  background: var(--friends-search-header-highlight);
   border-radius: 8px 8px 0 0;
 }
 
@@ -105,8 +92,8 @@
 }
 
 .btn-clear-search {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--friends-btn-clear-search-bg);
+  border: var(--friends-btn-clear-search-border);
   color: var(--text-secondary);
   cursor: pointer;
   padding: 6px 8px;
@@ -122,11 +109,11 @@
 }
 
 .btn-clear-search:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  background: var(--friends-btn-clear-search-hover-bg);
+  border-color: var(--friends-btn-clear-search-hover-border-color);
+  color: var(--friends-btn-clear-search-hover-color);
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  box-shadow: var(--friends-btn-clear-search-hover-shadow);
 }
 
 /* Search results container - scrollable list like friends */
@@ -137,15 +124,16 @@
 
   /* Connect with header */
   border-radius: 0 0 8px 8px;
-  border: 1px solid rgba(34, 197, 94, 0.15);
+  border: var(--friends-search-container-border);
   border-top: none; /* Remove top border to connect with header */
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--friends-search-container-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
   /* Custom scrollbar for search results */
   scrollbar-width: thin;
-  scrollbar-color: rgba(34, 197, 94, 0.4) transparent;
+  scrollbar-color: var(--friends-search-scrollbar-color)
+    var(--friends-color-transparent);
   scroll-behavior: smooth;
 }
 
@@ -154,30 +142,20 @@
 }
 
 .search-results-container::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--friends-search-scrollbar-track-bg);
   border-radius: 3px;
 }
 
 .search-results-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(34, 197, 94, 0.4) 0%,
-    rgba(16, 185, 129, 0.5) 50%,
-    rgba(34, 197, 94, 0.4) 100%
-  );
+  background: var(--friends-search-scrollbar-thumb-bg);
   border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: var(--friends-search-scrollbar-thumb-border);
   transition: all 0.3s ease;
 }
 
 .search-results-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(34, 197, 94, 0.6) 0%,
-    rgba(16, 185, 129, 0.7) 50%,
-    rgba(34, 197, 94, 0.6) 100%
-  );
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+  background: var(--friends-search-scrollbar-thumb-hover-bg);
+  box-shadow: var(--friends-search-scrollbar-thumb-hover-shadow);
 }
 
 .students-grid {
@@ -188,21 +166,14 @@
 
 .student-card {
   /* 2025 Glassmorphism: Green gradient for search results */
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.12) 0%,
-    rgba(16, 185, 129, 0.1) 25%,
-    rgba(59, 130, 246, 0.08) 50%,
-    rgba(34, 197, 94, 0.06) 75%,
-    rgba(16, 185, 129, 0.04) 100%
-  );
+  background: var(--friends-student-card-bg);
 
   /* Enhanced glass effect with subtle blur */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
   /* Glass border effect */
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: var(--friends-student-card-border);
   border-radius: 10px;
 
   padding: 12px;
@@ -216,9 +187,7 @@
   overflow: hidden;
 
   /* Subtle shadow for dropdown items */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 0 15px rgba(34, 197, 94, 0.03);
+  box-shadow: var(--friends-student-card-shadow);
 }
 
 .student-card:last-child {
@@ -227,22 +196,13 @@
 
 .student-card:hover {
   /* Enhanced green gradient on hover */
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.18) 0%,
-    rgba(16, 185, 129, 0.15) 25%,
-    rgba(59, 130, 246, 0.12) 50%,
-    rgba(34, 197, 94, 0.1) 75%,
-    rgba(16, 185, 129, 0.08) 100%
-  );
+  background: var(--friends-student-card-hover-bg);
 
-  border-color: rgba(34, 197, 94, 0.3);
+  border-color: var(--friends-student-card-hover-border-color);
   transform: translateY(-1px);
 
   /* Subtle green glow for dropdown */
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(34, 197, 94, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 0 15px rgba(34, 197, 94, 0.05);
+  box-shadow: var(--friends-student-card-hover-shadow);
 }
 
 .student-avatar {
@@ -272,13 +232,9 @@
 }
 
 .btn-send-request {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 0.8) 0%,
-    rgba(16, 185, 129, 0.9) 100%
-  );
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--friends-btn-send-request-bg);
+  color: var(--friends-color-white);
+  border: var(--friends-btn-send-request-border);
   padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -292,24 +248,18 @@
   -webkit-backdrop-filter: blur(8px);
 
   /* Subtle glow */
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: var(--friends-btn-send-request-shadow);
 }
 
 .btn-send-request:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(34, 197, 94, 1) 0%,
-    rgba(16, 185, 129, 1) 100%
-  );
+  background: var(--friends-btn-send-request-hover-bg);
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4), 0 2px 8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: var(--friends-btn-send-request-hover-shadow);
 }
 
 .btn-send-request:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  background: var(--friends-btn-send-request-disabled-bg);
+  color: var(--friends-btn-send-request-disabled-color);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -317,18 +267,14 @@
 
 .btn-request-sent {
   background: var(--success-color) !important;
-  color: white !important;
+  color: var(--friends-color-white) !important;
 }
 
 /* 📋 Pending request button styling */
 .btn-pending-request {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 193, 7, 0.9) 0%,
-    rgba(255, 235, 59, 0.95) 100%
-  );
-  color: #856404;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: var(--friends-btn-pending-request-bg);
+  color: var(--friends-btn-pending-request-color);
+  border: var(--friends-btn-pending-request-border);
   padding: 8px;
   border-radius: 8px;
   cursor: not-allowed;
@@ -344,15 +290,13 @@
   -webkit-backdrop-filter: blur(8px);
 
   /* Yellow glow for pending state */
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: var(--friends-btn-pending-request-shadow);
 }
 
 .btn-pending-request:hover {
   /* No hover effect for disabled state */
   transform: none;
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: var(--friends-btn-pending-request-shadow);
 }
 
 /* Clock icon animation for pending requests */
@@ -399,22 +343,15 @@
 
 .friend-request-card {
   /* 2025 Glassmorphism: Warm gradient for friend requests */
-  background: linear-gradient(
-    135deg,
-    rgba(251, 146, 60, 0.15) 0%,
-    rgba(245, 101, 101, 0.12) 25%,
-    rgba(139, 92, 246, 0.1) 50%,
-    rgba(168, 85, 247, 0.08) 75%,
-    rgba(251, 146, 60, 0.05) 100%
-  );
+  background: var(--friends-request-card-bg);
 
   /* Enhanced glass effect */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
   /* Glass border with accent left border */
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-left: 3px solid rgba(251, 146, 60, 0.8);
+  border: var(--friends-request-card-border);
+  border-left: var(--friends-request-card-border-left);
   border-radius: 12px;
 
   padding: 14px;
@@ -427,10 +364,7 @@
   overflow: hidden;
 
   /* Light reflection with warm accent */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 20px rgba(251, 146, 60, 0.05),
-    -3px 0 12px rgba(251, 146, 60, 0.08);
+  box-shadow: var(--friends-request-card-shadow);
 }
 
 /* Warm light reflection highlight */
@@ -441,35 +375,19 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.6) 20%,
-    rgba(251, 146, 60, 0.5) 50%,
-    rgba(255, 255, 255, 0.6) 80%,
-    transparent 100%
-  );
+  background: var(--friends-request-card-highlight);
   z-index: 1;
 }
 
 .friend-request-card:hover {
   /* Enhanced warm gradient on hover */
-  background: linear-gradient(
-    135deg,
-    rgba(251, 146, 60, 0.25) 0%,
-    rgba(245, 101, 101, 0.2) 25%,
-    rgba(139, 92, 246, 0.18) 50%,
-    rgba(168, 85, 247, 0.15) 75%,
-    rgba(251, 146, 60, 0.12) 100%
-  );
+  background: var(--friends-request-card-hover-bg);
 
-  border-left-color: rgba(251, 146, 60, 1);
+  border-left-color: var(--friends-request-card-hover-border-left-color);
   transform: translateY(-2px);
 
   /* Warm glowing effect */
-  box-shadow: 0 8px 32px rgba(251, 146, 60, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 0 20px rgba(251, 146, 60, 0.1), -3px 0 16px rgba(251, 146, 60, 0.15);
+  box-shadow: var(--friends-request-card-hover-shadow);
 }
 
 .friend-request-card:last-child {
@@ -515,9 +433,9 @@
 }
 
 .btn-accept-request {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: var(--friends-btn-accept-request-bg);
+  color: var(--friends-btn-accept-request-color);
+  border: var(--friends-btn-accept-request-border);
   padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -531,16 +449,16 @@
 }
 
 .btn-accept-request:hover {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: #10b981;
+  background: var(--friends-btn-accept-request-hover-bg);
+  border-color: var(--friends-btn-accept-request-hover-border-color);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: var(--friends-btn-accept-request-hover-shadow);
 }
 
 .btn-reject-request {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--friends-btn-reject-request-bg);
+  color: var(--friends-btn-reject-request-color);
+  border: var(--friends-btn-reject-request-border);
   padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -554,10 +472,10 @@
 }
 
 .btn-reject-request:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
+  background: var(--friends-btn-reject-request-hover-bg);
+  border-color: var(--friends-btn-reject-request-hover-border-color);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  box-shadow: var(--friends-btn-reject-request-hover-shadow);
 }
 
 .btn-accept-request:disabled,
@@ -569,7 +487,7 @@
 }
 
 /* =================================
-   FRIENDS LIST STYLING (ULTRATHINK DESIGN)
+   FRIENDS LIST STYLING (NEW DESIGN)
 ================================= */
 
 .friends-scrollable-container,
@@ -580,25 +498,19 @@
   margin-top: 16px;
 
   /* 2025 Glassmorphism container */
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    rgba(139, 92, 246, 0.04) 50%,
-    rgba(255, 255, 255, 0.06) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--friends-list-container-bg);
+  border: var(--friends-list-container-border);
   border-radius: 18px;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 
   /* Enhanced container depth */
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 40px rgba(139, 92, 246, 0.03);
+  box-shadow: var(--friends-list-container-shadow);
 
   /* Modern scrollbar styling */
   scrollbar-width: thin;
-  scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
+  scrollbar-color: var(--friends-list-scrollbar-color)
+    var(--friends-color-transparent);
 
   /* Smooth scrolling */
   scroll-behavior: smooth;
@@ -611,51 +523,34 @@
 
 .friends-scrollable-container::-webkit-scrollbar-track,
 .requests-scrollable-container::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--friends-list-scrollbar-track-bg);
   border-radius: 4px;
 }
 
 .friends-scrollable-container::-webkit-scrollbar-thumb,
 .requests-scrollable-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(139, 92, 246, 0.4) 0%,
-    rgba(168, 85, 247, 0.5) 50%,
-    rgba(139, 92, 246, 0.4) 100%
-  );
+  background: var(--friends-list-scrollbar-thumb-bg);
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: var(--friends-list-scrollbar-thumb-border);
   transition: all 0.3s ease;
 }
 
 .friends-scrollable-container::-webkit-scrollbar-thumb:hover,
 .requests-scrollable-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(139, 92, 246, 0.6) 0%,
-    rgba(168, 85, 247, 0.7) 50%,
-    rgba(139, 92, 246, 0.6) 100%
-  );
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+  background: var(--friends-list-scrollbar-thumb-hover-bg);
+  box-shadow: var(--friends-list-scrollbar-thumb-hover-shadow);
 }
 
 .friend-card {
   /* 2025 Glassmorphism: Colorful gradient background */
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.15) 0%,
-    rgba(168, 85, 247, 0.12) 25%,
-    rgba(79, 70, 229, 0.1) 50%,
-    rgba(99, 102, 241, 0.08) 75%,
-    rgba(139, 92, 246, 0.05) 100%
-  );
+  background: var(--friends-card-bg);
 
   /* Enhanced glass effect with higher opacity */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
   /* Glass border effect */
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: var(--friends-card-border);
   border-radius: 12px;
 
   padding: 16px;
@@ -669,9 +564,7 @@
   overflow: hidden;
 
   /* Light reflection effect */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 20px rgba(139, 92, 246, 0.05);
+  box-shadow: var(--friends-card-shadow);
 }
 
 /* Light reflection highlight */
@@ -682,34 +575,18 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.6) 20%,
-    rgba(139, 92, 246, 0.4) 50%,
-    rgba(255, 255, 255, 0.6) 80%,
-    transparent 100%
-  );
+  background: var(--friends-card-highlight);
   z-index: 1;
 }
 
 .friend-card:hover {
   /* Enhanced gradient on hover */
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.25) 0%,
-    rgba(168, 85, 247, 0.2) 25%,
-    rgba(79, 70, 229, 0.18) 50%,
-    rgba(99, 102, 241, 0.15) 75%,
-    rgba(139, 92, 246, 0.12) 100%
-  );
+  background: var(--friends-card-hover-bg);
 
   transform: translateY(-2px);
 
   /* Glowing effect */
-  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 0 20px rgba(139, 92, 246, 0.1);
+  box-shadow: var(--friends-card-hover-shadow);
 }
 
 .friend-card:last-child {
@@ -728,7 +605,7 @@
   width: 12px;
   height: 12px;
   background: var(--success-color);
-  border: 2px solid white;
+  border: var(--friends-online-indicator-border);
   border-radius: 50%;
 }
 
@@ -767,7 +644,7 @@
 
 .btn-view-schedule {
   background: var(--primary-color);
-  color: white;
+  color: var(--friends-color-white);
   border: none;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
@@ -786,9 +663,9 @@
 }
 
 .btn-friend-menu {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--friends-btn-friend-menu-bg);
   color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: var(--friends-btn-friend-menu-border);
   padding: 8px;
   border-radius: 8px;
   cursor: pointer;
@@ -802,7 +679,7 @@
 }
 
 .btn-friend-menu:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--friends-btn-friend-menu-hover-bg);
   color: var(--accent-primary);
   border-color: var(--accent-primary);
   transform: scale(1.05);
@@ -821,9 +698,9 @@
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--friends-avatar-bg);
   color: var(--text-secondary);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: var(--friends-avatar-border);
   backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
@@ -837,7 +714,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+  background: var(--friends-avatar-highlight);
   border-radius: 50%;
 }
 
@@ -1093,7 +970,6 @@ body.page-friends .content-grid {
   min-height: calc(100vh - 120px) !important; /* Full viewport minus nav */
   width: 100vw !important; /* Full viewport width */
   max-width: 100vw !important; /* Ensure no constraints */
-  padding: var(--space-xl) !important;
   gap: 0 !important; /* Remove grid gap */
 }
 
@@ -1168,7 +1044,7 @@ body.page-friends .schedule-section {
 .friends-search .search-input:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.1);
+  box-shadow: 0 0 0 3px var(--friends-purple-shadow-light);
 }
 
 .friends-search .search-input:placeholder {
@@ -1178,7 +1054,7 @@ body.page-friends .schedule-section {
 .friends-search .search-btn {
   padding: 0.75rem 1.5rem;
   background: var(--accent-primary);
-  color: white;
+  color: var(--friends-color-white);
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -1189,7 +1065,7 @@ body.page-friends .schedule-section {
 .friends-search .search-btn:hover {
   background: var(--accent-secondary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.3);
+  box-shadow: 0 4px 12px var(--friends-purple-shadow-medium);
 }
 
 .friends-search .search-btn:active {
@@ -1201,7 +1077,7 @@ body.page-friends .schedule-section {
 .friends-search .search-btn.loading {
   pointer-events: none;
   position: relative;
-  color: transparent;
+  color: var(--friends-color-transparent);
 }
 
 .friends-search .search-btn.loading::after {
@@ -1212,8 +1088,8 @@ body.page-friends .schedule-section {
   transform: translate(-50%, -50%);
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  border: var(--friends-spinner-border);
+  border-top: var(--friends-spinner-border-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1221,13 +1097,13 @@ body.page-friends .schedule-section {
 /* 🎯 SEARCH INPUT VALIDATION */
 /* Visual feedback for search input validation */
 .friends-search .search-input:invalid:not(:placeholder-shown) {
-  border-color: var(--error-color, #ef4444);
-  background-color: rgba(239, 68, 68, 0.05);
+  border-color: var(--error-red);
+  background-color: var(--error-light);
 }
 
 .friends-search .search-input:valid:not(:placeholder-shown) {
-  border-color: var(--success-color, #10b981);
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--success);
+  background-color: var(--success-light);
 }
 
 /* =================================
@@ -1254,7 +1130,7 @@ body.page-friends .schedule-section {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--friends-color-white);
   font-weight: 600;
   flex-shrink: 0;
   overflow: hidden;
@@ -1296,7 +1172,7 @@ body.page-friends .schedule-section {
 
 .request-card {
   background: var(--card-bg);
-  border: 1px solid var(--warning-color, #fbbf24);
+  border: 1px solid var(--warning-gold);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   position: relative;
@@ -1330,8 +1206,8 @@ body.page-friends .schedule-section {
 }
 
 .request-card .btn-accept {
-  background: var(--success-color, #10b981);
-  color: white;
+  background: var(--success);
+  color: var(--friends-color-white);
   border: none;
   padding: 0.5rem 1rem;
   border-radius: var(--radius-md);
@@ -1341,13 +1217,13 @@ body.page-friends .schedule-section {
 }
 
 .request-card .btn-accept:hover {
-  background: var(--success-dark, #059669);
+  background: var(--button-on-green);
   transform: translateY(-1px);
 }
 
 .request-card .btn-reject {
-  background: var(--error-color, #ef4444);
-  color: white;
+  background: var(--error-red);
+  color: var(--friends-color-white);
   border: none;
   padding: 0.5rem 1rem;
   border-radius: var(--radius-md);
@@ -1357,7 +1233,7 @@ body.page-friends .schedule-section {
 }
 
 .request-card .btn-reject:hover {
-  background: var(--error-dark, #dc2626);
+  background: var(--button-off-red-hover);
   transform: translateY(-1px);
 }
 
@@ -1367,7 +1243,7 @@ body.page-friends .schedule-section {
 .request-card .btn-reject.loading {
   pointer-events: none;
   position: relative;
-  color: transparent;
+  color: var(--friends-color-transparent);
 }
 
 .request-card .btn-accept.loading::after,
@@ -1379,8 +1255,8 @@ body.page-friends .schedule-section {
   transform: translate(-50%, -50%);
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  border: var(--friends-spinner-border);
+  border-top: var(--friends-spinner-border-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1433,8 +1309,8 @@ body.page-friends .schedule-section {
 .friends-loading .spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid var(--border-color);
-  border-top-color: var(--accent-primary);
+  border: var(--friends-spinner-border);
+  border-top: var(--friends-spinner-border-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-right: 0.75rem;
@@ -1451,8 +1327,8 @@ body.page-friends .schedule-section {
 ================================= */
 
 .friends-notification-badge {
-  background: var(--error-color, #ef4444);
-  color: white;
+  background: var(--error-red);
+  color: var(--friends-color-white);
   border-radius: 50%;
   width: 20px;
   height: 20px;
@@ -1477,13 +1353,13 @@ body.page-friends .schedule-section {
   }
 
   body.page-friends .content-grid {
-    padding: var(--space-md) !important;
     min-height: calc(100vh - 100px) !important;
+    width: 100vw !important;
   }
 
   .friends-container {
     padding: var(--space-lg) !important;
-    margin: var(--space-sm) !important;
+    margin: 0;
     max-width: calc(100vw - 2rem) !important;
     gap: 1.5rem;
   }
@@ -1558,19 +1434,18 @@ body.page-friends .schedule-section {
 ================================= */
 
 @media (prefers-color-scheme: dark) {
-
   .request-card {
-    background: var(--card-bg-dark, #1f2937);
-    border-color: var(--warning-color-dark, #f59e0b);
+    background: var(--friends-dark-card-bg);
+    border-color: var(--friends-dark-warning-border);
   }
 
   .friends-search .search-input {
-    background: var(--input-bg-dark, #374151);
-    border-color: var(--input-border-dark, #4b5563);
-    color: var(--text-primary-dark, #f9fafb);
+    background: var(--friends-dark-input-bg);
+    border-color: var(--friends-dark-input-border);
+    color: var(--friends-dark-text-primary);
   }
 
   .friends-search .search-input::placeholder {
-    color: var(--text-secondary-dark, #9ca3af);
+    color: var(--friends-dark-text-secondary);
   }
 }

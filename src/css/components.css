@@ -31,43 +31,44 @@ This file contains all UI component styles for the MeetchuThere app:
   .notification-container {
     top: 10px;
     right: 10px;
-    left: 10px;
-    max-width: none;
+    left: auto;
+    max-width: 70%;
+    width: 70%;
   }
 }
 
 .notification {
   background: var(--glass-bg);
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  
+  -webkit-backdrop-filter: var(--glass-backdrop-blur)
+    var(--glass-backdrop-saturate);
+
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 12px;
-  
-  box-shadow: 
-    var(--glass-outer-glow),
-    0 8px 32px var(--glass-shadow),
+
+  box-shadow: var(--glass-outer-glow), 0 8px 32px var(--glass-shadow),
     inset 0 0 0 1px var(--glass-highlight-faint);
-  
+
   pointer-events: auto;
   opacity: 0;
   transform: translateX(100%) scale(0.95);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   position: relative;
   overflow: hidden;
 }
 
 .notification::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, 
+  background: linear-gradient(
+    90deg,
     var(--accent-primary),
     var(--accent-secondary)
   );
@@ -186,24 +187,20 @@ This file contains all UI component styles for the MeetchuThere app:
 
 .notification-clickable:hover {
   transform: translateY(-2px);
-  box-shadow: 
-    var(--glass-outer-glow),
-    0 12px 48px var(--glass-shadow),
+  box-shadow: var(--glass-outer-glow), 0 12px 48px var(--glass-shadow),
     inset 0 0 0 1px var(--glass-highlight-faint);
 }
 
 /* Priority styling */
 .notification-high {
   border-width: 2px;
-  box-shadow: 
-    var(--glass-outer-glow),
-    0 12px 48px var(--glass-shadow),
+  box-shadow: var(--glass-outer-glow), 0 12px 48px var(--glass-shadow),
     inset 0 0 0 1px var(--glass-highlight-faint),
     0 0 0 2px rgba(106, 90, 205, 0.2);
 }
 
 .notification-medium {
-  /* Use default styling */
+  /* Default styling - no additional properties needed */
 }
 
 .notification-low {
@@ -222,15 +219,15 @@ This file contains all UI component styles for the MeetchuThere app:
     padding: 12px;
     border-radius: 8px;
   }
-  
+
   .notification-icon {
     font-size: 20px;
   }
-  
+
   .notification-title {
     font-size: 0.9rem;
   }
-  
+
   .notification-message {
     font-size: 0.8rem;
   }
@@ -242,11 +239,11 @@ This file contains all UI component styles for the MeetchuThere app:
     background: rgba(26, 32, 44, 0.85);
     border-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   .notification::before {
     opacity: 0.8;
   }
-  
+
   .notification-close:hover {
     background: rgba(255, 255, 255, 0.1);
   }
@@ -258,15 +255,15 @@ This file contains all UI component styles for the MeetchuThere app:
     transition: opacity 0.2s ease;
     transform: none;
   }
-  
+
   .notification-show {
     transform: none;
   }
-  
+
   .notification-hide {
     transform: none;
   }
-  
+
   .notification-clickable:hover {
     transform: none;
   }

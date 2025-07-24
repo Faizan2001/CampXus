@@ -784,4 +784,342 @@ body:not(.light-mode) {
   --auth-button-shadow-secondary: rgba(102, 126, 234, 0.15);
   --auth-button-hover-shadow-primary: rgba(139, 92, 246, 0.3);
   --auth-button-hover-shadow-secondary: rgba(102, 126, 234, 0.2);
+
+  /* =================================
+     FRIENDS CARD FALLBACK VARIABLES (ROOT LEVEL)
+  ================================= */
+  --friends-color-white: white;
+  --friends-color-transparent: transparent;
+  --friends-shadow-dark-subtle: rgba(0, 0, 0, 0.06);
+  --friends-shadow-dark-faint: rgba(0, 0, 0, 0.08);
+  --friends-shadow-dark-medium: rgba(0, 0, 0, 0.1);
+  --friends-shadow-dark-strong: rgba(0, 0, 0, 0.12);
+  --friends-white-highlight-faint: rgba(255, 255, 255, 0.1);
+  --friends-white-highlight-subtle: rgba(255, 255, 255, 0.15);
+  --friends-white-highlight-medium: rgba(255, 255, 255, 0.2);
+  --friends-white-highlight-strong: rgba(255, 255, 255, 0.3);
+  --friends-white-highlight-extra-strong: rgba(255, 255, 255, 0.4);
+  --friends-white-highlight-intense: rgba(255, 255, 255, 0.6);
+
+  /* Friend Card Essential Variables */
+  --friends-card-bg: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(168, 85, 247, 0.12) 25%,
+    rgba(79, 70, 229, 0.1) 50%,
+    rgba(99, 102, 241, 0.08) 75%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  --friends-card-border: 1px solid var(--friends-white-highlight-strong);
+  --friends-card-shadow: 0 2px 8px var(--friends-shadow-dark-medium),
+    0 1px 2px var(--friends-shadow-dark-subtle),
+    inset 0 1px 0 var(--friends-white-highlight-medium),
+    inset 0 0 20px rgba(139, 92, 246, 0.05);
+  --friends-card-highlight: linear-gradient(
+    90deg,
+    var(--friends-color-transparent) 0%,
+    var(--friends-white-highlight-intense) 20%,
+    rgba(139, 92, 246, 0.4) 50%,
+    var(--friends-white-highlight-intense) 80%,
+    var(--friends-color-transparent) 100%
+  );
+  --friends-card-hover-bg: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.25) 0%,
+    rgba(168, 85, 247, 0.2) 25%,
+    rgba(79, 70, 229, 0.18) 50%,
+    rgba(99, 102, 241, 0.15) 75%,
+    rgba(139, 92, 246, 0.12) 100%
+  );
+  --friends-card-hover-shadow: 0 8px 32px rgba(139, 92, 246, 0.2),
+    0 4px 16px var(--friends-shadow-dark-medium),
+    0 0 0 1px rgba(139, 92, 246, 0.4),
+    inset 0 1px 0 var(--friends-white-highlight-strong),
+    inset 0 0 20px rgba(139, 92, 246, 0.1);
+  --friends-online-indicator-border: 2px solid var(--friends-color-white);
+
+  /* Dark Mode Specific Variables */
+  --friends-dark-card-bg: #1f2937;
+  --friends-dark-input-bg: #374151;
+  --friends-dark-input-border: #4b5563;
+  --friends-dark-text-primary: #f9fafb;
+  --friends-dark-text-secondary: #9ca3af;
+  --friends-dark-warning-border: #f59e0b;
+
+  /* Purple accent shadows for focus states */
+  --friends-purple-shadow-light: rgba(139, 92, 246, 0.1);
+  --friends-purple-shadow-medium: rgba(139, 92, 246, 0.3);
+}
+
+/* =============================================================================
+   FRIENDS PAGE SPECIFIC VARIABLES 
+============================================================================= */
+
+/* Light Theme (Base Styles from the file) */
+.light-mode,
+body:not(.dark-mode) {
+  /* =================================
+     GENERAL & SHARED VALUES
+  ================================= */
+  --friends-color-white: white;
+  --friends-color-transparent: transparent;
+  --friends-shadow-dark-subtle: rgba(0, 0, 0, 0.06);
+  --friends-shadow-dark-faint: rgba(0, 0, 0, 0.08);
+  --friends-shadow-dark-medium: rgba(0, 0, 0, 0.1);
+  --friends-shadow-dark-strong: rgba(0, 0, 0, 0.12);
+  --friends-white-highlight-faint: rgba(255, 255, 255, 0.1);
+  --friends-white-highlight-subtle: rgba(255, 255, 255, 0.15);
+  --friends-white-highlight-medium: rgba(255, 255, 255, 0.2);
+  --friends-white-highlight-strong: rgba(255, 255, 255, 0.3);
+  --friends-white-highlight-extra-strong: rgba(255, 255, 255, 0.4);
+  --friends-white-highlight-intense: rgba(255, 255, 255, 0.6);
+  --friends-spinner-border: 2px solid var(--friends-white-highlight-strong);
+  --friends-spinner-border-top: 2px solid var(--friends-color-white);
+  --friends-online-indicator-border: 2px solid var(--friends-color-white);
+
+  /* =================================
+     SEARCH RESULTS (GLASSMORPHISM)
+  ================================= */
+  --friends-search-shadow: 0 8px 32px var(--friends-shadow-dark-strong),
+    0 2px 8px var(--friends-shadow-dark-faint);
+  --friends-search-shadow-active: 0 12px 48px rgba(34, 197, 94, 0.1),
+    0 4px 16px var(--friends-shadow-dark-medium);
+  --friends-search-header-bg: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.15) 0%,
+    rgba(16, 185, 129, 0.12) 50%,
+    rgba(34, 197, 94, 0.08) 100%
+  );
+  --friends-search-header-border: 1px solid rgba(34, 197, 94, 0.2);
+  --friends-search-header-shadow: inset 0 1px 0
+      var(--friends-white-highlight-subtle),
+    0 1px 3px rgba(34, 197, 94, 0.1);
+  --friends-search-header-highlight: linear-gradient(
+    90deg,
+    var(--friends-color-transparent) 0%,
+    var(--friends-white-highlight-extra-strong) 20%,
+    rgba(34, 197, 94, 0.3) 50%,
+    var(--friends-white-highlight-extra-strong) 80%,
+    var(--friends-color-transparent) 100%
+  );
+  --friends-search-container-bg: rgba(255, 255, 255, 0.02);
+  --friends-search-container-border: 1px solid rgba(34, 197, 94, 0.15);
+  --friends-search-scrollbar-color: rgba(34, 197, 94, 0.4);
+  --friends-search-scrollbar-track-bg: rgba(255, 255, 255, 0.05);
+  --friends-search-scrollbar-thumb-bg: linear-gradient(
+    180deg,
+    rgba(34, 197, 94, 0.4) 0%,
+    rgba(16, 185, 129, 0.5) 50%,
+    rgba(34, 197, 94, 0.4) 100%
+  );
+  --friends-search-scrollbar-thumb-border: 1px solid
+    var(--friends-white-highlight-faint);
+  --friends-search-scrollbar-thumb-hover-bg: linear-gradient(
+    180deg,
+    rgba(34, 197, 94, 0.6) 0%,
+    rgba(16, 185, 129, 0.7) 50%,
+    rgba(34, 197, 94, 0.6) 100%
+  );
+  --friends-search-scrollbar-thumb-hover-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+
+  /* Student Cards (Glassmorphism) */
+  --friends-student-card-bg: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.12) 0%,
+    rgba(16, 185, 129, 0.1) 25%,
+    rgba(59, 130, 246, 0.08) 50%,
+    rgba(34, 197, 94, 0.06) 75%,
+    rgba(16, 185, 129, 0.04) 100%
+  );
+  --friends-student-card-border: 1px solid var(--friends-white-highlight-subtle);
+  --friends-student-card-shadow: 0 1px 3px var(--friends-shadow-dark-subtle),
+    inset 0 1px 0 var(--friends-white-highlight-faint),
+    inset 0 0 15px rgba(34, 197, 94, 0.03);
+  --friends-student-card-hover-bg: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.18) 0%,
+    rgba(16, 185, 129, 0.15) 25%,
+    rgba(59, 130, 246, 0.12) 50%,
+    rgba(34, 197, 94, 0.1) 75%,
+    rgba(16, 185, 129, 0.08) 100%
+  );
+  --friends-student-card-hover-border-color: rgba(34, 197, 94, 0.3);
+  --friends-student-card-hover-shadow: 0 4px 12px rgba(34, 197, 94, 0.15),
+    0 2px 6px var(--friends-shadow-dark-faint), 0 0 0 1px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 var(--friends-white-highlight-subtle),
+    inset 0 0 15px rgba(34, 197, 94, 0.05);
+
+  /* =================================
+     FRIEND REQUESTS (GLASSMORPHISM)
+  ================================= */
+  --friends-request-card-bg: linear-gradient(
+    135deg,
+    rgba(251, 146, 60, 0.15) 0%,
+    rgba(245, 101, 101, 0.12) 25%,
+    rgba(139, 92, 246, 0.1) 50%,
+    rgba(168, 85, 247, 0.08) 75%,
+    rgba(251, 146, 60, 0.05) 100%
+  );
+  --friends-request-card-border: 1px solid var(--friends-white-highlight-strong);
+  --friends-request-card-border-left: 3px solid rgba(251, 146, 60, 0.8);
+  --friends-request-card-shadow: 0 2px 8px var(--friends-shadow-dark-medium),
+    0 1px 2px var(--friends-shadow-dark-subtle),
+    inset 0 1px 0 var(--friends-white-highlight-medium),
+    inset 0 0 20px rgba(251, 146, 60, 0.05),
+    -3px 0 12px rgba(251, 146, 60, 0.08);
+  --friends-request-card-highlight: linear-gradient(
+    90deg,
+    var(--friends-color-transparent) 0%,
+    var(--friends-white-highlight-intense) 20%,
+    rgba(251, 146, 60, 0.5) 50%,
+    var(--friends-white-highlight-intense) 80%,
+    var(--friends-color-transparent) 100%
+  );
+  --friends-request-card-hover-bg: linear-gradient(
+    135deg,
+    rgba(251, 146, 60, 0.25) 0%,
+    rgba(245, 101, 101, 0.2) 25%,
+    rgba(139, 92, 246, 0.18) 50%,
+    rgba(168, 85, 247, 0.15) 75%,
+    rgba(251, 146, 60, 0.12) 100%
+  );
+  --friends-request-card-hover-border-left-color: rgba(251, 146, 60, 1);
+  --friends-request-card-hover-shadow: 0 8px 32px rgba(251, 146, 60, 0.2),
+    0 4px 16px var(--friends-shadow-dark-medium),
+    0 0 0 1px rgba(251, 146, 60, 0.4),
+    inset 0 1px 0 var(--friends-white-highlight-strong),
+    inset 0 0 20px rgba(251, 146, 60, 0.1), -3px 0 16px rgba(251, 146, 60, 0.15);
+
+  /* =================================
+     FRIENDS LIST & CARDS (GLASSMORPHISM)
+  ================================= */
+  --friends-list-container-bg: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(139, 92, 246, 0.04) 50%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  --friends-list-container-border: 1px solid
+    var(--friends-white-highlight-subtle);
+  --friends-list-container-shadow: 0 4px 24px var(--friends-shadow-dark-medium),
+    inset 0 1px 0 var(--friends-white-highlight-medium),
+    inset 0 0 40px rgba(139, 92, 246, 0.03);
+  --friends-list-scrollbar-color: rgba(139, 92, 246, 0.4);
+  --friends-list-scrollbar-track-bg: rgba(255, 255, 255, 0.05);
+  --friends-list-scrollbar-thumb-bg: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.4) 0%,
+    rgba(168, 85, 247, 0.5) 50%,
+    rgba(139, 92, 246, 0.4) 100%
+  );
+  --friends-list-scrollbar-thumb-border: 1px solid
+    var(--friends-white-highlight-faint);
+  --friends-list-scrollbar-thumb-hover-bg: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.6) 0%,
+    rgba(168, 85, 247, 0.7) 50%,
+    rgba(139, 92, 246, 0.6) 100%
+  );
+  --friends-list-scrollbar-thumb-hover-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+  --friends-card-bg: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(168, 85, 247, 0.12) 25%,
+    rgba(79, 70, 229, 0.1) 50%,
+    rgba(99, 102, 241, 0.08) 75%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  --friends-card-border: 1px solid var(--friends-white-highlight-strong);
+  --friends-card-shadow: 0 2px 8px var(--friends-shadow-dark-medium),
+    0 1px 2px var(--friends-shadow-dark-subtle),
+    inset 0 1px 0 var(--friends-white-highlight-medium),
+    inset 0 0 20px rgba(139, 92, 246, 0.05);
+  --friends-card-highlight: linear-gradient(
+    90deg,
+    var(--friends-color-transparent) 0%,
+    var(--friends-white-highlight-intense) 20%,
+    rgba(139, 92, 246, 0.4) 50%,
+    var(--friends-white-highlight-intense) 80%,
+    var(--friends-color-transparent) 100%
+  );
+  --friends-card-hover-bg: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.25) 0%,
+    rgba(168, 85, 247, 0.2) 25%,
+    rgba(79, 70, 229, 0.18) 50%,
+    rgba(99, 102, 241, 0.15) 75%,
+    rgba(139, 92, 246, 0.12) 100%
+  );
+  --friends-card-hover-shadow: 0 8px 32px rgba(139, 92, 246, 0.2),
+    0 4px 16px var(--friends-shadow-dark-medium),
+    0 0 0 1px rgba(139, 92, 246, 0.4),
+    inset 0 1px 0 var(--friends-white-highlight-strong),
+    inset 0 0 20px rgba(139, 92, 246, 0.1);
+
+  /* =================================
+     BUTTONS & ACTIONS
+  ================================= */
+  --friends-btn-clear-search-bg: var(--friends-white-highlight-faint);
+  --friends-btn-clear-search-border: 1px solid
+    var(--friends-white-highlight-medium);
+  --friends-btn-clear-search-hover-bg: rgba(239, 68, 68, 0.15);
+  --friends-btn-clear-search-hover-border-color: rgba(239, 68, 68, 0.3);
+  --friends-btn-clear-search-hover-color: #ef4444;
+  --friends-btn-clear-search-hover-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  --friends-btn-friend-menu-bg: rgba(255, 255, 255, 0.05);
+  --friends-btn-friend-menu-border: 1px solid
+    var(--friends-white-highlight-faint);
+  --friends-btn-friend-menu-hover-bg: var(--friends-white-highlight-faint);
+  --friends-btn-send-request-bg: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.8) 0%,
+    rgba(16, 185, 129, 0.9) 100%
+  );
+  --friends-btn-send-request-border: 1px solid
+    var(--friends-white-highlight-medium);
+  --friends-btn-send-request-shadow: 0 2px 8px rgba(34, 197, 94, 0.3),
+    inset 0 1px 0 var(--friends-white-highlight-medium);
+  --friends-btn-send-request-hover-bg: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 1) 0%,
+    rgba(16, 185, 129, 1) 100%
+  );
+  --friends-btn-send-request-hover-shadow: 0 4px 16px rgba(34, 197, 94, 0.4),
+    0 2px 8px var(--friends-shadow-dark-medium),
+    inset 0 1px 0 var(--friends-white-highlight-strong);
+  --friends-btn-send-request-disabled-bg: var(--friends-white-highlight-faint);
+  --friends-btn-send-request-disabled-color: rgba(255, 255, 255, 0.5);
+  --friends-btn-pending-request-bg: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.9) 0%,
+    rgba(255, 235, 59, 0.95) 100%
+  );
+  --friends-btn-pending-request-color: #856404;
+  --friends-btn-pending-request-border: 1px solid
+    var(--friends-white-highlight-strong);
+  --friends-btn-pending-request-shadow: 0 2px 8px rgba(255, 193, 7, 0.4),
+    inset 0 1px 0 var(--friends-white-highlight-strong);
+  --friends-btn-accept-request-bg: rgba(16, 185, 129, 0.1);
+  --friends-btn-accept-request-color: #10b981;
+  --friends-btn-accept-request-border: 1px solid rgba(16, 185, 129, 0.2);
+  --friends-btn-accept-request-hover-bg: rgba(16, 185, 129, 0.2);
+  --friends-btn-accept-request-hover-border-color: #10b981;
+  --friends-btn-accept-request-hover-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  --friends-btn-reject-request-bg: rgba(239, 68, 68, 0.1);
+  --friends-btn-reject-request-color: #ef4444;
+  --friends-btn-reject-request-border: 1px solid rgba(239, 68, 68, 0.2);
+  --friends-btn-reject-request-hover-bg: rgba(239, 68, 68, 0.2);
+  --friends-btn-reject-request-hover-border-color: #ef4444;
+  --friends-btn-reject-request-hover-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+
+  /* =================================
+     AVATARS (GLASSMORPHISM)
+  ================================= */
+  --friends-avatar-bg: rgba(255, 255, 255, 0.05);
+  --friends-avatar-border: 2px solid var(--friends-white-highlight-faint);
+  --friends-avatar-highlight: linear-gradient(
+    135deg,
+    var(--friends-white-highlight-faint),
+    var(--friends-color-transparent)
+  );
 }
