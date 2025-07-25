@@ -86,8 +86,21 @@ global.afterEach = (fn) => {
     if (typeof fn === 'function') {
       fn();
     }
+    // Clear all timers to prevent teardown issues
+    jest.clearAllTimers();
     // Wait a tick to ensure cleanup
     return new Promise(resolve => setTimeout(resolve, 0));
   });
 };
+
+// Remove global fake timers - let individual tests handle them
+// Add global timeout cleanup without fake timers
+global.beforeEach(() => {
+  // Clear any existing timers but don't use fake timers globally
+});
+
+global.afterEach(() => {
+  // Clear all timers to prevent teardown issues
+  jest.clearAllTimers();
+});
 

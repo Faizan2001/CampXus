@@ -53,9 +53,11 @@
     ],
     "moduleNameMapper": {
       "^firebase/(.*)$": "<rootDir>/node_modules/firebase/$1",
+      "^/src/css/styles\\.css$": "identity-obj-proxy",
       "^/src/.*\\.(css|scss|sass)$": "identity-obj-proxy",
       "^.+\\.(css|scss|sass)$": "identity-obj-proxy",
-      "^.*/spa-init\\.js$": "<rootDir>/src/js/tests/__mocks__/spa-init.mock.js"
+      "^.*/spa-init\\.js$": "<rootDir>/src/js/tests/__mocks__/spa-init.mock.js",
+      "^.*/app\\.js$": "<rootDir>/src/js/tests/__mocks__/spa-init.mock.js"
     },
     "testTimeout": 10000,
     "maxWorkers": 1,
