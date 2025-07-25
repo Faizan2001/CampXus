@@ -61,8 +61,8 @@ export class FriendsManager {
    * @param {*} data - Data to cache
    */
   setCached(key, data) {
-    // Auto-cleanup expired entries periodically
-    if (Math.random() < 0.1) { // 10% chance
+    // Auto-cleanup expired entries when cache grows large
+    if (this.cache.size > 50) {
       this.cleanupExpiredCache();
     }
 
@@ -129,6 +129,8 @@ export class FriendsManager {
       return;
     }
 
+    // Prevent race conditions by setting flag immediately
+    this.isRealTimeActive = true;
     console.log("🎛️ Starting real-time listening for friends...");
 
     // Subscribe to friend requests changes
@@ -216,23 +218,27 @@ export class FriendsManager {
    * @private
    */
   handleFriendRequestsUpdate(requests) {
-    // Transform the data for UI consistency
-    const transformedRequests = requests.map((request) => ({
-      ...request,
-      displayName:
-        request.displayName ||
-        request.fromUserInfo?.displayName ||
-        "Unknown User",
-      major: request.major || request.fromUserInfo?.major || "Unknown Major",
-      university:
-        request.university ||
-        request.fromUserInfo?.university ||
-        "Unknown University",
-    }));
+    try {
+      // Transform the data for UI consistency
+      const transformedRequests = requests.map((request) => ({
+        ...request,
+        displayName:
+          request.displayName ||
+          request.fromUserInfo?.displayName ||
+          "Unknown User",
+        major: request.major || request.fromUserInfo?.major || "Unknown Major",
+        university:
+          request.university ||
+          request.fromUserInfo?.university ||
+          "Unknown University",
+      }));
 
-    // Notify UI callback if registered
-    if (this.uiCallbacks.onFriendRequestsChange) {
-      this.uiCallbacks.onFriendRequestsChange(transformedRequests);
+      // Notify UI callback if registered
+      if (this.uiCallbacks.onFriendRequestsChange) {
+        this.uiCallbacks.onFriendRequestsChange(transformedRequests);
+      }
+    } catch (error) {
+      console.error("❌ Error handling friend requests update:", error);
     }
   }
 
@@ -242,26 +248,30 @@ export class FriendsManager {
    * @private
    */
   handleOutgoingFriendRequestsUpdate(requests) {
-    // Transform the data for UI consistency
-    const transformedRequests = requests.map((request) => ({
-      ...request,
-      displayName:
-        request.displayName ||
-        request.toUserInfo?.displayName ||
-        "Unknown User",
-      major: request.major || request.toUserInfo?.major || "Unknown Major",
-      university:
-        request.university ||
-        request.toUserInfo?.university ||
-        "Unknown University",
-    }));
+    try {
+      // Transform the data for UI consistency
+      const transformedRequests = requests.map((request) => ({
+        ...request,
+        displayName:
+          request.displayName ||
+          request.toUserInfo?.displayName ||
+          "Unknown User",
+        major: request.major || request.toUserInfo?.major || "Unknown Major",
+        university:
+          request.university ||
+          request.toUserInfo?.university ||
+          "Unknown University",
+      }));
 
-    // Check for status changes that need notifications
-    this.checkForFriendRequestStatusChanges(transformedRequests);
+      // Check for status changes that need notifications
+      this.checkForFriendRequestStatusChanges(transformedRequests);
 
-    // Notify UI callback if registered
-    if (this.uiCallbacks.onOutgoingFriendRequestsChange) {
-      this.uiCallbacks.onOutgoingFriendRequestsChange(transformedRequests);
+      // Notify UI callback if registered
+      if (this.uiCallbacks.onOutgoingFriendRequestsChange) {
+        this.uiCallbacks.onOutgoingFriendRequestsChange(transformedRequests);
+      }
+    } catch (error) {
+      console.error("❌ Error handling outgoing friend requests update:", error);
     }
   }
 
@@ -285,10 +295,7 @@ export class FriendsManager {
       );
 
       if (previousRequest && previousRequest.status !== currentRequest.status) {
-        this.showFriendRequestStatusNotification(
-          currentRequest,
-          previousRequest.status
-        );
+        this.showFriendRequestStatusNotification(currentRequest);
       }
     });
 
@@ -323,17 +330,17 @@ export class FriendsManager {
         if (friendshipExists) {
           // Request was deleted + friendship exists = ACCEPTED
           console.log("🎉 Detected friend request acceptance via deletion + friendship");
-          this.showFriendRequestStatusNotification(
-            { ...deletedRequest, status: "accepted" },
-            deletedRequest.status
-          );
+          this.showFriendRequestStatusNotification({
+            ...deletedRequest,
+            status: "accepted",
+          });
         } else {
           // Request was deleted + no friendship = REJECTED
           console.log("❌ Detected friend request rejection via deletion");
-          this.showFriendRequestStatusNotification(
-            { ...deletedRequest, status: "rejected" },
-            deletedRequest.status
-          );
+          this.showFriendRequestStatusNotification({
+            ...deletedRequest,
+            status: "rejected",
+          });
         }
       });
     }
@@ -345,10 +352,9 @@ export class FriendsManager {
   /**
    * 🔔 Show notification for friend request status change
    * @param {Object} request - The friend request that changed
-   * @param {string} previousStatus - Previous status
    * @private
    */
-  showFriendRequestStatusNotification(request, previousStatus) {
+  showFriendRequestStatusNotification(request) {
     // Only import notification manager when needed
     import("../realtime/NotificationService.js")
       .then(({ notificationManager }) => {
@@ -368,6 +374,8 @@ export class FriendsManager {
       })
       .catch((error) => {
         console.error("❌ Error loading notification manager:", error);
+        // Fallback: Log notification that would have been shown
+        console.log(`📢 Notification (fallback): Friend request ${request.status} - ${request.displayName}`);
       });
   }
 
@@ -502,17 +510,18 @@ export class FriendsManager {
 
     if (!filterData) {
       try {
-        // Get current friendships and pending requests for filtering
+        // Get current friendships and incoming pending requests for filtering
         // This runs both queries at the same time (parallel = faster!)
-        const [friendships, pendingRequests] = await Promise.all([
+        const [friendships, incomingRequests] = await Promise.all([
           this.getFriendsList(),
           this.getPendingRequests(),
         ]);
 
         // Create fast lookup sets and cache them
+        // Only filter out actual friends and users who sent requests TO me (not users I sent requests to)
         filterData = {
           friendIds: new Set(friendships.map((f) => f.id)),
-          pendingIds: new Set(pendingRequests.map((r) => r.fromUserId)),
+          incomingRequestIds: new Set(incomingRequests.map((r) => r.fromUserId)),
         };
 
         // Cache for 2 minutes (shorter than general cache since this changes more often)
@@ -524,7 +533,7 @@ export class FriendsManager {
     }
 
     console.log(
-      `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.pendingIds.size} pending requests`
+      `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.incomingRequestIds.size} incoming requests`
     );
 
     // Filter out unwanted results
@@ -532,7 +541,7 @@ export class FriendsManager {
       return (
         student.id !== currentUser.uid &&
         !filterData.friendIds.has(student.id) &&
-        !filterData.pendingIds.has(student.id)
+        !filterData.incomingRequestIds.has(student.id)
       );
     });
 

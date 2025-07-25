@@ -100,10 +100,14 @@ class FriendsUI {
    * 🎯 Set up event listeners for user interactions (optimized to prevent memory leaks)
    */
   setupEventListeners() {
-    // Skip if listeners are already set up to prevent memory leaks
+    // Always re-cache DOM elements to ensure we have fresh references
+    console.log("🔄 Re-caching DOM elements for event listeners...");
+    this.cacheElements();
+
+    // For SPA applications, always reset listeners on page load to ensure they work
     if (this.listenersSetup) {
-      console.log("🎯 Event listeners already set up, skipping...");
-      return;
+      console.log("🔄 SPA navigation detected, resetting event listeners...");
+      this.listenersSetup = false; // Reset flag to allow re-setup
     }
 
     // Store bound functions for consistent reference
@@ -121,6 +125,7 @@ class FriendsUI {
 
     // Search functionality with safety checks
     if (this.elements.searchInput) {
+      console.log("✅ Search input element found, setting up listeners...");
       try {
         this.elements.searchInput.addEventListener(
           "input",
@@ -130,13 +135,17 @@ class FriendsUI {
           "keypress",
           this.boundHandlers.searchKeypress
         );
+        console.log("✅ Search input listeners attached successfully");
       } catch (error) {
         console.warn("⚠️ Could not set up search input listeners:", error);
         return;
       }
     } else {
       console.warn(
-        "⚠️ Search input element not found - search functionality disabled"
+        "⚠️ Search input element not found (ID: friendSearch) - search functionality disabled"
+      );
+      console.log("🔍 Available elements with 'search' in ID:", 
+        Array.from(document.querySelectorAll('[id*="search"]')).map(el => el.id)
       );
     }
 
@@ -505,6 +514,7 @@ class FriendsUI {
    */
   handleSearchInput(event) {
     const searchTerm = event.target.value.trim();
+    console.log(`🔍 Search input changed: "${searchTerm}" (length: ${searchTerm.length})`);
 
     // Clear previous timeout
     if (this.searchTimeout) {
@@ -514,9 +524,14 @@ class FriendsUI {
     // Debounce search to avoid too many requests
     this.searchTimeout = setTimeout(() => {
       if (searchTerm.length >= 2) {
+        console.log(`🔍 Performing search for: "${searchTerm}"`);
         this.performSearch(searchTerm);
-      } else {
+      } else if (searchTerm.length === 0) {
+        // Only clear when completely empty, not for 1-character searches
+        console.log("🧹 Search term empty, clearing results");
         this.clearSearchResults();
+      } else {
+        console.log("🔍 Search term too short (1 character), keeping existing results");
       }
     }, 300); // Wait 300ms after user stops typing
   }
@@ -696,10 +711,10 @@ class FriendsUI {
       }, 300); // Match CSS transition duration
     }
 
-    // Clear search input
-    if (this.elements.searchInput) {
-      this.elements.searchInput.value = "";
-    }
+    // DON'T clear search input - let user keep their search term
+    // if (this.elements.searchInput) {
+    //   this.elements.searchInput.value = "";
+    // }
   }
 
   /**
