@@ -1,80 +1,106 @@
-# 📅 CampXus - University Schedule & Social Platform ✨
+# CampXus - University Schedule & Social Platform
 
-A modern, Firebase-powered scheduling platform that helps university students manage schedules, connect with classmates, and coordinate study sessions. Built with cutting-edge web technologies and designed for the university experience.
-
----
-
-## 🚀 Core Features
-
-### 🎓 **Authentication & University Integration**
-
-- **🏫 University Email Validation:** Exclusive access for verified university students
-- **🔐 Firebase Authentication:** Secure sign-up/sign-in with email verification
-- **👤 Smart Profile Setup:** Multi-step guided profile creation with avatar customization
-
-### 📅 **Advanced Schedule Management**
-
-- **⏰ Dynamic Time Slots:** Create, edit, and manage custom time periods with validation
-- **📌 Pin Mode:** Focus editing on specific users with visual lock indicators
-- **🔄 Real-Time Comparison:** Multi-user schedule overlap detection with color-coded conflicts
-  - 🟢 **Available:** Perfect meeting times when everyone's free
-  - 🔴 **Conflicts:** Times when everyone's busy
-  - 🟠 **Partial:** Mixed availability across users
-- **📤📥 Data Portability:** Complete import/export with JSON validation
-
-### 🌐 **Modern Single Page Application**
-
-- **⚡ SPA Router:** Instant navigation without page reloads
-- **🎨 Glassmorphism Design:** Modern UI with smooth theme transitions
-- **📱 Responsive Excellence:** Mobile-first design with container queries
-- **♿ Accessibility Ready:** WCAG 2.1 compliant with keyboard navigation
-- **🧪 Comprehensive Testing:** Jest-powered test suites for reliability
+A modern, Firebase-powered social scheduling platform designed specifically for university students. CampXus helps you manage your class schedule, discover and connect with classmates, and coordinate study sessions seamlessly. Built with cutting-edge web technologies and real-time social features.
 
 ---
 
-## 🛠️ Tech Stack
+## Core Features
 
-**Single Page Application (SPA)** with Firebase integration:
+### Social Connections & Student Discovery
 
-### 🔥 **Firebase Backend Services**
+**Real-time Friends System:**
+- **Student Discovery:** Find classmates by name, major, or student ID within your university
+- **Friend Requests:** Send, receive, accept, or decline friend requests with instant notifications
+- **Real-time Updates:** Get notified immediately when someone sends you a friend request or accepts yours
+- **University-Only Access:** Connect only with students from your verified university domain
+
+**Smart Social Features:**
+- **Intelligent Search:** Advanced filtering that excludes existing friends and pending requests
+- **Status Tracking:** Visual indicators for pending, accepted, and sent friend requests
+- **Memory-Efficient:** Optimized real-time listeners with automatic cleanup to prevent performance issues
+
+### Advanced Schedule Management
+
+**Interactive Scheduling:**
+- **Dynamic Time Slots:** Create, edit, and manage custom time periods with validation
+- **Pin Mode:** Focus editing on specific users with visual lock indicators
+- **Real-Time Comparison:** Multi-user schedule overlap detection with color-coded conflicts
+  - Available: Perfect meeting times when everyone's free
+  - Conflicts: Times when everyone's busy
+  - Partial: Mixed availability across users
+- **Data Portability:** Complete import/export with JSON validation
+
+### Modern User Experience
+
+**2025 Glassmorphism Design:**
+- **Glass-Card Effects:** Advanced backdrop blur with subtle gradients and modern aesthetics
+- **Custom Avatar System:** DiceBear API integration with 6+ avatar styles and customization options
+- **Real-time Notifications:** Toast notifications for friend activities and system updates
+- **Responsive Design:** Mobile-first approach optimized for all device sizes
+
+**Authentication & Security:**
+- **University Email Validation:** Exclusive access for verified university students
+- **Firebase Authentication:** Secure sign-up/sign-in with email verification
+- **Multi-step Profile Setup:** Guided profile creation with avatar customization
+- **Privacy Controls:** Manage your searchability and social visibility
+
+---
+
+## Tech Stack
+
+**Modern Single Page Application** with real-time Firebase integration:
+
+### Firebase Backend Services
 
 - **Authentication:** University email validation with Firebase Auth
-- **Firestore Database:** Real-time user profiles and data sync
-- **Security Rules:** Protected university-only access
+- **Firestore Database:** Real-time user profiles, friendships, and social data sync
+- **Security Rules:** Protected university-only access with social permissions
+- **Real-time Listeners:** Live updates for friend requests, notifications, and social interactions
 
-### 🎨 **Modern Frontend Architecture**
+### Frontend Architecture
 
-- **Vanilla JavaScript (ES6+ Modules):** Clean, dependency-free codebase
-- **SPA Router:** Custom-built for smooth navigation without page reloads
-- **Modular CSS (9 specialized modules):**
-  - `variables.css` - Design system & CSS custom properties
-  - `layout.css` - App structure & navigation components
-  - `components.css` - UI elements & glassmorphism cards
-  - `schedule.css` - Schedule grid & time slot interactions
-  - `menu.css` - Navigation & theme toggle system
-  - `modal.css` - Modal dialogs with backdrop effects
-  - `animations.css` - Smooth transitions & motion design
-  - `auth.css` - Authentication UI components
-  - `profile-setup.css` - Multi-step profile creation
-  - `responsive-enhancements.css` - Modern responsive features
+**Vanilla JavaScript (ES6+ Modules):**
+- Clean, dependency-free codebase with modern JavaScript patterns
+- Component-based architecture with proper lifecycle management
+- Memory-efficient real-time event system with automatic cleanup
 
-### ⚙️ **JavaScript Module System (12+ specialized modules)**
+**SPA Router System:**
+- Custom-built router for instant navigation without page reloads
+- Dynamic template loading with proper state management
+- Browser history integration and URL management
 
-- **Core Application Logic:**
-  - `script.js` - Main schedule management & state
-  - `spa-router.js` - Single page navigation system
-  - `domElements.js` - Performance-optimized DOM caching
-- **Authentication & Security:**
-  - `auth-manager.js` - Firebase authentication controller
-  - `university-validator.js` - University email verification
-  - `privacy-manager.js` - Data privacy controls
-- **User Experience:**
-  - `profile-setup.js` - Multi-step profile creation
-  - `avatars.js` - Custom avatar generation system
-  - `menu.js` - Theme management & navigation
-- **Development & Testing:**
-  - `Jest test suites` - Comprehensive unit testing
-  - `Firebase dev tools` - Environment setup utilities
+**Modular CSS Architecture:**
+- Design system with CSS custom properties and theme management
+- Glassmorphism components with advanced backdrop blur effects
+- Mobile-first responsive design with container queries
+- Specialized modules for schedule grid, friends interface, and social components
+
+### Social & Real-time Features
+
+**Friends System Architecture:**
+- Real-time friend request management with instant notifications
+- University-filtered student discovery with intelligent search
+- Bi-directional friendship data structure following Firebase best practices
+- Memory-optimized listeners with automatic cleanup
+
+**Avatar & Profile System:**
+- DiceBear API integration with multiple avatar styles
+- Real-time avatar customization with live preview
+- Profile management with university validation
+
+### Development & Testing
+
+**Modern Development Stack:**
+- Vite build system for optimized production bundles
+- Jest testing framework with ESM support and proper mocking
+- Firebase emulator integration for local development
+- Security audit tools and vulnerability scanning
+
+**Performance Optimizations:**
+- Smart caching for search results and social data
+- Lazy loading and code splitting for optimal performance
+- Resource cleanup and memory management for real-time features
+- Optimized database queries with data caching
 
 ## 📁 Project Structure
 
@@ -172,44 +198,57 @@ CampXus/
 
 ---
 
-## ⚙️ How It Works
+## How It Works
 
-### 🎯 **Core Architecture**
+### Core Architecture
 
-CampXus is built as a **Single Page Application (SPA)** with Firebase backend integration. The app uses a custom SPA router for seamless navigation and modular JavaScript architecture for maintainable code.
+CampXus operates as a **modern Single Page Application (SPA)** with real-time Firebase backend integration. The platform combines custom routing, component-based architecture, and memory-efficient real-time systems to deliver a seamless social scheduling experience.
 
-### 🔐 **Authentication Flow**
+### Authentication & University Integration
 
-1. **University Verification:** Students sign up with verified university email addresses
-2. **Firebase Authentication:** Secure email/password authentication with verification
-3. **Profile Setup:** Guided multi-step profile creation with avatar customization
-4. **Persistent Sessions:** Stay logged in across browser sessions
+1. **University Verification:** Students register using verified university email addresses
+2. **Firebase Authentication:** Secure email/password authentication with verification requirements
+3. **Profile Creation:** Guided multi-step setup with custom avatar selection and personalization
+4. **Social Profile:** Configure privacy settings and searchability preferences
 
-### 📅 **Schedule Management System**
+### Real-time Social System
 
-- **Dynamic Grid:** Interactive weekly schedule with time slot management
-- **Pin Mode:** Lock editing to specific users for focused schedule updates
-- **Real-time Comparison:** Color-coded overlap detection across multiple users
-- **Smart Persistence:** Data saved locally with Firebase cloud sync
+**Friend Discovery:**
+- Search for classmates by name, major, or student ID within your university
+- Smart filtering excludes existing friends and pending requests
+- Real-time search results with instant availability updates
 
-### 🌐 **SPA Navigation**
+**Connection Management:**
+- Send friend requests with immediate delivery notifications
+- Receive instant alerts for incoming requests and responses
+- Track request status with visual indicators and live updates
+- Memory-efficient listeners automatically clean up to prevent performance issues
 
-- **Template System:** Dynamic content loading without page reloads
-- **Router Integration:** Browser history and URL management
-- **Component Lifecycle:** Smart initialization and cleanup for each page
+### Schedule Coordination
+
+**Interactive Scheduling:**
+- Dynamic weekly grid with drag-and-drop time slot management
+- Pin mode for focused editing on specific user schedules
+- Real-time availability comparison with color-coded conflict detection
+- Smart data persistence combining local storage with cloud synchronization
+
+**Social Integration:**
+- View friend schedules and find optimal meeting times
+- Coordinate study sessions based on mutual availability
+- Share schedule updates with connected classmates
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
-### 🔰 **Quick Start for Beginners**
+### Quick Start for Beginners
 
-1. **Download the project** and open it in VS Code
-2. **Set up Firebase** (see [Phase-0-Foundation.md](./Phases/Phase-0-Foundation.md))
-3. **Configure environment:** Create `.env.local` with your Firebase keys
-4. **Start developing:** `npm run dev:serve`
+1. **Download the project** and open it in your preferred code editor
+2. **Set up Firebase** following the guide in [Phase-0-Foundation.md](./Phases/Phase-0-Foundation.md)
+3. **Configure environment:** Create `.env.local` with your Firebase credentials
+4. **Start developing:** Run `npm run dev:serve` for full Firebase integration
 
-### 🔧 **Detailed Setup**
+### Detailed Setup
 
 1. **Clone the repository:**
 
@@ -247,165 +286,186 @@ CampXus is built as a **Single Page Application (SPA)** with Firebase backend in
    npm test              # Run test suites
    ```
 
-## 🔒 **IMPORTANT: Security & Environment Setup**
+## Security & Environment Setup
 
-### ⚠️ **Before Development**
+### Important Security Guidelines
 
-1. **Never commit API keys!** Your `.env.local` file contains sensitive credentials
-2. **Use secure development:** Always run `npm run dev:serve` for proper environment loading
-3. **Verify security:** Run `npm run dev:check` to validate your setup
-4. **Read security docs:** See [SECURITY.md](./SECURITY.md) for complete guidelines
+1. **Protect your credentials:** Never commit your `.env.local` file containing Firebase API keys
+2. **Use secure development practices:** Always run `npm run dev:serve` for proper environment loading
+3. **Validate your setup:** Run `npm run dev:check` to ensure everything is configured correctly
+4. **Follow security documentation:** Reference [SECURITY.md](./SECURITY.md) for comprehensive guidelines
 
-### 🛡️ **What's Protected**
+### Protected Files and Directories
 
-- 🔐 Firebase API keys (stored securely in `.env.local`)
-- 🔐 Auto-generated browser config (`src/js/lib/firebase/env-config.js`)
-- 🔐 Firebase deployment files (`.firebase/` directory)
-- 🔐 University email validation rules
+- Firebase API keys stored securely in `.env.local`
+- Auto-generated browser configuration in `src/js/lib/firebase/env-config.js`
+- Firebase deployment files in `.firebase/` directory
+- University email validation rules and social permissions
 
-### ✅ **Development Commands**
+### Recommended Development Commands
 
 ```bash
-# ✅ SECURE: Environment-based development
+# Secure environment-based development
 npm run dev:serve
 
-# ✅ SECURE: Validate your setup
+# Validate your development setup
 npm run dev:check
 
-# ❌ INSECURE: Don't edit HTML files to add keys directly
-# ❌ INSECURE: Don't commit .env.local or env-config.js
+# Generate environment configuration
+npm run dev:config
+
+# Run comprehensive test suites
+npm test
 ```
 
-**Firebase Keys in Client Code:**
-Firebase API keys are safe to expose in client-side code - they're **not secret keys**. The real security comes from Firebase Security Rules, which control database access based on user authentication.
+**Note on Firebase API Keys:**
+Firebase API keys are safe for client-side use as they are not secret keys. Security is enforced through Firebase Security Rules, which control database access based on user authentication and university validation.
 
-## 🧠 Developer Guide
+## Developer Guide
 
-### 🏗️ **Architecture Overview**
+### Architecture Overview
 
 CampXus follows a **modular SPA architecture** with clear separation of concerns:
 
-- **SPA Router** (`spa-router.js`) - Navigation and template management
-- **Authentication System** (`firebase/auth/`) - University-verified login
-- **Profile Management** (`profile-setup.js`) - Multi-step guided setup
-- **Schedule Engine** (`script.js`) - Core scheduling functionality
-- **Theme System** (`menu.js`) - Dark/light themes with smooth transitions
+- **SPA Router System** - Navigation and dynamic template management
+- **Real-time Friends System** - Social connections with live updates and memory management
+- **Authentication & University Integration** - Secure, university-verified access control
+- **Schedule Engine** - Interactive scheduling with conflict detection
+- **Avatar & Profile System** - Customizable user profiles with DiceBear integration
+- **Theme System** - Modern glassmorphism design with dark/light mode support
 
-### 🔧 **Adding New Features**
+### Adding New Features
+
+**Social & Friends Features:**
+- Core logic in `src/js/core/friends/friends-manager.js`
+- UI components in `src/js/core/friends/friends-ui.js`
+- Real-time coordination via `src/js/core/realtime-manager.js`
+- Styling in `src/css/friends-page.css`
 
 **Schedule Features:**
-
-- Start in `js/core/script.js` for core logic
-- Update templates in `templates/home.html`
-- Add styles to `css/schedule.css`
+- Core functionality in `src/js/core/script.js`
+- Template updates in `public/templates/home.html`
+- Styling additions in `src/css/schedule.css`
 
 **New SPA Pages:**
-
-1. Create template in `templates/your-page.html`
-2. Add route to `spa-router.js`
+1. Create template in `public/templates/your-page.html`
+2. Add route configuration in `spa-router.js`
 3. Add navigation link with `data-spa-route="your-page"`
-4. See [HOW-TO-ADD-NEW-PAGES.md](./.md%20files/HOW-TO-ADD-NEW-PAGES.md)
+4. Reference [HOW-TO-ADD-NEW-PAGES.md](./.md%20files/HOW-TO-ADD-NEW-PAGES.md)
 
-**Authentication Features:**
+**Real-time Features:**
+- Data layer functions in `data-manager.js` for Firebase listeners
+- Event coordination through `realtime-manager.js`
+- Notification system via `notification-manager.js`
+- Memory management with automatic cleanup functions
 
-- Extend `firebase/auth/auth-manager.js`
-- Update university validation in `university-validator.js`
+### Learning Resources
 
-### 📚 **Learning Resources**
-
-- **Complete SPA Guide:** [SPA-All-that-you-need.md](./SPA-All-that-you-need.md)
-- **Phase-by-Phase Learning:** Check `/Phases/` directory
-- **UI Reference:** [UI-Map.md](./.md%20files/UI-Map.md)
-- **Contributing:** [Contributing-Guide.md](./.md%20files/Contributing-Guide.md)
+- **Complete SPA Development:** [SPA-All-that-you-need.md](./SPA-All-that-you-need.md)
+- **Structured Learning Path:** Phase-by-phase guides in `/Phases/` directory
+- **UI/UX Reference:** [UI-Map.md](./.md%20files/UI-Map.md)
+- **Friends System Technical Details:** [FRIENDS-SYSTEM-LIFECYCLE.md](./FRIENDS-SYSTEM-LIFECYCLE.md)
+- **Contributing Guidelines:** [Contributing-Guide.md](./.md%20files/Contributing-Guide.md)
 
 ---
 
-## 🎯 Roadmap
+## Roadmap
 
-### 🚀 **Current Features (Live)**
+### Current Features (Live & Production Ready)
 
 - ✅ Firebase Authentication with university email validation
-- ✅ Multi-step profile setup with avatar customization
+- ✅ Multi-step profile setup with custom avatar system
 - ✅ Single Page Application with smooth navigation
-- ✅ Advanced schedule management with pin mode
-- ✅ Real-time schedule comparison and conflict detection
-- ✅ Responsive design with glassmorphism effects
+- ✅ Advanced schedule management with pin mode and conflict detection
+- ✅ **Real-time Friends System with instant notifications**
+- ✅ **Student discovery and connection features**
+- ✅ **Friend request management with live updates**
+- ✅ **Glassmorphism design with modern UI/UX**
+- ✅ **Real-time data synchronization across devices**
+- ✅ Responsive design optimized for all device sizes
 - ✅ Theme switching and accessibility features
 
-### 🎯 **Phase 3: Social Connections (In Progress)**
+### Phase 4: Enhanced Social Features (In Development)
 
-- 🔄 Friend discovery by university domain
-- 🔄 Friend requests and connections system
+- 🔄 Mutual friends discovery and suggestions
 - 🔄 Social schedule sharing and collaboration
+- 🔄 Group study session coordination
+- 🔄 Enhanced notification system with preferences
 
-### 🎯 **Phase 4: Cloud Sync & Real-time (Planned)**
+### Future Enhancements
 
-- 📋 Real-time schedule updates across devices
-- 📋 Cloud storage for persistent data sync
-- 📋 Live collaboration features
+- Progressive Web App (PWA) capabilities for offline access
+- Email notifications for friend requests and schedule conflicts
+- Calendar export functionality (ICS format)
+- AI-powered meeting time suggestions based on friend availability
+- Custom theme creation tools and personalization options
+- Cross-university networking and collaboration features
 
-### 🌟 **Future Enhancements**
+### University Support
 
-- 📱 Progressive Web App (PWA) capabilities
-- 📧 Email notifications for schedule conflicts
-- 🗓️ Calendar export (ICS format)
-- 🤖 AI-powered meeting time suggestions
-- 🎨 Custom theme creation tools
-
-### 🏫 **University Expansion**
-
-- Currently supporting IUB (Independent University, Bangladesh)
-- Planned expansion to more universities
-- Easy configuration for new institutions
+- **Currently Supporting:** Independent University, Bangladesh (IUB)
+- **Expansion Ready:** Easy configuration system for adding new universities
+- **Scalable Architecture:** Designed to support multiple institutions simultaneously
 
 ---
 
-### 🔧 **Environment Management**
+### Environment Management
 
-The app uses a smart environment system that adapts to different deployment contexts:
+The application uses an intelligent environment system that adapts to different deployment contexts:
 
 **Development Mode:**
-
 - Environment variables loaded from `.env.local`
 - Auto-generation of browser-compatible configuration
-- Development Firebase emulators support
+- Firebase emulator integration for local testing
+- Real-time debugging tools and console helpers
 
 **Production Mode:**
-
-- Configuration injected by hosting platform (Vercel, Netlify, etc.)
+- Configuration injected by hosting platform (Vercel, Netlify, Firebase Hosting)
 - Automatic environment detection and setup
-- Optimized build process for performance
+- Optimized build process with Vite for maximum performance
+- Production-ready Firebase Security Rules
 
-**Available Scripts:**
+**Available Development Scripts:**
 
 ```bash
-npm run dev:check          # Validate development environment
-npm run dev:config         # Generate browser-compatible config
-npm run dev:serve          # Start development server with environment
+npm run dev:check          # Validate development environment setup
+npm run dev:config         # Generate browser-compatible configuration
+npm run dev:serve          # Start development server with Firebase integration
+npm run dev                # Start Vite development server (frontend only)
 npm test                   # Run comprehensive Jest test suites
 npm run firebase:emulators # Start Firebase local emulators
+npm run security:audit     # Run security vulnerability scan
 ```
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Check out [Contributing-Guide.md](./.md%20files/Contributing-Guide.md) for detailed guidelines.
+We welcome contributions from developers who want to help improve the university student experience! Check out [Contributing-Guide.md](./.md%20files/Contributing-Guide.md) for detailed guidelines.
 
-**Key Principles:**
+### Key Principles
 
-- 🎯 Keep the university focus - features should serve student needs
-- 🎨 Maintain responsive, accessible design standards
-- 🧪 Write tests for new functionality
-- 📚 Update documentation for any new features
-- 🔐 Follow security best practices for authentication
+- **Student-Focused:** Features should address real university student needs and challenges
+- **Responsive Design:** Maintain mobile-first, accessible design standards
+- **Testing:** Write comprehensive tests for new functionality
+- **Documentation:** Update docs and guides for any new features
+- **Security:** Follow best practices for authentication and user data protection
+- **Performance:** Ensure real-time features are memory-efficient and optimized
 
-**Getting Started:**
+### Getting Started
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Follow the Phase guides in `/Phases/` directory
-4. Test your changes: `npm test`
-5. Submit a pull request with clear description
+1. **Fork the repository** and set up your development environment
+2. **Create a feature branch:** `git checkout -b feature/your-feature-name`
+3. **Follow the Phase guides** in the `/Phases/` directory for structured development
+4. **Test thoroughly:** Run `npm test` to ensure all tests pass
+5. **Submit a pull request** with a clear description of your changes
 
-Let's make university scheduling effortless for students everywhere! 🎓✨
+### Development Focus Areas
+
+- **Social Features:** Enhance the friends system with new discovery and interaction features
+- **Real-time Performance:** Optimize memory usage and connection management
+- **University Integration:** Add support for new universities and institutional features
+- **Mobile Experience:** Improve mobile UI/UX and touch interactions
+- **Accessibility:** Enhance keyboard navigation and screen reader support
+
+Let's make university life more connected and organized for students everywhere!
