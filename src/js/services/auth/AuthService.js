@@ -684,6 +684,12 @@ class AuthManager {
    */
   async handleSignOut() {
     try {
+      // Stop friends listeners before signing out to prevent false notifications
+      if (window.friendsManager) {
+        console.log("🛑 Stopping friends listeners before sign out...");
+        window.friendsManager.stopRealTimeListening();
+      }
+
       await signOut(auth);
       console.log("👋 Successfully signed out");
     } catch (error) {

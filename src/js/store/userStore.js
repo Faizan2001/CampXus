@@ -225,6 +225,12 @@ class CurrentUserManager {
    * Resets the user state upon logout.
    */
   reset() {
+    // Stop friends listeners before resetting user state
+    if (window.friendsManager) {
+      console.log("🛑 Stopping friends listeners from user store reset...");
+      window.friendsManager.stopRealTimeListening();
+    }
+
     this._uid = null;
     this._user = null;
     this._profile = null;

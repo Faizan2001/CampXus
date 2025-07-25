@@ -36,6 +36,9 @@ export class FriendsManager {
       onConnectionStatusChange: null,
     };
 
+    // 🔒 Auth state tracking to prevent false notifications
+    this.isAuthStateChanging = false;
+
     console.log("🎛️ FriendsManager initialized with real-time capabilities");
   }
 
@@ -198,6 +201,9 @@ export class FriendsManager {
 
     console.log("🛑 Stopping real-time listening for friends...");
 
+    // Set auth state changing flag to prevent false notifications
+    this.isAuthStateChanging = true;
+
     // Unsubscribe from all real-time events
     this.unsubscribers.forEach((unsubscribe) => {
       try {
@@ -209,6 +215,11 @@ export class FriendsManager {
 
     this.unsubscribers = [];
     this.isRealTimeActive = false;
+
+    // Clear the flag after a short delay to allow cleanup to complete
+    setTimeout(() => {
+      this.isAuthStateChanging = false;
+    }, 1000);
 
     console.log("✅ Real-time listening stopped");
   }
@@ -283,6 +294,12 @@ export class FriendsManager {
    * @private
    */
   async checkForFriendRequestStatusChanges(currentRequests) {
+    // Skip processing during auth state changes to prevent false notifications
+    if (this.isAuthStateChanging) {
+      console.log("⏸️ Skipping friend request status check during auth state change");
+      return;
+    }
+
     // Store previous requests for comparison
     if (!this.previousOutgoingRequests) {
       this.previousOutgoingRequests = currentRequests;
@@ -325,6 +342,11 @@ export class FriendsManager {
       // Process results and show notifications
       results.forEach(({ request: deletedRequest, friendshipExists, error }) => {
         if (error) {
+          // Don't assume rejection for permission errors during auth state changes
+          if (error.code === 'permission-denied') {
+            console.warn("⚠️ Friendship check permission denied (likely auth state change), skipping notification:", deletedRequest.id);
+            return; // Skip notification for permission errors
+          }
           console.warn("⚠️ Friendship check failed, assuming rejection for:", deletedRequest.id);
         }
         

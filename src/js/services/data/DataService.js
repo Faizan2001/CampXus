@@ -1894,7 +1894,12 @@ class DataManager {
         },
         (error) => {
           console.error("❌ Error in friend requests listener:", error);
-          callback([]); // Fallback to empty array on error
+          // Don't call callback on permission errors to avoid false notifications
+          if (error.code === 'permission-denied') {
+            console.warn("⚠️ Friend requests listener: Permission denied (likely due to auth state change)");
+            return; // Skip callback to prevent false deletion detection
+          }
+          callback([]); // Only fallback to empty array for non-permission errors
         }
       );
 
@@ -1968,7 +1973,12 @@ class DataManager {
             "❌ Error in outgoing friend requests listener:",
             error
           );
-          callback([]); // Fallback to empty array on error
+          // Don't call callback on permission errors to avoid false notifications
+          if (error.code === 'permission-denied') {
+            console.warn("⚠️ Outgoing friend requests listener: Permission denied (likely due to auth state change)");
+            return; // Skip callback to prevent false deletion detection
+          }
+          callback([]); // Only fallback to empty array for non-permission errors
         }
       );
 
@@ -2100,7 +2110,12 @@ class DataManager {
         },
         (error) => {
           console.error("❌ Error in friendships listener:", error);
-          callback([]); // Fallback to empty array on error
+          // Don't call callback on permission errors to avoid false notifications
+          if (error.code === 'permission-denied') {
+            console.warn("⚠️ Friendships listener: Permission denied (likely due to auth state change)");
+            return; // Skip callback to prevent false deletion detection
+          }
+          callback([]); // Only fallback to empty array for non-permission errors
         }
       );
 
@@ -2183,7 +2198,12 @@ class DataManager {
         },
         (error) => {
           console.error("❌ Error in user profile listener:", error);
-          callback(null); // Fallback to null on error
+          // Don't call callback on permission errors to avoid false notifications
+          if (error.code === 'permission-denied') {
+            console.warn("⚠️ User profile listener: Permission denied (likely due to auth state change)");
+            return; // Skip callback to prevent false deletion detection
+          }
+          callback(null); // Only fallback to null for non-permission errors
         }
       );
 
