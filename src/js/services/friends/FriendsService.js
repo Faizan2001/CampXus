@@ -15,6 +15,7 @@
 import { currentUser } from "../../store/userStore.js";
 import { dataManager } from "../data/DataService.js";
 import { realTimeManager, REALTIME_EVENTS } from "../realtime/RealtimeService.js";
+import { notificationManager } from "../realtime/NotificationService.js";
 
 export class FriendsManager {
   constructor() {
@@ -355,28 +356,25 @@ export class FriendsManager {
    * @private
    */
   showFriendRequestStatusNotification(request) {
-    // Only import notification manager when needed
-    import("../realtime/NotificationService.js")
-      .then(({ notificationManager }) => {
-        if (request.status === "accepted") {
-          notificationManager.showFriendAcceptedNotification({
-            displayName: request.displayName,
-            major: request.major,
-            university: request.university,
-          });
-        } else if (request.status === "rejected") {
-          notificationManager.showSystemNotification(
-            `${request.displayName} declined your friend request`,
-            "info",
-            "Friend Request Update"
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("❌ Error loading notification manager:", error);
-        // Fallback: Log notification that would have been shown
-        console.log(`📢 Notification (fallback): Friend request ${request.status} - ${request.displayName}`);
-      });
+    try {
+      if (request.status === "accepted") {
+        notificationManager.showFriendAcceptedNotification({
+          displayName: request.displayName,
+          major: request.major,
+          university: request.university,
+        });
+      } else if (request.status === "rejected") {
+        notificationManager.showSystemNotification(
+          `${request.displayName} declined your friend request`,
+          "info",
+          "Friend Request Update"
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error showing notification:", error);
+      // Fallback: Log notification that would have been shown
+      console.log(`📢 Notification (fallback): Friend request ${request.status} - ${request.displayName}`);
+    }
   }
 
   /**

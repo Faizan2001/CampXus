@@ -13,6 +13,7 @@
 
 import { friendsManager } from "../services/friends/FriendsService.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
+import { showModal } from "../components/modals/Modal.js";
 import { realTimeManager, REALTIME_EVENTS } from "../services/realtime/RealtimeService.js";
 import { dataManager } from "../services/data/DataService.js";
 import { currentUser } from "../store/userStore.js";
@@ -1312,29 +1313,22 @@ class FriendsUI {
       return;
     }
 
-    // Import and show unfriend confirmation modal
-    import("../components/modals/Modal.js")
-      .then(({ showModal }) => {
-        showModal({
-          title: "Unfriend Confirmation",
-          content: `Are you sure you want to unfriend <strong>${friend.displayName}</strong>?<br><br>This action cannot be undone.`,
-          isHtmlContent: true,
-          showConfirmationButtons: true,
-          confirmText: "Unfriend",
-          cancelText: "Cancel",
-          onConfirm: () => {
-            this.performUnfriend(friend);
-            return true; // Allow modal to close
-          },
-          onCancel: () => {
-            console.log("💭 Unfriend cancelled by user");
-          }
-        });
-      })
-      .catch((error) => {
-        console.error("❌ Error loading modal:", error);
-        this.showMessage("Error showing confirmation dialog", "error");
-      });
+    // Show unfriend confirmation modal
+    showModal({
+      title: "Unfriend Confirmation",
+      content: `Are you sure you want to unfriend <strong>${friend.displayName}</strong>?<br><br>This action cannot be undone.`,
+      isHtmlContent: true,
+      showConfirmationButtons: true,
+      confirmText: "Unfriend",
+      cancelText: "Cancel",
+      onConfirm: () => {
+        this.performUnfriend(friend);
+        return true; // Allow modal to close
+      },
+      onCancel: () => {
+        console.log("💭 Unfriend cancelled by user");
+      }
+    });
   }
 
   /**
