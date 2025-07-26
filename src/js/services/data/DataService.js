@@ -51,6 +51,7 @@
 import {
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   deleteDoc, // ← Added for deleting documents
   serverTimestamp,
@@ -741,8 +742,17 @@ class DataManager {
         return { success: true, offline: true };
       }
 
-      // 🎯 OPTIMIZED: Use updateDoc for safer field-level updates (clean avatar guaranteed)
-      await updateDoc(doc(db, "users", userId), dataToSave);
+      // 🎯 Check if document exists and use appropriate method
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        // Use updateDoc for existing documents (safer field-level updates)
+        await updateDoc(userDocRef, dataToSave);
+      } else {
+        // Use setDoc for new documents
+        await setDoc(userDocRef, dataToSave);
+      }
 
       // Update cache with new data
       this.setCachedData(`user_${userId}`, profileData);

@@ -216,6 +216,9 @@ export class FriendsManager {
     this.unsubscribers = [];
     this.isRealTimeActive = false;
 
+    // Clear previous requests state to prevent false notifications on next login
+    this.previousOutgoingRequests = null;
+
     // Clear the flag after a short delay to allow cleanup to complete
     setTimeout(() => {
       this.isAuthStateChanging = false;
