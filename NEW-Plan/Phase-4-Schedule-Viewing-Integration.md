@@ -1,12 +1,143 @@
 # Phase 4: Schedule Viewing Integration 📅
 
+## 🎓 Learning Path Selection
+**Choose your learning journey based on your experience level:**
+
+### 🌱 Complete Beginner Path (New to Data Integration)
+- **Time Needed**: 5-6 days
+- **Focus**: Understanding how UI connects to data, privacy concepts, and loading states
+- **Start Here**: Read "Why Integration Matters" section, then follow step-by-step guides
+
+### 🌿 Foundation Level Path (Know Basic Data/UI)  
+- **Time Needed**: 3-4 days
+- **Focus**: Advanced integration patterns, privacy implementation, and performance
+- **Start Here**: Review integration architecture, then implement with testing
+
+### 🌳 Advanced Path (Know Integration + Privacy)
+- **Time Needed**: 2-3 days  
+- **Focus**: Optimization, edge cases, and production-ready error handling
+- **Start Here**: Study service patterns, then implement advanced features
+
+---
+
+## 🤔 Why Integration Matters (The Make-or-Break Phase)
+
+**The Integration Reality**: This is where 80% of apps fail. Beautiful UI + Great data ≠ Success without proper integration.
+
+**Industry Examples of Integration Done Right**:
+- **Instagram**: Tap profile → See posts instantly (data + UI integration)
+- **WhatsApp**: Tap contact → See chat history (privacy + data integration)  
+- **LinkedIn**: Click person → See their experience (privacy + professional data)
+- **Netflix**: Click show → See details + start watching (recommendation + streaming data)
+
+**What You're Really Learning**:
+- **Data Flow Architecture** - How Airbnb connects search results to booking data
+- **Privacy-First Design** - How Apple handles health data with user consent
+- **Performance Optimization** - How TikTok loads videos before you even tap
+- **Error Recovery** - How Google Maps handles "no internet connection"
+- **State Management** - How Discord keeps UI synchronized with server data
+
+**Career Growth**: Integration engineers are the highest paid developers because they solve the hardest problems. Master privacy-aware data integration here, work at any major tech company later.
+
+---
+
 ## Mission Overview 🎯
 
 Welcome to Phase 4! This is where the Friends Bar comes alive with actual functionality. We're implementing the core feature that lets students view their friends' schedules instantly by clicking on their avatars in the horizontal bar.
 
-**Duration**: 3-4 days  
-**Difficulty**: Intermediate-Advanced 🔥🔥🔥🔥  
-**Goal**: Make Friends Bar selections show actual schedules in the weekly grid
+**Goal**: Make Friends Bar selections show actual schedules in the weekly grid with full privacy respect
+
+## 📚 Learning Objectives by Experience Level
+
+### 🌱 Complete Beginner Focus
+**What you'll master:**
+- **Data Integration Basics**: How UI components talk to databases
+- **Privacy Concepts**: Why some schedules are hidden and how to handle it gracefully
+- **Loading States**: Making users feel confident when data is loading
+- **Error Handling**: What to show when something goes wrong
+
+### 🌿 Foundation Level Focus  
+**What you'll master:**
+- **Advanced Data Fetching**: Caching, optimization, and performance patterns
+- **Privacy Implementation**: Granular privacy controls and security patterns
+- **State Management**: Complex UI state transitions and data synchronization
+- **Integration Architecture**: How to connect multiple systems cleanly
+
+### 🌳 Advanced Focus
+**What you'll master:**
+- **Performance Optimization**: Sub-second loading times and intelligent caching
+- **Edge Case Handling**: Network failures, concurrent access, and data conflicts
+- **Privacy Engineering**: GDPR-compliant data handling and user consent flows
+- **Production Patterns**: Code that scales to millions of users with complex privacy needs
+
+## 📁 Critical Codebase Integration Points
+**CRITICAL**: This phase connects Phase 3 UI with Phase 1 data storage!
+
+### Files You'll Extend (Study These First):
+- `src/js/pages/HomePage.js` - Integrate schedule loading with existing schedule grid
+- `src/js/services/data/DataService.js` - Use existing getUserSchedule methods from Phase 1
+- `src/js/components/friends/HorizontalFriendsBar.js` - Connect friend selection to schedule loading
+
+### Files You'll Study (Required Reading):
+- `NEW-Plan/Phase-1-Schedule-Storage-Foundation.md` - Understanding schedule data structure
+- `src/js/store/userStore.js` - Existing state management patterns
+- `src/css/schedule.css` - Current schedule grid styling
+- `.md files/Database-Guide.md` - Privacy settings and data access
+
+### New Files You'll Create:
+- `src/js/services/schedule/ScheduleViewerService.js` - Schedule loading and caching
+- `src/js/utils/schedule/scheduleRenderer.js` - Enhanced schedule rendering utilities
+- `src/js/tests/services/schedule-viewer.test.js` - Test suite
+
+## 🚀 Development Setup & Prerequisites
+**MANDATORY**: Complete these steps before coding!
+
+### Environment Setup:
+```bash
+# 1. Ensure Phases 1-3 are completed and working
+npm run firebase:emulators        # Start Firebase emulators
+npm run dev                       # Start development server
+
+# 2. Test Phase 3 friends bar works
+# Visit: http://localhost:3000 
+# Should see horizontal friends bar with starred friends
+
+# 3. Study Phase 1 schedule data structure
+cat NEW-Plan/Phase-1-Schedule-Storage-Foundation.md  # Study scheduleData structure
+# Look for: scheduleData.schedule, scheduleData.slotInfo, scheduleData.privacy
+
+# 4. Study existing schedule rendering
+cat src/js/pages/HomePage.js | grep -A 10 "renderSchedule"  # Study existing patterns
+```
+
+### Study Existing Data Flow:
+```javascript
+// CRITICAL: Study these existing patterns before coding
+// 1. Existing DataService schedule methods from Phase 1
+import { DataService } from '../services/data/DataService.js';
+// Methods: getUserSchedule(), saveUserSchedule()
+
+// 2. Existing schedule state management
+import { userStore } from '../store/userStore.js';
+// Look for: loadUserSchedule(), scheduleState
+
+// 3. Current HomePage schedule rendering
+// In HomePage.js, look for existing grid rendering logic
+
+// 4. Phase 1 privacy controls
+// scheduleData.privacy.visibility: "friends" | "no-one" | "public"
+```
+
+### Test Current System:
+```bash
+# Test that existing schedule system works:
+# 1. Load schedule page - should see your own schedule
+# 2. Test Phase 3 friends bar shows starred friends
+# 3. Click "My Schedule" - should show your schedule (already works)
+# 4. Click friend avatar - should trigger friendSelected event (not yet loading schedule)
+
+# Phase 4 will make friend avatars actually load their schedules
+```
 
 ## What We're Building 🚀
 
@@ -166,16 +297,1070 @@ export class FriendScheduleManager {
       // Try Phase 1 enhanced data manager first
       const result = await enhancedDataManager.loadUserSchedule(currentUser?.uid);
       
-      let scheduleDisplayData = [];
-      let metadata = {};
+## Mission 2: Schedule Viewer Service 📊
+**CRITICAL**: Create a service that connects Phase 3 UI to Phase 1 data!
+
+### Step 1: Create Schedule Viewer Service
+
+This service will load friends' schedules using the existing Phase 1 DataService while respecting privacy settings.
+
+#### File: `src/js/services/schedule/ScheduleViewerService.js`
+
+```javascript
+// Schedule Viewer Service - Connects Phase 3 UI with Phase 1 Data Layer
+import { DataService } from '../data/DataService.js';
+import { userStore } from '../../store/userStore.js';
+
+export class ScheduleViewerService {
+  constructor() {
+    this.dataService = new DataService();
+    this.scheduleCache = new Map(); // Cache for performance
+    this.currentlyLoading = new Set(); // Prevent duplicate requests
+    this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache
+    
+    this.currentSchedule = {
+      friendId: 'my-schedule',
+      type: 'self',
+      data: null,
+      metadata: null
+    };
+  }
+
+  /**
+   * Load a friend's schedule using Phase 1 DataService
+   * Respects privacy settings from Phase 1
+   */
+  async loadFriendSchedule(friendId) {
+    try {
+      console.log(`📅 Loading schedule for friend: ${friendId}`);
       
-      if (result.success && result.scheduleData) {
-        // Convert Phase 1 format to display format
-        scheduleDisplayData = this.convertToDisplayFormat(result.scheduleData);
-        metadata = result.scheduleData.metadata || {};
+      // Check cache first for performance
+      const cached = this.getCachedSchedule(friendId);
+      if (cached) {
+        console.log(`⚡ Using cached schedule for ${friendId}`);
+        return cached;
+      }
+
+      // Prevent duplicate requests
+      if (this.currentlyLoading.has(friendId)) {
+        console.log(`⏳ Already loading schedule for ${friendId}`);
+        return await this.waitForLoading(friendId);
+      }
+
+      this.currentlyLoading.add(friendId);
+
+      // Use existing Phase 1 DataService to get friend's schedule
+      const currentUserId = this.getCurrentUserId();
+      const scheduleData = await this.dataService.getUserSchedule(friendId, currentUserId);
+      
+      if (!scheduleData) {
+        return this.createEmptyScheduleResult(friendId, 'No schedule found');
+      }
+
+      // Check if schedule is private (from Phase 1 privacy controls)
+      if (scheduleData.privacy?.visibility === 'no-one') {
+        return this.createPrivateScheduleResult(friendId);
+      }
+
+      if (scheduleData.privacy?.visibility === 'friends') {
+        // Check if current user is a friend
+        const areFriends = await this.dataService.areFriends(friendId, currentUserId);
+        if (!areFriends) {
+          return this.createPrivateScheduleResult(friendId);
+        }
+      }
+
+      // Convert Phase 1 schedule data to display format
+      const displayData = this.convertToDisplayFormat(scheduleData);
+      
+      const result = {
+        success: true,
+        friendId: friendId,
+        type: 'friend',
+        data: displayData,
+        metadata: scheduleData.metadata || {},
+        privacy: scheduleData.privacy || {},
+        loadedAt: Date.now(),
+        isEmpty: this.isScheduleEmpty(displayData)
+      };
+
+      // Cache for performance
+      this.cacheSchedule(friendId, result);
+      
+      console.log(`✅ Loaded schedule for ${friendId}: ${displayData.totalClasses || 0} classes`);
+      return result;
+
+    } catch (error) {
+      console.error(`❌ Error loading schedule for ${friendId}:`, error);
+      return this.createErrorResult(friendId, error.message);
+    } finally {
+      this.currentlyLoading.delete(friendId);
+    }
+  }
+
+  /**
+   * Load user's own schedule (integrates with existing HomePage.js)
+   */
+  async loadMySchedule() {
+    try {
+      console.log('📅 Loading my own schedule');
+      
+      const cached = this.getCachedSchedule('my-schedule');
+      if (cached) {
+        console.log('⚡ Using cached personal schedule');
+        return cached;
+      }
+
+      const currentUserId = this.getCurrentUserId();
+      
+      // Use existing Phase 1 userStore to load own schedule
+      const scheduleData = await userStore.loadUserSchedule(currentUserId);
+      
+      if (!scheduleData) {
+        // Fall back to existing HomePage.js localStorage logic
+        return this.loadFromLocalStorage();
+      }
+
+      const displayData = this.convertToDisplayFormat(scheduleData);
+      
+      const result = {
+        success: true,
+        friendId: 'my-schedule',
+        type: 'self',
+        data: displayData,
+        metadata: scheduleData.metadata || {},
+        loadedAt: Date.now(),
+        isEmpty: this.isScheduleEmpty(displayData)
+      };
+
+      this.cacheSchedule('my-schedule', result);
+      return result;
+
+    } catch (error) {
+      console.error('❌ Error loading personal schedule:', error);
+      // Fall back to existing localStorage system
+      return this.loadFromLocalStorage();
+    }
+  }
+
+  /**
+   * Convert Phase 1 schedule data to format expected by existing HomePage.js
+   */
+  convertToDisplayFormat(scheduleData) {
+    if (!scheduleData) return null;
+
+    // Convert from Phase 1 format to current HomePage.js format
+    return {
+      timeSlots: scheduleData.timeSlots || [],
+      schedule: scheduleData.schedule || [], // 7x7 boolean matrix
+      slotInfo: scheduleData.slotInfo || [], // 7x7 course info matrix
+      pinnedSlots: scheduleData.pinnedSlots || [], // 7x7 boolean matrix
+      totalClasses: scheduleData.metadata?.totalClasses || 0
+    };
+  }
+
+  /**
+   * Fall back to existing localStorage system (current HomePage.js logic)
+   */
+  loadFromLocalStorage() {
+    try {
+      // Use existing localStorage logic from HomePage.js
+      const scheduleUsers = JSON.parse(localStorage.getItem('scheduleUsers') || '{}');
+      const currentUserId = this.getCurrentUserId();
+      const userData = scheduleUsers[currentUserId];
+
+      if (!userData) {
+        return this.createEmptyScheduleResult('my-schedule', 'No local schedule found');
+      }
+
+      return {
+        success: true,
+        friendId: 'my-schedule',
+        type: 'self',
+        data: {
+          timeSlots: userData.timeSlots || [],
+          schedule: userData.schedule || [],
+          slotInfo: userData.slotInfo || [],
+          pinnedSlots: userData.pinnedSlots || []
+        },
+        metadata: { source: 'localStorage' },
+        loadedAt: Date.now(),
+        isEmpty: this.isScheduleEmpty(userData)
+      };
+
+    } catch (error) {
+      console.error('❌ Error loading from localStorage:', error);
+      return this.createEmptyScheduleResult('my-schedule', 'Failed to load schedule');
+    }
+  }
+
+  // Utility methods
+  getCurrentUserId() {
+    // Use existing auth system
+    return window.auth?.currentUser?.uid || null;
+  }
+
+  getCachedSchedule(friendId) {
+    const cached = this.scheduleCache.get(friendId);
+    if (!cached) return null;
+
+    // Check if cache is expired
+    if (Date.now() - cached.loadedAt > this.cacheExpiry) {
+      this.scheduleCache.delete(friendId);
+      return null;
+    }
+
+    return cached;
+  }
+
+  cacheSchedule(friendId, scheduleResult) {
+    // Limit cache size
+    if (this.scheduleCache.size >= 20) {
+      const oldestKey = this.scheduleCache.keys().next().value;
+      this.scheduleCache.delete(oldestKey);
+    }
+
+    this.scheduleCache.set(friendId, scheduleResult);
+  }
+
+  isScheduleEmpty(scheduleData) {
+    if (!scheduleData || !scheduleData.schedule) return true;
+    
+    // Check if any slots are marked as busy
+    return !scheduleData.schedule.flat().some(slot => slot === true);
+  }
+
+  createEmptyScheduleResult(friendId, reason) {
+    return {
+      success: true,
+      friendId: friendId,
+      type: friendId === 'my-schedule' ? 'self' : 'friend',
+      data: null,
+      metadata: { reason },
+      isEmpty: true,
+      loadedAt: Date.now()
+    };
+  }
+
+  createPrivateScheduleResult(friendId) {
+    return {
+      success: false,
+      friendId: friendId,
+      type: 'friend',
+      data: null,
+      error: 'Schedule is private',
+      isPrivate: true,
+      loadedAt: Date.now()
+    };
+  }
+
+  createErrorResult(friendId, errorMessage) {
+    return {
+      success: false,
+      friendId: friendId,
+      type: friendId === 'my-schedule' ? 'self' : 'friend',
+      data: null,
+      error: errorMessage,
+      loadedAt: Date.now()
+    };
+  }
+
+  async waitForLoading(friendId) {
+    // Simple polling to wait for loading to complete
+    return new Promise((resolve) => {
+      const checkLoading = () => {
+        if (!this.currentlyLoading.has(friendId)) {
+          const cached = this.getCachedSchedule(friendId);
+          resolve(cached || this.createErrorResult(friendId, 'Loading timeout'));
+        } else {
+          setTimeout(checkLoading, 100);
+        }
+      };
+      checkLoading();
+    });
+  }
+
+  // Get current schedule info
+  getCurrentScheduleInfo() {
+    return this.currentSchedule;
+  }
+
+  // Set current schedule (used by HomePage when switching schedules)
+  setCurrentSchedule(friendId, type, data, metadata = {}) {
+    this.currentSchedule = {
+      friendId,
+      type,
+      data,
+      metadata
+    };
+  }
+
+  // Clear cache (useful for testing and memory management)
+  clearCache() {
+    this.scheduleCache.clear();
+    console.log('🧹 Schedule cache cleared');
+  }
+}
+```
+
+### Step 2: Integrate with HomePage.js (CRITICAL)
+
+Now we need to connect the ScheduleViewerService with your existing HomePage.js schedule grid rendering.
+
+#### File: `src/js/pages/HomePage.js` (Add these integrations)
+
+```javascript
+// ADD these integrations to your EXISTING HomePage.js
+// Study existing schedule rendering patterns first!
+
+import { ScheduleViewerService } from '../services/schedule/ScheduleViewerService.js';
+
+class HomePage {
+  constructor() {
+    // ... your existing constructor code ...
+    
+    // NEW: Schedule viewer service
+    this.scheduleViewer = new ScheduleViewerService();
+    this.currentScheduleHeader = null; // Track whose schedule is showing
+  }
+
+  // EXTEND your existing init() method
+  async init() {
+    // ... your existing initialization code ...
+    
+    // NEW: Initialize schedule viewer
+    await this.initializeScheduleViewer();
+    
+    // ... rest of your existing init code ...
+  }
+
+  // NEW: Initialize schedule viewer integration
+  async initializeScheduleViewer() {
+    try {
+      // Load user's own schedule by default
+      await this.loadAndDisplaySchedule('my-schedule');
+      
+      console.log('✅ Schedule viewer initialized');
+      
+    } catch (error) {
+      console.error('❌ Error initializing schedule viewer:', error);
+    }
+  }
+
+  // EXTEND your existing handleFriendSelection method from Phase 3
+  async handleFriendSelection(friendId, friendType) {
+    console.log(`👤 Friend selected: ${friendId} (${friendType})`);
+    
+    // Show loading state
+    this.showScheduleLoading(true);
+    
+    try {
+      // Load and display the selected schedule
+      await this.loadAndDisplaySchedule(friendId);
+      
+    } catch (error) {
+      console.error('❌ Error loading friend schedule:', error);
+      this.showScheduleError('Failed to load schedule');
+    } finally {
+      this.showScheduleLoading(false);
+    }
+  }
+
+  // NEW: Load and display any schedule (user or friend)
+  async loadAndDisplaySchedule(friendId) {
+    try {
+      let scheduleResult;
+      
+      if (friendId === 'my-schedule') {
+        // Load user's own schedule
+        scheduleResult = await this.scheduleViewer.loadMySchedule();
       } else {
-        // Fallback: Try current HomePage.js system
-        const homePageData = this.loadFromHomePage();
+        // Load friend's schedule
+        scheduleResult = await this.scheduleViewer.loadFriendSchedule(friendId);
+      }
+
+      // Handle different result types
+      if (!scheduleResult.success) {
+        if (scheduleResult.isPrivate) {
+          this.showPrivateScheduleMessage(scheduleResult.friendId);
+        } else {
+          this.showScheduleError(scheduleResult.error || 'Failed to load schedule');
+        }
+        return;
+      }
+
+      if (scheduleResult.isEmpty) {
+        this.showEmptyScheduleMessage(scheduleResult.friendId);
+        return;
+      }
+
+      // Update current schedule state
+      this.scheduleViewer.setCurrentSchedule(
+        scheduleResult.friendId,
+        scheduleResult.type,
+        scheduleResult.data,
+        scheduleResult.metadata
+      );
+
+      // Display the schedule using existing rendering logic
+      this.displayScheduleData(scheduleResult);
+      
+      // Update schedule header
+      this.updateScheduleHeader(scheduleResult);
+      
+      console.log(`✅ Displayed schedule for: ${friendId}`);
+      
+    } catch (error) {
+      console.error(`❌ Error displaying schedule for ${friendId}:`, error);
+      throw error;
+    }
+  }
+
+  // NEW: Display schedule data using existing HomePage.js rendering logic
+  displayScheduleData(scheduleResult) {
+    const { data } = scheduleResult;
+    
+    if (!data) {
+      console.warn('No schedule data to display');
+      return;
+    }
+
+    // Update the current user data format that your existing code expects
+    const currentUserId = this.getCurrentUserId();
+    if (!this.state.users[currentUserId]) {
+      this.state.users[currentUserId] = this.createEmptyUser(currentUserId);
+    }
+
+    // Update with the loaded schedule data
+    this.state.users[currentUserId].timeSlots = data.timeSlots;
+    this.state.users[currentUserId].schedule = data.schedule;
+    this.state.users[currentUserId].slotInfo = data.slotInfo;
+    this.state.users[currentUserId].pinnedSlots = data.pinnedSlots || 
+      Array(7).fill(null).map(() => Array(7).fill(false));
+
+    // Use your existing schedule rendering method
+    this.renderScheduleGrid();
+    
+    // Update any schedule-related UI elements
+    this.updateScheduleUI();
+  }
+
+  // NEW: Update schedule header to show whose schedule is displayed
+  updateScheduleHeader(scheduleResult) {
+    let headerText = '';
+    let headerClass = '';
+    
+    if (scheduleResult.type === 'self') {
+      headerText = '📅 My Schedule';
+      headerClass = 'schedule-header-self';
+    } else {
+      const friendInfo = this.getFriendInfo(scheduleResult.friendId);
+      headerText = `📅 ${friendInfo?.displayName || 'Friend'}'s Schedule`;
+      headerClass = 'schedule-header-friend';
+    }
+
+    // Update header element (create if doesn't exist)
+    let headerElement = document.getElementById('schedule-header');
+    if (!headerElement) {
+      headerElement = document.createElement('div');
+      headerElement.id = 'schedule-header';
+      headerElement.className = 'schedule-header';
+      
+      // Insert before schedule grid
+      const scheduleContainer = document.querySelector('.schedule-container');
+      if (scheduleContainer) {
+        scheduleContainer.insertBefore(headerElement, scheduleContainer.firstChild);
+      }
+    }
+
+    headerElement.textContent = headerText;
+    headerElement.className = `schedule-header ${headerClass}`;
+    
+    this.currentScheduleHeader = {
+      friendId: scheduleResult.friendId,
+      type: scheduleResult.type,
+      text: headerText
+    };
+  }
+
+  // NEW: Get friend info from friends bar
+  getFriendInfo(friendId) {
+    // Get friend info from the horizontal friends bar
+    if (this.friendsBar && this.friendsBar.friendsData) {
+      return this.friendsBar.friendsData.find(friend => friend.id === friendId);
+    }
+    return null;
+  }
+
+  // NEW: Show loading state for schedule
+  showScheduleLoading(isLoading) {
+    const scheduleContainer = document.querySelector('.schedule-container');
+    if (!scheduleContainer) return;
+
+    if (isLoading) {
+      scheduleContainer.classList.add('loading');
+      
+      // Add loading overlay if it doesn't exist
+      if (!scheduleContainer.querySelector('.schedule-loading-overlay')) {
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'schedule-loading-overlay';
+        loadingOverlay.innerHTML = `
+          <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <span>Loading schedule...</span>
+          </div>
+        `;
+        scheduleContainer.appendChild(loadingOverlay);
+      }
+    } else {
+      scheduleContainer.classList.remove('loading');
+      
+      // Remove loading overlay
+      const loadingOverlay = scheduleContainer.querySelector('.schedule-loading-overlay');
+      if (loadingOverlay) {
+        loadingOverlay.remove();
+      }
+    }
+  }
+
+  // NEW: Show private schedule message
+  showPrivateScheduleMessage(friendId) {
+    const friendInfo = this.getFriendInfo(friendId);
+    const friendName = friendInfo?.displayName || 'This friend';
+    
+    this.showScheduleMessage(
+      '🔒 Private Schedule',
+      `${friendName} has chosen to keep their schedule private.`,
+      'private'
+    );
+  }
+
+  // NEW: Show empty schedule message
+  showEmptyScheduleMessage(friendId) {
+    const friendInfo = this.getFriendInfo(friendId);
+    const friendName = friendInfo?.displayName || 'This friend';
+    
+    this.showScheduleMessage(
+      '📅 No Schedule',
+      `${friendName} hasn't set up their schedule yet.`,
+      'empty'
+    );
+  }
+
+  // NEW: Show schedule error message
+  showScheduleError(errorMessage) {
+    this.showScheduleMessage(
+      '❌ Error',
+      `Failed to load schedule: ${errorMessage}`,
+      'error'
+    );
+  }
+
+  // NEW: Show schedule message (private, empty, error)
+  showScheduleMessage(title, message, type) {
+    const scheduleGrid = document.querySelector('.schedule-grid');
+    if (!scheduleGrid) return;
+
+    scheduleGrid.innerHTML = `
+      <div class="schedule-message schedule-message-${type}">
+        <div class="message-content">
+          <h3>${title}</h3>
+          <p>${message}</p>
+          ${type === 'empty' ? `
+            <button class="btn-secondary" onclick="this.selectMySchedule()">
+              View My Schedule
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // NEW: Quick method to return to user's schedule
+  selectMySchedule() {
+    if (this.friendsBar) {
+      this.friendsBar.selectFriend('my-schedule');
+    }
+  }
+
+  // EXTEND your existing cleanup method
+  cleanup() {
+    // ... your existing cleanup code ...
+    
+    // NEW: Cleanup schedule viewer
+    if (this.scheduleViewer) {
+      this.scheduleViewer.clearCache();
+      this.scheduleViewer = null;
+    }
+  }
+
+  // Helper method for current user ID
+  getCurrentUserId() {
+    return window.auth?.currentUser?.uid || 'default-user';
+  }
+
+  // Helper method to create empty user object (if needed)
+  createEmptyUser(userId) {
+    return {
+      id: userId,
+      name: 'User',
+      timeSlots: [],
+      schedule: Array(7).fill(null).map(() => Array(7).fill(false)),
+      slotInfo: Array(7).fill(null).map(() => Array(7).fill(null).map(() => ({ courseCode: "", classroomNumber: "" }))),
+      pinnedSlots: Array(7).fill(null).map(() => Array(7).fill(false))
+    };
+  }
+}
+```
+
+### Step 3: Enhanced Styling for Schedule States
+
+Add CSS for loading, private, and empty schedule states.
+
+#### File: `src/css/schedule.css` (Add these styles)
+
+```css
+/* EXTEND your existing schedule.css with these new styles */
+
+/* Schedule Header */
+.schedule-header {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--glass-background);
+  border: var(--glass-border);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  transition: all 0.3s ease;
+}
+
+.schedule-header-self {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.schedule-header-friend {
+  color: var(--color-secondary);
+  border-color: var(--color-secondary);
+}
+
+/* Loading State */
+.schedule-container.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.schedule-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--border-radius-md);
+  z-index: 100;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--color-text-primary);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border-light);
+  border-top: 3px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-sm);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Schedule Messages (Private, Empty, Error) */
+.schedule-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: var(--spacing-xl);
+  text-align: center;
+  border-radius: var(--border-radius-md);
+  margin: var(--spacing-md) 0;
+}
+
+.schedule-message-private {
+  background: linear-gradient(135deg, #fef3e2 0%, #fde8cc 100%);
+  border: 2px dashed #f59e0b;
+  color: #92400e;
+}
+
+.schedule-message-empty {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px dashed #0ea5e9;
+  color: #0c4a6e;
+}
+
+.schedule-message-error {
+  background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+  border: 2px dashed #ef4444;
+  color: #b91c1c;
+}
+
+.message-content h3 {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.message-content p {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.6;
+}
+
+.message-content button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  transition: all 0.2s ease;
+}
+
+.message-content button:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .schedule-header {
+    font-size: var(--font-size-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .schedule-message {
+    min-height: 200px;
+    padding: var(--spacing-lg);
+  }
+  
+  .message-content h3 {
+    font-size: var(--font-size-lg);
+  }
+}
+```
+
+## 📅 Detailed Implementation Guide (4 Days)
+**CRITICAL**: Follow this step-by-step guide for intern success!
+
+### **Day 1: Service Setup & Data Integration**
+
+**Morning Setup (2 hours):**
+```bash
+# 1. Ensure Phases 1-3 are completed and working
+npm run firebase:emulators        # Start Firebase emulators
+npm run dev                       # Start development server
+
+# 2. Test existing system works
+# Visit: http://localhost:3000
+# Should see friends bar with starred friends
+# Click friends should trigger friendSelected event
+
+# 3. Study Phase 1 data structure
+cat NEW-Plan/Phase-1-Schedule-Storage-Foundation.md | grep -A 20 "scheduleData"
+```
+
+**Afternoon Implementation (4 hours):**
+1. **Create ScheduleViewerService.js**: Follow the service code shown above
+2. **Test service instantiation**: Use browser console to test:
+   ```javascript
+   // In browser console:
+   import('./src/js/services/schedule/ScheduleViewerService.js').then(module => {
+     const viewer = new module.ScheduleViewerService();
+     console.log('Service loaded successfully');
+   });
+   ```
+3. **Test data loading**: Test with Phase 1 DataService methods
+4. **Test privacy filtering**: Ensure privacy settings are respected
+
+**Evening Testing (2 hours):**
+- Test service loads schedules from Firestore
+- Test privacy controls work (friends vs no-one)
+- Test fallback to localStorage works
+- Verify no errors in browser console
+
+**Success Criteria:** ✅ ScheduleViewerService can load schedules with privacy controls
+
+### **Day 2: HomePage Integration & Display**
+
+**Morning Study (2 hours):**
+```bash
+# Study existing HomePage.js patterns
+cat src/js/pages/HomePage.js | grep -A 10 "renderSchedule"  # Study rendering
+cat src/js/pages/HomePage.js | grep -A 5 "state.users"     # Study state management
+```
+
+**Afternoon Implementation (4 hours):**
+1. **Extend HomePage.js**: Add the integration code shown above
+2. **Test schedule loading**: Connect friend selection to schedule loading
+3. **Test display logic**: Ensure schedule grid updates correctly
+4. **Test state management**: Verify schedule state is managed properly
+
+**Test Integration:**
+```javascript
+// Test complete flow:
+// 1. Click friend avatar in friends bar
+// 2. Should see loading state
+// 3. Should see friend's schedule or privacy message
+// 4. Click "My Schedule" should show user's schedule
+```
+
+**Evening Error Handling (2 hours):**
+- Test with friends who have no schedule
+- Test with private schedules
+- Test with network errors
+- Test fallback scenarios
+
+**Success Criteria:** ✅ Clicking friend avatars loads and displays their schedules
+
+### **Day 3: Styling & User Experience**
+
+**Morning Styling (3 hours):**
+```bash
+# Study existing CSS patterns
+cat src/css/schedule.css                    # Study existing styling
+cat src/css/variables.css                   # Study design system
+```
+
+**Tasks:**
+1. **Add schedule styling**: Follow the CSS code shown above
+2. **Test loading states**: Verify loading spinner and overlay work
+3. **Test message states**: Check private, empty, error messages display correctly
+
+**Afternoon UX Polish (3 hours):**
+```css
+/* Test complete user experience: */
+/* 1. Beautiful loading animations */
+/* 2. Clear schedule headers showing whose schedule */
+/* 3. Helpful messages for private/empty schedules */
+/* 4. Smooth transitions between schedules */
+```
+
+**Evening Mobile Testing (2 hours):**
+- Test on mobile devices using browser dev tools
+- Test touch interactions work smoothly
+- Test responsive design of loading and message states
+- Check performance with multiple schedule switches
+
+**Success Criteria:** ✅ Beautiful loading states and clear messaging for all scenarios
+
+### **Day 4: Performance & Testing**
+
+**Morning Performance (3 hours):**
+```javascript
+// Performance testing:
+// 1. Test caching works (second load should be instant)
+// 2. Test rapid friend switching doesn't cause issues
+// 3. Test with large schedules (many courses)
+// 4. Check memory usage doesn't grow indefinitely
+
+// Test cache in browser console:
+console.log(homePage.scheduleViewer.scheduleCache);
+```
+
+**Afternoon Comprehensive Testing (3 hours):**
+```bash
+# Create test file:
+```
+
+```javascript
+// src/js/tests/services/schedule-viewer.test.js
+import { ScheduleViewerService } from '../../services/schedule/ScheduleViewerService.js';
+
+describe('Schedule Viewer Service', () => {
+  let scheduleViewer;
+
+  beforeEach(() => {
+    scheduleViewer = new ScheduleViewerService();
+  });
+
+  afterEach(() => {
+    scheduleViewer.clearCache();
+  });
+
+  describe('Loading Schedules', () => {
+    it('should load user own schedule', async () => {
+      const result = await scheduleViewer.loadMySchedule();
+      expect(result).toBeDefined();
+      expect(result.friendId).toBe('my-schedule');
+      expect(result.type).toBe('self');
+    });
+
+    it('should handle private schedules', async () => {
+      // Mock private schedule
+      const mockDataService = {
+        getUserSchedule: jest.fn().mockResolvedValue({
+          privacy: { visibility: 'no-one' }
+        })
+      };
+      
+      scheduleViewer.dataService = mockDataService;
+      
+      const result = await scheduleViewer.loadFriendSchedule('private-friend');
+      expect(result.success).toBe(false);
+      expect(result.isPrivate).toBe(true);
+    });
+
+    it('should cache loaded schedules', async () => {
+      const friendId = 'test-friend';
+      
+      // First load
+      await scheduleViewer.loadFriendSchedule(friendId);
+      
+      // Second load should use cache
+      const cached = scheduleViewer.getCachedSchedule(friendId);
+      expect(cached).toBeDefined();
+    });
+  });
+
+  describe('Privacy Controls', () => {
+    it('should respect friends-only privacy', async () => {
+      // Test that non-friends can't see friends-only schedules
+      const mockDataService = {
+        getUserSchedule: jest.fn().mockResolvedValue({
+          privacy: { visibility: 'friends' }
+        }),
+        areFriends: jest.fn().mockResolvedValue(false)
+      };
+      
+      scheduleViewer.dataService = mockDataService;
+      
+      const result = await scheduleViewer.loadFriendSchedule('friends-only-friend');
+      expect(result.success).toBe(false);
+      expect(result.isPrivate).toBe(true);
+    });
+  });
+});
+```
+
+**Evening Integration Testing (2 hours):**
+```bash
+# Test complete system integration:
+npm test src/js/tests/services/schedule-viewer.test.js
+
+# Manual testing checklist:
+# ✅ Friends bar shows starred friends
+# ✅ Clicking friend loads their schedule
+# ✅ Privacy settings are respected
+# ✅ Loading states work smoothly
+# ✅ Error handling works properly
+# ✅ Cache improves performance
+# ✅ Mobile experience is good
+```
+
+**Success Criteria:** ✅ All tests pass, performance is good, complete integration works
+
+## 🧪 Testing & Debugging Guide
+
+### Common Issues & Solutions:
+
+**Issue 1: "Friend schedules not loading"**
+```bash
+# Solution: Check Phase 1 DataService integration
+console.log(await window.dataService.getUserSchedule('friend-id', 'current-user-id'));
+# Should return schedule data or privacy error
+
+# Check privacy settings in Firestore emulator UI
+# Navigate to: users/{friendId}/scheduleData/privacy
+```
+
+**Issue 2: "Schedule grid not updating"**
+```bash
+# Solution: Check state update in HomePage.js
+console.log(homePage.state.users);  # Should show updated schedule data
+console.log(homePage.scheduleViewer.getCurrentScheduleInfo());  # Check current schedule
+
+# Make sure renderScheduleGrid() is called after data update
+```
+
+**Issue 3: "Loading state not appearing"**
+```bash
+# Solution: Check CSS and DOM structure
+console.log(document.querySelector('.schedule-loading-overlay'));  # Should exist when loading
+# Check CSS: .schedule-container.loading should have overlay
+
+# Test loading manually:
+homePage.showScheduleLoading(true);  # Should show loading
+```
+
+**Issue 4: "Cache not working"**
+```bash
+# Solution: Check cache implementation
+console.log(scheduleViewer.scheduleCache);  # Should show cached schedules
+console.log(scheduleViewer.getCachedSchedule('friend-id'));  # Should return cached data
+
+# Check cache expiry time (5 minutes)
+```
+
+### Debug Tools:
+```bash
+# In browser console:
+debug.status()                              # Check system status
+console.log(window.homePage.scheduleViewer) # Check service instance
+console.log(await window.homePage.scheduleViewer.loadFriendSchedule('friend-id'));
+
+# Test schedule loading manually:
+await window.homePage.loadAndDisplaySchedule('friend-id');
+```
+
+## Success Metrics ✅
+- **Schedule loading**: Friend schedules load correctly with privacy respect
+- **Performance**: Second load is instant due to caching
+- **User experience**: Smooth loading states and helpful messages
+- **Privacy**: Friends-only and private schedules are properly filtered
+- **Integration**: Seamless connection between Phase 3 UI and Phase 1 data
+- **Mobile**: Touch-friendly schedule switching
+
+## Phase 4 Completion Criteria
+
+You've successfully completed Phase 4 when:
+
+- [ ] **ScheduleViewerService** loads schedules using Phase 1 DataService
+- [ ] **Privacy controls** respect Phase 1 schedule privacy settings
+- [ ] **HomePage integration** displays friend schedules in existing grid
+- [ ] **Loading states** show beautiful animations during schedule loading
+- [ ] **Error handling** gracefully handles private, empty, and failed schedules
+- [ ] **Performance caching** makes second loads instant
+- [ ] **Mobile optimization** provides smooth touch experience
+- [ ] **Complete integration** from Phase 3 friends bar to Phase 1 data
+
+## 🎉 Congratulations! 
+
+Excellent work! You've successfully connected the beautiful Phase 3 friends bar with real schedule data from Phase 1, creating a fully functional social schedule viewing system!
+
+**What You've Learned:**
+- ✅ **Data integration** between different phases and services
+- ✅ **Privacy implementation** respecting user settings
+- ✅ **Performance optimization** with smart caching strategies
+- ✅ **State management** for complex UI transitions
+- ✅ **Error handling** for real-world scenarios
+
+## ⏭️ Ready for Phase 5: Intuitive Schedule Comparison! 🔍
+
+Now that individual schedule viewing works perfectly, let's add the ability to compare multiple friends' schedules at once for finding common free time!
         if (homePageData) {
           scheduleDisplayData = homePageData.scheduleData;
           metadata = homePageData.metadata;
