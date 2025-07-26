@@ -75,7 +75,7 @@ export class MultiSelectionManager {
     this.friendsBar = friendsBarInstance;
     this.selectedFriends = new Set(); // Track selected friend IDs
     this.isMultiSelectMode = false;
-    this.maxSelections = 5; // Reasonable limit for comparison
+    this.maxSelections = 10; // Increased limit for unlimited Quick Access system
     
     // Touch handling for mobile
     this.touchStartTime = 0;
@@ -465,11 +465,11 @@ export class MultiSelectionManager {
     }
   }
   
-  // Show selection limit message
+  // Show selection limit message (enhanced for unlimited system)
   showSelectionLimitMessage() {
     if (window.showNotification) {
       window.showNotification(
-        `Maximum ${this.maxSelections} friends can be compared at once`,
+        `Maximum ${this.maxSelections} friends can be compared at once for optimal performance`,
         'warning'
       );
     } else {
@@ -514,7 +514,9 @@ Now let's create the engine that analyzes multiple schedules to find conflicts a
 #### File: `src/js/core/schedule/comparison-engine.js`
 
 ```javascript
-// Schedule Comparison Engine - Analyzes multiple schedules for overlaps and free times
+// Schedule Comparison Engine - Analyzes multiple schedules for overlaps and free times (Enhanced for Phase 1 integration)
+import { enhancedDataManager } from '../../services/data/DataService.js'; // Phase 1 integration
+
 export class ComparisonEngine {
   constructor() {
     this.timeSlotDuration = 30; // 30-minute time slots
@@ -523,9 +525,9 @@ export class ComparisonEngine {
     this.workingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   }
   
-  // Compare multiple schedules and generate analysis
+  // Compare multiple schedules and generate analysis (enhanced for unlimited friends)
   async compareSchedules(friendsData, scheduleResults) {
-    console.log(`📊 Comparing ${friendsData.length} schedules...`);
+    console.log(`📊 Comparing ${friendsData.length} schedules (unlimited Quick Access system)...`);
     
     try {
       // Validate inputs
@@ -533,8 +535,21 @@ export class ComparisonEngine {
         throw new Error('At least 2 schedules required for comparison');
       }
       
+      // Filter out failed schedule loads (respect privacy settings)
+      const validScheduleResults = scheduleResults.filter(result => {
+        if (!result.success) {
+          console.warn(`Skipping ${result.friendId}: ${result.error}`);
+          return false;
+        }
+        return true;
+      });
+      
+      if (validScheduleResults.length < 2) {
+        throw new Error('Not enough accessible schedules for comparison (check privacy settings)');
+      }
+      
       // Process schedules into time grids
-      const scheduleGrids = this.processSchedulesToGrids(scheduleResults);
+      const scheduleGrids = this.processSchedulesToGrids(validScheduleResults);
       
       // Calculate overlaps and free times
       const comparison = this.calculateComparison(scheduleGrids, friendsData);
@@ -546,13 +561,15 @@ export class ComparisonEngine {
       const result = {
         success: true,
         friends: friendsData,
+        validFriends: validScheduleResults.length,
+        skippedFriends: friendsData.length - validScheduleResults.length,
         comparison: comparison,
         suggestions: suggestions,
         totalFriends: friendsData.length,
         analyzedAt: new Date().toISOString()
       };
       
-      console.log(`✅ Schedule comparison complete: ${suggestions.length} suggestions found`);
+      console.log(`✅ Schedule comparison complete: ${suggestions.length} suggestions found (${validScheduleResults.length}/${friendsData.length} friends accessible)`);
       return result;
       
     } catch (error) {
@@ -835,8 +852,9 @@ Let's create a beautiful comparison renderer that shows overlaps visually.
 #### File: `src/js/core/schedule/comparison-renderer.js`
 
 ```javascript
-// Comparison Renderer - Visualizes schedule comparisons with color-coded overlaps
+// Comparison Renderer - Visualizes schedule comparisons with color-coded overlaps (Enhanced)
 import { comparisonEngine } from './comparison-engine.js';
+import { friendScheduleManager } from './friend-schedule-manager.js'; // Phase 4 integration
 
 export class ComparisonRenderer {
   constructor() {
@@ -1299,12 +1317,19 @@ export class ComparisonRenderer {
     }
   }
   
-  // Update comparison header
+  // Update comparison header (enhanced for unlimited system)
   updateComparisonHeader(comparisonResult) {
     const titleElement = document.querySelector('.schedule-title, .weekly-schedule h2, .schedule-header h3');
     if (titleElement) {
       const friendNames = comparisonResult.friends.map(f => f.displayName || f.shortName).join(', ');
-      titleElement.textContent = `📊 Comparing: ${friendNames}`;
+      const skippedCount = comparisonResult.skippedFriends || 0;
+      
+      let titleText = `📊 Comparing: ${friendNames}`;
+      if (skippedCount > 0) {
+        titleText += ` (${skippedCount} private schedules excluded)`;
+      }
+      
+      titleElement.textContent = titleText;
     }
     
     // Update stats
@@ -1313,8 +1338,13 @@ export class ComparisonRenderer {
       const stats = comparisonResult.comparison.overalStats;
       const totalSlots = stats.totalTimeSlots;
       const freePercentage = Math.round((stats.freeTimeSlots / totalSlots) * 100);
+      const validFriends = comparisonResult.validFriends || comparisonResult.friends.length;
       
       statsElement.innerHTML = `
+        <div class="stat-item">
+          <span class="stat-number">${validFriends}</span>
+          <span class="stat-label">Friends</span>
+        </div>
         <div class="stat-item">
           <span class="stat-number">${stats.freeTimeSlots}</span>
           <span class="stat-label">Free Slots</span>

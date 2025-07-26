@@ -236,17 +236,25 @@ export class FriendsBar {
     return firstName.length > 8 ? `${firstName.substring(0, 6)}...` : firstName;
   }
   
-  // Render the complete friends bar
+  // Render the complete friends bar (UNLIMITED VERSION)
   render() {
     const itemsContainer = document.getElementById('friends-bar-items');
     if (!itemsContainer) return;
     
-    if (this.friendsData.length <= 1) { // Only "My Schedule"
+    // Update title with count of starred friends
+    const quickAccessCount = this.friendsData.filter(f => f.type === 'friend').length;
+    const titleElement = document.querySelector('.friends-bar-title');
+    if (titleElement) {
+      titleElement.setAttribute('data-count', quickAccessCount > 0 ? `${quickAccessCount} starred` : '');
+    }
+    
+    // Show empty state only if no Quick Access friends (My Schedule doesn't count)
+    if (quickAccessCount === 0) {
       this.renderEmptyState();
       return;
     }
     
-    // Render all friend items
+    // Render all friend items (unlimited!)
     const itemsHTML = this.friendsData.map((friend, index) => 
       this.renderFriendItem(friend, index)
     ).join('');
@@ -259,7 +267,7 @@ export class FriendsBar {
     // Set default selection (My Schedule)
     this.selectFriend('my-schedule');
     
-    console.log(`📱 Rendered ${this.friendsData.length} friend items`);
+    console.log(`📱 Rendered ${this.friendsData.length} friend items (unlimited system!)`);
   }
   
   // Render individual friend item

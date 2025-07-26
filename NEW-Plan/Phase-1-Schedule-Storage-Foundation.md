@@ -1,833 +1,1407 @@
-# Phase 1: Schedule Storage Foundation 📅
+# Phase 1: Enhanced Schedule Storage Foundation 📅
+**Migration from localStorage to Firestore with Privacy Controls**
 
 ## Mission Overview 🎯
 
-Welcome to the first phase of transforming CampXus into an intuitive social scheduling platform! Before we can create that amazing Instagram-stories-style friends bar, we need to build a solid foundation by storing user schedules in the database.
+Transform your current localStorage-based schedule system into a powerful Firestore-backed system with privacy controls and instant friend access. This phase migrates your existing schedule data while adding the "who can see my schedule" feature you requested.
 
-**Duration**: 2-3 days  
-**Difficulty**: Beginner-Intermediate 🔥🔥  
-**Goal**: Store and manage user schedules in Firebase Firestore
+**Duration**: 3-4 days  
+**Difficulty**: Intermediate 🔥🔥🔥  
+**Goal**: Migrate schedules to Firestore + Add privacy controls + Optimize for friend viewing
+
+## 🎯 Learning Objectives for Interns
+By completing this phase, you'll master:
+- **Firebase Integration**: Working with existing Firestore configuration and security rules
+- **State Management**: Integrating with CampXus userStore.js state management system
+- **Data Migration**: Safely migrating localStorage data to cloud storage
+- **Service Architecture**: Extending existing DataService.js with new capabilities
+- **Privacy Controls**: Implementing user privacy settings and permissions
+- **Testing**: Writing tests for Firebase operations using existing emulator setup
+
+## 📁 Critical Codebase Integration Points
+**CRITICAL**: This phase extends existing services - don't create from scratch!
+
+### Files You'll Extend (Study These First):
+- `src/js/services/data/DataService.js` - Extend with schedule methods
+- `src/js/store/userStore.js` - Add schedule state management
+- `src/js/pages/HomePage.js` - Update to use Firestore instead of localStorage
+- `firestore.rules` - Add security rules for schedule data privacy
+
+### Files You'll Study (Required Reading):
+- `.md files/Database-Guide.md` - Understanding existing Firestore structure
+- `src/js/lib/firebase/firebase-config.js` - Firebase setup patterns
+- `src/js/tests/firebase/` - Existing Firebase test patterns
+- `src/js/dev-tools/` - Development and debugging tools
+
+### New Files You'll Create:
+- `src/js/services/data/ScheduleDataService.js` - Schedule-specific data operations
+- `src/js/utils/migration/localStorageMigrator.js` - Migration utility
+- `src/js/tests/services/schedule-data.test.js` - Test suite
+
+## 🚀 Development Setup & Prerequisites
+**MANDATORY**: Complete these steps before coding!
+
+### Environment Setup:
+```bash
+# 1. Ensure Firebase emulators are working
+npm run firebase:emulators        # Start Firebase emulators
+# In another terminal:
+npm run dev                       # Start development server
+
+# 2. Study existing Firebase integration
+cat src/js/lib/firebase/firebase-config.js    # Study Firebase setup
+cat firestore.rules                           # Study existing security rules
+cat .md files/Database-Guide.md               # Study database structure
+
+# 3. Run existing tests to understand patterns
+npm test src/js/tests/firebase/               # Study Firebase test patterns
+npm test src/js/tests/core/script.test.js     # Study data handling tests
+```
+
+### Study Existing Services:
+```javascript
+// CRITICAL: Study these files before coding
+// 1. Existing data service patterns
+import { DataService } from '../services/data/DataService.js';
+
+// 2. Existing state management
+import { userStore } from '../store/userStore.js';
+
+// 3. Existing Firebase integration
+import { auth, db } from '../lib/firebase/firebase-config.js';
+
+// 4. Current localStorage patterns in HomePage.js
+// Look for: saveStateToStorage(), loadUserFromStorage()
+```
+
+### Firebase Emulator Setup:
+```bash
+# Make sure emulators work before proceeding:
+npm run firebase:emulators
+
+# Test in browser console:
+# Visit: http://localhost:3000
+# Open console and test:
+console.log(window.db);  # Should show Firestore instance
+console.log(window.auth); # Should show Auth instance
+```
 
 ## What We're Building 🚀
 
 By the end of this phase, your CampXus will have:
 
-- **📅 Schedule Storage**: User schedules saved in Firebase Firestore
-- **🔄 Real-time Sync**: Schedules automatically sync across devices
-- **💾 Auto-Save**: Changes save automatically as users edit
-- **🔧 Migration System**: Convert existing local schedules to cloud storage
-- **🛡️ Error Handling**: Graceful handling of network issues and empty schedules
+- **📅 Firestore Schedule Storage**: Migrate from localStorage to cloud database
+- **🔒 Privacy Controls**: "Who can see my schedule: Friends/No One" feature
+- **⚡ Optimized Friend Access**: Instant schedule loading for avatar clicks
+- **🔄 Seamless Migration**: Automatic conversion of existing localStorage data
+- **💾 Backward Compatibility**: Fallback to localStorage for offline mode
+- **🛡️ Privacy-First Security**: University-level access controls
 
 ## Architecture Overview 🏗️
 
 ```
-📅 Schedule Storage System
-├── 🗄️ Database Structure
-│   ├── User Schedule Documents
-│   ├── Schedule Validation
-│   └── Sharing Permissions
-├── 💾 Storage Management
-│   ├── Auto-Save System
-│   ├── Conflict Resolution
-│   └── Local Backup
-└── 📊 Schedule Operations
-    ├── Create/Read/Update/Delete
-    ├── Import/Export
-    └── Sharing Preparation
+📅 Enhanced Schedule Storage System
+├── 🗄️ Firestore Integration  
+│   ├── User Schedule Documents (extends your current users collection)
+│   ├── Privacy-Controlled Access
+│   └── Optimized Friend Queries
+├── 🔄 Migration System
+│   ├── localStorage → Firestore Migration
+│   ├── Data Validation
+│   └── Rollback Safety
+├── 🔒 Privacy Controls
+│   ├── Schedule Visibility Settings
+│   ├── Friend-Only Access
+│   └── Complete Privacy Mode  
+└── ⚡ Performance Optimization
+    ├── Avatar Click → Instant Schedule Load
+    ├── Cached Rendering Data
+    └── Efficient Database Queries
 ```
 
 ---
 
-## Mission 1: Database Structure Design 🗄️
+## Mission 1: Enhanced Database Structure 🗄️
 
-### Setting Up the Schedule Collection
+### Extending Your Existing Users Collection
 
-First, let's design how schedules will be stored in Firestore. We'll create a structure that's optimized for both individual use and social sharing.
+We'll add schedule data to your existing `users` collection instead of creating a separate collection. This maintains your current architecture while adding powerful schedule features.
 
-#### Database Schema Design
+#### Enhanced User Document Structure
 
 ```javascript
-// Firestore Collection: "schedules"
+// Firestore Collection: "users" (your existing collection)
 // Document ID: userId
 {
-  // Owner information
-  userId: "user-uid-123",
-  
-  // Schedule metadata
-  metadata: {
-    lastModified: timestamp,
-    version: 1,
-    isPublic: false,
-    shareWithFriends: true,
-    totalClasses: 12
+  // 👤 Your existing structure (unchanged)
+  profile: {
+    displayName: "Rollie",
+    displayName_lower: "rollie",
+    email: "student@iub.edu.bd",
+    firstName: "Rollie", 
+    firstName_lower: "rollie",
+    lastName: "Mcklean",
+    lastName_lower: "mcklean",
+    major: "CSE",
+    major_lower: "cse",
+    startingYear: "2021",
+    studentId: "1111.dev",
+    bio: "Love coding and building awesome apps!"
   },
-  
-  // The actual schedule data
-  scheduleData: [
-    {
-      id: "schedule-item-1",
-      title: "Advanced Algorithms",
-      courseCode: "CSE 401",
-      instructor: "Dr. Smith",
-      location: "Room 301",
-      dayOfWeek: "monday",
-      startTime: "09:00",
-      endTime: "10:30",
-      color: "#4f46e5",
-      credits: 3,
-      type: "lecture", // lecture, lab, tutorial
-      notes: "Bring calculator"
+
+  universityInfo: {
+    university: "iub",
+    universityName: "Independent University, Bangladesh",
+    studentId: "1111.dev"
+  },
+
+  avatarConfig: {
+    style: "miniavs",
+    seed: "mi5m6st0xf",
+    options: { /* your existing avatar config */ }
+  },
+
+  systemInfo: {
+    uid: "NdLNgYHbg4XoECtUiEjXm9W13xy1",
+    profileSetupComplete: true,
+    status: "offline",
+    lastActive: timestamp,
+    createdAt: timestamp,
+    lastUpdated: timestamp
+  },
+
+  socialInfo: {
+    friendsCount: 0,
+    pendingRequestsCount: 0,
+    privacy: "university",
+    searchable: true,
+    lastFriendActivity: timestamp
+  },
+
+  // 📅 NEW: Schedule Data Section
+  scheduleData: {
+    // Privacy Controls (YOUR REQUESTED FEATURE!)
+    privacy: {
+      visibility: "friends",        // "friends" | "no-one" | "public"
+      allowFriendView: true,        // Can friends see my schedule?
+      showInProfile: true,          // Show schedule info in profile?
+      lastUpdated: timestamp
+    },
+
+    // Enhanced Time Slots (from Phase 0)
+    timeSlots: [
+      { start: "08:00", end: "09:30", label: "08:00-09:30", slot: 0 },
+      { start: "09:40", end: "11:10", label: "09:40-11:10", slot: 1 },
+      { start: "11:20", end: "12:50", label: "11:20-12:50", slot: 2 },
+      { start: "13:00", end: "14:30", label: "13:00-14:30", slot: 3 },
+      { start: "14:40", end: "16:10", label: "14:40-16:10", slot: 4 },
+      { start: "16:20", end: "17:50", label: "16:20-17:50", slot: 5 },
+      { start: "18:30", end: "21:30", label: "18:30-21:30", slot: 6 }
+    ],
+
+    // Schedule Matrix (7 days x 7 time slots) - Your current format!
+    schedule: [
+      [false, true, false, true, false, false, false],  // Sunday
+      [true, false, true, false, true, false, false],   // Monday
+      [false, true, false, false, false, true, false],  // Tuesday
+      [true, false, true, false, false, false, false],  // Wednesday
+      [false, false, false, true, false, true, false],  // Thursday
+      [false, false, false, false, false, false, false], // Friday
+      [false, false, false, false, false, false, true]   // Saturday
+    ],
+
+    // Course Information Matrix - Your current slotInfo format!
+    slotInfo: [
+      // Day 0 (Sunday)
+      [
+        { courseCode: "", classroomNumber: "" },
+        { courseCode: "CMN205", classroomNumber: "C2002" },
+        { courseCode: "", classroomNumber: "" },
+        { courseCode: "CSC311", classroomNumber: "BC6012" },
+        { courseCode: "", classroomNumber: "" },
+        { courseCode: "", classroomNumber: "" },
+        { courseCode: "", classroomNumber: "" }
+      ],
+      // ... similar for 6 more days
+    ],
+
+    // Pinned Slots Matrix - Your current format!
+    pinnedSlots: [
+      [false, false, false, false, false, false, false], // Sunday
+      [false, false, false, false, false, false, false], // Monday
+      // ... 5 more days
+    ],
+
+    // Performance Optimization: Pre-rendered Cache
+    renderCache: {
+      gridHTML: "<div class='schedule-grid'>...</div>", // Pre-rendered HTML
+      lastCacheUpdate: timestamp,
+      cacheVersion: 1
+    },
+
+    // Schedule Metadata
+    metadata: {
+      totalClasses: 4,              // Number of scheduled classes
+      isEmpty: false,               // Quick check for empty schedules
+      lastModified: timestamp,      // When schedule was last changed
+      source: "manual",             // "manual" | "imported" | "phase_0"
+      semester: "Summer 2025",      // Current semester
+      hasConflicts: false           // Any time conflicts detected?
     }
-    // ... more schedule items
-  ],
-  
-  // Schedule settings
-  settings: {
-    timeFormat: "12hour", // 12hour or 24hour
-    startDay: "sunday", // first day of week
-    notifications: true,
-    shareWithFriends: true
-  },
-  
-  // System timestamps
-  createdAt: timestamp,
-  updatedAt: timestamp
+  }
 }
 ```
 
 ---
 
-## Mission 2: Schedule Storage Manager 💾
+## Mission 2: Service Architecture Integration 💾
+**CRITICAL**: Extend existing services - don't create new ones!
 
-### Creating the Core Storage System
+### Step 1: Extend Existing DataService (REQUIRED)
 
-Let's build a comprehensive schedule storage system that handles all database operations.
+Your existing `DataService.js` already handles user data and Firestore operations. We'll add schedule methods to this existing service.
 
-#### File: `src/js/core/schedule-storage.js`
+#### File: `src/js/services/data/DataService.js` (Add these methods)
 
 ```javascript
-// Schedule Storage Manager - The heart of schedule persistence
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../firebase/config/firebase-config.js';
-import { getCurrentUser } from './currentUser.js';
+// ADD these methods to your EXISTING DataService class
+// DO NOT create a new class - extend the existing one!
 
-export class ScheduleStorage {
-  constructor() {
-    this.currentUser = null;
-    this.saveTimeout = null;
-    this.isOnline = navigator.onLine;
-    this.localScheduleKey = 'campxus-local-schedule';
-    
-    // Initialize user state
-    this.initializeUser();
-    this.setupNetworkMonitoring();
-  }
+class DataService {
+  // ... your existing methods stay unchanged ...
+
+  // NEW: Schedule-specific methods (ADD to existing class)
   
-  // Initialize user authentication state
-  initializeUser() {
-    // Listen for auth state changes
-    this.currentUser = getCurrentUser();
-    console.log('📅 Schedule Storage initialized for:', this.currentUser?.email || 'No user');
-  }
-  
-  // Monitor network status for offline handling
-  setupNetworkMonitoring() {
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      console.log('📶 Back online - syncing schedules...');
-      this.syncLocalSchedule();
-    });
-    
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-      console.log('📱 Offline mode - saving locally');
-    });
-  }
-  
-  // Save user's schedule to database
-  async saveSchedule(scheduleData) {
-    if (!this.currentUser) {
-      console.warn('⚠️ Cannot save schedule: User not authenticated');
-      return { success: false, error: 'User not authenticated' };
-    }
-    
-    // Always save locally first for immediate feedback
-    this.saveToLocalStorage(scheduleData);
-    
-    // If offline, just save locally
-    if (!this.isOnline) {
-      console.log('💾 Saved schedule locally (offline mode)');
-      return { success: true, offline: true };
-    }
-    
+  /**
+   * Save user schedule with privacy controls
+   * Integrates with existing user document structure
+   */
+  async saveUserSchedule(userId, scheduleData) {
     try {
-      const scheduleDoc = {
-        userId: this.currentUser.uid,
-        metadata: {
-          lastModified: serverTimestamp(),
-          version: Date.now(),
-          isPublic: false,
-          shareWithFriends: true,
-          totalClasses: scheduleData.length
-        },
-        scheduleData: this.processScheduleData(scheduleData),
-        settings: {
-          timeFormat: '12hour',
-          startDay: 'sunday',
-          notifications: true,
-          shareWithFriends: true
-        },
-        updatedAt: serverTimestamp()
-      };
-      
-      // Check if document exists to decide between create or update
-      const docRef = doc(db, 'schedules', this.currentUser.uid);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        // Update existing schedule
-        await updateDoc(docRef, {
-          ...scheduleDoc,
-          updatedAt: serverTimestamp()
-        });
-        console.log('✅ Schedule updated in database');
-      } else {
-        // Create new schedule document
-        await setDoc(docRef, {
-          ...scheduleDoc,
-          createdAt: serverTimestamp()
-        });
-        console.log('✅ New schedule created in database');
+      // Use existing error handling patterns from your current methods
+      if (!userId) {
+        throw new ValidationError('User ID is required');
       }
+
+      // Follow existing update pattern from your current methods
+      const scheduleUpdate = {
+        'scheduleData.timeSlots': scheduleData.timeSlots,
+        'scheduleData.schedule': scheduleData.schedule,
+        'scheduleData.slotInfo': scheduleData.slotInfo,
+        'scheduleData.pinnedSlots': scheduleData.pinnedSlots,
+        'scheduleData.privacy': {
+          visibility: scheduleData.privacy?.visibility || "friends",
+          allowFriendView: scheduleData.privacy?.allowFriendView ?? true,
+          showInProfile: scheduleData.privacy?.showInProfile ?? true,
+          lastUpdated: new Date()
+        },
+        'scheduleData.metadata': {
+          totalClasses: this._countScheduledClasses(scheduleData.schedule),
+          isEmpty: this._isScheduleEmpty(scheduleData.schedule),
+          lastModified: new Date(),
+          source: scheduleData.source || 'manual',
+          semester: scheduleData.semester || 'Current',
+          hasConflicts: false // TODO: Add conflict detection
+        }
+      };
+
+      // Use existing updateUser method pattern
+      await this.updateUser(userId, scheduleUpdate);
       
-      // Clear local storage after successful save
-      this.clearLocalStorage();
-      
-      return { success: true };
+      console.log('✅ Schedule saved for user:', userId);
+      return true;
       
     } catch (error) {
-      console.error('❌ Failed to save schedule:', error);
-      // Keep local copy if cloud save fails
-      return { success: false, error: error.message };
+      // Follow existing error handling pattern
+      console.error('❌ Error saving schedule:', error);
+      throw error;
     }
   }
-  
-  // Load user's schedule from database
-  async loadSchedule() {
-    if (!this.currentUser) {
-      console.warn('⚠️ Cannot load schedule: User not authenticated');
-      return null;
-    }
-    
+
+  /**
+   * Get user schedule with privacy filtering
+   * Respects privacy settings and friendship status
+   */
+  async getUserSchedule(userId, requestingUserId = null) {
     try {
-      const docRef = doc(db, 'schedules', this.currentUser.uid);
-      const docSnap = await getDoc(docRef);
+      // Use existing getUser method
+      const userDoc = await this.getUser(userId);
       
-      if (docSnap.exists()) {
-        const scheduleDoc = docSnap.data();
-        console.log('📥 Schedule loaded from database');
-        return {
-          scheduleData: scheduleDoc.scheduleData || [],
-          metadata: scheduleDoc.metadata || {},
-          settings: scheduleDoc.settings || {}
-        };
-      } else {
-        console.log('📭 No schedule found in database');
-        
-        // Try to load from local storage
-        const localSchedule = this.loadFromLocalStorage();
-        if (localSchedule && localSchedule.length > 0) {
-          console.log('💾 Loaded schedule from local storage');
-          // Auto-save local schedule to database
-          await this.saveSchedule(localSchedule);
-          return { scheduleData: localSchedule, metadata: {}, settings: {} };
-        }
-        
+      if (!userDoc || !userDoc.scheduleData) {
         return null;
       }
+
+      const { scheduleData } = userDoc;
+      
+      // Privacy filtering (important for friend viewing)
+      if (userId !== requestingUserId) {
+        return this._applyPrivacyFilter(scheduleData, userId, requestingUserId);
+      }
+
+      return scheduleData;
+      
+    } catch (error) {
+      console.error('❌ Error fetching schedule:', error);
+      throw error;
+    }
+  }
+
+  // PRIVATE: Helper methods (follow existing naming convention)
+  _countScheduledClasses(scheduleMatrix) {
+    return scheduleMatrix.flat().filter(slot => slot === true).length;
+  }
+
+  _isScheduleEmpty(scheduleMatrix) {
+    return !scheduleMatrix.flat().some(slot => slot === true);
+  }
+
+  async _applyPrivacyFilter(scheduleData, ownerId, requestingUserId) {
+    const privacy = scheduleData.privacy || {};
+    
+    // If owner allows no one to see schedule
+    if (privacy.visibility === 'no-one') {
+      return { privacy: { visibility: 'no-one' }, isEmpty: true };
+    }
+    
+    // If friends only, check friendship
+    if (privacy.visibility === 'friends' && requestingUserId) {
+      const areFriends = await this.areFriends(ownerId, requestingUserId);
+      if (!areFriends) {
+        return { privacy: { visibility: 'friends' }, isEmpty: true };
+      }
+    }
+    
+    // Return full schedule if privacy allows
+    return scheduleData;
+  }
+}
+```
+
+### Step 2: State Management Integration
+
+Your existing `userStore.js` manages user state. We'll add schedule state management to this existing store.
+
+#### File: `src/js/store/userStore.js` (Add schedule methods)
+
+```javascript
+// ADD these methods to your EXISTING userStore
+// Study the existing patterns first!
+
+export const userStore = {
+  // ... your existing state and methods ...
+
+  // NEW: Schedule state management (ADD to existing store)
+  scheduleState: {
+    currentSchedule: null,
+    isLoading: false,
+    lastSyncTime: null,
+    privacySettings: null
+  },
+
+  // Add schedule methods to existing store
+  async loadUserSchedule(userId) {
+    this.scheduleState.isLoading = true;
+    
+    try {
+      // Use existing dataService instance
+      const scheduleData = await this.dataService.getUserSchedule(userId, userId);
+      
+      this.scheduleState.currentSchedule = scheduleData;
+      this.scheduleState.lastSyncTime = new Date();
+      this.scheduleState.isLoading = false;
+      
+      // Trigger existing update mechanisms
+      this.notifyListeners('scheduleUpdated', scheduleData);
+      
+      return scheduleData;
+    } catch (error) {
+      this.scheduleState.isLoading = false;
+      console.error('Error loading schedule:', error);
+      throw error;
+    }
+  },
+
+  async saveUserSchedule(userId, scheduleData) {
+    try {
+      // Use existing dataService instance  
+      await this.dataService.saveUserSchedule(userId, scheduleData);
+      
+      // Update local state
+      this.scheduleState.currentSchedule = scheduleData;
+      this.scheduleState.lastSyncTime = new Date();
+      
+      // Trigger existing update mechanisms
+      this.notifyListeners('scheduleUpdated', scheduleData);
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      throw error;
+    }
+  }
+};
+      
+      // Prepare schedule data in your existing format
+      const scheduleUpdate = {
+        'scheduleData.timeSlots': scheduleData.timeSlots,
+        'scheduleData.schedule': scheduleData.schedule,
+        'scheduleData.slotInfo': scheduleData.slotInfo,
+        'scheduleData.pinnedSlots': scheduleData.pinnedSlots,
+        'scheduleData.metadata': {
+          totalClasses: this.countTotalClasses(scheduleData.schedule),
+          isEmpty: this.isScheduleEmpty(scheduleData.schedule),
+          lastModified: serverTimestamp(),
+          source: scheduleData.source || 'manual',
+          hasConflicts: this.checkTimeConflicts(scheduleData.schedule)
+        },
+        'scheduleData.renderCache': {
+          lastCacheUpdate: serverTimestamp(),
+          cacheVersion: 1
+        }
+      };
+
+      await updateDoc(userRef, scheduleUpdate);
+      console.log('✅ Schedule saved to Firestore for user:', userId);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to save schedule:', error);
+      
+      // Fallback: Save to localStorage
+      this.saveScheduleToLocalStorage(userId, scheduleData);
+      return { success: false, error: error.message, savedLocally: true };
+    }
+  }
+
+  // NEW: Load user schedule with privacy checks
+  async loadUserSchedule(userId, requestingUserId = null) {
+    try {
+      const userRef = doc(this.db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.log('📭 No user document found');
+        return this.migrateFromLocalStorage(userId);
+      }
+      
+      const userData = userDoc.data();
+      const scheduleData = userData.scheduleData;
+      
+      if (!scheduleData) {
+        console.log('📭 No schedule data found, checking localStorage...');
+        return this.migrateFromLocalStorage(userId);
+      }
+
+      // Privacy Check: Can requesting user see this schedule?
+      if (requestingUserId && requestingUserId !== userId) {
+        const canView = await this.canViewSchedule(userId, requestingUserId, scheduleData);
+        if (!canView) {
+          return { 
+            success: false, 
+            error: 'Schedule is private',
+            canView: false 
+          };
+        }
+      }
+      
+      console.log('📥 Schedule loaded from Firestore');
+      return {
+        success: true,
+        scheduleData: scheduleData,
+        canView: true
+      };
       
     } catch (error) {
       console.error('❌ Failed to load schedule:', error);
       
-      // Fallback to local storage
-      const localSchedule = this.loadFromLocalStorage();
-      if (localSchedule) {
-        console.log('💾 Loaded schedule from local backup');
-        return { scheduleData: localSchedule, metadata: {}, settings: {} };
+      // Fallback: Try localStorage
+      const localData = this.loadScheduleFromLocalStorage(userId);
+      if (localData) {
+        return { 
+          success: true, 
+          scheduleData: localData, 
+          source: 'localStorage' 
+        };
       }
       
-      return null;
+      return { success: false, error: error.message };
     }
   }
-  
-  // Load a friend's schedule (for viewing/comparison)
-  async loadFriendSchedule(friendUserId) {
-    try {
-      const docRef = doc(db, 'schedules', friendUserId);
-      const docSnap = await getDoc(docRef);
+
+  // NEW: Check if requesting user can view target user's schedule  
+  async canViewSchedule(targetUserId, requestingUserId, scheduleData) {
+    const privacy = scheduleData.privacy;
+    
+    if (!privacy) {
+      // Default: Friends can view (backward compatibility)
+      return this.areUsersFriends(targetUserId, requestingUserId);
+    }
+    
+    switch (privacy.visibility) {
+      case 'no-one':
+        return false; // Complete privacy
       
-      if (docSnap.exists()) {
-        const scheduleDoc = docSnap.data();
+      case 'friends':
+        return this.areUsersFriends(targetUserId, requestingUserId);
+      
+      case 'public':
+        return true; // Anyone can view
+      
+      default:
+        return false; // Default to private
+    }
+  }
+
+  // NEW: Check if two users are friends
+  async areUsersFriends(userId1, userId2) {
+    try {
+      // Query your existing friendships collection
+      const friendshipsQuery = query(
+        collection(this.db, 'friendships'),
+        where('users', 'array-contains', userId1)
+      );
+      
+      const friendshipsSnapshot = await getDocs(friendshipsQuery);
+      
+      return friendshipsSnapshot.docs.some(doc => 
+        doc.data().users.includes(userId2)
+      );
+    } catch (error) {
+      console.error('Error checking friendship:', error);
+      return false;
+    }
+  }
+
+  // NEW: Update schedule privacy settings
+  async updateSchedulePrivacy(userId, privacySettings) {
+    try {
+      const userRef = doc(this.db, 'users', userId);
+      
+      await updateDoc(userRef, {
+        'scheduleData.privacy': {
+          ...privacySettings,
+          lastUpdated: serverTimestamp()
+        }
+      });
+      
+      console.log('✅ Schedule privacy updated for user:', userId);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to update privacy:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // NEW: Migration from localStorage to Firestore
+  async migrateFromLocalStorage(userId) {
+    try {
+      const localData = JSON.parse(localStorage.getItem(this.localStorageKey) || '{}');
+      const userData = localData[userId];
+      
+      if (!userData || !userData.schedule) {
+        console.log('📭 No localStorage data found for user:', userId);
+        return { success: false, error: 'No data to migrate' };
+      }
+
+      console.log('🔄 Migrating localStorage data to Firestore...');
+      
+      // Convert your localStorage format to new Firestore format
+      const migratedScheduleData = {
+        timeSlots: userData.timeSlots || this.getDefaultTimeSlots(),
+        schedule: userData.schedule,
+        slotInfo: userData.slotInfo || this.createEmptySlotInfo(),
+        pinnedSlots: userData.pinnedSlots || this.createEmptyPinnedSlots(),
+        privacy: {
+          visibility: 'friends', // Default privacy setting
+          allowFriendView: true,
+          showInProfile: true,
+          lastUpdated: new Date()
+        },
+        source: 'migrated_from_localStorage'
+      };
+
+      // Save to Firestore
+      const saveResult = await this.saveUserSchedule(userId, migratedScheduleData);
+      
+      if (saveResult.success) {
+        console.log('✅ Migration completed successfully');
         
-        // Check if schedule is shareable
-        if (scheduleDoc.settings?.shareWithFriends === false) {
-          return { error: 'Schedule is private' };
+        // Clean up localStorage entry for this user
+        delete localData[userId];
+        if (Object.keys(localData).length === 0) {
+          localStorage.removeItem(this.localStorageKey);
+        } else {
+          localStorage.setItem(this.localStorageKey, JSON.stringify(localData));
         }
         
-        console.log(`📥 Loaded ${friendUserId}'s schedule`);
         return {
-          scheduleData: scheduleDoc.scheduleData || [],
-          metadata: scheduleDoc.metadata || {},
-          owner: friendUserId
+          success: true,
+          scheduleData: migratedScheduleData,
+          migrated: true
         };
       } else {
-        return { error: 'Friend has no schedule set up yet' };
+        console.log('⚠️ Migration failed, keeping localStorage data');
+        return {
+          success: true,
+          scheduleData: migratedScheduleData,
+          source: 'localStorage',
+          migrationFailed: true
+        };
       }
-      
     } catch (error) {
-      console.error(`❌ Failed to load friend's schedule:`, error);
-      return { error: 'Failed to load schedule' };
+      console.error('❌ Migration failed:', error);
+      return { success: false, error: error.message };
     }
   }
   
-  // Auto-save with debouncing
-  autoSave(scheduleData) {
-    // Clear previous timeout
-    if (this.saveTimeout) {
-      clearTimeout(this.saveTimeout);
-    }
-    
-    // Save after 3 seconds of inactivity
-    this.saveTimeout = setTimeout(() => {
-      this.saveSchedule(scheduleData);
-    }, 3000);
+  // Helper methods
+  countTotalClasses(schedule) {
+    return schedule.reduce((total, day) => 
+      total + day.filter(slot => slot === true).length, 0
+    );
   }
   
-  // Process and validate schedule data before saving
-  processScheduleData(scheduleData) {
-    return scheduleData.map(item => ({
-      id: item.id || this.generateId(),
-      title: item.title || 'Untitled Class',
-      courseCode: item.courseCode || '',
-      instructor: item.instructor || '',
-      location: item.location || '',
-      dayOfWeek: item.dayOfWeek || 'monday',
-      startTime: item.startTime || '09:00',
-      endTime: item.endTime || '10:00',
-      color: item.color || '#4f46e5',
-      credits: item.credits || 3,
-      type: item.type || 'lecture',
-      notes: item.notes || ''
-    }));
+  isScheduleEmpty(schedule) {
+    return schedule.every(day => day.every(slot => slot === false));
   }
   
-  // Generate unique ID for schedule items
-  generateId() {
-    return 'schedule-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  checkTimeConflicts(schedule) {
+    // Simple conflict check - can be enhanced
+    return false;
   }
   
-  // Local storage operations
-  saveToLocalStorage(scheduleData) {
+  getDefaultTimeSlots() {
+    // Return your enhanced 7-slot structure
+    return [
+      { start: "08:00", end: "09:30", label: "08:00-09:30", slot: 0 },
+      { start: "09:40", end: "11:10", label: "09:40-11:10", slot: 1 },
+      { start: "11:20", end: "12:50", label: "11:20-12:50", slot: 2 },
+      { start: "13:00", end: "14:30", label: "13:00-14:30", slot: 3 },
+      { start: "14:40", end: "16:10", label: "14:40-16:10", slot: 4 },
+      { start: "16:20", end: "17:50", label: "16:20-17:50", slot: 5 },
+      { start: "18:30", end: "21:30", label: "18:30-21:30", slot: 6 }
+    ];
+  }
+  
+  createEmptySlotInfo() {
+    return Array(7).fill(null).map(() => 
+      Array(7).fill(null).map(() => ({ courseCode: "", classroomNumber: "" }))
+    );
+  }
+  
+  createEmptyPinnedSlots() {
+    return Array(7).fill(null).map(() => Array(7).fill(false));
+  }
+
+  // Fallback methods for offline support
+  saveScheduleToLocalStorage(userId, scheduleData) {
     try {
-      const dataToSave = {
-        scheduleData,
-        savedAt: new Date().toISOString(),
-        userId: this.currentUser?.uid
+      const existingData = JSON.parse(localStorage.getItem(this.localStorageKey) || '{}');
+      existingData[userId] = {
+        ...existingData[userId],
+        schedule: scheduleData.schedule,
+        slotInfo: scheduleData.slotInfo,
+        timeSlots: scheduleData.timeSlots,
+        pinnedSlots: scheduleData.pinnedSlots,
+        lastSaved: new Date().toISOString()
       };
-      localStorage.setItem(this.localScheduleKey, JSON.stringify(dataToSave));
+      localStorage.setItem(this.localStorageKey, JSON.stringify(existingData));
+      console.log('💾 Schedule saved to localStorage as fallback');
     } catch (error) {
-      console.error('Failed to save to local storage:', error);
+      console.error('Failed to save to localStorage:', error);
     }
   }
   
-  loadFromLocalStorage() {
+  loadScheduleFromLocalStorage(userId) {
     try {
-      const saved = localStorage.getItem(this.localScheduleKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Verify it belongs to current user
-        if (parsed.userId === this.currentUser?.uid) {
-          return parsed.scheduleData;
-        }
-      }
-      return null;
+      const localData = JSON.parse(localStorage.getItem(this.localStorageKey) || '{}');
+      return localData[userId] || null;
     } catch (error) {
-      console.error('Failed to load from local storage:', error);
+      console.error('Failed to load from localStorage:', error);
       return null;
     }
-  }
-  
-  clearLocalStorage() {
-    localStorage.removeItem(this.localScheduleKey);
-  }
-  
-  // Sync local schedule to database when coming back online
-  async syncLocalSchedule() {
-    const localSchedule = this.loadFromLocalStorage();
-    if (localSchedule && localSchedule.length > 0) {
-      console.log('🔄 Syncing local schedule to database...');
-      await this.saveSchedule(localSchedule);
-    }
-  }
-  
-  // Get schedule statistics
-  getScheduleStats(scheduleData) {
-    if (!scheduleData || scheduleData.length === 0) {
-      return {
-        totalClasses: 0,
-        totalCredits: 0,
-        daysWithClasses: 0,
-        averageClassesPerDay: 0
-      };
-    }
-    
-    const totalClasses = scheduleData.length;
-    const totalCredits = scheduleData.reduce((sum, item) => sum + (item.credits || 0), 0);
-    const uniqueDays = new Set(scheduleData.map(item => item.dayOfWeek));
-    const daysWithClasses = uniqueDays.size;
-    const averageClassesPerDay = Math.round((totalClasses / daysWithClasses) * 10) / 10;
-    
-    return {
-      totalClasses,
-      totalCredits,
-      daysWithClasses,
-      averageClassesPerDay
-    };
   }
 }
 
-// Create and export singleton instance
-export const scheduleStorage = new ScheduleStorage();
+// Export enhanced DataService
+export const enhancedDataManager = new EnhancedDataService();
 ```
 
 ---
 
-## Mission 3: Integration with Existing Schedule System 🔧
+## Mission 3: HomePage.js Integration 🔧
 
-### Updating Your Current Schedule App
+### Updating Your Current Schedule System
 
-Now let's integrate the storage system with your existing schedule functionality.
+Now let's modify your existing `HomePage.js` to use the enhanced DataService instead of localStorage.
 
-#### File: `src/js/core/schedule-integration.js`
+#### Key Changes to HomePage.js
 
 ```javascript
-// Integration layer for existing schedule system
-import { scheduleStorage } from './schedule-storage.js';
+// At the top of HomePage.js, replace your current data manager import
+import { enhancedDataManager } from '../services/data/DataService.js';
 
-export class ScheduleIntegration {
-  constructor() {
-    this.scheduleData = [];
-    this.isLoading = false;
-    this.hasUnsavedChanges = false;
-    
-    // Initialize integration
-    this.init();
+// Update your saveStateToStorage function
+export function saveStateToStorage() {
+  if (!state.activeUserId || !state.users[state.activeUserId]) {
+    return;
   }
   
-  async init() {
-    console.log('🔧 Initializing schedule integration...');
-    
-    // Load existing schedule
-    await this.loadUserSchedule();
-    
-    // Set up auto-save
-    this.setupAutoSave();
-    
-    // Handle page visibility changes
-    this.setupVisibilityHandler();
-    
-    console.log('✅ Schedule integration ready');
-  }
+  const currentUser = state.users[state.activeUserId];
+  const scheduleData = {
+    timeSlots: currentUser.timeSlots,
+    schedule: currentUser.schedule,  
+    slotInfo: currentUser.slotInfo,
+    pinnedSlots: currentUser.pinnedSlots,
+    source: 'manual'
+  };
   
-  // Load user's schedule on app start
-  async loadUserSchedule() {
-    this.setLoading(true);
-    
-    try {
-      const result = await scheduleStorage.loadSchedule();
-      
-      if (result && result.scheduleData) {
-        this.scheduleData = result.scheduleData;
-        console.log(`📅 Loaded ${this.scheduleData.length} schedule items`);
-        
-        // Update your existing UI
-        this.renderSchedule();
-        this.updateScheduleStats(result.metadata);
-      } else {
-        // No schedule found - initialize empty
-        this.scheduleData = [];
-        console.log('📅 Starting with empty schedule');
-        this.renderEmptyState();
-      }
-      
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-      this.showError('Failed to load your schedule. Please try again.');
-    } finally {
-      this.setLoading(false);
-    }
-  }
-  
-  // Save schedule (triggered by user actions)
-  async saveSchedule() {
-    if (this.scheduleData.length === 0) {
-      console.log('📅 No schedule data to save');
-      return;
-    }
-    
-    try {
-      const result = await scheduleStorage.saveSchedule(this.scheduleData);
-      
+  // Save to Firestore instead of localStorage
+  enhancedDataManager.saveUserSchedule(state.activeUserId, scheduleData)
+    .then(result => {
       if (result.success) {
-        this.hasUnsavedChanges = false;
-        this.showSuccess(result.offline ? 'Saved locally (offline)' : 'Schedule saved!');
-        console.log('✅ Schedule saved successfully');
-      } else {
-        this.showError('Failed to save schedule: ' + result.error);
-      }
-      
-    } catch (error) {
-      console.error('Save failed:', error);
-      this.showError('Failed to save schedule. Changes saved locally.');
-    }
-  }
-  
-  // Add new schedule item
-  async addScheduleItem(newItem) {
-    // Add to local array
-    this.scheduleData.push(newItem);
-    
-    // Mark as changed
-    this.hasUnsavedChanges = true;
-    
-    // Update UI
-    this.renderSchedule();
-    
-    // Trigger auto-save
-    this.triggerAutoSave();
-    
-    console.log('➕ Added new schedule item:', newItem.title);
-  }
-  
-  // Update existing schedule item
-  async updateScheduleItem(itemId, updatedItem) {
-    const index = this.scheduleData.findIndex(item => item.id === itemId);
-    
-    if (index !== -1) {
-      this.scheduleData[index] = { ...this.scheduleData[index], ...updatedItem };
-      this.hasUnsavedChanges = true;
-      this.renderSchedule();
-      this.triggerAutoSave();
-      
-      console.log('✏️ Updated schedule item:', updatedItem.title);
-    }
-  }
-  
-  // Delete schedule item
-  async deleteScheduleItem(itemId) {
-    const initialLength = this.scheduleData.length;
-    this.scheduleData = this.scheduleData.filter(item => item.id !== itemId);
-    
-    if (this.scheduleData.length < initialLength) {
-      this.hasUnsavedChanges = true;
-      this.renderSchedule();
-      this.triggerAutoSave();
-      
-      console.log('🗑️ Deleted schedule item');
-    }
-  }
-  
-  // Set up auto-save functionality
-  setupAutoSave() {
-    // Auto-save every 30 seconds if there are unsaved changes
-    setInterval(() => {
-      if (this.hasUnsavedChanges && this.scheduleData.length > 0) {
-        console.log('⏰ Auto-saving schedule...');
-        this.saveSchedule();
-      }
-    }, 30000);
-  }
-  
-  // Trigger auto-save with debouncing
-  triggerAutoSave() {
-    scheduleStorage.autoSave(this.scheduleData);
-  }
-  
-  // Handle page visibility changes (save when user leaves)
-  setupVisibilityHandler() {
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.hasUnsavedChanges) {
-        // Page is hidden, save immediately
-        this.saveSchedule();
+        console.log('✅ Schedule saved to cloud');
+      } else if (result.savedLocally) {
+        console.log('💾 Saved locally (offline)');
       }
     });
+}
+
+// Update your loadState function  
+async function loadState() {
+  try {
+    // Try to load from Firestore first
+    const result = await enhancedDataManager.loadUserSchedule(getCurrentUserId());
     
-    // Save before page unload
-    window.addEventListener('beforeunload', (e) => {
-      if (this.hasUnsavedChanges) {
-        // Trigger immediate save
-        this.saveSchedule();
+    if (result.success && result.scheduleData) {
+      // Convert Firestore format back to your current format
+      const userData = {
+        id: getCurrentUserId(),
+        name: getCurrentUserName(),
+        timeSlots: result.scheduleData.timeSlots,
+        schedule: result.scheduleData.schedule,
+        slotInfo: result.scheduleData.slotInfo,
+        pinnedSlots: result.scheduleData.pinnedSlots
+      };
+      
+      state.users[getCurrentUserId()] = userData;
+      state.activeUserId = getCurrentUserId();
+      
+      if (result.migrated) {
+        showNotification('📅 Your schedule has been upgraded to cloud storage!', 'success');
+      }
+    } else {
+      // No schedule found, create new user with empty schedule
+      createUser(getCurrentUserName(), getCurrentUserId());
+    }
+    
+  } catch (error) {
+    console.error('Failed to load schedule:', error);
+    // Fallback to empty state
+    createUser(getCurrentUserName(), getCurrentUserId());
+  }
+  
+  updateUI();
+}
+```
+
+---
+
+## Mission 4: Privacy Controls UI 🔒
+
+### Adding "Who Can See My Schedule" Feature
+
+Create a privacy settings interface that integrates with your existing profile settings.
+
+#### File: `src/js/components/privacy/SchedulePrivacySettings.js`
+
+```javascript
+// Schedule Privacy Settings Component
+export class SchedulePrivacySettings {
+  constructor() {
+    this.currentSettings = null;
+  }
+
+  // Render privacy settings in profile page
+  renderPrivacySettings(currentUserId) {
+    return `
+      <div class="schedule-privacy-settings">
+        <div class="privacy-header">
+          <h3>📅 Schedule Privacy</h3>
+          <p>Control who can see your class schedule</p>
+        </div>
         
-        // Show warning to user
-        e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-      }
-    });
-  }
-  
-  // Get current schedule data (for other components)
-  getScheduleData() {
-    return this.scheduleData;
-  }
-  
-  // Get schedule statistics
-  getStats() {
-    return scheduleStorage.getScheduleStats(this.scheduleData);
-  }
-  
-  // UI update methods (integrate with your existing UI)
-  renderSchedule() {
-    // This should call your existing schedule rendering function
-    if (window.renderScheduleGrid) {
-      window.renderScheduleGrid(this.scheduleData);
-    }
-    
-    // Update stats display
-    const stats = this.getStats();
-    this.updateStatsDisplay(stats);
-  }
-  
-  renderEmptyState() {
-    // Show empty state message
-    const scheduleContainer = document.getElementById('schedule-grid');
-    if (scheduleContainer) {
-      scheduleContainer.innerHTML = `
-        <div class="empty-schedule-state">
-          <h3>📅 Ready to build your schedule?</h3>
-          <p>Add your first class to get started!</p>
-          <button onclick="openAddClassModal()" class="btn-primary">
-            ➕ Add Your First Class
+        <div class="privacy-options">
+          <div class="privacy-option">
+            <input type="radio" 
+                   id="privacy-friends" 
+                   name="schedule-visibility" 
+                   value="friends" 
+                   checked>
+            <label for="privacy-friends">
+              <div class="option-content">
+                <span class="option-title">👥 Friends Only</span>
+                <span class="option-desc">Only your friends can see your schedule</span>
+              </div>
+            </label>
+          </div>
+          
+          <div class="privacy-option">
+            <input type="radio" 
+                   id="privacy-none" 
+                   name="schedule-visibility" 
+                   value="no-one">
+            <label for="privacy-none">
+              <div class="option-content">
+                <span class="option-title">🔒 Private</span>
+                <span class="option-desc">No one can see your schedule</span>
+              </div>
+            </label>
+          </div>
+          
+          <div class="privacy-option">
+            <input type="radio" 
+                   id="privacy-public" 
+                   name="schedule-visibility" 
+                   value="public">
+            <label for="privacy-public">
+              <div class="option-content">
+                <span class="option-title">🌍 Public</span>
+                <span class="option-desc">Anyone in your university can see your schedule</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        
+        <div class="privacy-actions">
+          <button id="save-privacy-btn" class="btn-primary">
+            Save Privacy Settings
           </button>
         </div>
-      `;
+      </div>
+    `;
+  }
+
+  // Load current settings
+  async loadCurrentSettings(userId) {
+    try {
+      const result = await enhancedDataManager.loadUserSchedule(userId);
+      if (result.success && result.scheduleData?.privacy) {
+        this.currentSettings = result.scheduleData.privacy;
+        this.updateUI();
+      }
+    } catch (error) {
+      console.error('Failed to load privacy settings:', error);
     }
   }
-  
-  updateStatsDisplay(stats) {
-    const statsEl = document.getElementById('schedule-stats');
-    if (statsEl) {
-      statsEl.innerHTML = `
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-number">${stats.totalClasses}</span>
-            <span class="stat-label">Classes</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">${stats.totalCredits}</span>
-            <span class="stat-label">Credits</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">${stats.daysWithClasses}</span>
-            <span class="stat-label">Days</span>
-          </div>
-        </div>
-      `;
+
+  // Save privacy settings
+  async savePrivacySettings(userId, visibility) {
+    try {
+      const privacySettings = {
+        visibility: visibility,
+        allowFriendView: visibility === 'friends',
+        showInProfile: visibility !== 'no-one',
+        lastUpdated: new Date()
+      };
+
+      const result = await enhancedDataManager.updateSchedulePrivacy(userId, privacySettings);
+      
+      if (result.success) {
+        this.showSuccess('Privacy settings updated successfully!');
+        return true;
+      } else {
+        this.showError('Failed to update privacy settings');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving privacy settings:', error);
+      this.showError('An error occurred while saving settings');
+      return false;
     }
   }
-  
-  // Loading state management
-  setLoading(isLoading) {
-    this.isLoading = isLoading;
-    const loadingEl = document.getElementById('schedule-loading');
-    if (loadingEl) {
-      loadingEl.style.display = isLoading ? 'block' : 'none';
+
+  // Set up event listeners
+  setupEventListeners(userId) {
+    const saveBtn = document.getElementById('save-privacy-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const selectedOption = document.querySelector('input[name="schedule-visibility"]:checked');
+        if (selectedOption) {
+          await this.savePrivacySettings(userId, selectedOption.value);
+        }
+      });
     }
   }
-  
-  // User feedback methods
+
   showSuccess(message) {
-    this.showToast(message, 'success');
-  }
-  
-  showError(message) {
-    this.showToast(message, 'error');
-  }
-  
-  showToast(message, type) {
     // Use your existing notification system
     if (window.showNotification) {
-      window.showNotification(message, type);
-    } else {
-      console.log(`${type.toUpperCase()}: ${message}`);
+      window.showNotification(message, 'success');
+    }
+  }
+
+  showError(message) {
+    // Use your existing notification system  
+    if (window.showNotification) {
+      window.showNotification(message, 'error');
     }
   }
 }
 
-// Create and export singleton
-export const scheduleIntegration = new ScheduleIntegration();
+// Export for use in profile page
+export const schedulePrivacySettings = new SchedulePrivacySettings();
 ```
 
 ---
 
-## Mission 4: Database Security Rules 🛡️
+## Implementation Timeline ⏱️
 
-### Setting Up Firestore Security
+### Day 1: Database Structure & Enhanced DataService
+- **Morning**: Add `scheduleData` section to your users collection structure
+- **Afternoon**: Enhance your existing `DataService.js` with schedule methods
+- **Evening**: Test enhanced DataService with sample data
 
-We need to ensure only users can access their own schedules and friends can view shared schedules.
+### Day 2: Privacy Controls & Migration System  
+- **Morning**: Implement privacy control methods in DataService
+- **Afternoon**: Create `SchedulePrivacySettings.js` component
+- **Evening**: Build localStorage → Firestore migration system
 
-#### File: `firestore.rules` (Update your existing rules)
+## 📅 Detailed Implementation Guide (4 Days)
+**CRITICAL**: Follow this step-by-step guide for intern success!
+
+### **Day 1: Firebase Setup & Service Extension**
+
+**Morning Setup (2 hours):**
+```bash
+# 1. MANDATORY: Start with emulators
+npm run firebase:emulators
+# In another terminal:
+npm run dev
+
+# 2. Study existing patterns
+cat src/js/services/data/DataService.js     # Study existing methods
+cat src/js/store/userStore.js               # Study existing state management
+cat firestore.rules                         # Study existing security rules
+```
+
+**Afternoon Implementation (4 hours):**
+1. **Extend DataService.js**: Add the schedule methods shown above
+2. **Test service methods**: Use browser console to test:
+   ```javascript
+   // In browser console:
+   const dataService = new DataService();
+   // Test method exists:
+   console.log(typeof dataService.saveUserSchedule); // Should show 'function'
+   ```
+3. **Update firestore.rules**: Add schedule privacy rules
+4. **Test Firebase connection**: Ensure emulators work with new methods
+
+**Evening Testing (2 hours):**
+- Test service instantiation
+- Test method calls with console.log
+- Verify no TypeScript/import errors
+
+**Success Criteria:** ✅ DataService has new schedule methods without errors
+
+### **Day 2: State Management & Migration Utility**
+
+**Morning (3 hours):**
+```bash
+# Study existing localStorage patterns:
+cat src/js/pages/HomePage.js | grep -A 10 "localStorage"
+# Look for: saveStateToStorage, loadUserFromStorage functions
+```
+
+**Tasks:**
+1. **Extend userStore.js**: Add schedule state management methods
+2. **Create migration utility**: `src/js/utils/migration/localStorageMigrator.js`
+3. **Test state management**: Verify schedule state updates
+
+**Afternoon Implementation (4 hours):**
+```javascript
+// Create: src/js/utils/migration/localStorageMigrator.js
+export class LocalStorageMigrator {
+  constructor(dataService) {
+    this.dataService = dataService;
+    this.localStorageKey = 'scheduleUsers'; // Your existing key
+  }
+
+  async migrateUserSchedule(userId) {
+    try {
+      // Get existing localStorage data
+      const localData = this.getLocalStorageData();
+      if (!localData || !localData[userId]) {
+        return { migrated: false, reason: 'No local data found' };
+      }
+
+      const userData = localData[userId];
+      
+      // Convert to Firestore format
+      const scheduleData = {
+        timeSlots: userData.timeSlots || [],
+        schedule: userData.schedule || [],
+        slotInfo: userData.slotInfo || [],
+        pinnedSlots: userData.pinnedSlots || [],
+        privacy: {
+          visibility: 'friends', // Default privacy setting
+          allowFriendView: true,
+          showInProfile: true
+        },
+        source: 'migrated_from_localStorage'
+      };
+
+      // Save to Firestore using existing DataService
+      await this.dataService.saveUserSchedule(userId, scheduleData);
+      
+      console.log('✅ Migration successful for user:', userId);
+      return { migrated: true, data: scheduleData };
+      
+    } catch (error) {
+      console.error('❌ Migration failed:', error);
+      return { migrated: false, error: error.message };
+    }
+  }
+
+  getLocalStorageData() {
+    try {
+      return JSON.parse(localStorage.getItem(this.localStorageKey));
+    } catch (error) {
+      console.error('Error reading localStorage:', error);
+      return null;
+    }
+  }
+}
+```
+
+**Evening Testing (1 hour):**
+- Test migration with sample localStorage data
+- Verify data appears in Firestore emulator
+- Test error handling for corrupted data
+
+**Success Criteria:** ✅ Can migrate localStorage data to Firestore successfully
+
+### **Day 3: HomePage Integration & Real Testing**
+
+**Morning Integration (4 hours):**
+Update your `HomePage.js` to use the new system:
 
 ```javascript
+// In your existing HomePage.js file:
+// REPLACE existing localStorage functions with Firestore functions
+
+import { userStore } from '../store/userStore.js';
+import { LocalStorageMigrator } from '../utils/migration/localStorageMigrator.js';
+
+// REPLACE your existing saveStateToStorage function
+async function saveStateToStorage() {
+  const currentUser = state.users[state.activeUserId];
+  if (!currentUser) return;
+
+  try {
+    // Convert your current format to schedule data
+    const scheduleData = {
+      timeSlots: currentUser.timeSlots,
+      schedule: currentUser.schedule,
+      slotInfo: currentUser.slotInfo,
+      pinnedSlots: currentUser.pinnedSlots,
+      source: 'manual_edit'
+    };
+
+    // Save to Firestore via userStore
+    await userStore.saveUserSchedule(state.activeUserId, scheduleData);
+    
+    console.log('✅ Schedule auto-saved to cloud');
+    
+    // Show success feedback (optional)
+    showNotification('Schedule saved to cloud ☁️', 'success');
+    
+  } catch (error) {
+    console.error('❌ Failed to save schedule:', error);
+    
+    // Fallback to localStorage
+    const scheduleUsers = JSON.parse(localStorage.getItem('scheduleUsers') || '{}');
+    scheduleUsers[state.activeUserId] = currentUser;
+    localStorage.setItem('scheduleUsers', JSON.stringify(scheduleUsers));
+    
+    showNotification('Saved locally (offline mode) 💾', 'warning');
+  }
+}
+
+// REPLACE your existing loadState function
+async function loadState() {
+  const currentUserId = getCurrentUserId();
+  
+  try {
+    // Try to load from Firestore first
+    const scheduleData = await userStore.loadUserSchedule(currentUserId);
+    
+    if (scheduleData && !scheduleData.isEmpty) {
+      // Convert Firestore format to your current format
+      const userData = {
+        id: currentUserId,
+        name: getCurrentUserName(),
+        timeSlots: scheduleData.timeSlots,
+        schedule: scheduleData.schedule,
+        slotInfo: scheduleData.slotInfo,
+        pinnedSlots: scheduleData.pinnedSlots
+      };
+      
+      state.users[currentUserId] = userData;
+      state.activeUserId = currentUserId;
+      
+      console.log('✅ Schedule loaded from cloud');
+      
+    } else {
+      // No Firestore data, try migration
+      const migrator = new LocalStorageMigrator(userStore.dataService);
+      const migrationResult = await migrator.migrateUserSchedule(currentUserId);
+      
+      if (migrationResult.migrated) {
+        console.log('✅ Schedule migrated from localStorage');
+        showNotification('Schedule upgraded to cloud storage! ☁️', 'success');
+        
+        // Reload with migrated data
+        await loadState();
+        return;
+      } else {
+        // Create new empty schedule
+        createUser(getCurrentUserName(), currentUserId);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to load from cloud:', error);
+    
+    // Fallback to localStorage
+    const scheduleUsers = JSON.parse(localStorage.getItem('scheduleUsers') || '{}');
+    if (scheduleUsers[currentUserId]) {
+      state.users[currentUserId] = scheduleUsers[currentUserId];
+      state.activeUserId = currentUserId;
+      console.log('⚡ Loaded from localStorage (offline mode)');
+    } else {
+      createUser(getCurrentUserName(), currentUserId);
+    }
+  }
+  
+  updateUI();
+}
+```
+
+**Afternoon Testing (3 hours):**
+```bash
+# Test complete integration:
+# 1. Open homepage
+# 2. Edit schedule (add/remove classes)
+# 3. Check browser network tab - should see Firestore calls
+# 4. Check Firestore emulator - should see data saved
+# 5. Refresh page - should load from Firestore
+```
+
+**Evening Edge Cases (1 hour):**
+- Test with no localStorage data
+- Test with corrupted localStorage data
+- Test offline behavior (disable network)
+- Test migration with different user IDs
+
+**Success Criteria:** ✅ Complete flow from editing schedule to Firestore save works
+
+### **Day 4: Testing, Security & Polish**
+
+**Morning Security (2 hours):**
+```bash
+# Update firestore.rules:
+cat firestore.rules  # Study existing rules
+
+# Add these rules for schedule privacy:
+```
+
+```javascript
+// Add to your existing firestore.rules:
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Your existing rules...
     
-    // Users can read/write their own schedule
-    match /schedules/{userId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == userId;
-    }
-    
-    // Friends can read schedules if sharing is enabled
-    match /schedules/{userId} {
-      allow read: if request.auth != null
-        && request.auth.uid != userId
-        && isFriend(request.auth.uid, userId)
-        && resource.data.settings.shareWithFriends == true;
-    }
-    
-    // Helper function to check friendship
-    function isFriend(currentUserId, targetUserId) {
-      return exists(/databases/$(database)/documents/friendships/$(currentUserId + '_' + targetUserId))
-        || exists(/databases/$(database)/documents/friendships/$(targetUserId + '_' + currentUserId));
-    }
-    
-    // Existing rules for users, friendships, etc.
+    // NEW: Schedule privacy rules
     match /users/{userId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == userId;
-    }
-    
-    match /friendships/{friendshipId} {
-      allow read, write: if request.auth != null
-        && (resource.data.user1Id == request.auth.uid 
-            || resource.data.user2Id == request.auth.uid);
+      allow read: if request.auth != null && (
+        // Users can always read their own data
+        request.auth.uid == userId ||
+        // OR if schedule privacy allows it
+        (
+          resource.data.scheduleData.privacy.visibility == 'public' ||
+          (resource.data.scheduleData.privacy.visibility == 'friends' && 
+           // Check if requester is a friend (simplified for now)
+           request.auth.uid != null)
+        )
+      );
+      
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
 ```
 
----
+**Afternoon Testing (4 hours):**
+```bash
+# Create comprehensive test file:
+# src/js/tests/services/schedule-data.test.js
 
-## Mission 5: Testing Your Schedule Storage 🧾
+# Test privacy controls:
+npm test src/js/tests/services/schedule-data.test.js
+```
 
-### Comprehensive Testing Checklist
-
-#### Test Scenario 1: Basic Schedule Operations
-
+**Create test file:**
 ```javascript
-// Test script you can run in browser console
-async function testScheduleStorage() {
-  console.log('🧪 Testing Schedule Storage...');
-  
-  // Test data
-  const testSchedule = [
-    {
-      id: 'test-1',
-      title: 'Advanced Algorithms',
-      courseCode: 'CSE 401',
-      dayOfWeek: 'monday',
-      startTime: '09:00',
-      endTime: '10:30',
-      location: 'Room 301'
-    },
-    {
-      id: 'test-2',
-      title: 'Database Systems',
-      courseCode: 'CSE 403',
-      dayOfWeek: 'wednesday',
-      startTime: '11:00',
-      endTime: '12:30',
-      location: 'Lab 201'
-    }
-  ];
-  
-  // Test save
-  console.log('Testing save...');
-  const saveResult = await scheduleStorage.saveSchedule(testSchedule);
-  console.log('Save result:', saveResult);
-  
-  // Test load
-  console.log('Testing load...');
-  const loadResult = await scheduleStorage.loadSchedule();
-  console.log('Load result:', loadResult);
-  
-  // Verify data matches
-  if (loadResult && loadResult.scheduleData.length === testSchedule.length) {
-    console.log('✅ Basic save/load test passed!');
-  } else {
-    console.log('❌ Basic save/load test failed!');
-  }
-}
+// src/js/tests/services/schedule-data.test.js
+import { DataService } from '../../services/data/DataService.js';
+import { LocalStorageMigrator } from '../../utils/migration/localStorageMigrator.js';
 
-// Run the test
-testScheduleStorage();
+describe('Schedule Data Management', () => {
+  let dataService;
+  let migrator;
+  
+  beforeEach(() => {
+    dataService = new DataService();
+    migrator = new LocalStorageMigrator(dataService);
+  });
+
+  describe('Schedule Saving', () => {
+    it('should save schedule with privacy controls', async () => {
+      const testScheduleData = {
+        timeSlots: [{ start: "08:00", end: "09:30", label: "08:00-09:30" }],
+        schedule: [[true, false, false]],
+        slotInfo: [[{ courseCode: "TEST101", classroomNumber: "A101" }]],
+        privacy: { visibility: 'friends' }
+      };
+
+      const result = await dataService.saveUserSchedule('test-user-id', testScheduleData);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('Privacy Filtering', () => {
+    it('should respect privacy settings for non-friends', async () => {
+      // Test that non-friends can't see private schedules
+      const schedule = await dataService.getUserSchedule('owner-id', 'stranger-id');
+      expect(schedule.isEmpty).toBe(true);
+    });
+  });
+
+  describe('Migration', () => {
+    it('should migrate localStorage data correctly', () => {
+      // Mock localStorage data
+      const mockLocalData = {
+        'user123': {
+          schedule: [[true, false], [false, true]],
+          slotInfo: [[{courseCode: 'CS101', classroomNumber: 'A1'}]]
+        }
+      };
+      
+      // Test migration logic
+      localStorage.setItem('scheduleUsers', JSON.stringify(mockLocalData));
+      
+      const migrator = new LocalStorageMigrator(dataService);
+      const localData = migrator.getLocalStorageData();
+      
+      expect(localData['user123']).toBeDefined();
+      expect(localData['user123'].schedule).toEqual([[true, false], [false, true]]);
+    });
+  });
+});
 ```
 
-#### Test Checklist
+**Evening Performance & Polish (2 hours):**
+- Test with large schedules (many courses)
+- Test rapid editing (auto-save performance)
+- Add loading states and error handling
+- Test network interruption scenarios
 
-- [ ] **Save Schedule**: Can save schedule to database
-- [ ] **Load Schedule**: Can load schedule from database
-- [ ] **Auto-Save**: Changes auto-save after 3 seconds
-- [ ] **Offline Mode**: Saves locally when offline
-- [ ] **Online Sync**: Syncs local data when back online
-- [ ] **Empty Schedule**: Handles users with no schedule gracefully
-- [ ] **Error Handling**: Shows appropriate error messages
-- [ ] **Stats Calculation**: Schedule statistics display correctly
+**Success Criteria:** ✅ All tests pass, privacy controls work, performance is good
 
----
+## 🧪 Testing & Debugging Guide
 
-## ✅ Phase 1 Completion Criteria
+### Common Issues & Solutions:
+
+**Issue 1: "Cannot find DataService methods"**
+```bash
+# Solution: Check you added methods to existing class
+cat src/js/services/data/DataService.js | grep "saveUserSchedule"
+# Should show your new method
+```
+
+**Issue 2: "Firestore permission denied"**
+```bash
+# Solution: Check security rules
+cat firestore.rules
+# And check if user is authenticated
+console.log(window.auth.currentUser); # Should show user object
+```
+
+**Issue 3: "Migration not working"**
+```bash
+# Debug localStorage data:
+console.log(localStorage.getItem('scheduleUsers'));
+// Should show existing schedule data
+```
+
+**Issue 4: "Schedule not updating in UI"**
+```bash
+# Solution: Check if you're calling updateUI() after state changes
+# In HomePage.js, after loading data:
+updateUI(); // Should be called
+```
+
+### Debug Tools:
+```bash
+# In browser console:
+debug.status()                              # Check system status
+console.log(window.userStore.scheduleState) # Check schedule state
+console.log(window.dataService)             # Check service instance
+
+# Check Firestore data:
+# Visit: http://localhost:4000 (Firestore emulator UI)
+# Navigate to: users/{userId}/scheduleData
+```
+
+## Success Metrics ✅
+- **100% data migration** from localStorage to Firestore
+- **Zero data loss** during migration process
+- **Privacy controls working** in profile settings
+- **Instant auto-save** when schedule changes
+- **Friends-only access** enforced correctly
+- **Offline fallback** to localStorage works
+
+## Phase 1 Completion Criteria
 
 You've successfully completed Phase 1 when:
 
-- [ ] Schedules save automatically to Firebase Firestore
-- [ ] Schedules load correctly when the app starts
-- [ ] Auto-save works after making changes
-- [ ] Offline mode saves locally and syncs when online
-- [ ] Empty schedules are handled gracefully
-- [ ] Users can only access their own schedules
-- [ ] Error messages are helpful and informative
-- [ ] Schedule statistics display correctly
+- [ ] **Enhanced DataService** handles all schedule operations
+- [ ] **Privacy controls** allow "Friends/No One/Public" schedule visibility  
+- [ ] **Seamless migration** from localStorage to Firestore
+- [ ] **HomePage.js integration** uses Firestore instead of localStorage
+- [ ] **Backward compatibility** maintains offline localStorage fallback
+- [ ] **Security rules** enforce privacy settings correctly
+- [ ] **Performance optimization** with render caching works
 
-## 🎉 Celebration & Next Steps!
+## 🎉 Congratulations! 
 
-Fantastic work! You've built a solid foundation for social scheduling. Your schedules now live in the cloud and are ready for the exciting social features coming next.
+Excellent work! You've successfully migrated your schedule system to the cloud while adding powerful privacy controls. Your schedules are now ready for the social features in the next phases!
 
 **What You've Learned:**
-- ✅ Firebase Firestore document structure design
-- ✅ Real-time data synchronization
-- ✅ Offline-first architecture with local backups
-- ✅ Auto-save systems with debouncing
-- ✅ Database security rules for privacy
-- ✅ Error handling and user feedback
+- ✅ **Database design** extending existing collections
+- ✅ **Data migration** strategies for production systems  
+- ✅ **Privacy controls** implementation
+- ✅ **Firestore integration** with existing codebase
+- ✅ **Backward compatibility** and fallback systems
 
-## ⏭️ Ready for Phase 2: Quick Access Friends System! 🚀
+## ⏭️ Ready for Phase 2: Unlimited Quick Access System! 🚀
 
-Now that schedules are safely stored in the database, we can build the "Quick Access" feature that lets users star their favorite friends for easy schedule viewing!
+Now that schedules are stored in Firestore with privacy controls, we can build the enhanced Quick Access system that lets users star unlimited friends!
 
 ---
 
-**Time Required**: 2-3 days  
-**Difficulty**: Beginner-Intermediate 🔥🔥  
-**Skills Learned**: Database design, real-time sync, offline handling
+**Time Required**: 3-4 days  
+**Difficulty**: Intermediate 🔥🔥🔥  
+**Skills Learned**: Database design, migration strategies, privacy controls

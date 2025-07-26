@@ -1,62 +1,253 @@
-# Phase 0: Schedule Import System
-**Foundation for Automated Schedule Processing**
+# Phase 0: Schedule Import System 📸
+**Foundation for Automated Schedule Processing with CampXus Integration**
 
 ## Overview
-Create an intelligent schedule import system that can process university schedule images and text data, automatically extracting course codes, times, room numbers, and converting day codes (ST=Sunday/Tuesday, AR=Thursday/Saturday, MW=Monday/Wednesday) into structured data ready for Phase 1 storage.
+Create an intelligent schedule import system that seamlessly integrates with your existing CampXus schedule system. This phase will process university schedule images and text data, automatically extracting course codes, times, room numbers, and converting your university's day codes (ST=Sunday/Tuesday, AR=Thursday/Saturday, MW=Monday/Wednesday) into the exact format your current `timeSlots` and `schedule` matrices expect.
+
+## 🎯 Learning Objectives for Interns
+By completing this phase, you'll master:
+- **Service Architecture**: How to create proper service classes in the CampXus architecture
+- **Module Integration**: How to extend existing utilities and constants properly
+- **Time Parsing**: Advanced time formatting and validation using existing utils
+- **Error Handling**: Robust error handling patterns used throughout CampXus
+- **Testing**: How to write and run tests for new features
+- **Development Tools**: Using CampXus development tools for debugging
+
+## 📁 Codebase Integration Points
+**CRITICAL**: This phase integrates with existing CampXus architecture - don't create from scratch!
+
+### Files You'll Extend (NOT create new):
+- `src/js/utils/constants.js` - Add the missing 7th time slot
+- `src/js/utils/time/timeUtils.js` - Use existing time parsing functions
+- `src/js/utils/schedule/exportImport.js` - Extend with import functionality
+- `src/js/pages/HomePage.js` - Add import button and integration
+
+### New Files You'll Create:
+- `src/js/services/schedule/ScheduleImportService.js` - Main import service
+- `src/js/services/schedule/UniversityParser.js` - University-specific parsing
+- `src/js/utils/schedule/scheduleValidator.js` - Schedule validation utilities
+- `src/js/tests/services/schedule-import.test.js` - Test suite
+
+### Documentation You Should Read First:
+- `.md files/SPA-All-that-you-need.md` - Understanding the SPA architecture
+- `.md files/UI-Map.md` - DOM elements and interactions
+- `src/js/dev-tools/firebase-dev-tools-README.md` - Development workflow
+
+## Integration with Current System
+Your current schedule system uses:
+- **DEFAULT_TIMESLOTS**: 6 predefined university time slots (missing 18:30-21:30)
+- **User Schedule Matrix**: 7x6 boolean array for busy/free slots  
+- **User SlotInfo Matrix**: 7x6 array with courseCode and classroomNumber
+- **localStorage**: Currently stored locally, Phase 1 will migrate to Firestore
+
+## 🚀 Development Setup & Tools
+**CRITICAL**: Use existing development tools - don't reinvent the wheel!
+
+### Before You Start Coding:
+```bash
+# 1. Set up development environment (MANDATORY)
+npm run dev:config        # Generate Firebase config from .env.local
+npm run dev               # Start development server
+
+# 2. Run existing tests to understand patterns
+npm test src/js/tests/core/script.test.js  # Study existing test patterns
+npm test                  # Ensure nothing is broken
+
+# 3. Use development debugging tools
+# Open browser console and type:
+debug.help()              # See available debug commands
+debug.status()            # Check system status
+```
+
+### Key Development Files to Study:
+```javascript
+// 1. STUDY existing time utilities BEFORE creating new ones
+import { timeUtils } from '../utils/time/timeUtils.js';
+
+// 2. STUDY existing service patterns  
+import { DataService } from '../services/data/DataService.js';
+
+// 3. STUDY existing constants structure
+import { DEFAULT_TIMESLOTS } from '../utils/constants.js';
+
+// 4. STUDY existing DOM patterns
+import { domElements } from '../utils/dom/domElements.js';
+```
+
+### Testing Your Code:
+```bash
+# Create test files following existing patterns:
+# Look at: src/js/tests/core/script.test.js for examples
+npm test src/js/tests/services/schedule-import.test.js
+```
 
 ## Technical Architecture
+**IMPORTANT**: Follow existing CampXus service architecture patterns!
 
-### 1. Import Processing Pipeline
+### 1. Service Architecture (Following CampXus Patterns)
 ```javascript
-// Core schedule import workflow
-const ScheduleImportManager = {
-  // Main entry points
-  processImageUpload(imageFile) → Promise<ParsedSchedule>
-  processTextPaste(textData) → Promise<ParsedSchedule>
+// Create in: src/js/services/schedule/ScheduleImportService.js
+// FOLLOW existing service patterns - study DataService.js first!
+
+import { timeUtils } from '../../utils/time/timeUtils.js';
+import { DataService } from '../data/DataService.js';
+import { DEFAULT_TIMESLOTS } from '../../utils/constants.js';
+
+class ScheduleImportService {
+  constructor() {
+    this.dataService = new DataService();
+    this.parser = new UniversityParser();
+    this.validator = new ScheduleValidator();
+  }
+
+  // Main entry points (follow existing async patterns)
+  async processImageUpload(imageFile) {
+    try {
+      const extractedText = await this.extractTextFromImage(imageFile);
+      return await this.processTextData(extractedText, 'image');
+    } catch (error) {
+      throw new ImportError('Image processing failed', error);
+    }
+  }
+
+  async processTextPaste(textData) {
+    return await this.processTextData(textData, 'text');
+  }
   
-  // Processing pipeline
-  extractTextFromImage(imageFile) → Promise<string>
-  parseScheduleText(text) → ParsedCourses[]
-  validateAndFormat(courses) → ValidatedSchedule
-  previewSchedule(schedule) → SchedulePreview
+  // PRIVATE methods (follow CampXus naming conventions)
+  async _processTextData(text, source) { /* ... */ }
+  async _extractTextFromImage(imageFile) { /* ... */ }
+  _integrateWithCurrentSystem(validatedData) { /* ... */ }
 }
 ```
 
-### 2. Day Code Translation System
+### 2. Constants Extension (MODIFY existing constants.js)
 ```javascript
-// University day code mappings
-const DAY_CODE_MAPPINGS = {
-  'ST': ['Sunday', 'Tuesday'],
-  'MW': ['Monday', 'Wednesday'], 
-  'AR': ['Thursday', 'Saturday'], // Arabic naming (Arbibar/Thursday, Saturday)
-  'TR': ['Tuesday', 'Thursday'],
-  'MWF': ['Monday', 'Wednesday', 'Friday'],
-  'MTWAF': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+// STEP 1: Extend existing src/js/utils/constants.js file
+// DO NOT create new constants - add to existing file!
+
+// ADD this to your existing constants.js:
+export const UNIVERSITY_DAY_CODES = {
+  'ST': ['sunday', 'tuesday'],        // Sunday + Tuesday
+  'MW': ['monday', 'wednesday'],      // Monday + Wednesday  
+  'AR': ['thursday', 'saturday'],     // Thursday + Saturday
+  'T': ['tuesday'],                   // Tuesday only (from your CSC425 example)
+  'TR': ['tuesday', 'thursday'],      // Tuesday + Thursday
+  'MWF': ['monday', 'wednesday', 'friday'],
   
-  // Single day codes
-  'S': ['Sunday'],
-  'M': ['Monday'],
-  'T': ['Tuesday'],
-  'W': ['Wednesday'],
-  'A': ['Thursday'],
-  'F': ['Friday'],
-  'R': ['Saturday'] // Arabic Saturday
+  // Single day codes (if needed)
+  'S': ['sunday'],
+  'M': ['monday'],
+  'W': ['wednesday'],
+  'A': ['thursday'],
+  'F': ['friday'],
+  'R': ['saturday']
+};
+
+// STEP 2: MODIFY existing DEFAULT_TIMESLOTS to add missing slot
+// REPLACE the existing DEFAULT_TIMESLOTS array with:
+export const DEFAULT_TIMESLOTS = [
+  { start: "08:00", end: "09:30", label: "08:00-09:30" },
+  { start: "09:40", end: "11:10", label: "09:40-11:10" },
+  { start: "11:20", end: "12:50", label: "11:20-12:50" },
+  { start: "13:00", end: "14:30", label: "13:00-14:30" },
+  { start: "14:40", end: "16:10", label: "14:40-16:10" },
+  { start: "16:20", end: "17:50", label: "16:20-17:50" },
+  { start: "18:30", end: "21:30", label: "18:30-21:30" }  // NEW: From your schedule image
+];
+
+// STEP 3: Add parsing patterns
+export const SCHEDULE_PARSING_PATTERNS = {
+  MAIN_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})\s+(.+)$/,
+  MULTILINE_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+(GPLab|[A-Z]{1,2}\d{3,4})\s+([A-Z]{1,5}):(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})\s+(.+)$/,
+  TIME_NORMALIZATION: /(\d{1,2}):?(\d{1,2}?)-(\d{1,2}):?(\d{1,2}?)/
 };
 ```
 
-### 3. Text Parsing Engine
+### 3. University Parser (EXTEND existing utilities)
 ```javascript
-// Course information extraction patterns
-const PARSING_PATTERNS = {
-  // Pattern: "CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
-  COURSE_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+([A-Z]\d{4})\s+([A-Z]{1,5}):(\d{2}:\d{2})-(\d{2}:\d{2})\s+(.+)$/,
+// Create in: src/js/services/schedule/UniversityParser.js
+// IMPORTANT: Use existing timeUtils instead of creating new time functions!
+
+import { timeUtils } from '../../utils/time/timeUtils.js';
+import { DEFAULT_TIMESLOTS, UNIVERSITY_DAY_CODES, SCHEDULE_PARSING_PATTERNS } from '../../utils/constants.js';
+
+class UniversityParser {
+  constructor() {
+    // Use existing time utilities - DON'T reinvent!
+    this.timeUtils = timeUtils;
+  }
+
+  parseScheduleText(text) {
+    const lines = text.split('\n').filter(line => line.trim());
+    const courses = [];
+    
+    for (const line of lines) {
+      const course = this._parseCourseLine(line);
+      if (course) {
+        courses.push(course);
+      }
+    }
+    
+    return courses;
+  }
+
+  // PRIVATE method following CampXus naming conventions
+  _parseCourseLine(line) {
+    const cleanLine = line.trim().replace(/\s+/g, ' ');
+    
+    // Try different patterns from constants
+    let match = cleanLine.match(SCHEDULE_PARSING_PATTERNS.MAIN_PATTERN);
+    if (!match) {
+      match = cleanLine.match(SCHEDULE_PARSING_PATTERNS.MULTILINE_PATTERN);
+    }
+    
+    if (!match) {
+      console.warn('Could not parse line:', line);
+      return null;
+    }
+    
+    const [, courseCode, courseName, credits, room, dayCode, startTime, endTime, extra] = match;
+    
+    // USE existing timeUtils for time normalization
+    const normalizedStart = this._normalizeTime(startTime);
+    const normalizedEnd = this._normalizeTime(endTime);
+    
+    // Map to existing time slots
+    const timeSlotIndex = this._findTimeSlotIndex(normalizedStart, normalizedEnd);
+    
+    return {
+      courseCode: courseCode.trim(),
+      courseName: courseName.trim(),
+      credits: parseInt(credits),
+      room: room.trim(),
+      dayCode: dayCode.trim(),
+      days: UNIVERSITY_DAY_CODES[dayCode.trim()] || [],
+      startTime: normalizedStart,
+      endTime: normalizedEnd,
+      timeSlotIndex: timeSlotIndex,
+      section: extra.split(/\s+/)[0],
+      originalLine: line,
+      confidence: match ? 'high' : 'medium'
+    };
+  }
   
-  // Alternative patterns for different university formats
-  SIMPLE_PATTERN: /([A-Z]{2,4}\d{3})\s+(.+?)\s+([A-Z]{1,5})\s+(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/,
-  TIME_PATTERN: /(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/,
-  DAY_PATTERN: /\b([A-Z]{1,5}):/,
-  ROOM_PATTERN: /([A-Z]\d{3,4}|\d{3,4}[A-Z]?)/
-};
+  // PRIVATE: Use existing patterns but handle OCR truncation
+  _normalizeTime(timeStr) {
+    // Handle OCR errors: "16:1" → "16:10", "17:5" → "17:50"
+    const normalized = timeStr.replace(/^(\d{1,2}):(\d{1})$/, '$1:$20');
+    
+    // Use existing timeUtils for validation (study timeUtils.js first!)
+    return this.timeUtils.validateTimeString(normalized) ? normalized : timeStr;
+  }
+  
+  // PRIVATE: Find slot using existing DEFAULT_TIMESLOTS
+  _findTimeSlotIndex(startTime, endTime) {
+    return DEFAULT_TIMESLOTS.findIndex(slot => 
+      slot.start === startTime && slot.end === endTime
+    );
+  }
+}
 ```
 
 ## Implementation Components
@@ -407,53 +598,114 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
 }
 ```
 
-### 5. Integration with Phase 1 Database Structure
+### 5. Integration with Current CampXus Schedule System
 ```javascript
-// Convert imported data to Phase 1 format
-class ScheduleDataAdapter {
-  adaptToPhase1Format(validatedCourses, userId) {
+// Convert imported data to your EXACT current format
+class CampXusScheduleAdapter {
+  adaptToCurrentFormat(validatedCourses, currentUser) {
+    // Update the DEFAULT_TIMESLOTS to include the missing slot
+    const updatedTimeSlots = [
+      ...ENHANCED_TIMESLOTS
+    ];
+    
+    // Create schedule matrices (7 days x 7 slots) 
+    const schedule = Array(7).fill(null).map(() => Array(7).fill(false));
+    const slotInfo = Array(7).fill(null).map(() => 
+      Array(7).fill(null).map(() => ({ courseCode: "", classroomNumber: "" }))
+    );
+    
+    // Populate schedule from imported courses
+    validatedCourses.forEach(course => {
+      if (course.timeSlotIndex >= 0 && course.days.length > 0) {
+        course.days.forEach(dayName => {
+          const dayIndex = this.getDayIndex(dayName);
+          if (dayIndex >= 0) {
+            // Mark slot as busy
+            schedule[dayIndex][course.timeSlotIndex] = true;
+            
+            // Add course information
+            slotInfo[dayIndex][course.timeSlotIndex] = {
+              courseCode: course.courseCode,
+              classroomNumber: course.room
+            };
+          }
+        });
+      }
+    });
+    
+    // Return in EXACT format your current system expects
     return {
-      userId,
-      courses: validatedCourses.map(course => ({
-        // Phase 1 compatible format
-        courseId: this.generateCourseId(course),
-        courseCode: course.courseCode,
-        courseName: course.courseName,
-        credits: course.credits,
-        room: course.room,
-        
-        // Time slots for each day
-        timeSlots: course.days.map(day => ({
-          day: day.toLowerCase(),
-          startTime: course.startTime.formatted,
-          endTime: course.endTime.formatted,
-          startMinutes: this.timeToMinutes(course.startTime),
-          endMinutes: this.timeToMinutes(course.endTime)
-        })),
-        
-        // Metadata
-        semester: course.semester,
-        importSource: 'automated_import',
-        importedAt: new Date().toISOString(),
-        originalData: course.originalString // For debugging
-      })),
+      // Your existing user object structure
+      id: currentUser.id,
+      name: currentUser.name,
+      timeSlots: updatedTimeSlots,  // Enhanced with 7th slot
+      schedule: schedule,           // 7x7 boolean matrix
+      pinnedSlots: Array(7).fill(null).map(() => Array(7).fill(false)), // 7x7 boolean matrix
+      slotInfo: slotInfo,          // 7x7 course info matrix
       
-      // Schedule metadata
-      metadata: {
-        totalCourses: validatedCourses.length,
-        importMethod: 'phase_0_import',
-        lastUpdated: new Date().toISOString(),
-        autoGenerated: true
+      // Import metadata (for debugging/tracking)
+      importMetadata: {
+        importedAt: new Date().toISOString(),
+        totalCoursesImported: validatedCourses.length,
+        importMethod: 'phase_0_automated',
+        successfullyMapped: validatedCourses.filter(c => c.timeSlotIndex >= 0).length
       }
     };
   }
   
-  generateCourseId(course) {
-    // Create unique ID from course code + time + days
-    const timeSignature = `${course.startTime.formatted}-${course.endTime.formatted}`;
-    const daySignature = course.days.sort().join('');
-    return `${course.courseCode}_${daySignature}_${timeSignature}`.toLowerCase();
+  getDayIndex(dayName) {
+    const dayMap = {
+      'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+      'thursday': 4, 'friday': 5, 'saturday': 6
+    };
+    return dayMap[dayName.toLowerCase()] ?? -1;
   }
+  
+  // Integration with your existing HomePage.js
+  integrateWithCurrentSystem(adaptedData) {
+    // This will replace the current user creation logic in HomePage.js
+    // Instead of createUser() with empty schedule, we'll use imported data
+    
+    // Update DEFAULT_TIMESLOTS in constants.js
+    this.updateDefaultTimeslots();
+    
+    // Return user object that can be directly added to state.users
+    return adaptedData;
+  }
+  
+  updateDefaultTimeslots() {
+    // Phase 0.1: Update your constants.js to include 7th slot
+    console.log('📅 Updating DEFAULT_TIMESLOTS to include 18:30-21:30 slot');
+    
+    // This will be done as part of Phase 0 implementation
+    // You'll add: { start: "18:30", end: "21:30", label: "18:30-21:30" }
+    // to your constants.js file
+  }
+}
+
+// Direct Integration Function for HomePage.js
+function importScheduleToCurrentUser(importedData, activeUserId, state) {
+  if (!state.users[activeUserId]) {
+    console.error('No active user found for import');
+    return false;
+  }
+  
+  const adapter = new CampXusScheduleAdapter();
+  const adaptedData = adapter.adaptToCurrentFormat(importedData, state.users[activeUserId]);
+  
+  // Update the existing user object
+  state.users[activeUserId].timeSlots = adaptedData.timeSlots;
+  state.users[activeUserId].schedule = adaptedData.schedule;
+  state.users[activeUserId].slotInfo = adaptedData.slotInfo;
+  
+  // Save to localStorage (your current storage method)
+  saveStateToStorage();
+  
+  // Re-render schedule
+  renderScheduleGrid();
+  
+  console.log('✅ Schedule imported successfully for:', state.users[activeUserId].name);
+  return true;
 }
 ```
 
@@ -543,28 +795,246 @@ class CourseEditModal {
 }
 ```
 
-## Implementation Timeline
+## 📅 Step-by-Step Implementation Guide (10 Days)
 
-### Week 1-2: Foundation
-- Set up OCR integration (Tesseract.js)
-- Create text parsing engine
-- Implement day code conversion system
+### **Day 1: Environment Setup & Constants** 
+```bash
+# MANDATORY setup steps:
+npm run dev:config              # Generate Firebase config
+npm test                        # Ensure all tests pass before changes
 
-### Week 3: User Interface
-- Build upload/paste interface
-- Create schedule preview system
-- Add manual editing capabilities
+# Study existing code patterns:
+cat src/js/utils/constants.js   # Study current constants structure
+cat src/js/utils/time/timeUtils.js  # Study time utilities
+cat src/js/pages/HomePage.js    # Study schedule rendering
+```
 
-### Week 4: Integration & Testing
-- Connect to Phase 1 database format
-- Test with various university schedule formats
-- Optimize parsing accuracy
+**Tasks:**
+1. **Update `src/js/utils/constants.js`**: Add UNIVERSITY_DAY_CODES and update DEFAULT_TIMESLOTS
+2. **Test schedule matrices**: Change HomePage.js to use 7x7 instead of 7x6 matrices
+3. **Run tests**: `npm test` to ensure nothing broke
 
-## Success Metrics
-- **90%+ parsing accuracy** for standard university schedule formats
-- **<3 seconds** processing time for typical schedule images
-- **<5 manual corrections** needed per 20-course schedule
-- **Support for 5+ university schedule formats**
+**Success Criteria:** ✅ Schedule grid shows 7 time slots instead of 6
+
+### **Day 2: Service Architecture Foundation**
+```bash
+# Create new service directory:
+mkdir -p src/js/services/schedule
+
+# Study existing service patterns:
+cat src/js/services/data/DataService.js     # Study service architecture
+cat src/js/services/auth/AuthService.js     # Study error handling patterns
+```
+
+**Tasks:**
+1. **Create `src/js/services/schedule/ScheduleImportService.js`**: Main service class
+2. **Create `src/js/services/schedule/UniversityParser.js`**: Parser class
+3. **Test service instantiation**: Simple console.log tests
+4. **Study error handling**: Review how other services handle errors
+
+**Success Criteria:** ✅ Services can be imported and instantiated without errors
+
+### **Day 3: Text Parsing Implementation**
+```bash
+# Test with real data from your schedule:
+echo "CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z" > test-schedule.txt
+```
+
+**Tasks:**
+1. **Implement UniversityParser._parseCourseLine()**: Core parsing logic
+2. **Test with provided text samples**: CMN205, CSC311, CSC425 examples
+3. **Add debug logging**: Console.log parsed results
+4. **Create basic validation**: Check required fields are present
+
+**Success Criteria:** ✅ Can parse university course strings into structured objects
+
+### **Day 4: Time Integration & Validation**
+```bash
+# Study existing time utilities:
+cat src/js/utils/time/timeUtils.js          # Learn existing time functions
+```
+
+**Tasks:**
+1. **Integrate with existing timeUtils**: Use existing time validation
+2. **Implement time normalization**: Handle "16:1" → "16:10" OCR errors
+3. **Add day code mapping**: ST → ['sunday', 'tuesday']
+4. **Create validation utilities**: Check parsed data integrity
+
+**Success Criteria:** ✅ Correctly maps course times to DEFAULT_TIMESLOTS indices
+
+### **Day 5: Integration with Current System**
+```bash
+# Study current schedule system:
+cat src/js/pages/HomePage.js | grep -A 20 "schedule.*Matrix"  # Study matrices
+```
+
+**Tasks:**
+1. **Create CampXusScheduleAdapter**: Convert parsed data to current format
+2. **Test matrix population**: Ensure 7x7 boolean and slotInfo matrices work
+3. **Integration function**: Connect to existing HomePage.js logic
+4. **Test rendering**: Ensure schedule grid displays imported data
+
+**Success Criteria:** ✅ Parsed courses appear in the schedule grid correctly
+
+### **Day 6: User Interface Components**
+```bash
+# Study existing UI patterns:
+cat public/templates/home.html               # Study template structure
+cat src/js/components/modals/Modal.js        # Study modal patterns
+```
+
+**Tasks:**
+1. **Add import button to home.html**: Follow existing button patterns
+2. **Create import modal UI**: Text paste and file upload sections
+3. **Style with existing CSS**: Use components.css classes
+4. **Add event listeners**: Connect buttons to service functions
+
+**Success Criteria:** ✅ Import modal opens and accepts text input
+
+### **Day 7: Text Processing Integration**
+```bash
+# Test complete text parsing flow:
+npm test src/js/tests/services/schedule-import.test.js
+```
+
+**Tasks:**
+1. **Connect UI to UniversityParser**: Process textarea input
+2. **Show parsing results**: Display parsed courses in preview
+3. **Add error handling**: Show friendly error messages
+4. **Add loading states**: Show processing indicators
+
+**Success Criteria:** ✅ Can paste schedule text and see parsed course list
+
+### **Day 8: Schedule Integration & Save**
+```bash
+# Test complete integration:
+# 1. Paste schedule text
+# 2. See parsed courses  
+# 3. Save to current system
+# 4. See updated schedule grid
+```
+
+**Tasks:**
+1. **Connect to existing localStorage**: Use existing save patterns from HomePage.js
+2. **Update schedule matrices**: Populate user schedule with imported data
+3. **Trigger re-render**: Call existing renderScheduleGrid() function
+4. **Add success feedback**: Show import success message
+
+**Success Criteria:** ✅ Complete flow from text paste to schedule display works
+
+### **Day 9: Testing & Edge Cases**
+```bash
+# Create comprehensive test suite:
+npm test src/js/tests/services/schedule-import.test.js  # Run your tests
+```
+
+**Tasks:**
+1. **Write test suite**: Following existing test patterns in `src/js/tests/`
+2. **Test edge cases**: Empty input, malformed courses, unknown day codes
+3. **Test error handling**: Network errors, parsing failures
+4. **Add data validation**: Prevent corrupt schedule data
+
+**Success Criteria:** ✅ All tests pass, handles edge cases gracefully
+
+### **Day 10: OCR Integration (Optional)** 
+```bash
+# Only if basic text parsing is solid:
+npm install tesseract.js  # Add OCR capability
+```
+
+**Tasks:**
+1. **Add Tesseract.js**: Client-side image OCR
+2. **Create image upload handler**: Process schedule screenshots
+3. **OCR preprocessing**: Optimize image for text extraction
+4. **Fallback handling**: If OCR fails, show manual text input
+
+**Success Criteria:** ✅ Can upload schedule image and extract text automatically
+
+## 🧪 Testing Strategy (Following CampXus Patterns)
+
+### Study Existing Tests First:
+```bash
+# Look at existing test patterns:
+cat src/js/tests/core/script.test.js        # Study test structure
+npm test src/js/tests/firebase/             # Study Firebase test patterns
+```
+
+### Create Your Test Files:
+```javascript
+// src/js/tests/services/schedule-import.test.js
+import { ScheduleImportService } from '../../services/schedule/ScheduleImportService.js';
+import { UniversityParser } from '../../services/schedule/UniversityParser.js';
+
+// Follow existing test patterns - use describe/it/expect
+describe('Schedule Import System', () => {
+  let importService;
+  
+  beforeEach(() => {
+    importService = new ScheduleImportService();
+  });
+  
+  it('should parse university course string correctly', () => {
+    const testCourse = "CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z";
+    const parsed = importService.parser.parseCourseLine(testCourse);
+    
+    expect(parsed.courseCode).toBe('CMN205');
+    expect(parsed.days).toEqual(['sunday', 'tuesday']);
+    expect(parsed.timeSlotIndex).toBeGreaterThanOrEqual(0);
+  });
+  
+  // Add more tests...
+});
+```
+
+## 🐛 Common Debugging Issues & Solutions
+
+### Issue 1: "Cannot find module timeUtils"
+```bash
+# Solution: Check your import paths
+ls src/js/utils/time/timeUtils.js  # Verify file exists
+# Fix: Use correct relative path: '../../utils/time/timeUtils.js'
+```
+
+### Issue 2: "Schedule grid not updating"
+```bash
+# Solution: Check if you're calling existing render function
+# Study: src/js/pages/HomePage.js - look for renderScheduleGrid()
+# Fix: Call renderScheduleGrid() after updating schedule matrices
+```
+
+### Issue 3: "Time slot index -1 (not found)"
+```bash
+# Solution: Check time format matching
+console.log(DEFAULT_TIMESLOTS);  # See available time slots
+console.log(parsedCourse.startTime, parsedCourse.endTime);  # Check parsed times
+# Fix: Ensure parsed times exactly match slot start/end times
+```
+
+### Issue 4: "Day codes not mapping correctly" 
+```bash
+# Solution: Check constants and case sensitivity
+console.log(UNIVERSITY_DAY_CODES);  # See available day codes
+console.log(parsedCourse.dayCode);  # Check extracted day code
+# Fix: Ensure day codes are uppercase and exist in constants
+```
+
+## 🎯 Debug Tools (Use Existing CampXus Tools)
+```bash
+# In browser console:
+debug.help()                    # See available debug commands
+debug.status()                  # Check system status
+debug.testNotification('Import successful!')  # Test notification system
+
+# Check your import service:
+console.log(window.scheduleImportService);  # If you add it to window for debugging
+```
+
+## Success Metrics ✅
+- **95%+ parsing accuracy** for your university's text format
+- **<2 seconds** processing time for text parsing
+- **<5 seconds** processing time for image OCR
+- **100% integration** with your current schedule system
+- **Zero breaking changes** to existing functionality
 
 ## Future Enhancements
 - AI-powered parsing improvements

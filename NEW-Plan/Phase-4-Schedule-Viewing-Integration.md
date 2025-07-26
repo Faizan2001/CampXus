@@ -68,8 +68,9 @@ Let's create a system to fetch and manage friend schedules efficiently.
 #### File: `src/js/core/schedule/friend-schedule-manager.js`
 
 ```javascript
-// Friend Schedule Manager - Handles loading friends' schedules
-import { scheduleStorage } from '../schedule-storage.js';
+// Friend Schedule Manager - Handles loading friends' schedules (Enhanced for CampXus)
+import { enhancedDataManager } from '../../services/data/DataService.js'; // Phase 1 integration
+import { getCurrentUser } from '../../core/currentUser.js';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config/firebase-config.js';
 
@@ -81,7 +82,7 @@ export class FriendScheduleManager {
     this.maxCacheSize = 20; // Maximum cached schedules
   }
   
-  // Load a friend's schedule
+  // Load a friend's schedule (integrates with Phase 1 enhanced data manager)
   async loadFriendSchedule(friendId, friendInfo = null) {
     console.log(`📅 Loading schedule for friend: ${friendId}`);
     
@@ -101,33 +102,39 @@ export class FriendScheduleManager {
     this.loadingSchedules.add(friendId);
     
     try {
-      // Use the schedule storage system to load friend's schedule
-      const result = await scheduleStorage.loadFriendSchedule(friendId);
+      // Use Phase 1 enhanced data manager to load friend's schedule
+      const currentUser = getCurrentUser();
+      const result = await enhancedDataManager.loadUserSchedule(friendId, currentUser?.uid);
       
-      if (result.error) {
+      if (!result.success) {
         return {
           success: false,
-          error: result.error,
+          error: result.error || 'Failed to load schedule',
           friendId: friendId,
-          isEmpty: result.error === "Friend has no schedule set up yet"
+          isEmpty: result.error === 'No data to migrate' || result.error === 'No schedule data found',
+          isPrivate: result.error === 'Schedule is private'
         };
       }
+      
+      // Convert Phase 1 schedule data to display format
+      const scheduleDisplayData = this.convertToDisplayFormat(result.scheduleData);
       
       // Process and cache the schedule
       const processedSchedule = {
         success: true,
         friendId: friendId,
         friendInfo: friendInfo,
-        scheduleData: result.scheduleData || [],
-        metadata: result.metadata || {},
+        scheduleData: scheduleDisplayData,
+        metadata: result.scheduleData.metadata || {},
         loadedAt: Date.now(),
-        isEmpty: !result.scheduleData || result.scheduleData.length === 0
+        isEmpty: !scheduleDisplayData || scheduleDisplayData.length === 0,
+        source: result.source || 'firestore'
       };
       
       // Cache the result
       this.cacheSchedule(friendId, processedSchedule);
       
-      console.log(`✅ Loaded schedule for ${friendId}: ${processedSchedule.scheduleData.length} items`);
+      console.log(`✅ Loaded schedule for ${friendId}: ${processedSchedule.scheduleData.length} classes`);
       return processedSchedule;
       
     } catch (error) {
@@ -142,7 +149,7 @@ export class FriendScheduleManager {
     }
   }
   
-  // Load user's own schedule
+  // Load user's own schedule (integrates with Phase 1 and current HomePage.js system)
   async loadMySchedule() {
     console.log('📅 Loading my own schedule');
     
@@ -154,22 +161,42 @@ export class FriendScheduleManager {
     }
     
     try {
-      const result = await scheduleStorage.loadSchedule();
+      const currentUser = getCurrentUser();
+      
+      // Try Phase 1 enhanced data manager first
+      const result = await enhancedDataManager.loadUserSchedule(currentUser?.uid);
+      
+      let scheduleDisplayData = [];
+      let metadata = {};
+      
+      if (result.success && result.scheduleData) {
+        // Convert Phase 1 format to display format
+        scheduleDisplayData = this.convertToDisplayFormat(result.scheduleData);
+        metadata = result.scheduleData.metadata || {};
+      } else {
+        // Fallback: Try current HomePage.js system
+        const homePageData = this.loadFromHomePage();
+        if (homePageData) {
+          scheduleDisplayData = homePageData.scheduleData;
+          metadata = homePageData.metadata;
+        }
+      }
       
       const processedSchedule = {
         success: true,
         friendId: 'my-schedule',
         friendInfo: { displayName: 'My Schedule', type: 'self' },
-        scheduleData: result?.scheduleData || [],
-        metadata: result?.metadata || {},
+        scheduleData: scheduleDisplayData,
+        metadata: metadata,
         loadedAt: Date.now(),
-        isEmpty: !result?.scheduleData || result.scheduleData.length === 0
+        isEmpty: !scheduleDisplayData || scheduleDisplayData.length === 0,
+        source: result.success ? 'firestore' : 'localStorage'
       };
       
       // Cache personal schedule
       this.cacheSchedule('my-schedule', processedSchedule);
       
-      console.log(`✅ Loaded personal schedule: ${processedSchedule.scheduleData.length} items`);
+      console.log(`✅ Loaded personal schedule: ${processedSchedule.scheduleData.length} classes`);
       return processedSchedule;
       
     } catch (error) {
@@ -242,6 +269,113 @@ export class FriendScheduleManager {
   clearCache() {
     this.scheduleCache.clear();
     console.log('🗑️ Cleared all schedule cache');
+  }
+  
+  // Convert Phase 1 schedule data to display format
+  convertToDisplayFormat(scheduleData) {
+    if (!scheduleData || !scheduleData.schedule || !scheduleData.slotInfo || !scheduleData.timeSlots) {
+      return [];
+    }
+    
+    const displayData = [];
+    const { schedule, slotInfo, timeSlots } = scheduleData;
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    
+    // Convert matrix format to display format
+    for (let dayIndex = 0; dayIndex < schedule.length; dayIndex++) {
+      for (let slotIndex = 0; slotIndex < schedule[dayIndex].length; slotIndex++) {
+        if (schedule[dayIndex][slotIndex] && slotInfo[dayIndex][slotIndex]) {
+          const slotData = slotInfo[dayIndex][slotIndex];
+          const timeSlot = timeSlots[slotIndex];
+          
+          if (slotData.courseCode) {
+            displayData.push({
+              id: `${dayIndex}-${slotIndex}`,
+              title: slotData.courseCode,
+              courseCode: slotData.courseCode,
+              location: slotData.classroomNumber,
+              dayOfWeek: days[dayIndex],
+              startTime: timeSlot.start,
+              endTime: timeSlot.end,
+              dayIndex: dayIndex,
+              slotIndex: slotIndex
+            });
+          }
+        }
+      }
+    }
+    
+    return displayData;
+  }
+  
+  // Load from current HomePage.js system (fallback)
+  loadFromHomePage() {
+    try {
+      // This integrates with your existing HomePage.js system
+      if (window.getState && typeof window.getState === 'function') {
+        const state = window.getState();
+        const currentUser = state.users[state.activeUserId];
+        
+        if (currentUser && currentUser.schedule) {
+          return {
+            scheduleData: this.convertHomePageFormat(currentUser),
+            metadata: {
+              totalClasses: this.countClasses(currentUser.schedule),
+              isEmpty: this.isScheduleEmpty(currentUser.schedule),
+              source: 'homePage'
+            }
+          };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to load from HomePage:', error);
+      return null;
+    }
+  }
+  
+  // Convert HomePage.js format to display format
+  convertHomePageFormat(userData) {
+    const displayData = [];
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    
+    if (userData.schedule && userData.slotInfo && userData.timeSlots) {
+      for (let dayIndex = 0; dayIndex < userData.schedule.length; dayIndex++) {
+        for (let slotIndex = 0; slotIndex < userData.schedule[dayIndex].length; slotIndex++) {
+          if (userData.schedule[dayIndex][slotIndex] && userData.slotInfo[dayIndex][slotIndex]) {
+            const slotData = userData.slotInfo[dayIndex][slotIndex];
+            const timeSlot = userData.timeSlots[slotIndex];
+            
+            if (slotData.courseCode) {
+              displayData.push({
+                id: `${dayIndex}-${slotIndex}`,
+                title: slotData.courseCode,
+                courseCode: slotData.courseCode,
+                location: slotData.classroomNumber,
+                dayOfWeek: days[dayIndex],
+                startTime: timeSlot.start,
+                endTime: timeSlot.end,
+                dayIndex: dayIndex,
+                slotIndex: slotIndex
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    return displayData;
+  }
+  
+  // Helper methods
+  countClasses(schedule) {
+    return schedule.reduce((total, day) => 
+      total + day.filter(slot => slot === true).length, 0
+    );
+  }
+  
+  isScheduleEmpty(schedule) {
+    return schedule.every(day => day.every(slot => slot === false));
   }
   
   // Get cache statistics
@@ -781,10 +915,10 @@ Now let's create the integration layer that connects friend selection to schedul
 #### File: `src/js/core/schedule/schedule-view-controller.js`
 
 ```javascript
-// Schedule View Controller - Coordinates Friends Bar and Schedule Display
+// Schedule View Controller - Coordinates Friends Bar and Schedule Display (Enhanced)
 import { friendScheduleManager } from './friend-schedule-manager.js';
 import { scheduleRenderer } from './schedule-renderer.js';
-import { quickAccessManager } from '../friends/quick-access-manager.js';
+import { quickAccessManager } from '../../services/friends/QuickAccessService.js'; // Phase 2 unlimited system
 
 export class ScheduleViewController {
   constructor() {
@@ -826,9 +960,9 @@ export class ScheduleViewController {
       await this.viewSchedule(friendId, friendData);
     });
     
-    // Listen for Quick Access changes to update preloaded schedules
+    // Listen for Quick Access changes to update preloaded schedules (unlimited system)
     quickAccessManager.addListener(async (event, data) => {
-      if (event === 'friendAdded' || event === 'friendsReordered') {
+      if (event === 'friendAdded' || event === 'friendsReordered' || event === 'friendRemoved') {
         await this.preloadQuickAccessSchedules();
       }
     });
@@ -902,13 +1036,13 @@ export class ScheduleViewController {
     }
   }
   
-  // Preload Quick Access schedules for better performance
+  // Preload Quick Access schedules for better performance (unlimited system)
   async preloadQuickAccessSchedules() {
     try {
-      const quickAccessFriends = quickAccessManager.getQuickAccessFriends();
+      const quickAccessFriends = await quickAccessManager.loadQuickAccessFriends();
       
       if (quickAccessFriends.length > 0) {
-        console.log('🚀 Preloading Quick Access schedules...');
+        console.log(`🚀 Preloading ${quickAccessFriends.length} Quick Access schedules (unlimited system)...`);
         await friendScheduleManager.preloadQuickAccessSchedules(quickAccessFriends);
       }
       
@@ -1450,8 +1584,10 @@ testScheduleViewing();
 #### Testing Checklist
 
 **Core Functionality:**
-- [ ] Clicking "My Schedule" shows user's own schedule
-- [ ] Clicking friend avatars loads their schedules
+- [ ] Clicking "My Schedule" shows user's own schedule (integrates with HomePage.js)
+- [ ] Clicking friend avatars loads their schedules (unlimited Quick Access friends)
+- [ ] **Phase 1 integration**: Loads schedules from Firestore with privacy controls
+- [ ] **Privacy respect**: Shows "Schedule is private" for private schedules
 - [ ] Schedule title updates to show selected friend
 - [ ] Loading states appear during schedule transitions
 - [ ] Empty schedules show appropriate messages
@@ -1466,9 +1602,10 @@ testScheduleViewing();
 
 **Performance:**
 - [ ] Schedule caching reduces database calls
-- [ ] Quick Access schedules preload for faster access
+- [ ] **Unlimited Quick Access**: Preloads all starred friends' schedules
+- [ ] **Phase 1 fallback**: Uses localStorage when Firestore unavailable
 - [ ] No memory leaks during repeated viewing
-- [ ] Smooth performance with multiple friends
+- [ ] Smooth performance with unlimited friends
 
 **Edge Cases:**
 - [ ] Handles friends with no schedules gracefully
@@ -1483,14 +1620,16 @@ testScheduleViewing();
 You've successfully completed Phase 4 when:
 
 - [ ] Friends Bar selections actually load and display schedules
-- [ ] "My Schedule" shows user's own classes correctly
+- [ ] "My Schedule" shows user's own classes correctly (HomePage.js integration)
+- [ ] **Phase 1 integration**: Loads from Firestore with fallback to localStorage
+- [ ] **Unlimited friends**: Can view any number of starred friends' schedules
+- [ ] **Privacy controls**: Respects Phase 1 privacy settings (friends/no-one/public)
 - [ ] Friend schedules display with distinct visual styling
 - [ ] Loading states provide smooth user feedback
 - [ ] Empty and error states are handled gracefully
 - [ ] Schedule caching improves performance noticeably
 - [ ] Mobile devices handle schedule viewing smoothly
 - [ ] Schedule titles and metadata update correctly
-- [ ] Privacy settings are respected (private schedules)
 - [ ] Multiple friend schedule switches work seamlessly
 
 ## 🎉 Incredible Achievement! 
