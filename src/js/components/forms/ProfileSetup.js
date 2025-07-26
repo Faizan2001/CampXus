@@ -37,6 +37,7 @@ import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
 import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
+import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js"; // 🎯 NEW: Schedule import functionality
 
 /**
  * =============================================================================
@@ -55,9 +56,11 @@ class ProfileSetup {
     }
 
     this.currentStep = 0;
-    this.totalSteps = 2; // Basic Info, Avatar & Bio
+    this.totalSteps = 3; // Basic Info, Avatar & Bio, Schedule Import
     this.profileData = {};
     this.avatarConfig = null; // Stores user's avatar configuration
+    this.scheduleData = null; // Stores imported schedule data
+    this.scheduleImportService = new ScheduleImportService(); // 🎯 NEW: Schedule import service
     this.dataLoadInProgress = false; // Prevent duplicate data loading
     this.existingProfileData = null; // Cache for existing profile data
     this.isInitialized = false; // Flag to prevent re-initialization
@@ -772,6 +775,13 @@ class ProfileSetup {
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
       // Avatar configuration is handled by this.avatarConfig
+    } else if (this.currentStep === 2) {
+      // Schedule Import step - schedule data is stored separately in this.scheduleData
+      // DO NOT add schedule data to profileData to avoid Firestore nested arrays error
+      console.log("📅 Schedule import step completed", {
+        hasScheduleData: !!this.scheduleData,
+        coursesCount: this.scheduleData?.courses?.length || 0
+      });
     }
   }
 
@@ -911,7 +921,12 @@ class ProfileSetup {
         this.clearValidationErrors();
       }
     } else if (this.currentStep === 1) {
-      // Step 1: Avatar & bio (optional, this is the new final step)
+      // Step 1: Avatar & bio (optional)
+      nextBtn.textContent = "Next Step →";
+      nextBtn.disabled = false;
+      nextBtn.classList.remove("disabled-state");
+    } else if (this.currentStep === 2) {
+      // Step 2: Schedule Import (optional, this is the new final step)
       nextBtn.textContent = "Complete Setup!";
       nextBtn.disabled = false;
       nextBtn.classList.remove("disabled-state");
@@ -1308,22 +1323,28 @@ class ProfileSetup {
   }
 
   /**
-   * Save the complete profile to Firebase Firestore
+   * Save the complete profile to Firebase Firestore and schedule to localStorage
    */
   async saveProfile() {
     try {
-      // 🎯 Add displayName to profile data (use firstName as displayName)
-      const profileWithDisplayName = {
-        ...this.profileData,
+      // 🎯 Create clean profile data with only essential fields (no schedule data)
+      const cleanProfileData = {
+        firstName: this.profileData.firstName,
+        lastName: this.profileData.lastName,
+        email: this.profileData.email,
+        studentId: this.profileData.studentId,
+        startingYear: this.profileData.startingYear,
+        major: this.profileData.major,
+        bio: this.profileData.bio || "",
         displayName:
           this.profileData.firstName ||
           this.profileData.email?.split("@")[0] ||
           "User",
       };
 
-      // Combine all data for saving
-      const combinedData = {
-        profile: profileWithDisplayName,
+      // 🎯 FIXED: Only include clean profile data to avoid Firestore nested arrays error
+      const profileDataForFirestore = {
+        profile: cleanProfileData,
         universityInfo: {
           university: this.currentUser.email.split("@")[1].split(".")[0],
           universityName: "Independent University, Bangladesh",
@@ -1343,16 +1364,21 @@ class ProfileSetup {
         profileData: this.profileData,
       });
 
-      // Save the combined data to Firestore
-      await dataManager.saveUserProfile(this.currentUser.uid, combinedData);
+      // Save profile to Firestore (without schedule data)
+      await dataManager.saveUserProfile(this.currentUser.uid, profileDataForFirestore);
 
       console.log("✅ Profile saved successfully to Firestore");
 
+      // 🎯 NEW: Save schedule to localStorage using HomePage patterns
+      if (this.scheduleData && this.scheduleData.courses && this.scheduleData.courses.length > 0) {
+        await this.saveScheduleToLocalStorage(cleanProfileData.displayName);
+        console.log("📅 Schedule saved to localStorage successfully");
+      }
+
       // 🔄 NEW: Sync cached user data so friends see changes immediately
-      // Using the combined function that follows DRY principles
       const userInfoForCache = {
-        displayName: profileWithDisplayName.displayName,
-        major: profileWithDisplayName.major,
+        displayName: cleanProfileData.displayName,
+        major: cleanProfileData.major,
         university: this.currentUser.email.split("@")[1].split(".")[0],
         avatarConfig: this.avatarConfig,
       };
@@ -1371,7 +1397,7 @@ class ProfileSetup {
 
       // Use the imported currentUser module, not window.currentUser
       if (currentUser && typeof currentUser.setProfile === "function") {
-        currentUser.setProfile(combinedData);
+        currentUser.setProfile(profileDataForFirestore);
         console.log("✅ currentUser store updated with fresh profile data");
       } else {
         console.error("❌ currentUser store not available for profile update");
@@ -1387,7 +1413,7 @@ class ProfileSetup {
         );
         document.dispatchEvent(
           new CustomEvent("profile:setup:complete", {
-            detail: { userData: combinedData },
+            detail: { userData: profileDataForFirestore },
           })
         );
       }, 1500); // 1.5-second delay
@@ -1396,6 +1422,81 @@ class ProfileSetup {
       alert(
         "Oh no! Something went wrong while saving your profile. Please check your connection and try again."
       );
+    }
+  }
+
+  /**
+   * Save imported schedule to localStorage using existing HomePage patterns
+   * @param {string} userName - User's display name
+   */
+  async saveScheduleToLocalStorage(userName) {
+    try {
+      // Import HomePage functions for user management
+      const { createUserObject } = await import("../../pages/HomePage.js");
+      const { LOCAL_STORAGE_KEY } = await import("../../utils/constants.js");
+
+      // Load existing state from localStorage (HomePage format: {users: {...}, savedAt: ...})
+      let state = { users: {}, savedAt: new Date().toISOString() };
+      try {
+        const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedData) {
+          const parsed = JSON.parse(storedData);
+          // Handle both old format (direct users object) and new format ({users: {...}})
+          state = parsed.users ? parsed : { users: parsed, savedAt: new Date().toISOString() };
+        }
+      } catch (error) {
+        console.warn("Could not load existing users from localStorage:", error);
+      }
+
+      // Create or update user with imported schedule
+      const userId = this.currentUser.uid;
+      let userObject;
+
+      if (state.users[userId]) {
+        // Update existing user
+        userObject = state.users[userId];
+        userObject.name = userName; // Update name in case it changed
+      } else {
+        // Create new user object using HomePage's createUserObject function
+        userObject = createUserObject(userName, userId, state.users);
+        if (!userObject) {
+          throw new Error("Failed to create user object");
+        }
+      }
+
+      // Apply imported schedule to user object
+      if (this.scheduleData) {
+        userObject.schedule = this.scheduleData.schedule;
+        userObject.slotInfo = this.scheduleData.slotInfo;
+        
+        // Ensure timeSlots includes the 7th slot (which we added to constants)
+        const { DEFAULT_TIMESLOTS } = await import("../../utils/constants.js");
+        userObject.timeSlots = [...DEFAULT_TIMESLOTS];
+        
+        console.log("📅 Applied imported schedule to user:", {
+          userId,
+          userName,
+          coursesImported: this.scheduleData.courses.length,
+          scheduleMatrix: userObject.schedule,
+          slotInfo: userObject.slotInfo
+        });
+      }
+
+      // Save updated users back to localStorage in HomePage format
+      state.users[userId] = userObject;
+      state.savedAt = new Date().toISOString();
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+
+      console.log("💾 User with schedule saved to localStorage:", {
+        userId,
+        userName,
+        hasSchedule: !!this.scheduleData,
+        totalUsers: Object.keys(state.users).length
+      });
+
+    } catch (error) {
+      console.error("❌ Failed to save schedule to localStorage:", error);
+      // Don't throw error - profile saving should still succeed
     }
   }
 
@@ -1414,6 +1515,10 @@ class ProfileSetup {
     const skipBtn = document.getElementById("setup-skip-btn");
     const avatarEditBtn = document.getElementById("avatar-edit-btn");
     const bioInput = document.getElementById("setup-bio");
+    const parseScheduleBtn = document.getElementById("parse-schedule-btn");
+    const scheduleTextInput = document.getElementById("schedule-text-input");
+    const scheduleImageInput = document.getElementById("schedule-image-input");
+    const scheduleUploadArea = document.getElementById("schedule-upload-area");
 
     // 🎯 DEFENSIVE: Remove existing listeners first to prevent duplicates
     if (nextBtn && !nextBtn.hasAttribute("data-listener-attached")) {
@@ -1461,6 +1566,24 @@ class ProfileSetup {
       bioInput.setAttribute("data-listener-attached", "true");
     }
 
+    // 🎯 NEW: Schedule import event listeners
+    if (parseScheduleBtn && !parseScheduleBtn.hasAttribute("data-listener-attached")) {
+      parseScheduleBtn.addEventListener("click", () => this.handleScheduleParsing());
+      parseScheduleBtn.setAttribute("data-listener-attached", "true");
+    }
+
+    if (scheduleUploadArea && !scheduleUploadArea.hasAttribute("data-listener-attached")) {
+      scheduleUploadArea.addEventListener("click", () => {
+        if (scheduleImageInput) scheduleImageInput.click();
+      });
+      scheduleUploadArea.setAttribute("data-listener-attached", "true");
+    }
+
+    if (scheduleImageInput && !scheduleImageInput.hasAttribute("data-listener-attached")) {
+      scheduleImageInput.addEventListener("change", (e) => this.handleImageUpload(e));
+      scheduleImageInput.setAttribute("data-listener-attached", "true");
+    }
+
     this.setupFormValidation();
   }
 
@@ -1488,7 +1611,141 @@ class ProfileSetup {
 
   /**
    * =============================================================================
-   *                       10. UTILITY & HELPER METHODS
+   *                       10. SCHEDULE IMPORT METHODS
+   * =============================================================================
+   */
+
+  /**
+   * Handle schedule text parsing when user clicks "Parse Schedule"
+   */
+  async handleScheduleParsing() {
+    const textInput = document.getElementById("schedule-text-input");
+    const parseBtn = document.getElementById("parse-schedule-btn");
+    const statusDiv = document.getElementById("import-status");
+    const previewDiv = document.getElementById("schedule-preview");
+
+    if (!textInput || !textInput.value.trim()) {
+      this.showScheduleError("Please enter some schedule text to parse.");
+      return;
+    }
+
+    try {
+      // Show processing status
+      this.showScheduleStatus("Parsing your schedule...");
+      parseBtn.disabled = true;
+      parseBtn.textContent = "Processing...";
+
+      // Process the schedule text
+      const result = await this.scheduleImportService.processScheduleText(textInput.value);
+
+      if (result.success) {
+        // Store the schedule data
+        this.scheduleData = result.scheduleData;
+        
+        // Show preview
+        this.showSchedulePreview(result);
+        
+        // Hide status
+        this.hideScheduleStatus();
+        
+        console.log("✅ Schedule parsed successfully:", result);
+      } else {
+        this.showScheduleError(`Failed to parse schedule: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("❌ Schedule parsing error:", error);
+      this.showScheduleError("An error occurred while parsing your schedule. Please try again.");
+    } finally {
+      parseBtn.disabled = false;
+      parseBtn.innerHTML = '<i class="fas fa-search"></i> Parse Schedule';
+    }
+  }
+
+  /**
+   * Handle image upload for OCR processing (placeholder for now)
+   */
+  async handleImageUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // For now, show a placeholder message
+    this.showScheduleError("Image upload feature coming soon! Please use text paste for now.");
+  }
+
+  /**
+   * Show schedule processing status
+   */
+  showScheduleStatus(message) {
+    const statusDiv = document.getElementById("import-status");
+    const statusText = document.getElementById("status-text");
+    
+    if (statusDiv && statusText) {
+      statusText.textContent = message;
+      statusDiv.classList.remove("hidden");
+    }
+  }
+
+  /**
+   * Hide schedule processing status
+   */
+  hideScheduleStatus() {
+    const statusDiv = document.getElementById("import-status");
+    if (statusDiv) {
+      statusDiv.classList.add("hidden");
+    }
+  }
+
+  /**
+   * Show schedule error message
+   */
+  showScheduleError(message) {
+    this.hideScheduleStatus();
+    
+    // Show error using existing error system or simple alert for now
+    console.error("Schedule Import Error:", message);
+    alert(message); // TODO: Replace with better error UI
+  }
+
+  /**
+   * Show schedule preview with parsed courses
+   */
+  showSchedulePreview(result) {
+    const previewDiv = document.getElementById("schedule-preview");
+    const coursesFound = document.getElementById("courses-found");
+    const previewContent = document.getElementById("preview-content");
+
+    if (!previewDiv || !coursesFound || !previewContent) return;
+
+    // Update stats
+    coursesFound.textContent = `${result.stats.validCourses} courses found`;
+
+    // Generate course cards
+    const courseCards = result.validationResult.validatedCourses.map(course => `
+      <div class="course-card">
+        <div class="course-header">
+          <span class="course-code">${course.courseCode}</span>
+          <span class="course-credits">${course.credits} cr</span>
+        </div>
+        <h4 class="course-name">${course.courseName}</h4>
+        <div class="course-details">
+          <div class="time-info">
+            <span class="days">${course.days.join(', ')}</span>
+            <span class="time">${course.startTime} - ${course.endTime}</span>
+          </div>
+          <div class="location-info">
+            <span class="room">Room: ${course.room}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    previewContent.innerHTML = courseCards;
+    previewDiv.classList.remove("hidden");
+  }
+
+  /**
+   * =============================================================================
+   *                       11. UTILITY & HELPER METHODS
    * =============================================================================
    */
 

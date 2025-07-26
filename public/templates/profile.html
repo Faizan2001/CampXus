@@ -13,17 +13,18 @@
       <div class="setup-title-section">
         <h1 class="setup-title">Welcome to CampXus! 👋</h1>
         <p class="setup-subtitle">
-          Let's get your profile set up in just 2 quick steps.
+          Let's get your profile set up in just 3 quick steps.
         </p>
       </div>
       <div class="setup-progress-container">
         <div class="setup-step-info">
           <span class="current-step">Step 1</span> of
-          <span class="total-steps">2</span>
+          <span class="total-steps">3</span>
         </div>
         <div class="setup-progress">
           <div class="step-block active" data-step="0"></div>
           <div class="step-block" data-step="1"></div>
+          <div class="step-block" data-step="2"></div>
         </div>
       </div>
     </div>
@@ -164,6 +165,83 @@
           ></textarea>
           <div class="char-counter-container">
             <span id="bio-count">0</span>/200
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Schedule Import -->
+      <div class="setup-step" data-step="2">
+        <div class="step-header">
+          <h2 class="step-title">Import Your Schedule</h2>
+          <p class="step-description">
+            Upload a schedule photo or paste your schedule text to get started quickly (Optional)
+          </p>
+        </div>
+
+        <div class="form-content">
+          <!-- Import Methods Container -->
+          <div class="import-methods">
+            <!-- Text Paste Option -->
+            <div class="import-option">
+              <div class="option-header">
+                <div class="option-icon">📝</div>
+                <h3>Paste Schedule Text</h3>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="schedule-text-input">Schedule Text</label>
+                <textarea
+                  id="schedule-text-input"
+                  name="schedule-text-input"
+                  class="form-input"
+                  rows="4"
+                  placeholder="Paste your schedule text here...
+Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
+                ></textarea>
+                <div class="form-hint">
+                  Copy schedule text from your university portal and paste it here
+                </div>
+              </div>
+              <button type="button" id="parse-schedule-btn" class="button secondary">
+                <i class="fas fa-search"></i> Parse Schedule
+              </button>
+            </div>
+
+            <!-- Upload Option -->
+            <div class="import-option">
+              <div class="option-header">
+                <div class="option-icon">📷</div>
+                <h3>Upload Schedule Image</h3>
+              </div>
+              <div class="upload-area" id="schedule-upload-area">
+                <div class="upload-prompt">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <p>Click to upload or drag & drop</p>
+                  <small>Supports JPG, PNG - Max 10MB</small>
+                </div>
+                <input type="file" id="schedule-image-input" accept="image/*" hidden>
+              </div>
+            </div>
+          </div>
+
+          <!-- Schedule Preview -->
+          <div id="schedule-preview" class="schedule-preview hidden">
+            <div class="preview-header">
+              <h3>📋 Detected Courses</h3>
+              <div class="preview-stats">
+                <span id="courses-found" class="stat-badge">0 courses</span>
+              </div>
+            </div>
+            <div id="preview-content" class="courses-grid">
+              <!-- Generated course cards will appear here -->
+            </div>
+          </div>
+
+          <!-- Import Status -->
+          <div id="import-status" class="import-status hidden">
+            <div class="status-content">
+              <div class="spinner"></div>
+              <p id="status-text">Processing your schedule...</p>
+            </div>
           </div>
         </div>
       </div>
