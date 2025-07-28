@@ -1,6 +1,17 @@
 // js/timeUtils.js
 
 /**
+ * University-specific time parsing (enhanced for Phase-0 schedule import)
+ * Handles OCR errors and multiple formats commonly found in university schedules
+ * @param {string} timeStr - Time string from university schedule
+ * @returns {string} Normalized time string in HH:MM format
+ */
+export function parseUniversityTime(timeStr) {
+  // Use existing convertToHHMM which already handles OCR errors
+  return convertToHHMM(timeStr);
+}
+
+/**
  * Validates time format in strict HH:MM (24-hour) format.
  * @param {string} time - The time string to validate.
  * @returns {boolean} True if valid HH:MM format, false otherwise.
@@ -1162,5 +1173,93 @@ export function compareUserAvailability(user1, user2, dayIndex) {
     commonSlots: commonSlots,
     summary: unifiedSchedule.getSummary(),
     matrix: unifiedSchedule.generateComparisonMatrix()[dayIndex],
+  };
+}
+
+/**
+ * =============================================================================
+ *                       SMART OCR TIME CORRECTION UTILITIES
+ * =============================================================================
+ */
+
+/**
+ * Finds the closest time from a list of valid times within a given tolerance.
+ * This is the 🧠 "brain" function that fixes OCR errors like 16:11 → 16:10
+ * @param {string} timeStr - The time string to correct (e.g., "16:11")
+ * @param {string[]} validTimes - Array of valid time strings (e.g., ["16:10", "17:50"])
+ * @param {number} [tolerance=5] - Maximum difference in minutes to allow for snapping
+ * @returns {string} The corrected time string or original if no close match found
+ */
+export function snapToClosestTime(timeStr, validTimes, tolerance = 5) {
+  const timeInMinutes = parseTime(timeStr);
+  if (isNaN(timeInMinutes)) {
+    return timeStr; // Cannot parse the input time
+  }
+
+  let closestTime = timeStr;
+  let minDifference = Infinity;
+
+  for (const validTime of validTimes) {
+    const validTimeInMinutes = parseTime(validTime);
+    if (isNaN(validTimeInMinutes)) {
+      continue;
+    }
+
+    const difference = Math.abs(timeInMinutes - validTimeInMinutes);
+
+    if (difference < minDifference) {
+      minDifference = difference;
+      closestTime = validTime;
+    }
+  }
+
+  return minDifference <= tolerance ? closestTime : timeStr;
+}
+
+/**
+ * Pads single-digit minutes with a trailing zero.
+ * Handles OCR errors like "16:1" → "16:10" or "17:5" → "17:50"
+ * @param {string} timeStr - The time string to pad
+ * @returns {string} The padded time string
+ */
+export function padTimeMinutes(timeStr) {
+  if (!timeStr) return timeStr;
+  return timeStr.replace(/^(\d{1,2}):(\d)$/, (match, hours, minutes) => {
+    return `${hours}:${minutes}0`;
+  });
+}
+
+/**
+ * Smart OCR time correction that combines padding and snapping.
+ * This is the main function that university parser will use.
+ * @param {string} startTime - Raw start time from OCR (e.g., "14:40")
+ * @param {string} endTime - Raw end time from OCR (e.g., "16:11")
+ * @param {string[]} validTimePoints - Array of all valid time points from university
+ * @returns {{correctedStart: string, correctedEnd: string, changed: boolean}}
+ */
+export function correctOcrTimeSlot(startTime, endTime, validTimePoints) {
+  // Step 1: Pad single-digit minutes (e.g., 17:5 → 17:50)
+  const paddedStart = padTimeMinutes(startTime);
+  const paddedEnd = padTimeMinutes(endTime);
+
+  // Step 2: Snap to closest valid time point within 5-minute tolerance
+  const correctedStart = snapToClosestTime(paddedStart, validTimePoints, 5);
+  const correctedEnd = snapToClosestTime(paddedEnd, validTimePoints, 5);
+
+  // Track if any changes were made
+  const changed = correctedStart !== startTime || correctedEnd !== endTime;
+
+  if (changed) {
+    console.log(`🔧 OCR Time Correction: ${startTime}-${endTime} → ${correctedStart}-${correctedEnd}`);
+  } else {
+    console.log(`📝 Time correction check: ${startTime}-${endTime} (no change needed)`);
+  }
+
+  return { 
+    correctedStart, 
+    correctedEnd, 
+    changed,
+    originalStart: startTime,
+    originalEnd: endTime
   };
 }

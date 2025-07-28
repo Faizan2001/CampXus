@@ -816,8 +816,37 @@ class ProfileSetup {
         this.updateAvatarPreview();
       }
     } else {
-      // Final step - save the profile
-      await this.saveProfile();
+      // Final step - save the profile with loading state
+      const nextBtn = document.getElementById("setup-next-btn");
+      
+      // 🔒 Prevent multiple clicks during save operation
+      if (nextBtn && !nextBtn.disabled) {
+        nextBtn.disabled = true;
+        nextBtn.classList.add('loading');
+        
+        // Store original content and add loading dots
+        const originalContent = nextBtn.innerHTML;
+        nextBtn.innerHTML = `
+          <span class="button-text">Completing...</span>
+          <div class="loading-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+        `;
+        
+        try {
+          await this.saveProfile();
+        } catch (error) {
+          console.error('❌ Profile save failed:', error);
+          // Re-enable button on error
+          nextBtn.disabled = false;
+          nextBtn.classList.remove('loading');
+          nextBtn.innerHTML = originalContent;
+          throw error; // Re-throw to handle in calling context
+        }
+        // Note: Button stays disabled after successful save since user will be redirected
+      }
     }
   }
 
@@ -1662,26 +1691,122 @@ class ProfileSetup {
   }
 
   /**
-   * Handle image upload for OCR processing (placeholder for now)
+   * Handle image upload for OCR processing
    */
   async handleImageUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // For now, show a placeholder message
-    this.showScheduleError("Image upload feature coming soon! Please use text paste for now.");
+    // Prevent double-processing by checking if we're already processing
+    if (this.isProcessingImage) {
+      console.log('🚫 Already processing an image, ignoring duplicate request');
+      return;
+    }
+
+    this.isProcessingImage = true;
+
+    try {
+      // Quick check if OCR is likely to work
+      if (!this.isOcrLikelySupported()) {
+        throw new Error('Image upload requires a modern browser with web worker support. Please use text paste instead.');
+      }
+      
+      // Show processing status
+      this.showScheduleStatus('Uploading image...', 'info');
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select a valid image file (PNG, JPG, etc.)');
+      }
+      
+      // Check file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        throw new Error('Image file is too large. Please use an image smaller than 10MB.');
+      }
+      
+      // Process image with OCR
+      const result = await this.scheduleImportService.processScheduleImage(
+        file, 
+        (message, progress) => {
+          this.showScheduleStatus(message, 'info', progress);
+        }
+      );
+      
+      if (result.success) {
+        this.scheduleData = result.scheduleData;
+        
+        // Check if any courses were actually found
+        const courseCount = result.validationResult?.validatedCourses?.length || 0;
+        
+        if (courseCount > 0) {
+          // Success with courses found
+          this.showSchedulePreview(result);
+          const ocrInfo = `✅ Found ${courseCount} courses! OCR completed with ${result.ocrConfidence}% confidence.`;
+          this.showScheduleStatus(ocrInfo, 'success');
+          console.log('🎉 Image processing successful! Courses found:', courseCount);
+        } else {
+          // Success but no courses found - provide helpful guidance
+          this.showSchedulePreview(result); // Still show empty preview
+          const helpMessage = `📷 OCR completed (${result.ocrConfidence}% confidence) but no courses detected. Try:\n• Taking a clearer photo\n• Ensuring good lighting\n• Cropping to show only the schedule table\n• Or paste the text manually instead`;
+          this.showScheduleStatus(helpMessage, 'info');
+          console.log('ℹ️ OCR successful but no courses parsed. Raw text:', result.extractedText || 'No text extracted');
+        }
+      } else {
+        throw new Error(result.error || 'Failed to process image');
+      }
+      
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      
+      // Provide helpful error messages based on the error type
+      let errorMessage = `Image processing failed: ${error.message}`;
+      
+      if (error.message.includes('security settings') || error.message.includes('CSP')) {
+        errorMessage = 'Image upload blocked by browser security. Please refresh the page and try again, or use text paste instead.';
+      } else if (error.message.includes('not supported')) {
+        errorMessage = 'Image upload not supported in this browser. Please use text paste instead.';
+      } else if (error.message.includes('too large')) {
+        errorMessage = 'Image file is too large. Please use an image smaller than 10MB.';
+      } else if (error.message.includes('valid image')) {
+        errorMessage = 'Please select a valid image file (PNG, JPG, etc.).';
+      }
+      
+      this.showScheduleError(errorMessage);
+      
+      // Clear the file input
+      event.target.value = '';
+    } finally {
+      // Always reset the processing flag
+      this.isProcessingImage = false;
+    }
   }
 
   /**
-   * Show schedule processing status
+   * Show schedule processing status with optional progress and type
+   * @param {string} message - Status message to display
+   * @param {string} type - Status type: 'info', 'success', 'error' (default: 'info')
+   * @param {number} progress - Progress percentage 0-100 (optional)
    */
-  showScheduleStatus(message) {
+  showScheduleStatus(message, type = 'info', progress = null) {
     const statusDiv = document.getElementById("import-status");
     const statusText = document.getElementById("status-text");
     
     if (statusDiv && statusText) {
       statusText.textContent = message;
       statusDiv.classList.remove("hidden");
+      
+      // Update status styling based on type
+      statusDiv.className = statusDiv.className.replace(/status-(info|success|error)/g, '');
+      statusDiv.classList.add(`status-${type}`);
+      
+      // Show progress if provided
+      if (progress !== null && progress >= 0 && progress <= 100) {
+        const progressText = ` (${Math.round(progress)}%)`;
+        if (!message.includes('%')) {
+          statusText.textContent = message + progressText;
+        }
+      }
     }
   }
 
@@ -1692,6 +1817,37 @@ class ProfileSetup {
     const statusDiv = document.getElementById("import-status");
     if (statusDiv) {
       statusDiv.classList.add("hidden");
+    }
+  }
+
+  /**
+   * Quick check if OCR is likely to be supported
+   * @returns {boolean} Whether OCR features might work
+   */
+  isOcrLikelySupported() {
+    try {
+      // Check for Worker support
+      if (typeof Worker === 'undefined') {
+        console.warn('Web Workers not supported - OCR will fail');
+        return false;
+      }
+      
+      // Check for blob URL support
+      if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+        console.warn('Blob URLs not supported - OCR will fail');
+        return false;
+      }
+      
+      // Check for Canvas support
+      if (typeof document === 'undefined' || !document.createElement) {
+        console.warn('Canvas not supported - OCR will fail');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn('OCR support check failed:', error);
+      return false;
     }
   }
 

@@ -356,22 +356,31 @@ This file contains all UI component styles for the MeetchuThere app:
   }
 }
 
-/* Enhanced Hover State */
+/* Enhanced Hover State - FIXED: No more movement */
 .glass-card:hover {
   background: var(--glass-hover);
   border-color: var(--glass-hover-border);
-  transform: var(--glass-transform-hover);
+  /* ❌ Removed transform to prevent unwanted card movement */
 
   box-shadow: var(--glass-hover-glow), 0 0 0 1px var(--glass-hover-highlight),
     var(--glass-inner-glow), 0 20px 60px var(--glass-shadow-strong),
     inset 0 0 0 1px var(--glass-hover-highlight);
 }
 
-/* Active/Pressed State */
+/* Active/Pressed State - FIXED: No more movement */
 .glass-card:active {
   background: var(--glass-active);
-  transform: var(--glass-transform-active);
+  /* ❌ Removed transform to prevent unwanted card movement */
   transition-duration: 0.1s;
+}
+
+/* Optional: Interactive glass cards that CAN move (use .glass-card.interactive) */
+.glass-card.interactive:hover {
+  transform: var(--glass-transform-hover);
+}
+
+.glass-card.interactive:active {
+  transform: var(--glass-transform-active);
 }
 
 /* Enhanced Typography */

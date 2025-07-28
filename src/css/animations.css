@@ -121,6 +121,7 @@ This file contains all animation and transition styles:
   background: var(--btn-ripple-bg);
   transform: translate(-50%, -50%);
   transition: width 0.6s, height 0.6s;
+  pointer-events: none; /* 🔧 Fix: Allow clicks to pass through */
 }
 
 .btn-ripple:active::before {

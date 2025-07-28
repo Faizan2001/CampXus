@@ -31,7 +31,11 @@ export const UNIVERSITY_DAY_CODES = {
 // Schedule parsing patterns for text import
 export const SCHEDULE_PARSING_PATTERNS = {
   // Main pattern: "CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
-  MAIN_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s+(.+)$/,
+  // Updated to handle OCR truncated text like "Introduction to Inte..."
+  MAIN_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s*(.*)$/,
+  
+  // OCR-friendly pattern that's more flexible with spacing and truncated text
+  OCR_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})\s*(.*)$/,
   
   // Alternative pattern for multiline or different formats  
   MULTILINE_PATTERN: /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+(GPLab|[A-Z]{1,2}\d{3,4})\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s+(.+)$/,

@@ -349,6 +349,12 @@ Modern authentication modal that matches the CampXus design language with:
   box-shadow: 0 4px 20px var(--auth-button-shadow-primary),
     0 2px 8px var(--auth-button-shadow-secondary);
   overflow: hidden;
+  
+  /* 🔧 Fix: Prevent height collapse during loading */
+  min-height: 52px; /* Matches padding + line-height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Add subtle shimmer effect */

@@ -1189,6 +1189,7 @@ body.page-friends .schedule-section {
   border-top: var(--friends-spinner-border-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  pointer-events: none; /* 🔧 Fix: Allow clicks to pass through loading spinner */
 }
 
 /* =================================
