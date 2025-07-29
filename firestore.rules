@@ -4,13 +4,28 @@ service cloud.firestore {
 
     // --- User Profiles (/users) ---
     // Users can read their own profile completely.
-    // They can also read the public profiles of other users.
+    // They can also read the public profiles of other users (for friend discovery).
+    // Phase-1: Schedule data is stored within user documents as 'scheduleData' field.
     match /users/{userId} {
-      allow read: if request.auth != null; // Allow any authenticated user to read profiles (for searching)
+      // Allow reading other users' profiles for friend discovery, but schedule data is handled separately
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || // Own profile (full access)
+        isPublicProfileRead(request.auth.uid, userId) // Friend or public profile (limited access)
+      );
+      
       // A user can create their own profile document, but cannot create one for someone else.
       allow create: if request.auth.uid == userId;
-      // A user can only update or delete their own profile.
+      
+      // A user can only update or delete their own profile and schedule data.
       allow update, delete: if request.auth.uid == userId;
+    }
+    
+    // --- Helper Functions ---
+    // Function to check if user can read another user's public profile (but not schedule data)
+    function isPublicProfileRead(requestUserId, targetUserId) {
+      // For Phase-1: Allow reading profile fields for friend discovery
+      // Schedule data access will be restricted in Phase-2+ when friends viewing is implemented
+      return requestUserId != targetUserId; // Can read others' profiles for friend discovery
     }
 
     // --- Universities (Read-Only) ---

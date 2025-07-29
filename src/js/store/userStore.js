@@ -33,6 +33,14 @@ class CurrentUserManager {
     this._profilePromise = null;
     this._resolveProfilePromise = null;
     this._subscribers = new Set();
+    
+    // Phase-1: Schedule state management
+    this._scheduleData = null; // User's schedule data
+    this._isLoadingSchedule = false; // Loading state for schedule operations
+    this._scheduleError = null; // Last schedule operation error
+    this._scheduleLastSynced = null; // When schedule was last synced to Firestore
+    this._isScheduleRealTimeActive = false; // Real-time listener status
+    
     this.reset();
   }
 
@@ -61,14 +69,61 @@ class CurrentUserManager {
   }
 
   /**
+   * The user's schedule data.
+   * @returns {object|null}
+   */
+  get scheduleData() {
+    return this._scheduleData;
+  }
+
+  /**
+   * Schedule loading state.
+   * @returns {boolean}
+   */
+  get isLoadingSchedule() {
+    return this._isLoadingSchedule;
+  }
+
+  /**
+   * Last schedule operation error.
+   * @returns {string|null}
+   */
+  get scheduleError() {
+    return this._scheduleError;
+  }
+
+  /**
+   * When schedule was last synced to Firestore.
+   * @returns {Date|null}
+   */
+  get scheduleLastSynced() {
+    return this._scheduleLastSynced;
+  }
+
+  /**
+   * Real-time schedule listener status.
+   * @returns {boolean}
+   */
+  get isScheduleRealTimeActive() {
+    return this._isScheduleRealTimeActive;
+  }
+
+  /**
    * Gets the complete current user state.
-   * @returns {{user: object|null, profile: object|null, isLoggedIn: boolean}}
+   * @returns {{user: object|null, profile: object|null, isLoggedIn: boolean, schedule: object}}
    */
   get state() {
     return {
       user: this._user,
       profile: this._profile,
       isLoggedIn: this.isLoggedIn(),
+      schedule: {
+        data: this._scheduleData,
+        isLoading: this._isLoadingSchedule,
+        error: this._scheduleError,
+        lastSynced: this._scheduleLastSynced,
+        isRealTimeActive: this._isScheduleRealTimeActive
+      }
     };
   }
 
@@ -222,6 +277,77 @@ class CurrentUserManager {
   }
 
   /**
+   * Sets the user's schedule data. Called from ScheduleStorageService.
+   * @param {object|null} scheduleData - The user's schedule data.
+   */
+  setScheduleData(scheduleData) {
+    this._scheduleData = scheduleData;
+    this._notifySubscribers();
+  }
+
+  /**
+   * Sets the schedule loading state.
+   * @param {boolean} isLoading - Loading state.
+   */
+  setScheduleLoading(isLoading) {
+    this._isLoadingSchedule = isLoading;
+    this._notifySubscribers();
+  }
+
+  /**
+   * Sets the schedule error state.
+   * @param {string|null} error - Error message or null to clear.
+   */
+  setScheduleError(error) {
+    this._scheduleError = error;
+    this._notifySubscribers();
+  }
+
+  /**
+   * Sets the schedule last synced timestamp.
+   * @param {Date|null} timestamp - When schedule was synced.
+   */
+  setScheduleLastSynced(timestamp) {
+    this._scheduleLastSynced = timestamp;
+    this._notifySubscribers();
+  }
+
+  /**
+   * Sets the real-time schedule listener status.
+   * @param {boolean} isActive - Whether real-time listener is active.
+   */
+  setScheduleRealTimeActive(isActive) {
+    this._isScheduleRealTimeActive = isActive;
+    this._notifySubscribers();
+  }
+
+  /**
+   * Clears schedule error state.
+   */
+  clearScheduleError() {
+    this._scheduleError = null;
+    this._notifySubscribers();
+  }
+
+  /**
+   * Gets student ID from email (for display purposes).
+   * @returns {string} Student ID or 'Unknown'
+   */
+  getStudentId() {
+    const email = this._profile?.profile?.email || this._user?.email;
+    return email ? email.split('@')[0] : 'Unknown';
+  }
+
+  /**
+   * Gets display name for current user in schedule (Phase-1 format).
+   * @returns {string} Display name in format "Me (studentID)"
+   */
+  getScheduleDisplayName() {
+    const studentId = this.getStudentId();
+    return `Me (${studentId})`;
+  }
+
+  /**
    * Resets the user state upon logout.
    */
   reset() {
@@ -231,11 +357,20 @@ class CurrentUserManager {
       window.friendsManager.stopRealTimeListening();
     }
 
+    // Reset user state
     this._uid = null;
     this._user = null;
     this._profile = null;
     this._profilePromise = null;
     this._resolveProfilePromise = null;
+    
+    // Reset Phase-1 schedule state
+    this._scheduleData = null;
+    this._isLoadingSchedule = false;
+    this._scheduleError = null;
+    this._scheduleLastSynced = null;
+    this._isScheduleRealTimeActive = false;
+    
     // Notify subscribers of the reset state
     this._notifySubscribers();
   }

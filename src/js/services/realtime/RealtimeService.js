@@ -59,6 +59,9 @@ export const REALTIME_EVENTS = {
   USER_PROFILE: "userProfile",
   USER_STATUS: "userStatus",
   CONNECTION_STATUS: "connectionStatus",
+  // Phase-1: Schedule events
+  USER_SCHEDULE: "userSchedule",
+  SCHEDULE_SYNC: "scheduleSync",
 };
 
 /**
@@ -185,6 +188,8 @@ class RealTimeManager {
     this.setupOutgoingFriendRequestsListener(userId);
     this.setupFriendshipsListener(userId);
     this.setupUserProfileListener(userId);
+    // Phase-1: Schedule listener
+    this.setupUserScheduleListener(userId);
 
     // Emit connection status
     this.emit(REALTIME_EVENTS.CONNECTION_STATUS, {
@@ -325,6 +330,35 @@ class RealTimeManager {
       this.log(`✅ User profile listener active`);
     } catch (error) {
       console.error(`❌ Failed to setup user profile listener:`, error);
+    }
+  }
+
+  /**
+   * Set up user schedule listener (Phase-1)
+   * @param {string} userId - User ID to listen for
+   * @private
+   */
+  setupUserScheduleListener(userId) {
+    const listenerId = "userSchedule";
+
+    try {
+      const unsubscribe = dataManager.listenToUserSchedule(userId, (scheduleData) => {
+        this.log(`📅 Schedule data update: ${scheduleData ? 'Updated' : 'Cleared'}`);
+        this.emit(REALTIME_EVENTS.USER_SCHEDULE, scheduleData);
+        
+        // Emit sync status event for notifications
+        this.emit(REALTIME_EVENTS.SCHEDULE_SYNC, {
+          userId: userId,
+          synced: true,
+          timestamp: Date.now(),
+          syncType: 'realtime'
+        });
+      });
+
+      this.activeListeners.set(listenerId, unsubscribe);
+      this.log(`✅ User schedule listener active`);
+    } catch (error) {
+      console.error(`❌ Failed to setup user schedule listener:`, error);
     }
   }
 

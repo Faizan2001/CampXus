@@ -925,32 +925,123 @@ class DataManager {
   // =========================
 
   /**
-   * Save a user's schedule.
+   * Create enhanced scheduleData structure with Phase-1 improvements.
+   * Based on Gemini feedback: schema versioning, simplified privacy, performance metadata.
+   * @param {Object} scheduleData - Basic schedule data (7x7 matrices)
+   * @param {string} currentUserId - ID of user making the change
+   * @returns {Object} Enhanced schedule data structure
+   * @private
+   */
+  _createEnhancedScheduleData(scheduleData, currentUserId) {
+    // Calculate freeBusySummary for performance (Phase-2/3 friends features)
+    const freeBusySummary = this._calculateFreeBusySummary(scheduleData.schedule || []);
+    
+    const now = new Date();
+    
+    return {
+      // Core schedule data (7x7 matrices)
+      schedule: scheduleData.schedule || Array(7).fill(null).map(() => Array(7).fill(false)),
+      slotInfo: scheduleData.slotInfo || Array(7).fill(null).map(() => 
+        Array(7).fill(null).map(() => ({ courseCode: "", classroomNumber: "" }))
+      ),
+      timeSlots: scheduleData.timeSlots || [], // Will use DEFAULT_TIMESLOTS
+      pinnedSlots: scheduleData.pinnedSlots || Array(7).fill(null).map(() => Array(7).fill(false)),
+      timeBasedPins: scheduleData.timeBasedPins || {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]},
+      
+      // Enhanced metadata (Gemini feedback)
+      metadata: {
+        schemaVersion: 1, // For future migrations
+        lastModified: now,
+        lastModifiedBy: currentUserId, // Track who made changes
+        createdAt: scheduleData.metadata?.createdAt || now,
+        version: (scheduleData.metadata?.version || 0) + 1,
+        importSource: scheduleData.metadata?.importSource || 'manual',
+        freeBusySummary: freeBusySummary, // Performance optimization for friends features
+        totalClasses: this._countTotalClasses(scheduleData.schedule || []),
+        isEmpty: freeBusySummary.every(count => count === 0),
+        hasConflicts: false // TODO: Implement conflict detection
+      },
+      
+      // Simplified privacy (Gemini feedback - single visibility field)
+      privacy: {
+        visibility: scheduleData.privacy?.visibility || 'private', // 'private'|'friends'|'public'
+        allowScheduleRequests: scheduleData.privacy?.allowScheduleRequests || false
+      }
+    };
+  }
+
+  /**
+   * Calculate free/busy summary for performance optimization.
+   * Returns array where index = day of week, value = number of busy slots.
+   * @param {Array} schedule - 7x7 boolean schedule matrix
+   * @returns {Array<number>} [2, 5, 3, 5, 4, 0, 1] (Sun: 2 classes, Mon: 5, etc.)
+   * @private
+   */
+  _calculateFreeBusySummary(schedule) {
+    if (!Array.isArray(schedule) || schedule.length !== 7) {
+      return [0, 0, 0, 0, 0, 0, 0]; // Default: no classes
+    }
+    
+    return schedule.map(daySchedule => {
+      if (!Array.isArray(daySchedule)) return 0;
+      return daySchedule.filter(slot => slot === true).length;
+    });
+  }
+
+  /**
+   * Count total number of classes in schedule.
+   * @param {Array} schedule - 7x7 boolean schedule matrix  
+   * @returns {number} Total number of busy slots
+   * @private
+   */
+  _countTotalClasses(schedule) {
+    if (!Array.isArray(schedule)) return 0;
+    
+    return schedule.reduce((total, daySchedule) => {
+      if (!Array.isArray(daySchedule)) return total;
+      return total + daySchedule.filter(slot => slot === true).length;
+    }, 0);
+  }
+
+  /**
+   * Save a user's schedule with enhanced Phase-1 structure.
    * @param {string} userId - The user's UID
-   * @param {Object} scheduleData - The schedule data
+   * @param {Object} scheduleData - The schedule data (7x7 matrices + metadata)
+   * @param {string} currentUserId - ID of user making the change (for lastModifiedBy)
    * @returns {Promise<{success: boolean, error?: string}>}
    * @example
-   *   await dataManager.saveUserSchedule("abc123", scheduleObj);
+   *   await dataManager.saveUserSchedule("abc123", scheduleObj, "currentUser123");
    */
-  async saveUserSchedule(userId, scheduleData) {
+  async saveUserSchedule(userId, scheduleData, currentUserId = null) {
     try {
+      // Create enhanced scheduleData structure with Phase-1 improvements
+      const enhancedScheduleData = this._createEnhancedScheduleData(scheduleData, currentUserId);
+      
       if (!this.isOnline) {
         this.pendingOperations.push(() =>
-          this.saveUserSchedule(userId, scheduleData)
+          this.saveUserSchedule(userId, scheduleData, currentUserId)
         );
-        this.setCachedData(`schedule_${userId}`, scheduleData);
+        this.setCachedData(`schedule_${userId}`, enhancedScheduleData);
         this.showNotification("Schedule will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
       }
 
+      // Save to Firestore with enhanced structure (scheduleData instead of schedule)
       await updateDoc(doc(db, "users", userId), {
-        schedule: scheduleData,
+        scheduleData: enhancedScheduleData,
         "systemInfo.lastUpdated": serverTimestamp(),
       });
 
-      this.setCachedData(`schedule_${userId}`, scheduleData);
+      // Cache the enhanced data
+      this.setCachedData(`schedule_${userId}`, enhancedScheduleData);
+      
+      // Show sync notification
+      this.showNotification("Schedule synced across devices ✅", "success", {
+        duration: 2000,
+      });
+
       return { success: true };
     } catch (error) {
       console.error("Error saving schedule:", error);
@@ -960,9 +1051,9 @@ class DataManager {
   }
 
   /**
-   * Get a user's schedule.
+   * Get a user's schedule with Phase-1 enhanced structure.
    * @param {string} userId - The user's UID
-   * @returns {Promise<Object|null>} Schedule data or null
+   * @returns {Promise<Object|null>} Enhanced schedule data or null
    * @example
    *   const sched = await dataManager.getUserSchedule("abc123");
    */
@@ -984,7 +1075,8 @@ class DataManager {
       }
 
       const userData = userDoc.data();
-      const scheduleData = userData.schedule || null;
+      // Phase-1: Use new enhanced scheduleData structure
+      const scheduleData = userData.scheduleData || null;
 
       if (scheduleData) {
         this.setCachedData(`schedule_${userId}`, scheduleData);
@@ -995,6 +1087,52 @@ class DataManager {
       console.error("Error fetching schedule:", error);
       this.showError("Failed to load schedule");
       return null;
+    }
+  }
+
+  /**
+   * Listen to real-time schedule changes for cross-device sync.
+   * @param {string} userId - The user's UID to listen to
+   * @param {Function} callback - Callback function to handle schedule updates
+   * @returns {Function} Unsubscribe function to stop listening
+   * @example
+   *   const unsubscribe = dataManager.listenToUserSchedule("abc123", (scheduleData) => {
+   *     console.log("Schedule updated:", scheduleData);
+   *   });
+   *   // Later: unsubscribe();
+   */
+  listenToUserSchedule(userId, callback) {
+    try {
+      const userDocRef = doc(db, "users", userId);
+      
+      const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const userData = docSnapshot.data();
+          const scheduleData = userData.scheduleData || null;
+          
+          if (scheduleData) {
+            // Update cache with real-time data
+            this.setCachedData(`schedule_${userId}`, scheduleData);
+            
+            // Notify callback with updated schedule
+            callback(scheduleData);
+            
+            console.log(`📡 [DataManager] Real-time schedule update received for user: ${userId}`);
+          }
+        } else {
+          callback(null);
+        }
+      }, (error) => {
+        console.error("Error in schedule listener:", error);
+        this.showError("Lost connection to schedule updates");
+      });
+
+      console.log(`📡 [DataManager] Started listening to schedule changes for user: ${userId}`);
+      return unsubscribe;
+      
+    } catch (error) {
+      console.error("Error setting up schedule listener:", error);
+      return () => {}; // Return no-op function
     }
   }
 

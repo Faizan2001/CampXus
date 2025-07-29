@@ -33,6 +33,7 @@ import { avatarManager } from "../../utils/avatar/avatarManager.js";
 
 // Import data manager for Firestore operations
 import { dataManager } from "../../services/data/DataService.js";
+import { scheduleStorageService } from "../../services/schedule/ScheduleStorageService.js";
 import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
@@ -1398,10 +1399,10 @@ class ProfileSetup {
 
       console.log("✅ Profile saved successfully to Firestore");
 
-      // 🎯 NEW: Save schedule to localStorage using HomePage patterns
+      // 🎯 Phase-1: Save schedule to Firestore using ScheduleStorageService
       if (this.scheduleData && this.scheduleData.courses && this.scheduleData.courses.length > 0) {
-        await this.saveScheduleToLocalStorage(cleanProfileData.displayName);
-        console.log("📅 Schedule saved to localStorage successfully");
+        await this.saveScheduleToFirestore();
+        console.log("📅 Schedule saved to Firestore with dual storage strategy");
       }
 
       // 🔄 NEW: Sync cached user data so friends see changes immediately
@@ -1455,77 +1456,60 @@ class ProfileSetup {
   }
 
   /**
-   * Save imported schedule to localStorage using existing HomePage patterns
-   * @param {string} userName - User's display name
+   * Save imported schedule to Firestore using Phase-1 ScheduleStorageService
+   * Uses dual storage strategy (Firestore + localStorage cache)
    */
-  async saveScheduleToLocalStorage(userName) {
+  async saveScheduleToFirestore() {
     try {
-      // Import HomePage functions for user management
-      const { createUserObject } = await import("../../pages/HomePage.js");
-      const { LOCAL_STORAGE_KEY } = await import("../../utils/constants.js");
-
-      // Load existing state from localStorage (HomePage format: {users: {...}, savedAt: ...})
-      let state = { users: {}, savedAt: new Date().toISOString() };
-      try {
-        const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (storedData) {
-          const parsed = JSON.parse(storedData);
-          // Handle both old format (direct users object) and new format ({users: {...}})
-          state = parsed.users ? parsed : { users: parsed, savedAt: new Date().toISOString() };
-        }
-      } catch (error) {
-        console.warn("Could not load existing users from localStorage:", error);
+      if (!this.scheduleData || !this.scheduleData.courses || this.scheduleData.courses.length === 0) {
+        console.log("⚠️ No schedule data to save");
+        return;
       }
 
-      // Create or update user with imported schedule
       const userId = this.currentUser.uid;
-      let userObject;
-
-      if (state.users[userId]) {
-        // Update existing user
-        userObject = state.users[userId];
-        userObject.name = userName; // Update name in case it changed
-      } else {
-        // Create new user object using HomePage's createUserObject function
-        userObject = createUserObject(userName, userId, state.users);
-        if (!userObject) {
-          throw new Error("Failed to create user object");
-        }
-      }
-
-      // Apply imported schedule to user object
-      if (this.scheduleData) {
-        userObject.schedule = this.scheduleData.schedule;
-        userObject.slotInfo = this.scheduleData.slotInfo;
-        
-        // Ensure timeSlots includes the 7th slot (which we added to constants)
-        const { DEFAULT_TIMESLOTS } = await import("../../utils/constants.js");
-        userObject.timeSlots = [...DEFAULT_TIMESLOTS];
-        
-        console.log("📅 Applied imported schedule to user:", {
-          userId,
-          userName,
-          coursesImported: this.scheduleData.courses.length,
-          scheduleMatrix: userObject.schedule,
-          slotInfo: userObject.slotInfo
-        });
-      }
-
-      // Save updated users back to localStorage in HomePage format
-      state.users[userId] = userObject;
-      state.savedAt = new Date().toISOString();
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-
-      console.log("💾 User with schedule saved to localStorage:", {
+      
+      console.log("📅 Saving imported schedule to Firestore:", {
         userId,
-        userName,
-        hasSchedule: !!this.scheduleData,
-        totalUsers: Object.keys(state.users).length
+        coursesImported: this.scheduleData.courses.length,
+        importSource: 'profile_setup'
       });
 
+      // The scheduleData from ScheduleImportService is already in the correct format:
+      // { schedule: 7x7 matrix, slotInfo: 7x7 matrix, courses: array, importedAt: timestamp }
+      
+      // Add import metadata for tracking
+      const scheduleDataWithMetadata = {
+        ...this.scheduleData,
+        metadata: {
+          importSource: 'profile_setup',
+          importMethod: this.scheduleData.importedAt ? 'text' : 'manual',
+          coursesCount: this.scheduleData.courses?.length || 0,
+          importedAt: this.scheduleData.importedAt || new Date().toISOString()
+        }
+      };
+
+      // Use ScheduleStorageService for Phase-1 dual storage strategy
+      const success = await scheduleStorageService.saveUserSchedule(userId, scheduleDataWithMetadata);
+      
+      if (success) {
+        console.log("✅ Schedule saved successfully with dual storage strategy");
+        
+        // Update currentUser store with schedule data
+        currentUser.setScheduleData(scheduleDataWithMetadata);
+        currentUser.setScheduleLastSynced(new Date());
+        currentUser.clearScheduleError();
+      } else {
+        throw new Error("ScheduleStorageService returned false");
+      }
+
     } catch (error) {
-      console.error("❌ Failed to save schedule to localStorage:", error);
-      // Don't throw error - profile saving should still succeed
+      console.error("❌ Failed to save schedule to Firestore:", error);
+      
+      // Update error state in userStore
+      currentUser.setScheduleError(error.message);
+      
+      // Don't throw error - profile saving should still succeed even if schedule save fails
+      console.warn("⚠️ Profile setup will continue despite schedule save failure");
     }
   }
 

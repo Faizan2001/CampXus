@@ -19,6 +19,8 @@ import {
 } from "../utils/schedule/exportImport.js";
 import { authManager } from "../services/auth/AuthService.js";
 import { dataManager } from "../services/data/DataService.js";
+import { scheduleStorageService } from "../services/schedule/ScheduleStorageService.js";
+import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 
 /* ================================
@@ -1249,105 +1251,163 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
 }
 
 /* ================================
-   STATE PERSISTENCE (LocalStorage)
+   STATE PERSISTENCE (Phase-1: Firestore + localStorage Cache)
 ================================== */
-function loadStateFromStorage() {
+async function loadState() {
   try {
-    const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!savedStateString) {
-      console.log('[Storage] No saved data found in localStorage');
+    console.log('📡 [Phase-1] Loading user schedule...');
+    
+    // Check if user is authenticated
+    const user = authManager.getCurrentUser();
+    if (!user) {
+      console.log('⚠️ [Phase-1] No authenticated user, skipping schedule load');
       return;
     }
-    
-    const parsedSavedState = JSON.parse(savedStateString);
-    const loadedUsers = parsedSavedState.users || {};
-    const userCount = Object.keys(loadedUsers).length;
-    
-    console.log(`[Storage] Loading ${userCount} users from localStorage`);
 
-    Object.values(loadedUsers).forEach((user) => {
-      if (
-        !user.timeSlots ||
-        !Array.isArray(user.timeSlots) ||
-        user.timeSlots.length === 0
-      ) {
-        console.warn(`[Storage] User ${user.id} missing timeSlots, applying defaults`);
-        user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
-      }
-      if (user.schedule && user.schedule.length === 7 && user.timeSlots) {
-        const originalSlotCount = user.schedule[0]?.length || 0;
-        const newSlotCount = user.timeSlots.length;
-        
-        if (originalSlotCount !== newSlotCount) {
-          console.log(`[Recovery] Resizing schedule matrix for ${user.name}: ${originalSlotCount} → ${newSlotCount} slots`);
-        }
-        
-        user.schedule = user.schedule.map((daySchedule) => {
-          const newDayScheduleArray = Array(user.timeSlots.length).fill(false);
-          const limit = Math.min(
-            daySchedule.length,
-            newDayScheduleArray.length
-          );
-          for (let i = 0; i < limit; i++)
-            newDayScheduleArray[i] = daySchedule[i];
-          return newDayScheduleArray;
-        });
-      } else {
-        console.warn(`[Recovery] Rebuilding schedule matrix for ${user.name} - invalid or missing data`);
-        user.schedule = createWeeklyMatrix(user.timeSlots.length, false);
-      }
-      // Check if pinnedSlots is missing or has incorrect structure
-      if (
-        !user.pinnedSlots ||
-        !Array.isArray(user.pinnedSlots) ||
-        user.pinnedSlots.length !== 7 ||
-        (user.timeSlots.length > 0 &&
-          (!user.pinnedSlots[0] ||
-            user.pinnedSlots[0].length !== user.timeSlots.length)) ||
-        (user.timeSlots.length === 0 &&
-          user.pinnedSlots[0] &&
-          user.pinnedSlots[0].length !== 0)
-      ) {
-        console.warn(
-          `User ${user.id} (from storage) missing or has invalid pinnedSlots, re-initializing.`
-        );
-        user.pinnedSlots = Array(7)
-          .fill(null)
-          .map(() => Array(user.timeSlots.length).fill(false));
-      }
-
-      // Migrate existing pins to time-based format for cross-user compatibility
-      console.log(`[Migration] Migrating pins for user ${user.name} (${user.id})`);
-      migratePinsToTimeBased(user);
-    });
-    state.users = loadedUsers;
+    console.log(`👤 [Phase-1] Loading schedule for user: ${user.uid}`);
     
-    console.log(`[Storage] Successfully loaded ${userCount} users from localStorage`);
+    // Set loading state in userStore
+    currentUser.setScheduleLoading(true);
+    currentUser.clearScheduleError();
+    
+    // Use ScheduleStorageService to handle dual storage strategy
+    const scheduleData = await scheduleStorageService.loadUserSchedule(user.uid);
+    
+    if (scheduleData) {
+      // Convert to HomePage format using ScheduleStorageService
+      const homePageFormat = scheduleStorageService.convertToHomePageFormat(scheduleData, user.uid);
+      
+      // Update local state for UI rendering
+      state.users[user.uid] = homePageFormat.users[user.uid];
+      state.activeUserId = user.uid;
+      
+      // Update userStore with schedule data
+      currentUser.setScheduleData(scheduleData);
+      
+      // Set up real-time sync through ScheduleStorageService
+      setupScheduleRealTimeSync(user.uid);
+      
+      console.log('✅ [Phase-1] User schedule loaded with real-time sync');
+    } else {
+      console.log('📭 [Phase-1] No schedule data found, initializing empty state');
+      
+      // Initialize empty user for UI
+      state.users[user.uid] = createEmptyUser(user.uid);
+      state.activeUserId = user.uid;
+    }
+    
   } catch (error) {
-    console.error('[Storage] Failed to load state from localStorage:', error);
-    console.warn('[Storage] Starting with empty state');
+    console.error('❌ [Phase-1] Failed to load user schedule:', error);
+    currentUser.setScheduleError(error.message);
+    
+    // Initialize empty user for UI even on error
+    const user = authManager.getCurrentUser();
+    if (user) {
+      state.users[user.uid] = createEmptyUser(user.uid);
+      state.activeUserId = user.uid;
+    }
+  } finally {
+    currentUser.setScheduleLoading(false);
   }
 }
 
-function saveStateToStorage() {
+/**
+ * Create empty user object for UI initialization
+ * @param {string} userId - User ID
+ * @returns {Object} Empty HomePage user object
+ */
+function createEmptyUser(userId) {
+  return {
+    id: userId,
+    name: currentUser.getScheduleDisplayName(), // "Me (studentID)"
+    timeSlots: DEFAULT_TIMESLOTS,
+    schedule: createWeeklyMatrix(7, false),
+    slotInfo: createSlotInfoMatrix(7),
+    pinnedSlots: createWeeklyMatrix(7, false),
+    timeBasedPins: {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]}
+  };
+}
+
+/**
+ * Set up real-time sync using ScheduleStorageService
+ * @param {string} userId - User ID to sync
+ */
+function setupScheduleRealTimeSync(userId) {
+  // Clean up existing listener if any
+  if (window.scheduleRealtimeUnsubscribe) {
+    window.scheduleRealtimeUnsubscribe();
+    window.scheduleRealtimeUnsubscribe = null;
+  }
+  
+  // Set up new real-time sync through ScheduleStorageService
+  window.scheduleRealtimeUnsubscribe = scheduleStorageService.setupRealtimeSync(userId, (updatedScheduleData) => {
+    if (updatedScheduleData && state.users[userId]) {
+      console.log('📡 [Phase-1] Real-time schedule update received via ScheduleStorageService');
+      
+      // Convert updated data to HomePage format
+      const homePageFormat = scheduleStorageService.convertToHomePageFormat(updatedScheduleData, userId);
+      
+      // Update local state for UI
+      state.users[userId] = homePageFormat.users[userId];
+      
+      // Update userStore
+      currentUser.setScheduleData(updatedScheduleData);
+      currentUser.setScheduleLastSynced(new Date());
+      
+      // Re-render UI
+      updateUI();
+      
+      console.log('✅ [Phase-1] UI updated with real-time changes');
+    }
+  });
+  
+  // Mark real-time as active in userStore
+  currentUser.setScheduleRealTimeActive(true);
+}
+
+async function saveStateToStorage() {
   try {
-    const userCount = Object.keys(state.users).length;
-    const dataToSave = { 
-      users: state.users,
-      savedAt: new Date().toISOString()
-    };
+    const user = authManager.getCurrentUser();
+    if (!user || !state.users[user.uid]) {
+      console.log('⚠️ [Phase-1] No user data to save');
+      return;
+    }
     
-    const serializedData = JSON.stringify(dataToSave);
-    localStorage.setItem(LOCAL_STORAGE_KEY, serializedData);
+    console.log('💾 [Phase-1] Saving user schedule...');
     
-    console.log(`[Storage] Saved ${userCount} users to localStorage (${Math.round(serializedData.length / 1024)}KB)`);
+    // Convert HomePage format to scheduleData format using ScheduleStorageService
+    const homePageData = { users: state.users, savedAt: new Date().toISOString() };
+    const scheduleData = scheduleStorageService.convertToFirestoreFormat(homePageData);
+    
+    if (scheduleData) {
+      // Use ScheduleStorageService for dual storage strategy
+      const success = await scheduleStorageService.saveUserSchedule(user.uid, scheduleData);
+      
+      if (success) {
+        // Update userStore with successful save
+        currentUser.setScheduleData(scheduleData);
+        currentUser.setScheduleLastSynced(new Date());
+        currentUser.clearScheduleError();
+        
+        console.log('✅ [Phase-1] Schedule saved successfully');
+      } else {
+        console.warn('⚠️ [Phase-1] Schedule save failed');
+        currentUser.setScheduleError('Failed to save schedule');
+      }
+    } else {
+      console.warn('⚠️ [Phase-1] No schedule data to convert');
+    }
+    
   } catch (error) {
-    console.error('[Storage] Failed to save state to localStorage:', error);
+    console.error('❌ [Phase-1] Failed to save state:', error);
+    currentUser.setScheduleError(error.message);
+    
     if (error.name === 'QuotaExceededError') {
       console.warn('[Storage] localStorage quota exceeded - consider clearing old data');
     }
   }
 }
+
 
 /* ================================
    UI RENDERING FUNCTIONS
