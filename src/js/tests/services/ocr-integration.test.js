@@ -59,13 +59,10 @@ describe('Image Import Integration', () => {
       // Mark as processing
       service.isProcessing = true;
 
-      try {
-        await service.processScheduleImage(mockFile);
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error) {
-        expect(error.message).toContain('Already processing');
-      }
+      const result = await service.processScheduleImage(mockFile);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Already processing');
     });
 
     test('should handle getImportSummary for image imports', () => {

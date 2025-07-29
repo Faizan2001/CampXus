@@ -154,9 +154,12 @@ export class UniversityParser {
     }
     
     if (!match) {
-      console.warn('Could not parse line:', line);
-      console.warn('📋 Trying to match against:', cleanLine);
-      console.warn('🔍 Patterns tried: MAIN_PATTERN, OCR_PATTERN, MULTILINE_PATTERN');
+      // Only log warnings for non-empty lines to reduce test noise
+      if (cleanLine.trim().length > 0) {
+        console.warn('Could not parse line:', line);
+        console.warn('📋 Trying to match against:', cleanLine);
+        console.warn('🔍 Patterns tried: MAIN_PATTERN, OCR_PATTERN, MULTILINE_PATTERN');
+      }
       return null;
     }
 

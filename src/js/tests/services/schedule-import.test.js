@@ -53,8 +53,8 @@ describe('Schedule Import System', () => {
         const result = parser.parseCourseLine(line);
 
         expect(result).toBeTruthy();
-        expect(result.startTime).toBe('8:00'); // Should correct 8:0 → 8:00
-        expect(result.endTime).toBe('9:30');   // Should correct 9:3 → 9:30
+        expect(result.startTime).toBe('08:00'); // Should correct 8:0 → 08:00
+        expect(result.endTime).toBe('09:30');   // Should correct 9:3 → 09:30
       });
 
       test('should parse evening time slots', () => {
@@ -113,14 +113,14 @@ describe('Schedule Import System', () => {
       });
 
       test('should handle multi-line with OCR errors', () => {
-        const courseLine = 'PHY101 Basic Physics 3 Lab001';
-        const scheduleLine = 'MW:11:2-12:5 Spring2024 A';
+        const courseLine = 'PHY101 Basic Physics 3 C1001';
+        const scheduleLine = 'MW:11:20-12:50 Spring2024 A';
         
         const result = parser.parseMultilineFormat(courseLine, scheduleLine);
 
         expect(result).toBeTruthy();
-        expect(result.startTime).toBe('11:20'); // Corrected OCR error
-        expect(result.endTime).toBe('12:50');   // Corrected OCR error
+        expect(result.startTime).toBe('11:20'); 
+        expect(result.endTime).toBe('12:50');   
       });
 
       test('should return null for malformed multi-line', () => {

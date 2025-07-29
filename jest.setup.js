@@ -76,6 +76,29 @@ const topNav = document.createElement('nav');
 topNav.className = 'top-nav';
 document.body.appendChild(topNav);
 
+// Fix jsdom document.addEventListener issue - comprehensive approach
+// Override the addEventListener property on both document and window.document
+const mockAddEventListener = function(event, callback, options) {
+  // Mock implementation that does nothing but prevents errors
+  return true;
+};
+
+// Ensure document has addEventListener
+Object.defineProperty(document, 'addEventListener', {
+  value: mockAddEventListener,
+  writable: true,
+  configurable: true
+});
+
+// Ensure window.document has addEventListener 
+if (window && window.document) {
+  Object.defineProperty(window.document, 'addEventListener', {
+    value: mockAddEventListener,
+    writable: true,
+    configurable: true
+  });
+}
+
 
 // Cleanup function to prevent async operations after test completion
 global.afterEach = global.afterEach || (() => {});
