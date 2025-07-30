@@ -162,6 +162,16 @@ const universityInfo = await getDoc(doc(db, "universities", "iub"));
 
 ### 🚨 **RECENT UPDATES - July 2025**
 
+#### 🔄 **Phase-1 Schedule Storage Foundation**
+
+We've implemented a **comprehensive Phase-1 schedule storage system** with dual storage strategy:
+
+- **✅ Added `scheduleData` field** with enhanced metadata and versioning
+- **✅ Dual Storage Strategy** - Firestore + localStorage for optimal performance
+- **✅ Real-time Cross-device Sync** - Instant schedule updates across all devices
+- **✅ Offline Capability** - Queue changes when offline, sync when back online
+- **✅ Enhanced Security** - Privacy controls with friends/public visibility
+
 #### 🔄 **Enhanced Structure for Real-time Social Features**
 
 We've enhanced the structure to support **industry-standard Firebase best practices** for real-time social applications:
@@ -177,6 +187,7 @@ We've enhanced the structure to support **industry-standard Firebase best practi
 3. **📈 Scalable** - Supports university-wide and cross-university features
 4. **⚡ Performance** - Efficient queries with minimal database reads
 5. **🛠️ Future-Proof** - Extensible for mutual friends, messaging, etc.
+6. **📱 Offline Ready** - Robust offline support with automatic sync
 
 ### 🌟 **The Magic Transformation**
 
@@ -255,6 +266,73 @@ We've enhanced the structure to support **industry-standard Firebase best practi
     privacy: "university",              // string - "university" | "public"
     searchable: true,                   // boolean - Can be found in search
     lastFriendActivity: timestamp       // timestamp - Last social interaction
+  },
+
+  // 📅 Schedule Data (Phase-1 Enhanced Structure)
+  scheduleData: {
+    // Core schedule matrices (stored as maps for Firestore compatibility)
+    schedule: {                         // 7x7 matrix: days × time slots
+      "0": { "0": false, "1": true, "2": false, ... },
+      "1": { "0": true, "1": false, "2": true, ... },
+      "2": { "0": false, "1": true, "2": false, ... },
+      // ... days 0-6 (Mon-Sun)
+    },
+    slotInfo: {                         // Course information for each slot
+      "0": { 
+        "0": { courseCode: "", classroomNumber: "" },
+        "1": { courseCode: "CSE101", classroomNumber: "Room 301" },
+        "2": { courseCode: "", classroomNumber: "" },
+        // ... time slots 0-6
+      },
+      "1": { 
+        "0": { courseCode: "MAT120", classroomNumber: "Room 205" },
+        "1": { courseCode: "", classroomNumber: "" },
+        // ... time slots 0-6
+      },
+      // ... days 0-6
+    },
+    timeSlots: [                        // Time period definitions
+      "08:00-09:00", "09:00-10:00", "10:00-11:00",
+      "11:00-12:00", "13:00-14:00", "14:00-15:00", "15:00-16:00"
+    ],
+    pinnedSlots: {                      // Pinned/locked time slots (same structure as schedule)
+      "0": { "0": false, "1": true, "2": false, ... },
+      // ... days 0-6
+    },
+    timeBasedPins: {                    // Time-based pin configurations
+      // Complex pin rules and constraints for HomePage pin mode
+    },
+
+    // Phase-1 Enhanced Metadata
+    metadata: {
+      schemaVersion: "1.1",             // For future data migrations
+      lastModified: timestamp,
+      lastModifiedBy: "userId",         // Who made the last change
+      version: 15,                      // Incremental version counter
+      source: "manual",                 // "manual" | "ocr" | "import"
+      deviceInfo: {
+        platform: "web",
+        userAgent: "Mozilla/5.0...",
+        timestamp: timestamp
+      }
+    },
+
+    // Privacy Controls
+    privacy: {
+      visibility: "friends",            // "private" | "friends" | "public"
+      allowViewRequests: true,          // Allow schedule view requests
+      showTimeSlots: true,              // Show detailed time information
+      lastUpdated: timestamp
+    },
+
+    // Performance Optimizations
+    freeBusySummary: {                  // Quick availability overview
+      totalBusySlots: 12,
+      totalFreeSlots: 37,               // 7 days × 7 time slots = 49 total
+      busiestDay: 2,                    // Tuesday (0-6 scale)
+      freestDay: 6,                     // Sunday
+      lastCalculated: timestamp
+    }
   }
 }
 ```
@@ -591,3 +669,181 @@ match /friendships/{friendshipId} {
 - **✅ Future-proof**: Extensible for mutual friends, messaging, etc.
 
 This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.
+
+---
+
+## 📅 **Phase-1 Schedule Storage Architecture**
+
+### 🎯 **Dual Storage Strategy**
+
+CampXus implements a sophisticated **dual storage approach** optimized for performance and offline capability:
+
+#### **Primary Storage (Firestore)**
+- **🔄 Real-time Cross-device Sync**: Instant schedule updates across all devices
+- **🛡️ Security & Privacy**: University-level access control with friends/public visibility
+- **📊 Enhanced Metadata**: Versioning, conflict resolution, and performance analytics
+- **⚡ Conflict Resolution**: Last-modified-wins strategy with device tracking
+
+#### **Cache Layer (localStorage)**
+- **⚡ Instant UI Updates**: Immediate response for user interactions
+- **📱 Offline Capability**: Queue changes when offline, sync when back online
+- **🚀 Performance Optimization**: Reduce Firestore reads for frequent access
+- **🧹 Memory Management**: Automatic cleanup and cache invalidation
+
+### 🏗️ **Service Architecture Pattern**
+
+```javascript
+// Service Integration Flow
+ScheduleStorageService ←→ DataService (dataManager) ←→ Firestore
+       ↕                           ↕                      ↕
+  localStorage Cache         Real-time Listeners      Security Rules
+  Offline Queuing           Event Coordination       Privacy Controls
+```
+
+#### **Key Components:**
+
+1. **ScheduleStorageService**: High-level schedule operations with dual storage
+2. **DataService (dataManager)**: Centralized Firestore operations with caching
+3. **RealtimeService**: Event coordination and cross-device sync management
+4. **userStore**: Global state management with loading/error states
+
+### 📊 **Enhanced Schedule Data Structure**
+
+The Phase-1 implementation includes sophisticated metadata and performance optimizations:
+
+```javascript
+scheduleData: {
+  // 📅 Core Schedule Data
+  schedule: {                         // 7x7 matrix stored as Firestore maps
+    "0": { "0": false, "1": true, ... }, // Monday
+    "1": { "0": true, "1": false, ... }, // Tuesday
+    // ... (days 0-6 for Mon-Sun)
+  },
+  
+  slotInfo: {                         // Course details for each time slot
+    "0": { 
+      "0": { courseCode: "", classroomNumber: "" },
+      "1": { courseCode: "CSE101", classroomNumber: "Room 301" },
+      // ...
+    },
+    // ... (days 0-6)
+  },
+
+  // ⚙️ Phase-1 Enhanced Metadata
+  metadata: {
+    schemaVersion: "1.1",             // Migration support
+    lastModified: timestamp,          // Conflict resolution
+    lastModifiedBy: "userId",         // Change tracking
+    version: 15,                      // Incremental versioning
+    source: "manual",                 // "manual" | "ocr" | "import"
+    deviceInfo: {                     // Device tracking
+      platform: "web",
+      userAgent: "...",
+      timestamp: timestamp
+    }
+  },
+
+  // 🛡️ Privacy Controls
+  privacy: {
+    visibility: "friends",            // "private" | "friends" | "public"
+    allowViewRequests: true,          // Allow schedule view requests
+    showTimeSlots: true,              // Show detailed time information
+    lastUpdated: timestamp
+  },
+
+  // 🚀 Performance Optimizations
+  freeBusySummary: {                  // Pre-calculated metrics
+    totalBusySlots: 12,
+    totalFreeSlots: 37,
+    busiestDay: 2,                    // Tuesday (0-6 scale)
+    freestDay: 6,                     // Sunday
+    lastCalculated: timestamp
+  }
+}
+```
+
+### 🔄 **Real-time Sync Flow**
+
+```javascript
+// 1️⃣ User makes schedule change
+HomePage.js → ScheduleStorageService.saveUserSchedule()
+
+// 2️⃣ Instant local update
+localStorage ← scheduleData (immediate UI response)
+
+// 3️⃣ Background Firestore sync
+Firestore ← enhancedScheduleData (with metadata)
+
+// 4️⃣ Real-time cross-device sync
+RealtimeService → onSnapshot() → Other devices updated
+
+// 5️⃣ Offline handling
+if (offline) → pendingSync queue → sync when online
+```
+
+### 🛡️ **Enhanced Security Rules**
+
+```javascript
+// Phase-1 Schedule Access Control
+match /users/{userId} {
+  allow read: if request.auth != null && (
+    // Case 1: User accessing their own document
+    request.auth.uid == userId ||
+    
+    // Case 2: Public schedule visibility
+    resource.data.scheduleData.privacy.visibility == 'public' ||
+    
+    // Case 3: Friends-only access with friendship verification
+    (resource.data.scheduleData.privacy.visibility == 'friends' && 
+     areFriends(request.auth.uid, userId))
+  );
+  
+  // Users can only modify their own data
+  allow create, update, delete: if request.auth.uid == userId;
+}
+
+// Helper function for friendship verification
+function areFriends(userId1, userId2) {
+  return exists(/databases/$(database)/documents/friendships/$(friendshipId)) &&
+         userId1 in get(/databases/$(database)/documents/friendships/$(friendshipId)).data.users &&
+         userId2 in get(/databases/$(database)/documents/friendships/$(friendshipId)).data.users;
+}
+```
+
+### 🎮 **Usage Examples**
+
+```javascript
+// Import the service
+import { scheduleStorageService } from '../services/schedule/ScheduleStorageService.js';
+
+// 📖 Load user schedule with dual strategy
+const scheduleData = await scheduleStorageService.loadUserSchedule(userId);
+// → Tries Firestore first, falls back to localStorage cache
+
+// 💾 Save schedule with instant response
+await scheduleStorageService.saveUserSchedule(userId, scheduleData);
+// → Instant localStorage update, background Firestore sync
+
+// 🔄 Setup real-time sync
+const unsubscribe = scheduleStorageService.setupRealtimeSync(userId, (updatedSchedule) => {
+  console.log('Schedule updated from another device:', updatedSchedule);
+  updateUI(updatedSchedule);
+});
+
+// 📊 Check service status
+const status = scheduleStorageService.getStatus();
+console.log('Online:', status.isOnline, 'Pending:', status.pendingOperations);
+```
+
+### 🎯 **Architecture Benefits**
+
+- **✅ Instant UI Response**: localStorage provides immediate feedback
+- **✅ Cross-device Sync**: Real-time updates via Firestore listeners
+- **✅ Offline Capable**: Queue changes when offline, sync when reconnected
+- **✅ Conflict Resolution**: Last-modified-wins with device tracking
+- **✅ Performance Optimized**: Caching reduces database reads
+- **✅ Privacy Controls**: Granular visibility settings
+- **✅ Future-proof**: Schema versioning supports data migrations
+- **✅ Memory Efficient**: Automatic cleanup and resource management
+
+This Phase-1 architecture provides a solid foundation for schedule storage while maintaining the flexibility to expand into Phase-2 friend schedule viewing and Phase-3 advanced social features.

@@ -248,36 +248,66 @@ class AuthManager {
    * Set up all event listeners for the modal
    */
   setupModalEventListeners() {
-    // Tab switching
-    document.querySelectorAll(".auth-tab").forEach((tab) => {
-      tab.addEventListener("click", (e) => {
-        const tabName = e.target.dataset.tab;
-        this.switchTab(tabName);
-      });
-    });
+    // 🎯 PHANTOM ERROR FIX: Add safety checks for DOM elements
+    try {
+      // Tab switching
+      const authTabs = document.querySelectorAll(".auth-tab");
+      if (authTabs.length > 0) {
+        authTabs.forEach((tab) => {
+          tab.addEventListener("click", (e) => {
+            const tabName = e.target.dataset.tab;
+            this.switchTab(tabName);
+          });
+        });
+      } else {
+        console.warn("⚠️ AuthService: .auth-tab elements not found during setup");
+      }
 
-    // Form submissions
-    document.getElementById("signin-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      this.handleSignIn();
-    });
+      // Form submissions - with existence checks
+      const signinForm = document.getElementById("signin-form");
+      if (signinForm) {
+        signinForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          this.handleSignIn();
+        });
+      } else {
+        console.warn("⚠️ AuthService: #signin-form not found during setup");
+      }
 
-    document.getElementById("signup-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      this.handleSignUp();
-    });
+      const signupForm = document.getElementById("signup-form");
+      if (signupForm) {
+        signupForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          this.handleSignUp();
+        });
+      } else {
+        console.warn("⚠️ AuthService: #signup-form not found during setup");
+      }
 
-    // Real-time email validation for signup
-    document.getElementById("signup-email").addEventListener("input", (e) => {
-      this.validateEmailInRealTime(e.target.value);
-    });
+      // Real-time email validation for signup
+      const signupEmail = document.getElementById("signup-email");
+      if (signupEmail) {
+        signupEmail.addEventListener("input", (e) => {
+          this.validateEmailInRealTime(e.target.value);
+        });
+      } else {
+        console.warn("⚠️ AuthService: #signup-email not found during setup");
+      }
 
-    // Clear errors when user starts typing
-    document.querySelectorAll(".form-input").forEach((input) => {
-      input.addEventListener("input", () => {
-        clearFieldError(input); // Use external function
-      });
-    });
+      // Clear errors when user starts typing
+      const formInputs = document.querySelectorAll(".form-input");
+      if (formInputs.length > 0) {
+        formInputs.forEach((input) => {
+          input.addEventListener("input", () => {
+            clearFieldError(input); // Use external function
+          });
+        });
+      } else {
+        console.warn("⚠️ AuthService: .form-input elements not found during setup");
+      }
+    } catch (error) {
+      console.error("❌ AuthService: Error setting up modal event listeners:", error);
+    }
 
     // Close modal when clicking outside
     this.authModal.addEventListener("click", (e) => {
@@ -316,9 +346,18 @@ class AuthManager {
       return;
     }
 
-    const email = document.getElementById("signin-email").value.trim();
-    const password = document.getElementById("signin-password").value;
+    // 🎯 PHANTOM ERROR FIX: Check if elements exist before accessing
+    const emailEl = document.getElementById("signin-email");
+    const passwordEl = document.getElementById("signin-password");
     const button = document.getElementById("signin-button");
+    
+    if (!emailEl || !passwordEl || !button) {
+      console.error("❌ AuthService: Required sign-in form elements not found");
+      return;
+    }
+    
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
 
     // Validate form
     if (!this.validateSignInForm(email, password)) {
@@ -404,12 +443,20 @@ class AuthManager {
       return;
     }
 
-    const email = document.getElementById("signup-email").value.trim();
-    const password = document.getElementById("signup-password").value;
-    const confirmPassword = document.getElementById(
-      "signup-confirm-password"
-    ).value;
+    // 🎯 PHANTOM ERROR FIX: Check if elements exist before accessing
+    const emailEl = document.getElementById("signup-email");
+    const passwordEl = document.getElementById("signup-password");
+    const confirmPasswordEl = document.getElementById("signup-confirm-password");
     const button = document.getElementById("signup-button");
+    
+    if (!emailEl || !passwordEl || !confirmPasswordEl || !button) {
+      console.error("❌ AuthService: Required sign-up form elements not found");
+      return;
+    }
+    
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
+    const confirmPassword = confirmPasswordEl.value;
 
     // Validate form
     if (!this.validateSignUpForm(email, password, confirmPassword)) {
@@ -773,29 +820,58 @@ class AuthManager {
    * Switch between sign in and sign up tabs
    */
   switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll(".auth-tab").forEach((tab) => {
-      tab.classList.remove("active");
-    });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add("active");
+    // 🎯 PHANTOM ERROR FIX: Add safety checks for DOM elements
+    try {
+      // Update tab buttons
+      const authTabs = document.querySelectorAll(".auth-tab");
+      if (authTabs.length > 0) {
+        authTabs.forEach((tab) => {
+          tab.classList.remove("active");
+        });
+      }
+      
+      const targetTab = document.querySelector(`[data-tab="${tabName}"]`);
+      if (targetTab) {
+        targetTab.classList.add("active");
+      } else {
+        console.warn(`⚠️ AuthService: Tab button [data-tab="${tabName}"] not found`);
+      }
 
-    // Update forms
-    document.querySelectorAll(".auth-form").forEach((form) => {
-      form.classList.remove("active");
-    });
-    document.getElementById(`${tabName}-form`).classList.add("active");
+      // Update forms
+      const authForms = document.querySelectorAll(".auth-form");
+      if (authForms.length > 0) {
+        authForms.forEach((form) => {
+          form.classList.remove("active");
+        });
+      }
+      
+      const targetForm = document.getElementById(`${tabName}-form`);
+      if (targetForm) {
+        targetForm.classList.add("active");
+      } else {
+        console.warn(`⚠️ AuthService: Form #${tabName}-form not found`);
+      }
 
-    // Clear any errors
-    clearAllErrors(); // Use external function
+      // Clear any errors
+      clearAllErrors(); // Use external function
+    } catch (error) {
+      console.error(`❌ AuthService: Error switching to tab "${tabName}":`, error);
+    }
   }
 
   /**
    * Validate email in real-time as user types
    */
   validateEmailInRealTime(email) {
+    // 🎯 PHANTOM ERROR FIX: Check if elements exist before accessing
     const universityInfo = document.getElementById("university-info");
     const universityName = document.getElementById("university-name");
     const universityDomain = document.getElementById("university-domain");
+
+    if (!universityInfo || !universityName || !universityDomain) {
+      console.warn("⚠️ AuthService: University info elements not found for email validation");
+      return;
+    }
 
     if (!email) {
       universityInfo.classList.remove("visible");

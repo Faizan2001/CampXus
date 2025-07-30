@@ -84,24 +84,11 @@ export function initializeDomElements() {
     "addTimeSlotHeaderCell"
   );
 
-  // Debug log for important missing elements
-  const criticalElements = [
-    "scheduleTable",
-    "userListContainer",
-    "compareButton",
-  ];
-  
-  // Only check for critical elements if we're on the home page
-  const currentRoute = window.location.hash.slice(1) || "home";
-  const shouldCheckCritical = currentRoute === "home";
-  
-  if (shouldCheckCritical) {
-    const missingCritical = criticalElements.filter((key) => !DOM_ELEMENTS[key]);
-    
-    if (missingCritical.length > 0) {
-      console.error("Critical DOM elements missing:", missingCritical);
-    }
-  }
+  // Debug log for important missing elements - but only after page templates are loaded
+  // NOTE: Critical elements like scheduleTable, userListContainer, compareButton 
+  // are only available after the SPA router loads the home template.
+  // This function is called during app initialization before templates are loaded,
+  // so we skip the critical check here to avoid phantom errors.
 
   // Log optional missing elements as warnings
   const optionalElements = [
@@ -118,4 +105,31 @@ export function initializeDomElements() {
       missingOptional
     );
   }
+}
+
+/**
+ * Validates critical DOM elements for a specific route after page templates are loaded.
+ * Should be called after SPA router loads page templates.
+ * @param {string} route - The current route (e.g., 'home', 'friends')
+ */
+export function validateCriticalElementsForRoute(route) {
+  if (route === "home") {
+    const criticalElements = [
+      "scheduleTable",
+      "userListContainer", 
+      "compareButton",
+    ];
+    
+    const missingCritical = criticalElements.filter((key) => !DOM_ELEMENTS[key]);
+    
+    if (missingCritical.length > 0) {
+      console.error("Critical DOM elements missing for home page:", missingCritical);
+      return false;
+    }
+    
+    console.log("✅ All critical DOM elements found for home page");
+    return true;
+  }
+  
+  return true; // No critical elements to check for other routes
 }

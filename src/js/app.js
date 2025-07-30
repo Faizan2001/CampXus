@@ -6,14 +6,6 @@
  *
  * This script:
  * - Creates the router instance
- * - Handles /**
- * CampXus SPA Initialization
- *
- * 🎯 Learning: This file initializes our Single Page Application
- * It's like the "conductor" that makes sure everything starts up correctly!
- *
- * This script:
- * - Creates the router instance
  * - Handles authentication state
  * - Manages navigation redirects
  * - Integrates with existing app functionality

@@ -12,7 +12,6 @@ import {
 } from "../../pages/HomePage.js";
 
 //Modules needed for setup
-import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../../utils/constants.js";
 import { DOM_ELEMENTS, initializeDomElements } from "../../utils/dom/domElements.js";
 import { initModal } from "../../components/modals/Modal.js";
 
@@ -257,7 +256,7 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
       // Modal opening and input setting will be done in each test
     });
 
-    test("should update state, localStorage, and return true for valid inputs", () => {
+    test("should update state and return true for valid inputs", () => {
       openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("10:15", "11:15");
@@ -270,7 +269,8 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
         end: "11:15",
         label: "10:15-11:15",
       });
-      expect(localStorage.getItem(LOCAL_STORAGE_KEY)).toContain("10:15-11:15");
+      // Note: localStorage is no longer used in Firebase-based implementation
+      // Data is saved through scheduleStorageService to Firebase
       expect(
         document.getElementById("edit-slot-error-message").style.display
       ).toBe("none");

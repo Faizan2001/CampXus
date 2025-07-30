@@ -57,7 +57,8 @@ Object.defineProperty(global, 'document', {
       }),
       width: 100,
       height: 100
-    })
+    }),
+    addEventListener: () => {} // Add addEventListener method to prevent errors
   }
 });
 
