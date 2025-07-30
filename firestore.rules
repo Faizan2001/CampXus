@@ -9,8 +9,12 @@ service cloud.firestore {
     match /users/{userId} {
       // Allow reading other users' profiles for friend discovery, but schedule data is handled separately
       allow read: if request.auth != null && (
-        request.auth.uid == userId || // Own profile (full access)
-        isPublicProfileRead(request.auth.uid, userId) // Friend or public profile (limited access)
+        // Case 1: The user is requesting their own document.
+        request.auth.uid == userId ||
+        // Case 2: The user is requesting a public schedule.
+        resource.data.scheduleData.privacy.visibility == 'public' ||
+        // Case 3: The user is a friend and the schedule is friends-only.
+        (resource.data.scheduleData.privacy.visibility == 'friends' && areFriends(request.auth.uid, userId))
       );
       
       // A user can create their own profile document, but cannot create one for someone else.
@@ -26,6 +30,14 @@ service cloud.firestore {
       // For Phase-1: Allow reading profile fields for friend discovery
       // Schedule data access will be restricted in Phase-2+ when friends viewing is implemented
       return requestUserId != targetUserId; // Can read others' profiles for friend discovery
+    }
+
+    function areFriends(userId1, userId2) {
+      // Check if a friendship document exists where the 'users' array contains both user IDs.
+      return exists(/databases/$(database)/documents/friendships/$(friendshipId)) &&
+             friendshipId in get(/databases/$(database)/documents/friendships/$(friendshipId)).data.users &&
+             userId1 in get(/databases/$(database)/documents/friendships/$(friendshipId)).data.users &&
+             userId2 in get(/databases/$(database)/documents/friendships/$(friendshipId)).data.users;
     }
 
     // --- Universities (Read-Only) ---

@@ -3,31 +3,35 @@
  *                        SCHEDULE STORAGE SERVICE
  *                    Phase-1 Schedule Storage Foundation
  * =============================================================================
- * 
+ *
  * This service handles the dual storage strategy for user schedules:
  * - Firestore as primary storage with real-time sync
  * - localStorage as cache for instant UI updates
  * - Cross-device synchronization with conflict resolution
- * 
+ *
  * Features:
  * - Dual storage (Firestore + localStorage)
  * - Real-time sync across devices
  * - Last-modified-wins conflict resolution
  * - Background sync with notifications
  * - Offline detection and queuing
- * 
+ *
  * Architecture follows project patterns:
  * - Service-oriented design (like DataService.js, AuthService.js)
  * - Proper separation of concerns from HomePage.js
  * - Integration with existing notification system
- * 
+ *
  * =============================================================================
  */
 
-import { DataService } from '../data/DataService.js';
-import { notificationManager } from '../realtime/NotificationService.js';
-import { realTimeManager, REALTIME_EVENTS } from '../realtime/RealtimeService.js';
-import { currentUser } from '../../store/userStore.js';
+import { dataManager } from "../data/DataService.js";
+import { notificationManager } from "../realtime/NotificationService.js";
+import {
+  realTimeManager,
+  REALTIME_EVENTS,
+} from "../realtime/RealtimeService.js";
+import { currentUser } from "../../store/userStore.js";
+import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 
 /**
  * Phase-1 Schedule Storage Service
@@ -35,13 +39,13 @@ import { currentUser } from '../../store/userStore.js';
  */
 export class ScheduleStorageService {
   constructor() {
-    this.dataService = new DataService();
+    this.dataManager = dataManager;
     this.isOnline = navigator.onLine;
     this.pendingSync = new Set(); // Track offline operations
     this.realtimeListener = null;
     this.isLoading = false;
     this.lastError = null;
-    
+
     // Setup online/offline detection
     this.setupOfflineDetection();
   }
@@ -62,23 +66,35 @@ export class ScheduleStorageService {
       // Try Firestore first (if online)
       if (this.isOnline) {
         try {
-          scheduleData = await this.dataService.getUserSchedule(userId);
-          
+          scheduleData = await this.dataManager.getUserSchedule(userId);
+
           if (scheduleData) {
             // Cache successful Firestore load
             this.cacheScheduleData(userId, scheduleData);
-            console.log('✅ Schedule loaded from Firestore and cached');
+            console.log("✅ Schedule loaded from Firestore and cached");
           }
         } catch (error) {
-          console.warn('⚠️ Firestore load failed, trying cache:', error.message);
-          
+          console.warn(
+            "⚠️ Firestore load failed, trying cache:",
+            error.message
+          );
+
           // Categorize error types for better handling
-          if (error.code === 'permission-denied') {
-            this.lastError = 'Access denied. Please check your authentication.';
-            notificationManager.showSystemNotification('Schedule access denied', 'error', 'Authentication Error');
-          } else if (error.code === 'unavailable') {
-            this.lastError = 'Firestore temporarily unavailable. Using cached data.';
-            notificationManager.showSystemNotification('Using offline schedule data', 'warning', 'Connection Issue');
+          if (error.code === "permission-denied") {
+            this.lastError = "Access denied. Please check your authentication.";
+            notificationManager.showSystemNotification(
+              "Schedule access denied",
+              "error",
+              "Authentication Error"
+            );
+          } else if (error.code === "unavailable") {
+            this.lastError =
+              "Firestore temporarily unavailable. Using cached data.";
+            notificationManager.showSystemNotification(
+              "Using offline schedule data",
+              "warning",
+              "Connection Issue"
+            );
           } else {
             this.lastError = `Firestore error: ${error.message}`;
           }
@@ -89,13 +105,13 @@ export class ScheduleStorageService {
       if (!scheduleData) {
         scheduleData = this.getCachedScheduleData(userId);
         if (scheduleData) {
-          console.log('📱 Schedule loaded from localStorage cache');
+          console.log("📱 Schedule loaded from localStorage cache");
         }
       }
 
       return scheduleData;
     } catch (error) {
-      console.error('❌ Failed to load schedule:', error);
+      console.error("❌ Failed to load schedule:", error);
       this.lastError = error.message;
       return null;
     } finally {
@@ -114,30 +130,41 @@ export class ScheduleStorageService {
     try {
       // 1. Instant localStorage update for immediate UI response
       this.cacheScheduleData(userId, scheduleData);
-      console.log('💾 Schedule saved to localStorage cache');
+      console.log("💾 Schedule saved to localStorage cache");
 
       // 2. Background Firestore sync
       if (this.isOnline) {
         try {
-          await this.dataService.saveUserSchedule(userId, scheduleData, currentUser.uid);
-          console.log('☁️ Schedule synced to Firestore');
-          
-          // Show sync notification
-          notificationManager.showSystemNotification('Schedule synced across devices', 'success', 'Sync Complete');
+          await this.dataManager.saveUserSchedule(
+            userId,
+            scheduleData,
+            currentUser.uid
+          );
+          console.log("☁️ Schedule synced to Firestore");
         } catch (error) {
-          console.error('⚠️ Firestore sync failed:', error);
+          console.error("⚠️ Firestore sync failed:", error);
           // Queue for offline sync
           this.pendingSync.add({ userId, scheduleData, timestamp: Date.now() });
+          notificationManager.showSystemNotification(
+            "Offline: Schedule changes saved locally and will sync when online.",
+            "warning",
+            "Offline Mode"
+          );
         }
       } else {
         // Queue for when back online
         this.pendingSync.add({ userId, scheduleData, timestamp: Date.now() });
-        console.log('📱 Schedule queued for sync when online');
+        notificationManager.showSystemNotification(
+          "Offline: Schedule changes saved locally and will sync when online.",
+          "warning",
+          "Offline Mode"
+        );
+        console.log("📱 Schedule queued for sync when online");
       }
 
       return true;
     } catch (error) {
-      console.error('❌ Failed to save schedule:', error);
+      console.error("❌ Failed to save schedule:", error);
       this.lastError = error.message;
       return false;
     }
@@ -158,21 +185,29 @@ export class ScheduleStorageService {
     }
 
     // Subscribe to centralized real-time events (senior developer pattern)
-    this.realtimeListener = realTimeManager.on(REALTIME_EVENTS.USER_SCHEDULE, (scheduleData) => {
-      // Update cache with real-time data
-      this.cacheScheduleData(userId, scheduleData);
-      
-      // Notify UI of update
-      if (callback) {
-        callback(scheduleData);
-      }
+    this.realtimeListener = realTimeManager.on(
+      REALTIME_EVENTS.USER_SCHEDULE,
+      (scheduleData) => {
+        // Update cache with real-time data
+        this.cacheScheduleData(userId, scheduleData);
 
-      console.log('🔄 Real-time schedule update received via RealtimeService');
-    });
+        // Notify UI of update
+        if (callback) {
+          callback(scheduleData);
+        }
+
+        console.log(
+          "🔄 Real-time schedule update received via RealtimeService"
+        );
+      }
+    );
 
     // Ensure RealtimeService is listening for this user
-    if (!realTimeManager.isListening || realTimeManager.currentUserId !== userId) {
-      console.log('🚀 Starting RealtimeService for schedule sync');
+    if (
+      !realTimeManager.isListening ||
+      realTimeManager.currentUserId !== userId
+    ) {
+      console.log("🚀 Starting RealtimeService for schedule sync");
       realTimeManager.startListening(userId);
     }
 
@@ -187,9 +222,9 @@ export class ScheduleStorageService {
   convertToFirestoreFormat(homePageData) {
     const currentUserId = currentUser.uid;
     const userData = homePageData.users[currentUserId];
-    
+
     if (!userData) {
-      console.warn('No user data found for current user');
+      console.warn("No user data found for current user");
       return null;
     }
 
@@ -198,7 +233,7 @@ export class ScheduleStorageService {
       slotInfo: userData.slotInfo || [],
       timeSlots: userData.timeSlots || [],
       pinnedSlots: userData.pinnedSlots || [],
-      timeBasedPins: userData.timeBasedPins || {}
+      timeBasedPins: userData.timeBasedPins || {},
     };
   }
 
@@ -209,22 +244,27 @@ export class ScheduleStorageService {
    * @returns {Object} HomePage-compatible format
    */
   convertToHomePageFormat(firestoreData, userId) {
-    const user = currentUser.getCurrentUser();
-    const studentId = user?.email?.split('@')[0] || 'Unknown';
-    
+    const user = currentUser.user;
+    const studentId = user?.email?.split("@")[0] || "Unknown";
+
     return {
       users: {
         [userId]: {
-          id: userId,
-          name: userId === currentUser.uid ? `Me (${studentId})` : 'Friend',
-          schedule: firestoreData.schedule || [],
-          slotInfo: firestoreData.slotInfo || [],
-          timeSlots: firestoreData.timeSlots || [],
-          pinnedSlots: firestoreData.pinnedSlots || [],
-          timeBasedPins: firestoreData.timeBasedPins || {}
-        }
+          id: userId === currentUser.uid ? studentId : userId,
+          name: userId === currentUser.uid ? "Me" : "Friend",
+          schedule: this._convertMapToScheduleArray(firestoreData.schedule),
+          slotInfo: this._convertMapToSlotInfoArray(firestoreData.slotInfo),
+          timeSlots:
+            firestoreData.timeSlots && firestoreData.timeSlots.length > 0
+              ? firestoreData.timeSlots
+              : DEFAULT_TIMESLOTS,
+          pinnedSlots: this._convertMapToScheduleArray(
+            firestoreData.pinnedSlots
+          ),
+          timeBasedPins: firestoreData.timeBasedPins || {},
+        },
       },
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
     };
   }
 
@@ -239,11 +279,11 @@ export class ScheduleStorageService {
       const cacheData = {
         data: scheduleData,
         cachedAt: Date.now(),
-        userId: userId
+        userId: userId,
       };
       localStorage.setItem(cacheKey, JSON.stringify(cacheData));
     } catch (error) {
-      console.warn('Failed to cache schedule data:', error);
+      console.warn("Failed to cache schedule data:", error);
     }
   }
 
@@ -256,15 +296,60 @@ export class ScheduleStorageService {
     try {
       const cacheKey = `schedule_${userId}`;
       const cached = localStorage.getItem(cacheKey);
-      
+
       if (cached) {
         const cacheData = JSON.parse(cached);
         return cacheData.data;
       }
     } catch (error) {
-      console.warn('Failed to get cached schedule data:', error);
+      console.warn("Failed to get cached schedule data:", error);
     }
     return null;
+  }
+
+  _convertMapToScheduleArray(scheduleMap) {
+    if (!scheduleMap || typeof scheduleMap !== "object")
+      return Array(7)
+        .fill(null)
+        .map(() => Array(7).fill(false));
+    const scheduleArray = [];
+    for (let i = 0; i < 7; i++) {
+      scheduleArray[i] = [];
+      if (scheduleMap[i]) {
+        for (let j = 0; j < 7; j++) {
+          scheduleArray[i][j] = scheduleMap[i][j] || false;
+        }
+      } else {
+        for (let j = 0; j < 7; j++) {
+          scheduleArray[i][j] = false;
+        }
+      }
+    }
+    return scheduleArray;
+  }
+
+  _convertMapToSlotInfoArray(slotInfoMap) {
+    if (!slotInfoMap || typeof slotInfoMap !== "object")
+      return Array(7)
+        .fill(null)
+        .map(() => Array(7).fill({ courseCode: "", classroomNumber: "" }));
+    const slotInfoArray = [];
+    for (let i = 0; i < 7; i++) {
+      slotInfoArray[i] = [];
+      if (slotInfoMap[i]) {
+        for (let j = 0; j < 7; j++) {
+          slotInfoArray[i][j] = slotInfoMap[i][j] || {
+            courseCode: "",
+            classroomNumber: "",
+          };
+        }
+      } else {
+        for (let j = 0; j < 7; j++) {
+          slotInfoArray[i][j] = { courseCode: "", classroomNumber: "" };
+        }
+      }
+    }
+    return slotInfoArray;
   }
 
   /**
@@ -272,14 +357,14 @@ export class ScheduleStorageService {
    */
   setupOfflineDetection() {
     // Track online status
-    window.addEventListener('online', () => {
-      console.log('🌐 Back online - syncing pending changes');
+    window.addEventListener("online", () => {
+      console.log("🌐 Back online - syncing pending changes");
       this.isOnline = true;
       this.syncPendingOperations();
     });
 
-    window.addEventListener('offline', () => {
-      console.log('📱 Gone offline - queueing changes');
+    window.addEventListener("offline", () => {
+      console.log("📱 Gone offline - queueing changes");
       this.isOnline = false;
     });
   }
@@ -294,24 +379,28 @@ export class ScheduleStorageService {
 
     for (const operation of this.pendingSync) {
       try {
-        await this.dataService.saveUserSchedule(
-          operation.userId, 
-          operation.scheduleData, 
+        await this.dataManager.saveUserSchedule(
+          operation.userId,
+          operation.scheduleData,
           currentUser.uid
         );
-        
+
         // Remove from pending after successful sync
         this.pendingSync.delete(operation);
-        
-        console.log('✅ Synced pending operation for user:', operation.userId);
+
+        console.log("✅ Synced pending operation for user:", operation.userId);
       } catch (error) {
-        console.error('❌ Failed to sync pending operation:', error);
+        console.error("❌ Failed to sync pending operation:", error);
         // Keep in pending set for retry
       }
     }
 
     if (this.pendingSync.size === 0) {
-      notificationManager.showSystemNotification('All offline changes synced', 'success', 'Sync Complete');
+      notificationManager.showSystemNotification(
+        "All offline changes synced",
+        "success",
+        "Sync Complete"
+      );
     }
   }
 
@@ -325,7 +414,7 @@ export class ScheduleStorageService {
       isLoading: this.isLoading,
       lastError: this.lastError,
       pendingOperations: this.pendingSync.size,
-      hasRealtimeListener: !!this.realtimeListener
+      hasRealtimeListener: !!this.realtimeListener,
     };
   }
 
@@ -337,9 +426,9 @@ export class ScheduleStorageService {
       this.realtimeListener();
       this.realtimeListener = null;
     }
-    
+
     this.pendingSync.clear();
-    console.log('🧹 ScheduleStorageService cleaned up');
+    console.log("🧹 ScheduleStorageService cleaned up");
   }
 }
 

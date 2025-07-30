@@ -2,7 +2,10 @@
 
 // --- Module Imports ---
 import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../utils/constants.js";
-import { DOM_ELEMENTS, initializeDomElements } from "../utils/dom/domElements.js";
+import {
+  DOM_ELEMENTS,
+  initializeDomElements,
+} from "../utils/dom/domElements.js";
 import { showModal } from "../components/modals/Modal.js"; // Only import showModal, initModal is handled in spa-init.js
 import {
   parseTime,
@@ -88,7 +91,9 @@ function isMobileOrTablet() {
  * @returns {Array<Array>} 7x timeSlots matrix
  */
 function createWeeklyMatrix(timeSlots, defaultValue = false) {
-  return Array(7).fill(null).map(() => Array(timeSlots).fill(defaultValue));
+  return Array(7)
+    .fill(null)
+    .map(() => Array(timeSlots).fill(defaultValue));
 }
 
 /**
@@ -97,12 +102,16 @@ function createWeeklyMatrix(timeSlots, defaultValue = false) {
  * @returns {Array<Array<Object>>} 7x timeSlots matrix with slot info objects
  */
 function createSlotInfoMatrix(timeSlots) {
-  return Array(7).fill(null).map(() => 
-    Array(timeSlots).fill(null).map(() => ({ 
-      courseCode: "", 
-      classroomNumber: "" 
-    }))
-  );
+  return Array(7)
+    .fill(null)
+    .map(() =>
+      Array(timeSlots)
+        .fill(null)
+        .map(() => ({
+          courseCode: "",
+          classroomNumber: "",
+        }))
+    );
 }
 
 /**
@@ -113,10 +122,12 @@ function createSlotInfoMatrix(timeSlots) {
  * @returns {Object} Slot info with courseCode and classroomNumber
  */
 function getSlotInfo(user, dayIndex, timeIndex) {
-  return user?.slotInfo?.[dayIndex]?.[timeIndex] || { 
-    courseCode: "", 
-    classroomNumber: "" 
-  };
+  return (
+    user?.slotInfo?.[dayIndex]?.[timeIndex] || {
+      courseCode: "",
+      classroomNumber: "",
+    }
+  );
 }
 
 /**
@@ -127,21 +138,22 @@ function getSlotInfo(user, dayIndex, timeIndex) {
  */
 function shouldUseUnifiedSchedule(selectedUsers) {
   if (selectedUsers.length === 0) return false;
-  
+
   const allUsersHaveTimeSlots = selectedUsers.every(
-    user => user.timeSlots && Array.isArray(user.timeSlots)
+    (user) => user.timeSlots && Array.isArray(user.timeSlots)
   );
-  
+
   if (!allUsersHaveTimeSlots) return false;
-  
+
   const firstUserTimeSlots = selectedUsers[0].timeSlots;
-  return selectedUsers.some(user => {
+  return selectedUsers.some((user) => {
     return (
       user.timeSlots.length !== firstUserTimeSlots.length ||
-      user.timeSlots.some((slot, idx) =>
-        !firstUserTimeSlots[idx] ||
-        slot.start !== firstUserTimeSlots[idx].start ||
-        slot.end !== firstUserTimeSlots[idx].end
+      user.timeSlots.some(
+        (slot, idx) =>
+          !firstUserTimeSlots[idx] ||
+          slot.start !== firstUserTimeSlots[idx].start ||
+          slot.end !== firstUserTimeSlots[idx].end
       )
     );
   });
@@ -159,15 +171,19 @@ function shouldUseUnifiedSchedule(selectedUsers) {
  */
 export function createUserObject(name, userId, currentUsers) {
   if (currentUsers[userId]) {
-    console.warn(`[State] Attempted to create duplicate user: ${userId} (${name})`);
+    console.warn(
+      `[State] Attempted to create duplicate user: ${userId} (${name})`
+    );
     return null;
   }
-  
+
   const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)); // Deep copy
   const timeSlotCount = userTimeSlots.length;
-  
-  console.log(`[State] Creating new user: ${name} (${userId}) with ${timeSlotCount} time slots`);
-  
+
+  console.log(
+    `[State] Creating new user: ${name} (${userId}) with ${timeSlotCount} time slots`
+  );
+
   return {
     id: userId,
     name: name,
@@ -193,11 +209,11 @@ export function deleteUserFromState(userId, currentState) {
     console.warn(`[State] Attempted to delete non-existent user: ${userId}`);
     return currentState;
   }
-  
-  const userName = newUsers[userId]?.name || 'Unknown';
+
+  const userName = newUsers[userId]?.name || "Unknown";
   const wasActive = newActiveUserId === userId;
   const wasInCompare = newSelectedUserIds.has(userId);
-  
+
   delete newUsers[userId];
   if (newActiveUserId === userId) newActiveUserId = null;
   newSelectedUserIds.delete(userId);
@@ -205,7 +221,7 @@ export function deleteUserFromState(userId, currentState) {
   console.log(`[State] Deleted user: ${userName} (${userId})`, {
     wasActive,
     wasInCompare,
-    remainingUsers: Object.keys(newUsers).length
+    remainingUsers: Object.keys(newUsers).length,
   });
 
   return {
@@ -257,7 +273,9 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
     // Check if we need unified schedule for heterogeneous comparison
     if (shouldUseUnifiedSchedule(selectedUsers)) {
       // Use UnifiedSchedule for heterogeneous time structures
-      console.log(`[Performance] Creating unified schedule for ${selectedUsers.length} users with different time structures`);
+      console.log(
+        `[Performance] Creating unified schedule for ${selectedUsers.length} users with different time structures`
+      );
       const unifiedSchedule = createUnifiedSchedule(selectedUsers);
 
       if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
@@ -390,7 +408,6 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
  */
 export function aggregatePinsForCompareMode(dayIndex, timeIndex, currentState) {
   const { users, selectedUserIds, compareMode } = currentState;
-
 
   // Only aggregate pins in compare mode with selected users
   if (!compareMode || selectedUserIds.size === 0) {
@@ -772,12 +789,12 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   // Migrate pins to preserve pin intentions when schedule structure changes
   migratePinsToTimeBased(user);
 
-  console.log('[Interaction] Custom time slot added', {
+  console.log("[Interaction] Custom time slot added", {
     user: user.name,
     timeSlot: newSlotLabel,
     totalSlots: user.timeSlots.length,
     startTime: hhmmStartTime,
-    endTime: hhmmEndTime
+    endTime: hhmmEndTime,
   });
 
   saveStateToStorage();
@@ -871,15 +888,18 @@ export function handleAddNewTimeSlotClick() {
 
 function handleTogglePinMode() {
   const previousState = state.pinModeActive;
-  
+
   if (!state.activeUserId || state.compareMode) {
     // This case means the button was clicked while it should have been disabled,
     // or state changed between render and click. Defensive coding:
     state.pinModeActive = false; // Ensure it's off if conditions aren't met
-    console.warn("[Mode] Pin Mode toggle attempted when conditions not met. Forcing off.", {
-      hasActiveUser: !!state.activeUserId,
-      inCompareMode: state.compareMode
-    });
+    console.warn(
+      "[Mode] Pin Mode toggle attempted when conditions not met. Forcing off.",
+      {
+        hasActiveUser: !!state.activeUserId,
+        inCompareMode: state.compareMode,
+      }
+    );
   } else {
     // Toggle the pin mode state
     state.pinModeActive = !state.pinModeActive;
@@ -888,11 +908,14 @@ function handleTogglePinMode() {
       state.compareMode = false;
       // activeUserId should still be set if we entered here
     }
-    
-    console.log(`[Mode] Pin Mode ${state.pinModeActive ? 'enabled' : 'disabled'}`, {
-      activeUser: state.users[state.activeUserId]?.name,
-      previousState
-    });
+
+    console.log(
+      `[Mode] Pin Mode ${state.pinModeActive ? "enabled" : "disabled"}`,
+      {
+        activeUser: state.users[state.activeUserId]?.name,
+        previousState,
+      }
+    );
   }
   updateUI(); // This will re-apply the .active class to the button based on the new state.pinModeActive
 }
@@ -962,14 +985,14 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   // Update time-based pins for persistence across schedule changes
   updateTimeBasedPin(activeUserObject, dayIndex, slotIndex, newPinState);
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const timeSlot = activeUserObject.timeSlots[slotIndex];
-  
-  console.log(`[Interaction] Pin ${newPinState ? 'added' : 'removed'}`, {
+
+  console.log(`[Interaction] Pin ${newPinState ? "added" : "removed"}`, {
     user: activeUserObject.name,
     day: dayNames[dayIndex],
     time: timeSlot?.label || `slot-${slotIndex}`,
-    coordinates: `[${dayIndex}, ${slotIndex}]`
+    coordinates: `[${dayIndex}, ${slotIndex}]`,
   });
 
   saveStateToStorage();
@@ -1018,6 +1041,11 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
         <small>Enter classroom/location (optional)</small>
       </div>
       <div id="edit-slot-info-error" class="modal-error-message" style="display: none;"></div>
+      <div class="modal-actions-row">
+        <button id="delete-slot-btn" class="modal-button delete">
+          Delete Slot
+        </button>
+      </div>
     </div>
   `;
 
@@ -1026,8 +1054,8 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
     content: modalContent,
     isHtmlContent: true,
     showConfirmationButtons: true,
-    confirmText: "Save Slot",
-    cancelText: "Delete Slot",
+    confirmText: "Save",
+    cancelText: "Cancel",
     onConfirm: () => {
       const courseCodeInput = document.getElementById("editCourseCodeInput");
       const classroomInput = document.getElementById("editClassroomInput");
@@ -1036,7 +1064,6 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
         const courseCode = courseCodeInput.value.trim().toUpperCase();
         const classroomNumber = classroomInput.value.trim();
 
-        // Validate course code format if provided
         if (courseCode && !/^[A-Z0-9\s]{1,20}$/i.test(courseCode)) {
           const errorDiv = document.getElementById("edit-slot-info-error");
           if (errorDiv) {
@@ -1047,28 +1074,19 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
           return false;
         }
 
-        // Initialize slotInfo structure if needed
-        if (!user.slotInfo) {
+        if (!user.slotInfo)
           user.slotInfo = createSlotInfoMatrix(user.timeSlots.length);
-        }
-
-        // Store updated slot information
-        if (!user.slotInfo[dayIndex]) {
+        if (!user.slotInfo[dayIndex])
           user.slotInfo[dayIndex] = Array(user.timeSlots.length)
             .fill(null)
             .map(() => ({ courseCode: "", classroomNumber: "" }));
-        }
-        if (!user.slotInfo[dayIndex][timeIndex]) {
+        if (!user.slotInfo[dayIndex][timeIndex])
           user.slotInfo[dayIndex][timeIndex] = {
             courseCode: "",
             classroomNumber: "",
           };
-        }
 
-        user.slotInfo[dayIndex][timeIndex] = {
-          courseCode: courseCode,
-          classroomNumber: classroomNumber,
-        };
+        user.slotInfo[dayIndex][timeIndex] = { courseCode, classroomNumber };
 
         saveStateToStorage();
         updateUI();
@@ -1076,8 +1094,12 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
       }
       return false;
     },
-    onCancel: () => {
-      // "Delete Slot" functionality
+  });
+
+  // Add event listener for the new delete button
+  const deleteBtn = document.getElementById("delete-slot-btn");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", () => {
       showModal({
         title: "Delete Slot",
         content: `Are you sure you want to delete this slot and mark it as free?\n\nDay: ${dayName}\nTime: ${timeSlot.label}`,
@@ -1085,46 +1107,42 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
         confirmText: "Delete",
         cancelText: "Cancel",
         onConfirm: () => {
-          // Mark slot as free
-          const newSchedule = toggleSlotInSchedule(
-            dayIndex,
-            timeIndex,
-            user.schedule
-          );
-          user.schedule = newSchedule;
+          const activeUser = state.users[state.activeUserId];
+          if (!activeUser) {
+            showModal({ title: "Error", content: "No active user found." });
+            return true;
+          }
 
-          // Clear slot information
+          if (activeUser.schedule && activeUser.schedule[dayIndex]) {
+            activeUser.schedule[dayIndex][timeIndex] = false;
+          }
+
           if (
-            user.slotInfo &&
-            user.slotInfo[dayIndex] &&
-            user.slotInfo[dayIndex][timeIndex]
+            activeUser.slotInfo &&
+            activeUser.slotInfo[dayIndex] &&
+            activeUser.slotInfo[dayIndex][timeIndex]
           ) {
-            user.slotInfo[dayIndex][timeIndex] = {
+            activeUser.slotInfo[dayIndex][timeIndex] = {
               courseCode: "",
               classroomNumber: "",
             };
           }
 
-          // If the slot was pinned, unpin it
           if (
-            user.pinnedSlots &&
-            Array.isArray(user.pinnedSlots[dayIndex]) &&
-            user.pinnedSlots[dayIndex][timeIndex] === true
+            activeUser.pinnedSlots &&
+            Array.isArray(activeUser.pinnedSlots[dayIndex]) &&
+            activeUser.pinnedSlots[dayIndex][timeIndex] === true
           ) {
-            user.pinnedSlots[dayIndex][timeIndex] = false;
-            console.log(
-              `Slot (${dayIndex}, ${timeIndex}) for user ${user.id} automatically unpinned because it was deleted.`
-            );
+            activeUser.pinnedSlots[dayIndex][timeIndex] = false;
           }
 
           saveStateToStorage();
           updateUI();
-          return true;
+          return true; // Close the confirmation modal
         },
       });
-      return true; // Close the edit modal
-    },
-  });
+    });
+  }
 }
 
 /**
@@ -1145,6 +1163,22 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
   ];
   const dayName = daysOfWeek[dayIndex];
   const timeSlot = user.timeSlots[timeIndex];
+
+  // Add a safeguard against undefined timeSlot, which causes crashes.
+  if (!timeSlot) {
+    console.error(
+      `[Error] Could not find timeSlot at index ${timeIndex} for user ${user.id}.`,
+      {
+        timeSlots: user.timeSlots,
+      }
+    );
+    showModal({
+      title: "Data Error",
+      content:
+        "An error occurred while loading slot details. The schedule's time structure might be inconsistent. Please try refreshing the page.",
+    });
+    return;
+  }
 
   // Get existing slot info if any
   const existingInfo = getSlotInfo(user, dayIndex, timeIndex);
@@ -1255,51 +1289,57 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
 ================================== */
 async function loadState() {
   try {
-    console.log('📡 [Phase-1] Loading user schedule...');
-    
+    console.log("📡 [Phase-1] Loading user schedule...");
+
     // Check if user is authenticated
     const user = authManager.getCurrentUser();
     if (!user) {
-      console.log('⚠️ [Phase-1] No authenticated user, skipping schedule load');
+      console.log("⚠️ [Phase-1] No authenticated user, skipping schedule load");
       return;
     }
 
     console.log(`👤 [Phase-1] Loading schedule for user: ${user.uid}`);
-    
+
     // Set loading state in userStore
     currentUser.setScheduleLoading(true);
     currentUser.clearScheduleError();
-    
+
     // Use ScheduleStorageService to handle dual storage strategy
-    const scheduleData = await scheduleStorageService.loadUserSchedule(user.uid);
-    
+    const scheduleData = await scheduleStorageService.loadUserSchedule(
+      user.uid
+    );
+
     if (scheduleData) {
       // Convert to HomePage format using ScheduleStorageService
-      const homePageFormat = scheduleStorageService.convertToHomePageFormat(scheduleData, user.uid);
-      
+      const homePageFormat = scheduleStorageService.convertToHomePageFormat(
+        scheduleData,
+        user.uid
+      );
+
       // Update local state for UI rendering
       state.users[user.uid] = homePageFormat.users[user.uid];
       state.activeUserId = user.uid;
-      
+
       // Update userStore with schedule data
       currentUser.setScheduleData(scheduleData);
-      
+
       // Set up real-time sync through ScheduleStorageService
       setupScheduleRealTimeSync(user.uid);
-      
-      console.log('✅ [Phase-1] User schedule loaded with real-time sync');
+
+      console.log("✅ [Phase-1] User schedule loaded with real-time sync");
     } else {
-      console.log('📭 [Phase-1] No schedule data found, initializing empty state');
-      
+      console.log(
+        "📭 [Phase-1] No schedule data found, initializing empty state"
+      );
+
       // Initialize empty user for UI
       state.users[user.uid] = createEmptyUser(user.uid);
       state.activeUserId = user.uid;
     }
-    
   } catch (error) {
-    console.error('❌ [Phase-1] Failed to load user schedule:', error);
+    console.error("❌ [Phase-1] Failed to load user schedule:", error);
     currentUser.setScheduleError(error.message);
-    
+
     // Initialize empty user for UI even on error
     const user = authManager.getCurrentUser();
     if (user) {
@@ -1318,13 +1358,13 @@ async function loadState() {
  */
 function createEmptyUser(userId) {
   return {
-    id: userId,
-    name: currentUser.getScheduleDisplayName(), // "Me (studentID)"
+    id: userId === currentUser.uid ? currentUser.getStudentId() : userId,
+    name: currentUser.getScheduleDisplayName(), // "ME"
     timeSlots: DEFAULT_TIMESLOTS,
     schedule: createWeeklyMatrix(7, false),
     slotInfo: createSlotInfoMatrix(7),
     pinnedSlots: createWeeklyMatrix(7, false),
-    timeBasedPins: {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]}
+    timeBasedPins: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
   };
 }
 
@@ -1338,29 +1378,37 @@ function setupScheduleRealTimeSync(userId) {
     window.scheduleRealtimeUnsubscribe();
     window.scheduleRealtimeUnsubscribe = null;
   }
-  
+
   // Set up new real-time sync through ScheduleStorageService
-  window.scheduleRealtimeUnsubscribe = scheduleStorageService.setupRealtimeSync(userId, (updatedScheduleData) => {
-    if (updatedScheduleData && state.users[userId]) {
-      console.log('📡 [Phase-1] Real-time schedule update received via ScheduleStorageService');
-      
-      // Convert updated data to HomePage format
-      const homePageFormat = scheduleStorageService.convertToHomePageFormat(updatedScheduleData, userId);
-      
-      // Update local state for UI
-      state.users[userId] = homePageFormat.users[userId];
-      
-      // Update userStore
-      currentUser.setScheduleData(updatedScheduleData);
-      currentUser.setScheduleLastSynced(new Date());
-      
-      // Re-render UI
-      updateUI();
-      
-      console.log('✅ [Phase-1] UI updated with real-time changes');
+  window.scheduleRealtimeUnsubscribe = scheduleStorageService.setupRealtimeSync(
+    userId,
+    (updatedScheduleData) => {
+      if (updatedScheduleData && state.users[userId]) {
+        console.log(
+          "📡 [Phase-1] Real-time schedule update received via ScheduleStorageService"
+        );
+
+        // Convert updated data to HomePage format
+        const homePageFormat = scheduleStorageService.convertToHomePageFormat(
+          updatedScheduleData,
+          userId
+        );
+
+        // Update local state for UI
+        state.users[userId] = homePageFormat.users[userId];
+
+        // Update userStore
+        currentUser.setScheduleData(updatedScheduleData);
+        currentUser.setScheduleLastSynced(new Date());
+
+        // Re-render UI
+        updateUI();
+
+        console.log("✅ [Phase-1] UI updated with real-time changes");
+      }
     }
-  });
-  
+  );
+
   // Mark real-time as active in userStore
   currentUser.setScheduleRealTimeActive(true);
 }
@@ -1369,45 +1417,52 @@ async function saveStateToStorage() {
   try {
     const user = authManager.getCurrentUser();
     if (!user || !state.users[user.uid]) {
-      console.log('⚠️ [Phase-1] No user data to save');
+      console.log("⚠️ [Phase-1] No user data to save");
       return;
     }
-    
-    console.log('💾 [Phase-1] Saving user schedule...');
-    
+
+    console.log("💾 [Phase-1] Saving user schedule...");
+
     // Convert HomePage format to scheduleData format using ScheduleStorageService
-    const homePageData = { users: state.users, savedAt: new Date().toISOString() };
-    const scheduleData = scheduleStorageService.convertToFirestoreFormat(homePageData);
-    
+    const homePageData = {
+      users: state.users,
+      savedAt: new Date().toISOString(),
+    };
+    const scheduleData =
+      scheduleStorageService.convertToFirestoreFormat(homePageData);
+
     if (scheduleData) {
       // Use ScheduleStorageService for dual storage strategy
-      const success = await scheduleStorageService.saveUserSchedule(user.uid, scheduleData);
-      
+      const success = await scheduleStorageService.saveUserSchedule(
+        user.uid,
+        scheduleData
+      );
+
       if (success) {
         // Update userStore with successful save
         currentUser.setScheduleData(scheduleData);
         currentUser.setScheduleLastSynced(new Date());
         currentUser.clearScheduleError();
-        
-        console.log('✅ [Phase-1] Schedule saved successfully');
+
+        console.log("✅ [Phase-1] Schedule saved successfully");
       } else {
-        console.warn('⚠️ [Phase-1] Schedule save failed');
-        currentUser.setScheduleError('Failed to save schedule');
+        console.warn("⚠️ [Phase-1] Schedule save failed");
+        currentUser.setScheduleError("Failed to save schedule");
       }
     } else {
-      console.warn('⚠️ [Phase-1] No schedule data to convert');
+      console.warn("⚠️ [Phase-1] No schedule data to convert");
     }
-    
   } catch (error) {
-    console.error('❌ [Phase-1] Failed to save state:', error);
+    console.error("❌ [Phase-1] Failed to save state:", error);
     currentUser.setScheduleError(error.message);
-    
-    if (error.name === 'QuotaExceededError') {
-      console.warn('[Storage] localStorage quota exceeded - consider clearing old data');
+
+    if (error.name === "QuotaExceededError") {
+      console.warn(
+        "[Storage] localStorage quota exceeded - consider clearing old data"
+      );
     }
   }
 }
-
 
 /* ================================
    UI RENDERING FUNCTIONS
@@ -1511,12 +1566,25 @@ export function openEditTimeSlotModal(slotIndex, activeUserObject) {
     isHtmlContent: true,
     showConfirmationButtons: true,
     confirmText: "Save Changes",
-    cancelText: "Cancel",
+    cancelText: "Delete",
     onConfirm: () => {
       return processTimeSlotEdit(slotIndex, activeUserObject);
     },
     onCancel: () => {
-      console.log("Edit time slot cancelled.");
+      // This will now be the "Delete" action
+      showModal({
+        title: "Delete Time Slot",
+        content: `Are you sure you want to delete the time slot: <strong>${currentTimeSlot.label}</strong>? This will remove it for this user and shift remaining slots. This action cannot be undone.`,
+        isHtmlContent: true,
+        showConfirmationButtons: true,
+        confirmText: "Confirm Delete",
+        cancelText: "Cancel",
+        onConfirm: () => {
+          processTimeSlotDelete(slotIndex, activeUserObject);
+          return true; // Close the confirmation modal
+        },
+      });
+      return true; // Close the edit modal
     },
   });
 }
@@ -1640,6 +1708,48 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   saveStateToStorage();
   renderScheduleGrid();
   return true;
+}
+
+/**
+ * Processes the deletion of a time slot.
+ * @param {number} slotIndex - The index of the time slot to delete.
+ * @param {object} activeUserObject - The active user object.
+ */
+export function processTimeSlotDelete(slotIndex, activeUserObject) {
+  if (
+    !activeUserObject ||
+    !activeUserObject.timeSlots ||
+    slotIndex < 0 ||
+    slotIndex >= activeUserObject.timeSlots.length
+  ) {
+    console.error("Invalid data for time slot deletion.");
+    showModal({
+      title: "Error",
+      content: "Could not delete time slot due to an error.",
+    });
+    return;
+  }
+
+  const deletedSlotLabel = activeUserObject.timeSlots[slotIndex].label;
+
+  // Remove the time slot
+  activeUserObject.timeSlots.splice(slotIndex, 1);
+
+  // Remove the corresponding column from schedule, pinnedSlots, and slotInfo
+  activeUserObject.schedule.forEach((day) => day.splice(slotIndex, 1));
+  activeUserObject.pinnedSlots.forEach((day) => day.splice(slotIndex, 1));
+  if (activeUserObject.slotInfo) {
+    activeUserObject.slotInfo.forEach((day) => day.splice(slotIndex, 1));
+  }
+
+  // Persist changes and update UI
+  saveStateToStorage();
+  updateUI();
+
+  showModal({
+    title: "Time Slot Deleted",
+    content: `The time slot "${deletedSlotLabel}" has been successfully deleted.`,
+  });
 }
 
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
@@ -2415,16 +2525,16 @@ function handleDeleteUser(userIdToDelete) {
 function handleSetActiveUser(userId) {
   const previousActiveUser = state.users[state.activeUserId]?.name;
   const targetUser = state.users[userId]?.name;
-  
+
   // Deselect Logic
   if (state.activeUserId === userId) {
     state.activeUserId = null;
     state.pinModeActive = false; // Reset pin mode if active user is cleared
     state.selectedUserIds.clear(); // Clear selected user IDs
 
-    console.log('[State] Active user deselected', {
+    console.log("[State] Active user deselected", {
       user: previousActiveUser || userId,
-      wasInPinMode: state.pinModeActive
+      wasInPinMode: state.pinModeActive,
     });
 
     saveStateToStorage();
@@ -2436,19 +2546,19 @@ function handleSetActiveUser(userId) {
   if (state.users[userId]) {
     const wasInCompareMode = state.compareMode;
     const selectedCount = state.selectedUserIds.size;
-    
+
     state.activeUserId = userId;
     state.compareMode = false;
     state.pinModeActive = false;
     state.selectedUserIds.clear();
-    
-    console.log('[State] Active user changed', {
-      from: previousActiveUser || 'none',
+
+    console.log("[State] Active user changed", {
+      from: previousActiveUser || "none",
       to: targetUser,
       exitedCompareMode: wasInCompareMode,
-      clearedSelections: selectedCount
+      clearedSelections: selectedCount,
     });
-    
+
     saveStateToStorage(); // Save state if active user change implies persistent view change
     updateUI();
   } else if (userId === null && state.activeUserId !== null) {
@@ -2456,11 +2566,11 @@ function handleSetActiveUser(userId) {
     state.activeUserId = null;
     state.pinModeActive = false; // Reset pin mode if active user is cleared
     state.selectedUserIds.clear(); // Clear selected user IDs
-    
-    console.log('[State] Active user cleared', {
-      previousUser: previousActiveUser
+
+    console.log("[State] Active user cleared", {
+      previousUser: previousActiveUser,
     });
-    
+
     saveStateToStorage();
     updateUI();
   }
@@ -2469,24 +2579,24 @@ function handleSetActiveUser(userId) {
 function handleToggleCompareMode() {
   const previousActiveUser = state.users[state.activeUserId]?.name;
   const selectedCount = state.selectedUserIds.size;
-  
+
   state.compareMode = !state.compareMode;
-  
+
   if (state.compareMode) {
     state.activeUserId = null; // Clear active user when entering compare mode
     state.pinModeActive = false; // Disable pin mode in compare mode
     state.selectedUserIds.clear(); // Clear selected user IDs
-    
-    console.log('[Mode] Compare Mode enabled', {
+
+    console.log("[Mode] Compare Mode enabled", {
       previousActiveUser,
-      totalUsers: Object.keys(state.users).length
+      totalUsers: Object.keys(state.users).length,
     });
   } else {
     state.selectedUserIds.clear(); // Clear selected user IDs when exiting compare mode
-    
-    console.log('[Mode] Compare Mode disabled', {
+
+    console.log("[Mode] Compare Mode disabled", {
       previouslySelected: selectedCount,
-      totalUsers: Object.keys(state.users).length
+      totalUsers: Object.keys(state.users).length,
     });
   }
 
@@ -3039,7 +3149,7 @@ document.addEventListener("spa:page:load", (event) => {
 
     // Essential: Always load state first so user data is available
     console.log("💾 Loading state from storage...");
-    loadStateFromStorage();
+    loadState();
 
     console.log("� Current state after loading:", {
       activeUserId: state.activeUserId,

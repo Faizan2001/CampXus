@@ -208,6 +208,28 @@ body:not(.dark-mode) {
   --modal-confirm-text: white;
   --modal-input-focus-shadow: rgba(102, 126, 234, 0.1);
 
+  /* Modal Delete Button Variables */
+  --modal-delete-border: rgba(239, 68, 68, 0.25);
+  --modal-delete-bg: rgba(239, 68, 68, 0.08);
+  --modal-delete-text: #ef4444;
+  --modal-delete-shadow-primary: rgba(239, 68, 68, 0.15);
+  --modal-delete-shadow-secondary: rgba(239, 68, 68, 0.1);
+  --modal-delete-shadow-active: rgba(239, 68, 68, 0.2);
+  --modal-delete-hover-bg: rgba(239, 68, 68, 0.15);
+  --modal-delete-hover-border: rgba(239, 68, 68, 0.4);
+  --modal-delete-hover-text: #dc2626;
+  --modal-delete-hover-shadow: rgba(239, 68, 68, 0.25);
+
+  /* General Shadow Variables */
+  --modal-shadow-base: rgba(0, 0, 0, 0.1);
+  --modal-shadow-elevated: rgba(0, 0, 0, 0.15);
+  --modal-shadow-light-inset: rgba(255, 255, 255, 0.1);
+  --modal-shadow-light-inset-hover: rgba(255, 255, 255, 0.15);
+
+  /* Additional Modal Variables */
+  --modal-light-reflection: rgba(255, 255, 255, 0.3);
+  --modal-confirm-shadow: rgba(76, 175, 80, 0.3);
+
   /* ===== PROFILE SETUP ===== */
   --step-block-active-shadow: rgba(139, 92, 246, 0.3);
   --step-block-active-inset-shadow: rgba(255, 255, 255, 0.2);
@@ -588,6 +610,28 @@ body:not(.dark-mode) {
   --modal-bg: rgba(255, 255, 255, 0.9);
   --modal-overlay: rgba(139, 92, 246, 0.2);
   --modal-border: rgba(192, 132, 252, 0.3);
+
+  /* Modal Delete Button Variables - Light Mode */
+  --modal-delete-border: rgba(220, 38, 38, 0.25);
+  --modal-delete-bg: rgba(220, 38, 38, 0.08);
+  --modal-delete-text: #dc2626;
+  --modal-delete-shadow-primary: rgba(220, 38, 38, 0.15);
+  --modal-delete-shadow-secondary: rgba(220, 38, 38, 0.1);
+  --modal-delete-shadow-active: rgba(220, 38, 38, 0.2);
+  --modal-delete-hover-bg: rgba(220, 38, 38, 0.15);
+  --modal-delete-hover-border: rgba(220, 38, 38, 0.4);
+  --modal-delete-hover-text: #b91c1c;
+  --modal-delete-hover-shadow: rgba(220, 38, 38, 0.25);
+
+  /* General Shadow Variables - Light Mode */
+  --modal-shadow-base: rgba(0, 0, 0, 0.1);
+  --modal-shadow-elevated: rgba(0, 0, 0, 0.15);
+  --modal-shadow-light-inset: rgba(255, 255, 255, 0.1);
+  --modal-shadow-light-inset-hover: rgba(255, 255, 255, 0.15);
+
+  /* Additional Modal Variables - Light Mode */
+  --modal-light-reflection: rgba(255, 255, 255, 0.3);
+  --modal-confirm-shadow: rgba(76, 175, 80, 0.3);
 
   /* Schedule System */
   --schedule-bg: rgba(255, 255, 255, 0.8);
@@ -1294,6 +1338,28 @@ body.dark-mode {
   --modal-bg: rgba(42, 45, 56, 0.95);
   --modal-overlay: rgba(0, 0, 0, 0.6);
   --modal-border: rgba(255, 255, 255, 0.2);
+
+  /* Modal Delete Button Variables - Dark Mode */
+  --modal-delete-border: rgba(239, 68, 68, 0.3);
+  --modal-delete-bg: rgba(239, 68, 68, 0.1);
+  --modal-delete-text: #f87171;
+  --modal-delete-shadow-primary: rgba(239, 68, 68, 0.2);
+  --modal-delete-shadow-secondary: rgba(239, 68, 68, 0.15);
+  --modal-delete-shadow-active: rgba(239, 68, 68, 0.25);
+  --modal-delete-hover-bg: rgba(239, 68, 68, 0.18);
+  --modal-delete-hover-border: rgba(239, 68, 68, 0.5);
+  --modal-delete-hover-text: #fca5a5;
+  --modal-delete-hover-shadow: rgba(239, 68, 68, 0.3);
+
+  /* General Shadow Variables - Dark Mode */
+  --modal-shadow-base: rgba(0, 0, 0, 0.2);
+  --modal-shadow-elevated: rgba(0, 0, 0, 0.25);
+  --modal-shadow-light-inset: rgba(255, 255, 255, 0.08);
+  --modal-shadow-light-inset-hover: rgba(255, 255, 255, 0.12);
+
+  /* Additional Modal Variables - Dark Mode */
+  --modal-light-reflection: rgba(255, 255, 255, 0.2);
+  --modal-confirm-shadow: rgba(76, 175, 80, 0.4);
 
   /* =================================
      SCHEDULE SYSTEM (DARK MODE)

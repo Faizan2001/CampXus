@@ -33,14 +33,14 @@ class CurrentUserManager {
     this._profilePromise = null;
     this._resolveProfilePromise = null;
     this._subscribers = new Set();
-    
+
     // Phase-1: Schedule state management
     this._scheduleData = null; // User's schedule data
     this._isLoadingSchedule = false; // Loading state for schedule operations
     this._scheduleError = null; // Last schedule operation error
     this._scheduleLastSynced = null; // When schedule was last synced to Firestore
     this._isScheduleRealTimeActive = false; // Real-time listener status
-    
+
     this.reset();
   }
 
@@ -122,8 +122,8 @@ class CurrentUserManager {
         isLoading: this._isLoadingSchedule,
         error: this._scheduleError,
         lastSynced: this._scheduleLastSynced,
-        isRealTimeActive: this._isScheduleRealTimeActive
-      }
+        isRealTimeActive: this._isScheduleRealTimeActive,
+      },
     };
   }
 
@@ -155,29 +155,30 @@ class CurrentUserManager {
   getDisplayInfo() {
     if (!this.isLoggedIn()) {
       return {
-        displayName: 'Guest',
-        email: '',
-        firstName: '',
-        lastName: '',
+        displayName: "Guest",
+        email: "",
+        firstName: "",
+        lastName: "",
         avatarConfig: null,
-        isComplete: false
+        isComplete: false,
       };
     }
 
     const profile = this._profile?.profile || {};
-    const firstName = profile.firstName || '';
-    const lastName = profile.lastName || '';
-    
+    const firstName = profile.firstName || "";
+    const lastName = profile.lastName || "";
+
     return {
-      displayName: profile.displayName || 
-                   (firstName && lastName ? `${firstName} ${lastName}` : '') ||
-                   this._user?.email?.split('@')[0] || 
-                   'User',
-      email: profile.email || this._user?.email || '',
+      displayName:
+        profile.displayName ||
+        (firstName && lastName ? `${firstName} ${lastName}` : "") ||
+        this._user?.email?.split("@")[0] ||
+        "User",
+      email: profile.email || this._user?.email || "",
       firstName,
       lastName,
       avatarConfig: this._profile?.avatarConfig || null,
-      isComplete: this.isProfileComplete()
+      isComplete: this.isProfileComplete(),
     };
   }
 
@@ -241,7 +242,7 @@ class CurrentUserManager {
    */
   waitForProfileWithTimeout(timeoutMs = 10000) {
     const profilePromise = this.waitForProfile();
-    
+
     // Create a timeout promise that rejects after the specified time
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
@@ -335,16 +336,15 @@ class CurrentUserManager {
    */
   getStudentId() {
     const email = this._profile?.profile?.email || this._user?.email;
-    return email ? email.split('@')[0] : 'Unknown';
+    return email ? email.split("@")[0] : "Unknown";
   }
 
   /**
    * Gets display name for current user in schedule (Phase-1 format).
-   * @returns {string} Display name in format "Me (studentID)"
+   * @returns {string} Display name in format "Me"
    */
   getScheduleDisplayName() {
-    const studentId = this.getStudentId();
-    return `Me (${studentId})`;
+    return "Me";
   }
 
   /**
@@ -363,14 +363,14 @@ class CurrentUserManager {
     this._profile = null;
     this._profilePromise = null;
     this._resolveProfilePromise = null;
-    
+
     // Reset Phase-1 schedule state
     this._scheduleData = null;
     this._isLoadingSchedule = false;
     this._scheduleError = null;
     this._scheduleLastSynced = null;
     this._isScheduleRealTimeActive = false;
-    
+
     // Notify subscribers of the reset state
     this._notifySubscribers();
   }

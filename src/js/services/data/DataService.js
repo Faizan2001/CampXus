@@ -940,12 +940,10 @@ class DataManager {
     
     return {
       // Core schedule data (7x7 matrices)
-      schedule: scheduleData.schedule || Array(7).fill(null).map(() => Array(7).fill(false)),
-      slotInfo: scheduleData.slotInfo || Array(7).fill(null).map(() => 
-        Array(7).fill(null).map(() => ({ courseCode: "", classroomNumber: "" }))
-      ),
+      schedule: this._convertScheduleToMap(scheduleData.schedule),
+      slotInfo: this._convertSlotInfoToMap(scheduleData.slotInfo),
       timeSlots: scheduleData.timeSlots || [], // Will use DEFAULT_TIMESLOTS
-      pinnedSlots: scheduleData.pinnedSlots || Array(7).fill(null).map(() => Array(7).fill(false)),
+      pinnedSlots: this._convertScheduleToMap(scheduleData.pinnedSlots),
       timeBasedPins: scheduleData.timeBasedPins || {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]},
       
       // Enhanced metadata (Gemini feedback)
@@ -1003,6 +1001,34 @@ class DataManager {
     }, 0);
   }
 
+  _convertScheduleToMap(scheduleArray) {
+    if (!Array.isArray(scheduleArray)) return {};
+    const scheduleMap = {};
+    scheduleArray.forEach((day, dayIndex) => {
+      if (Array.isArray(day)) {
+        scheduleMap[dayIndex] = {};
+        day.forEach((slot, slotIndex) => {
+          scheduleMap[dayIndex][slotIndex] = slot;
+        });
+      }
+    });
+    return scheduleMap;
+  }
+
+  _convertSlotInfoToMap(slotInfoArray) {
+    if (!Array.isArray(slotInfoArray)) return {};
+    const slotInfoMap = {};
+    slotInfoArray.forEach((day, dayIndex) => {
+      if (Array.isArray(day)) {
+        slotInfoMap[dayIndex] = {};
+        day.forEach((slot, slotIndex) => {
+          slotInfoMap[dayIndex][slotIndex] = slot;
+        });
+      }
+    });
+    return slotInfoMap;
+  }
+
   /**
    * Save a user's schedule with enhanced Phase-1 structure.
    * @param {string} userId - The user's UID
@@ -1029,6 +1055,7 @@ class DataManager {
       }
 
       // Save to Firestore with enhanced structure (scheduleData instead of schedule)
+      // Save to Firestore with enhanced structure (scheduleData instead of schedule)
       await updateDoc(doc(db, "users", userId), {
         scheduleData: enhancedScheduleData,
         "systemInfo.lastUpdated": serverTimestamp(),
@@ -1036,11 +1063,6 @@ class DataManager {
 
       // Cache the enhanced data
       this.setCachedData(`schedule_${userId}`, enhancedScheduleData);
-      
-      // Show sync notification
-      this.showNotification("Schedule synced across devices ✅", "success", {
-        duration: 2000,
-      });
 
       return { success: true };
     } catch (error) {

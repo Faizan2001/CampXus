@@ -1769,6 +1769,91 @@ body.page-profile .profile-setup-card.glass-card {
 =============================================================================
 */
 
+/* 
+=============================================================================
+                         14. SCHEDULE PRIVACY CONTROLS
+=============================================================================
+*/
+
+.privacy-options-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.privacy-option {
+  position: relative;
+}
+
+.privacy-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.privacy-option label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-lg);
+  background: var(--surface);
+  border: 2px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all 0.3s var(--animation-smooth);
+  min-height: 120px;
+}
+
+.privacy-option label i {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.privacy-option label span {
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+}
+
+.privacy-option label small {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: var(--space-xs);
+}
+
+.privacy-option input[type="radio"]:checked + label {
+  background: var(--glass-hover);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 15px var(--form-input-focus-shadow);
+  transform: translateY(-2px);
+}
+
+.privacy-option input[type="radio"]:checked + label i {
+  color: var(--accent-primary);
+  transform: scale(1.1);
+}
+
+.privacy-option input[type="radio"]:checked + label span {
+  color: var(--accent-primary);
+}
+
+.privacy-option input[type="radio"]:focus-visible + label {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .privacy-options-container {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* 🎨 AVATAR MODAL OVERLAY - Enhanced Glassmorphism */
 .avatar-modal-overlay {
   position: fixed;

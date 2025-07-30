@@ -133,9 +133,48 @@
   border-color: var(--border);
 }
 
+.modal-button.delete {
+  /* Enhanced glassmorphism inspired by friends-page.css patterns */
+  background: var(--button-delete-bg);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+
+  /* Enhanced border with CSS variables */
+  border: 1px solid var(--modal-delete-border);
+  color: var(--button-off-red);
+
+  /* Multi-layered shadow system */
+  box-shadow: 0 4px 16px var(--modal-shadow-base),
+    0 2px 8px var(--modal-delete-shadow-primary),
+    inset 0 1px 0 var(--modal-shadow-light-inset);
+
+  /* Enhanced border radius for modern look */
+  border-radius: 10px;
+
+  position: relative;
+  overflow: hidden;
+}
+
+/* Light reflection highlight inspired by friends-page.css */
+.modal-button.delete::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--modal-light-reflection),
+    transparent
+  );
+  z-index: 1;
+}
+
 .modal-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px var(--modal-shadow-elevated);
 }
 
 .modal-button.confirm:hover {
@@ -145,18 +184,44 @@
     var(--modal-confirm-bg-end)
   );
   filter: brightness(1.1);
-  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+  box-shadow: 0 6px 20px var(--modal-confirm-shadow);
 }
 
 .modal-button.cancel:hover {
   background: var(--surface-hover);
   border-color: var(--accent-primary);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 20px var(--modal-shadow-base);
+}
+
+.modal-button.delete:hover {
+  /* Enhanced hover state with better contrast */
+  background: var(--modal-delete-hover-bg);
+  backdrop-filter: blur(16px) saturate(200%);
+  -webkit-backdrop-filter: blur(16px) saturate(200%);
+
+  border-color: var(--modal-delete-hover-border);
+  color: var(--modal-delete-hover-text);
+
+  /* Enhanced shadow with glow effect */
+  box-shadow: 0 6px 20px var(--modal-shadow-elevated),
+    0 4px 12px var(--modal-delete-hover-shadow),
+    0 0 0 1px var(--modal-delete-shadow-secondary),
+    inset 0 1px 0 var(--modal-shadow-light-inset-hover);
+
+  /* Subtle lift effect */
+  transform: translateY(-1px);
+}
+
+.modal-button.delete:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px var(--modal-shadow-base),
+    0 1px 4px var(--modal-delete-shadow-active),
+    inset 0 1px 0 var(--modal-shadow-light-inset);
 }
 
 .modal-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px var(--modal-shadow-base);
 }
 
 .modal-close-btn {
@@ -458,4 +523,89 @@
 
 .modal-overlay.active .modal-content {
   transform: scale(1) translateY(0);
+}
+
+/* Modal actions row for destructive secondary actions */
+.modal-actions-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  gap: 1rem;
+}
+
+.modal-actions-row .modal-button.delete {
+  /* Enhanced glassmorphism inspired by friends-page.css patterns */
+  min-width: 140px;
+  width: auto;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  /* Multi-layered glassmorphism background */
+  background: var(--modal-delete-bg);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+
+  /* Enhanced border with subtle gradients */
+  border: 1px solid var(--modal-delete-border);
+  border-radius: 10px;
+
+  /* Warm red color scheme */
+  color: var(--modal-delete-text);
+
+  /* Multi-layered shadow system */
+  box-shadow: 0 4px 16px var(--modal-shadow-base),
+    0 2px 8px var(--modal-delete-shadow-primary),
+    inset 0 1px 0 var(--modal-shadow-light-inset);
+
+  /* Smooth transitions */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Light reflection highlight inspired by friends-page.css */
+.modal-actions-row .modal-button.delete::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--modal-light-reflection),
+    transparent
+  );
+  z-index: 1;
+}
+
+.modal-actions-row .modal-button.delete:hover {
+  /* Enhanced hover state with better contrast */
+  background: var(--modal-delete-hover-bg);
+  backdrop-filter: blur(16px) saturate(200%);
+  -webkit-backdrop-filter: blur(16px) saturate(200%);
+
+  border-color: var(--modal-delete-hover-border);
+  color: var(--modal-delete-hover-text);
+
+  /* Enhanced shadow with glow effect */
+  box-shadow: 0 6px 20px var(--modal-shadow-elevated),
+    0 4px 12px var(--modal-delete-hover-shadow),
+    0 0 0 1px var(--modal-delete-shadow-secondary),
+    inset 0 1px 0 var(--modal-shadow-light-inset-hover);
+
+  /* Subtle lift effect */
+  transform: translateY(-1px);
+}
+
+.modal-actions-row .modal-button.delete:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px var(--modal-shadow-base),
+    0 1px 4px var(--modal-delete-shadow-active),
+    inset 0 1px 0 var(--modal-shadow-light-inset);
 }
