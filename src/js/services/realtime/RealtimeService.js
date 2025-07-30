@@ -49,6 +49,24 @@
 import { dataManager } from "../data/DataService.js";
 
 /**
+ * Debounce utility to prevent excessive updates on low-end devices
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Wait time in milliseconds
+ * @returns {Function} Debounced function
+ */
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+/**
  * Real-Time Event Types
  * These are the events that components can subscribe to
  */
@@ -78,6 +96,9 @@ class RealTimeManager {
 
     // Debug mode flag
     this.debugMode = process.env.NODE_ENV === "development";
+
+    // Debounced emitters to reduce CPU usage on low-end devices (300ms delay)
+    this.debouncedEmit = debounce(this.emit.bind(this), 300);
 
     this.log("🎛️ RealTimeManager initialized");
   }

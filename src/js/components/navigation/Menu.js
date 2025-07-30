@@ -488,7 +488,22 @@ function handleLogin() {
  * @param {object|null} state.profile - The user's profile data.
  */
 function handleAuthStateChange({ isLoggedIn, profile }) {
-  console.log("🔄 Menu auth state change:", { isLoggedIn, hasProfile: !!profile });
+  // Track previous state to prevent redundant updates (using static variable pattern)
+  if (!handleAuthStateChange.previousState) {
+    handleAuthStateChange.previousState = { isLoggedIn: null, hasProfile: null };
+  }
+  
+  const currentState = { isLoggedIn, hasProfile: !!profile };
+  const previousState = handleAuthStateChange.previousState;
+  
+  // Skip update if state hasn't changed (performance optimization)
+  if (previousState.isLoggedIn === currentState.isLoggedIn && 
+      previousState.hasProfile === currentState.hasProfile) {
+    return;
+  }
+  
+  console.log("🔄 Menu auth state change:", currentState);
+  handleAuthStateChange.previousState = currentState;
   
   const userMenu = document.getElementById("userMenu");
   const loginBtn = document.getElementById("login-btn");
@@ -543,6 +558,10 @@ async function updateUserDisplayInfo(userData) {
   }
 }
 
+// Cache for avatar rendering to prevent redundant updates
+let cachedAvatarConfig = null;
+let cachedAvatarHtml = null;
+
 /**
  * Update user avatar displays in navigation and dropdown
  * Fetches and displays custom avatar from user's Firestore profile
@@ -555,6 +574,13 @@ function updateUserAvatarDisplays(userData) {
   // Handle both direct profile data and nested userData structure
   const avatarConfig = userData?.avatarConfig || userData?.profile?.avatarConfig;
   const hasAvatarConfig = !!avatarConfig;
+  
+  // Skip rendering if avatar config hasn't changed (performance optimization)
+  if (cachedAvatarConfig && avatarConfig && 
+      JSON.stringify(cachedAvatarConfig) === JSON.stringify(avatarConfig) &&
+      cachedAvatarHtml) {
+    return;
+  }
 
   // 🎯 FIX: Check for avatarManager and the correct function `generateAvatarUrl`
   if (hasAvatarConfig && avatarManager && typeof avatarManager.generateAvatarUrl === 'function') {
@@ -564,15 +590,24 @@ function updateUserAvatarDisplays(userData) {
 
       if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
       if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
+      
+      // Cache the rendered avatar for performance
+      cachedAvatarConfig = avatarConfig;
+      cachedAvatarHtml = avatarHtml;
+      
       console.log("🎨 Custom avatar rendered successfully.");
 
     } catch (error) {
       console.error("❌ Error generating avatar URL, falling back to default.", error);
       displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
+      cachedAvatarConfig = null;
+      cachedAvatarHtml = null;
     }
   } else {
     // Fallback for no config or no avatar manager
     displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
+    cachedAvatarConfig = null;
+    cachedAvatarHtml = null;
   }
 }
 

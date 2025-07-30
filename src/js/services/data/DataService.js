@@ -147,12 +147,12 @@ class DataManager {
    * @private
    */
   setupCacheCleanup() {
-    // Clean up expired cache entries every 2 minutes
+    // Clean up expired cache entries every 10 minutes (reduced frequency for performance)
     this.cacheCleanupInterval = setInterval(() => {
       this.cleanupExpiredCacheEntries();
-    }, 2 * 60 * 1000);
+    }, 10 * 60 * 1000);
 
-    console.log("🧹 Cache cleanup interval started (every 2 minutes)");
+    console.log("🧹 Cache cleanup interval started (every 10 minutes)");
   }
 
   /**
