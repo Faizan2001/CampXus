@@ -1509,42 +1509,6 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   color: var(--friends-schedule-cannot-see-color);
 }
 
-/* View schedule button in friend actions */
-.btn-view-schedule {
-  background: var(--friends-btn-view-schedule-bg);
-  color: var(--friends-btn-view-schedule-color);
-  border: var(--friends-btn-view-schedule-border);
-  border-radius: 8px;
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-}
-
-.btn-view-schedule:hover {
-  background: var(--friends-btn-view-schedule-hover-bg);
-  border-color: var(--friends-btn-view-schedule-hover-border);
-  transform: translateY(-1px);
-  box-shadow: var(--friends-btn-view-schedule-hover-shadow);
-}
-
-.btn-view-schedule:disabled {
-  background: var(--friends-btn-view-schedule-disabled-bg);
-  color: var(--friends-btn-view-schedule-disabled-color);
-  border-color: var(--friends-btn-view-schedule-disabled-border);
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-view-schedule i {
-  font-size: 0.9rem;
-}
-
 /* Responsive adjustments for schedule access */
 @media (max-width: 768px) {
   .schedule-access {
@@ -1624,7 +1588,7 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
 }
 
 /* =================================
-   FRIEND OPTIONS MENU (NEW)
+   FRIEND OPTIONS MENU
 ================================= */
 
 /* Friend options container in friend cards */
@@ -1646,27 +1610,75 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   contain: layout;
 }
 
-/* Three dots button */
+/* Three dots button - Lifted layer glassmorphism */
 .friend-options-menu .options-button {
-  background: rgba(var(--text-primary-rgb), 0.05);
+  background: linear-gradient(135deg, 
+    var(--friends-button-glass-bg-light) 0%,
+    var(--friends-button-glass-bg-lighter) 100%);
   color: var(--text-secondary);
-  border: 1px solid rgba(var(--text-primary-rgb), 0.1);
-  border-radius: 6px;
+  border: none;
+  border-radius: 9px;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.875rem;
+  
+  /* Lifted layer effect with enhanced glassmorphism */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 
+    0 4px 12px var(--friends-button-shadow-dark-subtle),
+    0 2px 4px var(--friends-button-shadow-dark-faint),
+    0 1px 2px var(--friends-button-shadow-dark-light),
+    inset 0 1px 0 var(--friends-button-highlight-white-strong),
+    inset 0 -1px 0 var(--friends-button-shadow-dark-active);
+  
+  /* Subtle inner glow */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glass highlight effect for lifted appearance */
+.friend-options-menu .options-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(180deg, 
+    var(--friends-button-highlight-white-medium) 0%, 
+    var(--friends-button-highlight-white-subtle) 40%,
+    transparent 100%);
+  border-radius: 8px 8px 0 0;
+  pointer-events: none;
 }
 
 .friend-options-menu .options-button:hover {
-  background: rgba(var(--text-primary-rgb), 0.1);
-  border-color: rgba(var(--text-primary-rgb), 0.2);
+  background: linear-gradient(135deg, 
+    var(--friends-button-glass-bg-hover-light) 0%,
+    var(--friends-button-glass-bg-hover-medium) 100%);
   color: var(--text-primary);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  
+  /* Enhanced lifted hover effect */
+  box-shadow: 
+    0 6px 20px var(--friends-button-shadow-dark-strong),
+    0 3px 8px var(--friends-button-shadow-dark-hover),
+    0 1px 3px var(--friends-button-shadow-dark-faint),
+    inset 0 1px 0 var(--friends-button-highlight-white-hover),
+    inset 0 -1px 0 var(--friends-button-shadow-dark-hover-light);
+}
+
+.friend-options-menu .options-button:hover::before {
+  background: linear-gradient(180deg, 
+    var(--friends-button-highlight-white-strong) 0%, 
+    var(--friends-button-highlight-white-light) 50%,
+    transparent 100%);
 }
 
 .friend-options-menu .options-button:active {
@@ -1674,9 +1686,26 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
 }
 
 .friend-options-menu .options-button[aria-expanded="true"] {
-  background: rgba(var(--primary-rgb), 0.1);
-  border-color: rgba(var(--primary-rgb), 0.3);
-  color: var(--primary);
+  background: linear-gradient(135deg, 
+    var(--friends-button-glass-bg-active-purple) 0%,
+    var(--friends-button-glass-bg-active-purple-light) 100%);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+  
+  /* Active state with lifted purple glow */
+  box-shadow: 
+    0 0 16px var(--friends-button-purple-glow),
+    0 4px 12px var(--friends-button-shadow-dark-medium),
+    0 2px 4px var(--friends-button-shadow-dark-active),
+    inset 0 1px 0 var(--friends-button-highlight-white-medium),
+    inset 0 -1px 0 var(--friends-button-purple-shadow);
+}
+
+.friend-options-menu .options-button[aria-expanded="true"]::before {
+  background: linear-gradient(180deg, 
+    var(--friends-button-purple-highlight) 0%, 
+    var(--friends-button-purple-shadow) 50%,
+    transparent 100%);
 }
 
 /* Modal-style dropdown menu - positioned as overlay to avoid clipping */

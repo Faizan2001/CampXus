@@ -1278,6 +1278,39 @@ body:not(.dark-mode) {
   --friends-options-dark-button-hover: rgba(255, 255, 255, 0.15);
   --friends-options-dark-button-border: rgba(255, 255, 255, 0.15);
   --friends-options-dark-button-border-hover: rgba(255, 255, 255, 0.25);
+
+  /* =================================
+     GLASSMORPHISM BUTTON VARIABLES (LIGHT MODE)
+  ================================= */
+  /* Three dots button glassmorphism effects - Light Mode */
+  --friends-button-glass-bg-light: rgba(255, 255, 255, 0.15);
+  --friends-button-glass-bg-lighter: rgba(255, 255, 255, 0.08);
+  --friends-button-glass-bg-hover-light: rgba(255, 255, 255, 0.25);
+  --friends-button-glass-bg-hover-medium: rgba(255, 255, 255, 0.12);
+  --friends-button-glass-bg-active-purple: rgba(139, 92, 246, 0.1);
+  --friends-button-glass-bg-active-purple-light: rgba(139, 92, 246, 0.05);
+  
+  /* Button shadow system - Light Mode */
+  --friends-button-shadow-dark-subtle: rgba(139, 92, 246, 0.1);
+  --friends-button-shadow-dark-faint: rgba(139, 92, 246, 0.05);
+  --friends-button-shadow-dark-light: rgba(139, 92, 246, 0.03);
+  --friends-button-shadow-dark-medium: rgba(139, 92, 246, 0.15);
+  --friends-button-shadow-dark-strong: rgba(139, 92, 246, 0.2);
+  --friends-button-shadow-dark-hover: rgba(139, 92, 246, 0.08);
+  --friends-button-shadow-dark-hover-light: rgba(139, 92, 246, 0.04);
+  --friends-button-shadow-dark-active: rgba(139, 92, 246, 0.06);
+  
+  /* Button highlight system - Light Mode */
+  --friends-button-highlight-white-strong: rgba(255, 255, 255, 0.9);
+  --friends-button-highlight-white-medium: rgba(255, 255, 255, 0.7);
+  --friends-button-highlight-white-subtle: rgba(255, 255, 255, 0.5);
+  --friends-button-highlight-white-light: rgba(255, 255, 255, 0.6);
+  --friends-button-highlight-white-hover: rgba(255, 255, 255, 0.95);
+  
+  /* Button active state purple glow - Light Mode */
+  --friends-button-purple-glow: rgba(139, 92, 246, 0.2);
+  --friends-button-purple-highlight: rgba(139, 92, 246, 0.08);
+  --friends-button-purple-shadow: rgba(139, 92, 246, 0.1);
 }
 
 /* =============================================================================
@@ -1814,6 +1847,39 @@ body.dark-mode {
   --friends-btn-view-schedule-border: rgba(59, 130, 246, 0.4);
   --friends-btn-view-schedule-hover-bg: rgba(59, 130, 246, 0.25);
   --friends-btn-view-schedule-hover-border: rgba(59, 130, 246, 0.5);
+
+  /* =================================
+     GLASSMORPHISM BUTTON VARIABLES (DARK MODE)
+  ================================= */
+  /* Three dots button glassmorphism effects */
+  --friends-button-glass-bg-light: rgba(255, 255, 255, 0.12);
+  --friends-button-glass-bg-lighter: rgba(255, 255, 255, 0.06);
+  --friends-button-glass-bg-hover-light: rgba(255, 255, 255, 0.18);
+  --friends-button-glass-bg-hover-medium: rgba(255, 255, 255, 0.1);
+  --friends-button-glass-bg-active-purple: rgba(139, 92, 246, 0.15);
+  --friends-button-glass-bg-active-purple-light: rgba(139, 92, 246, 0.08);
+  
+  /* Button shadow system */
+  --friends-button-shadow-dark-subtle: rgba(0, 0, 0, 0.08);
+  --friends-button-shadow-dark-faint: rgba(0, 0, 0, 0.04);
+  --friends-button-shadow-dark-light: rgba(0, 0, 0, 0.02);
+  --friends-button-shadow-dark-medium: rgba(0, 0, 0, 0.1);
+  --friends-button-shadow-dark-strong: rgba(0, 0, 0, 0.12);
+  --friends-button-shadow-dark-hover: rgba(0, 0, 0, 0.06);
+  --friends-button-shadow-dark-hover-light: rgba(0, 0, 0, 0.03);
+  --friends-button-shadow-dark-active: rgba(0, 0, 0, 0.05);
+  
+  /* Button highlight system */
+  --friends-button-highlight-white-strong: rgba(255, 255, 255, 0.25);
+  --friends-button-highlight-white-medium: rgba(255, 255, 255, 0.2);
+  --friends-button-highlight-white-subtle: rgba(255, 255, 255, 0.1);
+  --friends-button-highlight-white-light: rgba(255, 255, 255, 0.12);
+  --friends-button-highlight-white-hover: rgba(255, 255, 255, 0.3);
+  
+  /* Button active state purple glow */
+  --friends-button-purple-glow: rgba(139, 92, 246, 0.25);
+  --friends-button-purple-highlight: rgba(139, 92, 246, 0.12);
+  --friends-button-purple-shadow: rgba(139, 92, 246, 0.1);
 
   /* =================================
      MISSING SYSTEM VARIABLES (DARK MODE)
