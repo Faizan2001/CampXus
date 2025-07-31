@@ -40,6 +40,7 @@ export class FriendOptionsMenu {
     this.handleButtonClick = this.handleButtonClick.bind(this);
     this.handleOutsideClick = this.handleOutsideClick.bind(this);
     this.handleKeyDown = this.handleKeyDown.bind(this);
+    this.handleWindowResize = this.handleWindowResize.bind(this);
 
     console.log(
       `🔗 FriendOptionsMenu created for ${
@@ -90,8 +91,7 @@ export class FriendOptionsMenu {
       
       <div class="options-dropdown glassmorphism-dropdown" 
            role="menu"
-           aria-label="Friend options menu"
-           style="display: none;">
+           aria-label="Friend options menu">
         <ul role="none">
           ${
             this.options.showPrivacyToggle
@@ -206,6 +206,10 @@ export class FriendOptionsMenu {
     // Close dropdown when clicking outside
     document.addEventListener("click", this.handleOutsideClick);
 
+    // Handle window resize and scroll to reposition dropdown
+    window.addEventListener("resize", this.handleWindowResize);
+    window.addEventListener("scroll", this.handleWindowResize);
+
     console.log("🎯 Event listeners attached to friend options menu");
   }
 
@@ -223,7 +227,7 @@ export class FriendOptionsMenu {
   }
 
   /**
-   * 📂 Open the dropdown menu
+   * 📂 Open the dropdown menu with smart positioning
    */
   openDropdown() {
     if (!this.element) return;
@@ -234,17 +238,52 @@ export class FriendOptionsMenu {
     const button = this.element.querySelector(".options-button");
     const dropdown = this.element.querySelector(".options-dropdown");
 
-    dropdown.style.display = "block";
+    // Calculate positioning relative to button
+    const buttonRect = button.getBoundingClientRect();
+    
+    // Position dropdown below and slightly to the left of the button
+    const top = buttonRect.bottom + 8;
+    const left = buttonRect.right - 160; // Align dropdown to right edge of button (dropdown is ~150px wide)
+
+    // Ensure dropdown stays within viewport
+    const viewportWidth = window.innerWidth;
+    const adjustedLeft = Math.max(10, Math.min(left, viewportWidth - 170));
+
+    // Position dropdown near the button
+    dropdown.style.top = `${top}px`;
+    dropdown.style.left = `${adjustedLeft}px`;
+    dropdown.style.transform = 'none'; // Override any transform that might affect positioning
+    
+    // Move dropdown to body to avoid parent positioning issues
+    document.body.appendChild(dropdown);
+    
+    // Add the show class for animation
+    this.element.classList.add("show");
+    
+    // Add CSS classes for proper styling via existing CSS
+    dropdown.classList.add('glassmorphism-dropdown-active');
+    
+    // Ensure proper visibility and positioning
+    dropdown.style.opacity = '1';
+    dropdown.style.visibility = 'visible';
+    dropdown.style.display = 'block';
+    dropdown.style.zIndex = '9999';
+    dropdown.style.position = 'fixed';
+    dropdown.style.transform = 'none';
+
+    // Update ARIA and state
     button.setAttribute("aria-expanded", "true");
     this.isDropdownOpen = true;
 
-    // Focus first menu item for keyboard navigation
-    const firstMenuItem = dropdown.querySelector(".menu-option");
-    if (firstMenuItem) {
-      firstMenuItem.focus();
-    }
+    // Add slight delay for smooth animation, then focus first menu item
+    setTimeout(() => {
+      const firstMenuItem = dropdown.querySelector(".menu-option");
+      if (firstMenuItem) {
+        firstMenuItem.focus();
+      }
+    }, 150);
 
-    console.log("📂 Friend options dropdown opened");
+    console.log(`📂 Friend options dropdown opened for ${this.friend.displayName} at (${adjustedLeft}, ${top})`);
   }
 
   /**
@@ -254,9 +293,22 @@ export class FriendOptionsMenu {
     if (!this.element) return;
 
     const button = this.element.querySelector(".options-button");
-    const dropdown = this.element.querySelector(".options-dropdown");
+    let dropdown = this.element.querySelector(".options-dropdown");
+    
+    // Check if dropdown was moved to body
+    if (!dropdown) {
+      dropdown = document.body.querySelector(".glassmorphism-dropdown-active");
+    }
 
-    dropdown.style.display = "none";
+    // Remove show class to trigger close animation
+    this.element.classList.remove("show");
+    
+    // Clean up dropdown styling and move back to original parent
+    if (dropdown && dropdown.parentElement === document.body) {
+      dropdown.classList.remove("glassmorphism-dropdown-active");
+      this.element.appendChild(dropdown);
+    }
+
     button.setAttribute("aria-expanded", "false");
     this.isDropdownOpen = false;
 
@@ -281,8 +333,15 @@ export class FriendOptionsMenu {
       `🔒 Bilateral privacy toggle for ${this.friend.displayName}: ${currentlyVisible} → ${newVisibility}`
     );
 
-    // Optimistic UI update
-    await this.updatePrivacyUI(newVisibility);
+    // Set flag to prevent friends list re-render during privacy update
+    if (window.friendsPage) {
+      window.friendsPage.isUpdatingPrivacy = true;
+    }
+
+    // Batch DOM updates to prevent flickering
+    requestAnimationFrame(() => {
+      this.updatePrivacyUI(newVisibility);
+    });
 
     // Update database using bilateral privacy service
     const success = await friendshipPrivacyService.updateScheduleVisibility(
@@ -300,33 +359,29 @@ export class FriendOptionsMenu {
           : "hidden";
       }
 
-      // Emit event for parent components to update (check if element still exists)
-      if (this.element) {
-        this.element.dispatchEvent(
-          new CustomEvent("privacy-changed", {
-            bubbles: true,
-            detail: {
-              friendId: this.friend.id,
-              myScheduleVisible: newVisibility,
-              privacyStatus: this.currentPrivacyStatus,
-              friend: this.friend,
-            },
-          })
-        );
-      } else {
-        console.warn(`⚠️ Element destroyed before privacy event could be dispatched for ${this.friend.displayName}`);
-      }
+      // Update the privacy status in the friend card directly without triggering re-render
+      this.updateFriendCardPrivacyStatus(newVisibility);
 
       console.log(
         `✅ Bilateral privacy updated for ${this.friend.displayName}`
       );
     } else {
-      // Revert UI on failure
-      await this.updatePrivacyUI(currentlyVisible);
+      // Revert UI on failure with animation frame
+      requestAnimationFrame(() => {
+        this.updatePrivacyUI(currentlyVisible);
+        this.updateFriendCardPrivacyStatus(currentlyVisible);
+      });
       console.error(
         `❌ Failed to update bilateral privacy for ${this.friend.displayName}`
       );
     }
+
+    // Clear the privacy update flag after a short delay
+    setTimeout(() => {
+      if (window.friendsPage) {
+        window.friendsPage.isUpdatingPrivacy = false;
+      }
+    }, 1000); // 1 second delay to allow database changes to propagate
   }
 
   /**
@@ -344,27 +399,80 @@ export class FriendOptionsMenu {
     }
 
     const privacyOption = this.element.querySelector(".privacy-toggle-option");
-    const icon = privacyOption?.querySelector("i");
+    const icon = privacyOption?.querySelector("i"); 
     const text = privacyOption?.querySelector("span");
 
     if (privacyOption && icon && text) {
-      // Update icon (bilateral privacy - user controls their own visibility)
-      icon.className = myScheduleVisible ? "fas fa-eye-slash" : "fas fa-eye";
+      // Use CSS transitions to prevent flickering - batch all updates
+      const updates = () => {
+        // Update icon class
+        const newIconClass = myScheduleVisible ? "fas fa-eye-slash" : "fas fa-eye";
+        if (icon.className !== newIconClass) {
+          icon.className = newIconClass;
+        }
 
-      // Update text with clear bilateral labeling
-      text.textContent = myScheduleVisible
-        ? "Hide My Schedule"
-        : "Show My Schedule";
+        // Update text content
+        const newText = myScheduleVisible ? "Hide My Schedule" : "Show My Schedule";
+        if (text.textContent !== newText) {
+          text.textContent = newText;
+        }
 
-      // Update class for styling
-      privacyOption.className = `menu-option privacy-toggle-option ${
-        myScheduleVisible ? "hide-my-schedule" : "show-my-schedule"
-      }`;
+        // Update class for styling
+        const newClassName = `menu-option privacy-toggle-option ${
+          myScheduleVisible ? "hide-my-schedule" : "show-my-schedule"
+        }`;
+        if (privacyOption.className !== newClassName) {
+          privacyOption.className = newClassName;
+        }
 
+        // Update tooltip
+        const newTitle = myScheduleVisible
+          ? "Hide your schedule from this friend"
+          : "Show your schedule to this friend";
+        if (privacyOption.title !== newTitle) {
+          privacyOption.title = newTitle;
+        }
+      };
+
+      // Apply all updates in a single animation frame to prevent layout thrashing
+      updates();
+    }
+  }
+
+  /**
+   * 🎯 Update privacy status in friend card without triggering re-render
+   * @param {boolean} myScheduleVisible - Whether current user's schedule is visible to friend
+   */
+  updateFriendCardPrivacyStatus(myScheduleVisible) {
+    // Find the friend card that contains this menu
+    const friendCard = this.element.closest('.friend-card');
+    if (!friendCard) return;
+
+    // Find the privacy status element in the friend card
+    const privacyStatus = friendCard.querySelector('.schedule-access.bilateral-privacy');
+    if (!privacyStatus) return;
+
+    const icon = privacyStatus.querySelector('i');
+    const span = privacyStatus.querySelector('span');
+
+    if (icon && span) {
+      // Update icon class
+      icon.className = myScheduleVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
+      
+      // Update text content
+      span.textContent = myScheduleVisible 
+        ? 'Your schedule is visible' 
+        : 'Your schedule is hidden';
+      
+      // Update CSS classes for styling
+      privacyStatus.classList.remove('my-schedule-visible', 'my-schedule-hidden');
+      privacyStatus.classList.add(myScheduleVisible ? 'my-schedule-visible' : 'my-schedule-hidden');
+      
       // Update tooltip
-      privacyOption.title = myScheduleVisible
-        ? "Hide your schedule from this friend"
-        : "Show your schedule to this friend";
+      const tooltipText = myScheduleVisible
+        ? 'Your schedule: Your schedule is visible to this friend\nFriend\'s schedule: Friend\'s schedule is visible to you'
+        : 'Your schedule: Your schedule is hidden from this friend\nFriend\'s schedule: Friend\'s schedule is visible to you';
+      privacyStatus.title = tooltipText;
     }
   }
 
@@ -440,6 +548,16 @@ export class FriendOptionsMenu {
   }
 
   /**
+   * 📏 Handle window resize/scroll to reposition dropdown
+   */
+  handleWindowResize() {
+    if (this.isDropdownOpen && this.element) {
+      // Close dropdown on window resize/scroll to avoid positioning issues
+      this.closeDropdown();
+    }
+  }
+
+  /**
    * 🔄 Update friend data and refresh privacy status
    * @param {Object} newFriendData - Updated friend information
    */
@@ -448,7 +566,7 @@ export class FriendOptionsMenu {
 
     // Update privacy status and UI with bilateral privacy
     await this.updatePrivacyStatus();
-    await this.updatePrivacyUI();
+    this.updatePrivacyUI();
 
     console.log(
       `🔄 Friend data updated for ${this.friend.displayName} with bilateral privacy`
@@ -461,11 +579,12 @@ export class FriendOptionsMenu {
   closeAllDropdowns() {
     const allMenus = document.querySelectorAll(".friend-options-menu");
     allMenus.forEach((menu) => {
-      const dropdown = menu.querySelector(".options-dropdown");
       const button = menu.querySelector(".options-button");
 
-      if (dropdown && dropdown.style.display === "block") {
-        dropdown.style.display = "none";
+      if (menu.classList.contains("show")) {
+        // Remove show class to trigger close animation
+        menu.classList.remove("show");
+
         if (button) {
           button.setAttribute("aria-expanded", "false");
         }
@@ -481,6 +600,8 @@ export class FriendOptionsMenu {
 
     // Remove event listeners
     document.removeEventListener("click", this.handleOutsideClick);
+    window.removeEventListener("resize", this.handleWindowResize);
+    window.removeEventListener("scroll", this.handleWindowResize);
 
     // Remove element from DOM
     if (this.element.parentNode) {

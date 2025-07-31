@@ -622,8 +622,11 @@ body.page-friends .schedule-section {
   scroll-behavior: smooth;
   
   /* Ensure dropdowns can extend outside container */
-  position: relative;
-  z-index: 1;
+  position: static;
+  z-index: auto;
+  
+  /* Create a new stacking context to contain dropdowns properly */
+  isolation: isolate;
 }
 
 .friends-scrollable-container::-webkit-scrollbar,
@@ -665,10 +668,11 @@ body.page-friends .schedule-section {
 
   padding: 16px;
   margin-bottom: 8px;
-  min-height: 64px;
+  min-height: 72px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
-  flex-direction: column; /* Stack main content and dropdown vertically */
+  flex-direction: row; /* Horizontal layout for main content */
+  align-items: center;
   gap: 16px;
   width: 100%;
   position: relative;
@@ -678,12 +682,9 @@ body.page-friends .schedule-section {
   box-shadow: var(--friends-card-shadow);
 }
 
-/* Friend card main content (avatar, info, actions) */
+/* Friend card main content (avatar, info, actions) - removed as layout is now direct in .friend-card */
 .friend-card-main {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  width: 100%;
+  display: contents; /* Use contents to flatten layout hierarchy */
 }
 
 /* Light reflection highlight */
@@ -730,6 +731,10 @@ body.page-friends .schedule-section {
 
 .friend-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0; /* Allow text to wrap properly */
 }
 
 .friend-name {
@@ -757,8 +762,9 @@ body.page-friends .schedule-section {
 
 .friend-actions {
   display: flex;
-  gap: var(--space-sm);
+  gap: 8px;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .btn-view-schedule {
@@ -1077,6 +1083,7 @@ body.page-friends .schedule-section {
   font-weight: 600;
   flex-shrink: 0;
   overflow: hidden;
+  margin-right: 4px;
 }
 
 .friend-card .friend-avatar .user-avatar-img {
@@ -1109,28 +1116,149 @@ body.page-friends .schedule-section {
   line-height: 1.4;
 }
 
-/* Bilateral privacy indicators in friend cards */
+/* Bilateral privacy indicators in friend cards - Clean minimal styling with rounded edges */
 .friend-card .schedule-access.bilateral-privacy {
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s ease;
+  border-radius: 12px !important; /* Rounded edges */
+  padding: 4px 8px !important; /* Reduced padding to fit content better */
+  font-size: var(--friends-privacy-status-font-size) !important;
+  font-weight: 300 !important; /* Reverted to original font weight */
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important; /* Reduced gap between icon and text */
+  transition: var(--friends-privacy-status-transition) !important;
+  width: fit-content !important; /* Fit content exactly - icon + text + gap + padding */
+  min-width: fit-content !important; /* Minimum width to fit content */
+  max-width: fit-content !important; /* Maximum width to fit content */
+  justify-content: flex-start !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  backdrop-filter: blur(12px) !important; /* Back to original blur */
+  -webkit-backdrop-filter: blur(12px) !important;
+  position: relative !important;
+  flex-shrink: 0 !important; /* Don't shrink in parent flex layout */
 }
 
+/* Icon styling moved to enhanced section below */
+
+/* Ultra-high specificity for glassmorphism span styling */
+.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy span,
+.friend-card .schedule-access.bilateral-privacy.my-schedule-visible span,
+.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden span {
+  flex: none !important; /* Don't grow to fill space - fit content only */
+  width: auto !important; /* Auto width to fit text content */
+  overflow: visible !important; /* Allow text to show properly */
+  text-overflow: clip !important; /* No ellipsis needed since we fit content */
+  white-space: nowrap !important;
+  min-width: 0 !important;
+  font-weight: 500 !important; /* Reverted to original font weight */
+  
+  /* Remove boxed background - clean text only */
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  display: inline !important;
+  line-height: 1.2 !important;
+  
+  /* Clean text styling without effects */
+  font-size: inherit !important;
+  text-shadow: none !important;
+  letter-spacing: normal !important;
+}
+
+/* Ultra-high specificity for hover states */
+.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy span:hover,
+.friend-card .schedule-access.bilateral-privacy.my-schedule-visible span:hover,
+.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden span:hover {
+  /* Remove hover effects for clean text */
+  background: transparent !important;
+  transform: none !important;
+}
+
+/* Enhanced icon styling with glassmorphism */
+.friend-card .schedule-access.bilateral-privacy i {
+  flex-shrink: 0 !important;
+  width: var(--friends-privacy-status-icon-size) !important;
+  height: var(--friends-privacy-status-icon-size) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: var(--friends-privacy-status-font-size) !important;
+  
+  /* Glassmorphism styling for the icon */
+  background: var(--friends-privacy-span-bg) !important;
+  border: var(--friends-privacy-span-border) !important;
+  border-radius: 50% !important;
+  padding: 3px !important;
+  backdrop-filter: var(--friends-privacy-span-backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--friends-privacy-span-backdrop-blur) !important;
+  box-shadow: var(--friends-privacy-span-shadow) !important;
+  transition: var(--friends-privacy-span-transition) !important;
+}
+
+.friend-card .schedule-access.bilateral-privacy:hover i {
+  background: var(--friends-privacy-span-bg-hover) !important;
+  transform: scale(1.05) !important;
+}
+
+/* Higher specificity rule for visible state */
+.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy.my-schedule-visible,
 .friend-card .schedule-access.bilateral-privacy.my-schedule-visible {
-  background: rgba(16, 185, 129, 0.1);
-  color: #047857;
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: var(--friends-privacy-visible-bg) !important;
+  color: var(--friends-privacy-visible-color) !important;
+  border: var(--friends-privacy-visible-border) !important;
+  box-shadow: var(--friends-privacy-visible-shadow) !important;
+  
+  /* Ensure auto width applies */
+  width: auto !important;
+  min-width: auto !important;
+  
+  /* Enhanced glassmorphism for visible state */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 12px !important;
 }
 
+/* Higher specificity rule for hidden state */
+.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy.my-schedule-hidden,
 .friend-card .schedule-access.bilateral-privacy.my-schedule-hidden {
-  background: rgba(239, 68, 68, 0.1);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--friends-privacy-hidden-bg) !important;
+  color: var(--friends-privacy-hidden-color) !important;
+  border: var(--friends-privacy-hidden-border) !important;
+  box-shadow: var(--friends-privacy-hidden-shadow) !important;
+  
+  /* Ensure auto width applies */
+  width: auto !important;
+  min-width: auto !important;
+  
+  /* Enhanced glassmorphism for hidden state */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 12px !important;
+}
+
+/* Ultra-high specificity override for auto width and rounded corners */
+body.page-friends .friends-container .friends-scrollable-container .friend-card .schedule-access.bilateral-privacy {
+  width: fit-content !important; /* Fit content instead of auto */
+  min-width: fit-content !important; /* Minimum width also fit content */
+  max-width: fit-content !important; /* Maximum width also fit content */
+  border-radius: 12px !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  flex-shrink: 0 !important; /* Prevent shrinking in flex layout */
+}
+
+/* Ultra-high specificity override for span width */
+body.page-friends .friends-container .friends-scrollable-container .friend-card .schedule-access.bilateral-privacy span {
+  flex: none !important;
+  width: auto !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
 }
 
 /* =================================
@@ -1361,31 +1489,31 @@ body.page-friends .schedule-section {
 
 /* Friend can see schedule - green indicator */
 .schedule-access.can-see {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: var(--friends-schedule-can-see-bg);
+  color: var(--friends-schedule-can-see-color);
+  border: var(--friends-schedule-can-see-border);
 }
 
 .schedule-access.can-see i {
-  color: #16a34a;
+  color: var(--friends-schedule-can-see-color);
 }
 
 /* Friend cannot see schedule - red indicator */
 .schedule-access.cannot-see {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--friends-schedule-cannot-see-bg);
+  color: var(--friends-schedule-cannot-see-color);
+  border: var(--friends-schedule-cannot-see-border);
 }
 
 .schedule-access.cannot-see i {
-  color: #dc2626;
+  color: var(--friends-schedule-cannot-see-color);
 }
 
 /* View schedule button in friend actions */
 .btn-view-schedule {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: var(--friends-btn-view-schedule-bg);
+  color: var(--friends-btn-view-schedule-color);
+  border: var(--friends-btn-view-schedule-border);
   border-radius: 8px;
   padding: 0.5rem;
   cursor: pointer;
@@ -1398,16 +1526,16 @@ body.page-friends .schedule-section {
 }
 
 .btn-view-schedule:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
+  background: var(--friends-btn-view-schedule-hover-bg);
+  border-color: var(--friends-btn-view-schedule-hover-border);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+  box-shadow: var(--friends-btn-view-schedule-hover-shadow);
 }
 
 .btn-view-schedule:disabled {
-  background: rgba(156, 163, 175, 0.1);
-  color: #9ca3af;
-  border-color: rgba(156, 163, 175, 0.2);
+  background: var(--friends-btn-view-schedule-disabled-bg);
+  color: var(--friends-btn-view-schedule-disabled-color);
+  border-color: var(--friends-btn-view-schedule-disabled-border);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -1420,13 +1548,28 @@ body.page-friends .schedule-section {
 /* Responsive adjustments for schedule access */
 @media (max-width: 768px) {
   .schedule-access {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
     gap: 0.3rem;
   }
   
   .schedule-access i {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
+  }
+  
+  /* Adjust bilateral privacy indicator for tablet */
+  .friend-card .schedule-access.bilateral-privacy {
+    width: auto !important; /* Fit content on tablet too */
+    min-width: auto !important; /* Remove minimum width constraint */
+    padding: var(--friends-privacy-status-padding-tablet);
+    font-size: var(--friends-privacy-status-font-size-tablet);
+    gap: var(--friends-privacy-status-gap-tablet);
+  }
+  
+  .friend-card .schedule-access.bilateral-privacy i {
+    width: var(--friends-privacy-status-icon-size-tablet);
+    height: var(--friends-privacy-status-icon-size-tablet);
+    font-size: var(--friends-privacy-status-font-size-tablet);
   }
   
   .btn-view-schedule {
@@ -1440,26 +1583,43 @@ body.page-friends .schedule-section {
   }
 }
 
+/* Extra small mobile adjustments */
+@media (max-width: 480px) {
+  .friend-card .schedule-access.bilateral-privacy {
+    width: auto !important; /* Fit content on mobile too */
+    min-width: auto !important; /* Remove minimum width constraint */
+    padding: var(--friends-privacy-status-padding-mobile);
+    font-size: var(--friends-privacy-status-font-size-mobile);
+    gap: var(--friends-privacy-status-gap-mobile);
+  }
+  
+  .friend-card .schedule-access.bilateral-privacy i {
+    width: var(--friends-privacy-status-icon-size-mobile);
+    height: var(--friends-privacy-status-icon-size-mobile);
+    font-size: var(--friends-privacy-status-font-size-mobile);
+  }
+}
+
 /* Dark mode support for schedule access indicators */
 @media (prefers-color-scheme: dark) {
   .schedule-access.can-see {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.3);
+    background: var(--friends-schedule-can-see-bg);
+    border-color: var(--friends-schedule-can-see-border);
   }
   
   .schedule-access.cannot-see {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.3);
+    background: var(--friends-schedule-cannot-see-bg);
+    border-color: var(--friends-schedule-cannot-see-border);
   }
   
   .btn-view-schedule {
-    background: rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.4);
+    background: var(--friends-btn-view-schedule-bg);
+    border-color: var(--friends-btn-view-schedule-border);
   }
   
   .btn-view-schedule:hover {
-    background: rgba(59, 130, 246, 0.25);
-    border-color: rgba(59, 130, 246, 0.5);
+    background: var(--friends-btn-view-schedule-hover-bg);
+    border-color: var(--friends-btn-view-schedule-hover-border);
   }
 }
 
@@ -1480,7 +1640,10 @@ body.page-friends .schedule-section {
   position: relative;
   display: inline-block;
   /* Ensure dropdown can extend outside all parent containers */
-  z-index: 9999; /* High z-index to create proper stacking context */
+  z-index: 1001; /* High z-index to create proper stacking context */
+  
+  /* Create proper stacking context for dropdown overflow */
+  contain: layout;
 }
 
 /* Three dots button */
@@ -1516,60 +1679,95 @@ body.page-friends .schedule-section {
   color: var(--primary);
 }
 
-/* Glassmorphism dropdown menu - flows as part of friend card */
+/* Modal-style dropdown menu - positioned as overlay to avoid clipping */
 .friend-options-menu .options-dropdown {
-  position: static; /* Natural flow within the friend card */
-  width: 100%;
-  max-width: 200px;
-  margin-left: auto; /* Align to the right */
-  border-radius: 12px;
-  padding: 8px 0;
-  margin-top: 8px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: max-content; /* Fit content instead of fixed width */
+  min-width: 160px; /* Reasonable minimum width */
+  max-width: 220px; /* Reasonable maximum width */
+  border-radius: 16px;
+  padding: 6px 0; /* Reduced padding for better fit */
+  z-index: 9999; /* Very high z-index to appear above everything */
   
-  /* Enhanced glassmorphism effect consistent with your design */
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  /* Enhanced glassmorphism effect with variables */
+  background: var(--friends-options-dropdown-bg-light);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 2px solid var(--friends-options-dropdown-border);
   
-  /* Enhanced elegant shadow with glassmorphism depth */
+  /* Enhanced elegant shadow with variables */
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    0 20px 60px var(--friends-options-shadow-heavy),
+    0 8px 24px var(--friends-options-shadow-medium),
+    0 4px 12px var(--friends-options-shadow-light),
+    inset 0 1px 0 var(--friends-options-highlight-strong),
+    inset 0 -1px 0 var(--friends-options-highlight-medium);
     
-  /* Smooth animation */
+  /* Initial hidden state */
   opacity: 0;
-  transform: translateY(-8px) scale(0.95);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  visibility: hidden;
+  transform: translateY(-12px) scale(0.92);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
   
-  /* Natural overflow */
-  overflow: visible;
+  /* Prevent text wrapping */
   white-space: nowrap;
+  
+  /* Will be positioned via JavaScript */
 }
 
-/* Add glassmorphism inner highlight */
+/* Add glassmorphism inner highlight with better positioning */
 .friend-options-menu .options-dropdown::before {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 2px;
   background: linear-gradient(90deg,
-    rgba(255, 255, 255, 0.8) 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0.8) 100%);
-  border-radius: 12px 12px 0 0;
+    var(--friends-options-gradient-strong) 0%,
+    var(--friends-options-gradient-medium) 50%,
+    var(--friends-options-gradient-strong) 100%);
+  border-radius: 16px 16px 0 0;
 }
 
-.friend-options-menu .options-dropdown[style*="block"] {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: all;
+/* Show dropdown when menu is active */
+.friend-options-menu.show .options-dropdown,
+div.friend-options-menu.show div.options-dropdown,
+.friend-card div.friend-options-menu.show div.options-dropdown,
+[class*="friend-options-menu"].show [class*="options-dropdown"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  pointer-events: all !important;
+  display: block !important;
+  
+  /* Glassmorphism styling with variables */
+  background: var(--friends-options-dropdown-bg-active) !important;
+  backdrop-filter: blur(32px) !important;
+  -webkit-backdrop-filter: blur(32px) !important;
+  border: 1px solid var(--friends-options-dropdown-border-active) !important;
+  border-radius: 16px !important;
+  
+  /* Enhanced shadow for depth using variables */
+  box-shadow: 0 20px 60px var(--friends-options-shadow-heavy),
+              0 8px 24px var(--friends-options-shadow-medium),
+              0 4px 12px var(--friends-options-shadow-light),
+              inset 0 1px 0 var(--friends-options-highlight-strong),
+              inset 0 -1px 0 var(--friends-options-highlight-medium) !important;
+  
+  z-index: 9999 !important;
+  position: fixed !important;
+  width: max-content !important; /* Fit content instead of fixed width */
+  min-width: 160px !important;
+  max-width: 220px !important;
+  padding: 6px 0 !important;
 }
+
 
 /* Dropdown menu list */
 .friend-options-menu .options-dropdown ul {
@@ -1582,25 +1780,29 @@ body.page-friends .schedule-section {
 .friend-options-menu .menu-option {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px; /* Reduced gap for tighter fit */
+  padding: 10px 16px; /* Reduced padding for better content fit */
   cursor: pointer;
   color: var(--text-primary);
   font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   position: relative;
   
   /* Focus styles for accessibility */
   outline: none;
   border: none;
   background: none;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap; /* Prevent text wrapping */
 }
 
 .friend-options-menu .menu-option:hover,
 .friend-options-menu .menu-option:focus {
-  background: rgba(var(--primary-rgb), 0.08);
+  background: var(--friends-options-hover-primary);
   color: var(--primary);
+  transform: translateX(2px);
 }
 
 .friend-options-menu .menu-option i {
@@ -1619,7 +1821,7 @@ body.page-friends .schedule-section {
 }
 
 .friend-options-menu .privacy-toggle-option.show-schedule:hover {
-  background: rgba(34, 197, 94, 0.08);
+  background: var(--friends-options-hover-green);
   color: #15803d;
 }
 
@@ -1628,7 +1830,7 @@ body.page-friends .schedule-section {
 }
 
 .friend-options-menu .privacy-toggle-option.hide-schedule:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--friends-options-hover-red);
   color: #b91c1c;
 }
 
@@ -1638,7 +1840,7 @@ body.page-friends .schedule-section {
 }
 
 .friend-options-menu .unfriend-option:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--friends-options-hover-red);
   color: #b91c1c;
 }
 
@@ -1648,7 +1850,7 @@ body.page-friends .schedule-section {
 }
 
 .friend-options-menu .privacy-toggle-option.show-my-schedule:hover {
-  background: rgba(16, 185, 129, 0.08);
+  background: var(--friends-options-hover-teal);
   color: #047857;
 }
 
@@ -1657,13 +1859,15 @@ body.page-friends .schedule-section {
 }
 
 .friend-options-menu .privacy-toggle-option.hide-my-schedule:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--friends-options-hover-red);
   color: #b91c1c;
 }
 
-/* Separator line between options */
+/* Enhanced separator line between options */
 .friend-options-menu .menu-option + .menu-option {
-  border-top: 1px solid rgba(var(--text-primary-rgb), 0.08);
+  border-top: 1px solid rgba(var(--text-primary-rgb), 0.12);
+  margin-top: 2px;
+  padding-top: 10px;
 }
 
 /* =================================
@@ -1671,11 +1875,18 @@ body.page-friends .schedule-section {
 ================================= */
 
 @media (max-width: 768px) {
+  .friend-card {
+    padding: 12px;
+    gap: 12px;
+    min-height: 60px;
+  }
+  
   .friend-options-menu .options-dropdown {
+    width: 160px;
     min-width: 160px;
     padding: 6px 0;
+    border-radius: 12px;
     /* Ensure dropdown stays within viewport on mobile */
-    left: auto;
     right: 0;
     max-width: calc(100vw - 32px);
   }
@@ -1685,11 +1896,39 @@ body.page-friends .schedule-section {
   .friend-card:nth-last-child(2) .friend-options-menu .options-dropdown {
     bottom: calc(100% + 4px);
     top: auto;
+    transform: translateY(-8px) scale(0.92);
+  }
+  
+  .friend-card:last-child .friend-options-menu.show .options-dropdown,
+  .friend-card:nth-last-child(2) .friend-options-menu.show .options-dropdown {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    pointer-events: all !important;
+    
+    /* Glassmorphism styling consistent with friends-page design */
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(32px) !important;
+    -webkit-backdrop-filter: blur(32px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-radius: 16px !important;
+    
+    /* Enhanced shadow for depth */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15),
+                0 8px 24px rgba(0, 0, 0, 0.08),
+                0 4px 12px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.3) !important;
+    
+    z-index: 9999 !important;
+    position: fixed !important;
+    width: 200px !important;
+    min-width: 180px !important;
+    padding: 8px 0 !important;
   }
 
-  
   .friend-options-menu .menu-option {
-    padding: 10px 14px;
+    padding: 12px 14px;
     font-size: 0.8rem;
     gap: 10px;
   }
@@ -1709,15 +1948,43 @@ body.page-friends .schedule-section {
 }
 
 @media (max-width: 480px) {
+  .friend-card {
+    padding: 10px;
+    gap: 10px;
+    min-height: 56px;
+    flex-wrap: nowrap;
+  }
+  
+  .friend-info {
+    min-width: 0;
+  }
+  
+  .friend-name {
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+  }
+  
+  .friend-major {
+    font-size: 0.75rem;
+  }
+  
   .friend-options-menu .options-dropdown {
+    width: 140px;
     min-width: 140px;
-    right: -8px; /* Adjust position for small screens */
+    right: -4px;
+    border-radius: 10px;
   }
   
   .friend-options-menu .menu-option {
-    padding: 8px 12px;
+    padding: 10px 12px;
     font-size: 0.75rem;
     gap: 8px;
+  }
+  
+  .friend-options-menu .options-button {
+    width: 26px;
+    height: 26px;
+    font-size: 0.75rem;
   }
 }
 
@@ -1726,36 +1993,140 @@ body.page-friends .schedule-section {
 ================================= */
 
 @media (prefers-color-scheme: dark) {
-  .friend-options-menu .options-dropdown {
-    background: rgba(31, 41, 55, 0.92);
-    border-color: rgba(75, 85, 99, 0.4);
-    box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.4),
-      0 4px 12px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  .friend-options-menu.show .options-dropdown,
+  div.friend-options-menu.show div.options-dropdown,
+  .friend-card div.friend-options-menu.show div.options-dropdown,
+  [class*="friend-options-menu"].show [class*="options-dropdown"] {
+    background: var(--friends-options-dark-dropdown-bg) !important;
+    border-color: var(--friends-options-dark-border) !important;
+    box-shadow: 0 20px 60px var(--friends-options-dark-shadow-heavy),
+                0 8px 24px var(--friends-options-dark-shadow-medium),
+                0 4px 12px var(--friends-options-dark-shadow-light),
+                inset 0 1px 0 var(--friends-options-dark-highlight-medium),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.05) !important;
   }
   
   .friend-options-menu .options-dropdown::before {
     background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.2) 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      rgba(255, 255, 255, 0.2) 100%);
+      var(--friends-options-dark-highlight-strong) 0%,
+      var(--friends-options-dark-highlight-medium) 50%,
+      var(--friends-options-dark-highlight-strong) 100%);
   }
   
   .friend-options-menu .options-button {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: var(--friends-options-dark-button-bg);
+    border-color: var(--friends-options-dark-button-border);
   }
   
   .friend-options-menu .options-button:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--friends-options-dark-button-hover);
+    border-color: var(--friends-options-dark-button-border-hover);
   }
   
   .friend-options-menu .menu-option + .menu-option {
-    border-top-color: rgba(255, 255, 255, 0.1);
+    border-top-color: var(--friends-options-dark-highlight-medium);
+    margin-top: 2px;
+    padding-top: 10px;
   }
 }
 
 /* Privacy toggle layout removed - individual privacy controls in friend card menus */
+
+/* =================================
+   GLASSMORPHISM DROPDOWN ACTIVE (JS Applied)
+================================= */
+
+/* When dropdown is moved to document.body, apply consistent glassmorphism styling */
+.glassmorphism-dropdown-active {
+  /* Use existing friends-page design system variables */
+  background: var(--friends-card-bg) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: var(--friends-card-border) !important;
+  border-radius: 12px !important;
+  padding: 8px 0 !important;
+  width: 200px !important;
+  min-width: 180px !important;
+  
+  /* Use existing shadow system */
+  box-shadow: var(--friends-card-shadow) !important;
+}
+
+/* Style ul inside glassmorphism dropdown */
+.glassmorphism-dropdown-active ul {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Style menu options inside glassmorphism dropdown */
+.glassmorphism-dropdown-active .menu-option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 14px 18px !important;
+  cursor: pointer !important;
+  color: var(--text-primary) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+  outline: none !important;
+  border: none !important;
+  background: none !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+/* Separator between menu options */
+.glassmorphism-dropdown-active .menu-option + .menu-option {
+  border-top: 1px solid rgba(var(--text-primary-rgb), 0.08) !important;
+}
+
+/* Menu option hover states */
+.glassmorphism-dropdown-active .menu-option:hover,
+.glassmorphism-dropdown-active .menu-option:focus {
+  background: rgba(var(--primary-rgb), 0.12) !important;
+  color: var(--primary) !important;
+  transform: translateX(2px) !important;
+}
+
+/* Menu option icons */
+.glassmorphism-dropdown-active .menu-option i {
+  width: 16px !important;
+  height: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  font-size: 0.875rem !important;
+}
+
+/* Privacy toggle specific colors */
+.glassmorphism-dropdown-active .privacy-toggle-option.show-my-schedule {
+  color: #059669 !important;
+}
+
+.glassmorphism-dropdown-active .privacy-toggle-option.show-my-schedule:hover {
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: #047857 !important;
+}
+
+.glassmorphism-dropdown-active .privacy-toggle-option.hide-my-schedule {
+  color: #dc2626 !important;
+}
+
+.glassmorphism-dropdown-active .privacy-toggle-option.hide-my-schedule:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #b91c1c !important;
+}
+
+/* Unfriend option styling */
+.glassmorphism-dropdown-active .unfriend-option {
+  color: #dc2626 !important;
+}
+
+.glassmorphism-dropdown-active .unfriend-option:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #b91c1c !important;
+}

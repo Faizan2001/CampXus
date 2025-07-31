@@ -1166,6 +1166,118 @@ body:not(.dark-mode) {
     var(--friends-white-highlight-faint),
     var(--friends-color-transparent)
   );
+
+  /* =================================
+     PRIVACY STATUS COMPONENT
+  ================================= */
+  --friends-privacy-status-width-desktop: 160px;
+  --friends-privacy-status-width-tablet: 140px;
+  --friends-privacy-status-width-mobile: 120px;
+  --friends-privacy-status-padding: 6px 10px;
+  --friends-privacy-status-padding-tablet: 4px 8px;
+  --friends-privacy-status-padding-mobile: 3px 6px;
+  --friends-privacy-status-border-radius: 8px;
+  --friends-privacy-status-font-size: 0.7rem;
+  --friends-privacy-status-font-size-tablet: 0.65rem;
+  --friends-privacy-status-font-size-mobile: 0.6rem;
+  --friends-privacy-status-gap: 6px;
+  --friends-privacy-status-gap-tablet: 4px;
+  --friends-privacy-status-gap-mobile: 3px;
+  --friends-privacy-status-icon-size: 12px;
+  --friends-privacy-status-icon-size-tablet: 10px;
+  --friends-privacy-status-icon-size-mobile: 8px;
+  --friends-privacy-status-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* PRIVACY STATUS VISIBLE STATE (GREEN GLASSMORPHISM) */
+  --friends-privacy-visible-bg: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.15) 0%,
+    rgba(34, 197, 94, 0.12) 50%,
+    rgba(16, 185, 129, 0.1) 100%
+  );
+  --friends-privacy-visible-color: #047857;
+  --friends-privacy-visible-border: 1px solid rgba(16, 185, 129, 0.3);
+  --friends-privacy-visible-shadow: 0 2px 8px rgba(16, 185, 129, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(16, 185, 129, 0.05);
+
+  /* PRIVACY STATUS HIDDEN STATE (RED GLASSMORPHISM) */
+  --friends-privacy-hidden-bg: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.15) 0%,
+    rgba(220, 38, 38, 0.12) 50%,
+    rgba(239, 68, 68, 0.1) 100%
+  );
+  --friends-privacy-hidden-color: #b91c1c;
+  --friends-privacy-hidden-border: 1px solid rgba(239, 68, 68, 0.3);
+  --friends-privacy-hidden-shadow: 0 2px 8px rgba(239, 68, 68, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(239, 68, 68, 0.05);
+
+  /* PRIVACY STATUS SPAN GLASSMORPHISM */
+  --friends-privacy-span-bg: rgba(255, 255, 255, 0.08);
+  --friends-privacy-span-bg-hover: rgba(255, 255, 255, 0.12);
+  --friends-privacy-span-border: 1px solid rgba(255, 255, 255, 0.15);
+  --friends-privacy-span-border-radius: 6px;
+  --friends-privacy-span-padding: 4px 8px;
+  --friends-privacy-span-shadow: 0 1px 4px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --friends-privacy-span-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --friends-privacy-span-backdrop-blur: blur(4px);
+
+  /* HARDCODED COLOR REPLACEMENTS */
+  --friends-schedule-can-see-bg: rgba(34, 197, 94, 0.1);
+  --friends-schedule-can-see-color: #16a34a;
+  --friends-schedule-can-see-border: 1px solid rgba(34, 197, 94, 0.2);
+  --friends-schedule-cannot-see-bg: rgba(239, 68, 68, 0.1);
+  --friends-schedule-cannot-see-color: #dc2626;
+  --friends-schedule-cannot-see-border: 1px solid rgba(239, 68, 68, 0.2);
+  --friends-btn-view-schedule-bg: rgba(59, 130, 246, 0.1);
+  --friends-btn-view-schedule-color: #3b82f6;
+  --friends-btn-view-schedule-border: 1px solid rgba(59, 130, 246, 0.3);
+  --friends-btn-view-schedule-hover-bg: rgba(59, 130, 246, 0.2);
+  --friends-btn-view-schedule-hover-border: rgba(59, 130, 246, 0.4);
+  --friends-btn-view-schedule-hover-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+  --friends-btn-view-schedule-disabled-bg: rgba(156, 163, 175, 0.1);
+  --friends-btn-view-schedule-disabled-color: #9ca3af;
+  --friends-btn-view-schedule-disabled-border: rgba(156, 163, 175, 0.2);
+
+  /* FRIEND OPTIONS MENU VARIABLES */
+  /* Dropdown Background & Structure */
+  --friends-options-dropdown-bg-light: rgba(255, 255, 255, 0.98);
+  --friends-options-dropdown-bg-active: rgba(255, 255, 255, 0.95);
+  --friends-options-dropdown-border: rgba(59, 130, 246, 0.5);
+  --friends-options-dropdown-border-active: rgba(255, 255, 255, 0.5);
+  
+  /* Shadow Values */
+  --friends-options-shadow-heavy: rgba(0, 0, 0, 0.15);
+  --friends-options-shadow-medium: rgba(0, 0, 0, 0.08);
+  --friends-options-shadow-light: rgba(0, 0, 0, 0.05);
+  
+  /* Highlight Values */
+  --friends-options-highlight-strong: rgba(255, 255, 255, 0.8);
+  --friends-options-highlight-medium: rgba(255, 255, 255, 0.3);
+  --friends-options-gradient-strong: rgba(255, 255, 255, 0.9);
+  --friends-options-gradient-medium: rgba(255, 255, 255, 0.6);
+  
+  /* Hover States */
+  --friends-options-hover-green: rgba(34, 197, 94, 0.08);
+  --friends-options-hover-red: rgba(239, 68, 68, 0.08);
+  --friends-options-hover-teal: rgba(16, 185, 129, 0.08);
+  --friends-options-hover-primary: rgba(var(--primary-rgb), 0.12);
+  
+  /* Dark Mode */
+  --friends-options-dark-dropdown-bg: rgba(15, 23, 42, 0.95);
+  --friends-options-dark-border: rgba(75, 85, 99, 0.5);
+  --friends-options-dark-shadow-heavy: rgba(0, 0, 0, 0.5);
+  --friends-options-dark-shadow-medium: rgba(0, 0, 0, 0.3);
+  --friends-options-dark-shadow-light: rgba(0, 0, 0, 0.2);
+  --friends-options-dark-highlight-strong: rgba(255, 255, 255, 0.25);
+  --friends-options-dark-highlight-medium: rgba(255, 255, 255, 0.15);
+  --friends-options-dark-button-bg: rgba(255, 255, 255, 0.08);
+  --friends-options-dark-button-hover: rgba(255, 255, 255, 0.15);
+  --friends-options-dark-button-border: rgba(255, 255, 255, 0.15);
+  --friends-options-dark-button-border-hover: rgba(255, 255, 255, 0.25);
 }
 
 /* =============================================================================
@@ -1660,6 +1772,48 @@ body.dark-mode {
     var(--friends-white-highlight-faint),
     var(--friends-color-transparent)
   );
+
+  /* Privacy Status Component (Dark Mode) */
+  --friends-privacy-visible-bg: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.12) 0%,
+    rgba(34, 197, 94, 0.08) 50%,
+    rgba(16, 185, 129, 0.06) 100%
+  );
+  --friends-privacy-visible-color: #34d399;
+  --friends-privacy-visible-border: 1px solid rgba(16, 185, 129, 0.2);
+  --friends-privacy-visible-shadow: 0 2px 8px rgba(16, 185, 129, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(16, 185, 129, 0.03);
+
+  --friends-privacy-hidden-bg: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.12) 0%,
+    rgba(220, 38, 38, 0.08) 50%,
+    rgba(239, 68, 68, 0.06) 100%
+  );
+  --friends-privacy-hidden-color: #f87171;
+  --friends-privacy-hidden-border: 1px solid rgba(239, 68, 68, 0.2);
+  --friends-privacy-hidden-shadow: 0 2px 8px rgba(239, 68, 68, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(239, 68, 68, 0.03);
+
+  /* Privacy Status Span (Dark Mode) */
+  --friends-privacy-span-bg: rgba(255, 255, 255, 0.04);
+  --friends-privacy-span-bg-hover: rgba(255, 255, 255, 0.08);
+  --friends-privacy-span-border: 1px solid rgba(255, 255, 255, 0.1);
+  --friends-privacy-span-shadow: 0 1px 4px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* Hardcoded Color Replacements (Dark Mode) */
+  --friends-schedule-can-see-bg: rgba(34, 197, 94, 0.15);
+  --friends-schedule-can-see-border: rgba(34, 197, 94, 0.3);
+  --friends-schedule-cannot-see-bg: rgba(239, 68, 68, 0.15);
+  --friends-schedule-cannot-see-border: rgba(239, 68, 68, 0.3);
+  --friends-btn-view-schedule-bg: rgba(59, 130, 246, 0.15);
+  --friends-btn-view-schedule-border: rgba(59, 130, 246, 0.4);
+  --friends-btn-view-schedule-hover-bg: rgba(59, 130, 246, 0.25);
+  --friends-btn-view-schedule-hover-border: rgba(59, 130, 246, 0.5);
 
   /* =================================
      MISSING SYSTEM VARIABLES (DARK MODE)

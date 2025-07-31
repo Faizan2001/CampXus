@@ -52,6 +52,12 @@ class FriendsUI {
 
     // 🔗 Friend option menus for individual privacy controls
     this.friendOptionMenus = new Map(); // friendId -> FriendOptionsMenu instance
+
+    // 🔒 Privacy update flag to prevent unnecessary re-renders
+    this.isUpdatingPrivacy = false;
+
+    // Make this instance globally accessible for privacy updates
+    window.friendsPage = this;
   }
 
   /**
@@ -268,6 +274,13 @@ class FriendsUI {
             "🤝 Real-time friends list update in UI:",
             friends.length
           );
+
+          // Skip re-rendering during privacy updates to prevent flickering
+          if (this.isUpdatingPrivacy) {
+            console.log("🔒 Skipping friends list refresh during privacy update");
+            return;
+          }
+
           await this.displayFriendsList(friends);
 
           // Update search button states (hide buttons for existing friends)
@@ -1542,26 +1555,21 @@ class FriendsUI {
       );
     }
 
-    // Create bound handler for cleanup
+    // Create bound handler for cleanup - only for unfriend requests now
+    // Privacy changes are handled directly in FriendOptionsMenu to prevent flickering
     this.friendsListEventHandler = (e) => {
-      if (e.type === "privacy-changed") {
-        this.handlePrivacyChanged(e.detail);
-      } else if (e.type === "unfriend-requested") {
+      if (e.type === "unfriend-requested") {
         this.handleUnfriendRequested(e.detail);
       }
     };
 
-    // Add event listeners
-    this.elements.friendsList.addEventListener(
-      "privacy-changed",
-      this.friendsListEventHandler
-    );
+    // Add event listeners - removed privacy-changed to prevent flickering
     this.elements.friendsList.addEventListener(
       "unfriend-requested",
       this.friendsListEventHandler
     );
 
-    console.log("🎯 Friend menu event listeners set up");
+    console.log("🎯 Friend menu event listeners set up (privacy-changed removed to prevent flickering)");
   }
 
   /**
@@ -1647,7 +1655,14 @@ class FriendsUI {
       const statusElement = friendCard.querySelector(".schedule-access");
 
       if (statusElement) {
-        // Update classes
+        // Check if this is a bilateral privacy element - if so, don't override with can-see/cannot-see
+        if (statusElement.classList.contains('bilateral-privacy')) {
+          // Skip regular privacy update for bilateral privacy elements
+          // They are managed by the bilateral privacy system
+          return;
+        }
+        
+        // Update classes for regular (non-bilateral) privacy elements
         statusElement.className = `schedule-access ${
           canSeeSchedule ? "can-see" : "cannot-see"
         }`;
