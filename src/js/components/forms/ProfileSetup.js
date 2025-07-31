@@ -192,14 +192,7 @@ class ProfileSetup {
         this.avatarConfig = null;
       }
 
-      // Handle schedule privacy settings
-      if (profileData.scheduleData && profileData.scheduleData.privacy) {
-        const privacySetting = profileData.scheduleData.privacy.visibility || 'private';
-        const privacyRadio = document.querySelector(`input[name="schedule-privacy"][value="${privacySetting}"]`);
-        if (privacyRadio) {
-          privacyRadio.checked = true;
-        }
-      }
+      // Schedule privacy settings have been moved to Friends page for better UX
 
       // 🗂️ ORGANIZED DATA STRUCTURE: Update internal profile data
       const finalStudentId =
@@ -785,18 +778,7 @@ class ProfileSetup {
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
       // Avatar configuration is handled by this.avatarConfig
-
-      // Collect schedule privacy setting
-      const privacyInput = document.querySelector('input[name="schedule-privacy"]:checked');
-      if (privacyInput) {
-        if (!this.scheduleData) {
-          this.scheduleData = {};
-        }
-        if (!this.scheduleData.privacy) {
-          this.scheduleData.privacy = {};
-        }
-        this.scheduleData.privacy.visibility = privacyInput.value;
-      }
+      // Schedule privacy settings are now managed on the Friends page
     } else if (this.currentStep === 2) {
       // Schedule Import step - schedule data is stored separately in this.scheduleData
       // DO NOT add schedule data to profileData to avoid Firestore nested arrays error
@@ -1618,14 +1600,7 @@ class ProfileSetup {
       scheduleImageInput.setAttribute("data-listener-attached", "true");
     }
 
-    // Privacy controls event listeners
-    const privacyRadios = document.querySelectorAll('input[name="schedule-privacy"]');
-    privacyRadios.forEach(radio => {
-      if (!radio.hasAttribute('data-listener-attached')) {
-        radio.addEventListener('change', () => this.handlePrivacyChange());
-        radio.setAttribute('data-listener-attached', 'true');
-      }
-    });
+    // Privacy controls have been moved to Friends page for better UX
 
     this.setupFormValidation();
   }
@@ -2024,16 +1999,7 @@ class ProfileSetup {
     setTimeout(() => testButton.remove(), 30000);
   }
 
-  handlePrivacyChange() {
-    const privacyInput = document.querySelector('input[name="schedule-privacy"]:checked');
-    if (privacyInput && this.scheduleData) {
-      if (!this.scheduleData.privacy) {
-        this.scheduleData.privacy = {};
-      }
-      this.scheduleData.privacy.visibility = privacyInput.value;
-      console.log(`Schedule privacy changed to: ${this.scheduleData.privacy.visibility}`);
-    }
-  }
+  // handlePrivacyChange method removed - privacy controls moved to Friends page
 
   /**
    * Update step titles and descriptions based on mode (setup vs edit)

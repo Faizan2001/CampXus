@@ -94,29 +94,133 @@ A modern, Firebase-powered social scheduling platform designed specifically for 
 
 ```
 CampXus/
-├── src/js/
-│   ├── components/                     # Reusable UI Components
-│   │   ├── modals/                     # Modal dialogs
-│   │   ├── navigation/                 # Navigation components
-│   │   └── forms/                      # Form components
-│   ├── services/                       # Business Logic Services
-│   │   ├── auth/                       # Authentication Services
-│   │   ├── friends/                    # Social Features
-│   │   ├── data/                       # Data Management
-│   │   ├── schedule/                   # Schedule Storage
-│   │   └── realtime/                   # Real-time Features
-│   ├── store/                          # State Management
-│   ├── pages/                          # Page Controllers
-│   ├── router/                         # Navigation System
-│   ├── utils/                          # Utility Functions
-│   ├── lib/                            # Infrastructure & Config
-│   └── tests/                          # Test Suites
+├── src/
+│   ├── js/
+│   │   ├── components/                 # Reusable UI Components
+│   │   │   ├── forms/                  # Form components
+│   │   │   │   └── ProfileSetup.js
+│   │   │   ├── modals/                 # Modal dialogs
+│   │   │   │   └── Modal.js
+│   │   │   └── navigation/             # Navigation components
+│   │   │       └── Menu.js
+│   │   ├── services/                   # Business Logic Services
+│   │   │   ├── auth/                   # Authentication Services
+│   │   │   │   ├── AuthService.js
+│   │   │   │   └── UniversityValidator.js
+│   │   │   ├── data/                   # Data Management
+│   │   │   │   └── DataService.js      # Enhanced with Phase-1 schedule storage
+│   │   │   ├── friends/                # Social Features
+│   │   │   │   ├── FriendsService.js
+│   │   │   │   └── FriendsTypes.js
+│   │   │   ├── realtime/               # Real-time Features
+│   │   │   │   ├── NotificationService.js
+│   │   │   │   └── RealtimeService.js
+│   │   │   └── schedule/               # Schedule Management & Import
+│   │   │       ├── OcrService.js
+│   │   │       ├── ScheduleImportService.js
+│   │   │       ├── ScheduleStorageService.js
+│   │   │       ├── ScheduleValidator.js
+│   │   │       └── UniversityParser.js
+│   │   ├── pages/                      # Page Controllers
+│   │   │   ├── FriendsPage.js
+│   │   │   └── HomePage.js
+│   │   ├── router/                     # Navigation System
+│   │   │   └── Router.js
+│   │   ├── store/                      # State Management
+│   │   │   └── userStore.js
+│   │   ├── utils/                      # Utility Functions
+│   │   │   ├── avatar/                 # Avatar Management
+│   │   │   │   ├── avatarManager.js
+│   │   │   │   └── avatarUtils.js
+│   │   │   ├── dev/                    # Development Helpers
+│   │   │   │   └── debugHelpers.js
+│   │   │   ├── dom/                    # DOM Utilities
+│   │   │   │   └── domElements.js
+│   │   │   ├── schedule/               # Schedule Utilities
+│   │   │   │   └── exportImport.js
+│   │   │   ├── time/                   # Time Utilities
+│   │   │   │   └── timeUtils.js
+│   │   │   └── constants.js
+│   │   ├── lib/                        # Infrastructure & Config
+│   │   │   ├── firebase/               # Firebase Configuration
+│   │   │   │   ├── env-config.js       # Auto-generated (DO NOT EDIT)
+│   │   │   │   ├── firebase-config.js
+│   │   │   │   └── firebase-config-production.js
+│   │   │   └── security/               # Security & Privacy
+│   │   │       ├── privacyManager.js
+│   │   │       └── securityLogger.js
+│   │   ├── core/                       # Core System Files
+│   │   │   └── firestore/
+│   │   │       └── MIGRATION_SUMMARY.md
+│   │   ├── dev-tools/                  # Development Tools
+│   │   │   ├── check-dev-setup.js
+│   │   │   ├── env-loader.js
+│   │   │   ├── generate-env-config.js
+│   │   │   ├── firebase-dev-tools-README.md
+│   │   │   └── firebase-setup-guide.md
+│   │   ├── tests/                      # Test Suites
+│   │   │   ├── core/                   # Core Logic Tests
+│   │   │   │   ├── profile-setup.test.js
+│   │   │   │   ├── scheduleEditor.test.js
+│   │   │   │   ├── script.test.js
+│   │   │   │   └── timeUtils.test.js
+│   │   │   ├── firebase/               # Firebase Integration Tests
+│   │   │   │   └── university-validator.test.js
+│   │   │   ├── services/               # Service Layer Tests
+│   │   │   │   ├── ocr-integration.test.js
+│   │   │   │   ├── ocr-service.test.js
+│   │   │   │   └── schedule-import.test.js
+│   │   │   └── __mocks__/              # Test Mocks
+│   │   │       └── spa-init.mock.js
+│   │   └── app.js                      # Application Entry Point
+│   └── css/                            # Modular Stylesheet Architecture
+│       ├── animations.css
+│       ├── auth.css
+│       ├── components.css
+│       ├── friends-page.css
+│       ├── layout.css
+│       ├── menu.css
+│       ├── modal.css
+│       ├── profile-setup.css
+│       ├── responsive-enhancements.css
+│       ├── schedule.css
+│       ├── styles.css
+│       └── variables.css
 ├── public/
 │   └── templates/                      # SPA Template System
-├── css/                                # Modular Stylesheet Architecture
+│       ├── about.html
+│       ├── friends.html
+│       ├── home.html
+│       └── profile.html
+├── functions/                          # Firebase Cloud Functions
+│   ├── index.js
+│   ├── package.json
+│   └── package-lock.json
+├── NEW-Plan/                           # Development Phase Documentation
+│   ├── Phase-0-Schedule-Import-System.md
+│   ├── Phase-1-Schedule-Storage-Foundation.md
+│   ├── Phase-2-Quick-Access-Friends-System.md
+│   ├── Phase-3-Horizontal-Friends-Bar-UI.md
+│   ├── Phase-4-Schedule-Viewing-Integration.md
+│   ├── Phase-5-Intuitive-Schedule-Comparison.md
+│   └── Phase-6-Performance-And-Polish.md
+├── Phases/                             # Legacy Phase Documentation
+├── .md files/                          # Project Documentation
+│   ├── Contributing-Guide.md
+│   ├── Database-Guide.md
+│   ├── HOW-TO-ADD-NEW-PAGES.md
+│   ├── SECURITY.md
+│   ├── SPA-All-that-you-need.md
+│   ├── tests-roadmap.md
+│   └── UI-Map.md
 ├── index.html                          # SPA Shell & Main Entry Point
 ├── firebase.json                       # Firebase deployment config
-└── package.json                        # Node.js dependencies & scripts
+├── firestore.indexes.json             # Firestore database indexes
+├── jest.setup.js                       # Jest testing configuration
+├── vite.config.js                      # Vite build configuration
+├── package.json                        # Node.js dependencies & scripts
+├── CLAUDE.md                           # Claude Code development instructions
+└── README.md                           # Project documentation
 ```
 
 ## Getting Started

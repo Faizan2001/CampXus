@@ -264,7 +264,8 @@ class DataManager {
    */
   setCachedData(key, data) {
     // Clean up expired entries before adding new ones (more efficient than size-based cleanup)
-    if (Math.random() < 0.05) { // 5% chance to run cleanup on each cache set
+    if (Math.random() < 0.05) {
+      // 5% chance to run cleanup on each cache set
       this.cleanupExpiredCacheEntries();
     }
 
@@ -412,10 +413,12 @@ class DataManager {
         const perQueryLimit = Math.min(maxResults, 10);
 
         // Build one query per searchable field
+        // IMPORTANT: The orderBy must match the index structure in firestore.indexes.json
         const queries = fieldsToSearch.map((fieldPath) => {
           return query(
             usersRef,
-            ...baseFilters,
+            where("universityInfo.university", "==", universityId),
+            where("socialInfo.searchable", "==", true),
             where(fieldPath, ">=", term),
             where(fieldPath, "<=", term + "\uf8ff"),
             orderBy(fieldPath),
@@ -713,9 +716,16 @@ class DataManager {
 
       // 🛡️ SAFEGUARD: Clean avatar config if present (using centralized method)
       if (profileData.avatarConfig) {
-        console.log("🛡️ [DataManager] Cleaning avatar config in saveUserProfile");
-        profileData.avatarConfig = avatarManager.cleanAvatarConfig(profileData.avatarConfig);
-        console.log("🛡️ [DataManager] Avatar config cleaned:", profileData.avatarConfig);
+        console.log(
+          "🛡️ [DataManager] Cleaning avatar config in saveUserProfile"
+        );
+        profileData.avatarConfig = avatarManager.cleanAvatarConfig(
+          profileData.avatarConfig
+        );
+        console.log(
+          "🛡️ [DataManager] Avatar config cleaned:",
+          profileData.avatarConfig
+        );
       }
 
       // Add timestamps properly within systemInfo structure
@@ -745,7 +755,7 @@ class DataManager {
       // 🎯 Check if document exists and use appropriate method
       const userDocRef = doc(db, "users", userId);
       const userDocSnap = await getDoc(userDocRef);
-      
+
       if (userDocSnap.exists()) {
         // Use updateDoc for existing documents (safer field-level updates)
         await updateDoc(userDocRef, dataToSave);
@@ -840,8 +850,10 @@ class DataManager {
       const userDocRef = doc(db, "users", userId);
 
       // 🧹 SINGLE STEP: Use updateDoc with field deletion and replacement for complete cleanup
-      console.log("🗑️ [DataManager] Completely replacing avatarConfig field...");
-      
+      console.log(
+        "🗑️ [DataManager] Completely replacing avatarConfig field..."
+      );
+
       // Use updateDoc to ensure field-level replacement (not merge)
       await updateDoc(userDocRef, {
         // Completely replace the avatarConfig field (this removes ALL old nested fields)
@@ -863,10 +875,14 @@ class DataManager {
       }
 
       // 🔄 CRITICAL: Sync avatar changes to all cached locations (friendships, friend requests)
-      console.log("🔄 [DataManager] Syncing avatar changes to all cached locations...");
+      console.log(
+        "🔄 [DataManager] Syncing avatar changes to all cached locations..."
+      );
       try {
         await syncUserDataCache(userId);
-        console.log("✅ [DataManager] Avatar sync to cached locations completed");
+        console.log(
+          "✅ [DataManager] Avatar sync to cached locations completed"
+        );
       } catch (syncError) {
         console.error("⚠️ [DataManager] Avatar sync failed:", syncError);
         // Don't fail the avatar update if sync fails
@@ -934,18 +950,28 @@ class DataManager {
    */
   _createEnhancedScheduleData(scheduleData, currentUserId) {
     // Calculate freeBusySummary for performance (Phase-2/3 friends features)
-    const freeBusySummary = this._calculateFreeBusySummary(scheduleData.schedule || []);
-    
+    const freeBusySummary = this._calculateFreeBusySummary(
+      scheduleData.schedule || []
+    );
+
     const now = new Date();
-    
+
     return {
       // Core schedule data (7x7 matrices)
       schedule: this._convertScheduleToMap(scheduleData.schedule),
       slotInfo: this._convertSlotInfoToMap(scheduleData.slotInfo),
       timeSlots: scheduleData.timeSlots || [], // Will use DEFAULT_TIMESLOTS
       pinnedSlots: this._convertScheduleToMap(scheduleData.pinnedSlots),
-      timeBasedPins: scheduleData.timeBasedPins || {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]},
-      
+      timeBasedPins: scheduleData.timeBasedPins || {
+        0: [],
+        1: [],
+        2: [],
+        3: [],
+        4: [],
+        5: [],
+        6: [],
+      },
+
       // Enhanced metadata (Gemini feedback)
       metadata: {
         schemaVersion: 1, // For future migrations
@@ -953,18 +979,19 @@ class DataManager {
         lastModifiedBy: currentUserId, // Track who made changes
         createdAt: scheduleData.metadata?.createdAt || now,
         version: (scheduleData.metadata?.version || 0) + 1,
-        importSource: scheduleData.metadata?.importSource || 'manual',
+        importSource: scheduleData.metadata?.importSource || "manual",
         freeBusySummary: freeBusySummary, // Performance optimization for friends features
         totalClasses: this._countTotalClasses(scheduleData.schedule || []),
-        isEmpty: freeBusySummary.every(count => count === 0),
-        hasConflicts: false // TODO: Implement conflict detection
+        isEmpty: freeBusySummary.every((count) => count === 0),
+        hasConflicts: false, // TODO: Implement conflict detection
       },
-      
+
       // Simplified privacy (Gemini feedback - single visibility field)
       privacy: {
-        visibility: scheduleData.privacy?.visibility || 'private', // 'private'|'friends'|'public'
-        allowScheduleRequests: scheduleData.privacy?.allowScheduleRequests || false
-      }
+        visibility: scheduleData.privacy?.visibility || "private", // 'private'|'friends'|'public'
+        allowScheduleRequests:
+          scheduleData.privacy?.allowScheduleRequests || false,
+      },
     };
   }
 
@@ -979,25 +1006,25 @@ class DataManager {
     if (!Array.isArray(schedule) || schedule.length !== 7) {
       return [0, 0, 0, 0, 0, 0, 0]; // Default: no classes
     }
-    
-    return schedule.map(daySchedule => {
+
+    return schedule.map((daySchedule) => {
       if (!Array.isArray(daySchedule)) return 0;
-      return daySchedule.filter(slot => slot === true).length;
+      return daySchedule.filter((slot) => slot === true).length;
     });
   }
 
   /**
    * Count total number of classes in schedule.
-   * @param {Array} schedule - 7x7 boolean schedule matrix  
+   * @param {Array} schedule - 7x7 boolean schedule matrix
    * @returns {number} Total number of busy slots
    * @private
    */
   _countTotalClasses(schedule) {
     if (!Array.isArray(schedule)) return 0;
-    
+
     return schedule.reduce((total, daySchedule) => {
       if (!Array.isArray(daySchedule)) return total;
-      return total + daySchedule.filter(slot => slot === true).length;
+      return total + daySchedule.filter((slot) => slot === true).length;
     }, 0);
   }
 
@@ -1041,8 +1068,11 @@ class DataManager {
   async saveUserSchedule(userId, scheduleData, currentUserId = null) {
     try {
       // Create enhanced scheduleData structure with Phase-1 improvements
-      const enhancedScheduleData = this._createEnhancedScheduleData(scheduleData, currentUserId);
-      
+      const enhancedScheduleData = this._createEnhancedScheduleData(
+        scheduleData,
+        currentUserId
+      );
+
       if (!this.isOnline) {
         this.pendingOperations.push(() =>
           this.saveUserSchedule(userId, scheduleData, currentUserId)
@@ -1126,32 +1156,39 @@ class DataManager {
   listenToUserSchedule(userId, callback) {
     try {
       const userDocRef = doc(db, "users", userId);
-      
-      const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
-        if (docSnapshot.exists()) {
-          const userData = docSnapshot.data();
-          const scheduleData = userData.scheduleData || null;
-          
-          if (scheduleData) {
-            // Update cache with real-time data
-            this.setCachedData(`schedule_${userId}`, scheduleData);
-            
-            // Notify callback with updated schedule
-            callback(scheduleData);
-            
-            console.log(`📡 [DataManager] Real-time schedule update received for user: ${userId}`);
-          }
-        } else {
-          callback(null);
-        }
-      }, (error) => {
-        console.error("Error in schedule listener:", error);
-        this.showError("Lost connection to schedule updates");
-      });
 
-      console.log(`📡 [DataManager] Started listening to schedule changes for user: ${userId}`);
+      const unsubscribe = onSnapshot(
+        userDocRef,
+        (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const userData = docSnapshot.data();
+            const scheduleData = userData.scheduleData || null;
+
+            if (scheduleData) {
+              // Update cache with real-time data
+              this.setCachedData(`schedule_${userId}`, scheduleData);
+
+              // Notify callback with updated schedule
+              callback(scheduleData);
+
+              console.log(
+                `📡 [DataManager] Real-time schedule update received for user: ${userId}`
+              );
+            }
+          } else {
+            callback(null);
+          }
+        },
+        (error) => {
+          console.error("Error in schedule listener:", error);
+          this.showError("Lost connection to schedule updates");
+        }
+      );
+
+      console.log(
+        `📡 [DataManager] Started listening to schedule changes for user: ${userId}`
+      );
       return unsubscribe;
-      
     } catch (error) {
       console.error("Error setting up schedule listener:", error);
       return () => {}; // Return no-op function
@@ -1640,7 +1677,9 @@ class DataManager {
       await Promise.all(promises);
 
       // Invalidate cache for affected users
-      userUpdates.forEach(({ userId }) => this.invalidateCache(`user_${userId}`));
+      userUpdates.forEach(({ userId }) =>
+        this.invalidateCache(`user_${userId}`)
+      );
 
       this.showNotification(
         `Updated ${userUpdates.length} users successfully`,
@@ -1764,7 +1803,7 @@ class DataManager {
   }
 
   /**
-   * 🤝 Create a friendship document
+   * 🤝 Create a friendship document with canonical ID
    * @param {Object} friendshipData - The friendship data
    * @returns {Promise<{success: boolean, friendshipId?: string, error?: string}>}
    */
@@ -1772,15 +1811,29 @@ class DataManager {
     try {
       console.log("🤝 Creating friendship...", friendshipData);
 
-      const friendshipsRef = collection(db, "friendships");
-      const docRef = await addDoc(friendshipsRef, {
+      // Import getFriendshipId utility for canonical ID generation
+      const { getFriendshipId } = await import(
+        "../../utils/friendship-utils.js"
+      );
+
+      // Generate canonical friendship ID that matches Firestore security rules
+      const friendshipId = getFriendshipId(
+        friendshipData.user1Id,
+        friendshipData.user2Id
+      );
+
+      const friendshipRef = doc(db, "friendships", friendshipId);
+      await setDoc(friendshipRef, {
         ...friendshipData,
         createdAt: serverTimestamp(),
         lastInteraction: serverTimestamp(),
       });
 
-      console.log("✅ Friendship created successfully with ID:", docRef.id);
-      return { success: true, friendshipId: docRef.id };
+      console.log(
+        "✅ Friendship created successfully with canonical ID:",
+        friendshipId
+      );
+      return { success: true, friendshipId: friendshipId };
     } catch (error) {
       console.error("❌ Error creating friendship:", error);
       return { success: false, error: error.message };
@@ -1983,7 +2036,7 @@ class DataManager {
       );
 
       const querySnapshot = await getDocs(q);
-      
+
       // Check if any friendship document contains both users
       for (const doc of querySnapshot.docs) {
         const friendship = doc.data();
@@ -1991,7 +2044,7 @@ class DataManager {
           return true;
         }
       }
-      
+
       return false;
     } catch (error) {
       console.error("❌ Error checking friendship existence:", error);
@@ -2065,8 +2118,10 @@ class DataManager {
         (error) => {
           console.error("❌ Error in friend requests listener:", error);
           // Don't call callback on permission errors to avoid false notifications
-          if (error.code === 'permission-denied') {
-            console.warn("⚠️ Friend requests listener: Permission denied (likely due to auth state change)");
+          if (error.code === "permission-denied") {
+            console.warn(
+              "⚠️ Friend requests listener: Permission denied (likely due to auth state change)"
+            );
             return; // Skip callback to prevent false deletion detection
           }
           callback([]); // Only fallback to empty array for non-permission errors
@@ -2144,8 +2199,10 @@ class DataManager {
             error
           );
           // Don't call callback on permission errors to avoid false notifications
-          if (error.code === 'permission-denied') {
-            console.warn("⚠️ Outgoing friend requests listener: Permission denied (likely due to auth state change)");
+          if (error.code === "permission-denied") {
+            console.warn(
+              "⚠️ Outgoing friend requests listener: Permission denied (likely due to auth state change)"
+            );
             return; // Skip callback to prevent false deletion detection
           }
           callback([]); // Only fallback to empty array for non-permission errors
@@ -2281,8 +2338,10 @@ class DataManager {
         (error) => {
           console.error("❌ Error in friendships listener:", error);
           // Don't call callback on permission errors to avoid false notifications
-          if (error.code === 'permission-denied') {
-            console.warn("⚠️ Friendships listener: Permission denied (likely due to auth state change)");
+          if (error.code === "permission-denied") {
+            console.warn(
+              "⚠️ Friendships listener: Permission denied (likely due to auth state change)"
+            );
             return; // Skip callback to prevent false deletion detection
           }
           callback([]); // Only fallback to empty array for non-permission errors
@@ -2333,28 +2392,36 @@ class DataManager {
 
             // 🔄 Compare with previous cached data to avoid unnecessary syncs
             const cachedData = this.getCachedData(`user_${userId}`);
-            const hasSignificantChange = !cachedData || 
-              JSON.stringify(cachedData.avatarConfig) !== JSON.stringify(profileData.avatarConfig) ||
-              cachedData.profile?.displayName !== profileData.profile?.displayName ||
+            const hasSignificantChange =
+              !cachedData ||
+              JSON.stringify(cachedData.avatarConfig) !==
+                JSON.stringify(profileData.avatarConfig) ||
+              cachedData.profile?.displayName !==
+                profileData.profile?.displayName ||
               cachedData.profile?.major !== profileData.profile?.major;
-            
+
             // Update local cache with fresh data
             this.setCachedData(`user_${userId}`, profileData);
-            
+
             if (hasSignificantChange) {
-              console.log("🎨 Significant profile change detected, syncing cached data for friends...");
-              
+              console.log(
+                "🎨 Significant profile change detected, syncing cached data for friends..."
+              );
+
               // Clear any avatar cache in friends manager to force fresh data
-              if (typeof window !== 'undefined' && window.friendsManager?.clearAvatarCache) {
+              if (
+                typeof window !== "undefined" &&
+                window.friendsManager?.clearAvatarCache
+              ) {
                 try {
                   window.friendsManager.clearAvatarCache(userId);
                 } catch (error) {
                   console.warn("⚠️ Avatar cache clear failed:", error);
                 }
               }
-              
+
               // Use the function from the same file
-              syncUserDataCache(userId).catch((error) => 
+              syncUserDataCache(userId).catch((error) =>
                 console.warn("⚠️ Friend cache sync failed:", error)
               );
             }
@@ -2369,8 +2436,10 @@ class DataManager {
         (error) => {
           console.error("❌ Error in user profile listener:", error);
           // Don't call callback on permission errors to avoid false notifications
-          if (error.code === 'permission-denied') {
-            console.warn("⚠️ User profile listener: Permission denied (likely due to auth state change)");
+          if (error.code === "permission-denied") {
+            console.warn(
+              "⚠️ User profile listener: Permission denied (likely due to auth state change)"
+            );
             return; // Skip callback to prevent false deletion detection
           }
           callback(null); // Only fallback to null for non-permission errors
@@ -2384,7 +2453,6 @@ class DataManager {
       return () => {}; // Return empty unsubscribe function
     }
   }
-
 }
 
 // Export a single instance of the DataManager (Singleton Pattern)
@@ -2532,7 +2600,7 @@ if (typeof window !== "undefined") {
     },
 
     /**
-     * 
+     *
      * Stop all active test listeners
      * Usage: testRealTimeListeners.stopAll()
      */
@@ -2599,15 +2667,15 @@ if (typeof window !== "undefined") {
 
 /**
  * 🔄 Synchronize user data across all cached locations (Single Responsibility)
- * 
+ *
  * This function follows DRY principles by combining data fetching and cache updating.
  * Call this whenever profile, avatar, name, or major changes.
- * 
+ *
  * What it does:
- * 1. Gets fresh user data from database  
+ * 1. Gets fresh user data from database
  * 2. Updates cached user info in all friend requests and friendships
  * 3. Uses batch operations for efficiency
- * 
+ *
  * @param {string} userId - The user ID whose cache needs synchronization
  * @param {object} [customUserInfo] - Optional: provide custom user info instead of fetching from DB
  * @returns {Promise<void>}
@@ -2615,9 +2683,9 @@ if (typeof window !== "undefined") {
 export async function syncUserDataCache(userId, customUserInfo = null) {
   try {
     console.log("🔄 Synchronizing user data cache for:", userId);
-    
+
     let userInfoForCache;
-    
+
     if (customUserInfo) {
       // Use provided data (for efficiency when we already have fresh data)
       userInfoForCache = customUserInfo;
@@ -2632,10 +2700,13 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
 
       // Build consistent cache object
       userInfoForCache = {
-        displayName: userData.profile?.displayName || userData.profile?.firstName || "Unknown",
-        major: userData.profile?.major || "Unknown", 
+        displayName:
+          userData.profile?.displayName ||
+          userData.profile?.firstName ||
+          "Unknown",
+        major: userData.profile?.major || "Unknown",
         university: userData.universityInfo?.university || "unknown",
-        avatarConfig: userData.avatarConfig || null
+        avatarConfig: userData.avatarConfig || null,
       };
       console.log("📋 Built cache info from database:", userInfoForCache);
     }
@@ -2649,14 +2720,16 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
       query(collection(db, "friendRequests"), where("fromUserId", "==", userId))
     );
 
-    console.log(`📤 Found ${outgoingRequests.size} outgoing friend requests to update`);
+    console.log(
+      `📤 Found ${outgoingRequests.size} outgoing friend requests to update`
+    );
     outgoingRequests.forEach((doc) => {
       // Completely replace fromUserInfo (don't merge nested objects)
-      batch.update(doc.ref, { 
+      batch.update(doc.ref, {
         "fromUserInfo.displayName": userInfoForCache.displayName,
         "fromUserInfo.major": userInfoForCache.major,
         "fromUserInfo.university": userInfoForCache.university,
-        "fromUserInfo.avatarConfig": userInfoForCache.avatarConfig
+        "fromUserInfo.avatarConfig": userInfoForCache.avatarConfig,
       });
       updateCount++;
     });
@@ -2666,21 +2739,26 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
       query(collection(db, "friendRequests"), where("toUserId", "==", userId))
     );
 
-    console.log(`📥 Found ${incomingRequests.size} incoming friend requests to update`);
+    console.log(
+      `📥 Found ${incomingRequests.size} incoming friend requests to update`
+    );
     incomingRequests.forEach((doc) => {
       // Completely replace toUserInfo (don't merge nested objects)
-      batch.update(doc.ref, { 
+      batch.update(doc.ref, {
         "toUserInfo.displayName": userInfoForCache.displayName,
         "toUserInfo.major": userInfoForCache.major,
         "toUserInfo.university": userInfoForCache.university,
-        "toUserInfo.avatarConfig": userInfoForCache.avatarConfig
+        "toUserInfo.avatarConfig": userInfoForCache.avatarConfig,
       });
       updateCount++;
     });
 
     // 3. Update friendships where you're involved
     const friendships = await getDocs(
-      query(collection(db, "friendships"), where("users", "array-contains", userId))
+      query(
+        collection(db, "friendships"),
+        where("users", "array-contains", userId)
+      )
     );
 
     console.log(`👥 Found ${friendships.size} friendships to update`);
@@ -2688,20 +2766,20 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
       const data = doc.data();
       if (data.user1Id === userId) {
         // Completely replace user1Info (don't merge nested objects)
-        batch.update(doc.ref, { 
+        batch.update(doc.ref, {
           "user1Info.displayName": userInfoForCache.displayName,
           "user1Info.major": userInfoForCache.major,
           "user1Info.university": userInfoForCache.university,
-          "user1Info.avatarConfig": userInfoForCache.avatarConfig
+          "user1Info.avatarConfig": userInfoForCache.avatarConfig,
         });
         updateCount++;
       } else if (data.user2Id === userId) {
         // Completely replace user2Info (don't merge nested objects)
-        batch.update(doc.ref, { 
+        batch.update(doc.ref, {
           "user2Info.displayName": userInfoForCache.displayName,
           "user2Info.major": userInfoForCache.major,
           "user2Info.university": userInfoForCache.university,
-          "user2Info.avatarConfig": userInfoForCache.avatarConfig
+          "user2Info.avatarConfig": userInfoForCache.avatarConfig,
         });
         updateCount++;
       }
@@ -2711,15 +2789,19 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
     if (updateCount > 0) {
       try {
         await batch.commit();
-        console.log(`✅ Updated ${updateCount} cached entries with fresh user info`);
+        console.log(
+          `✅ Updated ${updateCount} cached entries with fresh user info`
+        );
       } catch (error) {
-        console.error(`❌ Batch update failed for ${updateCount} entries:`, error);
+        console.error(
+          `❌ Batch update failed for ${updateCount} entries:`,
+          error
+        );
         throw error; // Re-throw for upstream handling
       }
     } else {
       console.log("ℹ️ No cached data to update");
     }
-    
   } catch (error) {
     console.error("❌ Cache sync failed:", error);
     // Don't throw - this is a background operation
@@ -2731,7 +2813,9 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
  * Will be removed in future versions
  */
 export async function updateCachedUserData(userId, newUserInfo) {
-  console.warn("⚠️ updateCachedUserData is deprecated. Use syncUserDataCache() instead.");
+  console.warn(
+    "⚠️ updateCachedUserData is deprecated. Use syncUserDataCache() instead."
+  );
   return syncUserDataCache(userId, newUserInfo);
 }
 

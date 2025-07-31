@@ -72,8 +72,8 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │         university: "iub"
 │   │       }
 │   └── ...
-└── 🤝 friendships/                         // NEW: Active friendships
-    ├── {friendshipId}/
+└── 🤝 friendships/                         // Active friendships with bilateral privacy
+    ├── {friendshipId}/                         // Canonical ID: sorted userIds (user1_user2)
     │   ├── users: ["user123", "user456"]      // Array for easy querying
     │   ├── user1Id: "user123"                 // For compatibility
     │   ├── user2Id: "user456"                 // For compatibility
@@ -85,10 +85,19 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
     │   │     major: "CSE",
     │   │     avatarConfig: { style: "miniavs", seed: "abc123" }
     │   │   }
-    │   └── user2Info: {
-    │         displayName: "Jane Smith",
-    │         major: "BBA",
-    │         avatarConfig: { style: "adventurer", seed: "xyz789" }
+    │   ├── user2Info: {
+    │   │     displayName: "Jane Smith",
+    │   │     major: "BBA",
+    │   │     avatarConfig: { style: "adventurer", seed: "xyz789" }
+    │   │   }
+    │   ├── 🔐 scheduleVisibility: {            // 🆕 BILATERAL PRIVACY CONTROLS
+    │   │     "user123": true,                 // User1's schedule IS visible to User2
+    │   │     "user456": false                 // User2's schedule IS NOT visible to User1
+    │   │   }
+    │   └── privacyMetadata: {                 // 🆕 Privacy tracking metadata
+    │         lastPrivacyUpdate: timestamp,    // When privacy was last modified
+    │         privacyUpdatedBy: "user123",     // Which user made the last change
+    │         privacyVersion: 1                // Privacy schema version for migrations
     │       }
     └── ...
 ```
@@ -669,6 +678,92 @@ match /friendships/{friendshipId} {
 - **✅ Future-proof**: Extensible for mutual friends, messaging, etc.
 
 This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.
+
+## 🔐 **Bilateral Privacy System (2025 Enhancement)**
+
+### 🎯 **Privacy Architecture Overview**
+
+CampXus now implements a **friendship-centric bilateral privacy system** that eliminates conflicts and provides secure schedule visibility control.
+
+#### ✅ **Bilateral Privacy Principles**
+
+- **Single Source of Truth**: One friendship document controls each privacy relationship
+- **Bilateral Control**: Each user controls only their own schedule visibility
+- **No Conflicts**: Impossible for users to override each other's settings
+- **Clear Logic**: `scheduleVisibility[userId]` = "Is this user's schedule visible to their friend?"
+
+#### 🔧 **Canonical Friendship IDs**
+
+```javascript
+// Friendship document ID generation (consistent ordering)
+function getFriendshipId(uid1, uid2) {
+  return [uid1, uid2].sort().join('_');
+}
+
+// Examples:
+getFriendshipId("alice123", "bob456") → "alice123_bob456"
+getFriendshipId("bob456", "alice123") → "alice123_bob456" (same result)
+```
+
+#### 📊 **Privacy Status Interpretation**
+
+```javascript
+// Example friendship document privacy states
+{
+  scheduleVisibility: {
+    "alice123": true,    // Alice's schedule IS visible to Bob
+    "bob456": false      // Bob's schedule IS NOT visible to Alice
+  }
+}
+
+// Result:
+// - Bob can see Alice's schedule ✅
+// - Alice cannot see Bob's schedule ❌
+// - Each user controls their own data independently
+```
+
+### 🔄 **Privacy Update Workflow**
+
+```javascript
+// User updates their own schedule visibility
+async function updateMyScheduleVisibility(myUserId, friendUserId, isVisible) {
+  const friendshipId = getFriendshipId(myUserId, friendUserId);
+  
+  await updateDoc(doc(db, "friendships", friendshipId), {
+    [`scheduleVisibility.${myUserId}`]: isVisible,
+    'privacyMetadata.lastPrivacyUpdate': serverTimestamp(),
+    'privacyMetadata.privacyUpdatedBy': myUserId,
+    'privacyMetadata.privacyVersion': increment(1)
+  });
+}
+```
+
+### 🛡️ **Enhanced Security Rules**
+
+```javascript
+// Firestore security rules for bilateral privacy
+match /friendships/{friendshipId} {
+  allow update: if request.auth != null && 
+                request.auth.uid in resource.data.users &&
+                validateBilateralPrivacyUpdate(request.auth.uid, request.writeFields);
+}
+
+function validateBilateralPrivacyUpdate(userId, writeFields) {
+  return (
+    // Must be updating only their own schedule visibility and privacy metadata
+    writeFields.keys().hasOnly(['scheduleVisibility.' + userId, 'privacyMetadata.lastPrivacyUpdate', 'privacyMetadata.privacyUpdatedBy', 'privacyMetadata.privacyVersion']) &&
+    // Privacy update must be attributed to the requesting user
+    writeFields['privacyMetadata.privacyUpdatedBy'] == userId
+  );
+}
+```
+
+### 🎮 **UI Integration**
+
+- **FriendOptionsMenu**: "Hide My Schedule" / "Show My Schedule" buttons
+- **Privacy Indicators**: "Your schedule is visible" vs "You hid your schedule"
+- **Real-time Updates**: Instant privacy changes across devices
+- **Bilateral Display**: Shows both users' privacy states independently
 
 ---
 

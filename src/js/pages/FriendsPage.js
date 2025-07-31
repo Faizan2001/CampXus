@@ -14,10 +14,18 @@
 import { friendsManager } from "../services/friends/FriendsService.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { showModal } from "../components/modals/Modal.js";
-import { realTimeManager, REALTIME_EVENTS } from "../services/realtime/RealtimeService.js";
+import {
+  realTimeManager,
+  REALTIME_EVENTS,
+} from "../services/realtime/RealtimeService.js";
 import { dataManager } from "../services/data/DataService.js";
 import { currentUser } from "../store/userStore.js";
-import { renderUserAvatar, getAvatarFallback } from "../utils/avatar/avatarUtils.js";
+import {
+  renderUserAvatar,
+  getAvatarFallback,
+} from "../utils/avatar/avatarUtils.js";
+import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyService.js";
+import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
 
 class FriendsUI {
   constructor() {
@@ -28,10 +36,10 @@ class FriendsUI {
     this.pendingRequestsMap = new Map(); // userId -> requestId
     this.outgoingRequestsMap = new Map(); // userId -> requestData (includes status)
     this.realTimeSubscriptions = [];
-    
+
     // 👥 Current friends data for unfriend functionality
     this.currentFriendsData = [];
-    
+
     // 📬 Current friend requests data for accept/reject functionality
     this.currentFriendRequestsData = [];
 
@@ -41,12 +49,15 @@ class FriendsUI {
     // 🎯 Event listener management to prevent memory leaks
     this.listenersSetup = false;
     this.boundHandlers = null;
+
+    // 🔗 Friend option menus for individual privacy controls
+    this.friendOptionMenus = new Map(); // friendId -> FriendOptionsMenu instance
   }
 
   /**
    * 🚀 Initialize the friends UI when the page loads
    */
-  init() {
+  async init() {
     try {
       // Always re-cache elements since DOM might have changed
       this.cacheElements();
@@ -60,13 +71,15 @@ class FriendsUI {
       // 📋 Set up real-time friend request status tracking
       this.setupFriendRequestStatusTracking();
 
+      // Privacy controls are now individual per friend via bilateral privacy system
+
       this.isInitialized = true;
 
       // Always load initial data on page visit
       this.loadInitialData();
 
       console.log(
-        "🎨 Friends UI initialized successfully with real-time updates"
+        "🎨 Friends UI initialized successfully with real-time updates and privacy controls"
       );
     } catch (error) {
       console.error("❌ Error initializing Friends UI:", error);
@@ -145,8 +158,11 @@ class FriendsUI {
       console.warn(
         "⚠️ Search input element not found (ID: friendSearch) - search functionality disabled"
       );
-      console.log("🔍 Available elements with 'search' in ID:", 
-        Array.from(document.querySelectorAll('[id*="search"]')).map(el => el.id)
+      console.log(
+        "🔍 Available elements with 'search' in ID:",
+        Array.from(document.querySelectorAll('[id*="search"]')).map(
+          (el) => el.id
+        )
       );
     }
 
@@ -247,23 +263,25 @@ class FriendsUI {
           this.filterSearchResultsForAcceptedRequests();
         },
 
-        onFriendsListChange: (friends) => {
+        onFriendsListChange: async (friends) => {
           console.log(
             "🤝 Real-time friends list update in UI:",
             friends.length
           );
-          this.displayFriendsList(friends);
+          await this.displayFriendsList(friends);
 
           // Update search button states (hide buttons for existing friends)
           this.updateSearchResultsButtons();
-          
+
           // Filter out friends from search results
           this.filterSearchResultsForAcceptedRequests();
 
           // Show a more subtle notification for friends list updates (debounced)
-          if (friends.length > 0 && 
-              (!this.lastFriendsNotificationTime || 
-               Date.now() - this.lastFriendsNotificationTime > 2000)) {
+          if (
+            friends.length > 0 &&
+            (!this.lastFriendsNotificationTime ||
+              Date.now() - this.lastFriendsNotificationTime > 2000)
+          ) {
             this.showRealTimeNotification(
               `${friends.length} friend${
                 friends.length !== 1 ? "s" : ""
@@ -314,7 +332,7 @@ class FriendsUI {
 
     console.log("📋 Setting up real-time friend request status tracking...");
 
-    // NOTE: Real-time subscriptions are handled by setupRealTimeCallbacks() 
+    // NOTE: Real-time subscriptions are handled by setupRealTimeCallbacks()
     // to avoid duplicate subscribers. This method only loads initial data.
 
     // Initial load of pending requests
@@ -515,7 +533,9 @@ class FriendsUI {
    */
   handleSearchInput(event) {
     const searchTerm = event.target.value.trim();
-    console.log(`🔍 Search input changed: "${searchTerm}" (length: ${searchTerm.length})`);
+    console.log(
+      `🔍 Search input changed: "${searchTerm}" (length: ${searchTerm.length})`
+    );
 
     // Clear previous timeout
     if (this.searchTimeout) {
@@ -532,7 +552,9 @@ class FriendsUI {
         console.log("🧹 Search term empty, clearing results");
         this.clearSearchResults();
       } else {
-        console.log("🔍 Search term too short (1 character), keeping existing results");
+        console.log(
+          "🔍 Search term too short (1 character), keeping existing results"
+        );
       }
     }, 300); // Wait 300ms after user stops typing
   }
@@ -732,14 +754,16 @@ class FriendsUI {
     let removedCount = 0;
 
     // Create a set of current friend IDs for fast lookup
-    const currentFriendIds = new Set(this.currentFriendsData.map(friend => friend.id));
+    const currentFriendIds = new Set(
+      this.currentFriendsData.map((friend) => friend.id)
+    );
 
     studentCards.forEach((card) => {
       const studentId = card.dataset.studentId;
       const outgoingRequest = this.outgoingRequestsMap.get(studentId);
-      
+
       // Hide users who are now friends (either accepted requests or existing friends)
-      const shouldRemove = 
+      const shouldRemove =
         (outgoingRequest && outgoingRequest.status === "accepted") || // Old logic for non-clean lifecycle
         currentFriendIds.has(studentId); // New logic: hide current friends
 
@@ -798,16 +822,16 @@ class FriendsUI {
   async refreshFriendsList() {
     try {
       const friends = await friendsManager.getFriendsList();
-      this.displayFriendsList(friends);
+      await this.displayFriendsList(friends);
     } catch (error) {
       console.error("❌ Error refreshing friends list:", error);
     }
   }
 
   /**
-   * 👥 Display the friends list
+   * 👥 Display the friends list with bilateral privacy support
    */
-  displayFriendsList(friends) {
+  async displayFriendsList(friends) {
     if (!this.elements.friendsList) return;
 
     // Store friends data for unfriend functionality
@@ -849,11 +873,12 @@ class FriendsUI {
           `
               : ""
           }
+          ${this.renderScheduleAccessStatus(friend)}
         </div>
         <div class="friend-actions">
-          <button class="btn-friend-menu" data-friend-id="${friend.id}">
-            <i class="fas fa-ellipsis-v"></i>
-          </button>
+          <div class="friend-options-container" data-friend-id="${friend.id}">
+            <!-- FriendOptionsMenu will be rendered here -->
+          </div>
         </div>
       </div>
     `
@@ -862,14 +887,14 @@ class FriendsUI {
 
     this.elements.friendsList.innerHTML = friendsHTML;
 
-    // Use event delegation - single listener, no memory leaks
-    this.elements.friendsList.addEventListener("click", (e) => {
-      if (e.target.closest(".btn-friend-menu")) {
-        const button = e.target.closest(".btn-friend-menu");
-        const friendId = button.dataset.friendId;
-        this.handleFriendMenu(friendId, e);
-      }
-    });
+    // 🔗 Render friend options menus for each friend card with bilateral privacy
+    await this.renderFriendOptionsMenus(friends);
+
+    // 🔐 Update all friend cards with their actual bilateral privacy status
+    // Add small delay to allow Firestore writes to propagate
+    setTimeout(async () => {
+      await this.updateAllFriendCardsBilateralPrivacy(friends);
+    }, 500);
   }
 
   /**
@@ -948,7 +973,7 @@ class FriendsUI {
     this.elements.friendRequests.addEventListener("click", async (e) => {
       if (e.target.closest(".btn-accept-request")) {
         const button = e.target.closest(".btn-accept-request");
-        
+
         // Check if button is already disabled (processing)
         if (button.disabled) return;
 
@@ -961,7 +986,7 @@ class FriendsUI {
 
       if (e.target.closest(".btn-reject-request")) {
         const button = e.target.closest(".btn-reject-request");
-        
+
         // Check if button is already disabled (processing)
         if (button.disabled) return;
 
@@ -1016,13 +1041,56 @@ class FriendsUI {
 
   /**
    * 🎨 Render avatar using centralized utility (eliminates duplication)
-   * @param {Object} userData - User data object from any source  
+   * @param {Object} userData - User data object from any source
    * @returns {string} HTML for avatar
    */
   renderAvatar(userData) {
     // Use the centralized avatar utility with cache-busting for fresh avatars
     // This ensures consistent avatar rendering across the entire app
     return renderUserAvatar(userData, true);
+  }
+
+  /**
+   * 🔒 Render schedule access status for friend cards
+   *
+   * BEGINNER EXPLANATION:
+   * This method creates the HTML that shows whether each friend
+   * can see the current user's schedule. It's like a "permission indicator"
+   * that shows:
+   * - Green checkmark = "This friend can see your schedule"
+   * - Red lock = "This friend cannot see your schedule"
+   *
+   * WHY THIS IS USEFUL:
+   * Users can quickly see which friends have access to their schedule
+   * and which ones don't, helping them understand their privacy settings.
+   *
+   * @param {Object} friend - Friend data object
+   * @returns {string} HTML for schedule access indicator
+   */
+  renderScheduleAccessStatus(friend) {
+    // Default to visible for initial render - will be updated by bilateral privacy after render
+    // The FriendOptionsMenu and bilateral privacy indicators will handle the actual state
+    const myScheduleVisible = true; // Optimistic default, updated by bilateral privacy service
+
+    if (myScheduleVisible) {
+      // Default to visible state - will be updated by bilateral privacy after render
+      return `
+        <p class="schedule-access bilateral-privacy my-schedule-visible" 
+           title="Privacy status will be updated by bilateral privacy system">
+          <i class="fas fa-eye"></i>
+          <span>Your schedule is visible</span>
+        </p>
+      `;
+    } else {
+      // Fallback hidden state - rarely used since we default to visible
+      return `
+        <p class="schedule-access bilateral-privacy my-schedule-hidden"
+           title="Privacy status will be updated by bilateral privacy system">
+          <i class="fas fa-eye-slash"></i>
+          <span>You hid your schedule</span>
+        </p>
+      `;
+    }
   }
 
   /**
@@ -1160,10 +1228,11 @@ class FriendsUI {
         return;
       }
 
-      const senderName = requestData.displayName || 
-                        requestData.fromUserInfo?.displayName || 
-                        "Unknown User";
-      
+      const senderName =
+        requestData.displayName ||
+        requestData.fromUserInfo?.displayName ||
+        "Unknown User";
+
       console.log(`✅ Accepting friend request from: ${senderName}`);
 
       // Show loading state on button
@@ -1230,10 +1299,11 @@ class FriendsUI {
         return;
       }
 
-      const senderName = requestData.displayName || 
-                        requestData.fromUserInfo?.displayName || 
-                        "Unknown User";
-      
+      const senderName =
+        requestData.displayName ||
+        requestData.fromUserInfo?.displayName ||
+        "Unknown User";
+
       console.log(`❌ Rejecting friend request from: ${senderName}`);
 
       // Show loading state on button
@@ -1306,7 +1376,7 @@ class FriendsUI {
     console.log(`⚙️ Friend menu for: ${friendId}`);
 
     // Find the friend's information from the current friends list
-    const friend = this.currentFriendsData.find(f => f.id === friendId);
+    const friend = this.currentFriendsData.find((f) => f.id === friendId);
     if (!friend) {
       console.error("❌ Friend not found in current data");
       this.showMessage("Friend not found", "error");
@@ -1327,7 +1397,7 @@ class FriendsUI {
       },
       onCancel: () => {
         console.log("💭 Unfriend cancelled by user");
-      }
+      },
     });
   }
 
@@ -1339,7 +1409,7 @@ class FriendsUI {
   async performUnfriend(friend) {
     try {
       console.log("💔 Performing unfriend operation for:", friend.displayName);
-      
+
       // Show loading state
       this.showMessage("Unfriending...", "info");
 
@@ -1353,7 +1423,7 @@ class FriendsUI {
       if (result.success) {
         console.log("✅ Unfriend successful");
         this.showMessage(result.message, "success");
-        
+
         // The real-time listener will automatically update the friends list
         // No need to manually refresh since we have real-time updates
       } else {
@@ -1397,10 +1467,382 @@ class FriendsUI {
   }
 
   /**
+   * 🔗 Render FriendOptionsMenu components with bilateral privacy controls
+   *
+   * BILATERAL PRIVACY EXPLANATION:
+   * This creates the three-dots menu for each friend card with options like:
+   * - Hide/Show My Schedule (bilateral privacy - user controls their own visibility)
+   * - Unfriend
+   *
+   * Uses the new FriendshipPrivacyService for proper bilateral privacy management.
+   *
+   * @param {Array} friends - Array of friend objects
+   */
+  async renderFriendOptionsMenus(friends) {
+    // Clean up existing menus first
+    this.cleanupFriendOptionsMenus();
+
+    // Render menus with bilateral privacy support
+    const menuPromises = friends.map(async (friend) => {
+      const friendId = friend.id || friend.uid;
+      const container = this.elements.friendsList.querySelector(
+        `.friend-options-container[data-friend-id="${friendId}"]`
+      );
+
+      if (container) {
+        try {
+          // Create new menu instance with bilateral privacy
+          const menu = new FriendOptionsMenu(friend);
+
+          // Store reference for cleanup
+          this.friendOptionMenus.set(friendId, menu);
+
+          // Render into container (async for bilateral privacy)
+          await menu.render(container);
+
+          console.log(
+            `🔗 Rendered bilateral privacy menu for ${friend.displayName}`
+          );
+        } catch (error) {
+          console.error(
+            `❌ Failed to render menu for ${friend.displayName}:`,
+            error
+          );
+          // Fallback: render without menu
+        }
+      } else {
+        console.warn(`⚠️ Container not found for friend ${friendId}`);
+      }
+    });
+
+    // Wait for all menus to render
+    await Promise.all(menuPromises);
+
+    // Set up event listeners for menu events
+    this.setupFriendMenuEventListeners();
+  }
+
+  /**
+   * 🎯 Set up event listeners for friend menu events
+   *
+   * BEGINNER EXPLANATION:
+   * The FriendOptionsMenu components emit custom events when users interact with them.
+   * We listen for these events and handle them appropriately.
+   */
+  setupFriendMenuEventListeners() {
+    // Remove existing listeners to prevent duplicates
+    if (this.friendsListEventHandler) {
+      this.elements.friendsList.removeEventListener(
+        "privacy-changed",
+        this.friendsListEventHandler
+      );
+      this.elements.friendsList.removeEventListener(
+        "unfriend-requested",
+        this.friendsListEventHandler
+      );
+    }
+
+    // Create bound handler for cleanup
+    this.friendsListEventHandler = (e) => {
+      if (e.type === "privacy-changed") {
+        this.handlePrivacyChanged(e.detail);
+      } else if (e.type === "unfriend-requested") {
+        this.handleUnfriendRequested(e.detail);
+      }
+    };
+
+    // Add event listeners
+    this.elements.friendsList.addEventListener(
+      "privacy-changed",
+      this.friendsListEventHandler
+    );
+    this.elements.friendsList.addEventListener(
+      "unfriend-requested",
+      this.friendsListEventHandler
+    );
+
+    console.log("🎯 Friend menu event listeners set up");
+  }
+
+  /**
+   * 🔒 Handle bilateral privacy change events from friend menus
+   * @param {Object} detail - Event detail with friendId, myScheduleVisible, privacyStatus, friend
+   */
+  handlePrivacyChanged(detail) {
+    const { friendId, myScheduleVisible, privacyStatus, friend } = detail;
+
+    console.log(
+      `🔒 Bilateral privacy changed for ${friend.displayName}:`,
+      privacyStatus
+    );
+
+    // Update the friend card to reflect new bilateral privacy state
+    this.updateFriendCardBilateralPrivacyIndicator(friendId, privacyStatus);
+
+    // Show user feedback with bilateral privacy messaging
+    const message = myScheduleVisible
+      ? `Your schedule is now visible to ${friend.displayName}`
+      : `You hid your schedule from ${friend.displayName}`;
+
+    notificationManager.showSystemNotification(message, "info");
+  }
+
+  /**
+   * 👋 Handle unfriend requests from friend menus
+   * @param {Object} detail - Event detail with friendId, friendName, friend
+   */
+  handleUnfriendRequested(detail) {
+    const { friendId, friendName, friend } = detail;
+
+    console.log(`👋 Unfriend requested for ${friendName}`);
+
+    // Use existing unfriend logic
+    this.handleUnfriend(friendId, friendName, friend);
+  }
+
+  /**
+   * 👋 Handle unfriend operation (creates confirmation modal and calls performUnfriend)
+   * @param {string} friendId - Friend's user ID
+   * @param {string} friendName - Friend's display name
+   * @param {Object} friend - Complete friend object (optional, will be found if not provided)
+   */
+  handleUnfriend(friendId, friendName, friend = null) {
+    console.log(`👋 Handling unfriend request for ${friendName}`);
+
+    // Find the friend object if not provided
+    let friendObj = friend;
+    if (!friendObj) {
+      friendObj = this.currentFriendsData.find((f) => f.id === friendId);
+      if (!friendObj) {
+        console.error("❌ Friend not found in current data");
+        this.showMessage("Friend not found", "error");
+        return;
+      }
+    }
+
+    // Show unfriend confirmation modal
+    showModal({
+      title: "Unfriend Confirmation",
+      content: `Are you sure you want to unfriend <strong>${friendName}</strong>?<br><br>This action cannot be undone.`,
+      isHtmlContent: true,
+      showConfirmationButtons: true,
+      confirmText: "Unfriend",
+      cancelText: "Cancel",
+      onConfirm: () => {
+        this.performUnfriend(friendObj);
+        return true; // Allow modal to close
+      },
+      onCancel: () => {
+        console.log("💭 Unfriend cancelled by user");
+      },
+    });
+  }
+
+  /**
+   * 🎨 Update privacy indicator in friend card
+   * @param {string} friendId - Friend's user ID
+   * @param {boolean} canSeeSchedule - Whether friend can see schedule
+   */
+  updateFriendCardPrivacyIndicator(friendId, canSeeSchedule) {
+    const friendCard = this.elements.friendsList.querySelector(
+      `.friend-card[data-friend-id="${friendId}"]`
+    );
+
+    if (friendCard) {
+      const statusElement = friendCard.querySelector(".schedule-access");
+
+      if (statusElement) {
+        // Update classes
+        statusElement.className = `schedule-access ${
+          canSeeSchedule ? "can-see" : "cannot-see"
+        }`;
+
+        // Update icon
+        const icon = statusElement.querySelector("i");
+        if (icon) {
+          icon.className = canSeeSchedule ? "fas fa-eye" : "fas fa-eye-slash";
+        }
+
+        // Update text
+        const textSpan = statusElement.querySelector("span");
+        if (textSpan) {
+          textSpan.textContent = canSeeSchedule
+            ? "Can see your schedule"
+            : "Cannot see your schedule";
+        }
+
+        console.log(`🎨 Updated privacy indicator for ${friendId}`);
+      }
+    }
+  }
+
+  /**
+   * 🎨 Update bilateral privacy indicator in friend card
+   * @param {string} friendId - Friend's user ID
+   * @param {Object} privacyStatus - Bilateral privacy status from FriendshipPrivacyService
+   */
+  updateFriendCardBilateralPrivacyIndicator(friendId, privacyStatus) {
+    const friendCard = this.elements.friendsList.querySelector(
+      `.friend-card[data-friend-id="${friendId}"]`
+    );
+
+    if (friendCard && privacyStatus) {
+      const statusElement = friendCard.querySelector(".schedule-access");
+
+      if (statusElement) {
+        // Get bilateral privacy states
+        const myScheduleVisible = privacyStatus.mySchedule?.visible ?? true;
+        const friendScheduleVisible =
+          privacyStatus.friendSchedule?.visible ?? true;
+
+        // Update classes based on bilateral privacy
+        const statusClass = myScheduleVisible
+          ? "my-schedule-visible"
+          : "my-schedule-hidden";
+        statusElement.className = `schedule-access bilateral-privacy ${statusClass}`;
+
+        // Update icon based on user's own schedule visibility
+        const icon = statusElement.querySelector("i");
+        if (icon) {
+          icon.className = myScheduleVisible
+            ? "fas fa-eye"
+            : "fas fa-eye-slash";
+        }
+
+        // Update text with bilateral privacy description
+        const textSpan = statusElement.querySelector("span");
+        if (textSpan) {
+          textSpan.textContent = myScheduleVisible
+            ? "Your schedule is visible"
+            : "You hid your schedule";
+        }
+
+        // Add tooltip showing both privacy states
+        statusElement.title = `Your schedule: ${
+          privacyStatus.mySchedule?.description || "visible"
+        }\nFriend's schedule: ${
+          privacyStatus.friendSchedule?.description || "visible"
+        }`;
+
+        console.log(
+          `🎨 Updated bilateral privacy indicator for ${friendId}:`,
+          privacyStatus
+        );
+      }
+    }
+  }
+
+  /**
+   * 🔐 Update all friend cards with bilateral privacy status after initial render
+   * @param {Array} friends - Array of friend objects
+   */
+  async updateAllFriendCardsBilateralPrivacy(friends) {
+    const currentUserUid = currentUser.state?.user?.uid;
+    if (!currentUserUid) {
+      console.warn("⚠️ No current user found for bilateral privacy updates");
+      return;
+    }
+
+    if (!friends || !Array.isArray(friends) || friends.length === 0) {
+      console.log("📋 No friends to update bilateral privacy for");
+      return;
+    }
+
+    console.log(
+      `🔐 Updating bilateral privacy for ${friends.length} friend cards`
+    );
+
+    const privacyPromises = friends.map(async (friend) => {
+      const friendId = friend.id || friend.uid || friend.friendId;
+
+      if (!friendId) {
+        console.warn("⚠️ Friend object missing ID:", friend);
+        return;
+      }
+
+      if (friendId === currentUserUid) {
+        console.warn(
+          "⚠️ Skipping bilateral privacy update for self:",
+          friendId
+        );
+        return;
+      }
+
+      try {
+        console.log(
+          `🔐 Updating bilateral privacy for friend: ${friendId} (${friend.displayName})`
+        );
+
+        // Get bilateral privacy status for this friendship
+        const privacyStatus = await friendshipPrivacyService.getPrivacyStatus(
+          currentUserUid,
+          friendId
+        );
+
+        if (privacyStatus) {
+          // Update the friend card with actual bilateral privacy status
+          this.updateFriendCardBilateralPrivacyIndicator(
+            friendId,
+            privacyStatus
+          );
+          console.log(`✅ Updated bilateral privacy for ${friend.displayName}`);
+        } else {
+          console.warn(
+            `⚠️ No privacy status found for friendship: ${currentUserUid} ↔ ${friendId}`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Failed to update bilateral privacy for ${friend.displayName}:`,
+          error
+        );
+      }
+    });
+
+    // Wait for all privacy updates to complete
+    await Promise.all(privacyPromises);
+
+    console.log(`✅ Bilateral privacy updated for all friend cards`);
+  }
+
+  /**
+   * 🧹 Clean up friend options menus
+   */
+  cleanupFriendOptionsMenus() {
+    this.friendOptionMenus.forEach((menu, friendId) => {
+      try {
+        menu.destroy();
+      } catch (error) {
+        console.warn(`⚠️ Error destroying menu for friend ${friendId}:`, error);
+      }
+    });
+
+    this.friendOptionMenus.clear();
+
+    // Remove event listeners
+    if (this.friendsListEventHandler) {
+      this.elements.friendsList.removeEventListener(
+        "privacy-changed",
+        this.friendsListEventHandler
+      );
+      this.elements.friendsList.removeEventListener(
+        "unfriend-requested",
+        this.friendsListEventHandler
+      );
+      this.friendsListEventHandler = null;
+    }
+
+    console.log("🧹 Friend options menus cleaned up");
+  }
+
+  /**
    * 🧹 Cleanup when leaving the page (improved memory leak prevention)
    */
   cleanup() {
     try {
+      // Clean up friend options menus first
+      this.cleanupFriendOptionsMenus();
+
       if (this.searchTimeout) {
         clearTimeout(this.searchTimeout);
         this.searchTimeout = null;
@@ -1414,7 +1856,10 @@ class FriendsUI {
               unsubscribe();
             }
           } catch (error) {
-            console.warn("⚠️ Error unsubscribing from real-time listener:", error);
+            console.warn(
+              "⚠️ Error unsubscribing from real-time listener:",
+              error
+            );
           }
         });
         this.realTimeSubscriptions = [];

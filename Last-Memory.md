@@ -1542,3 +1542,226 @@ The implementation is **production-ready** and follows industry best practices. 
 3. **Phase-2 Ready**: Backend infrastructure complete for friends features
 
 **Architecture Summary**: CampXus now has a complete, scalable schedule storage foundation ready for social features in subsequent phases.
+
+---
+
+## Latest Session Implementation: Friends Privacy System - IMPLEMENTED ✅
+
+### Session Overview
+
+This session implemented a comprehensive **Friends Privacy System** for CampXus, allowing users to control schedule visibility on both global and individual friend levels. The implementation includes glassmorphism UI components, real-time privacy indicators, and proper database integration.
+
+### Privacy System Features Implemented ✅
+
+#### 1. Global Schedule Privacy Controls - COMPLETED
+
+**File Enhanced**: `public/templates/friends.html`
+
+**Changes Made**:
+- ✅ **Privacy Card Moved**: Relocated from top to bottom of friends page after Friend Requests section
+- ✅ **Title Updated**: Changed from "Schedule Privacy" to "Privacy" for cleaner design
+- ✅ **Toggle Layout Fixed**: Proper label positioning with "Private Schedule" left, "Friends can see" right
+- ✅ **Status Indicator**: Real-time privacy status display with colored indicators
+
+#### 2. Individual Friend Privacy Controls - COMPLETED
+
+**File Created**: `src/js/components/friends/FriendOptionsMenu.js` (~200 lines)
+
+**Features Implemented**:
+- ✅ **Glassmorphism Dropdown**: Three-dots menu with blur effects and smooth animations
+- ✅ **Privacy Actions**: "Hide Schedule" / "Show Schedule" toggle options
+- ✅ **Unfriend Option**: Complete friendship removal functionality
+- ✅ **Event-Driven Communication**: Custom events for parent component integration
+- ✅ **Accessibility Features**: ARIA labels, keyboard navigation, focus management
+- ✅ **Color-Coded Options**: Green for "show", red for "hide"/"unfriend"
+
+#### 3. FriendsPage Integration - COMPLETED
+
+**File Enhanced**: `src/js/pages/FriendsPage.js`
+
+**Integration Features**:
+- ✅ **Menu Rendering**: `renderFriendOptionsMenus()` method for all friend cards
+- ✅ **Event Listeners**: `setupFriendMenuEventListeners()` for menu interactions
+- ✅ **Real-time Updates**: Privacy indicator updates without page refresh
+- ✅ **Memory Management**: `cleanupFriendOptionsMenus()` for proper resource cleanup
+
+#### 4. Enhanced Privacy Manager - COMPLETED
+
+**File Enhanced**: `src/js/components/privacy/SchedulePrivacyManager.js`
+
+**Enhanced Features**:
+- ✅ **Individual Friend Settings**: `individualFriendSettings` object for per-friend privacy
+- ✅ **Privacy Logic**: Global "private" setting overrides individual friend settings
+- ✅ **Methods Added**: `canFriendSeeSchedule()`, `setFriendScheduleVisibility()`
+- ✅ **Database Integration**: Stores individual privacy settings in user documents
+
+#### 5. Glassmorphism CSS Styling - COMPLETED
+
+**File Enhanced**: `src/css/friends-page.css` (~200 lines added)
+
+**Styling Features**:
+- ✅ **Friend Options Menu**: Complete dropdown styling with glassmorphism effects
+- ✅ **Three-dots Button**: Hover effects and active states
+- ✅ **Menu Items**: Color-coded options with smooth hover animations
+- ✅ **Responsive Design**: Mobile-friendly dropdown positioning
+- ✅ **Dark Mode Support**: Proper color schemes for all themes
+
+#### 6. Real-time Privacy Indicators - COMPLETED
+
+**Implementation**:
+- ✅ **Dynamic Status Updates**: Privacy changes reflect immediately in UI
+- ✅ **Visual Indicators**: "You hid your schedule" vs "Schedule hidden from you"
+- ✅ **Toggle State Sync**: Privacy toggle matches current global setting
+- ✅ **Friend Card Updates**: Privacy status visible on each friend card
+
+### Privacy System Architecture
+
+#### Current Implementation (User-Centric Storage)
+
+```javascript
+// User document privacy structure (IMPLEMENTED)
+{
+  profile: { /* user profile data */ },
+  universityInfo: { /* university data */ },
+  socialInfo: { /* social metadata */ },
+  systemInfo: { /* system data */ },
+  
+  // Privacy controls stored in user document
+  schedulePrivacy: {
+    globalPrivate: false,                    // Global privacy toggle
+    individualSettings: {                    // Per-friend privacy
+      "friend1_uid": false,                  // Friend1 CAN see schedule
+      "friend2_uid": true,                   // Friend2 CANNOT see schedule
+      "friend3_uid": false                   // Friend3 CAN see schedule
+    }
+  }
+}
+```
+
+#### Database Design Issue Identified ⚠️
+
+The current implementation has a **critical database design flaw**:
+
+**Problem**: Both users in a friendship can control the same privacy relationship:
+- User A can hide schedule from User B via `individualSettings["userB_uid"] = true`
+- User B can also control the same field in their own document
+- **Two sources of truth** for the same privacy relationship
+- **Potential conflicts** when both users modify the setting
+- **Security vulnerability** allowing users to override each other's privacy
+
+**Impact**: This creates race conditions and conflicts where users can potentially override each other's privacy settings.
+
+### Planned Database Structure Redesign
+
+#### Optimal Solution: Friendship-Centric Bilateral Privacy
+
+The correct approach is to move privacy controls to the `friendships` collection with bilateral control:
+
+```javascript
+// friendships/{friendshipId} structure (PLANNED)
+{
+  users: ["user1_uid", "user2_uid"],
+  user1Id: "user1_uid",
+  user2Id: "user2_uid", 
+  createdAt: timestamp,
+  lastInteraction: timestamp,
+  
+  // Cached user info
+  user1Info: { displayName, major, avatarConfig },
+  user2Info: { displayName, major, avatarConfig },
+  
+  // 🔐 BILATERAL PRIVACY CONTROLS (NEW)
+  scheduleVisibility: {
+    "user1_uid": true,     // User 1's schedule IS visible to User 2
+    "user2_uid": false     // User 2's schedule IS NOT visible to User 1
+  }
+}
+```
+
+#### Why This Structure is Superior
+
+✅ **Single Source of Truth**: One document controls each privacy relationship
+✅ **Bilateral Control**: Each user controls only their own schedule visibility
+✅ **No Conflicts**: Impossible for users to override each other's settings
+✅ **Clear Logic**: `scheduleVisibility[userId]` = "Is this user's schedule visible to their friend?"
+✅ **Secure**: Users can only make their own schedule more/less visible
+✅ **Scalable**: Works for mutual friends, group privacy, etc.
+
+#### Canonical Friendship ID Pattern
+
+```javascript
+// Friendship document ID generation (consistent ordering)
+const friendshipId = getFriendshipId(userId1, userId2);
+
+function getFriendshipId(uid1, uid2) {
+  return [uid1, uid2].sort().join('_');
+}
+
+// Examples:
+// getFriendshipId("alice123", "bob456") → "alice123_bob456"
+// getFriendshipId("bob456", "alice123") → "alice123_bob456" (same result)
+```
+
+### Implementation Phases for Database Redesign
+
+The following 7 phases will migrate from the current flawed user-centric privacy storage to the optimal friendship-centric bilateral privacy system:
+
+#### Phase 1: Enhanced Friendships Database Structure
+- Design bilateral privacy controls in friendships collection
+- Create canonical friendship ID system
+- Plan migration strategy from user-centric to friendship-centric
+
+#### Phase 2: FriendshipPrivacyService Creation
+- Create dedicated service for friendship-based privacy management
+- Implement bilateral privacy logic
+- Add helper functions for canonical friendship IDs
+
+#### Phase 3: FriendOptionsMenu Updates
+- Update menu to use bilateral privacy system
+- Add clear labeling: "Hide My Schedule" vs "Friend's Schedule Hidden"
+- Implement correct privacy toggle logic
+
+#### Phase 4: FriendsPage Integration Updates
+- Modify integration to use FriendshipPrivacyService
+- Update privacy indicators for bilateral system
+- Fix event handling for new privacy model
+
+#### Phase 5: CSS and Visual Fixes
+- Fix dropdown z-index issues where "Unfriend" option isn't visible
+- Ensure proper visual hierarchy
+- Test dropdown positioning across different screen sizes
+
+#### Phase 6: Firestore Security Rules
+- Update security rules for friendship-based privacy access
+- Implement proper friendship verification
+- Add privacy-aware schedule access rules
+
+#### Phase 7: Testing and Edge Cases
+- Test bilateral privacy with various friendship scenarios
+- Verify security rules prevent unauthorized access
+- Test UI responsiveness and real-time updates
+
+### Files Modified in This Session (Privacy Implementation)
+
+#### Files Created (1 new file)
+1. **`src/js/components/friends/FriendOptionsMenu.js`** - Reusable glassmorphism dropdown (~200 lines)
+
+#### Files Enhanced (4 existing files)
+1. **`public/templates/friends.html`** - Privacy card repositioning and toggle fixes
+2. **`src/js/pages/FriendsPage.js`** - FriendOptionsMenu integration and event handling
+3. **`src/js/components/privacy/SchedulePrivacyManager.js`** - Individual friend privacy controls
+4. **`src/css/friends-page.css`** - Glassmorphism styling for Friend Options Menu (~200 lines)
+
+### Current Privacy System Status
+
+- ✅ **UI Components**: Complete glassmorphism privacy controls implemented
+- ✅ **Individual Privacy**: Per-friend privacy settings working  
+- ✅ **Real-time Updates**: Privacy changes reflect immediately
+- ✅ **Event System**: Proper component communication established
+- ⚠️ **Database Design**: Requires migration to friendship-centric bilateral privacy
+- ⏳ **CSS Issues**: Dropdown z-index problems need fixing
+- ⏳ **Security Rules**: Need updates for bilateral privacy system
+
+### Next Implementation Priority
+
+The immediate next step is implementing the **7-phase bilateral privacy system redesign** to fix the database design flaw and create a secure, scalable privacy architecture that prevents conflicts and maintains clear data ownership.

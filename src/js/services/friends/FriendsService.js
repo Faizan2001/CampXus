@@ -14,7 +14,10 @@
 
 import { currentUser } from "../../store/userStore.js";
 import { dataManager } from "../data/DataService.js";
-import { realTimeManager, REALTIME_EVENTS } from "../realtime/RealtimeService.js";
+import {
+  realTimeManager,
+  REALTIME_EVENTS,
+} from "../realtime/RealtimeService.js";
 import { notificationManager } from "../realtime/NotificationService.js";
 
 export class FriendsManager {
@@ -286,7 +289,10 @@ export class FriendsManager {
         this.uiCallbacks.onOutgoingFriendRequestsChange(transformedRequests);
       }
     } catch (error) {
-      console.error("❌ Error handling outgoing friend requests update:", error);
+      console.error(
+        "❌ Error handling outgoing friend requests update:",
+        error
+      );
     }
   }
 
@@ -299,7 +305,9 @@ export class FriendsManager {
   async checkForFriendRequestStatusChanges(currentRequests) {
     // Skip processing during auth state changes to prevent false notifications
     if (this.isAuthStateChanging) {
-      console.log("⏸️ Skipping friend request status check during auth state change");
+      console.log(
+        "⏸️ Skipping friend request status check during auth state change"
+      );
       return;
     }
 
@@ -321,8 +329,11 @@ export class FriendsManager {
     });
 
     // 2. NEW: Check for deleted requests (clean lifecycle approach)
-    const deletedRequests = this.previousOutgoingRequests.filter((previousRequest) => 
-      !currentRequests.find((currentRequest) => currentRequest.id === previousRequest.id)
+    const deletedRequests = this.previousOutgoingRequests.filter(
+      (previousRequest) =>
+        !currentRequests.find(
+          (currentRequest) => currentRequest.id === previousRequest.id
+        )
     );
 
     // 3. For each deleted request, determine if it was accepted or rejected (parallel execution)
@@ -335,40 +346,53 @@ export class FriendsManager {
           );
           return { request: deletedRequest, friendshipExists, error: null };
         } catch (error) {
-          console.error("❌ Error checking friendship for deleted request:", error);
+          console.error(
+            "❌ Error checking friendship for deleted request:",
+            error
+          );
           return { request: deletedRequest, friendshipExists: false, error };
         }
       });
 
       const results = await Promise.all(friendshipChecks);
-      
+
       // Process results and show notifications
-      results.forEach(({ request: deletedRequest, friendshipExists, error }) => {
-        if (error) {
-          // Don't assume rejection for permission errors during auth state changes
-          if (error.code === 'permission-denied') {
-            console.warn("⚠️ Friendship check permission denied (likely auth state change), skipping notification:", deletedRequest.id);
-            return; // Skip notification for permission errors
+      results.forEach(
+        ({ request: deletedRequest, friendshipExists, error }) => {
+          if (error) {
+            // Don't assume rejection for permission errors during auth state changes
+            if (error.code === "permission-denied") {
+              console.warn(
+                "⚠️ Friendship check permission denied (likely auth state change), skipping notification:",
+                deletedRequest.id
+              );
+              return; // Skip notification for permission errors
+            }
+            console.warn(
+              "⚠️ Friendship check failed, assuming rejection for:",
+              deletedRequest.id
+            );
           }
-          console.warn("⚠️ Friendship check failed, assuming rejection for:", deletedRequest.id);
+
+          if (friendshipExists) {
+            // Request was deleted + friendship exists = ACCEPTED
+            console.log(
+              "🎉 Detected friend request acceptance via deletion + friendship"
+            );
+            this.showFriendRequestStatusNotification({
+              ...deletedRequest,
+              status: "accepted",
+            });
+          } else {
+            // Request was deleted + no friendship = REJECTED
+            console.log("❌ Detected friend request rejection via deletion");
+            this.showFriendRequestStatusNotification({
+              ...deletedRequest,
+              status: "rejected",
+            });
+          }
         }
-        
-        if (friendshipExists) {
-          // Request was deleted + friendship exists = ACCEPTED
-          console.log("🎉 Detected friend request acceptance via deletion + friendship");
-          this.showFriendRequestStatusNotification({
-            ...deletedRequest,
-            status: "accepted",
-          });
-        } else {
-          // Request was deleted + no friendship = REJECTED
-          console.log("❌ Detected friend request rejection via deletion");
-          this.showFriendRequestStatusNotification({
-            ...deletedRequest,
-            status: "rejected",
-          });
-        }
-      });
+      );
     }
 
     // Update previous requests
@@ -398,7 +422,9 @@ export class FriendsManager {
     } catch (error) {
       console.error("❌ Error showing notification:", error);
       // Fallback: Log notification that would have been shown
-      console.log(`📢 Notification (fallback): Friend request ${request.status} - ${request.displayName}`);
+      console.log(
+        `📢 Notification (fallback): Friend request ${request.status} - ${request.displayName}`
+      );
     }
   }
 
@@ -544,14 +570,18 @@ export class FriendsManager {
         // Only filter out actual friends and users who sent requests TO me (not users I sent requests to)
         filterData = {
           friendIds: new Set(friendships.map((f) => f.id)),
-          incomingRequestIds: new Set(incomingRequests.map((r) => r.fromUserId)),
+          incomingRequestIds: new Set(
+            incomingRequests.map((r) => r.fromUserId)
+          ),
         };
 
         // Cache for 2 minutes (shorter than general cache since this changes more often)
         this.setCached(cacheKey, filterData);
       } catch (error) {
         console.error("❌ Error getting filter data:", error);
-        return searchResults.filter((student) => student.id !== currentUser.uid);
+        return searchResults.filter(
+          (student) => student.id !== currentUser.uid
+        );
       }
     }
 
@@ -607,7 +637,6 @@ export class FriendsManager {
     }
   }
 
-
   /**
    * 🔍 Search students with caching (convenience method)
    * @param {string} searchTerm - Search term
@@ -630,7 +659,9 @@ export class FriendsManager {
       return [];
     }
 
-    const cacheKey = `major_${major.toLowerCase()}_${userProfile.universityInfo.university}`;
+    const cacheKey = `major_${major.toLowerCase()}_${
+      userProfile.universityInfo.university
+    }`;
 
     // Try cache first
     const cachedResults = this.getCached(cacheKey);
@@ -647,12 +678,6 @@ export class FriendsManager {
 
     return results;
   }
-
-
-
-
-
-
 
   /**
    * 📩 Send a friend request to another student
@@ -701,7 +726,9 @@ export class FriendsManager {
           return { success: false, message: "You are already friends!" };
         } else if (existingRequest.status === "rejected") {
           // Delete the old rejected request before creating a new one
-          console.log("🗑️ Deleting old rejected request before sending new one");
+          console.log(
+            "🗑️ Deleting old rejected request before sending new one"
+          );
           await dataManager.deleteFriendRequest(existingRequest.id);
         }
       }
@@ -731,7 +758,7 @@ export class FriendsManager {
       if (result.success) {
         // Clear search filter cache since pending request status changed
         this.clearSearchFilterCache();
-        
+
         console.log("✅ Friend request sent successfully!");
         return {
           success: true,
@@ -819,7 +846,7 @@ export class FriendsManager {
       // 🎯 STEP 1: Create the friendship document first
       // (We'll delete the request after successful friendship creation)
 
-      // 🎯 STEP 1: Create the friendship document
+      // 🎯 STEP 1: Create the friendship document with bilateral privacy
       const friendshipData = {
         users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
         user1Id: requestData.fromUserId,
@@ -845,6 +872,19 @@ export class FriendsManager {
             requestData.toUserInfo.avatar ||
             userProfile.avatarConfig,
         },
+
+        // 🔐 NEW: Bilateral Privacy Controls (default to visible)
+        scheduleVisibility: {
+          [requestData.fromUserId]: true, // User1's schedule IS visible to User2 (default: visible)
+          [requestData.toUserId]: true, // User2's schedule IS visible to User1 (default: visible)
+        },
+
+        // Privacy metadata for auditing and debugging
+        privacyMetadata: {
+          lastPrivacyUpdate: new Date(),
+          privacyUpdatedBy: null, // Last user who modified privacy settings
+          privacyVersion: 1, // For future privacy feature migrations
+        },
       };
 
       const friendshipResult = await dataManager.createFriendship(
@@ -857,7 +897,9 @@ export class FriendsManager {
       }
 
       // 🎯 STEP 2: Delete the friend request (clean lifecycle approach)
-      console.log("🗑️ Deleting friend request after successful friendship creation");
+      console.log(
+        "🗑️ Deleting friend request after successful friendship creation"
+      );
       const deleteResult = await dataManager.deleteFriendRequest(requestId);
       if (!deleteResult.success) {
         console.warn(
@@ -969,7 +1011,7 @@ export class FriendsManager {
       if (result.success) {
         // Clear search filter cache since friendship status changed
         this.clearSearchFilterCache();
-        
+
         console.log("✅ Successfully unfriended user:", friendName);
         return {
           success: true,
@@ -1056,7 +1098,8 @@ export class FriendsManager {
       });
 
       // 🧹 Cleanup expired caches periodically
-      if (Math.random() < 0.1) { // 10% chance to run cleanup
+      if (Math.random() < 0.1) {
+        // 10% chance to run cleanup
         this.cleanupExpiredCache();
       }
 
