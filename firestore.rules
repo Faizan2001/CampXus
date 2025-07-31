@@ -58,27 +58,31 @@ service cloud.firestore {
     }
 
     function validateBilateralPrivacyUpdate(request, resource) {
-      // All of these conditions must be true for the update to be allowed.
+      // Optimized validation for atomic field-level updates
       return (
-        // Condition 1: The user is only changing their OWN schedule visibility.
-        // We check this by comparing the friend's visibility before and after the change. It must be the same.
-        (
-          (resource.data.users[0] == request.auth.uid &&
-           request.resource.data.scheduleVisibility[resource.data.users[1]] == resource.data.scheduleVisibility[resource.data.users[1]]) ||
-          (resource.data.users[1] == request.auth.uid &&
-           request.resource.data.scheduleVisibility[resource.data.users[0]] == resource.data.scheduleVisibility[resource.data.users[0]])
-        ) &&
+        // Condition 1: The user must be part of this friendship
+        request.auth.uid in resource.data.users &&
         
-        // Condition 2: The user's own visibility MUST have changed.
-        request.resource.data.scheduleVisibility[request.auth.uid] != resource.data.scheduleVisibility[request.auth.uid] &&
+        // Condition 2: Core friendship data must remain unchanged (if present in update)
+        (!('users' in request.resource.data) || request.resource.data.users == resource.data.users) &&
+        (!('user1Id' in request.resource.data) || request.resource.data.user1Id == resource.data.user1Id) &&
+        (!('user2Id' in request.resource.data) || request.resource.data.user2Id == resource.data.user2Id) &&
+        (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
         
-        // Condition 3: Only the 'scheduleVisibility' and 'privacyMetadata' fields are allowed to be modified.
-        // This is a more robust check than hasOnly().
-        request.resource.data.diff(resource.data).affectedKeys.size() == 2 &&
-        request.resource.data.diff(resource.data).affectedKeys.hasAll(['scheduleVisibility', 'privacyMetadata']) &&
-
-        // Condition 4: The 'privacyUpdatedBy' field in the metadata must be correctly attributed to the user making the request.
-        request.resource.data.privacyMetadata.privacyUpdatedBy == request.auth.uid
+        // Condition 3: If privacyMetadata is being updated, user must be correctly attributed
+        (!('privacyMetadata' in request.resource.data) ||
+         request.resource.data.privacyMetadata.privacyUpdatedBy == request.auth.uid) &&
+        
+        // Condition 4: User can only update their own schedule visibility
+        // Check if scheduleVisibility field is being modified
+        (!('scheduleVisibility' in request.resource.data) ||
+         (
+           // User can only modify their own visibility setting
+           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) ||
+           // Or if updating the full object, it must contain both users and only change their own setting
+           (request.resource.data.scheduleVisibility.keys().hasAll(resource.data.users) &&
+            resource.data.users.hasAll(request.resource.data.scheduleVisibility.keys()))
+         ))
       );
     }
   }

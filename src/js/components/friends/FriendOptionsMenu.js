@@ -300,18 +300,22 @@ export class FriendOptionsMenu {
           : "hidden";
       }
 
-      // Emit event for parent components to update
-      this.element.dispatchEvent(
-        new CustomEvent("privacy-changed", {
-          bubbles: true,
-          detail: {
-            friendId: this.friend.id,
-            myScheduleVisible: newVisibility,
-            privacyStatus: this.currentPrivacyStatus,
-            friend: this.friend,
-          },
-        })
-      );
+      // Emit event for parent components to update (check if element still exists)
+      if (this.element) {
+        this.element.dispatchEvent(
+          new CustomEvent("privacy-changed", {
+            bubbles: true,
+            detail: {
+              friendId: this.friend.id,
+              myScheduleVisible: newVisibility,
+              privacyStatus: this.currentPrivacyStatus,
+              friend: this.friend,
+            },
+          })
+        );
+      } else {
+        console.warn(`⚠️ Element destroyed before privacy event could be dispatched for ${this.friend.displayName}`);
+      }
 
       console.log(
         `✅ Bilateral privacy updated for ${this.friend.displayName}`

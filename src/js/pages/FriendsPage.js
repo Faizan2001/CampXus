@@ -1579,12 +1579,7 @@ class FriendsUI {
     // Update the friend card to reflect new bilateral privacy state
     this.updateFriendCardBilateralPrivacyIndicator(friendId, privacyStatus);
 
-    // Show user feedback with bilateral privacy messaging
-    const message = myScheduleVisible
-      ? `Your schedule is now visible to ${friend.displayName}`
-      : `You hid your schedule from ${friend.displayName}`;
-
-    notificationManager.showSystemNotification(message, "info");
+    // Privacy changes are now silent - no notifications needed
   }
 
   /**

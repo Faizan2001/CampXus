@@ -20,6 +20,7 @@ import {
   query,
   where,
   getDocs,
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import {
@@ -206,7 +207,8 @@ class FriendshipPrivacyService {
   }
 
   /**
-   * Update a user's schedule visibility to a specific friend
+   * Update a user's schedule visibility to a specific friend using atomic transactions
+   * This prevents race conditions when both users update privacy simultaneously
    * @param {string} userUid - User updating their own visibility
    * @param {string} friendUid - Friend the visibility applies to
    * @param {boolean} isVisible - Whether user's schedule should be visible
@@ -254,44 +256,62 @@ class FriendshipPrivacyService {
         `🔐 Updating schedule visibility: ${userUid} → ${friendUid} = ${isVisible}`
       );
 
-      // Get current friendship document
-      const friendshipDoc = await this.getFriendshipDocument(
-        userUid,
-        friendUid
-      );
-
-      if (!friendshipDoc) {
-        console.error(`❌ Friendship not found: ${friendshipId}`);
-        throw new Error("Friendship not found");
-      }
-
-      // Create update data
-      const updateData = updateScheduleVisibility(
-        friendshipDoc,
-        userUid,
-        isVisible
-      );
-
-      // Update Firestore
+      // Use Firestore transaction to prevent race conditions
       const docRef = doc(db, "friendships", friendshipId);
-      await updateDoc(docRef, updateData);
+      let friendName = "Unknown";
 
-      // Invalidate cache
-      this.cache.delete(friendshipId);
+      const success = await runTransaction(db, async (transaction) => {
+        // Read current document state within transaction
+        const docSnap = await transaction.get(docRef);
+        
+        if (!docSnap.exists()) {
+          throw new Error("Friendship not found");
+        }
 
-      // Show success notification
-      const action = isVisible ? "visible to" : "hidden from";
-      const friendName =
-        friendshipDoc.user1Id === userUid
+        const friendshipDoc = docSnap.data();
+
+        // Validate document structure
+        const validation = validateFriendshipDocument(friendshipDoc);
+        if (!validation.isValid) {
+          throw new Error("Invalid friendship document structure");
+        }
+
+        // Get friend name for notification
+        friendName = friendshipDoc.user1Id === userUid
           ? friendshipDoc.user2Info.displayName
           : friendshipDoc.user1Info.displayName;
 
-      notificationManager.showSuccess(`Schedule ${action} ${friendName} ✅`);
+        // Create atomic update - only modify the current user's visibility
+        const now = Date.now();
+        const updateData = {
+          [`scheduleVisibility.${userUid}`]: isVisible,
+          "privacyMetadata.lastPrivacyUpdate": now,
+          "privacyMetadata.privacyUpdatedBy": userUid,
+          "privacyMetadata.privacyVersion": (friendshipDoc.privacyMetadata?.privacyVersion || 0) + 1,
+        };
 
-      console.log(
-        `✅ Successfully updated schedule visibility: ${userUid} → ${friendUid} = ${isVisible}`
-      );
-      return true;
+        // Apply the atomic update
+        transaction.update(docRef, updateData);
+
+        console.log(
+          `🔄 Transaction: Atomically updating ${userUid}'s visibility to ${isVisible}`
+        );
+
+        return true;
+      });
+
+      if (success) {
+        // Invalidate cache after successful transaction
+        this.cache.delete(friendshipId);
+
+        // Log success without showing notification
+        console.log(
+          `✅ Successfully updated schedule visibility: ${userUid} → ${friendUid} = ${isVisible}`
+        );
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error("❌ Error updating schedule visibility:", error);
 
@@ -348,8 +368,9 @@ class FriendshipPrivacyService {
 
       // Show notification
       const action = isVisible ? "visible" : "hidden";
-      notificationManager.showSuccess(
-        `Schedule ${action} for ${updated} friends ✅`
+      notificationManager.showSystemNotification(
+        `Schedule ${action} for ${updated} friends ✅`,
+        "success"
       );
 
       return {
@@ -362,8 +383,9 @@ class FriendshipPrivacyService {
         "Error updating schedule visibility for all friends:",
         error
       );
-      notificationManager.showError(
-        `Failed to update global privacy: ${error.message}`
+      notificationManager.showSystemNotification(
+        `Failed to update global privacy: ${error.message}`,
+        "error"
       );
 
       return {
