@@ -7,8 +7,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         request.auth.uid == userId ||
         (resource.data.socialInfo.searchable == true && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.universityInfo.university == resource.data.universityInfo.university) ||
-        resource.data.scheduleData.privacy.visibility == 'public' ||
-        (resource.data.scheduleData.privacy.visibility == 'friends' && canViewFriendSchedule(request.auth.uid, userId))
+        canViewFriendSchedule(request.auth.uid, userId)
       );
       allow create: if request.auth.uid == userId;
       allow update, delete: if request.auth.uid == userId;

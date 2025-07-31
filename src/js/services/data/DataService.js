@@ -985,13 +985,6 @@ class DataManager {
         isEmpty: freeBusySummary.every((count) => count === 0),
         hasConflicts: false, // TODO: Implement conflict detection
       },
-
-      // Simplified privacy (Gemini feedback - single visibility field)
-      privacy: {
-        visibility: scheduleData.privacy?.visibility || "private", // 'private'|'friends'|'public'
-        allowScheduleRequests:
-          scheduleData.privacy?.allowScheduleRequests || false,
-      },
     };
   }
 
