@@ -24,6 +24,11 @@ design system for the MeetchuThere application. It includes:
   box-sizing: border-box;
 }
 
+/* Root font-size for consistent rem calculations across all environments */
+html {
+  font-size: 16px; /* Explicit base font-size prevents browser differences */
+}
+
 /* Body foundation with typography and theme transitions */
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
