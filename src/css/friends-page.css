@@ -1899,33 +1899,6 @@ div.friend-options-menu.show div.options-dropdown,
     transform: translateY(-8px) scale(0.92);
   }
   
-  .friend-card:last-child .friend-options-menu.show .options-dropdown,
-  .friend-card:nth-last-child(2) .friend-options-menu.show .options-dropdown {
-    opacity: 1 !important;
-    visibility: visible !important;
-    transform: none !important;
-    pointer-events: all !important;
-    
-    /* Glassmorphism styling consistent with friends-page design */
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(32px) !important;
-    -webkit-backdrop-filter: blur(32px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
-    border-radius: 16px !important;
-    
-    /* Enhanced shadow for depth */
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15),
-                0 8px 24px rgba(0, 0, 0, 0.08),
-                0 4px 12px rgba(0, 0, 0, 0.05),
-                inset 0 1px 0 rgba(255, 255, 255, 0.8),
-                inset 0 -1px 0 rgba(255, 255, 255, 0.3) !important;
-    
-    z-index: 9999 !important;
-    position: fixed !important;
-    width: 200px !important;
-    min-width: 180px !important;
-    padding: 8px 0 !important;
-  }
 
   .friend-options-menu .menu-option {
     padding: 12px 14px;
@@ -2003,7 +1976,7 @@ div.friend-options-menu.show div.options-dropdown,
                 0 8px 24px var(--friends-options-dark-shadow-medium),
                 0 4px 12px var(--friends-options-dark-shadow-light),
                 inset 0 1px 0 var(--friends-options-dark-highlight-medium),
-                inset 0 -1px 0 rgba(255, 255, 255, 0.05) !important;
+                inset 0 -1px 0 var(--friends-white-highlight-faint) !important;
   }
   
   .friend-options-menu .options-dropdown::before {
@@ -2045,8 +2018,9 @@ div.friend-options-menu.show div.options-dropdown,
   border: var(--friends-card-border) !important;
   border-radius: 12px !important;
   padding: 8px 0 !important;
-  width: 200px !important;
-  min-width: 180px !important;
+  width: max-content !important;
+  min-width: 160px !important;
+  max-width: 220px !important;
   
   /* Use existing shadow system */
   box-shadow: var(--friends-card-shadow) !important;
@@ -2108,7 +2082,7 @@ div.friend-options-menu.show div.options-dropdown,
 }
 
 .glassmorphism-dropdown-active .privacy-toggle-option.show-my-schedule:hover {
-  background: rgba(16, 185, 129, 0.08) !important;
+  background: var(--friends-options-hover-teal) !important;
   color: #047857 !important;
 }
 
@@ -2117,7 +2091,7 @@ div.friend-options-menu.show div.options-dropdown,
 }
 
 .glassmorphism-dropdown-active .privacy-toggle-option.hide-my-schedule:hover {
-  background: rgba(239, 68, 68, 0.08) !important;
+  background: var(--friends-options-hover-red) !important;
   color: #b91c1c !important;
 }
 
@@ -2127,6 +2101,6 @@ div.friend-options-menu.show div.options-dropdown,
 }
 
 .glassmorphism-dropdown-active .unfriend-option:hover {
-  background: rgba(239, 68, 68, 0.08) !important;
+  background: var(--friends-options-hover-red) !important;
   color: #b91c1c !important;
 }
