@@ -2446,6 +2446,240 @@ class DataManager {
       return () => {}; // Return empty unsubscribe function
     }
   }
+
+  // =========================
+  // PHASE-2: QUICK ACCESS DATABASE OPERATIONS
+  // =========================
+
+  /**
+   * ⭐ Add a friend to user's Quick Access (starred friends)
+   * @param {string} userId - The user's ID
+   * @param {Object} quickAccessEntry - Friend's Quick Access data
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async addToQuickAccess(userId, quickAccessEntry) {
+    try {
+      if (!userId || !quickAccessEntry) {
+        throw new Error("Invalid userId or quickAccessEntry");
+      }
+
+      if (!this.isOnline) {
+        throw new Error("Cannot update Quick Access while offline");
+      }
+
+      console.log("⭐ [DataManager] Adding to Quick Access:", quickAccessEntry.displayName);
+
+      // First, get current user data to check if quickAccessData exists
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found");
+      }
+
+      const userData = userDoc.data();
+      const currentQuickAccess = userData.quickAccessData || {};
+      const starredFriends = currentQuickAccess.starredFriends || [];
+
+      // Check if friend is already in Quick Access (prevent duplicates)
+      const existingIndex = starredFriends.findIndex(
+        friend => friend.userId === quickAccessEntry.userId
+      );
+
+      let updatedStarredFriends;
+      if (existingIndex >= 0) {
+        // Update existing entry (move to recent-first position)
+        updatedStarredFriends = [...starredFriends];
+        updatedStarredFriends[existingIndex] = {
+          ...updatedStarredFriends[existingIndex],
+          lastInteraction: quickAccessEntry.lastInteraction
+        };
+      } else {
+        // Add new entry to the beginning (recent-first)
+        updatedStarredFriends = [quickAccessEntry, ...starredFriends];
+      }
+
+      // Update the user document with enhanced Quick Access data
+      await updateDoc(userDocRef, {
+        "quickAccessData.starredFriends": updatedStarredFriends,
+        "quickAccessData.totalStarred": updatedStarredFriends.length,
+        "quickAccessData.lastUpdated": serverTimestamp(),
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
+
+      console.log("✅ [DataManager] Successfully added to Quick Access");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ [DataManager] Error adding to Quick Access:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ❌ Remove a friend from user's Quick Access
+   * @param {string} userId - The user's ID
+   * @param {string} friendId - The friend's user ID to remove
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async removeFromQuickAccess(userId, friendId) {
+    try {
+      if (!userId || !friendId) {
+        throw new Error("Invalid userId or friendId");
+      }
+
+      if (!this.isOnline) {
+        throw new Error("Cannot update Quick Access while offline");
+      }
+
+      console.log("❌ [DataManager] Removing from Quick Access:", friendId);
+
+      // Get current user data
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found");
+      }
+
+      const userData = userDoc.data();
+      const currentQuickAccess = userData.quickAccessData || {};
+      const starredFriends = currentQuickAccess.starredFriends || [];
+
+      // Filter out the friend to remove
+      const updatedStarredFriends = starredFriends.filter(
+        friend => friend.userId !== friendId
+      );
+
+      // Update the user document
+      await updateDoc(userDocRef, {
+        "quickAccessData.starredFriends": updatedStarredFriends,
+        "quickAccessData.totalStarred": updatedStarredFriends.length,
+        "quickAccessData.lastUpdated": serverTimestamp(),
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
+
+      console.log("✅ [DataManager] Successfully removed from Quick Access");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ [DataManager] Error removing from Quick Access:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📋 Get user's Quick Access friends data
+   * @param {string} userId - The user's ID
+   * @returns {Promise<Object|null>} Quick Access data or null if not found
+   */
+  async getQuickAccessFriends(userId) {
+    try {
+      if (!userId) {
+        throw new Error("Invalid userId");
+      }
+
+      console.log("📋 [DataManager] Getting Quick Access friends for:", userId);
+
+      // Check cache first
+      const cacheKey = `quick_access_${userId}`;
+      const cachedData = this.getCachedData(cacheKey);
+      if (cachedData) {
+        console.log("📦 [DataManager] Using cached Quick Access data");
+        return cachedData;
+      }
+
+      // Get from Firestore
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        console.log("❌ [DataManager] User document not found");
+        return null;
+      }
+
+      const userData = userDoc.data();
+      const quickAccessData = userData.quickAccessData || {
+        starredFriends: [],
+        totalStarred: 0,
+        lastUpdated: null
+      };
+
+      // Cache the result
+      this.setCachedData(cacheKey, quickAccessData);
+
+      console.log(`✅ [DataManager] Found ${quickAccessData.starredFriends?.length || 0} Quick Access friends`);
+      return quickAccessData;
+    } catch (error) {
+      console.error("❌ [DataManager] Error getting Quick Access friends:", error);
+      return null;
+    }
+  }
+
+  /**
+   * 🔄 Update Quick Access order (recent-first ordering)
+   * @param {string} userId - The user's ID
+   * @param {string} friendId - The friend's user ID to update
+   * @param {Date} newTimestamp - New last interaction timestamp
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateQuickAccessOrder(userId, friendId, newTimestamp) {
+    try {
+      if (!userId || !friendId || !newTimestamp) {
+        throw new Error("Invalid parameters for updateQuickAccessOrder");
+      }
+
+      if (!this.isOnline) {
+        throw new Error("Cannot update Quick Access while offline");
+      }
+
+      console.log("🔄 [DataManager] Updating Quick Access order for:", friendId);
+
+      // Get current user data
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found");
+      }
+
+      const userData = userDoc.data();
+      const currentQuickAccess = userData.quickAccessData || {};
+      const starredFriends = currentQuickAccess.starredFriends || [];
+
+      // Find and update the friend's last interaction timestamp
+      const updatedStarredFriends = starredFriends.map(friend => {
+        if (friend.userId === friendId) {
+          return {
+            ...friend,
+            lastInteraction: newTimestamp
+          };
+        }
+        return friend;
+      });
+
+      // Sort by recent-first (most recent interaction first)
+      updatedStarredFriends.sort((a, b) => {
+        const dateA = a.lastInteraction?.toDate?.() || new Date(a.lastInteraction || a.starredAt);
+        const dateB = b.lastInteraction?.toDate?.() || new Date(b.lastInteraction || b.starredAt);
+        return dateB - dateA;
+      });
+
+      // Update the user document
+      await updateDoc(userDocRef, {
+        "quickAccessData.starredFriends": updatedStarredFriends,
+        "quickAccessData.lastUpdated": serverTimestamp(),
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
+
+      // Clear cache to force refresh
+      this.clearCachedData(`quick_access_${userId}`);
+
+      console.log("✅ [DataManager] Successfully updated Quick Access order");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ [DataManager] Error updating Quick Access order:", error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // Export a single instance of the DataManager (Singleton Pattern)

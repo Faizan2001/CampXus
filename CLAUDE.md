@@ -476,6 +476,21 @@ async function rejectFriendRequest(requestId) {
 
 This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.
 
+## Key Dependencies
+
+### Core Dependencies
+
+- **Firebase v11.8.1**: Authentication, Firestore database, real-time listeners
+- **Tesseract.js v6.0.1**: OCR processing for schedule image recognition
+- **Playwright v1.54.1**: Browser automation for testing and development
+
+### Development Dependencies
+
+- **Vite v7.0.2**: Build system and development server
+- **Jest v29.7.0**: Testing framework with ESM support
+- **@testing-library packages**: DOM testing utilities
+- **audit-ci v6.6.1**: Security vulnerability checking
+
 ## Key Architectural Patterns
 
 ### SPA Navigation
@@ -521,6 +536,11 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 
 - Core logic in `src/js/pages/HomePage.js`
 - Service layer in `src/js/services/schedule/`
+  - `OcrService.js`: Tesseract.js integration for schedule image recognition
+  - `ScheduleImportService.js`: Schedule data processing and validation
+  - `ScheduleStorageService.js`: Dual storage system (Firestore + localStorage)
+  - `ScheduleValidator.js`: Schedule data validation and sanitization
+  - `UniversityParser.js`: University-specific schedule format parsing
 - UI updates in `/public/templates/home.html`
 - Styling in `src/css/schedule.css`
 
@@ -539,7 +559,10 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ### Friends System Features
 
 - Core logic in `src/js/services/friends/FriendsService.js`
+- Privacy controls in `src/js/services/friends/FriendshipPrivacyService.js`
+- Type definitions in `src/js/services/friends/FriendsTypes.js`
 - UI components in `src/js/pages/FriendsPage.js`
+- Friend options menu in `src/js/components/friends/FriendOptionsMenu.js`
 - Avatar rendering via `src/js/utils/avatar/avatarManager.js`
 - Real-time updates via `src/js/services/realtime/RealtimeService.js`
 - Toast notifications via `src/js/services/realtime/NotificationService.js`
@@ -644,6 +667,9 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 - `vite.config.js`: Build configuration with manual chunks and asset optimization
 - `firebase.json`: Firebase hosting and functions configuration
 - `firestore.rules`: Database security rules with university-only access
+- `CampXus-Friends-CSS-Refactoring-Context.md`: Context for recent friends system CSS updates
+- `Last-Memory.md`: Development memory and context file
+- `src/js/core/firestore/MIGRATION_SUMMARY.md`: Database migration and schema updates
 
 # Using Gemini CLI for Large Codebase Analysis
 

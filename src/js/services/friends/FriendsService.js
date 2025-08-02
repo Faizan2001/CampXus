@@ -1110,7 +1110,318 @@ export class FriendsManager {
       return [];
     }
   }
+
+  // =========================
+  // PHASE-2: QUICK ACCESS FRIENDS SYSTEM 
+  // =========================
+
+  /**
+   * ⭐ Add a friend to Quick Access (starred friends)
+   * @param {string} friendId - The friend's user ID
+   * @param {Object} friendInfo - Friend's display information
+   * @returns {Promise<Object>} Success/failure result
+   */
+  async addToQuickAccess(friendId, friendInfo) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to manage Quick Access." };
+    }
+
+    if (!friendId || !friendInfo) {
+      console.error("❌ Missing friend ID or info for Quick Access");
+      return { success: false, message: "Invalid friend data" };
+    }
+
+    if (friendId === currentUser.uid) {
+      return {
+        success: false,
+        message: "You cannot add yourself to Quick Access!",
+      };
+    }
+
+    try {
+      const friendName = friendInfo.displayName || "Friend";
+      console.log("⭐ Adding to Quick Access:", friendName);
+
+      // Check if friend is already in Quick Access
+      const isAlreadyStarred = await this.isInQuickAccess(friendId);
+      if (isAlreadyStarred) {
+        // Update the interaction timestamp for recent-first ordering
+        await this.updateQuickAccessOrder(friendId);
+        return {
+          success: true,
+          message: `${friendName} is already in your Quick Access!`,
+        };
+      }
+
+      // Create Quick Access entry with recent-first metadata
+      const now = new Date();
+      const quickAccessEntry = {
+        userId: friendId,
+        displayName: friendInfo.displayName,
+        major: friendInfo.major,
+        avatarConfig: friendInfo.avatarConfig,
+        starredAt: now,
+        lastInteraction: now,  // For recent-first ordering
+      };
+
+      // Save to database via dataManager
+      const result = await dataManager.addToQuickAccess(currentUser.uid, quickAccessEntry);
+
+      if (result.success) {
+        // Clear Quick Access cache
+        this.clearCache(`quick_access_${currentUser.uid}`);
+
+        console.log("✅ Successfully added to Quick Access:", friendName);
+        return {
+          success: true,
+          message: `${friendName} added to Quick Access!`,
+          friendId: friendId,
+        };
+      } else {
+        return {
+          success: false,
+          message: "Failed to add to Quick Access. Please try again.",
+        };
+      }
+    } catch (error) {
+      console.error("❌ Error adding to Quick Access:", error);
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * ❌ Remove a friend from Quick Access (unstar)
+   * @param {string} friendId - The friend's user ID to remove
+   * @returns {Promise<Object>} Success/failure result
+   */
+  async removeFromQuickAccess(friendId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to manage Quick Access." };
+    }
+
+    if (!friendId) {
+      console.error("❌ Missing friend ID for Quick Access removal");
+      return { success: false, message: "Invalid friend data" };
+    }
+
+    try {
+      console.log("❌ Removing from Quick Access:", friendId);
+
+      // Check if friend is in Quick Access
+      const isCurrentlyStarred = await this.isInQuickAccess(friendId);
+      if (!isCurrentlyStarred) {
+        return {
+          success: true,
+          message: "Friend is not in Quick Access",
+        };
+      }
+
+      // Remove from database via dataManager
+      const result = await dataManager.removeFromQuickAccess(currentUser.uid, friendId);
+
+      if (result.success) {
+        // Clear Quick Access cache
+        this.clearCache(`quick_access_${currentUser.uid}`);
+
+        console.log("✅ Successfully removed from Quick Access:", friendId);
+        return {
+          success: true,
+          message: "Removed from Quick Access!",
+          removedFriendId: friendId,
+        };
+      } else {
+        return {
+          success: false,
+          message: "Failed to remove from Quick Access. Please try again.",
+        };
+      }
+    } catch (error) {
+      console.error("❌ Error removing from Quick Access:", error);
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * 📋 Get Quick Access friends with recent-first ordering (unlimited)
+   * @param {boolean} useCache - Whether to use caching (default: true)
+   * @returns {Promise<Array>} Array of starred friends, ordered by most recent interaction first
+   */
+  async getQuickAccessFriends(useCache = true) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      console.error("❌ Cannot get Quick Access friends, user not logged in.");
+      return [];
+    }
+
+    // Try cache first if requested
+    if (useCache) {
+      const cacheKey = `quick_access_${currentUser.uid}`;
+      const cachedResults = this.getCached(cacheKey);
+      if (cachedResults) {
+        console.log("📦 Using cached Quick Access friends");
+        return cachedResults;
+      }
+    }
+
+    try {
+      console.log("📋 Getting Quick Access friends for:", userProfile.profile.displayName);
+      
+      // Get Quick Access data from database
+      const quickAccessData = await dataManager.getQuickAccessFriends(currentUser.uid);
+
+      if (!quickAccessData || !quickAccessData.starredFriends) {
+        console.log("📋 No Quick Access friends found");
+        return [];
+      }
+
+      // Sort by recent-first ordering (most recently interacted with first)
+      const sortedFriends = quickAccessData.starredFriends.sort((a, b) => {
+        const dateA = a.lastInteraction?.toDate?.() || new Date(a.lastInteraction || a.starredAt);
+        const dateB = b.lastInteraction?.toDate?.() || new Date(b.lastInteraction || b.starredAt);
+        return dateB - dateA; // Most recent first
+      });
+
+      // Cache results for performance
+      if (useCache && sortedFriends.length > 0) {
+        const cacheKey = `quick_access_${currentUser.uid}`;
+        this.setCached(cacheKey, sortedFriends);
+      }
+
+      console.log(`✅ Found ${sortedFriends.length} Quick Access friends (unlimited system!)`);
+      return sortedFriends;
+    } catch (error) {
+      console.error("❌ Error getting Quick Access friends:", error);
+      return [];
+    }
+  }
+
+  /**
+   * ❓ Check if a friend is in Quick Access
+   * @param {string} friendId - The friend's user ID to check
+   * @returns {Promise<boolean>} True if friend is starred, false otherwise
+   */
+  async isInQuickAccess(friendId) {
+    if (!friendId) {
+      return false;
+    }
+
+    try {
+      // Get Quick Access friends (with caching)
+      const quickAccessFriends = await this.getQuickAccessFriends(true);
+      
+      // Check if friendId exists in the starred friends array
+      const isStarred = quickAccessFriends.some(friend => friend.userId === friendId);
+      
+      console.log(`❓ Quick Access check for ${friendId}:`, isStarred ? "⭐ STARRED" : "☆ NOT STARRED");
+      return isStarred;
+    } catch (error) {
+      console.error("❌ Error checking Quick Access status:", error);
+      return false;
+    }
+  }
+
+  /**
+   * 🔄 Update Quick Access order (move friend to top of recent-first list)
+   * @param {string} friendId - The friend's user ID to update
+   * @returns {Promise<Object>} Success/failure result
+   */
+  async updateQuickAccessOrder(friendId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to update Quick Access." };
+    }
+
+    if (!friendId) {
+      console.error("❌ Missing friend ID for Quick Access order update");
+      return { success: false, message: "Invalid friend data" };
+    }
+
+    try {
+      console.log("🔄 Updating Quick Access order for:", friendId);
+
+      // Update last interaction timestamp in database
+      const result = await dataManager.updateQuickAccessOrder(currentUser.uid, friendId, new Date());
+
+      if (result.success) {
+        // Clear cache to force refresh with new ordering
+        this.clearCache(`quick_access_${currentUser.uid}`);
+
+        console.log("✅ Successfully updated Quick Access order for:", friendId);
+        return {
+          success: true,
+          message: "Quick Access order updated",
+          updatedFriendId: friendId,
+        };
+      } else {
+        return {
+          success: false,
+          message: "Failed to update Quick Access order. Please try again.",
+        };
+      }
+    } catch (error) {
+      console.error("❌ Error updating Quick Access order:", error);
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * ⭐ Toggle Quick Access status (star/unstar)
+   * @param {string} friendId - The friend's user ID
+   * @param {Object} friendInfo - Friend's display information (required for adding)
+   * @returns {Promise<Object>} Success/failure result with current status
+   */
+  async toggleQuickAccess(friendId, friendInfo) {
+    try {
+      // Check current status
+      const isCurrentlyStarred = await this.isInQuickAccess(friendId);
+
+      if (isCurrentlyStarred) {
+        // Remove from Quick Access
+        const result = await this.removeFromQuickAccess(friendId);
+        return {
+          ...result,
+          isStarred: false,
+          action: 'removed'
+        };
+      } else {
+        // Add to Quick Access
+        const result = await this.addToQuickAccess(friendId, friendInfo);
+        return {
+          ...result,
+          isStarred: true,
+          action: 'added'
+        };
+      }
+    } catch (error) {
+      console.error("❌ Error toggling Quick Access:", error);
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+        isStarred: false,
+        action: 'error'
+      };
+    }
+  }
 }
 
 // 🌟 Export a single instance (Singleton pattern)
 export const friendsManager = new FriendsManager();
+
+// Only expose globally for development/debugging (like dataManager)
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  window.friendsManager = friendsManager;
+  console.log(
+    "🛠️ FriendsManager available globally as window.friendsManager for debugging"
+  );
+}
