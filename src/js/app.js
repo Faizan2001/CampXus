@@ -29,6 +29,7 @@ import "./pages/FriendsPage.js";
 import "./services/realtime/RealtimeService.js"; // 🎯 NEW: Real-time event coordination system
 import "./services/realtime/NotificationService.js"; // 🎯 NEW: Toast notification system
 import "./utils/dev/debugHelpers.js"; // 🎯 NEW: Debug tools and console helpers
+import "./utils/dev/performanceDebugger.js"; // 🎯 NEW: Performance monitoring and leak detection
 import "./components/forms/ProfileSetup.js";
 import "./utils/avatar/avatarManager.js";
 

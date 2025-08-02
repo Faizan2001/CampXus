@@ -131,6 +131,11 @@ class DataManager {
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
     this.maxCacheSize = 100; // Maximum number of cached items
     this.lastSyncTime = null;
+    
+    // Performance optimizations
+    this.syncDebounceMap = new Map(); // userId -> timeout
+    this.quickAccessUpdateInProgress = new Set(); // Track ongoing Quick Access updates
+    this.profileChangeThrottle = new Map(); // userId -> lastProcessTime
 
     // Initialize
     this.removeLegacyOfflineBanners(); // Clean up any existing banners first
@@ -300,6 +305,28 @@ class DataManager {
   clearCache() {
     this.cache.clear();
     console.log("🧹 Cache cleared.");
+  }
+  
+  /**
+   * ⚡ Debounced cache sync to prevent excessive operations
+   * @param {string} userId - User ID to sync cache for
+   */
+  debounceCacheSync(userId) {
+    // Clear existing timeout for this user
+    if (this.syncDebounceMap.has(userId)) {
+      clearTimeout(this.syncDebounceMap.get(userId));
+    }
+    
+    // Set new timeout
+    const timeoutId = setTimeout(() => {
+      syncUserDataCache(userId).catch((error) =>
+        console.warn("⚠️ Friend cache sync failed:", error)
+      );
+      this.syncDebounceMap.delete(userId);
+    }, 1000); // 1 second debounce
+    
+    this.syncDebounceMap.set(userId, timeoutId);
+    console.log(`⏱️ Debounced cache sync for user: ${userId}`);
   }
 
   /**
@@ -2381,17 +2408,36 @@ class DataManager {
               ...docSnapshot.data(),
             };
 
+            // ⚡ Throttle profile change processing to prevent spam
+            const now = Date.now();
+            const lastProcessTime = this.profileChangeThrottle.get(userId) || 0;
+            const throttleDelay = 3000; // 3 seconds
+            
+            if (now - lastProcessTime < throttleDelay) {
+              console.log(`⏱️ Throttling profile change for ${userId} (too frequent)`);
+              // Update cache but skip processing
+              this.setCachedData(`user_${userId}`, profileData);
+              callback(profileData);
+              return;
+            }
+            
+            this.profileChangeThrottle.set(userId, now);
             console.log(`👤 Real-time update: Profile changed for ${userId}`);
 
+            // 🔄 Skip cache sync if this is a Quick Access update to prevent cascading
+            const isQuickAccessUpdate = this.quickAccessUpdateInProgress.has(userId);
+            
             // 🔄 Compare with previous cached data to avoid unnecessary syncs
             const cachedData = this.getCachedData(`user_${userId}`);
             const hasSignificantChange =
-              !cachedData ||
-              JSON.stringify(cachedData.avatarConfig) !==
-                JSON.stringify(profileData.avatarConfig) ||
-              cachedData.profile?.displayName !==
-                profileData.profile?.displayName ||
-              cachedData.profile?.major !== profileData.profile?.major;
+              !isQuickAccessUpdate && (
+                !cachedData ||
+                JSON.stringify(cachedData.avatarConfig) !==
+                  JSON.stringify(profileData.avatarConfig) ||
+                cachedData.profile?.displayName !==
+                  profileData.profile?.displayName ||
+                cachedData.profile?.major !== profileData.profile?.major
+              );
 
             // Update local cache with fresh data
             this.setCachedData(`user_${userId}`, profileData);
@@ -2413,10 +2459,10 @@ class DataManager {
                 }
               }
 
-              // Use the function from the same file
-              syncUserDataCache(userId).catch((error) =>
-                console.warn("⚠️ Friend cache sync failed:", error)
-              );
+              // Debounce cache sync to prevent excessive operations
+              this.debounceCacheSync(userId);
+            } else if (isQuickAccessUpdate) {
+              console.log("⭐ Skipping cache sync for Quick Access update to prevent cascading");
             }
 
             // Call the callback with the fresh profile data
@@ -2479,33 +2525,41 @@ class DataManager {
 
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
-      const starredFriends = currentQuickAccess.starredFriends || [];
+      const friends = currentQuickAccess.friends || [];
 
       // Check if friend is already in Quick Access (prevent duplicates)
-      const existingIndex = starredFriends.findIndex(
-        friend => friend.userId === quickAccessEntry.userId
+      const existingIndex = friends.findIndex(
+        friend => friend.friendId === quickAccessEntry.friendId
       );
 
-      let updatedStarredFriends;
+      let updatedFriends;
       if (existingIndex >= 0) {
         // Update existing entry (move to recent-first position)
-        updatedStarredFriends = [...starredFriends];
-        updatedStarredFriends[existingIndex] = {
-          ...updatedStarredFriends[existingIndex],
+        updatedFriends = [...friends];
+        updatedFriends[existingIndex] = {
+          ...updatedFriends[existingIndex],
           lastInteraction: quickAccessEntry.lastInteraction
         };
       } else {
         // Add new entry to the beginning (recent-first)
-        updatedStarredFriends = [quickAccessEntry, ...starredFriends];
+        updatedFriends = [quickAccessEntry, ...friends];
       }
 
+      // Mark Quick Access update in progress to prevent cascading events
+      this.quickAccessUpdateInProgress.add(userId);
+      
       // Update the user document with enhanced Quick Access data
+      // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
       await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": updatedStarredFriends,
-        "quickAccessData.totalStarred": updatedStarredFriends.length,
+        "quickAccessData.friends": updatedFriends,
+        "quickAccessData.totalStarred": updatedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
-        "systemInfo.lastUpdated": serverTimestamp(),
       });
+      
+      // Clear the flag after a short delay to allow real-time propagation
+      setTimeout(() => {
+        this.quickAccessUpdateInProgress.delete(userId);
+      }, 2000);
 
       console.log("✅ [DataManager] Successfully added to Quick Access");
       return { success: true };
@@ -2543,20 +2597,28 @@ class DataManager {
 
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
-      const starredFriends = currentQuickAccess.starredFriends || [];
+      const friends = currentQuickAccess.friends || [];
 
       // Filter out the friend to remove
-      const updatedStarredFriends = starredFriends.filter(
-        friend => friend.userId !== friendId
+      const updatedFriends = friends.filter(
+        friend => friend.friendId !== friendId
       );
 
+      // Mark Quick Access update in progress to prevent cascading events
+      this.quickAccessUpdateInProgress.add(userId);
+      
       // Update the user document
+      // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
       await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": updatedStarredFriends,
-        "quickAccessData.totalStarred": updatedStarredFriends.length,
+        "quickAccessData.friends": updatedFriends,
+        "quickAccessData.totalStarred": updatedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
-        "systemInfo.lastUpdated": serverTimestamp(),
       });
+      
+      // Clear the flag after a short delay to allow real-time propagation
+      setTimeout(() => {
+        this.quickAccessUpdateInProgress.delete(userId);
+      }, 2000);
 
       console.log("✅ [DataManager] Successfully removed from Quick Access");
       return { success: true };
@@ -2598,7 +2660,7 @@ class DataManager {
 
       const userData = userDoc.data();
       const quickAccessData = userData.quickAccessData || {
-        starredFriends: [],
+        friends: [],
         totalStarred: 0,
         lastUpdated: null
       };
@@ -2606,7 +2668,7 @@ class DataManager {
       // Cache the result
       this.setCachedData(cacheKey, quickAccessData);
 
-      console.log(`✅ [DataManager] Found ${quickAccessData.starredFriends?.length || 0} Quick Access friends`);
+      console.log(`✅ [DataManager] Found ${quickAccessData.friends?.length || 0} Quick Access friends`);
       return quickAccessData;
     } catch (error) {
       console.error("❌ [DataManager] Error getting Quick Access friends:", error);

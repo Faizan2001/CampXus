@@ -37,6 +37,8 @@ export class FriendsManager {
       onOutgoingFriendRequestsChange: null,
       onFriendsListChange: null,
       onConnectionStatusChange: null,
+      // ⭐ Phase-2: Quick Access real-time callback
+      onQuickAccessUpdated: null,
     };
 
     // 🔒 Auth state tracking to prevent false notifications
@@ -479,6 +481,8 @@ export class FriendsManager {
         callbacks.onOutgoingFriendRequestsChange || null,
       onFriendsListChange: callbacks.onFriendsListChange || null,
       onConnectionStatusChange: callbacks.onConnectionStatusChange || null,
+      // ⭐ Phase-2: Quick Access real-time callback
+      onQuickAccessUpdated: callbacks.onQuickAccessUpdated || null,
     };
 
     console.log("🎯 UI callbacks registered for real-time updates");
@@ -1157,7 +1161,7 @@ export class FriendsManager {
       // Create Quick Access entry with recent-first metadata
       const now = new Date();
       const quickAccessEntry = {
-        userId: friendId,
+        friendId: friendId,
         displayName: friendInfo.displayName,
         major: friendInfo.major,
         avatarConfig: friendInfo.avatarConfig,
@@ -1169,8 +1173,27 @@ export class FriendsManager {
       const result = await dataManager.addToQuickAccess(currentUser.uid, quickAccessEntry);
 
       if (result.success) {
-        // Clear Quick Access cache
+        // Clear Quick Access cache to force fresh data
         this.clearCache(`quick_access_${currentUser.uid}`);
+        // Also clear DataManager cache
+        dataManager.clearCache(`quick_access_${currentUser.uid}`);
+
+        // ⭐ Trigger UI callback for immediate update (before real-time sync)
+        if (this.uiCallbacks.onQuickAccessUpdated) {
+          // Get updated Quick Access data and trigger callback
+          this.getQuickAccessFriends(false).then(quickAccessFriends => {
+            this.uiCallbacks.onQuickAccessUpdated({
+              userId: currentUser.uid,
+              quickAccessFriends: quickAccessFriends,
+              count: quickAccessFriends.length,
+              timestamp: Date.now(),
+              action: 'added',
+              friendId: friendId
+            });
+          }).catch(error => {
+            console.warn("⚠️ Failed to trigger Quick Access UI callback:", error);
+          });
+        }
 
         console.log("✅ Successfully added to Quick Access:", friendName);
         return {
@@ -1225,8 +1248,27 @@ export class FriendsManager {
       const result = await dataManager.removeFromQuickAccess(currentUser.uid, friendId);
 
       if (result.success) {
-        // Clear Quick Access cache
+        // Clear Quick Access cache to force fresh data
         this.clearCache(`quick_access_${currentUser.uid}`);
+        // Also clear DataManager cache
+        dataManager.clearCache(`quick_access_${currentUser.uid}`);
+
+        // ⭐ Trigger UI callback for immediate update (before real-time sync)
+        if (this.uiCallbacks.onQuickAccessUpdated) {
+          // Get updated Quick Access data and trigger callback
+          this.getQuickAccessFriends(false).then(quickAccessFriends => {
+            this.uiCallbacks.onQuickAccessUpdated({
+              userId: currentUser.uid,
+              quickAccessFriends: quickAccessFriends,
+              count: quickAccessFriends.length,
+              timestamp: Date.now(),
+              action: 'removed',
+              friendId: friendId
+            });
+          }).catch(error => {
+            console.warn("⚠️ Failed to trigger Quick Access UI callback:", error);
+          });
+        }
 
         console.log("✅ Successfully removed from Quick Access:", friendId);
         return {
@@ -1277,13 +1319,13 @@ export class FriendsManager {
       // Get Quick Access data from database
       const quickAccessData = await dataManager.getQuickAccessFriends(currentUser.uid);
 
-      if (!quickAccessData || !quickAccessData.starredFriends) {
+      if (!quickAccessData || !quickAccessData.friends) {
         console.log("📋 No Quick Access friends found");
         return [];
       }
 
       // Sort by recent-first ordering (most recently interacted with first)
-      const sortedFriends = quickAccessData.starredFriends.sort((a, b) => {
+      const sortedFriends = quickAccessData.friends.sort((a, b) => {
         const dateA = a.lastInteraction?.toDate?.() || new Date(a.lastInteraction || a.starredAt);
         const dateB = b.lastInteraction?.toDate?.() || new Date(b.lastInteraction || b.starredAt);
         return dateB - dateA; // Most recent first
@@ -1318,7 +1360,7 @@ export class FriendsManager {
       const quickAccessFriends = await this.getQuickAccessFriends(true);
       
       // Check if friendId exists in the starred friends array
-      const isStarred = quickAccessFriends.some(friend => friend.userId === friendId);
+      const isStarred = quickAccessFriends.some(friend => friend.friendId === friendId);
       
       console.log(`❓ Quick Access check for ${friendId}:`, isStarred ? "⭐ STARRED" : "☆ NOT STARRED");
       return isStarred;

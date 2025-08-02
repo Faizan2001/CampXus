@@ -80,6 +80,9 @@ export const REALTIME_EVENTS = {
   // Phase-1: Schedule events
   USER_SCHEDULE: "userSchedule",
   SCHEDULE_SYNC: "scheduleSync",
+  // Phase-2: Quick Access events
+  QUICK_ACCESS_UPDATED: "quickAccessUpdated",
+  QUICK_ACCESS_FRIENDS: "quickAccessFriends",
 };
 
 /**
@@ -211,6 +214,8 @@ class RealTimeManager {
     this.setupUserProfileListener(userId);
     // Phase-1: Schedule listener
     this.setupUserScheduleListener(userId);
+    // Phase-2: Quick Access listener
+    this.setupQuickAccessListener(userId);
 
     // Emit connection status
     this.emit(REALTIME_EVENTS.CONNECTION_STATUS, {
@@ -380,6 +385,39 @@ class RealTimeManager {
       this.log(`✅ User schedule listener active`);
     } catch (error) {
       console.error(`❌ Failed to setup user schedule listener:`, error);
+    }
+  }
+
+  /**
+   * Set up Quick Access listener (Phase-2)
+   * Listens for changes to user's quickAccessData for instant star updates
+   * @param {string} userId - User ID to listen for
+   * @private
+   */
+  setupQuickAccessListener(userId) {
+    const listenerId = "quickAccess";
+
+    try {
+      const unsubscribe = dataManager.listenToUserProfile(userId, (userProfile) => {
+        if (userProfile && userProfile.quickAccessData) {
+          const quickAccessFriends = userProfile.quickAccessData.friends || [];
+          this.log(`⭐ Quick Access update: ${quickAccessFriends.length} starred friends`);
+          
+          // Emit events for different components to react
+          this.emit(REALTIME_EVENTS.QUICK_ACCESS_FRIENDS, quickAccessFriends);
+          this.emit(REALTIME_EVENTS.QUICK_ACCESS_UPDATED, {
+            userId: userId,
+            quickAccessFriends: quickAccessFriends,
+            count: quickAccessFriends.length,
+            timestamp: Date.now()
+          });
+        }
+      });
+
+      this.activeListeners.set(listenerId, unsubscribe);
+      this.log(`✅ Quick Access listener active`);
+    } catch (error) {
+      console.error(`❌ Failed to setup Quick Access listener:`, error);
     }
   }
 

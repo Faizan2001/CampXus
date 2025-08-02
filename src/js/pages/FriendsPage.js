@@ -26,6 +26,7 @@ import {
 } from "../utils/avatar/avatarUtils.js";
 import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyService.js";
 import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
+import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
 
 class FriendsUI {
   constructor() {
@@ -36,6 +37,10 @@ class FriendsUI {
     this.pendingRequestsMap = new Map(); // userId -> requestId
     this.outgoingRequestsMap = new Map(); // userId -> requestData (includes status)
     this.realTimeSubscriptions = [];
+    
+    // 🔧 Performance monitoring
+    this.realTimeUnsubscriber = null; // Single unsubscriber for Quick Access
+    this.isActive = false; // Track if page is currently active
 
     // 👥 Current friends data for unfriend functionality
     this.currentFriendsData = [];
@@ -65,6 +70,11 @@ class FriendsUI {
    */
   async init() {
     try {
+      // Clean up any existing listeners first to prevent duplicates
+      this.cleanup();
+      
+      this.isActive = true;
+      
       // Always re-cache elements since DOM might have changed
       this.cacheElements();
 
@@ -321,6 +331,12 @@ class FriendsUI {
           // Show prominent notification for new friend requests
           notificationManager.showFriendRequestNotification(request);
         },
+
+        // ⭐ Phase-2: Quick Access real-time updates (primary handler)
+        onQuickAccessUpdated: (quickAccessData) => {
+          console.log("⭐ Real-time Quick Access update in UI:", quickAccessData);
+          this.handleRealTimeQuickAccessUpdate(quickAccessData);
+        },
       });
     }
 
@@ -328,6 +344,9 @@ class FriendsUI {
     if (friendsManager.startRealTimeListening) {
       friendsManager.startRealTimeListening();
     }
+
+    // ⭐ Quick Access updates are handled via onQuickAccessUpdated callback above
+    // No need for separate setupQuickAccessRealTimeListener to prevent duplicates
 
     console.log("✅ Real-time UI callbacks set up successfully");
   }
@@ -889,6 +908,12 @@ class FriendsUI {
           ${this.renderScheduleAccessStatus(friend)}
         </div>
         <div class="friend-actions">
+          <button class="quick-access-star" 
+                  data-friend-id="${friend.id}"
+                  aria-label="Add to Quick Access"
+                  title="Add to Quick Access">
+            <i class="fas fa-star" aria-hidden="true"></i>
+          </button>
           <div class="friend-options-container" data-friend-id="${friend.id}">
             <!-- FriendOptionsMenu will be rendered here -->
           </div>
@@ -902,6 +927,9 @@ class FriendsUI {
 
     // 🔗 Render friend options menus for each friend card with bilateral privacy
     await this.renderFriendOptionsMenus(friends);
+
+    // ⭐ Update Quick Access star states for all friend cards
+    await this.updateAllQuickAccessStars(friends);
 
     // 🔐 Update all friend cards with their actual bilateral privacy status
     // Add small delay to allow Firestore writes to propagate
@@ -1569,6 +1597,19 @@ class FriendsUI {
       this.friendsListEventHandler
     );
 
+    // ⭐ Quick Access star button event listener using event delegation
+    this.elements.friendsList.addEventListener("click", async (e) => {
+      if (e.target.closest(".quick-access-star")) {
+        const starButton = e.target.closest(".quick-access-star");
+        const friendId = starButton.dataset.friendId;
+        
+        // Prevent multiple clicks while processing
+        if (starButton.disabled) return;
+        
+        await this.handleQuickAccessToggle(friendId, starButton);
+      }
+    });
+
     console.log("🎯 Friend menu event listeners set up (privacy-changed removed to prevent flickering)");
   }
 
@@ -1601,6 +1642,149 @@ class FriendsUI {
 
     // Use existing unfriend logic
     this.handleUnfriend(friendId, friendName, friend);
+  }
+
+  /**
+   * ⭐ Handle Quick Access star toggle (star/unstar friends)
+   * @param {string} friendId - Friend's user ID
+   * @param {HTMLElement} starButton - The star button element
+   */
+  async handleQuickAccessToggle(friendId, starButton) {
+    try {
+      // Find the friend's information from the current friends list
+      const friend = this.currentFriendsData.find((f) => f.id === friendId);
+      if (!friend) {
+        console.error("❌ Friend not found in current data");
+        notificationManager.showSystemNotification("Friend not found", "error");
+        return;
+      }
+
+      // Disable button while processing
+      starButton.disabled = true;
+      starButton.style.opacity = "0.6";
+
+      console.log(`⭐ Toggling Quick Access for: ${friend.displayName}`);
+
+      // Check current status and toggle
+      const isCurrentlyStarred = await friendsManager.isInQuickAccess(friendId);
+      const friendInfo = {
+        displayName: friend.displayName,
+        major: friend.major,
+        avatarConfig: friend.avatarConfig
+      };
+
+      let result;
+      if (isCurrentlyStarred) {
+        // Remove from Quick Access
+        result = await friendsManager.removeFromQuickAccess(friendId);
+        console.log(`❌ Removing ${friend.displayName} from Quick Access`);
+      } else {
+        // Add to Quick Access
+        result = await friendsManager.addToQuickAccess(friendId, friendInfo);
+        console.log(`⭐ Adding ${friend.displayName} to Quick Access`);
+      }
+
+      if (result.success) {
+        // Update star button visual state
+        this.updateStarButtonState(starButton, !isCurrentlyStarred);
+        
+        // Show success notification
+        const action = isCurrentlyStarred ? "removed from" : "added to";
+        notificationManager.showSystemNotification(
+          `${friend.displayName} ${action} Quick Access!`,
+          "success"
+        );
+
+        console.log(`✅ Quick Access toggle successful for ${friend.displayName}`);
+      } else {
+        // Show error notification
+        notificationManager.showSystemNotification(
+          result.message || "Failed to update Quick Access",
+          "error"
+        );
+        console.error(`❌ Quick Access toggle failed for ${friend.displayName}:`, result.message);
+      }
+
+    } catch (error) {
+      console.error("❌ Error in Quick Access toggle:", error);
+      notificationManager.showSystemNotification(
+        "Something went wrong. Please try again.",
+        "error"
+      );
+    } finally {
+      // Re-enable button
+      starButton.disabled = false;
+      starButton.style.opacity = "1";
+    }
+  }
+
+  /**
+   * 🎨 Update star button visual state
+   * @param {HTMLElement} starButton - The star button element
+   * @param {boolean} isStarred - Whether the friend is starred
+   */
+  updateStarButtonState(starButton, isStarred) {
+    const icon = starButton.querySelector("i");
+    if (!icon) {
+      console.warn("⚠️ Star button icon not found");
+      return;
+    }
+
+    const friendId = starButton.dataset.friendId;
+    console.log(`⭐ Updating star button for friend ${friendId}: isStarred=${isStarred}`);
+
+    if (isStarred) {
+      // Friend is starred - golden star
+      icon.className = "fas fa-star";
+      starButton.classList.add("starred");
+      starButton.setAttribute("aria-label", "Remove from Quick Access");
+      starButton.title = "Remove from Quick Access";
+      console.log(`⭐ Set star to STARRED (golden) for friend ${friendId}`);
+    } else {
+      // Friend is not starred - outline star
+      icon.className = "far fa-star";
+      starButton.classList.remove("starred");
+      starButton.setAttribute("aria-label", "Add to Quick Access");
+      starButton.title = "Add to Quick Access";
+      console.log(`⭐ Set star to NOT STARRED (outline) for friend ${friendId}`);
+    }
+  }
+
+  /**
+   * ⭐ Update Quick Access star states for all friend cards
+   * @param {Array} friends - Array of friend objects
+   */
+  async updateAllQuickAccessStars(friends) {
+    console.log(`⭐ Updating Quick Access star states for ${friends.length} friends`);
+
+    // Use Promise.all for parallel execution to improve performance
+    const starPromises = friends.map(async (friend) => {
+      const friendId = friend.id;
+      
+      try {
+        // Check if friend is in Quick Access
+        const isStarred = await friendsManager.isInQuickAccess(friendId);
+        
+        // Find the star button for this friend
+        const starButton = this.elements.friendsList.querySelector(
+          `.quick-access-star[data-friend-id="${friendId}"]`
+        );
+        
+        if (starButton) {
+          // Update the star button state
+          this.updateStarButtonState(starButton, isStarred);
+          console.log(`⭐ Updated star state for ${friend.displayName}: ${isStarred ? "starred" : "not starred"}`);
+        } else {
+          console.warn(`⚠️ Star button not found for friend ${friendId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error updating star state for ${friend.displayName}:`, error);
+      }
+    });
+
+    // Wait for all star updates to complete
+    await Promise.all(starPromises);
+    console.log(`✅ Quick Access star states updated for all friends`);
   }
 
   /**
@@ -1846,10 +2030,56 @@ class FriendsUI {
   }
 
   /**
+   * ⭐ DEPRECATED: This method caused duplicate listeners
+   * Quick Access updates are now handled via onQuickAccessUpdated callback in setupRealTimeCallbacks
+   * Keeping this method for reference but it's no longer called
+   */
+  setupQuickAccessRealTimeListener_DEPRECATED() {
+    console.warn("⚠️ setupQuickAccessRealTimeListener is deprecated - use onQuickAccessUpdated callback instead");
+  }
+
+  /**
+   * ⭐ Handle real-time Quick Access updates from other tabs/sessions
+   * Updates the star states without refetching data
+   * @param {Object} quickAccessData - Quick Access update data
+   */
+  async handleRealTimeQuickAccessUpdate(quickAccessData) {
+    try {
+      console.log("⭐ Processing real-time Quick Access update:", quickAccessData);
+      
+      const { quickAccessFriends = [], count = 0 } = quickAccessData;
+      
+      // Convert quickAccessFriends array to Set for efficient lookup
+      const starredFriendIds = new Set(quickAccessFriends.map(qaf => qaf.friendId));
+      
+      // Update all star buttons based on the new Quick Access data
+      const allStarButtons = this.elements.friendsList?.querySelectorAll('.quick-access-star') || [];
+      
+      allStarButtons.forEach(starButton => {
+        const friendId = starButton.dataset.friendId;
+        if (friendId) {
+          const isStarred = starredFriendIds.has(friendId);
+          this.updateStarButtonState(starButton, isStarred);
+        }
+      });
+      
+      console.log(`⭐ Updated ${allStarButtons.length} star button states from real-time sync`);
+      
+      // Skip notifications for real-time updates
+      // The main star/unstar actions already show success notifications
+      
+    } catch (error) {
+      console.error("❌ Error handling real-time Quick Access update:", error);
+    }
+  }
+
+  /**
    * 🧹 Cleanup when leaving the page (improved memory leak prevention)
    */
   cleanup() {
     try {
+      this.isActive = false;
+      
       // Clean up friend options menus first
       this.cleanupFriendOptionsMenus();
 
@@ -1860,19 +2090,39 @@ class FriendsUI {
 
       // Clean up real-time subscriptions with error handling
       if (this.realTimeSubscriptions && this.realTimeSubscriptions.length > 0) {
-        this.realTimeSubscriptions.forEach((unsubscribe) => {
+        console.log(`🧹 Cleaning up ${this.realTimeSubscriptions.length} real-time subscriptions`);
+        this.realTimeSubscriptions.forEach((unsubscribe, index) => {
           try {
             if (typeof unsubscribe === "function") {
               unsubscribe();
             }
           } catch (error) {
             console.warn(
-              "⚠️ Error unsubscribing from real-time listener:",
+              `⚠️ Error unsubscribing from real-time listener ${index}:`,
               error
             );
           }
         });
         this.realTimeSubscriptions = [];
+      }
+      
+      // Clean up Quick Access unsubscriber
+      if (this.realTimeUnsubscriber) {
+        try {
+          this.realTimeUnsubscriber();
+          this.realTimeUnsubscriber = null;
+        } catch (error) {
+          console.warn("⚠️ Error cleaning up Quick Access unsubscriber:", error);
+        }
+      }
+
+      // Stop real-time listening in friends manager
+      if (friendsManager.stopRealTimeListening) {
+        try {
+          friendsManager.stopRealTimeListening();
+        } catch (error) {
+          console.warn("⚠️ Error stopping friends manager real-time listening:", error);
+        }
       }
 
       // Clear pending requests map safely

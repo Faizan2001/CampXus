@@ -2133,3 +2133,172 @@ div.friend-options-menu.show div.options-dropdown,
   background: var(--friends-options-hover-red) !important;
   color: #b91c1c !important;
 }
+
+/* =================================
+   QUICK ACCESS STAR BUTTON
+================================= */
+
+/* Quick Access Star Button - Golden styling with glassmorphism */
+.quick-access-star {
+  background: linear-gradient(135deg,
+    rgba(255, 215, 0, 0.1) 0%,     /* Light gold */
+    rgba(255, 193, 7, 0.15) 100%   /* Slightly darker amber */
+  );
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  margin-right: 4px; /* Space between star and 3-dot menu */
+  
+  /* Subtle shadow for depth */
+  box-shadow: 
+    0 2px 8px rgba(255, 215, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Star icon styling */
+.quick-access-star i {
+  font-size: 0.875rem;
+  color: rgba(255, 215, 0, 0.7); /* Muted gold when not starred */
+  transition: all 0.3s ease;
+  z-index: 1;
+  position: relative;
+}
+
+/* Glass reflection effect */
+.quick-access-star::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  border-radius: 8px 8px 0 0;
+  pointer-events: none;
+}
+
+/* Hover state - enhanced golden glow */
+.quick-access-star:hover {
+  background: linear-gradient(135deg,
+    rgba(255, 215, 0, 0.2) 0%,
+    rgba(255, 193, 7, 0.25) 100%
+  );
+  border-color: rgba(255, 215, 0, 0.5);
+  transform: translateY(-1px) scale(1.05);
+  
+  /* Enhanced golden glow on hover */
+  box-shadow: 
+    0 4px 16px rgba(255, 215, 0, 0.25),
+    0 2px 8px rgba(255, 193, 7, 0.2),
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.quick-access-star:hover i {
+  color: rgba(255, 215, 0, 0.9);
+  transform: scale(1.1);
+}
+
+/* Active/Starred state - bright golden star */
+.quick-access-star.starred {
+  background: linear-gradient(135deg,
+    rgba(255, 215, 0, 0.3) 0%,
+    rgba(255, 193, 7, 0.4) 100%
+  );
+  border-color: rgba(255, 215, 0, 0.6);
+  
+  /* Bright golden glow for starred state */
+  box-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.4),
+    0 4px 16px rgba(255, 193, 7, 0.3),
+    0 2px 8px rgba(255, 215, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.quick-access-star.starred i {
+  color: #FFD700; /* Bright gold */
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+/* Starred hover state - even brighter */
+.quick-access-star.starred:hover {
+  background: linear-gradient(135deg,
+    rgba(255, 215, 0, 0.4) 0%,
+    rgba(255, 193, 7, 0.5) 100%
+  );
+  transform: translateY(-2px) scale(1.08);
+  
+  /* Intense golden glow */
+  box-shadow: 
+    0 0 24px rgba(255, 215, 0, 0.6),
+    0 6px 20px rgba(255, 193, 7, 0.4),
+    0 3px 12px rgba(255, 215, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.quick-access-star.starred:hover i {
+  color: #FFC107; /* Slightly more amber on hover */
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+  transform: scale(1.15);
+}
+
+/* Loading state for star button */
+.quick-access-star.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.quick-access-star.loading i {
+  animation: starPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes starPulse {
+  0%, 100% { 
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive adjustments for star button */
+@media (max-width: 768px) {
+  .quick-access-star {
+    width: 28px;
+    height: 28px;
+    margin-right: 3px;
+  }
+  
+  .quick-access-star i {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-access-star {
+    width: 26px;
+    height: 26px;
+    margin-right: 2px;
+  }
+  
+  .quick-access-star i {
+    font-size: 0.75rem;
+  }
+}
