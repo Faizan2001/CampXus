@@ -260,6 +260,9 @@ function initializeUserMenu() {
 
   // Set up profile completion listeners for immediate data refresh
   setupProfileCompletionListeners();
+
+  // Set up avatar change listeners for immediate avatar refresh
+  setupAvatarChangeListeners();
   
   console.log("✅ User menu initialization complete");
 }
@@ -725,6 +728,80 @@ function setupProfileCompletionListeners() {
   });
 }
 
+/**
+ * Set up avatar change listeners to force immediate avatar refresh
+ * 🎯 FIXES: Stale avatar data in menu when user changes avatar in ProfileSetup
+ */
+function setupAvatarChangeListeners() {
+  console.log("🎧 Setting up avatar change listeners...");
+
+  // Listen for avatar changes from ProfileSetup
+  document.addEventListener("avatar:changed", (event) => {
+    console.log("🎨 Avatar changed event received, clearing cache and refreshing...");
+    
+    // Clear avatar cache to force refresh
+    cachedAvatarConfig = null;
+    cachedAvatarHtml = null;
+    
+    // Get updated user data from the event or currentUser
+    const updatedUserData = event.detail?.userData || currentUser?.profile;
+    
+    if (updatedUserData) {
+      // Force immediate avatar update
+      updateUserAvatarDisplays(updatedUserData);
+      console.log("✅ Avatar displays refreshed after change");
+    } else {
+      console.warn("⚠️ No updated user data available for avatar refresh");
+    }
+  });
+
+  // Also listen for currentUser store changes and force avatar refresh
+  // This ensures we catch any avatar updates regardless of how they occur
+  let lastAvatarConfigString = null;
+  
+  if (currentUser && typeof currentUser.subscribe === 'function') {
+    currentUser.subscribe(({ profile }) => {
+      if (profile?.avatarConfig) {
+        const currentAvatarConfigString = JSON.stringify(profile.avatarConfig);
+        
+        // If avatar config actually changed, clear cache and refresh
+        if (lastAvatarConfigString && lastAvatarConfigString !== currentAvatarConfigString) {
+          console.log("🎨 Avatar config change detected in currentUser store, refreshing...");
+          cachedAvatarConfig = null;
+          cachedAvatarHtml = null;
+          updateUserAvatarDisplays(profile);
+        }
+        
+        lastAvatarConfigString = currentAvatarConfigString;
+      }
+    });
+  }
+
+  console.log("✅ Avatar change listeners set up successfully");
+}
+
+/**
+ * Force refresh the avatar cache and update displays
+ * 🎯 PUBLIC API: Can be called from other modules to force avatar refresh
+ * @param {Object} userData - Optional updated user data
+ */
+export function forceAvatarRefresh(userData = null) {
+  console.log("🔄 Force refreshing avatar cache and displays...");
+  
+  // Clear the cache
+  cachedAvatarConfig = null;
+  cachedAvatarHtml = null;
+  
+  // Get user data from parameter or currentUser store
+  const userDataToUse = userData || currentUser?.profile;
+  
+  if (userDataToUse) {
+    updateUserAvatarDisplays(userDataToUse);
+    console.log("✅ Avatar force refresh completed");
+  } else {
+    console.warn("⚠️ No user data available for avatar force refresh");
+  }
+}
 
 /**
  * Initialize mobile-specific optimizations

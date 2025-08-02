@@ -1345,6 +1345,30 @@ class ProfileSetup {
         .then(() => console.log("✅ Friends will see your cleaned avatar in real-time!"))
         .catch((err) => console.log("⚠️ Avatar cache update failed (but profile saved):", err));
 
+      // 5. 🎯 CRITICAL: Dispatch avatar change event to refresh menu immediately
+      console.log("🚀 Dispatching avatar:changed event for menu refresh...");
+      document.dispatchEvent(
+        new CustomEvent("avatar:changed", {
+          detail: { 
+            userData: updatedProfile,
+            avatarConfig: cleanedConfig,
+            timestamp: Date.now()
+          }
+        })
+      );
+
+      // 6. 🛡️ FALLBACK: Also try direct force refresh as backup
+      try {
+        // Dynamic import to avoid circular dependencies
+        const { forceAvatarRefresh } = await import("../../components/navigation/Menu.js");
+        if (typeof forceAvatarRefresh === 'function') {
+          forceAvatarRefresh(updatedProfile);
+          console.log("✅ Direct avatar refresh fallback called");
+        }
+      } catch (error) {
+        console.log("⚠️ Direct avatar refresh fallback failed (not critical):", error);
+      }
+
       // Optionally, show a success message or trigger a UI update here
       // showFormSuccess("profile-form", "Avatar updated successfully!");
     } catch (error) {
