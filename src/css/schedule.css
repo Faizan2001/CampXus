@@ -1830,44 +1830,95 @@ body:not(.dark-mode) #slotTooltip {
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
   -webkit-backdrop-filter: var(--glass-backdrop-blur)
     var(--glass-backdrop-saturate);
-  padding: 0.75rem;
   box-shadow: var(--glass-outer-glow), var(--shadow-md);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--glass-transition);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Allow rings to extend outside */
   display: flex;
-  align-items: flex-start;
+  align-items: center; /* Center the avatar items vertically */
   gap: 0.75rem;
+  padding: 0.5rem 1rem 0.25rem 1rem; /* Reduced top padding, sides for rings, minimal bottom */
+  min-height: fit-content; /* Minimal height to fit avatar items naturally */
+  z-index: 1; /* Ensure glass card appears above other elements */
 }
 
-.horizontal-friends-bar::before {
+/* ===== FRIENDS BAR SPECIFIC TOP HIGHLIGHT ===== */
+.schedule-section .horizontal-friends-bar::before {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: var(--glass-noise);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--glass-highlight) 20%,
+    var(--glass-highlight-strong) 50%,
+    var(--glass-highlight) 80%,
+    transparent 100%
+  );
+  z-index: 1;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
   pointer-events: none;
-  opacity: 0.3;
 }
 
-.horizontal-friends-bar::after {
+/* ===== FRIENDS BAR SPECIFIC ROTATING EFFECT ===== */
+.schedule-section .horizontal-friends-bar::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  box-shadow: var(--glass-inner-glow);
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    var(--glass-highlight-faint) 45deg,
+    rgba(139, 92, 246, 0.08) 90deg,
+    transparent 135deg,
+    var(--glass-highlight-faint) 180deg,
+    rgba(168, 85, 247, 0.06) 225deg,
+    transparent 270deg,
+    var(--glass-highlight-faint) 315deg,
+    transparent 360deg
+  );
+  animation: friendsBarRotate 20s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.7;
   border-radius: var(--border-radius-lg);
-  pointer-events: none;
 }
 
-.horizontal-friends-bar:hover {
+/* ===== FRIENDS BAR SPECIFIC HOVER STATE ===== */
+.schedule-section .horizontal-friends-bar:hover {
   background: var(--glass-hover);
   border-color: var(--glass-hover-border);
-  box-shadow: var(--glass-hover-glow), var(--shadow-lg);
+  box-shadow: var(--glass-hover-glow), 0 0 0 1px var(--glass-hover-highlight),
+    var(--glass-inner-glow), 0 20px 60px var(--glass-shadow-strong),
+    inset 0 0 0 1px var(--glass-hover-highlight);
+}
+
+/* Rotating animation for the glass effect */
+@keyframes friendsBarRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== MOTION PREFERENCES SUPPORT - FRIENDS BAR SPECIFIC ===== */
+@media (prefers-reduced-motion: reduce) {
+  .schedule-section .horizontal-friends-bar::after {
+    animation: none !important;
+  }
+
+  .schedule-section .horizontal-friends-bar,
+  .schedule-section .horizontal-friends-bar * {
+    transition: none !important;
+  }
 }
 
 .horizontal-friends-bar > * {
@@ -1949,15 +2000,7 @@ body:not(.dark-mode) #slotTooltip {
 
 /* ===== USER AVATAR CONTAINER ===== */
 /* ===== HORIZONTAL FRIENDS BAR LAYOUT ===== */
-.horizontal-friends-bar {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  min-height: 70px;
-  position: relative;
-  width: 100%;
-}
+/* Layout properties are now integrated into the main .horizontal-friends-bar rule above */
 
 /* ===== COMPLETE ISOLATION: Override ALL conflicting avatar styles ===== */
 /* This section completely isolates horizontal friends bar from other CSS */
@@ -1967,7 +2010,7 @@ body:not(.dark-mode) #slotTooltip {
   width: 48px !important;
   height: 48px !important;
   border-radius: 50% !important;
-  overflow: hidden !important;
+  overflow: visible !important; /* Allow ring to extend outside */
   flex-shrink: 0 !important;
   aspect-ratio: 1 / 1 !important;
   position: relative !important;
@@ -1977,7 +2020,7 @@ body:not(.dark-mode) #slotTooltip {
   width: 100% !important;
   height: 100% !important;
   border-radius: 50% !important;
-  overflow: hidden !important;
+  overflow: visible !important; /* Allow ring to extend outside */
   aspect-ratio: 1 / 1 !important;
   position: relative !important;
   display: flex !important;
@@ -2034,10 +2077,11 @@ body:not(.dark-mode) #slotTooltip {
   flex-shrink: 0;
   position: relative;
   z-index: 2;
-  min-height: 70px;
+  min-height: fit-content; /* Minimal height to fit avatar */
   display: flex;
-  align-items: flex-start;
-  overflow: hidden; /* Prevent avatar overflow */
+  align-items: center; /* Center the avatar vertically */
+  overflow: visible; /* Allow ring to extend outside */
+  padding: 0.3rem 0.25rem 0 0; /* Reduced top padding for ring, no bottom/right */
 }
 
 /* ===== FRIENDS SCROLL CONTAINER (SCROLLABLE) ===== */
@@ -2060,11 +2104,10 @@ body:not(.dark-mode) #slotTooltip {
 .friends-avatars-list {
   display: flex;
   gap: 0.75rem;
-  align-items: flex-start;
-  padding: 0;
-  min-height: 70px;
+  align-items: center; /* Center the avatars vertically */
+  padding: 0.3rem 1rem 0.25rem 0.5rem; /* Reduced top padding for rings, minimal bottom */
+  min-height: fit-content; /* Minimal height to fit avatars */
   width: fit-content;
-  padding-left: 0.5rem; /* Add spacing after user avatar */
 }
 
 /* ===== AVATAR ITEMS ===== */
@@ -2077,8 +2120,9 @@ body:not(.dark-mode) #slotTooltip {
   max-width: 64px;
   cursor: pointer;
   transition: all 0.2s ease-out;
-  position: relative;
-  padding: 0.25rem;
+  position: relative; /* CRITICAL: for absolute positioned selection-ring */
+  padding: 0.3rem 0.25rem 0 0.25rem; /* Reduced top padding for rings, no bottom padding */
+  margin: 0; /* Remove margin since container padding handles spacing */
   border-radius: var(--border-radius);
   outline: none;
   flex-shrink: 0;
@@ -2102,7 +2146,7 @@ body:not(.dark-mode) #slotTooltip {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  overflow: hidden;
+  overflow: visible; /* Allow ring to extend outside */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
@@ -2112,16 +2156,17 @@ body:not(.dark-mode) #slotTooltip {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  overflow: hidden;
+  overflow: visible; /* Allow ring to extend outside */
   background: var(--surface-light);
   display: flex;
   align-items: center;
   justify-content: center;
   border: 2px solid var(--border-light);
-  transition: all 0.3s ease;
+  transition: border 0.3s ease; /* Only transition border, not transforms */
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
   position: relative;
+  transform: none !important; /* Never allow transforms on avatar images */
 }
 
 .avatar-image img,
@@ -2135,6 +2180,7 @@ body:not(.dark-mode) #slotTooltip {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1; /* Below the selection ring */
 }
 
 .avatar-image i {
@@ -2143,39 +2189,51 @@ body:not(.dark-mode) #slotTooltip {
   position: relative;
 }
 
-/* ===== SELECTION RING ===== */
+/* ===== SELECTION RING - POSITIONED AROUND user-avatar-img ===== */
 .selection-ring {
   position: absolute;
-  top: -5px;
-  left: -5px;
-  right: -5px;
-  bottom: -5px;
-  border: 3px solid #8b5cf6; /* Modern purple */
+  /* Position exactly around the img.user-avatar-img element */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: scale(1.08); /* Slightly smaller scale for thinner appearance */
+  border: 3px solid #9333ea; /* More prominent border with stronger purple */
   border-radius: 50%;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
   opacity: 0;
-  z-index: 10;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2), 
-              0 4px 12px rgba(139, 92, 246, 0.3);
+  z-index: 2; /* Above the user-avatar-img */
+  /* NO GLOW EFFECT - Clean neon ring only */
+  box-shadow: none;
+  /* Ensure ring is always visible when selected */
+  display: block;
 }
 
 .friend-avatar-item.selected .selection-ring {
-  opacity: 1;
-  transform: scale(1.0);
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 
-              0 6px 20px rgba(139, 92, 246, 0.4);
+  opacity: 1 !important;
+  transform: scale(
+    1.12
+  ) !important; /* Slightly larger scale when selected for more prominent ring */
+  border-color: #9333ea !important; /* Stronger purple for maximum prominence */
+  border-width: 3px !important; /* More prominent border for all screen sizes */
+  /* NO GLOW - Clean neon ring only */
+  box-shadow: none !important;
+  z-index: 2 !important; /* Above the user-avatar-img */
 }
 
 .friend-avatar-item.selected .avatar-image {
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  transform: scale(1.0); /* No shrinking */
+  /* NO border or glow on avatar - only the ring should show selection */
+  border: 2px solid var(--border-light) !important; /* Keep normal border */
+  transform: none !important; /* Never resize avatars */
+  /* Keep normal shadow */
+  box-shadow: none !important;
 }
 
 .friend-avatar-item:hover:not(.selected) .selection-ring {
-  opacity: 0.5;
-  transform: scale(1.0);
+  opacity: 0.5; /* Slightly more visible on hover */
+  transform: scale(1.08); /* Same scale as default but visible on hover */
+  box-shadow: none; /* No glow on hover either */
 }
 
 /* ===== AVATAR LABELS ===== */
@@ -2207,17 +2265,20 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 .friend-avatar-item.user-avatar .avatar-image {
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transform: scale(1.0); /* No shrinking */
+  /* NO special styling for user avatar by default - only when selected */
+  border: 2px solid var(--border-light) !important; /* Normal border like other avatars */
+  transform: none !important; /* Never resize user avatar */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important; /* Normal shadow */
 }
 
 .friend-avatar-item.user-avatar.selected .selection-ring {
-  opacity: 1;
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 
-              0 6px 20px rgba(139, 92, 246, 0.4);
-  z-index: 10;
+  opacity: 1 !important;
+  transform: scale(1.12) !important; /* Same as other selected rings */
+  border-color: #9333ea !important; /* Same stronger purple */
+  border-width: 3px !important; /* More prominent border for all screen sizes */
+  /* NO GLOW - Clean neon ring only */
+  box-shadow: none !important;
+  z-index: 2 !important; /* Above the user-avatar-img like others */
 }
 
 .friend-avatar-item.user-avatar .avatar-label {
@@ -2395,11 +2456,11 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 .friend-avatar-item.compare-mode-available {
-  animation: gentle-wiggle 0.6s ease-in-out infinite alternate;
+  animation: gentle-wiggle 0.3s ease-in-out infinite alternate;
 }
 
 .friend-avatar-item.compare-selected .avatar-container {
-  transform: scale(1.1);
+  transform: scale(1); /* No scaling to prevent shrinking */
   border: 2px solid var(--primary);
   box-shadow: 0 4px 12px var(--primary-shadow);
 }
@@ -2445,24 +2506,32 @@ body:not(.dark-mode) #slotTooltip {
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
   .horizontal-friends-bar {
-    padding: 0.6rem;
+    padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Reduced top padding */
     margin: 0;
     border-radius: var(--border-radius);
+    min-height: fit-content;
   }
 
   .friends-avatars-list {
     gap: 0.6rem;
-    padding: 0;
+    padding: 0.25rem 0.8rem 0.2rem 0.4rem; /* Reduced top padding */
   }
 
   .friend-avatar-item {
     min-width: 44px;
+    padding: 0.25rem 0.2rem 0 0.2rem; /* Reduced top padding */
+  }
+
+  .user-avatar-container {
+    padding: 0.25rem 0.2rem 0 0; /* Reduced top padding */
   }
 
   .avatar-container {
     width: 44px;
     height: 44px;
   }
+
+  /* Selection ring scales with avatar-image automatically */
 
   .avatar-label {
     font-size: 0.65rem;
@@ -2473,21 +2542,30 @@ body:not(.dark-mode) #slotTooltip {
 
 @media (max-width: 480px) {
   .horizontal-friends-bar {
-    padding: 0.5rem;
+    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Reduced top padding */
+    min-height: fit-content;
   }
 
   .friends-avatars-list {
     gap: 0.5rem;
+    padding: 0.2rem 0.6rem 0.15rem 0.3rem; /* Reduced top padding */
   }
 
   .friend-avatar-item {
     min-width: 40px;
+    padding: 0.2rem 0.15rem 0 0.15rem; /* Reduced top padding */
+  }
+
+  .user-avatar-container {
+    padding: 0.2rem 0.15rem 0 0; /* Reduced top padding */
   }
 
   .avatar-container {
     width: 40px;
     height: 40px;
   }
+
+  /* Selection ring scales with avatar-image automatically */
 
   .avatar-label {
     font-size: 0.6rem;

@@ -113,6 +113,32 @@ export class HorizontalFriendsBar {
       // Default select user's own schedule
       this.selectUser();
 
+      // Force clean initial state - ensure no compare mode artifacts
+      this.avatarElements.forEach((element, friendId) => {
+        element.classList.remove("compare-mode-available", "compare-selected");
+        const checkmark = element.querySelector(".compare-checkmark");
+        if (checkmark) checkmark.remove();
+      });
+
+      // Add global debug function for testing selection rings
+      window.testSelectionRings = () => {
+        console.log('🔍 Testing selection rings...');
+        this.avatarElements.forEach((element, friendId) => {
+          const ring = element.querySelector(".selection-ring");
+          console.log(`Ring for ${friendId}:`, {
+            element,
+            ring,
+            hasSelected: element.classList.contains("selected"),
+            ringOpacity: ring ? getComputedStyle(ring).opacity : 'N/A',
+            ringDisplay: ring ? getComputedStyle(ring).display : 'N/A',
+            ringWidth: ring ? getComputedStyle(ring).width : 'N/A',
+            ringHeight: ring ? getComputedStyle(ring).height : 'N/A'
+          });
+        });
+      };
+
+      console.log('🔍 Added window.testSelectionRings() for debugging');
+
       this.isInitialized = true;
       console.log("✅ HorizontalFriendsBar initialized successfully");
     } catch (error) {
@@ -267,7 +293,7 @@ export class HorizontalFriendsBar {
    */
   renderUserAvatar(container) {
     const userAvatarHtml = `
-      <div class="friend-avatar-item user-avatar selected" 
+      <div class="friend-avatar-item user-avatar" 
            data-friend-id="user" 
            data-friend-name="${this.currentUser.displayName || "You"}"
            role="button"
@@ -276,8 +302,8 @@ export class HorizontalFriendsBar {
         <div class="avatar-container">
           <div class="avatar-image">
             ${renderUserAvatar(this.currentUser, true)}
+            <div class="selection-ring"></div>
           </div>
-          <div class="selection-ring"></div>
         </div>
         <div class="avatar-label">Me</div>
       </div>
@@ -307,8 +333,8 @@ export class HorizontalFriendsBar {
           <div class="avatar-container">
             <div class="avatar-image">
               ${renderUserAvatar(friend, true)}
+              <div class="selection-ring"></div>
             </div>
-            <div class="selection-ring"></div>
           </div>
           <div class="avatar-label">${friend.displayName}</div>
         </div>
@@ -421,18 +447,48 @@ export class HorizontalFriendsBar {
    * Update visual selection rings
    */
   updateVisualSelection(selectedFriendId) {
+    console.log(`🔍 DEBUG: updateVisualSelection called for: ${selectedFriendId}`);
+    
     // Remove selection from all avatars
     this.avatarElements.forEach((element, friendId) => {
       element.classList.remove("selected");
+      const ring = element.querySelector(".selection-ring");
+      if (ring) {
+        console.log(`🔍 DEBUG: Removing selection from ${friendId}, ring found: ${!!ring}`);
+      }
     });
 
     // Add selection to clicked avatar
     const selectedElement = this.avatarElements.get(selectedFriendId);
     if (selectedElement) {
       selectedElement.classList.add("selected");
+      
+      // Debug the ring element
+      const ring = selectedElement.querySelector(".selection-ring");
+      console.log(`🔍 DEBUG: Selected element for ${selectedFriendId}:`, {
+        element: selectedElement,
+        hasSelectedClass: selectedElement.classList.contains("selected"),
+        ringFound: !!ring,
+        ringStyles: ring ? getComputedStyle(ring) : null,
+        ringOpacity: ring ? getComputedStyle(ring).opacity : 'N/A',
+        ringDisplay: ring ? getComputedStyle(ring).display : 'N/A',
+        ringTransform: ring ? getComputedStyle(ring).transform : 'N/A'
+      });
 
       // Scroll to selected avatar if needed
       this.scrollToAvatar(selectedElement);
+    } else {
+      console.log(`❌ DEBUG: No element found for selectedFriendId: ${selectedFriendId}`);
+    }
+
+    // Force update compare UI only if in compare mode, otherwise clean up any compare artifacts
+    if (!this.compareMode) {
+      // Clean up any lingering compare mode classes and elements when not in compare mode
+      this.avatarElements.forEach((element, friendId) => {
+        element.classList.remove("compare-mode-available", "compare-selected");
+        const checkmark = element.querySelector(".compare-checkmark");
+        if (checkmark) checkmark.remove();
+      });
     }
 
     console.log(`🎨 Visual selection updated for: ${selectedFriendId}`);
@@ -749,7 +805,7 @@ export class HorizontalFriendsBar {
       container.classList.toggle("compare-mode", this.compareMode);
     }
 
-    // Update all avatar visual states
+    // Update all avatar visual states ONLY when in compare mode or exiting it
     this.updateCompareSelectionUI();
 
     // Show/hide compare button based on friends availability
