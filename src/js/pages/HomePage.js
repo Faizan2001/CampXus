@@ -25,6 +25,7 @@ import { dataManager } from "../services/data/DataService.js";
 import { scheduleStorageService } from "../services/schedule/ScheduleStorageService.js";
 import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
+import { HorizontalFriendsBar } from "../components/friends/HorizontalFriendsBar.js";
 
 /* ================================
    APPLICATION STATE
@@ -36,6 +37,11 @@ let state = {
   selectedUserIds: new Set(),
   compareMode: false,
   pinModeActive: false, // <-- NEW STATE PROPERTY
+  
+  // Phase-3: Horizontal Friends Bar
+  horizontalFriendsBar: null, // HorizontalFriendsBar component instance
+  currentViewingFriendId: null, // ID of friend whose schedule is currently being viewed
+  friendsScheduleData: new Map(), // Cache for friends' schedule data
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
@@ -52,6 +58,11 @@ export function _resetStateForTesting() {
     selectedUserIds: new Set(),
     compareMode: false,
     pinModeActive: false, // <-- ADD TO RESET
+    
+    // Phase-3: Horizontal Friends Bar
+    horizontalFriendsBar: null,
+    currentViewingFriendId: null,
+    friendsScheduleData: new Map(),
   };
 }
 
@@ -2582,6 +2593,15 @@ function handleToggleCompareMode() {
 
   state.compareMode = !state.compareMode;
 
+  // Sync with horizontal friends bar if it exists
+  if (state.horizontalFriendsBar) {
+    if (state.compareMode) {
+      state.horizontalFriendsBar.activateCompareMode();
+    } else {
+      state.horizontalFriendsBar.deactivateCompareMode();
+    }
+  }
+
   if (state.compareMode) {
     state.activeUserId = null; // Clear active user when entering compare mode
     state.pinModeActive = false; // Disable pin mode in compare mode
@@ -3126,6 +3146,273 @@ function setupAuthenticationCallbacks() {
 }
 
 /* ================================
+   PHASE-3: HORIZONTAL FRIENDS BAR
+================================== */
+
+/**
+ * Initialize the Horizontal Friends Bar component
+ */
+async function initializeHorizontalFriendsBar() {
+  try {
+    // Check if user is authenticated
+    if (!currentUser?.profile) {
+      console.log("⚠️ User not authenticated, skipping friends bar initialization");
+      return;
+    }
+    
+    // Create and initialize the HorizontalFriendsBar component
+    state.horizontalFriendsBar = new HorizontalFriendsBar('horizontal-friends-container');
+    await state.horizontalFriendsBar.init();
+    
+    // Set up event listeners for friends bar events
+    setupFriendsBarEventListeners();
+    
+    console.log("✅ Horizontal Friends Bar initialized successfully");
+    
+  } catch (error) {
+    console.error("❌ Failed to initialize Horizontal Friends Bar:", error);
+  }
+}
+
+/**
+ * Set up event listeners for Horizontal Friends Bar events
+ */
+function setupFriendsBarEventListeners() {
+  // Listen for schedule change events (when user clicks friend avatar)
+  document.addEventListener('schedule:change', handleFriendScheduleChange);
+  
+  // Listen for compare mode events
+  document.addEventListener('compare:mode', handleCompareModeChange);
+  document.addEventListener('compare:selection', handleCompareSelectionChange);
+  
+  console.log("✅ Friends bar event listeners set up");
+}
+
+/**
+ * Handle friend schedule change events from horizontal bar
+ */
+async function handleFriendScheduleChange(event) {
+  const { friendId, friendName, isUserSchedule } = event.detail;
+  
+  console.log(`📅 Schedule change requested:`, { friendId, friendName, isUserSchedule });
+  
+  if (isUserSchedule) {
+    // Switch back to user's own schedule
+    state.currentViewingFriendId = null;
+    state.activeUserId = currentUser?.user?.uid || null;
+    console.log("👤 Switched to user's own schedule");
+  } else {
+    // Load friend's schedule
+    await loadFriendSchedule(friendId, friendName);
+  }
+  
+  // Update UI to reflect the change
+  updateUI();
+}
+
+/**
+ * Load and display a friend's schedule
+ */
+async function loadFriendSchedule(friendId, friendName) {
+  try {
+    console.log(`📊 Loading schedule for friend: ${friendName} (${friendId})`);
+    
+    // Check cache first
+    if (state.friendsScheduleData.has(friendId)) {
+      console.log("📋 Using cached schedule data");
+      const cachedData = state.friendsScheduleData.get(friendId);
+      displayFriendSchedule(cachedData, friendName);
+      return;
+    }
+    
+    // Load schedule from Firestore
+    const friendScheduleData = await dataManager.getUserSchedule(friendId);
+    
+    if (!friendScheduleData || !friendScheduleData.schedule) {
+      // Friend has no schedule
+      console.log(`⚠️ ${friendName} has no schedule data`);
+      showNoScheduleMessage(friendName);
+      return;
+    }
+    
+    // Cache the schedule data
+    state.friendsScheduleData.set(friendId, friendScheduleData);
+    
+    // Display the friend's schedule
+    displayFriendSchedule(friendScheduleData, friendName);
+    
+    console.log(`✅ Successfully loaded ${friendName}'s schedule`);
+    
+  } catch (error) {
+    console.error(`❌ Failed to load ${friendName}'s schedule:`, error);
+    showScheduleLoadError(friendName);
+  }
+}
+
+/**
+ * Display a friend's schedule in the schedule grid
+ */
+function displayFriendSchedule(scheduleData, friendName) {
+  // Update state to reflect viewing friend's schedule
+  state.currentViewingFriendId = scheduleData.userId;
+  state.activeUserId = null; // Clear active user since we're viewing friend
+  
+  // Temporarily modify state to show friend's schedule
+  const friendUser = {
+    id: scheduleData.userId,
+    name: friendName,
+    timeSlots: scheduleData.timeSlots || DEFAULT_TIMESLOTS,
+    schedule: scheduleData.schedule || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+    slotInfo: scheduleData.slotInfo || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({ courseCode: "", classroomNumber: "" })),
+    pinnedSlots: createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false), // Friends can't have pins in our view
+  };
+  
+  // Add friend to users state temporarily for rendering
+  state.users[scheduleData.userId] = friendUser;
+  state.activeUserId = scheduleData.userId;
+  
+  console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
+}
+
+/**
+ * Show message when friend has no schedule
+ */
+function showNoScheduleMessage(friendName) {
+  // Clear the schedule grid and show message
+  state.activeUserId = null;
+  state.currentViewingFriendId = null;
+  
+  // Show notification
+  const notificationManager = window.notificationManager || {
+    showSystemNotification: (msg) => console.log(msg)
+  };
+  
+  notificationManager.showSystemNotification(
+    `No schedule was set by ${friendName}`,
+    'info',
+    4000
+  );
+}
+
+/**
+ * Show error message when schedule loading fails
+ */
+function showScheduleLoadError(friendName) {
+  const notificationManager = window.notificationManager || {
+    showSystemNotification: (msg) => console.log(msg)
+  };
+  
+  notificationManager.showSystemNotification(
+    `Failed to load ${friendName}'s schedule`,
+    'error',
+    3000
+  );
+}
+
+/**
+ * Handle compare mode change events
+ */
+function handleCompareModeChange(event) {
+  const { compareMode: isCompareMode } = event.detail;
+  
+  console.log(`🔄 Compare mode ${isCompareMode ? 'activated' : 'deactivated'}`);
+  
+  // Update local compare mode state
+  state.compareMode = isCompareMode;
+  
+  // Sync with desktop compare button if it exists
+  const desktopCompareButton = document.getElementById('compare');
+  if (desktopCompareButton) {
+    desktopCompareButton.classList.toggle('active', isCompareMode);
+  }
+  
+  // Update UI
+  updateUI();
+}
+
+/**
+ * Handle compare selection change events
+ */
+function handleCompareSelectionChange(event) {
+  const { selectedFriends, friendsData } = event.detail;
+  
+  console.log(`📊 Compare selection changed:`, selectedFriends);
+  
+  // Update selected user IDs for comparison
+  state.selectedUserIds.clear();
+  selectedFriends.forEach(friendId => {
+    state.selectedUserIds.add(friendId);
+  });
+  
+  // Load schedules for comparison if needed
+  loadSelectedFriendsForComparison(friendsData);
+  
+  // Update UI
+  updateUI();
+}
+
+/**
+ * Load schedules for selected friends in comparison mode
+ */
+async function loadSelectedFriendsForComparison(friendsData) {
+  try {
+    const loadPromises = friendsData.map(async (friend) => {
+      const friendId = friend.friendId || friend.userId;
+      
+      // Skip if already cached
+      if (state.friendsScheduleData.has(friendId)) {
+        return;
+      }
+      
+      // Load schedule data
+      const scheduleData = await dataManager.getUserSchedule(friendId);
+      if (scheduleData) {
+        state.friendsScheduleData.set(friendId, scheduleData);
+        
+        // Add to users state for rendering
+        const friendUser = {
+          id: friendId,
+          name: friend.displayName,
+          timeSlots: scheduleData.timeSlots || DEFAULT_TIMESLOTS,
+          schedule: scheduleData.schedule || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+          slotInfo: scheduleData.slotInfo || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({ courseCode: "", classroomNumber: "" })),
+          pinnedSlots: createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+        };
+        
+        state.users[friendId] = friendUser;
+      }
+    });
+    
+    await Promise.all(loadPromises);
+    console.log("✅ Loaded schedules for comparison");
+    
+  } catch (error) {
+    console.error("❌ Failed to load schedules for comparison:", error);
+  }
+}
+
+/**
+ * Cleanup friends bar when leaving the page
+ */
+function cleanupHorizontalFriendsBar() {
+  if (state.horizontalFriendsBar) {
+    state.horizontalFriendsBar.destroy();
+    state.horizontalFriendsBar = null;
+  }
+  
+  // Remove event listeners
+  document.removeEventListener('schedule:change', handleFriendScheduleChange);
+  document.removeEventListener('compare:mode', handleCompareModeChange);
+  document.removeEventListener('compare:selection', handleCompareSelectionChange);
+  
+  // Clear state
+  state.currentViewingFriendId = null;
+  state.friendsScheduleData.clear();
+  
+  console.log("🧹 Horizontal Friends Bar cleaned up");
+}
+
+/* ================================
    INITIALIZATION
 ================================== */
 // 🗑️ LEGACY CODE REMOVED: The initializeApp function and its related listeners
@@ -3181,6 +3468,10 @@ document.addEventListener("spa:page:load", (event) => {
     setupInputValidation();
     setupEventListeners();
     setupExportImportListeners(state, saveStateToStorage, updateUI);
+    
+    // Initialize Phase-3: Horizontal Friends Bar
+    console.log("⭐ Initializing Horizontal Friends Bar...");
+    initializeHorizontalFriendsBar();
 
     // Render UI with loaded data (this includes renderUserList())
     console.log("🎨 Updating UI with loaded data...");
@@ -3190,6 +3481,15 @@ document.addEventListener("spa:page:load", (event) => {
     setupAuthenticationCallbacks();
 
     console.log("✅ CampXus Schedule App loaded successfully!");
+  }
+});
+
+// Add cleanup when leaving the home page
+document.addEventListener("spa:page:unload", (event) => {
+  const { route } = event.detail;
+  if (route === "home") {
+    console.log("🧹 Cleaning up home page...");
+    cleanupHorizontalFriendsBar();
   }
 });
 

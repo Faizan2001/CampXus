@@ -751,6 +751,8 @@ body:not(.dark-mode) .classroom-number {
   }
 }
 
+/* ===== SLOT HOVER EFFECTS ===== */
+
 /* Hover effects for better interactivity */
 .slot:hover .course-code {
   background: rgba(255, 255, 255, 0.3);
@@ -1745,4 +1747,756 @@ body:not(.dark-mode) #slotTooltip {
       0.5rem
     ); /* Even smaller when both elements present */
   }
+}
+
+/* ====================================================================================
+                           RESPONSIVE LAYOUT STRUCTURE
+                     Mobile-First Design with Desktop Enhancements
+==================================================================================== */
+
+/* ===== PAGE LAYOUT STRUCTURE ===== */
+.horizontal-friends-section {
+  width: 100%;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 10;
+}
+
+.horizontal-friends-wrapper {
+  width: 100%;
+}
+
+/* ===== RESPONSIVE VISIBILITY ===== */
+.mobile-only {
+  display: block;
+}
+
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none;
+  }
+
+  .desktop-only {
+    display: block;
+  }
+}
+
+/* ===== CONTENT GRID RESPONSIVE ===== */
+.content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (min-width: 769px) {
+  .content-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+}
+
+/* ===== CONTROLS COLUMN ===== */
+.controls-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* ===== SCHEDULE COLUMN ===== */
+.schedule-column {
+  width: 100%;
+  min-width: 0; /* Prevents overflow on mobile */
+}
+
+/* ====================================================================================
+                            HORIZONTAL FRIENDS BAR STYLES
+                          Instagram-style Quick Access Friends
+==================================================================================== */
+
+/* ===== MAIN CONTAINER ===== */
+.horizontal-friends-bar {
+  width: 100%;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur)
+    var(--glass-backdrop-saturate);
+  padding: 0.75rem;
+  box-shadow: var(--glass-outer-glow), var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.horizontal-friends-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--glass-noise);
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+.horizontal-friends-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-shadow: var(--glass-inner-glow);
+  border-radius: var(--border-radius-lg);
+  pointer-events: none;
+}
+
+.horizontal-friends-bar:hover {
+  background: var(--glass-hover);
+  border-color: var(--glass-hover-border);
+  box-shadow: var(--glass-hover-glow), var(--shadow-lg);
+}
+
+.horizontal-friends-bar > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== HEADER ===== */
+.friends-bar-header {
+  display: none; /* Hide header for Instagram-style compact design */
+}
+
+.friends-bar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.friends-bar-title i {
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+
+.friends-bar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-refresh-friends,
+.btn-compare {
+  background: var(--surface-light);
+  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.btn-refresh-friends:hover,
+.btn-compare:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary-glass);
+  color: var(--primary);
+}
+
+.btn-refresh-friends:hover {
+  transform: rotate(90deg);
+}
+
+.btn-refresh-friends:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+.btn-compare:active {
+  transform: scale(0.95);
+}
+
+/* Compare button active state (when compare mode is on) */
+.btn-compare.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px var(--primary-shadow);
+}
+
+.btn-compare.active:hover {
+  background: var(--primary-dark);
+  transform: scale(1.05);
+}
+
+/* ===== USER AVATAR CONTAINER ===== */
+/* ===== HORIZONTAL FRIENDS BAR LAYOUT ===== */
+.horizontal-friends-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  min-height: 70px;
+  position: relative;
+  width: 100%;
+}
+
+/* ===== COMPLETE ISOLATION: Override ALL conflicting avatar styles ===== */
+/* This section completely isolates horizontal friends bar from other CSS */
+
+/* Force container dimensions and override all conflicts */
+.horizontal-friends-bar .avatar-container {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  position: relative !important;
+}
+
+.horizontal-friends-bar .avatar-image {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  aspect-ratio: 1 / 1 !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Override ALL .user-avatar and .avatar-placeholder styles from friends-page.css */
+.horizontal-friends-bar .user-avatar,
+.horizontal-friends-bar .avatar-placeholder {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 24px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Override pseudo-elements that create background overlays */
+.horizontal-friends-bar .user-avatar::before,
+.horizontal-friends-bar .avatar-placeholder::before {
+  display: none !important;
+}
+
+/* Override ALL image styles */
+.horizontal-friends-bar .user-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  border: none !important;
+}
+
+/* Override icon styles */
+.horizontal-friends-bar .user-avatar i {
+  font-size: 24px !important;
+  color: var(--text-secondary) !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* ===== USER AVATAR CONTAINER (FIXED - NOT SCROLLABLE) ===== */
+.user-avatar-container {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  min-height: 70px;
+  display: flex;
+  align-items: flex-start;
+  overflow: hidden; /* Prevent avatar overflow */
+}
+
+/* ===== FRIENDS SCROLL CONTAINER (SCROLLABLE) ===== */
+.friends-scroll-container {
+  flex: 1;
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.friends-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.friends-avatars-list {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0;
+  min-height: 70px;
+  width: fit-content;
+  padding-left: 0.5rem; /* Add spacing after user avatar */
+}
+
+/* ===== AVATAR ITEMS ===== */
+.friend-avatar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 64px;
+  max-width: 64px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  position: relative;
+  padding: 0.25rem;
+  border-radius: var(--border-radius);
+  outline: none;
+  flex-shrink: 0;
+}
+
+.friend-avatar-item:hover {
+  transform: translateY(-1px);
+}
+
+.friend-avatar-item:focus {
+  box-shadow: 0 0 0 2px var(--primary-glass);
+}
+
+.friend-avatar-item:active {
+  transform: translateY(0);
+}
+
+/* ===== AVATAR CONTAINER ===== */
+.avatar-container {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border-light);
+  transition: all 0.3s ease;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.avatar-image img,
+.avatar-image .user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.avatar-image i {
+  font-size: 24px;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+/* ===== SELECTION RING ===== */
+.selection-ring {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border: 3px solid #8b5cf6; /* Modern purple */
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 10;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2), 
+              0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.friend-avatar-item.selected .selection-ring {
+  opacity: 1;
+  transform: scale(1.0);
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 
+              0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.friend-avatar-item.selected .avatar-image {
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  transform: scale(1.0); /* No shrinking */
+}
+
+.friend-avatar-item:hover:not(.selected) .selection-ring {
+  opacity: 0.5;
+  transform: scale(1.0);
+}
+
+/* ===== AVATAR LABELS ===== */
+.avatar-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+  line-height: 1.2;
+}
+
+.friend-avatar-item.selected .avatar-label {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.friend-avatar-item:hover .avatar-label {
+  color: var(--text-primary);
+}
+
+/* ===== USER AVATAR SPECIAL STYLING ===== */
+.friend-avatar-item.user-avatar {
+  z-index: 2;
+}
+
+.friend-avatar-item.user-avatar .avatar-image {
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: scale(1.0); /* No shrinking */
+}
+
+.friend-avatar-item.user-avatar.selected .selection-ring {
+  opacity: 1;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 
+              0 6px 20px rgba(139, 92, 246, 0.4);
+  z-index: 10;
+}
+
+.friend-avatar-item.user-avatar .avatar-label {
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+}
+
+/* ===== SCROLL INDICATOR ===== */
+.scroll-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 2px;
+  background: var(--border-light);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.horizontal-friends-bar.has-scroll .scroll-indicator {
+  opacity: 1;
+}
+
+.horizontal-friends-bar.scrolling .scroll-indicator {
+  opacity: 1;
+}
+
+.scroll-indicator-track {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.scroll-indicator-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 30%;
+  background: var(--primary);
+  border-radius: 1px;
+  transition: left 0.2s ease;
+}
+
+/* ===== STATUS BAR ===== */
+.friends-bar-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+  position: relative;
+  z-index: 1;
+}
+
+.current-selection {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-light);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+/* ===== LOADING STATE ===== */
+.friends-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-light);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== EMPTY STATE ===== */
+.friends-empty-state {
+  display: none; /* Hide empty state - not needed for Instagram-style design */
+}
+
+.empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.8rem;
+  opacity: 0.7;
+}
+
+.empty-text p {
+  margin: 0 0 0.4rem 0;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.empty-text small {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  line-height: 1.4;
+}
+
+/* ===== ERROR STATE ===== */
+.horizontal-friends-bar.error-state {
+  padding: 2rem;
+  text-align: center;
+}
+
+.error-content {
+  color: var(--text-secondary);
+}
+
+.error-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.error-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.error-content p {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.btn-retry {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-retry:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-retry:active {
+  transform: translateY(0);
+}
+
+/* ===== COMPARE MODE STYLING ===== */
+.horizontal-friends-bar.compare-mode {
+  border-color: var(--primary-glass);
+  box-shadow: 0 4px 16px var(--primary-shadow);
+}
+
+.friend-avatar-item.compare-mode-available {
+  animation: gentle-wiggle 0.6s ease-in-out infinite alternate;
+}
+
+.friend-avatar-item.compare-selected .avatar-container {
+  transform: scale(1.1);
+  border: 2px solid var(--primary);
+  box-shadow: 0 4px 12px var(--primary-shadow);
+}
+
+.compare-checkmark {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  background: var(--primary);
+  border: 2px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: white;
+  z-index: 3;
+  animation: checkmark-appear 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes gentle-wiggle {
+  0% {
+    transform: rotate(-1deg);
+  }
+  100% {
+    transform: rotate(1deg);
+  }
+}
+
+@keyframes checkmark-appear {
+  0% {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .horizontal-friends-bar {
+    padding: 0.6rem;
+    margin: 0;
+    border-radius: var(--border-radius);
+  }
+
+  .friends-avatars-list {
+    gap: 0.6rem;
+    padding: 0;
+  }
+
+  .friend-avatar-item {
+    min-width: 44px;
+  }
+
+  .avatar-container {
+    width: 44px;
+    height: 44px;
+  }
+
+  .avatar-label {
+    font-size: 0.65rem;
+    max-width: 44px;
+    margin-top: 0.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .horizontal-friends-bar {
+    padding: 0.5rem;
+  }
+
+  .friends-avatars-list {
+    gap: 0.5rem;
+  }
+
+  .friend-avatar-item {
+    min-width: 40px;
+  }
+
+  .avatar-container {
+    width: 40px;
+    height: 40px;
+  }
+
+  .avatar-label {
+    font-size: 0.6rem;
+    max-width: 40px;
+    margin-top: 0.2rem;
+  }
+}
+
+/* Hide status elements for Instagram-style compact design */
+.friends-bar-status {
+  display: none;
 }
