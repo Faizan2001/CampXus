@@ -110,15 +110,24 @@ export class HorizontalFriendsBar {
       // Set up real-time listeners
       this.setupRealTimeListeners();
 
-      // Default select user's own schedule
-      this.selectUser();
-
       // Force clean initial state - ensure no compare mode artifacts
       this.avatarElements.forEach((element, friendId) => {
         element.classList.remove("compare-mode-available", "compare-selected");
         const checkmark = element.querySelector(".compare-checkmark");
         if (checkmark) checkmark.remove();
       });
+
+      // Default select user's own schedule - use timeout to ensure DOM is fully ready
+      // and add retry logic for reliability
+      setTimeout(() => {
+        this.selectUser();
+        console.log('🔍 DEBUG: User selection called after DOM ready timeout');
+        
+        // Double-check that user is actually selected after a brief delay
+        setTimeout(() => {
+          this.ensureUserSelected();
+        }, 100);
+      }, 50);
 
       // Add global debug function for testing selection rings
       window.testSelectionRings = () => {
@@ -141,6 +150,14 @@ export class HorizontalFriendsBar {
 
       this.isInitialized = true;
       console.log("✅ HorizontalFriendsBar initialized successfully");
+      
+      // Debug: Verify user selection after initialization
+      console.log('🔍 DEBUG: User selection state after init:', {
+        selectedFriendId: this.selectedFriendId,
+        userElementExists: this.avatarElements.has("user"),
+        userElementSelected: this.avatarElements.get("user")?.classList.contains("selected")
+      });
+      
     } catch (error) {
       console.error("❌ Failed to initialize HorizontalFriendsBar:", error);
       this.showErrorState(error.message);
@@ -281,6 +298,9 @@ export class HorizontalFriendsBar {
     // 3. Update scroll indicators
     this.updateScrollIndicators();
 
+    // 4. Immediately ensure user is selected after render (no timeout needed)
+    this.forceUserSelection();
+
     console.log(
       `✅ Rendered ${
         this.quickAccessFriends.length + 1
@@ -311,11 +331,14 @@ export class HorizontalFriendsBar {
 
     container.insertAdjacentHTML("beforeend", userAvatarHtml);
 
-    // Store reference
+    // Store reference immediately (this should work since insertAdjacentHTML is synchronous)
     const userElement = container.querySelector('[data-friend-id="user"]');
-    this.avatarElements.set("user", userElement);
-
-    console.log("👤 User avatar rendered");
+    if (userElement) {
+      this.avatarElements.set("user", userElement);
+      console.log("👤 User avatar rendered and stored in avatarElements");
+    } else {
+      console.error("❌ Failed to find user avatar element after rendering");
+    }
   }
 
   /**
@@ -440,6 +463,25 @@ export class HorizontalFriendsBar {
    * Select user's own schedule (default state)
    */
   selectUser() {
+    console.log('🔍 DEBUG: selectUser() called');
+    console.log('🔍 DEBUG: avatarElements.has("user"):', this.avatarElements.has("user"));
+    console.log('🔍 DEBUG: avatarElements size:', this.avatarElements.size);
+    
+    // Ensure user element exists before selecting
+    const userElement = this.avatarElements.get("user");
+    if (!userElement) {
+      console.error('❌ DEBUG: User avatar element not found in avatarElements');
+      // Try to find it in DOM directly
+      const userElementDirect = this.container.querySelector('[data-friend-id="user"]');
+      if (userElementDirect) {
+        console.log('🔍 DEBUG: Found user element directly in DOM, adding to avatarElements');
+        this.avatarElements.set("user", userElementDirect);
+      } else {
+        console.error('❌ DEBUG: User element not found in DOM either');
+        return;
+      }
+    }
+    
     this.selectFriend("user", "You");
   }
 
@@ -449,12 +491,20 @@ export class HorizontalFriendsBar {
   updateVisualSelection(selectedFriendId) {
     console.log(`🔍 DEBUG: updateVisualSelection called for: ${selectedFriendId}`);
     
-    // Remove selection from all avatars
+    // Remove selection from all avatars and clear any inline styles
     this.avatarElements.forEach((element, friendId) => {
       element.classList.remove("selected");
       const ring = element.querySelector(".selection-ring");
       if (ring) {
-        console.log(`🔍 DEBUG: Removing selection from ${friendId}, ring found: ${!!ring}`);
+        // Clear all inline styles to allow CSS to take over
+        ring.style.opacity = "";
+        ring.style.transform = "";
+        ring.style.borderColor = "";
+        ring.style.borderWidth = "";
+        ring.style.zIndex = "";
+        ring.style.display = "";
+        
+        console.log(`🔍 DEBUG: Cleared inline styles from ${friendId}, ring found: ${!!ring}`);
       }
     });
 
@@ -463,8 +513,20 @@ export class HorizontalFriendsBar {
     if (selectedElement) {
       selectedElement.classList.add("selected");
       
-      // Debug the ring element
+      // Force the selection ring to be visible immediately for debugging
       const ring = selectedElement.querySelector(".selection-ring");
+      if (ring) {
+        // Force the ring to be visible by setting inline styles as backup
+        ring.style.opacity = "1";
+        ring.style.transform = "scale(1.12)";
+        ring.style.borderColor = "#9333ea";
+        ring.style.borderWidth = "3px";
+        ring.style.zIndex = "2";
+        
+        console.log(`🔍 DEBUG: Forced ring styles for ${selectedFriendId}`);
+      }
+      
+      // Debug the ring element
       console.log(`🔍 DEBUG: Selected element for ${selectedFriendId}:`, {
         element: selectedElement,
         hasSelectedClass: selectedElement.classList.contains("selected"),
@@ -620,6 +682,115 @@ export class HorizontalFriendsBar {
   }
 
   /**
+   * Force user selection immediately after render
+   * This ensures the purple ring appears right away
+   */
+  forceUserSelection() {
+    console.log('🔍 DEBUG: forceUserSelection() called immediately after render');
+    
+    // Reset selection state
+    this.selectedFriendId = null;
+    
+    // Clear selection from all avatars first
+    this.avatarElements.forEach((element, friendId) => {
+      element.classList.remove("selected");
+      const ring = element.querySelector(".selection-ring");
+      if (ring) {
+        // Clear inline styles
+        ring.style.opacity = "";
+        ring.style.transform = "";
+        ring.style.borderColor = "";
+        ring.style.borderWidth = "";
+        ring.style.zIndex = "";
+        ring.style.display = "";
+      }
+    });
+    
+    // Get user element and select it
+    const userElement = this.avatarElements.get("user");
+    if (!userElement) {
+      console.error('❌ DEBUG: User element not found for force selection');
+      return;
+    }
+    
+    // Force add selected class
+    userElement.classList.add("selected");
+    
+    // Force ring visibility with inline styles for user only
+    const ring = userElement.querySelector(".selection-ring");
+    if (ring) {
+      ring.style.opacity = "1";
+      ring.style.transform = "scale(1.12)";
+      ring.style.borderColor = "#9333ea";
+      ring.style.borderWidth = "3px";
+      ring.style.zIndex = "2";
+      ring.style.display = "block";
+      
+      console.log('🔍 DEBUG: Forced user ring visibility with inline styles');
+    } else {
+      console.error('❌ DEBUG: User ring element not found');
+    }
+    
+    console.log('🔍 DEBUG: User selection forced successfully');
+  }
+
+  /**
+   * Ensure user is selected by default - fallback method
+   * This method ensures the purple ring appears on the user avatar
+   * especially when there are no starred friends
+   */
+  ensureUserSelected() {
+    console.log('🔍 DEBUG: ensureUserSelected() called');
+    
+    // Check if any friend is currently selected
+    let hasSelection = false;
+    this.avatarElements.forEach((element, friendId) => {
+      if (element.classList.contains("selected")) {
+        hasSelection = true;
+        console.log(`🔍 DEBUG: Found selected element: ${friendId}`);
+      }
+    });
+    
+    // Always ensure user is selected if no other friend is selected or if selectedFriendId is null
+    if (!hasSelection || this.selectedFriendId === null) {
+      console.log('🔍 DEBUG: No selection found or user should be default, selecting user');
+      this.selectedFriendId = null; // Force user selection state
+      
+      // Clear selection from all avatars first
+      this.avatarElements.forEach((element, friendId) => {
+        element.classList.remove("selected");
+        const ring = element.querySelector(".selection-ring");
+        if (ring) {
+          // Clear inline styles
+          ring.style.opacity = "";
+          ring.style.transform = "";
+          ring.style.borderColor = "";
+          ring.style.borderWidth = "";
+          ring.style.zIndex = "";
+          ring.style.display = "";
+        }
+      });
+      
+      // Then select user
+      const userElement = this.avatarElements.get("user");
+      if (userElement) {
+        console.log('🔍 DEBUG: Force adding selected class to user element');
+        userElement.classList.add("selected");
+        
+        // Force ring visibility for user only
+        const ring = userElement.querySelector(".selection-ring");
+        if (ring) {
+          ring.style.opacity = "1";
+          ring.style.transform = "scale(1.12)";
+          ring.style.borderColor = "#9333ea";
+          ring.style.borderWidth = "3px";
+          ring.style.zIndex = "2";
+        }
+      }
+    }
+  }
+
+  /**
    * Handle refresh button click
    */
   async handleRefreshClick() {
@@ -628,6 +799,11 @@ export class HorizontalFriendsBar {
     try {
       await this.loadQuickAccessFriends();
       this.render();
+      
+      // Ensure user is selected after refresh
+      setTimeout(() => {
+        this.ensureUserSelected();
+      }, 50);
 
       notificationManager.showSystemNotification(
         "Quick Access friends refreshed",
@@ -969,6 +1145,9 @@ export class HorizontalFriendsBar {
           // Re-select the current friend to maintain visual state
           this.updateVisualSelection(this.selectedFriendId);
         }
+      } else {
+        // No friend selected or user should be selected, ensure user is selected
+        this.ensureUserSelected();
       }
 
       console.log("✅ Real-time Quick Access update processed successfully");
@@ -1039,6 +1218,11 @@ export class HorizontalFriendsBar {
   async refresh() {
     await this.loadQuickAccessFriends();
     this.render();
+    
+    // Ensure user is selected after programmatic refresh
+    setTimeout(() => {
+      this.ensureUserSelected();
+    }, 50);
   }
 
   /**

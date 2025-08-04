@@ -1769,3 +1769,255 @@ The immediate next step is implementing the **7-phase bilateral privacy system r
 
 ### OCR fine-tuning
 
+
+Mobile OCR Detection & Specialized Processing
+Mobile Screenshot Detection: Automatic detection based on aspect ratio analysis (portrait orientation, typical mobile dimensions)
+Dual Preprocessing Pipelines: Standard pipeline for desktop, alternative aggressive pipeline for mobile
+Mobile-Specific OCR Parameters: Optimized Tesseract configurations for fragmented mobile text
+2. Multi-Tier OCR Fallback System
+Primary Engine: LSTM with PSM mode 11 (SPARSE_TEXT) for fragmented mobile text
+Fallback 1: PSM mode 13 (RAW_LINE) for very fragmented text
+Fallback 2: PSM mode 12 (SPARSE) for scattered text elements
+Fallback 3: Legacy OCR engine (mode 0) with PSM mode 8 for very poor quality images
+Emergency Reconstruction: Ultra-aggressive pattern matching and fragment reconstruction
+3. Advanced Image Preprocessing
+Standard Processing: Grayscale conversion, basic contrast enhancement
+Alternative Processing: Sobel edge detection, morphological operations (erosion/dilation), aggressive binarization
+Mobile Enhancements: Higher contrast factors, text edge definition, compression artifact cleanup
+Adaptive Thresholding: Otsu's method with mobile-specific threshold clamping
+4. Time Slot Inference System
+Mobile-Responsive Handling: Detects cut-off times like "ST:14:40-" or "ST:14-"
+Partial Time Reconstruction: Infers complete time slots from partial information
+Pattern Mapping: Comprehensive mapping from hours/partial times to full university time slots
+Context-Aware Inference: Uses surrounding text context for better time reconstruction
+5. Enhanced Text Processing Pipeline
+UniversityParser Enhancements:
+Mobile-Specific Patterns: New regex patterns for mobile cut-off times and partial data
+Smart Fragment Reconstruction: Combines scattered text fragments into complete course entries
+Critical Element Extraction: Focuses on course code, room, and time (most important elements)
+OCR Error Correction: Extensive character substitution rules for mobile OCR artifacts
+ScheduleValidator Improvements:
+Auto-Correction: Automatically fixes common OCR errors in course codes and day codes
+Lenient Validation: More flexible validation for OCR-derived data with auto-correction
+Error Context: Provides detailed suggestions and correction history
+6. Emergency Reconstruction System
+Fragment Analysis: Analyzes individual OCR fragments when standard parsing fails
+Pattern Recognition: Uses regex patterns to identify potential course codes, times, and rooms
+Intelligent Reconstruction: Combines fragments based on proximity and context
+Ultra-Aggressive Mode: Last-resort extraction of any recognizable course-related patterns
+📊 Technical Specifications
+OCR Configuration Parameters:
+
+// Mobile-optimized settings
+tessedit_pageseg_mode: "11" // SPARSE_TEXT for fragmented mobile text
+textord_noise_rejwords: "0" // Don't reject fragmented words  
+textord_noise_rejrows: "0" // Don't reject fragmented rows
+textord_heavy_nr: "1" // More aggressive text detection
+preserve_interword_spaces: "1" // Maintain spacing context
+
+// Mobile-optimized settingstessedit_pageseg_mode: "11" // SPARSE_TEXT for fragmented mobile texttextord_noise_rejwords: "0" // Don't reject fragmented words  textord_noise_rejrows: "0" // Don't reject fragmented rowstextord_heavy_nr: "1" // More aggressive text detectionpreserve_interword_spaces: "1" // Maintain spacing context
+Time Slot Inference Mapping:
+
+// Maps partial times to complete slots
+"14" → { start: "14:40", end: "16:10", slot: 4 }
+"ST:14:40-" → { start: "14:40", end: "16:10", slot: 4 }
+"1440" → { start: "14:40", end: "16:10", slot: 4 }
+
+// Maps partial times to complete slots"14" → { start: "14:40", end: "16:10", slot: 4 }"ST:14:40-" → { start: "14:40", end: "16:10", slot: 4 }"1440" → { start: "14:40", end: "16:10", slot: 4 }
+Morphological Operations:
+Erosion: Removes noise and thin artifacts
+Dilation: Restores text thickness after erosion
+Edge Enhancement: Sobel operators for better text boundary definition
+Adaptive Binarization: Dynamic threshold calculation for varied lighting
+🛡️ Error Handling & Resilience
+Graceful Degradation:
+Standard OCR → Mobile OCR → Alternative Preprocessing → Emergency Reconstruction
+Progressive Confidence Levels: High (exact matches) → Medium (corrected) → Low (reconstructed)
+Comprehensive Logging: Detailed debug information for each processing stage
+Validation & Feedback:
+Confidence Reporting: Real-time confidence metrics and extraction analytics
+Processing Statistics: Line counts, success rates, OCR quality metrics
+User Feedback: Actionable suggestions for improving image quality
+🎯 Integration Points
+ScheduleImportService Integration:
+Unified Interface: Same API for text and image processing
+Progress Callbacks: Real-time progress updates for OCR operations
+Result Aggregation: Combines OCR results with text processing statistics
+ProfileSetup.js Compatibility:
+Seamless Integration: No changes required to existing UI components
+Enhanced Feedback: Richer error messages and processing insights
+Backward Compatibility: Maintains all existing functionality
+📈 Performance Optimizations
+Resource Management:
+Lazy Worker Initialization: OCR worker created only when needed
+Memory Cleanup: Proper disposal of image resources and worker processes
+Processing Locks: Prevents concurrent OCR operations
+Intelligent Processing:
+Context-Aware Parsing: Uses surrounding lines for better fragment reconstruction
+Smart Element Extraction: Prioritizes most critical information (course code, room, time)
+Duplicate Detection: Prevents processing the same course multiple times
+🧪 Quality Assurance Features
+Validation Layers:
+Input Validation: File type, size, and format checks
+OCR Quality Assessment: Confidence thresholds and content validation
+Parser Validation: Course structure and format verification
+Output Validation: Final schedule data integrity checks
+Debug Capabilities:
+Comprehensive Logging: Step-by-step processing information
+Original Text Preservation: Maintains original OCR output for debugging
+Processing Metadata: Detailed information about applied corrections and inferences
+This implementation transforms the mobile OCR system from producing unusable 24-28% confidence gibberish into a robust, multi-tier extraction system capable of handling severely corrupted mobile screenshots through intelligent preprocessing, multiple fallback mechanisms, and emergency reconstruction capabilities.
+
+## 🔧 Friend Schedule Integration System Complete (5 August 2025)
+
+### ✅ **Completed Integration Work**
+Successfully resolved the friend schedule display system after identifying and fixing critical data format conversion issues between Firestore storage format and HomePage.js expectations.
+
+### 🐛 **Root Cause Analysis & Resolution**
+**Problem**: Friend schedules weren't displaying despite successful Firestore data retrieval
+**Root Cause**: Data format mismatch between Firestore maps (objects with string keys) and HomePage arrays (numeric indices)
+**Solution**: Implemented comprehensive data format conversion system
+
+### 🔧 **Technical Implementation**
+
+#### **Data Format Conversion System**
+- **`convertFirestoreToHomePageFormat()`**: Converts Firestore maps to 2D arrays
+  - Maps → Arrays for `schedule` (7x7 boolean matrix)
+  - Maps → Arrays for `slotInfo` (7x7 object matrix) 
+  - Maps → Arrays for `pinnedSlots` (7x7 boolean matrix)
+  - Location: `src/js/pages/HomePage.js:3338-3405`
+
+#### **Enhanced Error Handling**
+- **Comprehensive validation** during data conversion with graceful fallbacks
+- **Specific error types**: permission denied, network errors, invalid data
+- **Safe fallback structures** when conversion fails completely
+- **Enhanced notifications** with detailed error context
+
+#### **Friend Schedule Display Pipeline**
+1. `loadFriendSchedule()` - Validates parameters and fetches from Firestore
+2. `convertFirestoreToHomePageFormat()` - Converts data format
+3. `displayFriendSchedule()` - Creates friend user object and updates UI
+4. `handleFriendScheduleChange()` - Manages schedule switching with cleanup
+
+#### **Memory Management & State Cleanup**
+- **Automatic cleanup** of temporary friend user objects when switching
+- **State consistency** tracking with `currentViewingFriendId`
+- **Cache validation** to remove corrupted cached data
+- **Memory leak prevention** through proper object lifecycle management
+
+### 🎯 **Integration Points Fixed**
+- **HorizontalFriendsBar** → `schedule:change` event → **HomePage** listener
+- **Avatar clicks** properly pass `friendId` parameter to display functions
+- **Schedule owner indicator** updates correctly when switching between users
+- **User avatar selection** properly switches back to own schedule
+
+### 📊 **Quality Assurance Features**
+- **Parameter validation** prevents invalid function calls
+- **Data structure validation** ensures converted data integrity  
+- **Schedule content validation** detects truly empty schedules
+- **Detailed debug logging** for troubleshooting conversion process
+
+### 🚀 **Performance Optimizations**
+- **Smart caching** with validation and corruption recovery
+- **Efficient conversion** only when data format differs
+- **Lazy loading** of friend schedule data until avatar clicked
+- **Memory efficient** cleanup of temporary objects
+
+The friend schedule integration system now provides reliable, error-resistant schedule viewing with proper data format handling, comprehensive error recovery, and memory-efficient state management. The system successfully converts Firestore's map-based storage format to HomePage's array-based expectations while maintaining data integrity and providing excellent user experience.
+
+## 📋 **Phase-3 Testing & Documentation Updates (January 2025)**
+
+### ✅ **Manual Testing Guide Created**
+Comprehensive manual testing guide created for Phase-3 validation based on Requirements-List.md checklist:
+
+#### **Key Testing Categories Implemented**
+- **📅 Schedule Integration Tests**: Friend avatar clicking, empty schedule handling, owner indicator functionality
+- **🔗 Cross-Integration Tests**: Real-time sync between Friends page ↔ Schedule page, state persistence
+- **🧪 Component Functionality Tests**: Horizontal bar rendering, avatar interactions, selection states
+- **📱 Mobile & Responsive Tests**: Touch scrolling, responsive breakpoints, mobile touch targets
+- **⚡ Performance Tests**: Multiple friends handling, network error scenarios, memory leak prevention
+- **✅ Regression Tests**: Existing functionality preservation (import/export, pin mode, schedule editing)
+
+#### **Testing Coverage Status**
+Based on Requirements-List.md Phase-3 completion criteria:
+
+**✅ IMPLEMENTED & TESTABLE**:
+- Users List glass card completely replaced with horizontal friends bar
+- User's avatar appears first with purple selection ring by default
+- Clicking friend avatars loads their schedules (with "no schedule" message handling)
+- Real-time sync shows starred friends immediately in horizontal bar
+- Existing import/export and compare functionality preserved
+
+**⏳ PENDING IMPLEMENTATION**:
+- Multi-select via compare button AND long press
+- Mobile touch scrolling optimization
+- Performance optimization for 20+ starred friends
+- Accessibility features (keyboard navigation, ARIA labels)
+
+#### **Database Structure Documentation Enhanced**
+**File Updated**: `Database-Guide.md` - Current Structure section enhanced with:
+- **Database Fundamentals**: Location (asia-southeast1), Type (FIRESTORE_NATIVE)
+- **Complete Field Documentation**: All collections with detailed field types and purposes
+- **Enhanced scheduleData Structure**: Phase-1 complete structure with metadata and privacy
+- **quickAccessData Structure**: Phase-2 starred friends implementation details
+- **Privacy Controls**: Bilateral privacy system in friendships collection
+
+### 🔧 **Integration System Status Summary**
+
+#### **✅ COMPLETED SYSTEMS**
+1. **Friend Schedule Data Format Conversion**: Firestore maps ↔ HomePage arrays conversion working
+2. **Schedule Display Pipeline**: `loadFriendSchedule()` → `convertFirestoreToHomePageFormat()` → `displayFriendSchedule()` → UI
+3. **Memory Management**: Automatic cleanup of temporary friend objects, cache validation
+4. **Error Handling**: Comprehensive validation with specific error types and fallback structures
+5. **Real-time Integration**: HorizontalFriendsBar → `schedule:change` event → HomePage listener
+6. **Database Documentation**: Complete current structure in Database-Guide.md
+
+#### **🔄 IMPLEMENTATION STATUS BY PHASE**
+- **Phase-0**: Schedule Import System - **COMPLETE** ✅
+- **Phase-1**: Schedule Storage Foundation - **COMPLETE** ✅  
+- **Phase-2**: Quick Access Friends System - **COMPLETE** ✅
+- **Phase-3**: Horizontal Friends Bar UI - **CORE COMPLETE** (70% - missing compare mode, mobile optimization)
+- **Phase-4**: Schedule Integration - **CORE COMPLETE** (friend schedule viewing working)
+
+#### **📊 FILES INVOLVED IN FIRESTORE OPERATIONS**
+Comprehensive documentation of all Firestore CRUD operations across the codebase:
+
+**Core Service Files**:
+- `src/js/services/data/DataService.js` - Primary Firestore operations (users/ collection)
+- `src/js/services/friends/FriendsService.js` - Friends & social operations (friendRequests/, friendships/)
+- `src/js/services/auth/AuthService.js` - User creation during signup
+- `src/js/services/schedule/ScheduleStorageService.js` - Schedule storage operations
+- `src/js/services/friends/FriendshipPrivacyService.js` - Privacy settings updates
+
+**Collections & Operations Map**:
+- `users/` - getDoc, setDoc, updateDoc (profiles, schedules, quick access data)
+- `friendRequests/` - addDoc, getDoc, updateDoc, deleteDoc (friend request lifecycle)
+- `friendships/` - setDoc, getDoc, updateDoc, deleteDoc (active friendships)
+- `universities/` - getDoc (read-only reference data)
+
+### 🎯 **Next Implementation Priorities**
+
+#### **HIGH PRIORITY - Phase-3 Completion**
+1. **Compare Mode Implementation**: Multi-select via compare button AND long press with tick marks
+2. **Mobile Touch Optimization**: Smooth scrolling, swipe gestures, responsive design
+3. **Performance Optimization**: Handle 20+ starred friends efficiently
+
+#### **MEDIUM PRIORITY - Polish & Accessibility**
+1. **Accessibility Features**: Keyboard navigation (arrow keys), ARIA labels, focus management
+2. **Empty States**: Enhanced "No schedule was set by [name]" notifications
+3. **Error Boundary Improvements**: Better network error handling
+
+#### **TESTING PRIORITY**
+1. **Manual Testing Execution**: Run the comprehensive testing guide created
+2. **Cross-browser Testing**: Chrome, Firefox, Safari, Edge compatibility
+3. **Device Testing**: Various mobile devices and screen sizes
+
+### 🏗️ **Architecture Status**
+The friend schedule integration system provides a solid foundation with:
+- **Reliable Data Conversion**: Firestore ↔ HomePage format conversion with error recovery
+- **Memory Efficient**: Proper cleanup and cache management
+- **Real-time Ready**: Event-driven architecture for cross-device sync
+- **Error Resistant**: Comprehensive validation and fallback mechanisms
+- **Documentation Complete**: Full database structure and file operation mapping
+
+The system is ready for Phase-3 completion focusing on compare mode, mobile optimization, and accessibility features.

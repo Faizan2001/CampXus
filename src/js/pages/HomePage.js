@@ -3196,18 +3196,43 @@ async function handleFriendScheduleChange(event) {
   
   console.log(`📅 Schedule change requested:`, { friendId, friendName, isUserSchedule });
   
+  // Store previous state for cleanup
+  const previousFriendId = state.currentViewingFriendId;
+  
   if (isUserSchedule) {
     // Switch back to user's own schedule
+    console.log("🔄 DEBUG: Switching to user's own schedule");
+    
     state.currentViewingFriendId = null;
     state.activeUserId = currentUser?.user?.uid || null;
+    
+    // Clean up any temporary friend user objects
+    if (previousFriendId && state.users[previousFriendId]) {
+      delete state.users[previousFriendId];
+      console.log(`🧹 DEBUG: Cleaned up temporary friend user object for ${previousFriendId}`);
+    }
+    
+    // Hide schedule owner indicator
+    updateScheduleOwnerIndicator(null, false);
+    
     console.log("👤 Switched to user's own schedule");
   } else {
     // Load friend's schedule
+    console.log(`🔄 DEBUG: Switching to ${friendName}'s schedule`);
+    
+    // Clean up previous friend if different
+    if (previousFriendId && previousFriendId !== friendId && state.users[previousFriendId]) {
+      delete state.users[previousFriendId];
+      console.log(`🧹 DEBUG: Cleaned up previous friend user object for ${previousFriendId}`);
+    }
+    
     await loadFriendSchedule(friendId, friendName);
   }
   
   // Update UI to reflect the change
   updateUI();
+  
+  console.log(`✅ Schedule change completed - now viewing: ${isUserSchedule ? 'User' : friendName}`);
 }
 
 /**
@@ -3217,61 +3242,330 @@ async function loadFriendSchedule(friendId, friendName) {
   try {
     console.log(`📊 Loading schedule for friend: ${friendName} (${friendId})`);
     
+    // Validate input parameters
+    if (!friendId || !friendName) {
+      console.error(`❌ DEBUG: Invalid parameters - friendId: ${friendId}, friendName: ${friendName}`);
+      showScheduleLoadError(friendName || 'Unknown Friend');
+      return;
+    }
+    
     // Check cache first
     if (state.friendsScheduleData.has(friendId)) {
       console.log("📋 Using cached schedule data");
       const cachedData = state.friendsScheduleData.get(friendId);
-      displayFriendSchedule(cachedData, friendName);
-      return;
+      
+      // Validate cached data
+      if (cachedData && typeof cachedData === 'object') {
+        displayFriendSchedule(cachedData, friendName, friendId);
+        return;
+      } else {
+        console.warn('⚠️ DEBUG: Cached data is invalid, removing from cache');
+        state.friendsScheduleData.delete(friendId);
+      }
     }
     
     // Load schedule from Firestore
     const friendScheduleData = await dataManager.getUserSchedule(friendId);
     
-    if (!friendScheduleData || !friendScheduleData.schedule) {
-      // Friend has no schedule
+    console.log(`🔍 DEBUG: Friend schedule data structure:`, friendScheduleData);
+    
+    // Validate the returned data
+    if (!friendScheduleData || typeof friendScheduleData !== 'object') {
       console.log(`⚠️ ${friendName} has no schedule data`);
       showNoScheduleMessage(friendName);
       return;
     }
     
-    // Cache the schedule data
+    // Check if schedule exists and has valid structure
+    if (!friendScheduleData.schedule || typeof friendScheduleData.schedule !== 'object') {
+      console.log(`⚠️ ${friendName} has no schedule matrix data`);
+      showNoScheduleMessage(friendName);
+      return;
+    }
+    
+    console.log(`📅 DEBUG: Friend schedule matrix:`, friendScheduleData.schedule);
+    console.log(`📝 DEBUG: Friend slot info:`, friendScheduleData.slotInfo);
+    console.log(`⏰ DEBUG: Friend time slots:`, friendScheduleData.timeSlots);
+    
+    // Validate schedule matrix structure
+    let hasScheduleData = false;
+    if (typeof friendScheduleData.schedule === 'object') {
+      for (let day = 0; day < 7; day++) {
+        const dayData = friendScheduleData.schedule[day.toString()];
+        if (dayData && typeof dayData === 'object') {
+          for (const slot in dayData) {
+            if (dayData[slot] === true || dayData[slot] === 'true') {
+              hasScheduleData = true;
+              break;
+            }
+          }
+          if (hasScheduleData) break;
+        }
+      }
+    }
+    
+    if (!hasScheduleData) {
+      console.log(`⚠️ ${friendName} has empty schedule (no scheduled classes)`);
+      showNoScheduleMessage(friendName);
+      return;
+    }
+    
+    // Cache the valid schedule data
     state.friendsScheduleData.set(friendId, friendScheduleData);
     
     // Display the friend's schedule
-    displayFriendSchedule(friendScheduleData, friendName);
+    displayFriendSchedule(friendScheduleData, friendName, friendId);
     
     console.log(`✅ Successfully loaded ${friendName}'s schedule`);
     
   } catch (error) {
     console.error(`❌ Failed to load ${friendName}'s schedule:`, error);
-    showScheduleLoadError(friendName);
+    
+    // Provide specific error messages based on error type
+    if (error.message && error.message.includes('permission')) {
+      console.error(`❌ Permission denied accessing ${friendName}'s schedule`);
+      showScheduleLoadError(friendName, 'Permission denied');
+    } else if (error.message && error.message.includes('network')) {
+      console.error(`❌ Network error loading ${friendName}'s schedule`);
+      showScheduleLoadError(friendName, 'Network error');
+    } else {
+      showScheduleLoadError(friendName);
+    }
   }
 }
 
 /**
  * Display a friend's schedule in the schedule grid
  */
-function displayFriendSchedule(scheduleData, friendName) {
-  // Update state to reflect viewing friend's schedule
-  state.currentViewingFriendId = scheduleData.userId;
-  state.activeUserId = null; // Clear active user since we're viewing friend
+function displayFriendSchedule(scheduleData, friendName, friendId) {
+  console.log(`🔧 DEBUG: displayFriendSchedule called with:`, {
+    friendName,
+    friendId,
+    hasSchedule: !!scheduleData?.schedule,
+    hasSlotInfo: !!scheduleData?.slotInfo,
+    hasTimeSlots: !!scheduleData?.timeSlots
+  });
+
+  try {
+    // Convert Firestore format to HomePage format
+    const convertedScheduleData = convertFirestoreToHomePageFormat(scheduleData);
+    
+    if (!convertedScheduleData) {
+      console.warn(`⚠️ DEBUG: Failed to convert schedule data for ${friendName}`);
+      showNoScheduleMessage(friendName);
+      return;
+    }
+
+    console.log(`🔄 DEBUG: Converted schedule data:`, convertedScheduleData);
+
+    // Validate converted data structure
+    if (!Array.isArray(convertedScheduleData.schedule) || 
+        !Array.isArray(convertedScheduleData.slotInfo) ||
+        !Array.isArray(convertedScheduleData.timeSlots)) {
+      console.error(`❌ DEBUG: Invalid converted data structure for ${friendName}`);
+      showScheduleLoadError(friendName);
+      return;
+    }
+
+    // Update state to reflect viewing friend's schedule
+    state.currentViewingFriendId = friendId;
+    state.activeUserId = null; // Clear active user since we're viewing friend
+    
+    // Create friend user object with converted data
+    const friendUser = {
+      id: friendId,
+      name: friendName,
+      timeSlots: convertedScheduleData.timeSlots,
+      schedule: convertedScheduleData.schedule,
+      slotInfo: convertedScheduleData.slotInfo,
+      pinnedSlots: convertedScheduleData.pinnedSlots || createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
+    };
+    
+    console.log(`🔧 DEBUG: Created friend user object:`, friendUser);
+    
+    // Validate friend user object
+    if (!friendUser.schedule.length || !friendUser.slotInfo.length || !friendUser.timeSlots.length) {
+      console.error(`❌ DEBUG: Invalid friend user object for ${friendName}`);
+      showNoScheduleMessage(friendName);
+      return;
+    }
+    
+    // Add friend to users state temporarily for rendering
+    state.users[friendId] = friendUser;
+    state.activeUserId = friendId;
+    
+    console.log(`🔧 DEBUG: Updated state:`, {
+      currentViewingFriendId: state.currentViewingFriendId,
+      activeUserId: state.activeUserId,
+      usersCount: Object.keys(state.users).length
+    });
+    
+    // Show schedule owner indicator
+    updateScheduleOwnerIndicator(friendName, true);
+    
+    console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
+    
+    // Force UI update to render the friend's schedule
+    updateUI();
+    
+  } catch (error) {
+    console.error(`❌ DEBUG: Error displaying friend schedule for ${friendName}:`, error);
+    showScheduleLoadError(friendName);
+  }
+}
+
+/**
+ * Updates the schedule owner indicator to show whose schedule is currently displayed
+ * @param {string} friendName - Name of the friend whose schedule is being viewed
+ * @param {boolean} isFriendSchedule - Whether viewing a friend's schedule (true) or user's own (false)
+ */
+function updateScheduleOwnerIndicator(friendName, isFriendSchedule) {
+  const indicator = document.getElementById('schedule-owner-indicator');
+  if (!indicator) return;
   
-  // Temporarily modify state to show friend's schedule
-  const friendUser = {
-    id: scheduleData.userId,
-    name: friendName,
-    timeSlots: scheduleData.timeSlots || DEFAULT_TIMESLOTS,
-    schedule: scheduleData.schedule || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
-    slotInfo: scheduleData.slotInfo || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({ courseCode: "", classroomNumber: "" })),
-    pinnedSlots: createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false), // Friends can't have pins in our view
-  };
-  
-  // Add friend to users state temporarily for rendering
-  state.users[scheduleData.userId] = friendUser;
-  state.activeUserId = scheduleData.userId;
-  
-  console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
+  if (isFriendSchedule) {
+    // Show friend's name in indicator
+    const nameSpan = indicator.querySelector('.owner-name');
+    if (nameSpan) {
+      nameSpan.textContent = `${friendName}'s Schedule`;
+    }
+    indicator.style.display = 'flex';
+    console.log(`📋 Schedule owner indicator showing: ${friendName}'s Schedule`);
+  } else {
+    // Hide indicator when viewing own schedule
+    indicator.style.display = 'none';
+    console.log(`📋 Schedule owner indicator hidden (viewing own schedule)`);
+  }
+}
+
+/**
+ * Converts Firestore schedule data format (maps) to HomePage format (arrays)
+ * @param {Object} firestoreScheduleData - Schedule data from Firestore with map format
+ * @returns {Object} - Schedule data in HomePage array format
+ */
+function convertFirestoreToHomePageFormat(firestoreScheduleData) {
+  if (!firestoreScheduleData) {
+    console.warn('⚠️ DEBUG: No schedule data provided to convert');
+    return null;
+  }
+
+  console.log(`🔄 DEBUG: Converting Firestore data to HomePage format`);
+  console.log(`🔍 DEBUG: Input data:`, firestoreScheduleData);
+
+  try {
+    const converted = {
+      schedule: [],
+      slotInfo: [],
+      timeSlots: firestoreScheduleData.timeSlots || DEFAULT_TIMESLOTS,
+      pinnedSlots: []
+    };
+
+    // Validate timeSlots
+    if (!Array.isArray(converted.timeSlots) || converted.timeSlots.length === 0) {
+      console.warn('⚠️ DEBUG: Invalid or missing timeSlots, using defaults');
+      converted.timeSlots = DEFAULT_TIMESLOTS;
+    }
+
+    const numSlots = converted.timeSlots.length;
+
+    // Convert schedule from maps to arrays
+    if (firestoreScheduleData.schedule && typeof firestoreScheduleData.schedule === 'object') {
+      for (let day = 0; day < 7; day++) {
+        const daySchedule = firestoreScheduleData.schedule[day.toString()];
+        const dayArray = [];
+        
+        if (daySchedule && typeof daySchedule === 'object') {
+          for (let slot = 0; slot < numSlots; slot++) {
+            const slotValue = daySchedule[slot.toString()];
+            dayArray[slot] = slotValue === true || slotValue === 'true' || false;
+          }
+        } else {
+          // Fill with false if day data is missing or malformed
+          for (let slot = 0; slot < numSlots; slot++) {
+            dayArray[slot] = false;
+          }
+        }
+        
+        converted.schedule[day] = dayArray;
+      }
+    } else {
+      console.warn('⚠️ DEBUG: Schedule data is missing or malformed, creating empty schedule');
+      converted.schedule = createWeeklyMatrix(numSlots, false);
+    }
+
+    // Convert slotInfo from maps to arrays
+    if (firestoreScheduleData.slotInfo && typeof firestoreScheduleData.slotInfo === 'object') {
+      for (let day = 0; day < 7; day++) {
+        const daySlotInfo = firestoreScheduleData.slotInfo[day.toString()];
+        const dayArray = [];
+        
+        if (daySlotInfo && typeof daySlotInfo === 'object') {
+          for (let slot = 0; slot < numSlots; slot++) {
+            const slotData = daySlotInfo[slot.toString()];
+            if (slotData && typeof slotData === 'object') {
+              dayArray[slot] = {
+                courseCode: slotData.courseCode || "",
+                classroomNumber: slotData.classroomNumber || ""
+              };
+            } else {
+              dayArray[slot] = { courseCode: "", classroomNumber: "" };
+            }
+          }
+        } else {
+          // Fill with empty slot info if day data is missing
+          for (let slot = 0; slot < numSlots; slot++) {
+            dayArray[slot] = { courseCode: "", classroomNumber: "" };
+          }
+        }
+        
+        converted.slotInfo[day] = dayArray;
+      }
+    } else {
+      console.warn('⚠️ DEBUG: SlotInfo data is missing or malformed, creating empty slot info');
+      converted.slotInfo = createWeeklyMatrix(numSlots, () => ({ courseCode: "", classroomNumber: "" }));
+    }
+
+    // Convert pinnedSlots from maps to arrays (if it exists)
+    if (firestoreScheduleData.pinnedSlots && typeof firestoreScheduleData.pinnedSlots === 'object') {
+      for (let day = 0; day < 7; day++) {
+        const dayPins = firestoreScheduleData.pinnedSlots[day.toString()];
+        const dayArray = [];
+        
+        if (dayPins && typeof dayPins === 'object') {
+          for (let slot = 0; slot < numSlots; slot++) {
+            const pinValue = dayPins[slot.toString()];
+            dayArray[slot] = pinValue === true || pinValue === 'true' || false;
+          }
+        } else {
+          // Fill with false if day data is missing
+          for (let slot = 0; slot < numSlots; slot++) {
+            dayArray[slot] = false;
+          }
+        }
+        
+        converted.pinnedSlots[day] = dayArray;
+      }
+    } else {
+      // Create empty pinned slots array if not provided
+      converted.pinnedSlots = createWeeklyMatrix(numSlots, false);
+    }
+
+    console.log(`✅ DEBUG: Successfully converted data:`, converted);
+    return converted;
+    
+  } catch (error) {
+    console.error('❌ DEBUG: Error converting Firestore data:', error);
+    console.error('❌ DEBUG: Input data that caused error:', firestoreScheduleData);
+    
+    // Return a safe fallback structure
+    const fallbackTimeSlots = DEFAULT_TIMESLOTS;
+    return {
+      schedule: createWeeklyMatrix(fallbackTimeSlots.length, false),
+      slotInfo: createWeeklyMatrix(fallbackTimeSlots.length, () => ({ courseCode: "", classroomNumber: "" })),
+      timeSlots: fallbackTimeSlots,
+      pinnedSlots: createWeeklyMatrix(fallbackTimeSlots.length, false)
+    };
+  }
 }
 
 /**
@@ -3281,6 +3575,9 @@ function showNoScheduleMessage(friendName) {
   // Clear the schedule grid and show message
   state.activeUserId = null;
   state.currentViewingFriendId = null;
+  
+  // Hide schedule owner indicator
+  updateScheduleOwnerIndicator(null, false);
   
   // Show notification
   const notificationManager = window.notificationManager || {
@@ -3297,15 +3594,33 @@ function showNoScheduleMessage(friendName) {
 /**
  * Show error message when schedule loading fails
  */
-function showScheduleLoadError(friendName) {
+function showScheduleLoadError(friendName, errorType = null) {
+  // Hide schedule owner indicator on error
+  updateScheduleOwnerIndicator(null, false);
+  
   const notificationManager = window.notificationManager || {
     showSystemNotification: (msg) => console.log(msg)
   };
   
+  let errorMessage;
+  switch (errorType) {
+    case 'Permission denied':
+      errorMessage = `Permission denied: Cannot access ${friendName}'s schedule`;
+      break;
+    case 'Network error':
+      errorMessage = `Network error: Could not load ${friendName}'s schedule`;
+      break;
+    case 'Invalid data':
+      errorMessage = `Data error: ${friendName}'s schedule data is corrupted`;
+      break;
+    default:
+      errorMessage = `Failed to load ${friendName}'s schedule`;
+  }
+  
   notificationManager.showSystemNotification(
-    `Failed to load ${friendName}'s schedule`,
+    errorMessage,
     'error',
-    3000
+    4000
   );
 }
 

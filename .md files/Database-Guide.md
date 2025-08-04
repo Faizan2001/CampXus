@@ -23,81 +23,157 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 
 **Keep your current structure:** `universities` and `users` as **separate top-level collections**. Here's why this is the optimal design for CampXus:
 
-### 🗂️ **Recommended Architecture (Current Structure)**
+### 🗂️ Current Structure
+
+> **Database Fundamentals**
+> - **Location**: asia-southeast1 (Southeast Asia region for optimal latency)
+> - **Type**: FIRESTORE_NATIVE (Standard flexible document database)
 
 ```
 📦 Firestore Root
 ├── 👥 users/
-│   ├── {userId}/
-│   │   ├── uid: "abc123"
-│   │   ├── profile: { displayName, displayName_lower, firstName, firstName_lower, lastName, lastName_lower, email, major, major_lower, bio, startingYear, studentId }
-│   │   ├── universityInfo: { university, universityName, studentId }
-│   │   ├── systemInfo: { profileSetupComplete, status, lastActive, createdAt, lastUpdated }
-│   │   ├── avatarConfig: { style, seed, options } // Flexible structure for DiceBear API
-│   │   └── socialInfo: {                    // NEW: Social metadata
-│   │         friendsCount: 0,                    // number
-│   │         pendingRequestsCount: 0,            // number
-│   │         privacy: "university",              // "university" | "public"
-│   │         searchable: true,                   // boolean
-│   │         lastFriendActivity: timestamp       // timestamp
+│   ├── {userId}/                           // Document ID = Firebase Auth UID
+│   │   ├── uid: "abc123"                   // Firebase Auth UID (string)
+│   │   ├── profile: {                      // Personal profile data
+│   │   │     displayName: "John Doe",     // string
+│   │   │     displayName_lower: "john doe", // string (for search)
+│   │   │     firstName: "John",           // string  
+│   │   │     firstName_lower: "john",     // string (for search)
+│   │   │     lastName: "Doe",             // string
+│   │   │     lastName_lower: "doe",       // string (for search)
+│   │   │     email: "john@iub.edu.bd",    // string
+│   │   │     major: "Computer Science",   // string
+│   │   │     major_lower: "computer science", // string (for search)
+│   │   │     bio: "Love coding!",         // string
+│   │   │     startingYear: "2021",        // string
+│   │   │     studentId: "1111001"         // string
+│   │   │   }
+│   │   ├── universityInfo: {              // University data
+│   │   │     university: "iub",           // string (short code)
+│   │   │     universityName: "Independent University, Bangladesh", // string
+│   │   │     studentId: "1111001"         // string (university-specific)
+│   │   │   }
+│   │   ├── systemInfo: {                  // App metadata
+│   │   │     profileSetupComplete: true,  // boolean
+│   │   │     status: "online",            // string ("online" | "offline") 
+│   │   │     lastActive: timestamp,       // timestamp
+│   │   │     createdAt: timestamp,        // timestamp
+│   │   │     lastUpdated: timestamp       // timestamp
+│   │   │   }
+│   │   ├── avatarConfig: {                // DiceBear avatar settings (flexible)
+│   │   │     style: "miniavs",            // string (avatar style)
+│   │   │     seed: "mi5m6st0xf",          // string (unique seed)
+│   │   │     options: {                   // object (style-specific options)
+│   │   │       backgroundColor: "c0aede,ffd93d", // string
+│   │   │       backgroundType: "gradientLinear", // string
+│   │   │       hair: "curly"              // string (varies by style)
+│   │   │     }
+│   │   │   }
+│   │   ├── socialInfo: {                  // Social features metadata
+│   │   │     friendsCount: 0,             // number
+│   │   │     pendingRequestsCount: 0,     // number
+│   │   │     privacy: "university",       // string ("university" | "public")
+│   │   │     searchable: true,            // boolean
+│   │   │     lastFriendActivity: timestamp // timestamp
+│   │   │   }
+│   │   ├── quickAccessData: {             // ⭐ Quick Access starred friends
+│   │   │     starredFriends: [            // array of objects
+│   │   │       {
+│   │   │         userId: "friend_uid_1",  // string
+│   │   │         displayName: "Jane Doe", // string (cached)
+│   │   │         major: "Business Admin", // string (cached)
+│   │   │         avatarConfig: {...},     // object (cached)
+│   │   │         starredAt: timestamp,    // timestamp
+│   │   │         lastInteraction: timestamp // timestamp
+│   │   │       }
+│   │   │     ],
+│   │   │     totalStarred: 5,             // number
+│   │   │     lastUpdated: timestamp       // timestamp
+│   │   │   }
+│   │   └── scheduleData: {                // 📅 Phase-1 Schedule Storage
+│   │         schedule: {                  // Map: day -> time -> boolean
+│   │           "0": {"0": true, "1": false}, // Sunday slots
+│   │           "1": {"0": false, "1": true}, // Monday slots
+│   │           // ... up to "6" for Saturday
+│   │         },
+│   │         slotInfo: {                  // Map: day -> time -> course info
+│   │           "0": {"0": {"courseCode": "CSE101", "classroomNumber": "A201"}},
+│   │           "1": {"1": {"courseCode": "CSE102", "classroomNumber": "B305"}},
+│   │           // ... detailed slot information
+│   │         },
+│   │         timeSlots: [                 // Array of time slot labels
+│   │           "8:00-9:30", "9:40-11:10", "11:20-12:50",
+│   │           "1:00-2:30", "2:40-4:10", "4:20-5:50"
+│   │         ],
+│   │         pinnedSlots: {               // Map: day -> time -> boolean (pinned slots)
+│   │           "0": {"0": false, "1": true},
+│   │           // ... pinned status for each slot
+│   │         },
+│   │         metadata: {                  // Schedule metadata
+│   │           lastModified: timestamp,   // timestamp
+│   │           version: 1,                // number (for migrations)
+│   │           syncStatus: "synced",      // string ("synced" | "pending" | "conflict")
+│   │           source: "manual"           // string ("manual" | "ocr" | "import")
+│   │         }
 │   │       }
 │   └── {anotherUserId}/
-├── 🏫 universities/
-│   ├── iub/
-│   │   ├── name: "Independent University, Bangladesh"
-│   │   ├── domain: "iub.edu.bd"
-│   │   ├── allowedDomains: ["iub.edu.bd"]
-│   │   ├── isActive: true
-│   │   └── stats: { totalStudents: 1250, activeMajors: [...] }
-│   └── nsu/
-│       ├── name: "North South University"
-│       ├── domain: "northsouth.edu"
-│       └── ...
-├── 📩 friendRequests/ 
-│   ├── {requestId}/
-│   │   ├── fromUserId: "user123"
-│   │   ├── toUserId: "user456"
-│   │   ├── status: "pending"                  // "pending" | "accepted" | "rejected"
-│   │   ├── createdAt: timestamp
-│   │   ├── respondedAt: timestamp             // When accepted/rejected
-│   │   ├── fromUserInfo: {                    // Cached for quick display
-│   │   │     displayName: "John Doe",
-│   │   │     major: "CSE",
-│   │   │     university: "iub",
-│   │   │     avatarConfig: { style: "miniavs", seed: "abc123" }
+├── 🏫 universities/                       // University reference data
+│   ├── iub/                               // Document ID = university short code
+│   │   ├── name: "Independent University, Bangladesh", // string
+│   │   ├── domain: "iub.edu.bd",          // string
+│   │   ├── allowedDomains: ["iub.edu.bd"], // array of strings
+│   │   ├── isActive: true,                // boolean
+│   │   └── stats: {                       // object (optional)
+│   │         totalStudents: 1250,         // number
+│   │         activeMajors: ["CSE", "BBA"] // array of strings
+│   │       }
+│   └── nsu/ // ... other universities
+├── 📩 friendRequests/                     // Friend request lifecycle
+│   ├── {requestId}/                       // Document ID = auto-generated
+│   │   ├── fromUserId: "user123",         // string (sender UID)
+│   │   ├── toUserId: "user456",           // string (recipient UID)
+│   │   ├── status: "pending",             // string ("pending" | "accepted" | "rejected")
+│   │   ├── createdAt: timestamp,          // timestamp
+│   │   ├── respondedAt: null,             // timestamp | null
+│   │   ├── fromUserInfo: {                // object (cached sender data)
+│   │   │     displayName: "John Doe",     // string
+│   │   │     major: "CSE",                // string
+│   │   │     university: "iub",           // string
+│   │   │     avatarConfig: {...}          // object
 │   │   │   }
-│   │   └── toUserInfo: {                      // Cached for notifications
-│   │         displayName: "Jane Smith",
-│   │         major: "BBA",
-│   │         university: "iub"
+│   │   └── toUserInfo: {                  // object (cached recipient data)
+│   │         displayName: "Jane Smith",   // string
+│   │         major: "BBA",                // string
+│   │         university: "iub",           // string
+│   │         avatarConfig: {...}          // object
 │   │       }
 │   └── ...
-└── 🤝 friendships/                         // Active friendships with bilateral privacy
-    ├── {friendshipId}/                         // Canonical ID: sorted userIds (user1_user2)
-    │   ├── users: ["user123", "user456"]      // Array for easy querying
-    │   ├── user1Id: "user123"                 // For compatibility
-    │   ├── user2Id: "user456"                 // For compatibility
-    │   ├── createdAt: timestamp
-    |   ├── mutualFriends: <number>
-    │   ├── lastInteraction: timestamp         // For future features
-    │   ├── user1Info: {                       // Cached user data
-    │   │     displayName: "John Doe",
-    │   │     major: "CSE",
-    │   │     avatarConfig: { style: "miniavs", seed: "abc123" }
+└── 🤝 friendships/                        // Active friendships with bilateral privacy
+    ├── {friendshipId}/                    // Document ID = sorted userIds (user1_user2)
+    │   ├── users: ["user123", "user456"], // array (for array-contains queries)
+    │   ├── user1Id: "user123",            // string (direct reference)
+    │   ├── user2Id: "user456",            // string (direct reference)
+    │   ├── createdAt: timestamp,          // timestamp
+    │   ├── mutualFriends: 0,              // number
+    │   ├── lastInteraction: timestamp,    // timestamp
+    │   ├── user1Info: {                   // object (cached user1 data)
+    │   │     displayName: "John Doe",     // string
+    │   │     major: "CSE",                // string
+    │   │     avatarConfig: {...}          // object
     │   │   }
-    │   ├── user2Info: {
-    │   │     displayName: "Jane Smith",
-    │   │     major: "BBA",
-    │   │     avatarConfig: { style: "adventurer", seed: "xyz789" }
+    │   ├── user2Info: {                   // object (cached user2 data)
+    │   │     displayName: "Jane Smith",   // string
+    │   │     major: "BBA",                // string
+    │   │     avatarConfig: {...}          // object
     │   │   }
-    │   ├── 🔐 scheduleVisibility: {            // 🆕 BILATERAL PRIVACY CONTROLS
-    │   │     "user123": true,                 // User1's schedule IS visible to User2
-    │   │     "user456": false                 // User2's schedule IS NOT visible to User1
+    │   ├── 🔐 scheduleVisibility: {        // Map: bilateral privacy controls
+    │   │     "user123": true,             // boolean (User1's schedule visible to User2)
+    │   │     "user456": false             // boolean (User2's schedule NOT visible to User1)
     │   │   }
-    │   └── privacyMetadata: {                 // 🆕 Privacy tracking metadata
-    │         lastPrivacyUpdate: timestamp,    // When privacy was last modified
-    │         privacyUpdatedBy: "user123",     // Which user made the last change
-    │         privacyVersion: 1                // Privacy schema version for migrations
+    │   └── privacyMetadata: {             // object (privacy tracking)
+    │         lastPrivacyUpdate: timestamp, // timestamp
+    │         privacyUpdatedBy: "user123", // string (last modifier UID)
+    │         privacyVersion: 2            // number (schema version)
     │       }
     └── ...
 ```
@@ -277,70 +353,95 @@ We've enhanced the structure to support **industry-standard Firebase best practi
     lastFriendActivity: timestamp       // timestamp - Last social interaction
   },
 
-  // 📅 Schedule Data (Phase-1 Enhanced Structure)
+  // 📅 Schedule Data (Phase-1 Enhanced Structure - COMPLETE)
   scheduleData: {
-    // Core schedule matrices (stored as maps for Firestore compatibility)
-    schedule: {                         // 7x7 matrix: days × time slots
-      "0": { "0": false, "1": true, "2": false, ... },
-      "1": { "0": true, "1": false, "2": true, ... },
-      "2": { "0": false, "1": true, "2": false, ... },
-      // ... days 0-6 (Mon-Sun)
+    // Core schedule data (7x7 matrices - stored as Firestore maps)
+    schedule: {                         // 7x7 boolean matrix: days × time slots
+      "0": { "0": false, "1": true, "2": false, "3": false, "4": true, "5": false, "6": false },  // Sunday
+      "1": { "0": true, "1": false, "2": true, "3": false, "4": false, "5": true, "6": false },   // Monday
+      "2": { "0": false, "1": true, "2": false, "3": true, "4": false, "5": false, "6": true },   // Tuesday
+      "3": { "0": true, "1": false, "2": false, "3": false, "4": true, "5": false, "6": false },  // Wednesday
+      "4": { "0": false, "1": false, "2": true, "3": false, "4": false, "5": true, "6": false },  // Thursday
+      "5": { "0": false, "1": false, "2": false, "3": false, "4": false, "5": false, "6": false }, // Friday
+      "6": { "0": false, "1": false, "2": false, "3": false, "4": false, "5": false, "6": false }  // Saturday
     },
-    slotInfo: {                         // Course information for each slot
+    
+    slotInfo: {                         // Course information for each slot (7x7 object matrix)
       "0": { 
         "0": { courseCode: "", classroomNumber: "" },
         "1": { courseCode: "CSE101", classroomNumber: "Room 301" },
         "2": { courseCode: "", classroomNumber: "" },
-        // ... time slots 0-6
+        "3": { courseCode: "", classroomNumber: "" },
+        "4": { courseCode: "MAT120", classroomNumber: "Room 205" },
+        "5": { courseCode: "", classroomNumber: "" },
+        "6": { courseCode: "", classroomNumber: "" }
       },
       "1": { 
-        "0": { courseCode: "MAT120", classroomNumber: "Room 205" },
+        "0": { courseCode: "PHY101", classroomNumber: "Lab 1" },
         "1": { courseCode: "", classroomNumber: "" },
-        // ... time slots 0-6
+        "2": { courseCode: "CSE110", classroomNumber: "Room 402" },
+        "3": { courseCode: "", classroomNumber: "" },
+        "4": { courseCode: "", classroomNumber: "" },
+        "5": { courseCode: "ENG101", classroomNumber: "Room 203" },
+        "6": { courseCode: "", classroomNumber: "" }
       },
-      // ... days 0-6
+      // ... (days 2-6 with same structure)
+      "2": { "0": { courseCode: "", classroomNumber: "" }, /* ... slots 1-6 */ },
+      "3": { "0": { courseCode: "CSE470", classroomNumber: "Room 501" }, /* ... slots 1-6 */ },
+      "4": { "0": { courseCode: "", classroomNumber: "" }, /* ... slots 1-6 */ },
+      "5": { "0": { courseCode: "", classroomNumber: "" }, /* ... slots 1-6 */ },
+      "6": { "0": { courseCode: "", classroomNumber: "" }, /* ... slots 1-6 */ }
     },
-    timeSlots: [                        // Time period definitions
-      "08:00-09:00", "09:00-10:00", "10:00-11:00",
-      "11:00-12:00", "13:00-14:00", "14:00-15:00", "15:00-16:00"
+    
+    timeSlots: [                        // University time slot definitions (7 slots)
+      { start: "08:00", end: "09:30", label: "08:00-09:30" },
+      { start: "09:40", end: "11:10", label: "09:40-11:10" },
+      { start: "11:20", end: "12:50", label: "11:20-12:50" },
+      { start: "13:00", end: "14:30", label: "13:00-14:30" },
+      { start: "14:40", end: "16:10", label: "14:40-16:10" },
+      { start: "16:20", end: "17:50", label: "16:20-17:50" },
+      { start: "18:30", end: "21:30", label: "18:30-21:30" }  // Evening slot
     ],
-    pinnedSlots: {                      // Pinned/locked time slots (same structure as schedule)
-      "0": { "0": false, "1": true, "2": false, ... },
-      // ... days 0-6
+    
+    pinnedSlots: {                      // Pin preferences (7x7 boolean matrix, same structure as schedule)
+      "0": { "0": false, "1": true, "2": false, "3": false, "4": false, "5": false, "6": false },
+      "1": { "0": false, "1": false, "2": true, "3": false, "4": false, "5": false, "6": false },
+      "2": { "0": false, "1": false, "2": false, "3": true, "4": false, "5": false, "6": false },
+      "3": { "0": false, "1": false, "2": false, "3": false, "4": false, "5": false, "6": false },
+      "4": { "0": false, "1": false, "2": false, "3": false, "4": false, "5": false, "6": false },
+      "5": { "0": false, "1": false, "2": false, "3": false, "4": false, "5": false, "6": false },
+      "6": { "0": false, "1": false, "2": false, "3": false, "4": false, "5": false, "6": false }
     },
-    timeBasedPins: {                    // Time-based pin configurations
-      // Complex pin rules and constraints for HomePage pin mode
+    
+    timeBasedPins: {                    // Time-based pin storage for HomePage compatibility
+      "0": [],  // Sunday pins
+      "1": [],  // Monday pins  
+      "2": [],  // Tuesday pins
+      "3": [],  // Wednesday pins
+      "4": [],  // Thursday pins
+      "5": [],  // Friday pins
+      "6": []   // Saturday pins
     },
 
-    // Phase-1 Enhanced Metadata
+    // Phase-1 Enhanced Metadata (schema versioning & tracking)
     metadata: {
-      schemaVersion: "1.1",             // For future data migrations
-      lastModified: timestamp,
-      lastModifiedBy: "userId",         // Who made the last change
+      schemaVersion: 1,                 // For future data migrations (integer, not string)
+      lastModified: timestamp,          // Last modification timestamp
+      lastModifiedBy: "userId",         // User who made the last change
       version: 15,                      // Incremental version counter
-      source: "manual",                 // "manual" | "ocr" | "import"
-      deviceInfo: {
-        platform: "web",
-        userAgent: "Mozilla/5.0...",
-        timestamp: timestamp
-      }
+      importSource: "manual",           // "manual" | "text" | "image" | "profile_setup"
+      totalClasses: 8,                  // Pre-calculated total number of classes
+      isEmpty: false,                   // Quick check if schedule has any classes
+      hasConflicts: false,              // Whether schedule has time conflicts
+      createdAt: timestamp,             // When schedule was first created
+      
+      // Performance optimization data
+      freeBusySummary: [2, 5, 3, 5, 4, 0, 1],  // [Sun, Mon, Tue, Wed, Thu, Fri, Sat] busy slot counts
     },
 
-    // Privacy Controls
+    // Privacy Controls (simplified single visibility field)
     privacy: {
-      visibility: "friends",            // "private" | "friends" | "public"
-      allowViewRequests: true,          // Allow schedule view requests
-      showTimeSlots: true,              // Show detailed time information
-      lastUpdated: timestamp
-    },
-
-    // Performance Optimizations
-    freeBusySummary: {                  // Quick availability overview
-      totalBusySlots: 12,
-      totalFreeSlots: 37,               // 7 days × 7 time slots = 49 total
-      busiestDay: 2,                    // Tuesday (0-6 scale)
-      freestDay: 6,                     // Sunday
-      lastCalculated: timestamp
+      visibility: "private",            // "private" | "friends" | "public"
     }
   }
 }
