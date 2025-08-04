@@ -3,23 +3,23 @@
  *                          SCHEDULE IMPORT SERVICE
  *                    Modern Schedule Text Parsing & Integration
  * =============================================================================
- * 
+ *
  * This service orchestrates the schedule import process by coordinating
  * the UniversityParser and ScheduleValidator. It's the main entry point
  * for schedule import functionality.
- * 
+ *
  * Features:
  * - Text parsing orchestration
  * - Data validation coordination
  * - CampXus format conversion
  * - Seamless ProfileSetup.js integration
- * 
+ *
  * =============================================================================
  */
 
-import { UniversityParser } from './UniversityParser.js';
-import { ScheduleValidator } from './ScheduleValidator.js';
-import { OcrService } from './OcrService.js';
+import { UniversityParser } from "./UniversityParser.js";
+import { ScheduleValidator } from "./ScheduleValidator.js";
+import { OcrService } from "./OcrService.js";
 
 /**
  * Main service class for schedule import functionality
@@ -43,9 +43,9 @@ export class ScheduleImportService {
     if (!skipLockCheck && this.isProcessing) {
       return {
         success: false,
-        error: 'Already processing a schedule. Please wait.',
+        error: "Already processing a schedule. Please wait.",
         scheduleData: null,
-        validationResult: null
+        validationResult: null,
       };
     }
 
@@ -56,14 +56,16 @@ export class ScheduleImportService {
     try {
       // Step 1: Parse the text into course objects
       const parsedCourses = this.parser.parseScheduleText(scheduleText);
-      console.log('📅 Parsed courses:', parsedCourses);
+      console.log("📅 Parsed courses:", parsedCourses);
 
       // Step 2: Validate and clean the data
       const validationResult = this.validator.validateSchedule(parsedCourses);
-      console.log('✅ Validation result:', validationResult);
+      console.log("✅ Validation result:", validationResult);
 
       // Step 3: Convert to CampXus format
-      const scheduleData = this.convertToCampXusFormat(validationResult.validatedCourses);
+      const scheduleData = this.convertToCampXusFormat(
+        validationResult.validatedCourses
+      );
 
       return {
         success: true,
@@ -73,17 +75,23 @@ export class ScheduleImportService {
           totalCourses: parsedCourses.length,
           validCourses: validationResult.validatedCourses.length,
           errorCourses: validationResult.errors.length,
-          successRate: parsedCourses.length > 0 ? 
-            (validationResult.validatedCourses.length / parsedCourses.length * 100).toFixed(1) : 0
-        }
+          successRate:
+            parsedCourses.length > 0
+              ? (
+                  (validationResult.validatedCourses.length /
+                    parsedCourses.length) *
+                  100
+                ).toFixed(1)
+              : 0,
+        },
       };
     } catch (error) {
-      console.error('❌ Schedule processing failed:', error);
+      console.error("❌ Schedule processing failed:", error);
       return {
         success: false,
         error: error.message,
         scheduleData: null,
-        validationResult: null
+        validationResult: null,
       };
     } finally {
       if (!skipLockCheck) {
@@ -99,30 +107,41 @@ export class ScheduleImportService {
    */
   convertToCampXusFormat(validatedCourses) {
     // Initialize 7x7 matrices (7 days, 7 time slots)
-    const schedule = Array(7).fill(null).map(() => Array(7).fill(false));
-    const slotInfo = Array(7).fill(null).map(() => 
-      Array(7).fill(null).map(() => ({ courseCode: "", classroomNumber: "" }))
-    );
+    const schedule = Array(7)
+      .fill(null)
+      .map(() => Array(7).fill(false));
+    const slotInfo = Array(7)
+      .fill(null)
+      .map(() =>
+        Array(7)
+          .fill(null)
+          .map(() => ({ courseCode: "", classroomNumber: "" }))
+      );
 
     // Map day names to indices
     const dayIndexMap = {
-      'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
-      'thursday': 4, 'friday': 5, 'saturday': 6
+      sunday: 0,
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6,
     };
 
     // Populate matrices from courses
-    validatedCourses.forEach(course => {
+    validatedCourses.forEach((course) => {
       if (course.timeSlotIndex >= 0 && course.days.length > 0) {
-        course.days.forEach(dayName => {
+        course.days.forEach((dayName) => {
           const dayIndex = dayIndexMap[dayName.toLowerCase()];
           if (dayIndex !== undefined && dayIndex >= 0) {
             // Mark slot as busy
             schedule[dayIndex][course.timeSlotIndex] = true;
-            
+
             // Add course information
             slotInfo[dayIndex][course.timeSlotIndex] = {
               courseCode: course.courseCode,
-              classroomNumber: course.room || ""
+              classroomNumber: course.room || "",
             };
           }
         });
@@ -133,7 +152,7 @@ export class ScheduleImportService {
       schedule,
       slotInfo,
       courses: validatedCourses,
-      importedAt: new Date().toISOString()
+      importedAt: new Date().toISOString(),
     };
   }
 
@@ -147,10 +166,10 @@ export class ScheduleImportService {
     if (this.isProcessing) {
       return {
         success: false,
-        error: 'Already processing a schedule. Please wait.',
+        error: "Already processing a schedule. Please wait.",
         scheduleData: null,
         validationResult: null,
-        ocrResult: null
+        ocrResult: null,
       };
     }
 
@@ -158,49 +177,93 @@ export class ScheduleImportService {
 
     try {
       // Step 1: Extract text from image using OCR
-      if (progressCallback) progressCallback('Starting OCR processing...', 5);
-      
-      const ocrResult = await this.ocrService.processScheduleImage(imageFile, progressCallback);
-      
+      if (progressCallback) progressCallback("Starting OCR processing...", 5);
+
+      const ocrResult = await this.ocrService.processScheduleImage(
+        imageFile,
+        progressCallback
+      );
+
       if (!ocrResult.success) {
         return {
           success: false,
           error: `OCR failed: ${ocrResult.error}`,
           scheduleData: null,
           validationResult: null,
-          ocrResult: ocrResult
+          ocrResult: ocrResult,
         };
       }
 
-      console.log('📷 OCR extracted text:', ocrResult.extractedText);
-      console.log('📊 OCR confidence:', `${Math.round(ocrResult.confidence)}%`);
+      console.log("📷 OCR extracted text:", ocrResult.extractedText);
+      console.log("📊 OCR confidence:", `${Math.round(ocrResult.confidence)}%`);
+      console.log(
+        "📄 OCR found schedule section:",
+        ocrResult.metadata?.foundScheduleSection
+      );
+      console.log(
+        "📋 OCR extracted lines:",
+        ocrResult.scheduleData?.length || 0
+      );
+
+      // Log each extracted line for debugging
+      if (ocrResult.scheduleData && ocrResult.scheduleData.length > 0) {
+        console.log("📝 Individual extracted lines:");
+        ocrResult.scheduleData.forEach((line, index) => {
+          console.log(`  ${index + 1}: "${line}"`);
+        });
+      }
+
+      // Check if OCR extracted any meaningful text
+      if (
+        !ocrResult.extractedText ||
+        ocrResult.extractedText.trim().length === 0
+      ) {
+        console.warn("⚠️ OCR extracted no text from image");
+        return {
+          success: false,
+          error:
+            "No text could be extracted from the image. Please ensure the image is clear and contains visible course schedule information. Try using a higher quality image or paste the text manually instead.",
+          scheduleData: null,
+          validationResult: null,
+          ocrResult: ocrResult,
+          feedback: {
+            suggestion:
+              'Try taking a clearer screenshot with good lighting, or use the "Paste Text" option instead.',
+            ocrConfidence: Math.round(ocrResult.confidence),
+            extractedLines: ocrResult.scheduleData?.length || 0,
+          },
+        };
+      }
 
       // Step 2: Process the extracted text using existing text pipeline
-      if (progressCallback) progressCallback('Processing extracted text...', 95);
-      
-      const textResult = await this.processScheduleText(ocrResult.extractedText, true);
-      
+      if (progressCallback)
+        progressCallback("Processing extracted text...", 95);
+
+      const textResult = await this.processScheduleText(
+        ocrResult.extractedText,
+        true
+      );
+
       // Combine results
       const combinedResult = {
         ...textResult,
         ocrResult: ocrResult,
-        importType: 'image',
+        importType: "image",
         ocrConfidence: Math.round(ocrResult.confidence),
-        extractedLinesCount: ocrResult.scheduleData?.length || 0
+        extractedLinesCount: ocrResult.scheduleData?.length || 0,
       };
 
-      if (progressCallback) progressCallback('Complete!', 100);
-      
+      if (progressCallback) progressCallback("Complete!", 100);
+
       return combinedResult;
-      
     } catch (error) {
-      console.error('❌ Image processing failed:', error);
+      console.error("❌ Image processing failed:", error);
       return {
         success: false,
         error: error.message,
         scheduleData: null,
         validationResult: null,
-        ocrResult: null
+        ocrResult: null,
       };
     } finally {
       this.isProcessing = false;
@@ -219,12 +282,12 @@ export class ScheduleImportService {
 
     const { stats } = processResult;
     let summary = `Imported ${stats.validCourses} out of ${stats.totalCourses} courses (${stats.successRate}% success rate)`;
-    
+
     // Add OCR-specific info if available
-    if (processResult.importType === 'image' && processResult.ocrConfidence) {
+    if (processResult.importType === "image" && processResult.ocrConfidence) {
       summary += ` | OCR confidence: ${processResult.ocrConfidence}%`;
     }
-    
+
     return summary;
   }
 
@@ -238,7 +301,6 @@ export class ScheduleImportService {
     }
   }
 }
-
 
 // Export for use in ProfileSetup.js
 export default ScheduleImportService;

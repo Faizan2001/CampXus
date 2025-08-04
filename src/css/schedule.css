@@ -1831,7 +1831,9 @@ body:not(.dark-mode) #slotTooltip {
   -webkit-backdrop-filter: var(--glass-backdrop-blur)
     var(--glass-backdrop-saturate);
   box-shadow: var(--glass-outer-glow), var(--shadow-md);
-  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Specific transitions without transform */
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Specific transitions without transform */
   position: relative;
   overflow: visible; /* Allow rings to extend outside */
   display: flex;
@@ -1841,10 +1843,7 @@ body:not(.dark-mode) #slotTooltip {
   min-height: fit-content; /* Minimal height to fit avatar items naturally */
   z-index: 1; /* Ensure glass card appears above other elements */
   /* Add glass card depth shadow */
-  box-shadow: 
-    var(--glass-outer-glow), 
-    var(--shadow-xl),
-    var(--glass-inner-glow);
+  box-shadow: var(--glass-outer-glow), var(--shadow-xl), var(--glass-inner-glow);
 }
 
 /* ===== FRIENDS BAR SPECIFIC TOP HIGHLIGHT ===== */
@@ -1900,9 +1899,7 @@ body:not(.dark-mode) #slotTooltip {
 .horizontal-friends-bar:hover {
   background: var(--glass-hover) !important;
   border-color: var(--glass-hover-border) !important;
-  box-shadow: 
-    var(--glass-hover-glow), 
-    var(--glass-inner-glow),
+  box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
     0 0 0 1px var(--glass-hover-highlight),
     0 20px 60px var(--glass-shadow-strong),
     inset 0 0 0 1px var(--glass-hover-highlight) !important;
@@ -2532,10 +2529,9 @@ body:not(.dark-mode) #slotTooltip {
     background: var(--glass-bg) !important;
     border: 1px solid var(--glass-border) !important;
     backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate) !important;
-    -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate) !important;
-    box-shadow: 
-      var(--glass-outer-glow), 
-      var(--shadow-xl),
+    -webkit-backdrop-filter: var(--glass-backdrop-blur)
+      var(--glass-backdrop-saturate) !important;
+    box-shadow: var(--glass-outer-glow), var(--shadow-xl),
       var(--glass-inner-glow) !important;
   }
 
@@ -2543,9 +2539,7 @@ body:not(.dark-mode) #slotTooltip {
   .horizontal-friends-bar:hover {
     background: var(--glass-hover) !important;
     border-color: var(--glass-hover-border) !important;
-    box-shadow: 
-      var(--glass-hover-glow), 
-      var(--glass-inner-glow),
+    box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
       0 0 0 1px var(--glass-hover-highlight),
       0 20px 60px var(--glass-shadow-strong),
       inset 0 0 0 1px var(--glass-hover-highlight) !important;
@@ -2588,10 +2582,9 @@ body:not(.dark-mode) #slotTooltip {
     background: var(--glass-bg) !important;
     border: 1px solid var(--glass-border) !important;
     backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate) !important;
-    -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate) !important;
-    box-shadow: 
-      var(--glass-outer-glow), 
-      var(--shadow-xl),
+    -webkit-backdrop-filter: var(--glass-backdrop-blur)
+      var(--glass-backdrop-saturate) !important;
+    box-shadow: var(--glass-outer-glow), var(--shadow-xl),
       var(--glass-inner-glow) !important;
   }
 
@@ -2599,9 +2592,7 @@ body:not(.dark-mode) #slotTooltip {
   .horizontal-friends-bar:hover {
     background: var(--glass-hover) !important;
     border-color: var(--glass-hover-border) !important;
-    box-shadow: 
-      var(--glass-hover-glow), 
-      var(--glass-inner-glow),
+    box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
       0 0 0 1px var(--glass-hover-highlight),
       0 20px 60px var(--glass-shadow-strong),
       inset 0 0 0 1px var(--glass-hover-highlight) !important;
