@@ -1253,24 +1253,24 @@ body:not(.dark-mode) {
   --friends-options-dropdown-bg-active: rgba(255, 255, 255, 0.95);
   --friends-options-dropdown-border: rgba(59, 130, 246, 0.5);
   --friends-options-dropdown-border-active: rgba(255, 255, 255, 0.5);
-  
+
   /* Shadow Values */
   --friends-options-shadow-heavy: rgba(0, 0, 0, 0.15);
   --friends-options-shadow-medium: rgba(0, 0, 0, 0.08);
   --friends-options-shadow-light: rgba(0, 0, 0, 0.05);
-  
+
   /* Highlight Values */
   --friends-options-highlight-strong: rgba(255, 255, 255, 0.8);
   --friends-options-highlight-medium: rgba(255, 255, 255, 0.3);
   --friends-options-gradient-strong: rgba(255, 255, 255, 0.9);
   --friends-options-gradient-medium: rgba(255, 255, 255, 0.6);
-  
+
   /* Hover States */
   --friends-options-hover-green: rgba(34, 197, 94, 0.08);
   --friends-options-hover-red: rgba(239, 68, 68, 0.08);
   --friends-options-hover-teal: rgba(16, 185, 129, 0.08);
   --friends-options-hover-primary: rgba(var(--primary-rgb), 0.12);
-  
+
   /* Dark Mode */
   --friends-options-dark-dropdown-bg: rgba(15, 23, 42, 0.95);
   --friends-options-dark-border: rgba(75, 85, 99, 0.5);
@@ -1294,7 +1294,7 @@ body:not(.dark-mode) {
   --friends-button-glass-bg-hover-medium: rgba(255, 255, 255, 0.12);
   --friends-button-glass-bg-active-purple: rgba(139, 92, 246, 0.1);
   --friends-button-glass-bg-active-purple-light: rgba(139, 92, 246, 0.05);
-  
+
   /* Button shadow system - Light Mode */
   --friends-button-shadow-dark-subtle: rgba(139, 92, 246, 0.1);
   --friends-button-shadow-dark-faint: rgba(139, 92, 246, 0.05);
@@ -1304,14 +1304,14 @@ body:not(.dark-mode) {
   --friends-button-shadow-dark-hover: rgba(139, 92, 246, 0.08);
   --friends-button-shadow-dark-hover-light: rgba(139, 92, 246, 0.04);
   --friends-button-shadow-dark-active: rgba(139, 92, 246, 0.06);
-  
+
   /* Button highlight system - Light Mode */
   --friends-button-highlight-white-strong: rgba(255, 255, 255, 0.9);
   --friends-button-highlight-white-medium: rgba(255, 255, 255, 0.7);
   --friends-button-highlight-white-subtle: rgba(255, 255, 255, 0.5);
   --friends-button-highlight-white-light: rgba(255, 255, 255, 0.6);
   --friends-button-highlight-white-hover: rgba(255, 255, 255, 0.95);
-  
+
   /* Button active state purple glow - Light Mode */
   --friends-button-purple-glow: rgba(139, 92, 246, 0.2);
   --friends-button-purple-highlight: rgba(139, 92, 246, 0.08);
@@ -1863,7 +1863,7 @@ body.dark-mode {
   --friends-button-glass-bg-hover-medium: rgba(255, 255, 255, 0.1);
   --friends-button-glass-bg-active-purple: rgba(139, 92, 246, 0.15);
   --friends-button-glass-bg-active-purple-light: rgba(139, 92, 246, 0.08);
-  
+
   /* Button shadow system */
   --friends-button-shadow-dark-subtle: rgba(0, 0, 0, 0.08);
   --friends-button-shadow-dark-faint: rgba(0, 0, 0, 0.04);
@@ -1873,14 +1873,14 @@ body.dark-mode {
   --friends-button-shadow-dark-hover: rgba(0, 0, 0, 0.06);
   --friends-button-shadow-dark-hover-light: rgba(0, 0, 0, 0.03);
   --friends-button-shadow-dark-active: rgba(0, 0, 0, 0.05);
-  
+
   /* Button highlight system */
   --friends-button-highlight-white-strong: rgba(255, 255, 255, 0.25);
   --friends-button-highlight-white-medium: rgba(255, 255, 255, 0.2);
   --friends-button-highlight-white-subtle: rgba(255, 255, 255, 0.1);
   --friends-button-highlight-white-light: rgba(255, 255, 255, 0.12);
   --friends-button-highlight-white-hover: rgba(255, 255, 255, 0.3);
-  
+
   /* Button active state purple glow */
   --friends-button-purple-glow: rgba(139, 92, 246, 0.25);
   --friends-button-purple-highlight: rgba(139, 92, 246, 0.12);
@@ -1920,4 +1920,49 @@ body.dark-mode {
   --auth-logo-text-fill: transparent;
   --auth-subtitle-text: var(--text-secondary);
   --glass-overlay-light: rgba(255, 255, 255, 0.02);
+
+  /* ===== MOBILE SCHEDULE REDESIGN VARIABLES ===== */
+
+  /* Schedule View Mode Colors */
+  --view-toggle-bg: var(--glass-bg);
+  --view-toggle-border: var(--glass-border);
+  --view-toggle-active-bg: var(--accent-primary);
+  --view-toggle-active-text: #ffffff;
+  --view-toggle-inactive-text: var(--text-secondary);
+
+  /* Day Selector Colors */
+  --day-selector-bg: var(--glass-bg);
+  --day-selector-border: var(--glass-border);
+  --day-active-bg: var(--accent-primary);
+  --day-active-text: #ffffff;
+  --day-inactive-bg: var(--surface);
+  --day-inactive-text: var(--text-secondary);
+  --day-today-indicator: #4ade80;
+
+  /* Day View Time Slots */
+  --day-slot-bg: var(--glass-bg);
+  --day-slot-border: var(--glass-border);
+  --day-slot-free-bg: rgba(74, 222, 128, 0.1);
+  --day-slot-free-border: rgba(74, 222, 128, 0.3);
+  --day-slot-busy-bg: var(--accent-primary);
+  --day-slot-busy-text: #ffffff;
+  --day-slot-height: 70px;
+
+  /* Avatar Container in Compare Mode */
+  --avatar-container-bg: rgba(255, 255, 255, 0.05);
+  --avatar-container-border: rgba(255, 255, 255, 0.1);
+  --avatar-size: 40px;
+  --avatar-border-width: 2px;
+  --avatar-spacing: 8px;
+
+  /* Animation Timing for View Transitions */
+  --view-transition-duration: 300ms;
+  --view-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --day-transition-duration: 200ms;
+  --compare-transition-duration: 400ms;
+
+  /* Mobile Touch Targets */
+  --touch-target-min: 44px;
+  --mobile-padding: 16px;
+  --mobile-gap: 12px;
 }

@@ -37,11 +37,16 @@ let state = {
   selectedUserIds: new Set(),
   compareMode: false,
   pinModeActive: false, // <-- NEW STATE PROPERTY
-  
+
   // Phase-3: Horizontal Friends Bar
   horizontalFriendsBar: null, // HorizontalFriendsBar component instance
   currentViewingFriendId: null, // ID of friend whose schedule is currently being viewed
   friendsScheduleData: new Map(), // Cache for friends' schedule data
+
+  // Mobile Schedule Redesign State
+  viewMode: "day", // 'day' or 'grid' - default to day view for mobile-first
+  selectedDay: new Date().getDay(), // Current day (0 = Sunday, 6 = Saturday)
+  isMobile: false, // Will be set during initialization
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
@@ -58,11 +63,16 @@ export function _resetStateForTesting() {
     selectedUserIds: new Set(),
     compareMode: false,
     pinModeActive: false, // <-- ADD TO RESET
-    
+
     // Phase-3: Horizontal Friends Bar
     horizontalFriendsBar: null,
     currentViewingFriendId: null,
     friendsScheduleData: new Map(),
+
+    // Mobile Schedule Redesign State
+    viewMode: "day",
+    selectedDay: new Date().getDay(),
+    isMobile: false,
   };
 }
 
@@ -1781,34 +1791,27 @@ function renderScheduleGrid() {
     }
   }
 
-  const tableHeadRow = DOM_ELEMENTS.scheduleTable.querySelector("thead tr");
   const tableBody = DOM_ELEMENTS.scheduleTable.querySelector("tbody");
-
-  if (!tableHeadRow || !tableBody) {
-    console.error("Schedule table thead>tr or tbody not found.");
+  if (!tableBody) {
+    console.error("Schedule table tbody not found.");
     return;
   }
 
   let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
-
-  let allowEditingHeaders = false; // Renamed for clarity
+  let allowEditingHeaders = false;
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     const user = state.users[state.activeUserId];
-
-    // Critical: Check if the user object and its timeSlots array exist and are not empty
     if (user && user.timeSlots && user.timeSlots.length > 0) {
       currentTimeSlotsToRender = user.timeSlots;
-      allowEditingHeaders = true; // User has their own slots defined
+      allowEditingHeaders = true;
     }
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
-    // Compare mode - check if we need unified schedule
     const selectedUsers = Array.from(state.selectedUserIds)
       .map((id) => state.users[id])
       .filter((user) => user);
 
     if (selectedUsers.length > 0) {
-      // Check if users have different time structures
       const needsUnifiedSchedule = selectedUsers.some((user) => {
         const firstUserTimeSlots = selectedUsers[0].timeSlots;
         return (
@@ -1824,138 +1827,62 @@ function renderScheduleGrid() {
       });
 
       if (needsUnifiedSchedule) {
-        // Use unified schedule for heterogeneous comparison
         const unifiedSchedule = createUnifiedSchedule(selectedUsers);
         currentTimeSlotsToRender = unifiedSchedule.unifiedTimeSlots;
       } else {
-        // Use first user's time slots for homogeneous comparison
         currentTimeSlotsToRender =
           selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
       }
     } else {
       currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
     }
-
-    allowEditingHeaders = false; // Not editable in compare mode
+    allowEditingHeaders = false;
   } else {
-    // No active user, show defaults, not editable
     currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
     allowEditingHeaders = false;
   }
 
-  // Clear existing time headers, except "Day/Time" and "Add Slot" cell
-  const thCells = Array.from(tableHeadRow.children);
-  for (let i = thCells.length - 2; i >= 1; i--) {
-    // Assumes Day/Time is child 0, AddSlot is last child
-    tableHeadRow.removeChild(thCells[i]);
-  }
-
-  const addSlotCellRef = DOM_ELEMENTS.addTimeSlotHeaderCell;
-
-  currentTimeSlotsToRender.forEach((slotData, index) => {
-    const th = document.createElement("th");
-    th.textContent = slotData.label;
-
-    if (allowEditingHeaders) {
-      // Use the simplified flag
-      th.classList.add("editable-timeslot-header");
-      th.dataset.slotIndex = index;
-      th.title = "Click to edit this time slot";
-      th.addEventListener("click", handleTimeSlotHeaderClick);
-    } else {
-      th.classList.add("time-slot-header");
-    }
-
-    if (addSlotCellRef) tableHeadRow.insertBefore(th, addSlotCellRef);
-    else tableHeadRow.appendChild(th);
-  });
-
-  // Apply dynamic styling based on number of time slots
-  const slotCount = currentTimeSlotsToRender.length;
-  const scheduleTable = DOM_ELEMENTS.scheduleTable;
-
-  // Use a more intelligent threshold - consider both slot count and compare mode
-  const shouldUseManySlots =
-    slotCount > 8 || (state.compareMode && slotCount > 6);
-
-  if (shouldUseManySlots) {
-    // Many slots detected - apply flexible width styling
-    scheduleTable.classList.add("many-slots");
-    console.log(
-      `Many slots detected (${slotCount}), applying flexible width styling`
-    );
-
-    // Add a helpful message to the schedule header if it exists
-    // Only show on mobile devices, not on desktop
-    const scheduleHeader = document.querySelector(".schedule-header h3");
-    const isMobileDevice = isMobileOrTablet();
-
-    if (scheduleHeader && state.compareMode && isMobileDevice) {
-      const existingNote =
-        scheduleHeader.parentNode.querySelector(".many-slots-note");
-      if (!existingNote) {
-        const note = document.createElement("div");
-        note.className = "many-slots-note";
-        note.style.cssText =
-          "font-size: 0.8rem; color: white; margin-top: 0.5rem; font-style: italic; font-weight: bold;";
-        note.textContent = `Showing ${slotCount} time slots - scroll horizontally to view all`;
-        scheduleHeader.parentNode.appendChild(note);
-      } else {
-        existingNote.textContent = `Showing ${slotCount} time slots - scroll horizontally to view all`;
-      }
-    }
-  } else {
-    // Normal slot count - use default styling
-    scheduleTable.classList.remove("many-slots");
-
-    // Remove the note if it exists
-    const existingNote = document.querySelector(".many-slots-note");
-    if (existingNote) {
-      existingNote.remove();
-    }
-  }
-
-  // Also remove the note if we're not in compare mode or not on mobile device
-  // This ensures cleanup when conditions change
-  if (!state.compareMode || !isMobileOrTablet()) {
-    const existingNote = document.querySelector(".many-slots-note");
-    if (existingNote) {
-      existingNote.remove();
-    }
-  }
-
-  tableBody.innerHTML = ""; // Clear existing body
-  const daysOfWeek = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
+  // Clear existing table body
+  tableBody.innerHTML = "";
 
   const scheduleMatrixToRender =
     state.activeUserId && state.users[state.activeUserId]
       ? state.users[state.activeUserId].schedule
       : null;
 
-  daysOfWeek.forEach((dayName, dayIndex) => {
-    const tr = document.createElement("tr");
-    const tdDayName = document.createElement("td");
-    tdDayName.textContent = dayName;
-    tr.appendChild(tdDayName);
+  // Create color assignment for courses (consistent colors)
+  const courseColors = {};
+  let colorIndex = 1;
 
-    currentTimeSlotsToRender.forEach((_, timeIndex) => {
-      const tdSlot = document.createElement("td");
-      tdSlot.classList.add("slot"); // Base class
-      tdSlot.dataset.day = dayIndex;
-      tdSlot.dataset.time = timeIndex; // This index matches currentTimeSlotsToRender
+  // NEW LAYOUT: Each row is a time slot, columns are days
+  currentTimeSlotsToRender.forEach((timeSlot, timeIndex) => {
+    const row = document.createElement("tr");
 
-      // Determine status using the main state for compare mode, or active user's schedule
+    // First cell: Time slot label
+    const timeCell = document.createElement("td");
+    timeCell.classList.add("time-slot-label");
+    timeCell.textContent = timeSlot.label;
+
+    if (allowEditingHeaders) {
+      timeCell.classList.add("editable-timeslot-header");
+      timeCell.dataset.slotIndex = timeIndex;
+      timeCell.title = "Click to edit this time slot";
+      timeCell.addEventListener("click", handleTimeSlotHeaderClick);
+    }
+
+    row.appendChild(timeCell);
+
+    // Create cells for each day (7 days: Sunday to Saturday)
+    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+      const dayCell = document.createElement("td");
+      dayCell.classList.add("slot");
+      dayCell.dataset.day = dayIndex;
+      dayCell.dataset.time = timeIndex;
+
+      // Determine if slot is busy
       let isBusy = false;
       if (state.compareMode && state.selectedUserIds.size > 0) {
-        // determineSlotStatus will handle this
+        // Handle compare mode
       } else if (
         scheduleMatrixToRender &&
         scheduleMatrixToRender[dayIndex] &&
@@ -1966,23 +1893,36 @@ function renderScheduleGrid() {
 
       const statusClass = determineSlotStatus(dayIndex, timeIndex, state);
       if (statusClass !== "slot") {
-        // determineSlotStatus returns more specific classes
-        tdSlot.classList.add(statusClass);
+        dayCell.classList.add(statusClass);
       } else if (isBusy && !state.compareMode) {
-        // Fallback for active user if determineSlotStatus only returns 'slot'
-        tdSlot.classList.add("slot-selected"); // Or your 'busy' class for active user
+        dayCell.classList.add("slot-selected");
+
+        // Assign random modern color
+        if (
+          state.users[state.activeUserId]?.slotInfo?.[dayIndex]?.[timeIndex]
+            ?.courseCode
+        ) {
+          const courseCode =
+            state.users[state.activeUserId].slotInfo[dayIndex][timeIndex]
+              .courseCode;
+          if (!courseColors[courseCode]) {
+            courseColors[courseCode] = `color-${colorIndex}`;
+            colorIndex = (colorIndex % 10) + 1; // Cycle through 10 colors
+          }
+          dayCell.classList.add(courseColors[courseCode]);
+        } else {
+          // Fallback random color
+          dayCell.classList.add(`color-${((dayIndex + timeIndex) % 10) + 1}`);
+        }
       }
 
-      // --- START: Pin Rendering Logic for Active User ---
-
+      // Pin Rendering Logic for Active User
       if (
         state.activeUserId &&
         !state.compareMode &&
         state.users[state.activeUserId]
       ) {
         const activeUserObject = state.users[state.activeUserId];
-
-        // Ensure user object and relevant arrays exist and are valid for the current slot
 
         if (
           activeUserObject.schedule &&
@@ -1997,69 +1937,47 @@ function renderScheduleGrid() {
           const isSlotPinnedByActiveUser =
             activeUserObject.pinnedSlots[dayIndex][timeIndex];
 
-          // Clear any previous pins/indicatiors from this cell to prevent duplication on re-renders
-
-          const existingPinIndicators = tdSlot.querySelectorAll(
+          const existingPinIndicators = dayCell.querySelectorAll(
             ".pin-indicator, .can-pin-indicator, .pin-square-container"
           );
-
           existingPinIndicators.forEach((indicator) => indicator.remove());
 
           if (isSlotPinnedByActiveUser) {
-            // Slot is pinned by the active user - display the pin icon
-            // This pin should be visible even if Pin Mode is OFF, as long as it's their schedule
-
             const pinElement = document.createElement("span");
             pinElement.classList.add("pin-indicator");
-            pinElement.innerHTML = "&#128204;"; // Pin icon
+            pinElement.innerHTML = "&#128204;";
             pinElement.title = "Pinned by you, Click to unpin";
-
             pinElement.addEventListener("click", (event) =>
               handlePinSlotClick(dayIndex, timeIndex, event)
             );
-
-            tdSlot.appendChild(pinElement);
+            dayCell.appendChild(pinElement);
           } else if (state.pinModeActive && isSlotActuallyFree) {
-            // Pin mode is ON, slot is FREE and NOT YET PINNED - show "+" affordance
             const canPinElement = document.createElement("span");
             canPinElement.classList.add("can-pin-indicator");
-            canPinElement.innerHTML = "&#43;"; // Plus icon
+            canPinElement.innerHTML = "&#43;";
             canPinElement.title = "Click to pin this slot";
-
             canPinElement.addEventListener("click", (event) =>
               handlePinSlotClick(dayIndex, timeIndex, event)
             );
-            tdSlot.appendChild(canPinElement);
+            dayCell.appendChild(canPinElement);
           }
         }
       }
 
-      // --- START: Pin Rendering Logic for Compare Mode ---
-
+      // Pin Rendering Logic for Compare Mode
       if (state.compareMode && state.selectedUserIds.size > 0) {
-        console.log(
-          `Rendering compare mode pins for slot [${dayIndex}, ${timeIndex}]`
-        );
-
-        // Clear any existing pin indicators first
-        const existingPinIndicators = tdSlot.querySelectorAll(
+        const existingPinIndicators = dayCell.querySelectorAll(
           ".pin-indicator, .can-pin-indicator, .compare-pin-indicator, .pin-square-container"
         );
         existingPinIndicators.forEach((indicator) => indicator.remove());
 
-        // Get pin aggregation data for this slot using time-based mapping
         const pinData = aggregatePinsForCompareModeTimeBased(
           dayIndex,
           timeIndex,
           state
         );
 
-        console.log(`Pin data for slot [${dayIndex}, ${timeIndex}]:`, pinData);
-
         if (pinData.count > 0) {
-          console.log(`Creating pin indicator for ${pinData.count} users`);
-
-          // Create square background container
           const pinContainer = document.createElement("div");
           pinContainer.classList.add("pin-square-container");
           pinContainer.setAttribute("tabindex", "0");
@@ -2071,34 +1989,28 @@ function renderScheduleGrid() {
             } pinned this slot`
           );
 
-          // Create pin icon element
           const pinIcon = document.createElement("span");
           pinIcon.classList.add("pin-icon");
-          pinIcon.innerHTML = "&#128204;"; // Pin icon
+          pinIcon.innerHTML = "&#128204;";
 
-          // Create count element
           const pinCount = document.createElement("span");
           pinCount.classList.add("pin-count-number");
           pinCount.textContent = pinData.count;
 
-          // Assemble the pin container
           pinContainer.appendChild(pinIcon);
           pinContainer.appendChild(pinCount);
 
-          // Store pin data for tooltip handling
           pinContainer.dataset.pinnedByUsers = JSON.stringify(
             pinData.userNames
           );
           pinContainer.dataset.pinnedUserIds = JSON.stringify(pinData.userIds);
           pinContainer.dataset.pinCount = pinData.count;
 
-          // Add click handler for showing pin tooltip
           pinContainer.addEventListener("click", (event) => {
             event.stopPropagation();
             showPinTooltip(event, pinData);
           });
 
-          // Add keyboard support for accessibility
           pinContainer.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -2107,18 +2019,11 @@ function renderScheduleGrid() {
             }
           });
 
-          tdSlot.appendChild(pinContainer);
-          console.log(
-            `Pin indicator added to slot [${dayIndex}, ${timeIndex}]`
-          );
-        } else {
-          console.log(`No pins found for slot [${dayIndex}, ${timeIndex}]`);
+          dayCell.appendChild(pinContainer);
         }
       }
 
-      // --- END: Pin Rendering Logic for Compare Mode ---
-
-      // --- START: Course Information Display ---
+      // Course Information Display
       if (
         !state.compareMode &&
         state.activeUserId &&
@@ -2152,15 +2057,28 @@ function renderScheduleGrid() {
             infoContainer.appendChild(classroomSpan);
           }
 
-          tdSlot.appendChild(infoContainer);
+          dayCell.appendChild(infoContainer);
         }
       }
-      // --- END: Course Information Display ---
 
-      tr.appendChild(tdSlot);
-    });
-    tableBody.appendChild(tr);
+      row.appendChild(dayCell);
+    }
+
+    tableBody.appendChild(row);
   });
+
+  // Apply dynamic styling based on number of time slots
+  const slotCount = currentTimeSlotsToRender.length;
+  const scheduleTable = DOM_ELEMENTS.scheduleTable;
+
+  if (slotCount > 8 || (state.compareMode && slotCount > 6)) {
+    scheduleTable.classList.add("many-slots");
+    console.log(
+      `Many slots detected (${slotCount}), applying flexible styling`
+    );
+  } else {
+    scheduleTable.classList.remove("many-slots");
+  }
 }
 
 function renderUserList() {
@@ -2318,11 +2236,21 @@ function triggerUsersSectionGlow() {
 }
 
 function updateUI() {
-  renderScheduleGrid();
+  // Update mobile view controls
+  updateViewModeButtons();
+  updateViewContainers();
+
+  // Render appropriate view based on current mode
+  renderScheduleForCurrentView();
   renderUserList();
 
   // Toggle pin-mode-active class on body for CSS styling
   document.body.classList.toggle("pin-mode-active", state.pinModeActive);
+
+  // Update day selector if in day view
+  if (state.viewMode === "day") {
+    updateDaySelector();
+  }
 
   const totalUserCount = Object.keys(state.users).length; // Get total number of users
 
@@ -2375,6 +2303,11 @@ function updateUI() {
     }
   }
   // --- END: Logic for Pin Mode Button ---
+
+  // Update mobile compare mode if needed
+  if (state.viewMode === "day" && state.compareMode) {
+    updateMobileCompareMode();
+  }
 }
 
 /* ================================
@@ -2619,6 +2552,9 @@ function handleToggleCompareMode() {
       totalUsers: Object.keys(state.users).length,
     });
   }
+
+  // Update mobile compare mode for day view
+  updateMobileCompareMode();
 
   updateUI();
 }
@@ -3002,8 +2938,548 @@ function setupEventListeners() {
 }
 
 /* ================================
+   MOBILE SCHEDULE REDESIGN
+================================== */
+
+/**
+ * Initialize mobile-specific functionality and detect device type
+ */
+function initializeMobileSchedule() {
+  // Detect if user is on mobile device
+  state.isMobile = isMobileOrTablet();
+
+  // Set initial view mode based on device and screen size
+  if (state.isMobile || window.innerWidth < 768) {
+    state.viewMode = "day"; // Default to day view on mobile
+  } else {
+    state.viewMode = "grid"; // Default to grid view on desktop
+  }
+
+  // Set selected day to current day
+  state.selectedDay = new Date().getDay();
+
+  // Initialize day selector with current dates
+  updateDaySelector();
+
+  // Set up responsive view switching
+  setupViewModeToggle();
+
+  // Set up day navigation
+  setupDayNavigation();
+
+  // Set up swipe gestures for mobile day navigation
+  if (state.isMobile) {
+    setupSwipeGestures();
+  }
+
+  console.log(
+    `📱 Mobile schedule initialized - Device: ${
+      state.isMobile ? "Mobile" : "Desktop"
+    }, View: ${state.viewMode}, Selected Day: ${getDayName(state.selectedDay)}`
+  );
+}
+
+/**
+ * Update day selector buttons with current week dates and scroll to current day
+ */
+function updateDaySelector() {
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 = Sunday, 6 = Saturday
+
+  // Calculate the start of current week (Sunday)
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - currentDay);
+
+  // Update each day button
+  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+    const dayBtn = DOM_ELEMENTS[`dayBtn${dayIndex}`];
+    if (dayBtn) {
+      const currentDate = new Date(startOfWeek);
+      currentDate.setDate(startOfWeek.getDate() + dayIndex);
+
+      // Update date display
+      const dateSpan = dayBtn.querySelector(".day-date");
+      if (dateSpan) {
+        dateSpan.textContent = currentDate.getDate();
+      }
+
+      // Mark today's button
+      if (dayIndex === currentDay) {
+        dayBtn.classList.add("today");
+      } else {
+        dayBtn.classList.remove("today");
+      }
+
+      // Mark active day
+      if (dayIndex === state.selectedDay) {
+        dayBtn.classList.add("active");
+      } else {
+        dayBtn.classList.remove("active");
+      }
+    }
+  }
+
+  // Scroll to current day if in day view mode
+  if (state.viewMode === "day") {
+    scrollToCurrentDay();
+  }
+}
+
+/**
+ * Scroll the day selector to show the current/selected day
+ */
+function scrollToCurrentDay() {
+  const daySelector = DOM_ELEMENTS.daySelector;
+  const currentDayBtn = DOM_ELEMENTS[`dayBtn${state.selectedDay}`];
+
+  if (daySelector && currentDayBtn) {
+    // Calculate scroll position to center the current day
+    const selectorRect = daySelector.getBoundingClientRect();
+    const btnRect = currentDayBtn.getBoundingClientRect();
+    const scrollLeft =
+      currentDayBtn.offsetLeft - selectorRect.width / 2 + btnRect.width / 2;
+
+    daySelector.scrollTo({
+      left: Math.max(0, scrollLeft),
+      behavior: "smooth",
+    });
+  }
+}
+
+/**
+ * Set up view mode toggle functionality
+ */
+function setupViewModeToggle() {
+  const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
+  const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
+
+  if (dayViewBtn) {
+    dayViewBtn.addEventListener("click", () => handleViewModeChange("day"));
+  }
+
+  if (gridViewBtn) {
+    gridViewBtn.addEventListener("click", () => handleViewModeChange("grid"));
+  }
+
+  // Set initial state
+  updateViewModeButtons();
+}
+
+/**
+ * Set up day navigation functionality
+ */
+function setupDayNavigation() {
+  // Add click listeners to all day buttons
+  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+    const dayBtn = DOM_ELEMENTS[`dayBtn${dayIndex}`];
+    if (dayBtn) {
+      dayBtn.addEventListener("click", () => handleDayChange(dayIndex));
+    }
+  }
+
+  // Add keyboard navigation
+  if (DOM_ELEMENTS.daySelector) {
+    DOM_ELEMENTS.daySelector.addEventListener(
+      "keydown",
+      handleDayKeyNavigation
+    );
+  }
+}
+
+/**
+ * Set up swipe gestures for mobile day navigation
+ */
+function setupSwipeGestures() {
+  if (!DOM_ELEMENTS.scheduleDayView) return;
+
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  DOM_ELEMENTS.scheduleDayView.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+
+  DOM_ELEMENTS.scheduleDayView.addEventListener("touchend", (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipeGesture();
+  });
+
+  function handleSwipeGesture() {
+    const swipeDistance = touchEndX - touchStartX;
+    const minSwipeDistance = 50; // Minimum distance for a valid swipe
+
+    if (Math.abs(swipeDistance) > minSwipeDistance) {
+      if (swipeDistance > 0) {
+        // Swipe right - go to previous day
+        navigateDay(-1);
+      } else {
+        // Swipe left - go to next day
+        navigateDay(1);
+      }
+    }
+  }
+}
+
+/**
+ * Handle view mode changes (day/grid)
+ */
+function handleViewModeChange(newViewMode) {
+  if (state.viewMode === newViewMode) return;
+
+  state.viewMode = newViewMode;
+
+  // Update UI elements
+  updateViewModeButtons();
+  updateViewContainers();
+
+  // Update schedule rendering
+  renderScheduleForCurrentView();
+
+  // Add body class for CSS targeting
+  document.body.classList.toggle("day-view-active", newViewMode === "day");
+  document.body.classList.toggle("grid-view-active", newViewMode === "grid");
+
+  console.log(`📱 View mode changed to: ${newViewMode}`);
+}
+
+/**
+ * Handle day navigation
+ */
+function handleDayChange(dayIndex) {
+  if (state.selectedDay === dayIndex) return;
+
+  state.selectedDay = dayIndex;
+
+  // Update day selector UI
+  updateDaySelector();
+
+  // Re-render day view if in day mode
+  if (state.viewMode === "day") {
+    renderDayView();
+  }
+
+  console.log(`📅 Day changed to: ${getDayName(dayIndex)}`);
+}
+
+/**
+ * Navigate to relative day (previous/next)
+ */
+function navigateDay(direction) {
+  const newDay = (state.selectedDay + direction + 7) % 7; // Wrap around week
+  handleDayChange(newDay);
+}
+
+/**
+ * Handle keyboard navigation for days
+ */
+function handleDayKeyNavigation(e) {
+  switch (e.key) {
+    case "ArrowLeft":
+      e.preventDefault();
+      navigateDay(-1);
+      break;
+    case "ArrowRight":
+      e.preventDefault();
+      navigateDay(1);
+      break;
+    case "Home":
+      e.preventDefault();
+      handleDayChange(0); // Sunday
+      break;
+    case "End":
+      e.preventDefault();
+      handleDayChange(6); // Saturday
+      break;
+  }
+}
+
+/**
+ * Update view mode button states
+ */
+function updateViewModeButtons() {
+  const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
+  const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
+
+  if (dayViewBtn) {
+    dayViewBtn.classList.toggle("active", state.viewMode === "day");
+  }
+
+  if (gridViewBtn) {
+    gridViewBtn.classList.toggle("active", state.viewMode === "grid");
+  }
+}
+
+/**
+ * Update view container visibility
+ */
+function updateViewContainers() {
+  const dayView = DOM_ELEMENTS.scheduleDayView;
+  const gridView = DOM_ELEMENTS.scheduleGridView;
+  const daySelector = DOM_ELEMENTS.daySelectorContainer;
+
+  if (dayView) {
+    dayView.classList.toggle("active", state.viewMode === "day");
+  }
+
+  if (gridView) {
+    gridView.classList.toggle("active", state.viewMode === "grid");
+  }
+
+  if (daySelector) {
+    daySelector.classList.toggle("show", state.viewMode === "day");
+  }
+
+  console.log(`📱 View containers updated - Mode: ${state.viewMode}`, {
+    dayViewActive: dayView?.classList.contains("active"),
+    gridViewActive: gridView?.classList.contains("active"),
+    daySelectorVisible: daySelector?.classList.contains("show"),
+  });
+}
+
+/**
+ * Render schedule for current view mode
+ */
+function renderScheduleForCurrentView() {
+  if (state.viewMode === "day") {
+    renderDayView();
+  } else {
+    renderScheduleGrid(); // Use existing grid rendering
+  }
+}
+
+/**
+ * Render the day view for the selected day
+ */
+function renderDayView() {
+  const container = DOM_ELEMENTS.dayViewContainer;
+  if (!container) {
+    console.error("Day view container not found");
+    return;
+  }
+
+  // Clear existing content
+  container.innerHTML = "";
+
+  // Get current active user or show empty state
+  const activeUser = state.activeUserId
+    ? state.users[state.activeUserId]
+    : null;
+  const timeSlots = activeUser?.timeSlots || DEFAULT_TIMESLOTS;
+
+  // Generate time slots for the selected day
+  timeSlots.forEach((timeSlot, timeIndex) => {
+    const slotElement = createDayViewTimeSlot(timeSlot, timeIndex, activeUser);
+    container.appendChild(slotElement);
+  });
+
+  console.log(`📅 Day view rendered for ${getDayName(state.selectedDay)}`);
+}
+
+/**
+ * Create a time slot element for day view
+ */
+function createDayViewTimeSlot(timeSlot, timeIndex, user) {
+  const slotDiv = document.createElement("div");
+  slotDiv.className = "day-time-slot";
+  slotDiv.dataset.timeIndex = timeIndex;
+  slotDiv.dataset.day = state.selectedDay;
+
+  // Determine slot state
+  const isBusy = user?.schedule?.[state.selectedDay]?.[timeIndex] || false;
+  const isPinned = user?.pinnedSlots?.[state.selectedDay]?.[timeIndex] || false;
+  const slotInfo = user?.slotInfo?.[state.selectedDay]?.[timeIndex];
+
+  slotDiv.classList.toggle("busy", isBusy);
+  slotDiv.classList.toggle("free", !isBusy);
+  slotDiv.classList.toggle("pinned", isPinned);
+
+  // Handle compare mode
+  if (state.compareMode) {
+    slotDiv.classList.add("compare-mode");
+    slotDiv.innerHTML = createCompareSlotContent(timeSlot, timeIndex);
+  } else {
+    slotDiv.innerHTML = createNormalSlotContent(timeSlot, isBusy, slotInfo);
+  }
+
+  // Add click handler
+  slotDiv.addEventListener("click", () => {
+    if (state.pinModeActive && !state.compareMode) {
+      handlePinSlotClick(state.selectedDay, timeIndex, event);
+    } else if (!state.compareMode) {
+      handleToggleScheduleSlot(state.selectedDay, timeIndex);
+    }
+  });
+
+  return slotDiv;
+}
+
+/**
+ * Create normal slot content (non-compare mode)
+ */
+function createNormalSlotContent(timeSlot, isBusy, slotInfo) {
+  return `
+    <div class="slot-time">${timeSlot.label}</div>
+    <div class="slot-content">
+      ${
+        isBusy && slotInfo
+          ? `
+        <div class="slot-course-code">${slotInfo.courseCode || "Busy"}</div>
+        <div class="slot-classroom">${slotInfo.classroomNumber || ""}</div>
+      `
+          : `
+        <div class="slot-free-text">Free</div>
+      `
+      }
+    </div>
+  `;
+}
+
+/**
+ * Create compare mode slot content with avatars
+ */
+function createCompareSlotContent(timeSlot, timeIndex) {
+  return `
+    <div class="slot-time">${timeSlot.label}</div>
+    <div class="slot-avatar-container" id="avatarContainer_${
+      state.selectedDay
+    }_${timeIndex}">
+      ${generateAvatarsForSlot(state.selectedDay, timeIndex)}
+    </div>
+  `;
+}
+
+/**
+ * Generate avatars for compare mode slot
+ */
+function generateAvatarsForSlot(dayIndex, timeIndex) {
+  if (!state.compareMode || state.selectedUserIds.size === 0) {
+    return '<span class="empty-slot-message">Select friends to compare</span>';
+  }
+
+  let avatarsHTML = "";
+  let visibleCount = 0;
+  const maxVisible = 5; // Maximum avatars to show before overflow
+
+  // Add user's own avatar if they're free
+  const currentUser = state.users[state.activeUserId];
+  if (currentUser && !currentUser.schedule?.[dayIndex]?.[timeIndex]) {
+    avatarsHTML += `
+      <div class="friend-avatar user-avatar" data-friend-id="${
+        state.activeUserId
+      }">
+        <img src="${generateAvatar(currentUser.name)}" alt="You" />
+        <div class="avatar-label">You</div>
+      </div>
+    `;
+    visibleCount++;
+  }
+
+  // Add selected friends' avatars if they're free
+  for (const friendId of state.selectedUserIds) {
+    if (visibleCount >= maxVisible) {
+      const remainingCount =
+        state.selectedUserIds.size - visibleCount + (currentUser ? 0 : 1);
+      avatarsHTML += `
+        <div class="avatar-overflow">+${remainingCount}</div>
+      `;
+      break;
+    }
+
+    const friend = state.users[friendId];
+    if (friend && !friend.schedule?.[dayIndex]?.[timeIndex]) {
+      avatarsHTML += `
+        <div class="friend-avatar" data-friend-id="${friendId}">
+          <img src="${generateAvatar(friend.name)}" alt="${friend.name}" />
+          <div class="avatar-label">${friend.name}</div>
+        </div>
+      `;
+      visibleCount++;
+    }
+  }
+
+  return (
+    avatarsHTML || '<span class="empty-slot-message">No one available</span>'
+  );
+}
+
+/**
+ * Generate avatar URL for a given name
+ */
+function generateAvatar(name) {
+  // Use dicebear API for consistent avatars
+  const encodedName = encodeURIComponent(name);
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=7c4dff`;
+}
+
+/**
+ * Get day name from index
+ */
+function getDayName(dayIndex) {
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  return days[dayIndex] || "Unknown";
+}
+
+/**
+ * Update mobile schedule when compare mode changes
+ */
+function updateMobileCompareMode() {
+  if (state.viewMode === "day") {
+    renderDayView(); // Re-render day view with compare mode changes
+  }
+
+  // Sync with horizontal friends bar compare mode
+  if (state.horizontalFriendsBar) {
+    if (state.compareMode) {
+      state.horizontalFriendsBar.activateCompareMode();
+    } else {
+      state.horizontalFriendsBar.deactivateCompareMode();
+    }
+  }
+}
+
+/* ================================
    AUTHENTICATION UI MANAGEMENT
 ================================== */
+
+/**
+ * Initialize HomePage when loaded by the SPA router
+ */
+document.addEventListener("spa:page:load", (event) => {
+  const { route } = event.detail;
+
+  if (route === "home") {
+    console.log("🏠 HomePage loaded - initializing mobile schedule");
+
+    // Initialize mobile schedule functionality
+    setTimeout(() => {
+      initializeMobileSchedule();
+
+      // Load existing state and setup UI
+      loadState();
+      setupEventListeners();
+      setupInputValidation();
+      updateUI();
+
+      // Initialize friends bar if user is authenticated
+      if (currentUser?.profile) {
+        initializeHorizontalFriendsBar();
+      }
+
+      // Setup authentication callbacks
+      setupAuthenticationCallbacks();
+
+      console.log("✅ HomePage initialization complete");
+    }, 100); // Small delay to ensure DOM elements are ready
+  }
+});
 
 /**
  * Show UI for unauthenticated users
@@ -3156,19 +3632,22 @@ async function initializeHorizontalFriendsBar() {
   try {
     // Check if user is authenticated
     if (!currentUser?.profile) {
-      console.log("⚠️ User not authenticated, skipping friends bar initialization");
+      console.log(
+        "⚠️ User not authenticated, skipping friends bar initialization"
+      );
       return;
     }
-    
+
     // Create and initialize the HorizontalFriendsBar component
-    state.horizontalFriendsBar = new HorizontalFriendsBar('horizontal-friends-container');
+    state.horizontalFriendsBar = new HorizontalFriendsBar(
+      "horizontal-friends-container"
+    );
     await state.horizontalFriendsBar.init();
-    
+
     // Set up event listeners for friends bar events
     setupFriendsBarEventListeners();
-    
+
     console.log("✅ Horizontal Friends Bar initialized successfully");
-    
   } catch (error) {
     console.error("❌ Failed to initialize Horizontal Friends Bar:", error);
   }
@@ -3179,12 +3658,12 @@ async function initializeHorizontalFriendsBar() {
  */
 function setupFriendsBarEventListeners() {
   // Listen for schedule change events (when user clicks friend avatar)
-  document.addEventListener('schedule:change', handleFriendScheduleChange);
-  
+  document.addEventListener("schedule:change", handleFriendScheduleChange);
+
   // Listen for compare mode events
-  document.addEventListener('compare:mode', handleCompareModeChange);
-  document.addEventListener('compare:selection', handleCompareSelectionChange);
-  
+  document.addEventListener("compare:mode", handleCompareModeChange);
+  document.addEventListener("compare:selection", handleCompareSelectionChange);
+
   console.log("✅ Friends bar event listeners set up");
 }
 
@@ -3193,46 +3672,62 @@ function setupFriendsBarEventListeners() {
  */
 async function handleFriendScheduleChange(event) {
   const { friendId, friendName, isUserSchedule } = event.detail;
-  
-  console.log(`📅 Schedule change requested:`, { friendId, friendName, isUserSchedule });
-  
+
+  console.log(`📅 Schedule change requested:`, {
+    friendId,
+    friendName,
+    isUserSchedule,
+  });
+
   // Store previous state for cleanup
   const previousFriendId = state.currentViewingFriendId;
-  
+
   if (isUserSchedule) {
     // Switch back to user's own schedule
     console.log("🔄 DEBUG: Switching to user's own schedule");
-    
+
     state.currentViewingFriendId = null;
     state.activeUserId = currentUser?.user?.uid || null;
-    
+
     // Clean up any temporary friend user objects
     if (previousFriendId && state.users[previousFriendId]) {
       delete state.users[previousFriendId];
-      console.log(`🧹 DEBUG: Cleaned up temporary friend user object for ${previousFriendId}`);
+      console.log(
+        `🧹 DEBUG: Cleaned up temporary friend user object for ${previousFriendId}`
+      );
     }
-    
+
     // Hide schedule owner indicator
     updateScheduleOwnerIndicator(null, false);
-    
+
     console.log("👤 Switched to user's own schedule");
   } else {
     // Load friend's schedule
     console.log(`🔄 DEBUG: Switching to ${friendName}'s schedule`);
-    
+
     // Clean up previous friend if different
-    if (previousFriendId && previousFriendId !== friendId && state.users[previousFriendId]) {
+    if (
+      previousFriendId &&
+      previousFriendId !== friendId &&
+      state.users[previousFriendId]
+    ) {
       delete state.users[previousFriendId];
-      console.log(`🧹 DEBUG: Cleaned up previous friend user object for ${previousFriendId}`);
+      console.log(
+        `🧹 DEBUG: Cleaned up previous friend user object for ${previousFriendId}`
+      );
     }
-    
+
     await loadFriendSchedule(friendId, friendName);
   }
-  
+
   // Update UI to reflect the change
   updateUI();
-  
-  console.log(`✅ Schedule change completed - now viewing: ${isUserSchedule ? 'User' : friendName}`);
+
+  console.log(
+    `✅ Schedule change completed - now viewing: ${
+      isUserSchedule ? "User" : friendName
+    }`
+  );
 }
 
 /**
@@ -3241,60 +3736,71 @@ async function handleFriendScheduleChange(event) {
 async function loadFriendSchedule(friendId, friendName) {
   try {
     console.log(`📊 Loading schedule for friend: ${friendName} (${friendId})`);
-    
+
     // Validate input parameters
     if (!friendId || !friendName) {
-      console.error(`❌ DEBUG: Invalid parameters - friendId: ${friendId}, friendName: ${friendName}`);
-      showScheduleLoadError(friendName || 'Unknown Friend');
+      console.error(
+        `❌ DEBUG: Invalid parameters - friendId: ${friendId}, friendName: ${friendName}`
+      );
+      showScheduleLoadError(friendName || "Unknown Friend");
       return;
     }
-    
+
     // Check cache first
     if (state.friendsScheduleData.has(friendId)) {
       console.log("📋 Using cached schedule data");
       const cachedData = state.friendsScheduleData.get(friendId);
-      
+
       // Validate cached data
-      if (cachedData && typeof cachedData === 'object') {
+      if (cachedData && typeof cachedData === "object") {
         displayFriendSchedule(cachedData, friendName, friendId);
         return;
       } else {
-        console.warn('⚠️ DEBUG: Cached data is invalid, removing from cache');
+        console.warn("⚠️ DEBUG: Cached data is invalid, removing from cache");
         state.friendsScheduleData.delete(friendId);
       }
     }
-    
+
     // Load schedule from Firestore
     const friendScheduleData = await dataManager.getUserSchedule(friendId);
-    
-    console.log(`🔍 DEBUG: Friend schedule data structure:`, friendScheduleData);
-    
+
+    console.log(
+      `🔍 DEBUG: Friend schedule data structure:`,
+      friendScheduleData
+    );
+
     // Validate the returned data
-    if (!friendScheduleData || typeof friendScheduleData !== 'object') {
+    if (!friendScheduleData || typeof friendScheduleData !== "object") {
       console.log(`⚠️ ${friendName} has no schedule data`);
       showNoScheduleMessage(friendName);
       return;
     }
-    
+
     // Check if schedule exists and has valid structure
-    if (!friendScheduleData.schedule || typeof friendScheduleData.schedule !== 'object') {
+    if (
+      !friendScheduleData.schedule ||
+      typeof friendScheduleData.schedule !== "object"
+    ) {
       console.log(`⚠️ ${friendName} has no schedule matrix data`);
       showNoScheduleMessage(friendName);
       return;
     }
-    
-    console.log(`📅 DEBUG: Friend schedule matrix:`, friendScheduleData.schedule);
+
+    console.log(
+      `📅 DEBUG: Friend schedule matrix:`,
+      friendScheduleData.schedule
+    );
     console.log(`📝 DEBUG: Friend slot info:`, friendScheduleData.slotInfo);
     console.log(`⏰ DEBUG: Friend time slots:`, friendScheduleData.timeSlots);
-    
+
     // Validate schedule matrix structure
     let hasScheduleData = false;
-    if (typeof friendScheduleData.schedule === 'object') {
+    if (typeof friendScheduleData.schedule === "object") {
       for (let day = 0; day < 7; day++) {
         const dayData = friendScheduleData.schedule[day.toString()];
-        if (dayData && typeof dayData === 'object') {
+        if (dayData && typeof dayData === "object") {
           for (const slot in dayData) {
-            if (dayData[slot] === true || dayData[slot] === 'true') {
+            if (dayData[slot] === true || dayData[slot] === "true") {
               hasScheduleData = true;
               break;
             }
@@ -3303,31 +3809,30 @@ async function loadFriendSchedule(friendId, friendName) {
         }
       }
     }
-    
+
     if (!hasScheduleData) {
       console.log(`⚠️ ${friendName} has empty schedule (no scheduled classes)`);
       showNoScheduleMessage(friendName);
       return;
     }
-    
+
     // Cache the valid schedule data
     state.friendsScheduleData.set(friendId, friendScheduleData);
-    
+
     // Display the friend's schedule
     displayFriendSchedule(friendScheduleData, friendName, friendId);
-    
+
     console.log(`✅ Successfully loaded ${friendName}'s schedule`);
-    
   } catch (error) {
     console.error(`❌ Failed to load ${friendName}'s schedule:`, error);
-    
+
     // Provide specific error messages based on error type
-    if (error.message && error.message.includes('permission')) {
+    if (error.message && error.message.includes("permission")) {
       console.error(`❌ Permission denied accessing ${friendName}'s schedule`);
-      showScheduleLoadError(friendName, 'Permission denied');
-    } else if (error.message && error.message.includes('network')) {
+      showScheduleLoadError(friendName, "Permission denied");
+    } else if (error.message && error.message.includes("network")) {
       console.error(`❌ Network error loading ${friendName}'s schedule`);
-      showScheduleLoadError(friendName, 'Network error');
+      showScheduleLoadError(friendName, "Network error");
     } else {
       showScheduleLoadError(friendName);
     }
@@ -3343,15 +3848,18 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
     friendId,
     hasSchedule: !!scheduleData?.schedule,
     hasSlotInfo: !!scheduleData?.slotInfo,
-    hasTimeSlots: !!scheduleData?.timeSlots
+    hasTimeSlots: !!scheduleData?.timeSlots,
   });
 
   try {
     // Convert Firestore format to HomePage format
-    const convertedScheduleData = convertFirestoreToHomePageFormat(scheduleData);
-    
+    const convertedScheduleData =
+      convertFirestoreToHomePageFormat(scheduleData);
+
     if (!convertedScheduleData) {
-      console.warn(`⚠️ DEBUG: Failed to convert schedule data for ${friendName}`);
+      console.warn(
+        `⚠️ DEBUG: Failed to convert schedule data for ${friendName}`
+      );
       showNoScheduleMessage(friendName);
       return;
     }
@@ -3359,10 +3867,14 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
     console.log(`🔄 DEBUG: Converted schedule data:`, convertedScheduleData);
 
     // Validate converted data structure
-    if (!Array.isArray(convertedScheduleData.schedule) || 
-        !Array.isArray(convertedScheduleData.slotInfo) ||
-        !Array.isArray(convertedScheduleData.timeSlots)) {
-      console.error(`❌ DEBUG: Invalid converted data structure for ${friendName}`);
+    if (
+      !Array.isArray(convertedScheduleData.schedule) ||
+      !Array.isArray(convertedScheduleData.slotInfo) ||
+      !Array.isArray(convertedScheduleData.timeSlots)
+    ) {
+      console.error(
+        `❌ DEBUG: Invalid converted data structure for ${friendName}`
+      );
       showScheduleLoadError(friendName);
       return;
     }
@@ -3370,7 +3882,7 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
     // Update state to reflect viewing friend's schedule
     state.currentViewingFriendId = friendId;
     state.activeUserId = null; // Clear active user since we're viewing friend
-    
+
     // Create friend user object with converted data
     const friendUser = {
       id: friendId,
@@ -3378,38 +3890,46 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
       timeSlots: convertedScheduleData.timeSlots,
       schedule: convertedScheduleData.schedule,
       slotInfo: convertedScheduleData.slotInfo,
-      pinnedSlots: convertedScheduleData.pinnedSlots || createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
+      pinnedSlots:
+        convertedScheduleData.pinnedSlots ||
+        createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
     };
-    
+
     console.log(`🔧 DEBUG: Created friend user object:`, friendUser);
-    
+
     // Validate friend user object
-    if (!friendUser.schedule.length || !friendUser.slotInfo.length || !friendUser.timeSlots.length) {
+    if (
+      !friendUser.schedule.length ||
+      !friendUser.slotInfo.length ||
+      !friendUser.timeSlots.length
+    ) {
       console.error(`❌ DEBUG: Invalid friend user object for ${friendName}`);
       showNoScheduleMessage(friendName);
       return;
     }
-    
+
     // Add friend to users state temporarily for rendering
     state.users[friendId] = friendUser;
     state.activeUserId = friendId;
-    
+
     console.log(`🔧 DEBUG: Updated state:`, {
       currentViewingFriendId: state.currentViewingFriendId,
       activeUserId: state.activeUserId,
-      usersCount: Object.keys(state.users).length
+      usersCount: Object.keys(state.users).length,
     });
-    
+
     // Show schedule owner indicator
     updateScheduleOwnerIndicator(friendName, true);
-    
+
     console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
-    
+
     // Force UI update to render the friend's schedule
     updateUI();
-    
   } catch (error) {
-    console.error(`❌ DEBUG: Error displaying friend schedule for ${friendName}:`, error);
+    console.error(
+      `❌ DEBUG: Error displaying friend schedule for ${friendName}:`,
+      error
+    );
     showScheduleLoadError(friendName);
   }
 }
@@ -3420,20 +3940,22 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
  * @param {boolean} isFriendSchedule - Whether viewing a friend's schedule (true) or user's own (false)
  */
 function updateScheduleOwnerIndicator(friendName, isFriendSchedule) {
-  const indicator = document.getElementById('schedule-owner-indicator');
+  const indicator = document.getElementById("schedule-owner-indicator");
   if (!indicator) return;
-  
+
   if (isFriendSchedule) {
     // Show friend's name in indicator
-    const nameSpan = indicator.querySelector('.owner-name');
+    const nameSpan = indicator.querySelector(".owner-name");
     if (nameSpan) {
       nameSpan.textContent = `${friendName}'s Schedule`;
     }
-    indicator.style.display = 'flex';
-    console.log(`📋 Schedule owner indicator showing: ${friendName}'s Schedule`);
+    indicator.style.display = "flex";
+    console.log(
+      `📋 Schedule owner indicator showing: ${friendName}'s Schedule`
+    );
   } else {
     // Hide indicator when viewing own schedule
-    indicator.style.display = 'none';
+    indicator.style.display = "none";
     console.log(`📋 Schedule owner indicator hidden (viewing own schedule)`);
   }
 }
@@ -3445,7 +3967,7 @@ function updateScheduleOwnerIndicator(friendName, isFriendSchedule) {
  */
 function convertFirestoreToHomePageFormat(firestoreScheduleData) {
   if (!firestoreScheduleData) {
-    console.warn('⚠️ DEBUG: No schedule data provided to convert');
+    console.warn("⚠️ DEBUG: No schedule data provided to convert");
     return null;
   }
 
@@ -3457,27 +3979,34 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
       schedule: [],
       slotInfo: [],
       timeSlots: firestoreScheduleData.timeSlots || DEFAULT_TIMESLOTS,
-      pinnedSlots: []
+      pinnedSlots: [],
     };
 
     // Validate timeSlots
-    if (!Array.isArray(converted.timeSlots) || converted.timeSlots.length === 0) {
-      console.warn('⚠️ DEBUG: Invalid or missing timeSlots, using defaults');
+    if (
+      !Array.isArray(converted.timeSlots) ||
+      converted.timeSlots.length === 0
+    ) {
+      console.warn("⚠️ DEBUG: Invalid or missing timeSlots, using defaults");
       converted.timeSlots = DEFAULT_TIMESLOTS;
     }
 
     const numSlots = converted.timeSlots.length;
 
     // Convert schedule from maps to arrays
-    if (firestoreScheduleData.schedule && typeof firestoreScheduleData.schedule === 'object') {
+    if (
+      firestoreScheduleData.schedule &&
+      typeof firestoreScheduleData.schedule === "object"
+    ) {
       for (let day = 0; day < 7; day++) {
         const daySchedule = firestoreScheduleData.schedule[day.toString()];
         const dayArray = [];
-        
-        if (daySchedule && typeof daySchedule === 'object') {
+
+        if (daySchedule && typeof daySchedule === "object") {
           for (let slot = 0; slot < numSlots; slot++) {
             const slotValue = daySchedule[slot.toString()];
-            dayArray[slot] = slotValue === true || slotValue === 'true' || false;
+            dayArray[slot] =
+              slotValue === true || slotValue === "true" || false;
           }
         } else {
           // Fill with false if day data is missing or malformed
@@ -3485,27 +4014,32 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
             dayArray[slot] = false;
           }
         }
-        
+
         converted.schedule[day] = dayArray;
       }
     } else {
-      console.warn('⚠️ DEBUG: Schedule data is missing or malformed, creating empty schedule');
+      console.warn(
+        "⚠️ DEBUG: Schedule data is missing or malformed, creating empty schedule"
+      );
       converted.schedule = createWeeklyMatrix(numSlots, false);
     }
 
     // Convert slotInfo from maps to arrays
-    if (firestoreScheduleData.slotInfo && typeof firestoreScheduleData.slotInfo === 'object') {
+    if (
+      firestoreScheduleData.slotInfo &&
+      typeof firestoreScheduleData.slotInfo === "object"
+    ) {
       for (let day = 0; day < 7; day++) {
         const daySlotInfo = firestoreScheduleData.slotInfo[day.toString()];
         const dayArray = [];
-        
-        if (daySlotInfo && typeof daySlotInfo === 'object') {
+
+        if (daySlotInfo && typeof daySlotInfo === "object") {
           for (let slot = 0; slot < numSlots; slot++) {
             const slotData = daySlotInfo[slot.toString()];
-            if (slotData && typeof slotData === 'object') {
+            if (slotData && typeof slotData === "object") {
               dayArray[slot] = {
                 courseCode: slotData.courseCode || "",
-                classroomNumber: slotData.classroomNumber || ""
+                classroomNumber: slotData.classroomNumber || "",
               };
             } else {
               dayArray[slot] = { courseCode: "", classroomNumber: "" };
@@ -3517,24 +4051,32 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
             dayArray[slot] = { courseCode: "", classroomNumber: "" };
           }
         }
-        
+
         converted.slotInfo[day] = dayArray;
       }
     } else {
-      console.warn('⚠️ DEBUG: SlotInfo data is missing or malformed, creating empty slot info');
-      converted.slotInfo = createWeeklyMatrix(numSlots, () => ({ courseCode: "", classroomNumber: "" }));
+      console.warn(
+        "⚠️ DEBUG: SlotInfo data is missing or malformed, creating empty slot info"
+      );
+      converted.slotInfo = createWeeklyMatrix(numSlots, () => ({
+        courseCode: "",
+        classroomNumber: "",
+      }));
     }
 
     // Convert pinnedSlots from maps to arrays (if it exists)
-    if (firestoreScheduleData.pinnedSlots && typeof firestoreScheduleData.pinnedSlots === 'object') {
+    if (
+      firestoreScheduleData.pinnedSlots &&
+      typeof firestoreScheduleData.pinnedSlots === "object"
+    ) {
       for (let day = 0; day < 7; day++) {
         const dayPins = firestoreScheduleData.pinnedSlots[day.toString()];
         const dayArray = [];
-        
-        if (dayPins && typeof dayPins === 'object') {
+
+        if (dayPins && typeof dayPins === "object") {
           for (let slot = 0; slot < numSlots; slot++) {
             const pinValue = dayPins[slot.toString()];
-            dayArray[slot] = pinValue === true || pinValue === 'true' || false;
+            dayArray[slot] = pinValue === true || pinValue === "true" || false;
           }
         } else {
           // Fill with false if day data is missing
@@ -3542,7 +4084,7 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
             dayArray[slot] = false;
           }
         }
-        
+
         converted.pinnedSlots[day] = dayArray;
       }
     } else {
@@ -3552,18 +4094,23 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
 
     console.log(`✅ DEBUG: Successfully converted data:`, converted);
     return converted;
-    
   } catch (error) {
-    console.error('❌ DEBUG: Error converting Firestore data:', error);
-    console.error('❌ DEBUG: Input data that caused error:', firestoreScheduleData);
-    
+    console.error("❌ DEBUG: Error converting Firestore data:", error);
+    console.error(
+      "❌ DEBUG: Input data that caused error:",
+      firestoreScheduleData
+    );
+
     // Return a safe fallback structure
     const fallbackTimeSlots = DEFAULT_TIMESLOTS;
     return {
       schedule: createWeeklyMatrix(fallbackTimeSlots.length, false),
-      slotInfo: createWeeklyMatrix(fallbackTimeSlots.length, () => ({ courseCode: "", classroomNumber: "" })),
+      slotInfo: createWeeklyMatrix(fallbackTimeSlots.length, () => ({
+        courseCode: "",
+        classroomNumber: "",
+      })),
       timeSlots: fallbackTimeSlots,
-      pinnedSlots: createWeeklyMatrix(fallbackTimeSlots.length, false)
+      pinnedSlots: createWeeklyMatrix(fallbackTimeSlots.length, false),
     };
   }
 }
@@ -3575,18 +4122,18 @@ function showNoScheduleMessage(friendName) {
   // Clear the schedule grid and show message
   state.activeUserId = null;
   state.currentViewingFriendId = null;
-  
+
   // Hide schedule owner indicator
   updateScheduleOwnerIndicator(null, false);
-  
+
   // Show notification
   const notificationManager = window.notificationManager || {
-    showSystemNotification: (msg) => console.log(msg)
+    showSystemNotification: (msg) => console.log(msg),
   };
-  
+
   notificationManager.showSystemNotification(
     `No schedule was set by ${friendName}`,
-    'info',
+    "info",
     4000
   );
 }
@@ -3597,31 +4144,27 @@ function showNoScheduleMessage(friendName) {
 function showScheduleLoadError(friendName, errorType = null) {
   // Hide schedule owner indicator on error
   updateScheduleOwnerIndicator(null, false);
-  
+
   const notificationManager = window.notificationManager || {
-    showSystemNotification: (msg) => console.log(msg)
+    showSystemNotification: (msg) => console.log(msg),
   };
-  
+
   let errorMessage;
   switch (errorType) {
-    case 'Permission denied':
+    case "Permission denied":
       errorMessage = `Permission denied: Cannot access ${friendName}'s schedule`;
       break;
-    case 'Network error':
+    case "Network error":
       errorMessage = `Network error: Could not load ${friendName}'s schedule`;
       break;
-    case 'Invalid data':
+    case "Invalid data":
       errorMessage = `Data error: ${friendName}'s schedule data is corrupted`;
       break;
     default:
       errorMessage = `Failed to load ${friendName}'s schedule`;
   }
-  
-  notificationManager.showSystemNotification(
-    errorMessage,
-    'error',
-    4000
-  );
+
+  notificationManager.showSystemNotification(errorMessage, "error", 4000);
 }
 
 /**
@@ -3629,18 +4172,18 @@ function showScheduleLoadError(friendName, errorType = null) {
  */
 function handleCompareModeChange(event) {
   const { compareMode: isCompareMode } = event.detail;
-  
-  console.log(`🔄 Compare mode ${isCompareMode ? 'activated' : 'deactivated'}`);
-  
+
+  console.log(`🔄 Compare mode ${isCompareMode ? "activated" : "deactivated"}`);
+
   // Update local compare mode state
   state.compareMode = isCompareMode;
-  
+
   // Sync with desktop compare button if it exists
-  const desktopCompareButton = document.getElementById('compare');
+  const desktopCompareButton = document.getElementById("compare");
   if (desktopCompareButton) {
-    desktopCompareButton.classList.toggle('active', isCompareMode);
+    desktopCompareButton.classList.toggle("active", isCompareMode);
   }
-  
+
   // Update UI
   updateUI();
 }
@@ -3650,18 +4193,18 @@ function handleCompareModeChange(event) {
  */
 function handleCompareSelectionChange(event) {
   const { selectedFriends, friendsData } = event.detail;
-  
+
   console.log(`📊 Compare selection changed:`, selectedFriends);
-  
+
   // Update selected user IDs for comparison
   state.selectedUserIds.clear();
-  selectedFriends.forEach(friendId => {
+  selectedFriends.forEach((friendId) => {
     state.selectedUserIds.add(friendId);
   });
-  
+
   // Load schedules for comparison if needed
   loadSelectedFriendsForComparison(friendsData);
-  
+
   // Update UI
   updateUI();
 }
@@ -3673,34 +4216,40 @@ async function loadSelectedFriendsForComparison(friendsData) {
   try {
     const loadPromises = friendsData.map(async (friend) => {
       const friendId = friend.friendId || friend.userId;
-      
+
       // Skip if already cached
       if (state.friendsScheduleData.has(friendId)) {
         return;
       }
-      
+
       // Load schedule data
       const scheduleData = await dataManager.getUserSchedule(friendId);
       if (scheduleData) {
         state.friendsScheduleData.set(friendId, scheduleData);
-        
+
         // Add to users state for rendering
         const friendUser = {
           id: friendId,
           name: friend.displayName,
           timeSlots: scheduleData.timeSlots || DEFAULT_TIMESLOTS,
-          schedule: scheduleData.schedule || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
-          slotInfo: scheduleData.slotInfo || createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({ courseCode: "", classroomNumber: "" })),
+          schedule:
+            scheduleData.schedule ||
+            createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+          slotInfo:
+            scheduleData.slotInfo ||
+            createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({
+              courseCode: "",
+              classroomNumber: "",
+            })),
           pinnedSlots: createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
         };
-        
+
         state.users[friendId] = friendUser;
       }
     });
-    
+
     await Promise.all(loadPromises);
     console.log("✅ Loaded schedules for comparison");
-    
   } catch (error) {
     console.error("❌ Failed to load schedules for comparison:", error);
   }
@@ -3714,16 +4263,19 @@ function cleanupHorizontalFriendsBar() {
     state.horizontalFriendsBar.destroy();
     state.horizontalFriendsBar = null;
   }
-  
+
   // Remove event listeners
-  document.removeEventListener('schedule:change', handleFriendScheduleChange);
-  document.removeEventListener('compare:mode', handleCompareModeChange);
-  document.removeEventListener('compare:selection', handleCompareSelectionChange);
-  
+  document.removeEventListener("schedule:change", handleFriendScheduleChange);
+  document.removeEventListener("compare:mode", handleCompareModeChange);
+  document.removeEventListener(
+    "compare:selection",
+    handleCompareSelectionChange
+  );
+
   // Clear state
   state.currentViewingFriendId = null;
   state.friendsScheduleData.clear();
-  
+
   console.log("🧹 Horizontal Friends Bar cleaned up");
 }
 
@@ -3783,7 +4335,7 @@ document.addEventListener("spa:page:load", (event) => {
     setupInputValidation();
     setupEventListeners();
     setupExportImportListeners(state, saveStateToStorage, updateUI);
-    
+
     // Initialize Phase-3: Horizontal Friends Bar
     console.log("⭐ Initializing Horizontal Friends Bar...");
     initializeHorizontalFriendsBar();

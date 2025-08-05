@@ -2556,7 +2556,6 @@ body:not(.dark-mode) #slotTooltip {
     padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Reduced top padding */
     margin: 0;
     border-radius: var(--radius-xl) !important; /* Consistent border radius */
-    min-height: fit-content;
     /* Ensure glass styling consistency on mobile */
     background: var(--glass-bg) !important;
     border: 1px solid var(--glass-border) !important;
@@ -2607,8 +2606,7 @@ body:not(.dark-mode) #slotTooltip {
 
 @media (max-width: 480px) {
   .horizontal-friends-bar {
-    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Reduced top padding */
-    min-height: fit-content;
+    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Reduced top padding */;
     /* Ensure glass styling consistency on small mobile */
     border-radius: var(--radius-xl) !important; /* Consistent border radius */
     background: var(--glass-bg) !important;

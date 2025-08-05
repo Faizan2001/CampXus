@@ -1,0 +1,871 @@
+/*
+====================================================================================
+                          MOBILE SCHEDULE REDESIGN STYLES
+                     Day View, View Toggles, and Mobile Optimizations
+====================================================================================
+
+🎯 COMPONENT SCOPE:
+This file contains all styles for the mobile-friendly schedule redesign:
+
+📋 INCLUDED STYLES:
+- View mode toggle buttons (Day/Grid)
+- Day selector bar with navigation
+- Day view time slot cards
+- Avatar containers for compare mode
+- Mobile touch interactions
+- Responsive breakpoints and optimizations
+
+====================================================================================
+*/
+
+/* ===== VIEW MODE TOGGLE BUTTONS ===== */
+.schedule-view-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0; /* Prevent compression by flexbox parent */
+}
+
+.view-mode-toggle {
+  display: flex;
+  background: var(--view-toggle-bg);
+  border: 1px solid var(--view-toggle-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(2px, 0.5vw, 4px); /* Responsive padding */
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+
+.view-mode-btn {
+  padding: clamp(6px, 2vw, 8px) clamp(12px, 4vw, 16px); /* Responsive padding */
+  border: none;
+  background: transparent;
+  color: var(--view-toggle-inactive-text);
+  font-size: clamp(0.75rem, 2.2vw, 0.875rem); /* Responsive font size */
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--view-transition-duration) var(--view-transition-easing);
+  min-width: clamp(4rem, 20vw, 5rem); /* Responsive button width */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1.5vw, 6px); /* Responsive gap */
+}
+
+.view-mode-btn.active {
+  background: var(--view-toggle-active-bg);
+  color: var(--view-toggle-active-text);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.view-mode-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.view-mode-btn i {
+  font-size: 0.8rem;
+}
+
+/* ===== DAY SELECTOR BAR ===== */
+.day-selector-container {
+  margin-bottom: var(
+    --space-lg
+  ); /* Increased bottom margin for better spacing */
+  padding: var(--space-sm) 0; /* Add vertical padding */
+  overflow-x: auto; /* Allow horizontal scrolling for day buttons */
+  overflow-y: hidden; /* Prevent vertical scrolling */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  position: relative;
+  background: rgba(255, 255, 255, 0.02); /* Subtle background */
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.05); /* Subtle border */
+  min-height: calc(
+    4.25rem + var(--space-sm) * 2
+  ); /* Responsive height: button height + padding */
+}
+
+.day-selector-container::-webkit-scrollbar {
+  height: 2px;
+}
+
+.day-selector-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.day-selector-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 1px;
+}
+
+.day-selector {
+  display: flex;
+  gap: var(--space-sm); /* Consistent gap between day buttons */
+  justify-content: space-evenly;
+  padding: 0 var(--space-md); /* Horizontal padding inside container */
+  min-width: max-content; /* Allow content to determine width for scrolling */
+}
+
+.day-btn {
+  flex: 0 0 auto; /* Don't flex, maintain fixed width for scrolling */
+  min-width: clamp(3.5rem, 15vw, 3.75rem); /* Responsive width: 56px to 60px */
+  width: clamp(3.5rem, 15vw, 3.75rem); /* Responsive width */
+  height: clamp(3.5rem, 16vw, 4.25rem); /* Responsive height: 56px to 68px */
+  border: none;
+  background: var(--day-inactive-bg);
+  color: var(--day-inactive-text);
+  border-radius: var(
+    --radius-lg
+  ); /* Larger border radius for more prominent appearance */
+  cursor: pointer;
+  transition: all var(--day-transition-duration) var(--view-transition-easing);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2px, 1vw, 4px); /* Responsive gap between abbreviation and date */
+  font-weight: 500;
+  position: relative;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--day-selector-border);
+  box-shadow: var(--shadow-sm); /* Add subtle shadow for depth */
+}
+
+.day-btn.active {
+  background: var(--day-active-bg);
+  color: var(--day-active-text);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: var(--shadow-accent-light);
+  border-color: var(--accent-primary);
+}
+
+.day-btn.today::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  background: var(--day-today-indicator);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--day-today-indicator);
+}
+
+.day-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.day-abbreviation {
+  font-size: clamp(0.7rem, 2vw, 0.8rem); /* Responsive font size */
+  font-weight: 700; /* Bolder weight for hierarchy */
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.day-date {
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem); /* Responsive font size */
+  font-weight: 600; /* Bold date number */
+  opacity: 0.9;
+}
+
+/* ===== VIEW CONTAINER DISPLAY LOGIC ===== */
+/* Ensure only one view is shown at a time with high specificity */
+.schedule-section .schedule-day-view {
+  display: none !important;
+}
+
+.schedule-section .schedule-day-view.active {
+  display: flex !important; /* Make it a flex container */
+  flex-direction: column;
+  flex: 1; /* Take remaining space after headers */
+  min-height: 0; /* Allow flexbox shrinking */
+  animation: slideIn var(--view-transition-duration)
+    var(--view-transition-easing);
+}
+
+.schedule-section .schedule-grid-view {
+  display: none !important;
+}
+
+.schedule-section .schedule-grid-view.active {
+  display: block !important;
+  animation: slideIn var(--view-transition-duration)
+    var(--view-transition-easing);
+}
+
+/* Day selector only shows in day view */
+.schedule-section .day-selector-container {
+  display: none;
+}
+
+.schedule-section .day-selector-container.show {
+  display: block;
+  flex-shrink: 0; /* Prevent compression by flexbox parent */
+}
+
+.day-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(var(--space-xs), 2vw, var(--space-sm)); /* Responsive gap */
+  /* Use available height within the schedule-day-view container */
+  flex: 1; /* Take all available space in flex parent */
+  min-height: 0; /* Allow flexbox to shrink properly */
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  /* Firefox scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) transparent;
+  /* Remove all padding - let parent glass card handle spacing */
+  padding: 0;
+  margin: 0; /* Remove margins to fit within parent */
+  background: transparent; /* Let parent glass card handle background */
+  border-radius: 0; /* Remove border radius to fit seamlessly */
+  border: none; /* Remove border to fit within parent card */
+  /* Ensure proper scrolling with momentum */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* Ensure container stays within bounds */
+  position: relative;
+  contain: layout style;
+  /* Debug border to visualize container bounds */
+  /* border: 2px solid rgba(255, 0, 0, 0.3) !important; */
+}
+
+/* Custom scrollbar for day view */
+.day-view-container::-webkit-scrollbar {
+  width: 4px; /* Minimal width */
+}
+
+.day-view-container::-webkit-scrollbar-track {
+  background: transparent; /* Minimal track */
+  border-radius: 2px;
+}
+
+.day-view-container::-webkit-scrollbar-thumb {
+  background: var(--accent-primary); /* Purple color */
+  border-radius: 2px;
+  /* Add hover effect for better UX */
+}
+
+.day-view-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-secondary); /* Slightly different purple on hover */
+}
+
+/* ===== DAY VIEW TIME SLOTS ===== */
+.day-time-slot {
+  display: flex;
+  align-items: center;
+  min-height: clamp(
+    3.5rem,
+    15vh,
+    var(--day-slot-height)
+  ); /* Responsive height */
+  background: var(--day-slot-bg);
+  border: 1px solid var(--day-slot-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(
+    var(--space-sm),
+    3vw,
+    var(--space-md)
+  ); /* Reduced padding to respect glass card */
+  cursor: pointer;
+  transition: all 0.2s var(--view-transition-easing);
+  backdrop-filter: blur(15px);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: clamp(
+    var(--space-xs),
+    2vw,
+    var(--space-sm)
+  ); /* Responsive margin */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* Ensure slots don't shrink and maintain minimum spacing */
+  flex-shrink: 0;
+}
+
+.day-time-slot:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-primary);
+}
+
+.day-time-slot.busy {
+  background: var(--day-slot-busy-bg);
+  color: var(--day-slot-busy-text);
+  border-color: var(--accent-primary);
+}
+
+.day-time-slot.free {
+  background: var(--day-slot-free-bg);
+  border-color: var(--day-slot-free-border);
+  border-style: dashed;
+}
+
+.day-time-slot.pinned::after {
+  content: "📍";
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+/* Time slot content layout */
+.slot-time {
+  min-width: clamp(5rem, 20vw, 6.25rem); /* Responsive width: 80px to 100px */
+  font-size: clamp(0.8rem, 2vw, 0.9rem); /* Responsive font size */
+  font-weight: 700; /* Bolder for time hierarchy */
+  color: var(--text-primary); /* More prominent color */
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.08); /* Enhanced glassmorphism background */
+  padding: clamp(6px, 2vw, 10px) clamp(10px, 3vw, 14px); /* Responsive padding */
+  border-radius: var(--radius-md); /* Slightly larger radius */
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.15); /* More visible border */
+  backdrop-filter: blur(20px); /* Enhanced blur effect */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1); /* Inner highlight */
+  transition: all 0.2s ease;
+}
+
+.day-time-slot.busy .slot-time {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.slot-content {
+  flex: 1;
+  margin-left: var(--space-lg); /* Increased spacing from time */
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Increased gap for better hierarchy */
+  justify-content: center; /* Center content vertically */
+}
+
+.slot-course-code {
+  font-size: clamp(1rem, 3vw, 1.1rem); /* Responsive font size */
+  font-weight: 700; /* Bold course code */
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.slot-classroom {
+  font-size: clamp(0.75rem, 2vw, 0.85rem); /* Responsive font size */
+  opacity: 0.8;
+  font-weight: 500; /* Slightly bolder */
+  color: var(--text-secondary);
+}
+
+.slot-free-text {
+  font-size: clamp(0.875rem, 2.5vw, 0.95rem); /* Responsive font size */
+  color: var(--text-secondary);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ===== COMPARE MODE AVATAR CONTAINERS ===== */
+.day-time-slot.compare-mode {
+  cursor: default;
+}
+
+.day-time-slot.compare-mode:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.slot-avatar-container {
+  flex: 1;
+  margin-left: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--avatar-spacing);
+  padding: var(--space-xs) 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.slot-avatar-container::-webkit-scrollbar {
+  display: none;
+}
+
+.friend-avatar {
+  flex-shrink: 0;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  border: var(--avatar-border-width) solid var(--accent-primary);
+  object-fit: cover;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.friend-avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 12px rgba(124, 77, 255, 0.4);
+}
+
+.friend-avatar.user-avatar {
+  border-color: var(--day-today-indicator);
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
+}
+
+
+.friend-avatar:hover .avatar-label {
+  opacity: 1;
+  color: var(--text-primary); /* Brighten on hover */
+}
+
+.avatar-overflow {
+  flex-shrink: 0;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  background: var(--surface);
+  border: var(--avatar-border-width) solid var(--accent-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.empty-slot-message {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* ===== GRID VIEW CONTAINER (MOBILE OPTIMIZED) ===== */
+/* Grid view rules updated above with higher specificity */
+
+.schedule-section .schedule-grid-view .schedule-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.schedule-section .schedule-grid-view .schedule-table {
+  min-width: 800px; /* Ensure table has minimum width for readability */
+}
+
+.schedule-section .schedule-grid-view .schedule-table td,
+.schedule-section .schedule-grid-view .schedule-table th {
+  min-width: 100px;
+  padding: 8px 6px;
+  font-size: 0.8rem;
+}
+
+.schedule-section .schedule-grid-view .slot {
+  min-height: 50px;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes avatarSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.friend-avatar {
+  animation: avatarSlideIn 0.3s ease;
+}
+
+/* ===== RESPONSIVE BREAKPOINTS (MOBILE-FIRST) ===== */
+
+/* Base Mobile Styles (320px+) - Default above */
+
+/* Small Mobile Landscape / Large Mobile Portrait (480px+) */
+@media (min-width: 30em) {
+  .schedule-view-controls {
+    margin-bottom: var(--space-md);
+  }
+
+  .view-mode-btn {
+    min-width: 4.5rem;
+    font-size: 0.875rem;
+  }
+
+  .day-time-slot {
+    min-height: 4rem;
+    padding: var(--space-md); /* Consistent padding within glass card */
+  }
+}
+
+/* Tablet Portrait (768px+) */
+@media (min-width: 48em) {
+  /* Remove schedule-container padding - let glass card handle it */
+
+  .schedule-view-controls {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+  }
+
+  .view-mode-toggle {
+    margin-bottom: 0;
+  }
+
+  .day-selector-container {
+    gap: var(--space-md);
+
+    /* Better scrolling on tablet */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .day-selector-btn {
+    min-width: 4rem;
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .day-time-slot {
+    min-height: 4.5rem;
+    padding: var(--space-md) var(--space-lg); /* Reasonable padding for tablet */
+  }
+}
+
+/* Tablet Landscape / Small Desktop (1024px+) */
+@media (min-width: 64em) {
+  .schedule-day-view {
+    display: none;
+  }
+
+  .schedule-day-view.active {
+    display: flex !important; /* Override to respect active state on desktop */
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .schedule-grid-view {
+    display: block;
+  }
+
+  .view-mode-toggle {
+    order: 2;
+  }
+
+  .day-selector-container {
+    display: none;
+    padding: var(--space-md);
+    gap: var(--space-lg);
+  }
+
+  .schedule-section.day-view-active .day-selector-container {
+    display: block;
+  }
+
+  .schedule-section.day-view-active .schedule-day-view {
+    display: flex !important; /* Use flex for proper container */
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .schedule-section.day-view-active .schedule-grid-view {
+    display: none;
+  }
+
+  .day-view-container {
+    /* Let parent schedule-section handle height constraints */
+    /* Better scrollbar for desktop - purple and minimal */
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) transparent;
+  }
+
+  .day-view-container::-webkit-scrollbar {
+    width: 6px; /* Slightly wider for desktop */
+  }
+
+  .day-view-container::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+  }
+
+  .day-view-container::-webkit-scrollbar-thumb {
+    background: var(--accent-primary); /* Purple */
+    border-radius: 3px;
+  }
+
+  .day-view-container::-webkit-scrollbar-thumb:hover {
+    background: var(
+      --accent-secondary
+    ); /* Slightly different purple on hover */
+  }
+
+  .day-time-slot {
+    min-height: 5rem;
+    padding: var(--space-lg); /* Desktop padding without excessive spacing */
+  }
+}
+
+/* Large Desktop (1200px+) */
+@media (min-width: 75em) {
+  .schedule-view-controls {
+    padding-bottom: var(--space-lg);
+  }
+
+  .day-time-slot {
+    min-height: 5.5rem;
+    padding: var(--space-lg); /* Consistent with desktop */
+  }
+}
+
+/* Ultra-wide Desktop (1600px+) */
+@media (min-width: 100em) {
+  .day-time-slot {
+    min-height: 6rem;
+    padding: var(--space-xl); /* Slightly more padding for ultra-wide */
+  }
+}
+
+/* ===== TOUCH INTERACTIONS ===== */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device optimizations */
+  .day-btn,
+  .day-time-slot,
+  .friend-avatar {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .day-time-slot {
+    min-height: calc(var(--day-slot-height) + 10px); /* Larger touch targets */
+  }
+
+  .friend-avatar:active {
+    transform: scale(0.95);
+  }
+
+  .day-btn:active {
+    transform: translateY(0) scale(1.02);
+  }
+}
+
+/* ===== ACCESSIBILITY ENHANCEMENTS ===== */
+@media (prefers-reduced-motion: reduce) {
+  .day-time-slot,
+  .friend-avatar,
+  .day-btn,
+  .view-mode-btn {
+    transition: none;
+  }
+
+  .schedule-day-view.active,
+  .schedule-grid-view.active {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .day-time-slot {
+    border-width: 2px;
+  }
+
+  .friend-avatar {
+    border-width: 3px;
+  }
+
+  .day-btn.active {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+.day-btn:focus-visible,
+.view-mode-btn:focus-visible,
+.day-time-slot:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(124, 77, 255, 0.2);
+}
+
+/* ===== GRID VIEW RESPONSIVE STYLES ===== */
+
+/* Mobile Grid View Optimizations */
+@media (max-width: 48em) {
+  .schedule-grid-view .schedule-table {
+    min-width: clamp(50rem, 90vw, 60rem); /* Responsive table width */
+  }
+
+  .schedule-grid-view .schedule-table .time-header,
+  .schedule-grid-view .schedule-table .time-slot-label {
+    width: clamp(4rem, 15vw, 5rem); /* Responsive time column width */
+    min-width: clamp(4rem, 15vw, 5rem);
+    max-width: clamp(4rem, 15vw, 5rem);
+    padding: clamp(0.5rem, 3vw, 0.75rem) clamp(0.25rem, 2vw, 0.5rem); /* Responsive padding */
+    font-size: clamp(0.7rem, 2vw, 0.75rem); /* Responsive font size */
+  }
+
+  .schedule-grid-view .schedule-table .day-header {
+    padding: clamp(0.5rem, 3vw, 0.75rem) clamp(0.25rem, 1.5vw, 0.375rem);
+    font-size: clamp(0.75rem, 2.2vw, 0.8rem);
+    min-width: clamp(2rem, 8vw, 2.5rem);
+  }
+
+  .schedule-grid-view .slot {
+    height: clamp(3rem, 12vw, 3.5rem); /* Responsive slot height */
+    min-height: clamp(3rem, 12vw, 3.5rem);
+    padding: clamp(0.25rem, 1vw, 0.5rem);
+  }
+
+  .schedule-grid-view .slot-info-display .course-code {
+    font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+  }
+
+  .schedule-grid-view .slot-info-display .classroom-number {
+    font-size: clamp(0.55rem, 1.5vw, 0.65rem);
+  }
+
+  .schedule-grid-view .add-timeslot-btn {
+    padding: clamp(0.5rem, 2vw, 0.625rem);
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+}
+
+/* Very Small Mobile Grid View */
+@media (max-width: 30em) {
+  .schedule-grid-view .schedule-table {
+    min-width: 45rem;
+  }
+
+  .schedule-grid-view .schedule-table .time-header,
+  .schedule-grid-view .schedule-table .time-slot-label {
+    width: 3.5rem;
+    min-width: 3.5rem;
+    max-width: 3.5rem;
+    padding: 0.5rem 0.25rem;
+    font-size: 0.65rem;
+  }
+
+  .schedule-grid-view .schedule-table .day-header {
+    padding: 0.5rem 0.125rem;
+    font-size: 0.7rem;
+    min-width: 1.75rem;
+  }
+
+  .schedule-grid-view .slot {
+    height: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0.125rem;
+  }
+
+  .schedule-grid-view .slot-info-display .course-code {
+    font-size: 0.6rem;
+  }
+
+  .schedule-grid-view .slot-info-display .classroom-number {
+    font-size: 0.5rem;
+  }
+}
+
+/* ===== RESPONSIVE UTILITIES AND OVERRIDES ===== */
+
+/* High DPI / Retina Display Optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .day-btn,
+  .view-mode-btn {
+    border-width: 0.5px; /* Thinner borders on high-DPI displays */
+  }
+
+  .day-time-slot {
+    backdrop-filter: blur(20px); /* Enhanced blur for better visual quality */
+  }
+}
+
+/* Landscape Orientation Optimizations */
+@media (orientation: landscape) and (max-height: 500px) {
+  .day-view-container {
+    max-height: 80vh; /* Use more screen height in landscape */
+  }
+
+  .schedule-view-controls {
+    margin-bottom: var(--space-md); /* Reduce spacing in landscape */
+  }
+
+  .day-selector-container {
+    min-height: calc(3rem + var(--space-sm) * 2); /* Compact day selector */
+  }
+}
+
+/* Print Styles */
+@media print {
+  .schedule-view-controls,
+  .day-selector-container {
+    display: none !important; /* Hide interactive elements when printing */
+  }
+
+  .day-view-container {
+    max-height: none; /* Remove height restrictions for printing */
+    overflow: visible;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  .day-time-slot {
+    break-inside: avoid; /* Prevent page breaks inside time slots */
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}
+
+/* Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Forced Colors / High Contrast */
+@media (forced-colors: active) {
+  .day-btn,
+  .view-mode-btn,
+  .day-time-slot {
+    border: 2px solid;
+  }
+
+  .day-btn.active,
+  .view-mode-btn.active {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

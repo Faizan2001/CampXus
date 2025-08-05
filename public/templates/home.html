@@ -68,7 +68,11 @@
         <h3>
           <i class="fas fa-calendar-week"></i>
           Weekly Schedule
-          <span id="schedule-owner-indicator" class="schedule-owner-indicator" style="display: none;">
+          <span
+            id="schedule-owner-indicator"
+            class="schedule-owner-indicator"
+            style="display: none"
+          >
             <i class="fas fa-user-friends"></i>
             <span class="owner-name"></span>
           </span>
@@ -94,95 +98,93 @@
           </button>
         </div>
       </div>
-      <div class="schedule-wrapper">
-        <table id="scheduleTable" class="schedule-table">
-          <thead>
-            <tr>
-              <th>Day/Time</th>
-              <th>8:00-9:30</th>
-              <th>9:40-11:10</th>
-              <th>11:20-12:50</th>
-              <th>1:00-2:30</th>
-              <th>2:40-4:10</th>
-              <th>4:20-5:50</th>
-              <th id="addTimeSlotHeaderCell">
-                <button
-                  type="button"
-                  id="addNewTimeSlotBtn"
-                  class="add-timeslot-btn"
-                  title="Add new time slot"
-                >
-                  <i class="fas fa-plus"></i>
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="day-label">Sunday</td>
-              <td class="slot" data-day="0" data-time="0"></td>
-              <td class="slot" data-day="0" data-time="1"></td>
-              <td class="slot" data-day="0" data-time="2"></td>
-              <td class="slot" data-day="0" data-time="3"></td>
-              <td class="slot" data-day="0" data-time="4"></td>
-              <td class="slot" data-day="0" data-time="5"></td>
-            </tr>
-            <tr>
-              <td class="day-label">Monday</td>
-              <td class="slot" data-day="1" data-time="0"></td>
-              <td class="slot" data-day="1" data-time="1"></td>
-              <td class="slot" data-day="1" data-time="2"></td>
-              <td class="slot" data-day="1" data-time="3"></td>
-              <td class="slot" data-day="1" data-time="4"></td>
-              <td class="slot" data-day="1" data-time="5"></td>
-            </tr>
-            <tr>
-              <td class="day-label">Tuesday</td>
-              <td class="slot" data-day="2" data-time="0"></td>
-              <td class="slot" data-day="2" data-time="1"></td>
-              <td class="slot" data-day="2" data-time="2"></td>
-              <td class="slot" data-day="2" data-time="3"></td>
-              <td class="slot" data-day="2" data-time="4"></td>
-              <td class="slot" data-day="2" data-time="5"></td>
-            </tr>
-            <tr>
-              <td class="day-label">Wednesday</td>
-              <td class="slot" data-day="3" data-time="0"></td>
-              <td class="slot" data-day="3" data-time="1"></td>
-              <td class="slot" data-day="3" data-time="2"></td>
-              <td class="slot" data-day="3" data-time="3"></td>
-              <td class="slot" data-day="3" data-time="4"></td>
-              <td class="slot" data-day="3" data-time="5"></td>
-            </tr>
-            <tr>
-              <td class="day-label">Thursday</td>
-              <td class="slot" data-day="4" data-time="0"></td>
-              <td class="slot" data-day="4" data-time="1"></td>
-              <td class="slot" data-day="4" data-time="2"></td>
-              <td class="slot" data-day="4" data-time="3"></td>
-              <td class="slot" data-day="4" data-time="4"></td>
-              <td class="slot" data-day="4" data-time="5"></td>
-            </tr>
-            <tr>
-              <td class="day-label">Friday</td>
-              <td class="slot" data-day="5" data-time="0"></td>
-              <td class="slot" data-day="5" data-time="1"></td>
-              <td class="slot" data-day="5" data-time="2"></td>
-              <td class="slot" data-day="5" data-time="3"></td>
-              <td class="slot" data-day="5" data-time="4"></td>
-              <td class="slot" data-day="5" data-time="5"></td>
-            </tr>
-            <tr>
-              <td class="day-label">Saturday</td>
-              <td class="slot" data-day="6" data-time="0"></td>
-              <td class="slot" data-day="6" data-time="1"></td>
-              <td class="slot" data-day="6" data-time="2"></td>
-              <td class="slot" data-day="6" data-time="3"></td>
-              <td class="slot" data-day="6" data-time="4"></td>
-              <td class="slot" data-day="6" data-time="5"></td>
-            </tr>
-          </tbody>
-        </table>
+
+      <!-- New Mobile-First View Controls -->
+      <div class="schedule-view-controls">
+        <div class="view-mode-toggle">
+          <button class="view-mode-btn active" id="dayViewBtn" data-view="day">
+            <i class="fas fa-list"></i>
+            Day View
+          </button>
+          <button class="view-mode-btn" id="gridViewBtn" data-view="grid">
+            <i class="fas fa-th"></i>
+            Grid View
+          </button>
+        </div>
+      </div>
+
+      <!-- Day Selector Bar (shows only in day view mode) -->
+      <div class="day-selector-container" id="daySelectorContainer">
+        <div class="day-selector" id="daySelector">
+          <button class="day-btn" data-day="0" id="dayBtn0">
+            <span class="day-abbreviation">Su</span>
+            <span class="day-date">1</span>
+          </button>
+          <button class="day-btn" data-day="1" id="dayBtn1">
+            <span class="day-abbreviation">M</span>
+            <span class="day-date">2</span>
+          </button>
+          <button class="day-btn" data-day="2" id="dayBtn2">
+            <span class="day-abbreviation">Tu</span>
+            <span class="day-date">3</span>
+          </button>
+          <button class="day-btn" data-day="3" id="dayBtn3">
+            <span class="day-abbreviation">W</span>
+            <span class="day-date">4</span>
+          </button>
+          <button class="day-btn" data-day="4" id="dayBtn4">
+            <span class="day-abbreviation">Th</span>
+            <span class="day-date">5</span>
+          </button>
+          <button class="day-btn" data-day="5" id="dayBtn5">
+            <span class="day-abbreviation">F</span>
+            <span class="day-date">6</span>
+          </button>
+          <button class="day-btn" data-day="6" id="dayBtn6">
+            <span class="day-abbreviation">Sa</span>
+            <span class="day-date">7</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Day View Container (Mobile-First) -->
+      <div class="schedule-day-view active" id="scheduleDayView">
+        <div class="day-view-container" id="dayViewContainer">
+          <!-- Day view time slots will be generated here -->
+        </div>
+      </div>
+
+      <!-- Grid View Container (Traditional view) -->
+      <div class="schedule-grid-view" id="scheduleGridView">
+        <div class="schedule-wrapper">
+          <table id="scheduleTable" class="schedule-table">
+            <thead>
+              <tr>
+                <th class="time-header">Time</th>
+                <th class="day-header" data-day="0">S</th>
+                <th class="day-header" data-day="1">M</th>
+                <th class="day-header" data-day="2">T</th>
+                <th class="day-header" data-day="3">W</th>
+                <th class="day-header" data-day="4">T</th>
+                <th class="day-header" data-day="5">F</th>
+                <th class="day-header" data-day="6">S</th>
+                <th id="addTimeSlotHeaderCell">
+                  <button
+                    type="button"
+                    id="addNewTimeSlotBtn"
+                    class="add-timeslot-btn"
+                    title="Add new time slot"
+                  >
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows will be generated dynamically by JavaScript -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   </div>

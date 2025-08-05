@@ -35,6 +35,23 @@ export const DOM_ELEMENTS = {
   // Dynamic Time Slots
   addNewTimeSlotBtn: null,
   addTimeSlotHeaderCell: null, // Reference to the th cell containing the "+" button
+
+  // Mobile Schedule Redesign Elements
+  dayViewBtn: null,
+  gridViewBtn: null,
+  daySelectorContainer: null,
+  daySelector: null,
+  scheduleDayView: null,
+  scheduleGridView: null,
+  dayViewContainer: null,
+  // Day buttons (0-6 for Sunday-Saturday)
+  dayBtn0: null,
+  dayBtn1: null,
+  dayBtn2: null,
+  dayBtn3: null,
+  dayBtn4: null,
+  dayBtn5: null,
+  dayBtn6: null,
 };
 
 /**
@@ -84,8 +101,28 @@ export function initializeDomElements() {
     "addTimeSlotHeaderCell"
   );
 
+  // Mobile Schedule Redesign Elements
+  DOM_ELEMENTS.dayViewBtn = document.getElementById("dayViewBtn");
+  DOM_ELEMENTS.gridViewBtn = document.getElementById("gridViewBtn");
+  DOM_ELEMENTS.daySelectorContainer = document.getElementById(
+    "daySelectorContainer"
+  );
+  DOM_ELEMENTS.daySelector = document.getElementById("daySelector");
+  DOM_ELEMENTS.scheduleDayView = document.getElementById("scheduleDayView");
+  DOM_ELEMENTS.scheduleGridView = document.getElementById("scheduleGridView");
+  DOM_ELEMENTS.dayViewContainer = document.getElementById("dayViewContainer");
+
+  // Day buttons (0-6 for Sunday-Saturday)
+  DOM_ELEMENTS.dayBtn0 = document.getElementById("dayBtn0");
+  DOM_ELEMENTS.dayBtn1 = document.getElementById("dayBtn1");
+  DOM_ELEMENTS.dayBtn2 = document.getElementById("dayBtn2");
+  DOM_ELEMENTS.dayBtn3 = document.getElementById("dayBtn3");
+  DOM_ELEMENTS.dayBtn4 = document.getElementById("dayBtn4");
+  DOM_ELEMENTS.dayBtn5 = document.getElementById("dayBtn5");
+  DOM_ELEMENTS.dayBtn6 = document.getElementById("dayBtn6");
+
   // Debug log for important missing elements - but only after page templates are loaded
-  // NOTE: Critical elements like scheduleTable, userListContainer, compareButton 
+  // NOTE: Critical elements like scheduleTable, userListContainer, compareButton
   // are only available after the SPA router loads the home template.
   // This function is called during app initialization before templates are loaded,
   // so we skip the critical check here to avoid phantom errors.
@@ -116,20 +153,25 @@ export function validateCriticalElementsForRoute(route) {
   if (route === "home") {
     const criticalElements = [
       "scheduleTable",
-      "userListContainer", 
+      "userListContainer",
       "compareButton",
     ];
-    
-    const missingCritical = criticalElements.filter((key) => !DOM_ELEMENTS[key]);
-    
+
+    const missingCritical = criticalElements.filter(
+      (key) => !DOM_ELEMENTS[key]
+    );
+
     if (missingCritical.length > 0) {
-      console.error("Critical DOM elements missing for home page:", missingCritical);
+      console.error(
+        "Critical DOM elements missing for home page:",
+        missingCritical
+      );
       return false;
     }
-    
+
     console.log("✅ All critical DOM elements found for home page");
     return true;
   }
-  
+
   return true; // No critical elements to check for other routes
 }
