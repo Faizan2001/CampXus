@@ -6,7 +6,6 @@ export const DOM_ELEMENTS = {
   userIdInput: null,
   userListContainer: null,
   usersSection: null,
-  addUserButton: null,
   loginButton: null,
 
   // Schedule & Comparison
@@ -64,7 +63,6 @@ export function initializeDomElements() {
   DOM_ELEMENTS.userIdInput = document.getElementById("userId");
   DOM_ELEMENTS.userListContainer = document.getElementById("userList");
   DOM_ELEMENTS.usersSection = document.querySelector(".users-section");
-  DOM_ELEMENTS.addUserButton = document.getElementById("addUserHeaderBtn");
   DOM_ELEMENTS.loginButton = document.getElementById("login-btn");
 
   // Schedule & Comparison

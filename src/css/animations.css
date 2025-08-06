@@ -164,45 +164,6 @@ This file contains all animation and transition styles:
   animation: slideDown 0.3s ease-out;
 }
 
-/* ===== USER GLOW ANIMATION ===== */
-.add-user-glow {
-  animation: addUserGlow 0.6s ease-in-out 3 !important;
-}
-
-@keyframes addUserGlow {
-  0% {
-    box-shadow: 0 0 5px var(--accent-primary);
-  }
-  50% {
-    box-shadow: 0 0 20px var(--accent-primary),
-      0 0 30px var(--animation-glow-shadow-secondary);
-  }
-  100% {
-    box-shadow: 0 0 5px var(--accent-primary);
-  }
-}
-
-/* ===== GLOW EFFECT FOR USERS SECTION ===== */
-.users-section-glow {
-  animation: usersSectionGlow 0.6s ease-in-out 3 !important;
-}
-
-@keyframes usersSectionGlow {
-  0% {
-    box-shadow: 0 0 5px var(--accent-secondary);
-    border: 1px solid var(--accent-secondary);
-  }
-  50% {
-    box-shadow: 0 0 20px var(--accent-secondary),
-      0 0 30px var(--animation-glow-shadow-tertiary);
-    border: 1px solid var(--accent-secondary);
-    background-color: var(--animation-glow-bg);
-  }
-  100% {
-    box-shadow: 0 0 5px var(--accent-secondary);
-    border: 2px solid var(--accent-secondary);
-  }
-}
 
 /* ===== RESPONSIVE ANIMATION CONTROLS ===== */
 @media (prefers-reduced-motion: reduce) {

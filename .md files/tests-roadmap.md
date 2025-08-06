@@ -83,7 +83,6 @@ Priority: **Medium** - Visual components tested manually, automated testing woul
 
 Priority: **High** - User-facing features that benefit from comprehensive integration testing
 
-- `handleAddNewUser()` - Complete user creation workflow including validation
 - `handleDeleteUser(userIdToDelete)` - Deletion flow with modal confirmation
 - `handleSetActiveUser(userId)` - User selection and UI state updates
 - `handleToggleCompareMode()` - Compare mode state transitions

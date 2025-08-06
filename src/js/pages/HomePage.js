@@ -1064,11 +1064,9 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
       if (totalUserCount === 0) {
         // No users exist - trigger add user button glow
-        triggerAddUserGlow();
-      } else {
+              } else {
         // Users exist but no active user - trigger users section glow
-        triggerUsersSectionGlow();
-      }
+              }
     }
     return;
   }
@@ -2491,51 +2489,7 @@ function getPinModeButtonDynamicState(
   };
 }
 
-/**
- * Triggers a glow effect on the add user button to guide user interaction
- * when they try to interact with the disabled schedule.
- */
-function triggerAddUserGlow() {
-  if (DOM_ELEMENTS.addUserButton) {
-    // Remove any existing glow class
-    DOM_ELEMENTS.addUserButton.classList.remove("add-user-glow");
 
-    // Force reflow to ensure the class removal is processed
-    DOM_ELEMENTS.addUserButton.offsetHeight;
-
-    // Add the glow class to trigger the animation
-    DOM_ELEMENTS.addUserButton.classList.add("add-user-glow");
-
-    // Remove the class after animation completes (0.6s * 3 repetitions = 1.8s)
-    setTimeout(() => {
-      DOM_ELEMENTS.addUserButton.classList.remove("add-user-glow");
-    }, 2000);
-  }
-}
-
-/**
- * Triggers a glow effect on the users section to guide user interaction
- * when they try to interact with the disabled schedule and users exist.
- */
-function triggerUsersSectionGlow() {
-  if (DOM_ELEMENTS.usersSection) {
-    // Remove any existing glow class
-    DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
-
-    // Force reflow to ensure the class removal is processed
-    DOM_ELEMENTS.usersSection.offsetHeight;
-
-    // Add the glow class to trigger the animation
-    DOM_ELEMENTS.usersSection.classList.add("users-section-glow");
-
-    // Remove the class after animation completes (0.6s * 3 repetitions = 1.8s)
-    setTimeout(() => {
-      DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
-    }, 2000);
-  } else {
-    console.error("DOM_ELEMENTS.usersSection is null or undefined");
-  }
-}
 
 function updateUI() {
   // Clear memoization cache when UI updates (state changes)
@@ -2608,127 +2562,6 @@ function updateUI() {
 /* ================================
    EVENT HANDLERS & APP LOGIC
 ================================== */
-function handleAddNewUser() {
-  const addUserModalHTML = `
-    <div class="add-user-form-content">
-      <div class="input-group">
-        <div class="input-wrapper">
-          <i class="fas fa-user"></i>
-          <input
-            type="text"
-            id="modalUserName"
-            class="modal-input"
-            placeholder="Enter your name"
-            required
-          />
-        </div>
-        <div class="input-wrapper">
-          <i class="fas fa-id-card"></i>
-          <input
-            type="text"
-            inputmode="numeric"
-            id="modalUserId"
-            class="modal-input"
-            placeholder="Create a unique ID"
-            required
-          />
-        </div>
-      </div>
-      <div id="add-user-error-message" class="modal-error-message" style="display:none;"></div>
-    </div>
-  `;
-
-  showModal({
-    content: addUserModalHTML,
-    title: "Add New User",
-    isHtmlContent: true,
-    showConfirmationButtons: true,
-    confirmText: "Add User",
-    cancelText: "Cancel",
-    onConfirm: () => {
-      const nameInput = document.getElementById("modalUserName");
-      const userIdInput = document.getElementById("modalUserId");
-      const errorMessageElement = document.getElementById(
-        "add-user-error-message"
-      );
-
-      if (nameInput && userIdInput && errorMessageElement) {
-        const name = nameInput.value.trim();
-        const userId = userIdInput.value.trim();
-
-        // Reset error display
-        errorMessageElement.style.display = "none";
-
-        if (!name || !userId) {
-          errorMessageElement.textContent = "Name and ID are required.";
-          errorMessageElement.style.display = "block";
-          return false; // Prevent modal close
-        }
-
-        // Validate user ID format (numbers only)
-        if (!/^\d+$/.test(userId) || userId === "0" || userId.startsWith("0")) {
-          errorMessageElement.textContent =
-            "User ID must be a positive number without leading zeros.";
-          errorMessageElement.style.display = "block";
-          return false; // Prevent modal close
-        }
-
-        // Validate name format (letters, spaces, hyphens, apostrophes only)
-        if (!/^[a-zA-Z\s'-]+$/.test(name)) {
-          errorMessageElement.textContent =
-            "Name can only contain letters, spaces, hyphens, and apostrophes.";
-          errorMessageElement.style.display = "block";
-          return false; // Prevent modal close
-        }
-
-        const newUserObject = createUserObject(name, userId, state.users);
-        if (newUserObject) {
-          state.users[userId] = newUserObject;
-          handleSetActiveUser(userId);
-          showModal({
-            content: `User "${name}" (ID: ${userId}) has been added successfully!`,
-            title: "User Added",
-            showConfirmationButtons: true,
-            confirmText: "Ok",
-            cancelText: "", // Hide cancel button
-            onConfirm: () => true, // Just close the modal
-          });
-          return true; // Allow modal to close
-        } else {
-          errorMessageElement.textContent = `User ID "${userId}" already exists. Please choose a different ID.`;
-          errorMessageElement.style.display = "block";
-          return false; // Prevent modal close
-        }
-      }
-      console.error("Modal input fields not found.");
-      return false; // Prevent close if elements are missing
-    },
-    onCancel: () => {
-      console.log("Add user cancelled.");
-    },
-  });
-
-  // Set up input validation for the modal inputs after a brief delay to ensure they're in DOM
-  setTimeout(() => {
-    const modalNameInput = document.getElementById("modalUserName");
-    const modalUserIdInput = document.getElementById("modalUserId");
-
-    if (modalNameInput) {
-      modalNameInput.addEventListener("input", (e) => {
-        e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, "");
-      });
-    }
-
-    if (modalUserIdInput) {
-      modalUserIdInput.addEventListener("input", (e) => {
-        e.target.value = e.target.value.replace(/[^0-9]/g, "");
-        if (e.target.value.length > 1) {
-          e.target.value = e.target.value.replace(/^0+/, "");
-        }
-      });
-    }
-  }, 100);
-}
 
 function handleDeleteUser(userIdToDelete) {
   if (!state.users[userIdToDelete]) return;
@@ -2937,11 +2770,9 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
 
       if (totalUserCount === 0) {
         // No users exist - trigger add user button glow
-        triggerAddUserGlow();
-      } else {
+              } else {
         // Users exist but no active user - trigger users section glow
-        triggerUsersSectionGlow();
-      }
+              }
     }
     return;
   }
@@ -3101,8 +2932,6 @@ function setupInputValidation() {
 }
 
 function setupEventListeners() {
-  if (DOM_ELEMENTS.addUserButton)
-    DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
 
   if (DOM_ELEMENTS.togglePinModeBtn)
     DOM_ELEMENTS.togglePinModeBtn.addEventListener(
@@ -3134,14 +2963,12 @@ function setupEventListeners() {
         if (totalUserCount === 0) {
           // No users exist - trigger add user button glow
           console.log("No users exist, triggering add user glow");
-          triggerAddUserGlow();
-        } else {
+                  } else {
           // Users exist but no active user - trigger users section glow
           console.log(
             "Users exist but no active user, triggering users section glow"
           );
-          triggerUsersSectionGlow();
-        }
+                  }
       }
     });
   }

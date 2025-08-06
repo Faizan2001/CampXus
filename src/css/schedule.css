@@ -145,43 +145,6 @@ This file contains all styles related to the schedule display:
     0 8px 20px var(--focus-glow-shadow), 0 4px 8px var(--focus-general-shadow);
 }
 
-/* ===== ADD USER HEADER BUTTON ===== */
-.add-user-header-btn {
-  background: var(--accent-primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s var(--animation-smooth);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: var(--shadow-md);
-  white-space: nowrap;
-}
-
-.add-user-header-btn:hover {
-  background: var(--accent-secondary);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.add-user-header-btn:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
-}
-
-.add-user-header-btn i {
-  font-size: 0.8rem;
-}
-
-.add-user-header-btn i:last-child {
-  margin-left: -0.25rem;
-  opacity: 0.8;
-}
 
 /* ===== SCHEDULE WRAPPER & TABLE LAYOUT ===== */
 .schedule-wrapper {
@@ -503,10 +466,6 @@ This file contains all styles related to the schedule display:
     font-size: 1rem !important;
   }
 
-  .add-user-header-btn {
-    padding: 0.4rem 0.6rem !important;
-    font-size: 0.75rem !important;
-  }
 
   .many-slots-note {
     font-size: 0.7rem !important;
@@ -516,17 +475,8 @@ This file contains all styles related to the schedule display:
 
 /* ===== RESPONSIVE SCHEDULE DESIGN ===== */
 
-/* Mobile responsive styles for add user header button */
+/* Mobile responsive styles */
 @media (max-width: 768px) {
-  .add-user-header-btn {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.85rem;
-    gap: 0.4rem;
-  }
-
-  .add-user-header-btn i {
-    font-size: 0.75rem;
-  }
 
   /* Mobile-specific adjustments for proper containment */
   .schedule-section {
@@ -563,11 +513,6 @@ This file contains all styles related to the schedule display:
     min-width: 0; /* Allow text to truncate if needed */
   }
 
-  .add-user-header-btn {
-    flex-shrink: 0;
-    padding: 0.5rem 0.7rem;
-    font-size: 0.8rem;
-  }
 
   /* Force notification to appear on its own line below */
   .many-slots-note {

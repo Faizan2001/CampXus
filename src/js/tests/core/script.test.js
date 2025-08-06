@@ -929,13 +929,6 @@ describe("Schedule Disabled State", () => {
       },
     };
 
-    DOM_ELEMENTS.addUserButton = {
-      classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-      },
-      offsetHeight: 0,
-    };
 
     DOM_ELEMENTS.usersSection = {
       classList: {
@@ -984,61 +977,6 @@ describe("Schedule Disabled State", () => {
     );
   });
 
-  test("should trigger glow effect when interacting with disabled schedule", () => {
-    const state = getState();
-    state.activeUserId = null;
 
-    // Mock the triggerAddUserGlow function behavior
-    DOM_ELEMENTS.scheduleWrapper.classList.contains.mockReturnValue(true);
 
-    // Simulate the glow effect
-    DOM_ELEMENTS.addUserButton.classList.remove("add-user-glow");
-    DOM_ELEMENTS.addUserButton.classList.add("add-user-glow");
-
-    expect(DOM_ELEMENTS.addUserButton.classList.add).toHaveBeenCalledWith(
-      "add-user-glow"
-    );
-  });
-
-  test("should trigger add user glow when no users exist and disabled schedule is clicked", () => {
-    const state = getState();
-    state.activeUserId = null;
-    state.users = {}; // No users exist
-
-    // Mock the behavior when no users exist
-    DOM_ELEMENTS.addUserButton.classList.remove("add-user-glow");
-    DOM_ELEMENTS.addUserButton.classList.add("add-user-glow");
-
-    expect(DOM_ELEMENTS.addUserButton.classList.add).toHaveBeenCalledWith(
-      "add-user-glow"
-    );
-  });
-
-  test("should trigger users section glow when users exist but no active user and disabled schedule is clicked", () => {
-    const state = getState();
-    state.activeUserId = null;
-
-    // Create users but don't set active user
-    const user1 = createUserObject("User 1", "user1", state.users);
-    const user2 = createUserObject("User 2", "user2", state.users);
-    state.users[user1.id] = user1;
-    state.users[user2.id] = user2;
-
-    // Mock DOM elements for users section
-    DOM_ELEMENTS.usersSection = {
-      classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-      },
-      offsetHeight: 0,
-    };
-
-    // Mock the behavior when users exist but no active user
-    DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
-    DOM_ELEMENTS.usersSection.classList.add("users-section-glow");
-
-    expect(DOM_ELEMENTS.usersSection.classList.add).toHaveBeenCalledWith(
-      "users-section-glow"
-    );
-  });
 });
