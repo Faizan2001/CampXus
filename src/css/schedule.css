@@ -194,7 +194,7 @@ This file contains all styles related to the schedule display:
   position: relative; /* For sticky positioning context */
   flex: 1; /* Take remaining space after header */
   min-height: 250px; /* Reduced minimum for better mobile scaling */
-  max-height: 100%; /* Container-relative instead of viewport-relative */
+  max-height: calc(100vh - 300px); /* ✅ FIXED: Constrain height to prevent overflow */
   padding: 0.5rem; /* Add consistent padding for gap management */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 
@@ -276,6 +276,10 @@ This file contains all styles related to the schedule display:
   margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
   border-collapse: separate !important; /* Consistent with base table styling. */
   border-spacing: 0 !important; /* Consistent with base table styling. */
+  
+  /* ✅ FIXED: Additional constraints for comparison mode with many slots */
+  max-height: 70vh; /* Prevent table from exceeding viewport */
+  overflow-y: auto; /* Allow vertical scrolling for excessive rows */
 }
 
 /* Fix slot appearance and spacing - Enhanced visible borders */
@@ -1071,7 +1075,7 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
 .pin-mode-active
   .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(
     .slot-partial
-  ):not(.slot-busy) {
+  ) {
   border: 1px solid silver !important;
   background: linear-gradient(
     135deg,

@@ -121,10 +121,33 @@ function isMobileOrTablet() {
  * @param {*} defaultValue - Default value for each cell
  * @returns {Array<Array>} 7x timeSlots matrix
  */
+// Cache for matrix creation to avoid repeated allocations
+const matrixCache = new Map();
+
 function createWeeklyMatrix(timeSlots, defaultValue = false) {
-  return Array(7)
-    .fill(null)
-    .map(() => Array(timeSlots).fill(defaultValue));
+  // Create cache key based on parameters
+  const cacheKey = `${timeSlots}-${
+    typeof defaultValue === "function" ? "function" : defaultValue
+  }`;
+
+  // For function default values, we can't cache since each call should create new objects
+  if (typeof defaultValue === "function") {
+    return Array.from({ length: 7 }, () =>
+      Array.from({ length: timeSlots }, () => defaultValue())
+    );
+  }
+
+  // For primitive default values, we can cache the structure
+  if (!matrixCache.has(cacheKey)) {
+    const matrix = Array.from({ length: 7 }, () =>
+      Array.from({ length: timeSlots }, () => defaultValue)
+    );
+    matrixCache.set(cacheKey, matrix);
+  }
+
+  // Return deep copy to prevent mutation of cached version
+  const cached = matrixCache.get(cacheKey);
+  return cached.map((day) => [...day]);
 }
 
 /**
@@ -133,16 +156,13 @@ function createWeeklyMatrix(timeSlots, defaultValue = false) {
  * @returns {Array<Array<Object>>} 7x timeSlots matrix with slot info objects
  */
 function createSlotInfoMatrix(timeSlots) {
-  return Array(7)
-    .fill(null)
-    .map(() =>
-      Array(timeSlots)
-        .fill(null)
-        .map(() => ({
-          courseCode: "",
-          classroomNumber: "",
-        }))
-    );
+  // Can't cache this since each object should be unique
+  return Array.from({ length: 7 }, () =>
+    Array.from({ length: timeSlots }, () => ({
+      courseCode: "",
+      classroomNumber: "",
+    }))
+  );
 }
 
 /**
@@ -280,6 +300,26 @@ export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
   );
 }
 
+// Add memoization cache for expensive calculations
+const memoCache = {
+  slotStatus: new Map(),
+  tooltipMessages: new Map(),
+  comparisonData: new Map(),
+
+  // Clear cache when state changes
+  clear() {
+    this.slotStatus.clear();
+    this.tooltipMessages.clear();
+    this.comparisonData.clear();
+  },
+
+  // Generate cache key for slot operations
+  getSlotKey(dayIndex, timeIndex, selectedUserIds, compareMode, activeUserId) {
+    const userIds = Array.from(selectedUserIds).sort().join(",");
+    return `${dayIndex}-${timeIndex}-${compareMode}-${activeUserId}-${userIds}`;
+  },
+};
+
 /**
  * Determines the visual status/CSS class for a time slot based on current state
  * Handles both individual user mode and compare mode with unified schedules
@@ -291,6 +331,20 @@ export function toggleSlotInSchedule(dayIndex, timeIndex, userSchedule) {
 export function determineSlotStatus(dayIndex, timeIndex, currentState) {
   const { compareMode, selectedUserIds, users, activeUserId } = currentState;
 
+  // Check memoization cache first
+  const cacheKey = memoCache.getSlotKey(
+    dayIndex,
+    timeIndex,
+    selectedUserIds,
+    compareMode,
+    activeUserId
+  );
+  if (memoCache.slotStatus.has(cacheKey)) {
+    return memoCache.slotStatus.get(cacheKey);
+  }
+
+  let result;
+
   if (compareMode && selectedUserIds.size > 0) {
     // Create unified schedule for heterogeneous comparison
     const selectedUsers = Array.from(selectedUserIds)
@@ -298,41 +352,35 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
       .filter((user) => user);
 
     if (selectedUsers.length === 0) {
-      return "slot";
-    }
-
-    // Check if we need unified schedule for heterogeneous comparison
-    if (shouldUseUnifiedSchedule(selectedUsers)) {
+      result = "slot";
+    } else if (shouldUseUnifiedSchedule(selectedUsers)) {
       // Use UnifiedSchedule for heterogeneous time structures
-      console.log(
-        `[Performance] Creating unified schedule for ${selectedUsers.length} users with different time structures`
-      );
       const unifiedSchedule = createUnifiedSchedule(selectedUsers);
 
       if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
-        return "slot-partial"; // Slot doesn't exist in unified schedule
-      }
-
-      const status = unifiedSchedule.getSlotStatus(dayIndex, timeIndex);
-
-      if (status.busy.length === 0 && status.unavailable.length === 0) {
-        return "slot-free"; // All users are available
-      } else if (
-        status.busy.length === status.total &&
-        status.unavailable.length === 0
-      ) {
-        return "slot-conflict"; // All users are busy
+        result = "slot-partial"; // Slot doesn't exist in unified schedule
       } else {
-        return "slot-partial"; // Mixed availability or some users don't have this slot
+        const status = unifiedSchedule.getSlotStatus(dayIndex, timeIndex);
+
+        if (status.busy.length === 0 && status.unavailable.length === 0) {
+          result = "slot-free"; // All users are available
+        } else if (
+          status.busy.length === status.total &&
+          status.unavailable.length === 0
+        ) {
+          result = "slot-conflict"; // All users are busy
+        } else {
+          result = "slot-partial"; // Mixed availability or some users don't have this slot
+        }
       }
     } else {
-      // Fall back to original logic for homogeneous schedules
+      // Optimized logic for homogeneous schedules
       let busyCount = 0;
       let allUsersHaveSlot = true;
 
-      selectedUserIds.forEach((id) => {
+      for (const id of selectedUserIds) {
         const user = users[id];
-        if (user && user.schedule && user.schedule[dayIndex]) {
+        if (user?.schedule?.[dayIndex]) {
           if (timeIndex < user.schedule[dayIndex].length) {
             if (user.schedule[dayIndex][timeIndex]) {
               busyCount++;
@@ -343,29 +391,38 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
         } else {
           allUsersHaveSlot = false;
         }
-      });
-
-      if (!allUsersHaveSlot && selectedUserIds.size > 0) {
-        return "slot-partial";
       }
 
-      if (busyCount === 0 && selectedUserIds.size > 0) return "slot-free";
-      if (busyCount === selectedUserIds.size) return "slot-conflict";
-      if (selectedUserIds.size > 0) return "slot-partial";
+      if (!allUsersHaveSlot && selectedUserIds.size > 0) {
+        result = "slot-partial";
+      } else if (busyCount === 0 && selectedUserIds.size > 0) {
+        result = "slot-free";
+      } else if (busyCount === selectedUserIds.size) {
+        result = "slot-conflict";
+      } else if (selectedUserIds.size > 0) {
+        result = "slot-partial";
+      } else {
+        result = "slot";
+      }
     }
   } else if (activeUserId && users[activeUserId]) {
     const activeUserObj = users[activeUserId];
     if (
-      activeUserObj.schedule &&
-      activeUserObj.schedule[dayIndex] &&
-      timeIndex < activeUserObj.schedule[dayIndex].length
+      activeUserObj.schedule?.[dayIndex] &&
+      timeIndex < activeUserObj.schedule[dayIndex].length &&
+      activeUserObj.schedule[dayIndex][timeIndex]
     ) {
-      if (activeUserObj.schedule[dayIndex][timeIndex]) {
-        return "slot-selected";
-      }
+      result = "slot-selected";
+    } else {
+      result = "slot";
     }
+  } else {
+    result = "slot"; // Default
   }
-  return "slot"; // Default
+
+  // Cache the result
+  memoCache.slotStatus.set(cacheKey, result);
+  return result;
 }
 
 /**
@@ -379,6 +436,18 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
   const { users, selectedUserIds, compareMode } = currentState;
   if (selectedUserIds.size === 0) return "";
 
+  // Check memoization cache first
+  const cacheKey = memoCache.getSlotKey(
+    dayIndex,
+    timeIndex,
+    selectedUserIds,
+    compareMode,
+    currentState.activeUserId
+  );
+  if (memoCache.tooltipMessages.has(cacheKey)) {
+    return memoCache.tooltipMessages.get(cacheKey);
+  }
+
   // Check if we need unified schedule approach for heterogeneous comparison
   const selectedUsers = Array.from(selectedUserIds)
     .map((id) => users[id])
@@ -386,48 +455,51 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 
   if (selectedUsers.length === 0) return "";
 
+  let result;
+
   if (shouldUseUnifiedSchedule(selectedUsers)) {
     // Use UnifiedSchedule for heterogeneous tooltip generation
     const unifiedSchedule = createUnifiedSchedule(selectedUsers);
 
     if (timeIndex >= unifiedSchedule.unifiedTimeSlots.length) {
-      return "Time slot not available in unified schedule";
+      result = "Time slot not available in unified schedule";
+    } else {
+      const status = unifiedSchedule.getSlotStatus(dayIndex, timeIndex);
+      result = unifiedSchedule._generateTooltip(status);
     }
-
-    const status = unifiedSchedule.getSlotStatus(dayIndex, timeIndex);
-    return unifiedSchedule._generateTooltip(status);
   } else {
-    // Fall back to original logic for homogeneous schedules
-    const freeUsers = [];
-    const busyUsers = [];
+    // Optimized logic for homogeneous schedules
+    const available = [];
+    const busy = [];
 
-    selectedUserIds.forEach((userId) => {
-      const user = users[userId];
+    for (const id of selectedUserIds) {
+      const user = users[id];
       if (
-        user &&
-        user.schedule &&
-        user.schedule[dayIndex] &&
+        user?.schedule?.[dayIndex] &&
         timeIndex < user.schedule[dayIndex].length
       ) {
-        (user.schedule[dayIndex][timeIndex] ? busyUsers : freeUsers).push(
-          user.name
-        );
-      } else if (user) {
-        // If user exists but doesn't have this specific slot defined (e.g. heterogeneous schedules)
-        // For now, we don't list them, or could add to a 'N/A' list.
+        if (user.schedule[dayIndex][timeIndex]) {
+          busy.push(user.name || user.id);
+        } else {
+          available.push(user.name || user.id);
+        }
       }
-    });
+    }
 
-    if (busyUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
-      return "All selected users are unavailable.";
-    if (freeUsers.length === selectedUserIds.size && selectedUserIds.size > 0)
-      return "All selected users are free.";
+    const parts = [];
+    if (available.length > 0) {
+      parts.push(`Available: ${available.join(", ")}`);
+    }
+    if (busy.length > 0) {
+      parts.push(`Busy: ${busy.join(", ")}`);
+    }
 
-    let message = "Availability:\n";
-    if (freeUsers.length > 0) message += `Free: ${freeUsers.join(", ")}\n`;
-    if (busyUsers.length > 0) message += `Busy: ${busyUsers.join(", ")}`;
-    return message.trim();
+    result = parts.join("\n");
   }
+
+  // Cache the result
+  memoCache.tooltipMessages.set(cacheKey, result);
+  return result;
 }
 
 /**
@@ -1374,6 +1446,19 @@ async function loadState() {
       state.users[user.uid] = homePageFormat.users[user.uid];
       state.activeUserId = user.uid;
 
+      // Clean up any legacy "user" key duplicates that might exist from previous versions
+      if (state.users["user"]) {
+        console.log("🧹 Removing legacy 'user' key duplicate");
+        delete state.users["user"];
+      }
+
+      // Clear memoization and matrix caches since we have new user schedule data
+      memoCache.clear();
+      matrixCache.clear();
+      console.log(
+        "🧹 Cleared memoization and matrix caches after loading user schedule"
+      );
+
       // Update userStore with schedule data
       currentUser.setScheduleData(scheduleData);
 
@@ -1389,6 +1474,12 @@ async function loadState() {
       // Initialize empty user for UI
       state.users[user.uid] = createEmptyUser(user.uid);
       state.activeUserId = user.uid;
+
+      // Clean up any legacy "user" key duplicates
+      if (state.users["user"]) {
+        console.log("🧹 Removing legacy 'user' key duplicate");
+        delete state.users["user"];
+      }
     }
   } catch (error) {
     console.error("❌ [Phase-1] Failed to load user schedule:", error);
@@ -1399,6 +1490,12 @@ async function loadState() {
     if (user) {
       state.users[user.uid] = createEmptyUser(user.uid);
       state.activeUserId = user.uid;
+
+      // Clean up any legacy "user" key duplicates
+      if (state.users["user"]) {
+        console.log("🧹 Removing legacy 'user' key duplicate");
+        delete state.users["user"];
+      }
     }
   } finally {
     currentUser.setScheduleLoading(false);
@@ -1814,8 +1911,9 @@ function renderScheduleGrid() {
     compareMode: state.compareMode,
     selectedUserIds: Array.from(state.selectedUserIds),
     activeUserId: state.activeUserId,
-    totalUsers: Object.keys(state.users).length,
-    availableUsers: Object.keys(state.users),
+    totalLoadedUsers: Object.keys(state.users).length, // Only loaded users
+    loadedUserIds: Object.keys(state.users),
+    note: "In compare mode, only selected users' data is loaded on-demand"
   });
 
   if (!DOM_ELEMENTS.scheduleTable) {
@@ -1844,6 +1942,7 @@ function renderScheduleGrid() {
   let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
   let allowEditingHeaders = false;
   let usedUnifiedSchedule = false; // Track if unified schedule was used
+  let unifiedScheduleInstance = null; // Store the unified schedule instance
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     const user = state.users[state.activeUserId];
@@ -1852,6 +1951,7 @@ function renderScheduleGrid() {
       allowEditingHeaders = true;
     }
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
+    // ✅ COMPARE MODE: Only use selectedUserIds, ignore activeUserId completely
     const selectedUsers = Array.from(state.selectedUserIds)
       .map((id) => state.users[id])
       .filter((user) => user);
@@ -1872,16 +1972,48 @@ function renderScheduleGrid() {
       });
 
       if (needsUnifiedSchedule) {
-        const unifiedSchedule = createUnifiedSchedule(selectedUsers);
-        currentTimeSlotsToRender = unifiedSchedule.unifiedTimeSlots;
+        console.log(
+          "🔄 Creating unified schedule for heterogeneous time slots"
+        );
+        unifiedScheduleInstance = createUnifiedSchedule(selectedUsers);
+        currentTimeSlotsToRender = unifiedScheduleInstance.unifiedTimeSlots;
         usedUnifiedSchedule = true;
+        
+        // ✅ FIXED: Add constraint to prevent overflow - limit excessive granular slots
+        const MAX_COMPARE_SLOTS = 20; // Reasonable limit for comparison
+        if (currentTimeSlotsToRender.length > MAX_COMPARE_SLOTS) {
+          console.warn(`⚠️ UnifiedSchedule created ${currentTimeSlotsToRender.length} slots, using fallback`);
+          // Fallback to largest user's schedule to prevent UI overflow
+          const largestSchedule = selectedUsers.reduce((largest, user) => 
+            (user.timeSlots?.length || 0) > (largest.timeSlots?.length || 0) ? user : largest
+          );
+          currentTimeSlotsToRender = largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
+          usedUnifiedSchedule = false; // Don't use unified logic for comparison
+          unifiedScheduleInstance = null;
+        }
+        
+        console.log(
+          `📊 Unified schedule created with ${currentTimeSlotsToRender.length} granular time slots`
+        );
+        console.log(
+          "🔍 Original user time slot counts:",
+          selectedUsers.map((u) => ({
+            name: u.name || u.id,
+            slots: u.timeSlots?.length || 0,
+          }))
+        );
       } else {
+        console.log("📊 Using homogeneous schedule comparison");
         currentTimeSlotsToRender =
           selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
       }
     } else {
       currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
     }
+    allowEditingHeaders = false;
+  } else if (state.compareMode && state.selectedUserIds.size === 0) {
+    // ✅ COMPARE MODE: No users selected - show clean empty grid
+    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
     allowEditingHeaders = false;
   } else {
     currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
@@ -1900,7 +2032,18 @@ function renderScheduleGrid() {
   const courseColors = {};
   let colorIndex = 1;
 
+  // ✅ FIXED: Cache frequently accessed data for compare mode optimization
+  // Only get selected users when in compare mode - no activeUserId mixing
+  const selectedUsers =
+    state.compareMode && state.selectedUserIds.size > 0
+      ? Array.from(state.selectedUserIds)
+          .map((id) => state.users[id])
+          .filter((user) => user && user.schedule)
+      : [];
+
   // NEW LAYOUT: Each row is a time slot, columns are days
+  const fragment = document.createDocumentFragment(); // Use document fragment for better performance
+
   currentTimeSlotsToRender.forEach((timeSlot, timeIndex) => {
     const row = document.createElement("tr");
 
@@ -1918,7 +2061,7 @@ function renderScheduleGrid() {
 
     row.appendChild(timeCell);
 
-    // Create cells for each day (7 days: Sunday to Saturday)
+    // Create cells for each day (7 days: Sunday to Saturday) - optimized loop
     for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
       const dayCell = document.createElement("td");
       dayCell.classList.add("slot");
@@ -1927,94 +2070,131 @@ function renderScheduleGrid() {
 
       // Handle compare mode vs normal mode logic
       if (state.compareMode && state.selectedUserIds.size > 0) {
-        // COMPARE MODE: Only show comparison data, clear all previous selections
-        const selectedUsers = Array.from(state.selectedUserIds)
-          .map((id) => {
-            // First try direct lookup
-            if (state.users[id]) {
-              return state.users[id];
-            }
-            // If not found, search by any property that might match
-            return Object.values(state.users).find(
-              (user) =>
-                user.id === id || user.userId === id || user.friendId === id
+        // COMPARE MODE: Use unified schedule logic for accurate comparison
+
+        // Get selected users for this render cycle - ensure they exist
+        const currentSelectedUsers = Array.from(state.selectedUserIds)
+          .map((id) => state.users[id])
+          .filter((user) => user && user.timeSlots);
+
+        let busyUsers = [],
+          freeUsers = [];
+
+        // Only proceed if we have valid selected users
+        if (currentSelectedUsers.length > 0) {
+          if (usedUnifiedSchedule && unifiedScheduleInstance) {
+            // Use UnifiedSchedule class for granular comparison
+            const slotStatus = unifiedScheduleInstance.getSlotStatus(
+              dayIndex,
+              timeIndex
             );
-          })
-          .filter((user) => user && user.schedule);
+            // ✅ FIXED: Map UnifiedSchedule status to expected format
+            busyUsers = slotStatus.busy || [];
+            freeUsers = slotStatus.available || [];
 
-        console.log(
-          `🔍 Grid compare mode - slot [${dayIndex}][${timeIndex}]:`,
-          {
-            selectedUserIds: Array.from(state.selectedUserIds),
-            selectedUsersFound: selectedUsers.map((u) => ({
-              id: u.id,
-              name: u.name || u.id,
-            })),
-            hasScheduleData: selectedUsers.map(
-              (u) => !!u.schedule?.[dayIndex]?.[timeIndex]
-            ),
-            availableUserKeys: Object.keys(state.users),
-            stateUsersDebug: Object.keys(state.users).map((key) => ({
-              key,
-              userId: state.users[key].id,
-              name: state.users[key].name,
-              hasSchedule: !!state.users[key].schedule,
-            })),
-          }
-        );
-
-        // Check if any selected user is busy at this time
-        const busyUsers = selectedUsers.filter((user) => {
-          if (
-            user.schedule &&
-            user.schedule[dayIndex] &&
-            user.schedule[dayIndex][timeIndex] !== undefined
-          ) {
-            const isBusy = user.schedule[dayIndex][timeIndex];
             console.log(
-              `📊 Grid compare - user ${
-                user.name || user.id
-              } at [${dayIndex}][${timeIndex}]: ${isBusy ? "BUSY" : "FREE"}`
+              `📊 Unified Grid - slot [${dayIndex}][${timeIndex}] (${timeSlot.label}): ` +
+                `${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`
             );
-            return isBusy;
+
+            // Add granular time information to the cell for enhanced debugging
+            dayCell.dataset.unifiedSlot = "true";
+            dayCell.dataset.originalTimeSlot = JSON.stringify({
+              start: timeSlot.start,
+              end: timeSlot.end,
+              label: timeSlot.label,
+            });
+          } else {
+            // Fallback to direct comparison for homogeneous schedules
+            busyUsers = currentSelectedUsers.filter((user) => {
+              // Ensure schedule data exists for this specific time slot
+              if (
+                user.schedule &&
+                user.schedule[dayIndex] &&
+                timeIndex < user.schedule[dayIndex].length &&
+                user.schedule[dayIndex][timeIndex] !== undefined
+              ) {
+                const isBusy = user.schedule[dayIndex][timeIndex];
+                console.log(
+                  `📊 Direct compare - user ${
+                    user.name || user.id
+                  } at [${dayIndex}][${timeIndex}]: ${isBusy ? "BUSY" : "FREE"}`
+                );
+                return isBusy;
+              }
+              // Only log warning if timeIndex is within expected range
+              if (timeIndex < (user.timeSlots?.length || 7)) {
+                console.log(
+                  `⚠️ Direct compare - user ${
+                    user.name || user.id
+                  } missing schedule data at [${dayIndex}][${timeIndex}]`
+                );
+              }
+              return false;
+            });
+
+            freeUsers = currentSelectedUsers.filter(
+              (user) => !busyUsers.includes(user)
+            );
           }
-          console.log(
-            `⚠️ Grid compare - user ${
-              user.name || user.id
-            } missing schedule data at [${dayIndex}][${timeIndex}]`
-          );
-          return false;
-        });
-
-        const freeUsers = selectedUsers.filter(
-          (user) => !busyUsers.includes(user)
-        );
-
-        // Apply comparison styling - completely clear and only show comparison
-        if (busyUsers.length === 0) {
-          // All users free - use green free style
-          dayCell.classList.add("slot-free");
-          dayCell.title = `All available: ${selectedUsers
-            .map((u) => u.name || u.id)
-            .join(", ")}`;
-        } else if (busyUsers.length === selectedUsers.length) {
-          // All users busy - use red conflict style
-          dayCell.classList.add("slot-conflict");
-          dayCell.title = `All busy: ${busyUsers
-            .map((u) => u.name || u.id)
-            .join(", ")}`;
         } else {
-          // Some users busy - use orange partial style
-          dayCell.classList.add("slot-partial");
-          dayCell.title = `Mixed: Free (${freeUsers
-            .map((u) => u.name || u.id)
-            .join(", ")}) | Busy (${busyUsers
-            .map((u) => u.name || u.id)
-            .join(", ")})`;
+          // No valid selected users - show empty comparison state
+          busyUsers = [];
+          freeUsers = [];
+        }
+
+        // ✅ FIXED: Apply comparison styling with proper logic and cleanup
+        // Clear any previous styling first to prevent conflicts
+        dayCell.classList.remove("slot-selected", "slot-free", "slot-conflict", "slot-partial");
+        for (let i = 1; i <= 10; i++) {
+          dayCell.classList.remove(`color-${i}`);
+        }
+
+        if (currentSelectedUsers.length > 0) {
+          if (busyUsers.length === 0) {
+            // All users free - use green free style
+            dayCell.classList.add("slot-free");
+            dayCell.title = `All available: ${currentSelectedUsers
+              .map((u) => u.name || u.id)
+              .join(", ")}`;
+          } else if (busyUsers.length === currentSelectedUsers.length) {
+            // All users busy - use red busy style
+            dayCell.classList.add("slot-conflict");
+            dayCell.title = `All busy: ${busyUsers
+              .map((u) => u.name || u.id)
+              .join(", ")}`;
+          } else {
+            // Some users busy - use orange partial style
+            dayCell.classList.add("slot-partial");
+            const busyNames = busyUsers.map((u) => u.name || u.id).join(", ");
+            const freeNames = freeUsers.map((u) => u.name || u.id).join(", ");
+            dayCell.title = `Mixed: Free (${freeNames}) | Busy (${busyNames})`;
+          }
+        } else {
+          // No users - clean empty state
+          dayCell.title = "No users selected for comparison";
         }
 
         dayCell.dataset.busyUsers = busyUsers.map((u) => u.id).join(",");
         dayCell.dataset.freeUsers = freeUsers.map((u) => u.id).join(",");
+      } else if (state.compareMode && state.selectedUserIds.size === 0) {
+        // COMPARE MODE: No users selected - show clean empty grid
+        dayCell.classList.remove("slot-selected", "slot-free", "slot-conflict", "slot-partial");
+        
+        // Remove any color classes from previous renders
+        for (let i = 1; i <= 10; i++) {
+          dayCell.classList.remove(`color-${i}`);
+        }
+        
+        dayCell.title = "Compare mode active - Select friends to compare schedules";
+        
+        // Clear any previous data attributes
+        dayCell.dataset.busyUsers = "";
+        dayCell.dataset.freeUsers = "";
+        dayCell.dataset.unifiedSlot = "";
+        dayCell.dataset.originalTimeSlot = "";
+        
+        console.log(`🧹 Clean grid slot [${dayIndex}][${timeIndex}] - compare mode with no users selected`);
       } else if (
         !state.compareMode &&
         scheduleMatrixToRender &&
@@ -2209,7 +2389,7 @@ function renderScheduleGrid() {
       row.appendChild(dayCell);
     }
 
-    tableBody.appendChild(row);
+    tableBody.appendChild(row); // Back to direct DOM append to preserve event listeners
   });
 
   // Apply dynamic styling based on number of time slots
@@ -2267,42 +2447,7 @@ function renderUserList() {
     .join("");
 }
 
-// Helpers for Compare and Pin Mode Button
-
-/**
- * Determines the properties for the Compare Schedules button based on current app state.
- * @param {boolean} isPinModeCurrentlyActive - Whether pin mode is active.
- * @param {boolean} isCompareModeCurrentlyActive - Whether compare mode is active.
- * @param {number} userCount - Total number of users (or selected users for more complex logic).
- * @returns {object} An object with { isDisabled: boolean, isActiveClass: boolean }
- */
-function getCompareButtonDynamicState(
-  isPinModeCurrentlyActive,
-  isCompareModeCurrentlyActive,
-  totalUserCount
-) {
-  // Compare button should be disabled if:
-  // 1. Pin mode is active.
-  // 2. There are fewer than 2 users to compare (common requirement, adjust if needed).
-  const canActuallyCompare = !isPinModeCurrentlyActive && totalUserCount >= 2;
-  const conditionsToEnableButton =
-    !isPinModeCurrentlyActive && canActuallyCompare;
-
-  let text;
-  if (!canActuallyCompare || isPinModeCurrentlyActive) {
-    text = "Compare Schedules: DISABLED";
-  } else if (isCompareModeCurrentlyActive) {
-    text = "Compare Schedules: ON";
-  } else {
-    text = "Compare Schedules: OFF";
-  }
-
-  return {
-    isDisabled: !conditionsToEnableButton, // Compare button is disabled if pin mode is active or not enough users
-    isActiveClass: conditionsToEnableButton && isCompareModeCurrentlyActive, // Compare button's active class is for when compare mode IS ON
-    text: text, // Dynamic text (ON/OFF/DISABLED)
-  };
-}
+// Helpers for Pin Mode Button
 
 /**
  * Determines the properties for the Pin Mode button based on current application state.
@@ -2385,6 +2530,9 @@ function triggerUsersSectionGlow() {
 }
 
 function updateUI() {
+  // Clear memoization cache when UI updates (state changes)
+  memoCache.clear();
+
   // Smart logging - only log state changes every 2 seconds
   smartLog(
     "updateUI",
@@ -2418,46 +2566,6 @@ function updateUI() {
   }
 
   const totalUserCount = Object.keys(state.users).length; // Get total number of users
-
-  // --- Logic for Compare Button ---
-  if (DOM_ELEMENTS.compareButton) {
-    const compareButtonState = getCompareButtonDynamicState(
-      state.pinModeActive,
-      state.compareMode,
-      totalUserCount // Pass the user count
-    );
-
-    // Smart logging for compare button state - only every 3 seconds
-    smartLog(
-      "compareButton",
-      "🔘 Compare button state:",
-      {
-        isDisabled: compareButtonState.isDisabled,
-        isActiveClass: compareButtonState.isActiveClass,
-        text: compareButtonState.text,
-        pinModeActive: state.pinModeActive,
-        compareMode: state.compareMode,
-        totalUserCount,
-      },
-      3000
-    );
-
-    DOM_ELEMENTS.compareButton.disabled = compareButtonState.isDisabled;
-    DOM_ELEMENTS.compareButton.classList.toggle(
-      "active",
-      compareButtonState.isActiveClass
-    );
-
-    // Update text while preserving the icon
-    const icon = DOM_ELEMENTS.compareButton.querySelector("i");
-    DOM_ELEMENTS.compareButton.innerHTML = "";
-    if (icon) {
-      DOM_ELEMENTS.compareButton.appendChild(icon);
-    }
-    DOM_ELEMENTS.compareButton.appendChild(
-      document.createTextNode(compareButtonState.text)
-    );
-  }
 
   // --- START: Logic for Pin Mode Button ---
   if (DOM_ELEMENTS.togglePinModeBtn) {
@@ -2726,24 +2834,28 @@ function handleToggleCompareMode() {
   }
 
   if (state.compareMode) {
+    // ✅ FIXED: Complete separation - activeUserId should be null in compare mode
     state.activeUserId = null; // Clear active user when entering compare mode
     state.pinModeActive = false; // Disable pin mode in compare mode
-    // DON'T clear selectedUserIds - keep existing selections
+    state.selectedUserIds.clear(); // Clear selected users when entering compare mode
 
     console.log("[Mode] Compare Mode ENABLED", {
       previousActiveUser,
       totalUsers: Object.keys(state.users).length,
-      keepingSelectedUsers: Array.from(state.selectedUserIds),
+      clearedSelectedUsers: true,
       clearedActiveUser: true,
       disabledPinMode: true,
     });
   } else {
+    // ✅ FIXED: When exiting compare mode, don't auto-select user
     state.selectedUserIds.clear(); // Clear selected user IDs when exiting compare mode
+    // activeUserId remains null - user must explicitly select someone after compare mode
 
     console.log("[Mode] Compare Mode DISABLED", {
       previouslySelected: selectedCount,
       totalUsers: Object.keys(state.users).length,
       clearedSelections: true,
+      activeUserRemains: state.activeUserId,
     });
   }
 
@@ -2983,11 +3095,6 @@ function setupInputValidation() {
 function setupEventListeners() {
   if (DOM_ELEMENTS.addUserButton)
     DOM_ELEMENTS.addUserButton.addEventListener("click", handleAddNewUser);
-  if (DOM_ELEMENTS.compareButton)
-    DOM_ELEMENTS.compareButton.addEventListener(
-      "click",
-      handleToggleCompareMode
-    );
 
   if (DOM_ELEMENTS.togglePinModeBtn)
     DOM_ELEMENTS.togglePinModeBtn.addEventListener(
@@ -3506,7 +3613,6 @@ function renderDayView() {
     ? state.users[state.activeUserId]
     : null;
   const timeSlots = activeUser?.timeSlots || DEFAULT_TIMESLOTS;
-
   console.log(`📊 Day view data source:`, {
     activeUser: activeUser
       ? { id: activeUser.id, name: activeUser.name }
@@ -4154,7 +4260,8 @@ function setupFriendsBarEventListeners() {
  * Handle friend schedule change events from horizontal bar
  */
 async function handleFriendScheduleChange(event) {
-  const { friendId, friendName, isUserSchedule, isEmptySchedule } = event.detail;
+  const { friendId, friendName, isUserSchedule, isEmptySchedule } =
+    event.detail;
 
   console.log(`📅 Schedule change requested:`, {
     friendId,
@@ -4322,6 +4429,13 @@ async function loadFriendSchedule(friendId, friendName) {
     // Cache the valid schedule data
     state.friendsScheduleData.set(friendId, friendScheduleData);
 
+    // Clear memoization and matrix caches since we have new friend schedule data
+    memoCache.clear();
+    matrixCache.clear();
+    console.log(
+      "🧹 Cleared memoization and matrix caches after caching new friend schedule data"
+    );
+
     // Display the friend's schedule
     displayFriendSchedule(friendScheduleData, friendName, friendId);
 
@@ -4415,6 +4529,13 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
     state.users[friendId] = friendUser;
     state.activeUserId = friendId;
 
+    // Clear memoization and matrix caches since we're switching to view friend's schedule
+    memoCache.clear();
+    matrixCache.clear();
+    console.log(
+      "🧹 Cleared memoization and matrix caches when switching to friend view"
+    );
+
     console.log(`🔧 DEBUG: Updated state:`, {
       currentViewingFriendId: state.currentViewingFriendId,
       activeUserId: state.activeUserId,
@@ -4474,146 +4595,84 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
     return null;
   }
 
-  console.log(`🔄 DEBUG: Converting Firestore data to HomePage format`);
-  console.log(`🔍 DEBUG: Input data:`, firestoreScheduleData);
-
   try {
-    const converted = {
-      schedule: [],
-      slotInfo: [],
-      timeSlots: firestoreScheduleData.timeSlots || DEFAULT_TIMESLOTS,
-      pinnedSlots: [],
-    };
+    // Validate and set timeSlots once
+    const timeSlots =
+      Array.isArray(firestoreScheduleData.timeSlots) &&
+      firestoreScheduleData.timeSlots.length > 0
+        ? firestoreScheduleData.timeSlots
+        : DEFAULT_TIMESLOTS;
 
-    // Validate timeSlots
-    if (
-      !Array.isArray(converted.timeSlots) ||
-      converted.timeSlots.length === 0
-    ) {
-      console.warn("⚠️ DEBUG: Invalid or missing timeSlots, using defaults");
-      converted.timeSlots = DEFAULT_TIMESLOTS;
-    }
+    const numSlots = timeSlots.length;
 
-    const numSlots = converted.timeSlots.length;
+    // Pre-initialize arrays for better performance
+    const schedule = new Array(7);
+    const slotInfo = new Array(7);
+    const pinnedSlots = new Array(7);
 
-    // Convert schedule from maps to arrays
-    if (
-      firestoreScheduleData.schedule &&
-      typeof firestoreScheduleData.schedule === "object"
-    ) {
-      for (let day = 0; day < 7; day++) {
-        const daySchedule = firestoreScheduleData.schedule[day.toString()];
-        const dayArray = [];
+    // Single loop to process all three data structures
+    for (let day = 0; day < 7; day++) {
+      const dayStr = day.toString();
 
-        if (daySchedule && typeof daySchedule === "object") {
-          for (let slot = 0; slot < numSlots; slot++) {
-            const slotValue = daySchedule[slot.toString()];
-            dayArray[slot] =
-              slotValue === true || slotValue === "true" || false;
-          }
-        } else {
-          // Fill with false if day data is missing or malformed
-          for (let slot = 0; slot < numSlots; slot++) {
-            dayArray[slot] = false;
-          }
+      // Process schedule data
+      const daySchedule = firestoreScheduleData.schedule?.[dayStr];
+      schedule[day] = new Array(numSlots);
+      if (daySchedule && typeof daySchedule === "object") {
+        for (let slot = 0; slot < numSlots; slot++) {
+          schedule[day][slot] = Boolean(daySchedule[slot.toString()]);
         }
-
-        converted.schedule[day] = dayArray;
+      } else {
+        schedule[day].fill(false);
       }
-    } else {
-      console.warn(
-        "⚠️ DEBUG: Schedule data is missing or malformed, creating empty schedule"
-      );
-      converted.schedule = createWeeklyMatrix(numSlots, false);
-    }
 
-    // Convert slotInfo from maps to arrays
-    if (
-      firestoreScheduleData.slotInfo &&
-      typeof firestoreScheduleData.slotInfo === "object"
-    ) {
-      for (let day = 0; day < 7; day++) {
-        const daySlotInfo = firestoreScheduleData.slotInfo[day.toString()];
-        const dayArray = [];
-
-        if (daySlotInfo && typeof daySlotInfo === "object") {
-          for (let slot = 0; slot < numSlots; slot++) {
-            const slotData = daySlotInfo[slot.toString()];
-            if (slotData && typeof slotData === "object") {
-              dayArray[slot] = {
-                courseCode: slotData.courseCode || "",
-                classroomNumber: slotData.classroomNumber || "",
-              };
-            } else {
-              dayArray[slot] = { courseCode: "", classroomNumber: "" };
-            }
-          }
-        } else {
-          // Fill with empty slot info if day data is missing
-          for (let slot = 0; slot < numSlots; slot++) {
-            dayArray[slot] = { courseCode: "", classroomNumber: "" };
-          }
+      // Process slotInfo data
+      const daySlotInfo = firestoreScheduleData.slotInfo?.[dayStr];
+      slotInfo[day] = new Array(numSlots);
+      if (daySlotInfo && typeof daySlotInfo === "object") {
+        for (let slot = 0; slot < numSlots; slot++) {
+          const slotData = daySlotInfo[slot.toString()];
+          slotInfo[day][slot] =
+            slotData && typeof slotData === "object"
+              ? {
+                  courseCode: slotData.courseCode || "",
+                  classroomNumber: slotData.classroomNumber || "",
+                }
+              : { courseCode: "", classroomNumber: "" };
         }
-
-        converted.slotInfo[day] = dayArray;
-      }
-    } else {
-      console.warn(
-        "⚠️ DEBUG: SlotInfo data is missing or malformed, creating empty slot info"
-      );
-      converted.slotInfo = createWeeklyMatrix(numSlots, () => ({
-        courseCode: "",
-        classroomNumber: "",
-      }));
-    }
-
-    // Convert pinnedSlots from maps to arrays (if it exists)
-    if (
-      firestoreScheduleData.pinnedSlots &&
-      typeof firestoreScheduleData.pinnedSlots === "object"
-    ) {
-      for (let day = 0; day < 7; day++) {
-        const dayPins = firestoreScheduleData.pinnedSlots[day.toString()];
-        const dayArray = [];
-
-        if (dayPins && typeof dayPins === "object") {
-          for (let slot = 0; slot < numSlots; slot++) {
-            const pinValue = dayPins[slot.toString()];
-            dayArray[slot] = pinValue === true || pinValue === "true" || false;
-          }
-        } else {
-          // Fill with false if day data is missing
-          for (let slot = 0; slot < numSlots; slot++) {
-            dayArray[slot] = false;
-          }
+      } else {
+        // Fix: Properly fill array with default objects
+        for (let slot = 0; slot < numSlots; slot++) {
+          slotInfo[day][slot] = { courseCode: "", classroomNumber: "" };
         }
-
-        converted.pinnedSlots[day] = dayArray;
       }
-    } else {
-      // Create empty pinned slots array if not provided
-      converted.pinnedSlots = createWeeklyMatrix(numSlots, false);
+
+      // Process pinnedSlots data
+      const dayPins = firestoreScheduleData.pinnedSlots?.[dayStr];
+      pinnedSlots[day] = new Array(numSlots);
+      if (dayPins && typeof dayPins === "object") {
+        for (let slot = 0; slot < numSlots; slot++) {
+          pinnedSlots[day][slot] = Boolean(dayPins[slot.toString()]);
+        }
+      } else {
+        pinnedSlots[day].fill(false);
+      }
     }
 
-    console.log(`✅ DEBUG: Successfully converted data:`, converted);
-    return converted;
+    return { timeSlots, schedule, slotInfo, pinnedSlots };
   } catch (error) {
     console.error("❌ DEBUG: Error converting Firestore data:", error);
-    console.error(
-      "❌ DEBUG: Input data that caused error:",
-      firestoreScheduleData
-    );
 
-    // Return a safe fallback structure
+    // Return optimized fallback structure
     const fallbackTimeSlots = DEFAULT_TIMESLOTS;
+    const numSlots = fallbackTimeSlots.length;
     return {
-      schedule: createWeeklyMatrix(fallbackTimeSlots.length, false),
-      slotInfo: createWeeklyMatrix(fallbackTimeSlots.length, () => ({
+      timeSlots: fallbackTimeSlots,
+      schedule: createWeeklyMatrix(numSlots, false),
+      slotInfo: createWeeklyMatrix(numSlots, () => ({
         courseCode: "",
         classroomNumber: "",
       })),
-      timeSlots: fallbackTimeSlots,
-      pinnedSlots: createWeeklyMatrix(fallbackTimeSlots.length, false),
+      pinnedSlots: createWeeklyMatrix(numSlots, false),
     };
   }
 }
@@ -4678,8 +4737,39 @@ function handleCompareModeChange(event) {
 
   console.log(`🔄 Compare mode ${isCompareMode ? "activated" : "deactivated"}`);
 
+  // Clear all caches when compare mode changes to prevent stale data
+  memoCache.clear();
+  matrixCache.clear();
+  console.log(
+    "🧹 Cleared memoization and matrix caches due to compare mode change"
+  );
+
   // Update local compare mode state
   state.compareMode = isCompareMode;
+
+  // Clear state when entering or exiting compare mode (consistent with handleToggleCompareMode)
+  if (isCompareMode) {
+    // Entering compare mode: clear all selections and active user
+    state.activeUserId = null;
+    state.pinModeActive = false;
+    state.selectedUserIds.clear();
+    
+    console.log("[Mode] Compare Mode ENABLED via HorizontalFriendsBar - Starting with CLEAN STATE", {
+      selectedUserIds: Array.from(state.selectedUserIds),
+      selectedCount: state.selectedUserIds.size,
+      activeUserId: state.activeUserId,
+      clearedSelectedUsers: true,
+      clearedActiveUser: true,
+      disabledPinMode: true,
+    });
+  } else {
+    // Exiting compare mode: clear selections
+    state.selectedUserIds.clear();
+    
+    console.log("[Mode] Compare Mode DISABLED via HorizontalFriendsBar", {
+      clearedSelections: true,
+    });
+  }
 
   // Update body class for global styling
   document.body.classList.toggle("compare-mode-active", isCompareMode);
@@ -4722,12 +4812,36 @@ function handleCompareSelectionChange(event) {
     currentStateCompareMode: state.compareMode,
   });
 
-  // Update selected user IDs for comparison
+  // Only process selection changes if compare mode is active
+  if (!state.compareMode) {
+    console.log("⚠️ Ignoring selection change - compare mode not active");
+    return;
+  }
+
+  // Clear all caches when selection changes to prevent stale data
+  memoCache.clear();
+  matrixCache.clear();
+  console.log(
+    "🧹 Cleared memoization and matrix caches due to selection change"
+  );
+
+  // ✅ FIXED: Update selected user IDs for comparison including current user
   const previousSelectedCount = state.selectedUserIds.size;
   state.selectedUserIds.clear();
+  
+  // Handle current user inclusion properly
+  const currentUserId = authManager.getCurrentUser()?.uid;
+  
   selectedFriends.forEach((friendId) => {
-    state.selectedUserIds.add(friendId);
-    console.log(`➕ Added ${friendId} to selectedUserIds`);
+    if (friendId === "user" && currentUserId) {
+      // Convert "user" placeholder to actual current user ID
+      state.selectedUserIds.add(currentUserId);
+      console.log(`➕ Added current user (${currentUserId}) to selectedUserIds`);
+    } else if (friendId !== "user") {
+      // Add friend IDs normally
+      state.selectedUserIds.add(friendId);
+      console.log(`➕ Added ${friendId} to selectedUserIds`);
+    }
   });
 
   console.log(`🔄 selectedUserIds updated:`, {
@@ -4777,21 +4891,115 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
       selectedUsersData.map((u) => u.displayName)
     );
 
+    // Clear memoization and matrix caches when loading friends for comparison
+    memoCache.clear();
+    matrixCache.clear();
+    console.log(
+      "🧹 Cleared memoization and matrix caches before loading friends for comparison"
+    );
+
     const loadPromises = selectedUsersData.map(async (userData) => {
       const friendId = userData.friendId || userData.userId;
 
       // Handle current user's data
-      if (userData.isCurrentUser || friendId === "user") {
+      if (userData.isCurrentUser) {
         console.log("👤 Adding current user to comparison state");
-        // Ensure current user's data is available under 'user' key
+
+        // Try to get current user data from multiple sources
+        let currentUserData = null;
+
+        // First, try from state.users with activeUserId
         if (state.activeUserId && state.users[state.activeUserId]) {
-          state.users["user"] = {
-            ...state.users[state.activeUserId],
-            id: "user",
-            name: userData.displayName || "You",
-          };
+          currentUserData = state.users[state.activeUserId];
+          console.log("✅ Found current user data in state.users");
+        }
+        // Second, try to get from currentUser store if available
+        else if (currentUser?.scheduleData) {
+          console.log("🔄 Getting current user data from userStore");
+          const user = authManager.getCurrentUser();
+          if (user) {
+            // Convert currentUser.scheduleData to HomePage format
+            const scheduleData = currentUser.scheduleData;
+
+            // Convert Firestore format to HomePage format if needed
+            let convertedData = scheduleData;
+            if (
+              scheduleData &&
+              typeof scheduleData.schedule === "object" &&
+              !Array.isArray(scheduleData.schedule)
+            ) {
+              console.log(
+                "🔄 Converting current user Firestore data to HomePage format"
+              );
+              convertedData = convertFirestoreToHomePageFormat(scheduleData);
+            }
+
+            // Create user data structure from converted data
+            currentUserData = {
+              id: user.uid,
+              name: currentUser.profile?.displayName || "You",
+              timeSlots: convertedData?.timeSlots || DEFAULT_TIMESLOTS,
+              schedule:
+                convertedData?.schedule ||
+                createWeeklyMatrix(
+                  convertedData?.timeSlots?.length || 7,
+                  false
+                ),
+              slotInfo:
+                convertedData?.slotInfo ||
+                createSlotInfoMatrix(convertedData?.timeSlots?.length || 7),
+              pinnedSlots:
+                convertedData?.pinnedSlots ||
+                createWeeklyMatrix(
+                  convertedData?.timeSlots?.length || 7,
+                  false
+                ),
+              timeBasedPins: convertedData?.timeBasedPins || {
+                0: [],
+                1: [],
+                2: [],
+                3: [],
+                4: [],
+                5: [],
+                6: [],
+              },
+            };
+
+            // Also update state.users with this data for consistency
+            state.users[user.uid] = currentUserData;
+            // ✅ FIXED: Don't set activeUserId in compare mode
+
+            console.log("✅ Current user data converted and added", {
+              hasSchedule: !!currentUserData.schedule,
+              scheduleType: Array.isArray(currentUserData.schedule)
+                ? "array"
+                : "object",
+              timeSlots: currentUserData.timeSlots?.length || 0,
+              sampleScheduleData:
+                currentUserData.schedule?.[0]?.[0] !== undefined
+                  ? "has data"
+                  : "empty",
+            });
+          }
+        }
+        // Third, create empty user as fallback
+        else {
+          console.log(
+            "⚠️ Current user data not found, creating empty user for comparison"
+          );
+          const user = authManager.getCurrentUser();
+          if (user) {
+            currentUserData = createEmptyUser(user.uid);
+            state.users[user.uid] = currentUserData;
+            // ✅ FIXED: Don't set activeUserId in compare mode
+          }
+        }
+
+        // Current user is now properly stored under their actual UID only
+        if (currentUserData) {
+          console.log("✅ Current user data available for comparison under UID:", currentUserData.id);
         } else {
-          console.warn("⚠️ Current user data not found in state.users");
+          console.error("❌ Could not create current user data for comparison");
         }
         return;
       }
@@ -4799,6 +5007,61 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
       // Skip if already cached for friends
       if (state.friendsScheduleData.has(friendId)) {
         console.log(`✅ Schedule already cached for ${userData.displayName}`);
+
+        // Even if cached, ensure the friend is in state.users for comparison rendering
+        if (!state.users[friendId]) {
+          const cachedScheduleData = state.friendsScheduleData.get(friendId);
+          if (cachedScheduleData) {
+            console.log(
+              `🔄 Adding cached friend ${userData.displayName} to state.users for comparison`
+            );
+
+            // Convert cached Firestore data to HomePage format if needed
+            let convertedData = cachedScheduleData;
+            if (
+              cachedScheduleData &&
+              typeof cachedScheduleData.schedule === "object" &&
+              !Array.isArray(cachedScheduleData.schedule)
+            ) {
+              console.log(
+                `🔄 Converting cached Firestore data for ${userData.displayName}`
+              );
+              convertedData =
+                convertFirestoreToHomePageFormat(cachedScheduleData);
+            }
+
+            const friendUser = {
+              id: friendId,
+              name: userData.displayName,
+              timeSlots: convertedData.timeSlots || DEFAULT_TIMESLOTS,
+              schedule:
+                convertedData.schedule ||
+                createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+              slotInfo:
+                convertedData.slotInfo ||
+                createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({
+                  courseCode: "",
+                  classroomNumber: "",
+                })),
+              pinnedSlots:
+                convertedData.pinnedSlots ||
+                createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+            };
+
+            state.users[friendId] = friendUser;
+            console.log(
+              `✅ Cached friend ${userData.displayName} added to state.users`,
+              {
+                storedUnderKey: friendId,
+                hasSchedule: !!friendUser.schedule,
+                scheduleType: Array.isArray(friendUser.schedule)
+                  ? "array"
+                  : "object",
+                timeSlots: friendUser.timeSlots?.length || 0,
+              }
+            );
+          }
+        }
         return;
       }
 
@@ -4808,21 +5071,34 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
       if (scheduleData) {
         state.friendsScheduleData.set(friendId, scheduleData);
 
-        // Add to users state for rendering
+        // Clear memoization and matrix caches since we have new friend schedule data
+        memoCache.clear();
+        matrixCache.clear();
+        console.log(
+          "🧹 Cleared memoization and matrix caches after loading friend schedule for comparison"
+        );
+
+        // Convert Firestore format to HomePage format for comparison
+        const convertedScheduleData =
+          convertFirestoreToHomePageFormat(scheduleData);
+
+        if (!convertedScheduleData) {
+          console.warn(
+            `⚠️ Failed to convert schedule data for ${userData.displayName} in comparison`
+          );
+          return;
+        }
+
+        // Add to users state for rendering with converted data
         const friendUser = {
           id: friendId,
           name: userData.displayName,
-          timeSlots: scheduleData.timeSlots || DEFAULT_TIMESLOTS,
-          schedule:
-            scheduleData.schedule ||
-            createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
-          slotInfo:
-            scheduleData.slotInfo ||
-            createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({
-              courseCode: "",
-              classroomNumber: "",
-            })),
-          pinnedSlots: createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+          timeSlots: convertedScheduleData.timeSlots,
+          schedule: convertedScheduleData.schedule,
+          slotInfo: convertedScheduleData.slotInfo,
+          pinnedSlots:
+            convertedScheduleData.pinnedSlots ||
+            createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
         };
 
         state.users[friendId] = friendUser;
@@ -4833,6 +5109,9 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
             name: friendUser.name,
             hasSchedule: !!friendUser.schedule,
             timeSlots: friendUser.timeSlots?.length || 0,
+            scheduleType: Array.isArray(friendUser.schedule)
+              ? "array"
+              : "object",
           },
           currentStateUsersKeys: Object.keys(state.users),
         });
@@ -4952,7 +5231,18 @@ document.addEventListener("spa:page:unload", (event) => {
   const { route } = event.detail;
   if (route === "home") {
     console.log("🧹 Cleaning up home page...");
+
+    // Clear all caches to prevent memory leaks
+    memoCache.clear();
+    matrixCache.clear();
+
+    // Cleanup friends bar and its event listeners
     cleanupHorizontalFriendsBar();
+
+    // Clear any remaining timeouts/intervals that might be running
+    clearInterval(); // Clear all intervals (if any)
+
+    console.log("✅ HomePage cleanup completed");
   }
 });
 

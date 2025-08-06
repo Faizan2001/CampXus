@@ -35,6 +35,7 @@ import { friendsManager } from "../../services/friends/FriendsService.js";
 import { currentUser } from "../../store/userStore.js";
 import { renderUserAvatar } from "../../utils/avatar/avatarUtils.js";
 import { notificationManager } from "../../services/realtime/NotificationService.js";
+import { dataManager } from "../../services/data/DataService.js";
 
 /**
  * HorizontalFriendsBar Class
@@ -121,8 +122,8 @@ export class HorizontalFriendsBar {
       });
 
       // Default select user's own schedule after DOM is ready
-      setTimeout(() => {
-        this.selectUser();
+      setTimeout(async () => {
+        await this.selectUser();
         console.log("🔍 DEBUG: User selection called after DOM ready");
       }, 50);
 
@@ -399,7 +400,7 @@ export class HorizontalFriendsBar {
   /**
    * Handle avatar click events
    */
-  handleAvatarClick(event) {
+  async handleAvatarClick(event) {
     // Ignore clicks on compare button or its children
     if (
       event.target.closest(".btn-compare") ||
@@ -433,23 +434,26 @@ export class HorizontalFriendsBar {
     } else {
       // Normal mode: select this friend's schedule
       console.log(`👤 DEBUG NORMAL: Selecting ${friendName}'s schedule`);
-      this.selectFriend(friendId, friendName);
+      await this.selectFriend(friendId, friendName);
     }
   }
 
   /**
    * Select a friend's schedule (or user's own)
    */
-  selectFriend(friendId, friendName = null) {
+  async selectFriend(friendId, friendName = null) {
     // Check if this friend is already selected
-    const isUserCurrentlySelected = friendId === "user" && this.selectedFriendId === null;
-    const isFriendCurrentlySelected = friendId !== "user" && this.selectedFriendId === friendId;
-    const currentlySelected = isUserCurrentlySelected || isFriendCurrentlySelected;
+    const isUserCurrentlySelected =
+      friendId === "user" && this.selectedFriendId === null;
+    const isFriendCurrentlySelected =
+      friendId !== "user" && this.selectedFriendId === friendId;
+    const currentlySelected =
+      isUserCurrentlySelected || isFriendCurrentlySelected;
 
     if (currentlySelected && friendId !== "user") {
       // If clicking on already selected friend (not user), deselect and fallback to user
       console.log(`🔄 Deselecting friend: ${friendId}, falling back to user`);
-      this.selectUser();
+      await this.selectUser();
       return;
     } else if (currentlySelected && friendId === "user") {
       // If clicking on already selected user, deselect them (show empty schedule)
@@ -459,6 +463,73 @@ export class HorizontalFriendsBar {
     }
 
     console.log(`🎯 Selecting friend: ${friendId}`);
+
+    // Log schedule data in Firestore format for any selected avatar
+    if (friendId === "user" && currentUser?.scheduleData) {
+      // Log user's schedule data
+      const scheduleData = currentUser.scheduleData;
+      console.log(`🟢🔴 User's Schedule Data (Firestore Format):`, {
+        userId: currentUser?.user?.uid || "unknown",
+        displayName: currentUser?.profile?.displayName || "You",
+        timeSlots: scheduleData.timeSlots || [],
+        schedule: scheduleData.schedule || [],
+        slotInfo: scheduleData.slotInfo || [],
+        pinnedSlots: scheduleData.pinnedSlots || [],
+        metadata: {
+          lastModified: scheduleData.lastModified || new Date(),
+          version: scheduleData.version || 1,
+          source: "HorizontalFriendsBar_UserSelection",
+        },
+      });
+    } else if (friendId !== "user") {
+      // Log friend's schedule data by fetching it dynamically
+      const friend = this.quickAccessFriends.find(
+        (f) => (f.friendId || f.userId) === friendId
+      );
+      if (friend) {
+        // Fetch the friend's schedule data from Firestore
+        try {
+          const friendScheduleData = await dataManager.getUserSchedule(
+            friendId
+          );
+          if (friendScheduleData && typeof friendScheduleData === "object") {
+            console.log(`🟢🔴 Friend's Schedule Data (Firestore Format):`, {
+              userId: friend.userId || friendId,
+              friendId: friend.friendId || friendId,
+              displayName: friend.displayName || friendName || "Unknown",
+              timeSlots: friendScheduleData.timeSlots || [],
+              schedule: friendScheduleData.schedule || [],
+              slotInfo: friendScheduleData.slotInfo || [],
+              pinnedSlots: friendScheduleData.pinnedSlots || [],
+              metadata: {
+                lastModified: friendScheduleData.lastModified || new Date(),
+                version: friendScheduleData.version || 1,
+                source: "HorizontalFriendsBar_FriendSelection",
+              },
+            });
+          } else {
+            console.log(
+              `🟢🔴 Friend's Schedule Data: No schedule data found in Firestore for ${
+                friendName || friendId
+              }`
+            );
+          }
+        } catch (error) {
+          console.log(
+            `🟢🔴 Friend's Schedule Data: Error fetching schedule for ${
+              friendName || friendId
+            }:`,
+            error
+          );
+        }
+      } else {
+        console.log(
+          `🟢🔴 Friend's Schedule Data: Friend not found in quickAccessFriends for ${
+            friendName || friendId
+          }`
+        );
+      }
+    }
 
     // Update selection state
     this.selectedFriendId = friendId === "user" ? null : friendId;
@@ -484,7 +555,7 @@ export class HorizontalFriendsBar {
   /**
    * Select user's own schedule (default state)
    */
-  selectUser() {
+  async selectUser() {
     console.log("🔍 DEBUG: selectUser() called");
     console.log(
       '🔍 DEBUG: avatarElements.has("user"):',
@@ -513,7 +584,7 @@ export class HorizontalFriendsBar {
       }
     }
 
-    this.selectFriend("user", "You");
+    await this.selectFriend("user", "You");
   }
 
   /**
@@ -571,7 +642,9 @@ export class HorizontalFriendsBar {
 
     // If selectedFriendId is null, don't select any avatar (empty schedule state)
     if (selectedFriendId === null) {
-      console.log("🔍 DEBUG: No avatar selected - showing empty schedule state");
+      console.log(
+        "🔍 DEBUG: No avatar selected - showing empty schedule state"
+      );
       return;
     }
 
@@ -815,7 +888,7 @@ export class HorizontalFriendsBar {
    * This method ensures the purple ring appears on the user avatar
    * especially when there are no starred friends
    */
-  ensureUserSelected() {
+  async ensureUserSelected() {
     console.log("🔍 DEBUG: ensureUserSelected() called");
 
     // Check if any friend is currently selected
@@ -830,7 +903,7 @@ export class HorizontalFriendsBar {
     // Always ensure user is selected if no other friend is selected
     if (!hasSelection || this.selectedFriendId === null) {
       console.log("🔍 DEBUG: No selection found, selecting user");
-      this.selectUser();
+      await this.selectUser();
     }
   }
 
@@ -845,8 +918,8 @@ export class HorizontalFriendsBar {
       this.render();
 
       // Ensure user is selected after refresh
-      setTimeout(() => {
-        this.ensureUserSelected();
+      setTimeout(async () => {
+        await this.ensureUserSelected();
       }, 50);
 
       notificationManager.showSystemNotification(
@@ -1079,7 +1152,7 @@ export class HorizontalFriendsBar {
     const action = this.selectedForCompare.has(friendId)
       ? "added to"
       : "removed from";
-    notificationManager.showSystemNotification(
+    this.showDebouncedNotification(
       `${friendName} ${action} comparison`,
       "info",
       1500
@@ -1350,14 +1423,14 @@ export class HorizontalFriendsBar {
 
         if (!stillExists) {
           // Friend was unstarred, fallback to user's schedule
-          this.selectUser();
+          await this.selectUser();
         } else {
           // Re-select the current friend to maintain visual state
           this.updateVisualSelection(this.selectedFriendId);
         }
       } else {
         // No friend selected or user should be selected, ensure user is selected
-        this.ensureUserSelected();
+        await this.ensureUserSelected();
       }
 
       console.log("✅ Real-time Quick Access update processed successfully");
@@ -1430,8 +1503,8 @@ export class HorizontalFriendsBar {
     this.render();
 
     // Ensure user is selected after programmatic refresh
-    setTimeout(() => {
-      this.ensureUserSelected();
+    setTimeout(async () => {
+      await this.ensureUserSelected();
     }, 50);
   }
 
