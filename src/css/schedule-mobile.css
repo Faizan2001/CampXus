@@ -231,14 +231,15 @@ This file contains all styles for the mobile-friendly schedule redesign:
   background: transparent; /* Let parent glass card handle background */
   border-radius: 0; /* Remove border radius to fit seamlessly */
   border: none; /* Remove border to fit within parent card */
-  /* Ensure proper scrolling with momentum */
+  /* Enhanced mobile scrolling */
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  overscroll-behavior: contain; /* Prevent bounce scroll from affecting parent */
   /* Ensure container stays within bounds */
   position: relative;
   contain: layout style;
-  /* Debug border to visualize container bounds */
-  /* border: 2px solid rgba(255, 0, 0, 0.3) !important; */
+  /* Touch optimization */
+  touch-action: pan-y; /* Allow vertical panning only */
 }
 
 /* Custom scrollbar for day view */
@@ -292,6 +293,11 @@ This file contains all styles for the mobile-friendly schedule redesign:
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   /* Ensure slots don't shrink and maintain minimum spacing */
   flex-shrink: 0;
+  /* Enhanced touch behavior */
+  touch-action: manipulation; /* Optimize for touch interactions */
+  -webkit-touch-callout: none; /* Disable iOS callout menu */
+  -webkit-user-select: none; /* Prevent text selection */
+  user-select: none;
 }
 
 .day-time-slot:hover {
@@ -719,6 +725,13 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
   .day-time-slot {
     min-height: calc(var(--day-slot-height) + 10px); /* Larger touch targets */
+    /* Enhanced touch feedback */
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+  }
+
+  .day-time-slot:active {
+    transform: scale(0.98) translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
   }
 
   .friend-avatar:active {
@@ -727,6 +740,30 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
   .day-btn:active {
     transform: translateY(0) scale(1.02);
+  }
+
+  /* Better scroll behavior on touch devices */
+  .day-view-container {
+    /* Enhanced momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    /* Prevent horizontal scrolling interference */
+    overscroll-behavior-x: none;
+    /* Smoother scrolling on iOS */
+    scroll-snap-type: none;
+    /* Additional scroll enhancements */
+    scroll-padding-top: 1rem;
+    scroll-margin-top: 1rem;
+    /* Prevent pull-to-refresh on mobile browsers */
+    overscroll-behavior: contain;
+  }
+
+  /* Improve touch targets for small elements */
+  .slot-time {
+    min-height: 44px; /* WCAG minimum touch target */
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 

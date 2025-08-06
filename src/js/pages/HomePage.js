@@ -1905,6 +1905,7 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
 
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
 
+
 function renderScheduleGrid() {
   // Temporarily disable smart logging for debugging - log every call
   console.log("🏗️ renderScheduleGrid called:", {
@@ -2092,10 +2093,10 @@ function renderScheduleGrid() {
             busyUsers = slotStatus.busy || [];
             freeUsers = slotStatus.available || [];
 
-            console.log(
-              `📊 Unified Grid - slot [${dayIndex}][${timeIndex}] (${timeSlot.label}): ` +
-                `${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`
-            );
+            // Smart logging: Only log unified grid status for first few slots to prevent flooding
+            if ((dayIndex === 0 && timeIndex < 2) || (dayIndex === 6 && timeIndex === currentTimeSlotsToRender.length - 1)) {
+              console.log(`📊 Unified Grid - slot [${dayIndex}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`);
+            }
 
             // Add granular time information to the cell for enhanced debugging
             dayCell.dataset.unifiedSlot = "true";
@@ -2115,20 +2116,16 @@ function renderScheduleGrid() {
                 user.schedule[dayIndex][timeIndex] !== undefined
               ) {
                 const isBusy = user.schedule[dayIndex][timeIndex];
-                console.log(
-                  `📊 Direct compare - user ${
-                    user.name || user.id
-                  } at [${dayIndex}][${timeIndex}]: ${isBusy ? "BUSY" : "FREE"}`
-                );
+                // Smart logging: Only log first slot of each day to prevent flooding
+                if (timeIndex === 0) {
+                  console.log(`📊 Direct compare - user ${user.name || user.id} status for day ${dayIndex}: ${isBusy ? "BUSY" : "FREE"}`);
+                }
                 return isBusy;
               }
               // Only log warning if timeIndex is within expected range
-              if (timeIndex < (user.timeSlots?.length || 7)) {
-                console.log(
-                  `⚠️ Direct compare - user ${
-                    user.name || user.id
-                  } missing schedule data at [${dayIndex}][${timeIndex}]`
-                );
+              // Smart logging: Only warn once per user per day if missing schedule data
+              if (timeIndex === 0 && !user.schedule?.[dayIndex]) {
+                console.log(`⚠️ Direct compare - user ${user.name || user.id} missing schedule data for day ${dayIndex}`);
               }
               return false;
             });
@@ -2194,7 +2191,10 @@ function renderScheduleGrid() {
         dayCell.dataset.unifiedSlot = "";
         dayCell.dataset.originalTimeSlot = "";
         
-        console.log(`🧹 Clean grid slot [${dayIndex}][${timeIndex}] - compare mode with no users selected`);
+        // Smart logging: Only log clean state once per render
+        if (dayIndex === 0 && timeIndex === 0) {
+          console.log(`🧹 Clean grid state - compare mode with no users selected`);
+        }
       } else if (
         !state.compareMode &&
         scheduleMatrixToRender &&
@@ -2278,9 +2278,10 @@ function renderScheduleGrid() {
 
       // Pin Rendering Logic for Compare Mode
       if (state.compareMode && state.selectedUserIds.size > 0) {
-        console.log(
-          `📌 Grid pin rendering for compare mode at [${dayIndex}][${timeIndex}]`
-        );
+        // Smart logging: Only log pin rendering for first few slots
+        if (dayIndex === 0 && timeIndex === 0) {
+          console.log(`📌 Grid pin rendering for compare mode started`);
+        }
 
         const existingPinIndicators = dayCell.querySelectorAll(
           ".pin-indicator, .can-pin-indicator, .compare-pin-indicator, .pin-square-container"
@@ -2293,11 +2294,16 @@ function renderScheduleGrid() {
           state
         );
 
-        console.log(`📌 Grid pin data at [${dayIndex}][${timeIndex}]:`, {
-          count: pinData.count,
-          userNames: pinData.userNames,
-          userIds: pinData.userIds,
-        });
+        const hasPinData = pinData.count > 0;
+        
+        // Smart logging: Only log pin data for first occurrence to prevent flooding
+        if (hasPinData && dayIndex === 0) {
+          console.log(`📌 Grid pin data found for day ${dayIndex}:`, {
+            count: pinData.count,
+            userNames: pinData.userNames,
+            userIds: pinData.userIds,
+          });
+        }
 
         if (pinData.count > 0) {
           const pinContainer = document.createElement("div");
@@ -2342,9 +2348,10 @@ function renderScheduleGrid() {
           });
 
           dayCell.appendChild(pinContainer);
-          console.log(
-            `📌 Grid pin container added at [${dayIndex}][${timeIndex}] with ${pinData.count} pins`
-          );
+          // Smart logging: Only log pin container additions occasionally
+          if (dayIndex === 0) {
+            console.log(`📌 Grid pin container added at [${dayIndex}][${timeIndex}] with ${pinData.count} pins`);
+          }
         }
       }
 
@@ -2407,8 +2414,7 @@ function renderScheduleGrid() {
       totalCells: slotCount * 7,
       compareMode: state.compareMode,
       selectedUsers: state.selectedUserIds.size,
-    },
-    5000
+    }
   );
 
   if (slotCount > 8 || (state.compareMode && slotCount > 6)) {
@@ -3438,27 +3444,93 @@ function setupSwipeGestures() {
   if (!DOM_ELEMENTS.scheduleDayView) return;
 
   let touchStartX = 0;
+  let touchStartY = 0;
   let touchEndX = 0;
+  let touchEndY = 0;
+  let touchStartTime = 0;
+  let isScrolling = false;
+  let scrollContainer = null;
+
+  // Find the scrollable container within day view
+  const findScrollContainer = () => {
+    return DOM_ELEMENTS.scheduleDayView.querySelector('.day-view-container') || 
+           DOM_ELEMENTS.scheduleDayView;
+  };
 
   DOM_ELEMENTS.scheduleDayView.addEventListener("touchstart", (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-  });
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    touchStartTime = Date.now();
+    isScrolling = false;
+    scrollContainer = findScrollContainer();
+  }, { passive: true });
+
+  DOM_ELEMENTS.scheduleDayView.addEventListener("touchmove", (e) => {
+    if (isScrolling) return;
+
+    const currentX = e.changedTouches[0].clientX;
+    const currentY = e.changedTouches[0].clientY;
+    const deltaX = Math.abs(currentX - touchStartX);
+    const deltaY = Math.abs(currentY - touchStartY);
+    
+    // Determine scroll direction with improved thresholds
+    if (deltaY > deltaX && deltaY > 15) {
+      // Vertical scrolling detected
+      isScrolling = true;
+      return;
+    }
+    
+    // If horizontal movement is dominant and significant, prepare for swipe
+    if (deltaX > deltaY && deltaX > 25) {
+      // Only prevent default if we're clearly swiping horizontally
+      // This allows vertical scrolling to work normally
+      const isAtTop = scrollContainer && scrollContainer.scrollTop <= 0;
+      const isAtBottom = scrollContainer && 
+        scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      
+      // Allow swipe if we're at the edges or moving horizontally
+      if (isAtTop || isAtBottom || deltaX > 50) {
+        e.preventDefault();
+      }
+    }
+  }, { passive: false }); // Not passive so we can preventDefault
 
   DOM_ELEMENTS.scheduleDayView.addEventListener("touchend", (e) => {
-    touchEndX = e.changedTouches[0].screenX;
+    // Don't process swipe if user was scrolling
+    if (isScrolling) return;
+    
+    touchEndX = e.changedTouches[0].clientX;
+    touchEndY = e.changedTouches[0].clientY;
     handleSwipeGesture();
-  });
+  }, { passive: true });
 
   function handleSwipeGesture() {
-    const swipeDistance = touchEndX - touchStartX;
-    const minSwipeDistance = 50; // Minimum distance for a valid swipe
+    const swipeDistanceX = touchEndX - touchStartX;
+    const swipeDistanceY = Math.abs(touchEndY - touchStartY);
+    const swipeTime = Date.now() - touchStartTime;
+    
+    // Enhanced swipe detection parameters
+    const minSwipeDistance = 60; // Minimum horizontal distance
+    const maxVerticalDeviation = 100; // Maximum Y-axis movement allowed
+    const maxSwipeTime = 400; // Maximum time for a valid swipe
+    const minVelocity = 0.2; // Minimum swipe velocity (px/ms)
+    
+    // Calculate swipe velocity
+    const velocity = Math.abs(swipeDistanceX) / swipeTime;
+    
+    // Check if this is a valid horizontal swipe
+    const isValidSwipe = 
+      Math.abs(swipeDistanceX) > minSwipeDistance &&  // Sufficient horizontal distance
+      swipeDistanceY < maxVerticalDeviation &&        // Not too much vertical movement
+      swipeTime < maxSwipeTime &&                     // Quick enough gesture
+      velocity > minVelocity;                         // Fast enough swipe
 
-    if (Math.abs(swipeDistance) > minSwipeDistance) {
-      if (swipeDistance > 0) {
+    if (isValidSwipe) {
+      if (swipeDistanceX > 0) {
         // Swipe right - go to previous day
         navigateDay(-1);
       } else {
-        // Swipe left - go to next day
+        // Swipe left - go to next day  
         navigateDay(1);
       }
     }
