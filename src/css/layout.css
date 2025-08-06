@@ -495,9 +495,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     order: 1; /* Users List first within controls */
   }
 
-  .compare-section {
-    order: 2; /* Compare & Pin Mode second within controls */
-  }
+
 
   .import-export-section {
     order: 3; /* Export/Import third within controls */
@@ -555,7 +553,6 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Reset any individual section positioning for ultra-wide */
   .users-section,
-  .compare-section,
   .import-export-section,
   .schedule-section {
     grid-column: unset !important;
@@ -648,9 +645,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     order: 1; /* Users List first within controls */
   }
 
-  .compare-section {
-    order: 2; /* Compare & Pin Mode second within controls */
-  }
+
 
   .import-export-section {
     order: 3; /* Export/Import third within controls */
@@ -747,7 +742,6 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Reset any individual section positioning */
   .users-section,
-  .compare-section,
   .import-export-section,
   .schedule-section {
     grid-column: unset !important;

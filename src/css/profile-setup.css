@@ -68,7 +68,6 @@ body.page-profile .schedule-column {
 
 /* Reset any grid positioning for profile elements */
 body.page-profile .users-section,
-body.page-profile .compare-section,
 body.page-profile .import-export-section,
 body.page-profile .schedule-section {
   grid-column: unset !important;

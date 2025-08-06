@@ -80,6 +80,16 @@ export function _resetStateForTesting() {
    UTILITY FUNCTIONS
 ================================== */
 
+// Smart logging with frequency control
+let lastLogTimes = {};
+function smartLog(key, message, data, minInterval = 1000) {
+  const now = Date.now();
+  if (!lastLogTimes[key] || now - lastLogTimes[key] > minInterval) {
+    console.log(message, data);
+    lastLogTimes[key] = now;
+  }
+}
+
 /**
  * Detects if the user is on a mobile device or tablet.
  * This helps us show appropriate UI elements only when needed.
@@ -559,8 +569,17 @@ export function aggregatePinsForCompareModeTimeBased(
 
   // Get the unified schedule to map timeIndex to actual time range
   const selectedUsers = Array.from(selectedUserIds)
-    .map((id) => users[id])
-    .filter((user) => user);
+    .map((id) => {
+      // First try direct lookup
+      if (users[id]) {
+        return users[id];
+      }
+      // If not found, search by any property that might match
+      return Object.values(users).find(
+        (user) => user.id === id || user.userId === id || user.friendId === id
+      );
+    })
+    .filter((user) => user && user.schedule);
 
   if (selectedUsers.length === 0) {
     return { count: 0, userNames: [], userIds: [] };
@@ -600,7 +619,14 @@ export function aggregatePinsForCompareModeTimeBased(
     const targetTimeSlot = unifiedSchedule.unifiedTimeSlots[timeIndex];
 
     selectedUserIds.forEach((userId) => {
-      const user = users[userId];
+      // Try to find user with improved lookup
+      let user = users[userId];
+      if (!user) {
+        user = Object.values(users).find(
+          (u) => u.id === userId || u.userId === userId || u.friendId === userId
+        );
+      }
+
       if (!user || !user.timeSlots) return;
 
       // Convert user's pins to time-based format
@@ -631,7 +657,14 @@ export function aggregatePinsForCompareModeTimeBased(
   } else {
     // Use original array-based approach for homogeneous schedules
     selectedUserIds.forEach((userId) => {
-      const user = users[userId];
+      // Try to find user with improved lookup
+      let user = users[userId];
+      if (!user) {
+        user = Object.values(users).find(
+          (u) => u.id === userId || u.userId === userId || u.friendId === userId
+        );
+      }
+
       if (
         user &&
         user.pinnedSlots &&
@@ -1776,15 +1809,26 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
 
 function renderScheduleGrid() {
+  // Temporarily disable smart logging for debugging - log every call
+  console.log("🏗️ renderScheduleGrid called:", {
+    compareMode: state.compareMode,
+    selectedUserIds: Array.from(state.selectedUserIds),
+    activeUserId: state.activeUserId,
+    totalUsers: Object.keys(state.users).length,
+    availableUsers: Object.keys(state.users),
+  });
+
   if (!DOM_ELEMENTS.scheduleTable) {
-    console.error("Schedule table element not found.");
+    console.error("❌ Schedule table element not found.");
     return;
   }
 
   // Apply disabled state when no active user is selected AND not in compare mode
   const scheduleWrapper = DOM_ELEMENTS.scheduleWrapper;
   if (scheduleWrapper) {
-    if (!state.activeUserId && !state.compareMode) {
+    const shouldDisable = !state.activeUserId && !state.compareMode;
+
+    if (shouldDisable) {
       scheduleWrapper.classList.add("schedule-disabled");
     } else {
       scheduleWrapper.classList.remove("schedule-disabled");
@@ -1799,6 +1843,7 @@ function renderScheduleGrid() {
 
   let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
   let allowEditingHeaders = false;
+  let usedUnifiedSchedule = false; // Track if unified schedule was used
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     const user = state.users[state.activeUserId];
@@ -1829,6 +1874,7 @@ function renderScheduleGrid() {
       if (needsUnifiedSchedule) {
         const unifiedSchedule = createUnifiedSchedule(selectedUsers);
         currentTimeSlotsToRender = unifiedSchedule.unifiedTimeSlots;
+        usedUnifiedSchedule = true;
       } else {
         currentTimeSlotsToRender =
           selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
@@ -1879,40 +1925,126 @@ function renderScheduleGrid() {
       dayCell.dataset.day = dayIndex;
       dayCell.dataset.time = timeIndex;
 
-      // Determine if slot is busy
-      let isBusy = false;
+      // Handle compare mode vs normal mode logic
       if (state.compareMode && state.selectedUserIds.size > 0) {
-        // Handle compare mode
+        // COMPARE MODE: Only show comparison data, clear all previous selections
+        const selectedUsers = Array.from(state.selectedUserIds)
+          .map((id) => {
+            // First try direct lookup
+            if (state.users[id]) {
+              return state.users[id];
+            }
+            // If not found, search by any property that might match
+            return Object.values(state.users).find(
+              (user) =>
+                user.id === id || user.userId === id || user.friendId === id
+            );
+          })
+          .filter((user) => user && user.schedule);
+
+        console.log(
+          `🔍 Grid compare mode - slot [${dayIndex}][${timeIndex}]:`,
+          {
+            selectedUserIds: Array.from(state.selectedUserIds),
+            selectedUsersFound: selectedUsers.map((u) => ({
+              id: u.id,
+              name: u.name || u.id,
+            })),
+            hasScheduleData: selectedUsers.map(
+              (u) => !!u.schedule?.[dayIndex]?.[timeIndex]
+            ),
+            availableUserKeys: Object.keys(state.users),
+            stateUsersDebug: Object.keys(state.users).map((key) => ({
+              key,
+              userId: state.users[key].id,
+              name: state.users[key].name,
+              hasSchedule: !!state.users[key].schedule,
+            })),
+          }
+        );
+
+        // Check if any selected user is busy at this time
+        const busyUsers = selectedUsers.filter((user) => {
+          if (
+            user.schedule &&
+            user.schedule[dayIndex] &&
+            user.schedule[dayIndex][timeIndex] !== undefined
+          ) {
+            const isBusy = user.schedule[dayIndex][timeIndex];
+            console.log(
+              `📊 Grid compare - user ${
+                user.name || user.id
+              } at [${dayIndex}][${timeIndex}]: ${isBusy ? "BUSY" : "FREE"}`
+            );
+            return isBusy;
+          }
+          console.log(
+            `⚠️ Grid compare - user ${
+              user.name || user.id
+            } missing schedule data at [${dayIndex}][${timeIndex}]`
+          );
+          return false;
+        });
+
+        const freeUsers = selectedUsers.filter(
+          (user) => !busyUsers.includes(user)
+        );
+
+        // Apply comparison styling - completely clear and only show comparison
+        if (busyUsers.length === 0) {
+          // All users free - use green free style
+          dayCell.classList.add("slot-free");
+          dayCell.title = `All available: ${selectedUsers
+            .map((u) => u.name || u.id)
+            .join(", ")}`;
+        } else if (busyUsers.length === selectedUsers.length) {
+          // All users busy - use red conflict style
+          dayCell.classList.add("slot-conflict");
+          dayCell.title = `All busy: ${busyUsers
+            .map((u) => u.name || u.id)
+            .join(", ")}`;
+        } else {
+          // Some users busy - use orange partial style
+          dayCell.classList.add("slot-partial");
+          dayCell.title = `Mixed: Free (${freeUsers
+            .map((u) => u.name || u.id)
+            .join(", ")}) | Busy (${busyUsers
+            .map((u) => u.name || u.id)
+            .join(", ")})`;
+        }
+
+        dayCell.dataset.busyUsers = busyUsers.map((u) => u.id).join(",");
+        dayCell.dataset.freeUsers = freeUsers.map((u) => u.id).join(",");
       } else if (
+        !state.compareMode &&
         scheduleMatrixToRender &&
         scheduleMatrixToRender[dayIndex] &&
         scheduleMatrixToRender[dayIndex][timeIndex] !== undefined
       ) {
-        isBusy = scheduleMatrixToRender[dayIndex][timeIndex];
-      }
+        // NORMAL MODE: Show individual user's schedule with colors
+        const isBusy = scheduleMatrixToRender[dayIndex][timeIndex];
 
-      const statusClass = determineSlotStatus(dayIndex, timeIndex, state);
-      if (statusClass !== "slot") {
-        dayCell.classList.add(statusClass);
-      } else if (isBusy && !state.compareMode) {
-        dayCell.classList.add("slot-selected");
+        if (isBusy) {
+          dayCell.classList.add("slot-selected");
 
-        // Assign random modern color
-        if (
-          state.users[state.activeUserId]?.slotInfo?.[dayIndex]?.[timeIndex]
-            ?.courseCode
-        ) {
-          const courseCode =
-            state.users[state.activeUserId].slotInfo[dayIndex][timeIndex]
-              .courseCode;
-          if (!courseColors[courseCode]) {
-            courseColors[courseCode] = `color-${colorIndex}`;
-            colorIndex = (colorIndex % 10) + 1; // Cycle through 10 colors
+          // Assign course-based colors for busy slots
+          if (
+            state.users[state.activeUserId]?.slotInfo?.[dayIndex]?.[timeIndex]
+              ?.courseCode
+          ) {
+            const courseCode =
+              state.users[state.activeUserId].slotInfo[dayIndex][timeIndex]
+                .courseCode;
+            if (!courseColors[courseCode]) {
+              courseColors[courseCode] = `color-${colorIndex}`;
+              colorIndex = (colorIndex % 10) + 1; // Cycle through 10 colors
+            }
+            dayCell.classList.add(courseColors[courseCode]);
+          } else {
+            // Fallback random color
+            const fallbackColor = `color-${((dayIndex + timeIndex) % 10) + 1}`;
+            dayCell.classList.add(fallbackColor);
           }
-          dayCell.classList.add(courseColors[courseCode]);
-        } else {
-          // Fallback random color
-          dayCell.classList.add(`color-${((dayIndex + timeIndex) % 10) + 1}`);
         }
       }
 
@@ -1966,6 +2098,10 @@ function renderScheduleGrid() {
 
       // Pin Rendering Logic for Compare Mode
       if (state.compareMode && state.selectedUserIds.size > 0) {
+        console.log(
+          `📌 Grid pin rendering for compare mode at [${dayIndex}][${timeIndex}]`
+        );
+
         const existingPinIndicators = dayCell.querySelectorAll(
           ".pin-indicator, .can-pin-indicator, .compare-pin-indicator, .pin-square-container"
         );
@@ -1976,6 +2112,12 @@ function renderScheduleGrid() {
           timeIndex,
           state
         );
+
+        console.log(`📌 Grid pin data at [${dayIndex}][${timeIndex}]:`, {
+          count: pinData.count,
+          userNames: pinData.userNames,
+          userIds: pinData.userIds,
+        });
 
         if (pinData.count > 0) {
           const pinContainer = document.createElement("div");
@@ -2020,6 +2162,9 @@ function renderScheduleGrid() {
           });
 
           dayCell.appendChild(pinContainer);
+          console.log(
+            `📌 Grid pin container added at [${dayIndex}][${timeIndex}] with ${pinData.count} pins`
+          );
         }
       }
 
@@ -2071,11 +2216,23 @@ function renderScheduleGrid() {
   const slotCount = currentTimeSlotsToRender.length;
   const scheduleTable = DOM_ELEMENTS.scheduleTable;
 
+  // Smart logging for grid completion - only every 5 seconds
+  smartLog(
+    "gridComplete",
+    "🎨 Grid rendering complete:",
+    {
+      timeSlots: slotCount,
+      usedUnifiedSchedule,
+      allowEditingHeaders,
+      totalCells: slotCount * 7,
+      compareMode: state.compareMode,
+      selectedUsers: state.selectedUserIds.size,
+    },
+    5000
+  );
+
   if (slotCount > 8 || (state.compareMode && slotCount > 6)) {
     scheduleTable.classList.add("many-slots");
-    console.log(
-      `Many slots detected (${slotCount}), applying flexible styling`
-    );
   } else {
     scheduleTable.classList.remove("many-slots");
   }
@@ -2208,12 +2365,7 @@ function triggerAddUserGlow() {
  * when they try to interact with the disabled schedule and users exist.
  */
 function triggerUsersSectionGlow() {
-  console.log("triggerUsersSectionGlow called");
-  console.log("DOM_ELEMENTS.usersSection:", DOM_ELEMENTS.usersSection);
-
   if (DOM_ELEMENTS.usersSection) {
-    console.log("Users section found, applying glow effect");
-
     // Remove any existing glow class
     DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
 
@@ -2223,12 +2375,9 @@ function triggerUsersSectionGlow() {
     // Add the glow class to trigger the animation
     DOM_ELEMENTS.usersSection.classList.add("users-section-glow");
 
-    console.log("Glow class added to users section");
-
     // Remove the class after animation completes (0.6s * 3 repetitions = 1.8s)
     setTimeout(() => {
       DOM_ELEMENTS.usersSection.classList.remove("users-section-glow");
-      console.log("Glow class removed from users section");
     }, 2000);
   } else {
     console.error("DOM_ELEMENTS.usersSection is null or undefined");
@@ -2236,6 +2385,22 @@ function triggerUsersSectionGlow() {
 }
 
 function updateUI() {
+  // Smart logging - only log state changes every 2 seconds
+  smartLog(
+    "updateUI",
+    "🔄 updateUI called:",
+    {
+      viewMode: state.viewMode,
+      compareMode: state.compareMode,
+      pinModeActive: state.pinModeActive,
+      activeUserId: state.activeUserId,
+      selectedUserIds: Array.from(state.selectedUserIds),
+      totalUsers: Object.keys(state.users).length,
+      isMobile: state.isMobile,
+    },
+    2000
+  );
+
   // Update mobile view controls
   updateViewModeButtons();
   updateViewContainers();
@@ -2261,6 +2426,22 @@ function updateUI() {
       state.compareMode,
       totalUserCount // Pass the user count
     );
+
+    // Smart logging for compare button state - only every 3 seconds
+    smartLog(
+      "compareButton",
+      "🔘 Compare button state:",
+      {
+        isDisabled: compareButtonState.isDisabled,
+        isActiveClass: compareButtonState.isActiveClass,
+        text: compareButtonState.text,
+        pinModeActive: state.pinModeActive,
+        compareMode: state.compareMode,
+        totalUserCount,
+      },
+      3000
+    );
+
     DOM_ELEMENTS.compareButton.disabled = compareButtonState.isDisabled;
     DOM_ELEMENTS.compareButton.classList.toggle(
       "active",
@@ -2304,10 +2485,8 @@ function updateUI() {
   }
   // --- END: Logic for Pin Mode Button ---
 
-  // Update mobile compare mode if needed
-  if (state.viewMode === "day" && state.compareMode) {
-    updateMobileCompareMode();
-  }
+  // Note: Mobile compare mode sync is handled directly in event handlers to prevent circular calls
+  console.log(`✅ updateUI completed successfully`);
 }
 
 /* ================================
@@ -2523,33 +2702,48 @@ function handleSetActiveUser(userId) {
 function handleToggleCompareMode() {
   const previousActiveUser = state.users[state.activeUserId]?.name;
   const selectedCount = state.selectedUserIds.size;
+  const previousCompareMode = state.compareMode;
 
   state.compareMode = !state.compareMode;
 
-  // Sync with horizontal friends bar if it exists
+  // Smart logging - only log compare mode changes every 1 second
+  smartLog(
+    "compareMode",
+    "🔄 Toggle compare mode:",
+    {
+      from: previousCompareMode,
+      to: state.compareMode,
+      previousActiveUser,
+      selectedUserIds: Array.from(state.selectedUserIds),
+      selectedCount,
+    },
+    1000
+  );
+
+  // Sync with horizontal friends bar if it exists (without emitting events to prevent loop)
   if (state.horizontalFriendsBar) {
-    if (state.compareMode) {
-      state.horizontalFriendsBar.activateCompareMode();
-    } else {
-      state.horizontalFriendsBar.deactivateCompareMode();
-    }
+    state.horizontalFriendsBar.syncCompareMode(state.compareMode);
   }
 
   if (state.compareMode) {
     state.activeUserId = null; // Clear active user when entering compare mode
     state.pinModeActive = false; // Disable pin mode in compare mode
-    state.selectedUserIds.clear(); // Clear selected user IDs
+    // DON'T clear selectedUserIds - keep existing selections
 
-    console.log("[Mode] Compare Mode enabled", {
+    console.log("[Mode] Compare Mode ENABLED", {
       previousActiveUser,
       totalUsers: Object.keys(state.users).length,
+      keepingSelectedUsers: Array.from(state.selectedUserIds),
+      clearedActiveUser: true,
+      disabledPinMode: true,
     });
   } else {
     state.selectedUserIds.clear(); // Clear selected user IDs when exiting compare mode
 
-    console.log("[Mode] Compare Mode disabled", {
+    console.log("[Mode] Compare Mode DISABLED", {
       previouslySelected: selectedCount,
       totalUsers: Object.keys(state.users).length,
+      clearedSelections: true,
     });
   }
 
@@ -2557,12 +2751,56 @@ function handleToggleCompareMode() {
   updateMobileCompareMode();
 
   updateUI();
+
+  // Smart logging for mode completion - only every 2 seconds
+  smartLog(
+    "compareModeComplete",
+    "✅ Compare mode toggle completed:",
+    { newState: state.compareMode },
+    2000
+  );
 }
 
 function handleToggleUserSelectionForCompare(userId) {
-  if (!state.compareMode || !state.users[userId]) return;
-  if (state.selectedUserIds.has(userId)) state.selectedUserIds.delete(userId);
-  else state.selectedUserIds.add(userId);
+  if (!state.compareMode) {
+    console.log(
+      `⚠️ Attempted to toggle user selection but compare mode is disabled:`,
+      {
+        userId,
+        compareMode: state.compareMode,
+      }
+    );
+    return;
+  }
+
+  if (!state.users[userId]) {
+    console.log(`❌ Attempted to toggle selection for non-existent user:`, {
+      userId,
+      availableUsers: Object.keys(state.users),
+    });
+    return;
+  }
+
+  const wasSelected = state.selectedUserIds.has(userId);
+
+  if (wasSelected) {
+    state.selectedUserIds.delete(userId);
+    console.log(`➖ User deselected for comparison:`, {
+      userId,
+      userName: state.users[userId]?.name || "unknown",
+      remainingSelected: Array.from(state.selectedUserIds),
+      totalSelected: state.selectedUserIds.size,
+    });
+  } else {
+    state.selectedUserIds.add(userId);
+    console.log(`➕ User selected for comparison:`, {
+      userId,
+      userName: state.users[userId]?.name || "unknown",
+      allSelected: Array.from(state.selectedUserIds),
+      totalSelected: state.selectedUserIds.size,
+    });
+  }
+
   updateUI();
 }
 
@@ -3228,12 +3466,6 @@ function updateViewContainers() {
   if (daySelector) {
     daySelector.classList.toggle("show", state.viewMode === "day");
   }
-
-  console.log(`📱 View containers updated - Mode: ${state.viewMode}`, {
-    dayViewActive: dayView?.classList.contains("active"),
-    gridViewActive: gridView?.classList.contains("active"),
-    daySelectorVisible: daySelector?.classList.contains("show"),
-  });
 }
 
 /**
@@ -3251,9 +3483,18 @@ function renderScheduleForCurrentView() {
  * Render the day view for the selected day
  */
 function renderDayView() {
+  console.log(`📅 renderDayView called:`, {
+    selectedDay: state.selectedDay,
+    dayName: getDayName(state.selectedDay),
+    compareMode: state.compareMode,
+    selectedUserIds: Array.from(state.selectedUserIds),
+    activeUserId: state.activeUserId,
+    totalUsers: Object.keys(state.users).length,
+  });
+
   const container = DOM_ELEMENTS.dayViewContainer;
   if (!container) {
-    console.error("Day view container not found");
+    console.error("❌ Day view container not found");
     return;
   }
 
@@ -3266,13 +3507,25 @@ function renderDayView() {
     : null;
   const timeSlots = activeUser?.timeSlots || DEFAULT_TIMESLOTS;
 
+  console.log(`📊 Day view data source:`, {
+    activeUser: activeUser
+      ? { id: activeUser.id, name: activeUser.name }
+      : null,
+    timeSlotCount: timeSlots.length,
+    usingDefaultSlots: !activeUser?.timeSlots,
+  });
+
   // Generate time slots for the selected day
   timeSlots.forEach((timeSlot, timeIndex) => {
     const slotElement = createDayViewTimeSlot(timeSlot, timeIndex, activeUser);
     container.appendChild(slotElement);
   });
 
-  console.log(`📅 Day view rendered for ${getDayName(state.selectedDay)}`);
+  console.log(
+    `✅ Day view rendered for ${getDayName(state.selectedDay)} with ${
+      timeSlots.length
+    } time slots`
+  );
 }
 
 /**
@@ -3284,20 +3537,56 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user) {
   slotDiv.dataset.timeIndex = timeIndex;
   slotDiv.dataset.day = state.selectedDay;
 
-  // Determine slot state
-  const isBusy = user?.schedule?.[state.selectedDay]?.[timeIndex] || false;
-  const isPinned = user?.pinnedSlots?.[state.selectedDay]?.[timeIndex] || false;
-  const slotInfo = user?.slotInfo?.[state.selectedDay]?.[timeIndex];
+  // Handle compare mode vs normal mode
+  if (state.compareMode && state.selectedUserIds.size > 0) {
+    slotDiv.classList.add("compare-mode");
 
-  slotDiv.classList.toggle("busy", isBusy);
-  slotDiv.classList.toggle("free", !isBusy);
-  slotDiv.classList.toggle("pinned", isPinned);
+    console.log(
+      `🎭 Day view compare mode - slot ${timeIndex} on ${getDayName(
+        state.selectedDay
+      )}:`,
+      {
+        selectedUserIds: Array.from(state.selectedUserIds),
+        selectedUsersCount: state.selectedUserIds.size,
+      }
+    );
 
-  // Handle compare mode
-  if (state.compareMode) {
+    // Get comparison status and apply appropriate class
+    const comparisonStatus = getSlotComparisonStatus(
+      state.selectedDay,
+      timeIndex
+    );
+    slotDiv.classList.add(comparisonStatus.cssClass);
+
+    console.log(`🎨 Day view comparison status for slot ${timeIndex}:`, {
+      cssClass: comparisonStatus.cssClass,
+      text: comparisonStatus.text,
+      tooltip: comparisonStatus.tooltip,
+    });
+
+    // Apply glass-orange for mixed availability
+    if (comparisonStatus.cssClass === "mixed-availability") {
+      slotDiv.classList.add("mixed-availability");
+      console.log(
+        `🟡 Day view applying mixed-availability glass-orange styling to slot ${timeIndex}`
+      );
+    }
+
+    slotDiv.innerHTML = createCompareSlotContent(timeSlot, timeIndex);
+  } else if (state.compareMode && state.selectedUserIds.size === 0) {
     slotDiv.classList.add("compare-mode");
     slotDiv.innerHTML = createCompareSlotContent(timeSlot, timeIndex);
   } else {
+    // Normal mode - individual user schedule
+    const isBusy = user?.schedule?.[state.selectedDay]?.[timeIndex] || false;
+    const isPinned =
+      user?.pinnedSlots?.[state.selectedDay]?.[timeIndex] || false;
+    const slotInfo = user?.slotInfo?.[state.selectedDay]?.[timeIndex];
+
+    slotDiv.classList.toggle("busy", isBusy);
+    slotDiv.classList.toggle("free", !isBusy);
+    slotDiv.classList.toggle("pinned", isPinned);
+
     slotDiv.innerHTML = createNormalSlotContent(timeSlot, isBusy, slotInfo);
   }
 
@@ -3338,68 +3627,222 @@ function createNormalSlotContent(timeSlot, isBusy, slotInfo) {
  * Create compare mode slot content with avatars
  */
 function createCompareSlotContent(timeSlot, timeIndex) {
+  const comparisonStatus = getSlotComparisonStatus(
+    state.selectedDay,
+    timeIndex
+  );
+  const avatarContent = generateAvatarsForCompareSlot(
+    state.selectedDay,
+    timeIndex
+  );
+
   return `
     <div class="slot-time">${timeSlot.label}</div>
-    <div class="slot-avatar-container" id="avatarContainer_${
-      state.selectedDay
-    }_${timeIndex}">
-      ${generateAvatarsForSlot(state.selectedDay, timeIndex)}
+    <div class="slot-content">
+      <div class="slot-comparison-status ${comparisonStatus.cssClass}" title="${comparisonStatus.tooltip}">
+        <div class="comparison-indicator">
+          <i class="${comparisonStatus.icon}"></i>
+          <span class="comparison-text">${comparisonStatus.text}</span>
+        </div>
+      </div>
+      <div class="slot-avatar-container">
+        ${avatarContent}
+      </div>
     </div>
   `;
 }
 
 /**
- * Generate avatars for compare mode slot
+ * Determines the comparison status for a time slot across all selected users
+ * @param {number} dayIndex - Day of the week (0-6)
+ * @param {number} timeIndex - Time slot index
+ * @returns {Object} Status object with cssClass, icon, text, tooltip, and details
  */
-function generateAvatarsForSlot(dayIndex, timeIndex) {
+function getSlotComparisonStatus(dayIndex, timeIndex) {
   if (!state.compareMode || state.selectedUserIds.size === 0) {
+    return {
+      cssClass: "no-comparison",
+      icon: "fas fa-question",
+      text: "No comparison",
+      tooltip: "Select friends to compare schedules",
+      details: "No users selected for comparison",
+    };
+  }
+
+  // Get all selected users
+  const selectedUsers = Array.from(state.selectedUserIds)
+    .map((id) => state.users[id])
+    .filter((user) => user);
+
+  if (selectedUsers.length === 0) {
+    return {
+      cssClass: "no-users",
+      icon: "fas fa-user-slash",
+      text: "No users",
+      tooltip: "No valid users found for comparison",
+      details: "Unable to load user data",
+    };
+  }
+
+  // Count busy vs free users
+  const busyUsers = selectedUsers.filter((user) => {
+    if (
+      user.schedule &&
+      user.schedule[dayIndex] &&
+      user.schedule[dayIndex][timeIndex] !== undefined
+    ) {
+      return user.schedule[dayIndex][timeIndex];
+    }
+    return false;
+  });
+  const freeUsers = selectedUsers.filter((user) => !busyUsers.includes(user));
+
+  // Determine status based on availability
+  if (busyUsers.length === 0) {
+    // Everyone is free - GREEN
+    return {
+      cssClass: "all-free",
+      icon: "fas fa-check-circle",
+      text: "All Available",
+      tooltip: `All ${selectedUsers.length} users are available`,
+      details: freeUsers.map((u) => u.name).join(", "),
+    };
+  } else if (freeUsers.length === 0) {
+    // Everyone is busy - RED
+    return {
+      cssClass: "all-busy",
+      icon: "fas fa-times-circle",
+      text: "All Busy",
+      tooltip: `All ${selectedUsers.length} users are busy`,
+      details: busyUsers
+        .map(
+          (u) =>
+            `${u.name}${
+              u.slotInfo?.[dayIndex]?.[timeIndex]?.courseCode
+                ? ` (${u.slotInfo[dayIndex][timeIndex].courseCode})`
+                : ""
+            }`
+        )
+        .join(", "),
+    };
+  } else {
+    // Mixed availability - ORANGE
+    return {
+      cssClass: "mixed-availability",
+      icon: "fas fa-exclamation-triangle",
+      text: "Partial",
+      tooltip: `${freeUsers.length} available, ${busyUsers.length} busy`,
+      details: `Free: ${freeUsers
+        .map((u) => u.name)
+        .join(", ")} | Busy: ${busyUsers.map((u) => u.name).join(", ")}`,
+    };
+  }
+}
+
+/**
+ * Generate avatars for compare mode slot - only show users who are free
+ */
+function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
+  if (!state.compareMode || state.selectedUserIds.size === 0) {
+    console.log(
+      `⚠️ Avatar generation called but compare mode disabled or no users selected:`,
+      {
+        compareMode: state.compareMode,
+        selectedCount: state.selectedUserIds.size,
+      }
+    );
     return '<span class="empty-slot-message">Select friends to compare</span>';
   }
 
+  console.log(`🎭 Generating avatars for day ${dayIndex}, time ${timeIndex}:`, {
+    selectedUserIds: Array.from(state.selectedUserIds),
+    compareMode: state.compareMode,
+  });
+
+  const selectedUsers = Array.from(state.selectedUserIds)
+    .map((id) => state.users[id])
+    .filter((user) => user);
+
+  console.log(`👥 Selected users found:`, {
+    requestedIds: Array.from(state.selectedUserIds),
+    foundUsers: selectedUsers.map((u) => ({ id: u.id, name: u.name || u.id })),
+    missingCount: state.selectedUserIds.size - selectedUsers.length,
+  });
+
+  if (selectedUsers.length === 0) {
+    console.log(`❌ No valid users found for avatar generation`);
+    return '<span class="empty-slot-message">No users selected</span>';
+  }
+
+  // Filter to only free users
+  const freeUsers = selectedUsers.filter((user) => {
+    const isBusy = user.schedule?.[dayIndex]?.[timeIndex] || false;
+    console.log(
+      `📊 User ${user.name || user.id} at [${dayIndex}][${timeIndex}]: ${
+        isBusy ? "BUSY" : "FREE"
+      }`,
+      {
+        hasSchedule: !!user.schedule,
+        hasDaySchedule: !!user.schedule?.[dayIndex],
+        hasTimeSlot: user.schedule?.[dayIndex]?.[timeIndex] !== undefined,
+        slotValue: user.schedule?.[dayIndex]?.[timeIndex],
+      }
+    );
+    return !isBusy;
+  });
+
+  console.log(`✅ Free users for avatars at [${dayIndex}][${timeIndex}]:`, {
+    freeUsers: freeUsers.map((u) => u.name || u.id),
+    freeCount: freeUsers.length,
+    totalCount: selectedUsers.length,
+  });
+
+  if (freeUsers.length === 0) {
+    console.log(
+      `❌ No free users available for avatars at [${dayIndex}][${timeIndex}]`
+    );
+    return '<span class="empty-slot-message">No one available</span>';
+  }
+
   let avatarsHTML = "";
-  let visibleCount = 0;
   const maxVisible = 5; // Maximum avatars to show before overflow
 
-  // Add user's own avatar if they're free
-  const currentUser = state.users[state.activeUserId];
-  if (currentUser && !currentUser.schedule?.[dayIndex]?.[timeIndex]) {
+  freeUsers.slice(0, maxVisible).forEach((user, index) => {
+    const avatarUrl = generateAvatar(user.name || user.id);
+    console.log(
+      `🎨 Creating avatar ${index + 1}/${Math.min(
+        freeUsers.length,
+        maxVisible
+      )} for ${user.name || user.id}:`,
+      avatarUrl
+    );
+
     avatarsHTML += `
-      <div class="friend-avatar user-avatar" data-friend-id="${
-        state.activeUserId
-      }">
-        <img src="${generateAvatar(currentUser.name)}" alt="You" />
-        <div class="avatar-label">You</div>
+      <div class="friend-avatar" data-friend-id="${user.id}">
+        <img src="${avatarUrl}" alt="${user.name || user.id}" />
+        <div class="avatar-label">${user.name || user.id}</div>
       </div>
     `;
-    visibleCount++;
+  });
+
+  // Add overflow indicator if needed
+  if (freeUsers.length > maxVisible) {
+    const remainingCount = freeUsers.length - maxVisible;
+    console.log(
+      `➕ Adding overflow indicator for ${remainingCount} additional users`
+    );
+    avatarsHTML += `
+      <div class="avatar-overflow">+${remainingCount}</div>
+    `;
   }
 
-  // Add selected friends' avatars if they're free
-  for (const friendId of state.selectedUserIds) {
-    if (visibleCount >= maxVisible) {
-      const remainingCount =
-        state.selectedUserIds.size - visibleCount + (currentUser ? 0 : 1);
-      avatarsHTML += `
-        <div class="avatar-overflow">+${remainingCount}</div>
-      `;
-      break;
-    }
-
-    const friend = state.users[friendId];
-    if (friend && !friend.schedule?.[dayIndex]?.[timeIndex]) {
-      avatarsHTML += `
-        <div class="friend-avatar" data-friend-id="${friendId}">
-          <img src="${generateAvatar(friend.name)}" alt="${friend.name}" />
-          <div class="avatar-label">${friend.name}</div>
-        </div>
-      `;
-      visibleCount++;
-    }
-  }
-
-  return (
-    avatarsHTML || '<span class="empty-slot-message">No one available</span>'
+  console.log(
+    `✅ Avatar HTML generated for ${freeUsers.length} free users (${Math.min(
+      freeUsers.length,
+      maxVisible
+    )} visible)`
   );
+  return avatarsHTML;
 }
 
 /**
@@ -3431,17 +3874,30 @@ function getDayName(dayIndex) {
  * Update mobile schedule when compare mode changes
  */
 function updateMobileCompareMode() {
+  console.log(`📱 Updating mobile compare mode:`, {
+    viewMode: state.viewMode,
+    compareMode: state.compareMode,
+    selectedUserIds: Array.from(state.selectedUserIds),
+    selectedCount: state.selectedUserIds.size,
+  });
+
   if (state.viewMode === "day") {
+    console.log(`📅 Re-rendering day view for compare mode change`);
     renderDayView(); // Re-render day view with compare mode changes
+  } else {
+    console.log(
+      `📊 View mode is ${state.viewMode}, grid view will be updated by updateUI()`
+    );
   }
 
-  // Sync with horizontal friends bar compare mode
+  // Sync with horizontal friends bar compare mode (without emitting events to prevent infinite loop)
   if (state.horizontalFriendsBar) {
-    if (state.compareMode) {
-      state.horizontalFriendsBar.activateCompareMode();
-    } else {
-      state.horizontalFriendsBar.deactivateCompareMode();
-    }
+    console.log(
+      `🔗 Syncing horizontal friends bar with compare mode: ${state.compareMode}`
+    );
+    state.horizontalFriendsBar.syncCompareMode(state.compareMode);
+  } else {
+    console.log(`⚠️ No horizontal friends bar available for sync`);
   }
 }
 
@@ -3630,6 +4086,16 @@ function setupAuthenticationCallbacks() {
  */
 async function initializeHorizontalFriendsBar() {
   try {
+    console.log("🔍 DEBUG INIT: initializeHorizontalFriendsBar called");
+    console.log(
+      "🔍 DEBUG INIT: Current user authenticated:",
+      !!currentUser?.profile
+    );
+    console.log(
+      "🔍 DEBUG INIT: Current horizontalFriendsBar exists:",
+      !!state.horizontalFriendsBar
+    );
+
     // Check if user is authenticated
     if (!currentUser?.profile) {
       console.log(
@@ -3638,6 +4104,15 @@ async function initializeHorizontalFriendsBar() {
       return;
     }
 
+    // Prevent double initialization
+    if (state.horizontalFriendsBar) {
+      console.log(
+        "⚠️ DOUBLE INIT PREVENTED: Horizontal Friends Bar already initialized, skipping"
+      );
+      return;
+    }
+
+    console.log("🚀 Creating new HorizontalFriendsBar instance...");
     // Create and initialize the HorizontalFriendsBar component
     state.horizontalFriendsBar = new HorizontalFriendsBar(
       "horizontal-friends-container"
@@ -3657,6 +4132,14 @@ async function initializeHorizontalFriendsBar() {
  * Set up event listeners for Horizontal Friends Bar events
  */
 function setupFriendsBarEventListeners() {
+  // Remove any existing listeners first to prevent duplicates
+  document.removeEventListener("schedule:change", handleFriendScheduleChange);
+  document.removeEventListener("compare:mode", handleCompareModeChange);
+  document.removeEventListener(
+    "compare:selection",
+    handleCompareSelectionChange
+  );
+
   // Listen for schedule change events (when user clicks friend avatar)
   document.addEventListener("schedule:change", handleFriendScheduleChange);
 
@@ -3664,25 +4147,45 @@ function setupFriendsBarEventListeners() {
   document.addEventListener("compare:mode", handleCompareModeChange);
   document.addEventListener("compare:selection", handleCompareSelectionChange);
 
-  console.log("✅ Friends bar event listeners set up");
+  console.log("✅ Friends bar event listeners set up (duplicates prevented)");
 }
 
 /**
  * Handle friend schedule change events from horizontal bar
  */
 async function handleFriendScheduleChange(event) {
-  const { friendId, friendName, isUserSchedule } = event.detail;
+  const { friendId, friendName, isUserSchedule, isEmptySchedule } = event.detail;
 
   console.log(`📅 Schedule change requested:`, {
     friendId,
     friendName,
     isUserSchedule,
+    isEmptySchedule,
   });
 
   // Store previous state for cleanup
   const previousFriendId = state.currentViewingFriendId;
 
-  if (isUserSchedule) {
+  if (isEmptySchedule) {
+    // Show empty schedule (no avatars selected)
+    console.log("🔄 DEBUG: Showing empty schedule (no selection)");
+
+    state.currentViewingFriendId = null;
+    state.activeUserId = null;
+
+    // Clean up any temporary friend user objects
+    if (previousFriendId && state.users[previousFriendId]) {
+      delete state.users[previousFriendId];
+      console.log(
+        `🧹 DEBUG: Cleaned up temporary friend user object for ${previousFriendId}`
+      );
+    }
+
+    // Hide schedule owner indicator
+    updateScheduleOwnerIndicator(null, false);
+
+    console.log("📋 Showing empty schedule state");
+  } else if (isUserSchedule) {
     // Switch back to user's own schedule
     console.log("🔄 DEBUG: Switching to user's own schedule");
 
@@ -3725,7 +4228,7 @@ async function handleFriendScheduleChange(event) {
 
   console.log(
     `✅ Schedule change completed - now viewing: ${
-      isUserSchedule ? "User" : friendName
+      isEmptySchedule ? "Empty Schedule" : isUserSchedule ? "User" : friendName
     }`
   );
 }
@@ -4178,51 +4681,129 @@ function handleCompareModeChange(event) {
   // Update local compare mode state
   state.compareMode = isCompareMode;
 
+  // Update body class for global styling
+  document.body.classList.toggle("compare-mode-active", isCompareMode);
+
   // Sync with desktop compare button if it exists
   const desktopCompareButton = document.getElementById("compare");
   if (desktopCompareButton) {
     desktopCompareButton.classList.toggle("active", isCompareMode);
   }
 
-  // Update UI
-  updateUI();
+  // Update UI but skip mobile compare mode sync to prevent circular calls
+  if (state.viewMode === "day") {
+    renderDayView(); // Re-render day view with compare mode changes
+  } else {
+    renderScheduleGrid(); // Re-render grid view
+  }
+
+  // DO NOT call updateUI() or updateMobileCompareMode() here to prevent circular sync
 }
 
 /**
  * Handle compare selection change events
  */
 function handleCompareSelectionChange(event) {
-  const { selectedFriends, friendsData } = event.detail;
+  const {
+    selectedFriends,
+    selectedUsersData,
+    compareMode,
+    userCount,
+    hasUser,
+  } = event.detail;
 
-  console.log(`📊 Compare selection changed:`, selectedFriends);
+  console.log(`📊 Compare selection changed:`, {
+    selectedFriends,
+    userCount,
+    hasUser,
+    compareMode,
+    users: selectedUsersData?.map((u) => u.displayName) || [],
+    currentSelectedUserIds: Array.from(state.selectedUserIds),
+    currentStateCompareMode: state.compareMode,
+  });
 
   // Update selected user IDs for comparison
+  const previousSelectedCount = state.selectedUserIds.size;
   state.selectedUserIds.clear();
   selectedFriends.forEach((friendId) => {
     state.selectedUserIds.add(friendId);
+    console.log(`➕ Added ${friendId} to selectedUserIds`);
+  });
+
+  console.log(`🔄 selectedUserIds updated:`, {
+    previous: previousSelectedCount,
+    current: state.selectedUserIds.size,
+    ids: Array.from(state.selectedUserIds),
   });
 
   // Load schedules for comparison if needed
-  loadSelectedFriendsForComparison(friendsData);
+  console.log(
+    `📚 Loading schedules for ${selectedUsersData?.length || 0} users`
+  );
+  loadSelectedFriendsForComparison(selectedUsersData || []);
 
-  // Update UI
+  // Update UI to show comparison grid
+  console.log(`🎨 Triggering UI update for comparison mode`);
   updateUI();
+
+  // Force specific rendering based on current view mode
+  if (compareMode && userCount >= 2) {
+    console.log(
+      `🔄 Forcing comparison re-render for ${userCount} users in ${state.viewMode} view`
+    );
+    setTimeout(() => {
+      if (state.viewMode === "grid") {
+        console.log(`📊 Force rendering grid view for comparison`);
+        renderScheduleGrid();
+      } else {
+        console.log(`📅 Force rendering day view for comparison`);
+        renderDayView();
+      }
+    }, 100);
+  } else {
+    console.log(
+      `⚠️ Not forcing re-render - compareMode: ${compareMode}, userCount: ${userCount}`
+    );
+  }
 }
 
 /**
  * Load schedules for selected friends in comparison mode
  */
-async function loadSelectedFriendsForComparison(friendsData) {
+async function loadSelectedFriendsForComparison(selectedUsersData) {
   try {
-    const loadPromises = friendsData.map(async (friend) => {
-      const friendId = friend.friendId || friend.userId;
+    console.log(
+      "🔄 Loading schedules for comparison:",
+      selectedUsersData.map((u) => u.displayName)
+    );
 
-      // Skip if already cached
-      if (state.friendsScheduleData.has(friendId)) {
+    const loadPromises = selectedUsersData.map(async (userData) => {
+      const friendId = userData.friendId || userData.userId;
+
+      // Handle current user's data
+      if (userData.isCurrentUser || friendId === "user") {
+        console.log("👤 Adding current user to comparison state");
+        // Ensure current user's data is available under 'user' key
+        if (state.activeUserId && state.users[state.activeUserId]) {
+          state.users["user"] = {
+            ...state.users[state.activeUserId],
+            id: "user",
+            name: userData.displayName || "You",
+          };
+        } else {
+          console.warn("⚠️ Current user data not found in state.users");
+        }
         return;
       }
 
-      // Load schedule data
+      // Skip if already cached for friends
+      if (state.friendsScheduleData.has(friendId)) {
+        console.log(`✅ Schedule already cached for ${userData.displayName}`);
+        return;
+      }
+
+      console.log(`📥 Loading schedule for ${userData.displayName}...`);
+      // Load schedule data for friends
       const scheduleData = await dataManager.getUserSchedule(friendId);
       if (scheduleData) {
         state.friendsScheduleData.set(friendId, scheduleData);
@@ -4230,7 +4811,7 @@ async function loadSelectedFriendsForComparison(friendsData) {
         // Add to users state for rendering
         const friendUser = {
           id: friendId,
-          name: friend.displayName,
+          name: userData.displayName,
           timeSlots: scheduleData.timeSlots || DEFAULT_TIMESLOTS,
           schedule:
             scheduleData.schedule ||
@@ -4245,11 +4826,26 @@ async function loadSelectedFriendsForComparison(friendsData) {
         };
 
         state.users[friendId] = friendUser;
+        console.log(`✅ Schedule loaded for ${userData.displayName}`, {
+          storedUnderKey: friendId,
+          friendUserData: {
+            id: friendUser.id,
+            name: friendUser.name,
+            hasSchedule: !!friendUser.schedule,
+            timeSlots: friendUser.timeSlots?.length || 0,
+          },
+          currentStateUsersKeys: Object.keys(state.users),
+        });
+      } else {
+        console.warn(`⚠️ No schedule data found for ${userData.displayName}`);
       }
     });
 
     await Promise.all(loadPromises);
-    console.log("✅ Loaded schedules for comparison");
+    console.log(
+      "✅ All schedules loaded for comparison, selectedUserIds:",
+      Array.from(state.selectedUserIds)
+    );
   } catch (error) {
     console.error("❌ Failed to load schedules for comparison:", error);
   }

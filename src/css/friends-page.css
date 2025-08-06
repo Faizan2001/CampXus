@@ -41,7 +41,6 @@ body.page-friends .schedule-column {
 
 /* Reset any grid positioning for friends elements */
 body.page-friends .users-section,
-body.page-friends .compare-section,
 body.page-friends .import-export-section,
 body.page-friends .schedule-section {
   grid-column: unset !important;

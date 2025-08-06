@@ -61,7 +61,7 @@ body {
 @supports (container-type: inline-size) {
   .schedule-container,
   .user-list-section,
-  .compare-section {
+{
     container-type: inline-size;
   }
 

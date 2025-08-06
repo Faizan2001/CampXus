@@ -2237,6 +2237,7 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 /* ===== SELECTION RING - POSITIONED AROUND user-avatar-img ===== */
+/* Default purple selection ring for normal mode (when not in compare mode) */
 .selection-ring {
   position: absolute;
   /* Position exactly around the img.user-avatar-img element */
@@ -2257,6 +2258,7 @@ body:not(.dark-mode) #slotTooltip {
   display: block;
 }
 
+/* Normal mode selection (purple rings) */
 .friend-avatar-item.selected .selection-ring {
   opacity: 1 !important;
   transform: scale(
@@ -2506,6 +2508,11 @@ body:not(.dark-mode) #slotTooltip {
   animation: gentle-wiggle 0.3s ease-in-out infinite alternate;
 }
 
+/* Stop wiggling for selected avatars in compare mode */
+.friend-avatar-item.compare-mode-available.compare-selected {
+  animation: none !important;
+}
+
 .friend-avatar-item.compare-selected .avatar-container {
   transform: scale(1); /* No scaling to prevent shrinking */
   border: 2px solid var(--primary);
@@ -2548,6 +2555,39 @@ body:not(.dark-mode) #slotTooltip {
     transform: scale(1) rotate(0deg);
     opacity: 1;
   }
+}
+
+/* ===== COMPARE MODE RED SELECTION RINGS ===== */
+/* Red selection ring for avatars selected for comparison during compare mode */
+.selection-ring.compare-selected-ring {
+  border-color: #ef4444 !important; /* Red color for comparison mode */
+  border-width: 3px !important;
+  box-shadow: 0 0 0 1px #ef4444, 0 0 12px #ef4444,
+    0 0 24px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(239, 68, 68, 0.2) !important;
+  animation: red-comparison-pulse 2s ease-in-out infinite;
+  z-index: 3 !important;
+  opacity: 1 !important;
+  transform: scale(1.12) !important;
+}
+
+/* Animated red glow pulse effect for comparison selection */
+@keyframes red-comparison-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px #ef4444, 0 0 12px #ef4444,
+      0 0 24px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(239, 68, 68, 0.2);
+    transform: scale(1.12);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #ef4444, 0 0 16px #ef4444,
+      0 0 32px rgba(239, 68, 68, 0.4), inset 0 0 12px rgba(239, 68, 68, 0.3);
+    transform: scale(1.15);
+  }
+}
+
+/* Remove old checkmark styling - now using purple glow rings */
+.compare-checkmark {
+  display: none !important;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
@@ -2606,7 +2646,7 @@ body:not(.dark-mode) #slotTooltip {
 
 @media (max-width: 480px) {
   .horizontal-friends-bar {
-    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Reduced top padding */;
+    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Reduced top padding */
     /* Ensure glass styling consistency on small mobile */
     border-radius: var(--radius-xl) !important; /* Consistent border radius */
     background: var(--glass-bg) !important;
@@ -2659,4 +2699,18 @@ body:not(.dark-mode) #slotTooltip {
 /* Hide status elements for Instagram-style compact design */
 .friends-bar-status {
   display: none;
+}
+
+/* ===== GLASS ORANGE THEME FOR MIXED AVAILABILITY ===== */
+.glass-orange {
+  background: linear-gradient(
+    135deg,
+    rgba(251, 146, 60, 0.15),
+    rgba(249, 115, 22, 0.1)
+  ) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(251, 146, 60, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  color: var(--text-primary) !important;
 }

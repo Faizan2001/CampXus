@@ -55,6 +55,9 @@ export class HorizontalFriendsBar {
     // Compare mode state
     this.compareMode = false;
     this.selectedForCompare = new Set(); // Set of friend IDs selected for comparison
+    this._isToggling = false; // Prevent rapid compare mode toggles
+    this._lastNotification = null; // Track last notification to prevent duplicates
+    this._notificationDebounce = null; // Debounce timer for notifications
 
     // UI Elements
     this.userContainer = null;
@@ -173,6 +176,14 @@ export class HorizontalFriendsBar {
             <!-- Friend avatars will be rendered here (SCROLLABLE) -->
           </div>
         </div>
+        <div class="compare-button-container" id="${this.containerId}-compare">
+          <button class="btn-compare compare-button round-compare-btn" 
+                  type="button" 
+                  title="Toggle Compare Mode"
+                  id="roundCompareBtn">
+            <i class="fas fa-balance-scale"></i>
+          </button>
+        </div>
       </div>
     `;
 
@@ -184,8 +195,13 @@ export class HorizontalFriendsBar {
     this.avatarsContainer = document.getElementById(
       `${this.containerId}-avatars`
     );
+    this.compareButtonContainer = document.getElementById(
+      `${this.containerId}-compare`
+    );
 
-    console.log("🎨 UI structure created for HorizontalFriendsBar");
+    console.log(
+      "🎨 UI structure created for HorizontalFriendsBar with round compare button"
+    );
   }
 
   /**
@@ -195,7 +211,6 @@ export class HorizontalFriendsBar {
     if (!this.boundHandlers) {
       this.boundHandlers = {
         avatarClick: (e) => this.handleAvatarClick(e),
-        avatarLongPress: (e) => this.handleAvatarLongPress(e),
         scrollStart: () => this.handleScrollStart(),
         scrollEnd: () => this.handleScrollEnd(),
         refreshClick: () => this.handleRefreshClick(),
@@ -205,13 +220,6 @@ export class HorizontalFriendsBar {
 
     // Avatar clicks using event delegation
     this.container.addEventListener("click", this.boundHandlers.avatarClick);
-
-    // Long press for future multi-select
-    this.container.addEventListener(
-      "touchstart",
-      this.boundHandlers.avatarLongPress,
-      { passive: true }
-    );
 
     // Scroll handling on the FRIENDS scroll container (not user container)
     if (this.scrollContainer) {
@@ -392,6 +400,14 @@ export class HorizontalFriendsBar {
    * Handle avatar click events
    */
   handleAvatarClick(event) {
+    // Ignore clicks on compare button or its children
+    if (
+      event.target.closest(".btn-compare") ||
+      event.target.closest(".compare-button-container")
+    ) {
+      return;
+    }
+
     const avatarItem = event.target.closest(".friend-avatar-item");
     if (!avatarItem) return;
 
@@ -399,15 +415,24 @@ export class HorizontalFriendsBar {
     const friendName = avatarItem.dataset.friendName;
 
     console.log(`👆 Avatar clicked: ${friendName} (${friendId})`);
+    console.log(
+      `🔴 DEBUG COMPARE: Click in ${
+        this.compareMode ? "COMPARE MODE" : "NORMAL MODE"
+      }`
+    );
 
     // Prevent multiple clicks while processing
     if (avatarItem.classList.contains("loading")) return;
 
     if (this.compareMode) {
       // In compare mode: toggle selection for comparison
+      console.log(
+        `🔴 DEBUG COMPARE: Toggling comparison selection for ${friendName}`
+      );
       this.toggleCompareSelection(friendId, friendName);
     } else {
       // Normal mode: select this friend's schedule
+      console.log(`👤 DEBUG NORMAL: Selecting ${friendName}'s schedule`);
       this.selectFriend(friendId, friendName);
     }
   }
@@ -417,9 +442,9 @@ export class HorizontalFriendsBar {
    */
   selectFriend(friendId, friendName = null) {
     // Check if this friend is already selected
-    const currentlySelected =
-      (friendId === "user" && this.selectedFriendId === null) ||
-      (friendId !== "user" && this.selectedFriendId === friendId);
+    const isUserCurrentlySelected = friendId === "user" && this.selectedFriendId === null;
+    const isFriendCurrentlySelected = friendId !== "user" && this.selectedFriendId === friendId;
+    const currentlySelected = isUserCurrentlySelected || isFriendCurrentlySelected;
 
     if (currentlySelected && friendId !== "user") {
       // If clicking on already selected friend (not user), deselect and fallback to user
@@ -427,8 +452,9 @@ export class HorizontalFriendsBar {
       this.selectUser();
       return;
     } else if (currentlySelected && friendId === "user") {
-      // If clicking on already selected user, keep them selected (user always stays selected)
-      console.log(`👤 User avatar already selected, keeping selection`);
+      // If clicking on already selected user, deselect them (show empty schedule)
+      console.log(`🔄 Deselecting user avatar, showing empty schedule`);
+      this.deselectAll();
       return;
     }
 
@@ -491,6 +517,32 @@ export class HorizontalFriendsBar {
   }
 
   /**
+   * Deselect all avatars and show empty schedule
+   */
+  deselectAll() {
+    console.log("🔍 DEBUG: deselectAll() called - clearing all selections");
+
+    // Clear selection state
+    this.selectedFriendId = "none"; // Special value to indicate no selection
+
+    // Update visual selection (clear all rings)
+    this.updateVisualSelection(null);
+
+    // Update status text
+    this.updateSelectionStatus("No Schedule Selected");
+
+    // Emit event for empty schedule display
+    this.emitScheduleChangeEvent(null, null, true); // isEmptySchedule = true
+
+    // Show feedback
+    notificationManager.showSystemNotification(
+      "No schedule selected",
+      "info",
+      1500
+    );
+  }
+
+  /**
    * Update visual selection rings
    */
   updateVisualSelection(selectedFriendId) {
@@ -516,6 +568,12 @@ export class HorizontalFriendsBar {
         );
       }
     });
+
+    // If selectedFriendId is null, don't select any avatar (empty schedule state)
+    if (selectedFriendId === null) {
+      console.log("🔍 DEBUG: No avatar selected - showing empty schedule state");
+      return;
+    }
 
     // Add selection to clicked avatar
     const selectedElement = this.avatarElements.get(selectedFriendId);
@@ -573,22 +631,27 @@ export class HorizontalFriendsBar {
   updateSelectionStatus(friendName) {
     const statusElement = this.container.querySelector(".current-selection");
     if (statusElement) {
-      const displayText =
-        friendName === "You" || friendName === "user"
-          ? "Your Schedule"
-          : `${friendName}'s Schedule`;
-      statusElement.textContent = displayText;
+      if (friendName === "No Schedule Selected") {
+        statusElement.textContent = friendName;
+      } else {
+        const displayText =
+          friendName === "You" || friendName === "user"
+            ? "Your Schedule"
+            : `${friendName}'s Schedule`;
+        statusElement.textContent = displayText;
+      }
     }
   }
 
   /**
    * Emit schedule change event for HomePage.js to handle
    */
-  emitScheduleChangeEvent(friendId, friendName) {
+  emitScheduleChangeEvent(friendId, friendName, isEmptySchedule = false) {
     const eventDetail = {
       friendId: friendId === "user" ? null : friendId,
       friendName: friendName,
       isUserSchedule: friendId === "user",
+      isEmptySchedule: isEmptySchedule,
       timestamp: Date.now(),
     };
 
@@ -845,38 +908,69 @@ export class HorizontalFriendsBar {
    * Handle long press for compare mode activation
    */
   handleAvatarLongPress(event) {
-    const avatarItem = event.target.closest(".friend-avatar-item");
-    if (!avatarItem || this.compareMode) return;
-
-    // Activate compare mode via long press
-    console.log("👆 Long press detected - activating compare mode");
-    this.activateCompareMode();
-
-    // Provide haptic feedback if available
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
-    }
+    // Long press functionality removed - compare mode only activates via button
+    return;
   }
 
   /**
    * Toggle compare mode on/off
    */
   handleToggleCompareMode() {
+    // Prevent rapid successive clicks
+    if (this._isToggling) {
+      console.log("🚫 Compare mode toggle already in progress, ignoring");
+      return;
+    }
+
+    this._isToggling = true;
+
+    console.log(
+      `� DEBUG COMPARE: Toggle compare mode - current state: ${this.compareMode}`
+    );
+
     if (this.compareMode) {
       this.deactivateCompareMode();
     } else {
       this.activateCompareMode();
     }
+
+    // Reset toggle flag after a short delay
+    setTimeout(() => {
+      this._isToggling = false;
+    }, 500);
   }
 
   /**
    * Activate compare mode
    */
   activateCompareMode() {
-    console.log("🔄 Activating compare mode");
+    console.log("� DEBUG COMPARE: Activating compare mode");
 
     this.compareMode = true;
     this.selectedForCompare.clear();
+
+    console.log(
+      "🔴 DEBUG COMPARE: Compare mode activated - cleared all selections"
+    );
+
+    // Immediately clear all purple selection rings when entering compare mode
+    this.avatarElements.forEach((element, friendId) => {
+      element.classList.remove("selected");
+      const selectionRing = element.querySelector(".selection-ring");
+      if (selectionRing) {
+        selectionRing.classList.remove("compare-selected-ring");
+        // Clear any inline styles to hide purple rings instantly
+        selectionRing.style.opacity = "";
+        selectionRing.style.transform = "";
+        selectionRing.style.borderColor = "";
+        selectionRing.style.borderWidth = "";
+        selectionRing.style.zIndex = "";
+        selectionRing.style.display = "";
+      }
+      console.log(
+        `🔴 DEBUG COMPARE: Cleared purple selection from ${friendId}`
+      );
+    });
 
     // Update UI to show compare mode
     this.updateCompareUI();
@@ -887,7 +981,7 @@ export class HorizontalFriendsBar {
     // Emit event for other components
     this.emitCompareModeEvent(true);
 
-    notificationManager.showSystemNotification(
+    this.showDebouncedNotification(
       "Compare mode activated - Tap friends to compare schedules",
       "info",
       3000
@@ -898,10 +992,27 @@ export class HorizontalFriendsBar {
    * Deactivate compare mode
    */
   deactivateCompareMode() {
-    console.log("🔄 Deactivating compare mode");
+    console.log("� DEBUG COMPARE: Deactivating compare mode");
+
+    // Debug: Show what was previously selected before clearing
+    console.log("🔴 DEBUG COMPARE: Previously selected for comparison:", {
+      selectedIds: Array.from(this.selectedForCompare),
+      selectedNames: Array.from(this.selectedForCompare).map((id) => {
+        if (id === "user") return "You";
+        const friend = this.quickAccessFriends.find(
+          (f) => (f.friendId || f.userId) === id
+        );
+        return friend ? friend.displayName : id;
+      }),
+      totalSelected: this.selectedForCompare.size,
+    });
 
     this.compareMode = false;
     this.selectedForCompare.clear();
+
+    console.log(
+      "🔴 DEBUG COMPARE: Compare mode deactivated - cleared all selections"
+    );
 
     // Update UI to exit compare mode
     this.updateCompareUI();
@@ -909,11 +1020,22 @@ export class HorizontalFriendsBar {
     // Emit event for other components
     this.emitCompareModeEvent(false);
 
-    notificationManager.showSystemNotification(
-      "Compare mode deactivated",
-      "info",
-      1500
+    this.showDebouncedNotification("Compare mode deactivated", "info", 1500);
+  }
+
+  syncCompareMode(isActive) {
+    console.log(
+      `🔄 Syncing compare mode: ${isActive ? "activate" : "deactivate"}`
     );
+
+    this.compareMode = isActive;
+
+    if (!isActive) {
+      this.selectedForCompare.clear();
+    }
+
+    // Update UI without emitting events (prevents infinite loop)
+    this.updateCompareUI();
   }
 
   /**
@@ -923,12 +1045,29 @@ export class HorizontalFriendsBar {
     if (this.selectedForCompare.has(friendId)) {
       // Remove from selection
       this.selectedForCompare.delete(friendId);
-      console.log(`➖ Removed ${friendName} from comparison`);
+      console.log(
+        `🔴 DEBUG COMPARE: Removed ${friendName} (${friendId}) from comparison`
+      );
     } else {
       // Add to selection
       this.selectedForCompare.add(friendId);
-      console.log(`➕ Added ${friendName} to comparison`);
+      console.log(
+        `🔴 DEBUG COMPARE: Added ${friendName} (${friendId}) to comparison`
+      );
     }
+
+    // Debug: Show all currently selected users for comparison
+    console.log(`🔴 DEBUG COMPARE: Currently selected for comparison:`, {
+      selectedIds: Array.from(this.selectedForCompare),
+      selectedNames: Array.from(this.selectedForCompare).map((id) => {
+        if (id === "user") return "You";
+        const friend = this.quickAccessFriends.find(
+          (f) => (f.friendId || f.userId) === id
+        );
+        return friend ? friend.displayName : id;
+      }),
+      totalSelected: this.selectedForCompare.size,
+    });
 
     // Update visual selection
     this.updateCompareSelectionUI();
@@ -956,6 +1095,19 @@ export class HorizontalFriendsBar {
 
     if (compareButton) {
       compareButton.classList.toggle("active", this.compareMode);
+
+      // Update button text and icon based on state
+      const icon = compareButton.querySelector("i");
+      if (icon) {
+        icon.className = this.compareMode
+          ? "fas fa-times-circle"
+          : "fas fa-balance-scale";
+      }
+
+      // Update title attribute
+      compareButton.title = this.compareMode
+        ? "Exit Compare Mode"
+        : "Toggle Compare Mode";
     }
 
     if (container) {
@@ -973,28 +1125,70 @@ export class HorizontalFriendsBar {
    * Update visual selection for compare mode
    */
   updateCompareSelectionUI() {
+    console.log(
+      `🔴 DEBUG COMPARE: Updating UI - compareMode: ${
+        this.compareMode
+      }, selected: [${Array.from(this.selectedForCompare).join(", ")}]`
+    );
+
     this.avatarElements.forEach((element, friendId) => {
       const isSelected = this.selectedForCompare.has(friendId);
       element.classList.toggle("compare-selected", isSelected);
+
+      // Debug logging for each avatar
+      console.log(
+        `🔴 DEBUG COMPARE: Avatar ${friendId} - isSelected: ${isSelected}, compareMode: ${this.compareMode}`
+      );
 
       // Add selection indicator if in compare mode
       if (this.compareMode) {
         element.classList.add("compare-mode-available");
 
-        // Add/remove checkmark
-        let checkmark = element.querySelector(".compare-checkmark");
-        if (isSelected && !checkmark) {
-          checkmark = document.createElement("div");
-          checkmark.className = "compare-checkmark";
-          checkmark.innerHTML = '<i class="fas fa-check"></i>';
-          element.appendChild(checkmark);
-        } else if (!isSelected && checkmark) {
-          checkmark.remove();
+        // Remove normal selection state when in compare mode
+        element.classList.remove("selected");
+
+        // Update the selection ring for compare mode
+        const selectionRing = element.querySelector(".selection-ring");
+        if (selectionRing) {
+          if (isSelected) {
+            // Apply red glow animation for selected items in compare mode
+            selectionRing.classList.add("compare-selected-ring");
+            console.log(
+              `🔴 DEBUG COMPARE: Applied red selection ring to ${friendId}`
+            );
+          } else {
+            // Remove compare selection styling
+            selectionRing.classList.remove("compare-selected-ring");
+            console.log(
+              `🔴 DEBUG COMPARE: Removed red selection ring from ${friendId}`
+            );
+          }
         }
-      } else {
-        element.classList.remove("compare-mode-available", "compare-selected");
+
+        // Remove any old checkmarks if they exist
         const checkmark = element.querySelector(".compare-checkmark");
         if (checkmark) checkmark.remove();
+      } else {
+        element.classList.remove("compare-mode-available", "compare-selected");
+        // Clean up compare selection styling when not in compare mode
+        const selectionRing = element.querySelector(".selection-ring");
+        if (selectionRing) {
+          selectionRing.classList.remove("compare-selected-ring");
+          console.log(
+            `🔴 DEBUG COMPARE: Cleaned up red selection ring from ${friendId} (exiting compare mode)`
+          );
+        }
+        // Remove any old checkmarks
+        const checkmark = element.querySelector(".compare-checkmark");
+        if (checkmark) checkmark.remove();
+
+        // Restore user selection state when exiting compare mode
+        if (friendId === "user") {
+          element.classList.add("selected");
+          console.log(
+            `🔴 DEBUG COMPARE: Restored user selection state after exiting compare mode`
+          );
+        }
       }
     });
   }
@@ -1054,15 +1248,50 @@ export class HorizontalFriendsBar {
    * Emit comparison update event when selection changes
    */
   emitComparisonUpdateEvent() {
+    // Build detailed user data for comparison
+    const selectedUsersData = [];
+
+    // Add user's own data if selected for comparison
+    if (this.selectedForCompare.has("user")) {
+      selectedUsersData.push({
+        userId: "user",
+        friendId: "user",
+        displayName: this.currentUser?.displayName || "You",
+        isCurrentUser: true,
+        profile: this.currentUser,
+      });
+    }
+
+    // Add friend data for selected friends
+    this.quickAccessFriends.forEach((friend) => {
+      const friendId = friend.friendId || friend.userId;
+      if (this.selectedForCompare.has(friendId)) {
+        selectedUsersData.push({
+          userId: friend.userId,
+          friendId: friendId,
+          displayName: friend.displayName,
+          isCurrentUser: false,
+          profile: friend,
+        });
+      }
+    });
+
     const eventDetail = {
       selectedFriends: Array.from(this.selectedForCompare),
-      friendsData: this.quickAccessFriends.filter((f) =>
-        this.selectedForCompare.has(f.friendId || f.userId)
-      ),
+      selectedUsersData: selectedUsersData,
+      compareMode: this.compareMode,
+      userCount: selectedUsersData.length,
+      hasUser: this.selectedForCompare.has("user"),
       timestamp: Date.now(),
     };
 
     console.log("📡 Emitting compare:selection event:", eventDetail);
+    console.log(
+      "🔴 DEBUG COMPARE: Event detail - userCount:",
+      eventDetail.userCount,
+      "users:",
+      eventDetail.selectedUsersData.map((u) => u.displayName)
+    );
 
     document.dispatchEvent(
       new CustomEvent("compare:selection", {
@@ -1219,10 +1448,6 @@ export class HorizontalFriendsBar {
         this.boundHandlers.avatarClick
       );
       this.container.removeEventListener(
-        "touchstart",
-        this.boundHandlers.avatarLongPress
-      );
-      this.container.removeEventListener(
         "keydown",
         this.boundHandlers.keyboardNav
       );
@@ -1245,6 +1470,12 @@ export class HorizontalFriendsBar {
       this.realTimeUnsubscriber();
     }
 
+    // Clear notification debouncing
+    if (this._notificationDebounce) {
+      clearTimeout(this._notificationDebounce);
+      this._notificationDebounce = null;
+    }
+
     // Clear references
     this.avatarElements.clear();
     this.container = null;
@@ -1255,5 +1486,34 @@ export class HorizontalFriendsBar {
 
     this.isInitialized = false;
     console.log("✅ HorizontalFriendsBar destroyed successfully");
+  }
+
+  /**
+   * Show notification with debouncing to prevent duplicates
+   */
+  showDebouncedNotification(message, type = "info", duration = 3000) {
+    // Clear any pending notification
+    if (this._notificationDebounce) {
+      clearTimeout(this._notificationDebounce);
+    }
+
+    // Don't show duplicate notifications
+    if (this._lastNotification === message) {
+      console.log(`🔕 Suppressing duplicate notification: ${message}`);
+      return;
+    }
+
+    this._lastNotification = message;
+
+    // Debounce the notification
+    this._notificationDebounce = setTimeout(() => {
+      notificationManager.showSystemNotification(message, type, duration);
+      this._notificationDebounce = null;
+
+      // Clear the last notification after a delay to allow future notifications
+      setTimeout(() => {
+        this._lastNotification = null;
+      }, duration + 1000);
+    }, 100); // Small delay to group rapid calls
   }
 }
