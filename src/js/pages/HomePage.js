@@ -26,6 +26,7 @@ import { scheduleStorageService } from "../services/schedule/ScheduleStorageServ
 import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { HorizontalFriendsBar } from "../components/friends/HorizontalFriendsBar.js";
+import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 
 /* ================================
    APPLICATION STATE
@@ -42,6 +43,7 @@ let state = {
   horizontalFriendsBar: null, // HorizontalFriendsBar component instance
   currentViewingFriendId: null, // ID of friend whose schedule is currently being viewed
   friendsScheduleData: new Map(), // Cache for friends' schedule data
+  friendsScheduleCache: new Map(), // Enhanced cache with metadata: {data, timestamp, isStale}
 
   // Mobile Schedule Redesign State
   viewMode: "day", // 'day' or 'grid' - default to day view for mobile-first
@@ -3952,8 +3954,8 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
     return '<span class="empty-slot-message">No users selected</span>';
   }
 
-  // Filter to only free users
-  const freeUsers = selectedUsers.filter((user) => {
+  // Show ALL selected users, but differentiate between free and busy
+  const usersWithStatus = selectedUsers.map((user) => {
     const isBusy = user.schedule?.[dayIndex]?.[timeIndex] || false;
     console.log(
       `📊 User ${user.name || user.id} at [${dayIndex}][${timeIndex}]: ${
@@ -3966,37 +3968,34 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
         slotValue: user.schedule?.[dayIndex]?.[timeIndex],
       }
     );
-    return !isBusy;
+    return { ...user, isBusy };
   });
 
-  console.log(`✅ Free users for avatars at [${dayIndex}][${timeIndex}]:`, {
-    freeUsers: freeUsers.map((u) => u.name || u.id),
-    freeCount: freeUsers.length,
-    totalCount: selectedUsers.length,
+  console.log(`📋 All selected users with status at [${dayIndex}][${timeIndex}]:`, {
+    users: usersWithStatus.map((u) => ({ name: u.name || u.id, status: u.isBusy ? "BUSY" : "FREE" })),
+    totalCount: usersWithStatus.length,
+    freeCount: usersWithStatus.filter(u => !u.isBusy).length,
+    busyCount: usersWithStatus.filter(u => u.isBusy).length,
   });
-
-  if (freeUsers.length === 0) {
-    console.log(
-      `❌ No free users available for avatars at [${dayIndex}][${timeIndex}]`
-    );
-    return '<span class="empty-slot-message">No one available</span>';
-  }
 
   let avatarsHTML = "";
   const maxVisible = 5; // Maximum avatars to show before overflow
 
-  freeUsers.slice(0, maxVisible).forEach((user, index) => {
+  usersWithStatus.slice(0, maxVisible).forEach((user, index) => {
     const avatarUrl = generateAvatar(user.name || user.id);
+    const statusClass = user.isBusy ? "busy" : "free";
+    const statusTitle = user.isBusy ? "Busy" : "Available";
+    
     console.log(
       `🎨 Creating avatar ${index + 1}/${Math.min(
-        freeUsers.length,
+        usersWithStatus.length,
         maxVisible
-      )} for ${user.name || user.id}:`,
+      )} for ${user.name || user.id}: ${statusTitle}`,
       avatarUrl
     );
 
     avatarsHTML += `
-      <div class="friend-avatar" data-friend-id="${user.id}">
+      <div class="friend-avatar ${statusClass}" data-friend-id="${user.id}" title="${user.name || user.id} - ${statusTitle}">
         <img src="${avatarUrl}" alt="${user.name || user.id}" />
         <div class="avatar-label">${user.name || user.id}</div>
       </div>
@@ -4004,8 +4003,8 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
   });
 
   // Add overflow indicator if needed
-  if (freeUsers.length > maxVisible) {
-    const remainingCount = freeUsers.length - maxVisible;
+  if (usersWithStatus.length > maxVisible) {
+    const remainingCount = usersWithStatus.length - maxVisible;
     console.log(
       `➕ Adding overflow indicator for ${remainingCount} additional users`
     );
@@ -4015,8 +4014,8 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
   }
 
   console.log(
-    `✅ Avatar HTML generated for ${freeUsers.length} free users (${Math.min(
-      freeUsers.length,
+    `✅ Avatar HTML generated for ${usersWithStatus.length} selected users (${Math.min(
+      usersWithStatus.length,
       maxVisible
     )} visible)`
   );
@@ -4026,11 +4025,374 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
 /**
  * Generate avatar URL for a given name
  */
-function generateAvatar(name) {
-  // Use dicebear API for consistent avatars
-  const encodedName = encodeURIComponent(name);
+function generateAvatar(nameOrUserId) {
+  console.log(`🔍 [DEBUG] generateAvatar called with: "${nameOrUserId}"`);
+  
+  // Strategy 1: Check HorizontalFriendsBar quickAccessFriends data (most efficient)
+  // This uses the quickAccessData.starredFriends from the database with cached avatarConfig
+  if (state.horizontalFriendsBar && state.horizontalFriendsBar.quickAccessFriends) {
+    try {
+      const friend = state.horizontalFriendsBar.quickAccessFriends.find(f => 
+        f.userId === nameOrUserId || 
+        f.friendId === nameOrUserId ||
+        f.displayName === nameOrUserId ||
+        f.id === nameOrUserId
+      );
+      
+      console.log(`🔍 [DEBUG] QuickAccess friend match for "${nameOrUserId}":`, {
+        found: !!friend,
+        friendData: friend ? {
+          userId: friend.userId,
+          friendId: friend.friendId,
+          displayName: friend.displayName,
+          hasAvatarConfig: !!friend.avatarConfig,
+          avatarConfig: friend.avatarConfig
+        } : null
+      });
+      
+      if (friend && friend.avatarConfig) {
+        const avatarUrl = getAvatarUrl(friend);
+        console.log(`🔍 [DEBUG] getAvatarUrl result for quickAccess:`, { avatarUrl });
+        if (avatarUrl) {
+          console.log(`🎨 [QUICK ACCESS HIT] Using QuickAccess avatar for ${nameOrUserId}`);
+          return avatarUrl;
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error accessing HorizontalFriendsBar quickAccess friends:`, error);
+    }
+  }
+
+  // Debug: Log what's actually in HorizontalFriendsBar state
+  console.log(`🔍 [DEBUG] HorizontalFriendsBar state structure:`, {
+    hasHorizontalFriendsBar: !!state.horizontalFriendsBar,
+    stateKeys: state.horizontalFriendsBar ? Object.keys(state.horizontalFriendsBar) : [],
+    hasQuickAccessFriends: !!state.horizontalFriendsBar?.quickAccessFriends,
+    quickAccessCount: state.horizontalFriendsBar?.quickAccessFriends?.length || 0,
+    quickAccessSample: state.horizontalFriendsBar?.quickAccessFriends?.slice(0, 2).map(f => ({
+      userId: f.userId,
+      displayName: f.displayName,
+      hasAvatarConfig: !!f.avatarConfig
+    })) || [],
+    hasFriends: !!state.horizontalFriendsBar?.friends,
+    friendsCount: state.horizontalFriendsBar?.friends?.length || 0
+  });
+
+  // Strategy 2: Check HorizontalFriendsBar friends array (fallback)
+  if (state.horizontalFriendsBar && state.horizontalFriendsBar.friends) {
+    try {
+      const friend = state.horizontalFriendsBar.friends.find(f => 
+        f.friendId === nameOrUserId || 
+        f.displayName === nameOrUserId ||
+        f.userId === nameOrUserId ||
+        f.id === nameOrUserId
+      );
+      
+      if (friend && friend.avatarConfig) {
+        const avatarUrl = getAvatarUrl(friend);
+        if (avatarUrl) {
+          console.log(`🎨 [FRIENDS BAR HIT] Using HorizontalFriendsBar avatar for ${nameOrUserId}`);
+          return avatarUrl;
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error accessing HorizontalFriendsBar friends:`, error);
+    }
+  }
+  
+  // Strategy 3: Check state.users cache with better matching
+  console.log(`🔍 [DEBUG] state.users:`, {
+    userCount: Object.keys(state.users).length,
+    userIds: Object.keys(state.users),
+    users: Object.values(state.users).map(u => ({
+      id: u.id,
+      name: u.name,
+      hasAvatarConfig: !!u.avatarConfig,
+      avatarConfigKeys: u.avatarConfig ? Object.keys(u.avatarConfig) : []
+    })),
+    currentUserUid: authManager.getCurrentUser()?.uid
+  });
+
+  let user = Object.values(state.users).find(u => 
+    u.name === nameOrUserId || 
+    u.id === nameOrUserId ||
+    (nameOrUserId === "You" && u.id === authManager.getCurrentUser()?.uid)
+  );
+  
+  if (user && user.avatarConfig) {
+    const avatarUrl = getAvatarUrl(user);
+    if (avatarUrl) {
+      console.log(`🎨 [STATE CACHE HIT] Using state.users avatar for ${nameOrUserId}`);
+      return avatarUrl;
+    }
+  }
+  
+  // Strategy 4: For current user, check currentUser store directly
+  if (nameOrUserId === "You" || nameOrUserId === authManager.getCurrentUser()?.uid) {
+    console.log(`🔍 [DEBUG] Current user check:`, {
+      currentUserProfile: currentUser.profile,
+      hasAvatarConfig: !!currentUser.profile?.avatarConfig,
+      avatarConfig: currentUser.profile?.avatarConfig,
+      currentUserUid: authManager.getCurrentUser()?.uid
+    });
+
+    const currentUserProfile = currentUser.profile;
+    if (currentUserProfile?.avatarConfig) {
+      const avatarUrl = getAvatarUrl(currentUserProfile);
+      if (avatarUrl) {
+        console.log(`🎨 [CURRENT USER HIT] Using currentUser avatar for ${nameOrUserId}`);
+        return avatarUrl;
+      }
+    }
+  }
+  
+  // Strategy 5: Fallback to DiceBear (consistent avatars)
+  console.log(`🎨 [FALLBACK] Using DiceBear avatar for ${nameOrUserId} - no avatarConfig found`);
+  const encodedName = encodeURIComponent(nameOrUserId);
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=7c4dff`;
 }
+
+/**
+ * Enhanced friends' schedule cache management with expiration and real-time sync
+ */
+const FRIENDS_SCHEDULE_CACHE = {
+  // Cache expiration time: 5 minutes for frequent updates, 15 minutes for background
+  CACHE_TTL_ACTIVE: 5 * 60 * 1000,   // 5 minutes for actively used data
+  CACHE_TTL_BACKGROUND: 15 * 60 * 1000, // 15 minutes for background data
+  
+  /**
+   * Check if cached data is still valid
+   * @param {string} friendId - Friend's user ID
+   * @param {boolean} isActivelyUsed - Whether this data is actively being viewed
+   * @returns {boolean} - Whether cache is valid
+   */
+  isCacheValid(friendId, isActivelyUsed = false) {
+    const cached = state.friendsScheduleCache.get(friendId);
+    if (!cached) return false;
+    
+    const now = Date.now();
+    const ttl = isActivelyUsed ? this.CACHE_TTL_ACTIVE : this.CACHE_TTL_BACKGROUND;
+    const isValid = (now - cached.timestamp) < ttl;
+    
+    if (!isValid) {
+      console.log(`🕐 [CACHE EXPIRED] ${friendId} cache expired (${Math.round((now - cached.timestamp) / 1000)}s old)`);
+    }
+    
+    return isValid;
+  },
+  
+  /**
+   * Get cached schedule data if valid
+   * @param {string} friendId - Friend's user ID
+   * @param {boolean} isActivelyUsed - Whether this data is actively being viewed
+   * @returns {Object|null} - Cached data or null
+   */
+  getCachedSchedule(friendId, isActivelyUsed = false) {
+    if (!this.isCacheValid(friendId, isActivelyUsed)) {
+      return null;
+    }
+    
+    const cached = state.friendsScheduleCache.get(friendId);
+    console.log(`✅ [CACHE HIT] Using cached schedule for ${friendId}`);
+    return cached.data;
+  },
+  
+  /**
+   * Cache schedule data with metadata
+   * @param {string} friendId - Friend's user ID
+   * @param {Object} scheduleData - Schedule data to cache
+   */
+  setCachedSchedule(friendId, scheduleData) {
+    state.friendsScheduleCache.set(friendId, {
+      data: scheduleData,
+      timestamp: Date.now(),
+      isStale: false
+    });
+    
+    // Also maintain backward compatibility with existing cache
+    state.friendsScheduleData.set(friendId, scheduleData);
+    
+    console.log(`💾 [CACHE SET] Cached schedule for ${friendId}`);
+  },
+  
+  /**
+   * Mark cache as stale (friend updated their schedule)
+   * @param {string} friendId - Friend's user ID
+   */
+  markStale(friendId) {
+    const cached = state.friendsScheduleCache.get(friendId);
+    if (cached) {
+      cached.isStale = true;
+      console.log(`⚠️ [CACHE STALE] Marked ${friendId} schedule as stale`);
+    }
+  },
+  
+  /**
+   * Clear expired cache entries
+   */
+  cleanup() {
+    const now = Date.now();
+    let cleanedCount = 0;
+    
+    for (const [friendId, cached] of state.friendsScheduleCache.entries()) {
+      if ((now - cached.timestamp) > this.CACHE_TTL_BACKGROUND) {
+        state.friendsScheduleCache.delete(friendId);
+        state.friendsScheduleData.delete(friendId);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`🧹 [CACHE CLEANUP] Removed ${cleanedCount} expired entries`);
+    }
+  }
+};
+
+/**
+ * Real-time sync system for friends' schedule updates
+ */
+const FRIENDS_REALTIME_SYNC = {
+  listeners: new Map(), // friendId -> unsubscribe function
+  
+  /**
+   * Set up real-time listener for a friend's schedule updates
+   * @param {string} friendId - Friend's user ID
+   * @param {string} friendName - Friend's display name
+   */
+  setupRealtimeListener(friendId, friendName) {
+    // Skip if already listening
+    if (this.listeners.has(friendId)) {
+      console.log(`🔄 Already listening to ${friendName}'s schedule updates`);
+      return;
+    }
+    
+    try {
+      // Set up real-time listener using dataManager (similar to current user's sync)
+      const unsubscribe = dataManager.setupUserScheduleListener?.(friendId, (updatedScheduleData) => {
+        if (updatedScheduleData) {
+          console.log(`🔔 [REALTIME UPDATE] ${friendName}'s schedule updated!`);
+          
+          // Update enhanced cache with fresh data
+          FRIENDS_SCHEDULE_CACHE.setCachedSchedule(friendId, updatedScheduleData);
+          
+          // Update state.users if friend is currently in comparison
+          if (state.users[friendId]) {
+            console.log(`🔄 [REALTIME SYNC] Updating ${friendName} in state.users`);
+            
+            const convertedScheduleData = convertFirestoreToHomePageFormat(updatedScheduleData);
+            if (convertedScheduleData) {
+              state.users[friendId] = {
+                id: friendId,
+                name: friendName,
+                timeSlots: convertedScheduleData.timeSlots,
+                schedule: convertedScheduleData.schedule,
+                slotInfo: convertedScheduleData.slotInfo,
+                pinnedSlots: convertedScheduleData.pinnedSlots || 
+                  createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
+              };
+              
+              // Clear caches to force re-render with fresh data
+              memoCache.clear();
+              matrixCache.clear();
+              
+              // Re-render UI if in comparison mode
+              if (state.compareMode && state.selectedUserIds.has(friendId)) {
+                console.log(`🎨 [REALTIME RENDER] Re-rendering comparison with updated ${friendName} data`);
+                if (state.viewMode === "day") {
+                  renderDayView();
+                } else {
+                  renderScheduleGrid();
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      if (unsubscribe) {
+        this.listeners.set(friendId, unsubscribe);
+        console.log(`🔔 [REALTIME SETUP] Listening to ${friendName}'s schedule updates`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ [REALTIME ERROR] Failed to setup listener for ${friendName}:`, error);
+    }
+  },
+  
+  /**
+   * Remove real-time listener for a friend
+   * @param {string} friendId - Friend's user ID
+   */
+  removeRealtimeListener(friendId) {
+    const unsubscribe = this.listeners.get(friendId);
+    if (unsubscribe) {
+      unsubscribe();
+      this.listeners.delete(friendId);
+      console.log(`🔕 [REALTIME CLEANUP] Stopped listening to ${friendId}'s updates`);
+    }
+  },
+  
+  /**
+   * Clean up all real-time listeners
+   */
+  cleanup() {
+    let cleanedCount = 0;
+    for (const [friendId, unsubscribe] of this.listeners.entries()) {
+      unsubscribe();
+      cleanedCount++;
+    }
+    this.listeners.clear();
+    
+    if (cleanedCount > 0) {
+      console.log(`🔕 [REALTIME CLEANUP] Removed ${cleanedCount} real-time listeners`);
+    }
+  }
+};
+/**
+ * Periodic cache maintenance system
+ */
+const CACHE_MAINTENANCE = {
+  intervalId: null,
+  CLEANUP_INTERVAL: 10 * 60 * 1000, // 10 minutes
+  
+  /**
+   * Start periodic cache cleanup
+   */
+  start() {
+    if (this.intervalId) return; // Already running
+    
+    this.intervalId = setInterval(() => {
+      console.log('🧹 [PERIODIC CLEANUP] Running cache maintenance...');
+      FRIENDS_SCHEDULE_CACHE.cleanup();
+      
+      // Also clean up unused real-time listeners
+      const activeUserIds = new Set([
+        ...state.selectedUserIds,
+        state.currentViewingFriendId,
+        state.activeUserId
+      ].filter(id => id));
+      
+      for (const friendId of FRIENDS_REALTIME_SYNC.listeners.keys()) {
+        if (!activeUserIds.has(friendId) && !state.users[friendId]) {
+          console.log(`🔕 [CLEANUP] Removing unused listener for ${friendId}`);
+          FRIENDS_REALTIME_SYNC.removeRealtimeListener(friendId);
+        }
+      }
+    }, this.CLEANUP_INTERVAL);
+    
+    console.log('⏰ [MAINTENANCE] Started periodic cache cleanup');
+  },
+  
+  /**
+   * Stop periodic cache cleanup
+   */
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      console.log('⏹️ [MAINTENANCE] Stopped periodic cache cleanup');
+    }
+  }
+};
 
 /**
  * Get day name from index
@@ -4531,7 +4893,41 @@ async function loadFriendSchedule(friendId, friendName) {
 /**
  * Display a friend's schedule in the schedule grid
  */
-function displayFriendSchedule(scheduleData, friendName, friendId) {
+/**
+ * Load friend's schedule with enhanced caching and real-time sync
+ * @param {string} friendId - Friend's user ID  
+ * @param {string} friendName - Friend's display name
+ * @returns {Object|null} - Schedule data or null
+ */
+async function loadFriendScheduleWithCache(friendId, friendName) {
+  // Try enhanced cache first
+  const cachedData = FRIENDS_SCHEDULE_CACHE.getCachedSchedule(friendId, true);
+  if (cachedData) {
+    console.log(`🚀 [CACHE HIT] Using cached schedule for ${friendName}`);
+    return cachedData;
+  }
+  
+  // Load fresh data
+  console.log(`📥 [FRESH LOAD] Loading schedule for ${friendName}...`);
+  try {
+    const scheduleData = await dataManager.getUserSchedule(friendId);
+    if (scheduleData) {
+      // Cache the fresh data
+      FRIENDS_SCHEDULE_CACHE.setCachedSchedule(friendId, scheduleData);
+      
+      // Set up real-time sync
+      FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, friendName);
+      
+      return scheduleData;
+    }
+  } catch (error) {
+    console.error(`❌ [LOAD ERROR] Failed to load ${friendName}'s schedule:`, error);
+  }
+  
+  return null;
+}
+
+async function displayFriendSchedule(scheduleData, friendName, friendId) {
   console.log(`🔧 DEBUG: displayFriendSchedule called with:`, {
     friendName,
     friendId,
@@ -4539,6 +4935,16 @@ function displayFriendSchedule(scheduleData, friendName, friendId) {
     hasSlotInfo: !!scheduleData?.slotInfo,
     hasTimeSlots: !!scheduleData?.timeSlots,
   });
+  
+  // If no scheduleData provided, try to load with enhanced caching
+  if (!scheduleData) {
+    console.log(`📥 No schedule data provided, loading with cache for ${friendName}`);
+    scheduleData = await loadFriendScheduleWithCache(friendId, friendName);
+    if (!scheduleData) {
+      showNoScheduleMessage(friendName);
+      return;
+    }
+  }
 
   try {
     // Convert Firestore format to HomePage format
@@ -4899,6 +5305,7 @@ function handleCompareSelectionChange(event) {
 
   // ✅ FIXED: Update selected user IDs for comparison including current user
   const previousSelectedCount = state.selectedUserIds.size;
+  const previousSelectedIds = Array.from(state.selectedUserIds);
   state.selectedUserIds.clear();
   
   // Handle current user inclusion properly
@@ -4921,6 +5328,10 @@ function handleCompareSelectionChange(event) {
     current: state.selectedUserIds.size,
     ids: Array.from(state.selectedUserIds),
   });
+  
+  // Clean up resources for deselected friends
+  const currentSelectedIds = Array.from(state.selectedUserIds);
+  cleanupDeselectedFriends(previousSelectedIds, currentSelectedIds);
 
   // Load schedules for comparison if needed
   console.log(
@@ -4951,6 +5362,26 @@ function handleCompareSelectionChange(event) {
       `⚠️ Not forcing re-render - compareMode: ${compareMode}, userCount: ${userCount}`
     );
   }
+}
+
+/**
+ * Clean up unused friend resources when they're deselected
+ * @param {Array} previousSelectedIds - Previously selected friend IDs
+ * @param {Array} currentSelectedIds - Currently selected friend IDs
+ */
+function cleanupDeselectedFriends(previousSelectedIds, currentSelectedIds) {
+  const deselected = previousSelectedIds.filter(id => !currentSelectedIds.includes(id));
+  
+  deselected.forEach(friendId => {
+    // Remove from state.users if not actively viewing
+    if (state.users[friendId] && state.currentViewingFriendId !== friendId) {
+      delete state.users[friendId];
+      console.log(`🧹 [CLEANUP] Removed ${friendId} from state.users`);
+    }
+    
+    // Keep real-time listener active for a bit (cache might still be useful)
+    // FRIENDS_REALTIME_SYNC.removeRealtimeListener will be handled by periodic cleanup
+  });
 }
 
 /**
@@ -5076,72 +5507,72 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         return;
       }
 
-      // Skip if already cached for friends
-      if (state.friendsScheduleData.has(friendId)) {
-        console.log(`✅ Schedule already cached for ${userData.displayName}`);
+      // Check enhanced cache first (with expiration)
+      const cachedScheduleData = FRIENDS_SCHEDULE_CACHE.getCachedSchedule(friendId, true);
+      if (cachedScheduleData) {
+        console.log(`✅ [ENHANCED CACHE] Schedule already cached for ${userData.displayName}`);
 
         // Even if cached, ensure the friend is in state.users for comparison rendering
         if (!state.users[friendId]) {
-          const cachedScheduleData = state.friendsScheduleData.get(friendId);
-          if (cachedScheduleData) {
+          console.log(
+            `🔄 Adding cached friend ${userData.displayName} to state.users for comparison`
+          );
+
+          // Convert cached Firestore data to HomePage format if needed
+          let convertedData = cachedScheduleData;
+          if (
+            cachedScheduleData &&
+            typeof cachedScheduleData.schedule === "object" &&
+            !Array.isArray(cachedScheduleData.schedule)
+          ) {
             console.log(
-              `🔄 Adding cached friend ${userData.displayName} to state.users for comparison`
+              `🔄 Converting cached Firestore data for ${userData.displayName}`
             );
-
-            // Convert cached Firestore data to HomePage format if needed
-            let convertedData = cachedScheduleData;
-            if (
-              cachedScheduleData &&
-              typeof cachedScheduleData.schedule === "object" &&
-              !Array.isArray(cachedScheduleData.schedule)
-            ) {
-              console.log(
-                `🔄 Converting cached Firestore data for ${userData.displayName}`
-              );
-              convertedData =
-                convertFirestoreToHomePageFormat(cachedScheduleData);
-            }
-
-            const friendUser = {
-              id: friendId,
-              name: userData.displayName,
-              timeSlots: convertedData.timeSlots || DEFAULT_TIMESLOTS,
-              schedule:
-                convertedData.schedule ||
-                createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
-              slotInfo:
-                convertedData.slotInfo ||
-                createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({
-                  courseCode: "",
-                  classroomNumber: "",
-                })),
-              pinnedSlots:
-                convertedData.pinnedSlots ||
-                createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
-            };
-
-            state.users[friendId] = friendUser;
-            console.log(
-              `✅ Cached friend ${userData.displayName} added to state.users`,
-              {
-                storedUnderKey: friendId,
-                hasSchedule: !!friendUser.schedule,
-                scheduleType: Array.isArray(friendUser.schedule)
-                  ? "array"
-                  : "object",
-                timeSlots: friendUser.timeSlots?.length || 0,
-              }
-            );
+            convertedData =
+              convertFirestoreToHomePageFormat(cachedScheduleData);
           }
+
+          const friendUser = {
+            id: friendId,
+            name: userData.displayName,
+            timeSlots: convertedData.timeSlots || DEFAULT_TIMESLOTS,
+            schedule:
+              convertedData.schedule ||
+              createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+            slotInfo:
+              convertedData.slotInfo ||
+              createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({
+                courseCode: "",
+                classroomNumber: "",
+              })),
+            pinnedSlots:
+              convertedData.pinnedSlots ||
+              createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+          };
+
+          state.users[friendId] = friendUser;
+          console.log(
+            `✅ [ENHANCED CACHE] Cached friend ${userData.displayName} added to state.users`,
+            {
+              storedUnderKey: friendId,
+              hasSchedule: !!friendUser.schedule,
+              scheduleType: Array.isArray(friendUser.schedule)
+                ? "array"
+                : "object",
+              timeSlots: friendUser.timeSlots?.length || 0,
+            }
+          );
         }
         return;
       }
-
-      console.log(`📥 Loading schedule for ${userData.displayName}...`);
+      
+      // No cached data found, load fresh schedule  
+      console.log(`📥 [FRESH LOAD] Loading schedule for ${userData.displayName}...`);
       // Load schedule data for friends
       const scheduleData = await dataManager.getUserSchedule(friendId);
       if (scheduleData) {
-        state.friendsScheduleData.set(friendId, scheduleData);
+        // Use enhanced caching system
+        FRIENDS_SCHEDULE_CACHE.setCachedSchedule(friendId, scheduleData);
 
         // Clear memoization and matrix caches since we have new friend schedule data
         memoCache.clear();
@@ -5174,7 +5605,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         };
 
         state.users[friendId] = friendUser;
-        console.log(`✅ Schedule loaded for ${userData.displayName}`, {
+        console.log(`✅ [FRESH DATA] Schedule loaded for ${userData.displayName}`, {
           storedUnderKey: friendId,
           friendUserData: {
             id: friendUser.id,
@@ -5187,10 +5618,13 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
           },
           currentStateUsersKeys: Object.keys(state.users),
         });
+        
+        // Set up real-time sync for this friend's schedule updates
+        FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, userData.displayName);
       } else {
         console.warn(`⚠️ No schedule data found for ${userData.displayName}`);
       }
-    });
+    }); // End of map callback function
 
     await Promise.all(loadPromises);
     console.log(
@@ -5286,6 +5720,11 @@ document.addEventListener("spa:page:load", (event) => {
     // Initialize Phase-3: Horizontal Friends Bar
     console.log("⭐ Initializing Horizontal Friends Bar...");
     initializeHorizontalFriendsBar();
+    
+    // Clean up old cache entries and start maintenance
+    console.log("🧹 Cleaning up expired friend schedule cache...");
+    FRIENDS_SCHEDULE_CACHE.cleanup();
+    CACHE_MAINTENANCE.start();
 
     // Render UI with loaded data (this includes renderUserList())
     console.log("🎨 Updating UI with loaded data...");
@@ -5310,6 +5749,11 @@ document.addEventListener("spa:page:unload", (event) => {
 
     // Cleanup friends bar and its event listeners
     cleanupHorizontalFriendsBar();
+    
+    // Clean up friends' schedule cache and real-time sync
+    FRIENDS_REALTIME_SYNC.cleanup();
+    FRIENDS_SCHEDULE_CACHE.cleanup();
+    CACHE_MAINTENANCE.stop();
 
     // Clear any remaining timeouts/intervals that might be running
     clearInterval(); // Clear all intervals (if any)

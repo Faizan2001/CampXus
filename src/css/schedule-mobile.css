@@ -471,6 +471,31 @@ This file contains all styles for the mobile-friendly schedule redesign:
   box-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
 }
 
+/* Avatar status differentiation */
+.friend-avatar.free {
+  border-color: var(--success);
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+}
+
+.friend-avatar.free:hover {
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.6);
+}
+
+.friend-avatar.busy {
+  border-color: var(--error);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  opacity: 0.7;
+}
+
+.friend-avatar.busy:hover {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+  opacity: 0.9;
+}
+
+.friend-avatar.busy img {
+  filter: grayscale(30%);
+}
+
 
 
 .friend-avatar:hover .avatar-label {
