@@ -1127,7 +1127,12 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   }
   lastPinClickTime = now;
 
-  if (!state.activeUserId || !state.users[state.activeUserId]) {
+  if (!state.activeUserId || !state.users[state.activeUserId] || state.currentViewingFriendId) {
+    if (state.currentViewingFriendId) {
+      console.log("🔒 Cannot pin in friend's schedule - read-only mode");
+      return;
+    }
+    
     console.warn("handlePinSlotClick called with no active user.");
     // Trigger glow effect for visual feedback
     if (!state.activeUserId) {
@@ -2724,29 +2729,49 @@ function updateUI() {
 
   // --- START: Logic for Pin Mode Button ---
   if (DOM_ELEMENTS.togglePinModeBtn) {
-    const pinModeBtnState = getPinModeButtonDynamicState(
-      state.activeUserId,
-      state.compareMode,
-      state.pinModeActive
-    );
-
-    DOM_ELEMENTS.togglePinModeBtn.disabled = pinModeBtnState.isDisabled;
-
-    // Handle the active class based on pin mode state
-    if (pinModeBtnState.isActiveClass) {
-      DOM_ELEMENTS.togglePinModeBtn.classList.add("pin-mode-active");
+    // 🔒 Hide pin button when viewing friend's schedule
+    if (state.currentViewingFriendId) {
+      DOM_ELEMENTS.togglePinModeBtn.style.display = "none";
+      console.log("🔒 Pin button hidden - viewing friend's schedule");
     } else {
-      DOM_ELEMENTS.togglePinModeBtn.classList.remove("pin-mode-active");
-    }
+      DOM_ELEMENTS.togglePinModeBtn.style.display = "";
+      
+      const pinModeBtnState = getPinModeButtonDynamicState(
+        state.activeUserId,
+        state.compareMode,
+        state.pinModeActive
+      );
 
-    // Update text content in the span element
-    const textSpan =
-      DOM_ELEMENTS.togglePinModeBtn.querySelector(".pin-btn-text");
-    if (textSpan) {
-      textSpan.textContent = pinModeBtnState.text;
+      DOM_ELEMENTS.togglePinModeBtn.disabled = pinModeBtnState.isDisabled;
+
+      // Handle the active class based on pin mode state
+      if (pinModeBtnState.isActiveClass) {
+        DOM_ELEMENTS.togglePinModeBtn.classList.add("pin-mode-active");
+      } else {
+        DOM_ELEMENTS.togglePinModeBtn.classList.remove("pin-mode-active");
+      }
+
+      // Update text content in the span element
+      const textSpan =
+        DOM_ELEMENTS.togglePinModeBtn.querySelector(".pin-btn-text");
+      if (textSpan) {
+        textSpan.textContent = pinModeBtnState.text;
+      }
     }
   }
   // --- END: Logic for Pin Mode Button ---
+
+  // --- START: Logic for Add Time Slot Button ---
+  if (DOM_ELEMENTS.addNewTimeSlotBtn) {
+    // 🔒 Hide add time slot button when viewing friend's schedule  
+    if (state.currentViewingFriendId) {
+      DOM_ELEMENTS.addNewTimeSlotBtn.style.display = "none";
+      console.log("🔒 Add time slot button hidden - viewing friend's schedule");
+    } else {
+      DOM_ELEMENTS.addNewTimeSlotBtn.style.display = "";
+    }
+  }
+  // --- END: Logic for Add Time Slot Button ---
 
   // Note: Mobile compare mode sync is handled directly in event handlers to prevent circular calls
   console.log(`✅ updateUI completed successfully`);
@@ -2954,9 +2979,16 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
   if (
     !state.activeUserId ||
     state.compareMode ||
-    !state.users[state.activeUserId]
+    !state.users[state.activeUserId] ||
+    state.currentViewingFriendId // 🔒 Prevent editing when viewing friend's schedule
   ) {
-    // No active user, in compare mode, or user doesn't exist: show visual feedback
+    // No active user, in compare mode, viewing friend's schedule, or user doesn't exist: show visual feedback
+    if (state.currentViewingFriendId) {
+      // Viewing friend's schedule - show read-only feedback
+      console.log("🔒 Cannot edit friend's schedule - read-only mode");
+      return;
+    }
+    
     if (!state.activeUserId && !state.compareMode) {
       // Schedule is disabled - check if users exist to determine which glow to trigger
       const totalUserCount = Object.keys(state.users).length;
