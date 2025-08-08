@@ -79,6 +79,9 @@ class SPARouter {
     this.currentPage = "home"; // Default page
     this.mainContentContainer = null; // Will hold our content area
     this.loadingIndicator = null;
+    // Navigation concurrency & cancellation
+    this._navId = 0;
+    this._abortController = null;
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -521,6 +524,17 @@ class SPARouter {
     }
 
     try {
+      // Concurrency control: create a new nav context and cancel previous
+      this._navId += 1;
+      const navId = this._navId;
+      if (this._abortController) {
+        try {
+          this._abortController.abort();
+        } catch {}
+      }
+      this._abortController = new AbortController();
+      const { signal } = this._abortController;
+
       console.log(`🔄 Loading page: ${route}, current: ${this.currentPage}`);
       console.log(`📋 Route config:`, {
         title: routeData.title,
@@ -541,15 +555,36 @@ class SPARouter {
       // Load CSS files if needed
       await this.loadCSS(routeData.cssFiles);
 
-      // Load the HTML template
-      const htmlContent = await this.loadTemplate(routeData.template);
+      // Load the HTML template (cancellable)
+      const htmlContent = await this.loadTemplate(routeData.template, signal);
+
+      // If a newer navigation started, abandon this one
+      if (this._navId !== navId) {
+        console.log(
+          "⏭️ Navigation superseded, abandoning DOM updates for",
+          route
+        );
+        return;
+      }
 
       // 🛡️ Additional validation before injecting content
       if (!htmlContent || htmlContent.trim().length === 0) {
         throw new Error(`Template ${routeData.template} is empty`);
       }
 
-      // 🧹 Clear main content container completely before injecting new content
+      // 🧹 Before clearing, dispatch page unload for previous route (if any)
+      const leavingRoute = this.currentPage;
+      if (leavingRoute && leavingRoute !== route) {
+        const unloadEvent = new CustomEvent("spa:page:unload", {
+          detail: { route: leavingRoute, router: this, targetRoute: route },
+        });
+        document.dispatchEvent(unloadEvent);
+        console.log(
+          `🔔 Dispatched spa:page:unload for route: ${leavingRoute} → ${route}`
+        );
+      }
+
+      // Clear main content container completely before injecting new content
       // This prevents any residual content from previous pages
       this.mainContentContainer.innerHTML = "";
 
@@ -578,6 +613,13 @@ class SPARouter {
       );
       this.mainContentContainer.innerHTML = htmlContent;
 
+      // Accessibility: move focus to main content after navigation
+      try {
+        this.mainContentContainer.setAttribute("tabindex", "-1");
+        this.mainContentContainer.focus({ preventScroll: true });
+        window.scrollTo(0, 0);
+      } catch {}
+
       // Load and execute JavaScript files
       await this.loadJS(routeData.jsFiles);
 
@@ -600,6 +642,10 @@ class SPARouter {
 
       console.log(`✅ Successfully loaded page: ${route}`);
     } catch (error) {
+      if (error?.name === "AbortError") {
+        console.log("🛑 Navigation aborted (newer route started)");
+        return;
+      }
       console.error(`❌ Error loading page ${route}:`, error);
       // 🎯 REFACTOR: The navigateTo method's finally block will handle hiding the loader.
       this.showErrorPage(error);
@@ -617,9 +663,10 @@ class SPARouter {
     // 🏗️ PRODUCTION FIX: Use Vite's native production detection + preview mode detection
     // In Vite builds (including `vite preview`), all CSS is already extracted by Vite
     // Check both import.meta.env.PROD and if we're running from built files (preview mode)
-    const isBuiltMode = (import.meta.env && import.meta.env.PROD) || 
+    const isBuiltMode =
+      (import.meta.env && import.meta.env.PROD) ||
       (window.location.port && parseInt(window.location.port) >= 4173);
-    
+
     if (isBuiltMode) {
       console.log(
         "🏗️ Production/preview mode detected - skipping dynamic CSS loading (CSS is bundled by Vite)"
@@ -665,7 +712,7 @@ class SPARouter {
    * 🎯 Learning: Fetch content from separate HTML files
    * 🛡️ Security: Validate that we get template fragments, not full HTML documents
    */
-  async loadTemplate(templatePath) {
+  async loadTemplate(templatePath, signal) {
     // Ensure absolute path to prevent routing context issues
     const url = templatePath.startsWith("/")
       ? templatePath
@@ -673,7 +720,7 @@ class SPARouter {
 
     console.log(`📄 Loading template: ${url}`);
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal });
     if (!response.ok) {
       console.error(`❌ Template fetch failed: ${url} (${response.status})`);
       throw new Error(
@@ -717,9 +764,10 @@ class SPARouter {
 
     // 🏗️ PRODUCTION FIX: Use Vite's native production detection + preview mode detection
     // Skip dynamic JS loading in real builds (after `vite build` / `vite preview`)
-    const isBuiltMode = import.meta.env.PROD || 
+    const isBuiltMode =
+      import.meta.env.PROD ||
       (window.location.port && parseInt(window.location.port) >= 4173);
-    
+
     if (isBuiltMode) {
       console.log(
         "🏗️ Production/preview mode detected - skipping dynamic JS loading (JS is bundled by Vite)"
@@ -898,7 +946,7 @@ class SPARouter {
           <button onclick="window.location.reload()" class="btn btn-secondary" style="margin-right: 1rem;">
             <i class="fas fa-refresh"></i> Refresh Page
           </button>
-          <button onclick="window.spaRouter.navigateTo('home')" class="btn btn-primary">
+          <button id="router-error-go-home" class="btn btn-primary">
             <i class="fas fa-home"></i> Go Home
           </button>
         </div>
@@ -912,6 +960,21 @@ Stack: ${error?.stack || "No stack trace available"}
         </details>
       </div>
     `;
+
+    // Attach safe navigation without relying on window globals
+    const goHomeBtn = this.mainContentContainer.querySelector(
+      "#router-error-go-home"
+    );
+    if (goHomeBtn) {
+      goHomeBtn.addEventListener("click", () => {
+        try {
+          this.navigateTo("home");
+        } catch {
+          // Fallback to hash navigation if router is unavailable
+          window.location.hash = "#home";
+        }
+      });
+    }
   }
 
   /**
