@@ -526,7 +526,31 @@ This file contains all styles for the mobile-friendly schedule redesign:
   opacity: 0.7;
 }
 
-/* Mixed availability glass orange styling for day view */
+/* Beautiful glass styling for day view comparison slots */
+.day-time-slot.compare-mode.all-free {
+  background: linear-gradient(
+    135deg,
+    rgba(74, 222, 128, 0.12),
+    rgba(34, 197, 94, 0.08)
+  );
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+}
+
+.day-time-slot.compare-mode.all-busy {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.12),
+    rgba(220, 38, 38, 0.08)
+  );
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+}
+
 .day-time-slot.compare-mode.mixed-availability {
   background: linear-gradient(
     135deg,
@@ -536,6 +560,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   border-color: rgba(251, 146, 60, 0.3);
   box-shadow: 0 4px 12px rgba(251, 146, 60, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
 }
 
 /* ===== GRID VIEW CONTAINER (MOBILE OPTIMIZED) ===== */
