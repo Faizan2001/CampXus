@@ -3659,25 +3659,25 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
         console.log(`📊 Day view direct - slot [${state.selectedDay}][${timeIndex}]: ${busyUsers.length} busy, ${freeUsers.length} free`);
       }
 
-      // Apply same logic as grid view for determining status
+      // Apply day view specific class names for glass styling
       if (busyUsers.length === 0) {
-        // All users free - use same CSS class as grid view
+        // All users free - use day view glass styling
         comparisonStatus = {
-          cssClass: "slot-free",
+          cssClass: "all-free",
           text: "All Available",
           tooltip: `All ${currentSelectedUsers.length} users are available`,
         };
       } else if (busyUsers.length === currentSelectedUsers.length) {
-        // All users busy - use same CSS class as grid view  
+        // All users busy - use day view glass styling  
         comparisonStatus = {
-          cssClass: "slot-conflict", 
+          cssClass: "all-busy", 
           text: "All Busy",
           tooltip: `All ${currentSelectedUsers.length} users are busy`,
         };
       } else {
-        // Mixed availability - use same CSS class as grid view
+        // Mixed availability - use day view glass styling
         comparisonStatus = {
-          cssClass: "slot-partial",
+          cssClass: "mixed-availability",
           text: "Partial",
           tooltip: `${freeUsers.length} available, ${busyUsers.length} busy`,
         };
@@ -3701,13 +3701,11 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       totalUsers: currentSelectedUsers.length
     });
 
-    // Apply glass-orange for mixed availability (consistent with grid view)
-    if (comparisonStatus.cssClass === "slot-partial") {
-      slotDiv.classList.add("mixed-availability");
-      console.log(
-        `🟡 Day view applying mixed-availability glass-orange styling to slot ${timeIndex}`
-      );
-    }
+    // Apply day view glass styling classes
+    slotDiv.classList.add(comparisonStatus.cssClass);
+    console.log(
+      `🎨 Day view applying ${comparisonStatus.cssClass} glass styling to slot ${timeIndex}`
+    );
 
     slotDiv.innerHTML = createDayViewCompareSlotContent(timeSlot, timeIndex, comparisonStatus);
   } else if (state.compareMode && state.selectedUserIds.size === 0) {
@@ -3799,13 +3797,13 @@ function createDayViewCompareSlotContent(timeSlot, timeIndex, comparisonStatus) 
     timeIndex
   );
   
-  // Map comparison status to appropriate icon (consistent with grid view)
+  // Map comparison status to appropriate icon for day view
   let icon = "fas fa-question";
-  if (comparisonStatus.cssClass === "slot-free") {
+  if (comparisonStatus.cssClass === "all-free") {
     icon = "fas fa-check-circle";
-  } else if (comparisonStatus.cssClass === "slot-conflict") {
+  } else if (comparisonStatus.cssClass === "all-busy") {
     icon = "fas fa-times-circle";  
-  } else if (comparisonStatus.cssClass === "slot-partial") {
+  } else if (comparisonStatus.cssClass === "mixed-availability") {
     icon = "fas fa-exclamation-triangle";
   } else if (comparisonStatus.cssClass === "no-users") {
     icon = "fas fa-user-slash";
