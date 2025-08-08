@@ -1787,7 +1787,7 @@ class ProfileSetup {
       
       this.showScheduleError(errorMessage);
       
-      // Clear the file input
+      // Clear the file inputCAn 
       event.target.value = '';
     } finally {
       // Always reset the processing flag
