@@ -441,25 +441,30 @@ export class HorizontalFriendsBar {
   /**
    * Select a friend's schedule (or user's own)
    */
-  async selectFriend(friendId, friendName = null) {
-    // Check if this friend is already selected
-    const isUserCurrentlySelected =
-      friendId === "user" && this.selectedFriendId === null;
-    const isFriendCurrentlySelected =
-      friendId !== "user" && this.selectedFriendId === friendId;
-    const currentlySelected =
-      isUserCurrentlySelected || isFriendCurrentlySelected;
+  async selectFriend(friendId, friendName = null, forceSelection = false) {
+    // 🎯 NEW: Skip deselection logic if this is a forced selection (like initial load)
+    if (!forceSelection) {
+      // Check if this friend is already selected
+      const isUserCurrentlySelected =
+        friendId === "user" && this.selectedFriendId === null;
+      const isFriendCurrentlySelected =
+        friendId !== "user" && this.selectedFriendId === friendId;
+      const currentlySelected =
+        isUserCurrentlySelected || isFriendCurrentlySelected;
 
-    if (currentlySelected && friendId !== "user") {
-      // If clicking on already selected friend (not user), deselect and fallback to user
-      console.log(`🔄 Deselecting friend: ${friendId}, falling back to user`);
-      await this.selectUser();
-      return;
-    } else if (currentlySelected && friendId === "user") {
-      // If clicking on already selected user, deselect them (show empty schedule)
-      console.log(`🔄 Deselecting user avatar, showing empty schedule`);
-      this.deselectAll();
-      return;
+      if (currentlySelected && friendId !== "user") {
+        // 🎯 FIXED: If clicking on already selected friend, deselect and show empty state
+        console.log(`🔄 Deselecting friend: ${friendId}, showing empty state`);
+        this.deselectAll();
+        return;
+      } else if (currentlySelected && friendId === "user") {
+        // If clicking on already selected user, deselect them (show empty schedule)
+        console.log(`🔄 Deselecting user avatar, showing empty schedule`);
+        this.deselectAll();
+        return;
+      }
+    } else {
+      console.log(`🎯 Force selecting ${friendId} - skipping deselection logic`);
     }
 
     console.log(`🎯 Selecting friend: ${friendId}`);
@@ -584,7 +589,7 @@ export class HorizontalFriendsBar {
       }
     }
 
-    await this.selectFriend("user", "You");
+    await this.selectFriend("user", "You", true); // Force selection to skip deselection logic
   }
 
   /**
@@ -831,11 +836,23 @@ export class HorizontalFriendsBar {
   /**
    * Force user selection immediately after render
    * This ensures the purple ring appears right away
+   * 🎯 FIXED: Respect compare mode - don't force selection in compare mode
    */
   forceUserSelection() {
     console.log(
-      "🔍 DEBUG: forceUserSelection() called immediately after render"
+      "🔍 DEBUG: forceUserSelection() called immediately after render",
+      {
+        compareMode: this.compareMode,
+        selectedFriendId: this.selectedFriendId,
+        isInitialized: this.isInitialized
+      }
     );
+
+    // 🎯 NEW: Don't force user selection in compare mode - allow empty selections
+    if (this.compareMode) {
+      console.log("🔍 DEBUG: In compare mode - skipping forced user selection");
+      return;
+    }
 
     // Reset selection state
     this.selectedFriendId = null;
@@ -873,12 +890,18 @@ export class HorizontalFriendsBar {
       ring.style.borderColor = "#9333ea";
       ring.style.borderWidth = "3px";
       ring.style.zIndex = "2";
-      ring.style.display = "block";
+      ring.style.display = ""; // Remove display override to use CSS
 
       console.log("🔍 DEBUG: Forced user ring visibility with inline styles");
     } else {
       console.error("❌ DEBUG: User ring element not found");
     }
+
+    // 🎯 NEW: Set the selectedFriendId state and emit schedule change event
+    this.selectedFriendId = null; // null represents user's own schedule
+    
+    // Emit schedule change event to update HomePage
+    this.emitScheduleChangeEvent("user", "You");
 
     console.log("🔍 DEBUG: User selection forced successfully");
   }
@@ -887,9 +910,16 @@ export class HorizontalFriendsBar {
    * Ensure user is selected by default - fallback method
    * This method ensures the purple ring appears on the user avatar
    * especially when there are no starred friends
+   * 🎯 FIXED: Respect compare mode - don't auto-select in compare mode
    */
   async ensureUserSelected() {
     console.log("🔍 DEBUG: ensureUserSelected() called");
+
+    // 🎯 NEW: Don't auto-select user in compare mode - allow empty selections
+    if (this.compareMode) {
+      console.log("🔍 DEBUG: In compare mode - allowing empty selection, not auto-selecting user");
+      return;
+    }
 
     // Check if any friend is currently selected
     let hasSelection = false;
@@ -900,7 +930,7 @@ export class HorizontalFriendsBar {
       }
     });
 
-    // Always ensure user is selected if no other friend is selected
+    // Only ensure user is selected if not in compare mode and no other friend is selected
     if (!hasSelection || this.selectedFriendId === null) {
       console.log("🔍 DEBUG: No selection found, selecting user");
       await this.selectUser();

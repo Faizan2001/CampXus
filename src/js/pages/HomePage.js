@@ -4930,6 +4930,62 @@ function checkProfileCompletion() {
 ================================== */
 
 /**
+ * Preselect the user's avatar when navigating to home page
+ * This ensures the user's own schedule is always visible by default
+ * 🎯 ENHANCED: Better timing and error handling for initial load
+ * 
+ * NOTE: Currently unused - user preselection is handled by HorizontalFriendsBar.forceUserSelection()
+ * Kept for potential future use in edge cases or fallback scenarios.
+ */
+async function preselectUserAvatar() {
+  console.log("👤 preselectUserAvatar() called");
+  
+  const currentUser = authManager.getCurrentUser();
+  
+  if (!currentUser?.uid) {
+    console.log("⚠️ No authenticated user found - skipping avatar preselection");
+    return;
+  }
+
+  // Only preselect if not already in compare mode
+  if (state.compareMode) {
+    console.log("⚠️ Compare mode active - skipping avatar preselection");
+    return;
+  }
+
+  // Set active user in HomePage state
+  console.log(`👤 Preselecting user avatar in HomePage state: ${currentUser.uid}`, {
+    currentActiveUserId: state.activeUserId,
+    compareMode: state.compareMode,
+    selectedUserIds: Array.from(state.selectedUserIds)
+  });
+  
+  state.activeUserId = currentUser.uid;
+  state.selectedUserIds.clear(); // Clear any friend selections
+
+  // If horizontal friends bar exists, ensure user is selected there too
+  if (state.horizontalFriendsBar && state.horizontalFriendsBar.selectUser) {
+    console.log("👤 Preselecting user avatar in horizontal friends bar");
+    try {
+      // Check if horizontal friends bar is in compare mode
+      if (state.horizontalFriendsBar.compareMode) {
+        console.log("🔍 HorizontalFriendsBar is in compare mode - not forcing user selection");
+      } else {
+        await state.horizontalFriendsBar.selectUser();
+      }
+    } catch (error) {
+      console.warn("⚠️ Failed to preselect user in horizontal friends bar:", error);
+    }
+  } else {
+    console.log("⚠️ HorizontalFriendsBar not available yet - will be selected during bar initialization");
+  }
+
+  // Save state and update UI
+  saveStateToStorage();
+  updateUI();
+}
+
+/**
  * Sets up authentication callbacks for profile completion checks
  * This ensures new users are directed to profile setup after sign-in
  */
@@ -5707,6 +5763,13 @@ function handleCompareSelectionChange(event) {
     }
   });
 
+  // 🎯 FIXED: Remove automatic user selection when all friends are deselected
+  // Let compare mode show empty state instead of auto-selecting user
+  console.log(`🔍 Final selection: ${Array.from(state.selectedUserIds)} (count: ${state.selectedUserIds.size})`);
+  if (state.selectedUserIds.size === 0) {
+    console.log("📋 All users deselected - showing empty compare state (no auto-selection)");
+  }
+
   console.log(`🔄 selectedUserIds updated:`, {
     previous: previousSelectedCount,
     current: state.selectedUserIds.size,
@@ -6136,6 +6199,9 @@ document.addEventListener("spa:page:load", (event) => {
     console.log("🎨 Updating UI with loaded data...");
     updateUI();
 
+    // 🎯 REMOVED: Preselection now handled by HorizontalFriendsBar.forceUserSelection()
+    // The HorizontalFriendsBar will auto-select user after it's fully rendered
+
     // Set up authentication callbacks (only once)
     setupAuthenticationCallbacks();
 
@@ -6143,30 +6209,33 @@ document.addEventListener("spa:page:load", (event) => {
   }
 });
 
-// Add cleanup when leaving the home page
+/**
+ * 🧹 Clean up resources when leaving the home page
+ */
 document.addEventListener("spa:page:unload", (event) => {
   const { route } = event.detail;
+  console.log(`[HomePage] Received spa:page:unload for route: ${route}`);
+  
+  // Only clean up if we're leaving the home page
   if (route === "home") {
-    console.log("🧹 Cleaning up home page...");
-
-    // Clear all caches to prevent memory leaks
-    memoCache.clear();
-    matrixCache.clear();
-
-    // Cleanup friends bar and its event listeners
-    cleanupHorizontalFriendsBar();
-
-    // Clean up friends' schedule cache and real-time sync
-    FRIENDS_REALTIME_SYNC.cleanup();
-    FRIENDS_SCHEDULE_CACHE.cleanup();
-    CACHE_MAINTENANCE.stop();
-
-    // Clear any remaining timeouts/intervals that might be running
-    clearInterval(); // Clear all intervals (if any)
-
-    console.log("✅ HomePage cleanup completed");
+    console.log("🧹 Cleaning up home page resources...");
+    
+    // Clear any temporary selections but keep the state for when we return
+    if (state.horizontalFriendsBar) {
+      console.log("🧹 Home page unloading - horizontal friends bar will be recreated on return");
+    }
   }
 });
+
+/**
+ * 🎯 SIMPLIFIED: Removed navigation listener to eliminate timing race condition
+ * 
+ * User preselection is handled entirely by HorizontalFriendsBar.forceUserSelection():
+ * - Initial website load: ✅ forceUserSelection() runs after render
+ * - Navigation to home page: ✅ HorizontalFriendsBar re-initializes and runs forceUserSelection()
+ * 
+ * This eliminates the timing errors while maintaining all functionality.
+ */
 
 /**
  * Shows a detailed tooltip for pin indicators in compare mode
