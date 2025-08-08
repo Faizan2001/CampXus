@@ -318,6 +318,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   border-style: dashed;
 }
 
+/* ✅ REMOVED: Duplicate pin indicator - using JavaScript-based pins instead 
 .day-time-slot.pinned::after {
   content: "📍";
   position: absolute;
@@ -325,7 +326,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   right: 12px;
   font-size: 1rem;
   opacity: 0.8;
-}
+} */
 
 /* Time slot content layout */
 .slot-time {

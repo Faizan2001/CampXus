@@ -49,6 +49,10 @@ let state = {
   viewMode: "day", // 'day' or 'grid' - default to day view for mobile-first
   selectedDay: new Date().getDay(), // Current day (0 = Sunday, 6 = Saturday)
   isMobile: false, // Will be set during initialization
+
+  // Real-time update control
+  isLocalUpdate: false, // Prevents double UI updates during local changes
+  pendingTransactions: new Map(), // Track pending saves to prevent overwrites
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
@@ -75,12 +79,68 @@ export function _resetStateForTesting() {
     viewMode: "day",
     selectedDay: new Date().getDay(),
     isMobile: false,
+
+    // Real-time update control
+    isLocalUpdate: false,
+    pendingTransactions: new Map(),
   };
 }
 
 /* ================================
    UTILITY FUNCTIONS
 ================================== */
+
+// Debounced save mechanism to prevent excessive database writes
+let saveTimeout = null;
+let pendingSavePromise = null;
+let batchedTransactionIds = new Set(); // Collect transaction IDs during debounce period
+
+function debouncedSaveStateToStorage(immediate = false, transactionId = null) {
+  // Add transaction ID to batch if provided
+  if (transactionId) {
+    batchedTransactionIds.add(transactionId);
+  }
+
+  if (immediate) {
+    // Clear any pending saves and save immediately with all batched transactions
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+      saveTimeout = null;
+    }
+    const currentBatch = Array.from(batchedTransactionIds);
+    batchedTransactionIds.clear();
+    return saveStateToStorage(null, currentBatch);
+  }
+
+  // Return existing promise if save is already pending
+  if (pendingSavePromise) {
+    return pendingSavePromise;
+  }
+
+  return new Promise((resolve, reject) => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+
+    saveTimeout = setTimeout(async () => {
+      try {
+        // Pass all batched transaction IDs to save function
+        const currentBatch = Array.from(batchedTransactionIds);
+        batchedTransactionIds.clear();
+
+        pendingSavePromise = saveStateToStorage(null, currentBatch);
+        await pendingSavePromise;
+        pendingSavePromise = null;
+        saveTimeout = null;
+        resolve();
+      } catch (error) {
+        pendingSavePromise = null;
+        saveTimeout = null;
+        reject(error);
+      }
+    }, 300); // 300ms debounce delay
+  });
+}
 
 // Smart logging with frequency control
 let lastLogTimes = {};
@@ -1050,10 +1110,22 @@ function handleTogglePinMode() {
 
 // Pin Slot Click Handler
 
+// Add light debouncing for safety (reduced since we fixed duplicate handlers)
+let lastPinClickTime = 0;
+const PIN_CLICK_DEBOUNCE = 50; // 50ms debounce (reduced from 200ms)
+
 function handlePinSlotClick(dayIndex, slotIndex, event) {
   if (event) {
     event.stopPropagation();
   }
+
+  // Debounce rapid clicks
+  const now = Date.now();
+  if (now - lastPinClickTime < PIN_CLICK_DEBOUNCE) {
+    console.log("🚫 Pin click debounced - too rapid");
+    return;
+  }
+  lastPinClickTime = now;
 
   if (!state.activeUserId || !state.users[state.activeUserId]) {
     console.warn("handlePinSlotClick called with no active user.");
@@ -1064,9 +1136,9 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
       if (totalUserCount === 0) {
         // No users exist - trigger add user button glow
-              } else {
+      } else {
         // Users exist but no active user - trigger users section glow
-              }
+      }
     }
     return;
   }
@@ -1121,8 +1193,33 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
     coordinates: `[${dayIndex}, ${slotIndex}]`,
   });
 
-  saveStateToStorage();
+  // Create transaction ID for this pin operation
+  const transactionId = `pin_${
+    state.activeUserId
+  }_${dayIndex}_${slotIndex}_${Date.now()}`;
+  const transactionData = {
+    userId: state.activeUserId,
+    dayIndex,
+    slotIndex,
+    newPinState,
+    timestamp: Date.now(),
+  };
+
+  // Add to pending transactions to prevent real-time overwrites
+  state.pendingTransactions.set(transactionId, transactionData);
+  console.log(`📝 Started transaction: ${transactionId}`);
+
+  // Prevent double UI update by temporarily ignoring real-time updates
+  state.isLocalUpdate = true;
   updateUI();
+
+  // Use debounced save to prevent excessive database writes
+  debouncedSaveStateToStorage(transactionId);
+
+  // Re-enable real-time updates after reasonable delay
+  setTimeout(() => {
+    state.isLocalUpdate = false;
+  }, 200); // Reduced from 500ms since we fixed duplicate handlers
 }
 
 /**
@@ -1214,8 +1311,13 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
         user.slotInfo[dayIndex][timeIndex] = { courseCode, classroomNumber };
 
-        saveStateToStorage();
+        state.isLocalUpdate = true;
         updateUI();
+        debouncedSaveStateToStorage();
+
+        setTimeout(() => {
+          state.isLocalUpdate = false;
+        }, 150);
         return true;
       }
       return false;
@@ -1262,8 +1364,13 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
             activeUser.pinnedSlots[dayIndex][timeIndex] = false;
           }
 
-          saveStateToStorage();
+          state.isLocalUpdate = true;
           updateUI();
+          debouncedSaveStateToStorage();
+
+          setTimeout(() => {
+            state.isLocalUpdate = false;
+          }, 150);
           return true; // Close the confirmation modal
         },
       });
@@ -1539,6 +1646,31 @@ function setupScheduleRealTimeSync(userId) {
           "📡 [Phase-1] Real-time schedule update received via ScheduleStorageService"
         );
 
+        // Skip UI update if this is a local change to prevent double rendering
+        if (state.isLocalUpdate) {
+          console.log(
+            "⏭️ [Phase-1] Skipping real-time UI update - local change in progress"
+          );
+
+          // Still update userStore for consistency but DON'T update local state
+          currentUser.setScheduleData(updatedScheduleData);
+          currentUser.setScheduleLastSynced(new Date());
+          return;
+        }
+
+        // Check if we have any pending transactions that would conflict
+        const hasPendingTransactions = state.pendingTransactions.size > 0;
+        if (hasPendingTransactions) {
+          console.log(
+            `🔄 [TRANSACTION GUARD] Skipping real-time update - ${state.pendingTransactions.size} pending transactions`
+          );
+
+          // Still update userStore but don't override local state during transactions
+          currentUser.setScheduleData(updatedScheduleData);
+          currentUser.setScheduleLastSynced(new Date());
+          return;
+        }
+
         // Convert updated data to HomePage format
         const homePageFormat = scheduleStorageService.convertToHomePageFormat(
           updatedScheduleData,
@@ -1564,7 +1696,7 @@ function setupScheduleRealTimeSync(userId) {
   currentUser.setScheduleRealTimeActive(true);
 }
 
-async function saveStateToStorage() {
+async function saveStateToStorage(transactionId = null, transactionIds = []) {
   try {
     const user = authManager.getCurrentUser();
     if (!user || !state.users[user.uid]) {
@@ -1572,6 +1704,7 @@ async function saveStateToStorage() {
       return;
     }
 
+    // Debug transaction processing
     console.log("💾 [Phase-1] Saving user schedule...");
 
     // Convert HomePage format to scheduleData format using ScheduleStorageService
@@ -1590,6 +1723,37 @@ async function saveStateToStorage() {
       );
 
       if (success) {
+        // Complete transactions if provided (supports both single and batch)
+        if (transactionId && state.pendingTransactions.has(transactionId)) {
+          state.pendingTransactions.delete(transactionId);
+          console.log(`✅ Completed transaction: ${transactionId}`);
+        }
+
+        // Complete batched transactions
+        if (transactionIds && transactionIds.length > 0) {
+          const completedCount = transactionIds.filter((id) => {
+            if (state.pendingTransactions.has(id)) {
+              state.pendingTransactions.delete(id);
+              return true;
+            }
+            return false;
+          }).length;
+
+          if (completedCount > 0) {
+            console.log(
+              `✅ Completed ${completedCount} batched transactions, ${state.pendingTransactions.size} remaining`
+            );
+          }
+        }
+
+        // 🛡️ SAFETY NET: Clear ALL remaining pending transactions on successful save
+        // This prevents race conditions from parallel save operations
+        if (state.pendingTransactions.size > 0) {
+          const remainingCount = state.pendingTransactions.size;
+          state.pendingTransactions.clear();
+          console.log(`✅ Safety clear: Completed ${remainingCount} remaining transactions`);
+        }
+
         // Update userStore with successful save
         currentUser.setScheduleData(scheduleData);
         currentUser.setScheduleLastSynced(new Date());
@@ -1905,7 +2069,6 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
 
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
 
-
 function renderScheduleGrid() {
   // Temporarily disable smart logging for debugging - log every call
   console.log("🏗️ renderScheduleGrid called:", {
@@ -1914,7 +2077,7 @@ function renderScheduleGrid() {
     activeUserId: state.activeUserId,
     totalLoadedUsers: Object.keys(state.users).length, // Only loaded users
     loadedUserIds: Object.keys(state.users),
-    note: "In compare mode, only selected users' data is loaded on-demand"
+    note: "In compare mode, only selected users' data is loaded on-demand",
   });
 
   if (!DOM_ELEMENTS.scheduleTable) {
@@ -1979,20 +2142,25 @@ function renderScheduleGrid() {
         unifiedScheduleInstance = createUnifiedSchedule(selectedUsers);
         currentTimeSlotsToRender = unifiedScheduleInstance.unifiedTimeSlots;
         usedUnifiedSchedule = true;
-        
+
         // ✅ FIXED: Add constraint to prevent overflow - limit excessive granular slots
         const MAX_COMPARE_SLOTS = 20; // Reasonable limit for comparison
         if (currentTimeSlotsToRender.length > MAX_COMPARE_SLOTS) {
-          console.warn(`⚠️ UnifiedSchedule created ${currentTimeSlotsToRender.length} slots, using fallback`);
-          // Fallback to largest user's schedule to prevent UI overflow
-          const largestSchedule = selectedUsers.reduce((largest, user) => 
-            (user.timeSlots?.length || 0) > (largest.timeSlots?.length || 0) ? user : largest
+          console.warn(
+            `⚠️ UnifiedSchedule created ${currentTimeSlotsToRender.length} slots, using fallback`
           );
-          currentTimeSlotsToRender = largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
+          // Fallback to largest user's schedule to prevent UI overflow
+          const largestSchedule = selectedUsers.reduce((largest, user) =>
+            (user.timeSlots?.length || 0) > (largest.timeSlots?.length || 0)
+              ? user
+              : largest
+          );
+          currentTimeSlotsToRender =
+            largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
           usedUnifiedSchedule = false; // Don't use unified logic for comparison
           unifiedScheduleInstance = null;
         }
-        
+
         console.log(
           `📊 Unified schedule created with ${currentTimeSlotsToRender.length} granular time slots`
         );
@@ -2094,8 +2262,14 @@ function renderScheduleGrid() {
             freeUsers = slotStatus.available || [];
 
             // Smart logging: Only log unified grid status for first few slots to prevent flooding
-            if ((dayIndex === 0 && timeIndex < 2) || (dayIndex === 6 && timeIndex === currentTimeSlotsToRender.length - 1)) {
-              console.log(`📊 Unified Grid - slot [${dayIndex}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`);
+            if (
+              (dayIndex === 0 && timeIndex < 2) ||
+              (dayIndex === 6 &&
+                timeIndex === currentTimeSlotsToRender.length - 1)
+            ) {
+              console.log(
+                `📊 Unified Grid - slot [${dayIndex}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`
+              );
             }
 
             // Add granular time information to the cell for enhanced debugging
@@ -2118,14 +2292,22 @@ function renderScheduleGrid() {
                 const isBusy = user.schedule[dayIndex][timeIndex];
                 // Smart logging: Only log first slot of each day to prevent flooding
                 if (timeIndex === 0) {
-                  console.log(`📊 Direct compare - user ${user.name || user.id} status for day ${dayIndex}: ${isBusy ? "BUSY" : "FREE"}`);
+                  console.log(
+                    `📊 Direct compare - user ${
+                      user.name || user.id
+                    } status for day ${dayIndex}: ${isBusy ? "BUSY" : "FREE"}`
+                  );
                 }
                 return isBusy;
               }
               // Only log warning if timeIndex is within expected range
               // Smart logging: Only warn once per user per day if missing schedule data
               if (timeIndex === 0 && !user.schedule?.[dayIndex]) {
-                console.log(`⚠️ Direct compare - user ${user.name || user.id} missing schedule data for day ${dayIndex}`);
+                console.log(
+                  `⚠️ Direct compare - user ${
+                    user.name || user.id
+                  } missing schedule data for day ${dayIndex}`
+                );
               }
               return false;
             });
@@ -2142,7 +2324,12 @@ function renderScheduleGrid() {
 
         // ✅ FIXED: Apply comparison styling with proper logic and cleanup
         // Clear any previous styling first to prevent conflicts
-        dayCell.classList.remove("slot-selected", "slot-free", "slot-conflict", "slot-partial");
+        dayCell.classList.remove(
+          "slot-selected",
+          "slot-free",
+          "slot-conflict",
+          "slot-partial"
+        );
         for (let i = 1; i <= 10; i++) {
           dayCell.classList.remove(`color-${i}`);
         }
@@ -2176,24 +2363,32 @@ function renderScheduleGrid() {
         dayCell.dataset.freeUsers = freeUsers.map((u) => u.id).join(",");
       } else if (state.compareMode && state.selectedUserIds.size === 0) {
         // COMPARE MODE: No users selected - show clean empty grid
-        dayCell.classList.remove("slot-selected", "slot-free", "slot-conflict", "slot-partial");
-        
+        dayCell.classList.remove(
+          "slot-selected",
+          "slot-free",
+          "slot-conflict",
+          "slot-partial"
+        );
+
         // Remove any color classes from previous renders
         for (let i = 1; i <= 10; i++) {
           dayCell.classList.remove(`color-${i}`);
         }
-        
-        dayCell.title = "Compare mode active - Select friends to compare schedules";
-        
+
+        dayCell.title =
+          "Compare mode active - Select friends to compare schedules";
+
         // Clear any previous data attributes
         dayCell.dataset.busyUsers = "";
         dayCell.dataset.freeUsers = "";
         dayCell.dataset.unifiedSlot = "";
         dayCell.dataset.originalTimeSlot = "";
-        
+
         // Smart logging: Only log clean state once per render
         if (dayIndex === 0 && timeIndex === 0) {
-          console.log(`🧹 Clean grid state - compare mode with no users selected`);
+          console.log(
+            `🧹 Clean grid state - compare mode with no users selected`
+          );
         }
       } else if (
         !state.compareMode &&
@@ -2259,18 +2454,20 @@ function renderScheduleGrid() {
             pinElement.classList.add("pin-indicator");
             pinElement.innerHTML = "&#128204;";
             pinElement.title = "Pinned by you, Click to unpin";
-            pinElement.addEventListener("click", (event) =>
-              handlePinSlotClick(dayIndex, timeIndex, event)
-            );
+            // Use data attributes for event delegation instead of direct listeners
+            pinElement.dataset.action = "pin-toggle";
+            pinElement.dataset.day = dayIndex;
+            pinElement.dataset.time = timeIndex;
             dayCell.appendChild(pinElement);
           } else if (state.pinModeActive && isSlotActuallyFree) {
             const canPinElement = document.createElement("span");
             canPinElement.classList.add("can-pin-indicator");
             canPinElement.innerHTML = "&#43;";
             canPinElement.title = "Click to pin this slot";
-            canPinElement.addEventListener("click", (event) =>
-              handlePinSlotClick(dayIndex, timeIndex, event)
-            );
+            // Use data attributes for event delegation instead of direct listeners
+            canPinElement.dataset.action = "pin-toggle";
+            canPinElement.dataset.day = dayIndex;
+            canPinElement.dataset.time = timeIndex;
             dayCell.appendChild(canPinElement);
           }
         }
@@ -2295,7 +2492,7 @@ function renderScheduleGrid() {
         );
 
         const hasPinData = pinData.count > 0;
-        
+
         // Smart logging: Only log pin data for first occurrence to prevent flooding
         if (hasPinData && dayIndex === 0) {
           console.log(`📌 Grid pin data found for day ${dayIndex}:`, {
@@ -2350,7 +2547,9 @@ function renderScheduleGrid() {
           dayCell.appendChild(pinContainer);
           // Smart logging: Only log pin container additions occasionally
           if (dayIndex === 0) {
-            console.log(`📌 Grid pin container added at [${dayIndex}][${timeIndex}] with ${pinData.count} pins`);
+            console.log(
+              `📌 Grid pin container added at [${dayIndex}][${timeIndex}] with ${pinData.count} pins`
+            );
           }
         }
       }
@@ -2404,18 +2603,14 @@ function renderScheduleGrid() {
   const scheduleTable = DOM_ELEMENTS.scheduleTable;
 
   // Smart logging for grid completion - only every 5 seconds
-  smartLog(
-    "gridComplete",
-    "🎨 Grid rendering complete:",
-    {
-      timeSlots: slotCount,
-      usedUnifiedSchedule,
-      allowEditingHeaders,
-      totalCells: slotCount * 7,
-      compareMode: state.compareMode,
-      selectedUsers: state.selectedUserIds.size,
-    }
-  );
+  smartLog("gridComplete", "🎨 Grid rendering complete:", {
+    timeSlots: slotCount,
+    usedUnifiedSchedule,
+    allowEditingHeaders,
+    totalCells: slotCount * 7,
+    compareMode: state.compareMode,
+    selectedUsers: state.selectedUserIds.size,
+  });
 
   if (slotCount > 8 || (state.compareMode && slotCount > 6)) {
     scheduleTable.classList.add("many-slots");
@@ -2488,8 +2683,6 @@ function getPinModeButtonDynamicState(
     text: text, // Simplified text for icon-based button
   };
 }
-
-
 
 function updateUI() {
   // Clear memoization cache when UI updates (state changes)
@@ -2770,9 +2963,9 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
 
       if (totalUserCount === 0) {
         // No users exist - trigger add user button glow
-              } else {
+      } else {
         // Users exist but no active user - trigger users section glow
-              }
+      }
     }
     return;
   }
@@ -2932,7 +3125,6 @@ function setupInputValidation() {
 }
 
 function setupEventListeners() {
-
   if (DOM_ELEMENTS.togglePinModeBtn)
     DOM_ELEMENTS.togglePinModeBtn.addEventListener(
       "click",
@@ -2963,12 +3155,12 @@ function setupEventListeners() {
         if (totalUserCount === 0) {
           // No users exist - trigger add user button glow
           console.log("No users exist, triggering add user glow");
-                  } else {
+        } else {
           // Users exist but no active user - trigger users section glow
           console.log(
             "Users exist but no active user, triggering users section glow"
           );
-                  }
+        }
       }
     });
   }
@@ -2992,14 +3184,36 @@ function setupEventListeners() {
 
   if (DOM_ELEMENTS.scheduleTable) {
     DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
+      // Priority 1: Handle pin-specific elements (pin indicators, can-pin indicators)
+      if (e.target.dataset.action === "pin-toggle") {
+        // Only allow pin/unpin actions when pin mode is active
+        if (!state.pinModeActive) {
+          return; // Ignore pin clicks when pin mode is off
+        }
+
+        const day = parseInt(e.target.dataset.day, 10);
+        const time = parseInt(e.target.dataset.time, 10);
+
+        if (!isNaN(day) && !isNaN(time)) {
+          handlePinSlotClick(day, time, e);
+        }
+        return; // Stop here, don't bubble to slot handler
+      }
+
+      // Priority 2: Handle regular slot clicks
       if (e.target.classList.contains("slot")) {
         const day = parseInt(e.target.dataset.day, 10),
           time = parseInt(e.target.dataset.time, 10);
 
         if (!isNaN(day) && !isNaN(time)) {
           if (state.pinModeActive && !state.compareMode) {
-            // In pin mode: handle pinning/unpinning
-            handlePinSlotClick(day, time, e);
+            // In pin mode: handle pinning/unpinning for empty slots only
+            const activeUser = state.users[state.activeUserId];
+            const isSlotFree = activeUser && !activeUser.schedule[day][time];
+
+            if (isSlotFree) {
+              handlePinSlotClick(day, time, e);
+            }
           } else if (!state.compareMode) {
             // Normal mode: handle busy/free toggle
             handleToggleScheduleSlot(day, time);
@@ -3111,6 +3325,48 @@ function setupEventListeners() {
         if (scrollTimeout) {
           clearTimeout(scrollTimeout);
           scrollTimeout = null;
+        }
+      }
+    });
+  }
+
+  // Day view event delegation
+  if (DOM_ELEMENTS.dayViewContainer) {
+    DOM_ELEMENTS.dayViewContainer.addEventListener("click", (e) => {
+      // Priority 1: Handle pin-specific elements
+      if (e.target.dataset.action === "pin-toggle") {
+        // Only allow pin/unpin actions when pin mode is active
+        if (!state.pinModeActive) {
+          return; // Ignore pin clicks when pin mode is off
+        }
+
+        const day = parseInt(e.target.dataset.day, 10);
+        const time = parseInt(e.target.dataset.time, 10);
+
+        if (!isNaN(day) && !isNaN(time)) {
+          handlePinSlotClick(day, time, e);
+        }
+        return;
+      }
+
+      // Priority 2: Handle slot clicks
+      if (e.target.classList.contains("slot")) {
+        const day = parseInt(e.target.dataset.day, 10);
+        const time = parseInt(e.target.dataset.time, 10);
+
+        if (!isNaN(day) && !isNaN(time)) {
+          if (state.pinModeActive && !state.compareMode) {
+            // In pin mode: handle pinning/unpinning for empty slots only
+            const activeUser = state.users[state.activeUserId];
+            const isSlotFree = activeUser && !activeUser.schedule[day][time];
+
+            if (isSlotFree) {
+              handlePinSlotClick(day, time, e);
+            }
+          } else if (!state.compareMode) {
+            // Normal mode: handle busy/free toggle
+            handleToggleScheduleSlot(day, time);
+          }
         }
       }
     });
@@ -3282,84 +3538,100 @@ function setupSwipeGestures() {
 
   // Find the scrollable container within day view
   const findScrollContainer = () => {
-    return DOM_ELEMENTS.scheduleDayView.querySelector('.day-view-container') || 
-           DOM_ELEMENTS.scheduleDayView;
+    return (
+      DOM_ELEMENTS.scheduleDayView.querySelector(".day-view-container") ||
+      DOM_ELEMENTS.scheduleDayView
+    );
   };
 
-  DOM_ELEMENTS.scheduleDayView.addEventListener("touchstart", (e) => {
-    touchStartX = e.changedTouches[0].clientX;
-    touchStartY = e.changedTouches[0].clientY;
-    touchStartTime = Date.now();
-    isScrolling = false;
-    scrollContainer = findScrollContainer();
-  }, { passive: true });
+  DOM_ELEMENTS.scheduleDayView.addEventListener(
+    "touchstart",
+    (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      touchStartTime = Date.now();
+      isScrolling = false;
+      scrollContainer = findScrollContainer();
+    },
+    { passive: true }
+  );
 
-  DOM_ELEMENTS.scheduleDayView.addEventListener("touchmove", (e) => {
-    if (isScrolling) return;
+  DOM_ELEMENTS.scheduleDayView.addEventListener(
+    "touchmove",
+    (e) => {
+      if (isScrolling) return;
 
-    const currentX = e.changedTouches[0].clientX;
-    const currentY = e.changedTouches[0].clientY;
-    const deltaX = Math.abs(currentX - touchStartX);
-    const deltaY = Math.abs(currentY - touchStartY);
-    
-    // Determine scroll direction with improved thresholds
-    if (deltaY > deltaX && deltaY > 15) {
-      // Vertical scrolling detected
-      isScrolling = true;
-      return;
-    }
-    
-    // If horizontal movement is dominant and significant, prepare for swipe
-    if (deltaX > deltaY && deltaX > 25) {
-      // Only prevent default if we're clearly swiping horizontally
-      // This allows vertical scrolling to work normally
-      const isAtTop = scrollContainer && scrollContainer.scrollTop <= 0;
-      const isAtBottom = scrollContainer && 
-        scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight;
-      
-      // Allow swipe if we're at the edges or moving horizontally
-      if (isAtTop || isAtBottom || deltaX > 50) {
-        e.preventDefault();
+      const currentX = e.changedTouches[0].clientX;
+      const currentY = e.changedTouches[0].clientY;
+      const deltaX = Math.abs(currentX - touchStartX);
+      const deltaY = Math.abs(currentY - touchStartY);
+
+      // Determine scroll direction with improved thresholds
+      if (deltaY > deltaX && deltaY > 15) {
+        // Vertical scrolling detected
+        isScrolling = true;
+        return;
       }
-    }
-  }, { passive: false }); // Not passive so we can preventDefault
 
-  DOM_ELEMENTS.scheduleDayView.addEventListener("touchend", (e) => {
-    // Don't process swipe if user was scrolling
-    if (isScrolling) return;
-    
-    touchEndX = e.changedTouches[0].clientX;
-    touchEndY = e.changedTouches[0].clientY;
-    handleSwipeGesture();
-  }, { passive: true });
+      // If horizontal movement is dominant and significant, prepare for swipe
+      if (deltaX > deltaY && deltaX > 25) {
+        // Only prevent default if we're clearly swiping horizontally
+        // This allows vertical scrolling to work normally
+        const isAtTop = scrollContainer && scrollContainer.scrollTop <= 0;
+        const isAtBottom =
+          scrollContainer &&
+          scrollContainer.scrollTop >=
+            scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+        // Allow swipe if we're at the edges or moving horizontally
+        if (isAtTop || isAtBottom || deltaX > 50) {
+          e.preventDefault();
+        }
+      }
+    },
+    { passive: false }
+  ); // Not passive so we can preventDefault
+
+  DOM_ELEMENTS.scheduleDayView.addEventListener(
+    "touchend",
+    (e) => {
+      // Don't process swipe if user was scrolling
+      if (isScrolling) return;
+
+      touchEndX = e.changedTouches[0].clientX;
+      touchEndY = e.changedTouches[0].clientY;
+      handleSwipeGesture();
+    },
+    { passive: true }
+  );
 
   function handleSwipeGesture() {
     const swipeDistanceX = touchEndX - touchStartX;
     const swipeDistanceY = Math.abs(touchEndY - touchStartY);
     const swipeTime = Date.now() - touchStartTime;
-    
+
     // Enhanced swipe detection parameters
     const minSwipeDistance = 60; // Minimum horizontal distance
     const maxVerticalDeviation = 100; // Maximum Y-axis movement allowed
     const maxSwipeTime = 400; // Maximum time for a valid swipe
     const minVelocity = 0.2; // Minimum swipe velocity (px/ms)
-    
+
     // Calculate swipe velocity
     const velocity = Math.abs(swipeDistanceX) / swipeTime;
-    
+
     // Check if this is a valid horizontal swipe
-    const isValidSwipe = 
-      Math.abs(swipeDistanceX) > minSwipeDistance &&  // Sufficient horizontal distance
-      swipeDistanceY < maxVerticalDeviation &&        // Not too much vertical movement
-      swipeTime < maxSwipeTime &&                     // Quick enough gesture
-      velocity > minVelocity;                         // Fast enough swipe
+    const isValidSwipe =
+      Math.abs(swipeDistanceX) > minSwipeDistance && // Sufficient horizontal distance
+      swipeDistanceY < maxVerticalDeviation && // Not too much vertical movement
+      swipeTime < maxSwipeTime && // Quick enough gesture
+      velocity > minVelocity; // Fast enough swipe
 
     if (isValidSwipe) {
       if (swipeDistanceX > 0) {
         // Swipe right - go to previous day
         navigateDay(-1);
       } else {
-        // Swipe left - go to next day  
+        // Swipe left - go to next day
         navigateDay(1);
       }
     }
@@ -3548,20 +3820,25 @@ function renderDayView() {
         unifiedScheduleInstance = createUnifiedSchedule(selectedUsers);
         currentTimeSlotsToRender = unifiedScheduleInstance.unifiedTimeSlots;
         usedUnifiedSchedule = true;
-        
+
         // ✅ Apply same constraint as grid view to prevent overflow
         const MAX_COMPARE_SLOTS = 20; // Same limit as grid view
         if (currentTimeSlotsToRender.length > MAX_COMPARE_SLOTS) {
-          console.warn(`⚠️ Day view UnifiedSchedule created ${currentTimeSlotsToRender.length} slots, using fallback`);
-          // Fallback to largest user's schedule to prevent UI overflow
-          const largestSchedule = selectedUsers.reduce((largest, user) => 
-            (user.timeSlots?.length || 0) > (largest.timeSlots?.length || 0) ? user : largest
+          console.warn(
+            `⚠️ Day view UnifiedSchedule created ${currentTimeSlotsToRender.length} slots, using fallback`
           );
-          currentTimeSlotsToRender = largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
+          // Fallback to largest user's schedule to prevent UI overflow
+          const largestSchedule = selectedUsers.reduce((largest, user) =>
+            (user.timeSlots?.length || 0) > (largest.timeSlots?.length || 0)
+              ? user
+              : largest
+          );
+          currentTimeSlotsToRender =
+            largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
           usedUnifiedSchedule = false;
           unifiedScheduleInstance = null;
         }
-        
+
         console.log(
           `📊 Day view unified schedule created with ${currentTimeSlotsToRender.length} granular time slots`
         );
@@ -3574,7 +3851,8 @@ function renderDayView() {
         );
       } else {
         console.log("📊 Day view: Using homogeneous schedule comparison");
-        currentTimeSlotsToRender = selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
+        currentTimeSlotsToRender =
+          selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
       }
     } else {
       currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
@@ -3590,11 +3868,13 @@ function renderDayView() {
   });
 
   // Generate time slots for the selected day
-  const activeUser = state.activeUserId ? state.users[state.activeUserId] : null;
+  const activeUser = state.activeUserId
+    ? state.users[state.activeUserId]
+    : null;
   currentTimeSlotsToRender.forEach((timeSlot, timeIndex) => {
     const slotElement = createDayViewTimeSlot(timeSlot, timeIndex, activeUser, {
       usedUnifiedSchedule,
-      unifiedScheduleInstance
+      unifiedScheduleInstance,
     });
     container.appendChild(slotElement);
   });
@@ -3626,7 +3906,7 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       {
         selectedUserIds: Array.from(state.selectedUserIds),
         selectedUsersCount: state.selectedUserIds.size,
-        usedUnifiedSchedule: unifiedOptions.usedUnifiedSchedule
+        usedUnifiedSchedule: unifiedOptions.usedUnifiedSchedule,
       }
     );
 
@@ -3635,11 +3915,15 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       .map((id) => state.users[id])
       .filter((user) => user && user.timeSlots);
 
-    let busyUsers = [], freeUsers = [];
+    let busyUsers = [],
+      freeUsers = [];
     let comparisonStatus = {};
 
     if (currentSelectedUsers.length > 0) {
-      if (unifiedOptions.usedUnifiedSchedule && unifiedOptions.unifiedScheduleInstance) {
+      if (
+        unifiedOptions.usedUnifiedSchedule &&
+        unifiedOptions.unifiedScheduleInstance
+      ) {
         // ✅ FIXED: Use UnifiedSchedule class for accurate comparison
         const slotStatus = unifiedOptions.unifiedScheduleInstance.getSlotStatus(
           state.selectedDay,
@@ -3647,16 +3931,22 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
         );
         busyUsers = slotStatus.busy || [];
         freeUsers = slotStatus.available || [];
-        
-        console.log(`📊 Day view unified - slot [${state.selectedDay}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`);
+
+        console.log(
+          `📊 Day view unified - slot [${state.selectedDay}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`
+        );
       } else {
         // Fallback to direct comparison for homogeneous schedules
         busyUsers = currentSelectedUsers.filter((user) => {
           return user.schedule?.[state.selectedDay]?.[timeIndex] || false;
         });
-        freeUsers = currentSelectedUsers.filter(user => !busyUsers.includes(user));
-        
-        console.log(`📊 Day view direct - slot [${state.selectedDay}][${timeIndex}]: ${busyUsers.length} busy, ${freeUsers.length} free`);
+        freeUsers = currentSelectedUsers.filter(
+          (user) => !busyUsers.includes(user)
+        );
+
+        console.log(
+          `📊 Day view direct - slot [${state.selectedDay}][${timeIndex}]: ${busyUsers.length} busy, ${freeUsers.length} free`
+        );
       }
 
       // Apply day view specific class names for glass styling
@@ -3668,9 +3958,9 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
           tooltip: `All ${currentSelectedUsers.length} users are available`,
         };
       } else if (busyUsers.length === currentSelectedUsers.length) {
-        // All users busy - use day view glass styling  
+        // All users busy - use day view glass styling
         comparisonStatus = {
-          cssClass: "all-busy", 
+          cssClass: "all-busy",
           text: "All Busy",
           tooltip: `All ${currentSelectedUsers.length} users are busy`,
         };
@@ -3698,7 +3988,7 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       tooltip: comparisonStatus.tooltip,
       busyCount: busyUsers.length,
       freeCount: freeUsers.length,
-      totalUsers: currentSelectedUsers.length
+      totalUsers: currentSelectedUsers.length,
     });
 
     // Apply day view glass styling classes
@@ -3707,7 +3997,11 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       `🎨 Day view applying ${comparisonStatus.cssClass} glass styling to slot ${timeIndex}`
     );
 
-    slotDiv.innerHTML = createDayViewCompareSlotContent(timeSlot, timeIndex, comparisonStatus);
+    slotDiv.innerHTML = createDayViewCompareSlotContent(
+      timeSlot,
+      timeIndex,
+      comparisonStatus
+    );
   } else if (state.compareMode && state.selectedUserIds.size === 0) {
     slotDiv.classList.add("compare-mode");
     slotDiv.innerHTML = createCompareSlotContent(timeSlot, timeIndex);
@@ -3722,17 +4016,18 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
     slotDiv.classList.toggle("free", !isBusy);
     slotDiv.classList.toggle("pinned", isPinned);
 
-    slotDiv.innerHTML = createNormalSlotContent(timeSlot, isBusy, slotInfo);
+    slotDiv.innerHTML = createNormalSlotContent(
+      timeSlot,
+      isBusy,
+      slotInfo,
+      isPinned,
+      timeIndex
+    );
   }
 
-  // Add click handler
-  slotDiv.addEventListener("click", () => {
-    if (state.pinModeActive && !state.compareMode) {
-      handlePinSlotClick(state.selectedDay, timeIndex, event);
-    } else if (!state.compareMode) {
-      handleToggleScheduleSlot(state.selectedDay, timeIndex);
-    }
-  });
+  // Add data attributes for event delegation instead of direct listeners
+  slotDiv.dataset.day = state.selectedDay;
+  slotDiv.dataset.time = timeIndex;
 
   return slotDiv;
 }
@@ -3740,7 +4035,19 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
 /**
  * Create normal slot content (non-compare mode)
  */
-function createNormalSlotContent(timeSlot, isBusy, slotInfo) {
+function createNormalSlotContent(
+  timeSlot,
+  isBusy,
+  slotInfo,
+  isPinned = false,
+  timeIndex = 0
+) {
+  const pinIndicator = isPinned
+    ? `<span class="pin-indicator" data-action="pin-toggle" data-day="${state.selectedDay}" data-time="${timeIndex}" title="Pinned by you, Click to unpin">&#128204;</span>`
+    : state.pinModeActive && !isBusy
+    ? `<span class="can-pin-indicator" data-action="pin-toggle" data-day="${state.selectedDay}" data-time="${timeIndex}" title="Click to pin this slot">&#43;</span>`
+    : "";
+
   return `
     <div class="slot-time">${timeSlot.label}</div>
     <div class="slot-content">
@@ -3754,6 +4061,7 @@ function createNormalSlotContent(timeSlot, isBusy, slotInfo) {
         <div class="slot-free-text">Free</div>
       `
       }
+      ${pinIndicator}
     </div>
   `;
 }
@@ -3790,25 +4098,29 @@ function createCompareSlotContent(timeSlot, timeIndex) {
 /**
  * Create compare mode slot content for day view with accurate unified schedule status
  */
-function createDayViewCompareSlotContent(timeSlot, timeIndex, comparisonStatus) {
+function createDayViewCompareSlotContent(
+  timeSlot,
+  timeIndex,
+  comparisonStatus
+) {
   // Generate avatars using the same logic but for day view
   const avatarContent = generateAvatarsForCompareSlot(
     state.selectedDay,
     timeIndex
   );
-  
+
   // Map comparison status to appropriate icon for day view
   let icon = "fas fa-question";
   if (comparisonStatus.cssClass === "all-free") {
     icon = "fas fa-check-circle";
   } else if (comparisonStatus.cssClass === "all-busy") {
-    icon = "fas fa-times-circle";  
+    icon = "fas fa-times-circle";
   } else if (comparisonStatus.cssClass === "mixed-availability") {
     icon = "fas fa-exclamation-triangle";
   } else if (comparisonStatus.cssClass === "no-users") {
     icon = "fas fa-user-slash";
   }
-  
+
   return `
     <div class="slot-time">${timeSlot.label}</div>
     <div class="slot-content">
@@ -3964,12 +4276,18 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
     return { ...user, isBusy };
   });
 
-  console.log(`📋 All selected users with status at [${dayIndex}][${timeIndex}]:`, {
-    users: usersWithStatus.map((u) => ({ name: u.name || u.id, status: u.isBusy ? "BUSY" : "FREE" })),
-    totalCount: usersWithStatus.length,
-    freeCount: usersWithStatus.filter(u => !u.isBusy).length,
-    busyCount: usersWithStatus.filter(u => u.isBusy).length,
-  });
+  console.log(
+    `📋 All selected users with status at [${dayIndex}][${timeIndex}]:`,
+    {
+      users: usersWithStatus.map((u) => ({
+        name: u.name || u.id,
+        status: u.isBusy ? "BUSY" : "FREE",
+      })),
+      totalCount: usersWithStatus.length,
+      freeCount: usersWithStatus.filter((u) => !u.isBusy).length,
+      busyCount: usersWithStatus.filter((u) => u.isBusy).length,
+    }
+  );
 
   let avatarsHTML = "";
   const maxVisible = 5; // Maximum avatars to show before overflow
@@ -3978,7 +4296,7 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
     const avatarUrl = generateAvatar(user.name || user.id);
     const statusClass = user.isBusy ? "busy" : "free";
     const statusTitle = user.isBusy ? "Busy" : "Available";
-    
+
     console.log(
       `🎨 Creating avatar ${index + 1}/${Math.min(
         usersWithStatus.length,
@@ -3988,7 +4306,9 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
     );
 
     avatarsHTML += `
-      <div class="friend-avatar ${statusClass}" data-friend-id="${user.id}" title="${user.name || user.id} - ${statusTitle}">
+      <div class="friend-avatar ${statusClass}" data-friend-id="${
+      user.id
+    }" title="${user.name || user.id} - ${statusTitle}">
         <img src="${avatarUrl}" alt="${user.name || user.id}" />
         <div class="avatar-label">${user.name || user.id}</div>
       </div>
@@ -4007,10 +4327,9 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
   }
 
   console.log(
-    `✅ Avatar HTML generated for ${usersWithStatus.length} selected users (${Math.min(
-      usersWithStatus.length,
-      maxVisible
-    )} visible)`
+    `✅ Avatar HTML generated for ${
+      usersWithStatus.length
+    } selected users (${Math.min(usersWithStatus.length, maxVisible)} visible)`
   );
   return avatarsHTML;
 }
@@ -4020,71 +4339,94 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
  */
 function generateAvatar(nameOrUserId) {
   console.log(`🔍 [DEBUG] generateAvatar called with: "${nameOrUserId}"`);
-  
+
   // Strategy 1: Check HorizontalFriendsBar quickAccessFriends data (most efficient)
   // This uses the quickAccessData.starredFriends from the database with cached avatarConfig
-  if (state.horizontalFriendsBar && state.horizontalFriendsBar.quickAccessFriends) {
+  if (
+    state.horizontalFriendsBar &&
+    state.horizontalFriendsBar.quickAccessFriends
+  ) {
     try {
-      const friend = state.horizontalFriendsBar.quickAccessFriends.find(f => 
-        f.userId === nameOrUserId || 
-        f.friendId === nameOrUserId ||
-        f.displayName === nameOrUserId ||
-        f.id === nameOrUserId
+      const friend = state.horizontalFriendsBar.quickAccessFriends.find(
+        (f) =>
+          f.userId === nameOrUserId ||
+          f.friendId === nameOrUserId ||
+          f.displayName === nameOrUserId ||
+          f.id === nameOrUserId
       );
-      
-      console.log(`🔍 [DEBUG] QuickAccess friend match for "${nameOrUserId}":`, {
-        found: !!friend,
-        friendData: friend ? {
-          userId: friend.userId,
-          friendId: friend.friendId,
-          displayName: friend.displayName,
-          hasAvatarConfig: !!friend.avatarConfig,
-          avatarConfig: friend.avatarConfig
-        } : null
-      });
-      
+
+      console.log(
+        `🔍 [DEBUG] QuickAccess friend match for "${nameOrUserId}":`,
+        {
+          found: !!friend,
+          friendData: friend
+            ? {
+                userId: friend.userId,
+                friendId: friend.friendId,
+                displayName: friend.displayName,
+                hasAvatarConfig: !!friend.avatarConfig,
+                avatarConfig: friend.avatarConfig,
+              }
+            : null,
+        }
+      );
+
       if (friend && friend.avatarConfig) {
         const avatarUrl = getAvatarUrl(friend);
-        console.log(`🔍 [DEBUG] getAvatarUrl result for quickAccess:`, { avatarUrl });
+        console.log(`🔍 [DEBUG] getAvatarUrl result for quickAccess:`, {
+          avatarUrl,
+        });
         if (avatarUrl) {
-          console.log(`🎨 [QUICK ACCESS HIT] Using QuickAccess avatar for ${nameOrUserId}`);
+          console.log(
+            `🎨 [QUICK ACCESS HIT] Using QuickAccess avatar for ${nameOrUserId}`
+          );
           return avatarUrl;
         }
       }
     } catch (error) {
-      console.warn(`⚠️ Error accessing HorizontalFriendsBar quickAccess friends:`, error);
+      console.warn(
+        `⚠️ Error accessing HorizontalFriendsBar quickAccess friends:`,
+        error
+      );
     }
   }
 
   // Debug: Log what's actually in HorizontalFriendsBar state
   console.log(`🔍 [DEBUG] HorizontalFriendsBar state structure:`, {
     hasHorizontalFriendsBar: !!state.horizontalFriendsBar,
-    stateKeys: state.horizontalFriendsBar ? Object.keys(state.horizontalFriendsBar) : [],
+    stateKeys: state.horizontalFriendsBar
+      ? Object.keys(state.horizontalFriendsBar)
+      : [],
     hasQuickAccessFriends: !!state.horizontalFriendsBar?.quickAccessFriends,
-    quickAccessCount: state.horizontalFriendsBar?.quickAccessFriends?.length || 0,
-    quickAccessSample: state.horizontalFriendsBar?.quickAccessFriends?.slice(0, 2).map(f => ({
-      userId: f.userId,
-      displayName: f.displayName,
-      hasAvatarConfig: !!f.avatarConfig
-    })) || [],
+    quickAccessCount:
+      state.horizontalFriendsBar?.quickAccessFriends?.length || 0,
+    quickAccessSample:
+      state.horizontalFriendsBar?.quickAccessFriends?.slice(0, 2).map((f) => ({
+        userId: f.userId,
+        displayName: f.displayName,
+        hasAvatarConfig: !!f.avatarConfig,
+      })) || [],
     hasFriends: !!state.horizontalFriendsBar?.friends,
-    friendsCount: state.horizontalFriendsBar?.friends?.length || 0
+    friendsCount: state.horizontalFriendsBar?.friends?.length || 0,
   });
 
   // Strategy 2: Check HorizontalFriendsBar friends array (fallback)
   if (state.horizontalFriendsBar && state.horizontalFriendsBar.friends) {
     try {
-      const friend = state.horizontalFriendsBar.friends.find(f => 
-        f.friendId === nameOrUserId || 
-        f.displayName === nameOrUserId ||
-        f.userId === nameOrUserId ||
-        f.id === nameOrUserId
+      const friend = state.horizontalFriendsBar.friends.find(
+        (f) =>
+          f.friendId === nameOrUserId ||
+          f.displayName === nameOrUserId ||
+          f.userId === nameOrUserId ||
+          f.id === nameOrUserId
       );
-      
+
       if (friend && friend.avatarConfig) {
         const avatarUrl = getAvatarUrl(friend);
         if (avatarUrl) {
-          console.log(`🎨 [FRIENDS BAR HIT] Using HorizontalFriendsBar avatar for ${nameOrUserId}`);
+          console.log(
+            `🎨 [FRIENDS BAR HIT] Using HorizontalFriendsBar avatar for ${nameOrUserId}`
+          );
           return avatarUrl;
         }
       }
@@ -4092,55 +4434,65 @@ function generateAvatar(nameOrUserId) {
       console.warn(`⚠️ Error accessing HorizontalFriendsBar friends:`, error);
     }
   }
-  
+
   // Strategy 3: Check state.users cache with better matching
   console.log(`🔍 [DEBUG] state.users:`, {
     userCount: Object.keys(state.users).length,
     userIds: Object.keys(state.users),
-    users: Object.values(state.users).map(u => ({
+    users: Object.values(state.users).map((u) => ({
       id: u.id,
       name: u.name,
       hasAvatarConfig: !!u.avatarConfig,
-      avatarConfigKeys: u.avatarConfig ? Object.keys(u.avatarConfig) : []
+      avatarConfigKeys: u.avatarConfig ? Object.keys(u.avatarConfig) : [],
     })),
-    currentUserUid: authManager.getCurrentUser()?.uid
+    currentUserUid: authManager.getCurrentUser()?.uid,
   });
 
-  let user = Object.values(state.users).find(u => 
-    u.name === nameOrUserId || 
-    u.id === nameOrUserId ||
-    (nameOrUserId === "You" && u.id === authManager.getCurrentUser()?.uid)
+  let user = Object.values(state.users).find(
+    (u) =>
+      u.name === nameOrUserId ||
+      u.id === nameOrUserId ||
+      (nameOrUserId === "You" && u.id === authManager.getCurrentUser()?.uid)
   );
-  
+
   if (user && user.avatarConfig) {
     const avatarUrl = getAvatarUrl(user);
     if (avatarUrl) {
-      console.log(`🎨 [STATE CACHE HIT] Using state.users avatar for ${nameOrUserId}`);
+      console.log(
+        `🎨 [STATE CACHE HIT] Using state.users avatar for ${nameOrUserId}`
+      );
       return avatarUrl;
     }
   }
-  
+
   // Strategy 4: For current user, check currentUser store directly
-  if (nameOrUserId === "You" || nameOrUserId === authManager.getCurrentUser()?.uid) {
+  if (
+    nameOrUserId === "You" ||
+    nameOrUserId === authManager.getCurrentUser()?.uid
+  ) {
     console.log(`🔍 [DEBUG] Current user check:`, {
       currentUserProfile: currentUser.profile,
       hasAvatarConfig: !!currentUser.profile?.avatarConfig,
       avatarConfig: currentUser.profile?.avatarConfig,
-      currentUserUid: authManager.getCurrentUser()?.uid
+      currentUserUid: authManager.getCurrentUser()?.uid,
     });
 
     const currentUserProfile = currentUser.profile;
     if (currentUserProfile?.avatarConfig) {
       const avatarUrl = getAvatarUrl(currentUserProfile);
       if (avatarUrl) {
-        console.log(`🎨 [CURRENT USER HIT] Using currentUser avatar for ${nameOrUserId}`);
+        console.log(
+          `🎨 [CURRENT USER HIT] Using currentUser avatar for ${nameOrUserId}`
+        );
         return avatarUrl;
       }
     }
   }
-  
+
   // Strategy 5: Fallback to DiceBear (consistent avatars)
-  console.log(`🎨 [FALLBACK] Using DiceBear avatar for ${nameOrUserId} - no avatarConfig found`);
+  console.log(
+    `🎨 [FALLBACK] Using DiceBear avatar for ${nameOrUserId} - no avatarConfig found`
+  );
   const encodedName = encodeURIComponent(nameOrUserId);
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=7c4dff`;
 }
@@ -4150,9 +4502,9 @@ function generateAvatar(nameOrUserId) {
  */
 const FRIENDS_SCHEDULE_CACHE = {
   // Cache expiration time: 5 minutes for frequent updates, 15 minutes for background
-  CACHE_TTL_ACTIVE: 5 * 60 * 1000,   // 5 minutes for actively used data
+  CACHE_TTL_ACTIVE: 5 * 60 * 1000, // 5 minutes for actively used data
   CACHE_TTL_BACKGROUND: 15 * 60 * 1000, // 15 minutes for background data
-  
+
   /**
    * Check if cached data is still valid
    * @param {string} friendId - Friend's user ID
@@ -4162,18 +4514,24 @@ const FRIENDS_SCHEDULE_CACHE = {
   isCacheValid(friendId, isActivelyUsed = false) {
     const cached = state.friendsScheduleCache.get(friendId);
     if (!cached) return false;
-    
+
     const now = Date.now();
-    const ttl = isActivelyUsed ? this.CACHE_TTL_ACTIVE : this.CACHE_TTL_BACKGROUND;
-    const isValid = (now - cached.timestamp) < ttl;
-    
+    const ttl = isActivelyUsed
+      ? this.CACHE_TTL_ACTIVE
+      : this.CACHE_TTL_BACKGROUND;
+    const isValid = now - cached.timestamp < ttl;
+
     if (!isValid) {
-      console.log(`🕐 [CACHE EXPIRED] ${friendId} cache expired (${Math.round((now - cached.timestamp) / 1000)}s old)`);
+      console.log(
+        `🕐 [CACHE EXPIRED] ${friendId} cache expired (${Math.round(
+          (now - cached.timestamp) / 1000
+        )}s old)`
+      );
     }
-    
+
     return isValid;
   },
-  
+
   /**
    * Get cached schedule data if valid
    * @param {string} friendId - Friend's user ID
@@ -4184,12 +4542,12 @@ const FRIENDS_SCHEDULE_CACHE = {
     if (!this.isCacheValid(friendId, isActivelyUsed)) {
       return null;
     }
-    
+
     const cached = state.friendsScheduleCache.get(friendId);
     console.log(`✅ [CACHE HIT] Using cached schedule for ${friendId}`);
     return cached.data;
   },
-  
+
   /**
    * Cache schedule data with metadata
    * @param {string} friendId - Friend's user ID
@@ -4199,15 +4557,15 @@ const FRIENDS_SCHEDULE_CACHE = {
     state.friendsScheduleCache.set(friendId, {
       data: scheduleData,
       timestamp: Date.now(),
-      isStale: false
+      isStale: false,
     });
-    
+
     // Also maintain backward compatibility with existing cache
     state.friendsScheduleData.set(friendId, scheduleData);
-    
+
     console.log(`💾 [CACHE SET] Cached schedule for ${friendId}`);
   },
-  
+
   /**
    * Mark cache as stale (friend updated their schedule)
    * @param {string} friendId - Friend's user ID
@@ -4219,26 +4577,26 @@ const FRIENDS_SCHEDULE_CACHE = {
       console.log(`⚠️ [CACHE STALE] Marked ${friendId} schedule as stale`);
     }
   },
-  
+
   /**
    * Clear expired cache entries
    */
   cleanup() {
     const now = Date.now();
     let cleanedCount = 0;
-    
+
     for (const [friendId, cached] of state.friendsScheduleCache.entries()) {
-      if ((now - cached.timestamp) > this.CACHE_TTL_BACKGROUND) {
+      if (now - cached.timestamp > this.CACHE_TTL_BACKGROUND) {
         state.friendsScheduleCache.delete(friendId);
         state.friendsScheduleData.delete(friendId);
         cleanedCount++;
       }
     }
-    
+
     if (cleanedCount > 0) {
       console.log(`🧹 [CACHE CLEANUP] Removed ${cleanedCount} expired entries`);
     }
-  }
+  },
 };
 
 /**
@@ -4246,7 +4604,7 @@ const FRIENDS_SCHEDULE_CACHE = {
  */
 const FRIENDS_REALTIME_SYNC = {
   listeners: new Map(), // friendId -> unsubscribe function
-  
+
   /**
    * Set up real-time listener for a friend's schedule updates
    * @param {string} friendId - Friend's user ID
@@ -4258,59 +4616,81 @@ const FRIENDS_REALTIME_SYNC = {
       console.log(`🔄 Already listening to ${friendName}'s schedule updates`);
       return;
     }
-    
+
     try {
       // Set up real-time listener using dataManager (similar to current user's sync)
-      const unsubscribe = dataManager.setupUserScheduleListener?.(friendId, (updatedScheduleData) => {
-        if (updatedScheduleData) {
-          console.log(`🔔 [REALTIME UPDATE] ${friendName}'s schedule updated!`);
-          
-          // Update enhanced cache with fresh data
-          FRIENDS_SCHEDULE_CACHE.setCachedSchedule(friendId, updatedScheduleData);
-          
-          // Update state.users if friend is currently in comparison
-          if (state.users[friendId]) {
-            console.log(`🔄 [REALTIME SYNC] Updating ${friendName} in state.users`);
-            
-            const convertedScheduleData = convertFirestoreToHomePageFormat(updatedScheduleData);
-            if (convertedScheduleData) {
-              state.users[friendId] = {
-                id: friendId,
-                name: friendName,
-                timeSlots: convertedScheduleData.timeSlots,
-                schedule: convertedScheduleData.schedule,
-                slotInfo: convertedScheduleData.slotInfo,
-                pinnedSlots: convertedScheduleData.pinnedSlots || 
-                  createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
-              };
-              
-              // Clear caches to force re-render with fresh data
-              memoCache.clear();
-              matrixCache.clear();
-              
-              // Re-render UI if in comparison mode
-              if (state.compareMode && state.selectedUserIds.has(friendId)) {
-                console.log(`🎨 [REALTIME RENDER] Re-rendering comparison with updated ${friendName} data`);
-                if (state.viewMode === "day") {
-                  renderDayView();
-                } else {
-                  renderScheduleGrid();
+      const unsubscribe = dataManager.setupUserScheduleListener?.(
+        friendId,
+        (updatedScheduleData) => {
+          if (updatedScheduleData) {
+            console.log(
+              `🔔 [REALTIME UPDATE] ${friendName}'s schedule updated!`
+            );
+
+            // Update enhanced cache with fresh data
+            FRIENDS_SCHEDULE_CACHE.setCachedSchedule(
+              friendId,
+              updatedScheduleData
+            );
+
+            // Update state.users if friend is currently in comparison
+            if (state.users[friendId]) {
+              console.log(
+                `🔄 [REALTIME SYNC] Updating ${friendName} in state.users`
+              );
+
+              const convertedScheduleData =
+                convertFirestoreToHomePageFormat(updatedScheduleData);
+              if (convertedScheduleData) {
+                state.users[friendId] = {
+                  id: friendId,
+                  name: friendName,
+                  timeSlots: convertedScheduleData.timeSlots,
+                  schedule: convertedScheduleData.schedule,
+                  slotInfo: convertedScheduleData.slotInfo,
+                  pinnedSlots:
+                    convertedScheduleData.pinnedSlots ||
+                    createWeeklyMatrix(
+                      convertedScheduleData.timeSlots.length,
+                      false
+                    ),
+                };
+
+                // Clear caches to force re-render with fresh data
+                memoCache.clear();
+                matrixCache.clear();
+
+                // Re-render UI if in comparison mode
+                if (state.compareMode && state.selectedUserIds.has(friendId)) {
+                  console.log(
+                    `🎨 [REALTIME RENDER] Re-rendering comparison with updated ${friendName} data`
+                  );
+                  if (state.viewMode === "day") {
+                    renderDayView();
+                  } else {
+                    renderScheduleGrid();
+                  }
                 }
               }
             }
           }
         }
-      });
-      
+      );
+
       if (unsubscribe) {
         this.listeners.set(friendId, unsubscribe);
-        console.log(`🔔 [REALTIME SETUP] Listening to ${friendName}'s schedule updates`);
+        console.log(
+          `🔔 [REALTIME SETUP] Listening to ${friendName}'s schedule updates`
+        );
       }
     } catch (error) {
-      console.warn(`⚠️ [REALTIME ERROR] Failed to setup listener for ${friendName}:`, error);
+      console.warn(
+        `⚠️ [REALTIME ERROR] Failed to setup listener for ${friendName}:`,
+        error
+      );
     }
   },
-  
+
   /**
    * Remove real-time listener for a friend
    * @param {string} friendId - Friend's user ID
@@ -4320,10 +4700,12 @@ const FRIENDS_REALTIME_SYNC = {
     if (unsubscribe) {
       unsubscribe();
       this.listeners.delete(friendId);
-      console.log(`🔕 [REALTIME CLEANUP] Stopped listening to ${friendId}'s updates`);
+      console.log(
+        `🔕 [REALTIME CLEANUP] Stopped listening to ${friendId}'s updates`
+      );
     }
   },
-  
+
   /**
    * Clean up all real-time listeners
    */
@@ -4334,11 +4716,13 @@ const FRIENDS_REALTIME_SYNC = {
       cleanedCount++;
     }
     this.listeners.clear();
-    
+
     if (cleanedCount > 0) {
-      console.log(`🔕 [REALTIME CLEANUP] Removed ${cleanedCount} real-time listeners`);
+      console.log(
+        `🔕 [REALTIME CLEANUP] Removed ${cleanedCount} real-time listeners`
+      );
     }
-  }
+  },
 };
 /**
  * Periodic cache maintenance system
@@ -4346,24 +4730,26 @@ const FRIENDS_REALTIME_SYNC = {
 const CACHE_MAINTENANCE = {
   intervalId: null,
   CLEANUP_INTERVAL: 10 * 60 * 1000, // 10 minutes
-  
+
   /**
    * Start periodic cache cleanup
    */
   start() {
     if (this.intervalId) return; // Already running
-    
+
     this.intervalId = setInterval(() => {
-      console.log('🧹 [PERIODIC CLEANUP] Running cache maintenance...');
+      console.log("🧹 [PERIODIC CLEANUP] Running cache maintenance...");
       FRIENDS_SCHEDULE_CACHE.cleanup();
-      
+
       // Also clean up unused real-time listeners
-      const activeUserIds = new Set([
-        ...state.selectedUserIds,
-        state.currentViewingFriendId,
-        state.activeUserId
-      ].filter(id => id));
-      
+      const activeUserIds = new Set(
+        [
+          ...state.selectedUserIds,
+          state.currentViewingFriendId,
+          state.activeUserId,
+        ].filter((id) => id)
+      );
+
       for (const friendId of FRIENDS_REALTIME_SYNC.listeners.keys()) {
         if (!activeUserIds.has(friendId) && !state.users[friendId]) {
           console.log(`🔕 [CLEANUP] Removing unused listener for ${friendId}`);
@@ -4371,10 +4757,10 @@ const CACHE_MAINTENANCE = {
         }
       }
     }, this.CLEANUP_INTERVAL);
-    
-    console.log('⏰ [MAINTENANCE] Started periodic cache cleanup');
+
+    console.log("⏰ [MAINTENANCE] Started periodic cache cleanup");
   },
-  
+
   /**
    * Stop periodic cache cleanup
    */
@@ -4382,9 +4768,9 @@ const CACHE_MAINTENANCE = {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('⏹️ [MAINTENANCE] Stopped periodic cache cleanup');
+      console.log("⏹️ [MAINTENANCE] Stopped periodic cache cleanup");
     }
-  }
+  },
 };
 
 /**
@@ -4438,37 +4824,9 @@ function updateMobileCompareMode() {
    AUTHENTICATION UI MANAGEMENT
 ================================== */
 
-/**
- * Initialize HomePage when loaded by the SPA router
- */
-document.addEventListener("spa:page:load", (event) => {
-  const { route } = event.detail;
-
-  if (route === "home") {
-    console.log("🏠 HomePage loaded - initializing mobile schedule");
-
-    // Initialize mobile schedule functionality
-    setTimeout(() => {
-      initializeMobileSchedule();
-
-      // Load existing state and setup UI
-      loadState();
-      setupEventListeners();
-      setupInputValidation();
-      updateUI();
-
-      // Initialize friends bar if user is authenticated
-      if (currentUser?.profile) {
-        initializeHorizontalFriendsBar();
-      }
-
-      // Setup authentication callbacks
-      setupAuthenticationCallbacks();
-
-      console.log("✅ HomePage initialization complete");
-    }, 100); // Small delay to ensure DOM elements are ready
-  }
-});
+// ✅ REMOVED: Duplicate spa:page:load listener that was causing double event handlers
+// This was the root cause of pin flickering and rapid click issues
+// The main initialization happens in the event listener at line ~5825
 
 /**
  * Show UI for unauthenticated users
@@ -4620,29 +4978,52 @@ function setupAuthenticationCallbacks() {
 async function initializeHorizontalFriendsBar() {
   try {
     console.log("🔍 DEBUG INIT: initializeHorizontalFriendsBar called");
-    console.log(
-      "🔍 DEBUG INIT: Current user authenticated:",
-      !!currentUser?.profile
-    );
-    console.log(
-      "🔍 DEBUG INIT: Current horizontalFriendsBar exists:",
-      !!state.horizontalFriendsBar
-    );
-
-    // Check if user is authenticated
-    if (!currentUser?.profile) {
-      console.log(
-        "⚠️ User not authenticated, skipping friends bar initialization"
-      );
+    const containerEl = document.getElementById("horizontal-friends-container");
+    if (!containerEl) {
+      console.warn("⚠️ Friends bar container not found in DOM; skipping init");
       return;
     }
 
-    // Prevent double initialization
+    // If an instance exists, verify it's still bound to the current container and DOM
     if (state.horizontalFriendsBar) {
-      console.log(
-        "⚠️ DOUBLE INIT PREVENTED: Horizontal Friends Bar already initialized, skipping"
-      );
-      return;
+      const bar = state.horizontalFriendsBar;
+      const isSameNode = bar.container === containerEl;
+      const isConnected = !!bar.container && bar.container.isConnected;
+
+      if (!isSameNode || !isConnected) {
+        console.log(
+          "🧹 Detected stale HorizontalFriendsBar instance. Destroying before re-init..."
+        );
+        try {
+          bar.destroy && bar.destroy();
+        } catch (e) {
+          console.warn("⚠️ Error during stale bar destroy:", e);
+        }
+        state.horizontalFriendsBar = null;
+      } else {
+        // Instance is valid and attached to current DOM; ensure listeners are in a good state and exit.
+        console.log(
+          "✅ Existing HorizontalFriendsBar is attached; ensuring listeners and skipping re-init"
+        );
+        setupFriendsBarEventListeners();
+        return;
+      }
+    }
+
+    // Ensure user profile is available (avoid race on first load)
+    if (!currentUser?.profile) {
+      try {
+        await currentUser.waitForProfileWithTimeout(8000);
+      } catch (e) {
+        console.warn(
+          "⏱️ Profile not ready in time; skipping friends bar init this round"
+        );
+        return;
+      }
+      if (!currentUser?.profile) {
+        console.warn("⚠️ No profile after wait; skipping friends bar init");
+        return;
+      }
     }
 
     console.log("🚀 Creating new HorizontalFriendsBar instance...");
@@ -4888,7 +5269,7 @@ async function loadFriendSchedule(friendId, friendName) {
  */
 /**
  * Load friend's schedule with enhanced caching and real-time sync
- * @param {string} friendId - Friend's user ID  
+ * @param {string} friendId - Friend's user ID
  * @param {string} friendName - Friend's display name
  * @returns {Object|null} - Schedule data or null
  */
@@ -4899,7 +5280,7 @@ async function loadFriendScheduleWithCache(friendId, friendName) {
     console.log(`🚀 [CACHE HIT] Using cached schedule for ${friendName}`);
     return cachedData;
   }
-  
+
   // Load fresh data
   console.log(`📥 [FRESH LOAD] Loading schedule for ${friendName}...`);
   try {
@@ -4907,16 +5288,19 @@ async function loadFriendScheduleWithCache(friendId, friendName) {
     if (scheduleData) {
       // Cache the fresh data
       FRIENDS_SCHEDULE_CACHE.setCachedSchedule(friendId, scheduleData);
-      
+
       // Set up real-time sync
       FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, friendName);
-      
+
       return scheduleData;
     }
   } catch (error) {
-    console.error(`❌ [LOAD ERROR] Failed to load ${friendName}'s schedule:`, error);
+    console.error(
+      `❌ [LOAD ERROR] Failed to load ${friendName}'s schedule:`,
+      error
+    );
   }
-  
+
   return null;
 }
 
@@ -4928,10 +5312,12 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
     hasSlotInfo: !!scheduleData?.slotInfo,
     hasTimeSlots: !!scheduleData?.timeSlots,
   });
-  
+
   // If no scheduleData provided, try to load with enhanced caching
   if (!scheduleData) {
-    console.log(`📥 No schedule data provided, loading with cache for ${friendName}`);
+    console.log(
+      `📥 No schedule data provided, loading with cache for ${friendName}`
+    );
     scheduleData = await loadFriendScheduleWithCache(friendId, friendName);
     if (!scheduleData) {
       showNoScheduleMessage(friendName);
@@ -5224,19 +5610,22 @@ function handleCompareModeChange(event) {
     state.activeUserId = null;
     state.pinModeActive = false;
     state.selectedUserIds.clear();
-    
-    console.log("[Mode] Compare Mode ENABLED via HorizontalFriendsBar - Starting with CLEAN STATE", {
-      selectedUserIds: Array.from(state.selectedUserIds),
-      selectedCount: state.selectedUserIds.size,
-      activeUserId: state.activeUserId,
-      clearedSelectedUsers: true,
-      clearedActiveUser: true,
-      disabledPinMode: true,
-    });
+
+    console.log(
+      "[Mode] Compare Mode ENABLED via HorizontalFriendsBar - Starting with CLEAN STATE",
+      {
+        selectedUserIds: Array.from(state.selectedUserIds),
+        selectedCount: state.selectedUserIds.size,
+        activeUserId: state.activeUserId,
+        clearedSelectedUsers: true,
+        clearedActiveUser: true,
+        disabledPinMode: true,
+      }
+    );
   } else {
     // Exiting compare mode: clear selections
     state.selectedUserIds.clear();
-    
+
     console.log("[Mode] Compare Mode DISABLED via HorizontalFriendsBar", {
       clearedSelections: true,
     });
@@ -5300,15 +5689,17 @@ function handleCompareSelectionChange(event) {
   const previousSelectedCount = state.selectedUserIds.size;
   const previousSelectedIds = Array.from(state.selectedUserIds);
   state.selectedUserIds.clear();
-  
+
   // Handle current user inclusion properly
   const currentUserId = authManager.getCurrentUser()?.uid;
-  
+
   selectedFriends.forEach((friendId) => {
     if (friendId === "user" && currentUserId) {
       // Convert "user" placeholder to actual current user ID
       state.selectedUserIds.add(currentUserId);
-      console.log(`➕ Added current user (${currentUserId}) to selectedUserIds`);
+      console.log(
+        `➕ Added current user (${currentUserId}) to selectedUserIds`
+      );
     } else if (friendId !== "user") {
       // Add friend IDs normally
       state.selectedUserIds.add(friendId);
@@ -5321,7 +5712,7 @@ function handleCompareSelectionChange(event) {
     current: state.selectedUserIds.size,
     ids: Array.from(state.selectedUserIds),
   });
-  
+
   // Clean up resources for deselected friends
   const currentSelectedIds = Array.from(state.selectedUserIds);
   cleanupDeselectedFriends(previousSelectedIds, currentSelectedIds);
@@ -5363,15 +5754,17 @@ function handleCompareSelectionChange(event) {
  * @param {Array} currentSelectedIds - Currently selected friend IDs
  */
 function cleanupDeselectedFriends(previousSelectedIds, currentSelectedIds) {
-  const deselected = previousSelectedIds.filter(id => !currentSelectedIds.includes(id));
-  
-  deselected.forEach(friendId => {
+  const deselected = previousSelectedIds.filter(
+    (id) => !currentSelectedIds.includes(id)
+  );
+
+  deselected.forEach((friendId) => {
     // Remove from state.users if not actively viewing
     if (state.users[friendId] && state.currentViewingFriendId !== friendId) {
       delete state.users[friendId];
       console.log(`🧹 [CLEANUP] Removed ${friendId} from state.users`);
     }
-    
+
     // Keep real-time listener active for a bit (cache might still be useful)
     // FRIENDS_REALTIME_SYNC.removeRealtimeListener will be handled by periodic cleanup
   });
@@ -5493,7 +5886,10 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
 
         // Current user is now properly stored under their actual UID only
         if (currentUserData) {
-          console.log("✅ Current user data available for comparison under UID:", currentUserData.id);
+          console.log(
+            "✅ Current user data available for comparison under UID:",
+            currentUserData.id
+          );
         } else {
           console.error("❌ Could not create current user data for comparison");
         }
@@ -5501,9 +5897,14 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
       }
 
       // Check enhanced cache first (with expiration)
-      const cachedScheduleData = FRIENDS_SCHEDULE_CACHE.getCachedSchedule(friendId, true);
+      const cachedScheduleData = FRIENDS_SCHEDULE_CACHE.getCachedSchedule(
+        friendId,
+        true
+      );
       if (cachedScheduleData) {
-        console.log(`✅ [ENHANCED CACHE] Schedule already cached for ${userData.displayName}`);
+        console.log(
+          `✅ [ENHANCED CACHE] Schedule already cached for ${userData.displayName}`
+        );
 
         // Even if cached, ensure the friend is in state.users for comparison rendering
         if (!state.users[friendId]) {
@@ -5558,9 +5959,11 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         }
         return;
       }
-      
-      // No cached data found, load fresh schedule  
-      console.log(`📥 [FRESH LOAD] Loading schedule for ${userData.displayName}...`);
+
+      // No cached data found, load fresh schedule
+      console.log(
+        `📥 [FRESH LOAD] Loading schedule for ${userData.displayName}...`
+      );
       // Load schedule data for friends
       const scheduleData = await dataManager.getUserSchedule(friendId);
       if (scheduleData) {
@@ -5598,22 +6001,28 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         };
 
         state.users[friendId] = friendUser;
-        console.log(`✅ [FRESH DATA] Schedule loaded for ${userData.displayName}`, {
-          storedUnderKey: friendId,
-          friendUserData: {
-            id: friendUser.id,
-            name: friendUser.name,
-            hasSchedule: !!friendUser.schedule,
-            timeSlots: friendUser.timeSlots?.length || 0,
-            scheduleType: Array.isArray(friendUser.schedule)
-              ? "array"
-              : "object",
-          },
-          currentStateUsersKeys: Object.keys(state.users),
-        });
-        
+        console.log(
+          `✅ [FRESH DATA] Schedule loaded for ${userData.displayName}`,
+          {
+            storedUnderKey: friendId,
+            friendUserData: {
+              id: friendUser.id,
+              name: friendUser.name,
+              hasSchedule: !!friendUser.schedule,
+              timeSlots: friendUser.timeSlots?.length || 0,
+              scheduleType: Array.isArray(friendUser.schedule)
+                ? "array"
+                : "object",
+            },
+            currentStateUsersKeys: Object.keys(state.users),
+          }
+        );
+
         // Set up real-time sync for this friend's schedule updates
-        FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, userData.displayName);
+        FRIENDS_REALTIME_SYNC.setupRealtimeListener(
+          friendId,
+          userData.displayName
+        );
       } else {
         console.warn(`⚠️ No schedule data found for ${userData.displayName}`);
       }
@@ -5704,6 +6113,10 @@ document.addEventListener("spa:page:load", (event) => {
     // console.log("🎛️ Initializing modal...");
     // initModal(DOM_ELEMENTS);
 
+    // Initialize mobile schedule functionality
+    console.log("📱 Initializing mobile schedule...");
+    initializeMobileSchedule();
+
     // Set up UI interactions
     console.log("🔧 Setting up validation and listeners...");
     setupInputValidation();
@@ -5713,7 +6126,7 @@ document.addEventListener("spa:page:load", (event) => {
     // Initialize Phase-3: Horizontal Friends Bar
     console.log("⭐ Initializing Horizontal Friends Bar...");
     initializeHorizontalFriendsBar();
-    
+
     // Clean up old cache entries and start maintenance
     console.log("🧹 Cleaning up expired friend schedule cache...");
     FRIENDS_SCHEDULE_CACHE.cleanup();
@@ -5742,7 +6155,7 @@ document.addEventListener("spa:page:unload", (event) => {
 
     // Cleanup friends bar and its event listeners
     cleanupHorizontalFriendsBar();
-    
+
     // Clean up friends' schedule cache and real-time sync
     FRIENDS_REALTIME_SYNC.cleanup();
     FRIENDS_SCHEDULE_CACHE.cleanup();
