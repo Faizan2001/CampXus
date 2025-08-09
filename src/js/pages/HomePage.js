@@ -997,7 +997,11 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 // .........................................
 
 export function handleAddNewTimeSlotClick() {
-  if (!state.activeUserId) {
+  if (!state.activeUserId || state.currentViewingFriendId) {
+    if (state.currentViewingFriendId) {
+      console.log("🔒 Cannot add time slots to friend's schedule - read-only mode");
+      return;
+    }
     showModal({
       content: "Please select an active user first.",
       title: "User Not Selected",
@@ -1814,7 +1818,11 @@ export function handleTimeSlotHeaderClick(event) {
     return;
   }
 
-  if (!state.activeUserId || !state.users[state.activeUserId]) {
+  if (!state.activeUserId || !state.users[state.activeUserId] || state.currentViewingFriendId) {
+    if (state.currentViewingFriendId) {
+      console.log("🔒 Cannot edit time slot headers in friend's schedule - read-only mode");
+      return;
+    }
     // This case should ideally not be reached if headers are only made clickable for active users,
     // but it's a good safeguard.
     console.error("handleTimeSlotHeaderClick called with no active user.");
@@ -2117,7 +2125,8 @@ function renderScheduleGrid() {
     const user = state.users[state.activeUserId];
     if (user && user.timeSlots && user.timeSlots.length > 0) {
       currentTimeSlotsToRender = user.timeSlots;
-      allowEditingHeaders = true;
+      // 🔒 Disable header editing when viewing friend's schedule
+      allowEditingHeaders = !state.currentViewingFriendId;
     }
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
     // ✅ COMPARE MODE: Only use selectedUserIds, ignore activeUserId completely
