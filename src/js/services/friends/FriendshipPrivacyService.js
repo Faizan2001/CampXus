@@ -31,7 +31,6 @@ import {
   validateFriendshipDocument,
   PRIVACY_DEFAULTS,
 } from "../../utils/friendship-utils.js";
-import { notificationManager } from "../realtime/NotificationService.js";
 
 class FriendshipPrivacyService {
   constructor() {
@@ -263,7 +262,7 @@ class FriendshipPrivacyService {
       const success = await runTransaction(db, async (transaction) => {
         // Read current document state within transaction
         const docSnap = await transaction.get(docRef);
-        
+
         if (!docSnap.exists()) {
           throw new Error("Friendship not found");
         }
@@ -277,9 +276,10 @@ class FriendshipPrivacyService {
         }
 
         // Get friend name for notification
-        friendName = friendshipDoc.user1Id === userUid
-          ? friendshipDoc.user2Info.displayName
-          : friendshipDoc.user1Info.displayName;
+        friendName =
+          friendshipDoc.user1Id === userUid
+            ? friendshipDoc.user2Info.displayName
+            : friendshipDoc.user1Info.displayName;
 
         // Create atomic update - only modify the current user's visibility
         const now = Date.now();
@@ -287,7 +287,8 @@ class FriendshipPrivacyService {
           [`scheduleVisibility.${userUid}`]: isVisible,
           "privacyMetadata.lastPrivacyUpdate": now,
           "privacyMetadata.privacyUpdatedBy": userUid,
-          "privacyMetadata.privacyVersion": (friendshipDoc.privacyMetadata?.privacyVersion || 0) + 1,
+          "privacyMetadata.privacyVersion":
+            (friendshipDoc.privacyMetadata?.privacyVersion || 0) + 1,
         };
 
         // Apply the atomic update
@@ -315,11 +316,8 @@ class FriendshipPrivacyService {
     } catch (error) {
       console.error("❌ Error updating schedule visibility:", error);
 
-      // Show error notification
-      notificationManager.showSystemNotification(
-        `Failed to update schedule privacy: ${error.message}`,
-        "error"
-      );
+      // Log error instead of showing notification
+      console.error(`Failed to update schedule privacy: ${error.message}`);
 
       return false;
     } finally {
@@ -366,12 +364,9 @@ class FriendshipPrivacyService {
       // Commit batch
       await batch.commit();
 
-      // Show notification
+      // Log success instead of showing notification
       const action = isVisible ? "visible" : "hidden";
-      notificationManager.showSystemNotification(
-        `Schedule ${action} for ${updated} friends ✅`,
-        "success"
-      );
+      console.log(`Schedule ${action} for ${updated} friends ✅`);
 
       return {
         success: true,
@@ -383,10 +378,7 @@ class FriendshipPrivacyService {
         "Error updating schedule visibility for all friends:",
         error
       );
-      notificationManager.showSystemNotification(
-        `Failed to update global privacy: ${error.message}`,
-        "error"
-      );
+      console.error(`Failed to update global privacy: ${error.message}`);
 
       return {
         success: false,

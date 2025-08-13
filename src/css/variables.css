@@ -460,15 +460,11 @@ body:not(.dark-mode) {
     --schedule-hover: var(--glass-hover);
     --schedule-active: var(--surface-active);
 
-    /* User System */
-    --user-item-bg: var(--depth-surface);
-    --user-item-hover: var(--depth-elevated);
-    --user-item-active: linear-gradient(
-      135deg,
-      var(--accent-primary),
-      var(--accent-secondary)
-    );
-    --user-item-selected: var(--surface-active);
+  
+
+
+
+
 
     /* Gradient Definitions */
     --gradient-title: linear-gradient(
@@ -644,15 +640,15 @@ body:not(.dark-mode) {
   --schedule-hover: rgba(139, 92, 246, 0.1);
   --schedule-active: rgba(139, 92, 246, 0.2);
 
-  /* User System */
-  --user-item-bg: rgba(255, 255, 255, 0.8);
-  --user-item-hover: rgba(248, 250, 252, 0.9);
+
+
+
   --user-item-active: linear-gradient(
     135deg,
     var(--accent-primary),
     var(--accent-secondary)
   );
-  --user-item-selected: rgba(139, 92, 246, 0.15);
+
 
   /* Pin System - Light Mode */
   --pin-enabled: #dc2626;
@@ -1522,14 +1518,14 @@ body.dark-mode {
   /* =================================
      USER INTERFACE (DARK MODE)
   ================================= */
-  --user-item-bg: rgba(42, 45, 56, 0.8);
-  --user-item-hover: rgba(42, 45, 56, 0.9);
+
+
   --user-item-active: linear-gradient(
     135deg,
     rgba(139, 92, 246, 0.2),
     rgba(167, 85, 247, 0.15)
   );
-  --user-item-selected: rgba(139, 92, 246, 0.2);
+
 
   /* =================================
      SPECIAL CONTROLS (DARK MODE)

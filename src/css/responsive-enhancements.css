@@ -60,7 +60,7 @@ body {
 /* ===== CONTAINER QUERIES FOR COMPONENT RESPONSIVENESS ===== */
 @supports (container-type: inline-size) {
   .schedule-container,
-  .user-list-section,
+  
 {
     container-type: inline-size;
   }
@@ -107,7 +107,7 @@ small,
 
 /* Dark red delete button styling */
 .delete-btn,
-.user-item .delete-btn,
+
 button[data-delete-user-id] {
   background: var(--button-off-red) !important;
   border-color: var(--button-off-red) !important;
@@ -119,7 +119,7 @@ button[data-delete-user-id] {
 }
 
 .delete-btn:hover,
-.user-item .delete-btn:hover,
+
 button[data-delete-user-id]:hover {
   background: var(--button-off-red-hover) !important;
   border-color: var(--button-off-red-hover) !important;
@@ -129,12 +129,9 @@ button[data-delete-user-id]:hover {
 
 /* Light theme delete button adjustments */
 .light-mode .delete-btn,
-.light-mode .user-item .delete-btn,
+.light-mode 
 body:not(.dark-mode) .delete-btn,
-body:not(.dark-mode) .user-item .delete-btn {
-  background: var(--button-off-red) !important;
-  border-color: var(--button-off-red) !important;
-}
+
 
 /* ===== MODERN BUTTON STATE STYLING ===== */
 
@@ -329,7 +326,7 @@ body:not(.dark-mode) .pin-mode-button.pin-mode-active {
 
 /* GPU acceleration for smooth animations */
 .schedule-grid,
-.user-list,
+
 .glass-card,
 button {
   transform: translateZ(0);
@@ -338,10 +335,7 @@ button {
 
 /* Content visibility for better rendering performance */
 .schedule-section,
-.user-list-section {
-  content-visibility: auto;
-  contain-intrinsic-size: 600px;
-}
+
 
 /* ===== PRINT STYLES OPTIMIZATION ===== */
 
@@ -389,10 +383,7 @@ button {
 
 /* Focus within containers */
 .schedule-grid:focus-within,
-.user-list:focus-within {
-  box-shadow: 0 0 0 2px var(--accent-primary);
-  border-radius: var(--radius-md);
-}
+
 
 /* ===== MODERN COLOR SPACE SUPPORT ===== */
 

@@ -25,7 +25,6 @@
  */
 
 import { dataManager } from "../data/DataService.js";
-import { notificationManager } from "../realtime/NotificationService.js";
 import {
   realTimeManager,
   REALTIME_EVENTS,
@@ -82,19 +81,11 @@ export class ScheduleStorageService {
           // Categorize error types for better handling
           if (error.code === "permission-denied") {
             this.lastError = "Access denied. Please check your authentication.";
-            notificationManager.showSystemNotification(
-              "Schedule access denied",
-              "error",
-              "Authentication Error"
-            );
+            console.error("Schedule access denied - Authentication Error");
           } else if (error.code === "unavailable") {
             this.lastError =
               "Firestore temporarily unavailable. Using cached data.";
-            notificationManager.showSystemNotification(
-              "Using offline schedule data",
-              "warning",
-              "Connection Issue"
-            );
+            console.warn("Using offline schedule data - Connection Issue");
           } else {
             this.lastError = `Firestore error: ${error.message}`;
           }
@@ -145,19 +136,15 @@ export class ScheduleStorageService {
           console.error("⚠️ Firestore sync failed:", error);
           // Queue for offline sync
           this.pendingSync.add({ userId, scheduleData, timestamp: Date.now() });
-          notificationManager.showSystemNotification(
-            "Offline: Schedule changes saved locally and will sync when online.",
-            "warning",
-            "Offline Mode"
+          console.warn(
+            "Offline: Schedule changes saved locally and will sync when online."
           );
         }
       } else {
         // Queue for when back online
         this.pendingSync.add({ userId, scheduleData, timestamp: Date.now() });
-        notificationManager.showSystemNotification(
-          "Offline: Schedule changes saved locally and will sync when online.",
-          "warning",
-          "Offline Mode"
+        console.warn(
+          "Offline: Schedule changes saved locally and will sync when online."
         );
         console.log("📱 Schedule queued for sync when online");
       }
@@ -396,11 +383,7 @@ export class ScheduleStorageService {
     }
 
     if (this.pendingSync.size === 0) {
-      notificationManager.showSystemNotification(
-        "All offline changes synced",
-        "success",
-        "Sync Complete"
-      );
+      console.log("✅ All offline changes synced");
     }
   }
 

@@ -34,7 +34,6 @@
 import { friendsManager } from "../../services/friends/FriendsService.js";
 import { currentUser } from "../../store/userStore.js";
 import { renderUserAvatar } from "../../utils/avatar/avatarUtils.js";
-import { notificationManager } from "../../services/realtime/NotificationService.js";
 import { dataManager } from "../../services/data/DataService.js";
 
 /**
@@ -73,6 +72,9 @@ export class HorizontalFriendsBar {
     // Touch/scroll optimization
     this.isScrolling = false;
     this.scrollTimeout = null;
+
+    // Memory leak prevention - track all timeouts for proper cleanup
+    this.activeTimeouts = new Set();
 
     console.log(
       `🏗️ HorizontalFriendsBar created for container: ${containerId}`
@@ -122,7 +124,7 @@ export class HorizontalFriendsBar {
       });
 
       // Default select user's own schedule after DOM is ready
-      setTimeout(async () => {
+      this.addTrackedTimeout(async () => {
         await this.selectUser();
         console.log("🔍 DEBUG: User selection called after DOM ready");
       }, 50);
@@ -464,7 +466,9 @@ export class HorizontalFriendsBar {
         return;
       }
     } else {
-      console.log(`🎯 Force selecting ${friendId} - skipping deselection logic`);
+      console.log(
+        `🎯 Force selecting ${friendId} - skipping deselection logic`
+      );
     }
 
     console.log(`🎯 Selecting friend: ${friendId}`);
@@ -548,13 +552,9 @@ export class HorizontalFriendsBar {
     // Emit event for schedule loading (to be handled by HomePage.js)
     this.emitScheduleChangeEvent(friendId, friendName);
 
-    // Show feedback
+    // Show feedback in console
     const displayName = friendId === "user" ? "your" : `${friendName}'s`;
-    notificationManager.showSystemNotification(
-      `Viewing ${displayName} schedule`,
-      "info",
-      1500
-    );
+    console.log(`Viewing ${displayName} schedule`);
   }
 
   /**
@@ -610,12 +610,8 @@ export class HorizontalFriendsBar {
     // Emit event for empty schedule display
     this.emitScheduleChangeEvent(null, null, true); // isEmptySchedule = true
 
-    // Show feedback
-    notificationManager.showSystemNotification(
-      "No schedule selected",
-      "info",
-      1500
-    );
+    // Show feedback in console
+    console.log("No schedule selected");
   }
 
   /**
@@ -844,7 +840,7 @@ export class HorizontalFriendsBar {
       {
         compareMode: this.compareMode,
         selectedFriendId: this.selectedFriendId,
-        isInitialized: this.isInitialized
+        isInitialized: this.isInitialized,
       }
     );
 
@@ -899,7 +895,7 @@ export class HorizontalFriendsBar {
 
     // 🎯 NEW: Set the selectedFriendId state and emit schedule change event
     this.selectedFriendId = null; // null represents user's own schedule
-    
+
     // Emit schedule change event to update HomePage
     this.emitScheduleChangeEvent("user", "You");
 
@@ -917,7 +913,9 @@ export class HorizontalFriendsBar {
 
     // 🎯 NEW: Don't auto-select user in compare mode - allow empty selections
     if (this.compareMode) {
-      console.log("🔍 DEBUG: In compare mode - allowing empty selection, not auto-selecting user");
+      console.log(
+        "🔍 DEBUG: In compare mode - allowing empty selection, not auto-selecting user"
+      );
       return;
     }
 
@@ -948,22 +946,13 @@ export class HorizontalFriendsBar {
       this.render();
 
       // Ensure user is selected after refresh
-      setTimeout(async () => {
+      this.addTrackedTimeout(async () => {
         await this.ensureUserSelected();
       }, 50);
 
-      notificationManager.showSystemNotification(
-        "Quick Access friends refreshed",
-        "success",
-        2000
-      );
+      console.log("Quick Access friends refreshed");
     } catch (error) {
       console.error("❌ Failed to refresh friends:", error);
-      notificationManager.showSystemNotification(
-        "Failed to refresh friends",
-        "error",
-        3000
-      );
     }
   }
 
@@ -1319,11 +1308,9 @@ export class HorizontalFriendsBar {
     // Mark as seen
     localStorage.setItem("campxus_compare_tooltip_seen", "true");
 
-    // Show tooltip
-    notificationManager.showSystemNotification(
-      "💭 Select friends to compare schedules. Tap [⚖️] again to exit compare mode.",
-      "info",
-      5000
+    // Show tooltip in console
+    console.log(
+      "💭 Select friends to compare schedules. Tap [⚖️] again to exit compare mode."
     );
   }
 
@@ -1533,9 +1520,25 @@ export class HorizontalFriendsBar {
     this.render();
 
     // Ensure user is selected after programmatic refresh
-    setTimeout(async () => {
+    this.addTrackedTimeout(async () => {
       await this.ensureUserSelected();
     }, 50);
+  }
+
+  /**
+   * 🧹 Memory leak prevention - tracked setTimeout wrapper
+   * @param {Function} callback - Function to execute
+   * @param {number} delay - Delay in milliseconds
+   * @returns {number} Timeout ID
+   */
+  addTrackedTimeout(callback, delay) {
+    const timeoutId = setTimeout(() => {
+      this.activeTimeouts.delete(timeoutId);
+      callback();
+    }, delay);
+
+    this.activeTimeouts.add(timeoutId);
+    return timeoutId;
   }
 
   /**
@@ -1567,6 +1570,12 @@ export class HorizontalFriendsBar {
     if (this.scrollTimeout) {
       clearTimeout(this.scrollTimeout);
     }
+
+    // 🧹 MEMORY LEAK FIX: Clear all tracked timeouts
+    this.activeTimeouts.forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+    this.activeTimeouts.clear();
 
     // Clear real-time listeners
     if (this.realTimeUnsubscriber) {
@@ -1608,13 +1617,13 @@ export class HorizontalFriendsBar {
 
     this._lastNotification = message;
 
-    // Debounce the notification
+    // Debounce the notification (now just logs to console)
     this._notificationDebounce = setTimeout(() => {
-      notificationManager.showSystemNotification(message, type, duration);
+      console.log(`[${type.toUpperCase()}] ${message}`);
       this._notificationDebounce = null;
 
       // Clear the last notification after a delay to allow future notifications
-      setTimeout(() => {
+      this.addTrackedTimeout(() => {
         this._lastNotification = null;
       }, duration + 1000);
     }, 100); // Small delay to group rapid calls

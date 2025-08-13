@@ -48,6 +48,12 @@ let state = {
   // Mobile Schedule Redesign State
   viewMode: "day", // 'day' or 'grid' - default to day view for mobile-first
   selectedDay: new Date().getDay(), // Current day (0 = Sunday, 6 = Saturday)
+
+  // Memory Leak Prevention - Track event listeners for proper cleanup
+  scheduleEventListeners: [], // Array to store {element, eventType, handler} objects
+  uiControlListeners: [], // Array to store UI control listeners (pin button, day/grid buttons, etc.)
+  eventListenersSetup: false, // Prevent duplicate setupEventListeners calls
+  mobileScheduleInitialized: false, // Prevent duplicate mobile initialization
   isMobile: false, // Will be set during initialization
 
   // Real-time update control
@@ -74,11 +80,22 @@ export function _resetStateForTesting() {
     horizontalFriendsBar: null,
     currentViewingFriendId: null,
     friendsScheduleData: new Map(),
+    friendsScheduleCache: new Map(), // Enhanced cache with metadata: {data, timestamp, isStale}
 
     // Mobile Schedule Redesign State
     viewMode: "day",
     selectedDay: new Date().getDay(),
+
+    // Memory Leak Prevention - Track event listeners for proper cleanup
+    scheduleEventListeners: [], // Array to store {element, eventType, handler} objects
+    uiControlListeners: [], // Array to store UI control listeners (pin button, day/grid buttons, etc.)
+    eventListenersSetup: false, // Prevent duplicate setupEventListeners calls
+    mobileScheduleInitialized: false, // Prevent duplicate mobile initialization
     isMobile: false,
+
+    // Real-time update control
+    isLocalUpdate: false, // Prevents double UI updates during local changes
+    pendingTransactions: new Map(), // Track pending saves to prevent overwrites
 
     // Real-time update control
     isLocalUpdate: false,
@@ -282,30 +299,6 @@ function shouldUseUnifiedSchedule(selectedUsers) {
  * @param {Object} currentUsers - Existing users object
  * @returns {Object|null} New user object or null if user already exists
  */
-export function createUserObject(name, userId, currentUsers) {
-  if (currentUsers[userId]) {
-    console.warn(
-      `[State] Attempted to create duplicate user: ${userId} (${name})`
-    );
-    return null;
-  }
-
-  const userTimeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)); // Deep copy
-  const timeSlotCount = userTimeSlots.length;
-
-  console.log(
-    `[State] Creating new user: ${name} (${userId}) with ${timeSlotCount} time slots`
-  );
-
-  return {
-    id: userId,
-    name: name,
-    timeSlots: userTimeSlots,
-    schedule: createWeeklyMatrix(timeSlotCount, false),
-    pinnedSlots: createWeeklyMatrix(timeSlotCount, false),
-    slotInfo: createSlotInfoMatrix(timeSlotCount),
-  };
-}
 
 /**
  * Removes a user from the application state and updates related references
@@ -313,37 +306,6 @@ export function createUserObject(name, userId, currentUsers) {
  * @param {Object} currentState - Current application state
  * @returns {Object} Updated state with user removed
  */
-export function deleteUserFromState(userId, currentState) {
-  const newUsers = { ...currentState.users };
-  let newActiveUserId = currentState.activeUserId;
-  const newSelectedUserIds = new Set(currentState.selectedUserIds);
-
-  if (!newUsers[userId]) {
-    console.warn(`[State] Attempted to delete non-existent user: ${userId}`);
-    return currentState;
-  }
-
-  const userName = newUsers[userId]?.name || "Unknown";
-  const wasActive = newActiveUserId === userId;
-  const wasInCompare = newSelectedUserIds.has(userId);
-
-  delete newUsers[userId];
-  if (newActiveUserId === userId) newActiveUserId = null;
-  newSelectedUserIds.delete(userId);
-
-  console.log(`[State] Deleted user: ${userName} (${userId})`, {
-    wasActive,
-    wasInCompare,
-    remainingUsers: Object.keys(newUsers).length,
-  });
-
-  return {
-    ...currentState,
-    users: newUsers,
-    activeUserId: newActiveUserId,
-    selectedUserIds: newSelectedUserIds,
-  };
-}
 
 /**
  * Toggles a time slot in a user's schedule matrix
@@ -999,7 +961,9 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 export function handleAddNewTimeSlotClick() {
   if (!state.activeUserId || state.currentViewingFriendId) {
     if (state.currentViewingFriendId) {
-      console.log("🔒 Cannot add time slots to friend's schedule - read-only mode");
+      console.log(
+        "🔒 Cannot add time slots to friend's schedule - read-only mode"
+      );
       return;
     }
     showModal({
@@ -1079,9 +1043,20 @@ export function handleAddNewTimeSlotClick() {
 }
 
 function handleTogglePinMode() {
+  console.log("🚀 handleTogglePinMode called!", {
+    currentPinState: state.pinModeActive,
+    activeUserId: state.activeUserId,
+    compareMode: state.compareMode,
+    currentViewingFriendId: state.currentViewingFriendId,
+  });
+
   const previousState = state.pinModeActive;
 
-  if (!state.activeUserId || state.compareMode) {
+  if (
+    !state.activeUserId ||
+    state.compareMode ||
+    state.currentViewingFriendId
+  ) {
     // This case means the button was clicked while it should have been disabled,
     // or state changed between render and click. Defensive coding:
     state.pinModeActive = false; // Ensure it's off if conditions aren't met
@@ -1090,6 +1065,7 @@ function handleTogglePinMode() {
       {
         hasActiveUser: !!state.activeUserId,
         inCompareMode: state.compareMode,
+        viewingFriend: !!state.currentViewingFriendId,
       }
     );
   } else {
@@ -1131,12 +1107,16 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   }
   lastPinClickTime = now;
 
-  if (!state.activeUserId || !state.users[state.activeUserId] || state.currentViewingFriendId) {
+  if (
+    !state.activeUserId ||
+    !state.users[state.activeUserId] ||
+    state.currentViewingFriendId
+  ) {
     if (state.currentViewingFriendId) {
       console.log("🔒 Cannot pin in friend's schedule - read-only mode");
       return;
     }
-    
+
     console.warn("handlePinSlotClick called with no active user.");
     // Trigger glow effect for visual feedback
     if (!state.activeUserId) {
@@ -1336,7 +1316,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
   // Add event listener for the new delete button
   const deleteBtn = document.getElementById("delete-slot-btn");
   if (deleteBtn) {
-    deleteBtn.addEventListener("click", () => {
+    addTrackedEventListener(deleteBtn, "click", () => {
       showModal({
         title: "Delete Slot",
         content: `Are you sure you want to delete this slot and mark it as free?\n\nDay: ${dayName}\nTime: ${timeSlot.label}`,
@@ -1760,7 +1740,9 @@ async function saveStateToStorage(transactionId = null, transactionIds = []) {
         if (state.pendingTransactions.size > 0) {
           const remainingCount = state.pendingTransactions.size;
           state.pendingTransactions.clear();
-          console.log(`✅ Safety clear: Completed ${remainingCount} remaining transactions`);
+          console.log(
+            `✅ Safety clear: Completed ${remainingCount} remaining transactions`
+          );
         }
 
         // Update userStore with successful save
@@ -1797,9 +1779,14 @@ async function saveStateToStorage(transactionId = null, transactionIds = []) {
  * @param {Event} event - The click event.
  */
 export function handleTimeSlotHeaderClick(event) {
-  const slotIndexString = event.currentTarget.dataset.slotIndex;
+  // Use event.target since this is called from event delegation
+  const slotIndexString = event.target.dataset.slotIndex;
   if (slotIndexString === undefined) {
-    console.error("Slot index is undefined for clicked header.");
+    console.error("Slot index is undefined for clicked header.", {
+      target: event.target,
+      currentTarget: event.currentTarget,
+      dataset: event.target.dataset,
+    });
     showModal({
       content:
         "Could not determine which time slot to edit. Slot index missing.",
@@ -1818,9 +1805,15 @@ export function handleTimeSlotHeaderClick(event) {
     return;
   }
 
-  if (!state.activeUserId || !state.users[state.activeUserId] || state.currentViewingFriendId) {
+  if (
+    !state.activeUserId ||
+    !state.users[state.activeUserId] ||
+    state.currentViewingFriendId
+  ) {
     if (state.currentViewingFriendId) {
-      console.log("🔒 Cannot edit time slot headers in friend's schedule - read-only mode");
+      console.log(
+        "🔒 Cannot edit time slot headers in friend's schedule - read-only mode"
+      );
       return;
     }
     // This case should ideally not be reached if headers are only made clickable for active users,
@@ -2034,7 +2027,8 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   migratePinsToTimeBased(activeUserObject);
 
   saveStateToStorage();
-  renderScheduleGrid();
+  // Use setTimeout to make this async and prevent race conditions
+  setTimeout(() => renderScheduleGrid(), 0);
   return true;
 }
 
@@ -2082,7 +2076,205 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
 
 // --- END: Phase 3 - Editable Time Slot Header Functions ---
 
-function renderScheduleGrid() {
+/* ================================
+   MEMORY LEAK PREVENTION FUNCTIONS
+================================== */
+
+/**
+ * Clean up only schedule content event listeners (slots, time headers, etc.)
+ * Call this before re-rendering the schedule grid content
+ * @returns {Promise<void>} Promise that resolves when cleanup is complete
+ */
+async function cleanupScheduleEventListeners() {
+  console.log(
+    `🧹 Cleaning up ${state.scheduleEventListeners.length} schedule content event listeners`
+  );
+
+  // Process cleanup in batches to prevent blocking and race conditions
+  const batchSize = 10;
+  const listeners = [...state.scheduleEventListeners]; // Create copy for safety
+
+  for (let i = 0; i < listeners.length; i += batchSize) {
+    const batch = listeners.slice(i, i + batchSize);
+
+    batch.forEach(({ element, eventType, handler, options }) => {
+      try {
+        if (element && typeof element.removeEventListener === "function") {
+          element.removeEventListener(eventType, handler, options);
+        }
+      } catch (error) {
+        console.warn(
+          "🧹 Error removing schedule content event listener:",
+          error
+        );
+      }
+    });
+
+    // Yield control to event loop between batches to prevent race conditions
+    if (i + batchSize < listeners.length) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+
+  // Clear the tracking array
+  state.scheduleEventListeners = [];
+  console.log(
+    `🧹 Successfully cleaned up all schedule content event listeners`
+  );
+}
+
+/**
+ * Clean up UI control event listeners (pin button, day/grid buttons, etc.)
+ * Call this when the page/component is being destroyed
+ * @returns {Promise<void>} Promise that resolves when cleanup is complete
+ */
+async function cleanupUIControlListeners() {
+  console.log(
+    `🧹 Cleaning up ${state.uiControlListeners.length} UI control event listeners`
+  );
+
+  const batchSize = 10;
+  const listeners = [...state.uiControlListeners]; // Create copy for safety
+
+  for (let i = 0; i < listeners.length; i += batchSize) {
+    const batch = listeners.slice(i, i + batchSize);
+
+    batch.forEach(({ element, eventType, handler, options }) => {
+      try {
+        if (element && typeof element.removeEventListener === "function") {
+          element.removeEventListener(eventType, handler, options);
+        }
+      } catch (error) {
+        console.warn("🧹 Error removing UI control event listener:", error);
+      }
+    });
+
+    // Yield control to event loop between batches to prevent race conditions
+    if (i + batchSize < listeners.length) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+
+  // Clear the tracking array
+  state.uiControlListeners = [];
+  console.log(`🧹 Successfully cleaned up all UI control event listeners`);
+}
+
+/**
+ * Add a schedule content event listener and track it for cleanup
+ * Used for slots, time headers, and other schedule grid content
+ * @param {HTMLElement} element - The DOM element
+ * @param {string} eventType - The event type (e.g., 'click')
+ * @param {Function} handler - The event handler function
+ * @param {Object|boolean} options - Optional event listener options (e.g., { passive: true })
+ */
+function addTrackedEventListener(element, eventType, handler, options = null) {
+  element.addEventListener(eventType, handler, options);
+  state.scheduleEventListeners.push({ element, eventType, handler, options });
+  console.log(
+    `📍 Added tracked listener: ${eventType} on ${element.tagName}${
+      element.id ? "#" + element.id : ""
+    }${
+      element.className ? "." + element.className.split(" ")[0] : ""
+    } (Total: ${state.scheduleEventListeners.length})`
+  );
+}
+
+/**
+ * Add a UI control event listener and track it for cleanup
+ * Used for buttons and controls that persist across schedule re-renders
+ * @param {HTMLElement} element - The DOM element
+ * @param {string} eventType - The event type (e.g., 'click')
+ * @param {Function} handler - The event handler function
+ * @param {Object|boolean} options - Optional event listener options (e.g., { passive: true })
+ */
+function addUIControlListener(element, eventType, handler, options = null) {
+  if (!element) {
+    console.warn(
+      `⚠️  addUIControlListener: Element not found for ${eventType}`
+    );
+    return;
+  }
+
+  // 🛡️ ENHANCED LEAK PREVENTION: Create unique element identifier
+  const elementKey =
+    element.id ||
+    element.tagName + "_" + (element.className || "").replace(/\s+/g, "_");
+  const elementIdentifier = element.id || element.className || element.tagName;
+
+  // 🚨 GLOBAL GUARD: Check by element identifier instead of reference (DOM elements get recreated)
+  const existingListeners = state.uiControlListeners.filter((listener) => {
+    const listenerKey =
+      listener.element.id ||
+      listener.element.tagName +
+        "_" +
+        (listener.element.className || "").replace(/\s+/g, "_");
+    return listenerKey === elementKey && listener.eventType === eventType;
+  });
+
+  if (existingListeners.length > 0) {
+    console.warn(
+      `🚨 DUPLICATE PREVENTION: Found ${existingListeners.length} existing ${eventType} listeners for ${elementKey} by identifier match`
+    );
+
+    // Remove ALL existing listeners matching this identifier + eventType
+    existingListeners.forEach((existing) => {
+      try {
+        existing.element.removeEventListener(
+          eventType,
+          existing.handler,
+          existing.options
+        );
+      } catch (e) {
+        console.warn(`⚠️ Failed to remove listener (element may be stale):`, e);
+      }
+      const index = state.uiControlListeners.indexOf(existing);
+      if (index > -1) {
+        state.uiControlListeners.splice(index, 1);
+      }
+    });
+
+    console.log(
+      `🧹 Cleaned up ${existingListeners.length} duplicate ${eventType} listeners for ${elementKey}`
+    );
+  }
+
+  element.addEventListener(eventType, handler, options);
+  state.uiControlListeners.push({
+    element,
+    eventType,
+    handler,
+    options,
+    elementKey,
+  });
+
+  console.log(
+    `➕ Added UI control listener: ${eventType} on ${elementKey} (Total: ${state.uiControlListeners.length})`
+  );
+}
+
+/* ================================
+   END MEMORY LEAK PREVENTION
+================================== */
+
+// Add debouncing to prevent rapid re-renders that cause race conditions
+let renderScheduleGridTimeout = null;
+
+async function renderScheduleGrid() {
+  // Debounce rapid calls to prevent race conditions
+  if (renderScheduleGridTimeout) {
+    clearTimeout(renderScheduleGridTimeout);
+  }
+
+  return new Promise((resolve) => {
+    renderScheduleGridTimeout = setTimeout(async () => {
+      await _renderScheduleGridInternal();
+      resolve();
+    }, 10); // Small delay to batch rapid calls
+  });
+}
+
+async function _renderScheduleGridInternal() {
   // Temporarily disable smart logging for debugging - log every call
   console.log("🏗️ renderScheduleGrid called:", {
     compareMode: state.compareMode,
@@ -2103,10 +2295,19 @@ function renderScheduleGrid() {
   if (scheduleWrapper) {
     const shouldDisable = !state.activeUserId && !state.compareMode;
 
+    console.log("🔍 SCHEDULE DISABLE CHECK:", {
+      activeUserId: state.activeUserId,
+      compareMode: state.compareMode,
+      shouldDisable: shouldDisable,
+      currentClasses: scheduleWrapper.className,
+    });
+
     if (shouldDisable) {
       scheduleWrapper.classList.add("schedule-disabled");
+      console.log("🔒 Schedule DISABLED - no active user");
     } else {
       scheduleWrapper.classList.remove("schedule-disabled");
+      console.log("✅ Schedule ENABLED - active user found");
     }
   }
 
@@ -2203,6 +2404,12 @@ function renderScheduleGrid() {
     allowEditingHeaders = false;
   }
 
+  // 🧹 MEMORY LEAK FIX: Clean up event listeners before clearing DOM
+  await cleanupScheduleEventListeners();
+
+  // Brief pause to ensure cleanup is complete before DOM manipulation
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
   // Clear existing table body
   tableBody.innerHTML = "";
 
@@ -2239,7 +2446,8 @@ function renderScheduleGrid() {
       timeCell.classList.add("editable-timeslot-header");
       timeCell.dataset.slotIndex = timeIndex;
       timeCell.title = "Click to edit this time slot";
-      timeCell.addEventListener("click", handleTimeSlotHeaderClick);
+      // 🔧 MEMORY LEAK FIX: Remove individual listeners - rely on event delegation
+      // The scheduleTable click listener will handle these via event delegation
     }
 
     row.appendChild(timeCell);
@@ -2545,18 +2753,8 @@ function renderScheduleGrid() {
           pinContainer.dataset.pinnedUserIds = JSON.stringify(pinData.userIds);
           pinContainer.dataset.pinCount = pinData.count;
 
-          pinContainer.addEventListener("click", (event) => {
-            event.stopPropagation();
-            showPinTooltip(event, pinData);
-          });
-
-          pinContainer.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              event.stopPropagation();
-              showPinTooltip(event, pinData);
-            }
-          });
+          // 🔧 MEMORY LEAK FIX: Remove individual listeners - rely on event delegation
+          // The scheduleTable click listener will handle these via event delegation
 
           dayCell.appendChild(pinContainer);
           // Smart logging: Only log pin container additions occasionally
@@ -2633,35 +2831,6 @@ function renderScheduleGrid() {
   }
 }
 
-function renderUserList() {
-  if (!DOM_ELEMENTS.userListContainer) return;
-  const userEntries = Object.entries(state.users);
-
-  if (userEntries.length === 0) {
-    DOM_ELEMENTS.userListContainer.innerHTML = "<p>No users. Add one!</p>";
-    return;
-  }
-  DOM_ELEMENTS.userListContainer.innerHTML = userEntries
-    .map(
-      ([userId, user]) => `
-    <div data-user-id="${userId}" class="user-item ${
-        state.activeUserId === userId ? "active" : ""
-      } ${state.selectedUserIds.has(userId) ? "selected" : ""}">
-      <div class="user-info">
-        <span class="user-name">${user.name}</span>
-        <span class="user-id">ID: ${user.id}</span>
-      </div>
-      <div class="user-actions">
-        <button data-delete-user-id="${userId}" class="delete-btn">
-          <i class="fas fa-trash"></i>
-          Delete
-        </button>
-      </div>
-    </div>`
-    )
-    .join("");
-}
-
 // Helpers for Pin Mode Button
 
 /**
@@ -2698,7 +2867,7 @@ function getPinModeButtonDynamicState(
   };
 }
 
-function updateUI() {
+async function updateUI() {
   // Clear memoization cache when UI updates (state changes)
   memoCache.clear();
 
@@ -2723,8 +2892,7 @@ function updateUI() {
   updateViewContainers();
 
   // Render appropriate view based on current mode
-  renderScheduleForCurrentView();
-  renderUserList();
+  await renderScheduleForCurrentView();
 
   // Toggle pin-mode-active class on body for CSS styling
   document.body.classList.toggle("pin-mode-active", state.pinModeActive);
@@ -2744,7 +2912,7 @@ function updateUI() {
       console.log("🔒 Pin button hidden - viewing friend's schedule");
     } else {
       DOM_ELEMENTS.togglePinModeBtn.style.display = "";
-      
+
       const pinModeBtnState = getPinModeButtonDynamicState(
         state.activeUserId,
         state.compareMode,
@@ -2772,7 +2940,7 @@ function updateUI() {
 
   // --- START: Logic for Add Time Slot Button ---
   if (DOM_ELEMENTS.addNewTimeSlotBtn) {
-    // 🔒 Hide add time slot button when viewing friend's schedule  
+    // 🔒 Hide add time slot button when viewing friend's schedule
     if (state.currentViewingFriendId) {
       DOM_ELEMENTS.addNewTimeSlotBtn.style.display = "none";
       console.log("🔒 Add time slot button hidden - viewing friend's schedule");
@@ -2789,37 +2957,6 @@ function updateUI() {
 /* ================================
    EVENT HANDLERS & APP LOGIC
 ================================== */
-
-function handleDeleteUser(userIdToDelete) {
-  if (!state.users[userIdToDelete]) return;
-  const user = state.users[userIdToDelete];
-  showModal({
-    content: `Delete ${user.name} (ID: ${userIdToDelete})? This is permanent.`,
-    title: "Confirm Deletion",
-    showConfirmationButtons: true,
-    confirmText: "Delete",
-    cancelText: "Cancel",
-    onConfirm: () => {
-      const oldActiveUserId = state.activeUserId; // Store old active user ID
-
-      // Instead of replacing the entire state object, just mutate the existing properties
-      // This preserves the reference that export-import.js is using
-      delete state.users[userIdToDelete];
-
-      if (oldActiveUserId === userIdToDelete) {
-        state.activeUserId = null;
-        state.pinModeActive = false; // Reset pin mode if the active user is deleted
-      }
-
-      state.selectedUserIds.delete(userIdToDelete);
-
-      saveStateToStorage();
-      updateUI();
-      showModal({ content: `${user.name} deleted.`, title: "User Deleted" });
-      return true; // Allow modal to close
-    },
-  });
-}
 
 function handleSetActiveUser(userId) {
   const previousActiveUser = state.users[state.activeUserId]?.name;
@@ -2997,7 +3134,7 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
       console.log("🔒 Cannot edit friend's schedule - read-only mode");
       return;
     }
-    
+
     if (!state.activeUserId && !state.compareMode) {
       // Schedule is disabled - check if users exist to determine which glow to trigger
       const totalUserCount = Object.keys(state.users).length;
@@ -3166,253 +3303,289 @@ function setupInputValidation() {
 }
 
 function setupEventListeners() {
-  if (DOM_ELEMENTS.togglePinModeBtn)
-    DOM_ELEMENTS.togglePinModeBtn.addEventListener(
+  // 🛡️ GUARD: Prevent multiple calls during same page load
+  if (state.eventListenersSetup) {
+    console.log("🔒 Event listeners already set up - skipping duplicate setup");
+    return;
+  }
+
+  console.log("🎯 Setting up HomePage event listeners (hybrid approach)...");
+  console.log(
+    "📊 Current UI control listeners before setup:",
+    state.uiControlListeners.length
+  );
+  console.log("📍 Call stack:", new Error().stack.slice(0, 400));
+
+  // ===== CRITICAL: Document-level listeners will be set up by setupFriendsBarEventListeners() =====
+  // Note: schedule:change, compare:mode, compare:selection listeners are handled separately
+
+  // ===== UI CONTROL BUTTONS (specific listeners) =====
+  console.log("🔧 Setting up UI control buttons...");
+  console.log(
+    "📍 DOM_ELEMENTS.togglePinModeBtn:",
+    DOM_ELEMENTS.togglePinModeBtn
+  );
+  console.log(
+    "📍 DOM_ELEMENTS.addNewTimeSlotBtn:",
+    DOM_ELEMENTS.addNewTimeSlotBtn
+  );
+  console.log("📍 DOM_ELEMENTS.dayViewBtn:", DOM_ELEMENTS.dayViewBtn);
+  console.log("📍 DOM_ELEMENTS.gridViewBtn:", DOM_ELEMENTS.gridViewBtn);
+
+  if (DOM_ELEMENTS.togglePinModeBtn) {
+    console.log("✅ Adding listener to pin button...");
+    addUIControlListener(
+      DOM_ELEMENTS.togglePinModeBtn,
       "click",
       handleTogglePinMode
     );
+  } else {
+    console.error("❌ togglePinModeBtn element not found!");
+  }
 
-  // Export/Import event listeners are handled by setupExportImportListeners() from export-import.js
-  if (DOM_ELEMENTS.addNewTimeSlotBtn)
-    DOM_ELEMENTS.addNewTimeSlotBtn.addEventListener(
+  if (DOM_ELEMENTS.addNewTimeSlotBtn) {
+    console.log("✅ Adding listener to add time slot button...");
+    addUIControlListener(
+      DOM_ELEMENTS.addNewTimeSlotBtn,
       "click",
       handleAddNewTimeSlotClick
     );
-
-  // Schedule wrapper click handler for disabled state feedback
-  if (DOM_ELEMENTS.scheduleWrapper) {
-    DOM_ELEMENTS.scheduleWrapper.addEventListener("click", (e) => {
-      // Only trigger glow if schedule is disabled and click wasn't on a control element
-      if (
-        DOM_ELEMENTS.scheduleWrapper.classList.contains("schedule-disabled") &&
-        !e.target.closest("button") &&
-        !e.target.closest(".add-timeslot-btn")
-      ) {
-        // Check if there are any users in the user list
-        const totalUserCount = Object.keys(state.users).length;
-
-        console.log("Schedule disabled clicked - Total users:", totalUserCount);
-
-        if (totalUserCount === 0) {
-          // No users exist - trigger add user button glow
-          console.log("No users exist, triggering add user glow");
-        } else {
-          // Users exist but no active user - trigger users section glow
-          console.log(
-            "Users exist but no active user, triggering users section glow"
-          );
-        }
-      }
-    });
+  } else {
+    console.error("❌ addNewTimeSlotBtn element not found!");
   }
 
-  if (DOM_ELEMENTS.userListContainer) {
-    DOM_ELEMENTS.userListContainer.addEventListener("click", (e) => {
-      const userItemDiv = e.target.closest(".user-item");
-      if (userItemDiv) {
-        const userId = userItemDiv.dataset.userId;
-        if (e.target.classList.contains("delete-btn")) {
-          e.stopPropagation();
-          handleDeleteUser(userId);
-        } else if (userId) {
-          state.compareMode
-            ? handleToggleUserSelectionForCompare(userId)
-            : handleSetActiveUser(userId);
-        }
-      }
-    });
-  }
+  // ===== SCHEDULE TABLE (event delegation) =====
+  console.log("🔧 Setting up schedule table listeners...");
+  console.log("📍 DOM_ELEMENTS.scheduleTable:", DOM_ELEMENTS.scheduleTable);
+  console.log(
+    "📍 DOM_ELEMENTS.dayViewContainer:",
+    DOM_ELEMENTS.dayViewContainer
+  );
+  console.log("📍 DOM_ELEMENTS.scheduleWrapper:", DOM_ELEMENTS.scheduleWrapper);
 
   if (DOM_ELEMENTS.scheduleTable) {
-    DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
-      // Priority 1: Handle pin-specific elements (pin indicators, can-pin indicators)
-      if (e.target.dataset.action === "pin-toggle") {
-        // Only allow pin/unpin actions when pin mode is active
-        if (!state.pinModeActive) {
-          return; // Ignore pin clicks when pin mode is off
-        }
-
-        const day = parseInt(e.target.dataset.day, 10);
-        const time = parseInt(e.target.dataset.time, 10);
-
-        if (!isNaN(day) && !isNaN(time)) {
-          handlePinSlotClick(day, time, e);
-        }
-        return; // Stop here, don't bubble to slot handler
-      }
-
-      // Priority 2: Handle regular slot clicks
-      if (e.target.classList.contains("slot")) {
-        const day = parseInt(e.target.dataset.day, 10),
-          time = parseInt(e.target.dataset.time, 10);
-
-        if (!isNaN(day) && !isNaN(time)) {
-          if (state.pinModeActive && !state.compareMode) {
-            // In pin mode: handle pinning/unpinning for empty slots only
-            const activeUser = state.users[state.activeUserId];
-            const isSlotFree = activeUser && !activeUser.schedule[day][time];
-
-            if (isSlotFree) {
-              handlePinSlotClick(day, time, e);
-            }
-          } else if (!state.compareMode) {
-            // Normal mode: handle busy/free toggle
-            handleToggleScheduleSlot(day, time);
-          }
-          // In compare mode: do nothing (tooltips are handled by mouseover)
-        }
-      }
-    });
-    DOM_ELEMENTS.scheduleTable.addEventListener("mouseover", (e) => {
-      if (state.compareMode && e.target.classList.contains("slot")) {
-        const day = parseInt(e.target.dataset.day, 10),
-          time = parseInt(e.target.dataset.time, 10);
-        if (!isNaN(day) && !isNaN(time))
-          handleShowSlotTooltip(e.target, day, time);
-      }
-    });
-    DOM_ELEMENTS.scheduleTable.addEventListener("mouseout", (e) => {
-      if (
-        e.target.classList.contains("slot") ||
-        e.target === DOM_ELEMENTS.scheduleTable
-      )
-        handleHideSlotTooltip();
-    });
-
-    // Touch event support for mobile devices with scroll detection
-    let touchStartData = null;
-    let isScrolling = false;
-    let scrollTimeout = null;
-
-    DOM_ELEMENTS.scheduleTable.addEventListener(
-      "touchstart",
-      (e) => {
-        if (state.compareMode && e.target.classList.contains("slot")) {
-          // Store initial touch data
-          touchStartData = {
-            x: e.touches[0].clientX,
-            y: e.touches[0].clientY,
-            time: Date.now(),
-            target: e.target,
-            day: parseInt(e.target.dataset.day, 10),
-            timeIndex: parseInt(e.target.dataset.time, 10),
-          };
-          isScrolling = false;
-
-          // Clear any existing scroll timeout
-          if (scrollTimeout) {
-            clearTimeout(scrollTimeout);
-            scrollTimeout = null;
-          }
-        }
-      },
-      { passive: true }
+    console.log("✅ Adding listeners to schedule table...");
+    addUIControlListener(
+      DOM_ELEMENTS.scheduleTable,
+      "click",
+      handleScheduleTableClick
     );
-
-    DOM_ELEMENTS.scheduleTable.addEventListener(
-      "touchmove",
-      (e) => {
-        if (touchStartData && state.compareMode) {
-          const deltaX = Math.abs(e.touches[0].clientX - touchStartData.x);
-          const deltaY = Math.abs(e.touches[0].clientY - touchStartData.y);
-
-          // If user has moved more than 10px in any direction, consider it scrolling
-          if (deltaX > 10 || deltaY > 10) {
-            isScrolling = true;
-            // Hide tooltip immediately if user starts scrolling
-            handleHideSlotTooltip();
-          }
-        }
-      },
-      { passive: true }
+    addUIControlListener(
+      DOM_ELEMENTS.scheduleTable,
+      "mouseover",
+      handleScheduleTableMouseOver
     );
-
-    DOM_ELEMENTS.scheduleTable.addEventListener("touchend", (e) => {
-      if (touchStartData && state.compareMode && !isScrolling) {
-        const touchDuration = Date.now() - touchStartData.time;
-
-        // Only show tooltip if:
-        // 1. Touch was brief (less than 300ms, indicating a tap not a long press)
-        // 2. User didn't scroll
-        // 3. Touch ended on the same element it started on
-        if (touchDuration < 300 && e.target === touchStartData.target) {
-          const { day, timeIndex } = touchStartData;
-          if (!isNaN(day) && !isNaN(timeIndex)) {
-            handleShowSlotTooltip(touchStartData.target, day, timeIndex);
-
-            // Auto-hide tooltip after 3 seconds on mobile
-            scrollTimeout = setTimeout(() => {
-              handleHideSlotTooltip();
-            }, 3000);
-          }
-        }
-      }
-
-      // Reset touch data
-      touchStartData = null;
-      isScrolling = false;
-    });
-
-    // Hide tooltip when touching elsewhere on the document
-    document.addEventListener("touchstart", (e) => {
-      if (
-        state.compareMode &&
-        !e.target.closest("#scheduleTable") &&
-        !e.target.closest("#slotTooltip")
-      ) {
-        handleHideSlotTooltip();
-
-        // Clear any pending timeout
-        if (scrollTimeout) {
-          clearTimeout(scrollTimeout);
-          scrollTimeout = null;
-        }
-      }
-    });
+    addUIControlListener(
+      DOM_ELEMENTS.scheduleTable,
+      "mouseout",
+      handleScheduleTableMouseOut
+    );
+  } else {
+    console.error("❌ scheduleTable element not found!");
   }
 
-  // Day view event delegation
+  // ===== DAY VIEW CONTAINER (event delegation) =====
   if (DOM_ELEMENTS.dayViewContainer) {
-    DOM_ELEMENTS.dayViewContainer.addEventListener("click", (e) => {
-      // Priority 1: Handle pin-specific elements
-      if (e.target.dataset.action === "pin-toggle") {
-        // Only allow pin/unpin actions when pin mode is active
-        if (!state.pinModeActive) {
-          return; // Ignore pin clicks when pin mode is off
-        }
+    console.log("✅ Adding listener to day view container...");
+    addUIControlListener(
+      DOM_ELEMENTS.dayViewContainer,
+      "click",
+      handleDayViewClick
+    );
+  } else {
+    console.error("❌ dayViewContainer element not found!");
+  }
 
-        const day = parseInt(e.target.dataset.day, 10);
-        const time = parseInt(e.target.dataset.time, 10);
+  // ===== SCHEDULE WRAPPER FEEDBACK =====
+  if (DOM_ELEMENTS.scheduleWrapper) {
+    console.log("✅ Adding listener to schedule wrapper...");
+    addUIControlListener(
+      DOM_ELEMENTS.scheduleWrapper,
+      "click",
+      handleScheduleWrapperFeedback
+    );
+  } else {
+    console.error("❌ scheduleWrapper element not found!");
+  }
 
-        if (!isNaN(day) && !isNaN(time)) {
+  // ===== TOUCH EVENT PLACEHOLDERS =====
+  // Minimal touch functions to prevent errors (functionality will be added later)
+  function handleScheduleTouchStart(e) {
+    /* Placeholder */
+  }
+  function handleScheduleTouchMove(e) {
+    /* Placeholder */
+  }
+  function handleScheduleTouchEnd(e) {
+    /* Placeholder */
+  }
+  function handleDocumentTouchStart(e) {
+    /* Placeholder */
+  }
+
+  // TEST: Add multiple test listeners to verify different elements
+  addUIControlListener(document.body, "click", (e) => {
+    console.log(
+      "🔥 BODY CLICKED - addUIControlListener is working!",
+      e.target,
+      e.target.tagName,
+      e.target.className
+    );
+  });
+
+  console.log(
+    "✅ Event listeners set up - hybrid approach (specific + delegation)"
+  );
+
+  // 🛡️ Mark event listeners as set up to prevent duplicates
+  state.eventListenersSetup = true;
+}
+
+// ===== SCHEDULE TABLE EVENT HANDLER =====
+function handleScheduleTableClick(e) {
+  console.log(
+    "🔥 SCHEDULE TABLE CLICKED:",
+    e.target,
+    e.target.classList.toString()
+  );
+
+  // Time slot header clicks (for editing time slots)
+  if (e.target.classList.contains("editable-timeslot-header")) {
+    const slotIndex = parseInt(e.target.dataset.slotIndex, 10);
+    if (!isNaN(slotIndex)) {
+      handleTimeSlotHeaderClick(e);
+    }
+    return;
+  }
+
+  // Pin container clicks (for pin tooltips)
+  if (e.target.closest(".pin-container")) {
+    const pinContainer = e.target.closest(".pin-container");
+    const pinData = {
+      userNames: JSON.parse(pinContainer.dataset.pinnedByUsers || "[]"),
+      userIds: JSON.parse(pinContainer.dataset.pinnedUserIds || "[]"),
+      count: parseInt(pinContainer.dataset.pinCount || "0", 10),
+    };
+    e.stopPropagation();
+    showPinTooltip(e, pinData);
+    return;
+  }
+
+  // Pin toggle actions
+  if (e.target.dataset.action === "pin-toggle") {
+    if (!state.pinModeActive) return;
+
+    const day = parseInt(e.target.dataset.day, 10);
+    const time = parseInt(e.target.dataset.time, 10);
+    if (!isNaN(day) && !isNaN(time)) {
+      handlePinSlotClick(day, time, e);
+    }
+    return;
+  }
+
+  // Schedule slot clicks
+  if (e.target.classList.contains("slot")) {
+    const day = parseInt(e.target.dataset.day, 10);
+    const time = parseInt(e.target.dataset.time, 10);
+
+    if (!isNaN(day) && !isNaN(time)) {
+      if (state.pinModeActive && !state.compareMode) {
+        // Pin mode: handle pinning for empty slots only
+        const activeUser = state.users[state.activeUserId];
+        const isSlotFree = activeUser && !activeUser.schedule[day][time];
+        if (isSlotFree) {
           handlePinSlotClick(day, time, e);
         }
-        return;
+      } else if (!state.compareMode) {
+        // Normal mode: toggle busy/free
+        handleToggleScheduleSlot(day, time);
       }
-
-      // Priority 2: Handle slot clicks
-      if (e.target.classList.contains("slot")) {
-        const day = parseInt(e.target.dataset.day, 10);
-        const time = parseInt(e.target.dataset.time, 10);
-
-        if (!isNaN(day) && !isNaN(time)) {
-          if (state.pinModeActive && !state.compareMode) {
-            // In pin mode: handle pinning/unpinning for empty slots only
-            const activeUser = state.users[state.activeUserId];
-            const isSlotFree = activeUser && !activeUser.schedule[day][time];
-
-            if (isSlotFree) {
-              handlePinSlotClick(day, time, e);
-            }
-          } else if (!state.compareMode) {
-            // Normal mode: handle busy/free toggle
-            handleToggleScheduleSlot(day, time);
-          }
-        }
-      }
-    });
+    }
+    return;
   }
 }
+
+function handleScheduleTableMouseOver(e) {
+  if (state.compareMode && e.target.classList.contains("slot")) {
+    const day = parseInt(e.target.dataset.day, 10);
+    const time = parseInt(e.target.dataset.time, 10);
+    if (!isNaN(day) && !isNaN(time)) {
+      handleShowSlotTooltip(e.target, day, time);
+    }
+  }
+}
+
+function handleScheduleTableMouseOut(e) {
+  if (
+    e.target.classList.contains("slot") ||
+    e.target === DOM_ELEMENTS.scheduleTable
+  ) {
+    handleHideSlotTooltip();
+  }
+}
+
+// ===== DAY VIEW EVENT HANDLER =====
+function handleDayViewClick(e) {
+  // Pin toggle actions
+  if (e.target.dataset.action === "pin-toggle") {
+    if (!state.pinModeActive) return;
+
+    const day = parseInt(e.target.dataset.day, 10);
+    const time = parseInt(e.target.dataset.time, 10);
+    if (!isNaN(day) && !isNaN(time)) {
+      handlePinSlotClick(day, time, e);
+    }
+    return;
+  }
+
+  // Schedule slot clicks
+  if (e.target.classList.contains("slot")) {
+    const day = parseInt(e.target.dataset.day, 10);
+    const time = parseInt(e.target.dataset.time, 10);
+
+    if (!isNaN(day) && !isNaN(time)) {
+      if (state.pinModeActive && !state.compareMode) {
+        const activeUser = state.users[state.activeUserId];
+        const isSlotFree = activeUser && !activeUser.schedule[day][time];
+        if (isSlotFree) {
+          handlePinSlotClick(day, time, e);
+        }
+      } else if (!state.compareMode) {
+        handleToggleScheduleSlot(day, time);
+      }
+    }
+  }
+}
+
+// ===== SCHEDULE WRAPPER FEEDBACK =====
+function handleScheduleWrapperFeedback(e) {
+  if (
+    DOM_ELEMENTS.scheduleWrapper.classList.contains("schedule-disabled") &&
+    !e.target.closest("button") &&
+    !e.target.closest(".add-timeslot-btn") &&
+    !e.target.closest(".slot")
+  ) {
+    const totalUserCount = Object.keys(state.users).length;
+    console.log("Schedule disabled clicked - Total users:", totalUserCount);
+
+    if (totalUserCount === 0) {
+      console.log("No users exist, triggering add user glow");
+    } else {
+      console.log(
+        "Users exist but no active user, triggering users section glow"
+      );
+    }
+  }
+}
+
+// ===== TOUCH EVENT MANAGEMENT =====
+// Touch event functions are now defined within setupEventListeners()
+
+// ===== DELEGATED EVENT HANDLERS =====
+// Event handler functions are now defined within setupEventListeners()
+
+// ===== CLEANED UP =====
+// All touch event functions moved to setupEventListeners() scope
 
 /* ================================
    MOBILE SCHEDULE REDESIGN
@@ -3422,6 +3595,14 @@ function setupEventListeners() {
  * Initialize mobile-specific functionality and detect device type
  */
 function initializeMobileSchedule() {
+  // 🛡️ GUARD: Prevent multiple mobile initialization calls
+  if (state.mobileScheduleInitialized) {
+    console.log(
+      "🔒 Mobile schedule already initialized - skipping duplicate initialization"
+    );
+    return;
+  }
+
   // Detect if user is on mobile device
   state.isMobile = isMobileOrTablet();
 
@@ -3454,6 +3635,9 @@ function initializeMobileSchedule() {
       state.isMobile ? "Mobile" : "Desktop"
     }, View: ${state.viewMode}, Selected Day: ${getDayName(state.selectedDay)}`
   );
+
+  // 🛡️ Mark mobile schedule as initialized
+  state.mobileScheduleInitialized = true;
 }
 
 /**
@@ -3523,21 +3707,40 @@ function scrollToCurrentDay() {
   }
 }
 
+// Track if listeners have been set up to prevent duplicates
+// ===== CLEAN LIFECYCLE MANAGEMENT =====
+// Using event delegation - no initialization flags needed
+
 /**
  * Set up view mode toggle functionality
  */
 function setupViewModeToggle() {
+  console.log("📱 Setting up view mode toggle listeners...");
+  console.log("📍 DOM_ELEMENTS.dayViewBtn:", DOM_ELEMENTS.dayViewBtn);
+  console.log("📍 DOM_ELEMENTS.gridViewBtn:", DOM_ELEMENTS.gridViewBtn);
+
   const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
   const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
 
   if (dayViewBtn) {
-    dayViewBtn.addEventListener("click", () => handleViewModeChange("day"));
+    console.log("✅ Adding listener to day view button...");
+    addUIControlListener(dayViewBtn, "click", () =>
+      handleViewModeChange("day")
+    );
+  } else {
+    console.error("❌ Day view button not found!");
   }
 
   if (gridViewBtn) {
-    gridViewBtn.addEventListener("click", () => handleViewModeChange("grid"));
+    console.log("✅ Adding listener to grid view button...");
+    addUIControlListener(gridViewBtn, "click", () =>
+      handleViewModeChange("grid")
+    );
+  } else {
+    console.error("❌ Grid view button not found!");
   }
 
+  console.log("📱 View mode toggle listeners set up");
   // Set initial state
   updateViewModeButtons();
 }
@@ -3546,21 +3749,28 @@ function setupViewModeToggle() {
  * Set up day navigation functionality
  */
 function setupDayNavigation() {
+  console.log("📱 Setting up day navigation listeners...");
+
   // Add click listeners to all day buttons
   for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
     const dayBtn = DOM_ELEMENTS[`dayBtn${dayIndex}`];
     if (dayBtn) {
-      dayBtn.addEventListener("click", () => handleDayChange(dayIndex));
+      addUIControlListener(dayBtn, "click", () => handleDayChange(dayIndex));
     }
   }
 
+  console.log("📱 Day navigation listeners set up (7 day buttons)");
+
   // Add keyboard navigation
   if (DOM_ELEMENTS.daySelector) {
-    DOM_ELEMENTS.daySelector.addEventListener(
+    addUIControlListener(
+      DOM_ELEMENTS.daySelector,
       "keydown",
       handleDayKeyNavigation
     );
   }
+
+  console.log("📱 Mobile listeners initialization complete");
 }
 
 /**
@@ -3585,7 +3795,8 @@ function setupSwipeGestures() {
     );
   };
 
-  DOM_ELEMENTS.scheduleDayView.addEventListener(
+  addUIControlListener(
+    DOM_ELEMENTS.scheduleDayView,
     "touchstart",
     (e) => {
       touchStartX = e.changedTouches[0].clientX;
@@ -3597,7 +3808,8 @@ function setupSwipeGestures() {
     { passive: true }
   );
 
-  DOM_ELEMENTS.scheduleDayView.addEventListener(
+  addUIControlListener(
+    DOM_ELEMENTS.scheduleDayView,
     "touchmove",
     (e) => {
       if (isScrolling) return;
@@ -3633,7 +3845,8 @@ function setupSwipeGestures() {
     { passive: false }
   ); // Not passive so we can preventDefault
 
-  DOM_ELEMENTS.scheduleDayView.addEventListener(
+  addUIControlListener(
+    DOM_ELEMENTS.scheduleDayView,
     "touchend",
     (e) => {
       // Don't process swipe if user was scrolling
@@ -3682,7 +3895,7 @@ function setupSwipeGestures() {
 /**
  * Handle view mode changes (day/grid)
  */
-function handleViewModeChange(newViewMode) {
+async function handleViewModeChange(newViewMode) {
   if (state.viewMode === newViewMode) return;
 
   state.viewMode = newViewMode;
@@ -3692,7 +3905,7 @@ function handleViewModeChange(newViewMode) {
   updateViewContainers();
 
   // Update schedule rendering
-  renderScheduleForCurrentView();
+  await renderScheduleForCurrentView();
 
   // Add body class for CSS targeting
   document.body.classList.toggle("day-view-active", newViewMode === "day");
@@ -3714,7 +3927,8 @@ function handleDayChange(dayIndex) {
 
   // Re-render day view if in day mode
   if (state.viewMode === "day") {
-    renderDayView();
+    // Use setTimeout to make this async and prevent race conditions
+    setTimeout(() => renderDayView(), 0);
   }
 
   console.log(`📅 Day changed to: ${getDayName(dayIndex)}`);
@@ -3792,18 +4006,18 @@ function updateViewContainers() {
 /**
  * Render schedule for current view mode
  */
-function renderScheduleForCurrentView() {
+async function renderScheduleForCurrentView() {
   if (state.viewMode === "day") {
-    renderDayView();
+    await renderDayView();
   } else {
-    renderScheduleGrid(); // Use existing grid rendering
+    await renderScheduleGrid(); // Use existing grid rendering
   }
 }
 
 /**
  * Render the day view for the selected day
  */
-function renderDayView() {
+async function renderDayView() {
   console.log(`📅 renderDayView called:`, {
     selectedDay: state.selectedDay,
     dayName: getDayName(state.selectedDay),
@@ -3818,6 +4032,12 @@ function renderDayView() {
     console.error("❌ Day view container not found");
     return;
   }
+
+  // 🧹 MEMORY LEAK FIX: Clean up event listeners before clearing DOM
+  await cleanupScheduleEventListeners();
+
+  // Brief pause to ensure cleanup is complete
+  await new Promise((resolve) => setTimeout(resolve, 5));
 
   // Clear existing content
   container.innerHTML = "";
@@ -4904,10 +5124,14 @@ function showUserInfo(user) {
     navRight.appendChild(userInfo);
 
     // Add logout functionality
-    document.getElementById("logout-btn").addEventListener("click", () => {
-      console.log("🚪 Logout button clicked");
-      authManager.signOut();
-    });
+    addTrackedEventListener(
+      document.getElementById("logout-btn"),
+      "click",
+      () => {
+        console.log("🚪 Logout button clicked");
+        authManager.signOut();
+      }
+    );
   } else {
     console.error(
       "❌ Navigation right section not found, cannot add user info"
@@ -4974,17 +5198,19 @@ function checkProfileCompletion() {
  * Preselect the user's avatar when navigating to home page
  * This ensures the user's own schedule is always visible by default
  * 🎯 ENHANCED: Better timing and error handling for initial load
- * 
+ *
  * NOTE: Currently unused - user preselection is handled by HorizontalFriendsBar.forceUserSelection()
  * Kept for potential future use in edge cases or fallback scenarios.
  */
 async function preselectUserAvatar() {
   console.log("👤 preselectUserAvatar() called");
-  
+
   const currentUser = authManager.getCurrentUser();
-  
+
   if (!currentUser?.uid) {
-    console.log("⚠️ No authenticated user found - skipping avatar preselection");
+    console.log(
+      "⚠️ No authenticated user found - skipping avatar preselection"
+    );
     return;
   }
 
@@ -4995,12 +5221,15 @@ async function preselectUserAvatar() {
   }
 
   // Set active user in HomePage state
-  console.log(`👤 Preselecting user avatar in HomePage state: ${currentUser.uid}`, {
-    currentActiveUserId: state.activeUserId,
-    compareMode: state.compareMode,
-    selectedUserIds: Array.from(state.selectedUserIds)
-  });
-  
+  console.log(
+    `👤 Preselecting user avatar in HomePage state: ${currentUser.uid}`,
+    {
+      currentActiveUserId: state.activeUserId,
+      compareMode: state.compareMode,
+      selectedUserIds: Array.from(state.selectedUserIds),
+    }
+  );
+
   state.activeUserId = currentUser.uid;
   state.selectedUserIds.clear(); // Clear any friend selections
 
@@ -5010,15 +5239,22 @@ async function preselectUserAvatar() {
     try {
       // Check if horizontal friends bar is in compare mode
       if (state.horizontalFriendsBar.compareMode) {
-        console.log("🔍 HorizontalFriendsBar is in compare mode - not forcing user selection");
+        console.log(
+          "🔍 HorizontalFriendsBar is in compare mode - not forcing user selection"
+        );
       } else {
         await state.horizontalFriendsBar.selectUser();
       }
     } catch (error) {
-      console.warn("⚠️ Failed to preselect user in horizontal friends bar:", error);
+      console.warn(
+        "⚠️ Failed to preselect user in horizontal friends bar:",
+        error
+      );
     }
   } else {
-    console.log("⚠️ HorizontalFriendsBar not available yet - will be selected during bar initialization");
+    console.log(
+      "⚠️ HorizontalFriendsBar not available yet - will be selected during bar initialization"
+    );
   }
 
   // Save state and update UI
@@ -5143,6 +5379,8 @@ async function initializeHorizontalFriendsBar() {
  * Set up event listeners for Horizontal Friends Bar events
  */
 function setupFriendsBarEventListeners() {
+  console.log("🎯 Setting up friends bar event listeners...");
+
   // Remove any existing listeners first to prevent duplicates
   document.removeEventListener("schedule:change", handleFriendScheduleChange);
   document.removeEventListener("compare:mode", handleCompareModeChange);
@@ -5151,14 +5389,21 @@ function setupFriendsBarEventListeners() {
     handleCompareSelectionChange
   );
 
-  // Listen for schedule change events (when user clicks friend avatar)
-  document.addEventListener("schedule:change", handleFriendScheduleChange);
+  // Listen for schedule change events (when user clicks friend avatar) - MUST PERSIST!
+  addUIControlListener(document, "schedule:change", (event) => {
+    console.log("🔥 SCHEDULE CHANGE EVENT RECEIVED:", event.detail);
+    handleFriendScheduleChange(event);
+  });
 
-  // Listen for compare mode events
-  document.addEventListener("compare:mode", handleCompareModeChange);
-  document.addEventListener("compare:selection", handleCompareSelectionChange);
+  // Listen for compare mode events - MUST PERSIST!
+  addUIControlListener(document, "compare:mode", handleCompareModeChange);
+  addUIControlListener(
+    document,
+    "compare:selection",
+    handleCompareSelectionChange
+  );
 
-  console.log("✅ Friends bar event listeners set up (duplicates prevented)");
+  console.log("✅ Friends bar event listeners set up successfully");
 }
 
 /**
@@ -5642,16 +5887,7 @@ function showNoScheduleMessage(friendName) {
   // Hide schedule owner indicator
   updateScheduleOwnerIndicator(null, false);
 
-  // Show notification
-  const notificationManager = window.notificationManager || {
-    showSystemNotification: (msg) => console.log(msg),
-  };
-
-  notificationManager.showSystemNotification(
-    `No schedule was set by ${friendName}`,
-    "info",
-    4000
-  );
+  console.log(`No schedule was set by ${friendName}`);
 }
 
 /**
@@ -5660,10 +5896,6 @@ function showNoScheduleMessage(friendName) {
 function showScheduleLoadError(friendName, errorType = null) {
   // Hide schedule owner indicator on error
   updateScheduleOwnerIndicator(null, false);
-
-  const notificationManager = window.notificationManager || {
-    showSystemNotification: (msg) => console.log(msg),
-  };
 
   let errorMessage;
   switch (errorType) {
@@ -5680,7 +5912,7 @@ function showScheduleLoadError(friendName, errorType = null) {
       errorMessage = `Failed to load ${friendName}'s schedule`;
   }
 
-  notificationManager.showSystemNotification(errorMessage, "error", 4000);
+  console.error(errorMessage);
 }
 
 /**
@@ -5739,9 +5971,11 @@ function handleCompareModeChange(event) {
 
   // Update UI but skip mobile compare mode sync to prevent circular calls
   if (state.viewMode === "day") {
-    renderDayView(); // Re-render day view with compare mode changes
+    // Use setTimeout to make this async and prevent race conditions
+    setTimeout(() => renderDayView(), 0); // Re-render day view with compare mode changes
   } else {
-    renderScheduleGrid(); // Re-render grid view
+    // Use setTimeout to make this async and prevent race conditions
+    setTimeout(() => renderScheduleGrid(), 0); // Re-render grid view
   }
 
   // DO NOT call updateUI() or updateMobileCompareMode() here to prevent circular sync
@@ -5806,9 +6040,15 @@ function handleCompareSelectionChange(event) {
 
   // 🎯 FIXED: Remove automatic user selection when all friends are deselected
   // Let compare mode show empty state instead of auto-selecting user
-  console.log(`🔍 Final selection: ${Array.from(state.selectedUserIds)} (count: ${state.selectedUserIds.size})`);
+  console.log(
+    `🔍 Final selection: ${Array.from(state.selectedUserIds)} (count: ${
+      state.selectedUserIds.size
+    })`
+  );
   if (state.selectedUserIds.size === 0) {
-    console.log("📋 All users deselected - showing empty compare state (no auto-selection)");
+    console.log(
+      "📋 All users deselected - showing empty compare state (no auto-selection)"
+    );
   }
 
   console.log(`🔄 selectedUserIds updated:`, {
@@ -6236,7 +6476,7 @@ document.addEventListener("spa:page:load", (event) => {
     FRIENDS_SCHEDULE_CACHE.cleanup();
     CACHE_MAINTENANCE.start();
 
-    // Render UI with loaded data (this includes renderUserList())
+    // Render UI with loaded data
     console.log("🎨 Updating UI with loaded data...");
     updateUI();
 
@@ -6256,25 +6496,41 @@ document.addEventListener("spa:page:load", (event) => {
 document.addEventListener("spa:page:unload", (event) => {
   const { route } = event.detail;
   console.log(`[HomePage] Received spa:page:unload for route: ${route}`);
-  
+
   // Only clean up if we're leaving the home page
   if (route === "home") {
     console.log("🧹 Cleaning up home page resources...");
-    
-    // Clear any temporary selections but keep the state for when we return
+
+    // 🧹 MEMORY LEAK FIX: Clean up all tracked event listeners
+    cleanupScheduleEventListeners(); // Clean up schedule content listeners
+    cleanupUIControlListeners(); // Clean up UI control listeners
+
+    // 🧹 Reset event listeners setup flag for fresh setup on next load
+    state.eventListenersSetup = false;
+    state.mobileScheduleInitialized = false;
+
+    // ✅ Event delegation system - no flags to reset
+    console.log("🧹 All event listeners cleaned up via tracked system");
+
+    // Clean up HorizontalFriendsBar properly
     if (state.horizontalFriendsBar) {
-      console.log("🧹 Home page unloading - horizontal friends bar will be recreated on return");
+      console.log("🧹 Destroying HorizontalFriendsBar component...");
+      state.horizontalFriendsBar.destroy();
+      state.horizontalFriendsBar = null;
     }
+
+    // Clear any temporary selections but keep the state for when we return
+    console.log("🧹 Home page cleanup completed - resources freed");
   }
 });
 
 /**
  * 🎯 SIMPLIFIED: Removed navigation listener to eliminate timing race condition
- * 
+ *
  * User preselection is handled entirely by HorizontalFriendsBar.forceUserSelection():
  * - Initial website load: ✅ forceUserSelection() runs after render
  * - Navigation to home page: ✅ HorizontalFriendsBar re-initializes and runs forceUserSelection()
- * 
+ *
  * This eliminates the timing errors while maintaining all functionality.
  */
 
@@ -6385,7 +6641,7 @@ function showPinTooltip(event, pinData) {
 
   // Delay adding the click handler to prevent immediate closure
   setTimeout(() => {
-    document.addEventListener("click", closeTooltip);
+    addTrackedEventListener(document, "click", closeTooltip);
   }, 100);
 
   // Auto-close tooltip after 5 seconds

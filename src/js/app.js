@@ -16,7 +16,10 @@ import "./components/navigation/Menu.js"; // 🎯 CRITICAL FIX: Import menu syst
 import { currentUser } from "./store/userStore.js"; // 🎯 FIX: Import currentUser for profile updates
 import { authManager } from "./services/auth/AuthService.js"; // 🎯 NEW: Import authManager instead of using window
 import { initModal } from "./components/modals/Modal.js"; // 🎯 FIX: Import modal system for app-wide availability
-import { DOM_ELEMENTS, initializeDomElements } from "./utils/dom/domElements.js"; // 🎯 FIX: Import DOM elements for modal
+import {
+  DOM_ELEMENTS,
+  initializeDomElements,
+} from "./utils/dom/domElements.js"; // 🎯 FIX: Import DOM elements for modal
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
@@ -27,9 +30,8 @@ import "./pages/HomePage.js"; // 🎯 CRITICAL: Schedule page functionality
 import "./services/friends/FriendsService.js";
 import "./pages/FriendsPage.js";
 import "./services/realtime/RealtimeService.js"; // 🎯 NEW: Real-time event coordination system
-import "./services/realtime/NotificationService.js"; // 🎯 NEW: Toast notification system
 import "./utils/dev/debugHelpers.js"; // 🎯 NEW: Debug tools and console helpers
-import "./utils/dev/performanceDebugger.js"; // 🎯 NEW: Performance monitoring and leak detection
+import "./dev-tools/MemoryLeakDetective.js"; // 🕵️‍♂️ NEW: Advanced memory leak detection and monitoring
 import "./components/forms/ProfileSetup.js";
 import "./utils/avatar/avatarManager.js";
 

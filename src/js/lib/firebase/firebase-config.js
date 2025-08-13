@@ -1,7 +1,7 @@
 // Firebase configuration for browser environment
 import "./env-config.js";
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeAuth, browserLocalPersistence, indexedDBLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -54,8 +54,24 @@ try {
   throw new Error("Failed to initialize Firebase");
 }
 
-// Initialize services with error handling
-export const auth = getAuth(app);
+// Initialize Auth with explicit persistence configuration to reduce IDBRequest listeners
+let auth;
+try {
+  // Try browserLocalPersistence first (uses localStorage, fewer IDBRequest listeners)
+  auth = initializeAuth(app, {
+    persistence: [browserLocalPersistence, indexedDBLocalPersistence]
+  });
+  console.log("✅ Firebase Auth initialized with optimized persistence (localStorage priority)");
+} catch (error) {
+  console.warn("⚠️ Failed to initialize Auth with custom persistence, falling back to default:", error.message);
+  // Fallback to default auth initialization if custom persistence fails
+  const { getAuth } = await import("firebase/auth");
+  auth = getAuth(app);
+  console.log("✅ Firebase Auth initialized with default persistence");
+}
+
+// Initialize other services with error handling
+export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 

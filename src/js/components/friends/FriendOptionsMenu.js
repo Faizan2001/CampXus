@@ -240,7 +240,7 @@ export class FriendOptionsMenu {
 
     // Calculate positioning relative to button
     const buttonRect = button.getBoundingClientRect();
-    
+
     // Position dropdown below and slightly to the left of the button
     const top = buttonRect.bottom + 8;
     const left = buttonRect.right - 160; // Align dropdown to right edge of button (dropdown is ~150px wide)
@@ -252,24 +252,24 @@ export class FriendOptionsMenu {
     // Position dropdown near the button
     dropdown.style.top = `${top}px`;
     dropdown.style.left = `${adjustedLeft}px`;
-    dropdown.style.transform = 'none'; // Override any transform that might affect positioning
-    
+    dropdown.style.transform = "none"; // Override any transform that might affect positioning
+
     // Move dropdown to body to avoid parent positioning issues
     document.body.appendChild(dropdown);
-    
+
     // Add the show class for animation
     this.element.classList.add("show");
-    
+
     // Add CSS classes for proper styling via existing CSS
-    dropdown.classList.add('glassmorphism-dropdown-active');
-    
+    dropdown.classList.add("glassmorphism-dropdown-active");
+
     // Ensure proper visibility and positioning
-    dropdown.style.opacity = '1';
-    dropdown.style.visibility = 'visible';
-    dropdown.style.display = 'block';
-    dropdown.style.zIndex = '9999';
-    dropdown.style.position = 'fixed';
-    dropdown.style.transform = 'none';
+    dropdown.style.opacity = "1";
+    dropdown.style.visibility = "visible";
+    dropdown.style.display = "block";
+    dropdown.style.zIndex = "9999";
+    dropdown.style.position = "fixed";
+    dropdown.style.transform = "none";
 
     // Update ARIA and state
     button.setAttribute("aria-expanded", "true");
@@ -283,7 +283,9 @@ export class FriendOptionsMenu {
       }
     }, 150);
 
-    console.log(`📂 Friend options dropdown opened for ${this.friend.displayName} at (${adjustedLeft}, ${top})`);
+    console.log(
+      `📂 Friend options dropdown opened for ${this.friend.displayName} at (${adjustedLeft}, ${top})`
+    );
   }
 
   /**
@@ -294,7 +296,7 @@ export class FriendOptionsMenu {
 
     const button = this.element.querySelector(".options-button");
     let dropdown = this.element.querySelector(".options-dropdown");
-    
+
     // Check if dropdown was moved to body
     if (!dropdown) {
       dropdown = document.body.querySelector(".glassmorphism-dropdown-active");
@@ -302,7 +304,7 @@ export class FriendOptionsMenu {
 
     // Remove show class to trigger close animation
     this.element.classList.remove("show");
-    
+
     // Clean up dropdown styling and move back to original parent
     if (dropdown && dropdown.parentElement === document.body) {
       dropdown.classList.remove("glassmorphism-dropdown-active");
@@ -399,20 +401,24 @@ export class FriendOptionsMenu {
     }
 
     const privacyOption = this.element.querySelector(".privacy-toggle-option");
-    const icon = privacyOption?.querySelector("i"); 
+    const icon = privacyOption?.querySelector("i");
     const text = privacyOption?.querySelector("span");
 
     if (privacyOption && icon && text) {
       // Use CSS transitions to prevent flickering - batch all updates
       const updates = () => {
         // Update icon class
-        const newIconClass = myScheduleVisible ? "fas fa-eye-slash" : "fas fa-eye";
+        const newIconClass = myScheduleVisible
+          ? "fas fa-eye-slash"
+          : "fas fa-eye";
         if (icon.className !== newIconClass) {
           icon.className = newIconClass;
         }
 
         // Update text content
-        const newText = myScheduleVisible ? "Hide My Schedule" : "Show My Schedule";
+        const newText = myScheduleVisible
+          ? "Hide My Schedule"
+          : "Show My Schedule";
         if (text.textContent !== newText) {
           text.textContent = newText;
         }
@@ -445,33 +451,40 @@ export class FriendOptionsMenu {
    */
   updateFriendCardPrivacyStatus(myScheduleVisible) {
     // Find the friend card that contains this menu
-    const friendCard = this.element.closest('.friend-card');
+    const friendCard = this.element.closest(".friend-card");
     if (!friendCard) return;
 
     // Find the privacy status element in the friend card
-    const privacyStatus = friendCard.querySelector('.schedule-access.bilateral-privacy');
+    const privacyStatus = friendCard.querySelector(
+      ".schedule-access.bilateral-privacy"
+    );
     if (!privacyStatus) return;
 
-    const icon = privacyStatus.querySelector('i');
-    const span = privacyStatus.querySelector('span');
+    const icon = privacyStatus.querySelector("i");
+    const span = privacyStatus.querySelector("span");
 
     if (icon && span) {
       // Update icon class
-      icon.className = myScheduleVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
-      
+      icon.className = myScheduleVisible ? "fas fa-eye" : "fas fa-eye-slash";
+
       // Update text content
-      span.textContent = myScheduleVisible 
-        ? 'Your schedule is visible' 
-        : 'Your schedule is hidden';
-      
+      span.textContent = myScheduleVisible
+        ? "Your schedule is visible"
+        : "Your schedule is hidden";
+
       // Update CSS classes for styling
-      privacyStatus.classList.remove('my-schedule-visible', 'my-schedule-hidden');
-      privacyStatus.classList.add(myScheduleVisible ? 'my-schedule-visible' : 'my-schedule-hidden');
-      
+      privacyStatus.classList.remove(
+        "my-schedule-visible",
+        "my-schedule-hidden"
+      );
+      privacyStatus.classList.add(
+        myScheduleVisible ? "my-schedule-visible" : "my-schedule-hidden"
+      );
+
       // Update tooltip
       const tooltipText = myScheduleVisible
-        ? 'Your schedule: Your schedule is visible to this friend\nFriend\'s schedule: Friend\'s schedule is visible to you'
-        : 'Your schedule: Your schedule is hidden from this friend\nFriend\'s schedule: Friend\'s schedule is visible to you';
+        ? "Your schedule: Your schedule is visible to this friend\nFriend's schedule: Friend's schedule is visible to you"
+        : "Your schedule: Your schedule is hidden from this friend\nFriend's schedule: Friend's schedule is visible to you";
       privacyStatus.title = tooltipText;
     }
   }
@@ -598,14 +611,16 @@ export class FriendOptionsMenu {
   destroy() {
     if (!this.element) return;
 
-    // Remove event listeners
+    // Remove document/window event listeners
     document.removeEventListener("click", this.handleOutsideClick);
     window.removeEventListener("resize", this.handleWindowResize);
     window.removeEventListener("scroll", this.handleWindowResize);
 
-    // Remove element from DOM
+    // 🛡️ LEAK PREVENTION: Remove all event listeners by cloning element
+    // This removes ALL event listeners including anonymous ones
     if (this.element.parentNode) {
-      this.element.parentNode.removeChild(this.element);
+      const cleanElement = this.element.cloneNode(true);
+      this.element.parentNode.replaceChild(cleanElement, this.element);
     }
 
     this.element = null;

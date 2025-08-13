@@ -1,11 +1,9 @@
 /**
- * 🔔 Notification Manager for Real-Time Friend Updates
- * 
- * This module handles toast notifications for real-time events like:
+ * 🔔 Notification Manager for Friend Updates
+ *
+ * This module handles toast notifications for friend-related events only:
  * - New friend requests
  * - Friend request acceptances
- * - Connection status changes
- * - General system notifications
  */
 
 class NotificationManager {
@@ -28,7 +26,7 @@ class NotificationManager {
       message: `${request.displayName} wants to be your friend`,
       data: request,
       timestamp: Date.now(),
-      priority: "high"
+      priority: "high",
     };
 
     this.showNotification(notification);
@@ -46,45 +44,7 @@ class NotificationManager {
       message: `You and ${friend.displayName} are now friends!`,
       data: friend,
       timestamp: Date.now(),
-      priority: "high"
-    };
-
-    this.showNotification(notification);
-  }
-
-  /**
-   * 📡 Show connection status notification
-   * @param {Object} status - Connection status data
-   */
-  showConnectionStatusNotification(status) {
-    const notification = {
-      id: `connection_${Date.now()}`,
-      type: status.isConnected ? "connected" : "disconnected",
-      title: status.isConnected ? "Connected" : "Disconnected",
-      message: status.isConnected ? "Real-time updates active" : "Connection lost - trying to reconnect",
-      data: status,
-      timestamp: Date.now(),
-      priority: "medium",
-      duration: status.isConnected ? 2000 : 0 // Auto-hide connection success, keep disconnect visible
-    };
-
-    this.showNotification(notification);
-  }
-
-  /**
-   * 📊 Show general system notification
-   * @param {string} message - Message to display
-   * @param {string} type - Notification type (success, error, warning, info)
-   * @param {string} title - Optional title
-   */
-  showSystemNotification(message, type = "info", title = null) {
-    const notification = {
-      id: `system_${Date.now()}`,
-      type: type,
-      title: title || this.getDefaultTitle(type),
-      message: message,
-      timestamp: Date.now(),
-      priority: this.getPriorityForType(type)
+      priority: "high",
     };
 
     this.showNotification(notification);
@@ -107,14 +67,19 @@ class NotificationManager {
     this.createNotificationElement(notification);
 
     // Auto-remove after duration (unless duration is 0)
-    const duration = notification.duration !== undefined ? notification.duration : this.notificationDuration;
+    const duration =
+      notification.duration !== undefined
+        ? notification.duration
+        : this.notificationDuration;
     if (duration > 0) {
       setTimeout(() => {
         this.removeNotification(notification.id);
       }, duration);
     }
 
-    console.log(`🔔 Notification shown: ${notification.type} - ${notification.message}`);
+    console.log(
+      `🔔 Notification shown: ${notification.type} - ${notification.message}`
+    );
   }
 
   /**
@@ -141,7 +106,9 @@ class NotificationManager {
         <div class="notification-text">
           <div class="notification-title">${notification.title}</div>
           <div class="notification-message">${notification.message}</div>
-          <div class="notification-timestamp">${this.formatTimestamp(notification.timestamp)}</div>
+          <div class="notification-timestamp">${this.formatTimestamp(
+            notification.timestamp
+          )}</div>
         </div>
         <button class="notification-close" title="Close notification">
           <i class="fas fa-times"></i>
@@ -200,12 +167,45 @@ class NotificationManager {
   removeNotification(notificationId) {
     const element = document.getElementById(notificationId);
     if (element) {
+      // Mark element as being cleaned up to prevent double cleanup
+      if (element.dataset.cleaningUp === "true") {
+        console.log(
+          "🧹 Notification already being cleaned up, skipping:",
+          notificationId
+        );
+        return;
+      }
+      element.dataset.cleaningUp = "true";
+
       element.classList.remove("notification-show");
       element.classList.add("notification-hide");
 
-      setTimeout(() => {
-        if (element.parentNode) {
-          element.parentNode.removeChild(element);
+      setTimeout(async () => {
+        // Double-check element still exists and has parent
+        if (
+          element &&
+          element.parentNode &&
+          element.dataset.cleaningUp === "true"
+        ) {
+          try {
+            // 🧹 MEMORY LEAK FIX: Clean up event listeners before DOM removal
+            await this.cleanupNotificationListeners(element);
+
+            // Final check before DOM removal
+            if (element.parentNode) {
+              element.parentNode.removeChild(element);
+            }
+          } catch (error) {
+            console.warn("🧹 Error during notification removal:", error);
+            // Try fallback cleanup
+            if (element.parentNode) {
+              try {
+                element.parentNode.removeChild(element);
+              } catch (fallbackError) {
+                console.warn("🧹 Fallback removal also failed:", fallbackError);
+              }
+            }
+          }
         }
       }, 300);
     }
@@ -214,6 +214,65 @@ class NotificationManager {
     this.notifications = this.notifications.filter(
       (n) => n.id !== notificationId
     );
+  }
+
+  /**
+   * 🧹 Clean up event listeners from a notification element
+   * @param {HTMLElement} element - The notification element to clean up
+   * @returns {Promise<void>} Promise that resolves when cleanup is complete
+   */
+  async cleanupNotificationListeners(element) {
+    return new Promise((resolve) => {
+      // Use a short timeout to ensure this runs in the next tick
+      setTimeout(() => {
+        try {
+          // Check if element exists and has a parent
+          if (!element) {
+            console.warn("🧹 Cannot cleanup: element is null or undefined");
+            resolve();
+            return;
+          }
+
+          if (!element.parentNode) {
+            console.warn(
+              "🧹 Cannot cleanup: element has no parent node (already removed)"
+            );
+            resolve();
+            return;
+          }
+
+          // Additional check: ensure element hasn't been cleaned up already
+          if (element.dataset.listenersCleanedUp === "true") {
+            console.log(
+              "🧹 Event listeners already cleaned up for this element"
+            );
+            resolve();
+            return;
+          }
+
+          // Mark as being cleaned up
+          element.dataset.listenersCleanedUp = "true";
+
+          // Clone the element to remove all event listeners
+          // This is more efficient than tracking individual listeners
+          const cleanElement = element.cloneNode(true);
+
+          // Preserve the cleanup markers
+          cleanElement.dataset.listenersCleanedUp = "true";
+          cleanElement.dataset.cleaningUp = element.dataset.cleaningUp;
+
+          element.parentNode.replaceChild(cleanElement, element);
+
+          console.log(
+            "🧹 Successfully cleaned up notification event listeners"
+          );
+        } catch (error) {
+          console.error("🧹 Error during notification cleanup:", error);
+          // Continue gracefully - the element may have been removed by another process
+        }
+        resolve();
+      }, 5);
+    });
   }
 
   /**
@@ -244,13 +303,6 @@ class NotificationManager {
     const icons = {
       friend_request: "👋",
       friend_accepted: "🎉",
-      friend_rejected: "😔",
-      connected: "📡",
-      disconnected: "⚠️",
-      success: "✅",
-      error: "❌",
-      warning: "⚠️",
-      info: "ℹ️",
       default: "🔔",
     };
 
@@ -271,8 +323,8 @@ class NotificationManager {
     if (diffSecs < 60) return "Just now";
     if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)}m ago`;
     if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h ago`;
-    
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
   /**
@@ -282,12 +334,8 @@ class NotificationManager {
    */
   getDefaultTitle(type) {
     const titles = {
-      success: "Success",
-      error: "Error",
-      warning: "Warning",
-      info: "Information",
-      connected: "Connected",
-      disconnected: "Disconnected"
+      friend_request: "Friend Request",
+      friend_accepted: "Friend Accepted",
     };
 
     return titles[type] || "Notification";
@@ -300,12 +348,8 @@ class NotificationManager {
    */
   getPriorityForType(type) {
     const priorities = {
-      error: "high",
-      warning: "medium",
-      success: "low",
-      info: "low",
-      connected: "low",
-      disconnected: "medium"
+      friend_request: "high",
+      friend_accepted: "high",
     };
 
     return priorities[type] || "medium";
@@ -318,15 +362,7 @@ class NotificationManager {
   handleFriendRequestClick(requestData) {
     console.log("Friend request notification clicked:", requestData);
 
-    // For now, just show a system notification
-    // In a full implementation, this would navigate to the friends page
-    this.showSystemNotification(
-      `Click to view friend request from ${requestData.displayName}`,
-      "info",
-      "Friend Request"
-    );
-
-    // TODO: Navigate to friends page
+    // TODO: Navigate to friends page or show friend request modal
     // if (window.navigateTo) {
     //   window.navigateTo('friends');
     // }
@@ -338,7 +374,7 @@ class NotificationManager {
    * @returns {Object|null} Notification object or null
    */
   getNotification(notificationId) {
-    return this.notifications.find(n => n.id === notificationId) || null;
+    return this.notifications.find((n) => n.id === notificationId) || null;
   }
 
   /**
@@ -356,7 +392,7 @@ class NotificationManager {
    */
   getNotificationCount(type = null) {
     if (type) {
-      return this.notifications.filter(n => n.type === type).length;
+      return this.notifications.filter((n) => n.type === type).length;
     }
     return this.notifications.length;
   }
@@ -377,8 +413,8 @@ class NotificationManager {
    * @param {string} type - Notification type to clear
    */
   clearByType(type) {
-    const toRemove = this.notifications.filter(n => n.type === type);
-    toRemove.forEach(notification => {
+    const toRemove = this.notifications.filter((n) => n.type === type);
+    toRemove.forEach((notification) => {
       this.removeNotification(notification.id);
     });
     console.log(`🧹 Cleared ${toRemove.length} notifications of type: ${type}`);
@@ -394,8 +430,8 @@ class NotificationManager {
       maxNotifications: this.maxNotifications,
       defaultDuration: this.notificationDuration,
       hasContainer: !!this.container,
-      types: [...new Set(this.notifications.map(n => n.type))],
-      priorities: [...new Set(this.notifications.map(n => n.priority))]
+      types: [...new Set(this.notifications.map((n) => n.type))],
+      priorities: [...new Set(this.notifications.map((n) => n.priority))],
     };
   }
 }
@@ -403,7 +439,7 @@ class NotificationManager {
 // Export singleton instance
 export const notificationManager = new NotificationManager();
 
-// Add to global scope for debugging
-if (typeof window !== "undefined") {
+// Only add to global scope for debugging in development
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.notificationManager = notificationManager;
 }

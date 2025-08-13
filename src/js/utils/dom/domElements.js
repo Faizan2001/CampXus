@@ -4,7 +4,7 @@ export const DOM_ELEMENTS = {
   // User Management
   userNameInput: null,
   userIdInput: null,
-  userListContainer: null,
+
   usersSection: null,
   loginButton: null,
 
@@ -61,7 +61,7 @@ export function initializeDomElements() {
   // User Management - Now these exist in the modal
   DOM_ELEMENTS.userNameInput = document.getElementById("userName");
   DOM_ELEMENTS.userIdInput = document.getElementById("userId");
-  DOM_ELEMENTS.userListContainer = document.getElementById("userList");
+
   DOM_ELEMENTS.usersSection = document.querySelector(".users-section");
   DOM_ELEMENTS.loginButton = document.getElementById("login-btn");
 
@@ -120,7 +120,7 @@ export function initializeDomElements() {
   DOM_ELEMENTS.dayBtn6 = document.getElementById("dayBtn6");
 
   // Debug log for important missing elements - but only after page templates are loaded
-  // NOTE: Critical elements like scheduleTable, userListContainer, compareButton
+  // NOTE: Critical elements like scheduleTable, compareButton
   // are only available after the SPA router loads the home template.
   // This function is called during app initialization before templates are loaded,
   // so we skip the critical check here to avoid phantom errors.
@@ -151,7 +151,7 @@ export function validateCriticalElementsForRoute(route) {
   if (route === "home") {
     const criticalElements = [
       "scheduleTable",
-      "userListContainer",
+
       "compareButton",
     ];
 

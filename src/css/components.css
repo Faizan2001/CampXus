@@ -582,25 +582,13 @@ This file contains all UI component styles for the MeetchuThere app:
 }
 
 /* Delete button within user items */
-.user-item .delete-btn {
-  opacity: 0.8;
-}
 
-.user-item:hover .delete-btn {
-  opacity: 1;
-}
 
-.user-item.active .delete-btn {
-  background: var(--user-item-delete-bg-active);
-  color: var(--user-item-delete-text-active);
-  border-color: var(--user-item-delete-border-active);
-}
 
-.user-item.active .delete-btn:hover {
-  background: var(--error);
-  color: white;
-  border-color: var(--error);
-}
+
+
+
+
 
 /* Button disabled states */
 .primary-btn:disabled,
@@ -722,107 +710,36 @@ textarea {
 /* ===== USER MANAGEMENT & SELECTION ===== */
 
 /* Users list container */
-.user-list {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-height: 400px; /* Limit height to prevent overwhelming UI */
-  overflow-y: auto; /* Enable scrolling for long lists */
-  padding-right: var(--space-sm);
-}
+
 
 /* Custom scrollbar styling */
-.user-list::-webkit-scrollbar {
-  width: 6px;
-}
 
-.user-list::-webkit-scrollbar-track {
-  background: var(--depth-surface);
-  border-radius: 3px;
-}
 
-.user-list::-webkit-scrollbar-thumb {
-  background: var(--accent-primary);
-  border-radius: 3px;
-}
 
-.user-list::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary);
-}
+
+
+
+
 
 /* User item base styling */
-.user-item {
-  min-height: 5rem;
-  width: 98%;
-  background: var(--depth-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  margin-bottom: var(--space-md);
-  transition: all 0.3s var(--animation-spring); /* Smooth spring animation */
-  position: relative;
-  overflow: hidden;
-  display: flex !important; /* Ensure flex layout */
-  align-items: center !important; /* Center align vertically */
-  justify-content: space-between !important; /* Space between name and controls */
-}
 
-.user-item:hover {
-  background: var(--depth-elevated);
-  transform: translateY(-2px); /* Subtle lift effect */
-  box-shadow: var(--shadow-lg);
-  border-color: var(--accent-primary);
-  scale: 1.02; /* Slight scale increase */
-}
+
+
 
 /* Enhanced user selection states */
-.user-item.active {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  ) !important; /* Purple gradient background */
-  color: white !important;
-  border-color: var(--accent-primary) !important;
-  box-shadow: var(--glow-accent-medium), var(--shadow-lg) !important; /* Glow effect */
-  transform: translateY(-1px) !important;
-  scale: 1.03 !important; /* Enhanced scale for prominence */
-}
 
-.user-item.active .user-name {
-  color: white !important;
-  font-weight: 700 !important; /* Bold text for active users */
-}
 
-.user-item.active .user-id {
-  color: var(--text-overlay-light) !important; /* Slightly transparent white */
-}
+
+
+
 
 /* Selected user state - Border highlight */
-.user-item.selected {
-  background: var(--surface-active) !important;
-  border: 2px solid var(--accent-primary) !important; /* Thick accent border */
-  box-shadow: var(--glow-accent-weak) !important;
-  transform: translateY(-1px) !important;
-}
 
-.user-item.selected .user-name {
-  color: var(--accent-primary) !important;
-  font-weight: 700 !important;
-}
+
+
 
 /* Combination of active and selected */
-.user-item.active.selected {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  ) !important;
-  border: 2px solid var(--accent-tertiary) !important;
-  box-shadow: var(--shadow-glow-intense), var(--shadow-xl) !important;
-  transform: translateY(-2px) !important;
-  scale: 1.05 !important;
-}
+
 
 /* User item content layout */
 .user-info {
@@ -850,9 +767,7 @@ textarea {
 }
 
 /* ===== MODERN LOGICAL PROPERTIES ===== */
-.user-item {
-  padding-inline: var(--space-lg);
-}
+
 
 .button-group {
   gap: var(--space-md);

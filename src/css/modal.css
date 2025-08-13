@@ -331,11 +331,7 @@
 }
 
 /* Add user form styles */
-.add-user-form-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+
 
 .add-user-form-content .form-group {
   display: flex;

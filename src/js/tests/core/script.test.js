@@ -3,8 +3,7 @@ import { jest } from "@jest/globals";
 
 // Functions from script.js
 import {
-  createUserObject,
-  deleteUserFromState,
+
   toggleSlotInSchedule,
   determineSlotStatus,
   generateTooltipMessage,
@@ -32,20 +31,7 @@ describe("User Management Logic", () => {
     jest.clearAllMocks();
   });
 
-  describe("createUserObject", () => {
-    test("should create a new user with default timeSlots and matching schedule matrix", () => {
-      const currentUsers = {};
-      const newUser = createUserObject("Alice", "123", currentUsers);
-      expect(newUser).not.toBeNull();
-      expect(newUser.id).toBe("123");
-      expect(newUser.name).toBe("Alice");
-      expect(newUser.timeSlots).toEqual(DEFAULT_TIMESLOTS);
-      expect(newUser.timeSlots).not.toBe(DEFAULT_TIMESLOTS);
-      expect(newUser.schedule.length).toBe(7);
-      newUser.schedule.forEach((daySchedule) => {
-        expect(daySchedule.length).toBe(DEFAULT_TIMESLOTS.length);
-        expect(daySchedule.every((slot) => slot === false)).toBe(true);
-      });
+
     });
 
     test("should return null if user ID already exists", () => {
@@ -57,24 +43,7 @@ describe("User Management Logic", () => {
     });
   });
 
-  describe("deleteUserFromState", () => {
-    test("should remove a user and update active/selected users", () => {
-      const initialState = {
-        users: {
-          1: { id: "1", name: "Alice", timeSlots: [], schedule: [[]] },
-          2: { id: "2", name: "Bob", timeSlots: [], schedule: [[]] },
-        },
-        activeUserId: "1",
-        selectedUserIds: new Set(["1", "2"]),
-        compareMode: false,
-      };
-      const newState = deleteUserFromState("1", initialState);
-      expect(newState.users["1"]).toBeUndefined();
-      expect(newState.users["2"]).toBeDefined();
-      expect(newState.activeUserId).toBeNull();
-      expect(newState.selectedUserIds.has("1")).toBe(false);
-      expect(newState.selectedUserIds.has("2")).toBe(true);
-    });
+
     test("should return original state if user to delete does not exist", () => {
       const initialState = {
         users: { 1: { id: "1", name: "Alice", timeSlots: [], schedule: [[]] } },
@@ -959,7 +928,7 @@ describe("Schedule Disabled State", () => {
 
   test("should remove disabled class when active user is set", () => {
     const state = getState();
-    const user = createUserObject("Test User", "testuser", state.users);
+    // Legacy createUserObject removed
     state.users[user.id] = user;
     state.activeUserId = user.id;
 
