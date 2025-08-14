@@ -80,6 +80,8 @@ export const REALTIME_EVENTS = {
   // Phase-1: Schedule events
   USER_SCHEDULE: "userSchedule",
   SCHEDULE_SYNC: "scheduleSync",
+  // Phase-1.3: Privacy events
+  SCHEDULE_PRIVACY_CHANGE: "schedulePrivacyChange",
   // Phase-2: Quick Access events
   QUICK_ACCESS_UPDATED: "quickAccessUpdated",
   QUICK_ACCESS_FRIENDS: "quickAccessFriends",
@@ -368,18 +370,23 @@ class RealTimeManager {
     const listenerId = "userSchedule";
 
     try {
-      const unsubscribe = dataManager.listenToUserSchedule(userId, (scheduleData) => {
-        this.log(`📅 Schedule data update: ${scheduleData ? 'Updated' : 'Cleared'}`);
-        this.emit(REALTIME_EVENTS.USER_SCHEDULE, scheduleData);
-        
-        // Emit sync status event for notifications
-        this.emit(REALTIME_EVENTS.SCHEDULE_SYNC, {
-          userId: userId,
-          synced: true,
-          timestamp: Date.now(),
-          syncType: 'realtime'
-        });
-      });
+      const unsubscribe = dataManager.listenToUserSchedule(
+        userId,
+        (scheduleData) => {
+          this.log(
+            `📅 Schedule data update: ${scheduleData ? "Updated" : "Cleared"}`
+          );
+          this.emit(REALTIME_EVENTS.USER_SCHEDULE, scheduleData);
+
+          // Emit sync status event for notifications
+          this.emit(REALTIME_EVENTS.SCHEDULE_SYNC, {
+            userId: userId,
+            synced: true,
+            timestamp: Date.now(),
+            syncType: "realtime",
+          });
+        }
+      );
 
       this.activeListeners.set(listenerId, unsubscribe);
       this.log(`✅ User schedule listener active`);
@@ -398,21 +405,27 @@ class RealTimeManager {
     const listenerId = "quickAccess";
 
     try {
-      const unsubscribe = dataManager.listenToUserProfile(userId, (userProfile) => {
-        if (userProfile && userProfile.quickAccessData) {
-          const quickAccessFriends = userProfile.quickAccessData.friends || [];
-          this.log(`⭐ Quick Access update: ${quickAccessFriends.length} starred friends`);
-          
-          // Emit events for different components to react
-          this.emit(REALTIME_EVENTS.QUICK_ACCESS_FRIENDS, quickAccessFriends);
-          this.emit(REALTIME_EVENTS.QUICK_ACCESS_UPDATED, {
-            userId: userId,
-            quickAccessFriends: quickAccessFriends,
-            count: quickAccessFriends.length,
-            timestamp: Date.now()
-          });
+      const unsubscribe = dataManager.listenToUserProfile(
+        userId,
+        (userProfile) => {
+          if (userProfile && userProfile.quickAccessData) {
+            const quickAccessFriends =
+              userProfile.quickAccessData.starredFriends || [];
+            this.log(
+              `⭐ Quick Access update: ${quickAccessFriends.length} starred friends`
+            );
+
+            // Emit events for different components to react
+            this.emit(REALTIME_EVENTS.QUICK_ACCESS_FRIENDS, quickAccessFriends);
+            this.emit(REALTIME_EVENTS.QUICK_ACCESS_UPDATED, {
+              userId: userId,
+              quickAccessFriends: quickAccessFriends,
+              count: quickAccessFriends.length,
+              timestamp: Date.now(),
+            });
+          }
         }
-      });
+      );
 
       this.activeListeners.set(listenerId, unsubscribe);
       this.log(`✅ Quick Access listener active`);
@@ -451,21 +464,22 @@ class RealTimeManager {
     return {
       ...this.getStatus(),
       debugMode: this.debugMode,
-      subscriberDetails: Array.from(this.subscribers.entries()).map(([event, callbacks]) => ({
-        event,
-        callbackCount: callbacks.size
-      })),
+      subscriberDetails: Array.from(this.subscribers.entries()).map(
+        ([event, callbacks]) => ({
+          event,
+          callbackCount: callbacks.size,
+        })
+      ),
       memoryUsage: {
         subscribers: this.subscribers.size,
         activeListeners: this.activeListeners.size,
         totalCallbacks: Array.from(this.subscribers.values()).reduce(
           (total, set) => total + set.size,
           0
-        )
-      }
+        ),
+      },
     };
   }
-
 
   // =========================
   // CLEANUP
@@ -497,6 +511,81 @@ class RealTimeManager {
       setTimeout(() => {
         this.startListening(userId);
       }, 100); // Small delay to ensure clean restart
+    }
+  }
+
+  // =========================
+  // PRIVACY EVENT EMITTERS
+  // =========================
+
+  /**
+   * Emit schedule privacy change event
+   * @param {string} fromUserId - User who initiated the change
+   * @param {string} affectedUserId - User affected by the change
+   * @param {boolean} scheduleVisibility - New visibility status
+   * @param {string} [friendName] - Optional friend name for enhanced payload
+   */
+  emitSchedulePrivacyChange(
+    fromUserId,
+    affectedUserId,
+    scheduleVisibility,
+    friendName = null
+  ) {
+    // Validate inputs
+    if (!fromUserId || !affectedUserId) {
+      console.error("❌ emitSchedulePrivacyChange: Invalid user IDs:", {
+        fromUserId,
+        affectedUserId,
+      });
+      return;
+    }
+
+    if (fromUserId === affectedUserId) {
+      console.error(
+        "❌ emitSchedulePrivacyChange: Cannot emit privacy change for same user:",
+        fromUserId
+      );
+      return;
+    }
+
+    if (typeof scheduleVisibility !== "boolean") {
+      console.error(
+        "❌ emitSchedulePrivacyChange: scheduleVisibility must be boolean:",
+        scheduleVisibility
+      );
+      return;
+    }
+
+    // Only emit if there are active listeners and we're listening
+    if (
+      !this.isListening ||
+      !this.subscribers.has(REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE)
+    ) {
+      this.log(`⏭️ Skipping privacy change event - no active listeners`);
+      return;
+    }
+
+    try {
+      const eventPayload = {
+        fromUserId,
+        affectedUserId,
+        scheduleVisibility,
+        timestamp: Date.now(),
+        type: "privacy_change",
+        // Enhanced payload for UI components
+        friendName: friendName || "Unknown",
+        action: scheduleVisibility ? "schedule_shown" : "schedule_hidden",
+        description: scheduleVisibility
+          ? `Schedule is now visible to ${friendName || "friend"}`
+          : `Schedule is now hidden from ${friendName || "friend"}`,
+      };
+
+      this.log(
+        `🔐 Emitting privacy change: ${fromUserId} → ${affectedUserId} = ${scheduleVisibility}`
+      );
+      this.emit(REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE, eventPayload);
+    } catch (error) {
+      console.error("❌ Error emitting schedule privacy change event:", error);
     }
   }
 

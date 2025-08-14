@@ -4601,8 +4601,40 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
 function generateAvatar(nameOrUserId) {
   console.log(`🔍 [DEBUG] generateAvatar called with: "${nameOrUserId}"`);
 
-  // Strategy 1: Check HorizontalFriendsBar quickAccessFriends data (most efficient)
-  // This uses the quickAccessData.starredFriends from the database with cached avatarConfig
+  // Strategy 1: Get fresh data directly from HorizontalFriendsBar instance (not cached state!)
+  // This ensures we get the most up-to-date data that includes real-time updates
+  if (
+    state.horizontalFriendsBar &&
+    typeof state.horizontalFriendsBar.getFreshQuickAccessFriends === "function"
+  ) {
+    try {
+      const freshQuickAccessFriends =
+        state.horizontalFriendsBar.getFreshQuickAccessFriends();
+      if (freshQuickAccessFriends) {
+        const friend = freshQuickAccessFriends.find(
+          (f) =>
+            f.userId === nameOrUserId ||
+            f.friendId === nameOrUserId ||
+            f.displayName === nameOrUserId ||
+            f.id === nameOrUserId
+        );
+
+        if (friend && friend.avatarConfig) {
+          const avatarUrl = getAvatarUrl(friend);
+          if (avatarUrl) {
+            console.log(
+              `🎨 [FRESH QUICK ACCESS HIT] Using fresh QuickAccess avatar for ${nameOrUserId}`
+            );
+            return avatarUrl;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error getting fresh QuickAccess data:`, error);
+    }
+  }
+
+  // Fallback: Use cached data only if fresh data is unavailable
   if (
     state.horizontalFriendsBar &&
     state.horizontalFriendsBar.quickAccessFriends
@@ -4616,60 +4648,19 @@ function generateAvatar(nameOrUserId) {
           f.id === nameOrUserId
       );
 
-      console.log(
-        `🔍 [DEBUG] QuickAccess friend match for "${nameOrUserId}":`,
-        {
-          found: !!friend,
-          friendData: friend
-            ? {
-                userId: friend.userId,
-                friendId: friend.friendId,
-                displayName: friend.displayName,
-                hasAvatarConfig: !!friend.avatarConfig,
-                avatarConfig: friend.avatarConfig,
-              }
-            : null,
-        }
-      );
-
       if (friend && friend.avatarConfig) {
         const avatarUrl = getAvatarUrl(friend);
-        console.log(`🔍 [DEBUG] getAvatarUrl result for quickAccess:`, {
-          avatarUrl,
-        });
         if (avatarUrl) {
           console.log(
-            `🎨 [QUICK ACCESS HIT] Using QuickAccess avatar for ${nameOrUserId}`
+            `🎨 [CACHED QUICK ACCESS HIT] Using cached QuickAccess avatar for ${nameOrUserId}`
           );
           return avatarUrl;
         }
       }
     } catch (error) {
-      console.warn(
-        `⚠️ Error accessing HorizontalFriendsBar quickAccess friends:`,
-        error
-      );
+      console.warn(`⚠️ Error accessing cached QuickAccess friends:`, error);
     }
   }
-
-  // Debug: Log what's actually in HorizontalFriendsBar state
-  console.log(`🔍 [DEBUG] HorizontalFriendsBar state structure:`, {
-    hasHorizontalFriendsBar: !!state.horizontalFriendsBar,
-    stateKeys: state.horizontalFriendsBar
-      ? Object.keys(state.horizontalFriendsBar)
-      : [],
-    hasQuickAccessFriends: !!state.horizontalFriendsBar?.quickAccessFriends,
-    quickAccessCount:
-      state.horizontalFriendsBar?.quickAccessFriends?.length || 0,
-    quickAccessSample:
-      state.horizontalFriendsBar?.quickAccessFriends?.slice(0, 2).map((f) => ({
-        userId: f.userId,
-        displayName: f.displayName,
-        hasAvatarConfig: !!f.avatarConfig,
-      })) || [],
-    hasFriends: !!state.horizontalFriendsBar?.friends,
-    friendsCount: state.horizontalFriendsBar?.friends?.length || 0,
-  });
 
   // Strategy 2: Check HorizontalFriendsBar friends array (fallback)
   if (state.horizontalFriendsBar && state.horizontalFriendsBar.friends) {
@@ -5364,6 +5355,7 @@ async function initializeHorizontalFriendsBar() {
     state.horizontalFriendsBar = new HorizontalFriendsBar(
       "horizontal-friends-container"
     );
+
     await state.horizontalFriendsBar.init();
 
     // Set up event listeners for friends bar events

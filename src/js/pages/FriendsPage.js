@@ -348,6 +348,26 @@ class FriendsUI {
       });
     }
 
+    // ⭐ Phase 4.1: Listen for schedule privacy changes
+    if (realTimeManager && realTimeManager.on) {
+      const privacyChangeUnsubscriber = realTimeManager.on(
+        REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE,
+        (privacyEvent) => {
+          console.log(
+            "🔒 Privacy change event received in FriendsPage:",
+            privacyEvent
+          );
+          this.handlePrivacyChange(privacyEvent);
+        }
+      );
+
+      // Store unsubscriber for cleanup
+      if (!this.realTimeSubscriptions) {
+        this.realTimeSubscriptions = [];
+      }
+      this.realTimeSubscriptions.push(privacyChangeUnsubscriber);
+    }
+
     // Start real-time listening in the friends manager
     if (friendsManager.startRealTimeListening) {
       friendsManager.startRealTimeListening();
@@ -1096,46 +1116,51 @@ class FriendsUI {
   }
 
   /**
-   * 🔒 Render schedule access status for friend cards
+   * 🔒 Render enhanced schedule access status for friend cards (Phase 2.3)
    *
-   * BEGINNER EXPLANATION:
-   * This method creates the HTML that shows whether each friend
-   * can see the current user's schedule. It's like a "permission indicator"
-   * that shows:
-   * - Green checkmark = "This friend can see your schedule"
-   * - Red lock = "This friend cannot see your schedule"
+   * ENHANCED EXPLANATION:
+   * This method creates dual privacy indicators showing both sides of the privacy relationship:
+   * 1. "Your Schedule" - Current user's schedule visibility to this friend
+   * 2. "Their Schedule" - Friend's schedule visibility to current user
    *
-   * WHY THIS IS USEFUL:
-   * Users can quickly see which friends have access to their schedule
-   * and which ones don't, helping them understand their privacy settings.
+   * PRIVACY STATES SHOWN:
+   * - Green eye = Schedule is visible/accessible
+   * - Red lock = Schedule is hidden/restricted
+   * - Clear messaging explains why avatars are disabled in quick access
+   *
+   * INTEGRATION WITH PHASE 1.2:
+   * - Connects to quick access disabled avatar logic
+   * - Shows why certain friends can't be viewed in schedule comparison
+   * - Consistent messaging across all privacy components
    *
    * @param {Object} friend - Friend data object
-   * @returns {string} HTML for schedule access indicator
+   * @returns {string} HTML for enhanced dual privacy indicators
    */
   renderScheduleAccessStatus(friend) {
-    // Default to visible for initial render - will be updated by bilateral privacy after render
-    // The FriendOptionsMenu and bilateral privacy indicators will handle the actual state
-    const myScheduleVisible = true; // Optimistic default, updated by bilateral privacy service
+    // Enhanced dual privacy status - shows both directions
+    // Initial state with placeholder that will be updated by bilateral privacy system
 
-    if (myScheduleVisible) {
-      // Default to visible state - will be updated by bilateral privacy after render
-      return `
-        <p class="schedule-access bilateral-privacy my-schedule-visible" 
-           title="Privacy status will be updated by bilateral privacy system">
+    return `
+      <div class="dual-privacy-container">
+        <!-- Current user's schedule visibility to friend -->
+        <div class="schedule-access bilateral-privacy my-schedule-visible privacy-user-to-friend" 
+             title="Your schedule visibility to ${
+               friend.displayName || "this friend"
+             } - will be updated by privacy system">
           <i class="fas fa-eye"></i>
           <span>Your schedule is visible</span>
-        </p>
-      `;
-    } else {
-      // Fallback hidden state - rarely used since we default to visible
-      return `
-        <p class="schedule-access bilateral-privacy my-schedule-hidden"
-           title="Privacy status will be updated by bilateral privacy system">
-          <i class="fas fa-eye-slash"></i>
-          <span>You hid your schedule</span>
-        </p>
-      `;
-    }
+        </div>
+        
+        <!-- Friend's schedule visibility to current user -->
+        <div class="schedule-access bilateral-privacy friend-schedule-visible privacy-friend-to-user" 
+             title="${
+               friend.displayName || "Friend's"
+             } schedule accessibility - will be updated by privacy system">
+          <i class="fas fa-eye"></i>
+          <span>Schedule accessible</span>
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -1207,7 +1232,8 @@ class FriendsUI {
         // Show success notification
         notificationManager.showSystemNotification(
           `Friend request sent to ${studentData.profile?.displayName}`,
-          "success"
+          "success",
+          { duration: 3000 }
         );
 
         // 📋 Let the real-time system handle the button state updates
@@ -1398,19 +1424,65 @@ class FriendsUI {
   }
 
   /**
-   * 📅 Handle viewing friend's schedule
+   * 📅 Handle viewing friend's schedule with privacy-aware checks (Phase 3.2)
    * @param {string} friendId - Friend's user ID
    * @param {string} friendName - Friend's display name
    */
-  handleViewFriendSchedule(friendId, friendName) {
-    console.log(`📅 Viewing schedule for: ${friendName} (ID: ${friendId})`);
-    this.showMessage(
-      `Schedule comparison with ${friendName} coming soon!`,
-      "info"
-    );
+  async handleViewFriendSchedule(friendId, friendName) {
+    try {
+      console.log(
+        `📅 Attempting to view schedule for: ${friendName} (ID: ${friendId})`
+      );
 
-    // TODO: Implement schedule comparison view
-    // This could navigate to a schedule comparison page or open a modal
+      const currentUserData = currentUser;
+      if (!currentUserData?.uid) {
+        console.error("❌ No current user found for privacy checks");
+        notificationManager.showSystemNotification(
+          "Authentication error - please sign in again",
+          "error",
+          { duration: 5000 }
+        );
+        return;
+      }
+
+      // Check privacy status using Phase 1 FriendshipPrivacyService
+      console.log(`🔒 Checking schedule privacy for friend: ${friendId}`);
+      const isRestricted =
+        await friendshipPrivacyService.isQuickAccessRestricted(
+          friendId,
+          currentUserData.uid
+        );
+
+      if (isRestricted) {
+        // Show restriction notification (standardized with HorizontalFriendsBar)
+        console.log(`🔒 Schedule access restricted for ${friendName}`);
+        notificationManager.showPrivacyNotification(
+          friendName,
+          "schedule",
+          "access",
+          { duration: 3000, type: "warning" }
+        );
+      } else {
+        // Allow schedule access (placeholder for now)
+        console.log(`✅ Schedule access allowed for ${friendName}`);
+        this.showMessage(
+          `Schedule comparison with ${friendName} coming soon!`,
+          "info"
+        );
+      }
+    } catch (error) {
+      console.error(
+        `❌ Error checking schedule privacy for ${friendName}:`,
+        error
+      );
+
+      // Graceful fallback for privacy check failures
+      notificationManager.showSystemNotification(
+        "Unable to verify schedule access - please try again",
+        "warning",
+        { duration: 4000 }
+      );
+    }
   }
 
   /**
@@ -1611,6 +1683,24 @@ class FriendsUI {
         if (starButton.disabled) return;
 
         await this.handleQuickAccessToggle(friendId, starButton);
+      }
+
+      // 👥 Friend avatar click handling for schedule viewing (Phase 3.2)
+      if (e.target.closest(".friend-avatar")) {
+        const avatarElement = e.target.closest(".friend-avatar");
+        const friendCard = avatarElement.closest(".friend-card");
+
+        if (friendCard) {
+          const friendId = friendCard.dataset.friendId;
+          const friend = this.currentFriendsData.find((f) => f.id === friendId);
+
+          if (friend && friendId) {
+            console.log(`👥 Friend avatar clicked: ${friend.displayName}`);
+            await this.handleViewFriendSchedule(friendId, friend.displayName);
+          } else {
+            console.warn("⚠️ Friend data not found for avatar click");
+          }
+        }
       }
     });
 
@@ -1885,7 +1975,7 @@ class FriendsUI {
   }
 
   /**
-   * 🎨 Update bilateral privacy indicator in friend card
+   * 🎨 Update enhanced bilateral privacy indicators in friend card (Phase 2.3)
    * @param {string} friendId - Friend's user ID
    * @param {Object} privacyStatus - Bilateral privacy status from FriendshipPrivacyService
    */
@@ -1895,49 +1985,117 @@ class FriendsUI {
     );
 
     if (friendCard && privacyStatus) {
-      const statusElement = friendCard.querySelector(".schedule-access");
-
-      if (statusElement) {
-        // Get bilateral privacy states
-        const myScheduleVisible = privacyStatus.mySchedule?.visible ?? true;
-        const friendScheduleVisible =
-          privacyStatus.friendSchedule?.visible ?? true;
-
-        // Update classes based on bilateral privacy
-        const statusClass = myScheduleVisible
-          ? "my-schedule-visible"
-          : "my-schedule-hidden";
-        statusElement.className = `schedule-access bilateral-privacy ${statusClass}`;
-
-        // Update icon based on user's own schedule visibility
-        const icon = statusElement.querySelector("i");
-        if (icon) {
-          icon.className = myScheduleVisible
-            ? "fas fa-eye"
-            : "fas fa-eye-slash";
-        }
-
-        // Update text with bilateral privacy description
-        const textSpan = statusElement.querySelector("span");
-        if (textSpan) {
-          textSpan.textContent = myScheduleVisible
-            ? "Your schedule is visible"
-            : "You hid your schedule";
-        }
-
-        // Add tooltip showing both privacy states
-        statusElement.title = `Your schedule: ${
-          privacyStatus.mySchedule?.description || "visible"
-        }\nFriend's schedule: ${
-          privacyStatus.friendSchedule?.description || "visible"
-        }`;
-
-        console.log(
-          `🎨 Updated bilateral privacy indicator for ${friendId}:`,
-          privacyStatus
+      // Update user-to-friend privacy indicator
+      const userToFriendElement = friendCard.querySelector(
+        ".privacy-user-to-friend"
+      );
+      if (userToFriendElement) {
+        this.updateSinglePrivacyIndicator(
+          userToFriendElement,
+          privacyStatus.mySchedule,
+          "user",
+          friendId
         );
       }
+
+      // Update friend-to-user privacy indicator
+      const friendToUserElement = friendCard.querySelector(
+        ".privacy-friend-to-user"
+      );
+      if (friendToUserElement) {
+        this.updateSinglePrivacyIndicator(
+          friendToUserElement,
+          privacyStatus.friendSchedule,
+          "friend",
+          friendId
+        );
+      }
+
+      // Update container tooltip with comprehensive privacy status
+      const privacyContainer = friendCard.querySelector(
+        ".dual-privacy-container"
+      );
+      if (privacyContainer) {
+        const friend = this.currentFriendsData.find((f) => f.id === friendId);
+        const friendName = friend?.displayName || "Friend";
+
+        privacyContainer.title =
+          `Privacy Status with ${friendName}:\n` +
+          `• Your Schedule: ${
+            privacyStatus.mySchedule?.description || "visible to them"
+          }\n` +
+          `• Their Schedule: ${
+            privacyStatus.friendSchedule?.description || "accessible to you"
+          }`;
+      }
+
+      console.log(
+        `🎨 Updated enhanced bilateral privacy indicators for ${friendId}:`,
+        privacyStatus
+      );
     }
+  }
+
+  /**
+   * 🎨 Update a single privacy indicator element
+   * @param {HTMLElement} element - The privacy indicator element
+   * @param {Object} privacyState - Privacy state object {visible, description}
+   * @param {string} type - "user" or "friend" to determine messaging
+   * @param {string} friendId - Friend ID for logging
+   * @private
+   */
+  updateSinglePrivacyIndicator(element, privacyState, type, friendId) {
+    if (!element || !privacyState) return;
+
+    const isVisible = privacyState.visible ?? true;
+    const description =
+      privacyState.description || (isVisible ? "visible" : "hidden");
+
+    // Update CSS classes
+    const visibilityClass =
+      type === "user"
+        ? isVisible
+          ? "my-schedule-visible"
+          : "my-schedule-hidden"
+        : isVisible
+        ? "friend-schedule-visible"
+        : "friend-schedule-hidden";
+
+    element.className = `schedule-access bilateral-privacy ${visibilityClass} privacy-${type}-to-${
+      type === "user" ? "friend" : "user"
+    }`;
+
+    // Update icon
+    const icon = element.querySelector("i");
+    if (icon) {
+      icon.className = isVisible ? "fas fa-eye" : "fas fa-lock";
+    }
+
+    // Update text with enhanced messaging
+    const textSpan = element.querySelector("span");
+    if (textSpan) {
+      if (type === "user") {
+        textSpan.textContent = isVisible
+          ? "Your schedule is visible"
+          : "You hid your schedule";
+      } else {
+        textSpan.textContent = isVisible
+          ? "Schedule accessible"
+          : "Schedule access restricted";
+      }
+    }
+
+    // Update individual tooltip
+    element.title =
+      type === "user"
+        ? `Your schedule: ${description}`
+        : `Friend's schedule: ${description}`;
+
+    console.log(
+      `🎨 Updated ${type} privacy indicator for ${friendId}: ${
+        isVisible ? "visible" : "hidden"
+      }`
+    );
   }
 
   /**
@@ -1978,7 +2136,7 @@ class FriendsUI {
 
       try {
         console.log(
-          `🔐 Updating bilateral privacy for friend: ${friendId} (${friend.displayName})`
+          `🔐 Updating enhanced bilateral privacy for friend: ${friendId} (${friend.displayName})`
         );
 
         // Get bilateral privacy status for this friendship
@@ -1988,21 +2146,51 @@ class FriendsUI {
         );
 
         if (privacyStatus) {
-          // Update the friend card with actual bilateral privacy status
+          // Update the friend card with actual bilateral privacy status using enhanced method
           this.updateFriendCardBilateralPrivacyIndicator(
             friendId,
             privacyStatus
           );
-          console.log(`✅ Updated bilateral privacy for ${friend.displayName}`);
+          console.log(
+            `✅ Updated enhanced bilateral privacy for ${friend.displayName}`
+          );
         } else {
           console.warn(
             `⚠️ No privacy status found for friendship: ${currentUserUid} ↔ ${friendId}`
           );
+
+          // Set default privacy states if no status found
+          const defaultPrivacyStatus = {
+            mySchedule: { visible: true, description: "visible to them" },
+            friendSchedule: { visible: true, description: "accessible to you" },
+          };
+
+          this.updateFriendCardBilateralPrivacyIndicator(
+            friendId,
+            defaultPrivacyStatus
+          );
+          console.log(
+            `🔧 Applied default privacy status for ${friend.displayName}`
+          );
         }
       } catch (error) {
         console.warn(
-          `⚠️ Failed to update bilateral privacy for ${friend.displayName}:`,
+          `⚠️ Failed to update enhanced bilateral privacy for ${friend.displayName}:`,
           error
+        );
+
+        // Apply fallback privacy status on error
+        const fallbackPrivacyStatus = {
+          mySchedule: { visible: true, description: "status unknown" },
+          friendSchedule: {
+            visible: false,
+            description: "access restricted (error)",
+          },
+        };
+
+        this.updateFriendCardBilateralPrivacyIndicator(
+          friendId,
+          fallbackPrivacyStatus
         );
       }
     });
@@ -2093,6 +2281,64 @@ class FriendsUI {
       // The main star/unstar actions already show success notifications
     } catch (error) {
       console.error("❌ Error handling real-time Quick Access update:", error);
+    }
+  }
+
+  /**
+   * 🔒 Handle schedule privacy change events (Phase 4.1)
+   * Updates bilateral privacy indicators when friends change their privacy settings
+   * @param {Object} privacyEvent - Privacy change event data
+   */
+  async handlePrivacyChange(privacyEvent) {
+    try {
+      console.log(
+        "🔒 Processing privacy change event in FriendsPage:",
+        privacyEvent
+      );
+
+      // Extract data using the correct field names from the event
+      const { fromUserId, affectedUserId, scheduleVisibility, friendName } =
+        privacyEvent;
+
+      const currentUserUid = currentUser?.user?.uid;
+
+      if (!currentUserUid) {
+        console.log("🔒 No current user - skipping privacy update");
+        return;
+      }
+
+      // Check if this privacy change affects the current user
+      // In bilateral privacy: fromUserId changed their schedule visibility to affectedUserId
+      const isCurrentUserAffected =
+        fromUserId === currentUserUid || // Current user changed their own privacy
+        affectedUserId === currentUserUid; // Privacy change affects current user
+
+      if (!isCurrentUserAffected) {
+        console.log(
+          "🔒 Privacy change doesn't affect current user - skipping update"
+        );
+        return;
+      }
+
+      console.log(
+        `🔒 Current user IS affected by privacy change: ${
+          friendName || "Friend"
+        } ${scheduleVisibility ? "showed" : "hid"} their schedule`
+      );
+
+      // Update bilateral privacy indicators on friend cards
+      if (this.currentFriendsData && this.currentFriendsData.length > 0) {
+        console.log("🔒 Updating friend cards after privacy change...");
+        await this.updateAllFriendCardsBilateralPrivacy(
+          this.currentFriendsData
+        );
+      } else {
+        console.log("🔒 No current friends data to update");
+      }
+
+      console.log("✅ Privacy change processed successfully in FriendsPage");
+    } catch (error) {
+      console.error("❌ Error handling privacy change in FriendsPage:", error);
     }
   }
 

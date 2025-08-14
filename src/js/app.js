@@ -120,6 +120,7 @@ async function initializeSPA() {
   // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
   spaRouter.loadInitialPage();
 
+
   // ── BUG FIX ──
   // Register the profile setup completion listeners so that
   // `profile:setup:complete` and `profile:setup:skip` events
@@ -256,6 +257,7 @@ function updateGlobalUIForPage(route) {
   // You could also update the navigation active states here
   // (though the router already handles this)
 }
+
 
 /**
  * Export navigateTo function for external use instead of window global

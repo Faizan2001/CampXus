@@ -1167,6 +1167,12 @@ body:not(.dark-mode) {
     var(--friends-white-highlight-faint),
     var(--friends-color-transparent)
   );
+  
+  /* Disabled avatar states */
+  --friends-avatar-disabled-bg: rgba(255, 255, 255, 0.02);
+  --friends-avatar-disabled-border: rgba(255, 255, 255, 0.08);
+  --friends-avatar-disabled-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --friends-avatar-disabled-text: rgba(255, 255, 255, 0.3);
 
   /* =================================
      PRIVACY STATUS COMPONENT
@@ -1225,6 +1231,27 @@ body:not(.dark-mode) {
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   --friends-privacy-span-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --friends-privacy-span-backdrop-blur: blur(4px);
+  
+  /* ENHANCED PRIVACY INDICATOR ICONS */
+  /* Privacy Hidden (Lock Icon) */
+  --friends-privacy-hidden-icon-color: #dc2626;
+  --friends-privacy-hidden-icon-bg: rgba(239, 68, 68, 0.15);
+  --friends-privacy-hidden-icon-bg-hover: rgba(239, 68, 68, 0.25);
+  --friends-privacy-hidden-icon-border: rgba(239, 68, 68, 0.3);
+  --friends-privacy-hidden-icon-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
+  --friends-privacy-hidden-icon-shadow-hover: 0 3px 8px rgba(239, 68, 68, 0.25);
+  
+  /* Privacy Visible (Eye Icon) */
+  --friends-privacy-visible-icon-color: #16a34a;
+  --friends-privacy-visible-icon-bg: rgba(34, 197, 94, 0.15);
+  --friends-privacy-visible-icon-bg-hover: rgba(34, 197, 94, 0.25);
+  --friends-privacy-visible-icon-border: rgba(34, 197, 94, 0.3);
+  --friends-privacy-visible-icon-shadow: 0 2px 6px rgba(34, 197, 94, 0.15);
+  --friends-privacy-visible-icon-shadow-hover: 0 3px 8px rgba(34, 197, 94, 0.25);
+  
+  /* Privacy Tooltip */
+  --friends-privacy-tooltip-bg: rgba(0, 0, 0, 0.85);
+  --friends-privacy-tooltip-color: #ffffff;
 
   /* HARDCODED COLOR REPLACEMENTS */
   --friends-schedule-can-see-bg: rgba(34, 197, 94, 0.1);
@@ -1806,6 +1833,12 @@ body.dark-mode {
     var(--friends-white-highlight-faint),
     var(--friends-color-transparent)
   );
+  
+  /* Disabled avatar states (Dark Mode) */
+  --friends-avatar-disabled-bg-dark: rgba(255, 255, 255, 0.01);
+  --friends-avatar-disabled-border-dark: rgba(255, 255, 255, 0.04);
+  --friends-avatar-disabled-shadow-dark: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --friends-avatar-disabled-text-dark: rgba(255, 255, 255, 0.2);
 
   /* Privacy Status Component (Dark Mode) */
   --friends-privacy-visible-bg: linear-gradient(
@@ -1838,6 +1871,10 @@ body.dark-mode {
   --friends-privacy-span-border: 1px solid rgba(255, 255, 255, 0.1);
   --friends-privacy-span-shadow: 0 1px 4px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  
+  /* Privacy Tooltip (Dark Mode) */
+  --friends-privacy-tooltip-bg-dark: rgba(0, 0, 0, 0.9);
+  --friends-privacy-tooltip-color-dark: #f3f4f6;
 
   /* Hardcoded Color Replacements (Dark Mode) */
   --friends-schedule-can-see-bg: rgba(34, 197, 94, 0.15);

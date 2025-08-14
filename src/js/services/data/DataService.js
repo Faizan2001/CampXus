@@ -28,6 +28,9 @@
  *   // Get just the minimal info for a dropdown:
  *   const mini = await dataManager.getUserProfileMinimal(userId);
  *
+ *   // Unfriend a user (automatically removes from QuickAccess):
+ *   await dataManager.deleteFriendship(friendshipId);
+ *
  *   // Save a user's schedule:
  *   await dataManager.saveUserSchedule(userId, scheduleData);
  *
@@ -66,6 +69,7 @@ import {
   writeBatch, // ← Added for batch operations
 } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
+import { auth } from "../../lib/firebase/firebase-config.js";
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
 import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 
@@ -131,7 +135,7 @@ class DataManager {
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
     this.maxCacheSize = 100; // Maximum number of cached items
     this.lastSyncTime = null;
-    
+
     // Performance optimizations
     this.syncDebounceMap = new Map(); // userId -> timeout
     this.quickAccessUpdateInProgress = new Set(); // Track ongoing Quick Access updates
@@ -306,7 +310,7 @@ class DataManager {
     this.cache.clear();
     console.log("🧹 Cache cleared.");
   }
-  
+
   /**
    * ⚡ Debounced cache sync to prevent excessive operations
    * @param {string} userId - User ID to sync cache for
@@ -316,7 +320,7 @@ class DataManager {
     if (this.syncDebounceMap.has(userId)) {
       clearTimeout(this.syncDebounceMap.get(userId));
     }
-    
+
     // Set new timeout
     const timeoutId = setTimeout(() => {
       syncUserDataCache(userId).catch((error) =>
@@ -324,7 +328,7 @@ class DataManager {
       );
       this.syncDebounceMap.delete(userId);
     }, 1000); // 1 second debounce
-    
+
     this.syncDebounceMap.set(userId, timeoutId);
     console.log(`⏱️ Debounced cache sync for user: ${userId}`);
   }
@@ -1869,10 +1873,94 @@ class DataManager {
     try {
       console.log(`💔 Deleting friendship: ${friendshipId}`);
 
+      // First, get the friendship document to extract user IDs
       const friendshipRef = doc(db, "friendships", friendshipId);
+      const friendshipDoc = await getDoc(friendshipRef);
+
+      if (!friendshipDoc.exists()) {
+        console.warn(`⚠️ Friendship document not found: ${friendshipId}`);
+        return { success: false, error: "Friendship not found" };
+      }
+
+      const friendshipData = friendshipDoc.data();
+      const user1Id = friendshipData.user1Id;
+      const user2Id = friendshipData.user2Id;
+
+      if (!user1Id || !user2Id) {
+        console.error(
+          "❌ Invalid friendship document structure - missing user IDs"
+        );
+        return {
+          success: false,
+          error: "Invalid friendship document structure",
+        };
+      }
+
+      console.log(
+        `💔 Removing friendship between users: ${user1Id} and ${user2Id}`
+      );
+
+      // Delete the friendship document
       await deleteDoc(friendshipRef);
 
-      console.log("✅ Friendship deleted successfully");
+      // Remove both users from each other's QuickAccess (starred friends)
+      // This ensures they no longer appear in the horizontal friends bar
+      console.log("⭐ Cleaning up QuickAccess for both users...");
+
+      try {
+        // Remove user2 from user1's QuickAccess
+        const removeFromUser1Result = await this.removeFromQuickAccess(
+          user1Id,
+          user2Id
+        );
+        if (removeFromUser1Result.success) {
+          console.log(`✅ Removed ${user2Id} from ${user1Id}'s QuickAccess`);
+        } else {
+          console.warn(
+            `⚠️ Failed to remove ${user2Id} from ${user1Id}'s QuickAccess: ${removeFromUser1Result.error}`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Error removing ${user2Id} from ${user1Id}'s QuickAccess:`,
+          error
+        );
+      }
+
+      try {
+        // Remove user1 from user2's QuickAccess
+        const removeFromUser2Result = await this.removeFromQuickAccess(
+          user2Id,
+          user1Id
+        );
+        if (removeFromUser2Result.success) {
+          console.log(`✅ Removed ${user1Id} from ${user2Id}'s QuickAccess`);
+        } else {
+          console.warn(
+            `⚠️ Failed to remove ${user1Id} from ${user2Id}'s QuickAccess: ${removeFromUser2Result.error}`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Error removing ${user1Id} from ${user2Id}'s QuickAccess:`,
+          error
+        );
+      }
+
+      console.log(
+        "✅ Friendship deleted successfully and QuickAccess cleaned up"
+      );
+
+      // Clear friendship privacy cache to ensure UI updates properly
+      try {
+        const { friendshipPrivacyService } = await import(
+          "../friends/FriendshipPrivacyService.js"
+        );
+        friendshipPrivacyService.clearFriendshipCache(user1Id, user2Id);
+      } catch (error) {
+        console.warn("⚠️ Failed to clear friendship privacy cache:", error);
+      }
+
       return { success: true };
     } catch (error) {
       console.error("❌ Error deleting friendship:", error);
@@ -2412,39 +2500,46 @@ class DataManager {
             const now = Date.now();
             const lastProcessTime = this.profileChangeThrottle.get(userId) || 0;
             const throttleDelay = 3000; // 3 seconds
-            
+
             if (now - lastProcessTime < throttleDelay) {
-              console.log(`⏱️ Throttling profile change for ${userId} (too frequent)`);
+              console.log(
+                `⏱️ Throttling profile change for ${userId} (too frequent)`
+              );
               // Update cache but skip processing
               this.setCachedData(`user_${userId}`, profileData);
               callback(profileData);
               return;
             }
-            
+
             this.profileChangeThrottle.set(userId, now);
             console.log(`👤 Real-time update: Profile changed for ${userId}`);
 
             // 🔄 Skip cache sync if this is a Quick Access update to prevent cascading
-            const isQuickAccessUpdate = this.quickAccessUpdateInProgress.has(userId);
-            
+            const isQuickAccessUpdate =
+              this.quickAccessUpdateInProgress.has(userId);
+
             // 🔄 Compare with previous cached data to avoid unnecessary syncs
             const cachedData = this.getCachedData(`user_${userId}`);
             const hasSignificantChange =
-              !isQuickAccessUpdate && (
-                !cachedData ||
+              !isQuickAccessUpdate &&
+              (!cachedData ||
                 JSON.stringify(cachedData.avatarConfig) !==
                   JSON.stringify(profileData.avatarConfig) ||
                 cachedData.profile?.displayName !==
                   profileData.profile?.displayName ||
-                cachedData.profile?.major !== profileData.profile?.major
-              );
+                cachedData.profile?.major !== profileData.profile?.major);
 
             // Update local cache with fresh data
             this.setCachedData(`user_${userId}`, profileData);
 
-            if (hasSignificantChange) {
+            // 🔒 SECURITY: Only sync cache for the current user's own profile changes
+            const currentUser = auth.currentUser;
+            const isCurrentUserProfile =
+              currentUser && userId === currentUser.uid;
+
+            if (hasSignificantChange && isCurrentUserProfile) {
               console.log(
-                "🎨 Significant profile change detected, syncing cached data for friends..."
+                "🎨 Significant profile change detected for current user, syncing cached data..."
               );
 
               // Clear any avatar cache in friends manager to force fresh data
@@ -2461,8 +2556,14 @@ class DataManager {
 
               // Debounce cache sync to prevent excessive operations
               this.debounceCacheSync(userId);
+            } else if (hasSignificantChange && !isCurrentUserProfile) {
+              console.log(
+                `🔒 Profile change detected for ${userId}, but skipping cache sync (not current user)`
+              );
             } else if (isQuickAccessUpdate) {
-              console.log("⭐ Skipping cache sync for Quick Access update to prevent cascading");
+              console.log(
+                "⭐ Skipping cache sync for Quick Access update to prevent cascading"
+              );
             }
 
             // Call the callback with the fresh profile data
@@ -2513,7 +2614,10 @@ class DataManager {
         throw new Error("Cannot update Quick Access while offline");
       }
 
-      console.log("⭐ [DataManager] Adding to Quick Access:", quickAccessEntry.displayName);
+      console.log(
+        "⭐ [DataManager] Adding to Quick Access:",
+        quickAccessEntry.displayName
+      );
 
       // First, get current user data to check if quickAccessData exists
       const userDocRef = doc(db, "users", userId);
@@ -2525,11 +2629,11 @@ class DataManager {
 
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
-      const friends = currentQuickAccess.friends || [];
+      const friends = currentQuickAccess.starredFriends || [];
 
       // Check if friend is already in Quick Access (prevent duplicates)
       const existingIndex = friends.findIndex(
-        friend => friend.friendId === quickAccessEntry.friendId
+        (friend) => friend.friendId === quickAccessEntry.friendId
       );
 
       let updatedFriends;
@@ -2538,7 +2642,7 @@ class DataManager {
         updatedFriends = [...friends];
         updatedFriends[existingIndex] = {
           ...updatedFriends[existingIndex],
-          lastInteraction: quickAccessEntry.lastInteraction
+          lastInteraction: quickAccessEntry.lastInteraction,
         };
       } else {
         // Add new entry to the beginning (recent-first)
@@ -2547,15 +2651,15 @@ class DataManager {
 
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
-      
+
       // Update the user document with enhanced Quick Access data
       // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
       await updateDoc(userDocRef, {
-        "quickAccessData.friends": updatedFriends,
+        "quickAccessData.starredFriends": updatedFriends,
         "quickAccessData.totalStarred": updatedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
-      
+
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
         this.quickAccessUpdateInProgress.delete(userId);
@@ -2597,24 +2701,24 @@ class DataManager {
 
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
-      const friends = currentQuickAccess.friends || [];
+      const friends = currentQuickAccess.starredFriends || [];
 
       // Filter out the friend to remove
       const updatedFriends = friends.filter(
-        friend => friend.friendId !== friendId
+        (friend) => friend.friendId !== friendId
       );
 
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
-      
+
       // Update the user document
       // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
       await updateDoc(userDocRef, {
-        "quickAccessData.friends": updatedFriends,
+        "quickAccessData.starredFriends": updatedFriends,
         "quickAccessData.totalStarred": updatedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
-      
+
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
         this.quickAccessUpdateInProgress.delete(userId);
@@ -2623,7 +2727,10 @@ class DataManager {
       console.log("✅ [DataManager] Successfully removed from Quick Access");
       return { success: true };
     } catch (error) {
-      console.error("❌ [DataManager] Error removing from Quick Access:", error);
+      console.error(
+        "❌ [DataManager] Error removing from Quick Access:",
+        error
+      );
       return { success: false, error: error.message };
     }
   }
@@ -2660,18 +2767,25 @@ class DataManager {
 
       const userData = userDoc.data();
       const quickAccessData = userData.quickAccessData || {
-        friends: [],
+        starredFriends: [],
         totalStarred: 0,
-        lastUpdated: null
+        lastUpdated: null,
       };
 
       // Cache the result
       this.setCachedData(cacheKey, quickAccessData);
 
-      console.log(`✅ [DataManager] Found ${quickAccessData.friends?.length || 0} Quick Access friends`);
+      console.log(
+        `✅ [DataManager] Found ${
+          quickAccessData.starredFriends?.length || 0
+        } Quick Access friends`
+      );
       return quickAccessData;
     } catch (error) {
-      console.error("❌ [DataManager] Error getting Quick Access friends:", error);
+      console.error(
+        "❌ [DataManager] Error getting Quick Access friends:",
+        error
+      );
       return null;
     }
   }
@@ -2693,7 +2807,10 @@ class DataManager {
         throw new Error("Cannot update Quick Access while offline");
       }
 
-      console.log("🔄 [DataManager] Updating Quick Access order for:", friendId);
+      console.log(
+        "🔄 [DataManager] Updating Quick Access order for:",
+        friendId
+      );
 
       // Get current user data
       const userDocRef = doc(db, "users", userId);
@@ -2708,11 +2825,11 @@ class DataManager {
       const starredFriends = currentQuickAccess.starredFriends || [];
 
       // Find and update the friend's last interaction timestamp
-      const updatedStarredFriends = starredFriends.map(friend => {
+      const updatedStarredFriends = starredFriends.map((friend) => {
         if (friend.userId === friendId) {
           return {
             ...friend,
-            lastInteraction: newTimestamp
+            lastInteraction: newTimestamp,
           };
         }
         return friend;
@@ -2720,8 +2837,12 @@ class DataManager {
 
       // Sort by recent-first (most recent interaction first)
       updatedStarredFriends.sort((a, b) => {
-        const dateA = a.lastInteraction?.toDate?.() || new Date(a.lastInteraction || a.starredAt);
-        const dateB = b.lastInteraction?.toDate?.() || new Date(b.lastInteraction || b.starredAt);
+        const dateA =
+          a.lastInteraction?.toDate?.() ||
+          new Date(a.lastInteraction || a.starredAt);
+        const dateB =
+          b.lastInteraction?.toDate?.() ||
+          new Date(b.lastInteraction || b.starredAt);
         return dateB - dateA;
       });
 
@@ -2738,8 +2859,197 @@ class DataManager {
       console.log("✅ [DataManager] Successfully updated Quick Access order");
       return { success: true };
     } catch (error) {
-      console.error("❌ [DataManager] Error updating Quick Access order:", error);
+      console.error(
+        "❌ [DataManager] Error updating Quick Access order:",
+        error
+      );
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Refresh cached data for a specific starred friend in user's QuickAccess
+   * This updates displayName, major, and avatarConfig while preserving user-specific data
+   * @param {string} userId - The user whose QuickAccess needs updating
+   * @param {string} friendId - The friend whose data needs refreshing
+   * @returns {Promise<Object>} Success status and updated friend data
+   */
+  async refreshStarredFriendData(userId, friendId) {
+    try {
+      if (!userId || !friendId) {
+        throw new Error("Invalid userId or friendId");
+      }
+
+      console.log(
+        `🔄 [DataManager] Refreshing starred friend data for user ${userId}, friend ${friendId}`
+      );
+
+      // Get both user documents in parallel
+      const [userDoc, friendDoc] = await Promise.all([
+        getDoc(doc(db, "users", userId)),
+        getDoc(doc(db, "users", friendId)),
+      ]);
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found");
+      }
+
+      if (!friendDoc.exists()) {
+        console.warn(
+          `⚠️ Friend document ${friendId} not found - may have been deleted`
+        );
+        return { success: false, error: "Friend not found" };
+      }
+
+      const userData = userDoc.data();
+      const friendData = friendDoc.data();
+      const currentQuickAccess = userData.quickAccessData || {};
+      const starredFriends = currentQuickAccess.starredFriends || [];
+
+      // Find the starred friend to update
+      const friendIndex = starredFriends.findIndex(
+        (friend) => friend.userId === friendId
+      );
+
+      if (friendIndex === -1) {
+        console.log(
+          `ℹ️ Friend ${friendId} not found in user ${userId}'s starred friends`
+        );
+        return { success: false, error: "Friend not starred" };
+      }
+
+      // Create updated friend data - preserve user-specific fields, update cached profile fields
+      const existingFriend = starredFriends[friendIndex];
+      const updatedFriend = {
+        ...existingFriend, // Preserve starredAt, lastInteraction, etc.
+        // Update cached fields with fresh data from friend's profile
+        displayName:
+          friendData.profile?.displayName || existingFriend.displayName,
+        major: friendData.profile?.major || existingFriend.major,
+        avatarConfig: friendData.avatarConfig || existingFriend.avatarConfig,
+        // Add update timestamp to track freshness
+        lastProfileSync: serverTimestamp(),
+      };
+
+      // Update the starred friends array
+      const updatedStarredFriends = [...starredFriends];
+      updatedStarredFriends[friendIndex] = updatedFriend;
+
+      // Update the user document
+      await updateDoc(doc(db, "users", userId), {
+        "quickAccessData.starredFriends": updatedStarredFriends,
+        "quickAccessData.lastUpdated": serverTimestamp(),
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
+
+      // Clear cache to force refresh
+      this.clearCachedData(`quick_access_${userId}`);
+
+      console.log(
+        `✅ [DataManager] Successfully refreshed friend data for ${friendData.profile?.displayName}`
+      );
+
+      return {
+        success: true,
+        updatedFriend: updatedFriend,
+        friendData: {
+          displayName: friendData.profile?.displayName,
+          major: friendData.profile?.major,
+          avatarConfig: friendData.avatarConfig,
+        },
+      };
+    } catch (error) {
+      console.error(
+        "❌ [DataManager] Error refreshing starred friend data:",
+        error
+      );
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Simple refresh of starred friends with fresh profile data
+   * @param {string} userId - The user's ID
+   * @returns {Promise<{success: boolean, updated: number}>}
+   */
+  async refreshStarredFriendsProfiles(userId) {
+    try {
+      if (!userId) {
+        return { success: false, updated: 0 };
+      }
+
+      console.log(
+        `🔄 [DataManager] Refreshing starred friends profiles for ${userId}`
+      );
+
+      // Get current starred friends
+      const userDoc = await getDoc(doc(db, "users", userId));
+      if (!userDoc.exists()) {
+        return { success: false, updated: 0 };
+      }
+
+      const currentStarredFriends =
+        userDoc.data().quickAccessData?.starredFriends || [];
+      if (currentStarredFriends.length === 0) {
+        console.log("ℹ️ No starred friends to refresh");
+        return { success: true, updated: 0 };
+      }
+
+      // Fetch fresh profile data for all starred friends
+      const friendIds = currentStarredFriends.map(
+        (f) => f.friendId || f.userId
+      );
+      const freshProfileDocs = await Promise.all(
+        friendIds.map((friendId) => getDoc(doc(db, "users", friendId)))
+      );
+
+      // Update starred friends with fresh data
+      const updatedStarredFriends = currentStarredFriends.map(
+        (existingFriend, index) => {
+          const freshDoc = freshProfileDocs[index];
+          if (!freshDoc.exists()) {
+            return existingFriend; // Keep existing if friend not found
+          }
+
+          const freshData = freshDoc.data();
+          return {
+            ...existingFriend, // Keep starredAt, lastInteraction
+            displayName:
+              freshData.profile?.displayName || existingFriend.displayName,
+            major: freshData.profile?.major || existingFriend.major,
+            avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
+          };
+        }
+      );
+
+      // Update database
+      await updateDoc(doc(db, "users", userId), {
+        "quickAccessData.starredFriends": updatedStarredFriends,
+        "quickAccessData.lastUpdated": serverTimestamp(),
+      });
+
+      // Clear relevant caches to force fresh data on next access
+      const cacheKey = `quick_access_${userId}`;
+      this.cache.delete(cacheKey);
+
+      // Clear FriendsService cache if it exists
+      if (typeof window !== "undefined" && window.friendsManager) {
+        const cacheKey = `quick_access_${userId}`;
+        if (typeof window.friendsManager.clearCached === "function") {
+          window.friendsManager.clearCached(cacheKey);
+        }
+      }
+
+      console.log(
+        `✅ [DataManager] Refreshed ${updatedStarredFriends.length} starred friends`
+      );
+      return { success: true, updated: updatedStarredFriends.length };
+    } catch (error) {
+      console.error(
+        "❌ [DataManager] Error refreshing starred friends:",
+        error
+      );
+      return { success: false, updated: 0 };
     }
   }
 }
@@ -2972,6 +3282,21 @@ if (typeof window !== "undefined") {
 export async function syncUserDataCache(userId, customUserInfo = null) {
   try {
     console.log("🔄 Synchronizing user data cache for:", userId);
+
+    // 🔒 SECURITY: Only sync cache for the current authenticated user
+    // Other users' profile changes should not trigger cache sync operations
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.warn("⚠️ No authenticated user, skipping cache sync");
+      return;
+    }
+
+    if (userId !== currentUser.uid) {
+      console.log(
+        `🔒 Skipping cache sync for ${userId} - only current user (${currentUser.uid}) can sync their own cache`
+      );
+      return;
+    }
 
     let userInfoForCache;
 

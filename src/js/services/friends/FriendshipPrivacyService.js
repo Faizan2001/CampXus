@@ -31,12 +31,20 @@ import {
   validateFriendshipDocument,
   PRIVACY_DEFAULTS,
 } from "../../utils/friendship-utils.js";
+import { realTimeManager } from "../realtime/RealtimeService.js";
 
 class FriendshipPrivacyService {
   constructor() {
     this.cache = new Map(); // Cache friendship documents for performance
+    this.quickAccessCache = new Map(); // Cache quick access status for performance
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache expiry
     this.pendingOperations = new Set(); // Track pending operations
+
+    // Simple memory management
+    this.maxCacheSize = 100; // Simple cache limit
+    this.maxQuickAccessCacheSize = 200; // Simple cache limit
+    this.operationTimeout = 30 * 1000; // 30 second timeout for pending operations
+    this.pendingOperationTimers = new Map(); // Track operation timeouts
   }
 
   /**
@@ -94,7 +102,11 @@ class FriendshipPrivacyService {
           return null;
         }
 
-        // Cache the result
+        // Cache the result with simple size limit
+        if (this.cache.size >= this.maxCacheSize) {
+          const oldestKey = this.cache.keys().next().value;
+          this.cache.delete(oldestKey);
+        }
         this.cache.set(friendshipId, {
           data: friendshipDoc,
           timestamp: Date.now(),
@@ -250,6 +262,11 @@ class FriendshipPrivacyService {
 
     this.pendingOperations.add(operationKey);
 
+    // Simple timeout to prevent memory leaks
+    const timeoutId = setTimeout(() => {
+      this.pendingOperations.delete(operationKey);
+    }, this.operationTimeout);
+
     try {
       console.log(
         `🔐 Updating schedule visibility: ${userUid} → ${friendUid} = ${isVisible}`
@@ -302,8 +319,28 @@ class FriendshipPrivacyService {
       });
 
       if (success) {
-        // Invalidate cache after successful transaction
+        // Invalidate caches after successful transaction
         this.cache.delete(friendshipId);
+
+        // Invalidate quick access cache for both directions
+        this.quickAccessCache.delete(`${userUid}_${friendUid}_quickaccess`);
+        this.quickAccessCache.delete(`${friendUid}_${userUid}_quickaccess`);
+
+        // Emit real-time privacy change event after successful update
+        try {
+          realTimeManager.emitSchedulePrivacyChange(
+            userUid, // User who made the change
+            friendUid, // Friend affected by the change
+            isVisible, // New visibility status
+            friendName // Friend's name for enhanced payload
+          );
+          console.log(
+            `🔐 Privacy change event emitted: ${userUid} → ${friendUid} = ${isVisible}`
+          );
+        } catch (eventError) {
+          // Don't fail the transaction if event emission fails
+          console.error("❌ Failed to emit privacy change event:", eventError);
+        }
 
         // Log success without showing notification
         console.log(
@@ -322,6 +359,7 @@ class FriendshipPrivacyService {
       return false;
     } finally {
       this.pendingOperations.delete(operationKey);
+      clearTimeout(timeoutId);
     }
   }
 
@@ -354,8 +392,13 @@ class FriendshipPrivacyService {
           batch.update(docRef, updateData);
           updated++;
 
-          // Invalidate cache
+          // Invalidate caches
           this.cache.delete(friendshipId);
+
+          // Invalidate quick access cache for this friendship
+          const [user1Id, user2Id] = friendshipId.split("_");
+          this.quickAccessCache.delete(`${user1Id}_${user2Id}_quickaccess`);
+          this.quickAccessCache.delete(`${user2Id}_${user1Id}_quickaccess`);
         } catch (error) {
           errors.push(`${friendshipId}: ${error.message}`);
         }
@@ -363,6 +406,50 @@ class FriendshipPrivacyService {
 
       // Commit batch
       await batch.commit();
+
+      // Emit privacy change events for successful batch operation
+      try {
+        // Get friend information for event emission
+        const friendshipIds = await this.getUserFriendshipIds(userUid);
+
+        for (const friendshipId of friendshipIds) {
+          try {
+            const [user1Id, user2Id] = friendshipId.split("_");
+            const friendUid = user1Id === userUid ? user2Id : user1Id;
+
+            // Get friendship document to extract friend name
+            const friendshipDoc = await this.getFriendshipDocument(
+              userUid,
+              friendUid
+            );
+            if (friendshipDoc) {
+              const friendName =
+                friendshipDoc.user1Id === userUid
+                  ? friendshipDoc.user2Info.displayName
+                  : friendshipDoc.user1Info.displayName;
+
+              realTimeManager.emitSchedulePrivacyChange(
+                userUid, // User who made the change
+                friendUid, // Friend affected by the change
+                isVisible, // New visibility status
+                friendName // Friend's name for enhanced payload
+              );
+            }
+          } catch (eventError) {
+            console.error(
+              `❌ Failed to emit privacy change event for friendship ${friendshipId}:`,
+              eventError
+            );
+          }
+        }
+        console.log(`🔐 Privacy change events emitted for ${updated} friends`);
+      } catch (eventError) {
+        // Don't fail the batch operation if event emission fails
+        console.error(
+          "❌ Failed to emit privacy change events for batch update:",
+          eventError
+        );
+      }
 
       // Log success instead of showing notification
       const action = isVisible ? "visible" : "hidden";
@@ -512,21 +599,218 @@ class FriendshipPrivacyService {
   }
 
   /**
-   * Clear cache (useful for testing or debugging)
+   * Simple cache clearing
    */
   clearCache() {
+    const friendshipCacheSize = this.cache.size;
+    const quickAccessCacheSize = this.quickAccessCache.size;
+
     this.cache.clear();
+    this.quickAccessCache.clear();
+
+    console.log(
+      `🧹 Privacy cache cleared: ${friendshipCacheSize} friendship + ${quickAccessCacheSize} quick access entries`
+    );
   }
 
   /**
-   * Get cache statistics (for debugging)
+   * Simple cache statistics
    */
   getCacheStats() {
     return {
-      size: this.cache.size,
-      entries: Array.from(this.cache.keys()),
+      friendshipCache: {
+        size: this.cache.size,
+        maxSize: this.maxCacheSize,
+        entries: Array.from(this.cache.keys()),
+      },
+      quickAccessCache: {
+        size: this.quickAccessCache.size,
+        maxSize: this.maxQuickAccessCacheSize,
+        entries: Array.from(this.quickAccessCache.keys()),
+      },
       pendingOperations: Array.from(this.pendingOperations),
+      cacheExpiry: this.cacheExpiry,
     };
+  }
+
+  /**
+   * Check if quick access should be restricted for a user's avatar in friend's quick access bar
+   * Phase 1.1 Enhancement: Privacy-Aware Quick Access
+   *
+   * Logic: If User1's schedule is hidden from User2, then User1's avatar should be disabled
+   * in User2's quick access bar (returns true = restricted)
+   *
+   * @param {string} userUid - User whose avatar is being displayed in quick access
+   * @param {string} friendUid - Friend viewing the quick access bar
+   * @returns {boolean} True if quick access should be restricted (avatar disabled), false if allowed
+   */
+  async isQuickAccessRestricted(userUid, friendUid) {
+    // Add input validation
+    if (!userUid || !friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.isQuickAccessRestricted: Invalid user IDs:",
+        { userUid, friendUid }
+      );
+      return true; // Default to restricted on error for security
+    }
+
+    if (userUid === friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.isQuickAccessRestricted: Cannot check quick access with same user:",
+        userUid
+      );
+      return true; // Default to restricted for same user
+    }
+
+    try {
+      console.log(
+        `🔐 Checking quick access restriction: ${userUid} avatar for ${friendUid}`
+      );
+
+      // Check schedule visibility using existing caching and error handling
+      const isScheduleVisible = await this.isScheduleVisible(
+        userUid,
+        friendUid
+      );
+
+      // If schedule is hidden, quick access should be restricted
+      const isRestricted = !isScheduleVisible;
+
+      console.log(
+        `✅ Quick access restriction result: ${userUid} → ${friendUid} = ${
+          isRestricted ? "RESTRICTED" : "ALLOWED"
+        }`
+      );
+
+      return isRestricted;
+    } catch (error) {
+      console.error("❌ Error checking quick access restriction:", error);
+      // Default to restricted on error for security
+      return true;
+    }
+  }
+
+  /**
+   * Get detailed quick access status for UI components
+   * Phase 1.1 Enhancement: Privacy-Aware Quick Access
+   *
+   * @param {string} userUid - User whose avatar is being displayed
+   * @param {string} friendUid - Friend viewing the quick access bar
+   * @returns {Object|null} Detailed status for UI display or null if friendship not found
+   */
+  async getQuickAccessStatus(userUid, friendUid) {
+    // Add input validation
+    if (!userUid || !friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.getQuickAccessStatus: Invalid user IDs:",
+        { userUid, friendUid }
+      );
+      return null;
+    }
+
+    if (userUid === friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.getQuickAccessStatus: Cannot get quick access status with same user:",
+        userUid
+      );
+      return null;
+    }
+
+    try {
+      const quickAccessCacheKey = `${userUid}_${friendUid}_quickaccess`;
+
+      // Check quick access cache first
+      const cached = this.quickAccessCache.get(quickAccessCacheKey);
+      if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+        console.log(
+          `📋 Quick access status from cache: ${userUid} → ${friendUid}`
+        );
+        return cached.data;
+      }
+
+      console.log(`🔐 Getting quick access status: ${userUid} → ${friendUid}`);
+
+      const friendshipDoc = await this.getFriendshipDocument(
+        userUid,
+        friendUid
+      );
+
+      if (!friendshipDoc) {
+        console.log(
+          `⚠️ No friendship found for quick access status: ${userUid} ↔ ${friendUid}`
+        );
+        return null;
+      }
+
+      // Get schedule visibility status
+      const isScheduleVisible = isScheduleVisibleToFriend(
+        friendshipDoc,
+        userUid
+      );
+      const isQuickAccessRestricted = !isScheduleVisible;
+
+      // Get user info for display
+      const userInfo =
+        friendshipDoc.user1Id === userUid
+          ? friendshipDoc.user1Info
+          : friendshipDoc.user2Info;
+
+      const quickAccessStatus = {
+        // Core status flags
+        scheduleVisible: isScheduleVisible,
+        quickAccessRestricted: isQuickAccessRestricted,
+
+        // User information
+        userInfo: {
+          displayName: userInfo.displayName,
+          major: userInfo.major,
+          avatarConfig: userInfo.avatarConfig,
+        },
+
+        // UI-friendly descriptions
+        quickAccess: {
+          status: isQuickAccessRestricted ? "restricted" : "allowed",
+          avatarEnabled: !isQuickAccessRestricted,
+          description: isQuickAccessRestricted
+            ? `${userInfo.displayName} has hidden their schedule from you`
+            : `${userInfo.displayName}'s schedule is visible - quick access enabled`,
+          tooltip: isQuickAccessRestricted
+            ? "Avatar disabled - schedule is private"
+            : "Click to view schedule",
+        },
+
+        // Schedule visibility status (for compatibility with existing UI)
+        schedule: {
+          visible: isScheduleVisible,
+          status: isScheduleVisible ? "visible" : "hidden",
+          description: isScheduleVisible
+            ? `${userInfo.displayName}'s schedule is visible to you`
+            : `${userInfo.displayName} has hidden their schedule from you`,
+        },
+
+        // Metadata
+        lastUpdated:
+          friendshipDoc.privacyMetadata?.lastPrivacyUpdate ||
+          friendshipDoc.createdAt,
+        privacyVersion: friendshipDoc.privacyMetadata?.privacyVersion || 1,
+      };
+
+      // Cache the quick access status with simple size limit
+      if (this.quickAccessCache.size >= this.maxQuickAccessCacheSize) {
+        const oldestKey = this.quickAccessCache.keys().next().value;
+        this.quickAccessCache.delete(oldestKey);
+      }
+      this.quickAccessCache.set(quickAccessCacheKey, {
+        data: quickAccessStatus,
+        timestamp: Date.now(),
+      });
+
+      console.log(`✅ Quick access status retrieved:`, quickAccessStatus);
+      return quickAccessStatus;
+    } catch (error) {
+      console.error("❌ Error getting quick access status:", error);
+      return null;
+    }
   }
 
   /**
@@ -555,7 +839,110 @@ class FriendshipPrivacyService {
       newVisibility
     );
 
+    // The updateScheduleVisibility method already emits the privacy change event
+    // so we don't need to emit it again here
+
     return success ? newVisibility : currentlyVisible;
+  }
+
+  /**
+   * Simple batch privacy status checks for multiple friends
+   */
+  async batchGetPrivacyStatus(currentUserUid, friendUids) {
+    if (!Array.isArray(friendUids) || friendUids.length === 0) {
+      return {};
+    }
+
+    const results = {};
+    const cacheMisses = [];
+
+    // Check cache first
+    for (const friendUid of friendUids) {
+      const cacheKey = `${currentUserUid}_${friendUid}_quickaccess`;
+      const cached = this.quickAccessCache.get(cacheKey);
+
+      if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+        results[friendUid] = cached.data;
+      } else {
+        cacheMisses.push(friendUid);
+      }
+    }
+
+    // Fetch missing entries
+    const fetchPromises = cacheMisses.map((friendUid) =>
+      this.getQuickAccessStatus(currentUserUid, friendUid)
+        .then((status) => ({ friendUid, status }))
+        .catch((error) => {
+          console.error(
+            `Failed to get privacy status for ${friendUid}:`,
+            error
+          );
+          return { friendUid, status: null };
+        })
+    );
+
+    const fetchedResults = await Promise.all(fetchPromises);
+
+    // Merge results
+    fetchedResults.forEach(({ friendUid, status }) => {
+      if (status) {
+        results[friendUid] = status;
+      }
+    });
+
+    console.log(
+      `📊 Batch privacy check: ${friendUids.length} users, ${cacheMisses.length} cache misses`
+    );
+    return results;
+  }
+
+  /**
+   * Clear caches for a specific friendship (used when unfriending)
+   * @param {string} userId1 - First user ID
+   * @param {string} userId2 - Second user ID
+   */
+  clearFriendshipCache(userId1, userId2) {
+    if (!userId1 || !userId2) {
+      console.error("❌ Cannot clear friendship cache: Invalid user IDs");
+      return;
+    }
+
+    const friendshipId = getFriendshipId(userId1, userId2);
+
+    // Clear friendship document cache
+    this.cache.delete(friendshipId);
+
+    // Clear quick access cache for both directions
+    this.quickAccessCache.delete(`${userId1}_${userId2}_quickaccess`);
+    this.quickAccessCache.delete(`${userId2}_${userId1}_quickaccess`);
+
+    console.log(`🧹 Cleared friendship cache for: ${userId1} ↔ ${userId2}`);
+  }
+
+  /**
+   * Simple cleanup method
+   */
+  cleanup() {
+    // Clear pending operation timeouts
+    if (this.pendingOperationTimers.size > 0) {
+      this.pendingOperationTimers.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      this.pendingOperationTimers.clear();
+    }
+
+    // Clear caches
+    const friendshipCacheSize = this.cache.size;
+    const quickAccessCacheSize = this.quickAccessCache.size;
+    const pendingOpsCount = this.pendingOperations.size;
+
+    this.clearCache();
+    this.pendingOperations.clear();
+
+    console.log(`🧹 FriendshipPrivacyService cleanup completed`);
+    console.log(
+      `   Cleaned up: ${friendshipCacheSize} friendship + ${quickAccessCacheSize} quick access cache entries + ${pendingOpsCount} pending operations`
+    );
   }
 }
 

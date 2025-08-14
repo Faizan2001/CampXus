@@ -19,6 +19,7 @@ import {
   REALTIME_EVENTS,
 } from "../realtime/RealtimeService.js";
 import { notificationManager } from "../realtime/NotificationService.js";
+import { friendshipPrivacyService } from "./FriendshipPrivacyService.js";
 
 export class FriendsManager {
   constructor() {
@@ -1342,13 +1343,13 @@ export class FriendsManager {
         currentUser.uid
       );
 
-      if (!quickAccessData || !quickAccessData.friends) {
+      if (!quickAccessData || !quickAccessData.starredFriends) {
         console.log("📋 No Quick Access friends found");
         return [];
       }
 
       // Sort by recent-first ordering (most recently interacted with first)
-      const sortedFriends = quickAccessData.friends.sort((a, b) => {
+      const sortedFriends = quickAccessData.starredFriends.sort((a, b) => {
         const dateA =
           a.lastInteraction?.toDate?.() ||
           new Date(a.lastInteraction || a.starredAt);
@@ -1371,6 +1372,234 @@ export class FriendsManager {
     } catch (error) {
       console.error("❌ Error getting Quick Access friends:", error);
       return [];
+    }
+  }
+
+  /**
+   * 🔐 Phase 1.2: Get Quick Access friends with privacy status for UI components
+   * This method enhances the existing quick access data with privacy information
+   * WITHOUT modifying any database operations or existing method signatures
+   *
+   * @param {boolean} useCache - Whether to use caching (default: true)
+   * @returns {Promise<Array>} Array of starred friends with privacy status added
+   */
+  async getQuickAccessFriendsWithPrivacy(useCache = true) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      console.error(
+        "❌ Cannot get Quick Access friends with privacy, user not logged in."
+      );
+      return [];
+    }
+
+    try {
+      console.log(
+        "🔐 Getting Quick Access friends with privacy status for:",
+        userProfile.profile.displayName
+      );
+
+      // Get existing Quick Access friends (unchanged method)
+      const friends = await this.getQuickAccessFriends(useCache);
+
+      if (friends.length === 0) {
+        console.log(
+          "📋 No Quick Access friends to enhance with privacy status"
+        );
+        return [];
+      }
+
+      // Enhance each friend with privacy status (NO DB CHANGES)
+      const enhancedFriends = await Promise.all(
+        friends.map(async (friend) => {
+          try {
+            // Check if quick access should be restricted for this friend
+            const isRestricted =
+              await friendshipPrivacyService.isQuickAccessRestricted(
+                friend.friendId,
+                currentUser.uid
+              );
+
+            // Add privacy status to existing friend data
+            return {
+              ...friend, // Keep all existing friend data intact
+              // Privacy status flags for UI components
+              isRestricted: isRestricted, // For UI disabled state
+              canViewSchedule: !isRestricted, // Semantic flag for clarity
+              privacyStatus: {
+                avatarEnabled: !isRestricted,
+                tooltip: isRestricted
+                  ? "Avatar disabled - schedule is private"
+                  : "Click to view schedule",
+                description: isRestricted
+                  ? `${friend.displayName} has hidden their schedule from you`
+                  : `${friend.displayName}'s schedule is visible - quick access enabled`,
+              },
+            };
+          } catch (error) {
+            console.error(
+              `❌ Error checking privacy for friend ${friend.friendId}:`,
+              error
+            );
+            // Default to restricted on error for security
+            return {
+              ...friend,
+              isRestricted: true,
+              canViewSchedule: false,
+              privacyStatus: {
+                avatarEnabled: false,
+                tooltip: "Avatar disabled - privacy check failed",
+                description: `Privacy status unavailable for ${friend.displayName}`,
+              },
+            };
+          }
+        })
+      );
+
+      console.log(
+        `✅ Enhanced ${enhancedFriends.length} Quick Access friends with privacy status`
+      );
+
+      // Log summary for debugging
+      const restrictedCount = enhancedFriends.filter(
+        (f) => f.isRestricted
+      ).length;
+      const allowedCount = enhancedFriends.length - restrictedCount;
+      console.log(
+        `🔐 Privacy summary: ${allowedCount} enabled, ${restrictedCount} restricted avatars`
+      );
+
+      return enhancedFriends;
+    } catch (error) {
+      console.error(
+        "❌ Error getting Quick Access friends with privacy:",
+        error
+      );
+      return [];
+    }
+  }
+
+  /**
+   * 🔐 Phase 1.2: Check if Quick Access should be restricted for a specific friend
+   * This is a convenience method that uses the FriendshipPrivacyService directly
+   *
+   * @param {string} friendId - The friend's user ID to check
+   * @returns {Promise<boolean>} True if quick access should be restricted (avatar disabled)
+   */
+  async isQuickAccessRestricted(friendId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile || !friendId) {
+      console.error(
+        "❌ Cannot check Quick Access restriction: missing user or friend data"
+      );
+      return true; // Default to restricted for security
+    }
+
+    try {
+      console.log(
+        `🔐 Checking Quick Access restriction for friend: ${friendId}`
+      );
+
+      const isRestricted =
+        await friendshipPrivacyService.isQuickAccessRestricted(
+          friendId,
+          currentUser.uid
+        );
+
+      console.log(
+        `✅ Quick Access restriction result: ${friendId} = ${
+          isRestricted ? "RESTRICTED" : "ALLOWED"
+        }`
+      );
+
+      return isRestricted;
+    } catch (error) {
+      console.error(
+        `❌ Error checking Quick Access restriction for ${friendId}:`,
+        error
+      );
+      // Default to restricted on error for security
+      return true;
+    }
+  }
+
+  /**
+   * 🔐 Phase 1.2: Check if current user can view a friend's schedule
+   * This is a convenience method that uses the FriendshipPrivacyService directly
+   *
+   * @param {string} friendId - The friend's user ID whose schedule we want to view
+   * @returns {Promise<boolean>} True if schedule is visible, false if hidden
+   */
+  async canViewFriendSchedule(friendId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile || !friendId) {
+      console.error(
+        "❌ Cannot check schedule visibility: missing user or friend data"
+      );
+      return false; // Default to not visible for security
+    }
+
+    try {
+      console.log(`🔐 Checking schedule visibility for friend: ${friendId}`);
+
+      const canView = await friendshipPrivacyService.isScheduleVisible(
+        friendId,
+        currentUser.uid
+      );
+
+      console.log(
+        `✅ Schedule visibility result: ${friendId} = ${
+          canView ? "VISIBLE" : "HIDDEN"
+        }`
+      );
+
+      return canView;
+    } catch (error) {
+      console.error(
+        `❌ Error checking schedule visibility for ${friendId}:`,
+        error
+      );
+      // Default to not visible on error for security
+      return false;
+    }
+  }
+
+  /**
+   * 🔐 Phase 1.2: Get detailed privacy status for a specific friend
+   * This provides comprehensive privacy information for UI components
+   *
+   * @param {string} friendId - The friend's user ID
+   * @returns {Promise<Object|null>} Detailed privacy status or null if friendship not found
+   */
+  async getFriendPrivacyStatus(friendId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile || !friendId) {
+      console.error(
+        "❌ Cannot get friend privacy status: missing user or friend data"
+      );
+      return null;
+    }
+
+    try {
+      console.log(`🔐 Getting privacy status for friend: ${friendId}`);
+
+      const privacyStatus = await friendshipPrivacyService.getQuickAccessStatus(
+        friendId,
+        currentUser.uid
+      );
+
+      if (privacyStatus) {
+        console.log(
+          `✅ Privacy status retrieved for ${friendId}:`,
+          privacyStatus.quickAccess.status
+        );
+      } else {
+        console.log(`⚠️ No privacy status found for friend: ${friendId}`);
+      }
+
+      return privacyStatus;
+    } catch (error) {
+      console.error(`❌ Error getting privacy status for ${friendId}:`, error);
+      return null;
     }
   }
 

@@ -14,14 +14,17 @@
  * ✅ Purple selection rings and smooth animations
  * ✅ Touch scrolling and mobile optimization
  * ✅ Empty state handling
+ * ✅ Privacy-aware disabled avatars for restricted schedules
+ * ✅ Disabled state notifications and accessibility
  *
  * --- ARCHITECTURE ---
- * ┌─────────────────────────────────────────────────────────┐
- * │ [User] [Friend1] [Friend2] [Friend3] [Friend4] [+More]  │
- * │   ↓        ↓        ↓        ↓        ↓        ↓      │
- * │ Purple   Normal   Normal   Normal   Normal   Scroll   │
- * │ Ring     Avatar   Avatar   Avatar   Avatar   Hint     │
- * └─────────────────────────────────────────────────────────┘
+ * ┌─────────────────────────────────────────────────────────────────────┐
+ * │ [User] [Friend1] [Friend2*] [Friend3] [Friend4*] [+More]            │
+ * │   ↓        ↓        ↓         ↓         ↓         ↓               │
+ * │ Purple   Normal  Disabled   Normal   Disabled   Scroll            │
+ * │ Ring     Avatar  Avatar     Avatar   Avatar     Hint              │
+ * └─────────────────────────────────────────────────────────────────────┘
+ * * = Privacy-restricted schedules shown with disabled styling
  *
  * --- USAGE ---
  * const horizontalBar = new HorizontalFriendsBar('horizontal-friends-container');
@@ -35,6 +38,13 @@ import { friendsManager } from "../../services/friends/FriendsService.js";
 import { currentUser } from "../../store/userStore.js";
 import { renderUserAvatar } from "../../utils/avatar/avatarUtils.js";
 import { dataManager } from "../../services/data/DataService.js";
+import { notificationManager } from "../../services/realtime/NotificationService.js";
+import {
+  realTimeManager,
+  REALTIME_EVENTS,
+} from "../../services/realtime/RealtimeService.js";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../../lib/firebase/firebase-config.js";
 
 /**
  * HorizontalFriendsBar Class
@@ -75,6 +85,9 @@ export class HorizontalFriendsBar {
 
     // Memory leak prevention - track all timeouts for proper cleanup
     this.activeTimeouts = new Set();
+
+    // Smart loading: fetch fresh data on first load, use cache afterwards
+    this.isFirstLoad = true;
 
     console.log(
       `🏗️ HorizontalFriendsBar created for container: ${containerId}`
@@ -147,6 +160,107 @@ export class HorizontalFriendsBar {
       };
 
       console.log("🔍 Added window.testSelectionRings() for debugging");
+
+      // Add test function to window for debugging avatar comparison
+      window.testAvatarComparison = () => {
+        console.log("🧪 Testing avatar comparison logic...");
+
+        const testCases = [
+          {
+            name: "Same objects",
+            current: { hair: "short", eyes: "blue" },
+            new: { hair: "short", eyes: "blue" },
+            expected: false,
+          },
+          {
+            name: "Different objects",
+            current: { hair: "short", eyes: "blue" },
+            new: { hair: "long", eyes: "blue" },
+            expected: true,
+          },
+          {
+            name: "Current null, new object",
+            current: null,
+            new: { hair: "short", eyes: "blue" },
+            expected: true,
+          },
+          {
+            name: "Current undefined, new object",
+            current: undefined,
+            new: { hair: "short", eyes: "blue" },
+            expected: true,
+          },
+          {
+            name: "Both null",
+            current: null,
+            new: null,
+            expected: false,
+          },
+          {
+            name: "Circular reference test",
+            current: { hair: "short" },
+            new: (() => {
+              const obj = { hair: "long" };
+              obj.self = obj;
+              return obj;
+            })(),
+            expected: true,
+          },
+        ];
+
+        testCases.forEach((test) => {
+          let avatarChanged = false;
+          if (test.new) {
+            if (!test.current) {
+              avatarChanged = true;
+            } else {
+              try {
+                const currentStr = JSON.stringify(test.current);
+                const newStr = JSON.stringify(test.new);
+                avatarChanged = currentStr !== newStr;
+              } catch (error) {
+                console.warn("JSON comparison failed, assuming changed");
+                avatarChanged = true;
+              }
+            }
+          }
+
+          const passed = avatarChanged === test.expected;
+          console.log(
+            `${passed ? "✅" : "❌"} ${test.name}: ${avatarChanged} (expected ${
+              test.expected
+            })`
+          );
+        });
+      };
+
+      // Add function to simulate a profile update
+      window.simulateProfileUpdate = (friendId) => {
+        const friendIndex = this.quickAccessFriends.findIndex(
+          (f) => f.friendId === friendId
+        );
+        if (friendIndex === -1) {
+          console.error(`Friend ${friendId} not found in quick access`);
+          return;
+        }
+
+        const mockProfile = {
+          profile: {
+            displayName: this.quickAccessFriends[friendIndex].displayName,
+            avatarConfig: {
+              hair: "updated_" + Date.now(),
+              eyes: "new_color",
+            },
+          },
+        };
+
+        console.log("🧪 Simulating profile update:", mockProfile);
+        this.handleStarredFriendProfileUpdate(friendId, mockProfile);
+      };
+
+      console.log(
+        "🔍 Added window.testAvatarComparison() and window.simulateProfileUpdate() for debugging"
+      );
 
       this.isInitialized = true;
       console.log("✅ HorizontalFriendsBar initialized successfully");
@@ -255,20 +369,42 @@ export class HorizontalFriendsBar {
 
   /**
    * Load Quick Access friends from FriendsService
+   * @param {boolean} useCache - Whether to use cached data (default: true)
    */
-  async loadQuickAccessFriends() {
+  async loadQuickAccessFriends(useCache = true) {
     try {
-      console.log("📊 Loading Quick Access friends...");
+      console.log(
+        `📊 Loading Quick Access friends${
+          useCache ? " (using cache)" : " (bypassing cache)"
+        }...`
+      );
 
       this.isLoading = true;
       this.showLoadingState();
 
-      // Get Quick Access friends using existing FriendsService
-      const quickAccessData = await friendsManager.getQuickAccessFriends();
+      // Smart cache strategy: Always fetch fresh data on init, but use cache for subsequent loads
+      const shouldUseFreshData = !useCache || this.isFirstLoad;
+      this.isFirstLoad = false; // Mark as no longer first load
+
+      // Get Quick Access friends with privacy status using enhanced FriendsService
+      const quickAccessData =
+        await friendsManager.getQuickAccessFriendsWithPrivacy(
+          !shouldUseFreshData
+        );
       this.quickAccessFriends = quickAccessData || [];
 
+      // Set up profile listeners for starred friends to detect avatar/name changes
+      if (this.quickAccessFriends.length > 0) {
+        await this.setupStarredFriendProfileListeners();
+      }
+
+      // Note: Database updates are handled by HomePage, not here
+      // This eliminates infinite loops from real-time listeners
+
       console.log(
-        `📊 Loaded ${this.quickAccessFriends.length} Quick Access friends`
+        `📊 Loaded ${this.quickAccessFriends.length} Quick Access friends${
+          shouldUseFreshData ? " (fresh)" : " (cached)"
+        }`
       );
     } catch (error) {
       console.error("❌ Failed to load Quick Access friends:", error);
@@ -348,17 +484,29 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Render Quick Access friends avatars
+   * Render Quick Access friends avatars with privacy-aware disabled states
    */
   renderFriendsAvatars(container) {
     this.quickAccessFriends.forEach((friend, index) => {
+      // Determine if avatar should be disabled based on privacy status
+      const isDisabled = friend.isRestricted || false;
+      const disabledClass = isDisabled ? "disabled" : "";
+      const ariaLabel = isDisabled
+        ? `${friend.displayName}'s schedule is private - access restricted`
+        : `View ${friend.displayName}'s schedule`;
+      const tooltip =
+        friend.privacyStatus?.tooltip ||
+        (isDisabled ? "Schedule access restricted" : "Click to view schedule");
+
       const friendAvatarHtml = `
-        <div class="friend-avatar-item" 
+        <div class="friend-avatar-item ${disabledClass}" 
              data-friend-id="${friend.friendId || friend.userId}" 
              data-friend-name="${friend.displayName}"
+             data-privacy-restricted="${isDisabled}"
+             title="${tooltip}"
              role="button"
              tabindex="0"
-             aria-label="View ${friend.displayName}'s schedule">
+             aria-label="${ariaLabel}">
           <div class="avatar-container">
             <div class="avatar-image">
               ${renderUserAvatar(friend, true)}
@@ -378,7 +526,9 @@ export class HorizontalFriendsBar {
       this.avatarElements.set(friend.friendId || friend.userId, friendElement);
     });
 
-    console.log(`👥 ${this.quickAccessFriends.length} friend avatars rendered`);
+    console.log(
+      `👥 ${this.quickAccessFriends.length} friend avatars rendered with privacy status`
+    );
   }
 
   /**
@@ -400,7 +550,7 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Handle avatar click events
+   * Handle avatar click events with privacy-aware restrictions
    */
   async handleAvatarClick(event) {
     // Ignore clicks on compare button or its children
@@ -416,6 +566,7 @@ export class HorizontalFriendsBar {
 
     const friendId = avatarItem.dataset.friendId;
     const friendName = avatarItem.dataset.friendName;
+    const isRestricted = avatarItem.dataset.privacyRestricted === "true";
 
     console.log(`👆 Avatar clicked: ${friendName} (${friendId})`);
     console.log(
@@ -426,6 +577,21 @@ export class HorizontalFriendsBar {
 
     // Prevent multiple clicks while processing
     if (avatarItem.classList.contains("loading")) return;
+
+    // Check if avatar is disabled due to privacy restrictions
+    if (isRestricted && !avatarItem.classList.contains("user-avatar")) {
+      console.log(
+        `🔒 Access restricted for ${friendName} - showing notification`
+      );
+      // Show standardized privacy notification
+      notificationManager.showPrivacyNotification(
+        friendName,
+        "schedule",
+        "access",
+        { duration: 3000, type: "warning" }
+      );
+      return;
+    }
 
     if (this.compareMode) {
       // In compare mode: toggle selection for comparison
@@ -1131,9 +1297,29 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Toggle friend selection for comparison
+   * Toggle friend selection for comparison with privacy checks
    */
   toggleCompareSelection(friendId, friendName) {
+    // Check if this friend is restricted (privacy-aware comparison)
+    const friend = this.quickAccessFriends.find(
+      (f) => (f.friendId || f.userId) === friendId
+    );
+
+    if (friend && friend.isRestricted) {
+      console.log(`🔒 Cannot compare ${friendName} - privacy restricted`);
+      notificationManager.showPrivacyNotification(
+        friendName,
+        "schedule",
+        "access",
+        {
+          duration: 3000,
+          type: "warning",
+          message: `${friendName}'s schedule is private - cannot include in comparison`,
+        }
+      );
+      return;
+    }
+
     if (this.selectedForCompare.has(friendId)) {
       // Remove from selection
       this.selectedForCompare.delete(friendId);
@@ -1214,7 +1400,7 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Update visual selection for compare mode
+   * Update visual selection for compare mode with privacy awareness
    */
   updateCompareSelectionUI() {
     console.log(
@@ -1225,16 +1411,21 @@ export class HorizontalFriendsBar {
 
     this.avatarElements.forEach((element, friendId) => {
       const isSelected = this.selectedForCompare.has(friendId);
+      const isRestricted = element.dataset.privacyRestricted === "true";
+
       element.classList.toggle("compare-selected", isSelected);
 
       // Debug logging for each avatar
       console.log(
-        `🔴 DEBUG COMPARE: Avatar ${friendId} - isSelected: ${isSelected}, compareMode: ${this.compareMode}`
+        `🔴 DEBUG COMPARE: Avatar ${friendId} - isSelected: ${isSelected}, compareMode: ${this.compareMode}, isRestricted: ${isRestricted}`
       );
 
       // Add selection indicator if in compare mode
       if (this.compareMode) {
-        element.classList.add("compare-mode-available");
+        // Only add compare-mode-available if not restricted (disabled avatars can't participate)
+        if (!isRestricted || friendId === "user") {
+          element.classList.add("compare-mode-available");
+        }
 
         // Remove normal selection state when in compare mode
         element.classList.remove("selected");
@@ -1242,7 +1433,7 @@ export class HorizontalFriendsBar {
         // Update the selection ring for compare mode
         const selectionRing = element.querySelector(".selection-ring");
         if (selectionRing) {
-          if (isSelected) {
+          if (isSelected && (!isRestricted || friendId === "user")) {
             // Apply red glow animation for selected items in compare mode
             selectionRing.classList.add("compare-selected-ring");
             console.log(
@@ -1392,19 +1583,61 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Set up real-time listeners for Quick Access changes
+   * Set up real-time listeners for Quick Access changes and privacy updates
    */
   setupRealTimeListeners() {
     console.log(
       "📡 Setting up real-time listeners for HorizontalFriendsBar..."
     );
 
-    // Listen for Quick Access updates from FriendsService
+    // Direct database listener for user profile changes (includes quickAccessData)
+    if (currentUser?.user?.uid && this.dataManager?.listenToUserProfile) {
+      console.log(
+        "📡 Setting up direct database listener for user profile changes"
+      );
+
+      const userProfileUnsubscriber = this.dataManager.listenToUserProfile(
+        currentUser.user.uid,
+        (userProfile) => {
+          console.log("📡 Real-time user profile update:", userProfile);
+
+          // Check if quickAccessData changed
+          const quickAccessData = userProfile?.quickAccessData;
+          if (quickAccessData?.starredFriends) {
+            console.log(
+              "📡 Starred friends updated in database:",
+              quickAccessData.starredFriends
+            );
+            this.quickAccessFriends = quickAccessData.starredFriends;
+            this.render();
+            console.log(
+              "✅ HorizontalFriendsBar updated with fresh database data"
+            );
+          }
+        }
+      );
+
+      if (userProfileUnsubscriber) {
+        this.realTimeUnsubscribers = [userProfileUnsubscriber];
+      }
+    }
+
+    // Listen for friend profile updates to sync starred friends data
+    if (this.dataManager?.listenToUserProfile) {
+      console.log("📡 Setting up profile change listeners for starred friends");
+
+      this.friendProfileUnsubscribers = [];
+
+      // Set up listeners for each starred friend's profile
+      this.setupStarredFriendProfileListeners();
+    }
+
+    // Fallback: Listen for Quick Access updates from FriendsService
     if (friendsManager.registerUICallbacks) {
       friendsManager.registerUICallbacks({
         onQuickAccessUpdated: (quickAccessData) => {
           console.log(
-            "⭐ Real-time Quick Access update in HorizontalFriendsBar:",
+            "⭐ Fallback Quick Access update in HorizontalFriendsBar:",
             quickAccessData
           );
           this.handleRealTimeQuickAccessUpdate(quickAccessData);
@@ -1412,7 +1645,345 @@ export class HorizontalFriendsBar {
       });
     }
 
-    console.log("✅ Real-time listeners set up successfully");
+    // Listen for schedule privacy changes (Phase 4.1)
+    const privacyChangeUnsubscriber = realTimeManager.on(
+      REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE,
+      (privacyEvent) => {
+        console.log(
+          "🔒 Privacy change event received in HorizontalFriendsBar:",
+          privacyEvent
+        );
+        this.handlePrivacyChange(privacyEvent);
+      }
+    );
+
+    // Add privacy listener to unsubscribers
+    if (!this.realTimeUnsubscribers) {
+      this.realTimeUnsubscribers = [];
+    }
+    this.realTimeUnsubscribers.push(privacyChangeUnsubscriber);
+
+    console.log(
+      "✅ Real-time listeners set up successfully (including privacy changes)"
+    );
+  }
+
+  /**
+   * Handle schedule privacy change events (Phase 4.1)
+   * Updates avatar disabled states when friends change their privacy settings
+   */
+  async handlePrivacyChange(privacyEvent) {
+    try {
+      console.log(
+        "🔒 Processing privacy change event in HorizontalFriendsBar:",
+        privacyEvent
+      );
+
+      // Extract data using the correct field names from the event
+      const { fromUserId, affectedUserId, scheduleVisibility, friendName } =
+        privacyEvent;
+
+      const currentUserUid = currentUser?.user?.uid;
+
+      if (!currentUserUid) {
+        console.log("🔒 No current user - skipping privacy update");
+        return;
+      }
+
+      // Check if this privacy change affects the current user
+      // In bilateral privacy: fromUserId changed their schedule visibility to affectedUserId
+      const isCurrentUserAffected =
+        fromUserId === currentUserUid || // Current user changed their own privacy
+        affectedUserId === currentUserUid; // Privacy change affects current user
+
+      if (!isCurrentUserAffected) {
+        console.log(
+          "🔒 Privacy change doesn't affect current user - skipping update"
+        );
+        return;
+      }
+
+      console.log(
+        `🔒 Current user IS affected by privacy change: ${
+          friendName || "Friend"
+        } ${scheduleVisibility ? "showed" : "hid"} their schedule`
+      );
+
+      // Clear all relevant caches to ensure fresh data
+      try {
+        const { friendshipPrivacyService } = await import(
+          "../../services/friends/FriendshipPrivacyService.js"
+        );
+        friendshipPrivacyService.clearFriendshipCache(
+          fromUserId,
+          affectedUserId
+        );
+        console.log("🧹 Cleared friendship privacy cache for real-time update");
+      } catch (error) {
+        console.warn("⚠️ Failed to clear friendship privacy cache:", error);
+      }
+
+      // Clear Quick Access cache in FriendsManager to ensure fresh avatar data
+      try {
+        const cacheKey = `quick_access_${currentUser?.user?.uid}`;
+        if (friendsManager.clearCache) {
+          friendsManager.clearCache(cacheKey);
+          console.log("🧹 Cleared Quick Access cache for fresh avatar data");
+        }
+      } catch (error) {
+        console.warn("⚠️ Failed to clear Quick Access cache:", error);
+      }
+
+      // Reload Quick Access friends with updated privacy status
+      // IMPORTANT: Force cache refresh to get updated avatar data and privacy status
+      await this.loadQuickAccessFriends(false); // false = bypass cache
+
+      // Re-render avatars with updated privacy-aware disabled states
+      this.render();
+
+      // Maintain current selection if still valid
+      if (this.selectedFriendId) {
+        const stillExists = this.quickAccessFriends.some(
+          (f) => (f.friendId || f.userId) === this.selectedFriendId
+        );
+
+        if (!stillExists) {
+          // Friend no longer available, fallback to user's schedule
+          await this.selectUser();
+        } else {
+          // Re-select to maintain visual state
+          this.updateVisualSelection(this.selectedFriendId);
+        }
+      } else {
+        // Ensure user is selected after privacy update
+        await this.ensureUserSelected();
+      }
+
+      console.log(
+        "✅ Privacy change processed successfully in HorizontalFriendsBar"
+      );
+    } catch (error) {
+      console.error(
+        "❌ Error handling privacy change in HorizontalFriendsBar:",
+        error
+      );
+    }
+  }
+
+  /**
+   * Set up profile listeners for each starred friend to detect avatar/name changes
+   */
+  async setupStarredFriendProfileListeners() {
+    if (!this.quickAccessFriends?.length) {
+      console.log("📡 No starred friends to set up profile listeners for");
+      return;
+    }
+
+    console.log(
+      `📡 Setting up profile listeners for ${this.quickAccessFriends.length} starred friends`
+    );
+
+    // Clean up existing listeners first
+    if (this.friendProfileUnsubscribers) {
+      this.friendProfileUnsubscribers.forEach((unsubscriber) => {
+        if (typeof unsubscriber === "function") {
+          unsubscriber();
+        }
+      });
+    }
+
+    // Initialize or reset the unsubscribers array
+    this.friendProfileUnsubscribers = [];
+
+    // Set up a listener for each starred friend
+    for (const friend of this.quickAccessFriends) {
+      if (!friend.friendId) continue;
+
+      try {
+        const unsubscriber = dataManager.listenToUserProfile(
+          friend.friendId,
+          (friendProfile) => {
+            this.handleStarredFriendProfileUpdate(
+              friend.friendId,
+              friendProfile
+            );
+          }
+        );
+
+        if (unsubscriber) {
+          this.friendProfileUnsubscribers.push(unsubscriber);
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Failed to set up profile listener for friend ${friend.friendId}:`,
+          error
+        );
+      }
+    }
+
+    console.log(
+      `✅ Set up ${this.friendProfileUnsubscribers.length} friend profile listeners`
+    );
+  }
+
+  /**
+   * Handle profile updates for starred friends
+   * Updates the local starred friends data and syncs to database efficiently
+   */
+  async handleStarredFriendProfileUpdate(friendId, friendProfile) {
+    try {
+      console.log(
+        `📡 Profile update for starred friend ${friendId}:`,
+        friendProfile?.profile?.displayName || friendProfile?.displayName
+      );
+
+      // 🔍 DEBUG: Log the actual structure we're receiving
+      console.log(`🔍 DEBUG: Full profile update structure for ${friendId}:`, {
+        hasProfile: !!friendProfile?.profile,
+        hasDisplayName: !!friendProfile?.displayName,
+        hasAvatarConfig: !!friendProfile?.avatarConfig,
+        hasNestedAvatarConfig: !!friendProfile?.profile?.avatarConfig,
+        topLevelKeys: friendProfile ? Object.keys(friendProfile) : [],
+        profileKeys: friendProfile?.profile
+          ? Object.keys(friendProfile.profile)
+          : [],
+      });
+
+      // Find the friend in our starred friends list
+      const friendIndex = this.quickAccessFriends.findIndex(
+        (f) => f.friendId === friendId
+      );
+      if (friendIndex === -1) {
+        console.log(
+          `📡 Friend ${friendId} not in starred friends, ignoring profile update`
+        );
+        return;
+      }
+
+      const currentFriend = this.quickAccessFriends[friendIndex];
+
+      // 🔧 Fix: Check both nested and direct structure for display name and avatar
+      const newDisplayName =
+        friendProfile?.profile?.displayName || friendProfile?.displayName;
+      const newAvatarConfig =
+        friendProfile?.profile?.avatarConfig || friendProfile?.avatarConfig;
+
+      // Debug logging for profile comparison
+      console.log(`🔍 DEBUG: Profile update comparison for ${friendId}:`, {
+        currentDisplayName: currentFriend.displayName,
+        newDisplayName: newDisplayName,
+        currentAvatarConfig: currentFriend.avatarConfig,
+        newAvatarConfig: newAvatarConfig,
+        hasNewAvatar: !!newAvatarConfig,
+        hasCurrentAvatar: !!currentFriend.avatarConfig,
+      });
+
+      // Check if the profile data actually changed
+      const nameChanged =
+        newDisplayName && newDisplayName !== currentFriend.displayName;
+
+      // Improved avatar comparison with better error handling
+      let avatarChanged = false;
+      if (newAvatarConfig) {
+        if (!currentFriend.avatarConfig) {
+          // If current is null/undefined but new exists, it's a change
+          avatarChanged = true;
+        } else {
+          try {
+            // Try JSON comparison with error handling
+            const currentStr = JSON.stringify(currentFriend.avatarConfig);
+            const newStr = JSON.stringify(newAvatarConfig);
+            avatarChanged = currentStr !== newStr;
+          } catch (error) {
+            // If JSON comparison fails, assume it's a change to be safe
+            console.warn(
+              `⚠️ JSON comparison failed for ${friendId}, assuming avatar changed:`,
+              error
+            );
+            avatarChanged = true;
+          }
+        }
+      }
+
+      console.log(`🔍 DEBUG: Change detection for ${friendId}:`, {
+        nameChanged,
+        avatarChanged,
+        willUpdate: nameChanged || avatarChanged,
+      });
+
+      if (!nameChanged && !avatarChanged) {
+        console.log(
+          `📡 No meaningful changes for friend ${friendId}, skipping update`
+        );
+        return;
+      }
+
+      console.log(
+        `📡 Profile changes detected for ${currentFriend.displayName}: name=${nameChanged}, avatar=${avatarChanged}`
+      );
+
+      // Update local data
+      if (nameChanged && newDisplayName) {
+        this.quickAccessFriends[friendIndex].displayName = newDisplayName;
+      }
+      if (avatarChanged && newAvatarConfig) {
+        this.quickAccessFriends[friendIndex].avatarConfig = newAvatarConfig;
+      }
+
+      // Re-render immediately for instant UI feedback
+      this.render();
+
+      // Debounced database sync to prevent excessive writes
+      this.debouncedSyncStarredFriends();
+
+      console.log(
+        `✅ Updated starred friend profile for ${
+          newDisplayName || currentFriend.displayName
+        }`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Error handling profile update for friend ${friendId}:`,
+        error
+      );
+    }
+  }
+
+  /**
+   * Debounced sync of starred friends data to database
+   * Prevents excessive database writes while ensuring data consistency
+   */
+  debouncedSyncStarredFriends() {
+    // Clear any existing timeout
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+    }
+
+    // Set a new timeout to sync after 2 seconds of no more changes
+    this.syncTimeout = setTimeout(async () => {
+      try {
+        const currentUserProfile = await currentUser.waitForProfile();
+        if (!currentUserProfile?.uid || !this.quickAccessFriends?.length) {
+          return;
+        }
+
+        console.log("🔄 Syncing updated starred friends data to database...");
+
+        // Update the database with the fresh profile data
+        const userDocRef = doc(db, "users", currentUserProfile.uid);
+        await updateDoc(userDocRef, {
+          "quickAccessData.starredFriends": this.quickAccessFriends,
+          "quickAccessData.lastUpdated": serverTimestamp(),
+        });
+
+        console.log("✅ Starred friends data synced to database");
+      } catch (error) {
+        console.warn(
+          "⚠️ Failed to sync starred friends data (non-critical):",
+          error
+        );
+      }
+    }, 2000); // 2 second debounce
   }
 
   /**
@@ -1428,6 +1999,9 @@ export class HorizontalFriendsBar {
 
       // Update internal state
       this.quickAccessFriends = quickAccessFriends;
+
+      // Set up new profile listeners for the updated starred friends list
+      await this.setupStarredFriendProfileListeners();
 
       // Re-render the friends bar
       this.render();
@@ -1513,6 +2087,15 @@ export class HorizontalFriendsBar {
   }
 
   /**
+   * Get fresh QuickAccess friends data (not cached)
+   * This ensures HomePage gets the most up-to-date data for avatar generation
+   */
+  getFreshQuickAccessFriends() {
+    // Return the current instance data, which is kept up-to-date by real-time listeners
+    return this.quickAccessFriends;
+  }
+
+  /**
    * Programmatic API to refresh data
    */
   async refresh() {
@@ -1521,8 +2104,8 @@ export class HorizontalFriendsBar {
 
     // Ensure user is selected after programmatic refresh
     this.addTrackedTimeout(async () => {
-      await this.ensureUserSelected();
-    }, 50);
+      await this.forceUserSelection();
+    }, 100);
   }
 
   /**
@@ -1577,15 +2160,48 @@ export class HorizontalFriendsBar {
     });
     this.activeTimeouts.clear();
 
-    // Clear real-time listeners
+    // Clear all real-time listeners (privacy changes, profile updates)
+    if (this.realTimeUnsubscribers && this.realTimeUnsubscribers.length > 0) {
+      this.realTimeUnsubscribers.forEach((unsubscriber) => {
+        if (typeof unsubscriber === "function") {
+          unsubscriber();
+        }
+      });
+      this.realTimeUnsubscribers = [];
+    }
+
+    // Legacy cleanup for single unsubscriber (keeping for compatibility)
     if (this.realTimeUnsubscriber) {
       this.realTimeUnsubscriber();
+      this.realTimeUnsubscriber = null;
     }
 
     // Clear notification debouncing
     if (this._notificationDebounce) {
       clearTimeout(this._notificationDebounce);
       this._notificationDebounce = null;
+    }
+
+    // Clear profile update timeout
+    if (this.profileUpdateTimeout) {
+      clearTimeout(this.profileUpdateTimeout);
+      this.profileUpdateTimeout = null;
+    }
+
+    // Clear sync timeout
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+      this.syncTimeout = null;
+    }
+
+    // Clean up friend profile listeners
+    if (this.friendProfileUnsubscribers) {
+      this.friendProfileUnsubscribers.forEach((unsubscriber) => {
+        if (typeof unsubscriber === "function") {
+          unsubscriber();
+        }
+      });
+      this.friendProfileUnsubscribers = [];
     }
 
     // Clear references

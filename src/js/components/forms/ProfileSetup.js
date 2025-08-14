@@ -784,7 +784,7 @@ class ProfileSetup {
       // DO NOT add schedule data to profileData to avoid Firestore nested arrays error
       console.log("📅 Schedule import step completed", {
         hasScheduleData: !!this.scheduleData,
-        coursesCount: this.scheduleData?.courses?.length || 0
+        coursesCount: this.scheduleData?.courses?.length || 0,
       });
     }
   }
@@ -822,12 +822,12 @@ class ProfileSetup {
     } else {
       // Final step - save the profile with loading state
       const nextBtn = document.getElementById("setup-next-btn");
-      
+
       // 🔒 Prevent multiple clicks during save operation
       if (nextBtn && !nextBtn.disabled) {
         nextBtn.disabled = true;
-        nextBtn.classList.add('loading');
-        
+        nextBtn.classList.add("loading");
+
         // Store original content and add loading dots
         const originalContent = nextBtn.innerHTML;
         nextBtn.innerHTML = `
@@ -838,14 +838,14 @@ class ProfileSetup {
             <div class="dot"></div>
           </div>
         `;
-        
+
         try {
           await this.saveProfile();
         } catch (error) {
-          console.error('❌ Profile save failed:', error);
+          console.error("❌ Profile save failed:", error);
           // Re-enable button on error
           nextBtn.disabled = false;
-          nextBtn.classList.remove('loading');
+          nextBtn.classList.remove("loading");
           nextBtn.innerHTML = originalContent;
           throw error; // Re-throw to handle in calling context
         }
@@ -1314,9 +1314,15 @@ class ProfileSetup {
   async saveAvatarChange(newAvatarConfig) {
     try {
       // 🛡️ SAFEGUARD: Ensure avatar config is clean (should already be clean from avatar editor)
-      console.log("🛡️ [ProfileSetup] Verifying avatar config is clean:", newAvatarConfig);
+      console.log(
+        "🛡️ [ProfileSetup] Verifying avatar config is clean:",
+        newAvatarConfig
+      );
       const cleanedConfig = avatarManager.cleanAvatarConfig(newAvatarConfig);
-      console.log("🛡️ [ProfileSetup] Verified clean avatar config:", cleanedConfig);
+      console.log(
+        "🛡️ [ProfileSetup] Verified clean avatar config:",
+        cleanedConfig
+      );
 
       // 1. Get the current profile and update avatarConfig
       const currentProfile = { ...currentUser.profile };
@@ -1339,34 +1345,43 @@ class ProfileSetup {
       currentUser.setProfile(updatedProfile);
       console.log("🎨 Avatar updated in currentUser store");
 
-      // 4. 🔄 NEW: Sync cached user data so friends see avatar changes immediately
+      // 4. 🔄 Sync cached user data so friends see avatar changes immediately
       // Using centralized cache sync for consistency and reliability
       syncUserDataCache(this.currentUser.uid)
-        .then(() => console.log("✅ Friends will see your cleaned avatar in real-time!"))
-        .catch((err) => console.log("⚠️ Avatar cache update failed (but profile saved):", err));
+        .then(() =>
+          console.log("✅ Friends will see your cleaned avatar in real-time!")
+        )
+        .catch((err) =>
+          console.log("⚠️ Avatar cache update failed (but profile saved):", err)
+        );
 
       // 5. 🎯 CRITICAL: Dispatch avatar change event to refresh menu immediately
       console.log("🚀 Dispatching avatar:changed event for menu refresh...");
       document.dispatchEvent(
         new CustomEvent("avatar:changed", {
-          detail: { 
+          detail: {
             userData: updatedProfile,
             avatarConfig: cleanedConfig,
-            timestamp: Date.now()
-          }
+            timestamp: Date.now(),
+          },
         })
       );
 
       // 6. 🛡️ FALLBACK: Also try direct force refresh as backup
       try {
         // Dynamic import to avoid circular dependencies
-        const { forceAvatarRefresh } = await import("../../components/navigation/Menu.js");
-        if (typeof forceAvatarRefresh === 'function') {
+        const { forceAvatarRefresh } = await import(
+          "../../components/navigation/Menu.js"
+        );
+        if (typeof forceAvatarRefresh === "function") {
           forceAvatarRefresh(updatedProfile);
           console.log("✅ Direct avatar refresh fallback called");
         }
       } catch (error) {
-        console.log("⚠️ Direct avatar refresh fallback failed (not critical):", error);
+        console.log(
+          "⚠️ Direct avatar refresh fallback failed (not critical):",
+          error
+        );
       }
 
       // Optionally, show a success message or trigger a UI update here
@@ -1422,14 +1437,23 @@ class ProfileSetup {
       });
 
       // Save profile to Firestore (without schedule data)
-      await dataManager.saveUserProfile(this.currentUser.uid, profileDataForFirestore);
+      await dataManager.saveUserProfile(
+        this.currentUser.uid,
+        profileDataForFirestore
+      );
 
       console.log("✅ Profile saved successfully to Firestore");
 
       // 🎯 Phase-1: Save schedule to Firestore using ScheduleStorageService
-      if (this.scheduleData && this.scheduleData.courses && this.scheduleData.courses.length > 0) {
+      if (
+        this.scheduleData &&
+        this.scheduleData.courses &&
+        this.scheduleData.courses.length > 0
+      ) {
         await this.saveScheduleToFirestore();
-        console.log("📅 Schedule saved to Firestore with dual storage strategy");
+        console.log(
+          "📅 Schedule saved to Firestore with dual storage strategy"
+        );
       }
 
       // 🔄 NEW: Sync cached user data so friends see changes immediately
@@ -1488,39 +1512,48 @@ class ProfileSetup {
    */
   async saveScheduleToFirestore() {
     try {
-      if (!this.scheduleData || !this.scheduleData.courses || this.scheduleData.courses.length === 0) {
+      if (
+        !this.scheduleData ||
+        !this.scheduleData.courses ||
+        this.scheduleData.courses.length === 0
+      ) {
         console.log("⚠️ No schedule data to save");
         return;
       }
 
       const userId = this.currentUser.uid;
-      
+
       console.log("📅 Saving imported schedule to Firestore:", {
         userId,
         coursesImported: this.scheduleData.courses.length,
-        importSource: 'profile_setup'
+        importSource: "profile_setup",
       });
 
       // The scheduleData from ScheduleImportService is already in the correct format:
       // { schedule: 7x7 matrix, slotInfo: 7x7 matrix, courses: array, importedAt: timestamp }
-      
+
       // Add import metadata for tracking
       const scheduleDataWithMetadata = {
         ...this.scheduleData,
         metadata: {
-          importSource: 'profile_setup',
-          importMethod: this.scheduleData.importedAt ? 'text' : 'manual',
+          importSource: "profile_setup",
+          importMethod: this.scheduleData.importedAt ? "text" : "manual",
           coursesCount: this.scheduleData.courses?.length || 0,
-          importedAt: this.scheduleData.importedAt || new Date().toISOString()
-        }
+          importedAt: this.scheduleData.importedAt || new Date().toISOString(),
+        },
       };
 
       // Use ScheduleStorageService for Phase-1 dual storage strategy
-      const success = await scheduleStorageService.saveUserSchedule(userId, scheduleDataWithMetadata);
-      
+      const success = await scheduleStorageService.saveUserSchedule(
+        userId,
+        scheduleDataWithMetadata
+      );
+
       if (success) {
-        console.log("✅ Schedule saved successfully with dual storage strategy");
-        
+        console.log(
+          "✅ Schedule saved successfully with dual storage strategy"
+        );
+
         // Update currentUser store with schedule data
         currentUser.setScheduleData(scheduleDataWithMetadata);
         currentUser.setScheduleLastSynced(new Date());
@@ -1528,15 +1561,16 @@ class ProfileSetup {
       } else {
         throw new Error("ScheduleStorageService returned false");
       }
-
     } catch (error) {
       console.error("❌ Failed to save schedule to Firestore:", error);
-      
+
       // Update error state in userStore
       currentUser.setScheduleError(error.message);
-      
+
       // Don't throw error - profile saving should still succeed even if schedule save fails
-      console.warn("⚠️ Profile setup will continue despite schedule save failure");
+      console.warn(
+        "⚠️ Profile setup will continue despite schedule save failure"
+      );
     }
   }
 
@@ -1607,20 +1641,33 @@ class ProfileSetup {
     }
 
     // 🎯 NEW: Schedule import event listeners
-    if (parseScheduleBtn && !parseScheduleBtn.hasAttribute("data-listener-attached")) {
-      parseScheduleBtn.addEventListener("click", () => this.handleScheduleParsing());
+    if (
+      parseScheduleBtn &&
+      !parseScheduleBtn.hasAttribute("data-listener-attached")
+    ) {
+      parseScheduleBtn.addEventListener("click", () =>
+        this.handleScheduleParsing()
+      );
       parseScheduleBtn.setAttribute("data-listener-attached", "true");
     }
 
-    if (scheduleUploadArea && !scheduleUploadArea.hasAttribute("data-listener-attached")) {
+    if (
+      scheduleUploadArea &&
+      !scheduleUploadArea.hasAttribute("data-listener-attached")
+    ) {
       scheduleUploadArea.addEventListener("click", () => {
         if (scheduleImageInput) scheduleImageInput.click();
       });
       scheduleUploadArea.setAttribute("data-listener-attached", "true");
     }
 
-    if (scheduleImageInput && !scheduleImageInput.hasAttribute("data-listener-attached")) {
-      scheduleImageInput.addEventListener("change", (e) => this.handleImageUpload(e));
+    if (
+      scheduleImageInput &&
+      !scheduleImageInput.hasAttribute("data-listener-attached")
+    ) {
+      scheduleImageInput.addEventListener("change", (e) =>
+        this.handleImageUpload(e)
+      );
       scheduleImageInput.setAttribute("data-listener-attached", "true");
     }
 
@@ -1678,25 +1725,29 @@ class ProfileSetup {
       parseBtn.textContent = "Processing...";
 
       // Process the schedule text
-      const result = await this.scheduleImportService.processScheduleText(textInput.value);
+      const result = await this.scheduleImportService.processScheduleText(
+        textInput.value
+      );
 
       if (result.success) {
         // Store the schedule data
         this.scheduleData = result.scheduleData;
-        
+
         // Show preview
         this.showSchedulePreview(result);
-        
+
         // Hide status
         this.hideScheduleStatus();
-        
+
         console.log("✅ Schedule parsed successfully:", result);
       } else {
         this.showScheduleError(`Failed to parse schedule: ${result.error}`);
       }
     } catch (error) {
       console.error("❌ Schedule parsing error:", error);
-      this.showScheduleError("An error occurred while parsing your schedule. Please try again.");
+      this.showScheduleError(
+        "An error occurred while parsing your schedule. Please try again."
+      );
     } finally {
       parseBtn.disabled = false;
       parseBtn.innerHTML = '<i class="fas fa-search"></i> Parse Schedule';
@@ -1712,7 +1763,7 @@ class ProfileSetup {
 
     // Prevent double-processing by checking if we're already processing
     if (this.isProcessingImage) {
-      console.log('🚫 Already processing an image, ignoring duplicate request');
+      console.log("🚫 Already processing an image, ignoring duplicate request");
       return;
     }
 
@@ -1721,74 +1772,90 @@ class ProfileSetup {
     try {
       // Quick check if OCR is likely to work
       if (!this.isOcrLikelySupported()) {
-        throw new Error('Image upload requires a modern browser with web worker support. Please use text paste instead.');
+        throw new Error(
+          "Image upload requires a modern browser with web worker support. Please use text paste instead."
+        );
       }
-      
+
       // Show processing status
-      this.showScheduleStatus('Uploading image...', 'info');
-      
+      this.showScheduleStatus("Uploading image...", "info");
+
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Please select a valid image file (PNG, JPG, etc.)');
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Please select a valid image file (PNG, JPG, etc.)");
       }
-      
+
       // Check file size (max 10MB)
       const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
-        throw new Error('Image file is too large. Please use an image smaller than 10MB.');
+        throw new Error(
+          "Image file is too large. Please use an image smaller than 10MB."
+        );
       }
-      
+
       // Process image with OCR
       const result = await this.scheduleImportService.processScheduleImage(
-        file, 
+        file,
         (message, progress) => {
-          this.showScheduleStatus(message, 'info', progress);
+          this.showScheduleStatus(message, "info", progress);
         }
       );
-      
+
       if (result.success) {
         this.scheduleData = result.scheduleData;
-        
+
         // Check if any courses were actually found
-        const courseCount = result.validationResult?.validatedCourses?.length || 0;
-        
+        const courseCount =
+          result.validationResult?.validatedCourses?.length || 0;
+
         if (courseCount > 0) {
           // Success with courses found
           this.showSchedulePreview(result);
           const ocrInfo = `✅ Found ${courseCount} courses! OCR completed with ${result.ocrConfidence}% confidence.`;
-          this.showScheduleStatus(ocrInfo, 'success');
-          console.log('🎉 Image processing successful! Courses found:', courseCount);
+          this.showScheduleStatus(ocrInfo, "success");
+          console.log(
+            "🎉 Image processing successful! Courses found:",
+            courseCount
+          );
         } else {
           // Success but no courses found - provide helpful guidance
           this.showSchedulePreview(result); // Still show empty preview
           const helpMessage = `📷 OCR completed (${result.ocrConfidence}% confidence) but no courses detected. Try:\n• Taking a clearer photo\n• Ensuring good lighting\n• Cropping to show only the schedule table\n• Or paste the text manually instead`;
-          this.showScheduleStatus(helpMessage, 'info');
-          console.log('ℹ️ OCR successful but no courses parsed. Raw text:', result.extractedText || 'No text extracted');
+          this.showScheduleStatus(helpMessage, "info");
+          console.log(
+            "ℹ️ OCR successful but no courses parsed. Raw text:",
+            result.extractedText || "No text extracted"
+          );
         }
       } else {
-        throw new Error(result.error || 'Failed to process image');
+        throw new Error(result.error || "Failed to process image");
       }
-      
     } catch (error) {
-      console.error('Image upload failed:', error);
-      
+      console.error("Image upload failed:", error);
+
       // Provide helpful error messages based on the error type
       let errorMessage = `Image processing failed: ${error.message}`;
-      
-      if (error.message.includes('security settings') || error.message.includes('CSP')) {
-        errorMessage = 'Image upload blocked by browser security. Please refresh the page and try again, or use text paste instead.';
-      } else if (error.message.includes('not supported')) {
-        errorMessage = 'Image upload not supported in this browser. Please use text paste instead.';
-      } else if (error.message.includes('too large')) {
-        errorMessage = 'Image file is too large. Please use an image smaller than 10MB.';
-      } else if (error.message.includes('valid image')) {
-        errorMessage = 'Please select a valid image file (PNG, JPG, etc.).';
+
+      if (
+        error.message.includes("security settings") ||
+        error.message.includes("CSP")
+      ) {
+        errorMessage =
+          "Image upload blocked by browser security. Please refresh the page and try again, or use text paste instead.";
+      } else if (error.message.includes("not supported")) {
+        errorMessage =
+          "Image upload not supported in this browser. Please use text paste instead.";
+      } else if (error.message.includes("too large")) {
+        errorMessage =
+          "Image file is too large. Please use an image smaller than 10MB.";
+      } else if (error.message.includes("valid image")) {
+        errorMessage = "Please select a valid image file (PNG, JPG, etc.).";
       }
-      
+
       this.showScheduleError(errorMessage);
-      
-      // Clear the file inputCAn 
-      event.target.value = '';
+
+      // Clear the file inputCAn
+      event.target.value = "";
     } finally {
       // Always reset the processing flag
       this.isProcessingImage = false;
@@ -1801,22 +1868,25 @@ class ProfileSetup {
    * @param {string} type - Status type: 'info', 'success', 'error' (default: 'info')
    * @param {number} progress - Progress percentage 0-100 (optional)
    */
-  showScheduleStatus(message, type = 'info', progress = null) {
+  showScheduleStatus(message, type = "info", progress = null) {
     const statusDiv = document.getElementById("import-status");
     const statusText = document.getElementById("status-text");
-    
+
     if (statusDiv && statusText) {
       statusText.textContent = message;
       statusDiv.classList.remove("hidden");
-      
+
       // Update status styling based on type
-      statusDiv.className = statusDiv.className.replace(/status-(info|success|error)/g, '');
+      statusDiv.className = statusDiv.className.replace(
+        /status-(info|success|error)/g,
+        ""
+      );
       statusDiv.classList.add(`status-${type}`);
-      
+
       // Show progress if provided
       if (progress !== null && progress >= 0 && progress <= 100) {
         const progressText = ` (${Math.round(progress)}%)`;
-        if (!message.includes('%')) {
+        if (!message.includes("%")) {
           statusText.textContent = message + progressText;
         }
       }
@@ -1840,26 +1910,29 @@ class ProfileSetup {
   isOcrLikelySupported() {
     try {
       // Check for Worker support
-      if (typeof Worker === 'undefined') {
-        console.warn('Web Workers not supported - OCR will fail');
+      if (typeof Worker === "undefined") {
+        console.warn("Web Workers not supported - OCR will fail");
         return false;
       }
-      
+
       // Check for blob URL support
-      if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
-        console.warn('Blob URLs not supported - OCR will fail');
+      if (
+        typeof URL === "undefined" ||
+        typeof URL.createObjectURL !== "function"
+      ) {
+        console.warn("Blob URLs not supported - OCR will fail");
         return false;
       }
-      
+
       // Check for Canvas support
-      if (typeof document === 'undefined' || !document.createElement) {
-        console.warn('Canvas not supported - OCR will fail');
+      if (typeof document === "undefined" || !document.createElement) {
+        console.warn("Canvas not supported - OCR will fail");
         return false;
       }
-      
+
       return true;
     } catch (error) {
-      console.warn('OCR support check failed:', error);
+      console.warn("OCR support check failed:", error);
       return false;
     }
   }
@@ -1869,7 +1942,7 @@ class ProfileSetup {
    */
   showScheduleError(message) {
     this.hideScheduleStatus();
-    
+
     // Show error using existing error system or simple alert for now
     console.error("Schedule Import Error:", message);
     alert(message); // TODO: Replace with better error UI
@@ -1889,7 +1962,9 @@ class ProfileSetup {
     coursesFound.textContent = `${result.stats.validCourses} courses found`;
 
     // Generate course cards
-    const courseCards = result.validationResult.validatedCourses.map(course => `
+    const courseCards = result.validationResult.validatedCourses
+      .map(
+        (course) => `
       <div class="course-card">
         <div class="course-header">
           <span class="course-code">${course.courseCode}</span>
@@ -1898,7 +1973,7 @@ class ProfileSetup {
         <h4 class="course-name">${course.courseName}</h4>
         <div class="course-details">
           <div class="time-info">
-            <span class="days">${course.days.join(', ')}</span>
+            <span class="days">${course.days.join(", ")}</span>
             <span class="time">${course.startTime} - ${course.endTime}</span>
           </div>
           <div class="location-info">
@@ -1906,7 +1981,9 @@ class ProfileSetup {
           </div>
         </div>
       </div>
-    `).join('');
+    `
+      )
+      .join("");
 
     previewContent.innerHTML = courseCards;
     previewDiv.classList.remove("hidden");
@@ -2357,7 +2434,6 @@ class ProfileSetup {
       form: document.querySelector(".profile-setup-form"),
     };
   }
-
 }
 
 /**

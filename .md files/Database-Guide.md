@@ -77,7 +77,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │   │     lastFriendActivity: timestamp // timestamp
 │   │   │   }
 │   │   ├── quickAccessData: {             // ⭐ Quick Access starred friends
-│   │   │     starredFriends: [            // array of objects
+│   │   │     friends: [            // array of objects
 │   │   │       {
 │   │   │         userId: "friend_uid_1",  // string
 │   │   │         displayName: "Jane Doe", // string (cached)
@@ -166,7 +166,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
     │   │     major: "BBA",                // string
     │   │     avatarConfig: {...}          // object
     │   │   }
-    │   ├── 🔐 scheduleVisibility: {        // Map: bilateral privacy controls
+    │   ├── scheduleVisibility: {        // Map: bilateral privacy controls
     │   │     "user123": true,             // boolean (User1's schedule visible to User2)
     │   │     "user456": false             // boolean (User2's schedule NOT visible to User1)
     │   │   }

@@ -837,6 +837,92 @@ body.page-friends .schedule-section {
   backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+/* =================================
+   DISABLED AVATAR STYLES
+================================= */
+
+/* Disabled avatar styles for horizontal friends bar */
+.user-avatar.disabled,
+.avatar-placeholder.disabled,
+.friend-avatar-item.disabled .user-avatar,
+.friend-avatar-item.disabled .avatar-placeholder {
+  /* Visual feedback - faded and desaturated */
+  opacity: 0.4 !important;
+  filter: grayscale(80%) blur(0.5px) !important;
+  pointer-events: none !important;
+  cursor: default !important;
+  
+  /* Reduced glassmorphism intensity */
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  background: var(--friends-avatar-disabled-bg) !important;
+  border-color: var(--friends-avatar-disabled-border) !important;
+  
+  /* Remove hover effects */
+  transform: none !important;
+  box-shadow: var(--friends-avatar-disabled-shadow) !important;
+  
+  /* Disable transitions for immediate feedback */
+  transition: none !important;
+}
+
+/* Disabled avatar image styling */
+.user-avatar.disabled .user-avatar-img,
+.avatar-placeholder.disabled .user-avatar-img,
+.friend-avatar-item.disabled .user-avatar-img {
+  opacity: 0.3 !important;
+  filter: grayscale(90%) !important;
+  transition: none !important;
+}
+
+/* Disabled avatar fallback/icon styling */
+.user-avatar.disabled .avatar-fallback,
+.avatar-placeholder.disabled .avatar-fallback,
+.user-avatar.disabled i.fas,
+.avatar-placeholder.disabled i.fas,
+.friend-avatar-item.disabled .avatar-fallback,
+.friend-avatar-item.disabled i.fas {
+  color: var(--friends-avatar-disabled-text) !important;
+  opacity: 0.4 !important;
+}
+
+/* Ensure disabled avatars don't respond to hover */
+.user-avatar.disabled:hover,
+.avatar-placeholder.disabled:hover,
+.friend-avatar-item.disabled:hover,
+.friend-avatar-item.disabled .user-avatar:hover,
+.friend-avatar-item.disabled .avatar-placeholder:hover {
+  transform: none !important;
+  background: var(--friends-avatar-disabled-bg) !important;
+  border-color: var(--friends-avatar-disabled-border) !important;
+  box-shadow: var(--friends-avatar-disabled-shadow) !important;
+  opacity: 0.4 !important;
+  filter: grayscale(80%) blur(0.5px) !important;
+}
+
+/* Disabled friend avatar item container styles */
+.friend-avatar-item.disabled {
+  pointer-events: none !important;
+  cursor: default !important;
+  opacity: 0.6 !important;
+  filter: grayscale(60%) !important;
+  transition: none !important;
+}
+
+.friend-avatar-item.disabled:hover {
+  transform: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Disabled state for avatar name labels */
+.friend-avatar-item.disabled .friend-name {
+  color: var(--friends-avatar-disabled-text) !important;
+  opacity: 0.5 !important;
 }
 
 .user-avatar::before,
@@ -1166,7 +1252,21 @@ body.page-friends .schedule-section {
   line-height: 1.4;
 }
 
-/* Bilateral privacy indicators in friend cards - Clean minimal styling with rounded edges */
+/* =================================
+   ENHANCED DUAL PRIVACY CONTAINER (Phase 2.3)
+================================= */
+
+/* Dual privacy container - holds both privacy indicators */
+.friend-card .dual-privacy-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin: 0.5rem 0 0 0 !important;
+  width: fit-content !important;
+  align-items: flex-start !important;
+}
+
+/* Individual bilateral privacy indicators - Clean minimal styling with rounded edges */
 .friend-card .schedule-access.bilateral-privacy {
   border-radius: 12px !important; /* Rounded edges */
   padding: 4px 8px !important; /* Reduced padding to fit content better */
@@ -1186,6 +1286,7 @@ body.page-friends .schedule-section {
   -webkit-backdrop-filter: blur(12px) !important;
   position: relative !important;
   flex-shrink: 0 !important; /* Don't shrink in parent flex layout */
+  margin-bottom: 2px !important; /* Small gap between indicators */
 }
 
 /* Icon styling moved to enhanced section below */
@@ -1256,7 +1357,123 @@ body.page-friends .schedule-section {
   transform: scale(1.05) !important;
 }
 
-/* Higher specificity rule for visible state */
+/* =================================
+   ENHANCED PRIVACY INDICATORS
+================================= */
+
+/* Schedule hidden state - enhanced with lock icon */
+.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden i {
+  /* Lock icon styling for hidden schedules */
+  color: var(--friends-privacy-hidden-icon-color) !important;
+  background: var(--friends-privacy-hidden-icon-bg) !important;
+  border-color: var(--friends-privacy-hidden-icon-border) !important;
+  box-shadow: var(--friends-privacy-hidden-icon-shadow) !important;
+}
+
+.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden:hover i {
+  background: var(--friends-privacy-hidden-icon-bg-hover) !important;
+  box-shadow: var(--friends-privacy-hidden-icon-shadow-hover) !important;
+  transform: scale(1.08) !important;
+}
+
+/* Schedule visible state - enhanced with eye icon (User's schedule) */
+.friend-card .schedule-access.bilateral-privacy.my-schedule-visible i {
+  /* Eye icon styling for visible schedules */
+  color: var(--friends-privacy-visible-icon-color) !important;
+  background: var(--friends-privacy-visible-icon-bg) !important;
+  border-color: var(--friends-privacy-visible-icon-border) !important;
+  box-shadow: var(--friends-privacy-visible-icon-shadow) !important;
+}
+
+.friend-card .schedule-access.bilateral-privacy.my-schedule-visible:hover i {
+  background: var(--friends-privacy-visible-icon-bg-hover) !important;
+  box-shadow: var(--friends-privacy-visible-icon-shadow-hover) !important;
+  transform: scale(1.08) !important;
+}
+
+/* Friend's schedule visible state - green eye icon */
+.friend-card .schedule-access.bilateral-privacy.friend-schedule-visible i {
+  /* Eye icon styling for accessible friend schedules */
+  color: var(--friends-privacy-visible-icon-color) !important;
+  background: var(--friends-privacy-visible-icon-bg) !important;
+  border-color: var(--friends-privacy-visible-icon-border) !important;
+  box-shadow: var(--friends-privacy-visible-icon-shadow) !important;
+}
+
+.friend-card .schedule-access.bilateral-privacy.friend-schedule-visible:hover i {
+  background: var(--friends-privacy-visible-icon-bg-hover) !important;
+  box-shadow: var(--friends-privacy-visible-icon-shadow-hover) !important;
+  transform: scale(1.08) !important;
+}
+
+/* Friend's schedule hidden state - red lock icon */
+.friend-card .schedule-access.bilateral-privacy.friend-schedule-hidden i {
+  /* Lock icon styling for restricted friend schedules */
+  color: var(--friends-privacy-hidden-icon-color) !important;
+  background: var(--friends-privacy-hidden-icon-bg) !important;
+  border-color: var(--friends-privacy-hidden-icon-border) !important;
+  box-shadow: var(--friends-privacy-hidden-icon-shadow) !important;
+}
+
+.friend-card .schedule-access.bilateral-privacy.friend-schedule-hidden:hover i {
+  background: var(--friends-privacy-hidden-icon-bg-hover) !important;
+  box-shadow: var(--friends-privacy-hidden-icon-shadow-hover) !important;
+  transform: scale(1.08) !important;
+}
+
+/* Privacy indicator pulse animation for state changes */
+@keyframes privacyPulse {
+  0% { 
+    transform: scale(1);
+    box-shadow: var(--friends-privacy-span-shadow);
+  }
+  50% { 
+    transform: scale(1.15);
+    box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.4),
+                0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  100% { 
+    transform: scale(1);
+    box-shadow: var(--friends-privacy-span-shadow);
+  }
+}
+
+/* Apply pulse animation when privacy state changes */
+.friend-card .schedule-access.bilateral-privacy.privacy-changed {
+  animation: privacyPulse 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced tooltip-style privacy indicator */
+.friend-card .schedule-access.bilateral-privacy::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--friends-privacy-tooltip-bg);
+  color: var(--friends-privacy-tooltip-color);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  margin-bottom: 4px;
+}
+
+.friend-card .schedule-access.bilateral-privacy:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+/* Higher specificity rules for user's schedule visibility states */
 .friends-scrollable-container .friend-card .schedule-access.bilateral-privacy.my-schedule-visible,
 .friend-card .schedule-access.bilateral-privacy.my-schedule-visible {
   background: var(--friends-privacy-visible-bg) !important;
@@ -1274,7 +1491,6 @@ body.page-friends .schedule-section {
   border-radius: 12px !important;
 }
 
-/* Higher specificity rule for hidden state */
 .friends-scrollable-container .friend-card .schedule-access.bilateral-privacy.my-schedule-hidden,
 .friend-card .schedule-access.bilateral-privacy.my-schedule-hidden {
   background: var(--friends-privacy-hidden-bg) !important;
@@ -1287,6 +1503,41 @@ body.page-friends .schedule-section {
   min-width: auto !important;
   
   /* Enhanced glassmorphism for hidden state */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 12px !important;
+}
+
+/* Higher specificity rules for friend's schedule visibility states */
+.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy.friend-schedule-visible,
+.friend-card .schedule-access.bilateral-privacy.friend-schedule-visible {
+  background: var(--friends-privacy-visible-bg) !important;
+  color: var(--friends-privacy-visible-color) !important;
+  border: var(--friends-privacy-visible-border) !important;
+  box-shadow: var(--friends-privacy-visible-shadow) !important;
+  
+  /* Ensure auto width applies */
+  width: auto !important;
+  min-width: auto !important;
+  
+  /* Enhanced glassmorphism for accessible friend schedules */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 12px !important;
+}
+
+.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy.friend-schedule-hidden,
+.friend-card .schedule-access.bilateral-privacy.friend-schedule-hidden {
+  background: var(--friends-privacy-hidden-bg) !important;
+  color: var(--friends-privacy-hidden-color) !important;
+  border: var(--friends-privacy-hidden-border) !important;
+  box-shadow: var(--friends-privacy-hidden-shadow) !important;
+  
+  /* Ensure auto width applies */
+  width: auto !important;
+  min-width: auto !important;
+  
+  /* Enhanced glassmorphism for restricted friend schedules */
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
   border-radius: 12px !important;
@@ -1507,6 +1758,35 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   .friends-search .search-input::placeholder {
     color: var(--friends-dark-text-secondary);
   }
+  
+  /* Dark mode support for disabled avatars */
+  .user-avatar.disabled,
+  .avatar-placeholder.disabled,
+  .friend-avatar-item.disabled .user-avatar,
+  .friend-avatar-item.disabled .avatar-placeholder {
+    background: var(--friends-avatar-disabled-bg-dark) !important;
+    border-color: var(--friends-avatar-disabled-border-dark) !important;
+    box-shadow: var(--friends-avatar-disabled-shadow-dark) !important;
+  }
+  
+  .user-avatar.disabled .avatar-fallback,
+  .avatar-placeholder.disabled .avatar-fallback,
+  .user-avatar.disabled i.fas,
+  .avatar-placeholder.disabled i.fas,
+  .friend-avatar-item.disabled .avatar-fallback,
+  .friend-avatar-item.disabled i.fas {
+    color: var(--friends-avatar-disabled-text-dark) !important;
+  }
+  
+  .friend-avatar-item.disabled .friend-name {
+    color: var(--friends-avatar-disabled-text-dark) !important;
+  }
+  
+  /* Dark mode support for privacy tooltips */
+  .friend-card .schedule-access.bilateral-privacy::after {
+    background: var(--friends-privacy-tooltip-bg-dark);
+    color: var(--friends-privacy-tooltip-color-dark);
+  }
 }
 
 /* Global privacy controls removed - individual privacy controls now available via friend card menus */
@@ -1559,7 +1839,7 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   color: var(--friends-schedule-cannot-see-color);
 }
 
-/* Responsive adjustments for schedule access */
+/* Responsive adjustments for enhanced dual privacy indicators */
 @media (max-width: 768px) {
   .schedule-access {
     font-size: 0.7rem;
@@ -1571,13 +1851,20 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
     font-size: 0.65rem;
   }
   
-  /* Adjust bilateral privacy indicator for tablet */
+  /* Adjust dual privacy container for tablet */
+  .friend-card .dual-privacy-container {
+    gap: 3px !important;
+    margin: 0.4rem 0 0 0 !important;
+  }
+  
+  /* Adjust bilateral privacy indicators for tablet */
   .friend-card .schedule-access.bilateral-privacy {
     width: auto !important; /* Fit content on tablet too */
     min-width: auto !important; /* Remove minimum width constraint */
     padding: var(--friends-privacy-status-padding-tablet);
     font-size: var(--friends-privacy-status-font-size-tablet);
     gap: var(--friends-privacy-status-gap-tablet);
+    margin-bottom: 1px !important;
   }
   
   .friend-card .schedule-access.bilateral-privacy i {
@@ -1597,14 +1884,21 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   }
 }
 
-/* Extra small mobile adjustments */
+/* Extra small mobile adjustments for dual privacy */
 @media (max-width: 480px) {
+  /* Adjust dual privacy container for mobile */
+  .friend-card .dual-privacy-container {
+    gap: 2px !important;
+    margin: 0.3rem 0 0 0 !important;
+  }
+  
   .friend-card .schedule-access.bilateral-privacy {
     width: auto !important; /* Fit content on mobile too */
     min-width: auto !important; /* Remove minimum width constraint */
     padding: var(--friends-privacy-status-padding-mobile);
     font-size: var(--friends-privacy-status-font-size-mobile);
     gap: var(--friends-privacy-status-gap-mobile);
+    margin-bottom: 1px !important;
   }
   
   .friend-card .schedule-access.bilateral-privacy i {

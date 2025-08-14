@@ -51,6 +51,77 @@ class NotificationManager {
   }
 
   /**
+   * 🔒 Show standardized privacy restriction notification
+   * @param {string} friendName - Name of the friend
+   * @param {string} privacyType - Type of privacy restriction ('schedule', 'profile', 'quickAccess')
+   * @param {string} restrictionType - Type of restriction ('view', 'edit', 'access')
+   * @param {Object} options - Additional options
+   * @param {number} options.duration - Custom duration in ms (default: 3000)
+   * @param {string} options.type - Notification type ('warning', 'info', 'error')
+   * @param {string} options.message - Custom message (overrides generated message)
+   */
+  showPrivacyNotification(friendName, privacyType = 'schedule', restrictionType = 'access', options = {}) {
+    const {
+      duration = 3000,
+      type = 'warning',
+      message: customMessage
+    } = options;
+
+    // Use custom message if provided, otherwise generate standardized message
+    const message = customMessage || this.generatePrivacyMessage(friendName, privacyType, restrictionType);
+
+    const notification = {
+      id: `privacy_${privacyType}_${Date.now()}`,
+      type: "privacy_restriction",
+      title: this.getPrivacyTitle(privacyType),
+      message,
+      data: {
+        friendName,
+        privacyType,
+        restrictionType
+      },
+      timestamp: Date.now(),
+      priority: "medium",
+      duration
+    };
+
+    this.showNotification(notification);
+
+    // Log privacy notification for debugging
+    console.log(`🔒 Privacy notification shown: ${message}`, {
+      friendName,
+      privacyType,
+      restrictionType,
+      duration
+    });
+  }
+
+  /**
+   * 📢 Show standardized system notification (backward compatibility)
+   * @param {string} message - Notification message
+   * @param {string} type - Notification type ('success', 'error', 'warning', 'info')
+   * @param {Object} options - Additional options
+   * @param {number} options.duration - Duration in ms (default: 3000)
+   */
+  showSystemNotification(message, type = 'info', options = {}) {
+    const {
+      duration = 3000
+    } = options;
+
+    const notification = {
+      id: `system_${Date.now()}`,
+      type: "system",
+      title: this.getSystemTitle(type),
+      message,
+      timestamp: Date.now(),
+      priority: this.getSystemPriority(type),
+      duration
+    };
+
+    this.showNotification(notification);
+  }
+
+  /**
    * 🔔 Show notification in UI
    * @param {Object} notification - Notification data
    */
@@ -295,6 +366,83 @@ class NotificationManager {
   }
 
   /**
+   * 🔒 Generate standardized privacy restriction message
+   * @param {string} friendName - Name of the friend
+   * @param {string} privacyType - Type of privacy restriction
+   * @param {string} restrictionType - Type of restriction
+   * @returns {string} Formatted message
+   */
+  generatePrivacyMessage(friendName, privacyType, restrictionType) {
+    const templates = {
+      schedule: {
+        view: `${friendName}'s schedule is private - access restricted`,
+        edit: `Cannot modify ${friendName}'s schedule - privacy restricted`,
+        access: `${friendName}'s schedule is private - access restricted`
+      },
+      profile: {
+        view: `${friendName}'s profile is private - viewing restricted`,
+        edit: `Cannot modify ${friendName}'s profile - privacy restricted`,
+        access: `${friendName}'s profile access is restricted`
+      },
+      quickAccess: {
+        view: `Cannot view ${friendName}'s schedule - privacy settings`,
+        edit: `Cannot modify ${friendName}'s quick access - restricted`,
+        access: `${friendName}'s schedule is private - access restricted`
+      }
+    };
+
+    const typeTemplates = templates[privacyType] || templates.schedule;
+    return typeTemplates[restrictionType] || typeTemplates.access;
+  }
+
+  /**
+   * 🏷️ Get privacy notification title
+   * @param {string} privacyType - Type of privacy restriction
+   * @returns {string} Title for notification
+   */
+  getPrivacyTitle(privacyType) {
+    const titles = {
+      schedule: "Schedule Private",
+      profile: "Profile Private",
+      quickAccess: "Access Restricted"
+    };
+
+    return titles[privacyType] || "Privacy Restricted";
+  }
+
+  /**
+   * 🏷️ Get system notification title
+   * @param {string} type - System notification type
+   * @returns {string} Title for notification
+   */
+  getSystemTitle(type) {
+    const titles = {
+      success: "Success",
+      error: "Error",
+      warning: "Warning",
+      info: "Information"
+    };
+
+    return titles[type] || "Notification";
+  }
+
+  /**
+   * 📊 Get system notification priority
+   * @param {string} type - System notification type
+   * @returns {string} Priority level
+   */
+  getSystemPriority(type) {
+    const priorities = {
+      success: "medium",
+      error: "high",
+      warning: "medium",
+      info: "low"
+    };
+
+    return priorities[type] || "medium";
+  }
+
+  /**
    * 🎨 Get icon for notification type
    * @param {string} type - Notification type
    * @returns {string} Icon HTML
@@ -303,6 +451,8 @@ class NotificationManager {
     const icons = {
       friend_request: "👋",
       friend_accepted: "🎉",
+      privacy_restriction: "🔒",
+      system: "🔔",
       default: "🔔",
     };
 
@@ -336,6 +486,8 @@ class NotificationManager {
     const titles = {
       friend_request: "Friend Request",
       friend_accepted: "Friend Accepted",
+      privacy_restriction: "Privacy Restricted",
+      system: "System Notification",
     };
 
     return titles[type] || "Notification";
@@ -350,6 +502,8 @@ class NotificationManager {
     const priorities = {
       friend_request: "high",
       friend_accepted: "high",
+      privacy_restriction: "medium",
+      system: "medium",
     };
 
     return priorities[type] || "medium";
