@@ -2658,6 +2658,11 @@ class DataManager {
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
 
+      // Clear cache immediately after database update to ensure fresh data
+      const cacheKey = `quick_access_${userId}`;
+      this.cache.delete(cacheKey);
+      console.log(`🧹 [DataManager] Cleared Quick Access cache for ${userId}`);
+
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
         this.quickAccessUpdateInProgress.delete(userId);
@@ -2716,6 +2721,11 @@ class DataManager {
         "quickAccessData.totalStarred": updatedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
+
+      // Clear cache immediately after database update to ensure fresh data
+      const cacheKey = `quick_access_${userId}`;
+      this.cache.delete(cacheKey);
+      console.log(`🧹 [DataManager] Cleared Quick Access cache for ${userId}`);
 
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {

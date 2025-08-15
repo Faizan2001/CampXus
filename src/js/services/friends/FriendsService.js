@@ -458,8 +458,17 @@ export class FriendsManager {
    * @private
    */
   async handleFriendshipsUpdate(friendships) {
-    console.log(`🔄 FRIENDS: handleFriendshipsUpdate called with ${friendships.length} friendships`);
-    console.log(`🔄 FRIENDS: Friendship data:`, friendships.map(f => ({ id: f.id, friendId: f.friendId, users: f.users })));
+    console.log(
+      `🔄 FRIENDS: handleFriendshipsUpdate called with ${friendships.length} friendships`
+    );
+    console.log(
+      `🔄 FRIENDS: Friendship data:`,
+      friendships.map((f) => ({
+        id: f.id,
+        friendId: f.friendId,
+        users: f.users,
+      }))
+    );
 
     // Transform friendships data to match existing format
     const transformedFriends = friendships.map((friendship) => ({
@@ -475,85 +484,15 @@ export class FriendsManager {
       mutualFriends: friendship.mutualFriends || 0,
     }));
 
-    // 🔄 PHASE 2: Enhanced bilateral cleanup with document validation
-    try {
-      console.log(`🔄 PHASE 2: Starting bilateral cleanup validation`);
-      const currentUserUid = currentUser?.uid;
-      console.log(`🔄 PHASE 2: Current user UID: ${currentUserUid}`);
-      if (currentUserUid) {
-        // Get current friend IDs from real-time data
-        const currentFriendIds = new Set(
-          transformedFriends.map((f) => f.id).filter(Boolean)
-        );
+    // NOTE: Bilateral cleanup is now handled by RealtimeService system-wide
+    // This eliminates redundancy and ensures cleanup happens regardless of which page is active
 
-        // Get current quickAccessData
-        const { dataManager } = await import("../data/DataService.js");
-        const quickAccessData = await dataManager.getQuickAccessFriends(
-          currentUserUid
-        );
+    // Update internal friendship state
+    this.friendships = transformedFriends;
 
-        if (quickAccessData?.starredFriends?.length > 0) {
-          console.log(
-            `🔍 PHASE 2: Validating ${quickAccessData.starredFriends.length} quickAccess friends against ${currentFriendIds.size} current friendships`
-          );
-
-          // Extract friend IDs from starred friends objects
-          const starredFriendIds = quickAccessData.starredFriends.map(
-            (friend) => friend.friendId
-          );
-          console.log(
-            `📋 PHASE 2: Checking these starred friend IDs:`,
-            starredFriendIds
-          );
-
-          // PHASE 2: Validate friendship documents exist for each starred friend
-          const validatedFriends = await this.validateFriendshipDocuments(
-            starredFriendIds,
-            currentUserUid
-          );
-
-          console.log(
-            `✅ PHASE 2: Validated friends (have valid documents):`,
-            Array.from(validatedFriends)
-          );
-
-          // Find friends whose documents no longer exist (regardless of real-time data)
-          // If friendship document is gone, remove from starred friends immediately
-          const staleFormerFriends = starredFriendIds.filter(
-            (friendId) => !validatedFriends.has(friendId)
-          );
-
-          console.log(
-            `🔍 PHASE 2: Stale friends to remove:`,
-            staleFormerFriends
-          );
-
-          // PHASE 2: Batch remove stale friends for performance
-          if (staleFormerFriends.length > 0) {
-            console.log(
-              `🧹 PHASE 2: Found ${staleFormerFriends.length} stale friends to remove from quickAccess`
-            );
-            await this.batchRemoveFromQuickAccess(
-              currentUserUid,
-              staleFormerFriends
-            );
-
-            // Clear caches to ensure UI updates properly
-            console.log(
-              `🧹 PHASE 2: Clearing caches after stale friend removal`
-            );
-            this.clearCache(`quick_access_${currentUserUid}`);
-            const { dataManager } = await import("../data/DataService.js");
-            dataManager.clearCache(`quick_access_${currentUserUid}`);
-          } else {
-            console.log(
-              `✅ PHASE 2: All quickAccess friends validated successfully - no cleanup needed`
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.warn("⚠️ Error during enhanced quickAccessData cleanup:", error);
+    // Update the UI if the friends page is active
+    if (this.isUICallbacksActive && this.uiCallbacks?.onFriendshipsUpdated) {
+      this.uiCallbacks.onFriendshipsUpdated(transformedFriends);
     }
 
     // Notify UI callback if registered
@@ -1375,136 +1314,6 @@ export class FriendsManager {
         console.log(`🎯 Removed optimistic event listener for: ${eventType}`);
       }
     };
-  }
-
-  // =========================
-  // PHASE 2: FRIENDSHIP DOCUMENT VALIDATION LAYER
-  // =========================
-
-  /**
-   * 🔍 PHASE 2: Validate friendship documents exist for given friend IDs
-   * @param {Array<string>} friendIds - Friend IDs to validate
-   * @param {string} currentUserUid - Current user's UID
-   * @returns {Promise<Set<string>>} Set of friend IDs with valid friendship documents
-   */
-  async validateFriendshipDocuments(friendIds, currentUserUid) {
-    const validFriends = new Set();
-
-    if (!friendIds || friendIds.length === 0) {
-      console.log("🔍 PHASE 2: No friend IDs to validate");
-      return validFriends;
-    }
-
-    console.log(
-      `🔍 PHASE 2: Validating ${friendIds.length} friendship documents`
-    );
-
-    // Batch check friendship documents for performance
-    const friendshipChecks = friendIds.map(async (friendId) => {
-      try {
-        const friendshipExists = await dataManager.checkFriendshipExists(
-          currentUserUid,
-          friendId
-        );
-
-        if (friendshipExists) {
-          validFriends.add(friendId);
-          console.log(
-            `✅ PHASE 2: Friendship document validated for ${friendId}`
-          );
-        } else {
-          console.log(
-            `❌ PHASE 2: No friendship document found for ${friendId}`
-          );
-        }
-
-        return { friendId, exists: friendshipExists };
-      } catch (error) {
-        console.error(
-          `❌ PHASE 2: Error validating friendship for ${friendId}:`,
-          error
-        );
-        return { friendId, exists: false, error };
-      }
-    });
-
-    // Execute all validation checks in parallel
-    const results = await Promise.allSettled(friendshipChecks);
-
-    // Log summary
-    const successfulChecks = results.filter(
-      (r) => r.status === "fulfilled"
-    ).length;
-    const validCount = validFriends.size;
-    const invalidCount = friendIds.length - validCount;
-
-    console.log(
-      `🔍 PHASE 2: Validation complete - ${successfulChecks}/${friendIds.length} checks successful, ${validCount} valid, ${invalidCount} invalid friendships`
-    );
-
-    return validFriends;
-  }
-
-  /**
-   * 🧹 PHASE 2: Batch remove friends from quickAccess for performance
-   * @param {string} userId - User ID to clean up
-   * @param {Array<string>} friendIds - Friend IDs to remove
-   * @returns {Promise<void>}
-   */
-  async batchRemoveFromQuickAccess(userId, friendIds) {
-    if (!friendIds || friendIds.length === 0) {
-      console.log("🧹 PHASE 2: No friends to remove from quickAccess");
-      return;
-    }
-
-    console.log(
-      `🧹 PHASE 2: Batch removing ${friendIds.length} stale friends from quickAccess`
-    );
-
-    // Efficient batch removal with error handling
-    const removePromises = friendIds.map(async (friendId) => {
-      try {
-        const result = await dataManager.removeFromQuickAccess(
-          userId,
-          friendId
-        );
-        if (result.success) {
-          console.log(
-            `🧹 PHASE 2: Successfully removed ${friendId} from quickAccess`
-          );
-        } else {
-          console.warn(
-            `⚠️ PHASE 2: Failed to remove ${friendId} from quickAccess:`,
-            result.error
-          );
-        }
-        return { friendId, success: result.success };
-      } catch (error) {
-        console.error(
-          `❌ PHASE 2: Error removing ${friendId} from quickAccess:`,
-          error
-        );
-        return { friendId, success: false, error };
-      }
-    });
-
-    // Execute all removals in parallel with error resilience
-    const results = await Promise.allSettled(removePromises);
-
-    // Log summary
-    const successfulRemovals = results.filter(
-      (r) => r.status === "fulfilled" && r.value.success
-    ).length;
-
-    console.log(
-      `🧹 PHASE 2: Batch cleanup complete - ${successfulRemovals}/${friendIds.length} friends successfully removed from quickAccess`
-    );
-
-    // Clear relevant caches after batch operations
-    this.clearCache(`quick_access_${userId}`);
-    if (dataManager.clearCache) {
-      dataManager.clearCache(`quick_access_${userId}`);
-    }
   }
 
   // =========================
