@@ -54,7 +54,7 @@ class FriendshipPrivacyService {
    * @param {number} retryCount - Current retry attempt (default: 0)
    * @returns {Object|null} Friendship document or null if not found
    */
-  async getFriendshipDocument(userId1, userId2, retryCount = 0) {
+  async getFriendshipDocument(userId1, userId2) {
     // Add input validation
     if (!userId1 || !userId2) {
       console.error(
@@ -81,11 +81,7 @@ class FriendshipPrivacyService {
         return cached.data;
       }
 
-      console.log(
-        `🔐 Fetching friendship document: ${friendshipId} (attempt ${
-          retryCount + 1
-        })`
-      );
+      console.log(`🔐 Fetching friendship document: ${friendshipId}`);
       const docRef = doc(db, "friendships", friendshipId);
       const docSnap = await getDoc(docRef);
 
@@ -112,53 +108,17 @@ class FriendshipPrivacyService {
           timestamp: Date.now(),
         });
 
-        console.log(
-          `✅ Successfully fetched friendship document: ${friendshipId}`
-        );
+        console.log(`✅ Successfully fetched friendship document: ${friendshipId}`);
         return friendshipDoc;
       }
 
-      // Handle race condition: document might not be available yet
-      if (retryCount < 3) {
-        console.log(
-          `⏳ Friendship document not found, retrying in ${
-            (retryCount + 1) * 500
-          }ms...`
-        );
-        await new Promise((resolve) =>
-          setTimeout(resolve, (retryCount + 1) * 500)
-        );
-        return this.getFriendshipDocument(userId1, userId2, retryCount + 1);
-      }
-
-      console.log(
-        `⚠️ Friendship document not found after ${
-          retryCount + 1
-        } attempts: ${friendshipId}`
-      );
+      // Document doesn't exist (friendship was deleted or never existed)
+      console.log(`⚠️ Friendship document not found: ${friendshipId}`);
       return null;
     } catch (error) {
       console.error("❌ Error fetching friendship document:", error);
-
-      // Handle permission denied errors with retry for race conditions
-      if (error.code === "permission-denied" && retryCount < 3) {
-        console.log(
-          `⏳ Permission error (likely due to Firestore propagation delay), retrying in ${
-            (retryCount + 1) * 750
-          }ms... (attempt ${retryCount + 2})`
-        );
-        await new Promise((resolve) =>
-          setTimeout(resolve, (retryCount + 1) * 750)
-        );
-        return this.getFriendshipDocument(userId1, userId2, retryCount + 1);
-      }
-
-      if (error.code === "permission-denied") {
-        console.error(
-          "❌ Permission denied accessing friendship document. Check Firestore rules."
-        );
-      }
-      throw new Error(`Failed to fetch friendship: ${error.message}`);
+      // Return null instead of throwing - let callers handle the absence gracefully
+      return null;
     }
   }
   /**

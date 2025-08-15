@@ -1766,6 +1766,24 @@ export class HorizontalFriendsBar {
       });
     }
 
+    // 🎯 PHASE 3: Subscribe to optimistic unfriending events for immediate UI updates
+    console.log("🎯 PHASE 3: Setting up optimistic event listeners for immediate UI response");
+    
+    this.optimisticUnfriendingUnsubscriber = friendsManager.onOptimisticEvent('optimistic-unfriending', (data) => {
+      console.log("🚀 PHASE 3: Optimistic unfriending event received:", data);
+      this.handleOptimisticUnfriending(data);
+    });
+
+    this.optimisticRollbackUnsubscriber = friendsManager.onOptimisticEvent('optimistic-rollback', (data) => {
+      console.log("🔄 PHASE 3: Optimistic rollback event received:", data);
+      this.handleOptimisticRollback(data);
+    });
+
+    this.optimisticSuccessUnsubscriber = friendsManager.onOptimisticEvent('optimistic-success', (data) => {
+      console.log("✅ PHASE 3: Optimistic success event received:", data);
+      this.handleOptimisticSuccess(data);
+    });
+
     // Listen for schedule privacy changes (Phase 4.1) - Enhanced with immediate handling
     const privacyChangeUnsubscriber = realTimeManager.on(
       REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE,
@@ -1800,6 +1818,21 @@ export class HorizontalFriendsBar {
       this.realTimeUnsubscribers = [];
     }
     this.realTimeUnsubscribers.push(privacyChangeUnsubscriber);
+
+    // Listen for Quick Access updates from RealtimeService (centralized cleanup)
+    const quickAccessUnsubscriber = realTimeManager.on(
+      REALTIME_EVENTS.QUICK_ACCESS_UPDATED,
+      (quickAccessData) => {
+        console.log(
+          "⭐ REALTIME: Quick Access update event received in HorizontalFriendsBar:",
+          quickAccessData
+        );
+        
+        // Handle the Quick Access update to refresh the UI
+        this.handleRealTimeQuickAccessUpdate(quickAccessData);
+      }
+    );
+    this.realTimeUnsubscribers.push(quickAccessUnsubscriber);
 
     console.log(
       "✅ Smart real-time listeners set up successfully with optimized privacy updates"
@@ -1969,8 +2002,8 @@ export class HorizontalFriendsBar {
    * This ensures immediate privacy change detection per requirement R3.1
    */
   async setupFriendshipPrivacyListeners() {
-    if (!this.quickAccessFriends?.length) {
-      console.log("🔒 No starred friends to set up privacy listeners for");
+    if (!this.quickAccessFriends || this.quickAccessFriends.length === 0) {
+      console.log("🔒 No starred friends, skipping privacy listeners setup");
       return;
     }
 
@@ -2004,37 +2037,33 @@ export class HorizontalFriendsBar {
       if (!friend.friendId) continue;
 
       try {
-        // Create both possible friendship document IDs
-        const friendshipId1 = `${currentUserUid}_${friend.friendId}`;
-        const friendshipId2 = `${friend.friendId}_${currentUserUid}`;
+        // Use canonical ordering for friendship document ID (smaller userId first)
+        const friendshipId = currentUserUid < friend.friendId 
+          ? `${currentUserUid}_${friend.friendId}` 
+          : `${friend.friendId}_${currentUserUid}`;
 
-        // Listen to both possible friendship document IDs
-        for (const friendshipId of [friendshipId1, friendshipId2]) {
-          const friendshipDocRef = doc(db, 'friendships', friendshipId);
-          
-          const unsubscriber = onSnapshot(
-            friendshipDocRef,
-            (docSnapshot) => {
-              if (docSnapshot.exists()) {
-                const friendshipData = docSnapshot.data();
-                console.log(`🔒 REAL-TIME: Friendship document updated for ${friendshipId}:`, friendshipData);
-                this.handleFriendshipPrivacyChange(friend.friendId, friendshipData);
-              } else {
-                console.log(`🔒 Friendship document ${friendshipId} does not exist`);
-              }
-            },
-            (error) => {
-              console.warn(`⚠️ Error listening to friendship document ${friendshipId}:`, error);
-              // Don't treat missing documents as errors - they might not exist for this ID combination
-              if (error.code !== 'permission-denied') {
-                console.warn(`🔒 Non-permission error for ${friendshipId}, continuing...`);
-              }
+        // Listen to the canonical friendship document ID
+        const friendshipDocRef = doc(db, 'friendships', friendshipId);
+        
+        const unsubscriber = onSnapshot(
+          friendshipDocRef,
+          (docSnapshot) => {
+            if (docSnapshot.exists()) {
+              const friendshipData = docSnapshot.data();
+              console.log(`🔒 REAL-TIME: Friendship privacy updated for ${friendshipId}`);
+              this.handleFriendshipPrivacyChange(friend.friendId, friendshipData);
+            } else {
+              // Friendship deleted - let the centralized friendship listener handle cleanup
+              console.log(`🔒 REAL-TIME: Friendship document ${friendshipId} deleted - relying on centralized cleanup`);
             }
-          );
-
-          if (unsubscriber) {
-            this.privacyUnsubscribers.push(unsubscriber);
+          },
+          (error) => {
+            console.warn(`⚠️ Error listening to friendship document ${friendshipId}:`, error);
           }
+        );
+
+        if (unsubscriber) {
+          this.privacyUnsubscribers.push(unsubscriber);
         }
 
       } catch (error) {
@@ -2049,6 +2078,7 @@ export class HorizontalFriendsBar {
       `✅ Set up ${this.privacyUnsubscribers.length} privacy listeners for friendship documents`
     );
   }
+
 
   /**
    * Handle real-time friendship document changes that affect privacy
@@ -2370,7 +2400,8 @@ export class HorizontalFriendsBar {
       // Validate data for Firebase (simplified for privacy updates)
       const cleanFriendsData = currentQuickAccess.map((friend) => ({
         friendId: this._validateString(friend.friendId, `Privacy sync friendId`),
-        userId: this._validateString(friend.userId, `Privacy sync userId`), 
+        // Note: quickAccessFriends use friendId, not userId
+        userId: this._validateString(friend.friendId, `Privacy sync userId (using friendId)`), 
         displayName: this._validateString(friend.displayName, `Privacy sync displayName`, 'Unknown User'),
         avatarConfig: this._validateAvatarConfig(friend.avatarConfig, `Privacy sync avatarConfig`),
         isRestricted: Boolean(friend.isRestricted),
@@ -3080,6 +3111,122 @@ export class HorizontalFriendsBar {
     `;
   }
 
+  // =========================
+  // PHASE 3: OPTIMISTIC EVENT HANDLERS
+  // =========================
+
+  /**
+   * 🚀 PHASE 3: Handle optimistic unfriending event for immediate UI update
+   * @param {Object} data - Optimistic unfriending event data
+   */
+  handleOptimisticUnfriending(data) {
+    const { friendId, friendInfo } = data;
+    
+    console.log(`🚀 PHASE 3: Handling optimistic unfriending for ${friendInfo.displayName || friendId}`);
+    
+    // Remove from local starred friends immediately (optimistic)
+    const previousLength = this.quickAccessFriends.length;
+    this.quickAccessFriends = this.quickAccessFriends.filter(friend => 
+      (friend.friendId || friend.userId) !== friendId
+    );
+    
+    const newLength = this.quickAccessFriends.length;
+    
+    if (newLength < previousLength) {
+      console.log(`🚀 PHASE 3: Removed ${friendInfo.displayName} from UI immediately (${previousLength} → ${newLength})`);
+      
+      // Update UI immediately
+      this.render();
+      
+      // If the unfriended user was selected, switch to user's schedule
+      if (this.selectedFriendId === friendId) {
+        console.log(`🚀 PHASE 3: Unfriended user was selected, switching to user schedule`);
+        this.selectedFriendId = null;
+        this.updateVisualSelection(null);
+        
+        // Emit event to load user's schedule
+        this.emitScheduleChangeEvent(null, 'Your Schedule');
+      }
+      
+      // Show user feedback
+      this.showUnfriendingFeedback(friendInfo.displayName || 'Friend');
+    } else {
+      console.log(`🚀 PHASE 3: Friend ${friendId} was not in starred friends list`);
+    }
+  }
+
+  /**
+   * 🔄 PHASE 3: Handle optimistic rollback on database operation failure
+   * @param {Object} data - Rollback event data
+   */
+  handleOptimisticRollback(data) {
+    const { friendId, friendInfo } = data;
+    
+    console.log(`🔄 PHASE 3: Rolling back optimistic unfriending for ${friendInfo.displayName || friendId}`);
+    
+    // Show error notification
+    this.showDebouncedNotification(
+      `Failed to unfriend ${friendInfo.displayName || 'friend'}. Please try again.`,
+      'error',
+      4000
+    );
+    
+    // Refresh from server data to restore correct state
+    console.log(`🔄 PHASE 3: Refreshing data from server to restore correct state`);
+    this.refreshFromServer();
+  }
+
+  /**
+   * ✅ PHASE 3: Handle optimistic success confirmation
+   * @param {Object} data - Success event data
+   */
+  handleOptimisticSuccess(data) {
+    const { friendId, friendInfo } = data;
+    
+    console.log(`✅ PHASE 3: Optimistic unfriending confirmed for ${friendInfo.displayName || friendId}`);
+    
+    // Show success notification
+    this.showDebouncedNotification(
+      `You are no longer friends with ${friendInfo.displayName || 'friend'}`,
+      'success',
+      3000
+    );
+    
+    // The real-time listeners will handle the final cleanup automatically
+  }
+
+  /**
+   * 📢 PHASE 3: Show unfriending feedback notification
+   * @param {string} friendName - Name of friend being unfriended
+   */
+  showUnfriendingFeedback(friendName) {
+    this.showDebouncedNotification(
+      `Unfriending ${friendName}...`,
+      'info',
+      2000
+    );
+  }
+
+  /**
+   * 🔄 PHASE 3: Refresh data from server to restore correct state
+   */
+  async refreshFromServer() {
+    try {
+      console.log("🔄 PHASE 3: Refreshing starred friends from server");
+      
+      // Fetch fresh data without cache
+      const freshData = await friendsManager.getQuickAccessFriendsWithPrivacy(false);
+      
+      if (freshData) {
+        this.quickAccessFriends = freshData;
+        this.render();
+        console.log("✅ PHASE 3: Successfully refreshed from server");
+      }
+    } catch (error) {
+      console.error("❌ PHASE 3: Error refreshing from server:", error);
+    }
+  }
+
   /**
    * Programmatic API to get current selection
    */
@@ -3215,6 +3362,26 @@ export class HorizontalFriendsBar {
       });
       this.privacyUnsubscribers = [];
     }
+
+    // 🎯 PHASE 3: Clean up optimistic event listeners
+    if (this.optimisticUnfriendingUnsubscriber) {
+      console.log("🧹 PHASE 3: Cleaning up optimistic unfriending listener");
+      this.optimisticUnfriendingUnsubscriber();
+      this.optimisticUnfriendingUnsubscriber = null;
+    }
+
+    if (this.optimisticRollbackUnsubscriber) {
+      console.log("🧹 PHASE 3: Cleaning up optimistic rollback listener");
+      this.optimisticRollbackUnsubscriber();
+      this.optimisticRollbackUnsubscriber = null;
+    }
+
+    if (this.optimisticSuccessUnsubscriber) {
+      console.log("🧹 PHASE 3: Cleaning up optimistic success listener");
+      this.optimisticSuccessUnsubscriber();
+      this.optimisticSuccessUnsubscriber = null;
+    }
+
 
     // Clear notification debouncing
     if (this._notificationDebounce) {

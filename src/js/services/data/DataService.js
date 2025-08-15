@@ -1900,55 +1900,53 @@ class DataManager {
         `💔 Removing friendship between users: ${user1Id} and ${user2Id}`
       );
 
-      // Delete the friendship document
+      // Delete the friendship document first - this triggers real-time listeners
       await deleteDoc(friendshipRef);
 
-      // Remove both users from each other's QuickAccess (starred friends)
-      // This ensures they no longer appear in the horizontal friends bar
-      console.log("⭐ Cleaning up QuickAccess for both users...");
+      // ✅ SECURITY FIX: Only modify current user's QuickAccess data
+      // The other user's data will self-heal via real-time friendship document listeners
+      console.log(
+        "⭐ Cleaning up current user's QuickAccess (secure approach)..."
+      );
 
-      try {
-        // Remove user2 from user1's QuickAccess
-        const removeFromUser1Result = await this.removeFromQuickAccess(
-          user1Id,
-          user2Id
-        );
-        if (removeFromUser1Result.success) {
-          console.log(`✅ Removed ${user2Id} from ${user1Id}'s QuickAccess`);
-        } else {
+      // Get current user (the one who initiated unfriend)
+      const { currentUser } = await import("../../store/userStore.js");
+      const currentUserId = currentUser?.uid;
+
+      if (currentUserId) {
+        // Determine which user to remove from current user's starred friends
+        const friendToRemove = currentUserId === user1Id ? user2Id : user1Id;
+
+        try {
+          // ✅ Only remove friend from current user's QuickAccess (no cross-user modifications)
+          const removeResult = await this.removeFromQuickAccess(
+            currentUserId,
+            friendToRemove
+          );
+          if (removeResult.success) {
+            console.log(
+              `✅ Removed ${friendToRemove} from ${currentUserId}'s QuickAccess`
+            );
+          } else {
+            console.warn(
+              `⚠️ Failed to remove ${friendToRemove} from ${currentUserId}'s QuickAccess: ${removeResult.error}`
+            );
+          }
+        } catch (error) {
           console.warn(
-            `⚠️ Failed to remove ${user2Id} from ${user1Id}'s QuickAccess: ${removeFromUser1Result.error}`
+            `⚠️ Error removing ${friendToRemove} from ${currentUserId}'s QuickAccess:`,
+            error
           );
         }
-      } catch (error) {
-        console.warn(
-          `⚠️ Error removing ${user2Id} from ${user1Id}'s QuickAccess:`,
-          error
-        );
-      }
-
-      try {
-        // Remove user1 from user2's QuickAccess
-        const removeFromUser2Result = await this.removeFromQuickAccess(
-          user2Id,
-          user1Id
-        );
-        if (removeFromUser2Result.success) {
-          console.log(`✅ Removed ${user1Id} from ${user2Id}'s QuickAccess`);
-        } else {
-          console.warn(
-            `⚠️ Failed to remove ${user1Id} from ${user2Id}'s QuickAccess: ${removeFromUser2Result.error}`
-          );
-        }
-      } catch (error) {
-        console.warn(
-          `⚠️ Error removing ${user1Id} from ${user2Id}'s QuickAccess:`,
-          error
-        );
+      } else {
+        console.warn("⚠️ No current user found, skipping QuickAccess cleanup");
       }
 
       console.log(
-        "✅ Friendship deleted successfully and QuickAccess cleaned up"
+        "✅ Friendship deleted successfully and current user's QuickAccess cleaned up"
+      );
+      console.log(
+        "🔄 Other user's QuickAccess will self-heal via real-time listeners"
       );
 
       // Clear friendship privacy cache to ensure UI updates properly

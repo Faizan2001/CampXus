@@ -15,7 +15,20 @@ service cloud.firestore {
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {
-      allow read, delete: if request.auth != null && request.auth.uid in resource.data.users;
+      // Allow read for both individual documents and collection queries
+      // 1. Individual document reads: check document ID pattern (works for deleted docs)
+      // 2. Collection queries: check if user is in the friendship
+      allow read: if request.auth != null && (
+        // Individual document access by ID pattern
+        (friendshipId.split('_')[0] == request.auth.uid || 
+         friendshipId.split('_')[1] == request.auth.uid) ||
+        // Collection query access (for documents that exist)
+        (resource != null && request.auth.uid in resource.data.users)
+      );
+      
+      // Delete requires document to exist, so keep existing check
+      allow delete: if request.auth != null && request.auth.uid in resource.data.users;
+      
       allow create: if request.auth != null && request.auth.uid in request.resource.data.users;
       allow update: if request.auth != null && request.auth.uid in resource.data.users && 
         (validateBilateralPrivacyUpdate(request, resource) || validateCachedInfoUpdate(request, resource));
@@ -49,10 +62,6 @@ service cloud.firestore {
     }
 
     // --- Helper Functions ---
-    function areFriends(userId1, userId2) {
-      return exists(/databases/$(database)/documents/friendships/$(userId1 < userId2 ? userId1 + '_' + userId2 : userId2 + '_' + userId1));
-    }
-
     function canViewFriendSchedule(viewerUserId, scheduleOwnerUserId) {
       // Note: Firestore rules do not support 'let' variables.
       // The friendshipId is constructed directly in the path.

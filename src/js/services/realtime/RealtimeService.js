@@ -195,7 +195,13 @@ class RealTimeManager {
    * Start real-time listening for a specific user
    * @param {string} userId - User ID to start listening for
    */
-  startListening(userId) {
+  async startListening(userId) {
+    // Validate user ID first
+    if (!userId) {
+      console.warn("⚠️ Cannot start real-time listening without valid user ID");
+      return;
+    }
+
     if (this.isListening && this.currentUserId === userId) {
       this.log(`🔄 Already listening for user: ${userId}`);
       return;
@@ -204,27 +210,57 @@ class RealTimeManager {
     // Stop any existing listeners first
     this.stopListening();
 
-    this.currentUserId = userId;
-    this.isListening = true;
+    // Wait for proper authentication before setting up listeners
+    try {
+      const { currentUser } = await import('../../store/userStore.js');
+      
+      // Wait for user to be fully authenticated with timeout
+      await currentUser.waitForProfileWithTimeout(5000);
+      
+      // Double-check authentication state
+      if (!currentUser.isLoggedIn() || currentUser.uid !== userId) {
+        console.warn("⚠️ Authentication state mismatch, delaying listener setup");
+        return;
+      }
 
-    this.log(`🚀 Starting real-time listeners for user: ${userId}`);
+      this.currentUserId = userId;
+      this.isListening = true;
 
-    // Set up all the real-time listeners
-    this.setupFriendRequestsListener(userId);
-    this.setupOutgoingFriendRequestsListener(userId);
-    this.setupFriendshipsListener(userId);
-    this.setupUserProfileListener(userId);
-    // Phase-1: Schedule listener
-    this.setupUserScheduleListener(userId);
-    // Phase-2: Quick Access listener
-    this.setupQuickAccessListener(userId);
+      this.log(`🚀 Starting real-time listeners for user: ${userId}`);
 
-    // Emit connection status
-    this.emit(REALTIME_EVENTS.CONNECTION_STATUS, {
-      isConnected: true,
-      userId: userId,
-      timestamp: Date.now(),
-    });
+      // Set up all the real-time listeners with small delays to avoid race conditions
+      this.setupFriendRequestsListener(userId);
+      
+      // Small delay between listener setups
+      await new Promise(resolve => setTimeout(resolve, 100));
+      this.setupOutgoingFriendRequestsListener(userId);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      this.setupFriendshipsListener(userId);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      this.setupUserProfileListener(userId);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Phase-1: Schedule listener
+      this.setupUserScheduleListener(userId);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Phase-2: Quick Access listener
+      this.setupQuickAccessListener(userId);
+
+      // Emit connection status
+      this.emit(REALTIME_EVENTS.CONNECTION_STATUS, {
+        isConnected: true,
+        userId: userId,
+        timestamp: Date.now(),
+      });
+      
+    } catch (error) {
+      console.error("❌ Error starting real-time listeners:", error);
+      this.isListening = false;
+      this.currentUserId = null;
+    }
   }
 
   /**
@@ -327,8 +363,18 @@ class RealTimeManager {
     try {
       const unsubscribe = dataManager.listenToUserFriendships(
         userId,
-        (friendships) => {
+        async (friendships) => {
           this.log(`🤝 Friendships update: ${friendships.length} friends`);
+          
+          // Always trigger bilateral cleanup when friendships change
+          // This ensures starred friends are cleaned up even when FriendsService isn't listening
+          try {
+            this.log(`🧹 Triggering bilateral cleanup for ${userId}`);
+            await this.performBilateralCleanup(userId, friendships);
+          } catch (cleanupError) {
+            console.error(`❌ Error in bilateral cleanup:`, cleanupError);
+          }
+          
           this.emit(REALTIME_EVENTS.FRIENDSHIPS, friendships);
         }
       );
@@ -587,6 +633,121 @@ class RealTimeManager {
     } catch (error) {
       console.error("❌ Error emitting schedule privacy change event:", error);
     }
+  }
+
+  /**
+   * Perform bilateral cleanup to remove stale starred friends
+   * This is the same logic as in FriendsService but available at system level
+   * @param {string} userId - Current user ID
+   * @param {Array} currentFriendships - Current friendship documents
+   * @private
+   */
+  async performBilateralCleanup(userId, currentFriendships) {
+    try {
+      // Get current Quick Access friends
+      const quickAccessData = await dataManager.getQuickAccessFriends(userId);
+      if (!quickAccessData) {
+        this.log(`⚠️ Could not get Quick Access data for cleanup (user may not have any)`);
+        return;
+      }
+
+      const quickAccessFriends = quickAccessData.starredFriends || [];
+      if (quickAccessFriends.length === 0) {
+        this.log(`🔍 No Quick Access friends to validate for ${userId}`);
+        return;
+      }
+
+      this.log(`🔍 CLEANUP: Validating ${quickAccessFriends.length} quickAccess friends against ${currentFriendships.length} current friendships`);
+
+      // Extract friend IDs from quickAccess for validation
+      const starredFriendIds = quickAccessFriends.map(friend => friend.friendId).filter(Boolean);
+      this.log(`📋 CLEANUP: Checking these starred friend IDs: ${JSON.stringify(starredFriendIds)}`);
+
+      if (starredFriendIds.length === 0) {
+        this.log(`🔍 No valid friend IDs in Quick Access to validate`);
+        return;
+      }
+
+      // Validate friendship documents exist for each starred friend
+      const validationResults = await this.validateFriendshipDocuments(userId, starredFriendIds, currentFriendships);
+      
+      const validFriends = validationResults.filter(result => result.isValid).map(result => result.friendId);
+      const staleFriends = validationResults.filter(result => !result.isValid).map(result => result.friendId);
+
+      this.log(`✅ CLEANUP: Validated friends (have valid documents): ${JSON.stringify(validFriends)}`);
+      
+      if (staleFriends.length > 0) {
+        this.log(`🔍 CLEANUP: Stale friends to remove: ${JSON.stringify(staleFriends)}`);
+        this.log(`🧹 CLEANUP: Found ${staleFriends.length} stale friends to remove from quickAccess`);
+
+        // Remove stale friends from Quick Access
+        for (const staleFriendId of staleFriends) {
+          const removeResult = await dataManager.removeFromQuickAccess(userId, staleFriendId);
+          if (removeResult.success) {
+            this.log(`🧹 CLEANUP: Successfully removed ${staleFriendId} from quickAccess`);
+          } else {
+            this.log(`❌ CLEANUP: Failed to remove ${staleFriendId} from quickAccess: ${removeResult.error}`);
+          }
+        }
+
+        this.log(`🧹 CLEANUP: Batch cleanup complete - ${staleFriends.length} stale friends processed`);
+
+        // Emit Quick Access update event so UI components can refresh
+        const updatedQuickAccessData = await dataManager.getQuickAccessFriends(userId);
+        if (updatedQuickAccessData) {
+          this.emit(REALTIME_EVENTS.QUICK_ACCESS_UPDATED, {
+            starredFriends: updatedQuickAccessData.starredFriends || [],
+            totalStarred: updatedQuickAccessData.totalStarred || 0,
+            lastUpdated: updatedQuickAccessData.lastUpdated,
+            source: 'bilateral_cleanup'
+          });
+          this.log(`📡 CLEANUP: Emitted Quick Access update event with ${updatedQuickAccessData.starredFriends?.length || 0} friends`);
+        }
+      } else {
+        this.log(`✅ CLEANUP: All Quick Access friends have valid friendship documents`);
+      }
+
+    } catch (error) {
+      console.error(`❌ Error in bilateral cleanup:`, error);
+    }
+  }
+
+  /**
+   * Validate that friendship documents exist for the given friend IDs
+   * @param {string} userId - Current user ID
+   * @param {Array<string>} friendIds - Friend IDs to validate
+   * @param {Array} currentFriendships - Current friendship documents
+   * @returns {Array} Validation results
+   * @private
+   */
+  async validateFriendshipDocuments(userId, friendIds, currentFriendships) {
+    this.log(`🔍 CLEANUP: Validating ${friendIds.length} friendship documents`);
+    
+    const results = [];
+    
+    for (const friendId of friendIds) {
+      // Check if a friendship document exists between current user and this friend
+      const friendshipExists = currentFriendships.some(friendship => 
+        friendship.users && 
+        friendship.users.includes(userId) && 
+        friendship.users.includes(friendId)
+      );
+
+      if (!friendshipExists) {
+        this.log(`❌ CLEANUP: No friendship document found for ${friendId}`);
+        results.push({ friendId, isValid: false });
+      } else {
+        this.log(`✅ CLEANUP: Valid friendship document found for ${friendId}`);
+        results.push({ friendId, isValid: true });
+      }
+    }
+
+    const validCount = results.filter(r => r.isValid).length;
+    const invalidCount = results.filter(r => !r.isValid).length;
+    
+    this.log(`🔍 CLEANUP: Validation complete - ${friendIds.length}/${friendIds.length} checks successful, ${validCount} valid, ${invalidCount} invalid friendships`);
+    
+    return results;
   }
 
   // =========================

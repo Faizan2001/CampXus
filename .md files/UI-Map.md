@@ -1,9 +1,9 @@
 # 🗺️ CampXus: UI Reference Map & Developer Guide
 
-**Version:** 5.0 (SPA + Firebase + Real-Time Friends System)  
-**Last Updated:** July 2025
+**Version:** 6.0 (SPA + Firebase + Privacy-Aware Quick Access System)  
+**Last Updated:** August 2025
 
-A comprehensive guide to the Single Page Application architecture, Firebase integration, DOM elements, and their interactions in CampXus. This document reflects the current **SPA + Firebase + Real-Time Friends System** architecture with authentication, profile management, social features, and real-time notifications.
+A comprehensive guide to the Single Page Application architecture, Firebase integration, DOM elements, and their interactions in CampXus. This document reflects the current **Privacy-Aware Quick Access System** with bilateral privacy controls, real-time visual indicators, performance optimizations, and advanced social features.
 
 ---
 
@@ -13,8 +13,9 @@ A comprehensive guide to the Single Page Application architecture, Firebase inte
 2. [Firebase Integration Layer](#-firebase-integration-layer)
 3. [Authentication System](#-authentication-system)
 4. [Profile Management System](#-profile-management-system)
-5. [Friends System & Real-Time Features](#-friends-system--real-time-features)
-6. [Schedule Management](#-schedule-management)
+5. [Privacy-Aware Quick Access System](#-privacy-aware-quick-access-system)
+6. [Friends System & Real-Time Features](#-friends-system--real-time-features)
+7. [Schedule Management](#-schedule-management)
 7. [Key DOM Elements](#-key-dom-elements)
 8. [SPA Router & Navigation](#-spa-router--navigation)
 9. [CSS Architecture](#-css-architecture)
@@ -49,6 +50,8 @@ CampXus is built as a **Single Page Application** with Firebase backend integrat
 | `currentFriends`        | `friends-manager.js` | Cached friends list              | Real-time     |
 | `activeListeners`       | `realtime-manager.js` | Active Firestore listeners       | Memory        |
 | `notifications`         | `notification-manager.js` | Active toast notifications    | Memory        |
+| `privacyStatus`         | `HorizontalFriendsBar.js` | Friend privacy states with visual indicators | Real-time |
+| `circuitBreakers`       | `HorizontalFriendsBar.js` | Performance protection against infinite loops | Memory |
 
 ---
 
@@ -65,7 +68,7 @@ CampXus is built as a **Single Page Application** with Firebase backend integrat
 ### Firestore Data Structure
 
 ```javascript
-// User Profile Document (users/{uid})
+// User Profile Document (users/{uid}) - Enhanced with Privacy & Quick Access
 {
   uid: "firebase-user-id",
   email: "student@iub.edu.bd",
@@ -75,10 +78,28 @@ CampXus is built as a **Single Page Application** with Firebase backend integrat
   lastName: "Doe",
   studentId: "1234567",
   major: "Computer Science",
-  avatarConfig: { /* avatar settings */ },
+  avatarConfig: { /* DiceBear avatar settings */ },
   profileSetupComplete: true,
+  quickAccessData: ["friend-uid-1", "friend-uid-2"], // Starred friends
   createdAt: timestamp,
   lastActive: timestamp
+}
+
+// Friendship Document (friendships/{id}) - With Bilateral Privacy
+{
+  users: ["user1-uid", "user2-uid"],
+  user1Id: "user1-uid",
+  user2Id: "user2-uid",
+  scheduleVisibility: {
+    "user1-uid": true,  // User1's schedule IS visible to User2
+    "user2-uid": false  // User2's schedule IS NOT visible to User1
+  },
+  privacyMetadata: {
+    lastPrivacyUpdate: timestamp,
+    privacyUpdatedBy: "user1-uid",
+    privacyVersion: 2
+  },
+  createdAt: timestamp
 }
 ```
 
@@ -179,38 +200,91 @@ document.addEventListener("spa:navigation", (event) => {
 
 ---
 
-## 👥 Friends System & Real-Time Features
+## 🔐 Privacy-Aware Quick Access System
 
 ### Architecture Overview
 
-The friends system implements a modern, real-time social experience with instant notifications and live updates:
+The Privacy-Aware Quick Access System provides instant visual feedback when friends restrict schedule access, with real-time updates and performance optimizations:
 
 | Component | File | Purpose | Key Features |
 | --- | --- | --- | --- |
-| **Friends Manager** | `core/friends/friends-manager.js` | Core friends logic | Search, requests, friendships management |
-| **Friends UI** | `core/friends/friends-ui.js` | User interface controller | Real-time UI updates, event handling |
-| **Real-Time Manager** | `core/realtime-manager.js` | Event coordination | Publish/subscribe system, memory management |
-| **Notification Manager** | `core/notification-manager.js` | Toast notifications | Glassmorphism design, auto-dismiss |
-| **Debug Helpers** | `core/debug-helpers.js` | Development tools | Console commands, system monitoring |
+| **HorizontalFriendsBar** | `src/js/components/friends/HorizontalFriendsBar.js` | Privacy-aware quick access UI | Visual privacy indicators, circuit breaker protection |
+| **FriendshipPrivacyService** | `src/js/services/friends/FriendshipPrivacyService.js` | Privacy control management | Real-time privacy checks, bilateral controls |
+| **Privacy Event System** | Integrated with RealtimeService | Immediate privacy updates | Cross-session synchronization |
 
-### Real-Time Data Flow
+### Key Privacy Features
+
+#### Visual Privacy Indicators
+- **Lock Icons**: Show on restricted friend avatars in horizontal bar
+- **Disabled States**: Opacity and grayscale effects for inaccessible schedules
+- **Consistent Design**: Glassmorphism styling maintains visual coherence
+- **Real-Time Updates**: Visual changes appear instantly across all user sessions
+
+#### Performance Optimizations
+- **Circuit Breaker Pattern**: Prevents infinite loops and excessive database updates
+- **Debounced Operations**: Batched profile updates (15-second intervals)
+- **Immediate Privacy Sync**: Privacy changes bypass batching for instant updates
+- **Lightweight Renders**: Privacy-specific visual updates without full re-renders
+- **Memory Management**: Automatic cleanup of real-time listeners and timeouts
+
+### Privacy UI Elements
+
+| Element | Selector | Purpose | Privacy Integration |
+| --- | --- | --- | --- |
+| **Horizontal Friends Bar** | `.horizontal-friends-bar` | Quick access to starred friends | Privacy-aware avatar states |
+| **Friend Avatar** | `.friend-avatar` | Individual friend representation | Lock icon overlay for restricted access |
+| **Privacy Lock Icon** | `.privacy-lock-icon` | Visual privacy indicator | Appears on restricted friend avatars |
+| **Disabled Avatar State** | `.friend-avatar.disabled` | Non-clickable restricted avatar | Reduces opacity, shows "not-allowed" cursor |
+
+### Real-Time Privacy Flow
 
 ```javascript
-// Real-time event flow
-Firebase Database Change → Firestore Listener → Real-Time Manager → Friends Manager → UI Components
-                                                     ↓
-                                            Notification Manager
+// Privacy change detection and UI update flow
+User1 changes privacy → Friendship document updated → 
+FriendshipPrivacyService detects change → Privacy event broadcast → 
+HorizontalFriendsBar receives update → Lightweight visual update → 
+Lock icon appears/disappears instantly
 ```
 
-### Key UI Elements
+---
 
-| Element | Selector | Purpose | Real-Time Updates |
+## 👥 Friends System & Real-Time Features
+
+### Enhanced Architecture Overview
+
+The friends system implements a modern, real-time social experience with privacy-aware features and performance optimizations:
+
+| Component | File | Purpose | Key Features |
 | --- | --- | --- | --- |
-| **Friends Search** | `#friendSearch` | Find students by name/major | Debounced search with caching |
-| **Friends List** | `#friendsList` | Display current friends | Live updates when friendships change |
-| **Friend Requests** | `#friendRequests` | Pending requests | Instant notifications for new requests |
-| **Search Results** | `#searchResults` | Student search results | Send friend request buttons |
-| **Notification Container** | `#notification-container` | Toast notifications | Auto-generated, glassmorphism styled |
+| **FriendsService** | `src/js/services/friends/FriendsService.js` | Core friends logic | Search, requests, friendships, quick access management |
+| **FriendshipPrivacyService** | `src/js/services/friends/FriendshipPrivacyService.js` | Privacy controls | Bilateral privacy, real-time privacy checks |
+| **FriendsPage** | `src/js/pages/FriendsPage.js` | Friends interface | Real-time UI updates, privacy-aware friend cards |
+| **HorizontalFriendsBar** | `src/js/components/friends/HorizontalFriendsBar.js` | Quick access bar | Privacy indicators, performance optimization |
+| **Real-Time Manager** | `src/js/services/realtime/RealtimeService.js` | Event coordination | Privacy-aware publish/subscribe system |
+| **Notification Manager** | `src/js/services/realtime/NotificationService.js` | Toast notifications | Privacy interaction feedback |
+
+### Enhanced Real-Time Data Flow
+
+```javascript
+// Privacy-aware real-time event flow
+Firebase Database Change → Firestore Listener → Privacy Service → Real-Time Manager → 
+    ↓                                                                        ↓
+Friends Service → UI Components                                    Notification Manager
+    ↓               ↓
+Quick Access    Privacy Visual
+Updates         Indicators
+```
+
+### Enhanced UI Elements with Privacy Features
+
+| Element | Selector | Purpose | Real-Time Updates | Privacy Integration |
+| --- | --- | --- | --- | --- |
+| **Horizontal Friends Bar** | `.horizontal-friends-bar` | Quick access to starred friends | Instant privacy status updates | Lock icons, disabled states |
+| **Friends Search** | `#friendSearch` | Find students by name/major | Debounced search with caching | Privacy-aware search results |
+| **Friends List** | `#friendsList` | Display current friends | Live updates when friendships change | Privacy status indicators |
+| **Friend Requests** | `#friendRequests` | Pending requests | Instant notifications for new requests | Privacy-aware friend cards |
+| **Friend Privacy Toggle** | `.privacy-toggle` | Control schedule visibility | Immediate cross-session updates | Bilateral privacy controls |
+| **Notification Container** | `#notification-container` | Toast notifications | Privacy interaction feedback | "Schedule access restricted" messages |
 
 ### Real-Time Features
 
@@ -219,27 +293,33 @@ Firebase Database Change → Firestore Listener → Real-Time Manager → Friend
 - **Live UI Updates**: Request counts and lists update without page refresh
 - **Accept/Reject Actions**: Real-time feedback with success/error notifications
 
-#### Notification System
+#### Enhanced Notification System with Privacy Feedback
 ```javascript
 // Notification types and styling
 {
   friend_request: "👋 New Friend Request",
   friend_accepted: "🎉 Friend Request Accepted", 
+  privacy_restricted: "🔒 Schedule access restricted",
+  privacy_granted: "🔓 Schedule access granted",
+  privacy_updated: "🔄 Privacy settings updated",
   success: "✅ Action Successful",
   error: "❌ Something went wrong",
   connected: "📡 Real-time updates active"
 }
 ```
 
-#### Memory Management
-- **Automatic Cleanup**: Listeners are cleaned up when users logout or navigate away
+#### Enhanced Memory Management & Performance
+- **Circuit Breaker Protection**: Prevents infinite loops in friend profile updates
+- **Automatic Cleanup**: Listeners and timeouts cleaned up on logout/navigation
+- **Debounced Operations**: Batched profile updates (15-second intervals) for performance
+- **Immediate Privacy Sync**: Privacy changes bypass batching for instant updates
 - **Garbage Collection**: Periodic cleanup of stale event subscribers
 - **Performance Monitoring**: Memory usage tracking and leak prevention
 
-### Database Structure
+### Enhanced Database Structure with Privacy Controls
 
 ```javascript
-// Friend Requests Collection
+// Friend Requests Collection (Unchanged)
 {
   id: "request-id",
   fromUserId: "sender-uid",
@@ -251,53 +331,72 @@ Firebase Database Change → Firestore Listener → Real-Time Manager → Friend
   updatedAt: timestamp
 }
 
-// Friendships Collection
+// Enhanced Friendships Collection with Bilateral Privacy
 {
   id: "friendship-id",
   user1Id: "user-1-uid",
   user2Id: "user-2-uid",
   user1Info: { displayName, major, avatar },
   user2Info: { displayName, major, avatar },
-  users: ["user-1-uid", "user-2-uid"], // For querying
+  users: ["user-1-uid", "user-2-uid"], // For efficient querying
+  
+  // Bilateral Privacy Controls (NEW)
+  scheduleVisibility: {
+    "user-1-uid": true,  // User1's schedule IS visible to User2
+    "user-2-uid": false  // User2's schedule IS NOT visible to User1
+  },
+  
+  // Privacy Metadata (NEW)
+  privacyMetadata: {
+    lastPrivacyUpdate: timestamp,
+    privacyUpdatedBy: "user-1-uid",
+    privacyVersion: 2  // For future privacy schema migrations
+  },
+  
   isActive: true,
   createdAt: timestamp,
-  lastInteraction: timestamp,
-  connectionStrength: "normal|strong|close"
+  lastInteraction: timestamp
 }
 ```
 
-### Debug Commands
+### Enhanced Debug Commands for Privacy System
 
 ```javascript
 // Available in browser console
-debug.help()                    // Show all available commands
-debug.status()                  // System status overview
-debug.testNotification()        // Test notification system
-debug.simulateFriendRequest()   // Create test friend request
-debug.clearNotifications()      // Clear all notifications
-realTimeManager.getStatus()     // Real-time system status
+debug.help()                     // Show all available commands
+debug.status()                   // System status overview
+debug.testNotification()         // Test notification system
+debug.testPrivacyNotification()  // Test privacy restriction notifications
+debug.simulateFriendRequest()    // Create test friend request
+debug.simulatePrivacyChange()    // Test privacy status changes
+debug.clearNotifications()       // Clear all notifications
+debug.circuitBreakerStatus()     // Check circuit breaker states
+realTimeManager.getStatus()      // Real-time system status
+horizontalFriendsBar.getCircuitBreakerStatus() // Performance monitoring
 ```
 
 ---
 
-## 📅 Schedule Management
+## 📅 Enhanced Schedule Management with Privacy Integration
 
-### Schedule Grid System
+### Privacy-Aware Schedule Grid System
 
-| Component          | Element          | Purpose                                 | Interactions                       |
-| ------------------ | ---------------- | --------------------------------------- | ---------------------------------- |
-| **Time Header**    | `.time-header`   | Display time slots (e.g., "9:00-10:30") | Click to select entire time period |
-| **Day Columns**    | `.day-column`    | Monday through Sunday schedule          | Drag selection across days         |
-| **Schedule Cells** | `.schedule-cell` | Individual time/day intersections       | Click to toggle, hover for tooltip |
-| **User Selector**  | `#userSelector`  | Choose active user for editing          | Change event updates UI state      |
+| Component | Element | Purpose | Interactions | Privacy Integration |
+| --- | --- | --- | --- | --- |
+| **Time Header** | `.time-header` | Display time slots (e.g., "9:00-10:30") | Click to select entire time period | Respects friend privacy settings |
+| **Day Columns** | `.day-column` | Monday through Sunday schedule | Drag selection across days | Shows privacy-restricted friend data |
+| **Schedule Cells** | `.schedule-cell` | Individual time/day intersections | Click to toggle, hover for tooltip | Tooltip shows privacy restrictions |
+| **User Selector** | `#userSelector` | Choose active user for editing | Change event updates UI state | Filters by privacy permissions |
+| **Horizontal Friends Bar** | `.horizontal-friends-bar` | Quick access to starred friends | One-tap friend schedule viewing | Visual privacy indicators |
 
-### Pin Mode System
+### Enhanced Pin Mode with Privacy Awareness
 
-| State            | Visual Indicators          | Available Actions                     |
-| ---------------- | -------------------------- | ------------------------------------- |
-| **Pin Mode Off** | Normal schedule view       | Edit any user, compare multiple users |
-| **Pin Mode On**  | Locked icon, purple accent | Edit only pinned user, visual lock    |
-| **Active User**  | Purple-colored time slots  | Primary editing target                |
+| State | Visual Indicators | Available Actions | Privacy Considerations |
+| --- | --- | --- | --- |
+| **Pin Mode Off** | Normal schedule view | Edit any user, compare multiple users | Privacy-filtered friend list |
+| **Pin Mode On** | Locked icon, purple accent | Edit only pinned user, visual lock | Respects privacy restrictions |
+| **Active User** | Purple-colored time slots | Primary editing target | Own schedule always editable |
+| **Privacy Restricted** | Lock icon overlay, disabled state | View-only, "access restricted" notification | Clear visual feedback |
 
 ### Schedule Comparison Engine
 
@@ -512,14 +611,16 @@ Monday   | [slot]    | [slot]     | ... |
 | **Focus Management**      | Clear focus indicators and logical tab flow |
 | **High Contrast Mode**    | Enhanced visibility for low vision users    |
 
-### Performance Optimizations
+### Advanced Performance Optimizations
 
-| Feature              | Implementation                                      |
-| -------------------- | --------------------------------------------------- |
-| **DOM Caching**      | Elements cached in `domElements.js` for fast access |
-| **Modular Loading**  | CSS/JS loaded only when needed                      |
-| **State Management** | Efficient updates with minimal DOM manipulation     |
-| **Local Storage**    | Persistent data without server dependencies         |
+| Feature | Implementation | Privacy Integration |
+| --- | --- | --- |
+| **Circuit Breaker Pattern** | Prevents infinite loops in HorizontalFriendsBar | Protects against privacy update cascades |
+| **Debounced Operations** | Batched profile updates (15-second intervals) | Immediate privacy sync bypasses batching |
+| **Lightweight Rendering** | Privacy-specific visual updates | Updates lock icons without full re-renders |
+| **Memory Management** | Automatic cleanup of listeners and timeouts | Privacy listeners cleaned up properly |
+| **DOM Caching** | Elements cached in `domElements.js` | Fast access for privacy indicator updates |
+| **State Management** | Efficient updates with minimal DOM manipulation | Separate privacy and profile update flows |
 
 ---
 
@@ -563,6 +664,7 @@ The styling system is organized into 9 specialized modules for maintainability a
 | `.slot-conflict` | Overlapping slots | Red background (busy/conflict)    |
 | `.slot-partial`  | Partial conflicts | Orange background (some overlap)  |
 | `.slot-selected` | Active slots      | Purple background (user selected) |
+| `.slot-restricted` | Privacy-blocked slots | Grayed out with lock icon overlay |
 
 ### Interactive States
 
@@ -573,6 +675,8 @@ The styling system is organized into 9 specialized modules for maintainability a
 | `.editable-timeslot-header` | Time headers        | Clickable time slot headers     |
 | `.can-pin-indicator`        | Schedule slots      | "+" icon for pin mode           |
 | `.pin-indicator`            | Pinned slots        | Pin icon for pinned slots       |
+| `.privacy-lock-icon`        | Privacy-restricted elements | Lock icon overlay for restricted access |
+| `.friend-avatar.disabled`   | Restricted friend avatars   | Opacity reduction, "not-allowed" cursor |
 
 ### Component Classes
 
@@ -594,6 +698,15 @@ The styling system is organized into 9 specialized modules for maintainability a
 | `.controls-column`  | Control panels     | Controls sidebar column     |
 | `.schedule-wrapper` | Schedule container | Scrollable schedule wrapper |
 
+### Privacy & Performance Classes
+
+| Class | Applied To | Effect | Privacy Integration |
+| --- | --- | --- | --- |
+| `.privacy-restricted` | Friend elements | Visual indication of restricted access | Shows lock icons and disabled states |
+| `.privacy-accessible` | Friend elements | Normal interaction state | Full interaction capabilities |
+| `.circuit-breaker-active` | Performance-protected elements | Temporary disabled state | Prevents infinite update loops |
+| `.real-time-updating` | Elements receiving updates | Visual feedback during updates | Shows privacy changes in progress |
+
 ### Responsive Classes
 
 | Class           | Applied To | Effect                    |
@@ -604,17 +717,19 @@ The styling system is organized into 9 specialized modules for maintainability a
 
 ---
 
-## 🧪 Testing Integration
+## 🧪 Enhanced Testing Integration
 
-CampXus includes comprehensive Jest-based testing with 90%+ code coverage:
+CampXus includes comprehensive Jest-based testing with 90%+ code coverage, including privacy system and performance optimization testing:
 
-### Test Coverage Areas
+### Enhanced Test Coverage Areas
 
-| Test Suite          | Coverage                                               |
-| ------------------- | ------------------------------------------------------ |
-| `script.test.js`    | Core state management, user operations, schedule logic |
-| `modal.test.js`     | Modal system, confirmation dialogs, event handling     |
-| `timeUtils.test.js` | Time parsing, validation, format conversion            |
+| Test Suite | Coverage | Privacy Integration |
+| --- | --- | --- |
+| `script.test.js` | Core state management, user operations, schedule logic | Privacy-aware schedule viewing |
+| `modal.test.js` | Modal system, confirmation dialogs, event handling | Privacy restriction notifications |
+| `timeUtils.test.js` | Time parsing, validation, format conversion | Time slot privacy filtering |
+| `horizontalFriendsBar.test.js` | Quick access bar functionality | Circuit breaker and privacy indicator testing |
+| `privacyService.test.js` | Privacy control logic | Bilateral privacy settings, real-time updates |
 
 ### Testing Patterns
 
@@ -625,14 +740,15 @@ CampXus includes comprehensive Jest-based testing with 90%+ code coverage:
 | **Event Testing**   | Simulated user interactions and event handling       |
 | **Utility Testing** | Unit tests for pure functions and utilities          |
 
-### Quality Assurance
+### Enhanced Quality Assurance
 
-| Metric                 | Current Status                                      |
-| ---------------------- | --------------------------------------------------- |
-| **Code Coverage**      | 90%+ across core functionality                      |
-| **Test Automation**    | npm test script with CI/CD integration ready        |
-| **Mock Strategy**      | Comprehensive mocking for external dependencies     |
-| **Edge Case Coverage** | Validation, error handling, and boundary conditions |
+| Metric | Current Status | Privacy & Performance |
+| --- | --- | --- |
+| **Code Coverage** | 90%+ across core functionality | Privacy system and performance optimizations covered |
+| **Test Automation** | npm test script with CI/CD integration ready | Privacy change simulation and circuit breaker testing |
+| **Mock Strategy** | Comprehensive mocking for external dependencies | Firebase privacy listeners and real-time updates mocked |
+| **Edge Case Coverage** | Validation, error handling, and boundary conditions | Privacy edge cases, infinite loop prevention testing |
+| **Performance Testing** | Memory leak detection and optimization validation | Circuit breaker effectiveness and cleanup verification |
 
 ---
 
@@ -735,4 +851,4 @@ npm run dev:serve          # Test in browser
 
 ---
 
-_This comprehensive UI reference map serves as your complete guide to understanding and extending the CampXus SPA architecture. Each component is designed to work together seamlessly while maintaining clear separation of concerns._
+_This comprehensive UI reference map serves as your complete guide to understanding and extending the CampXus Privacy-Aware Quick Access System. The enhanced architecture provides real-time privacy controls, performance optimizations, and seamless user experience while maintaining clear separation of concerns and bilateral privacy protection._

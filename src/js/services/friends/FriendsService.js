@@ -45,7 +45,12 @@ export class FriendsManager {
     // 🔒 Auth state tracking to prevent false notifications
     this.isAuthStateChanging = false;
 
-    console.log("🎛️ FriendsManager initialized with real-time capabilities");
+    // 🎯 Phase 1: Optimistic updates event system
+    this.optimisticEventListeners = new Map();
+
+    console.log(
+      "🎛️ FriendsManager initialized with real-time capabilities and optimistic updates"
+    );
   }
 
   /**
@@ -128,73 +133,90 @@ export class FriendsManager {
    * This connects the FriendsManager to the RealTimeManager for instant updates
    */
   async startRealTimeListening() {
-    const userProfile = await currentUser.waitForProfile();
-    if (!userProfile) {
-      console.error("❌ Cannot start real-time listening: User not logged in");
-      return;
-    }
-
-    if (this.isRealTimeActive) {
-      console.log("🎛️ Real-time listening already active");
-      return;
-    }
-
-    // Prevent race conditions by setting flag immediately
-    this.isRealTimeActive = true;
-    console.log("🎛️ Starting real-time listening for friends...");
-
-    // Subscribe to friend requests changes
-    const friendRequestsUnsubscribe = realTimeManager.on(
-      REALTIME_EVENTS.FRIEND_REQUESTS,
-      (requests) => {
-        console.log("📬 Real-time friend requests update:", requests.length);
-        this.handleFriendRequestsUpdate(requests);
-      }
-    );
-
-    // Subscribe to outgoing friend requests changes
-    const outgoingRequestsUnsubscribe = realTimeManager.on(
-      REALTIME_EVENTS.OUTGOING_FRIEND_REQUESTS,
-      (requests) => {
-        console.log(
-          "📤 Real-time outgoing friend requests update:",
-          requests.length
+    try {
+      // Wait for proper authentication with timeout
+      const userProfile = await currentUser.waitForProfileWithTimeout(5000);
+      if (!userProfile) {
+        console.error(
+          "❌ Cannot start real-time listening: User not logged in"
         );
-        this.handleOutgoingFriendRequestsUpdate(requests);
+        return;
       }
-    );
 
-    // Subscribe to friendships changes
-    const friendshipsUnsubscribe = realTimeManager.on(
-      REALTIME_EVENTS.FRIENDSHIPS,
-      (friendships) => {
-        console.log("🤝 Real-time friendships update:", friendships.length);
-        this.handleFriendshipsUpdate(friendships);
+      // Additional validation
+      if (!currentUser.isLoggedIn() || !currentUser.uid) {
+        console.warn(
+          "⚠️ Authentication not fully established, delaying real-time listeners"
+        );
+        return;
       }
-    );
 
-    // Subscribe to connection status
-    const connectionUnsubscribe = realTimeManager.on(
-      REALTIME_EVENTS.CONNECTION_STATUS,
-      (status) => {
-        console.log("📡 Real-time connection status:", status);
-        this.handleConnectionStatusUpdate(status);
+      if (this.isRealTimeActive) {
+        console.log("🎛️ Real-time listening already active");
+        return;
       }
-    );
 
-    // Store unsubscribers for cleanup
-    this.unsubscribers.push(
-      friendRequestsUnsubscribe,
-      outgoingRequestsUnsubscribe,
-      friendshipsUnsubscribe,
-      connectionUnsubscribe
-    );
+      // Prevent race conditions by setting flag immediately
+      this.isRealTimeActive = true;
+      console.log("🎛️ Starting real-time listening for friends...");
 
-    // Start the RealTimeManager if it's not already listening
-    realTimeManager.startListening(currentUser.uid);
+      // Subscribe to friend requests changes
+      const friendRequestsUnsubscribe = realTimeManager.on(
+        REALTIME_EVENTS.FRIEND_REQUESTS,
+        (requests) => {
+          console.log("📬 Real-time friend requests update:", requests.length);
+          this.handleFriendRequestsUpdate(requests);
+        }
+      );
 
-    this.isRealTimeActive = true;
-    console.log("✅ Real-time listening started for friends");
+      // Subscribe to outgoing friend requests changes
+      const outgoingRequestsUnsubscribe = realTimeManager.on(
+        REALTIME_EVENTS.OUTGOING_FRIEND_REQUESTS,
+        (requests) => {
+          console.log(
+            "📤 Real-time outgoing friend requests update:",
+            requests.length
+          );
+          this.handleOutgoingFriendRequestsUpdate(requests);
+        }
+      );
+
+      // Subscribe to friendships changes
+      const friendshipsUnsubscribe = realTimeManager.on(
+        REALTIME_EVENTS.FRIENDSHIPS,
+        (friendships) => {
+          console.log("🤝 Real-time friendships update:", friendships.length);
+          this.handleFriendshipsUpdate(friendships);
+        }
+      );
+
+      // Subscribe to connection status
+      const connectionUnsubscribe = realTimeManager.on(
+        REALTIME_EVENTS.CONNECTION_STATUS,
+        (status) => {
+          console.log("📡 Real-time connection status:", status);
+          this.handleConnectionStatusUpdate(status);
+        }
+      );
+
+      // Store unsubscribers for cleanup
+      this.unsubscribers.push(
+        friendRequestsUnsubscribe,
+        outgoingRequestsUnsubscribe,
+        friendshipsUnsubscribe,
+        connectionUnsubscribe
+      );
+
+      // Start the RealTimeManager with proper error handling
+      await realTimeManager.startListening(currentUser.uid);
+
+      console.log("✅ Real-time listening started for friends");
+    } catch (error) {
+      console.error("❌ Error starting real-time listening:", error);
+      this.isRealTimeActive = false;
+      // Clean up any partial subscriptions
+      this.stopRealTimeListening();
+    }
   }
 
   /**
@@ -224,6 +246,9 @@ export class FriendsManager {
 
     // Clear previous requests state to prevent false notifications on next login
     this.previousOutgoingRequests = null;
+
+    // PHASE 1: Clean up optimistic event listeners
+    this.optimisticEventListeners.clear();
 
     // Clear the flag after a short delay to allow cleanup to complete
     setTimeout(() => {
@@ -432,20 +457,104 @@ export class FriendsManager {
    * @param {Array} friendships - Updated friendships
    * @private
    */
-  handleFriendshipsUpdate(friendships) {
+  async handleFriendshipsUpdate(friendships) {
+    console.log(`🔄 FRIENDS: handleFriendshipsUpdate called with ${friendships.length} friendships`);
+    console.log(`🔄 FRIENDS: Friendship data:`, friendships.map(f => ({ id: f.id, friendId: f.friendId, users: f.users })));
+
     // Transform friendships data to match existing format
     const transformedFriends = friendships.map((friendship) => ({
       id: friendship.friendId,
       friendshipId: friendship.id,
       displayName: friendship.friendInfo?.displayName || "Unknown User",
       major: friendship.friendInfo?.major || "Unknown Major",
-      avatarConfig: friendship.friendInfo?.avatarConfig || null, // ← Fixed: use avatarConfig not avatar
+      avatarConfig: friendship.friendInfo?.avatarConfig || null,
       friendsSince: friendship.createdAt,
       lastInteraction: friendship.lastInteraction,
       connectionStrength: friendship.connectionStrength || "normal",
       isOnline: false,
       mutualFriends: friendship.mutualFriends || 0,
     }));
+
+    // 🔄 PHASE 2: Enhanced bilateral cleanup with document validation
+    try {
+      console.log(`🔄 PHASE 2: Starting bilateral cleanup validation`);
+      const currentUserUid = currentUser?.uid;
+      console.log(`🔄 PHASE 2: Current user UID: ${currentUserUid}`);
+      if (currentUserUid) {
+        // Get current friend IDs from real-time data
+        const currentFriendIds = new Set(
+          transformedFriends.map((f) => f.id).filter(Boolean)
+        );
+
+        // Get current quickAccessData
+        const { dataManager } = await import("../data/DataService.js");
+        const quickAccessData = await dataManager.getQuickAccessFriends(
+          currentUserUid
+        );
+
+        if (quickAccessData?.starredFriends?.length > 0) {
+          console.log(
+            `🔍 PHASE 2: Validating ${quickAccessData.starredFriends.length} quickAccess friends against ${currentFriendIds.size} current friendships`
+          );
+
+          // Extract friend IDs from starred friends objects
+          const starredFriendIds = quickAccessData.starredFriends.map(
+            (friend) => friend.friendId
+          );
+          console.log(
+            `📋 PHASE 2: Checking these starred friend IDs:`,
+            starredFriendIds
+          );
+
+          // PHASE 2: Validate friendship documents exist for each starred friend
+          const validatedFriends = await this.validateFriendshipDocuments(
+            starredFriendIds,
+            currentUserUid
+          );
+
+          console.log(
+            `✅ PHASE 2: Validated friends (have valid documents):`,
+            Array.from(validatedFriends)
+          );
+
+          // Find friends whose documents no longer exist (regardless of real-time data)
+          // If friendship document is gone, remove from starred friends immediately
+          const staleFormerFriends = starredFriendIds.filter(
+            (friendId) => !validatedFriends.has(friendId)
+          );
+
+          console.log(
+            `🔍 PHASE 2: Stale friends to remove:`,
+            staleFormerFriends
+          );
+
+          // PHASE 2: Batch remove stale friends for performance
+          if (staleFormerFriends.length > 0) {
+            console.log(
+              `🧹 PHASE 2: Found ${staleFormerFriends.length} stale friends to remove from quickAccess`
+            );
+            await this.batchRemoveFromQuickAccess(
+              currentUserUid,
+              staleFormerFriends
+            );
+
+            // Clear caches to ensure UI updates properly
+            console.log(
+              `🧹 PHASE 2: Clearing caches after stale friend removal`
+            );
+            this.clearCache(`quick_access_${currentUserUid}`);
+            const { dataManager } = await import("../data/DataService.js");
+            dataManager.clearCache(`quick_access_${currentUserUid}`);
+          } else {
+            console.log(
+              `✅ PHASE 2: All quickAccess friends validated successfully - no cleanup needed`
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("⚠️ Error during enhanced quickAccessData cleanup:", error);
+    }
 
     // Notify UI callback if registered
     if (this.uiCallbacks.onFriendsListChange) {
@@ -978,7 +1087,7 @@ export class FriendsManager {
   }
 
   /**
-   * 💔 Unfriend a user (remove friendship)
+   * 💔 Unfriend a user (remove friendship) with optimistic updates
    * @param {string} friendId - The ID of the friend to unfriend
    * @param {string} friendshipId - The friendship document ID
    * @param {Object} friendInfo - Friend's info for confirmation message
@@ -1006,6 +1115,12 @@ export class FriendsManager {
       const friendName = friendInfo.displayName || "Friend";
       console.log("💔 Unfriending user:", friendName);
 
+      // 🎯 PHASE 1: Optimistic Updates - Publish optimistic unfriending event FIRST
+      console.log(
+        "🚀 Publishing optimistic unfriending event for immediate UI update"
+      );
+      this.publishOptimisticUnfriending(friendId, friendInfo);
+
       // Delete the friendship document
       const result = await dataManager.deleteFriendship(friendshipId);
 
@@ -1014,6 +1129,14 @@ export class FriendsManager {
         this.clearSearchFilterCache();
 
         console.log("✅ Successfully unfriended user:", friendName);
+
+        // Publish success confirmation event
+        this.publishOptimisticSuccess(friendId, {
+          ...friendInfo,
+          action: "unfriend",
+          confirmed: true,
+        });
+
         return {
           success: true,
           message: `You are no longer friends with ${friendName}`,
@@ -1024,6 +1147,13 @@ export class FriendsManager {
         };
       } else {
         console.error("❌ Failed to delete friendship:", result.error);
+
+        // 🔄 PHASE 1: Error Recovery - Roll back optimistic updates
+        console.log(
+          "🔄 Rolling back optimistic unfriending due to database error"
+        );
+        this.rollbackOptimisticUnfriending(friendId, friendInfo);
+
         return {
           success: false,
           message: "Failed to unfriend user. Please try again.",
@@ -1031,6 +1161,13 @@ export class FriendsManager {
       }
     } catch (error) {
       console.error("❌ Error unfriending user:", error);
+
+      // 🔄 PHASE 1: Error Recovery - Roll back optimistic updates
+      console.log(
+        "🔄 Rolling back optimistic unfriending due to unexpected error"
+      );
+      this.rollbackOptimisticUnfriending(friendId, friendInfo);
+
       return {
         success: false,
         message: "Something went wrong. Please try again.",
@@ -1113,8 +1250,266 @@ export class FriendsManager {
   }
 
   // =========================
-  // PHASE-2: QUICK ACCESS FRIENDS SYSTEM
+  // PHASE 1: OPTIMISTIC UPDATES EVENT SYSTEM
   // =========================
+
+  /**
+   * 🎯 Phase 1: Publish optimistic unfriending event for immediate UI response
+   * @param {string} friendId - The friend being unfriended
+   * @param {Object} friendInfo - Friend's display information
+   */
+  publishOptimisticUnfriending(friendId, friendInfo) {
+    const event = {
+      type: "optimistic-unfriending",
+      friendId,
+      friendInfo,
+      timestamp: Date.now(),
+      userId: currentUser.uid,
+    };
+
+    console.log("🚀 Publishing optimistic unfriending event:", event);
+    this.publishOptimisticEvent("optimistic-unfriending", event);
+
+    // Also notify via notification service for user feedback
+    if (notificationManager && friendInfo.displayName) {
+      notificationManager.showSystemNotification(
+        `Unfriending ${friendInfo.displayName}...`,
+        "info",
+        { duration: 2000 }
+      );
+    }
+  }
+
+  /**
+   * 🎯 Phase 1: Publish optimistic success confirmation
+   * @param {string} friendId - The friend ID
+   * @param {Object} eventData - Success event data
+   */
+  publishOptimisticSuccess(friendId, eventData) {
+    const event = {
+      type: "optimistic-success",
+      friendId,
+      ...eventData,
+      timestamp: Date.now(),
+      userId: currentUser.uid,
+    };
+
+    console.log("✅ Publishing optimistic success event:", event);
+    this.publishOptimisticEvent("optimistic-success", event);
+  }
+
+  /**
+   * 🔄 Phase 1: Roll back optimistic unfriending on database operation failure
+   * @param {string} friendId - The friend ID
+   * @param {Object} friendInfo - Friend's display information
+   */
+  rollbackOptimisticUnfriending(friendId, friendInfo) {
+    const event = {
+      type: "optimistic-rollback",
+      friendId,
+      friendInfo,
+      action: "unfriend",
+      timestamp: Date.now(),
+      userId: currentUser.uid,
+    };
+
+    console.log("🔄 Publishing optimistic rollback event:", event);
+    this.publishOptimisticEvent("optimistic-rollback", event);
+
+    // Show error notification
+    if (notificationManager && friendInfo.displayName) {
+      notificationManager.showSystemNotification(
+        `Failed to unfriend ${friendInfo.displayName}. Please try again.`,
+        "error",
+        { duration: 4000 }
+      );
+    }
+  }
+
+  /**
+   * 🎯 Phase 1: Generic optimistic event publisher
+   * @param {string} eventType - Type of optimistic event
+   * @param {Object} eventData - Event data to publish
+   */
+  publishOptimisticEvent(eventType, eventData) {
+    // Emit via realTimeManager for consistency with existing event system
+    if (realTimeManager && typeof realTimeManager.emit === "function") {
+      realTimeManager.emit(eventType, eventData);
+    }
+
+    // Also trigger local listeners
+    const listeners = this.optimisticEventListeners.get(eventType) || [];
+    listeners.forEach((listener) => {
+      try {
+        listener(eventData);
+      } catch (error) {
+        console.error(
+          `❌ Error in optimistic event listener for ${eventType}:`,
+          error
+        );
+      }
+    });
+  }
+
+  /**
+   * 🎯 Phase 1: Subscribe to optimistic events
+   * @param {string} eventType - Type of event to listen for
+   * @param {Function} callback - Callback function
+   * @returns {Function} Unsubscribe function
+   */
+  onOptimisticEvent(eventType, callback) {
+    if (!this.optimisticEventListeners.has(eventType)) {
+      this.optimisticEventListeners.set(eventType, []);
+    }
+
+    const listeners = this.optimisticEventListeners.get(eventType);
+    listeners.push(callback);
+
+    console.log(`🎯 Added optimistic event listener for: ${eventType}`);
+
+    // Return unsubscribe function
+    return () => {
+      const index = listeners.indexOf(callback);
+      if (index > -1) {
+        listeners.splice(index, 1);
+        console.log(`🎯 Removed optimistic event listener for: ${eventType}`);
+      }
+    };
+  }
+
+  // =========================
+  // PHASE 2: FRIENDSHIP DOCUMENT VALIDATION LAYER
+  // =========================
+
+  /**
+   * 🔍 PHASE 2: Validate friendship documents exist for given friend IDs
+   * @param {Array<string>} friendIds - Friend IDs to validate
+   * @param {string} currentUserUid - Current user's UID
+   * @returns {Promise<Set<string>>} Set of friend IDs with valid friendship documents
+   */
+  async validateFriendshipDocuments(friendIds, currentUserUid) {
+    const validFriends = new Set();
+
+    if (!friendIds || friendIds.length === 0) {
+      console.log("🔍 PHASE 2: No friend IDs to validate");
+      return validFriends;
+    }
+
+    console.log(
+      `🔍 PHASE 2: Validating ${friendIds.length} friendship documents`
+    );
+
+    // Batch check friendship documents for performance
+    const friendshipChecks = friendIds.map(async (friendId) => {
+      try {
+        const friendshipExists = await dataManager.checkFriendshipExists(
+          currentUserUid,
+          friendId
+        );
+
+        if (friendshipExists) {
+          validFriends.add(friendId);
+          console.log(
+            `✅ PHASE 2: Friendship document validated for ${friendId}`
+          );
+        } else {
+          console.log(
+            `❌ PHASE 2: No friendship document found for ${friendId}`
+          );
+        }
+
+        return { friendId, exists: friendshipExists };
+      } catch (error) {
+        console.error(
+          `❌ PHASE 2: Error validating friendship for ${friendId}:`,
+          error
+        );
+        return { friendId, exists: false, error };
+      }
+    });
+
+    // Execute all validation checks in parallel
+    const results = await Promise.allSettled(friendshipChecks);
+
+    // Log summary
+    const successfulChecks = results.filter(
+      (r) => r.status === "fulfilled"
+    ).length;
+    const validCount = validFriends.size;
+    const invalidCount = friendIds.length - validCount;
+
+    console.log(
+      `🔍 PHASE 2: Validation complete - ${successfulChecks}/${friendIds.length} checks successful, ${validCount} valid, ${invalidCount} invalid friendships`
+    );
+
+    return validFriends;
+  }
+
+  /**
+   * 🧹 PHASE 2: Batch remove friends from quickAccess for performance
+   * @param {string} userId - User ID to clean up
+   * @param {Array<string>} friendIds - Friend IDs to remove
+   * @returns {Promise<void>}
+   */
+  async batchRemoveFromQuickAccess(userId, friendIds) {
+    if (!friendIds || friendIds.length === 0) {
+      console.log("🧹 PHASE 2: No friends to remove from quickAccess");
+      return;
+    }
+
+    console.log(
+      `🧹 PHASE 2: Batch removing ${friendIds.length} stale friends from quickAccess`
+    );
+
+    // Efficient batch removal with error handling
+    const removePromises = friendIds.map(async (friendId) => {
+      try {
+        const result = await dataManager.removeFromQuickAccess(
+          userId,
+          friendId
+        );
+        if (result.success) {
+          console.log(
+            `🧹 PHASE 2: Successfully removed ${friendId} from quickAccess`
+          );
+        } else {
+          console.warn(
+            `⚠️ PHASE 2: Failed to remove ${friendId} from quickAccess:`,
+            result.error
+          );
+        }
+        return { friendId, success: result.success };
+      } catch (error) {
+        console.error(
+          `❌ PHASE 2: Error removing ${friendId} from quickAccess:`,
+          error
+        );
+        return { friendId, success: false, error };
+      }
+    });
+
+    // Execute all removals in parallel with error resilience
+    const results = await Promise.allSettled(removePromises);
+
+    // Log summary
+    const successfulRemovals = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success
+    ).length;
+
+    console.log(
+      `🧹 PHASE 2: Batch cleanup complete - ${successfulRemovals}/${friendIds.length} friends successfully removed from quickAccess`
+    );
+
+    // Clear relevant caches after batch operations
+    this.clearCache(`quick_access_${userId}`);
+    if (dataManager.clearCache) {
+      dataManager.clearCache(`quick_access_${userId}`);
+    }
+  }
+
+  // =========================
+  // PHASE-2: QUICK ACCESS FRIENDS SYSTEM
+  // ========================="
 
   /**
    * ⭐ Add a friend to Quick Access (starred friends)
