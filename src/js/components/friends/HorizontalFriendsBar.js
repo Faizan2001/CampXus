@@ -89,8 +89,20 @@ export class HorizontalFriendsBar {
     // Smart loading: fetch fresh data on first load, use cache afterwards
     this.isFirstLoad = true;
 
+    // ENHANCED: Circuit breaker and sync management properties
+    this.isSyncing = false; // Legacy sync protection
+    this.isBatchSyncing = false; // Batched sync protection
+    this.syncTimeout = null; // Legacy sync timeout
+    this.batchSyncTimeout = null; // Batched sync timeout
+    this.friendProfileUnsubscribers = []; // Track friend profile listeners
+    this.realTimeUnsubscribers = []; // Track all real-time listeners
+
+    // Performance optimization: track last database state to prevent unnecessary updates
+    this.lastDatabaseState = null;
+    this.lastUpdateTimestamp = 0;
+
     console.log(
-      `🏗️ HorizontalFriendsBar created for container: ${containerId}`
+      `🏗️ HorizontalFriendsBar created with enhanced loop prevention for container: ${containerId}`
     );
   }
 
@@ -262,6 +274,60 @@ export class HorizontalFriendsBar {
         "🔍 Added window.testAvatarComparison() and window.simulateProfileUpdate() for debugging"
       );
 
+      // Add comprehensive debug method for Firebase validation issues
+      window.debugHorizontalFriendsBar = () => {
+        console.group("🔍 HorizontalFriendsBar Debug Report");
+        
+        console.log("📊 Current State:", {
+          friendsCount: this.quickAccessFriends?.length || 0,
+          selectedFriendId: this.selectedFriendId,
+          isLoading: this.isLoading,
+          isSyncing: this.isSyncing,
+          compareMode: this.compareMode
+        });
+        
+        console.log("👥 Friends Data:");
+        this.quickAccessFriends?.forEach((friend, index) => {
+          console.log(`  Friend ${index}:`, {
+            friendId: friend.friendId,
+            userId: friend.userId,
+            displayName: friend.displayName,
+            hasAvatarConfig: !!friend.avatarConfig,
+            isRestricted: friend.isRestricted,
+            privacyStatus: friend.privacyStatus,
+            undefinedFields: Object.entries(friend).filter(([k, v]) => v === undefined).map(([k]) => k)
+          });
+        });
+        
+        console.log("🔥 Firebase Validation:");
+        const validationResults = this.quickAccessFriends?.map((friend, index) => {
+          return {
+            index,
+            isValid: this._validateFirebaseData([friend]),
+            validatedData: {
+              friendId: this._validateString(friend.friendId, `Friend ${index} friendId`),
+              userId: this._validateString(friend.userId, `Friend ${index} userId`),
+              displayName: this._validateString(friend.displayName, `Friend ${index} displayName`, "Unknown User"),
+              avatarConfig: this._validateAvatarConfig(friend.avatarConfig, `Friend ${index} avatarConfig`),
+              isRestricted: Boolean(friend.isRestricted),
+              privacyStatus: this._validateString(friend.privacyStatus, `Friend ${index} privacyStatus`, "unknown")
+            }
+          };
+        }) || [];
+        
+        console.table(validationResults);
+        
+        console.groupEnd();
+        
+        return {
+          friends: this.quickAccessFriends,
+          validationResults,
+          allValid: validationResults.every(r => r.isValid)
+        };
+      };
+
+      console.log("🔍 Added window.debugHorizontalFriendsBar() for comprehensive debugging");
+
       this.isInitialized = true;
       console.log("✅ HorizontalFriendsBar initialized successfully");
 
@@ -391,7 +457,26 @@ export class HorizontalFriendsBar {
         await friendsManager.getQuickAccessFriendsWithPrivacy(
           !shouldUseFreshData
         );
-      this.quickAccessFriends = quickAccessData || [];
+      
+      // Validate and clean data to prevent Firebase errors
+      const validatedFriends = (quickAccessData || []).filter(friend => {
+        if (!friend || typeof friend !== 'object') {
+          console.warn("⚠️ Load: Filtered out invalid friend object:", friend);
+          return false;
+        }
+        
+        // Must have at least one valid ID
+        if (!friend.friendId && !friend.userId) {
+          console.warn("⚠️ Load: Filtered out friend without valid ID:", friend);
+          return false;
+        }
+        
+        return true;
+      });
+
+      console.log(`🔍 DEBUG: Validated ${validatedFriends.length}/${(quickAccessData || []).length} friends during load`);
+      
+      this.quickAccessFriends = validatedFriends;
 
       // Set up profile listeners for starred friends to detect avatar/name changes
       if (this.quickAccessFriends.length > 0) {
@@ -1587,32 +1672,51 @@ export class HorizontalFriendsBar {
    */
   setupRealTimeListeners() {
     console.log(
-      "📡 Setting up real-time listeners for HorizontalFriendsBar..."
+      "📡 Setting up smart real-time listeners for HorizontalFriendsBar..."
     );
 
-    // Direct database listener for user profile changes (includes quickAccessData)
+    // ENHANCED: Smart database listener with change detection to prevent loops
     if (currentUser?.user?.uid && this.dataManager?.listenToUserProfile) {
       console.log(
-        "📡 Setting up direct database listener for user profile changes"
+        "📡 Setting up smart database listener with loop prevention"
       );
 
       const userProfileUnsubscriber = this.dataManager.listenToUserProfile(
         currentUser.user.uid,
         (userProfile) => {
-          console.log("📡 Real-time user profile update:", userProfile);
+          // CIRCUIT BREAKER: Don't process database updates if we're currently syncing
+          if (this.isBatchSyncing || window.horizontalFriendsBar_updating) {
+            console.log("🛑 CIRCUIT BREAKER: Ignoring database update during our own sync");
+            return;
+          }
 
-          // Check if quickAccessData changed
+          console.log("📡 External database update received:", userProfile);
+
+          // Check if quickAccessData changed from external source
           const quickAccessData = userProfile?.quickAccessData;
           if (quickAccessData?.starredFriends) {
-            console.log(
-              "📡 Starred friends updated in database:",
-              quickAccessData.starredFriends
-            );
-            this.quickAccessFriends = quickAccessData.starredFriends;
-            this.render();
-            console.log(
-              "✅ HorizontalFriendsBar updated with fresh database data"
-            );
+            // ENHANCED: Only update if data actually changed (prevent unnecessary renders)
+            const newFriendsData = quickAccessData.starredFriends;
+            const hasActualChanges = !this.deepEqual(this.quickAccessFriends, newFriendsData);
+            
+            if (hasActualChanges) {
+              console.log(
+                "📡 External starred friends update detected, applying:",
+                {
+                  currentCount: this.quickAccessFriends?.length || 0,
+                  newCount: newFriendsData.length,
+                  source: 'external_database_change'
+                }
+              );
+              
+              this.quickAccessFriends = newFriendsData;
+              this.render();
+              console.log(
+                "✅ HorizontalFriendsBar updated with external database data"
+              );
+            } else {
+              console.log("📡 Database update contained no actual changes, skipping render");
+            }
           }
         }
       );
@@ -1622,9 +1726,9 @@ export class HorizontalFriendsBar {
       }
     }
 
-    // Listen for friend profile updates to sync starred friends data
+    // ENHANCED: Smart friend profile listeners with batch processing
     if (this.dataManager?.listenToUserProfile) {
-      console.log("📡 Setting up profile change listeners for starred friends");
+      console.log("📡 Setting up smart profile change listeners for starred friends");
 
       this.friendProfileUnsubscribers = [];
 
@@ -1632,15 +1736,20 @@ export class HorizontalFriendsBar {
       this.setupStarredFriendProfileListeners();
     }
 
-    // Fallback: Listen for Quick Access updates from FriendsService
+    // Fallback: Listen for Quick Access updates from FriendsService (external changes only)
     if (friendsManager.registerUICallbacks) {
       friendsManager.registerUICallbacks({
         onQuickAccessUpdated: (quickAccessData) => {
-          console.log(
-            "⭐ Fallback Quick Access update in HorizontalFriendsBar:",
-            quickAccessData
-          );
-          this.handleRealTimeQuickAccessUpdate(quickAccessData);
+          // Only process if not from our own update
+          if (!this.isBatchSyncing && !window.horizontalFriendsBar_updating) {
+            console.log(
+              "⭐ External Quick Access update in HorizontalFriendsBar:",
+              quickAccessData
+            );
+            this.handleRealTimeQuickAccessUpdate(quickAccessData);
+          } else {
+            console.log("🛑 Ignoring Quick Access update from our own sync");
+          }
         },
       });
     }
@@ -1664,7 +1773,7 @@ export class HorizontalFriendsBar {
     this.realTimeUnsubscribers.push(privacyChangeUnsubscriber);
 
     console.log(
-      "✅ Real-time listeners set up successfully (including privacy changes)"
+      "✅ Smart real-time listeners set up successfully with loop prevention"
     );
   }
 
@@ -1829,165 +1938,638 @@ export class HorizontalFriendsBar {
   /**
    * Handle profile updates for starred friends
    * Updates the local starred friends data and syncs to database efficiently
+   * FIXED: Prevents infinite loops with proper change detection and re-entrancy protection
    */
   async handleStarredFriendProfileUpdate(friendId, friendProfile) {
-    try {
-      console.log(
-        `📡 Profile update for starred friend ${friendId}:`,
-        friendProfile?.profile?.displayName || friendProfile?.displayName
-      );
+    // CIRCUIT BREAKER: Global update prevention to stop infinite loops
+    const globalKey = 'horizontalFriendsBar_updating';
+    if (window[globalKey]) {
+      console.log(`🛑 CIRCUIT BREAKER: Global update in progress, blocking ${friendId}`);
+      return;
+    }
 
-      // 🔍 DEBUG: Log the actual structure we're receiving
-      console.log(`🔍 DEBUG: Full profile update structure for ${friendId}:`, {
-        hasProfile: !!friendProfile?.profile,
-        hasDisplayName: !!friendProfile?.displayName,
-        hasAvatarConfig: !!friendProfile?.avatarConfig,
-        hasNestedAvatarConfig: !!friendProfile?.profile?.avatarConfig,
-        topLevelKeys: friendProfile ? Object.keys(friendProfile) : [],
-        profileKeys: friendProfile?.profile
-          ? Object.keys(friendProfile.profile)
-          : [],
-      });
+    // Individual friend processing lock
+    const processingKey = `processing_${friendId}`;
+    if (this[processingKey]) {
+      console.log(`🔄 Individual processing lock active for ${friendId}, skipping`);
+      return;
+    }
+    
+    // Activate both circuit breakers
+    window[globalKey] = true;
+    this[processingKey] = true;
+    
+    try {
+      // Minimal logging to reduce noise
+      console.log(`📡 Profile update for ${friendId}`);
 
       // Find the friend in our starred friends list
       const friendIndex = this.quickAccessFriends.findIndex(
-        (f) => f.friendId === friendId
+        (f) => f.friendId === friendId || f.userId === friendId
       );
       if (friendIndex === -1) {
-        console.log(
-          `📡 Friend ${friendId} not in starred friends, ignoring profile update`
-        );
-        return;
+        console.log(`📡 Friend ${friendId} not in starred list, ignoring update`);
+        return; // Friend not found, exit silently
       }
 
       const currentFriend = this.quickAccessFriends[friendIndex];
 
-      // 🔧 Fix: Check both nested and direct structure for display name and avatar
-      const newDisplayName =
-        friendProfile?.profile?.displayName || friendProfile?.displayName;
-      const newAvatarConfig =
-        friendProfile?.profile?.avatarConfig || friendProfile?.avatarConfig;
+      // Extract new data with comprehensive fallback structure
+      const newDisplayName = 
+        friendProfile?.profile?.displayName || 
+        friendProfile?.displayName ||
+        currentFriend.displayName;
+      
+      const newAvatarConfig = 
+        friendProfile?.profile?.avatarConfig || 
+        friendProfile?.avatarConfig ||
+        currentFriend.avatarConfig;
 
-      // Debug logging for profile comparison
-      console.log(`🔍 DEBUG: Profile update comparison for ${friendId}:`, {
-        currentDisplayName: currentFriend.displayName,
-        newDisplayName: newDisplayName,
-        currentAvatarConfig: currentFriend.avatarConfig,
-        newAvatarConfig: newAvatarConfig,
-        hasNewAvatar: !!newAvatarConfig,
-        hasCurrentAvatar: !!currentFriend.avatarConfig,
+      // ENHANCED change detection - check multiple fields
+      const nameChanged = newDisplayName && newDisplayName !== currentFriend.displayName;
+      const avatarChanged = newAvatarConfig && !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
+      
+      if (!nameChanged && !avatarChanged) {
+        console.log(`📡 No significant changes for ${currentFriend.displayName}, skipping update`);
+        return; // No significant changes, exit silently
+      }
+
+      console.log(`📡 Applying UI-only update for ${currentFriend.displayName}`, {
+        nameChanged: nameChanged ? `${currentFriend.displayName} → ${newDisplayName}` : false,
+        avatarChanged
       });
 
-      // Check if the profile data actually changed
-      const nameChanged =
-        newDisplayName && newDisplayName !== currentFriend.displayName;
-
-      // Improved avatar comparison with better error handling
-      let avatarChanged = false;
-      if (newAvatarConfig) {
-        if (!currentFriend.avatarConfig) {
-          // If current is null/undefined but new exists, it's a change
-          avatarChanged = true;
-        } else {
-          try {
-            // Try JSON comparison with error handling
-            const currentStr = JSON.stringify(currentFriend.avatarConfig);
-            const newStr = JSON.stringify(newAvatarConfig);
-            avatarChanged = currentStr !== newStr;
-          } catch (error) {
-            // If JSON comparison fails, assume it's a change to be safe
-            console.warn(
-              `⚠️ JSON comparison failed for ${friendId}, assuming avatar changed:`,
-              error
-            );
-            avatarChanged = true;
-          }
+      // LOCAL UPDATE ONLY - Do NOT sync to database immediately
+      const updatedFriend = { ...currentFriend };
+      let hasLocalUpdates = false;
+      
+      if (nameChanged) {
+        const validatedName = this._validateString(newDisplayName, `Profile update displayName for ${friendId}`, currentFriend.displayName);
+        if (validatedName && validatedName !== currentFriend.displayName) {
+          updatedFriend.displayName = validatedName;
+          hasLocalUpdates = true;
+        }
+      }
+      
+      if (avatarChanged) {
+        const validatedConfig = this._validateAvatarConfig(newAvatarConfig, `Profile update avatarConfig for ${friendId}`);
+        if (validatedConfig && !this.deepEqual(currentFriend.avatarConfig, validatedConfig)) {
+          updatedFriend.avatarConfig = validatedConfig;
+          hasLocalUpdates = true;
         }
       }
 
-      console.log(`🔍 DEBUG: Change detection for ${friendId}:`, {
-        nameChanged,
-        avatarChanged,
-        willUpdate: nameChanged || avatarChanged,
-      });
+      if (hasLocalUpdates) {
+        // Update local state for immediate UI refresh
+        this.quickAccessFriends[friendIndex] = updatedFriend;
+        
+        // CRITICAL: Only update UI, do NOT trigger database sync
+        // This breaks the circular dependency loop
+        this.debouncedRender();
+        
+        console.log(`✅ UI updated for ${updatedFriend.displayName} (no database sync)`);
+        
+        // Schedule a batched database sync for later (much longer delay)
+        this.scheduleBatchedDatabaseSync();
+      }
+    } catch (error) {
+      console.error(`❌ Error in profile update for ${friendId}:`, error);
+    } finally {
+      // Clear processing flags with staggered timing to prevent race conditions
+      setTimeout(() => {
+        this[processingKey] = false;
+      }, 500);
+      
+      setTimeout(() => {
+        window[globalKey] = false;
+      }, 1000); // Longer delay for global lock
+    }
+  }
 
-      if (!nameChanged && !avatarChanged) {
-        console.log(
-          `📡 No meaningful changes for friend ${friendId}, skipping update`
-        );
+  /**
+   * Schedule a batched database sync with much longer delay to prevent infinite loops
+   * This breaks the circular dependency by separating UI updates from database writes
+   */
+  scheduleBatchedDatabaseSync() {
+    // Clear any existing batch sync timer
+    if (this.batchSyncTimeout) {
+      clearTimeout(this.batchSyncTimeout);
+    }
+    
+    // Much longer delay (15 seconds) to batch multiple updates and prevent loops
+    this.batchSyncTimeout = setTimeout(() => {
+      console.log('📦 Executing batched database sync...');
+      this.executeBatchedDatabaseSync();
+    }, 15000); // 15 second delay for batching
+    
+    console.log('⏰ Scheduled batched database sync in 15 seconds');
+  }
+
+  /**
+   * Execute the actual database sync with enhanced validation
+   */
+  async executeBatchedDatabaseSync() {
+    // Prevent concurrent syncs
+    if (this.isBatchSyncing) {
+      console.log('🔄 Batch sync already in progress, skipping');
+      return;
+    }
+    
+    this.isBatchSyncing = true;
+    
+    try {
+      const currentUserProfile = await currentUser.waitForProfile();
+      if (!currentUserProfile?.uid || !this.quickAccessFriends?.length) {
+        console.log('⚠️ No user profile or friends data for batch sync');
         return;
       }
 
-      console.log(
-        `📡 Profile changes detected for ${currentFriend.displayName}: name=${nameChanged}, avatar=${avatarChanged}`
-      );
+      console.log('📦 Executing batched database sync for starred friends');
 
-      // Update local data
-      if (nameChanged && newDisplayName) {
-        this.quickAccessFriends[friendIndex].displayName = newDisplayName;
+      // Enhanced data validation with proper field mapping
+      const cleanFriendsData = this.quickAccessFriends
+        .filter(friend => {
+          if (!friend || typeof friend !== 'object') {
+            console.warn('⚠️ Filtered out invalid friend object:', friend);
+            return false;
+          }
+          
+          // Must have at least one valid ID
+          if (!friend.friendId && !friend.userId) {
+            console.warn('⚠️ Filtered out friend without valid ID:', friend);
+            return false;
+          }
+          
+          return true;
+        })
+        .map((friend, index) => {
+          // CRITICAL FIX: Ensure proper field mapping between userId and friendId
+          const primaryId = friend.friendId || friend.userId;
+          const secondaryId = friend.userId || friend.friendId;
+          
+          const validatedFriend = {
+            friendId: this._validateString(primaryId, `Friend ${index} friendId`),
+            userId: this._validateString(secondaryId, `Friend ${index} userId`), 
+            displayName: this._validateString(friend.displayName, `Friend ${index} displayName`, 'Unknown User'),
+            avatarConfig: this._validateAvatarConfig(friend.avatarConfig, `Friend ${index} avatarConfig`),
+            isRestricted: Boolean(friend.isRestricted),
+            // CRITICAL FIX: Ensure privacyStatus is always a string
+            privacyStatus: this._validatePrivacyStatus(friend.privacyStatus, `Friend ${index} privacyStatus`)
+          };
+
+          return validatedFriend;
+        });
+
+      if (!cleanFriendsData.length) {
+        console.warn('⚠️ No valid friends data to sync after validation');
+        return;
       }
-      if (avatarChanged && newAvatarConfig) {
-        this.quickAccessFriends[friendIndex].avatarConfig = newAvatarConfig;
+
+      // Final validation check
+      const validationResult = this._validateFirebaseData(cleanFriendsData);
+      if (!validationResult) {
+        console.error('❌ Data validation failed, aborting sync');
+        return;
       }
 
-      // Re-render immediately for instant UI feedback
-      this.render();
+      console.log('📦 Syncing validated data to Firebase:', {
+        count: cleanFriendsData.length,
+        validation: 'passed'
+      });
 
-      // Debounced database sync to prevent excessive writes
-      this.debouncedSyncStarredFriends();
+      const userDocRef = doc(db, 'users', currentUserProfile.uid);
+      await updateDoc(userDocRef, {
+        'quickAccessData.starredFriends': cleanFriendsData,
+        'quickAccessData.lastUpdated': serverTimestamp(),
+      });
 
-      console.log(
-        `✅ Updated starred friend profile for ${
-          newDisplayName || currentFriend.displayName
-        }`
-      );
+      console.log('✅ Batched starred friends sync completed successfully');
     } catch (error) {
-      console.error(
-        `❌ Error handling profile update for friend ${friendId}:`,
-        error
-      );
+      console.error('❌ Batch sync failed:', error);
+      
+      // Enhanced error debugging
+      if (error.message?.includes('undefined')) {
+        console.error('🚨 FIREBASE UNDEFINED ERROR in batch sync:', {
+          friendsCount: this.quickAccessFriends?.length,
+          errorMessage: error.message,
+          stackTrace: error.stack
+        });
+      }
+    } finally {
+      this.isBatchSyncing = false;
     }
+  }
+
+  /**
+   * Robust deep equality check for objects
+   */
+  deepEqual(obj1, obj2) {
+    if (obj1 === obj2) return true;
+    if (obj1 == null || obj2 == null) return obj1 === obj2;
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2;
+    
+    try {
+      const keys1 = Object.keys(obj1);
+      const keys2 = Object.keys(obj2);
+      
+      if (keys1.length !== keys2.length) return false;
+      
+      for (const key of keys1) {
+        if (!keys2.includes(key)) return false;
+        if (!this.deepEqual(obj1[key], obj2[key])) return false;
+      }
+      
+      return true;
+    } catch (error) {
+      // Fallback to JSON comparison if deep comparison fails
+      try {
+        return JSON.stringify(obj1) === JSON.stringify(obj2);
+      } catch {
+        return false; // Assume different if comparison fails
+      }
+    }
+  }
+
+  /**
+   * Check if profile changes are significant enough to warrant updates
+   */
+  hasSignificantProfileChange(currentFriend, newProfile) {
+    try {
+      // Enhanced null/undefined protection
+      if (!currentFriend || !newProfile) {
+        console.log("🔍 Change detection: Missing data", { currentFriend: !!currentFriend, newProfile: !!newProfile });
+        return false;
+      }
+
+      // ENHANCED: Check display name changes with better normalization
+      const currentName = String(currentFriend.displayName || '').trim().toLowerCase();
+      const newName = String(newProfile.displayName || '').trim().toLowerCase();
+      const nameChanged = currentName !== newName && newName !== '';
+      
+      if (nameChanged) {
+        console.log("🔍 Display name change detected:", {
+          from: currentName,
+          to: newName
+        });
+      }
+
+      // ENHANCED: Deep avatar comparison with better error handling
+      let avatarChanged = false;
+      try {
+        const currentAvatar = currentFriend.avatarConfig;
+        const newAvatar = newProfile.avatarConfig;
+        
+        // Handle cases where avatar might be null/undefined
+        if (!currentAvatar && !newAvatar) {
+          avatarChanged = false; // Both are null/undefined
+        } else if (!currentAvatar || !newAvatar) {
+          avatarChanged = true; // One is null, other isn't
+        } else {
+          // Both exist, do deep comparison
+          avatarChanged = !this.deepEqual(currentAvatar, newAvatar);
+        }
+        
+        if (avatarChanged) {
+          console.log("🔍 Avatar config change detected:", {
+            currentType: typeof currentAvatar,
+            newType: typeof newAvatar,
+            currentSeed: currentAvatar?.seed,
+            newSeed: newAvatar?.seed
+          });
+        }
+      } catch (avatarError) {
+        console.warn("⚠️ Error comparing avatars, assuming change:", avatarError);
+        avatarChanged = true; // Assume change on error to be safe
+      }
+
+      // ENHANCED: Additional significant change detection
+      let otherChanges = false;
+      
+      // Check for changes in privacy or restriction status that might affect UI
+      if (currentFriend.isRestricted !== newProfile.isRestricted) {
+        console.log("🔍 Restriction status change detected:", {
+          from: currentFriend.isRestricted,
+          to: newProfile.isRestricted
+        });
+        otherChanges = true;
+      }
+
+      // Check for status changes that might affect display
+      const currentStatus = String(currentFriend.privacyStatus || '').toLowerCase();
+      const newStatus = String(newProfile.privacyStatus || '').toLowerCase();
+      if (currentStatus !== newStatus) {
+        console.log("🔍 Privacy status change detected:", {
+          from: currentStatus,
+          to: newStatus
+        });
+        otherChanges = true;
+      }
+
+      const hasChanges = nameChanged || avatarChanged || otherChanges;
+      
+      if (hasChanges) {
+        console.log("🔍 SIGNIFICANT changes detected:", {
+          nameChanged,
+          avatarChanged,
+          otherChanges,
+          friendId: currentFriend.friendId || currentFriend.userId
+        });
+      } else {
+        console.log("🔍 No significant changes detected for friend:", currentFriend.displayName);
+      }
+
+      return hasChanges;
+    } catch (error) {
+      console.error("❌ Error in change detection:", error);
+      // Return true on error to ensure updates aren't missed
+      return true;
+    }
+  }
+
+  /**
+   * Debounced render to prevent excessive UI updates
+   */
+  debouncedRender() {
+    if (this.renderTimeout) {
+      clearTimeout(this.renderTimeout);
+    }
+    
+    this.renderTimeout = setTimeout(() => {
+      this.render();
+      this.renderTimeout = null;
+    }, 100); // Quick debounce for UI responsiveness
   }
 
   /**
    * Debounced sync of starred friends data to database
    * Prevents excessive database writes while ensuring data consistency
+   * ENHANCED: Better protection against infinite loops + Firebase validation
    */
   debouncedSyncStarredFriends() {
+    // DEPRECATED: This method is now used only for urgent syncs
+    // Most updates should use scheduleBatchedDatabaseSync() instead
+    console.log("⚠️ URGENT: Using immediate sync (deprecated - prefer batched sync)");
+    
     // Clear any existing timeout
     if (this.syncTimeout) {
       clearTimeout(this.syncTimeout);
     }
+    
+    // Prevent sync if already syncing
+    if (this.isSyncing) {
+      console.log("🔄 Sync already in progress, skipping");
+      return;
+    }
 
-    // Set a new timeout to sync after 2 seconds of no more changes
+    // CIRCUIT BREAKER: Check global state
+    if (window.horizontalFriendsBar_updating) {
+      console.log("🛑 CIRCUIT BREAKER: Global update in progress, skipping sync");
+      return;
+    }
+
+    // Shorter debounce for urgent syncs only
     this.syncTimeout = setTimeout(async () => {
+      // Additional protection against rapid calls
+      if (this.isSyncing || window.horizontalFriendsBar_updating) return;
+      
+      this.isSyncing = true;
+      window.horizontalFriendsBar_updating = true;
+      
       try {
         const currentUserProfile = await currentUser.waitForProfile();
         if (!currentUserProfile?.uid || !this.quickAccessFriends?.length) {
           return;
         }
 
-        console.log("🔄 Syncing updated starred friends data to database...");
+        console.log("🔄 URGENT: Syncing starred friends to database immediately");
 
-        // Update the database with the fresh profile data
+        // Use enhanced validation and cleaning to prevent Firebase errors
+        const cleanFriendsData = this.quickAccessFriends
+          .filter(friend => {
+            if (!friend || typeof friend !== 'object') {
+              console.warn("⚠️ Filtered out invalid friend object:", friend);
+              return false;
+            }
+            
+            if (!friend.friendId && !friend.userId) {
+              console.warn("⚠️ Filtered out friend without valid ID:", friend);
+              return false;
+            }
+            
+            return true;
+          })
+          .map((friend, index) => {
+            // Enhanced field mapping with proper validation
+            const primaryId = friend.friendId || friend.userId;
+            const secondaryId = friend.userId || friend.friendId;
+            
+            const validatedFriend = {
+              friendId: this._validateString(primaryId, `Friend ${index} friendId`),
+              userId: this._validateString(secondaryId, `Friend ${index} userId`), 
+              displayName: this._validateString(friend.displayName, `Friend ${index} displayName`, "Unknown User"),
+              avatarConfig: this._validateAvatarConfig(friend.avatarConfig, `Friend ${index} avatarConfig`),
+              isRestricted: Boolean(friend.isRestricted),
+              privacyStatus: this._validatePrivacyStatus(friend.privacyStatus, `Friend ${index} privacyStatus`)
+            };
+
+            return validatedFriend;
+          });
+
+        // Enhanced validation check
+        if (!cleanFriendsData.length) {
+          console.warn("⚠️ No valid friends data to sync after validation");
+          return;
+        }
+
+        // Final validation with enhanced method
+        if (!this._validateFirebaseDataEnhanced(cleanFriendsData)) {
+          console.error("❌ Enhanced validation failed, aborting urgent sync");
+          return;
+        }
+
+        console.log("🔄 URGENT: Writing validated data to Firebase:", {
+          count: cleanFriendsData.length,
+          validation: 'passed',
+          type: 'urgent_sync'
+        });
+
         const userDocRef = doc(db, "users", currentUserProfile.uid);
         await updateDoc(userDocRef, {
-          "quickAccessData.starredFriends": this.quickAccessFriends,
+          "quickAccessData.starredFriends": cleanFriendsData,
           "quickAccessData.lastUpdated": serverTimestamp(),
         });
 
-        console.log("✅ Starred friends data synced to database");
+        console.log("✅ URGENT: Starred friends synced to database");
       } catch (error) {
-        console.warn(
-          "⚠️ Failed to sync starred friends data (non-critical):",
-          error
-        );
+        console.error("⚠️ Failed to sync starred friends (urgent):", error);
+        
+        // Enhanced error logging for debugging
+        if (error.message?.includes('undefined')) {
+          console.error("🚨 FIREBASE UNDEFINED ERROR in urgent sync:", {
+            friendsCount: this.quickAccessFriends?.length,
+            sampleFriend: this.quickAccessFriends?.[0],
+            errorMessage: error.message,
+            stackTrace: error.stack
+          });
+        }
+      } finally {
+        this.isSyncing = false;
+        
+        // Staggered release of global lock to prevent race conditions
+        setTimeout(() => {
+          window.horizontalFriendsBar_updating = false;
+        }, 2000);
       }
-    }, 2000); // 2 second debounce
+    }, 1000); // 1 second for urgent syncs
+  }
+
+  /**
+   * Validates string fields, ensuring no undefined values reach Firebase
+   * @param {any} value - The value to validate
+   * @param {string} fieldName - Field name for debugging
+   * @param {string} fallback - Default value if invalid
+   * @returns {string|null} - Valid string or null (never undefined)
+   */
+  _validateString(value, fieldName, fallback = null) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+    
+    if (value === undefined) {
+      console.warn(`⚠️ Found undefined value for ${fieldName}, using fallback: ${fallback}`);
+    } else if (value !== null && value !== fallback) {
+      console.warn(`⚠️ Invalid value for ${fieldName}:`, value, `using fallback: ${fallback}`);
+    }
+    
+    return fallback;
+  }
+
+  /**
+   * Validates avatar config object, ensuring Firebase compatibility
+   * @param {any} avatarConfig - Avatar configuration to validate
+   * @param {string} fieldName - Field name for debugging
+   * @returns {object|null} - Valid avatar config or null
+   */
+  _validateAvatarConfig(avatarConfig, fieldName) {
+    if (!avatarConfig || typeof avatarConfig !== 'object') {
+      console.warn(`⚠️ Invalid avatarConfig for ${fieldName}:`, avatarConfig);
+      return null;
+    }
+    
+    // Ensure no undefined values in avatar config
+    const cleanConfig = {};
+    for (const [key, value] of Object.entries(avatarConfig)) {
+      if (value !== undefined) {
+        cleanConfig[key] = value;
+      } else {
+        console.warn(`⚠️ Removed undefined ${key} from ${fieldName} avatarConfig`);
+      }
+    }
+    
+    return Object.keys(cleanConfig).length > 0 ? cleanConfig : null;
+  }
+
+  /**
+   * Validates that data structure contains no undefined values
+   * @param {any} data - Data to validate
+   * @returns {boolean} - True if data is Firebase-safe
+   */
+  _validateFirebaseData(data) {
+    try {
+      const jsonString = JSON.stringify(data);
+      return !jsonString.includes('undefined');
+    } catch (error) {
+      console.error("❌ Error validating Firebase data:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate privacy status ensuring it's always a string, never an object
+   * @param {*} value - The privacy status value to validate
+   * @param {string} fieldName - Field name for logging
+   * @returns {string} - Valid privacy status string
+   */
+  _validatePrivacyStatus(value, fieldName) {
+    // Handle object values (common cause of Firebase errors)
+    if (value && typeof value === 'object') {
+      console.warn(`⚠️ ${fieldName} is an object, extracting string value:`, value);
+      
+      // Extract meaningful string from privacy status object
+      if (value.status) return String(value.status);
+      if (value.type) return String(value.type);
+      if (value.level) return String(value.level);
+      
+      // Default for unrecognized objects
+      console.warn(`⚠️ ${fieldName} object has no recognizable privacy field, using fallback`);
+      return 'unknown';
+    }
+    
+    // Handle string values
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    
+    // Handle null, undefined, or invalid values
+    if (value === null || value === undefined || value === '') {
+      return 'unknown';
+    }
+    
+    // Convert other types to string
+    return String(value);
+  }
+
+  /**
+   * Enhanced Firebase data validation with detailed error reporting
+   * @param {Array} data - Array of friend objects to validate
+   * @returns {boolean} - True if data is valid for Firebase
+   */
+  _validateFirebaseDataEnhanced(data) {
+    if (!Array.isArray(data)) {
+      console.error('❌ Data is not an array:', typeof data);
+      return false;
+    }
+    
+    for (let i = 0; i < data.length; i++) {
+      const friend = data[i];
+      
+      // Check for null or undefined objects
+      if (!friend || typeof friend !== 'object') {
+        console.error(`❌ Friend ${i} is not a valid object:`, friend);
+        return false;
+      }
+      
+      // Check each required field
+      const requiredFields = ['friendId', 'userId', 'displayName', 'avatarConfig', 'privacyStatus'];
+      for (const field of requiredFields) {
+        const value = friend[field];
+        
+        // Check for undefined values (Firebase killer)
+        if (value === undefined) {
+          console.error(`❌ Friend ${i} has undefined ${field}:`, friend);
+          return false;
+        }
+        
+        // Special validation for specific fields
+        if (field === 'privacyStatus' && typeof value === 'object') {
+          console.error(`❌ Friend ${i} privacyStatus is an object (should be string):`, value);
+          return false;
+        }
+        
+        if (field === 'avatarConfig' && typeof value !== 'object') {
+          console.error(`❌ Friend ${i} avatarConfig is not an object:`, typeof value);
+          return false;
+        }
+      }
+    }
+    
+    console.log('✅ Firebase data validation passed for all friends');
+    return true;
   }
 
   /**
    * Handle real-time Quick Access updates
+   * ENHANCED: Added data validation to prevent undefined values
    */
   async handleRealTimeQuickAccessUpdate(quickAccessData) {
     try {
@@ -1997,8 +2579,26 @@ export class HorizontalFriendsBar {
 
       const { quickAccessFriends = [] } = quickAccessData;
 
-      // Update internal state
-      this.quickAccessFriends = quickAccessFriends;
+      // Validate incoming data to prevent undefined values
+      const validatedFriends = quickAccessFriends.filter(friend => {
+        if (!friend || typeof friend !== 'object') {
+          console.warn("⚠️ Real-time update: Filtered out invalid friend object:", friend);
+          return false;
+        }
+        
+        // Must have at least one valid ID
+        if (!friend.friendId && !friend.userId) {
+          console.warn("⚠️ Real-time update: Filtered out friend without valid ID:", friend);
+          return false;
+        }
+        
+        return true;
+      });
+
+      console.log(`🔍 DEBUG: Real-time update validated ${validatedFriends.length}/${quickAccessFriends.length} friends`);
+
+      // Update internal state with validated data
+      this.quickAccessFriends = validatedFriends;
 
       // Set up new profile listeners for the updated starred friends list
       await this.setupStarredFriendProfileListeners();
@@ -2008,7 +2608,7 @@ export class HorizontalFriendsBar {
 
       // Maintain current selection if still valid
       if (this.selectedFriendId) {
-        const stillExists = quickAccessFriends.some(
+        const stillExists = validatedFriends.some(
           (f) => (f.friendId || f.userId) === this.selectedFriendId
         );
 
@@ -2103,8 +2703,8 @@ export class HorizontalFriendsBar {
     this.render();
 
     // Ensure user is selected after programmatic refresh
-    this.addTrackedTimeout(async () => {
-      await this.forceUserSelection();
+    this.addTrackedTimeout(() => {
+      this.forceUserSelection();
     }, 100);
   }
 
@@ -2128,7 +2728,7 @@ export class HorizontalFriendsBar {
    * Clean up resources and event listeners
    */
   destroy() {
-    console.log("🧹 Destroying HorizontalFriendsBar...");
+    console.log("🧹 Destroying HorizontalFriendsBar with enhanced cleanup...");
 
     // Remove event listeners
     if (this.container && this.boundHandlers) {
@@ -2149,9 +2749,20 @@ export class HorizontalFriendsBar {
       );
     }
 
-    // Clear timeouts
+    // Clear all timeout variations
     if (this.scrollTimeout) {
       clearTimeout(this.scrollTimeout);
+    }
+
+    // ENHANCED: Clear new sync timeouts
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+      this.syncTimeout = null;
+    }
+
+    if (this.batchSyncTimeout) {
+      clearTimeout(this.batchSyncTimeout);
+      this.batchSyncTimeout = null;
     }
 
     // 🧹 MEMORY LEAK FIX: Clear all tracked timeouts
@@ -2160,8 +2771,20 @@ export class HorizontalFriendsBar {
     });
     this.activeTimeouts.clear();
 
+    // ENHANCED: Clear processing locks to prevent stuck states
+    const processingKeys = Object.keys(this).filter(key => key.startsWith('processing_'));
+    processingKeys.forEach(key => {
+      this[key] = false;
+    });
+
+    // Clear global circuit breaker
+    if (typeof window !== 'undefined') {
+      window.horizontalFriendsBar_updating = false;
+    }
+
     // Clear all real-time listeners (privacy changes, profile updates)
     if (this.realTimeUnsubscribers && this.realTimeUnsubscribers.length > 0) {
+      console.log(`🧹 Cleaning up ${this.realTimeUnsubscribers.length} real-time listeners`);
       this.realTimeUnsubscribers.forEach((unsubscriber) => {
         if (typeof unsubscriber === "function") {
           unsubscriber();
@@ -2188,20 +2811,30 @@ export class HorizontalFriendsBar {
       this.profileUpdateTimeout = null;
     }
 
-    // Clear sync timeout
-    if (this.syncTimeout) {
-      clearTimeout(this.syncTimeout);
-      this.syncTimeout = null;
+    // Clear render timeout
+    if (this.renderTimeout) {
+      clearTimeout(this.renderTimeout);
+      this.renderTimeout = null;
     }
+    
+    // ENHANCED: Reset all sync flags
+    this.isSyncing = false;
+    this.isBatchSyncing = false;
 
-    // Clean up friend profile listeners
+    // ENHANCED: Clean up friend profile listeners with detailed logging
     if (this.friendProfileUnsubscribers) {
+      console.log(`🧹 Cleaning up ${this.friendProfileUnsubscribers.length} friend profile listeners`);
       this.friendProfileUnsubscribers.forEach((unsubscriber) => {
         if (typeof unsubscriber === "function") {
           unsubscriber();
         }
       });
       this.friendProfileUnsubscribers = [];
+    }
+
+    // Remove debug helper from window if it exists
+    if (typeof window !== 'undefined' && window.debugStarredFriends) {
+      delete window.debugStarredFriends;
     }
 
     // Clear references
@@ -2212,8 +2845,12 @@ export class HorizontalFriendsBar {
     this.avatarsContainer = null;
     this.boundHandlers = null;
 
+    // ENHANCED: Clear performance tracking data
+    this.lastDatabaseState = null;
+    this.lastUpdateTimestamp = 0;
+
     this.isInitialized = false;
-    console.log("✅ HorizontalFriendsBar destroyed successfully");
+    console.log("✅ HorizontalFriendsBar destroyed successfully with enhanced cleanup");
   }
 
   /**
