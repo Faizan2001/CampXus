@@ -92,17 +92,19 @@ export class HorizontalFriendsBar {
     // ENHANCED: Circuit breaker and sync management properties
     this.isSyncing = false; // Legacy sync protection
     this.isBatchSyncing = false; // Batched sync protection
+    this.isPrivacySyncing = false; // Privacy-only sync protection
     this.syncTimeout = null; // Legacy sync timeout
     this.batchSyncTimeout = null; // Batched sync timeout
     this.friendProfileUnsubscribers = []; // Track friend profile listeners
     this.realTimeUnsubscribers = []; // Track all real-time listeners
+    this.privacyUnsubscribers = []; // Track privacy listeners for friendship documents
 
     // Performance optimization: track last database state to prevent unnecessary updates
     this.lastDatabaseState = null;
     this.lastUpdateTimestamp = 0;
 
     console.log(
-      `🏗️ HorizontalFriendsBar created with enhanced loop prevention for container: ${containerId}`
+      `🏗️ HorizontalFriendsBar created with enhanced loop prevention and privacy optimization for container: ${containerId}`
     );
   }
 
@@ -1684,9 +1686,9 @@ export class HorizontalFriendsBar {
       const userProfileUnsubscriber = this.dataManager.listenToUserProfile(
         currentUser.user.uid,
         (userProfile) => {
-          // CIRCUIT BREAKER: Don't process database updates if we're currently syncing
-          if (this.isBatchSyncing || window.horizontalFriendsBar_updating) {
-            console.log("🛑 CIRCUIT BREAKER: Ignoring database update during our own sync");
+          // ENHANCED CIRCUIT BREAKER: Don't process database updates during ANY sync operations
+          if (this.isBatchSyncing || this.isPrivacySyncing || window.profile_updates_in_progress) {
+            console.log("🛑 CIRCUIT BREAKER: Ignoring database update during our own sync operations");
             return;
           }
 
@@ -1711,6 +1713,10 @@ export class HorizontalFriendsBar {
               
               this.quickAccessFriends = newFriendsData;
               this.render();
+              
+              // Re-setup privacy listeners for new friend list
+              this.setupFriendshipPrivacyListeners();
+              
               console.log(
                 "✅ HorizontalFriendsBar updated with external database data"
               );
@@ -1736,33 +1742,56 @@ export class HorizontalFriendsBar {
       this.setupStarredFriendProfileListeners();
     }
 
+    // NEW: Set up real-time privacy listeners for immediate privacy updates
+    if (currentUser?.user?.uid) {
+      console.log("🔒 Setting up real-time privacy listeners for friendship documents");
+      this.setupFriendshipPrivacyListeners();
+    }
+
     // Fallback: Listen for Quick Access updates from FriendsService (external changes only)
     if (friendsManager.registerUICallbacks) {
       friendsManager.registerUICallbacks({
         onQuickAccessUpdated: (quickAccessData) => {
-          // Only process if not from our own update
-          if (!this.isBatchSyncing && !window.horizontalFriendsBar_updating) {
+          // ENHANCED: Only process if not from our own update operations
+          if (!this.isBatchSyncing && !this.isPrivacySyncing && !window.profile_updates_in_progress) {
             console.log(
               "⭐ External Quick Access update in HorizontalFriendsBar:",
               quickAccessData
             );
             this.handleRealTimeQuickAccessUpdate(quickAccessData);
           } else {
-            console.log("🛑 Ignoring Quick Access update from our own sync");
+            console.log("🛑 Ignoring Quick Access update from our own sync operations");
           }
         },
       });
     }
 
-    // Listen for schedule privacy changes (Phase 4.1)
+    // Listen for schedule privacy changes (Phase 4.1) - Enhanced with immediate handling
     const privacyChangeUnsubscriber = realTimeManager.on(
       REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE,
       (privacyEvent) => {
         console.log(
-          "🔒 Privacy change event received in HorizontalFriendsBar:",
+          "🔒 IMMEDIATE: Privacy change event received in HorizontalFriendsBar:",
           privacyEvent
         );
+        
+        // Handle privacy changes immediately (bypass circuit breaker)
         this.handlePrivacyChange(privacyEvent);
+        
+        // Also update privacy status if it affects our starred friends
+        if (privacyEvent.affectedUserId) {
+          const newPrivacyStatus = {
+            avatarEnabled: privacyEvent.scheduleVisibility,
+            tooltip: privacyEvent.scheduleVisibility ? 'Click to view schedule' : 'Schedule access restricted',
+            description: privacyEvent.scheduleVisibility 
+              ? 'Schedule is visible - quick access enabled'
+              : 'This user has hidden their schedule from you',
+            lastUpdated: new Date().toISOString(),
+            source: 'realtime_event'
+          };
+          
+          this.handlePrivacyStatusUpdate(privacyEvent.affectedUserId, newPrivacyStatus);
+        }
       }
     );
 
@@ -1773,7 +1802,7 @@ export class HorizontalFriendsBar {
     this.realTimeUnsubscribers.push(privacyChangeUnsubscriber);
 
     console.log(
-      "✅ Smart real-time listeners set up successfully with loop prevention"
+      "✅ Smart real-time listeners set up successfully with optimized privacy updates"
     );
   }
 
@@ -1936,40 +1965,166 @@ export class HorizontalFriendsBar {
   }
 
   /**
+   * Set up real-time listeners for friendship document changes to catch privacy updates
+   * This ensures immediate privacy change detection per requirement R3.1
+   */
+  async setupFriendshipPrivacyListeners() {
+    if (!this.quickAccessFriends?.length) {
+      console.log("🔒 No starred friends to set up privacy listeners for");
+      return;
+    }
+
+    console.log(
+      `🔒 Setting up privacy listeners for ${this.quickAccessFriends.length} starred friends`
+    );
+
+    // Clean up existing privacy listeners first
+    if (this.privacyUnsubscribers) {
+      this.privacyUnsubscribers.forEach((unsubscriber) => {
+        if (typeof unsubscriber === "function") {
+          unsubscriber();
+        }
+      });
+    }
+
+    // Initialize privacy listeners array
+    this.privacyUnsubscribers = [];
+
+    const currentUserUid = currentUser?.user?.uid;
+    if (!currentUserUid) {
+      console.warn("🔒 No current user for privacy listeners");
+      return;
+    }
+
+    // Import Firestore functions needed for direct document listening
+    const { doc, onSnapshot } = await import('firebase/firestore');
+
+    // Set up friendship document listeners for each starred friend
+    for (const friend of this.quickAccessFriends) {
+      if (!friend.friendId) continue;
+
+      try {
+        // Create both possible friendship document IDs
+        const friendshipId1 = `${currentUserUid}_${friend.friendId}`;
+        const friendshipId2 = `${friend.friendId}_${currentUserUid}`;
+
+        // Listen to both possible friendship document IDs
+        for (const friendshipId of [friendshipId1, friendshipId2]) {
+          const friendshipDocRef = doc(db, 'friendships', friendshipId);
+          
+          const unsubscriber = onSnapshot(
+            friendshipDocRef,
+            (docSnapshot) => {
+              if (docSnapshot.exists()) {
+                const friendshipData = docSnapshot.data();
+                console.log(`🔒 REAL-TIME: Friendship document updated for ${friendshipId}:`, friendshipData);
+                this.handleFriendshipPrivacyChange(friend.friendId, friendshipData);
+              } else {
+                console.log(`🔒 Friendship document ${friendshipId} does not exist`);
+              }
+            },
+            (error) => {
+              console.warn(`⚠️ Error listening to friendship document ${friendshipId}:`, error);
+              // Don't treat missing documents as errors - they might not exist for this ID combination
+              if (error.code !== 'permission-denied') {
+                console.warn(`🔒 Non-permission error for ${friendshipId}, continuing...`);
+              }
+            }
+          );
+
+          if (unsubscriber) {
+            this.privacyUnsubscribers.push(unsubscriber);
+          }
+        }
+
+      } catch (error) {
+        console.warn(
+          `⚠️ Failed to set up privacy listener for friend ${friend.friendId}:`,
+          error
+        );
+      }
+    }
+
+    console.log(
+      `✅ Set up ${this.privacyUnsubscribers.length} privacy listeners for friendship documents`
+    );
+  }
+
+  /**
+   * Handle real-time friendship document changes that affect privacy
+   */
+  handleFriendshipPrivacyChange(friendId, friendshipData) {
+    if (!friendshipData) return;
+
+    console.log(`🔒 REAL-TIME: Friendship privacy change detected for ${friendId}:`, friendshipData);
+
+    const currentUserUid = currentUser?.user?.uid;
+    if (!currentUserUid) return;
+
+    // Extract schedule visibility for current user
+    const scheduleVisibility = friendshipData.scheduleVisibility;
+    if (!scheduleVisibility) return;
+
+    // Check if this friend's schedule is visible to current user
+    const isScheduleVisible = scheduleVisibility[friendId] === true;
+    
+    console.log(`🔒 Schedule visibility for ${friendId} → ${currentUserUid}: ${isScheduleVisible}`);
+
+    // Create updated privacy status object
+    const newPrivacyStatus = {
+      avatarEnabled: isScheduleVisible,
+      tooltip: isScheduleVisible ? 'Click to view schedule' : 'Schedule access restricted',
+      description: isScheduleVisible 
+        ? 'Schedule is visible - quick access enabled'
+        : 'This user has hidden their schedule from you',
+      lastUpdated: new Date().toISOString(),
+      source: 'friendship_document_change'
+    };
+
+    // Trigger immediate privacy update (bypasses circuit breaker)
+    this.handlePrivacyStatusUpdate(friendId, newPrivacyStatus);
+  }
+
+  /**
    * Handle profile updates for starred friends
    * Updates the local starred friends data and syncs to database efficiently
    * FIXED: Prevents infinite loops with proper change detection and re-entrancy protection
    */
   async handleStarredFriendProfileUpdate(friendId, friendProfile) {
-    // CIRCUIT BREAKER: Global update prevention to stop infinite loops
-    const globalKey = 'horizontalFriendsBar_updating';
-    if (window[globalKey]) {
-      console.log(`🛑 CIRCUIT BREAKER: Global update in progress, blocking ${friendId}`);
-      return;
-    }
-
-    // Individual friend processing lock
-    const processingKey = `processing_${friendId}`;
-    if (this[processingKey]) {
-      console.log(`🔄 Individual processing lock active for ${friendId}, skipping`);
+    // ENHANCED CIRCUIT BREAKER: Only block PROFILE updates, not privacy updates
+    const profileUpdateKey = `profile_updating_${friendId}`;
+    if (this[profileUpdateKey]) {
+      console.log(`🔄 Profile update lock active for ${friendId}, skipping`);
       return;
     }
     
-    // Activate both circuit breakers
-    window[globalKey] = true;
-    this[processingKey] = true;
+    // Check if this is a privacy-only update (bypass circuit breaker)
+    const isPrivacyUpdate = this.isPrivacyOnlyUpdate(friendProfile);
+    if (isPrivacyUpdate) {
+      console.log(`🔒 Detected privacy-only update for ${friendId}, bypassing circuit breaker`);
+      return this.handlePrivacyStatusUpdate(friendId, friendProfile?.privacyStatus);
+    }
+    
+    // PROFILE UPDATE CIRCUIT BREAKER: Prevent infinite profile update loops
+    const globalProfileKey = 'profile_updates_in_progress';
+    if (window[globalProfileKey]) {
+      console.log(`🛑 PROFILE CIRCUIT BREAKER: Global profile updates in progress, blocking ${friendId}`);
+      return;
+    }
+    
+    // Activate profile update locks
+    window[globalProfileKey] = true;
+    this[profileUpdateKey] = true;
     
     try {
-      // Minimal logging to reduce noise
       console.log(`📡 Profile update for ${friendId}`);
 
-      // Find the friend in our starred friends list
       const friendIndex = this.quickAccessFriends.findIndex(
         (f) => f.friendId === friendId || f.userId === friendId
       );
       if (friendIndex === -1) {
         console.log(`📡 Friend ${friendId} not in starred list, ignoring update`);
-        return; // Friend not found, exit silently
+        return;
       }
 
       const currentFriend = this.quickAccessFriends[friendIndex];
@@ -1985,16 +2140,16 @@ export class HorizontalFriendsBar {
         friendProfile?.avatarConfig ||
         currentFriend.avatarConfig;
 
-      // ENHANCED change detection - check multiple fields
+      // ENHANCED change detection - exclude privacy changes (handled separately)
       const nameChanged = newDisplayName && newDisplayName !== currentFriend.displayName;
       const avatarChanged = newAvatarConfig && !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
       
       if (!nameChanged && !avatarChanged) {
-        console.log(`📡 No significant changes for ${currentFriend.displayName}, skipping update`);
-        return; // No significant changes, exit silently
+        console.log(`📡 No significant profile changes for ${currentFriend.displayName}, skipping update`);
+        return;
       }
 
-      console.log(`📡 Applying UI-only update for ${currentFriend.displayName}`, {
+      console.log(`📡 Applying UI-only profile update for ${currentFriend.displayName}`, {
         nameChanged: nameChanged ? `${currentFriend.displayName} → ${newDisplayName}` : false,
         avatarChanged
       });
@@ -2023,26 +2178,224 @@ export class HorizontalFriendsBar {
         // Update local state for immediate UI refresh
         this.quickAccessFriends[friendIndex] = updatedFriend;
         
-        // CRITICAL: Only update UI, do NOT trigger database sync
-        // This breaks the circular dependency loop
+        // Only update UI for profile changes, do NOT trigger database sync
         this.debouncedRender();
         
-        console.log(`✅ UI updated for ${updatedFriend.displayName} (no database sync)`);
+        console.log(`✅ Profile UI updated for ${updatedFriend.displayName} (no database sync)`);
         
-        // Schedule a batched database sync for later (much longer delay)
+        // Schedule a batched database sync for profile changes only (longer delay)
         this.scheduleBatchedDatabaseSync();
       }
     } catch (error) {
       console.error(`❌ Error in profile update for ${friendId}:`, error);
     } finally {
-      // Clear processing flags with staggered timing to prevent race conditions
+      // Clear processing flags with staggered timing
       setTimeout(() => {
-        this[processingKey] = false;
+        this[profileUpdateKey] = false;
       }, 500);
       
       setTimeout(() => {
-        window[globalKey] = false;
-      }, 1000); // Longer delay for global lock
+        window[globalProfileKey] = false;
+      }, 1000);
+    }
+  }
+
+  /**
+   * Detect if this is a privacy-only update vs profile update
+   */
+  isPrivacyOnlyUpdate(friendProfile) {
+    // Check if only privacy-related fields are present
+    const hasPrivacyStatus = friendProfile?.privacyStatus !== undefined;
+    const hasIsRestricted = friendProfile?.isRestricted !== undefined;
+    
+    // Check if profile fields are missing or unchanged
+    const hasProfileChanges = 
+      (friendProfile?.profile?.displayName !== undefined) ||
+      (friendProfile?.profile?.avatarConfig !== undefined) ||
+      (friendProfile?.displayName !== undefined) ||
+      (friendProfile?.avatarConfig !== undefined);
+    
+    return (hasPrivacyStatus || hasIsRestricted) && !hasProfileChanges;
+  }
+
+  /**
+   * Handle privacy changes separately from profile updates for immediate response
+   * This bypasses the circuit breaker to ensure privacy changes are always immediate
+   */
+  async handlePrivacyStatusUpdate(friendId, newPrivacyStatus) {
+    // NO CIRCUIT BREAKER for privacy updates - they must be immediate per R3.1
+    console.log(`🔒 IMMEDIATE privacy update for ${friendId}:`, newPrivacyStatus);
+    
+    try {
+      // Find the friend in our starred friends list
+      const friendIndex = this.quickAccessFriends.findIndex(
+        (f) => f.friendId === friendId || f.userId === friendId
+      );
+      
+      if (friendIndex === -1) {
+        console.log(`🔒 Friend ${friendId} not in starred list, ignoring privacy update`);
+        return;
+      }
+
+      const currentFriend = this.quickAccessFriends[friendIndex];
+      
+      // Check if privacy status actually changed
+      const currentPrivacyStatus = currentFriend.privacyStatus;
+      const hasPrivacyChanged = !this.deepEqual(currentPrivacyStatus, newPrivacyStatus);
+      
+      if (!hasPrivacyChanged) {
+        console.log(`🔒 No privacy changes for ${currentFriend.displayName}, skipping`);
+        return;
+      }
+
+      console.log(`🔒 CRITICAL privacy change detected for ${currentFriend.displayName}:`, {
+        from: currentPrivacyStatus,
+        to: newPrivacyStatus
+      });
+
+      // Update privacy status immediately
+      const updatedFriend = { 
+        ...currentFriend, 
+        privacyStatus: newPrivacyStatus,
+        // Update isRestricted based on privacy status
+        isRestricted: !newPrivacyStatus?.avatarEnabled
+      };
+      
+      this.quickAccessFriends[friendIndex] = updatedFriend;
+      
+      // OPTIMIZED: Privacy-only visual update without triggering selection events
+      this.renderPrivacyUpdate(friendId, updatedFriend);
+      
+      // IMMEDIATE database sync for privacy changes (no batching)
+      this.syncPrivacyChangesImmediately([updatedFriend]);
+      
+      console.log(`✅ IMMEDIATE privacy update completed for ${updatedFriend.displayName}`);
+      
+    } catch (error) {
+      console.error(`❌ Error in immediate privacy update for ${friendId}:`, error);
+    }
+  }
+
+  /**
+   * Lightweight privacy-only visual update that doesn't trigger selection events
+   * This prevents redundant UI re-renders and schedule change events
+   */
+  renderPrivacyUpdate(friendId, updatedFriend) {
+    try {
+      // Find the existing avatar element for this friend
+      const existingElement = this.avatarElements.get(friendId);
+      if (!existingElement) {
+        console.log(`🔒 No existing avatar element for ${friendId}, doing full re-render`);
+        this.render();
+        return;
+      }
+
+      console.log(`🔒 Updating privacy visuals for ${updatedFriend.displayName}`);
+
+      // Update the avatar's classes and attributes based on new privacy status
+      const avatarImg = existingElement.querySelector('.friend-avatar-img');
+      const lockIcon = existingElement.querySelector('.privacy-lock-icon');
+      
+      if (updatedFriend.isRestricted) {
+        // Add disabled styling
+        existingElement.classList.add('disabled');
+        avatarImg?.classList.add('grayscale');
+        
+        // Add/update lock icon
+        if (!lockIcon) {
+          const lockElement = document.createElement('div');
+          lockElement.className = 'privacy-lock-icon';
+          lockElement.innerHTML = '🔒';
+          lockElement.title = updatedFriend.privacyStatus?.tooltip || 'Schedule access restricted';
+          existingElement.appendChild(lockElement);
+        } else {
+          lockIcon.title = updatedFriend.privacyStatus?.tooltip || 'Schedule access restricted';
+        }
+      } else {
+        // Remove disabled styling
+        existingElement.classList.remove('disabled');
+        avatarImg?.classList.remove('grayscale');
+        
+        // Remove lock icon
+        if (lockIcon) {
+          lockIcon.remove();
+        }
+      }
+
+      // Update tooltip for the entire avatar
+      existingElement.title = updatedFriend.privacyStatus?.tooltip || updatedFriend.displayName;
+
+      console.log(`✅ Privacy visuals updated for ${updatedFriend.displayName} without full re-render`);
+      
+    } catch (error) {
+      console.error(`❌ Error updating privacy visuals for ${friendId}, falling back to full render:`, error);
+      this.render();
+    }
+  }
+
+  /**
+   * Immediate sync for privacy changes only - bypasses batching system
+   */
+  async syncPrivacyChangesImmediately(updatedFriends) {
+    // OPTIMIZATION: Set flag to prevent circular updates during privacy sync
+    if (this.isPrivacySyncing) {
+      console.log('🔒 Privacy sync already in progress, skipping duplicate');
+      return;
+    }
+    
+    this.isPrivacySyncing = true;
+    
+    try {
+      const currentUserProfile = await currentUser.waitForProfile();
+      if (!currentUserProfile?.uid) {
+        console.warn('⚠️ No user profile for immediate privacy sync');
+        return;
+      }
+
+      console.log('🔒 IMMEDIATE: Syncing privacy changes to database');
+
+      // Find and update only the friends with privacy changes
+      const currentQuickAccess = [...this.quickAccessFriends];
+      
+      // Update the affected friends in the full list
+      updatedFriends.forEach(updatedFriend => {
+        const index = currentQuickAccess.findIndex(f => 
+          f.friendId === updatedFriend.friendId || f.userId === updatedFriend.userId
+        );
+        if (index !== -1) {
+          currentQuickAccess[index] = updatedFriend;
+        }
+      });
+
+      // Validate data for Firebase (simplified for privacy updates)
+      const cleanFriendsData = currentQuickAccess.map((friend) => ({
+        friendId: this._validateString(friend.friendId, `Privacy sync friendId`),
+        userId: this._validateString(friend.userId, `Privacy sync userId`), 
+        displayName: this._validateString(friend.displayName, `Privacy sync displayName`, 'Unknown User'),
+        avatarConfig: this._validateAvatarConfig(friend.avatarConfig, `Privacy sync avatarConfig`),
+        isRestricted: Boolean(friend.isRestricted),
+        // Keep privacy status as rich object for full functionality
+        privacyStatus: friend.privacyStatus || { avatarEnabled: false, tooltip: 'Schedule access restricted' }
+      }));
+
+      // OPTIMIZATION: Use merge instead of update to reduce profile change triggers
+      const userDocRef = doc(db, 'users', currentUserProfile.uid);
+      await updateDoc(userDocRef, {
+        'quickAccessData.starredFriends': cleanFriendsData,
+        'quickAccessData.lastUpdated': serverTimestamp(),
+        // Add flag to identify this as a privacy-only update
+        'quickAccessData.lastPrivacyUpdate': serverTimestamp(),
+      });
+
+      console.log('✅ IMMEDIATE: Privacy changes synced to database');
+      
+    } catch (error) {
+      console.error('❌ Failed to sync privacy changes immediately:', error);
+    } finally {
+      // Clear flag after a short delay to prevent race conditions
+      setTimeout(() => {
+        this.isPrivacySyncing = false;
+      }, 1000);
     }
   }
 
@@ -2490,33 +2843,85 @@ export class HorizontalFriendsBar {
    * @param {string} fieldName - Field name for logging
    * @returns {string} - Valid privacy status string
    */
+  /**
+   * Validate privacy status preserving rich object structure for UI functionality
+   * @param {*} value - The privacy status value to validate
+   * @param {string} fieldName - Field name for logging
+   * @returns {Object} - Valid privacy status object with consistent structure
+   */
   _validatePrivacyStatus(value, fieldName) {
-    // Handle object values (common cause of Firebase errors)
-    if (value && typeof value === 'object') {
-      console.warn(`⚠️ ${fieldName} is an object, extracting string value:`, value);
+    // Handle rich privacy status objects (preserve them for full functionality)
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      console.log(`🔒 ${fieldName} is a rich privacy object (preserving):`, value);
       
-      // Extract meaningful string from privacy status object
-      if (value.status) return String(value.status);
-      if (value.type) return String(value.type);
-      if (value.level) return String(value.level);
+      // Ensure required fields exist with defaults
+      const validatedPrivacyStatus = {
+        avatarEnabled: Boolean(value.avatarEnabled),
+        tooltip: String(value.tooltip || 'Schedule access status unknown'),
+        description: String(value.description || 'Privacy status not specified'),
+        // Preserve any additional fields
+        ...value
+      };
       
-      // Default for unrecognized objects
-      console.warn(`⚠️ ${fieldName} object has no recognizable privacy field, using fallback`);
-      return 'unknown';
+      return validatedPrivacyStatus;
     }
     
-    // Handle string values
+    // Handle string values (convert to rich object)
     if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+      const statusString = value.trim().toLowerCase();
+      
+      console.log(`🔒 ${fieldName} is string, converting to rich object:`, statusString);
+      
+      // Convert common string values to rich objects
+      if (statusString.includes('restricted') || statusString.includes('hidden') || statusString === 'false') {
+        return {
+          avatarEnabled: false,
+          tooltip: 'Schedule access restricted',
+          description: 'This user has hidden their schedule from you'
+        };
+      } else if (statusString.includes('enabled') || statusString.includes('visible') || statusString === 'true') {
+        return {
+          avatarEnabled: true,
+          tooltip: 'Click to view schedule',
+          description: 'Schedule is visible - quick access enabled'
+        };
+      }
+      
+      // Unknown string value
+      return {
+        avatarEnabled: false,
+        tooltip: 'Schedule access unknown',
+        description: `Privacy status: ${statusString}`
+      };
+    }
+    
+    // Handle boolean values
+    if (typeof value === 'boolean') {
+      console.log(`🔒 ${fieldName} is boolean, converting to rich object:`, value);
+      return {
+        avatarEnabled: value,
+        tooltip: value ? 'Click to view schedule' : 'Schedule access restricted',
+        description: value ? 'Schedule is visible - quick access enabled' : 'This user has hidden their schedule from you'
+      };
     }
     
     // Handle null, undefined, or invalid values
-    if (value === null || value === undefined || value === '') {
-      return 'unknown';
+    if (value === null || value === undefined) {
+      console.log(`🔒 ${fieldName} is null/undefined, using default restricted status`);
+      return {
+        avatarEnabled: false,
+        tooltip: 'Schedule access unknown',
+        description: 'Privacy status not available'
+      };
     }
     
-    // Convert other types to string
-    return String(value);
+    // Fallback for any other type
+    console.warn(`🔒 ${fieldName} has unexpected type (${typeof value}), defaulting to restricted:`, value);
+    return {
+      avatarEnabled: false,
+      tooltip: 'Schedule access restricted',
+      description: 'Unable to determine privacy status'
+    };
   }
 
   /**
@@ -2777,9 +3182,10 @@ export class HorizontalFriendsBar {
       this[key] = false;
     });
 
-    // Clear global circuit breaker
+    // Clear global circuit breaker flags
     if (typeof window !== 'undefined') {
       window.horizontalFriendsBar_updating = false;
+      window.profile_updates_in_progress = false;
     }
 
     // Clear all real-time listeners (privacy changes, profile updates)
@@ -2797,6 +3203,17 @@ export class HorizontalFriendsBar {
     if (this.realTimeUnsubscriber) {
       this.realTimeUnsubscriber();
       this.realTimeUnsubscriber = null;
+    }
+
+    // NEW: Clean up privacy listeners for friendship documents
+    if (this.privacyUnsubscribers && this.privacyUnsubscribers.length > 0) {
+      console.log(`🧹 Cleaning up ${this.privacyUnsubscribers.length} privacy listeners`);
+      this.privacyUnsubscribers.forEach((unsubscriber) => {
+        if (typeof unsubscriber === "function") {
+          unsubscriber();
+        }
+      });
+      this.privacyUnsubscribers = [];
     }
 
     // Clear notification debouncing
@@ -2820,6 +3237,7 @@ export class HorizontalFriendsBar {
     // ENHANCED: Reset all sync flags
     this.isSyncing = false;
     this.isBatchSyncing = false;
+    this.isPrivacySyncing = false;
 
     // ENHANCED: Clean up friend profile listeners with detailed logging
     if (this.friendProfileUnsubscribers) {
@@ -2850,7 +3268,7 @@ export class HorizontalFriendsBar {
     this.lastUpdateTimestamp = 0;
 
     this.isInitialized = false;
-    console.log("✅ HorizontalFriendsBar destroyed successfully with enhanced cleanup");
+    console.log("✅ HorizontalFriendsBar destroyed successfully with enhanced cleanup including privacy listeners");
   }
 
   /**
