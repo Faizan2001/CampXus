@@ -104,14 +104,16 @@ The codebase uses ES6 modules with careful dependency management:
 
 ### State Management
 
-The application uses a centralized state pattern:
+The application uses a centralized state pattern with enterprise-grade performance optimizations:
 
 - **User State**: Managed in `src/js/store/userStore.js` with centralized CurrentUserManager
 - **Authentication State**: Managed by AuthService with auth state listeners
-- **Friends/Social State**: Managed by FriendsService with real-time updates
-- **Real-Time Events**: Managed by RealtimeService with event-driven architecture
-- **Notifications**: Managed by NotificationService for toast notifications
-- **Schedule Data**: Dual storage with Firestore primary + localStorage cache
+- **Friends/Social State**: Managed by FriendsService with real-time updates and bilateral privacy controls
+- **Real-Time Events**: Managed by RealtimeService with publish/subscribe pattern and memory management
+- **Notifications**: Managed by NotificationService for toast notifications with privacy-aware feedback
+- **Schedule Data**: Dual storage with Firestore primary + localStorage cache and cross-device sync
+- **Privacy Management**: FriendshipPrivacyService handles bilateral privacy with real-time synchronization
+- **Performance Protection**: Circuit breaker patterns prevent infinite loops and excessive database updates
 
 ### CSS Architecture
 
@@ -476,6 +478,38 @@ async function rejectFriendRequest(requestId) {
 
 This structure perfectly supports real-time friend requests, friendships, mutual friends discovery, and unfriending features while maintaining excellent performance and scalability.
 
+## Recent Architectural Enhancements (2025)
+
+### Privacy-Aware Quick Access System
+
+The latest version includes comprehensive privacy management with visual feedback:
+
+- **Bilateral Privacy Controls**: Individual schedule visibility settings per friendship in `FriendshipPrivacyService.js`
+- **Real-Time Privacy Synchronization**: Privacy changes reflect instantly across all user sessions with conflict resolution
+- **Visual Privacy Indicators**: Lock icons and disabled states on friend avatars when schedule access is restricted
+- **Horizontal Friends Bar**: `HorizontalFriendsBar.js` provides quick access with privacy-aware visual indicators
+
+### Enterprise Performance Optimizations
+
+- **Circuit Breaker Pattern**: Prevents infinite loops and cascading failures in `HorizontalFriendsBar.js` and `DataService.js`
+- **Intelligent Operation Batching**: 15-second batched profile updates with immediate privacy change synchronization
+- **Memory Leak Protection**: Automatic cleanup systems with garbage collection monitoring
+- **High-Performance Rendering**: Privacy-specific visual updates without full component re-renders
+
+### Mobile-Responsive Design Enhancements
+
+- **Mobile-First Architecture**: Enhanced viewport handling and touch interaction optimization
+- **Responsive Friends System**: Touch-friendly sizing and gesture support in friends components
+- **Adaptive Layout System**: CSS Grid and Flexbox optimization across all device sizes
+- **Viewport Overflow Prevention**: Mobile-specific fixes for friends page and responsive components
+
+### System-Level Data Integrity
+
+- **Automated Bilateral Cleanup**: System-level friendship data cleanup with conflict prevention
+- **Cross-Session Synchronization**: Real-time updates across multiple browser sessions and devices
+- **Performance Monitoring**: Comprehensive circuit breaker effectiveness and cleanup verification
+- **Read-Only Friend Viewing**: Secure schedule viewing with proper privacy enforcement and restricted editing modes
+
 ## Key Dependencies
 
 ### Core Dependencies
@@ -521,6 +555,9 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 - CSS and JS code splitting through Vite configuration
 - Smart caching for search results and friend data (5-minute TTL)
 - Optimized Firestore queries with indexed fields
+- **Circuit breaker protection** against infinite loops and excessive database operations
+- **Memory-efficient real-time listeners** with automatic cleanup and garbage collection monitoring
+- **Privacy-specific rendering optimization** for lightweight visual updates without full component re-renders
 
 ## Adding New Features
 
@@ -559,22 +596,24 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 ### Friends System Features
 
 - Core logic in `src/js/services/friends/FriendsService.js`
-- Privacy controls in `src/js/services/friends/FriendshipPrivacyService.js`
+- **Advanced Privacy Controls** in `src/js/services/friends/FriendshipPrivacyService.js` with bilateral privacy management
 - Type definitions in `src/js/services/friends/FriendsTypes.js`
-- UI components in `src/js/pages/FriendsPage.js`
+- UI components in `src/js/pages/FriendsPage.js` with mobile-responsive design
+- **Horizontal Friends Bar** in `src/js/components/friends/HorizontalFriendsBar.js` with privacy-aware visual indicators
 - Friend options menu in `src/js/components/friends/FriendOptionsMenu.js`
 - Avatar rendering via `src/js/utils/avatar/avatarManager.js`
-- Real-time updates via `src/js/services/realtime/RealtimeService.js`
-- Toast notifications via `src/js/services/realtime/NotificationService.js`
-- Styling in `src/css/friends-page.css`
+- Real-time updates via `src/js/services/realtime/RealtimeService.js` with cross-session synchronization
+- **Privacy-aware notifications** via `src/js/services/realtime/NotificationService.js`
+- **Mobile-optimized styling** in `src/css/friends-page.css` with responsive viewport handling
 
 ### Real-Time System
 
-- **Data Layer**: Real-time listeners in `src/js/services/data/DataService.js`
-- **Event Coordination**: `src/js/services/realtime/RealtimeService.js` with publish/subscribe pattern
-- **Memory Management**: Automatic cleanup of listeners to prevent memory leaks
-- **Notifications**: `src/js/services/realtime/NotificationService.js` for user feedback
-- **Debug Tools**: `src/js/utils/dev/debugHelpers.js` with console commands for testing
+- **Data Layer**: Real-time listeners in `src/js/services/data/DataService.js` with automated bilateral cleanup
+- **Event Coordination**: `src/js/services/realtime/RealtimeService.js` with publish/subscribe pattern and cross-session sync
+- **Enterprise Memory Management**: Automatic cleanup of listeners, circuit breaker protection, garbage collection monitoring
+- **Privacy-Aware Notifications**: `src/js/services/realtime/NotificationService.js` with privacy interaction feedback
+- **Performance Monitoring**: Circuit breaker patterns prevent infinite loops and excessive database updates
+- **Debug Tools**: `src/js/utils/dev/debugHelpers.js` with console commands for testing real-time privacy features
 
 ## Code Style Guidelines
 
@@ -630,10 +669,12 @@ This structure perfectly supports real-time friend requests, friendships, mutual
 
 ### Real-Time System Debugging
 
-- Use debug helper functions in browser console for testing
-- Test notifications via NotificationService
-- Monitor real-time listeners and cleanup
+- Use debug helper functions in browser console for testing (`debug.help()`, `debug.status()`)
+- Test notifications via NotificationService including privacy-specific notifications
+- Monitor real-time listeners and cleanup with circuit breaker status monitoring
 - Check authentication state before real-time operations
+- **Privacy system testing**: Use `debug.testPrivacyNotification()` and `debug.simulatePrivacyChange()` for privacy feature testing
+- **Performance monitoring**: Check `horizontalFriendsBar.getCircuitBreakerStatus()` for circuit breaker effectiveness
 
 ### SPA Navigation
 
@@ -844,3 +885,9 @@ Important Notes
 - Gemini's context window can handle entire codebases that would overflow Claude's context
 - When checking implementations, be specific about what you're looking for to get accurate results
 ````
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

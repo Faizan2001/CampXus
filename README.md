@@ -34,7 +34,6 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 - Dynamic time slots: Create, edit, and manage custom time periods with validation
 - Pin mode: Focus editing on specific users with visual lock indicators
 - Real-time comparison: Multi-user schedule overlap detection with color-coded conflicts
-- Data portability: Complete import/export with JSON validation
 - **Horizontal Friends Bar**: Quick access to starred friends with comprehensive privacy-aware visual indicators and performance optimizations
 - **Smart Privacy Indicators**: Dynamic lock icons and disabled states with real-time updates showing schedule access restrictions
 - **Read-Only Friend Viewing**: Secure one-tap access to friend schedules with proper privacy enforcement and restricted editing modes
