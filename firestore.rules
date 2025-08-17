@@ -49,6 +49,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // --- Notifications (/notifications) - Campus Presence 2025 ---
+    match /notifications/{notificationId} {
+      // Users can read notifications sent TO them or FROM them
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.fromUserId == request.auth.uid
+      );
+      
+      // Users can create notifications they are sending (FROM them)
+      allow create: if request.auth != null && 
+        request.resource.data.fromUserId == request.auth.uid;
+      
+      // Users can update/delete notifications sent TO them (mark as read, dismiss)
+      allow update, delete: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+
     // --- GDPR & Consent Collections ---
     match /user_consents/{consentId} {
         allow create, update: if request.auth.uid == request.resource.data.userId;
@@ -94,7 +111,22 @@ service cloud.firestore {
            // Or if updating the full object, it must contain both users and only change their own setting
            (request.resource.data.scheduleVisibility.keys().hasAll(resource.data.users) &&
             resource.data.users.hasAll(request.resource.data.scheduleVisibility.keys()))
-         ))
+         )) &&
+
+        // Condition 5: User can only update their own location visibility (Campus Presence 2025)
+        // Check if locationVisibility field is being modified
+        (!('locationVisibility' in request.resource.data) ||
+         (
+           // User can only modify their own location visibility setting
+           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) ||
+           // Or if updating the full object, it must contain both users and only change their own setting
+           (request.resource.data.locationVisibility.keys().hasAll(resource.data.users) &&
+            resource.data.users.hasAll(request.resource.data.locationVisibility.keys()))
+         )) &&
+
+        // Condition 6: If locationSharingMetadata is being updated, user must be correctly attributed
+        (!('locationSharingMetadata' in request.resource.data) ||
+         request.resource.data.locationSharingMetadata.locationUpdatedBy == request.auth.uid)
       );
     }
 

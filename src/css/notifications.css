@@ -1,0 +1,955 @@
+/**
+ * 🔔 CampXus Notifications Page Styles
+ * 
+ * Complete glassmorphism styling that perfectly matches the friends page design.
+ * Features advanced backdrop blur, beautiful animations, and full mobile responsiveness.
+ * 
+ * Design System:
+ * - Same glassmorphism patterns as friends page
+ * - Consistent color palette and typography
+ * - Enhanced hover states and transitions
+ * - Beautiful notification cards with presence indicators
+ * - Mobile-first responsive design
+ * 
+ * Part of the Campus Presence System
+ * 
+ * =============================================================================
+ */
+
+/* =================================
+   MAIN LAYOUT & CONTAINER OVERRIDES
+================================= */
+
+/* Override main content layout for notifications page */
+body.page-notifications .main-content {
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-x: hidden !important;
+}
+
+body.page-notifications .content-grid {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  grid-template-columns: unset !important;
+  grid-template-rows: unset !important;
+  min-height: calc(100vh - 120px) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  gap: 0 !important;
+  overflow-x: hidden !important;
+}
+
+/* Hide default dashboard columns on notifications page */
+body.page-notifications .controls-column,
+body.page-notifications .schedule-column {
+  display: none !important;
+}
+
+/* Reset any grid positioning for notification elements */
+body.page-notifications .users-section,
+body.page-notifications .import-export-section,
+body.page-notifications .schedule-section {
+  grid-column: unset !important;
+  grid-row: unset !important;
+  order: unset !important;
+  display: none !important;
+}
+
+/* =================================
+   MAIN NOTIFICATIONS CONTAINER
+================================= */
+
+.notifications-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* =================================
+   GLASSMORPHISM HEADER SECTION
+================================= */
+
+.notifications-header {
+  /* Enhanced glassmorphism matching friends page */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Glass card inner highlight */
+.notifications-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent 100%);
+  pointer-events: none;
+}
+
+.notifications-header .page-title-section {
+  flex: 1;
+}
+
+.notifications-header .page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.notifications-header .page-title i {
+  color: var(--primary-color, #667eea);
+  opacity: 0.8;
+}
+
+.notifications-header .page-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.notifications-header .header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* =================================
+   MARK ALL READ BUTTON
+================================= */
+
+.mark-all-read {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--primary-color, #667eea) 0%, #5a6cf0 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 4px 15px rgba(102, 126, 234, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mark-all-read::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent);
+  transition: left 0.5s ease;
+}
+
+.mark-all-read:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(102, 126, 234, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mark-all-read:hover::before {
+  left: 100%;
+}
+
+.mark-all-read:disabled {
+  background: rgba(156, 163, 175, 0.8);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.mark-all-read:disabled::before {
+  display: none;
+}
+
+/* =================================
+   NOTIFICATIONS LIST CONTAINER
+================================= */
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* =================================
+   GLASS CARD NOTIFICATION SECTIONS
+================================= */
+
+.glass-card {
+  /* Enhanced glassmorphism matching friends page exactly */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent 100%);
+  pointer-events: none;
+}
+
+.glass-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.glass-card h3 i {
+  color: var(--primary-color, #667eea);
+  opacity: 0.8;
+}
+
+/* =================================
+   NOTIFICATION ITEMS
+================================= */
+
+.notification-item {
+  /* Enhanced glassmorphism for individual notifications */
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 6px 24px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.notification-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.5) 50%, 
+    transparent 100%);
+  pointer-events: none;
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.notification-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Unread notification indicator */
+.notification-item.notification-unread {
+  border-left: 4px solid var(--primary-color, #667eea);
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.notification-item.notification-read {
+  opacity: 0.85;
+}
+
+/* =================================
+   NOTIFICATION AVATARS
+================================= */
+
+.notification-avatar {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.notification-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+}
+
+.notification-item:hover .notification-avatar img {
+  transform: scale(1.05);
+}
+
+/* =================================
+   NOTIFICATION CONTENT
+================================= */
+
+.notification-content {
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
+}
+
+.notification-text {
+  font-weight: 500;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+  line-height: 1.4;
+}
+
+.notification-text strong {
+  color: var(--primary-color, #667eea);
+  font-weight: 600;
+}
+
+.notification-details {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.notification-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  opacity: 0.7;
+  margin: 0;
+}
+
+/* =================================
+   NOTIFICATION ACTIONS
+================================= */
+
+.notification-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.notification-actions button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 80px;
+}
+
+.notification-actions button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent);
+  transition: left 0.5s ease;
+}
+
+.notification-actions button:hover::before {
+  left: 100%;
+}
+
+.accept-location-btn,
+.accept-friend-btn {
+  background: linear-gradient(135deg, #00C851 0%, #00A843 100%);
+  color: white;
+  box-shadow: 0 3px 12px rgba(0, 200, 81, 0.3);
+}
+
+.accept-location-btn:hover,
+.accept-friend-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(0, 200, 81, 0.4);
+}
+
+.dismiss-btn {
+  background: linear-gradient(135deg, #FF3547 0%, #E6313F 100%);
+  color: white;
+  box-shadow: 0 3px 12px rgba(255, 53, 71, 0.3);
+}
+
+.dismiss-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(255, 53, 71, 0.4);
+}
+
+/* =================================
+   NOTIFICATION TYPE INDICATORS
+================================= */
+
+/* Location sharing requests */
+.notification-item.location-request {
+  border-left-color: #FF6B35;
+}
+
+.notification-item.location-request .notification-text::before {
+  content: '📍';
+  margin-right: 0.5rem;
+}
+
+/* Friend requests */
+.notification-item.friend-request {
+  border-left-color: var(--primary-color, #667eea);
+}
+
+.notification-item.friend-request .notification-text::before {
+  content: '👋';
+  margin-right: 0.5rem;
+}
+
+/* Location enabled notifications */
+.notification-item.location-enabled {
+  border-left-color: #00C851;
+}
+
+.notification-item.location-enabled .notification-text::before {
+  content: '🌍';
+  margin-right: 0.5rem;
+}
+
+/* System notifications */
+.notification-item.generic {
+  border-left-color: #8B5CF6;
+}
+
+.notification-item.generic .notification-text::before {
+  content: '🔔';
+  margin-right: 0.5rem;
+}
+
+/* =================================
+   EMPTY STATE
+================================= */
+
+.no-notifications {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.no-notifications::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent 100%);
+  pointer-events: none;
+}
+
+.no-notifications-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+  filter: grayscale(50%);
+}
+
+.no-notifications-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.no-notifications-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* =================================
+   NOTIFICATION CATEGORIES SECTION
+================================= */
+
+.notification-categories {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-categories::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent 100%);
+  pointer-events: none;
+}
+
+.category-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--text-secondary);
+  border-radius: 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 500;
+}
+
+.filter-btn:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.3);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.filter-btn.active {
+  background: var(--primary-color, #667eea);
+  color: white;
+  border-color: var(--primary-color, #667eea);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* =================================
+   NOTIFICATION SETTINGS SECTION
+================================= */
+
+.notification-settings {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-settings::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent 100%);
+  pointer-events: none;
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-info {
+  flex: 1;
+}
+
+.setting-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.setting-description {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.setting-control {
+  position: relative;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(156, 163, 175, 0.4);
+}
+
+.toggle-switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input[type="checkbox"] {
+  display: none;
+}
+
+input[type="checkbox"]:checked + .toggle-switch {
+  background: var(--primary-color, #667eea);
+  border-color: var(--primary-color, #667eea);
+}
+
+input[type="checkbox"]:checked + .toggle-switch::before {
+  transform: translateX(20px);
+}
+
+/* =================================
+   LOADING STATES
+================================= */
+
+.notifications-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-top: 2px solid var(--primary-color, #667eea);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* =================================
+   MOBILE RESPONSIVE DESIGN
+================================= */
+
+@media (max-width: 768px) {
+  .notifications-page {
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+
+  .notifications-header {
+    padding: 1.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .notifications-header .page-title {
+    font-size: 1.75rem;
+  }
+
+  .notifications-header .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .notification-item {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .notification-avatar {
+    align-self: flex-start;
+  }
+
+  .notification-content {
+    width: 100%;
+  }
+
+  .notification-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .notification-actions button {
+    flex: 1;
+    max-width: 120px;
+  }
+
+  .category-filters {
+    gap: 0.375rem;
+  }
+
+  .filter-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .setting-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .setting-control {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .notifications-page {
+    padding: 0.5rem;
+  }
+
+  .notifications-header {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .notifications-header .page-title {
+    font-size: 1.5rem;
+  }
+
+  .notification-item {
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+
+  .notification-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .notification-actions button {
+    max-width: none;
+  }
+
+  .no-notifications {
+    padding: 2rem 1rem;
+  }
+
+  .no-notifications-icon {
+    font-size: 3rem;
+  }
+
+  .no-notifications-text {
+    font-size: 1.125rem;
+  }
+}
+
+/* =================================
+   ACCESSIBILITY ENHANCEMENTS
+================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-item,
+  .notification-actions button,
+  .mark-all-read,
+  .notification-avatar img,
+  .filter-btn {
+    transition: none;
+  }
+
+  .notification-item:hover,
+  .notification-actions button:hover,
+  .mark-all-read:hover,
+  .filter-btn:hover {
+    transform: none;
+  }
+
+  .loading-spinner {
+    animation: none;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+.notification-item:focus,
+.notification-actions button:focus,
+.mark-all-read:focus,
+.filter-btn:focus {
+  outline: 2px solid var(--primary-color, #667eea);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .notification-item {
+    border: 2px solid var(--text-primary);
+  }
+
+  .notification-text,
+  .notification-details,
+  .notification-time {
+    color: var(--text-primary);
+  }
+}
+
+/* =================================
+   DARK MODE SUPPORT
+================================= */
+
+@media (prefers-color-scheme: dark) {
+  .notifications-header,
+  .glass-card,
+  .notification-item,
+  .no-notifications,
+  .notification-categories,
+  .notification-settings {
+    background: rgba(40, 44, 52, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .notification-item:hover {
+    background: rgba(40, 44, 52, 0.98);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .filter-btn {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.25);
+  }
+
+  .filter-btn:hover {
+    background: rgba(102, 126, 234, 0.2);
+  }
+
+  .toggle-switch {
+    background: rgba(75, 85, 99, 0.8);
+    border-color: rgba(75, 85, 99, 0.9);
+  }
+}

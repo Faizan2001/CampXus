@@ -1,0 +1,168 @@
+<!-- 
+  🎯 Learning: This is the NOTIFICATIONS template - your campus social hub!
+  This handles location sharing requests, friend notifications, and other campus presence updates.
+  
+  Notice how we follow the same structure as other templates:
+  - .content-grid container for consistent layout
+  - glass-card sections for modern styling
+  - page-title-section with icon and subtitle
+  - Scrollable containers for dynamic content
+  - Empty states with helpful messaging
+-->
+
+<div class="content-grid">
+  <div class="notifications-page">
+    <!-- Notifications Header -->
+    <section class="glass-card notifications-header">
+      <div class="page-title-section">
+        <h1 class="page-title">
+          <i class="fas fa-bell"></i>
+          Notifications
+        </h1>
+        <p class="page-subtitle">
+          Stay updated with friend requests, location sharing invites, and campus connections.
+        </p>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="markAllReadBtn" class="button secondary" disabled>
+          <i class="fas fa-check-double"></i>
+          Mark All Read
+        </button>
+      </div>
+    </section>
+
+    <!-- Notifications List -->
+    <section class="glass-card notifications-list">
+      <h3>
+        <i class="fas fa-inbox"></i>
+        Recent Activity
+      </h3>
+      <div id="notificationsList" class="notifications-scrollable-container">
+        <!-- This will be populated by JavaScript -->
+        
+        <!-- Loading State -->
+        <div class="loading-state" id="notificationsLoading">
+          <div class="loading-animation">
+            <div class="loading-dots">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+          </div>
+          <p>Loading your notifications...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="notificationsEmpty" style="display: none;">
+          <div class="empty-icon">🔔</div>
+          <h4>All caught up!</h4>
+          <p>
+            No new notifications right now. When friends send you requests or share their location,
+            you'll see them here.
+          </p>
+          <div class="empty-actions">
+            <button type="button" class="button secondary" data-spa-route="friends">
+              <i class="fas fa-users"></i>
+              Find Friends
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notification Categories -->
+    <section class="glass-card notification-categories">
+      <h3>
+        <i class="fas fa-filter"></i>
+        Filter Notifications
+      </h3>
+      <div class="category-filters">
+        <button type="button" class="filter-btn active" data-filter="all">
+          <i class="fas fa-list"></i>
+          All
+        </button>
+        <button type="button" class="filter-btn" data-filter="friend-requests">
+          <i class="fas fa-user-plus"></i>
+          Friend Requests
+        </button>
+        <button type="button" class="filter-btn" data-filter="location-sharing">
+          <i class="fas fa-map-marker-alt"></i>
+          Location Sharing
+        </button>
+        <button type="button" class="filter-btn" data-filter="system">
+          <i class="fas fa-cog"></i>
+          System Updates
+        </button>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="glass-card notification-settings">
+      <h3>
+        <i class="fas fa-bell-slash"></i>
+        Notification Settings
+      </h3>
+      <div class="settings-content">
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="setting-label">Friend Requests</label>
+            <p class="setting-description">Get notified when someone wants to be your friend</p>
+          </div>
+          <div class="setting-control">
+            <input type="checkbox" id="friendRequestNotifications" checked>
+            <label for="friendRequestNotifications" class="toggle-switch"></label>
+          </div>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="setting-label">Location Sharing</label>
+            <p class="setting-description">Get notified about location sharing invitations</p>
+          </div>
+          <div class="setting-control">
+            <input type="checkbox" id="locationSharingNotifications" checked>
+            <label for="locationSharingNotifications" class="toggle-switch"></label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="setting-label">Campus Updates</label>
+            <p class="setting-description">Receive notifications about campus events and announcements</p>
+          </div>
+          <div class="setting-control">
+            <input type="checkbox" id="campusUpdateNotifications" checked>
+            <label for="campusUpdateNotifications" class="toggle-switch"></label>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 
+  🎯 Learning Note: This template follows the established CampXus patterns:
+  
+  1. ✅ Uses .content-grid container for consistent layout
+  2. ✅ Multiple glass-card sections for organized content
+  3. ✅ page-title-section with icon, title, and subtitle
+  4. ✅ Scrollable containers with proper IDs for JavaScript
+  5. ✅ Loading and empty states with descriptive messaging
+  6. ✅ Font Awesome icons throughout for visual consistency
+  7. ✅ Semantic HTML5 structure for accessibility
+  8. ✅ Follows the same commenting style as other templates
+  9. ✅ Includes interactive elements (buttons, filters, settings)
+  10. ✅ Uses established CSS classes from the design system
+  
+  The NotificationsPage.js will target these elements:
+  - .notifications-page (main container)
+  - .notifications-header (header section)
+  - #notificationsList (dynamic notification content)
+  - #notificationsLoading (loading state)
+  - #notificationsEmpty (empty state)
+  - #markAllReadBtn (mark all read functionality)
+  - .filter-btn (category filtering)
+  
+  This creates a comprehensive notifications interface that matches
+  the established CampXus design language and functionality patterns!
+-->

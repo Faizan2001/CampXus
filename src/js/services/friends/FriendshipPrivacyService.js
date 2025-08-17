@@ -774,6 +774,438 @@ class FriendshipPrivacyService {
   }
 
   /**
+   * Check if a user's location is visible to their friend
+   * @param {string} locationOwnerUid - User whose location visibility we're checking
+   * @param {string} friendUid - Friend who wants to view the location
+   * @returns {boolean} True if location is visible, false if hidden
+   */
+  async isLocationVisible(locationOwnerUid, friendUid) {
+    // Add input validation
+    if (!locationOwnerUid || !friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.isLocationVisible: Invalid user IDs:",
+        { locationOwnerUid, friendUid }
+      );
+      return false;
+    }
+
+    if (locationOwnerUid === friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.isLocationVisible: Cannot check visibility with same user:",
+        locationOwnerUid
+      );
+      return false;
+    }
+
+    try {
+      console.log(
+        `🌍 Checking location visibility: ${locationOwnerUid} → ${friendUid}`
+      );
+      const friendshipDoc = await this.getFriendshipDocument(
+        locationOwnerUid,
+        friendUid
+      );
+
+      if (!friendshipDoc) {
+        // No friendship exists, location is not visible
+        console.log(
+          `⚠️ No friendship found between ${locationOwnerUid} and ${friendUid}`
+        );
+        return false;
+      }
+
+      // Check location visibility using bilateral privacy pattern
+      const locationVisibility = friendshipDoc.locationVisibility || {};
+      const isVisible = locationVisibility[locationOwnerUid] === true;
+      
+      console.log(
+        `✅ Location visibility result: ${locationOwnerUid} → ${friendUid} = ${isVisible}`
+      );
+      return isVisible;
+    } catch (error) {
+      console.error("❌ Error checking location visibility:", error);
+      // Default to not visible on error for security
+      return false;
+    }
+  }
+
+  /**
+   * Update a user's location visibility to a specific friend using atomic transactions
+   * This prevents race conditions when both users update privacy simultaneously
+   * @param {string} userUid - User updating their own visibility
+   * @param {string} friendUid - Friend the visibility applies to
+   * @param {boolean} isVisible - Whether user's location should be visible
+   * @returns {boolean} Success status
+   */
+  async updateLocationVisibility(userUid, friendUid, isVisible) {
+    // Add input validation
+    if (!userUid || !friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.updateLocationVisibility: Invalid user IDs:",
+        { userUid, friendUid }
+      );
+      return false;
+    }
+
+    if (userUid === friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.updateLocationVisibility: Cannot update visibility with same user:",
+        userUid
+      );
+      return false;
+    }
+
+    if (typeof isVisible !== "boolean") {
+      console.error(
+        "❌ FriendshipPrivacyService.updateLocationVisibility: isVisible must be boolean:",
+        isVisible
+      );
+      return false;
+    }
+
+    const friendshipId = getFriendshipId(userUid, friendUid);
+    const operationKey = `${friendshipId}_${userUid}_location`;
+
+    // Prevent duplicate operations
+    if (this.pendingOperations.has(operationKey)) {
+      console.warn("⚠️ Location privacy update already in progress for this friendship");
+      return false;
+    }
+
+    this.pendingOperations.add(operationKey);
+
+    // Simple timeout to prevent memory leaks
+    const timeoutId = setTimeout(() => {
+      this.pendingOperations.delete(operationKey);
+    }, this.operationTimeout);
+
+    try {
+      console.log(
+        `🌍 Updating location visibility: ${userUid} → ${friendUid} = ${isVisible}`
+      );
+
+      // Use Firestore transaction to prevent race conditions
+      const docRef = doc(db, "friendships", friendshipId);
+      let friendName = "Unknown";
+
+      const success = await runTransaction(db, async (transaction) => {
+        // Read current document state within transaction
+        const docSnap = await transaction.get(docRef);
+
+        if (!docSnap.exists()) {
+          throw new Error("Friendship not found");
+        }
+
+        const friendshipDoc = docSnap.data();
+
+        // Validate document structure
+        const validation = validateFriendshipDocument(friendshipDoc);
+        if (!validation.isValid) {
+          throw new Error("Invalid friendship document structure");
+        }
+
+        // Get friend name for notification
+        friendName =
+          friendshipDoc.user1Id === userUid
+            ? friendshipDoc.user2Info.displayName
+            : friendshipDoc.user1Info.displayName;
+
+        // Create atomic update - only modify the current user's visibility
+        const now = Date.now();
+        const updateData = {
+          [`locationVisibility.${userUid}`]: isVisible,
+          "locationSharingMetadata.lastLocationUpdate": now,
+          "locationSharingMetadata.locationUpdatedBy": userUid,
+          "locationSharingMetadata.mutualSharingEnabled": 
+            (friendshipDoc.locationVisibility?.[friendUid] === true && isVisible),
+        };
+
+        // Apply the atomic update
+        transaction.update(docRef, updateData);
+
+        console.log(
+          `🔄 Transaction: Atomically updating ${userUid}'s location visibility to ${isVisible}`
+        );
+
+        return true;
+      });
+
+      if (success) {
+        // Invalidate caches after successful transaction
+        this.cache.delete(friendshipId);
+
+        // Invalidate quick access cache for both directions
+        this.quickAccessCache.delete(`${userUid}_${friendUid}_quickaccess`);
+        this.quickAccessCache.delete(`${friendUid}_${userUid}_quickaccess`);
+
+        // Emit real-time location privacy change event after successful update
+        try {
+          realTimeManager.emitLocationPrivacyChange(
+            userUid, // User who made the change
+            friendUid, // Friend affected by the change
+            isVisible, // New visibility status
+            friendName // Friend's name for enhanced payload
+          );
+          console.log(
+            `🌍 Location privacy change event emitted: ${userUid} → ${friendUid} = ${isVisible}`
+          );
+        } catch (eventError) {
+          // Don't fail the transaction if event emission fails
+          console.error("❌ Failed to emit location privacy change event:", eventError);
+        }
+
+        // Log success without showing notification
+        console.log(
+          `✅ Successfully updated location visibility: ${userUid} → ${friendUid} = ${isVisible}`
+        );
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("❌ Error updating location visibility:", error);
+
+      // Log error instead of showing notification
+      console.error(`Failed to update location privacy: ${error.message}`);
+
+      return false;
+    } finally {
+      this.pendingOperations.delete(operationKey);
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * Update location visibility for multiple friends (batch operation)
+   * Useful for global location privacy toggle
+   * @param {string} userUid - User updating their visibility
+   * @param {boolean} isVisible - Whether user's location should be visible
+   * @returns {Object} Operation results
+   */
+  async updateLocationVisibilityForAllFriends(userUid, isVisible) {
+    try {
+      // Get all friendships for the user
+      const friendshipIds = await this.getUserFriendshipIds(userUid);
+
+      if (friendshipIds.length === 0) {
+        return { success: true, updated: 0, errors: [] };
+      }
+
+      // Create batch operation
+      const batch = writeBatch(db);
+      const errors = [];
+      let updated = 0;
+
+      for (const friendshipId of friendshipIds) {
+        try {
+          // Create update data for this friendship
+          const now = Date.now();
+          const updateData = {
+            [`locationVisibility.${userUid}`]: isVisible,
+            "locationSharingMetadata.lastLocationUpdate": now,
+            "locationSharingMetadata.locationUpdatedBy": userUid,
+          };
+          
+          const docRef = doc(db, "friendships", friendshipId);
+          batch.update(docRef, updateData);
+          updated++;
+
+          // Invalidate caches
+          this.cache.delete(friendshipId);
+
+          // Invalidate quick access cache for this friendship
+          const [user1Id, user2Id] = friendshipId.split("_");
+          this.quickAccessCache.delete(`${user1Id}_${user2Id}_quickaccess`);
+          this.quickAccessCache.delete(`${user2Id}_${user1Id}_quickaccess`);
+        } catch (error) {
+          errors.push(`${friendshipId}: ${error.message}`);
+        }
+      }
+
+      // Commit batch
+      await batch.commit();
+
+      // Emit location privacy change events for successful batch operation
+      try {
+        // Get friend information for event emission
+        const friendshipIds = await this.getUserFriendshipIds(userUid);
+
+        for (const friendshipId of friendshipIds) {
+          try {
+            const [user1Id, user2Id] = friendshipId.split("_");
+            const friendUid = user1Id === userUid ? user2Id : user1Id;
+
+            // Get friendship document to extract friend name
+            const friendshipDoc = await this.getFriendshipDocument(
+              userUid,
+              friendUid
+            );
+            if (friendshipDoc) {
+              const friendName =
+                friendshipDoc.user1Id === userUid
+                  ? friendshipDoc.user2Info.displayName
+                  : friendshipDoc.user1Info.displayName;
+
+              realTimeManager.emitLocationPrivacyChange(
+                userUid, // User who made the change
+                friendUid, // Friend affected by the change
+                isVisible, // New visibility status
+                friendName // Friend's name for enhanced payload
+              );
+            }
+          } catch (eventError) {
+            console.error(
+              `❌ Failed to emit location privacy change event for friendship ${friendshipId}:`,
+              eventError
+            );
+          }
+        }
+        console.log(`🌍 Location privacy change events emitted for ${updated} friends`);
+      } catch (eventError) {
+        // Don't fail the batch operation if event emission fails
+        console.error(
+          "❌ Failed to emit location privacy change events for batch update:",
+          eventError
+        );
+      }
+
+      // Log success instead of showing notification
+      const action = isVisible ? "visible" : "hidden";
+      console.log(`Location ${action} for ${updated} friends ✅`);
+
+      return {
+        success: true,
+        updated: updated,
+        errors: errors,
+      };
+    } catch (error) {
+      console.error(
+        "Error updating location visibility for all friends:",
+        error
+      );
+      console.error(`Failed to update global location privacy: ${error.message}`);
+
+      return {
+        success: false,
+        updated: 0,
+        errors: [error.message],
+      };
+    }
+  }
+
+  /**
+   * Get detailed location visibility status for UI components
+   * @param {string} userUid - User whose location visibility we're checking
+   * @param {string} friendUid - Friend to check visibility status with
+   * @returns {Object|null} Detailed location visibility status or null if friendship not found
+   */
+  async getLocationVisibilityStatus(userUid, friendUid) {
+    // Add input validation
+    if (!userUid || !friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.getLocationVisibilityStatus: Invalid user IDs:",
+        { userUid, friendUid }
+      );
+      return null;
+    }
+
+    if (userUid === friendUid) {
+      console.error(
+        "❌ FriendshipPrivacyService.getLocationVisibilityStatus: Cannot get location status with same user:",
+        userUid
+      );
+      return null;
+    }
+
+    try {
+      console.log(
+        `🌍 Getting location visibility status: ${userUid} ↔ ${friendUid}`
+      );
+      const friendshipDoc = await this.getFriendshipDocument(
+        userUid,
+        friendUid
+      );
+
+      if (!friendshipDoc) {
+        console.log(
+          `⚠️ No friendship found for location visibility status: ${userUid} ↔ ${friendUid}`
+        );
+        return null;
+      }
+
+      // Get location visibility for both users
+      const locationVisibility = friendshipDoc.locationVisibility || {};
+      const userLocationVisible = locationVisibility[userUid] === true;
+      const friendLocationVisible = locationVisibility[friendUid] === true;
+
+      // Get user info for display
+      const userInfo =
+        friendshipDoc.user1Id === userUid
+          ? friendshipDoc.user1Info
+          : friendshipDoc.user2Info;
+      const friendInfo =
+        friendshipDoc.user1Id === friendUid
+          ? friendshipDoc.user1Info
+          : friendshipDoc.user2Info;
+
+      const locationStatus = {
+        // Core visibility flags
+        userLocationVisible,
+        friendLocationVisible,
+        mutualSharingEnabled: userLocationVisible && friendLocationVisible,
+
+        // User information
+        userInfo: {
+          displayName: userInfo.displayName,
+          major: userInfo.major,
+          avatarConfig: userInfo.avatarConfig,
+        },
+        friendInfo: {
+          displayName: friendInfo.displayName,
+          major: friendInfo.major,
+          avatarConfig: friendInfo.avatarConfig,
+        },
+
+        // UI-friendly descriptions
+        location: {
+          userToFriend: {
+            visible: userLocationVisible,
+            status: userLocationVisible ? "visible" : "hidden",
+            description: userLocationVisible
+              ? `Your location is visible to ${friendInfo.displayName}`
+              : `Your location is hidden from ${friendInfo.displayName}`,
+          },
+          friendToUser: {
+            visible: friendLocationVisible,
+            status: friendLocationVisible ? "visible" : "hidden",
+            description: friendLocationVisible
+              ? `${friendInfo.displayName}'s location is visible to you`
+              : `${friendInfo.displayName} has hidden their location from you`,
+          },
+          mutual: {
+            enabled: userLocationVisible && friendLocationVisible,
+            description: userLocationVisible && friendLocationVisible
+              ? `Both of you are sharing locations`
+              : `Location sharing is not mutual`,
+          },
+        },
+
+        // Metadata
+        lastUpdated:
+          friendshipDoc.locationSharingMetadata?.lastLocationUpdate ||
+          friendshipDoc.createdAt,
+        locationUpdatedBy: friendshipDoc.locationSharingMetadata?.locationUpdatedBy,
+      };
+
+      console.log(`✅ Location visibility status retrieved:`, locationStatus);
+      return locationStatus;
+    } catch (error) {
+      console.error("❌ Error getting location visibility status:", error);
+      return null;
+    }
+  }
+
+  /**
    * Check if user can see friend's schedule (convenience method)
    * @param {string} userUid - User who wants to view
    * @param {string} friendUid - Friend whose schedule to view
@@ -781,6 +1213,16 @@ class FriendshipPrivacyService {
    */
   async canViewFriendsSchedule(userUid, friendUid) {
     return await this.isScheduleVisible(friendUid, userUid);
+  }
+
+  /**
+   * Check if user can see friend's location (convenience method)
+   * @param {string} userUid - User who wants to view
+   * @param {string} friendUid - Friend whose location to view
+   * @returns {boolean} True if user can see friend's location
+   */
+  async canViewFriendsLocation(userUid, friendUid) {
+    return await this.isLocationVisible(friendUid, userUid);
   }
 
   /**
@@ -800,6 +1242,28 @@ class FriendshipPrivacyService {
     );
 
     // The updateScheduleVisibility method already emits the privacy change event
+    // so we don't need to emit it again here
+
+    return success ? newVisibility : currentlyVisible;
+  }
+
+  /**
+   * Toggle location visibility (convenience method)
+   * @param {string} userUid - User toggling their visibility
+   * @param {string} friendUid - Friend the visibility applies to
+   * @returns {boolean} New visibility state
+   */
+  async toggleLocationVisibility(userUid, friendUid) {
+    const currentlyVisible = await this.isLocationVisible(userUid, friendUid);
+    const newVisibility = !currentlyVisible;
+
+    const success = await this.updateLocationVisibility(
+      userUid,
+      friendUid,
+      newVisibility
+    );
+
+    // The updateLocationVisibility method already emits the privacy change event
     // so we don't need to emit it again here
 
     return success ? newVisibility : currentlyVisible;

@@ -58,7 +58,17 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │   │     status: "online",            // string ("online" | "offline") 
 │   │   │     lastActive: timestamp,       // timestamp
 │   │   │     createdAt: timestamp,        // timestamp
-│   │   │     lastUpdated: timestamp       // timestamp
+│   │   │     lastUpdated: timestamp,      // timestamp
+│   │   │     // 🌍 Campus Presence (2025 Enhancement)
+│   │   │     locationSharingEnabled: false, // boolean - Global location toggle
+│   │   │     lastKnownLocation: {         // object - Last detected location
+│   │   │       campusStatus: "unknown",   // string - "on_campus" | "off_campus" | "unknown"
+│   │   │       detectedAt: timestamp,     // timestamp - When location was detected
+│   │   │       coordinates: {             // object - Optional GPS coordinates
+│   │   │         lat: 23.7516,            // number - Latitude
+│   │   │         lng: 90.3776             // number - Longitude
+│   │   │       }
+│   │   │     }
 │   │   │   }
 │   │   ├── avatarConfig: {                // DiceBear avatar settings (flexible)
 │   │   │     style: "miniavs",            // string (avatar style)
@@ -74,7 +84,10 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │   │     pendingRequestsCount: 0,     // number
 │   │   │     privacy: "university",       // string ("university" | "public")
 │   │   │     searchable: true,            // boolean
-│   │   │     lastFriendActivity: timestamp // timestamp
+│   │   │     lastFriendActivity: timestamp, // timestamp
+│   │   │     // 🌍 Campus Presence Privacy (2025 Enhancement)
+│   │   │     locationPrivacyLevel: "friends_only", // string - "friends_only" | "nobody"
+│   │   │     defaultLocationSharing: false // boolean - Default for new friendships
 │   │   │   }
 │   │   ├── quickAccessData: {             // ⭐ Quick Access starred friends
 │   │   │     friends: [            // array of objects
@@ -170,6 +183,15 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
     │   │     "user123": true,             // boolean (User1's schedule visible to User2)
     │   │     "user456": false             // boolean (User2's schedule NOT visible to User1)
     │   │   }
+    │   ├── locationVisibility: {        // Map: bilateral location sharing (Campus Presence 2025)
+    │   │     "user123": false,            // boolean (User1 shares location with User2)
+    │   │     "user456": false             // boolean (User2 shares location with User1)
+    │   │   }
+    │   ├── locationSharingMetadata: {   // object: location sharing tracking (Campus Presence 2025)
+    │   │     lastLocationUpdate: timestamp, // timestamp - When either user last updated location settings
+    │   │     locationUpdatedBy: "user123", // string - Who made the last location privacy change
+    │   │     mutualSharingEnabled: false  // boolean - Computed: true only if both users enable sharing
+    │   │   }
     │   └── privacyMetadata: {             // object (privacy tracking)
     │         lastPrivacyUpdate: timestamp, // timestamp
     │         privacyUpdatedBy: "user123", // string (last modifier UID)
@@ -245,7 +267,18 @@ const universityInfo = await getDoc(doc(db, "universities", "iub"));
 
 ## 🎯 **Data Structure Guide**
 
-### 🚨 **RECENT UPDATES - July 2025**
+### 🚨 **RECENT UPDATES - August 2025**
+
+#### 🌍 **Campus Presence System (2025 Enhancement)**
+
+We've implemented a **comprehensive Campus Presence system** with bilateral location sharing:
+
+- **✅ Added Campus Location Tracking** - Real-time "on campus", "off campus", "unknown" status detection
+- **✅ Bilateral Location Privacy** - Extended bilateral privacy pattern for location sharing consent
+- **✅ Presence Dots System** - Visual indicators with time stamps (green, red, grey dots)
+- **✅ Notifications Collection** - Dedicated collection for location sharing requests
+- **✅ Privacy-First Design** - Location sharing disabled by default, requires explicit bilateral consent
+- **✅ No Background Tracking** - Only detects location when website is open
 
 #### 🔄 **Phase-1 Schedule Storage Foundation**
 
@@ -529,6 +562,26 @@ Your existing structure is perfect! Here's how we extend it for Phase 3 social f
 │   │         university: "iub",
 │   │         avatarConfig: { style: "adventurer", seed: "xyz789", ... }
 │   │       }
+│   └── ...
+├── 🔔 🆕 notifications/                       // NEW: Notifications system (Campus Presence 2025)
+│   ├── {notificationId}/                      // Document ID = auto-generated
+│   │   ├── userId: "recipient-uid",           // string - Who receives this notification
+│   │   ├── type: "location_share_request",    // string - Notification type
+│   │   ├── fromUserId: "sender-uid",          // string - Who initiated the request
+│   │   ├── fromUserInfo: {                   // object - Cached sender info
+│   │   │     displayName: "John Doe",        // string
+│   │   │     avatarConfig: {...},            // object - DiceBear config
+│   │   │     major: "Computer Science"       // string
+│   │   │   }
+│   │   ├── locationRequest: {                // object - Location-specific data
+│   │   │     friendshipId: "friendship-doc-id", // string - Reference to friendship
+│   │   │     currentStatus: "pending_both",  // string - "pending_both" | "pending_you" | "active"
+│   │   │     requestedAt: timestamp          // timestamp
+│   │   │   }
+│   │   ├── status: "pending",                // string - "pending" | "accepted" | "dismissed"
+│   │   ├── createdAt: timestamp,             // timestamp
+│   │   ├── expiresAt: timestamp,             // timestamp - Auto-dismiss after 7 days
+│   │   └── actionButtons: ["accept", "dismiss"] // array - UI buttons to show
 │   └── ...
 └── 🤝 🆕 friendships/                         // NEW: Active friendships
     ├── {friendshipId}/
@@ -865,6 +918,278 @@ function validateBilateralPrivacyUpdate(userId, writeFields) {
 - **Privacy Indicators**: "Your schedule is visible" vs "You hid your schedule"
 - **Real-time Updates**: Instant privacy changes across devices
 - **Bilateral Display**: Shows both users' privacy states independently
+
+---
+
+## 🌍 **Campus Presence System (2025 Enhancement)**
+
+### 🎯 **Campus Presence Architecture Overview**
+
+CampXus now implements a **comprehensive Campus Presence system** with bilateral location sharing consent and real-time campus status indicators.
+
+#### ✅ **Campus Presence Core Features**
+
+- **Real-time Campus Detection**: Shows when friends are "on campus", "off campus", or status "unknown"
+- **Bilateral Location Consent**: Both users must enable location sharing for it to work
+- **Presence Dots**: Green (on campus), red (off campus), grey (no data) with time indicators
+- **Privacy-First Design**: Location sharing is disabled by default, requires explicit consent
+- **Notification System**: Location sharing requests through dedicated notifications collection
+- **No Background Tracking**: Only detects location when website is open
+
+### 🗄️ **Database Schema Extensions**
+
+#### **Extended User Documents** (`users/` collection)
+
+The Campus Presence system extends existing user documents with new location-related fields:
+
+```javascript
+// Extended systemInfo section
+systemInfo: {
+  // ... existing fields (lastActive, status, etc.)
+  
+  // NEW: Location tracking fields
+  locationSharingEnabled: false,           // Global toggle for location features
+  lastKnownLocation: {
+    campusStatus: "unknown",               // "on_campus" | "off_campus" | "unknown"
+    detectedAt: timestamp,                 // When this location was detected
+    coordinates: {                         // Optional: for future features
+      lat: 23.7516,                        // Latitude
+      lng: 90.3776                         // Longitude
+    }
+  }
+}
+
+// Extended socialInfo section  
+socialInfo: {
+  // ... existing fields (friendsCount, privacy, etc.)
+  
+  // NEW: Location privacy defaults
+  locationPrivacyLevel: "friends_only",    // "friends_only" | "nobody" (no "everyone" option)
+  defaultLocationSharing: false           // Default setting for new friendships
+}
+```
+
+#### **Extended Friendship Documents** (`friendships/` collection)
+
+Campus Presence extends the existing bilateral privacy pattern:
+
+```javascript
+// Existing friendship structure with NEW location fields
+{
+  // ... existing fields (users, user1Id, user2Id, etc.)
+  
+  // Extend existing scheduleVisibility pattern
+  scheduleVisibility: {
+    "user1-uid": true,
+    "user2-uid": false  
+  },
+  
+  // NEW: Bilateral location sharing consent
+  locationVisibility: {
+    "user1-uid": false,                    // User1 shares location with User2 (default: false)
+    "user2-uid": false                     // User2 shares location with User1 (default: false)
+  },
+  
+  // NEW: Location sharing metadata
+  locationSharingMetadata: {
+    lastLocationUpdate: timestamp,         // When either user last updated location settings
+    locationUpdatedBy: "user-uid",         // Who made the last location privacy change
+    mutualSharingEnabled: false            // Computed: true only if both users enable sharing
+  }
+}
+```
+
+#### **New Notifications Collection** (`notifications/` collection)
+
+Campus Presence introduces a dedicated notifications system:
+
+```javascript
+// New collection for notification system
+{
+  id: "notification-id",
+  userId: "recipient-uid",                 // Who receives this notification
+  type: "location_share_request",          // Notification type
+  fromUserId: "sender-uid",               // Who initiated the request
+  fromUserInfo: {                         // Cached sender info
+    displayName: "John Doe",
+    avatarConfig: { /* DiceBear config */ },
+    major: "Computer Science"
+  },
+  
+  // Location-specific notification data
+  locationRequest: {
+    friendshipId: "friendship-doc-id",     // Reference to friendship document
+    currentStatus: "pending_both",         // "pending_both" | "pending_you" | "active" 
+    requestedAt: timestamp
+  },
+  
+  status: "pending",                       // "pending" | "accepted" | "dismissed"
+  createdAt: timestamp,
+  expiresAt: timestamp,                    // Auto-dismiss after 7 days
+  actionButtons: ["accept", "dismiss"]     // UI buttons to show
+}
+```
+
+### 🔄 **Campus Presence Workflow**
+
+#### **1️⃣ Location Sharing Request Flow**
+
+```javascript
+// User enables location sharing with a friend
+async function requestLocationSharing(friendId, friendshipId) {
+  // 1. Enable location sharing from current user's side
+  await updateBilateralLocationSharing(friendshipId, currentUser.uid, true);
+  
+  // 2. Create notification for the friend
+  const notificationData = {
+    userId: friendId,
+    type: "location_share_request",
+    fromUserId: currentUser.uid,
+    fromUserInfo: { displayName, avatarConfig, major },
+    locationRequest: {
+      friendshipId: friendshipId,
+      currentStatus: "pending_both",
+      requestedAt: new Date()
+    },
+    status: "pending",
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  };
+  
+  await createNotification(notificationData);
+}
+```
+
+#### **2️⃣ Campus Location Detection**
+
+```javascript
+// Detect campus presence using polygon boundaries
+async function detectCampusPresence(university = "iub") {
+  const position = await getCurrentLocation();
+  const isOnCampus = isLocationOnCampus(position, university);
+  const campusStatus = isOnCampus ? "on_campus" : "off_campus";
+  
+  // Update user's location status
+  await updateUserLocationStatus(userId, campusStatus, position.coords);
+}
+```
+
+#### **3️⃣ Bilateral Location Privacy**
+
+```javascript
+// Update location visibility (follows same pattern as schedule privacy)
+async function updateLocationVisibility(userUid, friendUid, isVisible) {
+  const friendshipId = getFriendshipId(userUid, friendUid);
+  
+  await updateDoc(doc(db, "friendships", friendshipId), {
+    [`locationVisibility.${userUid}`]: isVisible,
+    "locationSharingMetadata.lastLocationUpdate": serverTimestamp(),
+    "locationSharingMetadata.locationUpdatedBy": userUid,
+    "locationSharingMetadata.mutualSharingEnabled": 
+      (friendshipDoc.locationVisibility[friendUid] === true && isVisible)
+  });
+}
+```
+
+### 🎨 **Presence Dots System**
+
+#### **Presence Dot Logic**
+
+```javascript
+// Presence dot creation logic
+static create(lastActive, lastKnownLocation, hasLocationSharing = false) {
+  if (!hasLocationSharing || !lastActive || !lastKnownLocation) {
+    return '<div class="presence-dot grey"></div>';
+  }
+
+  const minutesAgo = Math.floor((Date.now() - lastActive) / (1000 * 60));
+  
+  // Don't show presence if >12 hours
+  if (minutesAgo > 12 * 60) {
+    return '<div class="presence-dot grey"></div>';
+  }
+
+  const timeText = getTimeText(minutesAgo); // "1m", "2m", "5m", etc.
+  const campusStatus = lastKnownLocation.campusStatus;
+  
+  let dotClass = "grey";
+  if (campusStatus === "on_campus") dotClass = "green";
+  else if (campusStatus === "off_campus") dotClass = "red";
+
+  return `
+    <div class="presence-dot ${dotClass}" 
+         title="${getTooltip(lastActive, lastKnownLocation)}">
+      <span class="dot-text">${timeText}</span>
+    </div>
+  `;
+}
+```
+
+#### **Time Display Logic**
+
+- **1m, 2m, 5m**: First few minutes (precise tracking)
+- **10m, 15m, 20m, 30m, 45m**: Medium timeframes
+- **1h, 2h, 3h...12h**: Hourly intervals up to 12 hours
+- **Grey dot (no text)**: No data or >12 hours old
+
+### 🔒 **Privacy & Security**
+
+#### **Privacy Principles**
+
+1. **Default Privacy**: All location sharing disabled by default
+2. **Bilateral Consent**: Both users must enable sharing for locations to be visible
+3. **Granular Control**: Individual location settings per friendship
+4. **No Background Tracking**: Only detects location when website is active
+5. **Automatic Expiration**: Notifications auto-expire after 7 days
+
+#### **Security Rules Extensions**
+
+```javascript
+// Extended friendship security rules for location privacy
+match /friendships/{friendshipId} {
+  allow update: if request.auth != null && 
+                request.auth.uid in resource.data.users &&
+                validateLocationPrivacyUpdate(request.auth.uid, request.writeFields);
+}
+
+function validateLocationPrivacyUpdate(userId, writeFields) {
+  return (
+    // User can only update their own location visibility and metadata
+    writeFields.keys().hasOnly([
+      'locationVisibility.' + userId, 
+      'locationSharingMetadata.lastLocationUpdate',
+      'locationSharingMetadata.locationUpdatedBy',
+      'locationSharingMetadata.mutualSharingEnabled'
+    ]) &&
+    writeFields['locationSharingMetadata.locationUpdatedBy'] == userId
+  );
+}
+
+// Notifications security rules
+match /notifications/{notificationId} {
+  allow read, write: if request.auth != null &&
+                     (request.auth.uid == resource.data.userId ||
+                      request.auth.uid == resource.data.fromUserId);
+  allow create: if request.auth != null &&
+                request.auth.uid == request.resource.data.fromUserId;
+}
+```
+
+### 🚀 **Performance Optimizations**
+
+1. **Efficient Queries**: Location data cached in friendship documents
+2. **Real-time Updates**: Live location privacy changes via RealtimeService
+3. **Circuit Breaker Protection**: Prevents infinite loops in location updates
+4. **Memory Management**: Automatic cleanup of expired notifications
+5. **Batched Updates**: Location UI updates use requestAnimationFrame
+
+### 🎯 **Architecture Benefits**
+
+- **✅ Privacy-First**: Bilateral consent ensures user comfort and control
+- **✅ Real-time**: Instant updates via Firebase listeners and RealtimeService
+- **✅ Scalable**: Extends existing bilateral privacy patterns consistently
+- **✅ Performance**: Efficient queries with minimal database reads
+- **✅ Future-proof**: Extensible for advanced location features
+- **✅ University-focused**: Perfect for campus-based social interactions
 
 ---
 

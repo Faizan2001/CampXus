@@ -67,6 +67,19 @@ class SPARouter {
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
+      notifications: {
+        title: "Notifications - CampXus",
+        template: "/templates/notifications.html",
+        cssFiles: [
+          "/src/css/styles.css",
+          "/src/css/notifications.css",
+        ],
+        jsFiles: [
+          "/src/js/pages/NotificationsPage.js",
+        ],
+        description: "View your campus social notifications and location sharing requests",
+        requiresAuth: true, // 🛡️ This page requires a user to be logged in
+      },
       about: {
         title: "About - CampXus",
         template: "/templates/about.html", // ✅ Fixed: Absolute path to prevent fallback to index.html

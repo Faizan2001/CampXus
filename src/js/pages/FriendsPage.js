@@ -27,6 +27,7 @@ import {
 import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyService.js";
 import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
 import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
+import { LocationSharingToggle } from "../components/presence/LocationSharingToggle.js";
 
 class FriendsUI {
   constructor() {
@@ -61,6 +62,9 @@ class FriendsUI {
     // 🔒 Privacy update flag to prevent unnecessary re-renders
     this.isUpdatingPrivacy = false;
 
+    // 📍 Campus Presence - Location sharing toggle instance
+    this.globalLocationToggle = null;
+
     // Make this instance globally accessible for privacy updates
     window.friendsPage = this;
   }
@@ -94,8 +98,11 @@ class FriendsUI {
       // Always load initial data on page visit
       this.loadInitialData();
 
+      // 📍 Initialize Campus Presence features
+      await this.initializeCampusPresence();
+
       console.log(
-        "🎨 Friends UI initialized successfully with real-time updates and privacy controls"
+        "🎨 Friends UI initialized successfully with real-time updates, privacy controls, and campus presence"
       );
     } catch (error) {
       console.error("❌ Error initializing Friends UI:", error);
@@ -562,6 +569,120 @@ class FriendsUI {
     } else {
       console.log("📡 Disconnected from real-time updates");
     }
+  }
+
+  /**
+   * 📍 Initialize Campus Presence features
+   */
+  async initializeCampusPresence() {
+    try {
+      console.log("📍 Initializing Campus Presence features...");
+      
+      // Add global location sharing card to the page
+      await this.addGlobalLocationCard();
+      
+      // Add notifications navigation button
+      this.addNotificationsNavigation();
+      
+      console.log("✅ Campus Presence features initialized successfully");
+    } catch (error) {
+      console.error("❌ Error initializing Campus Presence features:", error);
+    }
+  }
+
+  /**
+   * 📍 Add global location sharing card to the friends page
+   */
+  async addGlobalLocationCard() {
+    const friendsContainer = document.querySelector(".friends-container");
+    if (!friendsContainer) {
+      console.warn("⚠️ Friends container not found for global location card");
+      return;
+    }
+
+    // Find the insertion point (after the search section)
+    const searchSection = friendsContainer.querySelector(".friends-search");
+    if (!searchSection) {
+      console.warn("⚠️ Search section not found for global location card insertion");
+      return;
+    }
+
+    // Create global location sharing card
+    const locationCard = document.createElement("section");
+    locationCard.className = "glass-card global-location-sharing";
+    locationCard.innerHTML = `
+      <h3>
+        <i class="fas fa-map-marker-alt"></i>
+        Campus Presence
+      </h3>
+      <div class="location-description">
+        <p>Share your campus location with friends to see who's nearby and plan spontaneous meetups.</p>
+      </div>
+      <div class="global-location-toggle-container">
+        <!-- LocationSharingToggle component will be rendered here -->
+      </div>
+    `;
+
+    // Insert the card after the search section
+    searchSection.insertAdjacentElement("afterend", locationCard);
+
+    // Initialize the global location toggle component
+    try {
+      this.globalLocationToggle = new LocationSharingToggle({
+        mode: 'global',
+        showPermissionHelper: true,
+        showStatus: true,
+        containerClass: 'global-location-toggle'
+      });
+
+      const toggleContainer = locationCard.querySelector(".global-location-toggle-container");
+      await this.globalLocationToggle.render(toggleContainer);
+
+      console.log("✅ Global location sharing card added successfully");
+    } catch (error) {
+      console.error("❌ Error initializing global location toggle:", error);
+    }
+  }
+
+  /**
+   * 📬 Add notifications navigation button
+   */
+  addNotificationsNavigation() {
+    const friendsHeader = document.querySelector(".friends-header .page-title-section");
+    if (!friendsHeader) {
+      console.warn("⚠️ Friends header not found for notifications navigation");
+      return;
+    }
+
+    // Create notifications navigation button
+    const notificationsNav = document.createElement("div");
+    notificationsNav.className = "notifications-navigation";
+    notificationsNav.innerHTML = `
+      <button class="btn-notifications" type="button" title="View notifications">
+        <i class="fas fa-bell" aria-hidden="true"></i>
+        <span class="button-text">Notifications</span>
+        <span class="notification-badge" style="display: none;">0</span>
+      </button>
+    `;
+
+    // Add to friends header
+    friendsHeader.appendChild(notificationsNav);
+
+    // Set up event listener for notifications navigation
+    const notificationsButton = notificationsNav.querySelector(".btn-notifications");
+    notificationsButton.addEventListener("click", this.handleNotificationsNavigation.bind(this));
+
+    console.log("✅ Notifications navigation added successfully");
+  }
+
+  /**
+   * 📬 Handle notifications navigation
+   */
+  handleNotificationsNavigation() {
+    console.log("📬 Navigating to notifications page...");
+    // For now, show a placeholder message since notifications page doesn't exist yet
+    this.showMessage("Notifications page coming soon!", "info");
+    // TODO: When notifications route is added to router, use: router.navigateTo('notifications')
   }
 
   /**
@@ -1584,14 +1705,16 @@ class FriendsUI {
   }
 
   /**
-   * 🔗 Render FriendOptionsMenu components with bilateral privacy controls
+   * 🔗 Render FriendOptionsMenu components with bilateral privacy and location controls
    *
-   * BILATERAL PRIVACY EXPLANATION:
+   * ENHANCED MENU EXPLANATION:
    * This creates the three-dots menu for each friend card with options like:
    * - Hide/Show My Schedule (bilateral privacy - user controls their own visibility)
+   * - Share location/Hide location (campus presence - user controls location sharing per friend)
    * - Unfriend
    *
-   * Uses the new FriendshipPrivacyService for proper bilateral privacy management.
+   * Uses the new FriendshipPrivacyService for proper bilateral privacy management
+   * and LocationPrivacyService for individual friend location sharing.
    *
    * @param {Array} friends - Array of friend objects
    */
@@ -1599,7 +1722,7 @@ class FriendsUI {
     // Clean up existing menus first
     this.cleanupFriendOptionsMenus();
 
-    // Render menus with bilateral privacy support
+    // Render menus with bilateral privacy and location support
     const menuPromises = friends.map(async (friend) => {
       const friendId = friend.id || friend.uid;
       const container = this.elements.friendsList.querySelector(
@@ -1608,21 +1731,25 @@ class FriendsUI {
 
       if (container) {
         try {
-          // Create new menu instance with bilateral privacy
-          const menu = new FriendOptionsMenu(friend);
+          // Create new menu instance with bilateral privacy and location controls
+          const menu = new FriendOptionsMenu(friend, {
+            enableLocationSharing: true, // Enable location sharing option
+            enableSchedulePrivacy: true, // Keep existing schedule privacy
+            enableUnfriend: true // Keep existing unfriend option
+          });
 
           // Store reference for cleanup
           this.friendOptionMenus.set(friendId, menu);
 
-          // Render into container (async for bilateral privacy)
+          // Render into container (async for bilateral privacy and location setup)
           await menu.render(container);
 
           console.log(
-            `🔗 Rendered bilateral privacy menu for ${friend.displayName}`
+            `🔗 Rendered enhanced menu with location controls for ${friend.displayName}`
           );
         } catch (error) {
           console.error(
-            `❌ Failed to render menu for ${friend.displayName}:`,
+            `❌ Failed to render enhanced menu for ${friend.displayName}:`,
             error
           );
           // Fallback: render without menu
@@ -1642,9 +1769,10 @@ class FriendsUI {
   /**
    * 🎯 Set up event listeners for friend menu events
    *
-   * BEGINNER EXPLANATION:
+   * ENHANCED EXPLANATION:
    * The FriendOptionsMenu components emit custom events when users interact with them.
    * We listen for these events and handle them appropriately.
+   * Now includes location sharing change events in addition to privacy and unfriend events.
    */
   setupFriendMenuEventListeners() {
     // Remove existing listeners to prevent duplicates
@@ -1657,19 +1785,29 @@ class FriendsUI {
         "unfriend-requested",
         this.friendsListEventHandler
       );
+      this.elements.friendsList.removeEventListener(
+        "location-sharing-changed",
+        this.friendsListEventHandler
+      );
     }
 
-    // Create bound handler for cleanup - only for unfriend requests now
+    // Create bound handler for cleanup - handles unfriend and location sharing events
     // Privacy changes are handled directly in FriendOptionsMenu to prevent flickering
     this.friendsListEventHandler = (e) => {
       if (e.type === "unfriend-requested") {
         this.handleUnfriendRequested(e.detail);
+      } else if (e.type === "location-sharing-changed") {
+        this.handleLocationSharingChanged(e.detail);
       }
     };
 
-    // Add event listeners - removed privacy-changed to prevent flickering
+    // Add event listeners - includes new location sharing events
     this.elements.friendsList.addEventListener(
       "unfriend-requested",
+      this.friendsListEventHandler
+    );
+    this.elements.friendsList.addEventListener(
+      "location-sharing-changed", 
       this.friendsListEventHandler
     );
 
@@ -1705,7 +1843,7 @@ class FriendsUI {
     });
 
     console.log(
-      "🎯 Friend menu event listeners set up (privacy-changed removed to prevent flickering)"
+      "🎯 Friend menu event listeners set up with location sharing support (privacy-changed removed to prevent flickering)"
     );
   }
 
@@ -1738,6 +1876,35 @@ class FriendsUI {
 
     // Use existing unfriend logic
     this.handleUnfriend(friendId, friendName, friend);
+  }
+
+  /**
+   * 📍 Handle location sharing changes from friend menus
+   * @param {Object} detail - Event detail with type, enabled, friendId, etc.
+   */
+  handleLocationSharingChanged(detail) {
+    const { type, enabled, friendId, component } = detail;
+
+    console.log(`📍 Location sharing changed:`, detail);
+
+    if (type === 'friend' && friendId) {
+      const friend = this.currentFriendsData.find(f => f.id === friendId);
+      const friendName = friend?.displayName || 'friend';
+      
+      // Log the change
+      console.log(`📍 Location sharing with ${friendName} is now ${enabled ? 'enabled' : 'disabled'}`);
+      
+      // The LocationSharingToggle component already handles the actual service calls
+      // and shows success/error notifications, so we just need to log here
+      
+      // Optional: Update any UI indicators if needed in the future
+      // this.updateFriendLocationSharingIndicator(friendId, enabled);
+    } else if (type === 'global') {
+      console.log(`📍 Global location sharing is now ${enabled ? 'enabled' : 'disabled'}`);
+      
+      // Optional: Update global indicators if needed in the future
+      // this.updateGlobalLocationSharingIndicator(enabled);
+    }
   }
 
   /**
@@ -2202,7 +2369,7 @@ class FriendsUI {
   }
 
   /**
-   * 🧹 Clean up friend options menus
+   * 🧹 Clean up friend options menus and campus presence components
    */
   cleanupFriendOptionsMenus() {
     this.friendOptionMenus.forEach((menu, friendId) => {
@@ -2223,6 +2390,10 @@ class FriendsUI {
       );
       this.elements.friendsList.removeEventListener(
         "unfriend-requested",
+        this.friendsListEventHandler
+      );
+      this.elements.friendsList.removeEventListener(
+        "location-sharing-changed",
         this.friendsListEventHandler
       );
       this.friendsListEventHandler = null;
@@ -2352,6 +2523,9 @@ class FriendsUI {
       // Clean up friend options menus first
       this.cleanupFriendOptionsMenus();
 
+      // Clean up campus presence components
+      this.cleanupCampusPresence();
+
       if (this.searchTimeout) {
         clearTimeout(this.searchTimeout);
         this.searchTimeout = null;
@@ -2427,6 +2601,35 @@ class FriendsUI {
       console.log("🧹 Friends UI cleaned up completely");
     } catch (error) {
       console.error("❌ Error during Friends UI cleanup:", error);
+    }
+  }
+
+  /**
+   * 🧹 Clean up campus presence components
+   */
+  cleanupCampusPresence() {
+    try {
+      // Clean up global location toggle
+      if (this.globalLocationToggle) {
+        this.globalLocationToggle.destroy();
+        this.globalLocationToggle = null;
+      }
+
+      // Remove global location card
+      const locationCard = document.querySelector(".global-location-sharing");
+      if (locationCard) {
+        locationCard.remove();
+      }
+
+      // Remove notifications navigation
+      const notificationsNav = document.querySelector(".notifications-navigation");
+      if (notificationsNav) {
+        notificationsNav.remove();
+      }
+
+      console.log("🧹 Campus presence components cleaned up");
+    } catch (error) {
+      console.warn("⚠️ Error cleaning up campus presence components:", error);
     }
   }
 }

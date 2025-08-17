@@ -85,6 +85,10 @@ export const REALTIME_EVENTS = {
   // Phase-2: Quick Access events
   QUICK_ACCESS_UPDATED: "quickAccessUpdated",
   QUICK_ACCESS_FRIENDS: "quickAccessFriends",
+  // Campus Presence Phase
+  CAMPUS_PRESENCE_CHANGED: "campusPresenceChanged",
+  LOCATION_PRIVACY_CHANGED: "locationPrivacyChanged",
+  LOCATION_SHARING_REQUEST: "locationSharingRequest",
 };
 
 /**
@@ -633,6 +637,77 @@ class RealTimeManager {
       this.emit(REALTIME_EVENTS.SCHEDULE_PRIVACY_CHANGE, eventPayload);
     } catch (error) {
       console.error("❌ Error emitting schedule privacy change event:", error);
+    }
+  }
+
+  /**
+   * 🌍 Emit location privacy change event (Campus Presence)
+   * @param {string} fromUserId - User who made the change
+   * @param {string} affectedUserId - User affected by the change  
+   * @param {boolean} locationVisibility - New location visibility status
+   * @param {string} [friendName] - Optional friend name for enhanced payload
+   */
+  emitLocationPrivacyChange(
+    fromUserId,
+    affectedUserId,
+    locationVisibility,
+    friendName = null
+  ) {
+    // Validate inputs
+    if (!fromUserId || !affectedUserId) {
+      console.error("❌ emitLocationPrivacyChange: Invalid user IDs:", {
+        fromUserId,
+        affectedUserId,
+      });
+      return;
+    }
+
+    if (fromUserId === affectedUserId) {
+      console.error(
+        "❌ emitLocationPrivacyChange: Cannot emit location privacy change for same user:",
+        fromUserId
+      );
+      return;
+    }
+
+    if (typeof locationVisibility !== "boolean") {
+      console.error(
+        "❌ emitLocationPrivacyChange: locationVisibility must be boolean:",
+        locationVisibility
+      );
+      return;
+    }
+
+    // Only emit if there are active listeners and we're listening
+    if (
+      !this.isListening ||
+      !this.subscribers.has(REALTIME_EVENTS.LOCATION_PRIVACY_CHANGED)
+    ) {
+      this.log(`⏭️ Skipping location privacy change event - no active listeners`);
+      return;
+    }
+
+    try {
+      const eventPayload = {
+        fromUserId,
+        affectedUserId,
+        locationVisibility,
+        timestamp: Date.now(),
+        type: "location_privacy_change",
+        // Enhanced payload for UI components
+        friendName: friendName || "Unknown",
+        action: locationVisibility ? "location_shared" : "location_hidden",
+        description: locationVisibility
+          ? `Location is now shared with ${friendName || "friend"}`
+          : `Location sharing disabled with ${friendName || "friend"}`,
+      };
+
+      this.log(
+        `🌍 Emitting location privacy change: ${fromUserId} → ${affectedUserId} = ${locationVisibility}`
+      );
+      this.emit(REALTIME_EVENTS.LOCATION_PRIVACY_CHANGED, eventPayload);
+    } catch (error) {
+      console.error("❌ Error emitting location privacy change event:", error);
     }
   }
 

@@ -94,6 +94,11 @@ export const FIELD_PATHS = {
   STATUS: "systemInfo.status",
   LAST_ACTIVE: "systemInfo.lastActive",
   CREATED_AT: "systemInfo.createdAt",
+  
+  // Location fields
+  LOCATION_SHARING_ENABLED: "systemInfo.locationSharingEnabled",
+  LAST_KNOWN_LOCATION: "systemInfo.lastKnownLocation",
+  LOCATION_PRIVACY_LEVEL: "socialInfo.locationPrivacyLevel",
 };
 
 /**
@@ -3058,6 +3063,516 @@ class DataManager {
         error
       );
       return { success: false, updated: 0 };
+    }
+  }
+
+  // =============================================================================
+  //                          CAMPUS PRESENCE METHODS
+  // =============================================================================
+
+  /**
+   * Updates a user's campus location status
+   * @param {string} userId - The user's ID
+   * @param {string} campusStatus - "on-campus", "off-campus", or "unknown"
+   * @param {Object|null} coordinates - Optional coordinates {latitude, longitude}
+   * @returns {Promise<Object>} Result object with success status
+   */
+  async updateUserLocationStatus(userId, campusStatus, coordinates = null) {
+    try {
+      if (!userId || typeof userId !== "string") {
+        throw new Error("Invalid userId");
+      }
+      
+      if (!campusStatus || typeof campusStatus !== "string") {
+        throw new Error("Invalid campusStatus");
+      }
+
+      const updates = {
+        "systemInfo.lastActive": serverTimestamp(),
+        "systemInfo.lastKnownLocation": {
+          campusStatus,
+          detectedAt: serverTimestamp(),
+          coordinates: coordinates || null
+        }
+      };
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() =>
+          this.updateUserLocationStatus(userId, campusStatus, coordinates)
+        );
+        this.showNotification("Location will sync when online", "info", {
+          duration: 4000,
+        });
+        return { success: true, cached: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), updates);
+      
+      console.log(`✅ [DataManager] Updated location status for user ${userId}: ${campusStatus}`, coordinates ? `at coordinates ${coordinates.latitude}, ${coordinates.longitude}` : 'without coordinates');
+      return { success: true };
+    } catch (error) {
+      console.error("❌ [DataManager] Error updating user location status:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Updates a user's location sharing preference
+   * @param {string} userId - The user's ID
+   * @param {boolean} enabled - Whether location sharing is enabled
+   * @returns {Promise<Object>} Result object with success status
+   */
+  async updateLocationSharingPreference(userId, enabled) {
+    try {
+      if (!userId || typeof userId !== "string") {
+        throw new Error("Invalid userId");
+      }
+      
+      if (typeof enabled !== "boolean") {
+        throw new Error("Invalid enabled parameter - must be boolean");
+      }
+
+      const updates = {
+        "systemInfo.locationSharingEnabled": enabled,
+        "systemInfo.lastUpdated": serverTimestamp()
+      };
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() =>
+          this.updateLocationSharingPreference(userId, enabled)
+        );
+        this.showNotification("Preference will sync when online", "info", {
+          duration: 4000,
+        });
+        return { success: true, cached: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), updates);
+      
+      console.log(`✅ [DataManager] Updated location sharing preference for user ${userId}: ${enabled ? 'enabled' : 'disabled'}`);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ [DataManager] Error updating location sharing preference:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Updates bilateral location sharing settings for a friendship
+   * @param {string} friendshipId - The friendship document ID
+   * @param {string} userId - The user making the change
+   * @param {boolean} enabled - Whether location sharing is enabled for this user
+   * @returns {Promise<Object>} Result object with success status
+   */
+  async updateBilateralLocationSharing(friendshipId, userId, enabled) {
+    try {
+      if (!friendshipId || typeof friendshipId !== "string") {
+        throw new Error("Invalid friendshipId");
+      }
+      
+      if (!userId || typeof userId !== "string") {
+        throw new Error("Invalid userId");
+      }
+      
+      if (typeof enabled !== "boolean") {
+        throw new Error("Invalid enabled parameter - must be boolean");
+      }
+
+      const updates = {
+        [`locationVisibility.${userId}`]: enabled,
+        "locationSharingMetadata.lastLocationUpdate": serverTimestamp(),
+        "locationSharingMetadata.locationUpdatedBy": userId
+      };
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() =>
+          this.updateBilateralLocationSharing(friendshipId, userId, enabled)
+        );
+        this.showNotification("Location sharing will sync when online", "info", {
+          duration: 4000,
+        });
+        return { success: true, cached: true };
+      }
+
+      await updateDoc(doc(db, "friendships", friendshipId), updates);
+      
+      console.log(`✅ [DataManager] Updated bilateral location sharing for friendship ${friendshipId}, user ${userId}: ${enabled ? 'enabled' : 'disabled'}`);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ [DataManager] Error updating bilateral location sharing:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // =========================
+  // NOTIFICATION CRUD METHODS (Campus Presence Integration)
+  // =========================
+
+  /**
+   * 📬 Create a new notification document
+   * 
+   * Used for campus presence notifications like location sharing requests,
+   * friend requests, and system notifications.
+   * 
+   * @param {Object} notificationData - The notification data to create
+   * @param {string} notificationData.userId - Recipient user ID
+   * @param {string} notificationData.type - Notification type (location_share_request, friend_request, etc.)
+   * @param {string} notificationData.fromUserId - Sender user ID
+   * @param {Object} notificationData.fromUserInfo - Cached sender info
+   * @param {string} notificationData.status - Notification status (pending, read, dismissed)
+   * @param {Object} [notificationData.locationRequest] - Location request specific data
+   * @param {Array} [notificationData.actionButtons] - Available action buttons
+   * @returns {Promise<{success: boolean, notificationId?: string, error?: string}>}
+   */
+  async createNotification(notificationData) {
+    try {
+      console.log("📬 Creating notification...", notificationData);
+
+      // Validate required fields
+      if (!notificationData.userId || !notificationData.type || !notificationData.fromUserId) {
+        throw new Error("Missing required notification fields: userId, type, or fromUserId");
+      }
+
+      const notificationsRef = collection(db, "notifications");
+      
+      // Set expiration (7 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const docRef = await addDoc(notificationsRef, {
+        ...notificationData,
+        createdAt: serverTimestamp(),
+        expiresAt: expiresAt,
+        status: notificationData.status || "pending"
+      });
+
+      console.log("✅ Notification created successfully with ID:", docRef.id);
+      return { success: true, notificationId: docRef.id };
+    } catch (error) {
+      console.error("❌ Error creating notification:", error);
+      
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push({
+          type: "createNotification",
+          data: notificationData,
+          timestamp: Date.now()
+        });
+        console.log("📱 Notification queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+      
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📖 Get all notifications for a specific user
+   * 
+   * Retrieves notifications ordered by creation date (newest first)
+   * and automatically filters out expired notifications.
+   * 
+   * @param {string} userId - User ID to get notifications for
+   * @param {boolean} [includeRead=true] - Whether to include read notifications
+   * @returns {Promise<Array>} Array of notification objects
+   */
+  async getUserNotifications(userId) {
+    try {
+      console.log("📖 Fetching notifications for user:", userId);
+
+      if (!userId) {
+        throw new Error("User ID is required");
+      }
+
+      const notificationsRef = collection(db, "notifications");
+      const q = query(
+        notificationsRef,
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc"),
+        limit(50) // Limit to prevent excessive data loading
+      );
+
+      const querySnapshot = await getDocs(q);
+      const notifications = [];
+      const now = new Date();
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Filter out expired notifications
+        if (data.expiresAt && data.expiresAt.toDate() < now) {
+          // Auto-cleanup expired notification (fire-and-forget)
+          this.deleteNotification(doc.id).catch(err => 
+            console.warn("⚠️ Failed to auto-cleanup expired notification:", err)
+          );
+          return;
+        }
+
+        notifications.push({
+          id: doc.id,
+          ...data,
+          // Convert Firestore timestamps to JavaScript Date objects
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          expiresAt: data.expiresAt?.toDate?.() || data.expiresAt
+        });
+      });
+
+      console.log(`✅ Retrieved ${notifications.length} notifications for user ${userId}`);
+      return notifications;
+    } catch (error) {
+      console.error("❌ Error fetching user notifications:", error);
+      
+      // Return empty array on error to prevent UI crashes
+      return [];
+    }
+  }
+
+  /**
+   * 🗑️ Delete a notification (for dismissal)
+   * 
+   * Permanently removes a notification from the database.
+   * Used when users dismiss notifications or for auto-cleanup of expired ones.
+   * 
+   * @param {string} notificationId - ID of the notification to delete
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async deleteNotification(notificationId) {
+    try {
+      console.log(`🗑️ Deleting notification: ${notificationId}`);
+
+      if (!notificationId) {
+        throw new Error("Notification ID is required");
+      }
+
+      const notificationRef = doc(db, "notifications", notificationId);
+      await deleteDoc(notificationRef);
+
+      console.log("✅ Notification deleted successfully");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error deleting notification:", error);
+      
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push({
+          type: "deleteNotification",
+          data: { notificationId },
+          timestamp: Date.now()
+        });
+        console.log("📱 Notification deletion queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+      
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ Mark a notification as read
+   * 
+   * Updates the notification status to "read" and records when it was read.
+   * Preserves the notification for user reference while updating its state.
+   * 
+   * @param {string} notificationId - ID of the notification to mark as read
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async markNotificationAsRead(notificationId) {
+    try {
+      console.log(`✅ Marking notification as read: ${notificationId}`);
+
+      if (!notificationId) {
+        throw new Error("Notification ID is required");
+      }
+
+      const notificationRef = doc(db, "notifications", notificationId);
+      await updateDoc(notificationRef, {
+        status: "read",
+        readAt: serverTimestamp()
+      });
+
+      console.log("✅ Notification marked as read successfully");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error marking notification as read:", error);
+      
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push({
+          type: "markNotificationAsRead",
+          data: { notificationId },
+          timestamp: Date.now()
+        });
+        console.log("📱 Mark as read queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+      
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ Mark all notifications as read for a user
+   * 
+   * Updates all unread notifications for a user to "read" status.
+   * Useful for "Mark All Read" functionality.
+   * 
+   * @param {string} userId - ID of the user whose notifications to mark as read
+   * @returns {Promise<{success: boolean, updatedCount?: number, error?: string}>}
+   */
+  async markAllNotificationsRead(userId) {
+    try {
+      console.log(`✅ Marking all notifications as read for user: ${userId}`);
+
+      if (!userId) {
+        throw new Error("User ID is required");
+      }
+
+      const notificationsRef = collection(db, "notifications");
+      const q = query(
+        notificationsRef,
+        where("userId", "==", userId),
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      querySnapshot.forEach((doc) => {
+        batch.update(doc.ref, {
+          status: "read",
+          readAt: serverTimestamp()
+        });
+        updatedCount++;
+      });
+
+      if (updatedCount > 0) {
+        await batch.commit();
+        console.log(`✅ Marked ${updatedCount} notifications as read`);
+      } else {
+        console.log("ℹ️ No unread notifications to mark as read");
+      }
+
+      return { success: true, updatedCount };
+    } catch (error) {
+      console.error("❌ Error marking all notifications as read:", error);
+      
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push({
+          type: "markAllNotificationsRead",
+          data: { userId },
+          timestamp: Date.now()
+        });
+        console.log("📱 Mark all as read queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+      
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🗑️ Dismiss a notification (alias for deleteNotification with status update)
+   * 
+   * Marks a notification as dismissed and optionally deletes it.
+   * Provides user-friendly "dismiss" functionality.
+   * 
+   * @param {string} notificationId - ID of the notification to dismiss
+   * @param {boolean} permanentDelete - Whether to permanently delete (default: true)
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async dismissNotification(notificationId, permanentDelete = true) {
+    try {
+      console.log(`🗑️ Dismissing notification: ${notificationId} (delete: ${permanentDelete})`);
+
+      if (!notificationId) {
+        throw new Error("Notification ID is required");
+      }
+
+      if (permanentDelete) {
+        // Use the existing deleteNotification method
+        return await this.deleteNotification(notificationId);
+      } else {
+        // Just mark as dismissed
+        const notificationRef = doc(db, "notifications", notificationId);
+        await updateDoc(notificationRef, {
+          status: "dismissed",
+          dismissedAt: serverTimestamp()
+        });
+
+        console.log("✅ Notification dismissed successfully");
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("❌ Error dismissing notification:", error);
+      
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push({
+          type: "dismissNotification",
+          data: { notificationId, permanentDelete },
+          timestamp: Date.now()
+        });
+        console.log("📱 Notification dismissal queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+      
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🧹 Clean up expired notifications (automatic maintenance)
+   * 
+   * Removes notifications older than 7 days to keep the database clean.
+   * This method can be called periodically or on app startup.
+   * 
+   * @param {string} [userId] - Optional: clean up for specific user only
+   * @returns {Promise<{success: boolean, deletedCount?: number, error?: string}>}
+   */
+  async cleanupExpiredNotifications(userId = null) {
+    try {
+      console.log("🧹 Cleaning up expired notifications...", userId ? `for user: ${userId}` : "for all users");
+
+      const notificationsRef = collection(db, "notifications");
+      const now = new Date();
+      
+      // Build query based on whether userId is provided
+      let q;
+      if (userId) {
+        q = query(
+          notificationsRef,
+          where("userId", "==", userId),
+          where("expiresAt", "<", now)
+        );
+      } else {
+        q = query(
+          notificationsRef,
+          where("expiresAt", "<", now)
+        );
+      }
+
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      let deletedCount = 0;
+
+      querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+        deletedCount++;
+      });
+
+      if (deletedCount > 0) {
+        await batch.commit();
+        console.log(`✅ Cleaned up ${deletedCount} expired notifications`);
+      } else {
+        console.log("ℹ️ No expired notifications to clean up");
+      }
+
+      return { success: true, deletedCount };
+    } catch (error) {
+      console.error("❌ Error cleaning up expired notifications:", error);
+      return { success: false, error: error.message };
     }
   }
 }

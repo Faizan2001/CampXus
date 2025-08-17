@@ -45,6 +45,7 @@ import {
 } from "../../services/realtime/RealtimeService.js";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
+import { PresenceDot } from "../presence/PresenceDot.js";
 
 /**
  * HorizontalFriendsBar Class
@@ -454,14 +455,66 @@ export class HorizontalFriendsBar {
       const shouldUseFreshData = !useCache || this.isFirstLoad;
       this.isFirstLoad = false; // Mark as no longer first load
 
-      // Get Quick Access friends with privacy status using enhanced FriendsService
+      // Get Quick Access friends with privacy status AND location data using enhanced FriendsService
+      console.log('[HorizontalFriendsBar] Loading friends with location context for presence dots...');
       const quickAccessData =
         await friendsManager.getQuickAccessFriendsWithPrivacy(
           !shouldUseFreshData
         );
+
+      // Enhance with location data for presence dots
+      const quickAccessWithLocation = await Promise.all(
+        quickAccessData.map(async (friend) => {
+          try {
+            // Get location sharing status for presence dots
+            // Check if enhanced methods exist (graceful fallback)
+            const hasMutualSharing = friendsManager.checkMutualLocationSharing 
+              ? await friendsManager.checkMutualLocationSharing(friend.friendshipId)
+              : false;
+            const canSeeLocation = friendsManager.canSeeLocation 
+              ? await friendsManager.canSeeLocation(friend.friendId || friend.userId)
+              : false;
+
+            console.log(`[HorizontalFriendsBar] Location data for ${friend.displayName}:`, {
+              friendshipId: friend.friendshipId,
+              hasMutualSharing,
+              canSeeLocation,
+              hasLastActive: !!friend.lastActive,
+              hasLocationData: !!friend.lastKnownLocation
+            });
+
+            return {
+              ...friend,
+              hasLocationSharing: hasMutualSharing && canSeeLocation,
+              lastActive: friend.lastActive || null,
+              lastKnownLocation: friend.lastKnownLocation || null
+            };
+          } catch (error) {
+            console.warn(`[HorizontalFriendsBar] Failed to get location data for ${friend.displayName}:`, error);
+            return {
+              ...friend,
+              hasLocationSharing: false,
+              lastActive: null,
+              lastKnownLocation: null
+            };
+          }
+        })
+      );
+
+      console.log('[HorizontalFriendsBar] Enhanced friends with location data:', quickAccessWithLocation.length);
+      
+      // Debug: Log presence data summary
+      const presenceSummary = quickAccessWithLocation.map(friend => ({
+        name: friend.displayName,
+        hasLocationSharing: friend.hasLocationSharing,
+        hasLastActive: !!friend.lastActive,
+        hasLocation: !!friend.lastKnownLocation,
+        campusStatus: friend.lastKnownLocation?.campusStatus
+      }));
+      console.log('[HorizontalFriendsBar] Presence data summary:', presenceSummary);
       
       // Validate and clean data to prevent Firebase errors
-      const validatedFriends = (quickAccessData || []).filter(friend => {
+      const validatedFriends = (quickAccessWithLocation || []).filter(friend => {
         if (!friend || typeof friend !== 'object') {
           console.warn("⚠️ Load: Filtered out invalid friend object:", friend);
           return false;
@@ -476,7 +529,7 @@ export class HorizontalFriendsBar {
         return true;
       });
 
-      console.log(`🔍 DEBUG: Validated ${validatedFriends.length}/${(quickAccessData || []).length} friends during load`);
+      console.log(`🔍 DEBUG: Validated ${validatedFriends.length}/${(quickAccessWithLocation || []).length} friends during load with presence data`);
       
       this.quickAccessFriends = validatedFriends;
 
@@ -571,7 +624,7 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Render Quick Access friends avatars with privacy-aware disabled states
+   * Render Quick Access friends avatars with privacy-aware disabled states and presence dots
    */
   renderFriendsAvatars(container) {
     this.quickAccessFriends.forEach((friend, index) => {
@@ -585,6 +638,21 @@ export class HorizontalFriendsBar {
         friend.privacyStatus?.tooltip ||
         (isDisabled ? "Schedule access restricted" : "Click to view schedule");
 
+      // Add presence dot based on location sharing status
+      const presenceDot = PresenceDot.create(
+        friend.lastActive,
+        friend.lastKnownLocation,
+        friend.hasLocationSharing
+      );
+
+      console.log(`[HorizontalFriendsBar] Rendering friend ${friend.displayName} with presence:`, {
+        hasLastActive: !!friend.lastActive,
+        hasLocation: !!friend.lastKnownLocation,
+        hasLocationSharing: friend.hasLocationSharing,
+        campusStatus: friend.lastKnownLocation?.campusStatus,
+        presenceDotPreview: presenceDot.substring(0, 50) + '...'
+      });
+
       const friendAvatarHtml = `
         <div class="friend-avatar-item ${disabledClass}" 
              data-friend-id="${friend.friendId || friend.userId}" 
@@ -597,6 +665,7 @@ export class HorizontalFriendsBar {
           <div class="avatar-container">
             <div class="avatar-image">
               ${renderUserAvatar(friend, true)}
+              ${presenceDot}
               <div class="selection-ring"></div>
             </div>
           </div>
@@ -614,7 +683,7 @@ export class HorizontalFriendsBar {
     });
 
     console.log(
-      `👥 ${this.quickAccessFriends.length} friend avatars rendered with privacy status`
+      `👥 ${this.quickAccessFriends.length} friend avatars rendered with privacy status and presence dots`
     );
   }
 

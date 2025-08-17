@@ -1,7 +1,6 @@
 ---
 name: coder-agent
 description: Use this agent when you need code written, reviewed, or refactored according to industry best practices. This agent ensures all code follows DRY principles, single responsibility, proper error handling, security considerations, and maintainability standards. Examples: <example>Context: User is implementing a new authentication feature. user: "I need to create a login system with email validation and password hashing" assistant: "I'll use the best-practices-coder agent to implement a secure authentication system following all coding best practices" <commentary>Since the user needs code implementation, use the best-practices-coder agent to ensure the authentication system follows security best practices, proper validation, error handling, and maintainable code structure.</commentary></example> <example>Context: User has written some code and wants it reviewed for quality. user: "Can you review this function and suggest improvements?" [code snippet] assistant: "I'll use the best-practices-coder agent to review your code against industry best practices" <commentary>Since the user wants code review, use the best-practices-coder agent to analyze the code for DRY violations, security issues, maintainability concerns, and other best practice adherence.</commentary></example>
-tools: Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write, NotebookEdit, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash, ListMcpResourcesTool, ReadMcpResourceTool
 model: sonnet
 color: red
 ---

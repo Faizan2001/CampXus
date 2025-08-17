@@ -42,6 +42,8 @@ IMPORTED MODULES:
 @import url("./schedule-mobile.css"); /* Mobile responsiveness for new schedule layout */
 @import url("./profile-setup.css"); /* Profile setup styles */
 @import url("./friends-page.css"); /* Friends page styles */
+@import url("./presence.css"); /* Campus presence dots and indicators */
+@import url("./notifications.css"); /* Notifications page styles */
 
 /*
 ====================================================================================
@@ -59,6 +61,11 @@ IMPORTED MODULES:
 ✅ Authentication modal styling - auth.css
 ✅ Transitions & effects - animations.css
 ✅ Modern responsive features - responsive-enhancements.css
+✅ Mobile schedule responsiveness - schedule-mobile.css
+✅ Profile setup styling - profile-setup.css
+✅ Friends page styling - friends-page.css
+✅ Campus presence indicators - presence.css
+✅ Notifications page styling - notifications.css
 
 🎯 BENEFITS ACHIEVED:
 ✅ Easy debugging - isolated component styles

@@ -31,9 +31,13 @@ import "./services/friends/FriendsService.js";
 import "./pages/FriendsPage.js";
 import "./services/realtime/RealtimeService.js"; // 🎯 NEW: Real-time event coordination system
 import "./utils/dev/debugHelpers.js"; // 🎯 NEW: Debug tools and console helpers
-import "./dev-tools/MemoryLeakDetective.js"; // 🕵️‍♂️ NEW: Advanced memory leak detection and monitoring
 import "./components/forms/ProfileSetup.js";
 import "./utils/avatar/avatarManager.js";
+import "./pages/NotificationsPage.js"; // 🔔 Campus Presence: Notifications system
+
+// 🌍 Campus Presence Services
+import { campusLocationService } from "./services/location/CampusLocationService.js";
+import { locationPrivacyService } from "./services/location/LocationPrivacyService.js";
 
 // 🎯 DEBUG: Log that modules are imported
 console.log("🔧 SPA Init: All page-specific modules imported and ready");
@@ -114,6 +118,24 @@ async function initializeSPA() {
   initializeDomElements();
   initModal(DOM_ELEMENTS);
   console.log("✅ Modal system initialized successfully!");
+
+  // 🌍 Initialize Campus Presence services
+  console.log("🌍 Initializing Campus Presence services...");
+  try {
+    // Initialize location services in dependency order
+    if (typeof campusLocationService.initialize === 'function') {
+      await campusLocationService.initialize();
+    }
+    
+    if (typeof locationPrivacyService.initialize === 'function') {
+      await locationPrivacyService.initialize();
+    }
+    
+    console.log("✅ Campus Presence services initialized successfully!");
+  } catch (error) {
+    console.error("❌ Failed to initialize Campus Presence services:", error);
+    // Continue with app initialization even if Campus Presence fails
+  }
 
   spaRouter = new SPARouter();
 
@@ -217,6 +239,7 @@ function updatePageTitle(route) {
     home: "Schedule - CampXus",
     profile: "Profile Setup - CampXus",
     friends: "Friends - CampXus",
+    notifications: "Notifications - CampXus",
     about: "About - CampXus",
   };
 
@@ -276,3 +299,9 @@ export function navigateTo(route) {
  * 🎯 Learning: Modern JavaScript modules can export functions
  */
 export { setupProfileCompletionFlow, updatePageTitle };
+
+/**
+ * Export Campus Presence services for debugging and testing
+ * 🌍 Learning: Expose services for console debugging and external access
+ */
+export { campusLocationService, locationPrivacyService };

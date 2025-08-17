@@ -1932,6 +1932,375 @@ export class FriendsManager {
       };
     }
   }
+
+  // =========================
+  // CAMPUS PRESENCE FEATURES (Phase 3)
+  // =========================
+
+  /**
+   * 📍 Request location sharing with a friend
+   * Enables location sharing from current user's side and notifies the friend
+   * @param {string} friendId - The friend's user ID to request location sharing with
+   * @param {string} friendshipId - The friendship document ID
+   * @returns {Promise<Object>} Success/failure result with notification details
+   */
+  async requestLocationSharing(friendId, friendshipId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to share location." };
+    }
+
+    if (!friendId || !friendshipId) {
+      console.error("❌ Missing friend ID or friendship ID for location sharing");
+      return { success: false, message: "Invalid friend data" };
+    }
+
+    if (friendId === currentUser.uid) {
+      return {
+        success: false,
+        message: "You cannot request location sharing with yourself!",
+      };
+    }
+
+    try {
+      console.log("📍 Requesting location sharing with friend:", friendId);
+
+      // 1. Enable location sharing from current user's side
+      const result = await dataManager.updateBilateralLocationSharing(
+        friendshipId, 
+        currentUser.uid, 
+        true
+      );
+
+      if (!result.success) {
+        console.error("❌ Failed to enable location sharing:", result.error);
+        return { success: false, message: "Failed to enable location sharing." };
+      }
+
+      // 2. Create notification for the friend
+      const notificationData = {
+        userId: friendId,
+        type: "location_share_request",
+        fromUserId: currentUser.uid,
+        fromUserInfo: {
+          displayName: userProfile.profile.displayName,
+          avatarConfig: userProfile.avatarConfig,
+          major: userProfile.profile.major
+        },
+        locationRequest: {
+          friendshipId: friendshipId,
+          currentStatus: "pending_both",
+          requestedAt: new Date()
+        },
+        status: "pending",
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        actionButtons: ["accept", "dismiss"]
+      };
+
+      await dataManager.createNotification(notificationData);
+
+      console.log("✅ Location sharing request sent successfully!");
+      return {
+        success: true,
+        message: `Location sharing request sent to ${userProfile.profile.displayName}!`,
+        friendId: friendId,
+        friendshipId: friendshipId,
+        requestedAt: new Date()
+      };
+    } catch (error) {
+      console.error("❌ Error requesting location sharing:", error);
+      return { success: false, message: "Something went wrong. Please try again." };
+    }
+  }
+
+  /**
+   * 👥 Enhanced getFriendsList with location context
+   * Gets friends list and adds location sharing status for each friend
+   * @param {boolean} includeLocationData - Whether to include location sharing context (default: false)
+   * @returns {Promise<Array>} Array of friends with optional location sharing context
+   */
+  async getFriendsListWithLocation(includeLocationData = false) {
+    try {
+      console.log("👥📍 Getting friends list with location context...");
+      
+      // Get the standard friends list first
+      const friendsList = await this.getFriendsList();
+
+      if (!includeLocationData || friendsList.length === 0) {
+        console.log("👥 Returning standard friends list (no location data requested)");
+        return friendsList;
+      }
+
+      // Add location sharing status to each friend
+      const friendsWithLocation = await Promise.all(
+        friendsList.map(async (friend) => {
+          try {
+            // Check mutual location sharing status
+            const hasMutualSharing = await this.checkMutualLocationSharing(friend.friendshipId);
+            const canSeeLocation = await this.canSeeLocation(friend.id);
+            
+            return {
+              ...friend,
+              // Location sharing context
+              hasLocationSharing: hasMutualSharing,
+              canSeeLocation: canSeeLocation,
+              presenceDisplay: this.calculatePresenceDisplay(friend),
+              locationSharing: {
+                mutual: hasMutualSharing,
+                canView: canSeeLocation,
+                status: hasMutualSharing ? "active" : "inactive",
+                lastUpdated: new Date() // Placeholder - will be real data in Phase 4
+              }
+            };
+          } catch (error) {
+            console.error(`❌ Error adding location context for friend ${friend.id}:`, error);
+            // Return friend without location data on error
+            return {
+              ...friend,
+              hasLocationSharing: false,
+              canSeeLocation: false,
+              presenceDisplay: "offline",
+              locationSharing: {
+                mutual: false,
+                canView: false,
+                status: "unknown",
+                lastUpdated: null
+              }
+            };
+          }
+        })
+      );
+
+      console.log(`✅ Enhanced ${friendsWithLocation.length} friends with location context`);
+      return friendsWithLocation;
+    } catch (error) {
+      console.error("❌ Error getting friends list with location:", error);
+      // Fallback to standard friends list
+      return this.getFriendsList();
+    }
+  }
+
+  /**
+   * 🔍 Check if both users enabled location sharing
+   * Queries the friendship document to verify mutual location sharing
+   * @param {string} friendshipId - The friendship document ID
+   * @returns {Promise<boolean>} True if both users have enabled location sharing
+   */
+  async checkMutualLocationSharing(friendshipId) {
+    if (!friendshipId) {
+      console.error("❌ Missing friendship ID for location sharing check");
+      return false;
+    }
+
+    try {
+      console.log("🔍 Checking mutual location sharing for friendship:", friendshipId);
+
+      // Query friendship document for location visibility settings
+      const friendshipData = await dataManager.getFriendshipById(friendshipId);
+      
+      if (!friendshipData) {
+        console.error("❌ Friendship document not found:", friendshipId);
+        return false;
+      }
+
+      // Check if both users have enabled location sharing
+      const locationVisibility = friendshipData.locationVisibility || {};
+      const user1Sharing = locationVisibility[friendshipData.user1Id] || false;
+      const user2Sharing = locationVisibility[friendshipData.user2Id] || false;
+
+      const hasMutualSharing = user1Sharing && user2Sharing;
+      
+      console.log(
+        `✅ Mutual location sharing check: ${friendshipId} = ${
+          hasMutualSharing ? "ENABLED" : "DISABLED"
+        } (User1: ${user1Sharing}, User2: ${user2Sharing})`
+      );
+
+      return hasMutualSharing;
+    } catch (error) {
+      console.error("❌ Error checking mutual location sharing:", error);
+      return false;
+    }
+  }
+
+  /**
+   * 👁️ Helper to check location visibility for a specific friend
+   * Determines if current user can see the specified friend's location
+   * @param {string} friendId - The friend's user ID to check visibility for
+   * @returns {Promise<boolean>} True if friend's location is visible to current user
+   */
+  async canSeeLocation(friendId) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile || !friendId) {
+      console.error("❌ Cannot check location visibility: missing user or friend data");
+      return false;
+    }
+
+    try {
+      console.log(`👁️ Checking location visibility for friend: ${friendId}`);
+
+      // Get friendship data between current user and friend
+      const friendshipData = await dataManager.getFriendshipBetweenUsers(
+        currentUser.uid, 
+        friendId
+      );
+
+      if (!friendshipData) {
+        console.error(`❌ No friendship found between ${currentUser.uid} and ${friendId}`);
+        return false;
+      }
+
+      // Check if friend has enabled location sharing with current user
+      const locationVisibility = friendshipData.locationVisibility || {};
+      const friendLocationVisible = locationVisibility[friendId] || false;
+
+      console.log(
+        `✅ Location visibility check: ${friendId} = ${
+          friendLocationVisible ? "VISIBLE" : "HIDDEN"
+        }`
+      );
+
+      return friendLocationVisible;
+    } catch (error) {
+      console.error(`❌ Error checking location visibility for ${friendId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * 🎯 Calculate presence display status for friend
+   * Determines how friend should be displayed based on location and online status
+   * @param {Object} friend - Friend object with location and status data
+   * @returns {string} Presence display status ("online", "nearby", "campus", "offline")
+   */
+  calculatePresenceDisplay(friend) {
+    if (!friend) {
+      return "offline";
+    }
+
+    // TODO: Phase 4 - Implement real presence calculation based on:
+    // - Location sharing status
+    // - Real-time location data
+    // - Campus proximity
+    // - Online status
+    
+    // Placeholder logic for Phase 3
+    if (friend.hasLocationSharing) {
+      return "campus"; // Friend has location sharing enabled
+    }
+    
+    if (friend.isOnline) {
+      return "online"; // Friend is online but no location
+    }
+
+    return "offline"; // Default status
+  }
+
+  /**
+   * 📍 Get location sharing status for a specific friendship
+   * Provides detailed location sharing information for UI components
+   * @param {string} friendshipId - The friendship document ID
+   * @returns {Promise<Object|null>} Location sharing status or null if not found
+   */
+  async getLocationSharingStatus(friendshipId) {
+    if (!friendshipId) {
+      console.error("❌ Missing friendship ID for location sharing status");
+      return null;
+    }
+
+    try {
+      console.log("📍 Getting location sharing status for friendship:", friendshipId);
+
+      const friendshipData = await dataManager.getFriendshipById(friendshipId);
+      
+      if (!friendshipData) {
+        console.error("❌ Friendship document not found:", friendshipId);
+        return null;
+      }
+
+      const locationVisibility = friendshipData.locationVisibility || {};
+      const user1Id = friendshipData.user1Id;
+      const user2Id = friendshipData.user2Id;
+      
+      const status = {
+        friendshipId: friendshipId,
+        users: {
+          [user1Id]: {
+            sharingEnabled: locationVisibility[user1Id] || false,
+            displayName: friendshipData.user1Info?.displayName || "User 1"
+          },
+          [user2Id]: {
+            sharingEnabled: locationVisibility[user2Id] || false,
+            displayName: friendshipData.user2Info?.displayName || "User 2"
+          }
+        },
+        mutualSharing: (locationVisibility[user1Id] || false) && (locationVisibility[user2Id] || false),
+        lastUpdated: friendshipData.locationSharingMetadata?.lastUpdated || null,
+        updatedBy: friendshipData.locationSharingMetadata?.updatedBy || null
+      };
+
+      console.log("✅ Location sharing status retrieved:", status);
+      return status;
+    } catch (error) {
+      console.error("❌ Error getting location sharing status:", error);
+      return null;
+    }
+  }
+
+  /**
+   * 🔄 Toggle location sharing with a friend
+   * Enables or disables location sharing from current user's side
+   * @param {string} friendshipId - The friendship document ID
+   * @param {boolean} enabled - Whether to enable or disable location sharing
+   * @returns {Promise<Object>} Success/failure result with updated status
+   */
+  async toggleLocationSharing(friendshipId, enabled) {
+    const userProfile = await currentUser.waitForProfile();
+    if (!userProfile) {
+      return { success: false, message: "Please log in to manage location sharing." };
+    }
+
+    if (!friendshipId) {
+      console.error("❌ Missing friendship ID for location sharing toggle");
+      return { success: false, message: "Invalid friendship data" };
+    }
+
+    try {
+      console.log(`🔄 ${enabled ? "Enabling" : "Disabling"} location sharing for friendship:`, friendshipId);
+
+      // Update location sharing status
+      const result = await dataManager.updateBilateralLocationSharing(
+        friendshipId,
+        currentUser.uid,
+        enabled
+      );
+
+      if (result.success) {
+        console.log(`✅ Successfully ${enabled ? "enabled" : "disabled"} location sharing`);
+        
+        return {
+          success: true,
+          message: `Location sharing ${enabled ? "enabled" : "disabled"}`,
+          friendshipId: friendshipId,
+          enabled: enabled,
+          updatedAt: new Date()
+        };
+      } else {
+        console.error("❌ Failed to update location sharing:", result.error);
+        return {
+          success: false,
+          message: "Failed to update location sharing. Please try again."
+        };
+      }
+    } catch (error) {
+      console.error("❌ Error toggling location sharing:", error);
+      return {
+        success: false,
+        message: "Something went wrong. Please try again."
+      };
+    }
+  }
 }
 
 // 🌟 Export a single instance (Singleton pattern)
