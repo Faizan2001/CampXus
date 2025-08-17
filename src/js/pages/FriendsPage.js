@@ -680,9 +680,25 @@ class FriendsUI {
    */
   handleNotificationsNavigation() {
     console.log("📬 Navigating to notifications page...");
-    // For now, show a placeholder message since notifications page doesn't exist yet
-    this.showMessage("Notifications page coming soon!", "info");
-    // TODO: When notifications route is added to router, use: router.navigateTo('notifications')
+    // Prefer SPA router navigation when available
+    try {
+      if (window.spaRouter && typeof window.spaRouter.navigateTo === 'function') {
+        window.spaRouter.navigateTo('notifications');
+        return;
+      }
+
+      // Fallback: try global router if exported
+      if (typeof router !== 'undefined' && typeof router.navigateTo === 'function') {
+        router.navigateTo('notifications');
+        return;
+      }
+
+      // Final fallback: show a friendly message
+      this.showMessage('Notifications page coming soon!', 'info');
+    } catch (error) {
+      console.error('❌ Error navigating to notifications page:', error);
+      this.showMessage('Notifications page coming soon!', 'info');
+    }
   }
 
   /**

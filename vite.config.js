@@ -42,5 +42,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // Note: HTTPS needed for geolocation in production
+    // For development testing, we'll use HTTP and implement graceful fallbacks
   },
 });

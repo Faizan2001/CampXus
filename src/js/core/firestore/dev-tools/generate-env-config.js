@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function generateEnvConfig() {
-  const envPath = path.join(__dirname, "..", "..", "..", ".env.local");
+  const envPath = path.join(__dirname, "..", "..", "..", "..", "..", ".env.local");
 
   try {
     // Check if .env.local exists
@@ -63,11 +63,18 @@ console.log('🔧 Development environment variables loaded');
     // Write the config file
     const outputPath = path.join(
       __dirname,
-      "..",
+      "..", "..", "..",
       "lib",
       "firebase",
       "env-config.js"
     );
+    
+    // Ensure output directory exists
+    const outputDir = path.dirname(outputPath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
     fs.writeFileSync(outputPath, configContent);
 
     console.log("✅ Environment config generated successfully");

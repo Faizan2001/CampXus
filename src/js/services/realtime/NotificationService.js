@@ -97,6 +97,55 @@ class NotificationManager {
   }
 
   /**
+   * 📢 Show notification (convenient wrapper method)
+   * @param {string} message - Notification message
+   * @param {string} type - Notification type ('success', 'error', 'warning', 'info')
+   * @param {Object} options - Additional options
+   */
+  show(message, type = 'info', options = {}) {
+    return this.showSystemNotification(message, type, options);
+  }
+
+  /**
+   * ✅ Show success notification (convenience method)
+   * @param {string} message - Success message
+   * @param {Object} options - Additional options
+   */
+  showSuccessNotification(message, options = {}) {
+    return this.showSystemNotification(message, 'success', options);
+  }
+
+  /**
+   * ❌ Show error notification (convenience method)
+   * @param {string} message - Error message
+   * @param {Object} options - Additional options
+   */
+  showErrorNotification(message, options = {}) {
+    return this.showSystemNotification(message, 'error', { 
+      duration: 5000, // Error messages should stay longer
+      ...options 
+    });
+  }
+
+  /**
+   * ⚠️ Show warning notification (convenience method)
+   * @param {string} message - Warning message
+   * @param {Object} options - Additional options
+   */
+  showWarningNotification(message, options = {}) {
+    return this.showSystemNotification(message, 'warning', options);
+  }
+
+  /**
+   * ℹ️ Show info notification (convenience method)
+   * @param {string} message - Info message
+   * @param {Object} options - Additional options
+   */
+  showInfoNotification(message, options = {}) {
+    return this.showSystemNotification(message, 'info', options);
+  }
+
+  /**
    * 📢 Show standardized system notification (backward compatibility)
    * @param {string} message - Notification message
    * @param {string} type - Notification type ('success', 'error', 'warning', 'info')

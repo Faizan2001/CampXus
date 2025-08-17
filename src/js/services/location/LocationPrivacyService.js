@@ -350,7 +350,7 @@ class LocationPrivacyService {
       };
 
       // Update location in user's profile using DataService
-      const success = await dataManager.profile.updateProfile(userUid, {
+      const success = await dataManager.updateUserProfile(userUid, {
         'systemInfo.currentLocation': locationUpdate.location,
         'systemInfo.campusPresence': locationUpdate.campusPresence,
         'systemInfo.lastLocationUpdate': locationUpdate.lastLocationUpdate,
@@ -406,7 +406,7 @@ class LocationPrivacyService {
       }
 
       // Get user profile to access global location preferences
-      const userProfile = await dataManager.profile.getUserProfile(userUid);
+      const userProfile = await dataManager.getUserProfile(userUid);
       
       if (!userProfile) {
         console.error(`❌ User profile not found for: ${userUid}`);
@@ -488,7 +488,7 @@ class LocationPrivacyService {
       }
 
       // Update preferences using DataService
-      const success = await dataManager.profile.updateProfile(userUid, updateData);
+      const success = await dataManager.updateUserProfile(userUid, updateData);
 
       if (success) {
         // Clear preferences cache
@@ -591,7 +591,7 @@ class LocationPrivacyService {
       }
 
       // Get friend's profile for location data
-      const friendProfile = await dataManager.profile.getUserProfile(friendUid);
+      const friendProfile = await dataManager.getUserProfile(friendUid);
       
       if (!friendProfile || !friendProfile.systemInfo?.currentLocation) {
         return null;

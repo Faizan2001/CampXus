@@ -431,12 +431,28 @@ export class FriendOptionsMenu {
       this.updateLocationUI(newVisibility);
     });
 
-    // Update database using bilateral privacy service
-    const success = await friendshipPrivacyService.updateLocationVisibility(
-      currentUserUid, // User updating their own visibility
-      this.friend.id, // To this friend
-      newVisibility
-    );
+    // Update database and create notifications if enabling location sharing
+    let success = false;
+    
+    if (newVisibility) {
+      // Use requestLocationSharing to enable location sharing WITH notifications
+      const result = await friendsManager.requestLocationSharing(
+        this.friend.id,
+        this.friend.friendshipId || this.generateFriendshipId(currentUserUid, this.friend.id)
+      );
+      success = result.success;
+      
+      if (result.success) {
+        console.log(`📍 Location sharing request sent to ${this.friend.displayName} with notification`);
+      }
+    } else {
+      // Use bilateral privacy service to disable location sharing (no notification needed)
+      success = await friendshipPrivacyService.updateLocationVisibility(
+        currentUserUid, // User updating their own visibility
+        this.friend.id, // To this friend
+        newVisibility
+      );
+    }
 
     if (success) {
       // Update local location status
@@ -667,6 +683,12 @@ export class FriendOptionsMenu {
    * @param {boolean} myLocationVisible - Whether current user's location is visible to friend
    */
   updateFriendCardLocationStatus(myLocationVisible) {
+    // Guard clause: Check if element still exists (menu might have been destroyed during re-render)
+    if (!this.element || !this.element.parentNode) {
+      console.log("🔄 FriendOptionsMenu element destroyed, skipping location status update");
+      return;
+    }
+
     // Find the friend card that contains this menu
     const friendCard = this.element.closest(".friend-card");
     if (!friendCard) return;
@@ -711,6 +733,12 @@ export class FriendOptionsMenu {
    * @param {boolean} myScheduleVisible - Whether current user's schedule is visible to friend
    */
   updateFriendCardPrivacyStatus(myScheduleVisible) {
+    // Guard clause: Check if element still exists (menu might have been destroyed during re-render)
+    if (!this.element || !this.element.parentNode) {
+      console.log("🔄 FriendOptionsMenu element destroyed, skipping privacy status update");
+      return;
+    }
+
     // Find the friend card that contains this menu
     const friendCard = this.element.closest(".friend-card");
     if (!friendCard) return;
@@ -851,6 +879,20 @@ export class FriendOptionsMenu {
     console.log(
       `🔄 Friend data updated for ${this.friend.displayName} with bilateral privacy and location sharing`
     );
+  }
+
+  /**
+   * 🔗 Generate friendship ID from two user IDs
+   * @param {string} uid1 - First user ID
+   * @param {string} uid2 - Second user ID
+   * @returns {string} Canonical friendship ID
+   */
+  generateFriendshipId(uid1, uid2) {
+    if (!uid1 || !uid2 || uid1 === uid2) {
+      console.error("❌ Cannot generate friendship ID with invalid user IDs:", { uid1, uid2 });
+      return null;
+    }
+    return [uid1, uid2].sort().join("_");
   }
 
   /**

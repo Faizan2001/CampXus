@@ -38,8 +38,9 @@ const campuses = {
     // Campus center point (approximate middle of campus)
     // PLACEHOLDER: Will be replaced with actual IUB center coordinates
     center: {
-      lat: 23.8103, // Placeholder latitude
-      lng: 90.4125  // Placeholder longitude
+      //23.815550, 90.427607 Center point (non-calculated)
+      lat: 23.815550,
+      lng: 90.427607
     },
     
     /**
@@ -54,11 +55,28 @@ const campuses = {
      * and accurately reflect the actual campus perimeter.
      */
     boundary: [
-      { lat: 23.8120, lng: 90.4100 }, // Northwest corner (PLACEHOLDER)
-      { lat: 23.8120, lng: 90.4150 }, // Northeast corner (PLACEHOLDER)
-      { lat: 23.8086, lng: 90.4150 }, // Southeast corner (PLACEHOLDER)
-      { lat: 23.8086, lng: 90.4100 }, // Southwest corner (PLACEHOLDER)
-      { lat: 23.8120, lng: 90.4100 }  // Close polygon (PLACEHOLDER)
+      //23.816093, 90.427126 (first)
+      //23.816130, 90.427511
+      //23.816167, 90.427975
+      //23.815838, 90.428050
+      //23.815366, 90.428099
+      //23.814847, 90.428154
+      //23.814741, 90.427580
+      //23.814962, 90.427215
+      //23.815538, 90.427157
+      //23.815894, 90.427129
+      //23.816093, 90.427126 First one again to close polygon
+      { lat: 23.816093, lng: 90.427126 },
+      { lat: 23.816130, lng: 90.427511 }, // Northwest corner (PLACEHOLDER)
+      { lat: 23.816167, lng: 90.427975 }, // Northeast corner (PLACEHOLDER)
+      { lat: 23.815838, lng: 90.428050 }, // Southeast corner (PLACEHOLDER)
+      { lat: 23.815366, lng: 90.428099 }, // Southwest corner (PLACEHOLDER)
+      { lat: 23.814847, lng: 90.428154 },
+      { lat: 23.814741, lng: 90.427580 },
+      { lat: 23.814962, lng: 90.427215 },
+      { lat: 23.815538, lng: 90.427157 },
+      { lat: 23.815894, lng: 90.427129 },
+      { lat: 23.816093, lng: 90.427126 }, // Close polygon (PLACEHOLDER)
     ],
     
     // Campus metadata

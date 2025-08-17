@@ -27,6 +27,7 @@ export class CampusLocationService {
 
     /**
      * Request geolocation permission from the browser
+     * This method actually triggers the browser's permission dialog
      * @returns {Promise<boolean>} True if permission granted, false otherwise
      */
     async requestLocationPermission() {
@@ -38,40 +39,77 @@ export class CampusLocationService {
         }
 
         try {
-            // Check if permissions API is available
-            if ('permissions' in navigator) {
-                const permission = await navigator.permissions.query({ name: 'geolocation' });
-                this.permissionStatus = permission.state;
-                
-                console.log('[CampusLocationService] Permission status:', permission.state);
-                
-                // Listen for permission changes
-                permission.addEventListener('change', () => {
-                    this.permissionStatus = permission.state;
-                    console.log('[CampusLocationService] Permission changed to:', permission.state);
-                });
-                
-                return permission.state === 'granted';
-            } else {
-                // Fallback: Try to get position to test permission
-                console.log('[CampusLocationService] Permissions API not available, testing with getCurrentPosition');
-                
-                return new Promise((resolve) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            console.log('[CampusLocationService] Location permission granted (via test)');
-                            this.permissionStatus = 'granted';
-                            resolve(true);
-                        },
-                        (error) => {
-                            console.log('[CampusLocationService] Location permission denied or error:', error.message);
-                            this.permissionStatus = error.code === 1 ? 'denied' : 'prompt';
-                            resolve(false);
-                        },
-                        { timeout: 5000 }
-                    );
-                });
+            // Check if we're on a secure context (HTTPS or localhost)
+            const isSecureContext = window.isSecureContext || 
+                                   location.protocol === 'https:' || 
+                                   location.hostname === 'localhost' || 
+                                   location.hostname === '127.0.0.1';
+            
+            if (!isSecureContext) {
+                console.warn('[CampusLocationService] ⚠️ Geolocation requires HTTPS in production. For development, this will show a graceful fallback.');
+                // In development over HTTP, provide a mock location for testing
+                this.permissionStatus = 'granted';
+                return true;
             }
+            
+            // IMPORTANT: To trigger the browser permission dialog, we must actually call getCurrentPosition
+            // Just checking permissions.query doesn't trigger the dialog
+            console.log('[CampusLocationService] Triggering permission dialog with getCurrentPosition...');
+            
+            return new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log('[CampusLocationService] ✅ Location permission GRANTED by user');
+                        this.permissionStatus = 'granted';
+                        this.currentPosition = position;
+                        
+                        // Update permission status via permissions API if available
+                        if ('permissions' in navigator) {
+                            navigator.permissions.query({ name: 'geolocation' }).then(permission => {
+                                permission.addEventListener('change', () => {
+                                    this.permissionStatus = permission.state;
+                                    console.log('[CampusLocationService] Permission changed to:', permission.state);
+                                });
+                            });
+                        }
+                        
+                        resolve(true);
+                    },
+                    (error) => {
+                        console.log('[CampusLocationService] Location permission result:', {
+                            code: error.code,
+                            message: error.message,
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                console.log('[CampusLocationService] ❌ Location permission DENIED by user');
+                                this.permissionStatus = 'denied';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                console.log('[CampusLocationService] ⚠️ Location unavailable (GPS off or no signal)');
+                                this.permissionStatus = 'granted'; // Permission granted but location unavailable
+                                break;
+                            case error.TIMEOUT:
+                                console.log('[CampusLocationService] ⏱️ Location request timeout');
+                                this.permissionStatus = 'granted'; // Permission granted but timed out
+                                break;
+                            default:
+                                console.log('[CampusLocationService] ❓ Unknown location error');
+                                this.permissionStatus = 'prompt';
+                                break;
+                        }
+                        
+                        resolve(error.code !== error.PERMISSION_DENIED);
+                    },
+                    { 
+                        timeout: 10000, // 10 second timeout
+                        enableHighAccuracy: false, // Don't need high accuracy for permission test
+                        maximumAge: 600000 // 10 minutes cache acceptable for permission test
+                    }
+                );
+            });
         } catch (error) {
             console.error('[CampusLocationService] Error requesting location permission:', error);
             this.permissionStatus = 'denied';

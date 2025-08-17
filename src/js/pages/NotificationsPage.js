@@ -9,7 +9,15 @@
  * - Friend request notifications  
  * - Real-time notification updates
  * - Accept/dismiss actions for notifications
- * - Location permission integration
+ * - Location permi      // Handle location sharing acceptance
+      document.querySelectorAll('.accept-location-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const friendshipId = btn.dataset.friendshipId;
+          const notificationId = btn.dataset.notificationId;
+          console.log("📍 Accepting location sharing for friendship:", friendshipId);
+          await this.acceptLocationSharing(friendshipId, notificationId);
+        });
+      });tegration
  * 
  * Part of Phase 4.1: Campus Presence Implementation
  */
@@ -17,6 +25,7 @@
 import { dataManager } from "../services/data/DataService.js";
 import { currentUser } from "../store/userStore.js";
 import { avatarManager } from "../utils/avatar/avatarManager.js";
+import { getAvatarFallback } from "../utils/avatar/avatarUtils.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { campusLocationService } from "../services/location/CampusLocationService.js";
 import {
@@ -34,7 +43,7 @@ export class NotificationsPage {
     this.unsubscribers = [];
     this.isInitialized = false;
     this.isActive = false;
-    
+
     console.log("🔔 NotificationsPage initialized");
   }
 
@@ -46,11 +55,11 @@ export class NotificationsPage {
     try {
       console.log("🔔 Initializing NotificationsPage...");
       this.isActive = true;
-      
+
       await this.loadNotifications();
       this.setupRealtimeListeners();
       this.render();
-      
+
       this.isInitialized = true;
       console.log("✅ NotificationsPage initialization complete");
     } catch (error) {
@@ -65,7 +74,7 @@ export class NotificationsPage {
   async loadNotifications() {
     try {
       console.log("📊 Loading user notifications...");
-      
+
       if (!currentUser?.uid) {
         console.warn("⚠️ No current user found");
         this.notifications = [];
@@ -73,8 +82,10 @@ export class NotificationsPage {
       }
 
       // Load notifications from dataManager
-      this.notifications = await dataManager.getUserNotifications(currentUser.uid);
-      
+      this.notifications = await dataManager.getUserNotifications(
+        currentUser.uid
+      );
+
       console.log(`📊 Loaded ${this.notifications.length} notifications`);
     } catch (error) {
       console.error("❌ Error loading notifications:", error);
@@ -89,13 +100,33 @@ export class NotificationsPage {
     try {
       console.log("🔄 Setting up real-time notification listeners...");
 
-      // Listen for user profile changes (notifications may be updated)
+      const currentUserUid = currentUser.state?.user?.uid;
+      if (!currentUserUid) {
+        console.warn("⚠️ No current user for notifications listener");
+        return;
+      }
+
+      // Direct real-time listener for notifications - this is the key fix!
+      const notificationsUnsubscriber = dataManager.setupNotificationsListener(
+        currentUserUid,
+        (notifications) => {
+          if (this.isActive) {
+            console.log(
+              "📨 Real-time notifications update received:",
+              notifications.length
+            );
+            this.notifications = notifications;
+            this.render(); // Re-render with new notifications
+          }
+        }
+      );
+
+      // Listen for user profile changes (secondary updates)
       const profileUnsubscriber = realTimeManager.on(
         REALTIME_EVENTS.USER_PROFILE,
         async (profile) => {
           console.log("👤 User profile updated, refreshing notifications...");
-          await this.loadNotifications();
-          this.render();
+          this.render(); // Just re-render with existing notifications
         }
       );
 
@@ -104,13 +135,16 @@ export class NotificationsPage {
         REALTIME_EVENTS.FRIENDSHIPS,
         async (friendships) => {
           console.log("🤝 Friendships updated, refreshing notifications...");
-          await this.loadNotifications();
-          this.render();
+          this.render(); // Just re-render with existing notifications
         }
       );
 
-      this.unsubscribers.push(profileUnsubscriber, friendshipUnsubscriber);
-      
+      this.unsubscribers.push(
+        notificationsUnsubscriber,
+        profileUnsubscriber,
+        friendshipUnsubscriber
+      );
+
       console.log("✅ Real-time listeners set up successfully");
     } catch (error) {
       console.error("❌ Error setting up real-time listeners:", error);
@@ -123,7 +157,7 @@ export class NotificationsPage {
   render() {
     try {
       console.log("🎨 Rendering NotificationsPage...");
-      
+
       const template = `
         <div class="content-grid">
           <div class="notifications-page">
@@ -139,7 +173,9 @@ export class NotificationsPage {
                 </p>
               </div>
               <div class="header-actions">
-                <button type="button" class="mark-all-read button secondary" ${this.notifications.length === 0 ? 'disabled' : ''}>
+                <button type="button" class="mark-all-read button secondary" ${
+                  this.notifications.length === 0 ? "disabled" : ""
+                }>
                   <i class="fas fa-check-double"></i>
                   Mark All Read
                 </button>
@@ -159,8 +195,8 @@ export class NotificationsPage {
           </div>
         </div>
       `;
-      
-      const mainContent = document.querySelector('.main-content');
+
+      const mainContent = document.querySelector(".main-content");
       if (mainContent) {
         mainContent.innerHTML = template;
         this.setupEventHandlers();
@@ -197,18 +233,20 @@ export class NotificationsPage {
       `;
     }
 
-    return this.notifications.map(notification => {
-      if (notification.type === "location_share_request") {
-        return this.renderLocationShareRequest(notification);
-      } else if (notification.type === "friend_request") {
-        return this.renderFriendRequest(notification);
-      } else if (notification.type === "location_sharing_enabled") {
-        return this.renderLocationSharingEnabled(notification);
-      }
-      
-      // Default notification rendering
-      return this.renderGenericNotification(notification);
-    }).join('');
+    return this.notifications
+      .map((notification) => {
+        if (notification.type === "location_share_request") {
+          return this.renderLocationShareRequest(notification);
+        } else if (notification.type === "friend_request") {
+          return this.renderFriendRequest(notification);
+        } else if (notification.type === "location_sharing_enabled") {
+          return this.renderLocationSharingEnabled(notification);
+        }
+
+        // Default notification rendering
+        return this.renderGenericNotification(notification);
+      })
+      .join("");
   }
 
   /**
@@ -218,28 +256,38 @@ export class NotificationsPage {
    */
   renderLocationShareRequest(notification) {
     const isRead = notification.read || false;
-    const readClass = isRead ? 'notification-read' : 'notification-unread';
-    
+    const readClass = isRead ? "notification-read" : "notification-unread";
+
     return `
-      <div class="notification-item location-request ${readClass}" data-notification-id="${notification.id}">
+      <div class="notification-item location-request ${readClass}" data-notification-id="${
+      notification.id
+    }">
         <div class="notification-avatar">
-          <img src="${avatarManager.generateAvatarUrl(notification.fromUserInfo.avatarConfig)}" 
+          <img src="${avatarManager.generateAvatarUrl(
+            notification.fromUserInfo.avatarConfig
+          )}" 
                alt="${notification.fromUserInfo.displayName}"
-               onerror="this.src='${avatarManager.getAvatarFallback()}'">
+               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
         </div>
         
         <div class="notification-content">
           <div class="notification-text">
-            <strong>${notification.fromUserInfo.displayName}</strong> wants to share campus locations with you
+            <strong>${
+              notification.fromUserInfo.displayName
+            }</strong> wants to share campus locations with you
           </div>
           <div class="notification-details">
             Share your real-time location to see each other on campus
           </div>
-          <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
+          <div class="notification-time">${this.formatTime(
+            notification.createdAt
+          )}</div>
         </div>
         
         <div class="notification-actions">
-          <button class="accept-location-btn" data-friendship-id="${notification.locationRequest.friendshipId}">
+          <button class="accept-location-btn" data-friendship-id="${
+            notification.locationRequest.friendshipId
+          }" data-notification-id="${notification.id}">
             Share Location
           </button>
           <button class="dismiss-btn" data-notification-id="${notification.id}">
@@ -257,28 +305,40 @@ export class NotificationsPage {
    */
   renderFriendRequest(notification) {
     const isRead = notification.read || false;
-    const readClass = isRead ? 'notification-read' : 'notification-unread';
-    
+    const readClass = isRead ? "notification-read" : "notification-unread";
+
     return `
-      <div class="notification-item friend-request ${readClass}" data-notification-id="${notification.id}">
+      <div class="notification-item friend-request ${readClass}" data-notification-id="${
+      notification.id
+    }">
         <div class="notification-avatar">
-          <img src="${avatarManager.generateAvatarUrl(notification.fromUserInfo.avatarConfig)}" 
+          <img src="${avatarManager.generateAvatarUrl(
+            notification.fromUserInfo.avatarConfig
+          )}" 
                alt="${notification.fromUserInfo.displayName}"
-               onerror="this.src='${avatarManager.getAvatarFallback()}'">
+               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
         </div>
         
         <div class="notification-content">
           <div class="notification-text">
-            <strong>${notification.fromUserInfo.displayName}</strong> sent you a friend request
+            <strong>${
+              notification.fromUserInfo.displayName
+            }</strong> sent you a friend request
           </div>
           <div class="notification-details">
-            ${notification.fromUserInfo.major} • ${notification.fromUserInfo.university}
+            ${notification.fromUserInfo.major} • ${
+      notification.fromUserInfo.university
+    }
           </div>
-          <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
+          <div class="notification-time">${this.formatTime(
+            notification.createdAt
+          )}</div>
         </div>
         
         <div class="notification-actions">
-          <button class="accept-friend-btn" data-request-id="${notification.friendRequest.requestId}">
+          <button class="accept-friend-btn" data-request-id="${
+            notification.friendRequest.requestId
+          }">
             Accept
           </button>
           <button class="dismiss-btn" data-notification-id="${notification.id}">
@@ -296,24 +356,32 @@ export class NotificationsPage {
    */
   renderLocationSharingEnabled(notification) {
     const isRead = notification.read || false;
-    const readClass = isRead ? 'notification-read' : 'notification-unread';
-    
+    const readClass = isRead ? "notification-read" : "notification-unread";
+
     return `
-      <div class="notification-item location-enabled ${readClass}" data-notification-id="${notification.id}">
+      <div class="notification-item location-enabled ${readClass}" data-notification-id="${
+      notification.id
+    }">
         <div class="notification-avatar">
-          <img src="${avatarManager.generateAvatarUrl(notification.fromUserInfo.avatarConfig)}" 
+          <img src="${avatarManager.generateAvatarUrl(
+            notification.fromUserInfo.avatarConfig
+          )}" 
                alt="${notification.fromUserInfo.displayName}"
-               onerror="this.src='${avatarManager.getAvatarFallback()}'">
+               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
         </div>
         
         <div class="notification-content">
           <div class="notification-text">
-            <strong>${notification.fromUserInfo.displayName}</strong> is now sharing their location with you
+            <strong>${
+              notification.fromUserInfo.displayName
+            }</strong> is now sharing their location with you
           </div>
           <div class="notification-details">
             You can now see each other on the campus map
           </div>
-          <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
+          <div class="notification-time">${this.formatTime(
+            notification.createdAt
+          )}</div>
         </div>
         
         <div class="notification-actions">
@@ -332,15 +400,19 @@ export class NotificationsPage {
    */
   renderGenericNotification(notification) {
     const isRead = notification.read || false;
-    const readClass = isRead ? 'notification-read' : 'notification-unread';
-    
+    const readClass = isRead ? "notification-read" : "notification-unread";
+
     return `
-      <div class="notification-item generic ${readClass}" data-notification-id="${notification.id}">
+      <div class="notification-item generic ${readClass}" data-notification-id="${
+      notification.id
+    }">
         <div class="notification-content">
           <div class="notification-text">
-            ${notification.message || 'New notification'}
+            ${notification.message || "New notification"}
           </div>
-          <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
+          <div class="notification-time">${this.formatTime(
+            notification.createdAt
+          )}</div>
         </div>
         
         <div class="notification-actions">
@@ -360,17 +432,23 @@ export class NotificationsPage {
       console.log("🔧 Setting up notification event handlers...");
 
       // Handle location sharing acceptance
-      document.querySelectorAll('.accept-location-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+      document.querySelectorAll(".accept-location-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
           const friendshipId = e.target.dataset.friendshipId;
-          console.log("📍 Accepting location sharing for friendship:", friendshipId);
-          await this.acceptLocationSharing(friendshipId);
+          const notificationId = e.target.dataset.notificationId;
+          console.log(
+            "📍 Accepting location sharing for friendship:",
+            friendshipId,
+            "notification:",
+            notificationId
+          );
+          await this.acceptLocationSharing(friendshipId, notificationId);
         });
       });
 
       // Handle friend request acceptance
-      document.querySelectorAll('.accept-friend-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+      document.querySelectorAll(".accept-friend-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
           const requestId = e.target.dataset.requestId;
           console.log("👥 Accepting friend request:", requestId);
           await this.acceptFriendRequest(requestId);
@@ -378,8 +456,8 @@ export class NotificationsPage {
       });
 
       // Handle notification dismissal
-      document.querySelectorAll('.dismiss-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+      document.querySelectorAll(".dismiss-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
           const notificationId = e.target.dataset.notificationId;
           console.log("🗑️ Dismissing notification:", notificationId);
           await this.dismissNotification(notificationId);
@@ -387,9 +465,9 @@ export class NotificationsPage {
       });
 
       // Handle mark all read
-      const markAllReadBtn = document.querySelector('.mark-all-read');
+      const markAllReadBtn = document.querySelector(".mark-all-read");
       if (markAllReadBtn && !markAllReadBtn.disabled) {
-        markAllReadBtn.addEventListener('click', async () => {
+        markAllReadBtn.addEventListener("click", async () => {
           console.log("📖 Marking all notifications as read");
           await this.markAllNotificationsRead();
         });
@@ -404,8 +482,9 @@ export class NotificationsPage {
   /**
    * Accept location sharing with a friend
    * @param {string} friendshipId - The friendship ID to enable location sharing for
+   * @param {string} notificationId - The notification ID to dismiss after acceptance
    */
-  async acceptLocationSharing(friendshipId) {
+  async acceptLocationSharing(friendshipId, notificationId) {
     try {
       console.log("📍 Processing location sharing acceptance...");
 
@@ -426,19 +505,32 @@ export class NotificationsPage {
         // Start tracking location
         await this.startLocationTracking();
 
-        notificationManager.showSuccessNotification("Location sharing enabled!");
-        
+        // Dismiss the notification after successful acceptance
+        if (notificationId) {
+          console.log(
+            "🗑️ Dismissing location sharing notification:",
+            notificationId
+          );
+          await this.dismissNotification(notificationId);
+        }
+
+        notificationManager.showSuccessNotification(
+          "Location sharing enabled!"
+        );
+
         // Refresh notifications to update UI
         await this.loadNotifications();
         this.render();
-        
+
         console.log("✅ Location sharing accepted successfully");
       } else {
         throw new Error(result.error || "Failed to enable location sharing");
       }
     } catch (error) {
       console.error("❌ Error accepting location sharing:", error);
-      notificationManager.showErrorNotification("Failed to enable location sharing");
+      notificationManager.showErrorNotification(
+        "Failed to enable location sharing"
+      );
     }
   }
 
@@ -454,18 +546,20 @@ export class NotificationsPage {
 
       if (result.success) {
         notificationManager.showSuccessNotification("Friend request accepted!");
-        
+
         // Refresh notifications to update UI
         await this.loadNotifications();
         this.render();
-        
+
         console.log("✅ Friend request accepted successfully");
       } else {
         throw new Error(result.error || "Failed to accept friend request");
       }
     } catch (error) {
       console.error("❌ Error accepting friend request:", error);
-      notificationManager.showErrorNotification("Failed to accept friend request");
+      notificationManager.showErrorNotification(
+        "Failed to accept friend request"
+      );
     }
   }
 
@@ -481,16 +575,20 @@ export class NotificationsPage {
 
       if (result.success) {
         // Remove from local array immediately for responsive UI
-        this.notifications = this.notifications.filter(n => n.id !== notificationId);
+        this.notifications = this.notifications.filter(
+          (n) => n.id !== notificationId
+        );
         this.render();
-        
+
         console.log("✅ Notification dismissed successfully");
       } else {
         throw new Error(result.error || "Failed to dismiss notification");
       }
     } catch (error) {
       console.error("❌ Error dismissing notification:", error);
-      notificationManager.showErrorNotification("Failed to dismiss notification");
+      notificationManager.showErrorNotification(
+        "Failed to dismiss notification"
+      );
     }
   }
 
@@ -501,21 +599,30 @@ export class NotificationsPage {
     try {
       console.log("📖 Marking all notifications as read...");
 
-      const result = await dataManager.markAllNotificationsRead(currentUser.uid);
+      const result = await dataManager.markAllNotificationsRead(
+        currentUser.uid
+      );
 
       if (result.success) {
         // Update local notifications
-        this.notifications = this.notifications.map(n => ({ ...n, read: true }));
+        this.notifications = this.notifications.map((n) => ({
+          ...n,
+          read: true,
+        }));
         this.render();
-        
-        notificationManager.showSuccessNotification("All notifications marked as read");
+
+        notificationManager.showSuccessNotification(
+          "All notifications marked as read"
+        );
         console.log("✅ All notifications marked as read");
       } else {
         throw new Error(result.error || "Failed to mark notifications as read");
       }
     } catch (error) {
       console.error("❌ Error marking all notifications as read:", error);
-      notificationManager.showErrorNotification("Failed to mark notifications as read");
+      notificationManager.showErrorNotification(
+        "Failed to mark notifications as read"
+      );
     }
   }
 
@@ -532,7 +639,7 @@ export class NotificationsPage {
       } else {
         console.log("📍 Location permission not granted, requesting...");
         await campusLocationService.requestLocationPermission();
-        
+
         if (campusLocationService.locationPermissionGranted) {
           await campusLocationService.startLocationTracking();
           console.log("✅ Location tracking started after permission granted");
@@ -540,7 +647,9 @@ export class NotificationsPage {
       }
     } catch (error) {
       console.error("❌ Error starting location tracking:", error);
-      notificationManager.showErrorNotification("Failed to start location tracking");
+      notificationManager.showErrorNotification(
+        "Failed to start location tracking"
+      );
     }
   }
 
@@ -552,16 +661,19 @@ export class NotificationsPage {
   formatTime(timestamp) {
     try {
       let date;
-      
+
       if (timestamp?.toDate) {
         // Firestore timestamp
         date = timestamp.toDate();
       } else if (timestamp instanceof Date) {
         date = timestamp;
-      } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      } else if (
+        typeof timestamp === "string" ||
+        typeof timestamp === "number"
+      ) {
         date = new Date(timestamp);
       } else {
-        return 'Just now';
+        return "Just now";
       }
 
       const now = new Date();
@@ -570,7 +682,7 @@ export class NotificationsPage {
       const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
 
-      if (diffMins < 1) return 'Just now';
+      if (diffMins < 1) return "Just now";
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays < 7) return `${diffDays}d ago`;
@@ -578,7 +690,7 @@ export class NotificationsPage {
       return date.toLocaleDateString();
     } catch (error) {
       console.error("❌ Error formatting time:", error);
-      return 'Recently';
+      return "Recently";
     }
   }
 
@@ -588,17 +700,17 @@ export class NotificationsPage {
   cleanup() {
     try {
       console.log("🧹 Cleaning up NotificationsPage...");
-      
+
       this.isActive = false;
-      
+
       // Unsubscribe from all real-time listeners
-      this.unsubscribers.forEach(unsubscriber => {
-        if (typeof unsubscriber === 'function') {
+      this.unsubscribers.forEach((unsubscriber) => {
+        if (typeof unsubscriber === "function") {
           unsubscriber();
         }
       });
       this.unsubscribers = [];
-      
+
       console.log("✅ NotificationsPage cleanup complete");
     } catch (error) {
       console.error("❌ Error during NotificationsPage cleanup:", error);
@@ -618,13 +730,17 @@ export class NotificationsPage {
 export const notificationsPage = new NotificationsPage();
 
 // 🎯 Connect to SPA Router - listen for page load events
-console.log("🔔 NotificationsPage: Registering spa:page:load event listener...");
+console.log(
+  "🔔 NotificationsPage: Registering spa:page:load event listener..."
+);
 document.addEventListener("spa:page:load", (event) => {
   console.log(
     `🔔 NotificationsPage: Received spa:page:load event for route: ${event.detail.route}`
   );
   if (event.detail.route === "notifications") {
-    console.log("🔔 Notifications page loaded, initializing NotificationsPage...");
+    console.log(
+      "🔔 Notifications page loaded, initializing NotificationsPage..."
+    );
     notificationsPage.init();
   }
 });
