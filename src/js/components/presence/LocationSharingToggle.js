@@ -316,6 +316,9 @@ export class LocationSharingToggle {
 
         // Emit event for parent components
         this.emitStateChangeEvent('global', newEnabled);
+
+        // 🌍 Handle location tracking based on global toggle
+        this.handleLocationTrackingForGlobalToggle(newEnabled);
       } else {
         throw new Error('Failed to update global location preferences');
       }
@@ -661,6 +664,31 @@ export class LocationSharingToggle {
     await this.updateCurrentState();
     this.updateToggleState();
     console.log('🔄 LocationSharingToggle refreshed');
+  }
+
+  /**
+   * 🌍 Handle location tracking when global location sharing is toggled
+   * @param {boolean} enabled - Whether global location sharing was enabled or disabled
+   */
+  async handleLocationTrackingForGlobalToggle(enabled) {
+    try {
+      // Dynamically import campus location service to avoid circular dependencies
+      const { campusLocationService } = await import('../../services/location/CampusLocationService.js');
+      
+      if (enabled) {
+        // Global location sharing was enabled - start tracking if conditions are met
+        console.log('🌍 Global location sharing enabled - checking if automatic tracking should start...');
+        setTimeout(() => {
+          campusLocationService.autoStartLocationTracking();
+        }, 500);
+      } else {
+        // Global location sharing was disabled - stop tracking immediately
+        console.log('🌍 Global location sharing disabled - stopping location tracking');
+        campusLocationService.stopLocationTracking();
+      }
+    } catch (error) {
+      console.error('🌍 Error handling location tracking for global toggle:', error);
+    }
   }
 
   /**

@@ -612,6 +612,97 @@ export class CampusLocationService {
     }
 
     /**
+     * Automatically start location tracking if user has location sharing enabled
+     * Called when user loads the website or profile is loaded
+     */
+    async autoStartLocationTracking() {
+        try {
+            console.log('[CampusLocationService] Checking if automatic location tracking should start...');
+            
+            // Import required services
+            const { dataManager } = await import('../data/DataService.js');
+            const { currentUser } = await import('../../store/userStore.js');
+
+            // Check if user is logged in
+            if (!currentUser?.uid) {
+                console.log('[CampusLocationService] No user logged in - skipping auto-start');
+                return;
+            }
+
+            // Wait for user profile to be available
+            const userProfile = await currentUser.waitForProfile();
+            if (!userProfile) {
+                console.log('[CampusLocationService] No user profile available - skipping auto-start');
+                return;
+            }
+
+            // Check if global location sharing is enabled
+            const globalLocationEnabled = userProfile?.systemInfo?.locationSharingEnabled;
+            if (!globalLocationEnabled) {
+                console.log('[CampusLocationService] Global location sharing disabled - skipping auto-start');
+                return;
+            }
+
+            // Check if user has any friends with mutual location sharing enabled
+            const hasLocationSharingFriends = await this.checkForLocationSharingFriends();
+            if (!hasLocationSharingFriends) {
+                console.log('[CampusLocationService] No friends with mutual location sharing - skipping auto-start');
+                return;
+            }
+
+            // Check if tracking is already active
+            if (this.isTrackingActive()) {
+                console.log('[CampusLocationService] Location tracking already active');
+                return;
+            }
+
+            console.log('[CampusLocationService] ✅ Conditions met - starting automatic location tracking');
+            await this.startLocationTracking();
+
+        } catch (error) {
+            console.error('[CampusLocationService] Error in auto-start location tracking:', error);
+        }
+    }
+
+    /**
+     * Check if user has any friends with mutual location sharing enabled
+     * @returns {Promise<boolean>} True if user has location-sharing friends
+     */
+    async checkForLocationSharingFriends() {
+        try {
+            const { dataManager } = await import('../data/DataService.js');
+            const { currentUser } = await import('../../store/userStore.js');
+
+            if (!currentUser?.uid) {
+                return false;
+            }
+
+            // Get all friendships for current user
+            const friendships = await dataManager.getUserFriendships(currentUser.uid);
+            
+            // Check if any friendship has mutual location sharing enabled
+            for (const friendship of friendships) {
+                const locationVisibility = friendship.locationVisibility;
+                if (locationVisibility) {
+                    const userShares = locationVisibility[currentUser.uid];
+                    const friendShares = locationVisibility[friendship.user1Id === currentUser.uid ? friendship.user2Id : friendship.user1Id];
+                    
+                    // If both users have enabled location sharing
+                    if (userShares && friendShares) {
+                        console.log('[CampusLocationService] Found mutual location sharing with friend:', friendship.user1Id === currentUser.uid ? friendship.user2Id : friendship.user1Id);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        } catch (error) {
+            console.error('[CampusLocationService] Error checking for location sharing friends:', error);
+            return false;
+        }
+    }
+
+    /**
      * Check if location tracking is currently active
      * @returns {boolean} True if tracking is active
      */

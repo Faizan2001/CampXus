@@ -633,6 +633,9 @@ class AuthManager {
             currentUser.setProfile(userProfile);
             // For backward compatibility, you might still notify listeners with the user object
             this.notifyAuthStateChange(user);
+            
+            // 🌍 Auto-start location tracking if conditions are met
+            this.initializeLocationTracking();
           } else {
             // 🎯 FINAL FIX: This is the critical change.
             // During a race condition on first sign-in, the profile might not be available
@@ -700,6 +703,27 @@ class AuthManager {
   }
 
   /**
+   * Initialize location tracking if user has location sharing enabled
+   * Called after user profile is successfully loaded
+   */
+  async initializeLocationTracking() {
+    try {
+      console.log('🌍 [AuthService] Initializing location tracking...');
+      
+      // Dynamically import campus location service to avoid circular dependencies
+      const { campusLocationService } = await import('../location/CampusLocationService.js');
+      
+      // Use a small delay to ensure all auth processes are complete
+      setTimeout(() => {
+        campusLocationService.autoStartLocationTracking();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('🌍 [AuthService] Error initializing location tracking:', error);
+    }
+  }
+
+  /**
    * Notify all listeners about auth state change
    * @param {Object|null} user - User object or null
    */
@@ -735,6 +759,12 @@ class AuthManager {
       if (window.friendsManager) {
         console.log("🛑 Stopping friends listeners before sign out...");
         window.friendsManager.stopRealTimeListening();
+      }
+
+      // Stop location tracking before signing out
+      if (window.campusLocationService) {
+        console.log("🌍 Stopping location tracking before sign out...");
+        window.campusLocationService.stopLocationTracking();
       }
 
       await signOut(auth);

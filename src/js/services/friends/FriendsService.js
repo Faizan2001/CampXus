@@ -2305,6 +2305,9 @@ export class FriendsManager {
       if (result.success) {
         console.log(`✅ Successfully ${enabled ? "enabled" : "disabled"} location sharing`);
         
+        // 🌍 Handle location tracking based on toggle
+        this.handleLocationTrackingToggle(enabled);
+        
         return {
           success: true,
           message: `Location sharing ${enabled ? "enabled" : "disabled"}`,
@@ -2325,6 +2328,41 @@ export class FriendsManager {
         success: false,
         message: "Something went wrong. Please try again."
       };
+    }
+  }
+
+  /**
+   * Handle location tracking when location sharing is toggled
+   * @param {boolean} enabled - Whether location sharing was enabled or disabled
+   */
+  async handleLocationTrackingToggle(enabled) {
+    try {
+      // Dynamically import campus location service to avoid circular dependencies
+      const { campusLocationService } = await import('../location/CampusLocationService.js');
+      
+      if (enabled) {
+        // Location sharing was enabled - check if tracking should start
+        console.log('🌍 Location sharing enabled - checking if automatic tracking should start...');
+        setTimeout(() => {
+          campusLocationService.autoStartLocationTracking();
+        }, 500);
+      } else {
+        // Location sharing was disabled - check if tracking should stop
+        console.log('🌍 Location sharing disabled - checking if tracking should stop...');
+        
+        // Small delay to ensure database changes are reflected
+        setTimeout(async () => {
+          const hasLocationSharingFriends = await campusLocationService.checkForLocationSharingFriends();
+          if (!hasLocationSharingFriends) {
+            console.log('🌍 No more location sharing friends - stopping location tracking');
+            campusLocationService.stopLocationTracking();
+          } else {
+            console.log('🌍 Still have location sharing friends - continuing tracking');
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error('🌍 Error handling location tracking toggle:', error);
     }
   }
 }
