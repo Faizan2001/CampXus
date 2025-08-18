@@ -1764,7 +1764,7 @@ export class HorizontalFriendsBar {
 
       const userProfileUnsubscriber = dataManager.listenToUserProfile(
         currentUser.user.uid,
-        (userProfile) => {
+        async (userProfile) => {
           // ENHANCED CIRCUIT BREAKER: Don't process database updates during ANY sync operations
           if (
             this.isBatchSyncing ||
@@ -1799,7 +1799,11 @@ export class HorizontalFriendsBar {
                 }
               );
 
-              this.quickAccessFriends = newFriendsData;
+              // FIXED: Preserve location context during external updates to prevent grey dots
+              // Re-enhance the new friends data with location context before rendering
+              console.log("🔄 Re-enhancing external friends data with location context...");
+              const enhancedFriends = await this.enhanceFriendsWithLocationData(newFriendsData);
+              this.quickAccessFriends = enhancedFriends;
               this.render();
 
               // Re-setup privacy listeners for new friend list

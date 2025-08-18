@@ -65,7 +65,7 @@ const campuses = {
       //23.814962, 90.427215
       //23.815538, 90.427157
       //23.815894, 90.427129
-      //23.816093, 90.427126 First one again to close polygon
+      
       { lat: 23.816093, lng: 90.427126 },
       { lat: 23.816130, lng: 90.427511 }, // Northwest corner (PLACEHOLDER)
       { lat: 23.816167, lng: 90.427975 }, // Northeast corner (PLACEHOLDER)
@@ -76,7 +76,7 @@ const campuses = {
       { lat: 23.814962, lng: 90.427215 },
       { lat: 23.815538, lng: 90.427157 },
       { lat: 23.815894, lng: 90.427129 },
-      { lat: 23.816093, lng: 90.427126 }, // Close polygon (PLACEHOLDER)
+     
     ],
     
     // Campus metadata

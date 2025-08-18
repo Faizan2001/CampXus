@@ -33,7 +33,7 @@ export class CampusLocationService {
         this.isUserCurrentlyActive = false;
         this.lastActivityDetected = null;
         this.activityHeartbeatInterval = null;
-        this.minActivityInterval = 30000; // Activity updates every 30 seconds
+        this.minActivityInterval = 60000; // OPTIMIZED: Activity updates every 60 seconds for better battery life
         this.isUpdatingActivity = false; // Prevent concurrent activity updates
         
         console.log('[CampusLocationService] Service initialized', {
@@ -424,10 +424,11 @@ export class CampusLocationService {
             return null;
         }
 
+        // FIXED: Battery-optimized configuration for campus presence tracking
         const options = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 30000 // 30 seconds cache for watch
+            enableHighAccuracy: false, // CHANGED: Use false for battery efficiency, true only for navigation apps
+            timeout: 15000, // INCREASED: Give more time for lower-power GPS fix
+            maximumAge: 300000 // CHANGED: 5 minutes cache to reduce GPS polling frequency
         };
 
         const watchId = navigator.geolocation.watchPosition(
@@ -439,17 +440,22 @@ export class CampusLocationService {
                     accuracy: position.coords.accuracy,
                     timestamp: new Date(position.timestamp).toISOString()
                 });
-                callback(position);
+                if (callback) callback(position);
             },
             (error) => {
                 console.error('[CampusLocationService] Position watch error:', error);
-                callback(null, error);
+                if (callback) callback(null, error);
             },
             options
         );
 
-        console.log('[CampusLocationService] Position watch started with ID:', watchId);
-        return watchId;
+        if (watchId !== null) {
+            console.log('[CampusLocationService] Position watch started with ID:', watchId);
+            return watchId;
+        } else {
+            console.error('[CampusLocationService] Failed to start position watch');
+            return null;
+        }
     }
 
     /**
@@ -573,7 +579,7 @@ export class CampusLocationService {
             return;
         }
 
-        // Debounce the update by 5 seconds to group rapid GPS changes
+        // OPTIMIZED: Increased debounce to 10 seconds to reduce database calls and UI churn
         this.locationUpdateDebounceTimeout = setTimeout(async () => {
             try {
                 if (this.isUpdatingLocation) {
@@ -647,7 +653,7 @@ export class CampusLocationService {
             } finally {
                 this.isUpdatingLocation = false;
             }
-        }, 5000); // 5 second debounce
+        }, 10000); // OPTIMIZED: 10 second debounce for better battery life and reduced UI churn
     }
 
     /**
@@ -856,7 +862,7 @@ export class CampusLocationService {
             return;
         }
 
-        console.log('[CampusLocationService] Starting activity heartbeat (30s intervals)...');
+        console.log('[CampusLocationService] Starting activity heartbeat (60s intervals - optimized for battery life)...');
         
         this.activityHeartbeatInterval = setInterval(async () => {
             if (this.isUserCurrentlyActive) {
@@ -899,7 +905,7 @@ export class CampusLocationService {
                     this.isUpdatingActivity = false;
                 }
             }
-        }, this.minActivityInterval); // 30 seconds
+        }, this.minActivityInterval); // 60 seconds (optimized)
 
         console.log('[CampusLocationService] ✅ Activity heartbeat started');
     }
