@@ -104,6 +104,9 @@ export class HorizontalFriendsBar {
     this.lastDatabaseState = null;
     this.lastUpdateTimestamp = 0;
 
+    // Debouncing timeout for Quick Access updates
+    this.quickAccessUpdateTimeout = null;
+
     console.log(
       `🏗️ HorizontalFriendsBar created with enhanced loop prevention and privacy optimization for container: ${containerId}`
     );
@@ -1936,10 +1939,13 @@ export class HorizontalFriendsBar {
     const quickAccessUnsubscriber = realTimeManager.on(
       REALTIME_EVENTS.QUICK_ACCESS_UPDATED,
       (quickAccessData) => {
-        console.log(
-          "⭐ REALTIME: Quick Access update event received in HorizontalFriendsBar:",
-          quickAccessData
-        );
+        // Only log in development to reduce console spam in production
+        if (window.location.hostname === 'localhost') {
+          console.log(
+            "⭐ REALTIME: Quick Access update event received in HorizontalFriendsBar:",
+            quickAccessData
+          );
+        }
 
         // Handle the Quick Access update to refresh the UI
         this.handleRealTimeQuickAccessUpdate(quickAccessData);
@@ -1951,10 +1957,13 @@ export class HorizontalFriendsBar {
     const campusPresenceUnsubscriber = realTimeManager.on(
       REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED,
       (presenceEvent) => {
-        console.log(
-          "🌍 REALTIME: Campus presence change received in HorizontalFriendsBar:",
-          presenceEvent
-        );
+        // Only log in development to reduce console spam in production
+        if (window.location.hostname === 'localhost') {
+          console.log(
+            "🌍 REALTIME: Campus presence change received in HorizontalFriendsBar:",
+            presenceEvent
+          );
+        }
         
         // Handle the campus presence update to refresh presence dots
         this.handleCampusPresenceUpdate(presenceEvent);
@@ -1966,10 +1975,13 @@ export class HorizontalFriendsBar {
     const activityUnsubscriber = realTimeManager.on(
       REALTIME_EVENTS.USER_ACTIVITY_CHANGED,
       (activityEvent) => {
-        console.log(
-          "💓 REALTIME: User activity change received in HorizontalFriendsBar:",
-          activityEvent
-        );
+        // Only log in development to reduce console spam in production
+        if (window.location.hostname === 'localhost') {
+          console.log(
+            "💓 REALTIME: User activity change received in HorizontalFriendsBar:",
+            activityEvent
+          );
+        }
         
         // Handle the activity change to refresh presence dots (solid vs timer)
         this.handleUserActivityUpdate(activityEvent);
@@ -3087,10 +3099,11 @@ export class HorizontalFriendsBar {
       } finally {
         this.isSyncing = false;
 
-        // Staggered release of global lock to prevent race conditions
+        // FIXED: Immediate release of global lock to prevent blocking legitimate operations
+        // Reduced from 2000ms to 100ms to allow proper operation flow
         setTimeout(() => {
           window.horizontalFriendsBar_updating = false;
-        }, 2000);
+        }, 100);
       }
     }, 1000); // 1 second for urgent syncs
   }
@@ -3341,13 +3354,16 @@ export class HorizontalFriendsBar {
 
   /**
    * Handle real-time Quick Access updates
-   * ENHANCED: Added data validation to prevent undefined values
+   * OPTIMIZED: Added intelligent change detection and debouncing to prevent excessive re-renders
    */
   async handleRealTimeQuickAccessUpdate(quickAccessData) {
     try {
-      console.log(
-        "⭐ Processing real-time Quick Access update in horizontal bar"
-      );
+      // Only log in development to reduce console spam in production
+      if (window.location.hostname === 'localhost') {
+        console.log(
+          "⭐ Processing real-time Quick Access update in horizontal bar"
+        );
+      }
 
       const { quickAccessFriends = [] } = quickAccessData;
 
@@ -3377,39 +3393,61 @@ export class HorizontalFriendsBar {
         `🔍 DEBUG: Real-time update validated ${validatedFriends.length}/${quickAccessFriends.length} friends`
       );
 
-      // 🌍 Campus Presence: Get friends with full privacy and location data for presence dots
-      // Use the same path as initial load to ensure consistent data structure
-      const quickAccessWithPrivacy = await friendsManager.getQuickAccessFriendsWithPrivacy(false);
-      const friendsWithLocation = await this.enhanceFriendsWithLocationData(quickAccessWithPrivacy);
-      
-      // Update internal state with location-enhanced data
-      this.quickAccessFriends = friendsWithLocation;
+      // Check if the friend list actually changed to prevent unnecessary operations
+      const currentFriendIds = (this.quickAccessFriends || []).map(f => f.friendId || f.userId).sort();
+      const newFriendIds = validatedFriends.map(f => f.friendId || f.userId).sort();
+      const friendListChanged = JSON.stringify(currentFriendIds) !== JSON.stringify(newFriendIds);
 
-      // Set up new profile listeners for the updated starred friends list
-      await this.setupStarredFriendProfileListeners();
-
-      // Re-render the friends bar
-      this.render();
-
-      // Maintain current selection if still valid
-      if (this.selectedFriendId) {
-        const stillExists = validatedFriends.some(
-          (f) => (f.friendId || f.userId) === this.selectedFriendId
-        );
-
-        if (!stillExists) {
-          // Friend was unstarred, fallback to user's schedule
-          await this.selectUser();
-        } else {
-          // Re-select the current friend to maintain visual state
-          this.updateVisualSelection(this.selectedFriendId);
-        }
-      } else {
-        // No friend selected or user should be selected, ensure user is selected
-        await this.ensureUserSelected();
+      if (!friendListChanged) {
+        console.log("📡 Quick Access friend list unchanged, skipping expensive operations");
+        return;
       }
 
-      console.log("✅ Real-time Quick Access update processed successfully");
+      // Debounce rapid updates to prevent cascade re-renders
+      if (this.quickAccessUpdateTimeout) {
+        clearTimeout(this.quickAccessUpdateTimeout);
+      }
+
+      this.quickAccessUpdateTimeout = setTimeout(async () => {
+        try {
+          // 🌍 Campus Presence: Get friends with full privacy and location data for presence dots
+          // Only fetch fresh data when the friend list actually changed
+          const quickAccessWithPrivacy = await friendsManager.getQuickAccessFriendsWithPrivacy(false);
+          const friendsWithLocation = await this.enhanceFriendsWithLocationData(quickAccessWithPrivacy);
+          
+          // Update internal state with location-enhanced data
+          this.quickAccessFriends = friendsWithLocation;
+
+          // Set up new profile listeners for the updated starred friends list
+          await this.setupStarredFriendProfileListeners();
+
+          // Re-render the friends bar
+          this.render();
+
+          // Maintain current selection if still valid
+          if (this.selectedFriendId) {
+            const stillExists = validatedFriends.some(
+              (f) => (f.friendId || f.userId) === this.selectedFriendId
+            );
+
+            if (!stillExists) {
+              // Friend was unstarred, fallback to user's schedule
+              await this.selectUser();
+            } else {
+              // Re-select the current friend to maintain visual state
+              this.updateVisualSelection(this.selectedFriendId);
+            }
+          } else {
+            // No friend selected or user should be selected, ensure user is selected
+            await this.ensureUserSelected();
+          }
+
+          console.log("✅ Real-time Quick Access update processed successfully");
+        } catch (error) {
+          console.error("❌ Error in debounced Quick Access update:", error);
+        }
+      }, 250); // 250ms debounce to prevent rapid-fire updates
+
     } catch (error) {
       console.error("❌ Error handling real-time Quick Access update:", error);
     }
@@ -3469,10 +3507,30 @@ export class HorizontalFriendsBar {
    */
   updateFriendPresenceDot(friendIndex, friend) {
     try {
-      // Find the avatar element for this friend
-      const avatarElement = this.avatarElements.get(friend.friendId || friend.userId);
+      const friendId = friend.friendId || friend.userId;
+      
+      // Try to get the avatar element from the cached map first
+      let avatarElement = this.avatarElements.get(friendId);
+      
+      // If cached element is missing or disconnected from DOM, find it fresh
+      if (!avatarElement || !avatarElement.isConnected) {
+        console.log(`🔄 Cached avatar element stale for ${friend.displayName}, finding fresh reference`);
+        
+        // Find the element fresh from the DOM
+        const container = document.querySelector('.horizontal-friends-bar .friends-avatars');
+        if (container) {
+          avatarElement = container.querySelector(`[data-friend-id="${friendId}"]`);
+          
+          if (avatarElement) {
+            // Update the cache with the fresh reference
+            this.avatarElements.set(friendId, avatarElement);
+            console.log(`✅ Fresh avatar element found and cached for ${friend.displayName}`);
+          }
+        }
+      }
+      
       if (!avatarElement) {
-        console.warn(`🌍 Avatar element not found for friend ${friend.displayName}`);
+        console.warn(`🌍 Avatar element not found for friend ${friend.displayName} (ID: ${friendId})`);
         return;
       }
 

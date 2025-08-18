@@ -816,9 +816,12 @@ class RealTimeManager {
         description: `User is now ${isActive ? 'active' : 'inactive'}`
       };
 
-      this.log(
-        `💓 Emitting user activity change: ${userId} → ${isActive ? 'active' : 'inactive'}`
-      );
+      // Only log in development to reduce console spam in production
+      if (this.debugMode) {
+        this.log(
+          `💓 Emitting user activity change: ${userId} → ${isActive ? 'active' : 'inactive'}`
+        );
+      }
       this.emit(REALTIME_EVENTS.USER_ACTIVITY_CHANGED, eventPayload);
     } catch (error) {
       console.error('❌ Error emitting user activity change event:', error);

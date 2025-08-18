@@ -862,7 +862,10 @@ export class CampusLocationService {
             if (this.isUserCurrentlyActive) {
                 try {
                     if (this.isUpdatingActivity) {
-                        console.log('[CampusLocationService] ⚠️ Activity update in progress, skipping this heartbeat');
+                        // Skip logging to reduce console spam - only log if debugging
+                        if (window.location.hostname === 'localhost') {
+                            console.log('[CampusLocationService] ⚠️ Activity update in progress, skipping this heartbeat');
+                        }
                         return;
                     }
 
@@ -873,7 +876,10 @@ export class CampusLocationService {
                     const { currentUser } = await import('../../store/userStore.js');
 
                     if (currentUser?.uid) {
-                        console.log('[CampusLocationService] 💓 Activity heartbeat - updating user last active');
+                        // Only log activity heartbeat in development to reduce console spam
+                        if (window.location.hostname === 'localhost') {
+                            console.log('[CampusLocationService] 💓 Activity heartbeat - updating user last active');
+                        }
                         await dataManager.updateUserLastActive(currentUser.uid);
                         
                         // Emit activity change event for real-time updates

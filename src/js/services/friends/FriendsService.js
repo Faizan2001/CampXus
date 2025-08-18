@@ -1636,6 +1636,8 @@ export class FriendsManager {
               friendshipId = friendship?.id;
               if (friendshipId) {
                 console.log(`✅ Found friendshipId for ${friend.displayName}: ${friendshipId}`);
+                // Cache the friendshipId to prevent future lookups
+                friend.friendshipId = friendshipId;
               } else {
                 console.error(`❌ Could not find friendship document for ${friend.displayName}`);
               }
