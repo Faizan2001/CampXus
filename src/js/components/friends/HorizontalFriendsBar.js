@@ -1947,8 +1947,38 @@ export class HorizontalFriendsBar {
     );
     this.realTimeUnsubscribers.push(quickAccessUnsubscriber);
 
+    // Listen for campus presence changes to update presence dots in real-time
+    const campusPresenceUnsubscriber = realTimeManager.on(
+      REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED,
+      (presenceEvent) => {
+        console.log(
+          "🌍 REALTIME: Campus presence change received in HorizontalFriendsBar:",
+          presenceEvent
+        );
+        
+        // Handle the campus presence update to refresh presence dots
+        this.handleCampusPresenceUpdate(presenceEvent);
+      }
+    );
+    this.realTimeUnsubscribers.push(campusPresenceUnsubscriber);
+
+    // Listen for user activity changes to update presence dots (solid vs timer dots)
+    const activityUnsubscriber = realTimeManager.on(
+      REALTIME_EVENTS.USER_ACTIVITY_CHANGED,
+      (activityEvent) => {
+        console.log(
+          "💓 REALTIME: User activity change received in HorizontalFriendsBar:",
+          activityEvent
+        );
+        
+        // Handle the activity change to refresh presence dots (solid vs timer)
+        this.handleUserActivityUpdate(activityEvent);
+      }
+    );
+    this.realTimeUnsubscribers.push(activityUnsubscriber);
+
     console.log(
-      "✅ Smart real-time listeners set up successfully with optimized privacy updates"
+      "✅ Smart real-time listeners set up successfully with optimized privacy, presence, and activity updates"
     );
   }
 
@@ -3382,6 +3412,147 @@ export class HorizontalFriendsBar {
       console.log("✅ Real-time Quick Access update processed successfully");
     } catch (error) {
       console.error("❌ Error handling real-time Quick Access update:", error);
+    }
+  }
+
+  /**
+   * Handle real-time campus presence changes to update presence dots
+   * Updates individual friend's presence dot without full re-render
+   */
+  handleCampusPresenceUpdate(presenceEvent) {
+    try {
+      const { userId, campusStatus, locationData, timestamp } = presenceEvent;
+      
+      console.log(`🌍 Processing campus presence update for user ${userId}:`, {
+        campusStatus,
+        hasLocationData: !!locationData,
+        timestamp
+      });
+
+      // Find if this user is in our Quick Access friends
+      const friendIndex = this.quickAccessFriends.findIndex(
+        friend => friend.friendId === userId || friend.userId === userId
+      );
+
+      if (friendIndex === -1) {
+        console.log(`🌍 User ${userId} not in Quick Access friends, ignoring presence update`);
+        return;
+      }
+
+      // Update friend's location data in our local state
+      const friend = this.quickAccessFriends[friendIndex];
+      friend.lastKnownLocation = {
+        ...friend.lastKnownLocation,
+        campusStatus,
+        ...locationData
+      };
+      friend.lastActive = new Date(timestamp);
+
+      console.log(`🌍 Updated friend ${friend.displayName}'s presence data:`, {
+        campusStatus: friend.lastKnownLocation?.campusStatus,
+        hasLocationSharing: friend.hasLocationSharing
+      });
+
+      // Update only the presence dot for this specific friend
+      this.updateFriendPresenceDot(friendIndex, friend);
+
+      console.log(`✅ Campus presence update processed for ${friend.displayName}`);
+    } catch (error) {
+      console.error('❌ Error handling campus presence update:', error);
+    }
+  }
+
+  /**
+   * Update individual friend's presence dot without full component re-render
+   * @param {number} friendIndex - Index of friend in quickAccessFriends array
+   * @param {Object} friend - Friend data object
+   */
+  updateFriendPresenceDot(friendIndex, friend) {
+    try {
+      // Find the avatar element for this friend
+      const avatarElement = this.avatarElements.get(friend.friendId || friend.userId);
+      if (!avatarElement) {
+        console.warn(`🌍 Avatar element not found for friend ${friend.displayName}`);
+        return;
+      }
+
+      // Find the existing presence dot within the avatar
+      const existingPresenceDot = avatarElement.querySelector('.presence-dot');
+      if (!existingPresenceDot) {
+        console.warn(`🌍 Presence dot element not found for friend ${friend.displayName}`);
+        return;
+      }
+
+      // Generate new presence dot HTML
+      const newPresenceDot = PresenceDot.create(
+        friend.lastActive,
+        friend.lastKnownLocation,
+        friend.hasLocationSharing
+      );
+
+      // Create a temporary container to parse the HTML
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = newPresenceDot;
+      const newPresenceDotElement = tempContainer.querySelector('.presence-dot');
+
+      if (newPresenceDotElement) {
+        // Replace the old presence dot with the new one
+        existingPresenceDot.replaceWith(newPresenceDotElement);
+        
+        console.log(`🌍 ✅ Updated presence dot for ${friend.displayName}:`, {
+          newClass: newPresenceDotElement.className,
+          newText: newPresenceDotElement.querySelector('.dot-text')?.textContent,
+          campusStatus: friend.lastKnownLocation?.campusStatus
+        });
+      } else {
+        console.warn(`🌍 Failed to create new presence dot element for ${friend.displayName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error updating presence dot for ${friend.displayName}:`, error);
+    }
+  }
+
+  /**
+   * Handle user activity change events for real-time presence dot updates
+   * Updates presence dots to show solid dots for active users vs timer dots for inactive
+   * @param {Object} activityEvent - Activity event with userId, isActive, timestamp
+   */
+  handleUserActivityUpdate(activityEvent) {
+    try {
+      const { userId, isActive, timestamp } = activityEvent;
+      
+      console.log(`💓 Processing user activity update for ${userId}:`, {
+        isActive,
+        timestamp
+      });
+
+      // Find if this user is in our Quick Access friends
+      const friendIndex = this.quickAccessFriends.findIndex(
+        friend => friend.friendId === userId || friend.userId === userId
+      );
+
+      if (friendIndex === -1) {
+        console.log(`💓 User ${userId} not in Quick Access friends, ignoring activity update`);
+        return;
+      }
+
+      // Update friend's lastActive timestamp in our local state
+      const friend = this.quickAccessFriends[friendIndex];
+      friend.lastActive = new Date(timestamp);
+
+      console.log(`💓 Updated friend ${friend.displayName}'s activity timestamp:`, {
+        newLastActive: friend.lastActive,
+        isActive,
+        hasLocationSharing: friend.hasLocationSharing
+      });
+
+      // Update only the presence dot for this specific friend
+      // This will show solid dot (no text) for active users, timer dots for inactive
+      this.updateFriendPresenceDot(friendIndex, friend);
+
+      console.log(`✅ User activity update processed for ${friend.displayName}`);
+    } catch (error) {
+      console.error('❌ Error handling user activity update:', error);
     }
   }
 

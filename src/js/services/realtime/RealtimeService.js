@@ -89,6 +89,7 @@ export const REALTIME_EVENTS = {
   CAMPUS_PRESENCE_CHANGED: "campusPresenceChanged",
   LOCATION_PRIVACY_CHANGED: "locationPrivacyChanged",
   LOCATION_SHARING_REQUEST: "locationSharingRequest",
+  USER_ACTIVITY_CHANGED: "userActivityChanged",
 };
 
 /**
@@ -708,6 +709,119 @@ class RealTimeManager {
       this.emit(REALTIME_EVENTS.LOCATION_PRIVACY_CHANGED, eventPayload);
     } catch (error) {
       console.error("❌ Error emitting location privacy change event:", error);
+    }
+  }
+
+  /**
+   * 🌍 Emit campus presence change event
+   * @param {string} userId - User whose presence changed
+   * @param {string} campusStatus - New campus status ('on_campus', 'off_campus', 'unknown')
+   * @param {Object} locationData - Location data with coordinates and timestamp
+   */
+  emitCampusPresenceChange(userId, campusStatus, locationData = null) {
+    // Input validation
+    if (!userId || typeof userId !== 'string') {
+      console.error('❌ emitCampusPresenceChange: userId is required:', userId);
+      return;
+    }
+
+    const validStatuses = ['on_campus', 'off_campus', 'unknown'];
+    if (!validStatuses.includes(campusStatus)) {
+      console.error('❌ emitCampusPresenceChange: Invalid campus status:', campusStatus);
+      return;
+    }
+
+    // Skip emission if no listeners
+    if (
+      !this.isListening ||
+      !this.subscribers.has(REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED)
+    ) {
+      this.log(`⏭️ Skipping campus presence change event - no active listeners`);
+      return;
+    }
+
+    try {
+      const eventPayload = {
+        userId,
+        campusStatus,
+        locationData,
+        timestamp: Date.now(),
+        type: 'campus_presence_change',
+        // Enhanced payload for UI components
+        isOnCampus: campusStatus === 'on_campus',
+        presenceText: this.getCampusPresenceText(campusStatus),
+        description: `Campus status updated to: ${campusStatus.replace('_', ' ')}`
+      };
+
+      this.log(
+        `🌍 Emitting campus presence change: ${userId} → ${campusStatus}`
+      );
+      this.emit(REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED, eventPayload);
+    } catch (error) {
+      console.error('❌ Error emitting campus presence change event:', error);
+    }
+  }
+
+  /**
+   * Helper method to get human-readable campus presence text
+   * @param {string} campusStatus - Campus status
+   * @returns {string} Human-readable text
+   */
+  getCampusPresenceText(campusStatus) {
+    switch (campusStatus) {
+      case 'on_campus':
+        return 'On Campus';
+      case 'off_campus':
+        return 'Off Campus';
+      case 'unknown':
+      default:
+        return 'Unknown';
+    }
+  }
+
+  /**
+   * 💓 Emit user activity change event (Activity Heartbeat System)
+   * @param {string} userId - User whose activity changed
+   * @param {boolean} isActive - Whether user is currently active
+   */
+  emitUserActivityChange(userId, isActive) {
+    // Input validation
+    if (!userId || typeof userId !== 'string') {
+      console.error('❌ emitUserActivityChange: userId is required:', userId);
+      return;
+    }
+
+    if (typeof isActive !== 'boolean') {
+      console.error('❌ emitUserActivityChange: isActive must be boolean:', isActive);
+      return;
+    }
+
+    // Skip emission if no listeners
+    if (
+      !this.isListening ||
+      !this.subscribers.has(REALTIME_EVENTS.USER_ACTIVITY_CHANGED)
+    ) {
+      this.log(`⏭️ Skipping user activity change event - no active listeners`);
+      return;
+    }
+
+    try {
+      const eventPayload = {
+        userId,
+        isActive,
+        timestamp: Date.now(),
+        type: 'user_activity_change',
+        // Enhanced payload for UI components
+        activityText: isActive ? 'Active' : 'Inactive',
+        description: `User is now ${isActive ? 'active' : 'inactive'}`
+      };
+
+      this.log(
+        `💓 Emitting user activity change: ${userId} → ${isActive ? 'active' : 'inactive'}`
+      );
+      this.emit(REALTIME_EVENTS.USER_ACTIVITY_CHANGED, eventPayload);
+    } catch (error) {
+      console.error('❌ Error emitting user activity change event:', error);
     }
   }
 

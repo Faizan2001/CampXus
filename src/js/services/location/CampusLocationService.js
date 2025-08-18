@@ -23,10 +23,26 @@ export class CampusLocationService {
         this.trackingWatchId = null;
         this.periodicUpdateInterval = null;
         
+        // Debouncing and optimization properties
+        this.lastLocationUpdate = null;
+        this.locationUpdateDebounceTimeout = null;
+        this.minUpdateInterval = 60000; // Minimum 60 seconds between updates
+        this.isUpdatingLocation = false; // Prevent concurrent updates
+        
+        // Activity tracking properties
+        this.isUserCurrentlyActive = false;
+        this.lastActivityDetected = null;
+        this.activityHeartbeatInterval = null;
+        this.minActivityInterval = 30000; // Activity updates every 30 seconds
+        this.isUpdatingActivity = false; // Prevent concurrent activity updates
+        
         console.log('[CampusLocationService] Service initialized', {
             geolocationSupported: this.isLocationSupported,
             timestamp: new Date().toISOString()
         });
+
+        // Initialize activity detection
+        this.initializeActivityDetection();
     }
 
     /**
@@ -478,7 +494,7 @@ export class CampusLocationService {
 
             console.log('[CampusLocationService] Starting position watch for automatic tracking...');
             
-            // Start watching position with automatic database updates
+            // Start watching position with debounced automatic database updates
             this.trackingWatchId = this.watchPosition(async (position, error) => {
                 if (error) {
                     console.error('[CampusLocationService] Error in location tracking:', error);
@@ -486,47 +502,15 @@ export class CampusLocationService {
                 }
 
                 if (position) {
-                    try {
-                        // Detect campus presence
-                        const campusPresenceResult = await this.detectCampusPresence('iub');
-                        const campusStatus = campusPresenceResult?.onCampus !== undefined 
-                            ? (campusPresenceResult.onCampus ? 'on_campus' : 'off_campus')
-                            : 'unknown';
-
-                        console.log('[CampusLocationService] Updating location in database:', {
-                            campusStatus,
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude,
-                            accuracy: position.coords.accuracy
-                        });
-
-                        // Update user location status in database
-                        const updateResult = await dataManager.updateUserLocationStatus(
-                            currentUser.uid,
-                            campusStatus,
-                            {
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude,
-                                accuracy: position.coords.accuracy,
-                                timestamp: position.timestamp
-                            }
-                        );
-
-                        if (updateResult.success) {
-                            console.log('[CampusLocationService] ✅ Location updated successfully');
-                        } else {
-                            console.error('[CampusLocationService] ❌ Failed to update location:', updateResult.error);
-                        }
-                    } catch (updateError) {
-                        console.error('[CampusLocationService] Error updating location in database:', updateError);
-                    }
+                    // Use debounced update to prevent excessive database calls
+                    this.debouncedLocationUpdate(position);
                 }
             });
 
             console.log('[CampusLocationService] ✅ Automatic location tracking started with watch ID:', this.trackingWatchId);
 
-            // Also set up periodic fallback updates every 5 minutes
-            this.startPeriodicLocationUpdates();
+            // Don't start periodic updates when watchPosition is active to avoid dual tracking
+            console.log('[CampusLocationService] ⚠️  Skipping periodic updates - watchPosition is handling real-time tracking');
 
         } catch (error) {
             console.error('[CampusLocationService] Error starting location tracking:', error);
@@ -553,15 +537,131 @@ export class CampusLocationService {
             console.log('[CampusLocationService] Periodic updates stopped');
         }
 
-        console.log('[CampusLocationService] ✅ Location tracking stopped');
+        // Clear debounce timeout
+        if (this.locationUpdateDebounceTimeout) {
+            clearTimeout(this.locationUpdateDebounceTimeout);
+            this.locationUpdateDebounceTimeout = null;
+            console.log('[CampusLocationService] Location update debounce cleared');
+        }
+
+        // Stop activity heartbeat as well
+        this.stopActivityHeartbeat();
+
+        // Reset state
+        this.isUpdatingLocation = false;
+        this.lastLocationUpdate = null;
+        this.isUpdatingActivity = false;
+
+        console.log('[CampusLocationService] ✅ Location tracking and activity heartbeat stopped');
     }
 
     /**
-     * Set up periodic location updates as fallback
-     * Updates location every 5 minutes when tracking is active
+     * Debounced location update method to prevent excessive database calls
+     * Only updates if minimum time interval has passed since last update
+     * @param {GeolocationPosition} position - GPS position data
+     */
+    debouncedLocationUpdate(position) {
+        // Clear any pending debounce timeout
+        if (this.locationUpdateDebounceTimeout) {
+            clearTimeout(this.locationUpdateDebounceTimeout);
+        }
+
+        // Check if we should skip this update based on timing
+        const now = Date.now();
+        if (this.lastLocationUpdate && (now - this.lastLocationUpdate) < this.minUpdateInterval) {
+            console.log(`[CampusLocationService] ⏱️ Skipping location update - only ${Math.round((now - this.lastLocationUpdate) / 1000)}s since last update (min: 60s)`);
+            return;
+        }
+
+        // Debounce the update by 5 seconds to group rapid GPS changes
+        this.locationUpdateDebounceTimeout = setTimeout(async () => {
+            try {
+                if (this.isUpdatingLocation) {
+                    console.log('[CampusLocationService] ⚠️ Location update already in progress, skipping');
+                    return;
+                }
+
+                this.isUpdatingLocation = true;
+                this.lastLocationUpdate = now;
+
+                // Import DataService dynamically to avoid circular dependencies
+                const { dataManager } = await import('../data/DataService.js');
+                const { currentUser } = await import('../../store/userStore.js');
+
+                if (!currentUser?.uid) {
+                    console.error('[CampusLocationService] Cannot update location - no current user');
+                    return;
+                }
+
+                // Detect campus presence
+                const campusPresenceResult = await this.detectCampusPresence('iub');
+                const campusStatus = campusPresenceResult?.onCampus !== undefined 
+                    ? (campusPresenceResult.onCampus ? 'on_campus' : 'off_campus')
+                    : 'unknown';
+
+                console.log('[CampusLocationService] 📍 Updating location in database (debounced):', {
+                    campusStatus,
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    intervalSinceLastUpdate: this.lastLocationUpdate ? `${Math.round((now - this.lastLocationUpdate) / 1000)}s` : 'first_update'
+                });
+
+                // Update user location status in database
+                const updateResult = await dataManager.updateUserLocationStatus(
+                    currentUser.uid,
+                    campusStatus,
+                    {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        timestamp: position.timestamp
+                    }
+                );
+
+                if (updateResult.success) {
+                    console.log('[CampusLocationService] ✅ Location updated successfully (debounced)');
+                    
+                    // Emit real-time campus presence change event for friends to see updates
+                    try {
+                        const { realTimeManager } = await import('../realtime/RealtimeService.js');
+                        realTimeManager.emitCampusPresenceChange(
+                            currentUser.uid,
+                            campusStatus,
+                            {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy: position.coords.accuracy,
+                                timestamp: position.timestamp
+                            }
+                        );
+                        console.log('[CampusLocationService] 📡 Campus presence change event emitted');
+                    } catch (realtimeError) {
+                        console.warn('[CampusLocationService] ⚠️ Failed to emit presence change event:', realtimeError);
+                    }
+                } else {
+                    console.error('[CampusLocationService] ❌ Failed to update location (debounced):', updateResult.error);
+                }
+            } catch (updateError) {
+                console.error('[CampusLocationService] Error in debounced location update:', updateError);
+            } finally {
+                this.isUpdatingLocation = false;
+            }
+        }, 5000); // 5 second debounce
+    }
+
+    /**
+     * Set up periodic location updates as fallback (only when watchPosition is not active)
+     * Updates location every 5 minutes when GPS tracking is unavailable
      */
     async startPeriodicLocationUpdates() {
-        console.log('[CampusLocationService] Starting periodic location updates (5-minute intervals)...');
+        // Don't start periodic updates if watchPosition is already active
+        if (this.trackingWatchId) {
+            console.log('[CampusLocationService] 🚫 Not starting periodic updates - watchPosition is active');
+            return;
+        }
+
+        console.log('[CampusLocationService] Starting periodic location updates (5-minute intervals) as GPS fallback...');
         
         this.periodicUpdateInterval = setInterval(async () => {
             try {
@@ -608,7 +708,7 @@ export class CampusLocationService {
             }
         }, 5 * 60 * 1000); // 5 minutes as specified in implementation plan
 
-        console.log('[CampusLocationService] ✅ Periodic location updates started');
+        console.log('[CampusLocationService] ✅ Periodic location updates started (GPS fallback mode)');
     }
 
     /**
@@ -659,6 +759,17 @@ export class CampusLocationService {
             console.log('[CampusLocationService] ✅ Conditions met - starting automatic location tracking');
             await this.startLocationTracking();
 
+            // If watchPosition fails to start, fall back to periodic updates
+            if (!this.trackingWatchId) {
+                console.log('[CampusLocationService] ⚠️ watchPosition failed, starting periodic updates as fallback');
+                await this.startPeriodicLocationUpdates();
+            }
+
+            // Always start activity heartbeat for user presence tracking
+            // This runs independently of location tracking for better battery efficiency
+            this.startActivityHeartbeat();
+            console.log('[CampusLocationService] 💓 Activity heartbeat started alongside location tracking');
+
         } catch (error) {
             console.error('[CampusLocationService] Error in auto-start location tracking:', error);
         }
@@ -700,6 +811,135 @@ export class CampusLocationService {
             console.error('[CampusLocationService] Error checking for location sharing friends:', error);
             return false;
         }
+    }
+
+    /**
+     * Initialize activity detection using Page Visibility API and passive event listeners
+     * Called from constructor to set up battery-efficient activity monitoring
+     */
+    initializeActivityDetection() {
+        console.log('[CampusLocationService] Initializing activity detection...');
+        
+        // Page Visibility API - detect when user switches tabs/apps
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.isUserCurrentlyActive = true;
+                this.lastActivityDetected = Date.now();
+                console.log('[CampusLocationService] 👁️ User returned to tab - marked as active');
+            }
+        });
+
+        // Passive activity listeners - battery efficient, no preventDefault
+        const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+        const throttledActivityHandler = this.throttle(() => {
+            this.isUserCurrentlyActive = true;
+            this.lastActivityDetected = Date.now();
+        }, 5000); // Throttle to max once per 5 seconds
+
+        activityEvents.forEach(event => {
+            document.addEventListener(event, throttledActivityHandler, { 
+                passive: true, 
+                capture: false 
+            });
+        });
+
+        console.log('[CampusLocationService] ✅ Activity detection initialized with passive listeners');
+    }
+
+    /**
+     * Start activity heartbeat system (30-second intervals)
+     * Separate from location tracking for better battery efficiency
+     */
+    startActivityHeartbeat() {
+        if (this.activityHeartbeatInterval) {
+            console.log('[CampusLocationService] Activity heartbeat already running');
+            return;
+        }
+
+        console.log('[CampusLocationService] Starting activity heartbeat (30s intervals)...');
+        
+        this.activityHeartbeatInterval = setInterval(async () => {
+            if (this.isUserCurrentlyActive) {
+                try {
+                    if (this.isUpdatingActivity) {
+                        console.log('[CampusLocationService] ⚠️ Activity update in progress, skipping this heartbeat');
+                        return;
+                    }
+
+                    this.isUpdatingActivity = true;
+                    
+                    // Import DataService dynamically to avoid circular dependencies
+                    const { dataManager } = await import('../data/DataService.js');
+                    const { currentUser } = await import('../../store/userStore.js');
+
+                    if (currentUser?.uid) {
+                        console.log('[CampusLocationService] 💓 Activity heartbeat - updating user last active');
+                        await dataManager.updateUserLastActive(currentUser.uid);
+                        
+                        // Emit activity change event for real-time updates
+                        try {
+                            const { realTimeManager } = await import('../realtime/RealtimeService.js');
+                            realTimeManager.emitUserActivityChange(currentUser.uid, true);
+                        } catch (realtimeError) {
+                            console.warn('[CampusLocationService] ⚠️ Failed to emit activity change:', realtimeError);
+                        }
+                    }
+
+                    // Reset activity flag after successful update
+                    this.isUserCurrentlyActive = false;
+                } catch (error) {
+                    console.error('[CampusLocationService] Error in activity heartbeat:', error);
+                } finally {
+                    this.isUpdatingActivity = false;
+                }
+            }
+        }, this.minActivityInterval); // 30 seconds
+
+        console.log('[CampusLocationService] ✅ Activity heartbeat started');
+    }
+
+    /**
+     * Stop activity heartbeat system
+     */
+    stopActivityHeartbeat() {
+        if (this.activityHeartbeatInterval) {
+            clearInterval(this.activityHeartbeatInterval);
+            this.activityHeartbeatInterval = null;
+            console.log('[CampusLocationService] Activity heartbeat stopped');
+        }
+    }
+
+    /**
+     * Utility function to throttle activity detection
+     * @param {Function} func - Function to throttle
+     * @param {number} limit - Time limit in milliseconds
+     * @returns {Function} Throttled function
+     */
+    throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    /**
+     * Get current user activity status
+     * @returns {Object} Activity status information
+     */
+    getActivityStatus() {
+        return {
+            isCurrentlyActive: this.isUserCurrentlyActive,
+            lastActivityDetected: this.lastActivityDetected,
+            heartbeatRunning: this.activityHeartbeatInterval !== null,
+            timeSinceLastActivity: this.lastActivityDetected ? 
+                Date.now() - this.lastActivityDetected : null
+        };
     }
 
     /**

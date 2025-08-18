@@ -100,7 +100,6 @@ export class PresenceDot {
       return '<div class="presence-dot grey"></div>';
     }
 
-    const timeText = this.getTimeText(minutesAgo);
     const campusStatus = lastKnownLocation.campusStatus;
     
     // Determine dot color based on campus status
@@ -111,32 +110,43 @@ export class PresenceDot {
       dotClass = "red";
     }
 
-    console.log('[PresenceDot] Dot configuration:', {
-      timeText,
-      campusStatus,
-      dotClass,
-      minutesAgo
-    });
-
     // Return grey dot if status is unknown
     if (dotClass === "grey") {
       console.log('[PresenceDot] Unknown campus status - returning grey dot');
       return '<div class="presence-dot grey"></div>';
     }
 
-    // Create presence dot with time text and tooltip
+    // NEW LOGIC: Show solid dot (no text) for active users within 2 minutes
+    if (minutesAgo < 2) {
+      console.log('[PresenceDot] User active within 2 minutes - showing solid dot (no text):', {
+        campusStatus,
+        dotClass,
+        minutesAgo: minutesAgo.toFixed(1)
+      });
+
+      return `
+        <div class="presence-dot ${dotClass}" 
+             title="${this.getTooltip(lastActive, lastKnownLocation)}">
+        </div>
+      `;
+    }
+
+    // EXISTING LOGIC: Show timer text for inactive users (2+ minutes)
+    const timeText = this.getTimeText(minutesAgo);
+    
+    console.log('[PresenceDot] User inactive for 2+ minutes - showing timer dot:', {
+      timeText,
+      campusStatus,
+      dotClass,
+      minutesAgo
+    });
+
     const presenceDot = `
       <div class="presence-dot ${dotClass}" 
            title="${this.getTooltip(lastActive, lastKnownLocation)}">
         <span class="dot-text">${timeText}</span>
       </div>
     `;
-
-    console.log('[PresenceDot] Created presence dot:', {
-      class: dotClass,
-      timeText,
-      tooltip: this.getTooltip(lastActive, lastKnownLocation)
-    });
 
     return presenceDot;
   }
@@ -170,16 +180,20 @@ export class PresenceDot {
       hour: '2-digit', 
       minute: '2-digit' 
     });
+
+    // Check if user is currently active (within last 2 minutes)
+    const minutesAgo = Math.floor((Date.now() - lastActiveTime) / (1000 * 60));
+    const isCurrentlyActive = minutesAgo < 2;
     
-    // Generate status-specific tooltip
+    // Generate status-specific tooltip with activity context
     if (status === "on_campus") {
-      return `On campus - ${timeStr}`;
+      return isCurrentlyActive ? "Active on campus" : `On campus - ${timeStr}`;
     }
     if (status === "off_campus") {
-      return `Off campus - ${timeStr}`;
+      return isCurrentlyActive ? "Active off campus" : `Off campus - ${timeStr}`;
     }
     
-    return `Last seen - ${timeStr}`;
+    return isCurrentlyActive ? "Currently active" : `Last seen - ${timeStr}`;
   }
 
   /**

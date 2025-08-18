@@ -3224,6 +3224,49 @@ class DataManager {
   }
 
   /**
+   * Update user's last active timestamp only (separate from location updates)
+   * Used by activity heartbeat system for accurate presence tracking
+   * @param {string} userId - The user's ID
+   * @returns {Promise<Object>} Result object with success status
+   */
+  async updateUserLastActive(userId) {
+    try {
+      if (!userId || typeof userId !== "string") {
+        throw new Error("Invalid userId");
+      }
+
+      // Safe nested field update: ensure systemInfo object exists first
+      const userRef = doc(db, "users", userId);
+      
+      // First, ensure systemInfo parent object exists
+      await this.ensureSystemInfoExists(userId);
+
+      const updates = {
+        "systemInfo.lastActive": serverTimestamp(),
+      };
+
+      if (!this.isOnline) {
+        this.pendingOperations.push(() =>
+          this.updateUserLastActive(userId)
+        );
+        console.log(`📶 [DataManager] Activity update cached for user ${userId} (offline)`);
+        return { success: true, cached: true };
+      }
+
+      await updateDoc(userRef, updates);
+
+      console.log(`✅ [DataManager] Updated last active timestamp for user ${userId}`);
+      return { success: true };
+    } catch (error) {
+      console.error(
+        `❌ [DataManager] Error updating user last active:`,
+        error
+      );
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Updates a user's location sharing preference
    * @param {string} userId - The user's ID
    * @param {boolean} enabled - Whether location sharing is enabled
