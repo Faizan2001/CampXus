@@ -746,6 +746,9 @@ class DataManager {
           privacy: "university",
           searchable: true,
           lastFriendActivity: null,
+          // Campus Presence location fields (2025 Enhancement)
+          locationPrivacyLevel: "friends_only",     // "friends_only" | "nobody"
+          defaultLocationSharing: false            // Default for new friendships
         };
       }
       // --- END: Auto-generate search fields and ensure socialInfo ---
@@ -3177,6 +3180,12 @@ class DataManager {
         throw new Error("Invalid campusStatus");
       }
 
+      // Safe nested field update: ensure systemInfo object exists first
+      const userRef = doc(db, "users", userId);
+      
+      // First, ensure systemInfo parent object exists
+      await this.ensureSystemInfoExists(userId);
+
       const updates = {
         "systemInfo.lastActive": serverTimestamp(),
         "systemInfo.lastKnownLocation": {
@@ -3196,7 +3205,7 @@ class DataManager {
         return { success: true, cached: true };
       }
 
-      await updateDoc(doc(db, "users", userId), updates);
+      await updateDoc(userRef, updates);
 
       console.log(
         `✅ [DataManager] Updated location status for user ${userId}: ${campusStatus}`,
@@ -3230,6 +3239,12 @@ class DataManager {
         throw new Error("Invalid enabled parameter - must be boolean");
       }
 
+      // Safe nested field update: ensure systemInfo object exists first
+      const userRef = doc(db, "users", userId);
+      
+      // First, ensure systemInfo parent object exists
+      await this.ensureSystemInfoExists(userId);
+
       const updates = {
         "systemInfo.locationSharingEnabled": enabled,
         "systemInfo.lastUpdated": serverTimestamp(),
@@ -3245,7 +3260,7 @@ class DataManager {
         return { success: true, cached: true };
       }
 
-      await updateDoc(doc(db, "users", userId), updates);
+      await updateDoc(userRef, updates);
 
       console.log(
         `✅ [DataManager] Updated location sharing preference for user ${userId}: ${
@@ -3259,6 +3274,84 @@ class DataManager {
         error
       );
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Ensure systemInfo object exists in user document before nested field updates
+   * Prevents silent failures when updating nested fields on non-existent parent objects
+   * @param {string} userId - User ID to check/create systemInfo for
+   */
+  async ensureSystemInfoExists(userId) {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        throw new Error(`User document not found: ${userId}`);
+      }
+      
+      const userData = userDoc.data();
+      
+      // Check if systemInfo object exists and has basic structure
+      if (!userData.systemInfo || typeof userData.systemInfo !== 'object') {
+        console.log(`🔧 [DataManager] Creating missing systemInfo object for user: ${userId}`);
+        
+        // Create systemInfo with essential fields
+        const systemInfoDefaults = {
+          uid: userId,
+          status: "offline",
+          lastActive: serverTimestamp(),
+          lastUpdated: serverTimestamp(),
+          // Location fields will be added as needed
+        };
+        
+        await updateDoc(userRef, {
+          systemInfo: systemInfoDefaults
+        });
+        
+        console.log(`✅ [DataManager] Created systemInfo object for user: ${userId}`);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ [DataManager] Error ensuring systemInfo exists for ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a friendship document by its ID
+   * @param {string} friendshipId - The friendship document ID
+   * @returns {Promise<Object|null>} Friendship document data or null if not found
+   */
+  async getFriendshipDocument(friendshipId) {
+    try {
+      if (!friendshipId || typeof friendshipId !== "string") {
+        console.error("❌ [DataManager] Invalid friendship ID:", friendshipId);
+        return null;
+      }
+
+      console.log(`📋 [DataManager] Fetching friendship document: ${friendshipId}`);
+
+      const friendshipRef = doc(db, "friendships", friendshipId);
+      const friendshipDoc = await getDoc(friendshipRef);
+
+      if (!friendshipDoc.exists()) {
+        console.warn(`⚠️ [DataManager] Friendship document not found: ${friendshipId}`);
+        return null;
+      }
+
+      const friendshipData = {
+        id: friendshipDoc.id,
+        ...friendshipDoc.data(),
+      };
+
+      console.log(`✅ [DataManager] Successfully fetched friendship document: ${friendshipId}`);
+      return friendshipData;
+    } catch (error) {
+      console.error(`❌ [DataManager] Error fetching friendship document ${friendshipId}:`, error);
+      return null;
     }
   }
 

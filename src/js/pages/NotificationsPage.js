@@ -488,7 +488,14 @@ export class NotificationsPage {
     try {
       console.log("📍 Processing location sharing acceptance...");
 
-      // Enable location sharing from current user's side
+      // 1. FIRST: Enable global location sharing for current user
+      console.log("🔧 Enabling global location sharing for current user...");
+      const globalResult = await dataManager.updateLocationSharingPreference(currentUser.uid, true);
+      if (!globalResult.success) {
+        throw new Error("Failed to enable global location sharing");
+      }
+
+      // 2. Enable bilateral location sharing in friendship document
       const result = await dataManager.updateBilateralLocationSharing(
         friendshipId,
         currentUser.uid,
@@ -496,16 +503,32 @@ export class NotificationsPage {
       );
 
       if (result.success) {
-        // Request location permission if not already granted
-        if (!campusLocationService.locationPermissionGranted) {
+        // 3. Request location permission and start tracking
+        if (campusLocationService.getPermissionStatus() !== 'granted') {
           console.log("📍 Requesting location permission...");
-          await campusLocationService.requestLocationPermission();
+          try {
+            await campusLocationService.requestLocationPermission();
+          } catch (permError) {
+            console.warn("⚠️ Location permission denied, but continuing with location sharing enabled");
+            // Continue even if permission denied - user can still enable sharing
+          }
         }
 
-        // Start tracking location
+        // 4. Start location tracking if permission granted
         await this.startLocationTracking();
 
-        // Dismiss the notification after successful acceptance
+        // 5. Update user's location status immediately with current detection
+        console.log("🏫 Attempting initial campus detection...");
+        try {
+          const campusStatus = await campusLocationService.detectCampusPresence("iub");
+          await dataManager.updateUserLocationStatus(currentUser.uid, campusStatus);
+          console.log(`✅ Initial campus status set: ${campusStatus}`);
+        } catch (detectionError) {
+          console.warn("⚠️ Initial campus detection failed, setting unknown status");
+          await dataManager.updateUserLocationStatus(currentUser.uid, "unknown");
+        }
+
+        // 6. Dismiss the notification after successful acceptance
         if (notificationId) {
           console.log(
             "🗑️ Dismissing location sharing notification:",
@@ -518,7 +541,7 @@ export class NotificationsPage {
           "Location sharing enabled!"
         );
 
-        // Refresh notifications to update UI
+        // 7. Refresh notifications to update UI
         await this.loadNotifications();
         this.render();
 
@@ -633,14 +656,14 @@ export class NotificationsPage {
     try {
       console.log("📍 Starting location tracking...");
 
-      if (campusLocationService.locationPermissionGranted) {
+      if (campusLocationService.getPermissionStatus() === 'granted') {
         await campusLocationService.startLocationTracking();
         console.log("✅ Location tracking started");
       } else {
         console.log("📍 Location permission not granted, requesting...");
         await campusLocationService.requestLocationPermission();
 
-        if (campusLocationService.locationPermissionGranted) {
+        if (campusLocationService.getPermissionStatus() === 'granted') {
           await campusLocationService.startLocationTracking();
           console.log("✅ Location tracking started after permission granted");
         }

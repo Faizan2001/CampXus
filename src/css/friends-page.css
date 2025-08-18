@@ -1443,6 +1443,125 @@ body.page-friends .schedule-section {
   animation: privacyPulse 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* =================================
+   LOCATION SHARING INDICATORS
+================================= */
+
+/* Location sharing status indicators - following bilateral privacy pattern */
+.friend-card .location-sharing-status.bilateral-location {
+  display: flex !important;
+  font-size: var(--friends-privacy-status-font-size) !important;
+  align-items: center !important;
+  gap: var(--friends-privacy-status-gap) !important;
+  padding: var(--friends-privacy-status-padding) !important;
+  border-radius: var(--friends-privacy-status-border-radius) !important;
+  transition: var(--friends-privacy-status-transition) !important;
+  font-weight: var(--friends-privacy-status-font-weight) !important;
+  letter-spacing: var(--friends-privacy-status-letter-spacing) !important;
+  line-height: var(--friends-privacy-status-line-height) !important;
+  text-align: var(--friends-privacy-status-text-align) !important;
+  white-space: var(--friends-privacy-status-white-space) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  position: relative !important;
+}
+
+/* Location sharing enabled state (green - mutual sharing active) */
+.friend-card .location-sharing-status.bilateral-location.location-sharing-enabled {
+  background: var(--friends-privacy-visible-bg) !important;
+  color: var(--friends-privacy-visible-color) !important;
+  border: var(--friends-privacy-visible-border) !important;
+  box-shadow: var(--friends-privacy-visible-shadow) !important;
+}
+
+.friend-card .location-sharing-status.bilateral-location.location-sharing-enabled i {
+  color: #22c55e !important; /* Green location icon */
+  background: rgba(34, 197, 94, 0.1) !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+  width: var(--friends-privacy-status-icon-size) !important;
+  height: var(--friends-privacy-status-icon-size) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-size: var(--friends-privacy-status-font-size) !important;
+  transition: var(--friends-privacy-span-transition) !important;
+  backdrop-filter: var(--friends-privacy-span-backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--friends-privacy-span-backdrop-blur) !important;
+  box-shadow: 0 1px 3px rgba(34, 197, 94, 0.2) !important;
+}
+
+.friend-card .location-sharing-status.bilateral-location.location-sharing-enabled:hover i {
+  background: rgba(34, 197, 94, 0.2) !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
+/* Location sharing disabled state (red - no mutual sharing) */
+.friend-card .location-sharing-status.bilateral-location.location-sharing-disabled {
+  background: var(--friends-privacy-hidden-bg) !important;
+  color: var(--friends-privacy-hidden-color) !important;
+  border: var(--friends-privacy-hidden-border) !important;
+  box-shadow: var(--friends-privacy-hidden-shadow) !important;
+}
+
+.friend-card .location-sharing-status.bilateral-location.location-sharing-disabled i {
+  color: #ef4444 !important; /* Red location icon */
+  background: rgba(239, 68, 68, 0.1) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  width: var(--friends-privacy-status-icon-size) !important;
+  height: var(--friends-privacy-status-icon-size) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-size: var(--friends-privacy-status-font-size) !important;
+  transition: var(--friends-privacy-span-transition) !important;
+  backdrop-filter: var(--friends-privacy-span-backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--friends-privacy-span-backdrop-blur) !important;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+.friend-card .location-sharing-status.bilateral-location.location-sharing-disabled:hover i {
+  background: rgba(239, 68, 68, 0.2) !important;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Location sharing text styling */
+.friend-card .location-sharing-status.bilateral-location span {
+  font-size: var(--friends-privacy-status-font-size) !important;
+  font-weight: var(--friends-privacy-status-font-weight) !important;
+  letter-spacing: var(--friends-privacy-status-letter-spacing) !important;
+  line-height: var(--friends-privacy-status-line-height) !important;
+  white-space: var(--friends-privacy-status-white-space) !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  pointer-events: none !important;
+  transition: color 0.2s ease !important;
+}
+
+/* Location sharing animation for state changes */
+@keyframes locationSharingPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: var(--friends-privacy-span-shadow);
+  }
+  
+  25% {
+    transform: scale(1.02);
+  }
+  
+  50% {
+    transform: scale(1.02);
+    box-shadow: var(--friends-privacy-span-shadow);
+  }
+}
+
+/* Apply pulse animation when location sharing state changes */
+.friend-card .location-sharing-status.bilateral-location.location-changed {
+  animation: locationSharingPulse 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Enhanced tooltip-style privacy indicator */
 .friend-card .schedule-access.bilateral-privacy::after {
   content: attr(data-tooltip);
@@ -1872,6 +1991,22 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
     height: var(--friends-privacy-status-icon-size-tablet);
     font-size: var(--friends-privacy-status-font-size-tablet);
   }
+
+  /* Adjust location sharing indicators for tablet */
+  .friend-card .location-sharing-status.bilateral-location {
+    width: auto !important;
+    min-width: auto !important;
+    padding: var(--friends-privacy-status-padding-tablet);
+    font-size: var(--friends-privacy-status-font-size-tablet);
+    gap: var(--friends-privacy-status-gap-tablet);
+    margin-bottom: 1px !important;
+  }
+
+  .friend-card .location-sharing-status.bilateral-location i {
+    width: var(--friends-privacy-status-icon-size-tablet);
+    height: var(--friends-privacy-status-icon-size-tablet);
+    font-size: var(--friends-privacy-status-font-size-tablet);
+  }
   
   .btn-view-schedule {
     width: 32px;
@@ -1902,6 +2037,22 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   }
   
   .friend-card .schedule-access.bilateral-privacy i {
+    width: var(--friends-privacy-status-icon-size-mobile);
+    height: var(--friends-privacy-status-icon-size-mobile);
+    font-size: var(--friends-privacy-status-font-size-mobile);
+  }
+
+  /* Adjust location sharing indicators for mobile */
+  .friend-card .location-sharing-status.bilateral-location {
+    width: auto !important;
+    min-width: auto !important;
+    padding: var(--friends-privacy-status-padding-mobile);
+    font-size: var(--friends-privacy-status-font-size-mobile);
+    gap: var(--friends-privacy-status-gap-mobile);
+    margin-bottom: 1px !important;
+  }
+
+  .friend-card .location-sharing-status.bilateral-location i {
     width: var(--friends-privacy-status-icon-size-mobile);
     height: var(--friends-privacy-status-icon-size-mobile);
     font-size: var(--friends-privacy-status-font-size-mobile);

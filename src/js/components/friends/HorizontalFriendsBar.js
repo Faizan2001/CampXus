@@ -477,7 +477,7 @@ export class HorizontalFriendsBar {
       const shouldUseFreshData = !useCache || this.isFirstLoad;
       this.isFirstLoad = false; // Mark as no longer first load
 
-      // Get Quick Access friends with privacy status AND location data using enhanced FriendsService
+      // Get Quick Access friends with privacy status
       console.log(
         "[HorizontalFriendsBar] Loading friends with location context for presence dots..."
       );
@@ -486,15 +486,8 @@ export class HorizontalFriendsBar {
           !shouldUseFreshData
         );
 
-      // Simplify presence dots to always show grey (bypass complex location sharing logic)
-      const quickAccessWithLocation = quickAccessData.map((friend) => {
-        return {
-          ...friend,
-          hasLocationSharing: false, // Always false for simplified implementation
-          lastActive: null, // No active time tracking for now
-          lastKnownLocation: null, // No location data for simplified implementation
-        };
-      });
+      // 🌍 Campus Presence: Enhance friends with location data using extracted method
+      const quickAccessWithLocation = await this.enhanceFriendsWithLocationData(quickAccessData);
 
       console.log(
         "[HorizontalFriendsBar] Enhanced friends with location data:",
@@ -3354,8 +3347,13 @@ export class HorizontalFriendsBar {
         `🔍 DEBUG: Real-time update validated ${validatedFriends.length}/${quickAccessFriends.length} friends`
       );
 
-      // Update internal state with validated data
-      this.quickAccessFriends = validatedFriends;
+      // 🌍 Campus Presence: Get friends with full privacy and location data for presence dots
+      // Use the same path as initial load to ensure consistent data structure
+      const quickAccessWithPrivacy = await friendsManager.getQuickAccessFriendsWithPrivacy(false);
+      const friendsWithLocation = await this.enhanceFriendsWithLocationData(quickAccessWithPrivacy);
+      
+      // Update internal state with location-enhanced data
+      this.quickAccessFriends = friendsWithLocation;
 
       // Set up new profile listeners for the updated starred friends list
       await this.setupStarredFriendProfileListeners();
@@ -3385,6 +3383,91 @@ export class HorizontalFriendsBar {
     } catch (error) {
       console.error("❌ Error handling real-time Quick Access update:", error);
     }
+  }
+
+  /**
+   * 🌍 Campus Presence: Enhance friends with location data for presence dots
+   * Extracted from loadQuickAccessFriends to reuse in real-time updates
+   */
+  async enhanceFriendsWithLocationData(friends) {
+    if (!friends || friends.length === 0) {
+      return [];
+    }
+
+    console.log(`[HorizontalFriendsBar] Enhancing ${friends.length} friends with location data...`);
+
+    const enhancedFriends = await Promise.all(
+      friends.map(async (friend) => {
+        try {
+          // Get friend's full profile to access location data
+          const friendProfile = await dataManager.getUserProfile(friend.friendId || friend.userId);
+          
+          // Extract location information from systemInfo
+          const systemInfo = friendProfile?.systemInfo || {};
+          const globalLocationEnabled = Boolean(systemInfo.locationSharingEnabled);
+          const lastActive = systemInfo.lastActive || null;
+          const lastKnownLocation = systemInfo.lastKnownLocation || null;
+          
+          // 🔑 CRITICAL: Check bilateral location sharing consent
+          let canSeeLocation = false;
+          let bilateralStatus = null;
+          
+          if (globalLocationEnabled && friend.friendshipId) {
+            try {
+              const friendship = await dataManager.getFriendshipDocument(friend.friendshipId);
+              if (friendship?.locationVisibility) {
+                const friendSharesWithMe = friendship.locationVisibility[friend.friendId || friend.userId] === true;
+                bilateralStatus = {
+                  friendSharesWithMe,
+                  friendshipId: friend.friendshipId,
+                  locationVisibility: friendship.locationVisibility
+                };
+                canSeeLocation = friendSharesWithMe;
+              }
+            } catch (bilateralError) {
+              console.warn(`[HorizontalFriendsBar] Error checking bilateral consent for ${friend.displayName}:`, bilateralError);
+            }
+          }
+          
+          // Only enable location sharing if both global setting AND bilateral consent are true
+          const hasLocationSharing = globalLocationEnabled && canSeeLocation;
+          
+          console.log(`[HorizontalFriendsBar] Enhanced location data for ${friend.displayName}:`, {
+            globalLocationEnabled,
+            canSeeLocation,
+            hasLocationSharing,
+            hasLastActive: !!lastActive,
+            hasLocation: !!lastKnownLocation,
+            campusStatus: lastKnownLocation?.campusStatus,
+            bilateralStatus
+          });
+
+          return {
+            ...friend,
+            hasLocationSharing,
+            lastActive,
+            lastKnownLocation,
+            globalLocationEnabled,
+            canSeeLocation,
+            bilateralStatus
+          };
+        } catch (error) {
+          console.error(`[HorizontalFriendsBar] Error enhancing location data for ${friend.displayName || 'unknown'}:`, error);
+          return {
+            ...friend,
+            hasLocationSharing: false,
+            lastActive: null,
+            lastKnownLocation: null,
+            globalLocationEnabled: false,
+            canSeeLocation: false,
+            bilateralStatus: null
+          };
+        }
+      })
+    );
+
+    console.log(`[HorizontalFriendsBar] Enhanced ${enhancedFriends.length} friends with location data`);
+    return enhancedFriends;
   }
 
   /**

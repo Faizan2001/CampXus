@@ -435,7 +435,19 @@ export class FriendOptionsMenu {
     let success = false;
     
     if (newVisibility) {
-      // Use requestLocationSharing to enable location sharing WITH notifications
+      // STEP 1: First enable global location sharing for current user
+      console.log("🔧 Enabling global location sharing for requesting user...");
+      const globalResult = await dataManager.updateLocationSharingPreference(currentUserUid, true);
+      if (!globalResult.success) {
+        console.error("❌ Failed to enable global location sharing");
+        // Revert UI on failure
+        requestAnimationFrame(() => {
+          this.updateLocationUI(currentlyVisible);
+        });
+        return;
+      }
+
+      // STEP 2: Use requestLocationSharing to enable bilateral sharing WITH notifications
       const result = await friendsManager.requestLocationSharing(
         this.friend.id,
         this.friend.friendshipId || this.generateFriendshipId(currentUserUid, this.friend.id)
@@ -444,6 +456,17 @@ export class FriendOptionsMenu {
       
       if (result.success) {
         console.log(`📍 Location sharing request sent to ${this.friend.displayName} with notification`);
+        
+        // STEP 3: Start automatic location tracking (replaces one-time detection)
+        console.log("📍 Starting automatic location tracking for requesting user...");
+        try {
+          // Start continuous location tracking with automatic database updates
+          await campusLocationService.startLocationTracking();
+          console.log("✅ Automatic location tracking started successfully");
+        } catch (trackingError) {
+          console.warn("⚠️ Location tracking failed to start, setting unknown status", trackingError);
+          await dataManager.updateUserLocationStatus(currentUserUid, "unknown");
+        }
       }
     } else {
       // Use bilateral privacy service to disable location sharing (no notification needed)

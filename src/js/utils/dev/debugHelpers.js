@@ -38,6 +38,15 @@ class DebugHelpers {
     console.log("  - debug.realtimeStatus() - Show real-time system status");
     console.log("  - debug.testConnection() - Test connection notifications");
     console.log("");
+    console.log("🌍 Campus Presence:");
+    console.log("  - debug.campusPresenceStatus() - Show location tracking status");
+    console.log("  - debug.testLocationPermission() - Test location permission");
+    console.log("  - debug.testCampusDetection() - Test campus boundary detection");
+    console.log("  - debug.startLocationTracking() - Start location tracking manually");
+    console.log("  - debug.stopLocationTracking() - Stop location tracking");
+    console.log("  - debug.testFriendshipIdFix() - Test friendshipId availability for bilateral sharing");
+    console.log("  - debug.testBilateralLocationData() - Debug bilateral location sharing data structure");
+    console.log("");
     console.log("🧹 Utilities:");
     console.log("  - debug.clearStorage() - Clear all local storage");
     console.log("  - debug.exportLogs() - Export console logs");
@@ -57,6 +66,8 @@ class DebugHelpers {
       "Real-time Manager": typeof window.realTimeManager !== "undefined",
       "SPA Router": typeof window.navigateTo !== "undefined",
       "Current User": typeof window.currentUser !== "undefined",
+      "Campus Location Service": typeof window.campusLocationService !== "undefined",
+      "Data Manager": typeof window.dataManager !== "undefined",
     };
 
     console.log("🏗️ System Components:");
@@ -316,6 +327,278 @@ class DebugHelpers {
 
     URL.revokeObjectURL(url);
     console.log("📤 Debug logs exported");
+  }
+
+  /**
+   * 🌍 Show campus presence system status
+   */
+  campusPresenceStatus() {
+    console.group("🌍 Campus Presence System Status");
+
+    if (!window.campusLocationService) {
+      console.error("❌ Campus Location Service not available");
+      console.groupEnd();
+      return;
+    }
+
+    const service = window.campusLocationService;
+    
+    console.log("🏗️ Service Status:");
+    console.log(`  Geolocation Supported: ${service.isGeolocationSupported()}`);
+    console.log(`  Permission Status: ${service.getPermissionStatus() || "Not requested"}`);
+    console.log(`  Tracking Active: ${service.isTrackingActive ? service.isTrackingActive() : "Unknown"}`);
+    
+    const lastPosition = service.getLastKnownPosition();
+    if (lastPosition) {
+      console.log("📍 Last Known Position:");
+      console.log(`  Latitude: ${lastPosition.coords.latitude}`);
+      console.log(`  Longitude: ${lastPosition.coords.longitude}`);
+      console.log(`  Accuracy: ${lastPosition.coords.accuracy}m`);
+      console.log(`  Timestamp: ${new Date(lastPosition.timestamp).toLocaleString()}`);
+    } else {
+      console.log("📍 No position data available");
+    }
+
+    console.groupEnd();
+  }
+
+  /**
+   * 🔐 Test location permission
+   */
+  async testLocationPermission() {
+    console.log("🔐 Testing location permission...");
+    
+    if (!window.campusLocationService) {
+      console.error("❌ Campus Location Service not available");
+      return;
+    }
+
+    try {
+      const granted = await window.campusLocationService.requestLocationPermission();
+      console.log(`🔐 Permission result: ${granted ? "✅ GRANTED" : "❌ DENIED"}`);
+      
+      if (granted) {
+        const position = await window.campusLocationService.getCurrentLocation();
+        if (position) {
+          console.log("📍 Current position obtained:");
+          console.log(`  Lat: ${position.coords.latitude}, Lng: ${position.coords.longitude}`);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Location permission test failed:", error);
+    }
+  }
+
+  /**
+   * 🏫 Test campus boundary detection
+   */
+  async testCampusDetection() {
+    console.log("🏫 Testing campus boundary detection...");
+    
+    if (!window.campusLocationService) {
+      console.error("❌ Campus Location Service not available");
+      return;
+    }
+
+    try {
+      const result = await window.campusLocationService.detectCampusPresence("iub");
+      console.log("🏫 Campus detection result:", result);
+      
+      if (result.onCampus !== undefined) {
+        const status = result.onCampus ? "ON CAMPUS 🟢" : "OFF CAMPUS 🔴";
+        console.log(`📍 Campus Status: ${status}`);
+        console.log(`🎯 Confidence: ${result.confidence}%`);
+        
+        if (result.location) {
+          console.log("📍 Location details:", result.location);
+        }
+      } else {
+        console.log("❓ Unable to determine campus status");
+      }
+    } catch (error) {
+      console.error("❌ Campus detection test failed:", error);
+    }
+  }
+
+  /**
+   * ▶️ Start location tracking manually
+   */
+  async startLocationTracking() {
+    console.log("▶️ Starting location tracking...");
+    
+    if (!window.campusLocationService) {
+      console.error("❌ Campus Location Service not available");
+      return;
+    }
+
+    try {
+      await window.campusLocationService.startLocationTracking();
+      console.log("✅ Location tracking started successfully");
+      console.log("📊 Use debug.campusPresenceStatus() to monitor status");
+    } catch (error) {
+      console.error("❌ Failed to start location tracking:", error);
+    }
+  }
+
+  /**
+   * ⏹️ Stop location tracking manually
+   */
+  stopLocationTracking() {
+    console.log("⏹️ Stopping location tracking...");
+    
+    if (!window.campusLocationService) {
+      console.error("❌ Campus Location Service not available");
+      return;
+    }
+
+    try {
+      window.campusLocationService.stopLocationTracking();
+      console.log("✅ Location tracking stopped successfully");
+    } catch (error) {
+      console.error("❌ Failed to stop location tracking:", error);
+    }
+  }
+
+  /**
+   * 🔍 Test friendshipId availability in Quick Access friends
+   */
+  async testFriendshipIdFix() {
+    console.group("🔍 Testing friendshipId Fix for Campus Presence");
+    
+    if (!window.friendsManager) {
+      console.error("❌ FriendsManager not available");
+      console.groupEnd();
+      return;
+    }
+
+    try {
+      console.log("📋 Getting Quick Access friends with privacy...");
+      const friends = await window.friendsManager.getQuickAccessFriendsWithPrivacy(false);
+      
+      if (friends.length === 0) {
+        console.log("📋 No Quick Access friends found - add some friends to Quick Access first");
+        console.groupEnd();
+        return;
+      }
+
+      console.log(`📋 Found ${friends.length} Quick Access friends`);
+      
+      friends.forEach((friend, index) => {
+        const hasFriendshipId = !!friend.friendshipId;
+        const friendId = friend.friendId || friend.id;
+        
+        console.log(`${index + 1}. ${friend.displayName}:`);
+        console.log(`   - friendId: ${friendId}`);
+        console.log(`   - hasFriendshipId: ${hasFriendshipId}`);
+        console.log(`   - friendshipId: ${friend.friendshipId || 'undefined'}`);
+        
+        if (hasFriendshipId) {
+          console.log(`   ✅ Ready for bilateral location sharing`);
+        } else {
+          console.log(`   ❌ Missing friendshipId - location sharing won't work`);
+        }
+      });
+      
+      const friendsWithId = friends.filter(f => f.friendshipId);
+      const friendsWithoutId = friends.filter(f => !f.friendshipId);
+      
+      console.log(`\n📊 Summary:`);
+      console.log(`   ✅ Friends with friendshipId: ${friendsWithId.length}`);
+      console.log(`   ❌ Friends without friendshipId: ${friendsWithoutId.length}`);
+      
+      if (friendsWithoutId.length > 0) {
+        console.log(`\n⚠️ Fix needed: ${friendsWithoutId.length} friends missing friendshipId`);
+        console.log(`   Solution: Remove and re-add these friends to Quick Access`);
+      } else {
+        console.log(`\n🎉 All Quick Access friends have friendshipId - bilateral location sharing ready!`);
+      }
+      
+    } catch (error) {
+      console.error("❌ Error testing friendshipId fix:", error);
+    }
+    
+    console.groupEnd();
+  }
+
+  /**
+   * 🔍 Debug bilateral location sharing data structure
+   */
+  async testBilateralLocationData() {
+    console.group("🔍 Testing Bilateral Location Sharing Data Structure");
+    
+    if (!window.friendsManager || !window.dataManager || !window.currentUser) {
+      console.error("❌ Required services not available");
+      console.groupEnd();
+      return;
+    }
+
+    try {
+      const currentUserId = window.currentUser.uid;
+      console.log(`🏠 Current User ID: ${currentUserId}`);
+      
+      // Get Quick Access friends
+      const friends = await window.friendsManager.getQuickAccessFriendsWithPrivacy(false);
+      
+      if (friends.length === 0) {
+        console.log("📋 No Quick Access friends found");
+        console.groupEnd();
+        return;
+      }
+
+      for (const friend of friends) {
+        console.log(`\n👤 Friend: ${friend.displayName}`);
+        console.log(`   - friendId: ${friend.friendId || friend.userId}`);
+        console.log(`   - friendshipId: ${friend.friendshipId}`);
+        
+        if (friend.friendshipId) {
+          try {
+            const friendship = await window.dataManager.getFriendshipDocument(friend.friendshipId);
+            
+            console.log(`   🤝 Friendship Document:`);
+            console.log(`     - user1Id: ${friendship.user1Id}`);
+            console.log(`     - user2Id: ${friendship.user2Id}`);
+            console.log(`     - locationVisibility:`, friendship.locationVisibility);
+            
+            // Show who shares location with whom
+            if (friendship.locationVisibility) {
+              const friendUserId = friend.friendId || friend.userId;
+              const friendSharesWithMe = friendship.locationVisibility[friendUserId];
+              const iShareWithFriend = friendship.locationVisibility[currentUserId];
+              
+              console.log(`   📍 Location Sharing Status:`);
+              console.log(`     - ${friend.displayName} shares with me: ${friendSharesWithMe}`);
+              console.log(`     - I share with ${friend.displayName}: ${iShareWithFriend}`);
+              console.log(`     - Mutual sharing: ${friendSharesWithMe && iShareWithFriend}`);
+            } else {
+              console.log(`   📍 No location sharing configured`);
+            }
+            
+            // Get friend's profile for location status
+            const friendProfile = await window.dataManager.getUserProfile(friend.friendId || friend.userId);
+            const locationEnabled = friendProfile?.systemInfo?.locationSharingEnabled;
+            const lastKnownLocation = friendProfile?.systemInfo?.lastKnownLocation;
+            
+            console.log(`   🌍 Friend's Location Status:`);
+            console.log(`     - locationSharingEnabled: ${locationEnabled}`);
+            console.log(`     - hasLocationData: ${!!lastKnownLocation}`);
+            if (lastKnownLocation) {
+              console.log(`     - campusStatus: ${lastKnownLocation.campusStatus}`);
+              console.log(`     - detectedAt: ${lastKnownLocation.detectedAt?.toDate?.() || lastKnownLocation.detectedAt}`);
+            }
+            
+          } catch (error) {
+            console.error(`   ❌ Error getting friendship data:`, error);
+          }
+        } else {
+          console.log(`   ❌ No friendshipId available`);
+        }
+      }
+      
+    } catch (error) {
+      console.error("❌ Error testing bilateral location data:", error);
+    }
+    
+    console.groupEnd();
   }
 
   /**

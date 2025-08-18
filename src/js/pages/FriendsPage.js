@@ -577,13 +577,13 @@ class FriendsUI {
   async initializeCampusPresence() {
     try {
       console.log("📍 Initializing Campus Presence features...");
-      
+
       // Add global location sharing card to the page
       await this.addGlobalLocationCard();
-      
+
       // Add notifications navigation button
       this.addNotificationsNavigation();
-      
+
       console.log("✅ Campus Presence features initialized successfully");
     } catch (error) {
       console.error("❌ Error initializing Campus Presence features:", error);
@@ -603,7 +603,9 @@ class FriendsUI {
     // Find the insertion point (after the search section)
     const searchSection = friendsContainer.querySelector(".friends-search");
     if (!searchSection) {
-      console.warn("⚠️ Search section not found for global location card insertion");
+      console.warn(
+        "⚠️ Search section not found for global location card insertion"
+      );
       return;
     }
 
@@ -629,13 +631,15 @@ class FriendsUI {
     // Initialize the global location toggle component
     try {
       this.globalLocationToggle = new LocationSharingToggle({
-        mode: 'global',
+        mode: "global",
         showPermissionHelper: true,
         showStatus: true,
-        containerClass: 'global-location-toggle'
+        containerClass: "global-location-toggle",
       });
 
-      const toggleContainer = locationCard.querySelector(".global-location-toggle-container");
+      const toggleContainer = locationCard.querySelector(
+        ".global-location-toggle-container"
+      );
       await this.globalLocationToggle.render(toggleContainer);
 
       console.log("✅ Global location sharing card added successfully");
@@ -648,7 +652,9 @@ class FriendsUI {
    * 📬 Add notifications navigation button
    */
   addNotificationsNavigation() {
-    const friendsHeader = document.querySelector(".friends-header .page-title-section");
+    const friendsHeader = document.querySelector(
+      ".friends-header .page-title-section"
+    );
     if (!friendsHeader) {
       console.warn("⚠️ Friends header not found for notifications navigation");
       return;
@@ -669,8 +675,12 @@ class FriendsUI {
     friendsHeader.appendChild(notificationsNav);
 
     // Set up event listener for notifications navigation
-    const notificationsButton = notificationsNav.querySelector(".btn-notifications");
-    notificationsButton.addEventListener("click", this.handleNotificationsNavigation.bind(this));
+    const notificationsButton =
+      notificationsNav.querySelector(".btn-notifications");
+    notificationsButton.addEventListener(
+      "click",
+      this.handleNotificationsNavigation.bind(this)
+    );
 
     console.log("✅ Notifications navigation added successfully");
   }
@@ -682,22 +692,28 @@ class FriendsUI {
     console.log("📬 Navigating to notifications page...");
     // Prefer SPA router navigation when available
     try {
-      if (window.spaRouter && typeof window.spaRouter.navigateTo === 'function') {
-        window.spaRouter.navigateTo('notifications');
+      if (
+        window.spaRouter &&
+        typeof window.spaRouter.navigateTo === "function"
+      ) {
+        window.spaRouter.navigateTo("notifications");
         return;
       }
 
       // Fallback: try global router if exported
-      if (typeof router !== 'undefined' && typeof router.navigateTo === 'function') {
-        router.navigateTo('notifications');
+      if (
+        typeof router !== "undefined" &&
+        typeof router.navigateTo === "function"
+      ) {
+        router.navigateTo("notifications");
         return;
       }
 
       // Final fallback: show a friendly message
-      this.showMessage('Notifications page coming soon!', 'info');
+      this.showMessage("Notifications page coming soon!", "info");
     } catch (error) {
-      console.error('❌ Error navigating to notifications page:', error);
-      this.showMessage('Notifications page coming soon!', 'info');
+      console.error("❌ Error navigating to notifications page:", error);
+      this.showMessage("Notifications page coming soon!", "info");
     }
   }
 
@@ -1259,10 +1275,13 @@ class FriendsUI {
    * This method creates dual privacy indicators showing both sides of the privacy relationship:
    * 1. "Your Schedule" - Current user's schedule visibility to this friend
    * 2. "Their Schedule" - Friend's schedule visibility to current user
+   * 3. "Location Sharing" - Bilateral location sharing status between both users
    *
    * PRIVACY STATES SHOWN:
    * - Green eye = Schedule is visible/accessible
    * - Red lock = Schedule is hidden/restricted
+   * - Green location icon = Bilateral location sharing enabled
+   * - Red location icon = Location sharing disabled/restricted
    * - Clear messaging explains why avatars are disabled in quick access
    *
    * INTEGRATION WITH PHASE 1.2:
@@ -1271,7 +1290,7 @@ class FriendsUI {
    * - Consistent messaging across all privacy components
    *
    * @param {Object} friend - Friend data object
-   * @returns {string} HTML for enhanced dual privacy indicators
+   * @returns {string} HTML for enhanced dual privacy indicators with location sharing
    */
   renderScheduleAccessStatus(friend) {
     // Enhanced dual privacy status - shows both directions
@@ -1295,6 +1314,14 @@ class FriendsUI {
              } schedule accessibility - will be updated by privacy system">
           <i class="fas fa-eye"></i>
           <span>Schedule accessible</span>
+        </div>
+        
+        <!-- Bilateral location sharing status -->
+        <div class="location-sharing-status bilateral-location location-sharing-disabled" 
+             data-friend-id="${friend.id || friend.uid}"
+             title="Location sharing status - will be updated by location privacy system">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>Location sharing</span>
         </div>
       </div>
     `;
@@ -1751,7 +1778,7 @@ class FriendsUI {
           const menu = new FriendOptionsMenu(friend, {
             enableLocationSharing: true, // Enable location sharing option
             enableSchedulePrivacy: true, // Keep existing schedule privacy
-            enableUnfriend: true // Keep existing unfriend option
+            enableUnfriend: true, // Keep existing unfriend option
           });
 
           // Store reference for cleanup
@@ -1823,7 +1850,7 @@ class FriendsUI {
       this.friendsListEventHandler
     );
     this.elements.friendsList.addEventListener(
-      "location-sharing-changed", 
+      "location-sharing-changed",
       this.friendsListEventHandler
     );
 
@@ -1903,21 +1930,27 @@ class FriendsUI {
 
     console.log(`📍 Location sharing changed:`, detail);
 
-    if (type === 'friend' && friendId) {
-      const friend = this.currentFriendsData.find(f => f.id === friendId);
-      const friendName = friend?.displayName || 'friend';
-      
+    if (type === "friend" && friendId) {
+      const friend = this.currentFriendsData.find((f) => f.id === friendId);
+      const friendName = friend?.displayName || "friend";
+
       // Log the change
-      console.log(`📍 Location sharing with ${friendName} is now ${enabled ? 'enabled' : 'disabled'}`);
-      
+      console.log(
+        `📍 Location sharing with ${friendName} is now ${
+          enabled ? "enabled" : "disabled"
+        }`
+      );
+
       // The LocationSharingToggle component already handles the actual service calls
       // and shows success/error notifications, so we just need to log here
-      
+
       // Optional: Update any UI indicators if needed in the future
       // this.updateFriendLocationSharingIndicator(friendId, enabled);
-    } else if (type === 'global') {
-      console.log(`📍 Global location sharing is now ${enabled ? 'enabled' : 'disabled'}`);
-      
+    } else if (type === "global") {
+      console.log(
+        `📍 Global location sharing is now ${enabled ? "enabled" : "disabled"}`
+      );
+
       // Optional: Update global indicators if needed in the future
       // this.updateGlobalLocationSharingIndicator(enabled);
     }
@@ -1950,6 +1983,7 @@ class FriendsUI {
         displayName: friend.displayName,
         major: friend.major,
         avatarConfig: friend.avatarConfig,
+        friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
 
       let result;
@@ -2356,6 +2390,10 @@ class FriendsUI {
             `🔧 Applied default privacy status for ${friend.displayName}`
           );
         }
+
+        // 📍 Update location sharing indicators
+        await this.updateFriendCardLocationSharingIndicator(friendId, friend);
+
       } catch (error) {
         console.warn(
           `⚠️ Failed to update enhanced bilateral privacy for ${friend.displayName}:`,
@@ -2382,6 +2420,127 @@ class FriendsUI {
     await Promise.all(privacyPromises);
 
     console.log(`✅ Bilateral privacy updated for all friend cards`);
+  }
+
+  /**
+   * 📍 Update friend card location sharing indicator based on bilateral location sharing status
+   * @param {string} friendId - Friend's user ID
+   * @param {Object} friend - Friend data object
+   */
+  async updateFriendCardLocationSharingIndicator(friendId, friend) {
+    try {
+      const currentUserUid = currentUser.state?.user?.uid;
+      if (!currentUserUid) {
+        console.warn("⚠️ No current user found for location sharing update");
+        return;
+      }
+
+      console.log(`📍 Updating location sharing indicator for: ${friend.displayName}`);
+
+      // Get the friendship document to check bilateral location sharing
+      const friendshipId = friend.friendshipId;
+      if (!friendshipId) {
+        console.warn(`⚠️ No friendship ID found for ${friend.displayName}`);
+        this.updateLocationSharingVisualIndicator(friendId, false, "Friendship not found");
+        return;
+      }
+
+      // Get friendship document from DataService
+      const friendship = await dataManager.getFriendshipDocument(friendshipId);
+      if (!friendship) {
+        console.warn(`⚠️ Friendship document not found: ${friendshipId}`);
+        this.updateLocationSharingVisualIndicator(friendId, false, "Friendship data not available");
+        return;
+      }
+
+      // Check bilateral location sharing status
+      const locationVisibility = friendship.locationVisibility || {};
+      const currentUserSharing = locationVisibility[currentUserUid] === true;
+      const friendSharing = locationVisibility[friendId] === true;
+      const mutualLocationSharing = currentUserSharing && friendSharing;
+
+      console.log(`📍 Location sharing status for ${friend.displayName}:`, {
+        currentUserSharing,
+        friendSharing,
+        mutualLocationSharing,
+        locationVisibility
+      });
+
+      // Update the visual indicator
+      let statusMessage;
+      if (mutualLocationSharing) {
+        statusMessage = "Mutual location sharing enabled";
+      } else if (currentUserSharing && !friendSharing) {
+        statusMessage = "You share location, they don't";
+      } else if (!currentUserSharing && friendSharing) {
+        statusMessage = "They share location, you don't";
+      } else {
+        statusMessage = "Location sharing disabled";
+      }
+
+      this.updateLocationSharingVisualIndicator(friendId, mutualLocationSharing, statusMessage);
+
+      console.log(`✅ Updated location sharing indicator for ${friend.displayName}: ${statusMessage}`);
+
+    } catch (error) {
+      console.error(`❌ Error updating location sharing indicator for ${friend.displayName}:`, error);
+      this.updateLocationSharingVisualIndicator(friendId, false, "Error checking location status");
+    }
+  }
+
+  /**
+   * 🎨 Update the visual location sharing indicator in the friend card
+   * @param {string} friendId - Friend's user ID  
+   * @param {boolean} isMutualSharingEnabled - Whether bilateral location sharing is enabled
+   * @param {string} statusMessage - Status message for tooltip
+   */
+  updateLocationSharingVisualIndicator(friendId, isMutualSharingEnabled, statusMessage) {
+    const friendCard = this.elements.friendsList.querySelector(
+      `.friend-card[data-friend-id="${friendId}"]`
+    );
+
+    if (!friendCard) {
+      console.warn(`⚠️ Friend card not found for location sharing update: ${friendId}`);
+      return;
+    }
+
+    const locationIndicator = friendCard.querySelector('.location-sharing-status');
+    if (!locationIndicator) {
+      console.warn(`⚠️ Location sharing indicator not found for friend: ${friendId}`);
+      return;
+    }
+
+    // Update CSS classes based on mutual sharing status
+    if (isMutualSharingEnabled) {
+      locationIndicator.className = 'location-sharing-status bilateral-location location-sharing-enabled';
+    } else {
+      locationIndicator.className = 'location-sharing-status bilateral-location location-sharing-disabled';
+    }
+
+    // Update icon based on status
+    const icon = locationIndicator.querySelector('i');
+    if (icon) {
+      if (isMutualSharingEnabled) {
+        icon.className = 'fas fa-map-marker-alt'; // Green location icon
+      } else {
+        icon.className = 'fas fa-map-marker-alt'; // Red location icon (color controlled by CSS)
+      }
+    }
+
+    // Update text
+    const textSpan = locationIndicator.querySelector('span');
+    if (textSpan) {
+      if (isMutualSharingEnabled) {
+        textSpan.textContent = 'Location shared';
+      } else {
+        textSpan.textContent = 'Location private';
+      }
+    }
+
+    // Update tooltip
+    locationIndicator.title = `Location sharing: ${statusMessage}`;
+
+    console.log(`🎨 Updated location sharing visual indicator for ${friendId}: ${isMutualSharingEnabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -2441,7 +2600,7 @@ class FriendsUI {
         quickAccessData
       );
 
-      const { quickAccessFriends = [], count = 0 } = quickAccessData;
+      const { quickAccessFriends = [] } = quickAccessData;
 
       // Convert quickAccessFriends array to Set for efficient lookup
       const starredFriendIds = new Set(
@@ -2638,7 +2797,9 @@ class FriendsUI {
       }
 
       // Remove notifications navigation
-      const notificationsNav = document.querySelector(".notifications-navigation");
+      const notificationsNav = document.querySelector(
+        ".notifications-navigation"
+      );
       if (notificationsNav) {
         notificationsNav.remove();
       }

@@ -19,6 +19,10 @@ export class CampusLocationService {
         this.currentPosition = null;
         this.permissionStatus = null;
         
+        // Location tracking properties
+        this.trackingWatchId = null;
+        this.periodicUpdateInterval = null;
+        
         console.log('[CampusLocationService] Service initialized', {
             geolocationSupported: this.isLocationSupported,
             timestamp: new Date().toISOString()
@@ -442,7 +446,185 @@ export class CampusLocationService {
             console.log('[CampusLocationService] Position watch stopped for ID:', watchId);
         }
     }
+
+    /**
+     * Start automatic location tracking for campus presence
+     * This method starts watching position and updates database automatically
+     * Called when users enable location sharing
+     */
+    async startLocationTracking() {
+        console.log('[CampusLocationService] Starting automatic location tracking...');
+        
+        if (!this.isLocationSupported) {
+            console.error('[CampusLocationService] Cannot start tracking - geolocation not supported');
+            return;
+        }
+
+        // Don't start tracking if already tracking
+        if (this.trackingWatchId) {
+            console.log('[CampusLocationService] Location tracking already active');
+            return;
+        }
+
+        try {
+            // Import DataService dynamically to avoid circular dependencies
+            const { dataManager } = await import('../data/DataService.js');
+            const { currentUser } = await import('../../store/userStore.js');
+
+            if (!currentUser?.uid) {
+                console.error('[CampusLocationService] Cannot start tracking - no current user');
+                return;
+            }
+
+            console.log('[CampusLocationService] Starting position watch for automatic tracking...');
+            
+            // Start watching position with automatic database updates
+            this.trackingWatchId = this.watchPosition(async (position, error) => {
+                if (error) {
+                    console.error('[CampusLocationService] Error in location tracking:', error);
+                    return;
+                }
+
+                if (position) {
+                    try {
+                        // Detect campus presence
+                        const campusPresenceResult = await this.detectCampusPresence('iub');
+                        const campusStatus = campusPresenceResult?.onCampus !== undefined 
+                            ? (campusPresenceResult.onCampus ? 'on_campus' : 'off_campus')
+                            : 'unknown';
+
+                        console.log('[CampusLocationService] Updating location in database:', {
+                            campusStatus,
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        });
+
+                        // Update user location status in database
+                        const updateResult = await dataManager.updateUserLocationStatus(
+                            currentUser.uid,
+                            campusStatus,
+                            {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy: position.coords.accuracy,
+                                timestamp: position.timestamp
+                            }
+                        );
+
+                        if (updateResult.success) {
+                            console.log('[CampusLocationService] ✅ Location updated successfully');
+                        } else {
+                            console.error('[CampusLocationService] ❌ Failed to update location:', updateResult.error);
+                        }
+                    } catch (updateError) {
+                        console.error('[CampusLocationService] Error updating location in database:', updateError);
+                    }
+                }
+            });
+
+            console.log('[CampusLocationService] ✅ Automatic location tracking started with watch ID:', this.trackingWatchId);
+
+            // Also set up periodic fallback updates every 5 minutes
+            this.startPeriodicLocationUpdates();
+
+        } catch (error) {
+            console.error('[CampusLocationService] Error starting location tracking:', error);
+        }
+    }
+
+    /**
+     * Stop automatic location tracking
+     */
+    stopLocationTracking() {
+        console.log('[CampusLocationService] Stopping automatic location tracking...');
+        
+        // Clear position watch
+        if (this.trackingWatchId) {
+            this.clearWatch(this.trackingWatchId);
+            this.trackingWatchId = null;
+            console.log('[CampusLocationService] Position watch stopped');
+        }
+
+        // Clear periodic updates
+        if (this.periodicUpdateInterval) {
+            clearInterval(this.periodicUpdateInterval);
+            this.periodicUpdateInterval = null;
+            console.log('[CampusLocationService] Periodic updates stopped');
+        }
+
+        console.log('[CampusLocationService] ✅ Location tracking stopped');
+    }
+
+    /**
+     * Set up periodic location updates as fallback
+     * Updates location every 5 minutes when tracking is active
+     */
+    async startPeriodicLocationUpdates() {
+        console.log('[CampusLocationService] Starting periodic location updates (5-minute intervals)...');
+        
+        this.periodicUpdateInterval = setInterval(async () => {
+            try {
+                const { dataManager } = await import('../data/DataService.js');
+                const { currentUser } = await import('../../store/userStore.js');
+
+                if (!currentUser?.uid) {
+                    console.warn('[CampusLocationService] No current user for periodic update');
+                    return;
+                }
+
+                console.log('[CampusLocationService] Performing periodic location update...');
+                
+                const position = await this.getCurrentLocation();
+                if (position) {
+                    const campusPresenceResult = await this.detectCampusPresence('iub');
+                    const campusStatus = campusPresenceResult?.onCampus !== undefined 
+                        ? (campusPresenceResult.onCampus ? 'on_campus' : 'off_campus')
+                        : 'unknown';
+
+                    console.log('[CampusLocationService] Periodic update - Campus status:', campusStatus);
+
+                    const updateResult = await dataManager.updateUserLocationStatus(
+                        currentUser.uid,
+                        campusStatus,
+                        {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            timestamp: position.timestamp
+                        }
+                    );
+
+                    if (updateResult.success) {
+                        console.log('[CampusLocationService] ✅ Periodic location update successful');
+                    } else {
+                        console.error('[CampusLocationService] ❌ Periodic location update failed:', updateResult.error);
+                    }
+                } else {
+                    console.warn('[CampusLocationService] Periodic update - no position available');
+                }
+            } catch (error) {
+                console.error('[CampusLocationService] Error in periodic location update:', error);
+            }
+        }, 5 * 60 * 1000); // 5 minutes as specified in implementation plan
+
+        console.log('[CampusLocationService] ✅ Periodic location updates started');
+    }
+
+    /**
+     * Check if location tracking is currently active
+     * @returns {boolean} True if tracking is active
+     */
+    isTrackingActive() {
+        return this.trackingWatchId !== null && this.trackingWatchId !== undefined;
+    }
 }
 
 // Export singleton instance
 export const campusLocationService = new CampusLocationService();
+
+// 🛠️ DEBUGGING: Make campusLocationService globally available for console access and automation
+if (typeof window !== "undefined") {
+  window.campusLocationService = campusLocationService;
+  console.log("🛠️ CampusLocationService available globally as window.campusLocationService for debugging");
+}

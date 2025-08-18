@@ -1373,6 +1373,13 @@ export class FriendsManager {
         lastInteraction: now, // For recent-first ordering
       };
 
+      // 🌍 Campus Presence: Add friendshipId if available (required for bilateral location sharing)
+      if (friendInfo.friendshipId) {
+        quickAccessEntry.friendshipId = friendInfo.friendshipId;
+      } else {
+        console.warn(`⚠️ friendshipId not available for ${friendInfo.displayName} - location sharing may not work`);
+      }
+
       // Save to database via dataManager
       const result = await dataManager.addToQuickAccess(
         currentUser.uid,
@@ -1616,6 +1623,24 @@ export class FriendsManager {
       const enhancedFriends = await Promise.all(
         friends.map(async (friend) => {
           try {
+            // 🌍 Campus Presence: Ensure friendshipId is available for bilateral location sharing
+            let friendshipId = friend.friendshipId;
+            if (!friendshipId) {
+              console.warn(`⚠️ Missing friendshipId for ${friend.displayName}, looking up...`);
+              // Look up friendship document ID by friend IDs
+              const friendships = await dataManager.getUserFriendships(currentUser.uid);
+              const friendship = friendships.find(f => 
+                (f.user1Id === currentUser.uid && f.user2Id === friend.friendId) ||
+                (f.user2Id === currentUser.uid && f.user1Id === friend.friendId)
+              );
+              friendshipId = friendship?.id;
+              if (friendshipId) {
+                console.log(`✅ Found friendshipId for ${friend.displayName}: ${friendshipId}`);
+              } else {
+                console.error(`❌ Could not find friendship document for ${friend.displayName}`);
+              }
+            }
+
             // Check if quick access should be restricted for this friend
             const isRestricted =
               await friendshipPrivacyService.isQuickAccessRestricted(
@@ -1626,6 +1651,7 @@ export class FriendsManager {
             // Add privacy status to existing friend data
             return {
               ...friend, // Keep all existing friend data intact
+              friendshipId: friendshipId, // 🌍 Campus Presence: Ensure friendshipId is available
               // Privacy status flags for UI components
               isRestricted: isRestricted, // For UI disabled state
               canViewSchedule: !isRestricted, // Semantic flag for clarity

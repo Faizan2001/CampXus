@@ -444,6 +444,101 @@ const myFriends = query(
 - **✅ Performance**: Efficient queries with minimal database reads
 - **✅ Future-proof**: Extensible for mutual friends, messaging, etc.
 
+### Lazy Initialization Pattern for Campus Presence Fields
+
+CampXus uses a **lazy initialization pattern** for Campus Presence and location sharing features to ensure optimal database performance and avoid storage bloat. This pattern creates location-related fields only when users actively engage with location features.
+
+#### How Lazy Initialization Works
+
+**Problem Solved**: Traditional approaches create all possible fields in user documents during registration, leading to:
+- Unnecessary storage usage for users who never use location features
+- Complex initial setup procedures
+- Database bloat with empty/null fields
+
+**CampXus Solution**: Location fields are created **on-demand** when users first interact with location features:
+
+```javascript
+// Before Fix: Unsafe nested field update (fails silently)
+await updateDoc(userRef, {
+  "systemInfo.locationSharingEnabled": true  // ❌ Fails if systemInfo doesn't exist
+});
+
+// After Fix: Safe lazy initialization
+await dataManager.ensureSystemInfoExists(userId);  // ✅ Creates parent object if needed
+await updateDoc(userRef, {
+  "systemInfo.locationSharingEnabled": true  // ✅ Now succeeds
+});
+```
+
+#### Campus Presence Fields Created On-Demand
+
+The following fields are **lazily initialized** in user documents:
+
+**systemInfo object fields:**
+- `locationSharingEnabled` - Created when user enables location sharing
+- `lastKnownLocation` - Created when location is first detected
+- `lastActive` - Created when user activity is tracked
+- `currentLocation` - Created when real-time location updates begin
+
+**socialInfo object fields:**
+- `globalLocationSharingEnabled` - Created when user configures global preferences
+- `campusPresenceVisible` - Created when user adjusts campus visibility settings
+- `locationSharingRadius` - Created when user sets sharing radius preferences
+
+#### Implementation Details
+
+**Safe Field Creation Method** (`DataService.js:3264+`):
+```javascript
+async ensureSystemInfoExists(userId) {
+  const userRef = doc(db, "users", userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (!userDoc.exists()) {
+    throw new Error(`User document not found: ${userId}`);
+  }
+  
+  const userData = userDoc.data();
+  
+  // Check if systemInfo object exists and has basic structure
+  if (!userData.systemInfo || typeof userData.systemInfo !== 'object') {
+    console.log(`🔧 Creating missing systemInfo object for user: ${userId}`);
+    
+    // Create systemInfo with essential fields
+    const systemInfoDefaults = {
+      uid: userId,
+      status: "offline",
+      lastActive: serverTimestamp(),
+      lastUpdated: serverTimestamp(),
+      // Location fields will be added as needed
+    };
+    
+    await updateDoc(userRef, {
+      systemInfo: systemInfoDefaults
+    });
+  }
+}
+```
+
+#### Benefits of Lazy Initialization
+
+- **🚀 Performance**: Reduces initial database writes during user registration
+- **💾 Storage Efficiency**: Only stores fields that users actually use
+- **🔧 Maintainability**: Cleaner user documents without unused fields
+- **🎯 Feature Adoption**: Clear tracking of which users engage with location features
+- **⚡ Scalability**: Minimal database impact for users who don't use location sharing
+
+#### Developer Guidelines
+
+When adding new location or campus presence features:
+
+1. **Always check parent object existence** before nested field updates
+2. **Use the `ensureSystemInfoExists()` pattern** for systemInfo fields
+3. **Create similar helpers** for socialInfo or other nested objects as needed
+4. **Test with fresh user accounts** to verify field creation works correctly
+5. **Log field creation events** for debugging and analytics
+
+This pattern ensures that Campus Presence features integrate seamlessly with existing user accounts while maintaining optimal database performance.
+
 ### Friend Request Lifecycle (Logical Data Management)
 
 Friend requests follow a clean, logical lifecycle:

@@ -90,7 +90,7 @@ Welcome to the most comprehensive database guide for CampXus! This combines ever
 │   │   │     defaultLocationSharing: false // boolean - Default for new friendships
 │   │   │   }
 │   │   ├── quickAccessData: {             // ⭐ Quick Access starred friends
-│   │   │     friends: [            // array of objects
+│   │   │     starredFriends: [            // array of objects
 │   │   │       {
 │   │   │         userId: "friend_uid_1",  // string
 │   │   │         displayName: "Jane Doe", // string (cached)
