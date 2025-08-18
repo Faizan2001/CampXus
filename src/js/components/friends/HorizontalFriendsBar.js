@@ -43,7 +43,7 @@ import {
   realTimeManager,
   REALTIME_EVENTS,
 } from "../../services/realtime/RealtimeService.js";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import { PresenceDot } from "../presence/PresenceDot.js";
 
@@ -490,7 +490,9 @@ export class HorizontalFriendsBar {
         );
 
       // 🌍 Campus Presence: Enhance friends with location data using extracted method
-      const quickAccessWithLocation = await this.enhanceFriendsWithLocationData(quickAccessData);
+      const quickAccessWithLocation = await this.enhanceFriendsWithLocationData(
+        quickAccessData
+      );
 
       console.log(
         "[HorizontalFriendsBar] Enhanced friends with location data:",
@@ -1801,10 +1803,41 @@ export class HorizontalFriendsBar {
 
               // FIXED: Preserve location context during external updates to prevent grey dots
               // Re-enhance the new friends data with location context before rendering
-              console.log("🔄 Re-enhancing external friends data with location context...");
-              const enhancedFriends = await this.enhanceFriendsWithLocationData(newFriendsData);
+              console.log(
+                "🔄 Re-enhancing external friends data with location context..."
+              );
+              const enhancedFriends = await this.enhanceFriendsWithLocationData(
+                newFriendsData
+              );
+
+              // OPTIMIZATION: Only do full render if friend list structure changed (added/removed friends)
+              const structureChanged =
+                this.quickAccessFriends.length !== enhancedFriends.length ||
+                !enhancedFriends.every((friend) =>
+                  this.quickAccessFriends.find(
+                    (existing) =>
+                      (existing.friendId || existing.userId) ===
+                      (friend.friendId || friend.userId)
+                  )
+                );
+
               this.quickAccessFriends = enhancedFriends;
-              this.render();
+
+              if (structureChanged) {
+                console.log(
+                  "🔄 Friend list structure changed, doing full render"
+                );
+                this.render();
+              } else {
+                console.log(
+                  "🎨 Friend list unchanged, updating presence dots only"
+                );
+                // Update presence dots individually to preserve timer state
+                // Use the fresh enhanced friends data for accurate presence dots
+                enhancedFriends.forEach((friend, index) => {
+                  this.updateFriendPresenceDot(index, friend);
+                });
+              }
 
               // Re-setup privacy listeners for new friend list
               this.setupFriendshipPrivacyListeners();
@@ -1944,7 +1977,7 @@ export class HorizontalFriendsBar {
       REALTIME_EVENTS.QUICK_ACCESS_UPDATED,
       (quickAccessData) => {
         // Only log in development to reduce console spam in production
-        if (window.location.hostname === 'localhost') {
+        if (window.location.hostname === "localhost") {
           console.log(
             "⭐ REALTIME: Quick Access update event received in HorizontalFriendsBar:",
             quickAccessData
@@ -1962,13 +1995,13 @@ export class HorizontalFriendsBar {
       REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED,
       (presenceEvent) => {
         // Only log in development to reduce console spam in production
-        if (window.location.hostname === 'localhost') {
+        if (window.location.hostname === "localhost") {
           console.log(
             "🌍 REALTIME: Campus presence change received in HorizontalFriendsBar:",
             presenceEvent
           );
         }
-        
+
         // Handle the campus presence update to refresh presence dots
         this.handleCampusPresenceUpdate(presenceEvent);
       }
@@ -1980,13 +2013,13 @@ export class HorizontalFriendsBar {
       REALTIME_EVENTS.USER_ACTIVITY_CHANGED,
       (activityEvent) => {
         // Only log in development to reduce console spam in production
-        if (window.location.hostname === 'localhost') {
+        if (window.location.hostname === "localhost") {
           console.log(
             "💓 REALTIME: User activity change received in HorizontalFriendsBar:",
             activityEvent
           );
         }
-        
+
         // Handle the activity change to refresh presence dots (solid vs timer)
         this.handleUserActivityUpdate(activityEvent);
       }
@@ -2354,14 +2387,22 @@ export class HorizontalFriendsBar {
         friendProfile?.avatarConfig ||
         currentFriend.avatarConfig;
 
+      // Get lastActive for presence detection
+      const newLastActive = friendProfile?.systemInfo?.lastActive;
+      const currentLastActive = currentFriend.lastActive;
+
       // ENHANCED change detection - exclude privacy changes (handled separately)
       const nameChanged =
         newDisplayName && newDisplayName !== currentFriend.displayName;
       const avatarChanged =
         newAvatarConfig &&
         !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
+      const lastActiveChanged =
+        newLastActive &&
+        (!currentLastActive ||
+          newLastActive.toMillis() !== currentLastActive.toMillis());
 
-      if (!nameChanged && !avatarChanged) {
+      if (!nameChanged && !avatarChanged && !lastActiveChanged) {
         console.log(
           `📡 No significant profile changes for ${currentFriend.displayName}, skipping update`
         );
@@ -2375,6 +2416,9 @@ export class HorizontalFriendsBar {
             ? `${currentFriend.displayName} → ${newDisplayName}`
             : false,
           avatarChanged,
+          lastActiveChanged: lastActiveChanged
+            ? "presence data updated"
+            : false,
         }
       );
 
@@ -2408,19 +2452,40 @@ export class HorizontalFriendsBar {
         }
       }
 
+      if (lastActiveChanged) {
+        // Update lastActive timestamp for presence detection
+        updatedFriend.lastActive = newLastActive;
+        hasLocalUpdates = true;
+
+        // Also update presence dot immediately since activity changed
+        const friendIndex = this.quickAccessFriends.findIndex(
+          (f) => (f.friendId || f.userId) === friendId
+        );
+        if (friendIndex !== -1) {
+          this.updateFriendPresenceDot(friendIndex, updatedFriend);
+          console.log(
+            `🌍 Updated presence dot for ${updatedFriend.displayName} due to activity change`
+          );
+        }
+      }
+
       if (hasLocalUpdates) {
         // Update local state for immediate UI refresh
         this.quickAccessFriends[friendIndex] = updatedFriend;
 
-        // Only update UI for profile changes, do NOT trigger database sync
-        this.debouncedRender();
-
-        console.log(
-          `✅ Profile UI updated for ${updatedFriend.displayName} (no database sync)`
-        );
-
-        // Schedule a batched database sync for profile changes only (longer delay)
-        this.scheduleBatchedDatabaseSync();
+        // Only trigger full re-render for profile changes (name/avatar), not for presence updates
+        if (nameChanged || avatarChanged) {
+          this.debouncedRender();
+          console.log(
+            `✅ Profile UI updated for ${updatedFriend.displayName} (no database sync)`
+          );
+          // Schedule a batched database sync for profile changes only (longer delay)
+          this.scheduleBatchedDatabaseSync();
+        } else if (lastActiveChanged) {
+          console.log(
+            `✅ Presence updated for ${updatedFriend.displayName} (no full re-render)`
+          );
+        }
       }
     } catch (error) {
       console.error(`❌ Error in profile update for ${friendId}:`, error);
@@ -3363,7 +3428,7 @@ export class HorizontalFriendsBar {
   async handleRealTimeQuickAccessUpdate(quickAccessData) {
     try {
       // Only log in development to reduce console spam in production
-      if (window.location.hostname === 'localhost') {
+      if (window.location.hostname === "localhost") {
         console.log(
           "⭐ Processing real-time Quick Access update in horizontal bar"
         );
@@ -3398,12 +3463,19 @@ export class HorizontalFriendsBar {
       );
 
       // Check if the friend list actually changed to prevent unnecessary operations
-      const currentFriendIds = (this.quickAccessFriends || []).map(f => f.friendId || f.userId).sort();
-      const newFriendIds = validatedFriends.map(f => f.friendId || f.userId).sort();
-      const friendListChanged = JSON.stringify(currentFriendIds) !== JSON.stringify(newFriendIds);
+      const currentFriendIds = (this.quickAccessFriends || [])
+        .map((f) => f.friendId || f.userId)
+        .sort();
+      const newFriendIds = validatedFriends
+        .map((f) => f.friendId || f.userId)
+        .sort();
+      const friendListChanged =
+        JSON.stringify(currentFriendIds) !== JSON.stringify(newFriendIds);
 
       if (!friendListChanged) {
-        console.log("📡 Quick Access friend list unchanged, skipping expensive operations");
+        console.log(
+          "📡 Quick Access friend list unchanged, skipping expensive operations"
+        );
         return;
       }
 
@@ -3416,9 +3488,12 @@ export class HorizontalFriendsBar {
         try {
           // 🌍 Campus Presence: Get friends with full privacy and location data for presence dots
           // Only fetch fresh data when the friend list actually changed
-          const quickAccessWithPrivacy = await friendsManager.getQuickAccessFriendsWithPrivacy(false);
-          const friendsWithLocation = await this.enhanceFriendsWithLocationData(quickAccessWithPrivacy);
-          
+          const quickAccessWithPrivacy =
+            await friendsManager.getQuickAccessFriendsWithPrivacy(false);
+          const friendsWithLocation = await this.enhanceFriendsWithLocationData(
+            quickAccessWithPrivacy
+          );
+
           // Update internal state with location-enhanced data
           this.quickAccessFriends = friendsWithLocation;
 
@@ -3446,12 +3521,13 @@ export class HorizontalFriendsBar {
             await this.ensureUserSelected();
           }
 
-          console.log("✅ Real-time Quick Access update processed successfully");
+          console.log(
+            "✅ Real-time Quick Access update processed successfully"
+          );
         } catch (error) {
           console.error("❌ Error in debounced Quick Access update:", error);
         }
       }, 250); // 250ms debounce to prevent rapid-fire updates
-
     } catch (error) {
       console.error("❌ Error handling real-time Quick Access update:", error);
     }
@@ -3464,20 +3540,39 @@ export class HorizontalFriendsBar {
   handleCampusPresenceUpdate(presenceEvent) {
     try {
       const { userId, campusStatus, locationData, timestamp } = presenceEvent;
-      
+
       console.log(`🌍 Processing campus presence update for user ${userId}:`, {
         campusStatus,
         hasLocationData: !!locationData,
-        timestamp
+        timestamp,
       });
+
+      // 🔧 FIXED: Handle current user's own campus presence changes
+      const isCurrentUser = userId === currentUser?.user?.uid;
+      if (isCurrentUser) {
+        console.log(
+          `🌍 Current user's campus presence changed: ${campusStatus}`
+        );
+        // For current user, we don't need to update the friends list,
+        // but we should trigger a re-enhancement of friends data to reflect
+        // our own location sharing status in bilateral calculations
+        this.refreshLocationDataForCurrentUser(
+          campusStatus,
+          locationData,
+          timestamp
+        );
+        return;
+      }
 
       // Find if this user is in our Quick Access friends
       const friendIndex = this.quickAccessFriends.findIndex(
-        friend => friend.friendId === userId || friend.userId === userId
+        (friend) => friend.friendId === userId || friend.userId === userId
       );
 
       if (friendIndex === -1) {
-        console.log(`🌍 User ${userId} not in Quick Access friends, ignoring presence update`);
+        console.log(
+          `🌍 User ${userId} not in Quick Access friends, ignoring presence update`
+        );
         return;
       }
 
@@ -3486,21 +3581,23 @@ export class HorizontalFriendsBar {
       friend.lastKnownLocation = {
         ...friend.lastKnownLocation,
         campusStatus,
-        ...locationData
+        ...locationData,
       };
       friend.lastActive = new Date(timestamp);
 
       console.log(`🌍 Updated friend ${friend.displayName}'s presence data:`, {
         campusStatus: friend.lastKnownLocation?.campusStatus,
-        hasLocationSharing: friend.hasLocationSharing
+        hasLocationSharing: friend.hasLocationSharing,
       });
 
       // Update only the presence dot for this specific friend
       this.updateFriendPresenceDot(friendIndex, friend);
 
-      console.log(`✅ Campus presence update processed for ${friend.displayName}`);
+      console.log(
+        `✅ Campus presence update processed for ${friend.displayName}`
+      );
     } catch (error) {
-      console.error('❌ Error handling campus presence update:', error);
+      console.error("❌ Error handling campus presence update:", error);
     }
   }
 
@@ -3512,36 +3609,48 @@ export class HorizontalFriendsBar {
   updateFriendPresenceDot(friendIndex, friend) {
     try {
       const friendId = friend.friendId || friend.userId;
-      
+
       // Try to get the avatar element from the cached map first
       let avatarElement = this.avatarElements.get(friendId);
-      
+
       // If cached element is missing or disconnected from DOM, find it fresh
       if (!avatarElement || !avatarElement.isConnected) {
-        console.log(`🔄 Cached avatar element stale for ${friend.displayName}, finding fresh reference`);
-        
+        console.log(
+          `🔄 Cached avatar element stale for ${friend.displayName}, finding fresh reference`
+        );
+
         // Find the element fresh from the DOM
-        const container = document.querySelector('.horizontal-friends-bar .friends-avatars');
+        const container = document.querySelector(
+          ".horizontal-friends-bar .friends-avatars"
+        );
         if (container) {
-          avatarElement = container.querySelector(`[data-friend-id="${friendId}"]`);
-          
+          avatarElement = container.querySelector(
+            `[data-friend-id="${friendId}"]`
+          );
+
           if (avatarElement) {
             // Update the cache with the fresh reference
             this.avatarElements.set(friendId, avatarElement);
-            console.log(`✅ Fresh avatar element found and cached for ${friend.displayName}`);
+            console.log(
+              `✅ Fresh avatar element found and cached for ${friend.displayName}`
+            );
           }
         }
       }
-      
+
       if (!avatarElement) {
-        console.warn(`🌍 Avatar element not found for friend ${friend.displayName} (ID: ${friendId})`);
+        console.warn(
+          `🌍 Avatar element not found for friend ${friend.displayName} (ID: ${friendId})`
+        );
         return;
       }
 
       // Find the existing presence dot within the avatar
-      const existingPresenceDot = avatarElement.querySelector('.presence-dot');
+      const existingPresenceDot = avatarElement.querySelector(".presence-dot");
       if (!existingPresenceDot) {
-        console.warn(`🌍 Presence dot element not found for friend ${friend.displayName}`);
+        console.warn(
+          `🌍 Presence dot element not found for friend ${friend.displayName}`
+        );
         return;
       }
 
@@ -3553,24 +3662,87 @@ export class HorizontalFriendsBar {
       );
 
       // Create a temporary container to parse the HTML
-      const tempContainer = document.createElement('div');
+      const tempContainer = document.createElement("div");
       tempContainer.innerHTML = newPresenceDot;
-      const newPresenceDotElement = tempContainer.querySelector('.presence-dot');
+      const newPresenceDotElement =
+        tempContainer.querySelector(".presence-dot");
 
       if (newPresenceDotElement) {
         // Replace the old presence dot with the new one
         existingPresenceDot.replaceWith(newPresenceDotElement);
-        
+
         console.log(`🌍 ✅ Updated presence dot for ${friend.displayName}:`, {
           newClass: newPresenceDotElement.className,
-          newText: newPresenceDotElement.querySelector('.dot-text')?.textContent,
-          campusStatus: friend.lastKnownLocation?.campusStatus
+          newText:
+            newPresenceDotElement.querySelector(".dot-text")?.textContent,
+          campusStatus: friend.lastKnownLocation?.campusStatus,
         });
       } else {
-        console.warn(`🌍 Failed to create new presence dot element for ${friend.displayName}`);
+        console.warn(
+          `🌍 Failed to create new presence dot element for ${friend.displayName}`
+        );
       }
     } catch (error) {
-      console.error(`❌ Error updating presence dot for ${friend.displayName}:`, error);
+      console.error(
+        `❌ Error updating presence dot for ${friend.displayName}:`,
+        error
+      );
+    }
+  }
+
+  /**
+   * 🔧 FIXED: Handle current user's own campus presence changes
+   * This method updates the bilateral location sharing calculations when the current user's location changes
+   * @param {string} campusStatus - New campus status ('on_campus', 'off_campus', 'unknown')
+   * @param {Object} locationData - Location data object
+   * @param {number} timestamp - Timestamp of the change
+   */
+  async refreshLocationDataForCurrentUser(
+    campusStatus,
+    locationData,
+    timestamp
+  ) {
+    try {
+      console.log(
+        `🌍 Refreshing location data for current user: ${campusStatus}`
+      );
+
+      // Update current user's location info in store if available
+      if (currentUser?.profile?.systemInfo) {
+        currentUser.profile.systemInfo.lastKnownLocation = {
+          ...currentUser.profile.systemInfo.lastKnownLocation,
+          campusStatus,
+          ...locationData,
+          timestamp,
+        };
+        currentUser.profile.systemInfo.lastActive = new Date(timestamp);
+      }
+
+      // Re-enhance friends data to reflect updated bilateral permissions
+      // This ensures presence dots get updated with the latest location sharing status
+      if (this.quickAccessFriends.length > 0) {
+        console.log(
+          `🌍 Re-enhancing ${this.quickAccessFriends.length} friends with updated location data`
+        );
+        const refreshedFriends = await this.enhanceFriendsWithLocationData(
+          this.quickAccessFriends
+        );
+
+        // Update each friend's presence dot individually without full re-render
+        refreshedFriends.forEach((friend, index) => {
+          this.quickAccessFriends[index] = friend;
+          this.updateFriendPresenceDot(index, friend);
+        });
+
+        console.log(
+          `✅ Refreshed location data for current user and updated ${refreshedFriends.length} presence dots`
+        );
+      }
+    } catch (error) {
+      console.error(
+        "❌ Error refreshing location data for current user:",
+        error
+      );
     }
   }
 
@@ -3582,19 +3754,21 @@ export class HorizontalFriendsBar {
   handleUserActivityUpdate(activityEvent) {
     try {
       const { userId, isActive, timestamp } = activityEvent;
-      
+
       console.log(`💓 Processing user activity update for ${userId}:`, {
         isActive,
-        timestamp
+        timestamp,
       });
 
       // Find if this user is in our Quick Access friends
       const friendIndex = this.quickAccessFriends.findIndex(
-        friend => friend.friendId === userId || friend.userId === userId
+        (friend) => friend.friendId === userId || friend.userId === userId
       );
 
       if (friendIndex === -1) {
-        console.log(`💓 User ${userId} not in Quick Access friends, ignoring activity update`);
+        console.log(
+          `💓 User ${userId} not in Quick Access friends, ignoring activity update`
+        );
         return;
       }
 
@@ -3602,19 +3776,24 @@ export class HorizontalFriendsBar {
       const friend = this.quickAccessFriends[friendIndex];
       friend.lastActive = new Date(timestamp);
 
-      console.log(`💓 Updated friend ${friend.displayName}'s activity timestamp:`, {
-        newLastActive: friend.lastActive,
-        isActive,
-        hasLocationSharing: friend.hasLocationSharing
-      });
+      console.log(
+        `💓 Updated friend ${friend.displayName}'s activity timestamp:`,
+        {
+          newLastActive: friend.lastActive,
+          isActive,
+          hasLocationSharing: friend.hasLocationSharing,
+        }
+      );
 
       // Update only the presence dot for this specific friend
       // This will show solid dot (no text) for active users, timer dots for inactive
       this.updateFriendPresenceDot(friendIndex, friend);
 
-      console.log(`✅ User activity update processed for ${friend.displayName}`);
+      console.log(
+        `✅ User activity update processed for ${friend.displayName}`
+      );
     } catch (error) {
-      console.error('❌ Error handling user activity update:', error);
+      console.error("❌ Error handling user activity update:", error);
     }
   }
 
@@ -3627,79 +3806,163 @@ export class HorizontalFriendsBar {
       return [];
     }
 
-    console.log(`[HorizontalFriendsBar] Enhancing ${friends.length} friends with location data...`);
+    console.log(
+      `[HorizontalFriendsBar] Enhancing ${friends.length} friends with location data...`
+    );
+
+    // Get current user ID for friendship document reconstruction
+    const currentUserUid = currentUser?.user?.uid;
 
     const enhancedFriends = await Promise.all(
       friends.map(async (friend) => {
         try {
-          // Get friend's full profile to access location data
-          const friendProfile = await dataManager.getUserProfile(friend.friendId || friend.userId);
-          
+          // Get friend's full profile to access location data (bypass cache for fresh lastActive)
+          const friendId = friend.friendId || friend.userId;
+          const friendDoc = await getDoc(doc(db, "users", friendId));
+          const friendProfile = friendDoc.exists() ? friendDoc.data() : null;
+
           // Extract location information from systemInfo
           const systemInfo = friendProfile?.systemInfo || {};
-          const globalLocationEnabled = Boolean(systemInfo.locationSharingEnabled);
+          const globalLocationEnabled = Boolean(
+            systemInfo.locationSharingEnabled
+          );
           const lastActive = systemInfo.lastActive || null;
           const lastKnownLocation = systemInfo.lastKnownLocation || null;
-          
+
+          // 🔑 CRITICAL: Reconstruct friendshipId if missing (happens during external updates)
+          let friendshipId = friend.friendshipId;
+          if (
+            !friendshipId &&
+            currentUserUid &&
+            (friend.friendId || friend.userId)
+          ) {
+            const friendId = friend.friendId || friend.userId;
+            friendshipId =
+              currentUserUid < friendId
+                ? `${currentUserUid}_${friendId}`
+                : `${friendId}_${currentUserUid}`;
+
+            console.log(
+              `[HorizontalFriendsBar] 🔧 Reconstructed missing friendshipId for ${friend.displayName}: ${friendshipId}`
+            );
+          }
+
           // 🔑 CRITICAL: Check bilateral location sharing consent
           let canSeeLocation = false;
           let bilateralStatus = null;
-          
-          if (globalLocationEnabled && friend.friendshipId) {
+
+          if (globalLocationEnabled && friendshipId) {
             try {
-              const friendship = await dataManager.getFriendshipDocument(friend.friendshipId);
+              const friendship = await dataManager.getFriendshipDocument(
+                friendshipId
+              );
               if (friendship?.locationVisibility) {
-                const friendSharesWithMe = friendship.locationVisibility[friend.friendId || friend.userId] === true;
+                // 🐛 FIXED: More robust friend ID lookup for real-time updates
+                const friendId = friend.friendId || friend.userId;
+                const friendSharesWithMe =
+                  friendship.locationVisibility[friendId] === true;
+
+                // 🔍 DEBUG: Enhanced debugging for real-time updates
+                console.log(
+                  `[HorizontalFriendsBar] 🔍 Bilateral consent check for ${friend.displayName}:`,
+                  {
+                    friendId,
+                    friendshipId: friendshipId, // Use the reconstructed one
+                    locationVisibility: friendship.locationVisibility,
+                    friendSharesWithMe,
+                    availableKeys: Object.keys(friendship.locationVisibility),
+                  }
+                );
+
                 bilateralStatus = {
                   friendSharesWithMe,
-                  friendshipId: friend.friendshipId,
-                  locationVisibility: friendship.locationVisibility
+                  friendshipId: friendshipId, // Use the reconstructed one
+                  locationVisibility: friendship.locationVisibility,
+                  lookupKey: friendId,
                 };
                 canSeeLocation = friendSharesWithMe;
+              } else {
+                console.warn(
+                  `[HorizontalFriendsBar] ⚠️ No locationVisibility found in friendship document for ${friend.displayName}`
+                );
               }
             } catch (bilateralError) {
-              console.warn(`[HorizontalFriendsBar] Error checking bilateral consent for ${friend.displayName}:`, bilateralError);
+              console.warn(
+                `[HorizontalFriendsBar] Error checking bilateral consent for ${friend.displayName}:`,
+                bilateralError
+              );
             }
+          } else {
+            console.log(
+              `[HorizontalFriendsBar] 🔍 Skipping bilateral check for ${friend.displayName}: globalLocationEnabled=${globalLocationEnabled}, friendshipId=${friendshipId}`
+            );
           }
-          
+
           // Only enable location sharing if both global setting AND bilateral consent are true
           const hasLocationSharing = globalLocationEnabled && canSeeLocation;
-          
-          console.log(`[HorizontalFriendsBar] Enhanced location data for ${friend.displayName}:`, {
-            globalLocationEnabled,
-            canSeeLocation,
-            hasLocationSharing,
-            hasLastActive: !!lastActive,
-            hasLocation: !!lastKnownLocation,
-            campusStatus: lastKnownLocation?.campusStatus,
-            bilateralStatus
-          });
+
+          console.log(
+            `[HorizontalFriendsBar] Enhanced location data for ${friend.displayName}:`,
+            {
+              globalLocationEnabled,
+              canSeeLocation,
+              hasLocationSharing,
+              hasLastActive: !!lastActive,
+              hasLocation: !!lastKnownLocation,
+              campusStatus: lastKnownLocation?.campusStatus,
+              bilateralStatus,
+            }
+          );
 
           return {
             ...friend,
+            friendshipId: friendshipId, // Ensure friendshipId is preserved/reconstructed
             hasLocationSharing,
             lastActive,
             lastKnownLocation,
             globalLocationEnabled,
             canSeeLocation,
-            bilateralStatus
+            bilateralStatus,
           };
         } catch (error) {
-          console.error(`[HorizontalFriendsBar] Error enhancing location data for ${friend.displayName || 'unknown'}:`, error);
+          console.error(
+            `[HorizontalFriendsBar] Error enhancing location data for ${
+              friend.displayName || "unknown"
+            }:`,
+            error
+          );
+
+          // Still try to reconstruct friendshipId even in error case
+          let friendshipId = friend.friendshipId;
+          if (
+            !friendshipId &&
+            currentUserUid &&
+            (friend.friendId || friend.userId)
+          ) {
+            const friendId = friend.friendId || friend.userId;
+            friendshipId =
+              currentUserUid < friendId
+                ? `${currentUserUid}_${friendId}`
+                : `${friendId}_${currentUserUid}`;
+          }
+
           return {
             ...friend,
+            friendshipId: friendshipId,
             hasLocationSharing: false,
             lastActive: null,
             lastKnownLocation: null,
             globalLocationEnabled: false,
             canSeeLocation: false,
-            bilateralStatus: null
+            bilateralStatus: null,
           };
         }
       })
     );
 
-    console.log(`[HorizontalFriendsBar] Enhanced ${enhancedFriends.length} friends with location data`);
+    console.log(
+      `[HorizontalFriendsBar] Enhanced ${enhancedFriends.length} friends with location data`
+    );
     return enhancedFriends;
   }
 
