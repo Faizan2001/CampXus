@@ -32,6 +32,15 @@ export class CampusLocationService {
     this.minUpdateInterval = 60000; // Minimum 60 seconds between updates
     this.isUpdatingLocation = false; // Prevent concurrent updates
 
+    // Initialization and health monitoring properties
+    this.initializationAttempts = 0;
+    this.maxInitializationAttempts = 5;
+    this.initializationRetryTimeout = null;
+    this.lastHealthCheck = null;
+    this.healthCheckInterval = null;
+    this.isInitialized = false;
+    this.initializationErrors = [];
+
     // Activity tracking properties
     this.isUserCurrentlyActive = false;
     this.lastActivityDetected = null;
@@ -166,10 +175,11 @@ export class CampusLocationService {
   }
 
   /**
-   * Get current location from browser geolocation API
+   * Get current location from browser geolocation API with adaptive battery optimization
+   * @param {boolean} highAccuracy - Whether to use high accuracy mode (default: false for battery efficiency)
    * @returns {Promise<GeolocationPosition|null>} Current position or null if failed
    */
-  async getCurrentLocation() {
+  async getCurrentLocation(highAccuracy = false) {
     console.log("[CampusLocationService] Getting current location...");
 
     if (!this.isLocationSupported) {
@@ -178,10 +188,11 @@ export class CampusLocationService {
     }
 
     return new Promise((resolve, reject) => {
+      // FIXED: Adaptive GPS settings based on use case for better battery efficiency
       const options = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes cache
+        enableHighAccuracy: highAccuracy, // OPTIMIZED: Only use high accuracy when explicitly needed
+        timeout: highAccuracy ? 15000 : 30000, // ADAPTIVE: Longer timeout for low-power mode
+        maximumAge: highAccuracy ? 60000 : 300000, // ADAPTIVE: More aggressive caching for battery efficiency
       };
 
       navigator.geolocation.getCurrentPosition(
@@ -586,19 +597,23 @@ export class CampusLocationService {
       );
 
       // Start watching position with debounced automatic database updates
+      // OPTIMIZED: Use battery-efficient GPS settings for continuous tracking
       this.trackingWatchId = this.watchPosition(async (position, error) => {
         if (error) {
-          // Use appropriate logging level based on error type
-          if (error.code === 3) {
-            // TIMEOUT
-            console.warn(
-              "[CampusLocationService] ⏱️ Location timeout in tracking (normal indoors) - GPS will retry automatically"
-            );
-          } else {
-            console.error(
-              "[CampusLocationService] Error in location tracking:",
-              error
-            );
+          // Enhanced error handling with battery-conscious retry strategies
+          switch (error.code) {
+            case 1: // PERMISSION_DENIED
+              console.error("[CampusLocationService] 🚫 Location permission denied - stopping tracking");
+              this.stopLocationTracking();
+              return;
+            case 2: // POSITION_UNAVAILABLE
+              console.warn("[CampusLocationService] 📍 GPS temporarily unavailable - will retry (battery optimized)");
+              break;
+            case 3: // TIMEOUT
+              console.warn("[CampusLocationService] ⏱️ Location timeout (normal indoors) - GPS will retry automatically with longer interval");
+              break;
+            default:
+              console.warn("[CampusLocationService] ⚠️ Location error:", error.message);
           }
           return;
         }
@@ -655,16 +670,26 @@ export class CampusLocationService {
       console.log("[CampusLocationService] Location update debounce cleared");
     }
 
-    // Stop activity heartbeat as well
+    // Stop activity heartbeat and health monitoring
     this.stopActivityHeartbeat();
+    this.stopHealthMonitoring();
+
+    // Clear initialization retry timeout
+    if (this.initializationRetryTimeout) {
+      clearTimeout(this.initializationRetryTimeout);
+      this.initializationRetryTimeout = null;
+    }
 
     // Reset state
     this.isUpdatingLocation = false;
     this.lastLocationUpdate = null;
     this.isUpdatingActivity = false;
+    this.isInitialized = false;
+    this.initializationAttempts = 0;
+    this.initializationErrors = [];
 
     console.log(
-      "[CampusLocationService] ✅ Location tracking and activity heartbeat stopped"
+      "[CampusLocationService] ✅ Location tracking, activity heartbeat, and health monitoring stopped"
     );
   }
 
@@ -798,23 +823,32 @@ export class CampusLocationService {
   }
 
   /**
-   * Set up periodic location updates as fallback (only when watchPosition is not active)
-   * Updates location every 5 minutes when GPS tracking is unavailable
+   * Set up periodic location updates as fallback system
+   * ENHANCED: Now works alongside watchPosition with health monitoring
+   * Updates location every 5 minutes as backup when primary GPS tracking fails
    */
   async startPeriodicLocationUpdates() {
-    // Don't start periodic updates if watchPosition is already active
-    if (this.trackingWatchId) {
+    if (this.periodicUpdateInterval) {
       console.log(
-        "[CampusLocationService] 🚫 Not starting periodic updates - watchPosition is active"
+        "[CampusLocationService] ⚠️ Periodic updates already running"
       );
       return;
     }
 
+    // FIXED: Allow periodic updates to run as backup even with watchPosition active
+    // This provides redundancy when GPS becomes unreliable
     console.log(
-      "[CampusLocationService] Starting periodic location updates (5-minute intervals) as GPS fallback..."
+      "[CampusLocationService] 🔄 Starting periodic location updates as backup system..."
     );
 
     this.periodicUpdateInterval = setInterval(async () => {
+      // Skip if a location update is already in progress to prevent conflicts
+      if (this.isUpdatingLocation) {
+        console.log(
+          "[CampusLocationService] ⏭️ Skipping periodic update - location update in progress"
+        );
+        return;
+      }
       try {
         const { dataManager } = await import("../data/DataService.js");
         const { currentUser } = await import("../../store/userStore.js");
@@ -827,10 +861,11 @@ export class CampusLocationService {
         }
 
         console.log(
-          "[CampusLocationService] Performing periodic location update..."
+          "[CampusLocationService] 🔄 Performing periodic location update (battery optimized)..."
         );
 
-        const position = await this.getCurrentLocation();
+        // Use battery-optimized GPS for periodic updates
+        const position = await this.getCurrentLocation(false);
         if (position) {
           const campusPresenceResult = await this.detectCampusPresence("iub");
           const campusStatus =
@@ -880,38 +915,62 @@ export class CampusLocationService {
     }, 5 * 60 * 1000); // 5 minutes as specified in implementation plan
 
     console.log(
-      "[CampusLocationService] ✅ Periodic location updates started (GPS fallback mode)"
+      "[CampusLocationService] ✅ Periodic location updates started as backup system (5-minute intervals)"
     );
   }
 
   /**
    * Automatically start location tracking if user has location sharing enabled
    * Called when user loads the website or profile is loaded
+   * ENHANCED: Robust initialization with retry logic and health monitoring
    */
   async autoStartLocationTracking() {
+    this.initializationAttempts++;
+    
     try {
       console.log(
-        "[CampusLocationService] Checking if automatic location tracking should start..."
+        `[CampusLocationService] 🚀 Initialization attempt ${this.initializationAttempts}/${this.maxInitializationAttempts} - checking if automatic location tracking should start...`
       );
 
-      // Import required services
-      const { dataManager } = await import("../data/DataService.js");
-      const { currentUser } = await import("../../store/userStore.js");
+      // Import required services with error handling
+      let currentUser;
+      try {
+        const userModule = await import("../../store/userStore.js");
+        currentUser = userModule.currentUser;
+      } catch (importError) {
+        console.error("[CampusLocationService] ❌ Failed to import required services:", importError);
+        this.scheduleInitializationRetry("Service import failed");
+        return;
+      }
 
       // Check if user is logged in
       if (!currentUser?.uid) {
         console.log(
-          "[CampusLocationService] No user logged in - skipping auto-start"
+          "[CampusLocationService] ⏳ No user logged in - scheduling retry"
         );
+        this.scheduleInitializationRetry("No current user");
         return;
       }
 
-      // Wait for user profile to be available
-      const userProfile = await currentUser.waitForProfile();
+      // Wait for user profile with timeout to prevent infinite waiting
+      let userProfile;
+      try {
+        const profilePromise = currentUser.waitForProfile();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile load timeout')), 10000)
+        );
+        userProfile = await Promise.race([profilePromise, timeoutPromise]);
+      } catch (profileError) {
+        console.warn("[CampusLocationService] ⏳ Profile loading failed, scheduling retry:", profileError.message);
+        this.scheduleInitializationRetry("Profile unavailable");
+        return;
+      }
+
       if (!userProfile) {
         console.log(
-          "[CampusLocationService] No user profile available - skipping auto-start"
+          "[CampusLocationService] ⏳ No user profile available - scheduling retry"
         );
+        this.scheduleInitializationRetry("Profile not ready");
         return;
       }
 
@@ -920,52 +979,126 @@ export class CampusLocationService {
         userProfile?.systemInfo?.locationSharingEnabled;
       if (!globalLocationEnabled) {
         console.log(
-          "[CampusLocationService] Global location sharing disabled - skipping auto-start"
+          "[CampusLocationService] 🔒 Global location sharing disabled - initialization complete (tracking disabled)"
         );
+        this.isInitialized = true;
         return;
       }
 
       // Check if user has any friends with mutual location sharing enabled
-      const hasLocationSharingFriends =
-        await this.checkForLocationSharingFriends();
+      let hasLocationSharingFriends;
+      try {
+        hasLocationSharingFriends = await this.checkForLocationSharingFriends();
+      } catch (friendsError) {
+        console.warn("[CampusLocationService] ⚠️ Failed to check location sharing friends:", friendsError);
+        this.scheduleInitializationRetry("Friends check failed");
+        return;
+      }
+
       if (!hasLocationSharingFriends) {
         console.log(
-          "[CampusLocationService] No friends with mutual location sharing - skipping auto-start"
+          "[CampusLocationService] 👥 No friends with mutual location sharing - initialization complete (no sharing needed)"
         );
+        this.isInitialized = true;
         return;
       }
 
       // Check if tracking is already active
       if (this.isTrackingActive()) {
-        console.log("[CampusLocationService] Location tracking already active");
+        console.log("[CampusLocationService] ✅ Location tracking already active - initialization complete");
+        this.isInitialized = true;
         return;
       }
 
       console.log(
-        "[CampusLocationService] ✅ Conditions met - starting automatic location tracking"
+        "[CampusLocationService] ✅ All conditions met - starting automatic location tracking"
       );
-      await this.startLocationTracking();
+      
+      // Start location tracking with fallback mechanisms
+      try {
+        await this.startLocationTracking();
+        
+        // Verify tracking started successfully with health check
+        setTimeout(() => this.performHealthCheck(), 5000);
+        
+      } catch (trackingError) {
+        console.warn("[CampusLocationService] ⚠️ Primary location tracking failed:", trackingError);
+      }
 
-      // If watchPosition fails to start, fall back to periodic updates
+      // Always try to start periodic updates as fallback if watchPosition isn't working
       if (!this.trackingWatchId) {
         console.log(
-          "[CampusLocationService] ⚠️ watchPosition failed, starting periodic updates as fallback"
+          "[CampusLocationService] 🔄 watchPosition not active, starting periodic updates as fallback"
         );
-        await this.startPeriodicLocationUpdates();
+        try {
+          await this.startPeriodicLocationUpdates();
+        } catch (periodicError) {
+          console.error("[CampusLocationService] ❌ Periodic updates also failed:", periodicError);
+          this.scheduleInitializationRetry("All tracking methods failed");
+          return;
+        }
       }
 
       // Always start activity heartbeat for user presence tracking
-      // This runs independently of location tracking for better battery efficiency
       this.startActivityHeartbeat();
+      
+      // Start health monitoring
+      this.startHealthMonitoring();
+      
+      this.isInitialized = true;
+      this.initializationAttempts = 0; // Reset counter on success
+      this.initializationErrors = []; // Clear error history
+      
       console.log(
-        "[CampusLocationService] 💓 Activity heartbeat started alongside location tracking"
+        "[CampusLocationService] 🎉 Location tracking initialization completed successfully"
       );
+      
     } catch (error) {
       console.error(
-        "[CampusLocationService] Error in auto-start location tracking:",
+        "[CampusLocationService] ❌ Unexpected error in auto-start location tracking:",
         error
       );
+      this.scheduleInitializationRetry(error.message);
     }
+  }
+
+  /**
+   * Schedule initialization retry with exponential backoff
+   * @param {string} reason - Reason for retry
+   */
+  scheduleInitializationRetry(reason) {
+    if (this.initializationAttempts >= this.maxInitializationAttempts) {
+      console.error(
+        `[CampusLocationService] ❌ Maximum initialization attempts (${this.maxInitializationAttempts}) reached. Giving up.`,
+        {
+          attempts: this.initializationAttempts,
+          errors: this.initializationErrors,
+          lastReason: reason
+        }
+      );
+      return;
+    }
+
+    this.initializationErrors.push({
+      attempt: this.initializationAttempts,
+      reason,
+      timestamp: new Date().toISOString()
+    });
+
+    // Exponential backoff: 2^attempt * 1000ms (1s, 2s, 4s, 8s, 16s)
+    const retryDelay = Math.min(Math.pow(2, this.initializationAttempts) * 1000, 30000); // Max 30s
+    
+    console.log(
+      `[CampusLocationService] ⏳ Scheduling initialization retry ${this.initializationAttempts + 1}/${this.maxInitializationAttempts} in ${retryDelay}ms. Reason: ${reason}`
+    );
+
+    if (this.initializationRetryTimeout) {
+      clearTimeout(this.initializationRetryTimeout);
+    }
+
+    this.initializationRetryTimeout = setTimeout(() => {
+      this.autoStartLocationTracking();
+    }, retryDelay);
   }
 
   /**
@@ -1179,6 +1312,171 @@ export class CampusLocationService {
    */
   isTrackingActive() {
     return this.trackingWatchId !== null && this.trackingWatchId !== undefined;
+  }
+
+  /**
+   * Start health monitoring system to detect and recover from tracking failures
+   * Runs periodic checks to ensure location tracking is working properly
+   */
+  startHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      console.log("[CampusLocationService] 💊 Health monitoring already running");
+      return;
+    }
+
+    console.log("[CampusLocationService] 💊 Starting health monitoring system...");
+
+    // Perform health check every 10 minutes
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthCheck();
+    }, 10 * 60 * 1000);
+
+    // Perform initial health check
+    setTimeout(() => this.performHealthCheck(), 5000);
+
+    console.log("[CampusLocationService] ✅ Health monitoring started (10-minute intervals)");
+  }
+
+  /**
+   * Stop health monitoring system
+   */
+  stopHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+      console.log("[CampusLocationService] 💊 Health monitoring stopped");
+    }
+  }
+
+  /**
+   * Perform comprehensive health check of location tracking system
+   * Detects issues and attempts automatic recovery
+   */
+  async performHealthCheck() {
+    const now = Date.now();
+    console.log("[CampusLocationService] 🏥 Performing health check...");
+
+    const healthStatus = {
+      timestamp: new Date().toISOString(),
+      watchPositionActive: this.trackingWatchId !== null,
+      periodicUpdatesActive: this.periodicUpdateInterval !== null,
+      activityHeartbeatActive: this.activityHeartbeatInterval !== null,
+      lastLocationUpdate: this.lastLocationUpdate,
+      timeSinceLastUpdate: this.lastLocationUpdate ? now - this.lastLocationUpdate : null,
+      isUpdatingLocation: this.isUpdatingLocation,
+      locationPermission: this.permissionStatus,
+      issues: [],
+      actions: []
+    };
+
+    // Check if location updates are stale (no updates in 15 minutes)
+    if (healthStatus.timeSinceLastUpdate && healthStatus.timeSinceLastUpdate > 15 * 60 * 1000) {
+      healthStatus.issues.push("Location updates are stale (>15 minutes)");
+      
+      // Attempt to restart location tracking
+      if (!this.isUpdatingLocation) {
+        console.log("[CampusLocationService] 🔄 Attempting to restart stale location tracking...");
+        healthStatus.actions.push("Restarting location tracking");
+        
+        try {
+          // Stop current tracking
+          this.stopLocationTracking();
+          
+          // Wait a moment then restart
+          setTimeout(async () => {
+            await this.startLocationTracking();
+            
+            // If watchPosition fails, ensure periodic updates are running
+            if (!this.trackingWatchId && !this.periodicUpdateInterval) {
+              await this.startPeriodicLocationUpdates();
+            }
+          }, 2000);
+          
+        } catch (restartError) {
+          console.error("[CampusLocationService] ❌ Failed to restart location tracking:", restartError);
+          healthStatus.issues.push(`Restart failed: ${restartError.message}`);
+        }
+      }
+    }
+
+    // Check if watchPosition exists but isn't working (common issue)
+    if (healthStatus.watchPositionActive && healthStatus.timeSinceLastUpdate > 10 * 60 * 1000) {
+      healthStatus.issues.push("watchPosition exists but not providing updates");
+      
+      // Start periodic updates as backup if not already running
+      if (!healthStatus.periodicUpdatesActive) {
+        console.log("[CampusLocationService] 🆘 Starting periodic updates as backup for failing watchPosition...");
+        healthStatus.actions.push("Starting periodic updates backup");
+        await this.startPeriodicLocationUpdates();
+      }
+    }
+
+    // Check if neither tracking method is active
+    if (!healthStatus.watchPositionActive && !healthStatus.periodicUpdatesActive) {
+      healthStatus.issues.push("No location tracking methods active");
+      
+      // Try to restart both
+      console.log("[CampusLocationService] 🚨 No tracking active - attempting full restart...");
+      healthStatus.actions.push("Full location tracking restart");
+      
+      try {
+        await this.startLocationTracking();
+        if (!this.trackingWatchId) {
+          await this.startPeriodicLocationUpdates();
+        }
+      } catch (fullRestartError) {
+        console.error("[CampusLocationService] ❌ Full restart failed:", fullRestartError);
+        healthStatus.issues.push(`Full restart failed: ${fullRestartError.message}`);
+      }
+    }
+
+    this.lastHealthCheck = now;
+
+    // Log health status
+    if (healthStatus.issues.length === 0) {
+      console.log("[CampusLocationService] ✅ Health check passed - all systems operational");
+    } else {
+      console.warn("[CampusLocationService] ⚠️ Health check found issues:", {
+        issues: healthStatus.issues,
+        actions: healthStatus.actions,
+        status: healthStatus
+      });
+    }
+
+    return healthStatus;
+  }
+
+  /**
+   * Get comprehensive status of location tracking system
+   * Useful for debugging and monitoring
+   * @returns {Object} Complete status information
+   */
+  getLocationTrackingStatus() {
+    return {
+      isInitialized: this.isInitialized,
+      isLocationSupported: this.isLocationSupported,
+      permissionStatus: this.permissionStatus,
+      tracking: {
+        watchPositionActive: this.trackingWatchId !== null,
+        watchId: this.trackingWatchId,
+        periodicUpdatesActive: this.periodicUpdateInterval !== null,
+        activityHeartbeatActive: this.activityHeartbeatInterval !== null,
+        isUpdatingLocation: this.isUpdatingLocation,
+        lastLocationUpdate: this.lastLocationUpdate,
+        timeSinceLastUpdate: this.lastLocationUpdate ? Date.now() - this.lastLocationUpdate : null
+      },
+      initialization: {
+        attempts: this.initializationAttempts,
+        maxAttempts: this.maxInitializationAttempts,
+        errors: this.initializationErrors,
+        retryScheduled: this.initializationRetryTimeout !== null
+      },
+      health: {
+        lastHealthCheck: this.lastHealthCheck,
+        healthMonitoringActive: this.healthCheckInterval !== null
+      },
+      activity: this.getActivityStatus()
+    };
   }
 }
 
