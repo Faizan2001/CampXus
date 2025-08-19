@@ -3420,9 +3420,11 @@ class DataManager {
 
       const updates = {
         "systemInfo.lastActive": serverTimestamp(),
+        "systemInfo.status": "online", // 🔧 FIX: Set status to online when location is updated
         "systemInfo.lastKnownLocation": {
           campusStatus,
           detectedAt: serverTimestamp(),
+          lastUpdated: serverTimestamp(), // 🔧 FIX: Add lastUpdated field
           coordinates: coordinates || null,
         },
       };

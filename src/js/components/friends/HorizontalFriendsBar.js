@@ -47,6 +47,9 @@ import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import { PresenceDot } from "../presence/PresenceDot.js";
 
+// Global instance for external access
+let globalHorizontalFriendsBarInstance = null;
+
 /**
  * HorizontalFriendsBar Class
  * Modern Instagram-style horizontal friends bar component
@@ -355,7 +358,18 @@ export class HorizontalFriendsBar {
       console.log(
         "🔍 Added window.debugHorizontalFriendsBar() for comprehensive debugging"
       );
+      
+      // Add global function for testing location animation
+      window.testLocationAnimation = () => {
+        console.log('🗺 Testing location update animation...');
+        this.notifyLocationUpdated();
+      };
+      
+      console.log('🗺 Added window.testLocationAnimation() for testing location updates');
 
+      // Store global instance for external access
+      globalHorizontalFriendsBarInstance = this;
+      
       this.isInitialized = true;
       console.log("✅ HorizontalFriendsBar initialized successfully");
 
@@ -605,6 +619,25 @@ export class HorizontalFriendsBar {
    * Render user's own avatar (always first)
    */
   renderUserAvatar(container) {
+    // Get user's current location data from profile
+    const userProfile = currentUser.profile;
+    const systemInfo = userProfile?.systemInfo || {};
+    
+    // Create presence dot for user's own avatar
+    const userPresenceDot = PresenceDot.create(
+      systemInfo.lastActive,
+      systemInfo.lastKnownLocation,
+      systemInfo.locationSharingEnabled || false
+    );
+
+    console.log('[HorizontalFriendsBar] Creating user presence dot:', {
+      hasLastActive: !!systemInfo.lastActive,
+      hasLocation: !!systemInfo.lastKnownLocation,
+      hasLocationSharing: systemInfo.locationSharingEnabled,
+      campusStatus: systemInfo.lastKnownLocation?.campusStatus,
+      presenceDotPreview: userPresenceDot.substring(0, 50) + "..."
+    });
+
     const userAvatarHtml = `
       <div class="friend-avatar-item user-avatar" 
            data-friend-id="user" 
@@ -615,7 +648,9 @@ export class HorizontalFriendsBar {
         <div class="avatar-container">
           <div class="avatar-image">
             ${renderUserAvatar(this.currentUser, true)}
+            ${userPresenceDot}
             <div class="selection-ring"></div>
+            <div class="location-update-indicator"></div>
           </div>
         </div>
         <div class="avatar-label">Me</div>
@@ -628,7 +663,10 @@ export class HorizontalFriendsBar {
     const userElement = container.querySelector('[data-friend-id="user"]');
     if (userElement) {
       this.avatarElements.set("user", userElement);
-      console.log("👤 User avatar rendered and stored in avatarElements");
+      console.log("👤 User avatar rendered with presence dot and location indicator");
+      
+      // Set up location update animation listener
+      this.setupUserLocationUpdateListener(userElement);
     } else {
       console.error("❌ Failed to find user avatar element after rendering");
     }
@@ -3553,6 +3591,11 @@ export class HorizontalFriendsBar {
         console.log(
           `🌍 Current user's campus presence changed: ${campusStatus}`
         );
+        
+        // Trigger location update animation for current user
+        console.log('[HorizontalFriendsBar] Triggering location animation for user campus presence change');
+        this.triggerLocationUpdateAnimation();
+        
         // For current user, we don't need to update the friends list,
         // but we should trigger a re-enhancement of friends data to reflect
         // our own location sharing status in bilateral calculations
@@ -4383,6 +4426,12 @@ export class HorizontalFriendsBar {
     this.lastUpdateTimestamp = 0;
 
     this.isInitialized = false;
+    
+    // Clear global instance if this was the active one
+    if (globalHorizontalFriendsBarInstance === this) {
+      globalHorizontalFriendsBarInstance = null;
+    }
+    
     console.log(
       "✅ HorizontalFriendsBar destroyed successfully with enhanced cleanup including privacy listeners"
     );
@@ -4416,4 +4465,358 @@ export class HorizontalFriendsBar {
       }, duration + 1000);
     }, 100); // Small delay to group rapid calls
   }
+
+  // =========================
+  // USER PRESENCE AND LOCATION UPDATE METHODS
+  // =========================
+
+  /**
+   * Set up location update listener for user's own avatar
+   * @param {HTMLElement} userElement - The user avatar element
+   */
+  setupUserLocationUpdateListener(userElement) {
+    console.log('[HorizontalFriendsBar] Setting up user location update listener');
+    
+    // Store reference for location updates
+    this.userAvatarElement = userElement;
+    
+    // Listen for real-time user profile changes that include location updates
+    if (currentUser.uid) {
+      this.listenToUserLocationUpdates(currentUser.uid);
+    }
+    
+    // Set up periodic presence dot refresh
+    this.setupUserPresenceRefresh();
+  }
+
+  /**
+   * Listen to user's own location and presence updates
+   * @param {string} userId - Current user's ID
+   */
+  listenToUserLocationUpdates(userId) {
+    if (!userId) return;
+    
+    console.log('[HorizontalFriendsBar] Starting user location update listener');
+    
+    // Listen for campus presence changes via RealtimeService
+    try {
+      // Subscribe to campus presence change events
+      const unsubscribe = realTimeManager.on('campusPresenceChanged', (data) => {
+        if (data.userId === userId) {
+          console.log('[HorizontalFriendsBar] User location update detected via campus presence:', data);
+          this.handleUserLocationUpdate({ systemInfo: data.locationData });
+        }
+      });
+      
+      // Store unsubscriber for cleanup
+      this.realTimeUnsubscribers.push(() => {
+        realTimeManager.off('campusPresenceChanged', unsubscribe);
+      });
+      
+      console.log('[HorizontalFriendsBar] Successfully set up user location listener via RealtimeService');
+      
+    } catch (error) {
+      console.error('[HorizontalFriendsBar] Failed to set up user location listener:', error);
+    }
+  }
+
+  /**
+   * Handle user's location data update
+   * @param {Object} userData - Updated user data from Firestore or RealtimeService
+   */
+  handleUserLocationUpdate(userData) {
+    if (!this.userAvatarElement) return;
+    
+    // Handle different data structures from campus presence vs profile updates
+    let systemInfo;
+    let hasLocationUpdate = false;
+    
+    if (userData?.systemInfo) {
+      // Direct profile update - use systemInfo structure
+      systemInfo = userData.systemInfo;
+      hasLocationUpdate = systemInfo.lastKnownLocation && systemInfo.lastActive;
+    } else if (userData?.locationData && userData?.campusStatus) {
+      // Campus presence event - convert to systemInfo structure
+      systemInfo = {
+        lastKnownLocation: {
+          ...userData.locationData,
+          campusStatus: userData.campusStatus
+        },
+        lastActive: userData.locationData?.timestamp || userData.timestamp,
+        locationSharingEnabled: true, // Presence events only fire when sharing is enabled
+        status: 'online' // User is active if generating location events
+      };
+      hasLocationUpdate = true;
+      
+      console.log('[HorizontalFriendsBar] 🔄 Converted campus presence to systemInfo:', {
+        campusStatus: userData.campusStatus,
+        hasLocationData: !!userData.locationData,
+        timestamp: userData.timestamp
+      });
+    } else {
+      console.warn('[HorizontalFriendsBar] Invalid user location update data structure:', userData);
+      return;
+    }
+    
+    console.log('[HorizontalFriendsBar] User location update received:', {
+      hasLocation: !!systemInfo.lastKnownLocation,
+      hasLastActive: !!systemInfo.lastActive,
+      locationSharingEnabled: systemInfo.locationSharingEnabled,
+      campusStatus: systemInfo.lastKnownLocation?.campusStatus,
+      source: userData?.systemInfo ? 'profile_update' : 'campus_presence'
+    });
+    
+    // Update presence dot immediately
+    this.updateUserPresenceDot(systemInfo);
+    
+    // Trigger location update animation for location updates
+    if (hasLocationUpdate) {
+      console.log('[HorizontalFriendsBar] Triggering location update animation for user');
+      this.triggerLocationUpdateAnimation();
+    }
+  }
+
+  /**
+   * Update the user's presence dot with new location data
+   * @param {Object} systemInfo - User's system info with location data
+   */
+  updateUserPresenceDot(systemInfo) {
+    if (!this.userAvatarElement || !this.isInitialized) return;
+    
+    // 🛡️ SAFETY CHECK: Verify element is still in DOM
+    if (!document.contains(this.userAvatarElement)) {
+      console.warn('[HorizontalFriendsBar] User avatar element detached from DOM, skipping update');
+      return;
+    }
+    
+    // Find existing presence dot
+    const existingDot = this.userAvatarElement.querySelector('.presence-dot');
+    
+    // Create new presence dot
+    const newPresenceDot = PresenceDot.create(
+      systemInfo.lastActive,
+      systemInfo.lastKnownLocation,
+      systemInfo.locationSharingEnabled || false
+    );
+    
+    if (existingDot && document.contains(existingDot)) {
+      // 🔄 SAFE REPLACEMENT: Use insertAdjacentHTML instead of outerHTML
+      try {
+        // Create temporary container
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = newPresenceDot;
+        const newDot = tempContainer.firstElementChild;
+        
+        if (newDot && existingDot.parentNode) {
+          existingDot.parentNode.replaceChild(newDot, existingDot);
+          
+          // Add fade-in animation
+          newDot.style.opacity = '0';
+          requestAnimationFrame(() => {
+            newDot.style.transition = 'opacity 0.3s ease';
+            newDot.style.opacity = '1';
+          });
+        }
+      } catch (error) {
+        console.warn('[HorizontalFriendsBar] Safe presence dot replacement failed:', error);
+        // Fallback: force recreate entire dot structure
+        this.recreateUserPresenceDot(systemInfo);
+      }
+    } else {
+      // Add new presence dot if none exists
+      const avatarImage = this.userAvatarElement.querySelector('.avatar-image');
+      if (avatarImage && document.contains(avatarImage)) {
+        const selectionRing = avatarImage.querySelector('.selection-ring');
+        if (selectionRing) {
+          selectionRing.insertAdjacentHTML('beforebegin', newPresenceDot);
+        } else {
+          avatarImage.insertAdjacentHTML('beforeend', newPresenceDot);
+        }
+      }
+    }
+    
+    console.log('[HorizontalFriendsBar] User presence dot updated safely');
+  }
+
+  /**
+   * 🔄 EMERGENCY FALLBACK: Completely recreate user presence dot structure
+   */
+  recreateUserPresenceDot(systemInfo) {
+    if (!this.userAvatarElement || !document.contains(this.userAvatarElement)) return;
+    
+    try {
+      // Remove any existing presence dots
+      const existingDots = this.userAvatarElement.querySelectorAll('.presence-dot');
+      existingDots.forEach(dot => {
+        if (dot.parentNode) dot.parentNode.removeChild(dot);
+      });
+      
+      // Create new presence dot
+      const newPresenceDot = PresenceDot.create(
+        systemInfo.lastActive,
+        systemInfo.lastKnownLocation,
+        systemInfo.locationSharingEnabled || false
+      );
+      
+      // Add to avatar image
+      const avatarImage = this.userAvatarElement.querySelector('.avatar-image');
+      if (avatarImage) {
+        avatarImage.insertAdjacentHTML('beforeend', newPresenceDot);
+      }
+      
+      console.log('[HorizontalFriendsBar] User presence dot recreated from scratch');
+    } catch (error) {
+      console.error('[HorizontalFriendsBar] Failed to recreate presence dot:', error);
+    }
+  }
+
+  /**
+   * Trigger subtle location update animation
+   */
+  triggerLocationUpdateAnimation() {
+    if (!this.userAvatarElement) return;
+    
+    const indicator = this.userAvatarElement.querySelector('.location-update-indicator');
+    if (!indicator) return;
+    
+    console.log('[HorizontalFriendsBar] Triggering location update animation');
+    
+    // Reset animation
+    indicator.classList.remove('location-updated');
+    
+    // Trigger animation with slight delay
+    setTimeout(() => {
+      indicator.classList.add('location-updated');
+      
+      // Remove animation class after completion
+      setTimeout(() => {
+        indicator.classList.remove('location-updated');
+      }, 2000); // Animation duration
+    }, 50);
+  }
+
+  /**
+   * Set up periodic refresh of user presence dot
+   */
+  setupUserPresenceRefresh() {
+    // 🚀 REAL-TIME: Set up direct user profile listener for immediate presence updates
+    if (currentUser?.uid) {
+      console.log('[HorizontalFriendsBar] Setting up real-time user profile listener for immediate presence updates');
+      
+      const unsubscribe = dataManager.listenToUserProfile(currentUser.uid, (profileData) => {
+        if (profileData?.systemInfo) {
+          // 🛡️ SAFETY: Validate timestamp data to prevent grey→timer flickering
+          const systemInfo = profileData.systemInfo;
+          const hasValidTimestamp = systemInfo.lastActive && 
+                                  (systemInfo.lastActive.toDate || systemInfo.lastActive.seconds);
+          
+          if (!hasValidTimestamp) {
+            console.log('[HorizontalFriendsBar] ⚠️ Skipping presence update - incomplete timestamp data');
+            return;
+          }
+          
+          console.log('[HorizontalFriendsBar] 🔄 Real-time user profile update - refreshing presence dot:', {
+            hasLocation: !!systemInfo.lastKnownLocation,
+            campusStatus: systemInfo.lastKnownLocation?.campusStatus,
+            lastActive: systemInfo.lastActive,
+            locationSharing: systemInfo.locationSharingEnabled,
+            timestampValid: hasValidTimestamp
+          });
+          
+          // Update presence dot immediately with new profile data
+          this.updateUserPresenceDot(systemInfo);
+        }
+      });
+      
+      // Store unsubscriber for cleanup
+      this.realTimeUnsubscribers.push(unsubscribe);
+    }
+    
+    // Also keep periodic refresh for time updates (every 30 seconds)
+    const refreshInterval = setInterval(() => {
+      if (!this.isInitialized || !this.userAvatarElement) {
+        clearInterval(refreshInterval);
+        return;
+      }
+      
+      // Get current user data and refresh presence dot for time updates only
+      // 🔧 FIX: Use currentUser.systemInfo directly (not currentUser.profile.systemInfo)
+      if (currentUser?.systemInfo) {
+        this.updateUserPresenceDot(currentUser.systemInfo);
+      }
+    }, 30000); // 30 seconds for time display updates
+    
+    // Store interval for cleanup
+    this.activeTimeouts.add(refreshInterval);
+  }
+
+  /**
+   * Public method to manually trigger location update animation
+   * (Can be called from location service when coordinates are updated)
+   */
+  notifyLocationUpdated() {
+    console.log('[HorizontalFriendsBar] Location update notification received');
+    this.triggerLocationUpdateAnimation();
+  }
+
+  /**
+   * Get current user presence status for external access
+   * @returns {Object} User presence status information
+   */
+  getUserPresenceStatus() {
+    const userProfile = currentUser.profile;
+    const systemInfo = userProfile?.systemInfo || {};
+    
+    return {
+      hasLocationSharing: systemInfo.locationSharingEnabled || false,
+      lastActive: systemInfo.lastActive,
+      lastKnownLocation: systemInfo.lastKnownLocation,
+      campusStatus: systemInfo.lastKnownLocation?.campusStatus,
+      isPresenceVisible: !!(systemInfo.lastActive && systemInfo.lastKnownLocation)
+    };
+  }
+}
+
+// =========================
+// GLOBAL ACCESS FUNCTIONS
+// =========================
+
+/**
+ * Get the current global HorizontalFriendsBar instance
+ * @returns {HorizontalFriendsBar|null} The current instance or null if none exists
+ */
+export function getHorizontalFriendsBarInstance() {
+  return globalHorizontalFriendsBarInstance;
+}
+
+/**
+ * Trigger location update animation on user avatar (if instance exists)
+ * This function can be called from external services like CampusLocationService
+ */
+export function triggerUserLocationUpdateAnimation() {
+  if (globalHorizontalFriendsBarInstance) {
+    console.log('[HorizontalFriendsBar] External trigger: Location update animation');
+    globalHorizontalFriendsBarInstance.notifyLocationUpdated();
+  } else {
+    console.warn('[HorizontalFriendsBar] Cannot trigger location animation - no active instance');
+  }
+}
+
+/**
+ * Get user presence status (if instance exists)
+ * @returns {Object|null} User presence status or null if no instance
+ */
+export function getUserPresenceStatus() {
+  if (globalHorizontalFriendsBarInstance) {
+    return globalHorizontalFriendsBarInstance.getUserPresenceStatus();
+  }
+  return null;
+}
+
+/**
+ * Check if HorizontalFriendsBar is currently active
+ * @returns {boolean} True if an instance exists and is initialized
+ */
+export function isHorizontalFriendsBarActive() {
+  return globalHorizontalFriendsBarInstance?.isInitialized || false;
 }

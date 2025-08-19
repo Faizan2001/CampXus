@@ -17,6 +17,102 @@ import {
  * Service class for campus location detection and presence management
  */
 export class CampusLocationService {
+  /**
+   * 🎯 PHASE 2 ENHANCEMENT: Sets up document visibility and lifecycle tracking
+   * for better trigger scenario detection
+   */
+  setupLifecycleTracking() {
+    this.wasDocumentHidden = false;
+    
+    // Track document visibility changes for tab return detection
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.wasDocumentHidden = true;
+        localStorage.setItem('campusLocation_lastActive', Date.now().toString());
+      } else if (document.visibilityState === 'visible' && this.wasDocumentHidden) {
+        // Tab returned - trigger immediate location update
+        console.log('[CampusLocationService] 👁️ Tab return detected - triggering immediate location update');
+        this.handleTriggerEvent('tab_return');
+      }
+    });
+
+    // Track authentication events for login detection
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'campusLocation_authTime') {
+        console.log('[CampusLocationService] 🔐 Login event detected');
+        this.handleTriggerEvent('login');
+      }
+    });
+
+    console.log('[CampusLocationService] 📱 Lifecycle tracking initialized');
+  }
+
+  /**
+   * 🚀 PHASE 2 ENHANCEMENT: Handles different trigger events with immediate response
+   */
+  async handleTriggerEvent(triggerType) {
+    try {
+      console.log(`[CampusLocationService] ⚡ Handling trigger event: ${triggerType}`);
+      
+      // Skip if we're already handling an update to prevent conflicts
+      if (this.isUpdatingLocation) {
+        console.log('[CampusLocationService] ⚠️ Update in progress, skipping trigger event');
+        return;
+      }
+
+      // Immediate presence update with trigger context
+      await this.immediatePresenceUpdate(triggerType);
+      
+      // For high-priority scenarios, also get fresh GPS if possible
+      if (['login', 'tab_return', 'reload'].includes(triggerType)) {
+        console.log(`[CampusLocationService] 📍 High-priority trigger (${triggerType}) - requesting fresh GPS`);
+        this.requestSingleLocationUpdate();
+      }
+      
+    } catch (error) {
+      console.error('[CampusLocationService] ❌ Failed to handle trigger event:', error);
+    }
+  }
+
+  /**
+   * 📍 PHASE 2 ENHANCEMENT: Requests a single fresh GPS location without debouncing
+   */
+  requestSingleLocationUpdate() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('[CampusLocationService] 🎯 Fresh GPS obtained for trigger event');
+          // Process immediately without debounce for trigger events
+          this.processFreshLocation(position);
+        },
+        (error) => {
+          console.warn('[CampusLocationService] ⚠️ Fresh GPS failed for trigger event:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0 // Force fresh location
+        }
+      );
+    }
+  }
+
+  /**
+   * 📍 PHASE 2 ENHANCEMENT: Processes fresh location for trigger events
+   */
+  async processFreshLocation(position) {
+    try {
+      console.log('[CampusLocationService] 🎯 Processing fresh location for trigger event (immediate database write)');
+      
+      // 🚀 TRIGGER EVENT: Use smart system with trigger flag for immediate database write
+      this.debouncedLocationUpdate(position, { isTrigger: true });
+      
+      console.log('[CampusLocationService] ✅ Fresh trigger location queued for immediate processing');
+
+    } catch (error) {
+      console.error('[CampusLocationService] ❌ Failed to process fresh location:', error);
+    }
+  }
   constructor() {
     this.isLocationSupported = "geolocation" in navigator;
     this.currentPosition = null;
@@ -65,6 +161,9 @@ export class CampusLocationService {
     this.backgroundPauseTimeout = null;
     this.networkReconnectionTimeout = null;
 
+    // 🎯 PHASE 2 ENHANCEMENT: Trigger scenario tracking
+    this.wasDocumentHidden = false;
+
     console.log("[CampusLocationService] Service initialized", {
       geolocationSupported: this.isLocationSupported,
       isMobile: this.isMobile,
@@ -81,6 +180,9 @@ export class CampusLocationService {
       this.initializeMobileLifecycleHandlers();
       console.log("[CampusLocationService] 📱 Mobile lifecycle management initialized");
     }
+
+    // 🎯 PHASE 2 ENHANCEMENT: Initialize lifecycle tracking for trigger scenarios
+    this.setupLifecycleTracking();
   }
 
   /**
@@ -712,49 +814,6 @@ export class CampusLocationService {
     return isChromeAndroid;
   }
 
-  // 🔧 MOBILE LIFECYCLE MANAGEMENT METHODS
-  initializeMobileLifecycleHandlers() {
-    console.log("[CampusLocationService] 📱 Setting up mobile lifecycle event handlers");
-
-    // Handle app visibility changes (background/foreground)
-    document.addEventListener('visibilitychange', () => {
-      this.handleVisibilityChange();
-    });
-
-    // Handle network connectivity changes
-    window.addEventListener('online', () => {
-      this.handleNetworkReconnection();
-    });
-
-    window.addEventListener('offline', () => {
-      this.handleNetworkDisconnection();
-    });
-
-    // Handle page focus/blur events as backup for visibility
-    window.addEventListener('focus', () => {
-      this.handleAppFocus();
-    });
-
-    window.addEventListener('blur', () => {
-      this.handleAppBlur();
-    });
-
-    // Handle beforeunload to save state
-    window.addEventListener('beforeunload', () => {
-      this.handleAppUnload();
-    });
-
-    // Handle page show/hide events for better mobile support
-    window.addEventListener('pageshow', (event) => {
-      this.handlePageShow(event);
-    });
-
-    window.addEventListener('pagehide', (event) => {
-      this.handlePageHide(event);
-    });
-
-    console.log("[CampusLocationService] 📱 Mobile lifecycle handlers registered");
-  }
 
   handleVisibilityChange() {
     const wasVisible = this.isAppVisible;
@@ -845,7 +904,8 @@ export class CampusLocationService {
       if (!this.isAppVisible) {
         console.log("[CampusLocationService] 📱 Background location ping");
         try {
-          await this.debouncedLocationUpdate(null, true); // Force update with minimal accuracy
+          // Background updates are low priority - no immediate database write needed
+          console.log("[CampusLocationService] 📱 Skipping background location update - user not visible");
         } catch (error) {
           console.warn("[CampusLocationService] 📱 Background location update failed:", error);
         }
@@ -868,7 +928,7 @@ export class CampusLocationService {
           console.log("[CampusLocationService] 📱 Fresh location acquired after resume");
           
           // Update location immediately
-          await this.debouncedLocationUpdate(currentLocation, true);
+          this.debouncedLocationUpdate(currentLocation, { isTrigger: true }); // App resume = trigger event
         } else {
           console.warn("[CampusLocationService] 📱 Failed to get fresh location after resume");
         }
@@ -940,7 +1000,7 @@ export class CampusLocationService {
       // Force a location update to sync with server after reconnection
       if (this.currentPosition) {
         console.log("[CampusLocationService] 📱 Syncing location after network recovery");
-        await this.debouncedLocationUpdate(this.currentPosition, true);
+        this.debouncedLocationUpdate(this.currentPosition, { isTrigger: true }); // Network reconnection = trigger event
       }
 
       // Restart health monitoring
@@ -1019,6 +1079,47 @@ export class CampusLocationService {
     }
   }
 
+  // 🎯 SPA NAVIGATION HANDLER: Handle single-page app navigation events
+  async handleSPANavigation(event) {
+    const { route } = event.detail;
+    console.log(`[CampusLocationService] 🎯 SPA navigation detected: ${route}`);
+
+    try {
+      // Import required services
+      const { currentUser } = await import('../../store/userStore.js');
+      
+      // Only trigger location updates for authenticated users
+      if (!currentUser?.uid) {
+        console.log('[CampusLocationService] ⏳ No user logged in - skipping navigation location update');
+        return;
+      }
+
+      // 🚀 SMART NAVIGATION TRIGGERS: Update location for key pages that benefit from fresh data
+      const locationRelevantPages = ['home', 'friends'];
+      
+      if (locationRelevantPages.includes(route)) {
+        console.log(`[CampusLocationService] 🎯 Navigation to ${route} - triggering immediate location update`);
+        
+        // Mark this as user activity (navigation is active user behavior)
+        this.isUserCurrentlyActive = true;
+        this.lastActivityDetected = Date.now();
+        
+        // Trigger immediate presence update with navigation context
+        const success = await this.immediatePresenceUpdate('spa_navigation');
+        
+        if (success) {
+          console.log(`[CampusLocationService] ✅ Navigation-triggered location update completed for ${route}`);
+        } else {
+          console.warn(`[CampusLocationService] ⚠️ Navigation-triggered location update failed for ${route}`);
+        }
+      } else {
+        console.log(`[CampusLocationService] ℹ️ Navigation to ${route} - no location update needed`);
+      }
+    } catch (error) {
+      console.error('[CampusLocationService] ❌ SPA navigation handler error:', error);
+    }
+  }
+
   // Helper method to get current mobile lifecycle status
   getMobileLifecycleStatus() {
     return {
@@ -1030,6 +1131,159 @@ export class CampusLocationService {
       wasTrackingBeforeBackground: this.wasTrackingBeforeBackground,
       networkReconnectionAttempts: this.networkReconnectionAttempts
     };
+  }
+
+  // =========================
+  // IMMEDIATE PRESENCE UPDATE SYSTEM
+  // =========================
+
+  /**
+   * Phase 1: Immediate presence update (0-1 seconds)
+   * Updates user activity timestamp immediately when they open/reload/login
+   * Uses cached location if available for instant social feedback
+   * @param {string} scenario - 'login', 'reload', 'tab-return', or 'general'
+   */
+  async immediatePresenceUpdate(scenario = 'general') {
+    try {
+      console.log(`[CampusLocationService] 🚀 Phase 1: Immediate presence update (${scenario})`);
+      
+      // Import required services
+      const { currentUser } = await import('../../store/userStore.js');
+      const { dataManager } = await import('../data/DataService.js');
+      const { serverTimestamp } = await import('firebase/firestore');
+      
+      if (!currentUser?.uid) {
+        console.warn('[CampusLocationService] No current user for immediate presence update');
+        return false;
+      }
+      
+      // 🎯 PHASE 2 ENHANCEMENT: Track authentication time for login detection
+      if (scenario === 'login' || scenario === 'initialization') {
+        localStorage.setItem('campusLocation_authTime', Date.now().toString());
+        console.log('[CampusLocationService] 🔐 Authentication time tracked for login detection');
+      }
+      
+      // 🔧 FIX: Use cached location if available and update with proper location method
+      const cachedLocation = this.getCachedLocation();
+      if (cachedLocation && cachedLocation.campusStatus) {
+        // Use updateUserLocationStatus for proper systemInfo field handling
+        await dataManager.updateUserLocationStatus(
+          currentUser.uid, 
+          cachedLocation.campusStatus,
+          cachedLocation.coordinates || null
+        );
+        console.log('[CampusLocationService] 📍 Using cached location for immediate update:', {
+          campusStatus: cachedLocation.campusStatus,
+          age: Math.round((Date.now() - cachedLocation.timestamp) / 1000) + 's',
+          scenario
+        });
+      } else {
+        // Fallback: Direct systemInfo update with proper field handling  
+        const { doc, updateDoc } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase/firebase-config.js');
+        
+        await dataManager.ensureSystemInfoExists(currentUser.uid);
+        
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          'systemInfo.lastActive': serverTimestamp(),
+          'systemInfo.status': 'online',
+          'systemInfo.lastUpdated': serverTimestamp()
+        });
+        console.log('[CampusLocationService] ⚡ Direct systemInfo update completed (no cached location)');
+      }
+      
+      console.log(`[CampusLocationService] ✅ Phase 1 complete: Immediate presence updated (${scenario})`);
+      
+      // Trigger animation based on scenario and data availability
+      let animationType = 'immediate_presence';
+      if (cachedLocation) {
+        animationType = scenario === 'login' ? 'login_cached' : 'cached_location';
+      }
+      
+      this.triggerLocationAnimation(animationType);
+      console.log(`[CampusLocationService] 🟣 Animation triggered: ${animationType}`);
+      
+      return true;
+      
+    } catch (error) {
+      console.error('[CampusLocationService] ❌ Immediate presence update failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get cached location from localStorage
+   * @returns {Object|null} Cached location data or null if not available/expired
+   */
+  getCachedLocation() {
+    try {
+      const cached = localStorage.getItem('campxus_last_location');
+      if (!cached) return null;
+      
+      const locationData = JSON.parse(cached);
+      
+      // Check if cache is expired (24 hours)
+      const cacheAge = Date.now() - locationData.timestamp;
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      
+      if (cacheAge > maxAge) {
+        console.log('[CampusLocationService] 🗑️ Cached location expired, removing');
+        localStorage.removeItem('campxus_last_location');
+        return null;
+      }
+      
+      console.log('[CampusLocationService] 📦 Found cached location:', {
+        campusStatus: locationData.campusStatus,
+        ageMinutes: Math.round(cacheAge / 60000),
+        accuracy: locationData.accuracy
+      });
+      
+      return locationData;
+      
+    } catch (error) {
+      console.warn('[CampusLocationService] Failed to get cached location:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Cache location data to localStorage
+   * @param {Object} locationData - Location data to cache
+   */
+  setCachedLocation(locationData) {
+    try {
+      const cacheData = {
+        ...locationData,
+        timestamp: Date.now()
+      };
+      
+      localStorage.setItem('campxus_last_location', JSON.stringify(cacheData));
+      
+      console.log('[CampusLocationService] 💾 Cached location:', {
+        campusStatus: locationData.campusStatus,
+        accuracy: locationData.accuracy
+      });
+      
+    } catch (error) {
+      console.warn('[CampusLocationService] Failed to cache location:', error);
+    }
+  }
+
+  /**
+   * Trigger location update animation in HorizontalFriendsBar
+   * @param {string} source - Source of the animation trigger
+   */
+  async triggerLocationAnimation(source = 'location_update') {
+    try {
+      // Import the animation trigger function
+      const { triggerUserLocationUpdateAnimation } = await import('../../components/friends/HorizontalFriendsBar.js');
+      
+      console.log(`[CampusLocationService] 🟣 Triggering location animation (${source})`);
+      triggerUserLocationUpdateAnimation();
+      
+    } catch (error) {
+      console.warn('[CampusLocationService] Could not trigger location animation:', error);
+    }
   }
 
   // 🔧 MOBILE-RESILIENT FIREBASE LISTENER MANAGEMENT
@@ -1519,6 +1773,11 @@ export class CampusLocationService {
     window.addEventListener('focus', this.handleAppFocus);
     window.addEventListener('blur', this.handleAppBlur);
 
+    // 🎯 SPA NAVIGATION: Listen for single-page app navigation events
+    document.addEventListener('spa:page:load', (event) => {
+      this.handleSPANavigation(event);
+    });
+
     // Battery API if available (experimental but useful for mobile optimization)
     if ('getBattery' in navigator) {
       navigator.getBattery().then(battery => {
@@ -1545,7 +1804,7 @@ export class CampusLocationService {
     this.isOnline = navigator.onLine;
     this.lastOnlineTime = Date.now();
 
-    console.log("[CampusLocationService] 📱 Mobile lifecycle handlers initialized");
+    console.log("[CampusLocationService] 📱 Mobile lifecycle handlers initialized (including SPA navigation)");
   }
 
   handleVisibilityChange() {
@@ -1986,27 +2245,62 @@ export class CampusLocationService {
    * Only updates if minimum time interval has passed since last update
    * @param {GeolocationPosition} position - GPS position data
    */
-  debouncedLocationUpdate(position) {
+  debouncedLocationUpdate(position, options = {}) {
     // Clear any pending debounce timeout
     if (this.locationUpdateDebounceTimeout) {
       clearTimeout(this.locationUpdateDebounceTimeout);
     }
 
-    // Check if we should skip this update based on timing
+    // 🎯 SMART ACTIVITY CHECK: Only write to database for meaningful interactions
+    const isTriggeredUpdate = options.isTrigger || false;
+    const isSignificantActivity = this.isSignificantUserActivity();
+    const shouldWriteToDatabase = isTriggeredUpdate || isSignificantActivity;
+
     const now = Date.now();
+    
+    console.log('[CampusLocationService] 🎯 Smart location update decision:', {
+      isTriggeredUpdate,
+      isSignificantActivity,
+      shouldWriteToDatabase,
+      timeSinceLastActivity: this.lastActivityDetected ? Math.round((now - this.lastActivityDetected) / 1000) + 's' : 'none',
+      timeSinceLastUpdate: this.lastLocationUpdate ? Math.round((now - this.lastLocationUpdate) / 1000) + 's' : 'none'
+    });
+
+    // Always update cache for immediate presence updates, regardless of database write decision
+    const campusStatus = this.getCachedCampusStatus(position) || 'unknown';
+    this.setCachedLocation({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp,
+      campusStatus: campusStatus
+    });
+
+    // 🟣 Always trigger animation for any location update (cached or database)
+    this.triggerLocationAnimation(shouldWriteToDatabase ? 'activity_gps' : 'cached_update');
+
+    if (!shouldWriteToDatabase) {
+      console.log('[CampusLocationService] 🎯 SMART SKIP: Not writing to database - user is passively browsing');
+      return;
+    }
+
+    // Check timing constraints for database writes
     if (
       this.lastLocationUpdate &&
-      now - this.lastLocationUpdate < this.minUpdateInterval
+      now - this.lastLocationUpdate < this.minUpdateInterval &&
+      !isTriggeredUpdate
     ) {
       console.log(
-        `[CampusLocationService] ⏱️ Skipping location update - only ${Math.round(
+        `[CampusLocationService] ⏱️ Skipping database write - only ${Math.round(
           (now - this.lastLocationUpdate) / 1000
-        )}s since last update (min: 60s)`
+        )}s since last write (min: 60s)`
       );
       return;
     }
 
-    // OPTIMIZED: Increased debounce to 10 seconds to reduce database calls and UI churn
+    // 🚀 SMART DATABASE WRITE: Only for meaningful user activity
+    const debounceTime = isTriggeredUpdate ? 1000 : 10000; // Faster for triggers, slower for activity
+    
     this.locationUpdateDebounceTimeout = setTimeout(async () => {
       try {
         if (this.isUpdatingLocation) {
@@ -2032,7 +2326,7 @@ export class CampusLocationService {
 
         // Detect campus presence
         const campusPresenceResult = await this.detectCampusPresence("iub");
-        const campusStatus =
+        const finalCampusStatus =
           campusPresenceResult?.onCampus !== undefined
             ? campusPresenceResult.onCampus
               ? "on_campus"
@@ -2040,12 +2334,13 @@ export class CampusLocationService {
             : "unknown";
 
         console.log(
-          "[CampusLocationService] 📍 Updating location in database (debounced):",
+          "[CampusLocationService] 🎯 SMART UPDATE: Writing to database:",
           {
-            campusStatus,
+            campusStatus: finalCampusStatus,
             lat: position.coords.latitude,
             lng: position.coords.longitude,
             accuracy: position.coords.accuracy,
+            reason: isTriggeredUpdate ? 'trigger_event' : 'user_activity',
             intervalSinceLastUpdate: this.lastLocationUpdate
               ? `${Math.round((now - this.lastLocationUpdate) / 1000)}s`
               : "first_update",
@@ -2055,7 +2350,7 @@ export class CampusLocationService {
         // Update user location status in database
         const updateResult = await dataManager.updateUserLocationStatus(
           currentUser.uid,
-          campusStatus,
+          finalCampusStatus,
           {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -2066,8 +2361,20 @@ export class CampusLocationService {
 
         if (updateResult.success) {
           console.log(
-            "[CampusLocationService] ✅ Location updated successfully (debounced)"
+            "[CampusLocationService] ✅ Smart location update successful"
           );
+
+          // Update cache with accurate data
+          this.setCachedLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+            campusStatus: finalCampusStatus
+          });
+
+          // 🟣 Trigger animation for database write
+          this.triggerLocationAnimation('database_write');
 
           // Emit real-time campus presence change event for friends to see updates
           try {
@@ -2076,7 +2383,7 @@ export class CampusLocationService {
             );
             realTimeManager.emitCampusPresenceChange(
               currentUser.uid,
-              campusStatus,
+              finalCampusStatus,
               {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
@@ -2095,19 +2402,84 @@ export class CampusLocationService {
           }
         } else {
           console.error(
-            "[CampusLocationService] ❌ Failed to update location (debounced):",
+            "[CampusLocationService] ❌ Failed to update location:",
             updateResult.error
           );
         }
       } catch (updateError) {
         console.error(
-          "[CampusLocationService] Error in debounced location update:",
+          "[CampusLocationService] Error in smart location update:",
           updateError
         );
       } finally {
         this.isUpdatingLocation = false;
       }
-    }, 10000); // OPTIMIZED: 10 second debounce for better battery life and reduced UI churn
+    }, debounceTime);
+  }
+
+  /**
+   * 🎯 SMART ACTIVITY DETECTION: Determines if user activity warrants database writes
+   */
+  isSignificantUserActivity() {
+    const now = Date.now();
+    const activityThreshold = 5 * 60 * 1000; // 5 minutes of inactivity = passive browsing
+    
+    // No recent activity detected = passive browsing
+    if (!this.lastActivityDetected || (now - this.lastActivityDetected) > activityThreshold) {
+      return false;
+    }
+    
+    // Check for meaningful interactions (not just passive scrolling)
+    const recentActivityWindow = 2 * 60 * 1000; // 2 minutes
+    const hasRecentActivity = (now - this.lastActivityDetected) < recentActivityWindow;
+    
+    return hasRecentActivity;
+  }
+
+  /**
+   * 🎯 CACHED CAMPUS STATUS: Get campus status from cached location data
+   */
+  getCachedCampusStatus(position) {
+    try {
+      const cachedLocation = this.getCachedLocation();
+      if (cachedLocation && cachedLocation.campusStatus) {
+        // If position is close to cached position, use cached status
+        const distance = this.calculateDistance(
+          position.coords.latitude,
+          position.coords.longitude,
+          cachedLocation.latitude,
+          cachedLocation.longitude
+        );
+        
+        // Within 100 meters = same campus status
+        if (distance < 100) {
+          return cachedLocation.campusStatus;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('[CampusLocationService] Failed to get cached campus status:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 🎯 DISTANCE CALCULATION: Simple distance between two coordinates
+   */
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // Distance in meters
   }
 
   /**
@@ -2212,6 +2584,95 @@ export class CampusLocationService {
    * Called when user loads the website or profile is loaded
    * ENHANCED: Robust initialization with retry logic and health monitoring
    */
+  /**
+   * 🎯 PHASE 2 ENHANCEMENT: Detects the type of trigger that initiated location tracking
+   * Helps optimize the immediate presence update strategy based on user context
+   */
+  detectTriggerScenario() {
+    try {
+      // Check for page reload indicators
+      if (performance.navigation) {
+        // Legacy API
+        const navType = performance.navigation.type;
+        if (navType === performance.navigation.TYPE_RELOAD) {
+          return 'reload';
+        }
+        if (navType === performance.navigation.TYPE_NAVIGATE) {
+          return 'navigate';
+        }
+        if (navType === performance.navigation.TYPE_BACK_FORWARD) {
+          return 'back_forward';
+        }
+      }
+
+      // Modern Navigation API (newer browsers)
+      if (performance.getEntriesByType && performance.getEntriesByType('navigation').length > 0) {
+        const navEntry = performance.getEntriesByType('navigation')[0];
+        if (navEntry.type === 'reload') {
+          return 'reload';
+        }
+        if (navEntry.type === 'navigate') {
+          return 'navigate';
+        }
+        if (navEntry.type === 'back_forward') {
+          return 'back_forward';
+        }
+      }
+
+      // Check if this is likely a tab return (document was hidden and now visible)
+      if (document.visibilityState === 'visible' && this.wasDocumentHidden) {
+        return 'tab_return';
+      }
+
+      // Check for authentication state to detect login
+      if (this.isRecentLogin()) {
+        return 'login';
+      }
+
+      // Check if this is an app restart after being idle
+      if (this.wasAppIdle()) {
+        return 'app_restart';
+      }
+
+      return 'initialization';
+    } catch (error) {
+      console.warn('[CampusLocationService] Failed to detect trigger scenario:', error);
+      return 'initialization';
+    }
+  }
+
+  /**
+   * 🔍 Helper: Checks if this is a recent login scenario
+   */
+  isRecentLogin() {
+    try {
+      const authTime = localStorage.getItem('campusLocation_authTime');
+      if (!authTime) return false;
+      
+      const timeSinceAuth = Date.now() - parseInt(authTime);
+      // Consider it a recent login if auth happened within last 30 seconds
+      return timeSinceAuth < 30000;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * 🔍 Helper: Checks if app was idle and is now restarting
+   */
+  wasAppIdle() {
+    try {
+      const lastActive = localStorage.getItem('campusLocation_lastActive');
+      if (!lastActive) return false;
+      
+      const timeSinceActive = Date.now() - parseInt(lastActive);
+      // Consider app idle if last activity was more than 5 minutes ago
+      return timeSinceActive > 300000;
+    } catch (error) {
+      return false;
+    }
+  }
+
   async autoStartLocationTracking() {
     this.initializationAttempts++;
     
@@ -2219,6 +2680,10 @@ export class CampusLocationService {
       console.log(
         `[CampusLocationService] 🚀 Initialization attempt ${this.initializationAttempts}/${this.maxInitializationAttempts} - checking if automatic location tracking should start...`
       );
+
+      // 🎯 PHASE 2 ENHANCEMENT: Detect trigger scenario for optimized handling
+      const triggerScenario = this.detectTriggerScenario();
+      console.log(`[CampusLocationService] 🎯 Trigger scenario detected: ${triggerScenario}`);
 
       // Import required services with error handling
       let currentUser;
@@ -2239,6 +2704,24 @@ export class CampusLocationService {
         this.scheduleInitializationRetry("No current user");
         return;
       }
+      
+      // 🚀 PHASE 1: Immediate presence update with trigger context
+      console.log(`[CampusLocationService] 🚀 Starting Phase 1: Immediate presence update (${triggerScenario})...`);
+      const immediateUpdateSuccess = await this.immediatePresenceUpdate(triggerScenario);
+      
+      if (immediateUpdateSuccess) {
+        console.log('[CampusLocationService] ✅ Phase 1 complete - user presence updated immediately');
+        
+        // 🎯 PHASE 2 ENHANCEMENT: For high-priority triggers, request fresh GPS immediately
+        if (['login', 'reload', 'tab_return'].includes(triggerScenario)) {
+          console.log(`[CampusLocationService] ⚡ High-priority trigger detected - requesting immediate fresh GPS`);
+          this.requestSingleLocationUpdate();
+        }
+      } else {
+        console.warn('[CampusLocationService] ⚠️ Phase 1 failed - continuing with Phase 2');
+      }
+      
+      console.log('[CampusLocationService] 🔍 Starting Phase 2: Accurate location acquisition...');
 
       // Wait for user profile with timeout to prevent infinite waiting
       let userProfile;
@@ -2299,7 +2782,7 @@ export class CampusLocationService {
       }
 
       console.log(
-        "[CampusLocationService] ✅ All conditions met - starting automatic location tracking"
+        "[CampusLocationService] ✅ All conditions met - starting Phase 2 location tracking with GPS accuracy"
       );
       
       // Start location tracking with fallback mechanisms
@@ -2338,7 +2821,7 @@ export class CampusLocationService {
       this.initializationErrors = []; // Clear error history
       
       console.log(
-        "[CampusLocationService] 🎉 Location tracking initialization completed successfully"
+        `[CampusLocationService] 🎉 Location tracking initialization completed successfully (${triggerScenario})`
       );
       
     } catch (error) {
@@ -2446,6 +2929,11 @@ export class CampusLocationService {
    */
   initializeActivityDetection() {
     console.log("[CampusLocationService] Initializing activity detection...");
+
+    // 🔧 FIX: Mark page load/initialization as user activity
+    this.isUserCurrentlyActive = true;
+    this.lastActivityDetected = Date.now();
+    console.log("[CampusLocationService] 🚀 Page load detected - marked as initial user activity");
 
     // Page Visibility API - detect when user switches tabs/apps
     document.addEventListener("visibilitychange", () => {
