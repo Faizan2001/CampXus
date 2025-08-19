@@ -1304,6 +1304,197 @@ export class CampusLocationService {
     listener.isConnected = false;
   }
 
+  // 🔧 POLYGON DEBUGGING HELPER
+  debugPolygonDetection(userLat, userLng, university = 'iub') {
+    console.log("🔍 [POLYGON DEBUG] Starting detailed polygon analysis");
+    
+    // Import campus config
+    import('../location/UniversityCampusConfig.js').then(({ getCampusConfig }) => {
+      const campusConfig = getCampusConfig(university);
+      if (!campusConfig) {
+        console.error("🔍 [POLYGON DEBUG] No campus config found for:", university);
+        return;
+      }
+
+      const userPoint = { lat: userLat, lng: userLng };
+      
+      console.log("🔍 [POLYGON DEBUG] Analysis Details:", {
+        userLocation: userPoint,
+        campusCenter: campusConfig.center,
+        boundaryPoints: campusConfig.boundary.length
+      });
+
+      // Calculate distance from center
+      const distanceFromCenter = this.calculateDistance(userPoint, campusConfig.center);
+      
+      console.log("🔍 [POLYGON DEBUG] Distance Analysis:", {
+        distanceFromCenterMeters: Math.round(distanceFromCenter),
+        userPoint,
+        campusCenter: campusConfig.center
+      });
+
+      // Show boundary coordinate ranges
+      const lats = campusConfig.boundary.map(p => p.lat);
+      const lngs = campusConfig.boundary.map(p => p.lng);
+      const boundaryBounds = {
+        latMin: Math.min(...lats),
+        latMax: Math.max(...lats),
+        lngMin: Math.min(...lngs),
+        lngMax: Math.max(...lngs)
+      };
+      
+      console.log("🔍 [POLYGON DEBUG] Boundary Bounds:", boundaryBounds);
+      
+      // Check if user is within bounding rectangle
+      const withinBounds = userLat >= boundaryBounds.latMin && userLat <= boundaryBounds.latMax &&
+                          userLng >= boundaryBounds.lngMin && userLng <= boundaryBounds.lngMax;
+      
+      console.log("🔍 [POLYGON DEBUG] Bounding Box Check:", {
+        withinBoundingRectangle: withinBounds,
+        userLat,
+        userLng,
+        bounds: boundaryBounds
+      });
+
+      // Run point-in-polygon with detailed logging
+      console.log("🔍 [POLYGON DEBUG] Running detailed ray casting...");
+      const isInside = this.debugPointInPolygon(userPoint, campusConfig.boundary);
+      
+      console.log("🔍 [POLYGON DEBUG] Final Result:", {
+        pointInPolygon: isInside,
+        withinBoundingBox: withinBounds,
+        distanceFromCenter: Math.round(distanceFromCenter),
+        recommendation: isInside ? "✅ Should show GREEN dot" : "❌ Shows RED dot - check coordinates"
+      });
+
+      // Generate Google Maps URL for visual verification
+      const mapsUrl = `https://www.google.com/maps?q=${userLat},${userLng}&z=18`;
+      console.log("🔍 [POLYGON DEBUG] Visual Check:", {
+        googleMapsUrl: mapsUrl,
+        instructions: "Open this URL to verify your actual GPS location matches expected location"
+      });
+
+    }).catch(error => {
+      console.error("🔍 [POLYGON DEBUG] Error loading campus config:", error);
+    });
+  }
+
+  debugPointInPolygon(point, polygon) {
+    console.log("🔍 [RAY CASTING DEBUG] Starting detailed ray casting analysis");
+    
+    if (!polygon || polygon.length < 3) {
+      console.error("🔍 [RAY CASTING DEBUG] Invalid polygon - need at least 3 vertices");
+      return false;
+    }
+
+    let isInside = false;
+    let intersectionCount = 0;
+    const x = point.lng;
+    const y = point.lat;
+
+    console.log("🔍 [RAY CASTING DEBUG] Test point:", { x, y });
+    console.log("🔍 [RAY CASTING DEBUG] Polygon vertices:", polygon.length);
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].lng;
+      const yi = polygon[i].lat;
+      const xj = polygon[j].lng;
+      const yj = polygon[j].lat;
+
+      // Ray casting algorithm with debug info
+      const condition1 = yi > y !== yj > y;
+      const intersectionX = ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+      const condition2 = x < intersectionX;
+      
+      if (condition1 && condition2) {
+        isInside = !isInside;
+        intersectionCount++;
+        
+        console.log(`🔍 [RAY CASTING DEBUG] Intersection ${intersectionCount}:`, {
+          edge: `${i} -> ${j}`,
+          edgePoints: { from: {x: xi, y: yi}, to: {x: xj, y: yj} },
+          intersectionX,
+          rayX: x,
+          intersects: true,
+          newState: isInside
+        });
+      }
+    }
+
+    console.log("🔍 [RAY CASTING DEBUG] Ray casting complete:", {
+      totalIntersections: intersectionCount,
+      finalResult: isInside,
+      rule: "Odd intersections = inside, Even intersections = outside"
+    });
+
+    return isInside;
+  }
+
+  // 🔧 POLYGON BUFFER HELPER - Expand boundary for GPS accuracy tolerance
+  createBufferedPolygon(originalPolygon, bufferMeters = 20) {
+    console.log(`🔍 [POLYGON BUFFER] Creating ${bufferMeters}m buffer around polygon`);
+    
+    // Simple approach: expand each coordinate by buffer amount in degrees
+    // 1 meter ≈ 0.000009 degrees latitude (varies by location)
+    // 1 meter ≈ 0.000009 / cos(latitude) degrees longitude
+    
+    const bufferLat = bufferMeters * 0.000009; // Latitude buffer in degrees
+    const avgLat = originalPolygon.reduce((sum, p) => sum + p.lat, 0) / originalPolygon.length;
+    const bufferLng = bufferMeters * 0.000009 / Math.cos(avgLat * Math.PI / 180); // Longitude buffer
+    
+    console.log(`🔍 [POLYGON BUFFER] Buffer amounts:`, {
+      bufferMeters,
+      bufferLat: bufferLat.toFixed(8),
+      bufferLng: bufferLng.toFixed(8),
+      avgLatitude: avgLat.toFixed(6)
+    });
+    
+    // Find polygon centroid
+    const centroid = {
+      lat: avgLat,
+      lng: originalPolygon.reduce((sum, p) => sum + p.lng, 0) / originalPolygon.length
+    };
+    
+    // Expand each point away from centroid
+    const bufferedPolygon = originalPolygon.map(point => {
+      const latDiff = point.lat - centroid.lat;
+      const lngDiff = point.lng - centroid.lng;
+      
+      // Normalize and apply buffer
+      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+      const factor = distance > 0 ? (distance + bufferLat) / distance : 1;
+      
+      return {
+        lat: centroid.lat + latDiff * factor,
+        lng: centroid.lng + lngDiff * factor
+      };
+    });
+    
+    console.log(`🔍 [POLYGON BUFFER] Created buffered polygon with ${bufferedPolygon.length} points`);
+    return bufferedPolygon;
+  }
+
+  // 🔧 TEST DIFFERENT BUFFER SIZES
+  testPolygonWithBuffers(userLat, userLng, university = 'iub') {
+    console.log("🔍 [BUFFER TEST] Testing polygon with different buffer sizes");
+    
+    import('../location/UniversityCampusConfig.js').then(({ getCampusConfig }) => {
+      const campusConfig = getCampusConfig(university);
+      if (!campusConfig) return;
+
+      const userPoint = { lat: userLat, lng: userLng };
+      const originalResult = this.pointInPolygon(userPoint, campusConfig.boundary);
+      
+      console.log("🔍 [BUFFER TEST] Results:", {
+        originalPolygon: originalResult,
+        "buffer10m": this.pointInPolygon(userPoint, this.createBufferedPolygon(campusConfig.boundary, 10)),
+        "buffer20m": this.pointInPolygon(userPoint, this.createBufferedPolygon(campusConfig.boundary, 20)),
+        "buffer30m": this.pointInPolygon(userPoint, this.createBufferedPolygon(campusConfig.boundary, 30)),
+        "buffer50m": this.pointInPolygon(userPoint, this.createBufferedPolygon(campusConfig.boundary, 50))
+      });
+    });
+  }
+
   // 🔧 MOBILE LIFECYCLE MANAGEMENT METHODS
   initializeMobileLifecycleHandlers() {
     if (!this.detectMobileBrowser()) {
