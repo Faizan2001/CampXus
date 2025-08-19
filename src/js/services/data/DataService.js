@@ -2493,6 +2493,15 @@ class DataManager {
     try {
       console.log("👥 Setting up real-time listener for friendships:", userId);
 
+      // 🔧 MOBILE FIX: Import mobile-resilient listener system
+      const isMobile = this.detectMobileBrowser();
+      
+      if (isMobile) {
+        console.log("📱 Using mobile-resilient Firebase listener for friendships");
+        return this.setupMobileResilientFriendshipsListener(userId, callback);
+      }
+
+      // Desktop implementation (existing logic)
       const friendshipsRef = collection(db, "friendships");
       const q = query(
         friendshipsRef,
@@ -2558,6 +2567,229 @@ class DataManager {
       console.error("❌ Error setting up friendships listener:", error);
       return () => {}; // Return empty unsubscribe function
     }
+  }
+
+  // 🔧 MOBILE-RESILIENT FRIENDSHIPS LISTENER
+  setupMobileResilientFriendshipsListener(userId, callback) {
+    console.log("📱 Setting up mobile-resilient friendships listener for:", userId);
+    
+    const friendshipsRef = collection(db, "friendships");
+    const q = query(
+      friendshipsRef,
+      where("users", "array-contains", userId),
+      orderBy("createdAt", "desc")
+    );
+
+    // Connection state tracking
+    let reconnectionAttempts = 0;
+    let maxReconnectionAttempts = 5;
+    let reconnectionTimeout = null;
+    let lastSuccessfulUpdate = Date.now();
+    let healthCheckInterval = null;
+    let isConnected = false;
+    let currentUnsubscribe = null;
+
+    // Mobile-specific configuration
+    const reconnectionDelayBase = 1000; // Start with 1 second
+    const maxReconnectionDelay = 30000; // Max 30 seconds
+    let networkChangeCount = 0;
+    let queuedUpdates = [];
+    const maxQueueSize = 10;
+
+    const processUpdate = (querySnapshot, metadata = {}) => {
+      try {
+        const friendships = [];
+        querySnapshot.forEach((doc) => {
+          friendships.push({
+            id: doc.id,
+            ...doc.data(),
+          });
+        });
+
+        const updateInfo = {
+          count: friendships.length,
+          fromCache: metadata.fromCache || querySnapshot.metadata?.fromCache || false,
+          hasPendingWrites: metadata.hasPendingWrites || querySnapshot.metadata?.hasPendingWrites || false,
+          isMobileOptimized: true,
+          connectionAttempts: reconnectionAttempts,
+          networkChanges: networkChangeCount
+        };
+
+        console.log(`📱 Mobile-resilient friendships update: ${updateInfo.count} friendships`, updateInfo);
+
+        // Transform for UI consumption
+        const transformedFriendships = friendships.map((friendship) => {
+          const friendId = friendship.users.find((id) => id !== userId);
+          const isUser1 = friendship.user1Id === userId;
+          const friendInfo = isUser1 ? friendship.user2Info : friendship.user1Info;
+
+          return {
+            ...friendship,
+            friendId: friendId,
+            friendInfo: friendInfo || {
+              displayName: "Unknown User",
+              major: "Unknown Major",
+            },
+            _mobileMetadata: updateInfo
+          };
+        });
+
+        callback(transformedFriendships);
+        lastSuccessfulUpdate = Date.now();
+        
+      } catch (processingError) {
+        console.error("📱 Error processing mobile friendships update:", processingError);
+      }
+    };
+
+    const handleError = (error) => {
+      console.error("📱 Mobile-resilient friendships listener error:", {
+        code: error.code,
+        message: error.message,
+        connectionAttempts: reconnectionAttempts,
+        isOnline: navigator.onLine,
+        timestamp: new Date().toISOString()
+      });
+
+      isConnected = false;
+
+      // Handle different error types with mobile-specific strategies
+      const shouldReconnect = this.shouldReconnectMobileListener(error, reconnectionAttempts);
+      
+      if (shouldReconnect && reconnectionAttempts < maxReconnectionAttempts) {
+        scheduleReconnection();
+      } else if (error.code !== "permission-denied") {
+        console.warn("📱 Mobile friendships listener: Max reconnection attempts reached or permanent error");
+        callback([]); // Fallback to empty array for non-permission errors
+      }
+    };
+
+    const scheduleReconnection = () => {
+      if (reconnectionTimeout) return; // Already scheduled
+
+      reconnectionAttempts++;
+      const delay = Math.min(
+        reconnectionDelayBase * Math.pow(2, reconnectionAttempts - 1),
+        maxReconnectionDelay
+      ) + Math.random() * 1000; // Add jitter
+
+      console.log(`📱 Scheduling friendships listener reconnection in ${Math.round(delay)}ms (attempt ${reconnectionAttempts}/${maxReconnectionAttempts})`);
+
+      reconnectionTimeout = setTimeout(() => {
+        reconnectionTimeout = null;
+        connectListener();
+      }, delay);
+    };
+
+    const connectListener = () => {
+      // Clean up existing connection
+      if (currentUnsubscribe) {
+        currentUnsubscribe();
+        currentUnsubscribe = null;
+      }
+
+      console.log(`📱 Connecting mobile-resilient friendships listener (attempt ${reconnectionAttempts + 1})`);
+
+      try {
+        currentUnsubscribe = onSnapshot(
+          q,
+          (querySnapshot) => {
+            isConnected = true;
+            reconnectionAttempts = 0; // Reset on successful connection
+            
+            // Process queued updates first if any
+            if (queuedUpdates.length > 0) {
+              console.log(`📱 Processing ${queuedUpdates.length} queued friendships updates`);
+              queuedUpdates.forEach(update => processUpdate(update.snapshot, update.metadata));
+              queuedUpdates = [];
+            }
+
+            processUpdate(querySnapshot);
+          },
+          handleError
+        );
+
+        // Start health monitoring
+        startHealthMonitoring();
+        
+      } catch (connectionError) {
+        console.error("📱 Failed to connect mobile-resilient friendships listener:", connectionError);
+        handleError(connectionError);
+      }
+    };
+
+    const startHealthMonitoring = () => {
+      if (healthCheckInterval) clearInterval(healthCheckInterval);
+      
+      healthCheckInterval = setInterval(() => {
+        const timeSinceLastUpdate = Date.now() - lastSuccessfulUpdate;
+        const healthThreshold = 90000; // 90 seconds threshold for mobile
+
+        if (timeSinceLastUpdate > healthThreshold && navigator.onLine && isConnected) {
+          console.warn(`📱 Friendships listener health check failed - ${Math.round(timeSinceLastUpdate/1000)}s since last update`);
+          // Force reconnection
+          reconnectionAttempts = 0;
+          scheduleReconnection();
+        }
+      }, 30000); // Check every 30 seconds
+    };
+
+    // Handle network state changes
+    const handleNetworkChange = () => {
+      networkChangeCount++;
+      console.log(`📱 Network change detected for friendships listener (count: ${networkChangeCount})`);
+      
+      if (navigator.onLine && !isConnected) {
+        console.log("📱 Network back online - reconnecting friendships listener");
+        reconnectionAttempts = 0; // Reset attempts on network recovery
+        scheduleReconnection();
+      }
+    };
+
+    window.addEventListener('online', handleNetworkChange);
+    window.addEventListener('offline', handleNetworkChange);
+
+    // Initial connection
+    connectListener();
+
+    // Return cleanup function
+    return () => {
+      console.log("📱 Cleaning up mobile-resilient friendships listener");
+      
+      if (currentUnsubscribe) currentUnsubscribe();
+      if (reconnectionTimeout) clearTimeout(reconnectionTimeout);
+      if (healthCheckInterval) clearInterval(healthCheckInterval);
+      
+      window.removeEventListener('online', handleNetworkChange);
+      window.removeEventListener('offline', handleNetworkChange);
+      
+      isConnected = false;
+      queuedUpdates = [];
+    };
+  }
+
+  shouldReconnectMobileListener(error, attempts) {
+    const networkErrors = ['unavailable', 'cancelled', 'deadline-exceeded'];
+    const permanentErrors = ['permission-denied', 'not-found'];
+    
+    if (permanentErrors.includes(error.code)) {
+      return false;
+    }
+    
+    if (networkErrors.includes(error.code) && navigator.onLine) {
+      return attempts < 5; // More aggressive retry for network errors when online
+    }
+    
+    return attempts < 3; // Conservative retry for other errors
+  }
+
+  detectMobileBrowser() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.screen.width <= 768 || window.screen.height <= 768;
+    
+    return mobileRegex.test(userAgent) || (hasTouch && isSmallScreen);
   }
 
   /**

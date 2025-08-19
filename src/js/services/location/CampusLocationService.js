@@ -48,13 +48,39 @@ export class CampusLocationService {
     this.minActivityInterval = 60000; // OPTIMIZED: Activity updates every 60 seconds for better battery life
     this.isUpdatingActivity = false; // Prevent concurrent activity updates
 
+    // 🔧 MOBILE LIFECYCLE MANAGEMENT PROPERTIES
+    this.isMobile = this.detectMobileBrowser();
+    this.isAppVisible = !document.hidden;
+    this.isOnline = navigator.onLine;
+    this.wasTrackingBeforeBackground = false;
+    this.backgroundStartTime = null;
+    this.foregroundResumeTime = null;
+    this.visibilityChangeCount = 0;
+    this.networkReconnectionAttempts = 0;
+    this.maxNetworkReconnectionAttempts = 3;
+    
+    // Mobile-specific intervals and timeouts
+    this.backgroundGracePeriod = 30000; // 30 seconds grace period before pausing
+    this.foregroundResumeTimeout = null;
+    this.backgroundPauseTimeout = null;
+    this.networkReconnectionTimeout = null;
+
     console.log("[CampusLocationService] Service initialized", {
       geolocationSupported: this.isLocationSupported,
+      isMobile: this.isMobile,
+      isAppVisible: this.isAppVisible,
+      isOnline: this.isOnline,
       timestamp: new Date().toISOString(),
     });
 
     // Initialize activity detection
     this.initializeActivityDetection();
+    
+    // 🔧 MOBILE FIX: Initialize mobile lifecycle management
+    if (this.isMobile) {
+      this.initializeMobileLifecycleHandlers();
+      console.log("[CampusLocationService] 📱 Mobile lifecycle management initialized");
+    }
   }
 
   /**
@@ -89,6 +115,18 @@ export class CampusLocationService {
         return true;
       }
 
+      // 🔧 MOBILE FIX: Detect mobile browser and adjust behavior accordingly
+      const isMobile = this.detectMobileBrowser();
+      const isIOSSafari = this.detectIOSSafari();
+      const isAndroidChrome = this.detectAndroidChrome();
+
+      console.log("[CampusLocationService] Mobile browser detection:", {
+        isMobile,
+        isIOSSafari,
+        isAndroidChrome,
+        userAgent: navigator.userAgent
+      });
+
       // IMPORTANT: To trigger the browser permission dialog, we must actually call getCurrentPosition
       // Just checking permissions.query doesn't trigger the dialog
       console.log(
@@ -96,6 +134,32 @@ export class CampusLocationService {
       );
 
       return new Promise((resolve) => {
+        // 🔧 MOBILE FIX: Adaptive timeout based on mobile platform
+        let timeoutDuration = 15000; // Default 15 seconds for desktop
+        if (isIOSSafari) {
+          timeoutDuration = 45000; // iOS Safari needs up to 45 seconds
+        } else if (isAndroidChrome) {
+          timeoutDuration = 35000; // Android Chrome needs up to 35 seconds
+        } else if (isMobile) {
+          timeoutDuration = 40000; // Other mobile browsers get 40 seconds
+        }
+
+        console.log(`[CampusLocationService] Using ${timeoutDuration}ms timeout for ${isMobile ? 'mobile' : 'desktop'} platform`);
+
+        const permissionOptions = {
+          timeout: timeoutDuration,
+          enableHighAccuracy: false, // Don't need high accuracy for permission test
+          maximumAge: 600000, // 10 minutes cache acceptable for permission test
+        };
+
+        // 🔧 MOBILE FIX: iOS Safari permission handling with user interaction context
+        if (isIOSSafari) {
+          console.log("[CampusLocationService] Applying iOS Safari permission handling");
+          // iOS Safari requires permission requests to be triggered by user interaction
+          // We'll log this for debugging mobile permission issues
+          console.log("[CampusLocationService] iOS detected - permission must be user-initiated");
+        }
+
         navigator.geolocation.getCurrentPosition(
           (position) => {
             console.log(
@@ -104,18 +168,29 @@ export class CampusLocationService {
             this.permissionStatus = "granted";
             this.currentPosition = position;
 
-            // Update permission status via permissions API if available
+            // 🔧 MOBILE FIX: Enhanced permission monitoring for mobile browsers
             if ("permissions" in navigator) {
               navigator.permissions
                 .query({ name: "geolocation" })
                 .then((permission) => {
+                  console.log(`[CampusLocationService] Permission API state: ${permission.state}`);
+                  
                   permission.addEventListener("change", () => {
                     this.permissionStatus = permission.state;
                     console.log(
                       "[CampusLocationService] Permission changed to:",
                       permission.state
                     );
+
+                    // 🔧 MOBILE FIX: Handle mobile-specific permission revocation
+                    if (permission.state === "denied" && isMobile) {
+                      console.warn("[CampusLocationService] 📱 Mobile permission revoked - stopping all location tracking");
+                      this.stopLocationTracking();
+                    }
                   });
+                })
+                .catch((permError) => {
+                  console.warn("[CampusLocationService] Permission API not fully supported:", permError);
                 });
             }
 
@@ -126,27 +201,51 @@ export class CampusLocationService {
               code: error.code,
               message: error.message,
               timestamp: new Date().toISOString(),
+              platform: isMobile ? 'mobile' : 'desktop',
+              browser: isIOSSafari ? 'iOS Safari' : isAndroidChrome ? 'Android Chrome' : 'Other'
             });
 
+            // 🔧 MOBILE FIX: Enhanced mobile-specific error handling
             switch (error.code) {
               case error.PERMISSION_DENIED:
                 console.log(
                   "[CampusLocationService] ❌ Location permission DENIED by user"
                 );
                 this.permissionStatus = "denied";
+                
+                if (isIOSSafari) {
+                  console.log("[CampusLocationService] 📱 iOS Safari: User must enable location in Settings > Safari > Location Services");
+                } else if (isAndroidChrome) {
+                  console.log("[CampusLocationService] 📱 Android Chrome: Check site permissions in browser settings");
+                }
                 break;
+                
               case error.POSITION_UNAVAILABLE:
                 console.log(
                   "[CampusLocationService] ⚠️ Location unavailable (GPS off or no signal)"
                 );
                 this.permissionStatus = "granted"; // Permission granted but location unavailable
+                
+                if (isMobile) {
+                  console.log("[CampusLocationService] 📱 Mobile: Try moving outdoors or enabling high accuracy GPS");
+                }
                 break;
+                
               case error.TIMEOUT:
                 console.log(
-                  "[CampusLocationService] ⏱️ Location request timeout"
+                  `[CampusLocationService] ⏱️ Location request timeout after ${timeoutDuration}ms`
                 );
                 this.permissionStatus = "granted"; // Permission granted but timed out
+                
+                if (isMobile) {
+                  console.log("[CampusLocationService] 📱 Mobile timeout: GPS acquisition can take longer indoors");
+                  // On mobile timeout, we still consider permission potentially granted
+                  // The user will get another chance during actual location tracking
+                  resolve(true);
+                  return;
+                }
                 break;
+                
               default:
                 console.log(
                   "[CampusLocationService] ❓ Unknown location error"
@@ -155,13 +254,12 @@ export class CampusLocationService {
                 break;
             }
 
-            resolve(error.code !== error.PERMISSION_DENIED);
+            // 🔧 MOBILE FIX: More lenient mobile permission resolution
+            // On mobile, timeouts and position unavailable don't necessarily mean permission denied
+            const mobilePermissionGranted = isMobile && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE);
+            resolve(error.code !== error.PERMISSION_DENIED || mobilePermissionGranted);
           },
-          {
-            timeout: 10000, // 10 second timeout
-            enableHighAccuracy: false, // Don't need high accuracy for permission test
-            maximumAge: 600000, // 10 minutes cache acceptable for permission test
-          }
+          permissionOptions
         );
       });
     } catch (error) {
@@ -187,56 +285,160 @@ export class CampusLocationService {
       return null;
     }
 
+    // 🔧 MOBILE FIX: Detect platform for mobile-specific GPS handling
+    const isMobile = this.detectMobileBrowser();
+    const isIOSSafari = this.detectIOSSafari();
+    const isAndroidChrome = this.detectAndroidChrome();
+
     return new Promise((resolve, reject) => {
-      // FIXED: Adaptive GPS settings based on use case for better battery efficiency
-      const options = {
-        enableHighAccuracy: highAccuracy, // OPTIMIZED: Only use high accuracy when explicitly needed
-        timeout: highAccuracy ? 15000 : 30000, // ADAPTIVE: Longer timeout for low-power mode
-        maximumAge: highAccuracy ? 60000 : 300000, // ADAPTIVE: More aggressive caching for battery efficiency
+      // 🔧 MOBILE FIX: Adaptive GPS settings based on mobile platform
+      let options = {
+        enableHighAccuracy: highAccuracy,
+        timeout: highAccuracy ? 15000 : 30000,
+        maximumAge: highAccuracy ? 60000 : 300000,
       };
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          this.currentPosition = position;
-          console.log("[CampusLocationService] Location obtained:", {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: new Date(position.timestamp).toISOString(),
-          });
-          resolve(position);
-        },
-        (error) => {
-          console.error("[CampusLocationService] Error getting location:", {
-            code: error.code,
-            message: error.message,
-            timestamp: new Date().toISOString(),
-          });
+      // Platform-specific GPS optimization
+      if (isMobile) {
+        console.log("[CampusLocationService] 📱 Applying mobile GPS optimizations");
+        
+        if (isIOSSafari) {
+          // iOS Safari GPS behavior
+          options = {
+            enableHighAccuracy: highAccuracy,
+            timeout: highAccuracy ? 45000 : 60000, // iOS needs more time
+            maximumAge: highAccuracy ? 30000 : 180000, // More aggressive caching for battery
+          };
+          console.log("[CampusLocationService] 🍎 iOS Safari GPS settings applied");
+        } else if (isAndroidChrome) {
+          // Android Chrome GPS behavior
+          options = {
+            enableHighAccuracy: highAccuracy,
+            timeout: highAccuracy ? 35000 : 50000, // Android reasonable timeout
+            maximumAge: highAccuracy ? 45000 : 240000, // Conservative caching
+          };
+          console.log("[CampusLocationService] 🤖 Android Chrome GPS settings applied");
+        } else {
+          // Generic mobile browser settings
+          options = {
+            enableHighAccuracy: highAccuracy,
+            timeout: highAccuracy ? 40000 : 55000,
+            maximumAge: highAccuracy ? 60000 : 300000,
+          };
+          console.log("[CampusLocationService] 📱 Generic mobile GPS settings applied");
+        }
+      }
 
-          // Log specific error types
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              console.error(
-                "[CampusLocationService] Location access denied by user"
-              );
-              break;
-            case error.POSITION_UNAVAILABLE:
-              console.error(
-                "[CampusLocationService] Location information unavailable"
-              );
-              break;
-            case error.TIMEOUT:
-              console.error("[CampusLocationService] Location request timeout");
-              break;
-            default:
-              console.error("[CampusLocationService] Unknown location error");
-              break;
-          }
-
-          resolve(null);
-        },
+      console.log("[CampusLocationService] GPS options:", {
+        platform: isMobile ? 'mobile' : 'desktop',
+        browser: isIOSSafari ? 'iOS Safari' : isAndroidChrome ? 'Android Chrome' : 'Other',
         options
-      );
+      });
+
+      // 🔧 MOBILE FIX: Multi-attempt GPS acquisition for mobile reliability
+      let attemptCount = 0;
+      const maxAttempts = isMobile ? 3 : 1; // Mobile gets multiple attempts
+
+      const attemptLocationAcquisition = () => {
+        attemptCount++;
+        console.log(`[CampusLocationService] GPS attempt ${attemptCount}/${maxAttempts} for ${isMobile ? 'mobile' : 'desktop'}`);
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            this.currentPosition = position;
+            
+            console.log("[CampusLocationService] Location obtained:", {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              timestamp: new Date(position.timestamp).toISOString(),
+              attempt: attemptCount,
+              platform: isMobile ? 'mobile' : 'desktop'
+            });
+
+            // 🔧 MOBILE FIX: Validate GPS accuracy on mobile
+            if (isMobile && position.coords.accuracy > 1000) {
+              console.warn(`[CampusLocationService] 📱 Poor mobile GPS accuracy: ${position.coords.accuracy}m - attempt ${attemptCount}/${maxAttempts}`);
+              
+              // If we have more attempts and accuracy is poor, try again with high accuracy
+              if (attemptCount < maxAttempts) {
+                console.log("[CampusLocationService] 📱 Retrying with high accuracy GPS...");
+                options.enableHighAccuracy = true;
+                options.timeout = Math.min(options.timeout + 15000, 60000); // Increase timeout
+                setTimeout(() => attemptLocationAcquisition(), 1000);
+                return;
+              }
+            }
+
+            resolve(position);
+          },
+          (error) => {
+            console.error(`[CampusLocationService] Error getting location (attempt ${attemptCount}/${maxAttempts}):`, {
+              code: error.code,
+              message: error.message,
+              timestamp: new Date().toISOString(),
+              platform: isMobile ? 'mobile' : 'desktop',
+              browser: isIOSSafari ? 'iOS Safari' : isAndroidChrome ? 'Android Chrome' : 'Other'
+            });
+
+            // 🔧 MOBILE FIX: Enhanced mobile error handling with retry logic
+            const shouldRetry = isMobile && attemptCount < maxAttempts && 
+              (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE);
+
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                console.error("[CampusLocationService] Location access denied by user");
+                if (isMobile) {
+                  console.error("[CampusLocationService] 📱 Mobile permission denied - check browser location settings");
+                }
+                resolve(null); // Don't retry permission denials
+                break;
+                
+              case error.POSITION_UNAVAILABLE:
+                console.error("[CampusLocationService] Location information unavailable");
+                if (shouldRetry) {
+                  console.log(`[CampusLocationService] 📱 Mobile GPS unavailable - retrying attempt ${attemptCount + 1}/${maxAttempts}`);
+                  // Try with different settings
+                  options.enableHighAccuracy = !options.enableHighAccuracy;
+                  options.maximumAge = 0; // Force fresh GPS reading
+                  setTimeout(() => attemptLocationAcquisition(), 2000);
+                } else {
+                  resolve(null);
+                }
+                break;
+                
+              case error.TIMEOUT:
+                console.error(`[CampusLocationService] Location request timeout after ${options.timeout}ms`);
+                if (shouldRetry) {
+                  console.log(`[CampusLocationService] 📱 Mobile GPS timeout - retrying attempt ${attemptCount + 1}/${maxAttempts} with extended timeout`);
+                  options.timeout = Math.min(options.timeout + 20000, 75000); // Increase timeout progressively
+                  options.enableHighAccuracy = false; // Use low power mode for retry
+                  setTimeout(() => attemptLocationAcquisition(), 1000);
+                } else {
+                  if (isMobile) {
+                    console.warn("[CampusLocationService] 📱 Mobile GPS acquisition failed after all attempts - this may affect presence updates");
+                  }
+                  resolve(null);
+                }
+                break;
+                
+              default:
+                console.error("[CampusLocationService] Unknown location error");
+                if (shouldRetry) {
+                  console.log(`[CampusLocationService] 📱 Unknown mobile GPS error - final retry attempt ${attemptCount + 1}/${maxAttempts}`);
+                  setTimeout(() => attemptLocationAcquisition(), 3000);
+                } else {
+                  resolve(null);
+                }
+                break;
+            }
+          },
+          options
+        );
+      };
+
+      // Start the GPS acquisition process
+      attemptLocationAcquisition();
     });
   }
 
@@ -459,6 +661,901 @@ export class CampusLocationService {
    */
   isGeolocationSupported() {
     return this.isLocationSupported;
+  }
+
+  // 🔧 MOBILE BROWSER DETECTION METHODS
+  detectMobileBrowser() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    
+    // Check for mobile device indicators
+    const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+    const isMobileUA = mobileRegex.test(userAgent);
+    
+    // Check for touch capability
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // Check screen size as additional indicator
+    const isSmallScreen = window.screen.width <= 768 || window.screen.height <= 768;
+    
+    const isMobile = isMobileUA || (hasTouch && isSmallScreen);
+    
+    console.log(`[CampusLocationService] Mobile detection: UA=${isMobileUA}, Touch=${hasTouch}, SmallScreen=${isSmallScreen}, Result=${isMobile}`);
+    
+    return isMobile;
+  }
+
+  detectIOSSafari() {
+    const userAgent = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+    const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS|FxiOS/.test(userAgent);
+    
+    // Additional check for iOS WebView
+    const isIOSWebView = isIOS && !isSafari && !/Chrome|CriOS|FxiOS/.test(userAgent);
+    
+    const result = isIOS && (isSafari || isIOSWebView);
+    
+    console.log(`[CampusLocationService] iOS Safari detection: iOS=${isIOS}, Safari=${isSafari}, WebView=${isIOSWebView}, Result=${result}`);
+    
+    return result;
+  }
+
+  detectAndroidChrome() {
+    const userAgent = navigator.userAgent;
+    const isAndroid = /Android/.test(userAgent);
+    const isChrome = /Chrome/.test(userAgent) && !/Edge|OPR/.test(userAgent);
+    
+    // Check for Android Chrome specifically
+    const isChromeAndroid = isAndroid && isChrome;
+    
+    console.log(`[CampusLocationService] Android Chrome detection: Android=${isAndroid}, Chrome=${isChrome}, Result=${isChromeAndroid}`);
+    
+    return isChromeAndroid;
+  }
+
+  // 🔧 MOBILE LIFECYCLE MANAGEMENT METHODS
+  initializeMobileLifecycleHandlers() {
+    console.log("[CampusLocationService] 📱 Setting up mobile lifecycle event handlers");
+
+    // Handle app visibility changes (background/foreground)
+    document.addEventListener('visibilitychange', () => {
+      this.handleVisibilityChange();
+    });
+
+    // Handle network connectivity changes
+    window.addEventListener('online', () => {
+      this.handleNetworkReconnection();
+    });
+
+    window.addEventListener('offline', () => {
+      this.handleNetworkDisconnection();
+    });
+
+    // Handle page focus/blur events as backup for visibility
+    window.addEventListener('focus', () => {
+      this.handleAppFocus();
+    });
+
+    window.addEventListener('blur', () => {
+      this.handleAppBlur();
+    });
+
+    // Handle beforeunload to save state
+    window.addEventListener('beforeunload', () => {
+      this.handleAppUnload();
+    });
+
+    // Handle page show/hide events for better mobile support
+    window.addEventListener('pageshow', (event) => {
+      this.handlePageShow(event);
+    });
+
+    window.addEventListener('pagehide', (event) => {
+      this.handlePageHide(event);
+    });
+
+    console.log("[CampusLocationService] 📱 Mobile lifecycle handlers registered");
+  }
+
+  handleVisibilityChange() {
+    const wasVisible = this.isAppVisible;
+    this.isAppVisible = !document.hidden;
+    this.visibilityChangeCount++;
+
+    console.log(`[CampusLocationService] 📱 Visibility changed: ${wasVisible ? 'visible' : 'hidden'} → ${this.isAppVisible ? 'visible' : 'hidden'} (count: ${this.visibilityChangeCount})`);
+
+    if (!this.isAppVisible && wasVisible) {
+      // App going to background
+      this.handleAppGoingToBackground();
+    } else if (this.isAppVisible && !wasVisible) {
+      // App returning to foreground
+      this.handleAppReturningToForeground();
+    }
+  }
+
+  handleAppGoingToBackground() {
+    console.log("[CampusLocationService] 📱 App going to background - implementing smart pause strategy");
+    
+    this.backgroundStartTime = Date.now();
+    this.wasTrackingBeforeBackground = this.isTrackingActive();
+
+    // Clear any existing background pause timeout
+    if (this.backgroundPauseTimeout) {
+      clearTimeout(this.backgroundPauseTimeout);
+    }
+
+    // Don't immediately pause - give a grace period for quick app switches
+    this.backgroundPauseTimeout = setTimeout(() => {
+      if (!this.isAppVisible) {
+        console.log("[CampusLocationService] 📱 Grace period expired - pausing location tracking for battery conservation");
+        
+        // Pause location tracking but maintain minimal presence updates
+        if (this.wasTrackingBeforeBackground) {
+          this.pauseLocationTrackingForBackground();
+        }
+      }
+    }, this.backgroundGracePeriod);
+  }
+
+  handleAppReturningToForeground() {
+    console.log("[CampusLocationService] 📱 App returning to foreground - implementing smart resume strategy");
+    
+    this.foregroundResumeTime = Date.now();
+    
+    // Clear background pause timeout since we're back in foreground
+    if (this.backgroundPauseTimeout) {
+      clearTimeout(this.backgroundPauseTimeout);
+      this.backgroundPauseTimeout = null;
+    }
+
+    // Calculate how long we were in background
+    const backgroundDuration = this.backgroundStartTime ? 
+      this.foregroundResumeTime - this.backgroundStartTime : 0;
+
+    console.log(`[CampusLocationService] 📱 Background duration: ${Math.round(backgroundDuration / 1000)}s`);
+
+    // Clear any existing resume timeout
+    if (this.foregroundResumeTimeout) {
+      clearTimeout(this.foregroundResumeTimeout);
+    }
+
+    // Delay resume slightly to let the app stabilize
+    this.foregroundResumeTimeout = setTimeout(() => {
+      this.resumeLocationTrackingFromBackground(backgroundDuration);
+    }, 1000); // 1 second delay for app stabilization
+  }
+
+  pauseLocationTrackingForBackground() {
+    console.log("[CampusLocationService] 📱 Pausing location tracking for background mode");
+
+    // Stop active location tracking to save battery
+    if (this.trackingWatchId) {
+      navigator.geolocation.clearWatch(this.trackingWatchId);
+      this.trackingWatchId = null;
+      console.log("[CampusLocationService] 📱 Stopped watchPosition for background");
+    }
+
+    // Keep periodic updates but reduce frequency significantly
+    if (this.periodicUpdateInterval) {
+      clearInterval(this.periodicUpdateInterval);
+      this.periodicUpdateInterval = null;
+    }
+
+    // Start ultra-low-frequency background updates (every 10 minutes)
+    this.periodicUpdateInterval = setInterval(async () => {
+      if (!this.isAppVisible) {
+        console.log("[CampusLocationService] 📱 Background location ping");
+        try {
+          await this.debouncedLocationUpdate(null, true); // Force update with minimal accuracy
+        } catch (error) {
+          console.warn("[CampusLocationService] 📱 Background location update failed:", error);
+        }
+      }
+    }, 600000); // 10 minutes for background updates
+  }
+
+  async resumeLocationTrackingFromBackground(backgroundDuration) {
+    console.log("[CampusLocationService] 📱 Resuming location tracking from background");
+
+    try {
+      // If we were tracking before background, resume tracking
+      if (this.wasTrackingBeforeBackground) {
+        console.log("[CampusLocationService] 📱 Restarting location tracking after background period");
+
+        // Force a fresh location reading first
+        const currentLocation = await this.getCurrentLocation(false);
+        
+        if (currentLocation) {
+          console.log("[CampusLocationService] 📱 Fresh location acquired after resume");
+          
+          // Update location immediately
+          await this.debouncedLocationUpdate(currentLocation, true);
+        } else {
+          console.warn("[CampusLocationService] 📱 Failed to get fresh location after resume");
+        }
+
+        // Restart full location tracking
+        await this.startLocationTracking();
+        
+        // Restart activity heartbeat
+        this.startActivityHeartbeat();
+        
+        // Perform health check
+        setTimeout(() => {
+          this.performHealthCheck();
+        }, 5000);
+      }
+
+      // Reset background state
+      this.wasTrackingBeforeBackground = false;
+      this.backgroundStartTime = null;
+      this.foregroundResumeTime = null;
+
+      console.log("[CampusLocationService] 📱 Successfully resumed from background mode");
+      
+    } catch (error) {
+      console.error("[CampusLocationService] 📱 Error resuming from background:", error);
+      
+      // Try to recover by reinitializing
+      setTimeout(() => {
+        console.log("[CampusLocationService] 📱 Attempting recovery reinitialization");
+        this.autoStartLocationTracking();
+      }, 3000);
+    }
+  }
+
+  handleNetworkReconnection() {
+    const wasOnline = this.isOnline;
+    this.isOnline = true;
+    
+    console.log(`[CampusLocationService] 📱 Network reconnected: ${wasOnline ? 'was online' : 'was offline'} → online`);
+    
+    if (!wasOnline) {
+      // Clear any existing reconnection timeout
+      if (this.networkReconnectionTimeout) {
+        clearTimeout(this.networkReconnectionTimeout);
+      }
+
+      // Delay reconnection handling to ensure network is stable
+      this.networkReconnectionTimeout = setTimeout(() => {
+        this.handleNetworkReconnectionRecovery();
+      }, 2000);
+    }
+  }
+
+  handleNetworkDisconnection() {
+    this.isOnline = false;
+    
+    console.log("[CampusLocationService] 📱 Network disconnected - maintaining location tracking but reducing frequency");
+    
+    // Don't stop location tracking completely, but reduce frequency
+    // The location system can still work offline for presence detection
+  }
+
+  async handleNetworkReconnectionRecovery() {
+    console.log("[CampusLocationService] 📱 Recovering from network disconnection");
+    
+    this.networkReconnectionAttempts++;
+    
+    try {
+      // Force a location update to sync with server after reconnection
+      if (this.currentPosition) {
+        console.log("[CampusLocationService] 📱 Syncing location after network recovery");
+        await this.debouncedLocationUpdate(this.currentPosition, true);
+      }
+
+      // Restart health monitoring
+      this.startHealthMonitoring();
+      
+      // Reset network reconnection attempts
+      this.networkReconnectionAttempts = 0;
+      
+      console.log("[CampusLocationService] 📱 Network recovery completed successfully");
+      
+    } catch (error) {
+      console.error("[CampusLocationService] 📱 Network recovery failed:", error);
+      
+      if (this.networkReconnectionAttempts < this.maxNetworkReconnectionAttempts) {
+        console.log(`[CampusLocationService] 📱 Retrying network recovery (${this.networkReconnectionAttempts}/${this.maxNetworkReconnectionAttempts})`);
+        
+        setTimeout(() => {
+          this.handleNetworkReconnectionRecovery();
+        }, 5000 * this.networkReconnectionAttempts); // Progressive backoff
+      } else {
+        console.error("[CampusLocationService] 📱 Max network recovery attempts reached");
+        this.networkReconnectionAttempts = 0; // Reset for next time
+      }
+    }
+  }
+
+  handleAppFocus() {
+    console.log("[CampusLocationService] 📱 App gained focus");
+    
+    // Additional check if visibility API missed the event
+    if (!this.isAppVisible) {
+      this.isAppVisible = true;
+      this.handleAppReturningToForeground();
+    }
+  }
+
+  handleAppBlur() {
+    console.log("[CampusLocationService] 📱 App lost focus");
+    
+    // Additional check if visibility API missed the event
+    if (this.isAppVisible) {
+      this.isAppVisible = false;
+      this.handleAppGoingToBackground();
+    }
+  }
+
+  handleAppUnload() {
+    console.log("[CampusLocationService] 📱 App unloading - cleaning up resources");
+    
+    // Clear all timeouts and intervals
+    if (this.backgroundPauseTimeout) clearTimeout(this.backgroundPauseTimeout);
+    if (this.foregroundResumeTimeout) clearTimeout(this.foregroundResumeTimeout);
+    if (this.networkReconnectionTimeout) clearTimeout(this.networkReconnectionTimeout);
+    
+    // Stop location tracking
+    this.stopLocationTracking();
+  }
+
+  handlePageShow(event) {
+    console.log(`[CampusLocationService] 📱 Page show event (persisted: ${event.persisted})`);
+    
+    // If page was loaded from cache (back/forward navigation), ensure proper state
+    if (event.persisted && this.isMobile) {
+      setTimeout(() => {
+        this.handleAppReturningToForeground();
+      }, 500);
+    }
+  }
+
+  handlePageHide(event) {
+    console.log(`[CampusLocationService] 📱 Page hide event (persisted: ${event.persisted})`);
+    
+    // Handle page going into back/forward cache
+    if (this.isMobile) {
+      this.handleAppGoingToBackground();
+    }
+  }
+
+  // Helper method to get current mobile lifecycle status
+  getMobileLifecycleStatus() {
+    return {
+      isMobile: this.isMobile,
+      isAppVisible: this.isAppVisible,
+      isOnline: this.isOnline,
+      visibilityChangeCount: this.visibilityChangeCount,
+      backgroundStartTime: this.backgroundStartTime,
+      wasTrackingBeforeBackground: this.wasTrackingBeforeBackground,
+      networkReconnectionAttempts: this.networkReconnectionAttempts
+    };
+  }
+
+  // 🔧 MOBILE-RESILIENT FIREBASE LISTENER MANAGEMENT
+  createMobileResilientListener(listenerConfig) {
+    console.log(`[CampusLocationService] 📱 Creating mobile-resilient Firebase listener: ${listenerConfig.name}`);
+    
+    const listener = {
+      name: listenerConfig.name,
+      query: listenerConfig.query,
+      callback: listenerConfig.callback,
+      errorCallback: listenerConfig.errorCallback || this.defaultListenerErrorHandler.bind(this),
+      
+      // Connection state
+      isConnected: true,
+      unsubscribe: null,
+      reconnectionAttempts: 0,
+      maxReconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      maxReconnectionDelay: 30000,
+      
+      // Mobile-specific properties
+      lastSuccessfulConnection: Date.now(),
+      connectionTimeouts: 0,
+      networkChangeCount: 0,
+      isBackgroundPaused: false,
+      
+      // Queued updates for offline resilience
+      queuedUpdates: [],
+      maxQueueSize: 50,
+      
+      // Reconnection management
+      reconnectionTimeout: null,
+      heartbeatInterval: null
+    };
+    
+    this.setupMobileResilientConnection(listener);
+    return listener;
+  }
+
+  setupMobileResilientConnection(listener) {
+    console.log(`[CampusLocationService] 📱 Setting up resilient connection for: ${listener.name}`);
+    
+    const connectListener = () => {
+      try {
+        // Clear any existing connection
+        if (listener.unsubscribe) {
+          listener.unsubscribe();
+          listener.unsubscribe = null;
+        }
+
+        console.log(`[CampusLocationService] 📱 Connecting Firebase listener: ${listener.name} (attempt ${listener.reconnectionAttempts + 1})`);
+
+        // Import Firebase dynamically to handle potential import issues
+        import('firebase/firestore').then(({ onSnapshot }) => {
+          listener.unsubscribe = onSnapshot(
+            listener.query,
+            
+            // Success callback with mobile-specific enhancements
+            (snapshot) => {
+              listener.isConnected = true;
+              listener.lastSuccessfulConnection = Date.now();
+              listener.reconnectionAttempts = 0;
+              listener.connectionTimeouts = 0;
+
+              console.log(`[CampusLocationService] 📱 Successful listener update: ${listener.name}`);
+
+              // Process any queued updates first (offline resilience)
+              if (listener.queuedUpdates.length > 0) {
+                console.log(`[CampusLocationService] 📱 Processing ${listener.queuedUpdates.length} queued updates for ${listener.name}`);
+                listener.queuedUpdates.forEach(update => {
+                  try {
+                    listener.callback(update.data, update.metadata);
+                  } catch (callbackError) {
+                    console.error(`[CampusLocationService] 📱 Error processing queued update:`, callbackError);
+                  }
+                });
+                listener.queuedUpdates = [];
+              }
+
+              // Process current update
+              try {
+                const metadata = {
+                  isFromCache: snapshot.metadata?.fromCache || false,
+                  hasPendingWrites: snapshot.metadata?.hasPendingWrites || false,
+                  connectionAttempts: listener.reconnectionAttempts,
+                  isMobileOptimized: true
+                };
+
+                listener.callback(snapshot, metadata);
+              } catch (callbackError) {
+                console.error(`[CampusLocationService] 📱 Error in listener callback:`, callbackError);
+                listener.errorCallback(callbackError, 'callback_error');
+              }
+            },
+            
+            // Error callback with mobile-specific retry logic
+            (error) => {
+              console.error(`[CampusLocationService] 📱 Firebase listener error for ${listener.name}:`, {
+                code: error.code,
+                message: error.message,
+                connectionAttempts: listener.reconnectionAttempts,
+                isOnline: this.isOnline,
+                isAppVisible: this.isAppVisible
+              });
+
+              listener.isConnected = false;
+
+              // Handle different error types with mobile-specific strategies
+              this.handleMobileListenerError(listener, error);
+            }
+          );
+
+          // Start connection health monitoring
+          this.startListenerHealthMonitoring(listener);
+
+        }).catch(importError => {
+          console.error(`[CampusLocationService] 📱 Failed to import Firebase modules:`, importError);
+          this.scheduleListenerReconnection(listener, 'import_error');
+        });
+
+      } catch (connectionError) {
+        console.error(`[CampusLocationService] 📱 Error setting up listener connection:`, connectionError);
+        this.scheduleListenerReconnection(listener, 'connection_error');
+      }
+    };
+
+    // Initial connection
+    connectListener();
+    listener.connect = connectListener;
+  }
+
+  handleMobileListenerError(listener, error) {
+    const errorType = this.classifyFirebaseError(error);
+    
+    console.log(`[CampusLocationService] 📱 Handling ${errorType} error for ${listener.name}`);
+
+    switch (errorType) {
+      case 'network_error':
+        // Network-related errors - implement exponential backoff
+        if (!this.isOnline) {
+          console.log(`[CampusLocationService] 📱 Device offline - queuing reconnection for ${listener.name}`);
+          // Will reconnect when network comes back
+          return;
+        }
+        this.scheduleListenerReconnection(listener, 'network_error');
+        break;
+
+      case 'permission_error':
+        // Permission/authentication errors - don't retry immediately
+        console.error(`[CampusLocationService] 📱 Permission error for ${listener.name} - delayed retry`);
+        setTimeout(() => {
+          this.scheduleListenerReconnection(listener, 'permission_error');
+        }, 5000);
+        break;
+
+      case 'firestore_error':
+        // Firestore-specific errors - moderate retry
+        this.scheduleListenerReconnection(listener, 'firestore_error');
+        break;
+
+      case 'unknown_error':
+      default:
+        // Unknown errors - conservative retry
+        this.scheduleListenerReconnection(listener, 'unknown_error');
+        break;
+    }
+
+    // Notify error callback
+    listener.errorCallback(error, errorType);
+  }
+
+  classifyFirebaseError(error) {
+    if (!error.code) return 'unknown_error';
+
+    const networkErrors = ['unavailable', 'cancelled', 'deadline-exceeded'];
+    const permissionErrors = ['permission-denied', 'unauthenticated'];
+    const firestoreErrors = ['resource-exhausted', 'internal', 'unknown'];
+
+    if (networkErrors.includes(error.code)) return 'network_error';
+    if (permissionErrors.includes(error.code)) return 'permission_error';
+    if (firestoreErrors.includes(error.code)) return 'firestore_error';
+    
+    return 'unknown_error';
+  }
+
+  scheduleListenerReconnection(listener, errorType) {
+    // Don't schedule if we're already scheduled or at max attempts
+    if (listener.reconnectionTimeout || 
+        listener.reconnectionAttempts >= listener.maxReconnectionAttempts) {
+      return;
+    }
+
+    listener.reconnectionAttempts++;
+    
+    // Calculate exponential backoff delay with jitter
+    const baseDelay = Math.min(
+      listener.reconnectionDelay * Math.pow(2, listener.reconnectionAttempts - 1),
+      listener.maxReconnectionDelay
+    );
+    const jitter = Math.random() * 1000; // Add up to 1 second jitter
+    const delay = baseDelay + jitter;
+
+    console.log(`[CampusLocationService] 📱 Scheduling reconnection for ${listener.name} in ${Math.round(delay)}ms (attempt ${listener.reconnectionAttempts}/${listener.maxReconnectionAttempts})`);
+
+    listener.reconnectionTimeout = setTimeout(() => {
+      listener.reconnectionTimeout = null;
+      
+      // Don't reconnect if app is backgrounded and this isn't critical
+      if (!this.isAppVisible && listener.name !== 'friendships') {
+        console.log(`[CampusLocationService] 📱 Skipping reconnection for ${listener.name} - app backgrounded`);
+        return;
+      }
+
+      console.log(`[CampusLocationService] 📱 Attempting reconnection for ${listener.name}`);
+      listener.connect();
+    }, delay);
+  }
+
+  startListenerHealthMonitoring(listener) {
+    // Clear any existing health monitoring
+    if (listener.heartbeatInterval) {
+      clearInterval(listener.heartbeatInterval);
+    }
+
+    // Start periodic health checks (every 30 seconds on mobile)
+    listener.heartbeatInterval = setInterval(() => {
+      if (!this.isAppVisible) {
+        return; // Skip health checks when backgrounded
+      }
+
+      const timeSinceLastConnection = Date.now() - listener.lastSuccessfulConnection;
+      const healthThreshold = 60000; // 60 seconds
+
+      if (timeSinceLastConnection > healthThreshold && this.isOnline) {
+        console.warn(`[CampusLocationService] 📱 Health check failed for ${listener.name} - ${Math.round(timeSinceLastConnection/1000)}s since last update`);
+        
+        // Force reconnection
+        listener.reconnectionAttempts = 0; // Reset attempts for health-triggered reconnection
+        this.scheduleListenerReconnection(listener, 'health_check_failed');
+      }
+    }, 30000);
+  }
+
+  defaultListenerErrorHandler(error, errorType) {
+    console.error(`[CampusLocationService] 📱 Default listener error handler:`, {
+      error: error.message,
+      errorType,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Helper method to cleanup mobile-resilient listeners
+  cleanupMobileResilientListener(listener) {
+    console.log(`[CampusLocationService] 📱 Cleaning up resilient listener: ${listener.name}`);
+    
+    if (listener.unsubscribe) {
+      listener.unsubscribe();
+      listener.unsubscribe = null;
+    }
+    
+    if (listener.reconnectionTimeout) {
+      clearTimeout(listener.reconnectionTimeout);
+      listener.reconnectionTimeout = null;
+    }
+    
+    if (listener.heartbeatInterval) {
+      clearInterval(listener.heartbeatInterval);
+      listener.heartbeatInterval = null;
+    }
+    
+    listener.queuedUpdates = [];
+    listener.isConnected = false;
+  }
+
+  // 🔧 MOBILE LIFECYCLE MANAGEMENT METHODS
+  initializeMobileLifecycleHandlers() {
+    if (!this.detectMobileBrowser()) {
+      console.log("[CampusLocationService] Desktop detected - skipping mobile lifecycle handlers");
+      return;
+    }
+
+    console.log("[CampusLocationService] 📱 Initializing mobile app lifecycle handlers");
+
+    // Page Visibility API - handle app going to background/foreground
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+
+    // Network connectivity changes - mobile networks are unstable
+    this.handleOnlineStatus = this.handleOnlineStatus.bind(this);
+    window.addEventListener('online', this.handleOnlineStatus);
+    window.addEventListener('offline', this.handleOnlineStatus);
+
+    // Page focus/blur events - additional mobile lifecycle coverage
+    this.handleAppFocus = this.handleAppFocus.bind(this);
+    this.handleAppBlur = this.handleAppBlur.bind(this);
+    window.addEventListener('focus', this.handleAppFocus);
+    window.addEventListener('blur', this.handleAppBlur);
+
+    // Battery API if available (experimental but useful for mobile optimization)
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        this.batteryLevel = battery.level;
+        this.isCharging = battery.charging;
+        
+        console.log(`[CampusLocationService] 🔋 Battery status: ${Math.round(battery.level * 100)}% (${battery.charging ? 'charging' : 'not charging'})`);
+        
+        battery.addEventListener('levelchange', () => {
+          this.batteryLevel = battery.level;
+          this.adjustTrackingForBattery();
+        });
+        
+        battery.addEventListener('chargingchange', () => {
+          this.isCharging = battery.charging;
+          this.adjustTrackingForBattery();
+        });
+      }).catch(error => {
+        console.log("[CampusLocationService] Battery API not available:", error);
+      });
+    }
+
+    // Store initial network status
+    this.isOnline = navigator.onLine;
+    this.lastOnlineTime = Date.now();
+
+    console.log("[CampusLocationService] 📱 Mobile lifecycle handlers initialized");
+  }
+
+  handleVisibilityChange() {
+    const isVisible = !document.hidden;
+    const now = Date.now();
+    
+    console.log(`[CampusLocationService] 📱 Visibility changed: ${isVisible ? 'visible' : 'hidden'} at ${new Date(now).toISOString()}`);
+
+    if (isVisible) {
+      // App came to foreground
+      const backgroundDuration = now - (this.backgroundTime || now);
+      console.log(`[CampusLocationService] 📱 App returned to foreground after ${Math.round(backgroundDuration / 1000)}s`);
+
+      // If we were in background for more than 2 minutes, reinitialize location tracking
+      if (backgroundDuration > 120000) {
+        console.log("[CampusLocationService] 📱 Long background duration - reinitializing location tracking");
+        this.handleAppResume();
+      } else {
+        // Short background - just resume updates
+        console.log("[CampusLocationService] 📱 Short background duration - resuming location updates");
+        this.resumeLocationTracking();
+      }
+      
+      this.backgroundTime = null;
+    } else {
+      // App went to background
+      this.backgroundTime = now;
+      console.log("[CampusLocationService] 📱 App went to background - pausing intensive location tracking");
+      this.pauseLocationTracking();
+    }
+  }
+
+  handleOnlineStatus() {
+    const wasOnline = this.isOnline;
+    this.isOnline = navigator.onLine;
+    const now = Date.now();
+    
+    console.log(`[CampusLocationService] 📱 Network status changed: ${this.isOnline ? 'online' : 'offline'} at ${new Date(now).toISOString()}`);
+
+    if (this.isOnline && !wasOnline) {
+      // Just came back online
+      const offlineDuration = now - (this.offlineTime || now);
+      console.log(`[CampusLocationService] 📱 Network restored after ${Math.round(offlineDuration / 1000)}s offline`);
+      
+      this.lastOnlineTime = now;
+      this.offlineTime = null;
+      
+      // Reinitialize if we were offline for more than 30 seconds
+      if (offlineDuration > 30000) {
+        console.log("[CampusLocationService] 📱 Extended offline period - reinitializing services");
+        setTimeout(() => this.handleAppResume(), 2000); // Give network time to stabilize
+      }
+    } else if (!this.isOnline && wasOnline) {
+      // Just went offline
+      this.offlineTime = now;
+      console.log("[CampusLocationService] 📱 Network lost - pausing network-dependent operations");
+    }
+  }
+
+  handleAppFocus() {
+    console.log("[CampusLocationService] 📱 App gained focus");
+    // App focus doesn't always trigger visibility change on mobile
+    if (!this.hasFocus) {
+      this.hasFocus = true;
+      // Resume location tracking if needed
+      if (this.isInitialized && this.shouldTrackLocation()) {
+        this.resumeLocationTracking();
+      }
+    }
+  }
+
+  handleAppBlur() {
+    console.log("[CampusLocationService] 📱 App lost focus");
+    this.hasFocus = false;
+    // Don't immediately pause - wait for visibility change
+    // This prevents unnecessary pause/resume cycles during quick focus changes
+  }
+
+  pauseLocationTracking() {
+    console.log("[CampusLocationService] 📱 Pausing location tracking for mobile background mode");
+    
+    // Store current tracking state
+    this.wasPaused = true;
+    this.pausedWatchId = this.trackingWatchId;
+    this.pausedPeriodicTimer = this.periodicLocationTimer;
+    
+    // Stop intensive GPS watching but keep basic heartbeat
+    if (this.trackingWatchId) {
+      navigator.geolocation.clearWatch(this.trackingWatchId);
+      this.trackingWatchId = null;
+      console.log("[CampusLocationService] 📱 GPS watch stopped for background mode");
+    }
+
+    // Reduce periodic updates to every 10 minutes instead of 5
+    if (this.periodicLocationTimer) {
+      clearInterval(this.periodicLocationTimer);
+      this.periodicLocationTimer = setInterval(() => {
+        if (!document.hidden && navigator.onLine) {
+          console.log("[CampusLocationService] 📱 Background periodic location update");
+          this.updateLocationAndPresence(false); // Low accuracy for battery saving
+        }
+      }, 10 * 60 * 1000); // 10 minutes
+    }
+  }
+
+  resumeLocationTracking() {
+    if (!this.wasPaused) {
+      console.log("[CampusLocationService] 📱 Location tracking was not paused - no resume needed");
+      return;
+    }
+
+    console.log("[CampusLocationService] 📱 Resuming location tracking from mobile background");
+    this.wasPaused = false;
+
+    // Check if we should still be tracking
+    if (!this.shouldTrackLocation()) {
+      console.log("[CampusLocationService] 📱 Location tracking no longer needed - staying paused");
+      return;
+    }
+
+    // Restart GPS watching if it was active
+    if (this.pausedWatchId && !this.trackingWatchId) {
+      console.log("[CampusLocationService] 📱 Restarting GPS watch");
+      this.startLocationTracking();
+    }
+
+    // Reset periodic updates to normal frequency
+    if (this.periodicLocationTimer) {
+      clearInterval(this.periodicLocationTimer);
+      this.startPeriodicLocationUpdates();
+    }
+
+    // Immediate location update to refresh presence
+    setTimeout(() => {
+      console.log("[CampusLocationService] 📱 Performing immediate location update after resume");
+      this.updateLocationAndPresence(false);
+    }, 1000);
+
+    this.pausedWatchId = null;
+    this.pausedPeriodicTimer = null;
+  }
+
+  handleAppResume() {
+    console.log("[CampusLocationService] 📱 Handling full app resume - reinitializing location services");
+    
+    // Reset initialization state to trigger fresh start
+    this.isInitialized = false;
+    this.initializationAttempts = 0;
+    
+    // Clear any existing timers
+    this.stopLocationTracking();
+    
+    // Restart the full initialization process
+    setTimeout(() => {
+      console.log("[CampusLocationService] 📱 Starting fresh initialization after resume");
+      this.autoStartLocationTracking();
+    }, 1000);
+  }
+
+  adjustTrackingForBattery() {
+    if (!this.batteryLevel) return;
+    
+    const batteryPercent = Math.round(this.batteryLevel * 100);
+    console.log(`[CampusLocationService] 🔋 Battery level: ${batteryPercent}% (${this.isCharging ? 'charging' : 'not charging'})`);
+    
+    // If battery is low and not charging, reduce location tracking frequency
+    if (batteryPercent < 20 && !this.isCharging) {
+      console.log("[CampusLocationService] 🔋 Low battery detected - reducing location tracking frequency");
+      
+      if (this.periodicLocationTimer) {
+        clearInterval(this.periodicLocationTimer);
+        // Increase interval to 10 minutes when battery is low
+        this.periodicLocationTimer = setInterval(() => {
+          this.updateLocationAndPresence(false); // Force low accuracy
+        }, 10 * 60 * 1000);
+      }
+    } else if (batteryPercent > 50 || this.isCharging) {
+      // Normal battery level - resume normal tracking
+      if (this.isTrackingActive() && this.periodicLocationTimer) {
+        console.log("[CampusLocationService] 🔋 Battery level good - resuming normal location tracking frequency");
+        this.startPeriodicLocationUpdates(); // This will reset to normal 5-minute interval
+      }
+    }
+  }
+
+  shouldTrackLocation() {
+    // Check if location tracking should be active based on current conditions
+    return this.isOnline && 
+           this.permissionStatus === 'granted' && 
+           (this.hasFocus || !document.hidden) &&
+           this.isInitialized;
+  }
+
+  cleanupMobileLifecycleHandlers() {
+    console.log("[CampusLocationService] 📱 Cleaning up mobile lifecycle handlers");
+    
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('online', this.handleOnlineStatus);
+    window.removeEventListener('offline', this.handleOnlineStatus);
+    window.removeEventListener('focus', this.handleAppFocus);
+    window.removeEventListener('blur', this.handleAppBlur);
   }
 
   /**
