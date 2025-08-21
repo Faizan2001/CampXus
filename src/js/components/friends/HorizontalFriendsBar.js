@@ -50,6 +50,9 @@ import { PresenceDot } from "../presence/PresenceDot.js";
 // Global instance for external access
 let globalHorizontalFriendsBarInstance = null;
 
+// Queue for pending location animations when instance is not ready
+let pendingLocationAnimations = [];
+
 /**
  * HorizontalFriendsBar Class
  * Modern Instagram-style horizontal friends bar component
@@ -377,6 +380,9 @@ export class HorizontalFriendsBar {
       
       this.isInitialized = true;
       console.log("✅ HorizontalFriendsBar initialized successfully");
+      
+      // Process any queued location animations
+      this.processQueuedLocationAnimations();
 
       // Debug: Verify user selection after initialization
       console.log("🔍 DEBUG: User selection state after init:", {
@@ -4701,7 +4707,7 @@ export class HorizontalFriendsBar {
    * 🚀 ENTERPRISE FIX: Smart location update animation with debouncing and campus status tracking
    * Only triggers animation on meaningful location changes (campus status transitions)
    */
-  triggerLocationUpdateAnimation(campusStatusChange = null) {
+  triggerLocationUpdateAnimation(locationUpdate = null) {
     if (!this.userAvatarElement) return;
     
     const indicator = this.userAvatarElement.querySelector('.location-update-indicator');
@@ -4716,26 +4722,52 @@ export class HorizontalFriendsBar {
       return;
     }
     
-    // 🎯 SMART FILTERING: Only animate on meaningful campus status changes
-    if (campusStatusChange) {
-      const { previousStatus, newStatus } = campusStatusChange;
+    // 🚀 ENTERPRISE FIX: Enhanced validation for meaningful location updates
+    if (locationUpdate) {
+      const { 
+        coordinatesChanged, 
+        campusStatusChanged, 
+        hasValidCoordinates, 
+        hasLastActiveUpdate,
+        previousStatus, 
+        newStatus 
+      } = locationUpdate;
       
-      // Skip animation if status didn't actually change
-      if (previousStatus === newStatus) {
-        console.log('[HorizontalFriendsBar] 🛑 No campus status change - skipping animation');
+      // ✅ USER REQUIREMENT: Animation only when BOTH lastActive AND coordinates are updated AND coordinates are not null
+      if (!hasValidCoordinates || !locationUpdate.coordinates) {
+        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - coordinates are null/invalid', {
+          hasValidCoordinates,
+          hasCoordinatesObject: !!locationUpdate.coordinates,
+          coordinates: locationUpdate.coordinates
+        });
         return;
       }
       
-      // Skip animation for unknown status transitions
+      if (!hasLastActiveUpdate) {
+        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - no lastActive update');
+        return;
+      }
+      
+      if (!coordinatesChanged && !campusStatusChanged) {
+        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - no meaningful coordinate or status change');
+        return;
+      }
+      
+      // Skip animation for unknown status transitions (GPS failures)
       if (newStatus === 'unknown' && previousStatus !== 'unknown') {
-        console.log('[HorizontalFriendsBar] 🛑 Status became unknown - skipping animation');
+        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - status became unknown (GPS failure)');
         return;
       }
       
-      console.log('[HorizontalFriendsBar] 🌍 Meaningful campus status change detected:', {
-        from: previousStatus,
-        to: newStatus
+      console.log('[HorizontalFriendsBar] 🌍 Meaningful location update validated for animation:', {
+        coordinatesChanged,
+        campusStatusChanged,
+        hasValidCoordinates,
+        hasLastActiveUpdate,
+        statusTransition: `${previousStatus} → ${newStatus}`
       });
+    } else {
+      console.log('[HorizontalFriendsBar] ⚠️ No locationUpdate data provided - proceeding with basic animation');
     }
     
     // 🛡️ ANIMATION STATE MANAGEMENT: Prevent overlapping animations
@@ -4822,26 +4854,82 @@ export class HorizontalFriendsBar {
   /**
    * 🚀 ENTERPRISE FIX: Enhanced public method to manually trigger location update animation
    * (Can be called from location service when coordinates are updated)
-   * @param {Object} statusChange - Optional campus status change information
+   * @param {Object} locationUpdate - Location update data with coordinates and status
    */
-  notifyLocationUpdated(statusChange = null) {
-    console.log('[HorizontalFriendsBar] Location update notification received');
+  notifyLocationUpdated(locationUpdate = null) {
+    console.log('[HorizontalFriendsBar] Location update notification received:', locationUpdate);
     
-    // If no status change provided, try to get current user status for context
-    if (!statusChange && currentUser?.profile?.systemInfo?.lastKnownLocation?.campusStatus) {
-      const currentStatus = currentUser.profile.systemInfo.lastKnownLocation.campusStatus;
-      const previousStatus = this.lastKnownCampusStatus || 'unknown';
-      
-      statusChange = {
-        previousStatus,
-        newStatus: currentStatus
-      };
-      
-      // Update tracked status
-      this.lastKnownCampusStatus = currentStatus;
+    // If locationUpdate is provided from CampusLocationService, use it directly
+    if (locationUpdate && typeof locationUpdate === 'object') {
+      console.log('[HorizontalFriendsBar] Using provided location update data:', locationUpdate);
+      this.triggerLocationUpdateAnimation(locationUpdate);
+      return;
     }
     
-    this.triggerLocationUpdateAnimation(statusChange);
+    // Fallback: Try to get current user status for context
+    const systemInfo = currentUser?.profile?.systemInfo;
+    const lastKnownLocation = systemInfo?.lastKnownLocation;
+    
+    if (!lastKnownLocation) {
+      console.log('[HorizontalFriendsBar] 🛑 No location data available - skipping animation');
+      return;
+    }
+    
+    const currentStatus = lastKnownLocation.campusStatus;
+    const previousStatus = this.lastKnownCampusStatus || 'unknown';
+    const hasValidCoordinates = lastKnownLocation.latitude != null && 
+                               lastKnownLocation.longitude != null &&
+                               !isNaN(lastKnownLocation.latitude) && 
+                               !isNaN(lastKnownLocation.longitude);
+    
+    const fallbackLocationUpdate = {
+      previousStatus,
+      newStatus: currentStatus,
+      coordinatesChanged: true, // Assume coordinates changed if we're being notified
+      campusStatusChanged: previousStatus !== currentStatus,
+      hasValidCoordinates,
+      hasLastActiveUpdate: systemInfo?.lastActive != null,
+      coordinates: hasValidCoordinates ? {
+        latitude: lastKnownLocation.latitude,
+        longitude: lastKnownLocation.longitude
+      } : null
+    };
+    
+    console.log('[HorizontalFriendsBar] Using fallback location update data:', fallbackLocationUpdate);
+    
+    // Update tracked status
+    this.lastKnownCampusStatus = currentStatus;
+    
+    this.triggerLocationUpdateAnimation(fallbackLocationUpdate);
+  }
+
+  /**
+   * Process any queued location animations from early initialization
+   */
+  processQueuedLocationAnimations() {
+    if (pendingLocationAnimations.length === 0) {
+      return;
+    }
+    
+    console.log(`[HorizontalFriendsBar] Processing ${pendingLocationAnimations.length} queued location animations`);
+    
+    // Process the most recent animation (last one in queue)
+    const mostRecentAnimation = pendingLocationAnimations[pendingLocationAnimations.length - 1];
+    
+    // Check if the animation is recent enough (within 30 seconds)
+    const now = Date.now();
+    const age = now - mostRecentAnimation.timestamp;
+    const maxAge = 30000; // 30 seconds
+    
+    if (age <= maxAge) {
+      console.log('[HorizontalFriendsBar] Processing recent queued animation');
+      this.notifyLocationUpdated(mostRecentAnimation.locationUpdate);
+    } else {
+      console.log('[HorizontalFriendsBar] Skipping stale queued animations (too old)');
+    }
+    
+    // Clear the queue
+    pendingLocationAnimations.length = 0;
   }
 
   /**
@@ -4877,13 +4965,25 @@ export function getHorizontalFriendsBarInstance() {
 /**
  * Trigger location update animation on user avatar (if instance exists)
  * This function can be called from external services like CampusLocationService
+ * @param {Object} locationUpdate - Location update data with coordinates and status
  */
-export function triggerUserLocationUpdateAnimation() {
-  if (globalHorizontalFriendsBarInstance) {
+export function triggerUserLocationUpdateAnimation(locationUpdate = null) {
+  if (globalHorizontalFriendsBarInstance && globalHorizontalFriendsBarInstance.isInitialized) {
     console.log('[HorizontalFriendsBar] External trigger: Location update animation');
-    globalHorizontalFriendsBarInstance.notifyLocationUpdated();
+    globalHorizontalFriendsBarInstance.notifyLocationUpdated(locationUpdate);
   } else {
-    console.warn('[HorizontalFriendsBar] Cannot trigger location animation - no active instance');
+    // Queue the animation for when the instance becomes available
+    console.log('[HorizontalFriendsBar] Queueing location animation - instance not ready yet');
+    pendingLocationAnimations.push({
+      locationUpdate,
+      timestamp: Date.now()
+    });
+    
+    // Limit queue size to prevent memory leaks
+    if (pendingLocationAnimations.length > 10) {
+      pendingLocationAnimations = pendingLocationAnimations.slice(-5); // Keep only the last 5
+      console.log('[HorizontalFriendsBar] Trimmed animation queue to prevent memory leaks');
+    }
   }
 }
 

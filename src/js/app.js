@@ -39,6 +39,9 @@ import "./pages/NotificationsPage.js"; // 🔔 Campus Presence: Notifications sy
 import { campusLocationService } from "./services/location/CampusLocationService.js";
 import { locationPrivacyService } from "./services/location/LocationPrivacyService.js";
 
+// 🎯 Hybrid GPS Testing Suite (Development Only)
+import { hybridGpsTestingSuite } from "./utils/debug/HybridGpsTestingSuite.js";
+
 // 🎯 DEBUG: Log that modules are imported
 console.log("🔧 SPA Init: All page-specific modules imported and ready");
 
@@ -122,8 +125,10 @@ async function initializeSPA() {
   // 🌍 Initialize Campus Presence services
   console.log("🌍 Initializing Campus Presence services...");
   try {
-    // Initialize location services in dependency order
-    if (typeof campusLocationService.initialize === 'function') {
+    // Initialize location services with cost optimization
+    if (typeof campusLocationService.handleInitialization === 'function') {
+      await campusLocationService.handleInitialization();
+    } else if (typeof campusLocationService.initialize === 'function') {
       await campusLocationService.initialize();
     }
     
@@ -151,6 +156,14 @@ async function initializeSPA() {
 
   // Listen for SPA navigation events
   setupSPAEventListeners();
+
+  // 💰 COST OPTIMIZATION: Detect manual reloads for strategic Google API usage
+  window.addEventListener('beforeunload', () => {
+    // Mark that a manual reload is happening
+    if (typeof campusLocationService?.constructor?.markManualReload === 'function') {
+      campusLocationService.constructor.markManualReload();
+    }
+  });
 
   console.groupEnd();
 }

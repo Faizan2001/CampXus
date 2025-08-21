@@ -3418,6 +3418,18 @@ class DataManager {
       // First, ensure systemInfo parent object exists
       await this.ensureSystemInfoExists(userId);
 
+      // 🔧 FIX: Properly structure coordinates for Firestore
+      let coordinatesForFirestore = null;
+      if (coordinates && typeof coordinates === 'object') {
+        coordinatesForFirestore = {
+          latitude: coordinates.latitude || 0,
+          longitude: coordinates.longitude || 0,
+          accuracy: coordinates.accuracy || 0,
+          // Convert timestamp to proper format for Firestore
+          timestamp: coordinates.timestamp ? new Date(coordinates.timestamp).toISOString() : new Date().toISOString()
+        };
+      }
+
       const updates = {
         "systemInfo.lastActive": serverTimestamp(),
         "systemInfo.status": "online", // 🔧 FIX: Set status to online when location is updated
@@ -3425,7 +3437,7 @@ class DataManager {
           campusStatus,
           detectedAt: serverTimestamp(),
           lastUpdated: serverTimestamp(), // 🔧 FIX: Add lastUpdated field
-          coordinates: coordinates || null,
+          coordinates: coordinatesForFirestore,
         },
       };
 
@@ -3443,8 +3455,8 @@ class DataManager {
 
       console.log(
         `✅ [DataManager] Updated location status for user ${userId}: ${campusStatus}`,
-        coordinates
-          ? `at coordinates ${coordinates.latitude}, ${coordinates.longitude}`
+        coordinatesForFirestore
+          ? `at coordinates ${coordinatesForFirestore.latitude}, ${coordinatesForFirestore.longitude} (accuracy: ${coordinatesForFirestore.accuracy}m)`
           : "without coordinates"
       );
       return { success: true };

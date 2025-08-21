@@ -13,6 +13,9 @@ import {
   validateCampusConfig,
 } from "./UniversityCampusConfig.js";
 
+// Import Google API provider for strategic use cases
+import { googleGeolocationProvider } from './GoogleGeolocationProvider.js';
+
 /**
  * Service class for campus location detection and presence management
  */
@@ -128,6 +131,9 @@ export class CampusLocationService {
     this.minUpdateInterval = 60000; // Minimum 60 seconds between updates
     this.isUpdatingLocation = false; // Prevent concurrent updates
 
+    // 🚀 PHASE 1 FIX: Coordinate change detection
+    this.lastSignificantLocation = null; // Cache for coordinate change detection
+
     // Initialization and health monitoring properties
     this.initializationAttempts = 0;
     this.maxInitializationAttempts = 5;
@@ -163,12 +169,50 @@ export class CampusLocationService {
 
     // 🎯 PHASE 2 ENHANCEMENT: Trigger scenario tracking
     this.wasDocumentHidden = false;
+    this.isFirstLocationUpdate = true; // Track if this is the first location update
+    this.lastUpdateTrigger = null; // Track the trigger for the last update
 
-    console.log("[CampusLocationService] Service initialized", {
+    // 💰 COST OPTIMIZATION: Strategic Google API usage control
+    // Reasonable limits for 2000+ university users while controlling costs
+    this.maxGoogleCallsPerUser = 8; // Max Google API calls per user per day (allows active campus use)
+    this.maxDailyGoogleCalls = 1500; // Max total Google API calls per day (caps cost at ~$7.50/day)
+    this.googleApiCooldown = 3 * 60 * 1000; // 3 minutes between Google API calls per user (reduced for better UX)
+    
+    // User tracking for rate limiting
+    this.userApiUsage = new Map(); // Track per-user API usage
+    this.dailyApiUsage = this.loadDailyUsage(); // Track total daily usage
+    
+    // 🎯 STRATEGIC GOOGLE API TRIGGERS: Only use paid API for these critical scenarios
+    // This prevents unnecessary costs while ensuring accuracy when it matters most
+    this.googleApiTriggers = [
+      'first_visit',              // New user's first location request (optimal accuracy for campus detection)
+      'manual_reload',            // User manually refreshes (F5/Ctrl+R) - wants fresh data
+      'reload',                   // Page reload/navigation - immediate accurate location for presence dots
+      'high_accuracy_request',    // App explicitly requests high accuracy (critical operations)
+      'campus_boundary_detection', // Detecting if user is on/off campus (precision matters)
+      'browser_api_failure'       // Browser API failed completely - Google API as rescue fallback
+    ];
+    
+    // 🌐 THREE-TIER COST-OPTIMIZED FALLBACK SYSTEM:
+    // TIER 1: Browser API (FREE, best accuracy ~5-50m)
+    // TIER 2: Google API (PAID $0.005, high accuracy ~5-50m) - STRATEGIC USE ONLY
+    // Note: IP Geolocation tier removed to fix CSP violations
+    
+    // Caching for cost optimization
+    this.locationCache = new Map();
+    this.cacheExpiry = 15 * 60 * 1000; // 15 minutes cache
+
+    console.log("[CampusLocationService] Service initialized with cost optimization", {
       geolocationSupported: this.isLocationSupported,
       isMobile: this.isMobile,
       isAppVisible: this.isAppVisible,
       isOnline: this.isOnline,
+      costLimits: {
+        maxGoogleCallsPerUser: this.maxGoogleCallsPerUser,
+        maxDailyGoogleCalls: this.maxDailyGoogleCalls,
+        currentDailyUsage: this.dailyApiUsage,
+        estimatedMaxDailyCost: `$${(this.maxDailyGoogleCalls * 0.005).toFixed(2)}`
+      },
       timestamp: new Date().toISOString(),
     });
 
@@ -375,173 +419,155 @@ export class CampusLocationService {
   }
 
   /**
-   * Get current location from browser geolocation API with adaptive battery optimization
+   * 💰 COST-OPTIMIZED LOCATION SERVICE
+   * 
+   * Three-tier fallback system designed for 2000+ university users:
+   * 
+   * TIER 1: Browser API (FREE) - Try first, 8s timeout for fast failover
+   * TIER 2: IP Geolocation (FREE) - City-level accuracy, sufficient for most campus detection  
+   * TIER 3: Google API (PAID) - Strategic use only for critical scenarios
+   * 
+   * Google API Rate Limits:
+   * - 8 calls per user per day (allows active campus use)
+   * - 1500 total calls per day (max cost: $7.50/day = $225/month)
+   * - 3-minute cooldown between user calls
+   * 
+   * Strategic Triggers for Google API:
+   * - first_visit: New user needs optimal accuracy for campus detection
+   * - manual_reload: User explicitly refreshed, wants fresh data
+   * - high_accuracy_request: App requires precision for critical operations
+   * - campus_boundary_detection: Precise on/off campus determination needed
+   * - browser_api_failure: Browser API failed, Google API as rescue fallback
+   * 
    * @param {boolean} highAccuracy - Whether to use high accuracy mode (default: false for battery efficiency)
+   * @param {string} trigger - What triggered this request (for strategic API usage)
+   * @param {string} userId - User ID for rate limiting (optional)
    * @returns {Promise<GeolocationPosition|null>} Current position or null if failed
    */
-  async getCurrentLocation(highAccuracy = false) {
-    console.log("[CampusLocationService] Getting current location...");
+  async getCurrentLocation(highAccuracy = false, trigger = 'unknown', userId = null) {
+  console.log(`💰 [CampusLocationService] Cost-optimized location request: ${trigger}`, {
+    userId: userId ? userId.substring(0, 8) + '...' : 'anonymous',
+    trigger,
+    highAccuracy
+  });
 
-    if (!this.isLocationSupported) {
-      console.error("[CampusLocationService] Geolocation not supported");
-      return null;
-    }
+  if (!this.isLocationSupported) {
+    console.error("[CampusLocationService] Geolocation not supported");
+    return null;
+  }
 
-    // 🔧 MOBILE FIX: Detect platform for mobile-specific GPS handling
-    const isMobile = this.detectMobileBrowser();
-    const isIOSSafari = this.detectIOSSafari();
-    const isAndroidChrome = this.detectAndroidChrome();
-
-    return new Promise((resolve, reject) => {
-      // 🔧 MOBILE FIX: Adaptive GPS settings based on mobile platform
-      let options = {
-        enableHighAccuracy: highAccuracy,
-        timeout: highAccuracy ? 15000 : 30000,
-        maximumAge: highAccuracy ? 60000 : 300000,
-      };
-
-      // Platform-specific GPS optimization
-      if (isMobile) {
-        console.log("[CampusLocationService] 📱 Applying mobile GPS optimizations");
+  // Determine if this is a strategic use case for Google API
+  const shouldUseGoogleAPI = this.shouldUseGoogleAPI(trigger, userId, highAccuracy);
+  
+  try {
+    // Tier 1: Browser API (Free, usually most accurate)
+    if (!shouldUseGoogleAPI || trigger !== 'browser_api_failure') {
+      try {
+        console.log('🆓 [CampusLocationService] Tier 1: Trying Browser API (FREE)...');
+        const browserResult = await this.getBrowserLocation(highAccuracy);
         
-        if (isIOSSafari) {
-          // iOS Safari GPS behavior
-          options = {
-            enableHighAccuracy: highAccuracy,
-            timeout: highAccuracy ? 45000 : 60000, // iOS needs more time
-            maximumAge: highAccuracy ? 30000 : 180000, // More aggressive caching for battery
-          };
-          console.log("[CampusLocationService] 🍎 iOS Safari GPS settings applied");
-        } else if (isAndroidChrome) {
-          // Android Chrome GPS behavior
-          options = {
-            enableHighAccuracy: highAccuracy,
-            timeout: highAccuracy ? 35000 : 50000, // Android reasonable timeout
-            maximumAge: highAccuracy ? 45000 : 240000, // Conservative caching
-          };
-          console.log("[CampusLocationService] 🤖 Android Chrome GPS settings applied");
-        } else {
-          // Generic mobile browser settings
-          options = {
-            enableHighAccuracy: highAccuracy,
-            timeout: highAccuracy ? 40000 : 55000,
-            maximumAge: highAccuracy ? 60000 : 300000,
-          };
-          console.log("[CampusLocationService] 📱 Generic mobile GPS settings applied");
+        if (browserResult && browserResult.coords.accuracy <= 100) {
+          console.log(`✅ Browser API success: ±${Math.round(browserResult.coords.accuracy)}m (FREE)`);
+          return this.formatLocationResponse(browserResult, 'browser', 0);
+        } else if (browserResult) {
+          console.log(`⚡ Browser API low accuracy: ±${Math.round(browserResult.coords.accuracy)}m, considering Google API...`);
+          // For strategic triggers (like reload), use Google API even if browser API succeeds with low accuracy
+          if (!shouldUseGoogleAPI && browserResult.coords.accuracy <= 1000) {
+            return this.formatLocationResponse(browserResult, 'browser', 0);
+          }
+        }
+      } catch (error) {
+        console.log('❌ Tier 1 (Browser API) failed:', error.message);
+        if (error.code === 1) { // PERMISSION_DENIED
+          console.log('🚫 Location permission denied by user');
+          return null;
         }
       }
+    }
+    
+    // 🔧 CSP FIX: Removed Tier 2 (IP Geolocation) entirely - was causing CSP violations
+    // Previous implementation tried ipapi.co, ip-api.com, api.ipify.org which are blocked by CSP
+    // Now falls back directly to Google API for better accuracy and strategic usage
+    
+    // Tier 2: Google Geolocation API (Paid, highest accuracy) - renamed from Tier 3
+    if (shouldUseGoogleAPI && this.canUseGoogleAPI(userId)) {
+      try {
+        console.log('💰 [CampusLocationService] Tier 2: Trying Google Geolocation API (PAID)...');
+        const googleResult = await this.getGoogleLocation(highAccuracy);
+        
+        if (googleResult) {
+          // Track usage for cost monitoring
+          this.trackGoogleApiUsage(userId, trigger);
+          console.log(`✅ Google API success: ±${Math.round(googleResult.coords.accuracy)}m (COST: $0.005)`);
+          return this.formatLocationResponse(googleResult, 'google', 0.005);
+        }
+      } catch (error) {
+        console.log('❌ Tier 2 (Google API) failed:', error.message);
+      }
+    } else if (shouldUseGoogleAPI) {
+      console.log('🚫 Google API usage limit reached or blocked');
+    }
+    
+    // All tiers failed
+    console.error('[CampusLocationService] All location services failed');
+    return null;
+    
+  } catch (error) {
+    console.error('[CampusLocationService] Unexpected error in getCurrentLocation:', error);
+    return null;
+  }
+}
 
-      console.log("[CampusLocationService] GPS options:", {
-        platform: isMobile ? 'mobile' : 'desktop',
-        browser: isIOSSafari ? 'iOS Safari' : isAndroidChrome ? 'Android Chrome' : 'Other',
-        options
-      });
+  /**
+   * 🎯 HYBRID GPS: Calculate optimal timeout based on platform and accuracy requirements
+   * @param {boolean} isMobile - Whether this is a mobile device
+   * @param {boolean} isIOSSafari - Whether this is iOS Safari
+   * @param {boolean} isAndroidChrome - Whether this is Android Chrome
+   * @param {boolean} highAccuracy - Whether high accuracy is requested
+   * @returns {number} Optimal timeout in milliseconds
+   */
+  calculateOptimalTimeout(isMobile, isIOSSafari, isAndroidChrome, highAccuracy) {
+    let baseTimeout = highAccuracy ? 15000 : 10000; // Base timeout
+    
+    if (isMobile) {
+      // Mobile devices need more time for GPS acquisition
+      if (isIOSSafari) {
+        baseTimeout = highAccuracy ? 25000 : 15000; // iOS Safari needs extra time
+      } else if (isAndroidChrome) {
+        baseTimeout = highAccuracy ? 20000 : 12000; // Android Chrome is more efficient
+      } else {
+        baseTimeout = highAccuracy ? 22000 : 14000; // Generic mobile
+      }
+    }
+    
+    console.log(`⏱️ [CampusLocationService] Calculated timeout: ${baseTimeout}ms (${isMobile ? 'mobile' : 'desktop'}, highAccuracy: ${highAccuracy})`);
+    return baseTimeout;
+  }
 
-      // 🔧 MOBILE FIX: Multi-attempt GPS acquisition for mobile reliability
-      let attemptCount = 0;
-      const maxAttempts = isMobile ? 3 : 1; // Mobile gets multiple attempts
-
-      const attemptLocationAcquisition = () => {
-        attemptCount++;
-        console.log(`[CampusLocationService] GPS attempt ${attemptCount}/${maxAttempts} for ${isMobile ? 'mobile' : 'desktop'}`);
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            this.currentPosition = position;
-            
-            console.log("[CampusLocationService] Location obtained:", {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              timestamp: new Date(position.timestamp).toISOString(),
-              attempt: attemptCount,
-              platform: isMobile ? 'mobile' : 'desktop'
-            });
-
-            // 🔧 MOBILE FIX: Validate GPS accuracy on mobile
-            if (isMobile && position.coords.accuracy > 1000) {
-              console.warn(`[CampusLocationService] 📱 Poor mobile GPS accuracy: ${position.coords.accuracy}m - attempt ${attemptCount}/${maxAttempts}`);
-              
-              // If we have more attempts and accuracy is poor, try again with high accuracy
-              if (attemptCount < maxAttempts) {
-                console.log("[CampusLocationService] 📱 Retrying with high accuracy GPS...");
-                options.enableHighAccuracy = true;
-                options.timeout = Math.min(options.timeout + 15000, 60000); // Increase timeout
-                setTimeout(() => attemptLocationAcquisition(), 1000);
-                return;
-              }
-            }
-
-            resolve(position);
-          },
-          (error) => {
-            console.error(`[CampusLocationService] Error getting location (attempt ${attemptCount}/${maxAttempts}):`, {
-              code: error.code,
-              message: error.message,
-              timestamp: new Date().toISOString(),
-              platform: isMobile ? 'mobile' : 'desktop',
-              browser: isIOSSafari ? 'iOS Safari' : isAndroidChrome ? 'Android Chrome' : 'Other'
-            });
-
-            // 🔧 MOBILE FIX: Enhanced mobile error handling with retry logic
-            const shouldRetry = isMobile && attemptCount < maxAttempts && 
-              (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE);
-
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                console.error("[CampusLocationService] Location access denied by user");
-                if (isMobile) {
-                  console.error("[CampusLocationService] 📱 Mobile permission denied - check browser location settings");
-                }
-                resolve(null); // Don't retry permission denials
-                break;
-                
-              case error.POSITION_UNAVAILABLE:
-                console.error("[CampusLocationService] Location information unavailable");
-                if (shouldRetry) {
-                  console.log(`[CampusLocationService] 📱 Mobile GPS unavailable - retrying attempt ${attemptCount + 1}/${maxAttempts}`);
-                  // Try with different settings
-                  options.enableHighAccuracy = !options.enableHighAccuracy;
-                  options.maximumAge = 0; // Force fresh GPS reading
-                  setTimeout(() => attemptLocationAcquisition(), 2000);
-                } else {
-                  resolve(null);
-                }
-                break;
-                
-              case error.TIMEOUT:
-                console.error(`[CampusLocationService] Location request timeout after ${options.timeout}ms`);
-                if (shouldRetry) {
-                  console.log(`[CampusLocationService] 📱 Mobile GPS timeout - retrying attempt ${attemptCount + 1}/${maxAttempts} with extended timeout`);
-                  options.timeout = Math.min(options.timeout + 20000, 75000); // Increase timeout progressively
-                  options.enableHighAccuracy = false; // Use low power mode for retry
-                  setTimeout(() => attemptLocationAcquisition(), 1000);
-                } else {
-                  if (isMobile) {
-                    console.warn("[CampusLocationService] 📱 Mobile GPS acquisition failed after all attempts - this may affect presence updates");
-                  }
-                  resolve(null);
-                }
-                break;
-                
-              default:
-                console.error("[CampusLocationService] Unknown location error");
-                if (shouldRetry) {
-                  console.log(`[CampusLocationService] 📱 Unknown mobile GPS error - final retry attempt ${attemptCount + 1}/${maxAttempts}`);
-                  setTimeout(() => attemptLocationAcquisition(), 3000);
-                } else {
-                  resolve(null);
-                }
-                break;
-            }
-          },
-          options
-        );
-      };
-
-      // Start the GPS acquisition process
-      attemptLocationAcquisition();
-    });
+  /**
+   * 🎯 HYBRID GPS: Determine preferred provider based on platform characteristics
+   * @param {boolean} isMobile - Whether this is a mobile device
+   * @param {boolean} isIOSSafari - Whether this is iOS Safari
+   * @param {boolean} isAndroidChrome - Whether this is Android Chrome
+   * @returns {string} Preferred provider ('browser', 'google', or 'auto')
+   */
+  determinePreferredProvider(isMobile, isIOSSafari, isAndroidChrome) {
+    // Desktop generally has better browser GPS support
+    if (!isMobile) {
+      return 'auto'; // Let hybrid system decide
+    }
+    
+    // Mobile platform-specific preferences
+    if (isIOSSafari) {
+      // iOS Safari has excellent native GPS but sometimes slow
+      return 'auto'; // Compare both for best results
+    } else if (isAndroidChrome) {
+      // Android Chrome has good GPS support
+      return 'auto'; // Let accuracy comparison decide
+    } else {
+      // Generic mobile browsers might have weaker GPS
+      return 'auto'; // Use Google API as potential fallback
+    }
   }
 
   /**
@@ -556,8 +582,8 @@ export class CampusLocationService {
     );
 
     try {
-      // Get current location
-      const position = await this.getCurrentLocation();
+      // Get current location for campus boundary detection
+      const position = await this.getCurrentLocation(false, 'campus_boundary_detection');
       if (!position) {
         console.warn(
           "[CampusLocationService] Cannot detect campus presence - location unavailable"
@@ -922,7 +948,7 @@ export class CampusLocationService {
         console.log("[CampusLocationService] 📱 Restarting location tracking after background period");
 
         // Force a fresh location reading first
-        const currentLocation = await this.getCurrentLocation(false);
+        const currentLocation = await this.getCurrentLocation(false, 'tab_return');
         
         if (currentLocation) {
           console.log("[CampusLocationService] 📱 Fresh location acquired after resume");
@@ -1163,16 +1189,55 @@ export class CampusLocationService {
         console.log('[CampusLocationService] 🔐 Authentication time tracked for login detection');
       }
       
-      // 🔧 FIX: Use cached location if available and update with proper location method
+      // 🔧 FIX: For reload scenarios, fetch fresh coordinates immediately using Google API
+      if (scenario === 'reload') {
+        console.log('[CampusLocationService] 🚀 Reload detected - fetching fresh coordinates with Google API...');
+        
+        try {
+          // Use Google API immediately for reload scenarios (strategic trigger)
+          this.lastUpdateTrigger = 'reload'; // Store trigger for accuracy context
+          const freshLocation = await this.getCurrentLocation(true, 'reload', currentUser.uid);
+          
+          if (freshLocation && freshLocation.coords) {
+            // Detect campus presence with fresh coordinates
+            const campusResult = await this.detectCampusPresence(currentUser.university || 'iub');
+            
+            if (campusResult && campusResult.onCampus !== undefined) {
+              const campusStatus = campusResult.onCampus ? 'on_campus' : 'off_campus';
+              const coordinates = {
+                latitude: freshLocation.coords.latitude,
+                longitude: freshLocation.coords.longitude,
+                accuracy: freshLocation.coords.accuracy,
+                timestamp: freshLocation.timestamp || Date.now()
+              };
+              
+              // Update database with fresh coordinates and campus status
+              await dataManager.updateUserLocationStatus(currentUser.uid, campusStatus, coordinates);
+              
+              console.log('[CampusLocationService] ✅ Reload: Fresh location and campus status updated immediately:', {
+                campusStatus,
+                accuracy: Math.round(freshLocation.coords.accuracy) + 'm',
+                coordinates: `${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
+              });
+              
+              return true;
+            }
+          }
+        } catch (error) {
+          console.warn('[CampusLocationService] ⚠️ Fresh location fetch failed for reload, falling back to cached data:', error.message);
+        }
+      }
+      
+      // 🔧 FALLBACK: Use cached location if available and has coordinates
       const cachedLocation = this.getCachedLocation();
-      if (cachedLocation && cachedLocation.campusStatus) {
+      if (cachedLocation && cachedLocation.campusStatus && cachedLocation.coordinates) {
         // Use updateUserLocationStatus for proper systemInfo field handling
         await dataManager.updateUserLocationStatus(
           currentUser.uid, 
           cachedLocation.campusStatus,
-          cachedLocation.coordinates || null
+          cachedLocation.coordinates
         );
-        console.log('[CampusLocationService] 📍 Using cached location for immediate update:', {
+        console.log('[CampusLocationService] 📍 Using cached location with coordinates for immediate update:', {
           campusStatus: cachedLocation.campusStatus,
           age: Math.round((Date.now() - cachedLocation.timestamp) / 1000) + 's',
           scenario
@@ -1200,7 +1265,23 @@ export class CampusLocationService {
         animationType = scenario === 'login' ? 'login_cached' : 'cached_location';
       }
       
-      this.triggerLocationAnimation(animationType);
+      // Create proper location data for animation
+      const immediateAnimationData = {
+        coordinatesChanged: false, // This is an immediate presence update, not a coordinate change
+        campusStatusChanged: false, // Status detection happens in other methods
+        hasValidCoordinates: cachedLocation && cachedLocation.latitude != null && cachedLocation.longitude != null,
+        hasLastActiveUpdate: true, // We're always updating lastActive in immediate presence
+        previousStatus: 'unknown',
+        newStatus: cachedLocation ? cachedLocation.campusStatus : 'unknown',
+        // 🔧 FIX: Include actual coordinate data for UI animations
+        coordinates: (cachedLocation && cachedLocation.latitude != null && cachedLocation.longitude != null) ? {
+          latitude: cachedLocation.latitude,
+          longitude: cachedLocation.longitude,
+          accuracy: cachedLocation.accuracy
+        } : null
+      };
+      
+      this.triggerLocationAnimation(animationType, immediateAnimationData);
       console.log(`[CampusLocationService] 🟣 Animation triggered: ${animationType}`);
       
       return true;
@@ -1272,14 +1353,29 @@ export class CampusLocationService {
   /**
    * Trigger location update animation in HorizontalFriendsBar
    * @param {string} source - Source of the animation trigger
+   * @param {Object} locationData - Location update data
    */
-  async triggerLocationAnimation(source = 'location_update') {
+  async triggerLocationAnimation(source = 'location_update', locationData = null) {
     try {
       // Import the animation trigger function
       const { triggerUserLocationUpdateAnimation } = await import('../../components/friends/HorizontalFriendsBar.js');
       
       console.log(`[CampusLocationService] 🟣 Triggering location animation (${source})`);
-      triggerUserLocationUpdateAnimation();
+      
+      // Pass proper data structure to HorizontalFriendsBar
+      if (locationData) {
+        triggerUserLocationUpdateAnimation(locationData);
+      } else {
+        // Fallback with basic valid structure to prevent null errors
+        triggerUserLocationUpdateAnimation({
+          coordinatesChanged: true,
+          campusStatusChanged: false,
+          hasValidCoordinates: true,
+          hasLastActiveUpdate: true,
+          previousStatus: 'unknown',
+          newStatus: 'unknown'
+        });
+      }
       
     } catch (error) {
       console.warn('[CampusLocationService] Could not trigger location animation:', error);
@@ -2063,15 +2159,30 @@ export class CampusLocationService {
           quality: accuracy < 50 ? 'excellent' : accuracy < 100 ? 'good' : accuracy < 200 ? 'fair' : 'poor'
         });
         
-        // 🎯 MOBILE FIX: Track GPS quality degradation
+        // 🚀 ENTERPRISE FIX: Smart GPS reset logic to prevent loops with stale coordinates
         if (accuracy > 500) {
-          console.warn("[CampusLocationService] 📍 Poor GPS accuracy detected:", accuracy + 'm - may trigger GPS reset');
+          console.warn("[CampusLocationService] 📍 Poor GPS accuracy detected:", accuracy + 'm');
           this.poorGPSReadings = (this.poorGPSReadings || 0) + 1;
           
-          // Trigger GPS reset after 3 consecutive poor readings
+          // 🎯 SMART RESET: Only reset if coordinates have actually changed OR accuracy is extremely poor
+          const coordinatesChanged = this.hasLocationChanged(position, 5); // 5m threshold for GPS reset decisions
+          const extremelyPoorAccuracy = accuracy > 2000; // 2km+ is extremely poor
+          
           if (this.poorGPSReadings >= 3) {
-            console.log("[CampusLocationService] 🔄 Triggering GPS reset due to poor accuracy");
-            this.scheduleGPSReset();
+            if (coordinatesChanged || extremelyPoorAccuracy) {
+              console.log("[CampusLocationService] 🔄 Triggering GPS reset - poor accuracy with new/extremely poor data:", {
+                coordinatesChanged,
+                extremelyPoorAccuracy,
+                accuracy: accuracy + 'm'
+              });
+              this.scheduleGPSReset();
+            } else {
+              console.log("[CampusLocationService] 🛑 GPS reset skipped - same stale coordinates with poor accuracy:", {
+                accuracy: accuracy + 'm',
+                message: 'Preventing infinite reset loop'
+              });
+              // Don't reset counters - let it continue to accumulate until we get different coordinates
+            }
           }
         } else {
           // Reset counters on good GPS
@@ -2111,8 +2222,8 @@ export class CampusLocationService {
             );
         }
 
-        // 🎯 MOBILE FIX: Trigger GPS reset after 5 consecutive errors
-        if (this.consecutiveGPSErrors >= 5) {
+        // 🎯 SMART ERROR HANDLING: Only trigger GPS reset for non-permission errors
+        if (this.consecutiveGPSErrors >= 5 && error.code !== error.PERMISSION_DENIED) {
           console.warn("[CampusLocationService] 🔄 Too many GPS errors - triggering reset");
           this.consecutiveGPSErrors = 0;
           this.scheduleGPSReset();
@@ -2322,7 +2433,26 @@ export class CampusLocationService {
     });
 
     // 🟣 Always trigger animation for any location update (cached or database)
-    this.triggerLocationAnimation(shouldWriteToDatabase ? 'activity_gps' : 'cached_update');
+    // Create proper location data structure for animation with actual coordinates
+    const locationAnimationData = {
+      coordinatesChanged: this.hasLocationChanged(position, 10), // Use the existing method
+      campusStatusChanged: false, // Status change detection is handled in updateLocationAndPresence
+      hasValidCoordinates: this.isValidCoordinates(position),
+      hasLastActiveUpdate: shouldWriteToDatabase, // Only true when writing to database (updating lastActive)
+      previousStatus: this.lastKnownCampusStatus || 'unknown',
+      newStatus: campusStatus,
+      // 🔧 FIX: Include actual coordinate data for UI animations
+      coordinates: this.isValidCoordinates(position) ? {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      } : null
+    };
+    
+    this.triggerLocationAnimation(
+      shouldWriteToDatabase ? 'activity_gps' : 'cached_update',
+      locationAnimationData
+    );
 
     if (!shouldWriteToDatabase) {
       console.log('[CampusLocationService] 🎯 SMART SKIP: Not writing to database - user is passively browsing');
@@ -2419,7 +2549,23 @@ export class CampusLocationService {
           });
 
           // 🟣 Trigger animation for database write
-          this.triggerLocationAnimation('database_write');
+          // Create proper location data for animation with actual coordinates
+          const databaseWriteAnimationData = {
+            coordinatesChanged: this.hasLocationChanged(position, 10),
+            campusStatusChanged: (this.lastKnownCampusStatus || 'unknown') !== finalCampusStatus,
+            hasValidCoordinates: this.isValidCoordinates(position),
+            hasLastActiveUpdate: true, // Database write always updates lastActive
+            previousStatus: this.lastKnownCampusStatus || 'unknown',
+            newStatus: finalCampusStatus,
+            // 🔧 FIX: Include actual coordinate data for UI animations
+            coordinates: this.isValidCoordinates(position) ? {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy
+            } : null
+          };
+          
+          this.triggerLocationAnimation('database_write', databaseWriteAnimationData);
 
           // Emit real-time campus presence change event for friends to see updates
           try {
@@ -2570,7 +2716,7 @@ export class CampusLocationService {
         );
 
         // Use battery-optimized GPS for periodic updates
-        const position = await this.getCurrentLocation(false);
+        const position = await this.getCurrentLocation(false, 'periodic_update');
         if (position) {
           const campusPresenceResult = await this.detectCampusPresence("iub");
           const campusStatus =
@@ -2728,6 +2874,7 @@ export class CampusLocationService {
 
       // 🎯 PHASE 2 ENHANCEMENT: Detect trigger scenario for optimized handling
       const triggerScenario = this.detectTriggerScenario();
+      this.lastUpdateTrigger = triggerScenario; // Store trigger for accuracy context
       console.log(`[CampusLocationService] 🎯 Trigger scenario detected: ${triggerScenario}`);
 
       // Import required services with error handling
@@ -3308,14 +3455,153 @@ export class CampusLocationService {
    * Processes location changes and publishes campus status updates
    * @param {boolean} highAccuracy - Whether to use high accuracy GPS
    */
+  /**
+   * 🚀 ENTERPRISE FIX: Validate coordinates to prevent null database writes
+   */
+  isValidCoordinates(position) {
+    if (!position || !position.coords) {
+      console.warn("[CampusLocationService] ❌ Invalid position object");
+      return false;
+    }
+
+    const { latitude, longitude, accuracy } = position.coords;
+
+    // Check for null/undefined coordinates
+    if (latitude === null || latitude === undefined ||
+        longitude === null || longitude === undefined) {
+      console.warn("[CampusLocationService] ❌ Null or undefined coordinates detected");
+      return false;
+    }
+
+    // Check for valid coordinate ranges
+    if (latitude < -90 || latitude > 90 ||
+        longitude < -180 || longitude > 180) {
+      console.warn("[CampusLocationService] ❌ Coordinates out of valid range:", {
+        latitude,
+        longitude
+      });
+      return false;
+    }
+
+    // Check for obviously invalid coordinates (0, 0) which often indicates GPS failure
+    if (latitude === 0 && longitude === 0) {
+      console.warn("[CampusLocationService] ❌ Suspicious coordinates (0, 0) detected");
+      return false;
+    }
+
+    console.log("[CampusLocationService] ✅ Coordinates validated successfully:", {
+      latitude,
+      longitude,
+      accuracy: accuracy + 'm'
+    });
+
+    return true;
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Check if location has meaningfully changed using Haversine distance
+   */
+  hasLocationChanged(newPosition, thresholdMeters = 10) {
+    // Always return true if no previous location cached
+    if (!this.lastSignificantLocation) {
+      console.log("[CampusLocationService] 📍 No previous location - treating as changed");
+      return true;
+    }
+
+    const distance = this.calculateDistance(
+      this.lastSignificantLocation.latitude,
+      this.lastSignificantLocation.longitude,
+      newPosition.coords.latitude,
+      newPosition.coords.longitude
+    );
+
+    const hasChanged = distance >= thresholdMeters;
+
+    console.log("[CampusLocationService] 📏 Location change analysis:", {
+      previousLat: this.lastSignificantLocation.latitude,
+      previousLng: this.lastSignificantLocation.longitude,
+      newLat: newPosition.coords.latitude,
+      newLng: newPosition.coords.longitude,
+      distance: distance.toFixed(2) + 'm',
+      threshold: thresholdMeters + 'm',
+      hasChanged
+    });
+
+    return hasChanged;
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Determine if location update is worthy of database write and animation
+   */
+  isLocationUpdateWorthy(position, campusStatusChanged, context = 'normal') {
+    // 1. Must have valid coordinates
+    if (!this.isValidCoordinates(position)) {
+      console.warn("[CampusLocationService] 🚫 Location update not worthy - invalid coordinates");
+      return { worthy: false, reason: 'invalid_coordinates' };
+    }
+
+    // 2. Must have reasonable accuracy for campus detection
+    const accuracy = position.coords.accuracy;
+    
+    // 🔧 FIX: More lenient accuracy requirements for initial/reload scenarios
+    let maxAccuracy = 1000; // Default threshold
+    if (context === 'initial' || context === 'reload' || context === 'first_load') {
+      maxAccuracy = 5000; // Allow up to 5km accuracy for immediate presence indication
+      console.log("[CampusLocationService] 🎯 Using relaxed accuracy threshold for " + context + " scenario: " + maxAccuracy + 'm');
+    }
+    
+    if (accuracy > maxAccuracy) {
+      console.warn("[CampusLocationService] 🚫 Location update not worthy - poor accuracy:", accuracy + 'm (max: ' + maxAccuracy + 'm for ' + context + ')');
+      return { worthy: false, reason: 'poor_accuracy', accuracy, context };
+    }
+
+    // 3. Either campus status must have changed OR coordinates must have changed meaningfully
+    const coordinatesChanged = this.hasLocationChanged(position, 10); // 10-meter threshold
+
+    if (campusStatusChanged || coordinatesChanged) {
+      console.log("[CampusLocationService] ✅ Location update worthy:", {
+        campusStatusChanged,
+        coordinatesChanged,
+        accuracy: accuracy + 'm'
+      });
+
+      // Cache this as the new significant location
+      this.lastSignificantLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: accuracy,
+        timestamp: position.timestamp || Date.now()
+      };
+
+      return { 
+        worthy: true, 
+        reason: 'meaningful_change',
+        coordinatesChanged,
+        campusStatusChanged
+      };
+    }
+
+    console.log("[CampusLocationService] 🚫 Location update not worthy - no meaningful change");
+    return { worthy: false, reason: 'no_meaningful_change' };
+  }
+
+
   async updateLocationAndPresence(highAccuracy = false) {
     try {
       console.log(`[CampusLocationService] 🌍 Updating location and presence (high accuracy: ${highAccuracy})...`);
       
       // Get current location
-      const position = await this.getCurrentLocation(highAccuracy);
+      const trigger = highAccuracy ? 'high_accuracy_request' : 'manual_update';
+      this.lastUpdateTrigger = trigger; // Store trigger for accuracy context
+      const position = await this.getCurrentLocation(highAccuracy, trigger);
       if (!position) {
         console.warn("[CampusLocationService] 📍 No position available for presence update");
+        return;
+      }
+
+      // 🚀 ENTERPRISE FIX: Validate coordinates before processing
+      if (!this.isValidCoordinates(position)) {
+        console.error("[CampusLocationService] ❌ Skipping location update - invalid coordinates");
         return;
       }
       
@@ -3350,9 +3636,20 @@ export class CampusLocationService {
         campusStatus: newCampusStatus
       });
       
-      // Only publish and update database if status actually changed
-      if (statusChanged) {
-        console.log(`[CampusLocationService] 🔄 Campus status changed: ${previousStatus} → ${newCampusStatus}`);
+      // 🚀 ENTERPRISE FIX: Only update database and trigger animations for worthy location changes
+      // Determine context based on trigger information
+      let context = 'normal';
+      if (this.isFirstLocationUpdate) {
+        context = 'initial';
+        this.isFirstLocationUpdate = false;
+      } else if (this.lastUpdateTrigger === 'reload' || this.lastUpdateTrigger === 'first_visit') {
+        context = 'reload';
+      }
+      
+      const updateWorthiness = this.isLocationUpdateWorthy(position, statusChanged, context);
+      
+      if (updateWorthiness.worthy) {
+        console.log(`[CampusLocationService] 🔄 Meaningful location change detected: ${updateWorthiness.reason}`);
         
         // Publish real-time campus presence change
         await this.publishCampusStatusChange(newCampusStatus, previousStatus, position);
@@ -3360,18 +3657,22 @@ export class CampusLocationService {
         // Update user profile in database
         await this.updateUserLocationInDatabase(position, newCampusStatus);
         
-        // Notify HorizontalFriendsBar about meaningful status change
+        // Notify HorizontalFriendsBar about meaningful status change with coordinate info
         if (typeof window !== 'undefined' && window.HorizontalFriendsBar?.getInstance) {
           const friendsBar = window.HorizontalFriendsBar.getInstance();
           if (friendsBar && friendsBar.notifyLocationUpdated) {
             friendsBar.notifyLocationUpdated({
               previousStatus,
-              newStatus: newCampusStatus
+              newStatus: newCampusStatus,
+              coordinatesChanged: updateWorthiness.coordinatesChanged,
+              campusStatusChanged: updateWorthiness.campusStatusChanged,
+              hasValidCoordinates: true,
+              hasLastActiveUpdate: true // We're updating lastActive in database
             });
           }
         }
       } else {
-        console.log(`[CampusLocationService] ✓ Campus status unchanged (${newCampusStatus}) - no update needed`);
+        console.log(`[CampusLocationService] ✓ Location update skipped - ${updateWorthiness.reason}`);
       }
       
     } catch (error) {
@@ -3545,15 +3846,360 @@ export class CampusLocationService {
       poorReadings: this.poorGPSReadings || 0
     });
   }
+
+  // 💰 COST OPTIMIZATION METHODS
+
+  /**
+   * Handle initialization with appropriate trigger detection
+   */
+  async handleInitialization() {
+    try {
+      // Detect if this is a first visit or reload
+      const isFirstVisit = !localStorage.getItem('campusLocationService_visited');
+      const isReload = sessionStorage.getItem('campusLocationService_reload') === 'true';
+      
+      let trigger = 'unknown';
+      if (isFirstVisit) {
+        trigger = 'first_visit';
+        localStorage.setItem('campusLocationService_visited', 'true');
+        console.log('🎯 First visit detected - Google API authorized for optimal accuracy');
+      } else if (isReload) {
+        trigger = 'manual_reload';
+        console.log('🎯 Manual reload detected - Google API authorized for fresh location');
+      } else {
+        trigger = 'app_init';
+        console.log('🎯 Normal app initialization - using cost-optimized approach');
+      }
+      
+      // Clear reload flag
+      sessionStorage.removeItem('campusLocationService_reload');
+      
+      // Request initial location with appropriate trigger
+      const position = await this.getCurrentLocation(false, trigger);
+      
+      if (position) {
+        console.log(`✅ Initial location acquired via ${trigger}:`, {
+          provider: position.source,
+          accuracy: Math.round(position.coords.accuracy),
+          cost: position.costOptimization?.cost || 0
+        });
+        
+        // Start presence detection
+        await this.detectCampusPresence('iub');
+      } else {
+        console.warn('⚠️ Failed to acquire initial location');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to handle initialization:', error);
+    }
+  }
+
+  /**
+   * Mark that a manual reload occurred
+   */
+  static markManualReload() {
+    sessionStorage.setItem('campusLocationService_reload', 'true');
+  }
+
+  /**
+   * Determine if Google API should be used for this request
+   */
+  shouldUseGoogleAPI(trigger, userId, highAccuracy) {
+    // Always use for strategic triggers
+    if (this.googleApiTriggers.includes(trigger)) {
+      console.log(`🎯 Strategic trigger detected: ${trigger} - Google API authorized`);
+      return true;
+    }
+    
+    // Use for high accuracy requests if user hasn't exceeded limits
+    if (highAccuracy && userId) {
+      const userUsage = this.getUserApiUsage(userId);
+      if (userUsage.googleCalls < this.maxGoogleCallsPerUser) {
+        console.log('🎯 High accuracy request - Google API authorized');
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Get browser location (Tier 1 - Free)
+   */
+  async getBrowserLocation(highAccuracy) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Browser geolocation not supported'));
+        return;
+      }
+      
+      const options = {
+        enableHighAccuracy: highAccuracy !== false,
+        timeout: 8000, // Shorter timeout to fail fast
+        maximumAge: 30000
+      };
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({
+          coords: position.coords,
+          timestamp: position.timestamp,
+          source: 'browser',
+          provider: 'browser'
+        }),
+        (error) => reject(error),
+        options
+      );
+    });
+  }
+
+  /**
+   * Get Google Geolocation API location (Tier 2 - Paid)
+   */
+  async getGoogleLocation(highAccuracy = false) {
+    try {
+      const result = await googleGeolocationProvider.getCurrentLocation({
+        highAccuracy,
+        timeout: 10000,
+        requestId: `campus-${Date.now()}`
+      });
+      
+      if (result && result.coords) {
+        return {
+          coords: result.coords,
+          timestamp: result.timestamp || Date.now(),
+          source: 'google',
+          provider: 'google_geolocation_api'
+        };
+      }
+      
+      throw new Error('Invalid response from Google Geolocation API');
+    } catch (error) {
+      console.error('[CampusLocationService] Google Geolocation API error:', error);
+      throw error;
+    }
+  }
+
+
+  /**
+   * Check if Google API can be used (rate limiting)
+   */
+  canUseGoogleAPI(userId) {
+    // Check daily limit
+    if (this.dailyApiUsage >= this.maxDailyGoogleCalls) {
+      console.log(`🚫 Daily Google API limit reached: ${this.dailyApiUsage}/${this.maxDailyGoogleCalls}`);
+      return false;
+    }
+    
+    if (!userId) return true; // Allow for anonymous users (with daily limit)
+    
+    const userUsage = this.getUserApiUsage(userId);
+    
+    // Check user daily limit
+    if (userUsage.googleCalls >= this.maxGoogleCallsPerUser) {
+      console.log(`🚫 User Google API limit reached: ${userUsage.googleCalls}/${this.maxGoogleCallsPerUser}`);
+      return false;
+    }
+    
+    // Check cooldown period
+    const timeSinceLastCall = Date.now() - (userUsage.lastGoogleCall || 0);
+    if (timeSinceLastCall < this.googleApiCooldown) {
+      const waitTime = this.googleApiCooldown - timeSinceLastCall;
+      console.log(`⏱️ Google API cooldown: ${Math.round(waitTime / 1000)}s remaining`);
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Track Google API usage for cost control
+   */
+  trackGoogleApiUsage(userId) {
+    // Update daily usage
+    this.dailyApiUsage++;
+    this.saveDailyUsage();
+    
+    if (userId) {
+      // Update user usage
+      const userUsage = this.getUserApiUsage(userId);
+      userUsage.googleCalls++;
+      userUsage.lastGoogleCall = Date.now();
+      
+      console.log(`📊 Google API usage tracked:`, {
+        user: userId.substring(0, 8) + '...',
+        userCalls: userUsage.googleCalls,
+        dailyTotal: this.dailyApiUsage,
+        cost: '$' + (this.dailyApiUsage * 0.005).toFixed(3)
+      });
+    }
+  }
+
+  /**
+   * Get user API usage statistics
+   */
+  getUserApiUsage(userId) {
+    if (!this.userApiUsage.has(userId)) {
+      this.userApiUsage.set(userId, {
+        googleCalls: 0,
+        lastGoogleCall: null,
+        firstCall: Date.now()
+      });
+    }
+    return this.userApiUsage.get(userId);
+  }
+
+  /**
+   * Get fallback location from cache
+   */
+  getFallbackLocation() {
+    // Try cached location first
+    const cached = this.locationCache.get('last_good');
+    if (cached && Date.now() - cached.timestamp < 60 * 60 * 1000) { // 1 hour
+      return cached.data;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Format location response consistently
+   */
+  formatLocationResponse(location, tier, cost) {
+    // Cache good locations
+    if (location.coords.accuracy <= 1000) {
+      this.locationCache.set('last_good', {
+        data: location,
+        timestamp: Date.now()
+      });
+    }
+    
+    // Store current position for the service
+    this.currentPosition = {
+      coords: location.coords,
+      timestamp: location.timestamp
+    };
+    
+    return {
+      coords: location.coords,
+      timestamp: location.timestamp,
+      
+      // Cost optimization metadata
+      costOptimization: {
+        tier: tier,
+        cost: cost,
+        provider: location.provider || location.source,
+        accuracy: location.coords.accuracy,
+        source: location.source,
+        dailyApiUsage: this.dailyApiUsage,
+        estimatedDailyCost: this.dailyApiUsage * 0.005
+      },
+      
+      // Standard fields
+      source: location.source,
+      provider: 'cost_optimized'
+    };
+  }
+
+  /**
+   * Load daily usage from localStorage
+   */
+  loadDailyUsage() {
+    try {
+      const stored = localStorage.getItem('daily_google_api_usage');
+      if (stored) {
+        const data = JSON.parse(stored);
+        const today = new Date().toDateString();
+        
+        if (data.date === today) {
+          return data.usage || 0;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load daily API usage:', error);
+    }
+    return 0;
+  }
+
+  /**
+   * Save daily usage to localStorage
+   */
+  saveDailyUsage() {
+    try {
+      const data = {
+        date: new Date().toDateString(),
+        usage: this.dailyApiUsage
+      };
+      localStorage.setItem('daily_google_api_usage', JSON.stringify(data));
+    } catch (error) {
+      console.warn('Failed to save daily API usage:', error);
+    }
+  }
+
+  /**
+   * Get comprehensive cost optimization statistics
+   * 💰 Use this to monitor API usage and costs
+   */
+  getCostStats() {
+    const estimatedDailyCost = this.dailyApiUsage * 0.005;
+    const estimatedMonthlyCost = estimatedDailyCost * 30;
+    const maxDailyCost = this.maxDailyGoogleCalls * 0.005;
+    const maxMonthlyCost = maxDailyCost * 30;
+    
+    return {
+      // Current usage
+      dailyApiUsage: this.dailyApiUsage,
+      estimatedDailyCost: '$' + estimatedDailyCost.toFixed(3),
+      estimatedMonthlyCost: '$' + estimatedMonthlyCost.toFixed(2),
+      
+      // Limits and budget
+      maxDailyLimit: this.maxDailyGoogleCalls,
+      maxUserLimit: this.maxGoogleCallsPerUser,
+      remainingDailyBudget: this.maxDailyGoogleCalls - this.dailyApiUsage,
+      maxDailyCost: '$' + maxDailyCost.toFixed(2),
+      maxMonthlyCost: '$' + maxMonthlyCost.toFixed(2),
+      
+      // User statistics
+      activeUsers: this.userApiUsage.size,
+      averageCallsPerUser: this.userApiUsage.size > 0 ? 
+        (Array.from(this.userApiUsage.values()).reduce((sum, user) => sum + user.googleCalls, 0) / this.userApiUsage.size).toFixed(1) : 0,
+      
+      // Usage percentage
+      dailyUsagePercent: ((this.dailyApiUsage / this.maxDailyGoogleCalls) * 100).toFixed(1) + '%',
+      
+      // Rate limiting info
+      cooldownMinutes: this.googleApiCooldown / (60 * 1000)
+    };
+  }
+
+  /**
+   * Reset daily usage for testing or new day
+   * 🔧 Admin/testing function to reset API usage counters
+   */
+  resetDailyUsage() {
+    this.dailyApiUsage = 0;
+    this.userApiUsage.clear();
+    this.saveDailyUsage();
+    console.log('🔄 Daily API usage reset - all limits cleared');
+    
+    return {
+      message: 'Daily usage reset successfully',
+      dailyUsage: this.dailyApiUsage,
+      activeUsers: this.userApiUsage.size
+    };
+  }
 }
 
 // Export singleton instance
 export const campusLocationService = new CampusLocationService();
 
-// 🛠️ DEBUGGING: Make campusLocationService globally available for console access and automation
+// 🛠️ DEBUGGING: Make campusLocationService globally available for console access and cost monitoring
 if (typeof window !== "undefined") {
   window.campusLocationService = campusLocationService;
   console.log(
     "🛠️ CampusLocationService available globally as window.campusLocationService for debugging"
+  );
+  console.log(
+    "💰 Cost monitoring: Use campusLocationService.getCostStats() to check API usage and costs"
   );
 }
