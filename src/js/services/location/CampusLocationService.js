@@ -2017,12 +2017,13 @@ export class CampusLocationService {
   }
 
   /**
-   * Start watching position changes (for future real-time tracking)
+   * 🚀 ENTERPRISE FIX: Real-time campus presence tracking with mobile-first GPS management
+   * Implements aggressive location tracking for accurate campus presence detection
    * @param {Function} callback - Callback function for position updates
    * @returns {number|null} Watch ID for stopping the watch
    */
   watchPosition(callback) {
-    console.log("[CampusLocationService] Starting position watch...");
+    console.log("[CampusLocationService] 🌍 Starting enterprise-grade real-time position watch for campus presence...");
 
     if (!this.isLocationSupported) {
       console.error(
@@ -2031,48 +2032,92 @@ export class CampusLocationService {
       return null;
     }
 
-    // FIXED: Battery-optimized configuration for campus presence tracking
+    // 🚀 ENTERPRISE FIX: Aggressive real-time settings for campus presence tracking
+    // Trade battery for accuracy - campus presence requires immediate updates
     const options = {
-      enableHighAccuracy: false, // CHANGED: Use false for battery efficiency, true only for navigation apps
-      timeout: 30000, // INCREASED: 30 seconds for slower GPS fixes, especially indoors
-      maximumAge: 300000, // CHANGED: 5 minutes cache to reduce GPS polling frequency
+      enableHighAccuracy: true, // CHANGED: High accuracy required for campus geofencing
+      timeout: 10000, // REDUCED: 10 seconds for faster GPS fixes
+      maximumAge: 30000, // REDUCED: 30 seconds cache for more frequent updates
     };
+
+    console.log("[CampusLocationService] 🎯 Using aggressive GPS settings for real-time campus tracking:", {
+      highAccuracy: options.enableHighAccuracy,
+      timeout: options.timeout + 'ms',
+      maxAge: options.maximumAge + 'ms',
+      purpose: 'campus_presence_detection'
+    });
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         this.currentPosition = position;
-        console.log("[CampusLocationService] Position update received:", {
+        
+        // 🚀 ENTERPRISE FIX: GPS quality monitoring for mobile reliability
+        this.lastSuccessfulGPSUpdate = Date.now();
+        const accuracy = position.coords.accuracy;
+        
+        console.log("[CampusLocationService] 🌍 Position update received:", {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
+          accuracy: accuracy + 'm',
           timestamp: new Date(position.timestamp).toISOString(),
+          quality: accuracy < 50 ? 'excellent' : accuracy < 100 ? 'good' : accuracy < 200 ? 'fair' : 'poor'
         });
+        
+        // 🎯 MOBILE FIX: Track GPS quality degradation
+        if (accuracy > 500) {
+          console.warn("[CampusLocationService] 📍 Poor GPS accuracy detected:", accuracy + 'm - may trigger GPS reset');
+          this.poorGPSReadings = (this.poorGPSReadings || 0) + 1;
+          
+          // Trigger GPS reset after 3 consecutive poor readings
+          if (this.poorGPSReadings >= 3) {
+            console.log("[CampusLocationService] 🔄 Triggering GPS reset due to poor accuracy");
+            this.scheduleGPSReset();
+          }
+        } else {
+          // Reset counters on good GPS
+          this.poorGPSReadings = 0;
+          this.consecutiveGPSErrors = 0; // Reset error counter on successful update
+        }
+        
         if (callback) callback(position);
       },
       (error) => {
-        // Handle different error types with appropriate logging levels
+        // 🚀 ENTERPRISE FIX: Enhanced error handling with GPS reset triggers
+        this.consecutiveGPSErrors = (this.consecutiveGPSErrors || 0) + 1;
+        
         switch (error.code) {
           case error.TIMEOUT:
             console.warn(
-              "[CampusLocationService] ⏱️ GPS timeout (normal for indoor/slow GPS) - will retry on next update"
+              "[CampusLocationService] ⏱️ GPS timeout - will retry on next update (error", 
+              this.consecutiveGPSErrors, "of 5)"
             );
             break;
           case error.PERMISSION_DENIED:
             console.error(
-              "[CampusLocationService] 🚫 Location permission denied"
+              "[CampusLocationService] 🚫 Location permission denied - cannot continue"
             );
+            this.consecutiveGPSErrors = 0; // Don't count permission errors
             break;
           case error.POSITION_UNAVAILABLE:
             console.warn(
-              "[CampusLocationService] 📍 GPS temporarily unavailable - will retry"
+              "[CampusLocationService] 📍 GPS temporarily unavailable (error", 
+              this.consecutiveGPSErrors, "of 5) - will retry"
             );
             break;
           default:
             console.warn(
-              "[CampusLocationService] 📍 Location error:",
-              error.message
+              "[CampusLocationService] 📍 Location error (", 
+              this.consecutiveGPSErrors, "of 5):", error.message
             );
         }
+
+        // 🎯 MOBILE FIX: Trigger GPS reset after 5 consecutive errors
+        if (this.consecutiveGPSErrors >= 5) {
+          console.warn("[CampusLocationService] 🔄 Too many GPS errors - triggering reset");
+          this.consecutiveGPSErrors = 0;
+          this.scheduleGPSReset();
+        }
+        
         if (callback) callback(null, error);
       },
       options
@@ -3100,7 +3145,7 @@ export class CampusLocationService {
       return;
     }
 
-    console.log("[CampusLocationService] 💊 Starting health monitoring system...");
+    console.log("[CampusLocationService] 💊 Starting enhanced health monitoring system...");
 
     // Perform health check every 10 minutes
     this.healthCheckInterval = setInterval(() => {
@@ -3110,7 +3155,10 @@ export class CampusLocationService {
     // Perform initial health check
     setTimeout(() => this.performHealthCheck(), 5000);
 
-    console.log("[CampusLocationService] ✅ Health monitoring started (10-minute intervals)");
+    // 🚀 ENTERPRISE FIX: Start GPS health monitoring for mobile reliability
+    this.setupGPSHealthMonitoring();
+
+    console.log("[CampusLocationService] ✅ Enhanced health monitoring started (10-minute intervals)");
   }
 
   /**
@@ -3253,6 +3301,249 @@ export class CampusLocationService {
       },
       activity: this.getActivityStatus()
     };
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Core location and presence update method
+   * Processes location changes and publishes campus status updates
+   * @param {boolean} highAccuracy - Whether to use high accuracy GPS
+   */
+  async updateLocationAndPresence(highAccuracy = false) {
+    try {
+      console.log(`[CampusLocationService] 🌍 Updating location and presence (high accuracy: ${highAccuracy})...`);
+      
+      // Get current location
+      const position = await this.getCurrentLocation(highAccuracy);
+      if (!position) {
+        console.warn("[CampusLocationService] 📍 No position available for presence update");
+        return;
+      }
+      
+      // Determine campus status
+      const campusPresenceResult = await this.detectCampusPresence("iub");
+      const newCampusStatus = campusPresenceResult?.onCampus !== undefined
+        ? campusPresenceResult.onCampus ? "on_campus" : "off_campus"
+        : "unknown";
+      
+      // Track status changes for meaningful updates only
+      const previousStatus = this.lastKnownCampusStatus || 'unknown';
+      const statusChanged = previousStatus !== newCampusStatus;
+      
+      console.log(`[CampusLocationService] 🌍 Campus presence update:`, {
+        previous: previousStatus,
+        current: newCampusStatus,
+        changed: statusChanged,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy + 'm'
+      });
+      
+      // Update cached status
+      this.lastKnownCampusStatus = newCampusStatus;
+      
+      // Update cached location with new status
+      this.setCachedLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: position.timestamp,
+        campusStatus: newCampusStatus
+      });
+      
+      // Only publish and update database if status actually changed
+      if (statusChanged) {
+        console.log(`[CampusLocationService] 🔄 Campus status changed: ${previousStatus} → ${newCampusStatus}`);
+        
+        // Publish real-time campus presence change
+        await this.publishCampusStatusChange(newCampusStatus, previousStatus, position);
+        
+        // Update user profile in database
+        await this.updateUserLocationInDatabase(position, newCampusStatus);
+        
+        // Notify HorizontalFriendsBar about meaningful status change
+        if (typeof window !== 'undefined' && window.HorizontalFriendsBar?.getInstance) {
+          const friendsBar = window.HorizontalFriendsBar.getInstance();
+          if (friendsBar && friendsBar.notifyLocationUpdated) {
+            friendsBar.notifyLocationUpdated({
+              previousStatus,
+              newStatus: newCampusStatus
+            });
+          }
+        }
+      } else {
+        console.log(`[CampusLocationService] ✓ Campus status unchanged (${newCampusStatus}) - no update needed`);
+      }
+      
+    } catch (error) {
+      console.error("[CampusLocationService] ❌ Failed to update location and presence:", error);
+    }
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Publish campus status changes to real-time system
+   */
+  async publishCampusStatusChange(newStatus, previousStatus, position) {
+    try {
+      // Check if realTimeManager is available
+      if (typeof realTimeManager !== 'undefined' && realTimeManager.publish) {
+        const statusChangeEvent = {
+          userId: currentUser?.user?.uid,
+          campusStatus: newStatus,
+          previousStatus,
+          locationData: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp
+          },
+          timestamp: Date.now()
+        };
+        
+        console.log(`[CampusLocationService] 📡 Publishing campus presence change:`, statusChangeEvent);
+        
+        // Publish to real-time system
+        realTimeManager.publish('campusPresenceChanged', statusChangeEvent);
+      }
+    } catch (error) {
+      console.error("[CampusLocationService] ❌ Failed to publish campus status change:", error);
+    }
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Update user location in database
+   */
+  async updateUserLocationInDatabase(position, campusStatus) {
+    try {
+      // Check if DataService is available
+      if (typeof dataManager !== 'undefined' && dataManager.updateUserSystemInfo) {
+        const locationData = {
+          lastKnownLocation: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            campusStatus,
+            timestamp: serverTimestamp ? serverTimestamp() : new Date()
+          },
+          lastActive: serverTimestamp ? serverTimestamp() : new Date(),
+          status: 'online'
+        };
+        
+        console.log(`[CampusLocationService] 💾 Updating user location in database:`, {
+          campusStatus,
+          accuracy: position.coords.accuracy + 'm'
+        });
+        
+        await dataManager.updateUserSystemInfo(currentUser?.user?.uid, locationData);
+      }
+    } catch (error) {
+      console.error("[CampusLocationService] ❌ Failed to update user location in database:", error);
+    }
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: GPS Reset System for Mobile Reliability
+   * Handles GPS degradation by restarting location tracking with fresh settings
+   */
+  scheduleGPSReset() {
+    // Prevent multiple resets
+    if (this.isGPSResetInProgress) {
+      console.log("[CampusLocationService] 🛑 GPS reset already in progress - skipping");
+      return;
+    }
+
+    console.log("[CampusLocationService] 🔄 Scheduling GPS reset for mobile reliability...");
+    
+    this.isGPSResetInProgress = true;
+    
+    // Schedule reset with short delay to let current operations complete
+    setTimeout(() => {
+      this.performGPSReset();
+    }, 2000);
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Perform GPS system reset
+   * Stops current tracking and restarts with fresh GPS connection
+   */
+  async performGPSReset() {
+    try {
+      console.log("[CampusLocationService] 🔄 Performing GPS reset...");
+      
+      // Stop current tracking
+      if (this.trackingWatchId) {
+        navigator.geolocation.clearWatch(this.trackingWatchId);
+        this.trackingWatchId = null;
+        console.log("[CampusLocationService] 🔄 Stopped existing GPS watch");
+      }
+      
+      // Clear GPS-related state
+      this.currentPosition = null;
+      this.poorGPSReadings = 0;
+      this.lastSuccessfulGPSUpdate = null;
+      
+      // Wait for GPS to stabilize
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Restart location tracking with fresh GPS connection
+      console.log("[CampusLocationService] 🔄 Restarting location tracking after GPS reset...");
+      await this.startLocationTracking();
+      
+      // Perform immediate location update to verify reset worked
+      setTimeout(() => {
+        this.updateLocationAndPresence(true); // High accuracy for verification
+      }, 1000);
+      
+      console.log("[CampusLocationService] ✅ GPS reset completed successfully");
+      
+    } catch (error) {
+      console.error("[CampusLocationService] ❌ GPS reset failed:", error);
+    } finally {
+      this.isGPSResetInProgress = false;
+    }
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Setup periodic GPS health monitoring
+   * Monitors GPS performance and triggers resets when needed
+   */
+  setupGPSHealthMonitoring() {
+    // Don't setup multiple monitors
+    if (this.gpsHealthMonitorInterval) {
+      return;
+    }
+
+    console.log("[CampusLocationService] 🏥 Starting GPS health monitoring system...");
+    
+    // Check GPS health every 10 minutes
+    this.gpsHealthMonitorInterval = setInterval(() => {
+      this.checkGPSHealth();
+    }, 10 * 60 * 1000);
+    
+    console.log("[CampusLocationService] ✅ GPS health monitoring started (10-minute intervals)");
+  }
+
+  /**
+   * 🚀 ENTERPRISE FIX: Check GPS health and trigger reset if needed
+   */
+  checkGPSHealth() {
+    const now = Date.now();
+    const timeSinceLastUpdate = this.lastSuccessfulGPSUpdate ? 
+      now - this.lastSuccessfulGPSUpdate : null;
+    
+    // If no GPS updates for 15 minutes, trigger reset
+    if (timeSinceLastUpdate && timeSinceLastUpdate > 15 * 60 * 1000) {
+      console.warn("[CampusLocationService] 🏥 GPS health check failed - no updates for 15+ minutes");
+      console.log("[CampusLocationService] 🔄 Triggering GPS reset due to health check failure");
+      this.scheduleGPSReset();
+      return;
+    }
+    
+    // Log health status
+    console.log("[CampusLocationService] 🏥 GPS health check passed:", {
+      lastUpdate: timeSinceLastUpdate ? Math.round(timeSinceLastUpdate / 1000) + 's ago' : 'never',
+      isTracking: this.trackingWatchId !== null,
+      poorReadings: this.poorGPSReadings || 0
+    });
   }
 }
 

@@ -110,6 +110,11 @@ export class HorizontalFriendsBar {
     // Debouncing timeout for Quick Access updates
     this.quickAccessUpdateTimeout = null;
 
+    // 🚀 ENTERPRISE FIX: Campus status tracking for smart animations
+    this.lastKnownCampusStatus = null; // Track previous campus status for change detection
+    this.lastLocationAnimationTime = 0; // Debounce animation timing
+    this.isLocationAnimationRunning = false; // Prevent overlapping animations
+
     console.log(
       `🏗️ HorizontalFriendsBar created with enhanced loop prevention and privacy optimization for container: ${containerId}`
     );
@@ -3592,9 +3597,19 @@ export class HorizontalFriendsBar {
           `🌍 Current user's campus presence changed: ${campusStatus}`
         );
         
-        // Trigger location update animation for current user
-        console.log('[HorizontalFriendsBar] Triggering location animation for user campus presence change');
-        this.triggerLocationUpdateAnimation();
+        // 🚀 ENTERPRISE FIX: Track campus status changes for smart animation
+        const previousStatus = this.lastKnownCampusStatus || 'unknown';
+        const campusStatusChange = {
+          previousStatus,
+          newStatus: campusStatus
+        };
+        
+        // Update tracked status
+        this.lastKnownCampusStatus = campusStatus;
+        
+        // Trigger smart location update animation with status change context
+        console.log('[HorizontalFriendsBar] Triggering smart location animation for campus presence change:', campusStatusChange);
+        this.triggerLocationUpdateAnimation(campusStatusChange);
         
         // For current user, we don't need to update the friends list,
         // but we should trigger a re-enhancement of friends data to reflect
@@ -4571,8 +4586,20 @@ export class HorizontalFriendsBar {
     
     // Trigger location update animation for location updates
     if (hasLocationUpdate) {
-      console.log('[HorizontalFriendsBar] Triggering location update animation for user');
-      this.triggerLocationUpdateAnimation();
+      // 🚀 ENTERPRISE FIX: Track campus status changes for smart animation
+      const newCampusStatus = systemInfo.lastKnownLocation?.campusStatus;
+      const previousStatus = this.lastKnownCampusStatus || 'unknown';
+      
+      const campusStatusChange = {
+        previousStatus,
+        newStatus: newCampusStatus
+      };
+      
+      // Update tracked status
+      this.lastKnownCampusStatus = newCampusStatus;
+      
+      console.log('[HorizontalFriendsBar] Triggering smart location update animation with status change:', campusStatusChange);
+      this.triggerLocationUpdateAnimation(campusStatusChange);
     }
   }
 
@@ -4671,26 +4698,68 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Trigger subtle location update animation
+   * 🚀 ENTERPRISE FIX: Smart location update animation with debouncing and campus status tracking
+   * Only triggers animation on meaningful location changes (campus status transitions)
    */
-  triggerLocationUpdateAnimation() {
+  triggerLocationUpdateAnimation(campusStatusChange = null) {
     if (!this.userAvatarElement) return;
     
     const indicator = this.userAvatarElement.querySelector('.location-update-indicator');
     if (!indicator) return;
     
-    console.log('[HorizontalFriendsBar] Triggering location update animation');
+    // 🛡️ ANIMATION DEBOUNCING: Prevent rapid successive animations
+    const now = Date.now();
+    const minAnimationInterval = 3000; // Minimum 3 seconds between animations
     
-    // Reset animation
+    if (this.lastLocationAnimationTime && (now - this.lastLocationAnimationTime) < minAnimationInterval) {
+      console.log('[HorizontalFriendsBar] 🛑 Animation debounced - too frequent');
+      return;
+    }
+    
+    // 🎯 SMART FILTERING: Only animate on meaningful campus status changes
+    if (campusStatusChange) {
+      const { previousStatus, newStatus } = campusStatusChange;
+      
+      // Skip animation if status didn't actually change
+      if (previousStatus === newStatus) {
+        console.log('[HorizontalFriendsBar] 🛑 No campus status change - skipping animation');
+        return;
+      }
+      
+      // Skip animation for unknown status transitions
+      if (newStatus === 'unknown' && previousStatus !== 'unknown') {
+        console.log('[HorizontalFriendsBar] 🛑 Status became unknown - skipping animation');
+        return;
+      }
+      
+      console.log('[HorizontalFriendsBar] 🌍 Meaningful campus status change detected:', {
+        from: previousStatus,
+        to: newStatus
+      });
+    }
+    
+    // 🛡️ ANIMATION STATE MANAGEMENT: Prevent overlapping animations
+    if (this.isLocationAnimationRunning) {
+      console.log('[HorizontalFriendsBar] 🛑 Animation already running - skipping');
+      return;
+    }
+    
+    console.log('[HorizontalFriendsBar] ✨ Triggering smart location update animation');
+    
+    this.lastLocationAnimationTime = now;
+    this.isLocationAnimationRunning = true;
+    
+    // Reset animation state
     indicator.classList.remove('location-updated');
     
-    // Trigger animation with slight delay
+    // Trigger animation with slight delay for better visual effect
     setTimeout(() => {
       indicator.classList.add('location-updated');
       
-      // Remove animation class after completion
+      // Clean up animation state after completion
       setTimeout(() => {
         indicator.classList.remove('location-updated');
+        this.isLocationAnimationRunning = false;
       }, 2000); // Animation duration
     }, 50);
   }
@@ -4751,12 +4820,28 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Public method to manually trigger location update animation
+   * 🚀 ENTERPRISE FIX: Enhanced public method to manually trigger location update animation
    * (Can be called from location service when coordinates are updated)
+   * @param {Object} statusChange - Optional campus status change information
    */
-  notifyLocationUpdated() {
+  notifyLocationUpdated(statusChange = null) {
     console.log('[HorizontalFriendsBar] Location update notification received');
-    this.triggerLocationUpdateAnimation();
+    
+    // If no status change provided, try to get current user status for context
+    if (!statusChange && currentUser?.profile?.systemInfo?.lastKnownLocation?.campusStatus) {
+      const currentStatus = currentUser.profile.systemInfo.lastKnownLocation.campusStatus;
+      const previousStatus = this.lastKnownCampusStatus || 'unknown';
+      
+      statusChange = {
+        previousStatus,
+        newStatus: currentStatus
+      };
+      
+      // Update tracked status
+      this.lastKnownCampusStatus = currentStatus;
+    }
+    
+    this.triggerLocationUpdateAnimation(statusChange);
   }
 
   /**
