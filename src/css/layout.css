@@ -255,21 +255,13 @@ This file contains all layout-related styles for the MeetchuThere app:
   /* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
   /* These .main-content and .content-grid rules will be moved from here */
 
-  .schedule-column,
-  .controls-column {
+  .schedule-column {
     width: 100%;
     max-width: 100%;
     min-width: 0; /* Allow content to shrink */
   }
 
-  .controls-column {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(1rem, 3vw, 1.5rem); /* Responsive gap between control sections */
-  }
-
   /* Ensure all cards take full width and respect container bounds */
-  .controls-column .glass-card,
   .schedule-column .glass-card {
     width: 100%;
     max-width: 100%;
@@ -459,47 +451,16 @@ This file contains all layout-related styles for the MeetchuThere app:
     max-width: 100% !important;
   }
 
-  .schedule-column,
-  .controls-column {
+  .schedule-column {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important; /* Allow content to shrink */
-  }
-
-  .controls-column {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem; /* Gap between individual control sections */
-    width: 100%;
-  }
-
-  /* Mobile column ordering - Schedule column should come first */
-  .schedule-column {
     order: 1; /* Schedule column first */
   }
 
-  .controls-column {
-    order: 2; /* Controls column second */
-  }
-
-  .controls-column {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem; /* Gap between individual control sections */
-    width: 100%;
-  }
-
-  /* Within controls column, set the internal section order */
-  /* Mobile order within controls: Users → Compare → Import/Export */
-  .users-section {
-    order: 1; /* Users List first within controls */
-  }
 
 
 
-  .import-export-section {
-    order: 3; /* Export/Import third within controls */
-  }
 
   /* Make glass cards use full width */
   .glass-card {
@@ -533,41 +494,23 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .content-grid {
-    grid-template-columns: minmax(400px, 1fr) 3fr !important; /* Wider controls, larger schedule */
+    max-width: 1400px !important; /* Wider max-width for ultra-wide screens */
     gap: 2rem !important; /* Increased gap */
   }
 
-  /* Force column structure on ultra-wide desktop */
-  .controls-column {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 2rem !important;
-  }
-
+  /* Single column layout for ultra-wide */
   .schedule-column {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
-  /* Reset any individual section positioning for ultra-wide */
-  .users-section,
-  .import-export-section,
+  /* Reset section positioning for ultra-wide */
   .schedule-section {
-    grid-column: unset !important;
-    grid-row: unset !important;
     order: unset !important;
-  }
-
-  .schedule-section {
-    grid-column: 2;
-    grid-row: 1 / -1;
     height: fit-content; /* Scale with content */
     max-height: calc(
       100vh - 4rem
     ); /* Maximize height utilization on wide screens */
-    order: unset;
   }
 
   /* Larger cards for wide screens */
@@ -616,40 +559,18 @@ This file contains all layout-related styles for the MeetchuThere app:
     width: 100% !important;
   }
 
-  .schedule-column,
-  .controls-column {
+  .schedule-column {
     width: 100% !important;
     max-width: 100% !important;
   }
 
-  .controls-column {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem; /* Gap between individual control sections */
-    width: 100%;
-  }
-
-  /* Mobile column ordering - Schedule column should come first */
+  /* Single column layout - schedule only */
   .schedule-column {
     order: 1; /* Schedule column first */
   }
 
-  .controls-column {
-    order: 2; /* Controls column second */
-  }
-
-  /* Within controls column, set the internal section order */
-  /* Mobile order within controls: Users → Compare → Add User → Export/Import */
-  /* HTML source order: Compare → Add User → Users → Import/Export */
-  .users-section {
-    order: 1; /* Users List first within controls */
-  }
 
 
-
-  .import-export-section {
-    order: 3; /* Export/Import third within controls */
-  }
 
   /* Make glass cards use full width */
   .glass-card {
@@ -716,44 +637,24 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 
   .content-grid {
-    display: grid !important;
-    grid-template-columns: minmax(350px, 1fr) 2.5fr !important; /* Controls left, Schedule right */
-    grid-template-rows: 1fr !important; /* Single row for column layout */
-    gap: 1.5rem !important;
-    align-items: start !important;
-    width: 100% !important;
-  }
-
-  /* Force column structure on desktop */
-  .controls-column {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
     display: flex !important;
     flex-direction: column !important;
+    align-items: center !important;
     gap: 1.5rem !important;
     width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
   }
 
+  /* Single column layout */
   .schedule-column {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
     width: 100% !important;
+    max-width: 100% !important;
   }
 
   /* Reset any individual section positioning */
-  .users-section,
-  .import-export-section,
   .schedule-section {
-    grid-column: unset !important;
-    grid-row: unset !important;
     order: unset !important;
-  }
-
-  .controls-column {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem; /* Gap between individual control sections */
-    width: 100%;
   }
 
   /* Restore standard schedule sizes */

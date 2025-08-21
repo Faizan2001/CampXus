@@ -51,8 +51,6 @@ body.page-notifications .schedule-column {
 }
 
 /* Reset any grid positioning for notification elements */
-body.page-notifications .users-section,
-body.page-notifications .import-export-section,
 body.page-notifications .schedule-section {
   grid-column: unset !important;
   grid-row: unset !important;

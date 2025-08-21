@@ -15,11 +15,6 @@ import {
   isValidStrictHHMMTimeFormat,
   createUnifiedSchedule,
 } from "../utils/time/timeUtils.js";
-import {
-  handleExportCurrentUser,
-  handleImportSchedule,
-  setupExportImportListeners,
-} from "../utils/schedule/exportImport.js";
 import { authManager } from "../services/auth/AuthService.js";
 import { dataManager } from "../services/data/DataService.js";
 import { scheduleStorageService } from "../services/schedule/ScheduleStorageService.js";
@@ -6457,7 +6452,6 @@ document.addEventListener("spa:page:load", (event) => {
     console.log("🔧 Setting up validation and listeners...");
     setupInputValidation();
     setupEventListeners();
-    setupExportImportListeners(state, saveStateToStorage, updateUI);
 
     // Initialize Phase-3: Horizontal Friends Bar
     console.log("⭐ Initializing Horizontal Friends Bar...");

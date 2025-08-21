@@ -495,13 +495,6 @@ const conflictColors = {
 | `addNewTimeSlotBtn`     | `#addNewTimeSlotBtn`     | Add custom time slots      |
 | `addTimeSlotHeaderCell` | `#addTimeSlotHeaderCell` | Header cell for add button |
 
-### Import/Export Elements
-
-| Element          | Selector                 | Purpose                  |
-| ---------------- | ------------------------ | ------------------------ |
-| `importTextArea` | `#importText`            | JSON import input area   |
-| `exportButton`   | `.export-section button` | Export user data trigger |
-| `importButton`   | `.import-section button` | Import data trigger      |
 
 ---
 
@@ -518,17 +511,6 @@ const conflictColors = {
 
 ---
 
-## 👥 User Management & Selection
-
-**Main Section:** `.users-section` in `index.html`
-
-| Component          | CSS Class             | Behavior                           |
-| ------------------ | --------------------- | ---------------------------------- |
-| **User Item**      | `.user-item`          | Click to select/activate user      |
-| **Active State**   | `.user-item.active`   | Purple gradient background         |
-| **Selected State** | `.user-item.selected` | Border highlight for comparison    |
-| **Delete Button**  | `.delete-btn`         | Remove user with confirmation      |
-| **Add User Form**  | `.add-user-section`   | Name and ID inputs with validation |
 
 ---
 
@@ -643,7 +625,6 @@ Monday   | [slot]    | [slot]     | ... |
 | **Time Slot Editor** | Click schedule header | Edit existing time slots    |
 | **Add Time Slot**    | Click "+" button      | Create new time periods     |
 | **Confirmations**    | Delete actions        | User confirmation dialogs   |
-| **Import/Export**    | Data transfer         | JSON schedule import/export |
 
 ---
 
@@ -705,7 +686,6 @@ The styling system is organized into 9 specialized modules for maintainability a
 | `.dark-mode`        | Body               | Dark theme styling          |
 | `.content-grid`     | Main layout        | Grid layout container       |
 | `.schedule-column`  | Schedule section   | Schedule grid column        |
-| `.controls-column`  | Control panels     | Controls sidebar column     |
 | `.schedule-wrapper` | Schedule container | Scrollable schedule wrapper |
 
 ### Privacy & Performance Classes

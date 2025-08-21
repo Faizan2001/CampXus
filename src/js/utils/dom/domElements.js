@@ -1,13 +1,6 @@
 // js/domElements.js
 
 export const DOM_ELEMENTS = {
-  // User Management
-  userNameInput: null,
-  userIdInput: null,
-
-  usersSection: null,
-  loginButton: null,
-
   // Schedule & Comparison
   scheduleTable: null,
   scheduleWrapper: null,
@@ -15,10 +8,6 @@ export const DOM_ELEMENTS = {
   togglePinModeBtn: null,
   slotTooltip: null,
 
-  // Import / Export
-  importTextArea: null,
-  exportButton: null,
-  importButton: null,
 
   // Modal Elements
   appModal: null,
@@ -58,13 +47,6 @@ export const DOM_ELEMENTS = {
  * Should be called after DOMContentLoaded.
  */
 export function initializeDomElements() {
-  // User Management - Now these exist in the modal
-  DOM_ELEMENTS.userNameInput = document.getElementById("userName");
-  DOM_ELEMENTS.userIdInput = document.getElementById("userId");
-
-  DOM_ELEMENTS.usersSection = document.querySelector(".users-section");
-  DOM_ELEMENTS.loginButton = document.getElementById("login-btn");
-
   // Schedule & Comparison
   DOM_ELEMENTS.scheduleTable = document.getElementById("scheduleTable");
   DOM_ELEMENTS.scheduleWrapper = document.querySelector(".schedule-wrapper");
@@ -72,10 +54,6 @@ export function initializeDomElements() {
   DOM_ELEMENTS.togglePinModeBtn = document.getElementById("togglePinModeBtn");
   DOM_ELEMENTS.slotTooltip = document.getElementById("slotTooltip") || null; // May not exist
 
-  // Import / Export
-  DOM_ELEMENTS.importTextArea = document.getElementById("importText");
-  DOM_ELEMENTS.exportButton = document.querySelector(".export-section button");
-  DOM_ELEMENTS.importButton = document.querySelector(".import-section button");
 
   // Modal Elements - These may not exist if modal not implemented yet
   DOM_ELEMENTS.appModal = document.getElementById("appModal") || null;
@@ -127,8 +105,6 @@ export function initializeDomElements() {
 
   // Log optional missing elements as warnings
   const optionalElements = [
-    "userNameInput",
-    "userIdInput",
     "slotTooltip",
     "appModal",
   ];

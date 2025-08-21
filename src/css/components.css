@@ -684,28 +684,6 @@ textarea {
   line-height: 1.5;
 }
 
-/* Import section wrapper spacing */
-.import-section .input-wrapper {
-  margin-bottom: 1rem;
-}
-
-.input-wrapper i + #importText,
-#importText + i {
-  top: 1.6rem;
-  left: 1rem;
-}
-
-/* Import textarea specific styling */
-.import-section .input-wrapper textarea {
-  min-height: 50px;
-  padding: 1rem;
-  padding-left: 3rem;
-}
-
-.import-section .input-wrapper i {
-  top: 1rem;
-  left: 1rem;
-}
 
 /* ===== USER MANAGEMENT & SELECTION ===== */
 

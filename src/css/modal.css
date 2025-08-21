@@ -330,79 +330,8 @@
   gap: 1rem;
 }
 
-/* Add user form styles */
 
-
-.add-user-form-content .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.add-user-form-content .form-group label {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.add-user-form-content .modal-input {
-  width: 100%;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: var(--surface);
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  margin-bottom: 0;
-}
-
-/* Fix for input-wrapper children in add user modal - ensure proper left padding for icons */
-.add-user-form-content .input-wrapper .modal-input {
-  padding-left: 3rem; /* Make space for icons */
-}
-
-.add-user-form-content .modal-input:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--modal-input-focus-shadow);
-  background: var(--surface-hover);
-}
-
-/* Fix for input-wrapper children focus state in add user modal */
-.add-user-form-content .input-wrapper .modal-input:focus {
-  padding-left: 3rem; /* Maintain space for icons on focus */
-}
-
-.add-user-form-content .modal-input::placeholder {
-  color: var(--text-light);
-}
-
-/* Icon positioning for input-wrapper in add user modal */
-.add-user-form-content .input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.add-user-form-content .input-wrapper i {
-  position: absolute;
-  left: 1rem !important;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  z-index: 2;
-  transition: all 0.3s ease;
-}
-
-/* Icon color change on input focus in modal */
-.add-user-form-content .input-wrapper .modal-input:focus + i,
-.add-user-form-content .input-wrapper i:has(+ .modal-input:focus) {
-  color: var(--accent-primary);
-}
-
-/* Fix for glass-card input-wrapper (import/export section) */
+/* Fix for glass-card input-wrapper styling */
 .glass-card .input-wrapper {
   position: relative;
   display: flex;

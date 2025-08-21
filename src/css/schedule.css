@@ -1068,19 +1068,6 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   cursor: not-allowed !important;
 }
 
-/* ===== GLOW ANIMATION FOR ADD USER BUTTON ===== */
-/* Animation for when schedule is clicked while disabled */
-@keyframes addUserGlow {
-  0% {
-    box-shadow: 0 0 5px var(--accent-primary);
-  }
-  50% {
-    box-shadow: 0 0 20px var(--accent-primary), 0 0 30px rgba(79, 172, 254, 0.3);
-  }
-  100% {
-    box-shadow: 0 0 5px var(--accent-primary);
-  }
-}
 
 /* 
 --- IMPROVED SCROLLBAR STYLING ---
@@ -1781,14 +1768,6 @@ body:not(.dark-mode) #slotTooltip {
     gap: 2rem;
     align-items: start;
   }
-}
-
-/* ===== CONTROLS COLUMN ===== */
-.controls-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 100%;
 }
 
 /* ===== SCHEDULE COLUMN ===== */

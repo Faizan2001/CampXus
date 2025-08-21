@@ -28,8 +28,6 @@ const setupBaseTestDOM = () => {
         </table>
         <button id="compare"></button>
         <div id="slotTooltip" style="display: none;"></div>
-        <textarea id="importText"></textarea>
-        <div class="export-import"><button>Export</button><button>Import</button></div>
         <div id="appModal" style="display: none;">
             <div class="modal-content">
                 <h3 id="modalTitle"></h3>
