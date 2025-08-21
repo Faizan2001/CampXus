@@ -127,8 +127,11 @@ export function validateCriticalElementsForRoute(route) {
   if (route === "home") {
     const criticalElements = [
       "scheduleTable",
-
       "compareButton",
+      "dayViewBtn",
+      "gridViewBtn",
+      "scheduleDayView",
+      "scheduleGridView",
     ];
 
     const missingCritical = criticalElements.filter(
@@ -140,7 +143,26 @@ export function validateCriticalElementsForRoute(route) {
         "Critical DOM elements missing for home page:",
         missingCritical
       );
-      return false;
+      
+      // Try to re-initialize missing view mode elements
+      if (missingCritical.some(elem => ["dayViewBtn", "gridViewBtn", "scheduleDayView", "scheduleGridView"].includes(elem))) {
+        console.log("🔄 Attempting to re-initialize view mode elements...");
+        reinitializeViewModeElements();
+        
+        // Re-check after re-initialization
+        const stillMissing = criticalElements.filter(
+          (key) => !DOM_ELEMENTS[key]
+        );
+        
+        if (stillMissing.length > 0) {
+          console.error("❌ Still missing critical elements after re-initialization:", stillMissing);
+          return false;
+        } else {
+          console.log("✅ Successfully re-initialized missing view mode elements");
+        }
+      } else {
+        return false;
+      }
     }
 
     console.log("✅ All critical DOM elements found for home page");
@@ -148,4 +170,29 @@ export function validateCriticalElementsForRoute(route) {
   }
 
   return true; // No critical elements to check for other routes
+}
+
+/**
+ * Re-initialize view mode DOM elements
+ * Useful when elements become stale after template reloading
+ */
+export function reinitializeViewModeElements() {
+  console.log("🔄 Re-initializing view mode elements...");
+  
+  // Re-fetch view mode elements
+  DOM_ELEMENTS.dayViewBtn = document.getElementById("dayViewBtn");
+  DOM_ELEMENTS.gridViewBtn = document.getElementById("gridViewBtn");
+  DOM_ELEMENTS.scheduleDayView = document.getElementById("scheduleDayView");
+  DOM_ELEMENTS.scheduleGridView = document.getElementById("scheduleGridView");
+  DOM_ELEMENTS.daySelectorContainer = document.getElementById("daySelectorContainer");
+  DOM_ELEMENTS.daySelector = document.getElementById("daySelector");
+  DOM_ELEMENTS.dayViewContainer = document.getElementById("dayViewContainer");
+  
+  console.log("📍 View mode elements re-initialized:", {
+    dayViewBtn: !!DOM_ELEMENTS.dayViewBtn,
+    gridViewBtn: !!DOM_ELEMENTS.gridViewBtn,
+    scheduleDayView: !!DOM_ELEMENTS.scheduleDayView,
+    scheduleGridView: !!DOM_ELEMENTS.scheduleGridView,
+    timestamp: new Date().toISOString()
+  });
 }

@@ -5,7 +5,9 @@ import { DEFAULT_TIMESLOTS, LOCAL_STORAGE_KEY } from "../utils/constants.js";
 import {
   DOM_ELEMENTS,
   initializeDomElements,
+  reinitializeViewModeElements,
 } from "../utils/dom/domElements.js";
+import viewModeManager from "../services/ui/ViewModeManager.js";
 import { showModal } from "../components/modals/Modal.js"; // Only import showModal, initModal is handled in spa-init.js
 import {
   parseTime,
@@ -3709,35 +3711,108 @@ function scrollToCurrentDay() {
 /**
  * Set up view mode toggle functionality
  */
-function setupViewModeToggle() {
+async function setupViewModeToggle() {
   console.log("📱 Setting up view mode toggle listeners...");
-  console.log("📍 DOM_ELEMENTS.dayViewBtn:", DOM_ELEMENTS.dayViewBtn);
-  console.log("📍 DOM_ELEMENTS.gridViewBtn:", DOM_ELEMENTS.gridViewBtn);
-
-  const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
-  const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
-
-  if (dayViewBtn) {
-    console.log("✅ Adding listener to day view button...");
-    addUIControlListener(dayViewBtn, "click", () =>
-      handleViewModeChange("day")
-    );
-  } else {
-    console.error("❌ Day view button not found!");
+  
+  try {
+    // Make ViewModeManager globally available for debugging
+    window.viewModeManager = viewModeManager;
+    
+    // Use ViewModeManager for robust setup
+    await viewModeManager.initialize(state.viewMode, true); // Enable debug mode
+    console.log("✅ ViewModeManager initialized successfully");
+    
+    // Listen for view mode changes
+    document.addEventListener("viewModeChanged", (event) => {
+      const { previousMode, newMode } = event.detail;
+      console.log(`🔄 ViewMode changed: ${previousMode} → ${newMode}`);
+      
+      // Update internal state
+      state.viewMode = newMode;
+      
+      // Re-render for new view mode
+      renderScheduleForCurrentView();
+    });
+    
+  } catch (error) {
+    console.error("❌ Failed to initialize ViewModeManager:", error);
+    
+    // Fallback to legacy method
+    console.log("🔄 Falling back to legacy view mode setup");
+    setupViewModeToggleSafe();
   }
+}
 
-  if (gridViewBtn) {
-    console.log("✅ Adding listener to grid view button...");
-    addUIControlListener(gridViewBtn, "click", () =>
-      handleViewModeChange("grid")
-    );
-  } else {
-    console.error("❌ Grid view button not found!");
+/**
+ * Safe view mode setup with fallback re-initialization
+ */
+function setupViewModeToggleSafe() {
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  function attemptSetup() {
+    console.log(`🔄 Attempting view mode setup (attempt ${retryCount + 1}/${maxRetries})`);
+    
+    // Re-initialize DOM elements to ensure they're current
+    reinitializeViewModeElements();
+    
+    const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
+    const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
+
+    console.log("📍 View mode button validation:", {
+      dayViewBtn: !!dayViewBtn,
+      gridViewBtn: !!gridViewBtn,
+      dayViewBtnId: dayViewBtn?.id,
+      gridViewBtnId: gridViewBtn?.id,
+      retryCount,
+      timestamp: new Date().toISOString()
+    });
+
+    // Check if both critical buttons are available
+    if (!dayViewBtn || !gridViewBtn) {
+      retryCount++;
+      if (retryCount < maxRetries) {
+        console.warn(`⚠️ View mode buttons not ready - retrying in 100ms (attempt ${retryCount}/${maxRetries})`);
+        setTimeout(attemptSetup, 100);
+        return;
+      } else {
+        console.error("❌ Failed to initialize view mode buttons after maximum retries");
+        console.log("🔍 Final DOM state:", {
+          availableElements: Array.from(document.querySelectorAll('[id*="View"]')).map(el => el.id),
+          templateLoaded: !!document.getElementById("scheduleTable"),
+          homeTemplatePresent: !!document.querySelector('.schedule-section')
+        });
+        return;
+      }
+    }
+
+    // Both buttons are available - set up event listeners
+    console.log("✅ Both view mode buttons found - setting up listeners");
+
+    if (dayViewBtn) {
+      addUIControlListener(dayViewBtn, "click", () => {
+        console.log("🎯 Day view button clicked - triggering view mode change");
+        handleViewModeChange("day");
+      });
+      console.log("✅ Day view button listener added");
+    }
+
+    if (gridViewBtn) {
+      addUIControlListener(gridViewBtn, "click", () => {
+        console.log("🎯 Grid view button clicked - triggering view mode change");
+        handleViewModeChange("grid");
+      });
+      console.log("✅ Grid view button listener added");
+    }
+
+    console.log("📱 View mode toggle listeners successfully set up with safe method");
+    
+    // Set initial state
+    updateViewModeButtons();
+    updateViewContainers();
   }
-
-  console.log("📱 View mode toggle listeners set up");
-  // Set initial state
-  updateViewModeButtons();
+  
+  attemptSetup();
 }
 
 /**
@@ -3891,9 +3966,25 @@ function setupSwipeGestures() {
  * Handle view mode changes (day/grid)
  */
 async function handleViewModeChange(newViewMode) {
-  if (state.viewMode === newViewMode) return;
+  console.log(`🔄 View mode change requested:`, {
+    from: state.viewMode,
+    to: newViewMode,
+    timestamp: new Date().toISOString(),
+    dayViewBtn: !!DOM_ELEMENTS.dayViewBtn,
+    gridViewBtn: !!DOM_ELEMENTS.gridViewBtn,
+    scheduleDayView: !!DOM_ELEMENTS.scheduleDayView,
+    scheduleGridView: !!DOM_ELEMENTS.scheduleGridView
+  });
 
+  if (state.viewMode === newViewMode) {
+    console.log(`⚠️ View mode change ignored - already in ${newViewMode} mode`);
+    return;
+  }
+
+  const previousViewMode = state.viewMode;
   state.viewMode = newViewMode;
+
+  console.log(`✅ View mode changed from ${previousViewMode} to ${newViewMode}`);
 
   // Update UI elements
   updateViewModeButtons();
@@ -3968,12 +4059,27 @@ function updateViewModeButtons() {
   const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
   const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
 
+  console.log(`🎛️ Updating view mode buttons for mode: ${state.viewMode}`, {
+    dayViewBtn: !!dayViewBtn,
+    gridViewBtn: !!gridViewBtn,
+    dayViewBtnActive: dayViewBtn?.classList.contains("active"),
+    gridViewBtnActive: gridViewBtn?.classList.contains("active")
+  });
+
   if (dayViewBtn) {
-    dayViewBtn.classList.toggle("active", state.viewMode === "day");
+    const shouldBeActive = state.viewMode === "day";
+    dayViewBtn.classList.toggle("active", shouldBeActive);
+    console.log(`📍 Day view button updated - active: ${shouldBeActive}`);
+  } else {
+    console.error(`❌ Day view button not found - cannot update UI`);
   }
 
   if (gridViewBtn) {
-    gridViewBtn.classList.toggle("active", state.viewMode === "grid");
+    const shouldBeActive = state.viewMode === "grid";
+    gridViewBtn.classList.toggle("active", shouldBeActive);
+    console.log(`📍 Grid view button updated - active: ${shouldBeActive}`);
+  } else {
+    console.error(`❌ Grid view button not found - cannot update UI`);
   }
 }
 

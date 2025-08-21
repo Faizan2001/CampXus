@@ -47,6 +47,12 @@ class DebugHelpers {
     console.log("  - debug.testFriendshipIdFix() - Test friendshipId availability for bilateral sharing");
     console.log("  - debug.testBilateralLocationData() - Debug bilateral location sharing data structure");
     console.log("");
+    console.log("📱 View Mode System:");
+    console.log("  - debug.viewModeStatus() - Show view mode system status");
+    console.log("  - debug.testViewModeSwitch() - Test view mode switching");
+    console.log("  - debug.simulateViewModeFailure() - Simulate view mode button failure");
+    console.log("  - debug.reinitializeViewMode() - Force view mode re-initialization");
+    console.log("");
     console.log("🧹 Utilities:");
     console.log("  - debug.clearStorage() - Clear all local storage");
     console.log("  - debug.exportLogs() - Export console logs");
@@ -596,6 +602,216 @@ class DebugHelpers {
       
     } catch (error) {
       console.error("❌ Error testing bilateral location data:", error);
+    }
+    
+    console.groupEnd();
+  }
+
+  /**
+   * 📱 Show view mode system status
+   */
+  viewModeStatus() {
+    console.group("📱 View Mode System Status");
+
+    // Check if ViewModeManager is available
+    if (window.viewModeManager) {
+      console.log("🏗️ ViewModeManager Status:");
+      const status = window.viewModeManager.getDebugInfo();
+      
+      console.log(`  Current View Mode: ${status.currentViewMode}`);
+      console.log(`  Is Initialized: ${status.isInitialized}`);
+      console.log(`  Elements Valid: ${status.elementsValid}`);
+      console.log(`  Event Listeners: ${status.eventListenersCount}`);
+      console.log(`  Retry Attempts: ${status.retryAttempts}`);
+      
+      console.log("\n🎛️ DOM Elements:");
+      Object.entries(status.domState).forEach(([key, available]) => {
+        console.log(`  ${available ? "✅" : "❌"} ${key}`);
+      });
+      
+      if (status.availableElements.length > 0) {
+        console.log("\n🔍 Available View Elements:");
+        status.availableElements.forEach(elem => {
+          console.log(`  - ${elem.id} (${elem.tagName})`);
+        });
+      }
+      
+    } else {
+      console.log("❌ ViewModeManager not available");
+      
+      // Check legacy DOM elements
+      const elements = [
+        'dayViewBtn',
+        'gridViewBtn', 
+        'scheduleDayView',
+        'scheduleGridView'
+      ];
+      
+      console.log("\n🎛️ Legacy DOM Elements:");
+      elements.forEach(id => {
+        const element = document.getElementById(id);
+        console.log(`  ${element ? "✅" : "❌"} ${id}`);
+        if (element) {
+          console.log(`    Classes: ${Array.from(element.classList).join(', ')}`);
+          console.log(`    Listeners: ${element._listeners?.length || 'Unknown'}`);
+        }
+      });
+    }
+
+    // Check HomePage state if available
+    if (window.homePageState || window.state) {
+      const pageState = window.homePageState || window.state;
+      console.log("\n📄 HomePage State:");
+      console.log(`  Current viewMode: ${pageState.viewMode}`);
+      console.log(`  Is Mobile: ${pageState.isMobile}`);
+      console.log(`  Is Initialized: ${pageState.isInitialized}`);
+      console.log(`  Selected Day: ${pageState.selectedDay}`);
+    }
+
+    console.groupEnd();
+  }
+
+  /**
+   * 🧪 Test view mode switching
+   */
+  async testViewModeSwitch() {
+    console.group("🧪 Testing View Mode Switch");
+    
+    try {
+      if (window.viewModeManager) {
+        console.log("🔄 Using ViewModeManager for test");
+        
+        const currentMode = window.viewModeManager.getCurrentViewMode();
+        const targetMode = currentMode === "day" ? "grid" : "day";
+        
+        console.log(`Current: ${currentMode} → Target: ${targetMode}`);
+        
+        await window.viewModeManager.handleViewModeChange(targetMode);
+        
+        // Wait a bit and switch back
+        setTimeout(async () => {
+          console.log(`🔄 Switching back: ${targetMode} → ${currentMode}`);
+          await window.viewModeManager.handleViewModeChange(currentMode);
+          console.log("✅ View mode switch test complete");
+        }, 2000);
+        
+      } else {
+        console.log("🔄 Testing legacy view mode buttons");
+        
+        const dayBtn = document.getElementById('dayViewBtn');
+        const gridBtn = document.getElementById('gridViewBtn');
+        
+        if (dayBtn && gridBtn) {
+          console.log("🎯 Simulating day button click");
+          dayBtn.click();
+          
+          setTimeout(() => {
+            console.log("🎯 Simulating grid button click");
+            gridBtn.click();
+          }, 1500);
+          
+          setTimeout(() => {
+            console.log("✅ Legacy button test complete");
+          }, 3000);
+        } else {
+          console.error("❌ View mode buttons not found");
+        }
+      }
+      
+    } catch (error) {
+      console.error("❌ View mode switch test failed:", error);
+    }
+    
+    console.groupEnd();
+  }
+
+  /**
+   * 🚨 Simulate view mode button failure
+   */
+  simulateViewModeFailure() {
+    console.group("🚨 Simulating View Mode Failure");
+    
+    // Temporarily hide view mode buttons to simulate DOM failure
+    const dayBtn = document.getElementById('dayViewBtn');
+    const gridBtn = document.getElementById('gridViewBtn');
+    
+    if (dayBtn) {
+      dayBtn.style.display = 'none';
+      console.log("🙈 Hidden day view button");
+    }
+    
+    if (gridBtn) {
+      gridBtn.style.display = 'none';
+      console.log("🙈 Hidden grid view button");
+    }
+    
+    // Try to switch view modes while buttons are hidden
+    setTimeout(() => {
+      console.log("🔄 Attempting view mode switch with hidden buttons...");
+      
+      if (window.viewModeManager) {
+        window.viewModeManager.handleViewModeChange("grid").catch(error => {
+          console.log("✅ Expected failure caught:", error.message);
+        });
+      }
+      
+      // Restore buttons after 5 seconds
+      setTimeout(() => {
+        if (dayBtn) {
+          dayBtn.style.display = '';
+          console.log("👀 Restored day view button");
+        }
+        if (gridBtn) {
+          gridBtn.style.display = '';
+          console.log("👀 Restored grid view button");
+        }
+        console.log("✅ Simulation complete - buttons restored");
+      }, 5000);
+      
+    }, 1000);
+    
+    console.groupEnd();
+  }
+
+  /**
+   * 🔄 Force view mode re-initialization
+   */
+  async reinitializeViewMode() {
+    console.group("🔄 Force View Mode Re-initialization");
+    
+    try {
+      if (window.viewModeManager) {
+        console.log("🔄 Resetting ViewModeManager...");
+        window.viewModeManager.reset();
+        
+        console.log("🔧 Re-initializing with debug mode...");
+        await window.viewModeManager.initialize("day", true);
+        
+        console.log("✅ ViewModeManager re-initialization complete");
+        
+        // Show current status
+        const status = window.viewModeManager.getDebugInfo();
+        console.log("📊 New Status:", {
+          initialized: status.isInitialized,
+          elementsValid: status.elementsValid,
+          eventListeners: status.eventListenersCount
+        });
+        
+      } else {
+        console.log("❌ ViewModeManager not available");
+        console.log("🔧 Trying to re-initialize DOM elements...");
+        
+        // Try to call reinitializeViewModeElements if available
+        if (window.reinitializeViewModeElements) {
+          window.reinitializeViewModeElements();
+          console.log("✅ DOM elements re-initialized");
+        } else {
+          console.log("❌ reinitializeViewModeElements not available");
+        }
+      }
+      
+    } catch (error) {
+      console.error("❌ Re-initialization failed:", error);
     }
     
     console.groupEnd();
