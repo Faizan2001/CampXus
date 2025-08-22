@@ -55,20 +55,46 @@ export class PresenceDot {
   }
 
   /**
+   * Creates a loading presence dot for fresh data scenarios
+   * 
+   * @param {string} loadingText - Optional loading text (defaults to empty)
+   * @returns {string} HTML string for loading presence dot
+   */
+  static createLoading(loadingText = "") {
+    console.log("[PresenceDot] Creating loading dot for fresh data");
+    return `
+      <div class="presence-dot loading" title="Loading fresh location data...">
+        <div class="loading-spinner"></div>
+        ${loadingText ? `<span class="dot-text">${loadingText}</span>` : ''}
+      </div>
+    `;
+  }
+
+  /**
    * Creates a presence dot HTML element
    *
    * @param {Date|Object|null} lastActive - Last activity timestamp (Firebase Timestamp or Date)
    * @param {Object|null} lastKnownLocation - Location data with campusStatus
    * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
+   * @param {Object} options - Additional options
+   * @param {boolean} options.isLoading - Whether to show loading state
+   * @param {boolean} options.forceFreshData - Whether this requires fresh data (show loading until fresh)
    * @returns {string} HTML string for presence dot element
    */
-  static create(lastActive, lastKnownLocation, hasLocationSharing = false) {
+  static create(lastActive, lastKnownLocation, hasLocationSharing = false, options = {}) {
     console.log("[PresenceDot] Creating presence dot:", {
       hasLastActive: !!lastActive,
       hasLocation: !!lastKnownLocation,
       hasLocationSharing,
       campusStatus: lastKnownLocation?.campusStatus,
+      isLoading: options.isLoading,
+      forceFreshData: options.forceFreshData,
     });
+
+    // Show loading state if explicitly requested or if fresh data is being fetched
+    if (options.isLoading || options.forceFreshData) {
+      return this.createLoading();
+    }
 
     // Input validation and early returns for grey dots
     if (!hasLocationSharing) {
@@ -174,6 +200,70 @@ export class PresenceDot {
     `;
 
     return presenceDot;
+  }
+
+  /**
+   * Creates a presence dot with fresh data priority support
+   * This method checks for fresh data requirements and shows loading state if needed
+   * 
+   * @param {Date|Object|null} lastActive - Last activity timestamp  
+   * @param {Object|null} lastKnownLocation - Location data with campusStatus
+   * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
+   * @param {boolean} isWaitingForFreshData - Whether fresh data is being loaded
+   * @returns {string} HTML string for presence dot element
+   */
+  static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = false, isWaitingForFreshData = false) {
+    console.log("[PresenceDot] Creating presence dot with fresh data priority:", {
+      hasLastActive: !!lastActive,
+      hasLocation: !!lastKnownLocation,
+      hasLocationSharing,
+      isWaitingForFreshData
+    });
+
+    // Check if we should show loading state for fresh data
+    const forceFreshData = sessionStorage.getItem('campusPresence_forceFreshData') === 'true';
+    const priorityMode = sessionStorage.getItem('campusPresence_priorityMode');
+    
+    if (isWaitingForFreshData || forceFreshData || priorityMode === 'fresh_data') {
+      return this.createLoading();
+    }
+    
+    // Otherwise create normal presence dot
+    return this.create(lastActive, lastKnownLocation, hasLocationSharing);
+  }
+
+  /**
+   * Updates an existing presence dot element with fresh location data
+   * 
+   * @param {HTMLElement} dotElement - The presence dot element to update
+   * @param {Date|Object|null} lastActive - Fresh last activity timestamp
+   * @param {Object|null} lastKnownLocation - Fresh location data
+   * @param {boolean} hasLocationSharing - Location sharing status
+   */
+  static updateWithFreshData(dotElement, lastActive, lastKnownLocation, hasLocationSharing) {
+    if (!dotElement) return;
+    
+    console.log("[PresenceDot] Updating presence dot with fresh data");
+    
+    // Generate fresh presence dot HTML
+    const freshDotHtml = this.create(lastActive, lastKnownLocation, hasLocationSharing);
+    
+    // Parse the HTML to get the new element
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = freshDotHtml;
+    const freshDotElement = tempContainer.querySelector('.presence-dot');
+    
+    if (freshDotElement && dotElement.parentNode) {
+      // Copy classes and attributes from the fresh element
+      dotElement.className = freshDotElement.className;
+      dotElement.innerHTML = freshDotElement.innerHTML;
+      dotElement.title = freshDotElement.title;
+      
+      console.log("[PresenceDot] ✅ Presence dot updated with fresh data:", {
+        newClass: dotElement.className,
+        hasContent: dotElement.innerHTML.length > 0
+      });
+    }
   }
 
   /**
@@ -308,6 +398,85 @@ export class PresenceDot {
         return "red";
       default:
         return "grey";
+    }
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Create a loading presence dot for fresh data requests
+   * Shows animated loading state until fresh location data arrives
+   *
+   * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
+   * @returns {string} HTML string for loading presence dot
+   */
+  static createLoadingDot(hasLocationSharing = false) {
+    if (!hasLocationSharing) {
+      return '<div class="presence-dot grey"></div>';
+    }
+
+    console.log("[PresenceDot] Creating loading presence dot for fresh data");
+    return `<div class="presence-dot loading" title="Loading fresh location data...">
+      <div class="loading-pulse"></div>
+    </div>`;
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Create presence dot with fresh data priority
+   * Detects if fresh data is being loaded and shows loading state accordingly
+   *
+   * @param {Date|Object|null} lastActive - Last activity timestamp
+   * @param {Object|null} lastKnownLocation - Location data with campusStatus
+   * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
+   * @param {boolean} waitingForFreshData - Whether to show loading state for fresh data
+   * @returns {string} HTML string for presence dot element
+   */
+  static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = false, waitingForFreshData = false) {
+    // If waiting for fresh data and location sharing is enabled, show loading state
+    if (waitingForFreshData && hasLocationSharing) {
+      return this.createLoadingDot(hasLocationSharing);
+    }
+
+    // Otherwise, use normal creation logic
+    return this.create(lastActive, lastKnownLocation, hasLocationSharing);
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Update presence dot element with fresh data
+   * Used to replace loading dots with actual presence data
+   *
+   * @param {HTMLElement} dotElement - The presence dot element to update
+   * @param {Date|Object|null} lastActive - Last activity timestamp
+   * @param {Object|null} lastKnownLocation - Location data with campusStatus
+   * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
+   */
+  static updateWithFreshData(dotElement, lastActive, lastKnownLocation, hasLocationSharing = false) {
+    if (!dotElement) {
+      console.warn("[PresenceDot] Cannot update: dot element not found");
+      return;
+    }
+
+    // Create the new presence dot HTML
+    const newDotHtml = this.create(lastActive, lastKnownLocation, hasLocationSharing);
+    
+    // Parse the new HTML to get attributes
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = newDotHtml;
+    const newDot = tempDiv.firstElementChild;
+
+    if (newDot) {
+      // Update the existing element's classes and content
+      dotElement.className = newDot.className;
+      dotElement.innerHTML = newDot.innerHTML;
+      dotElement.title = newDot.title || '';
+      
+      // Add a subtle animation to indicate fresh data
+      dotElement.style.animation = 'fresh-data-pulse 0.5s ease-out';
+      setTimeout(() => {
+        if (dotElement) {
+          dotElement.style.animation = '';
+        }
+      }, 500);
+      
+      console.log("[PresenceDot] Updated with fresh data successfully");
     }
   }
 }

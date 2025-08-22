@@ -16,6 +16,9 @@ import {
 // Import Google API provider for strategic use cases
 import { googleGeolocationProvider } from './GoogleGeolocationProvider.js';
 
+// Import Tier 1 network detection service (FREE)
+import { networkDetectionService } from './NetworkDetectionService.js';
+
 /**
  * Service class for campus location detection and presence management
  */
@@ -174,7 +177,7 @@ export class CampusLocationService {
 
     // 💰 COST OPTIMIZATION: Strategic Google API usage control
     // Reasonable limits for 2000+ university users while controlling costs
-    this.maxGoogleCallsPerUser = 10; // Max Google API calls per user per day (allows active campus use)
+    this.maxGoogleCallsPerUser = 5; // Max Google API calls per user per day (REDUCED from 10 - cost optimization)
     this.maxDailyGoogleCalls = 1500; // Max total Google API calls per day (caps cost at ~$7.50/day)
     this.googleApiCooldown = 3 * 60 * 1000; // 3 minutes between Google API calls per user (reduced for better UX)
     
@@ -186,8 +189,7 @@ export class CampusLocationService {
     // This prevents unnecessary costs while ensuring accuracy when it matters most
     this.googleApiTriggers = [
       'first_visit',              // New user's first location request (optimal accuracy for campus detection)
-      'manual_reload',            // User manually refreshes (F5/Ctrl+R) - wants fresh data
-      'reload',                   // Page reload/navigation - immediate accurate location for presence dots
+      // 🚫 REMOVED: 'manual_reload' and 'reload' - now using 3-tier system instead
       'high_accuracy_request',    // App explicitly requests high accuracy (critical operations)
       'campus_boundary_detection', // Detecting if user is on/off campus (precision matters)
       'browser_api_failure'       // Browser API failed completely - Google API as rescue fallback
@@ -444,79 +446,284 @@ export class CampusLocationService {
    * @param {string} userId - User ID for rate limiting (optional)
    * @returns {Promise<GeolocationPosition|null>} Current position or null if failed
    */
+  /**
+   * 🎯 NEW 3-TIER COST-OPTIMIZED GEOLOCATION SYSTEM
+   * 
+   * TIER 1: Network/IP Detection (FREE) - Instant campus detection via university IP ranges
+   * TIER 2: Browser GPS (FREE) - 3 attempts with 12s timeout, write only if ≤1000m accuracy
+   * TIER 3: Google API (PAID) - Last resort only, 5 calls/day per user limit
+   */
   async getCurrentLocation(highAccuracy = false, trigger = 'unknown', userId = null) {
-  console.log(`💰 [CampusLocationService] Cost-optimized location request: ${trigger}`, {
-    userId: userId ? userId.substring(0, 8) + '...' : 'anonymous',
-    trigger,
-    highAccuracy
-  });
+    const startTime = Date.now();
+    console.log(`🎯 [CampusLocationService] 3-TIER location request: ${trigger}`, {
+      userId: userId ? userId.substring(0, 8) + '...' : 'anonymous',
+      trigger,
+      highAccuracy,
+      timestamp: new Date().toLocaleTimeString()
+    });
 
-  if (!this.isLocationSupported) {
-    console.error("[CampusLocationService] Geolocation not supported");
-    return null;
-  }
+    if (!this.isLocationSupported) {
+      console.error("[CampusLocationService] Geolocation not supported");
+      return null;
+    }
 
-  // Determine if this is a strategic use case for Google API
-  const shouldUseGoogleAPI = this.shouldUseGoogleAPI(trigger, userId, highAccuracy);
-  
-  try {
-    // Tier 1: Browser API (Free, usually most accurate)
-    if (!shouldUseGoogleAPI || trigger !== 'browser_api_failure') {
+    // 🎯 LOADING EVENT: Notify UI that location fetching has started
+    this.emitPresenceDataLoading();
+
+    let tier1Result = null;
+    let tier2Result = null;
+    let tier3Result = null;
+
+    try {
+      // ============================================================================
+      // 🆓 TIER 1: NETWORK/IP DETECTION (FREE - No API costs)
+      // ============================================================================
+      console.log('🌐 [CampusLocationService] TIER 1: Network/IP Detection (FREE)...');
+      
       try {
-        console.log('🆓 [CampusLocationService] Tier 1: Trying Browser API (FREE)...');
-        const browserResult = await this.getBrowserLocation(highAccuracy);
+        tier1Result = await networkDetectionService.detectCampusPresence('iub');
         
-        if (browserResult && browserResult.coords.accuracy <= 100) {
-          console.log(`✅ Browser API success: ±${Math.round(browserResult.coords.accuracy)}m (FREE)`);
-          return this.formatLocationResponse(browserResult, 'browser', 0);
-        } else if (browserResult) {
-          console.log(`⚡ Browser API low accuracy: ±${Math.round(browserResult.coords.accuracy)}m, considering Google API...`);
-          // For strategic triggers (like reload), use Google API even if browser API succeeds with low accuracy
-          if (!shouldUseGoogleAPI && browserResult.coords.accuracy <= 1000) {
-            return this.formatLocationResponse(browserResult, 'browser', 0);
+        if (tier1Result.success) {
+          const responseTime = Date.now() - startTime;
+          console.log(`✅ TIER 1 SUCCESS in ${responseTime}ms: ${tier1Result.campusStatus.toUpperCase()} via IP detection`);
+          
+          const locationResult = {
+            coords: {
+              latitude: null,    // IP detection doesn't provide exact coordinates
+              longitude: null,   // IP detection doesn't provide exact coordinates
+              accuracy: tier1Result.campusStatus === 'on_campus' ? 50 : 1000, // High confidence for campus, lower for off-campus
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null
+            },
+            timestamp: Date.now(),
+            source: 'network_ip_detection',
+            tier: 1,
+            cost: 0,
+            campusStatus: tier1Result.campusStatus,
+            confidence: tier1Result.confidence,
+            userIP: tier1Result.userIP,
+            responseTime: responseTime,
+            // Additional metadata
+            method: 'ip_range_detection',
+            provider: 'network_detection_service',
+            shouldWriteToDatabase: tier1Result.campusStatus === 'on_campus' // Only write campus presence
+          };
+
+          // 🎯 SUCCESS EVENT: Notify UI that location was successfully obtained
+          this.emitFreshPresenceData(locationResult, { tier: 1, campusStatus: tier1Result.campusStatus });
+          
+          return locationResult;
+        }
+      } catch (error) {
+        console.warn(`⚠️ TIER 1 FAILED: ${error.message}`);
+        tier1Result = { success: false, error: error.message };
+      }
+
+      // ============================================================================
+      // 🆓 TIER 2: ENHANCED BROWSER GPS (FREE - 3 attempts, 12s timeout)
+      // ============================================================================
+      console.log('📍 [CampusLocationService] TIER 2: Enhanced Browser GPS (FREE) - 3 attempts, 12s timeout...');
+      
+      const browserAttempts = 3;
+      const browserTimeout = 12000; // 12 seconds per attempt
+      let browserErrors = [];
+      
+      for (let attempt = 1; attempt <= browserAttempts; attempt++) {
+        try {
+          console.log(`📱 [CampusLocationService] TIER 2 Attempt ${attempt}/${browserAttempts} (${browserTimeout/1000}s timeout)...`);
+          
+          const browserResult = await this.getBrowserLocationWithTimeout(highAccuracy, browserTimeout);
+          
+          if (browserResult && browserResult.coords) {
+            const accuracy = Math.round(browserResult.coords.accuracy);
+            const responseTime = Date.now() - startTime;
+            
+            console.log(`✅ TIER 2 SUCCESS in ${responseTime}ms (attempt ${attempt}): ±${accuracy}m accuracy`);
+            
+            // ⚡ ACCURACY CHECK: Only proceed if accuracy is acceptable
+            if (browserResult.coords.accuracy <= 1000) {
+              console.log(`🎯 [CampusLocationService] Accuracy ±${accuracy}m ≤ 1000m - WRITING TO DATABASE`);
+              
+              tier2Result = this.formatLocationResponse(browserResult, 'browser_enhanced', 0);
+              tier2Result.tier = 2;
+              tier2Result.attempt = attempt;
+              tier2Result.responseTime = responseTime;
+              tier2Result.shouldWriteToDatabase = true;
+
+              // 🎯 SUCCESS EVENT: Notify UI that location was successfully obtained
+              this.emitFreshPresenceData(tier2Result, { tier: 2, accuracy: accuracy });
+              
+              return tier2Result;
+            } else {
+              console.log(`⚠️ [CampusLocationService] Accuracy ±${accuracy}m > 1000m - SKIPPING DATABASE WRITE, continuing to attempt ${attempt + 1}`);
+              browserErrors.push(`Attempt ${attempt}: Low accuracy (±${accuracy}m)`);
+            }
+          }
+        } catch (error) {
+          console.warn(`❌ TIER 2 Attempt ${attempt} failed:`, error.message);
+          browserErrors.push(`Attempt ${attempt}: ${error.message}`);
+          
+          // If permission denied, don't retry
+          if (error.code === 1) { // GeolocationPositionError.PERMISSION_DENIED
+            console.log('🚫 Location permission denied by user - stopping TIER 2 attempts');
+            break;
+          }
+          
+          // Progressive delay between attempts: 1s, 2s
+          if (attempt < browserAttempts) {
+            const delay = attempt * 1000;
+            console.log(`⏳ [CampusLocationService] Waiting ${delay}ms before next attempt...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
-      } catch (error) {
-        console.log('❌ Tier 1 (Browser API) failed:', error.message);
-        if (error.code === 1) { // PERMISSION_DENIED
-          console.log('🚫 Location permission denied by user');
-          return null;
+      }
+
+      console.warn(`❌ TIER 2 FAILED after ${browserAttempts} attempts:`, browserErrors);
+      tier2Result = { success: false, errors: browserErrors };
+
+      // ============================================================================
+      // 💰 TIER 3: GOOGLE GEOLOCATION API (PAID - Last resort only)
+      // ============================================================================
+      console.log('💰 [CampusLocationService] TIER 3: Google Geolocation API (PAID - Last resort)...');
+      
+      // Check if user can use Google API (5 calls/day limit)
+      if (!this.canUseGoogleAPI(userId)) {
+        console.log('🚫 TIER 3 BLOCKED: User has reached daily limit (5 calls/day) or global limit reached');
+        tier3Result = { success: false, error: 'Daily limit exceeded' };
+      } else {
+        try {
+          const googleResult = await this.getGoogleLocation(highAccuracy);
+          
+          if (googleResult && googleResult.coords) {
+            // Track usage for cost monitoring
+            this.trackGoogleApiUsage(userId, trigger);
+            
+            const accuracy = Math.round(googleResult.coords.accuracy);
+            const responseTime = Date.now() - startTime;
+            const cost = 0.005; // $0.005 per call
+            
+            console.log(`✅ TIER 3 SUCCESS in ${responseTime}ms: ±${accuracy}m accuracy (COST: $${cost})`);
+            
+            tier3Result = this.formatLocationResponse(googleResult, 'google_api', cost);
+            tier3Result.tier = 3;
+            tier3Result.responseTime = responseTime;
+            tier3Result.shouldWriteToDatabase = googleResult.coords.accuracy <= 1000;
+            
+            if (tier3Result.shouldWriteToDatabase) {
+              console.log(`🎯 [CampusLocationService] Google API accuracy ±${accuracy}m ≤ 1000m - WRITING TO DATABASE`);
+            } else {
+              console.log(`⚠️ [CampusLocationService] Google API accuracy ±${accuracy}m > 1000m - SKIPPING DATABASE WRITE`);
+            }
+
+            // 🎯 SUCCESS EVENT: Notify UI that location was successfully obtained
+            this.emitFreshPresenceData(tier3Result, { tier: 3, accuracy: accuracy, cost: cost });
+            
+            return tier3Result;
+          }
+        } catch (error) {
+          console.error(`❌ TIER 3 FAILED:`, error.message);
+          tier3Result = { success: false, error: error.message };
         }
       }
-    }
-    
-    // 🔧 CSP FIX: Removed Tier 2 (IP Geolocation) entirely - was causing CSP violations
-    // Previous implementation tried ipapi.co, ip-api.com, api.ipify.org which are blocked by CSP
-    // Now falls back directly to Google API for better accuracy and strategic usage
-    
-    // Tier 2: Google Geolocation API (Paid, highest accuracy) - renamed from Tier 3
-    if (shouldUseGoogleAPI && this.canUseGoogleAPI(userId)) {
-      try {
-        console.log('💰 [CampusLocationService] Tier 2: Trying Google Geolocation API (PAID)...');
-        const googleResult = await this.getGoogleLocation(highAccuracy);
-        
-        if (googleResult) {
-          // Track usage for cost monitoring
-          this.trackGoogleApiUsage(userId, trigger);
-          console.log(`✅ Google API success: ±${Math.round(googleResult.coords.accuracy)}m (COST: $0.005)`);
-          return this.formatLocationResponse(googleResult, 'google', 0.005);
+
+      // ============================================================================
+      // 🔴 ALL TIERS FAILED - Return grey presence status
+      // ============================================================================
+      const totalTime = Date.now() - startTime;
+      console.error(`❌ [CampusLocationService] ALL 3 TIERS FAILED in ${totalTime}ms`);
+      console.error('📊 [CampusLocationService] Failure Summary:', {
+        tier1: tier1Result?.error || 'IP detection failed',
+        tier2: tier2Result?.errors || ['Browser GPS failed'],
+        tier3: tier3Result?.error || 'Google API failed'
+      });
+
+      // Return "unknown" status for grey presence dot
+      const allFailedResult = {
+        coords: {
+          latitude: null,
+          longitude: null,
+          accuracy: Infinity,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null
+        },
+        timestamp: Date.now(),
+        source: 'all_tiers_failed',
+        tier: 'failed',
+        cost: 0,
+        campusStatus: 'unknown', // This will trigger grey presence dot
+        confidence: 'none',
+        responseTime: totalTime,
+        shouldWriteToDatabase: false, // Don't write failed attempts
+        errors: {
+          tier1: tier1Result?.error,
+          tier2: tier2Result?.errors,
+          tier3: tier3Result?.error
         }
-      } catch (error) {
-        console.log('❌ Tier 2 (Google API) failed:', error.message);
-      }
-    } else if (shouldUseGoogleAPI) {
-      console.log('🚫 Google API usage limit reached or blocked');
+      };
+
+      // 🎯 ERROR EVENT: Notify UI that all location tiers failed
+      this.emitPresenceDataError('All 3 location tiers failed');
+      
+      return allFailedResult;
+      
+    } catch (error) {
+      console.error('[CampusLocationService] Unexpected error in 3-tier system:', error);
+      
+      // 🎯 ERROR EVENT: Notify UI of unexpected system error
+      this.emitPresenceDataError(`System error: ${error.message}`);
+      
+      return null;
     }
-    
-    // All tiers failed
-    console.error('[CampusLocationService] All location services failed');
-    return null;
-    
-  } catch (error) {
-    console.error('[CampusLocationService] Unexpected error in getCurrentLocation:', error);
-    return null;
   }
-}
+
+  /**
+   * 🎯 TIER 2 HELPER: Enhanced browser GPS with custom timeout for 3-tier system
+   * @param {boolean} highAccuracy - Whether to request high accuracy
+   * @param {number} timeout - Timeout in milliseconds (12000ms for 3-tier system)
+   * @returns {Promise<GeolocationPosition>} Browser GPS result
+   */
+  async getBrowserLocationWithTimeout(highAccuracy = false, timeout = 12000) {
+    return new Promise((resolve, reject) => {
+      const options = {
+        enableHighAccuracy: highAccuracy,
+        timeout: timeout,
+        maximumAge: 0 // Force fresh location
+      };
+
+      console.log(`📱 [CampusLocationService] Browser GPS request:`, {
+        highAccuracy,
+        timeout: `${timeout/1000}s`,
+        options
+      });
+
+      const successCallback = (position) => {
+        console.log(`✅ [CampusLocationService] Browser GPS success: ±${Math.round(position.coords.accuracy)}m`);
+        resolve(position);
+      };
+
+      const errorCallback = (error) => {
+        const errorMessages = {
+          1: 'PERMISSION_DENIED',
+          2: 'POSITION_UNAVAILABLE', 
+          3: 'TIMEOUT'
+        };
+        
+        const errorType = errorMessages[error.code] || 'UNKNOWN_ERROR';
+        console.warn(`❌ [CampusLocationService] Browser GPS error: ${errorType}`, error.message);
+        
+        // Create enhanced error with code for permission handling
+        const enhancedError = new Error(`${errorType}: ${error.message}`);
+        enhancedError.code = error.code;
+        reject(enhancedError);
+      };
+
+      navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
+    });
+  }
 
   /**
    * 🎯 HYBRID GPS: Calculate optimal timeout based on platform and accuracy requirements
@@ -3850,29 +4057,49 @@ export class CampusLocationService {
   // 💰 COST OPTIMIZATION METHODS
 
   /**
-   * Handle initialization with appropriate trigger detection
+   * Handle initialization with appropriate trigger detection and fresh data priority
+   * 🚀 PERFORMANCE: Now supports non-blocking with fresh data guarantee for presence dots
    */
   async handleInitialization() {
     try {
       // Detect if this is a first visit or reload
       const isFirstVisit = !localStorage.getItem('campusLocationService_visited');
       const isReload = sessionStorage.getItem('campusLocationService_reload') === 'true';
+      const requiresFreshData = sessionStorage.getItem('campusPresence_forceFreshData') === 'true';
       
       let trigger = 'unknown';
+      let priorityMode = 'standard';
+      
       if (isFirstVisit) {
         trigger = 'first_visit';
+        priorityMode = 'fresh_data_priority';
         localStorage.setItem('campusLocationService_visited', 'true');
-        console.log('🎯 First visit detected - Google API authorized for optimal accuracy');
+        console.log('🎯 First visit detected - Fresh data priority mode for presence dots');
       } else if (isReload) {
         trigger = 'manual_reload';
-        console.log('🎯 Manual reload detected - Google API authorized for fresh location');
+        priorityMode = 'fresh_data_priority';
+        console.log('🎯 Manual reload detected - Fresh data priority mode');
+      } else if (requiresFreshData) {
+        trigger = 'fresh_data_request';
+        priorityMode = 'fresh_data_priority';
+        console.log('🎯 Fresh data required - Priority mode activated');
       } else {
         trigger = 'app_init';
+        priorityMode = 'standard';
         console.log('🎯 Normal app initialization - using cost-optimized approach');
       }
       
       // Clear reload flag
       sessionStorage.removeItem('campusLocationService_reload');
+      
+      // Set priority mode for fresh data requests
+      this.priorityMode = priorityMode;
+      
+      // For fresh data priority, invalidate cache and emit loading event for presence dots
+      if (priorityMode === 'fresh_data_priority') {
+        this.invalidateLocationCache();
+        this.emitPresenceDataLoading();
+      }
       
       // Request initial location with appropriate trigger
       const position = await this.getCurrentLocation(false, trigger);
@@ -3881,17 +4108,34 @@ export class CampusLocationService {
         console.log(`✅ Initial location acquired via ${trigger}:`, {
           provider: position.source,
           accuracy: Math.round(position.coords.accuracy),
-          cost: position.costOptimization?.cost || 0
+          cost: position.costOptimization?.cost || 0,
+          priorityMode
         });
         
         // Start presence detection
-        await this.detectCampusPresence('iub');
+        const presenceResult = await this.detectCampusPresence('iub');
+        
+        // For fresh data priority, emit fresh data ready event
+        if (priorityMode === 'fresh_data_priority') {
+          this.emitFreshPresenceData(position, presenceResult);
+        }
+        
       } else {
         console.warn('⚠️ Failed to acquire initial location');
+        
+        // Still emit events for UI state management
+        if (priorityMode === 'fresh_data_priority') {
+          this.emitPresenceDataError('Location acquisition failed');
+        }
       }
       
     } catch (error) {
       console.error('❌ Failed to handle initialization:', error);
+      
+      // Emit error event for fresh data priority mode
+      if (this.priorityMode === 'fresh_data_priority') {
+        this.emitPresenceDataError(error.message);
+      }
     }
   }
 
@@ -3900,6 +4144,81 @@ export class CampusLocationService {
    */
   static markManualReload() {
     sessionStorage.setItem('campusLocationService_reload', 'true');
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Emit loading event for presence dots
+   */
+  emitPresenceDataLoading() {
+    console.log('📡 [CampusLocationService] Emitting presence data loading event');
+    document.dispatchEvent(new CustomEvent('campus-presence:data-loading', {
+      detail: { 
+        source: 'CampusLocationService',
+        timestamp: Date.now(),
+        priority: 'fresh_data'
+      }
+    }));
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Emit fresh presence data ready event
+   */
+  emitFreshPresenceData(position, presenceResult) {
+    console.log('📡 [CampusLocationService] Emitting fresh presence data ready event');
+    document.dispatchEvent(new CustomEvent('campus-presence:fresh-data-ready', {
+      detail: {
+        source: 'CampusLocationService',
+        timestamp: Date.now(),
+        locationData: {
+          coords: position.coords,
+          accuracy: position.coords.accuracy,
+          provider: position.source || position.provider,
+          campusStatus: presenceResult?.onCampus
+        },
+        presenceData: presenceResult
+      }
+    }));
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Emit presence data error event
+   */
+  emitPresenceDataError(errorMessage) {
+    console.error('📡 [CampusLocationService] Emitting presence data error event:', errorMessage);
+    document.dispatchEvent(new CustomEvent('campus-presence:data-error', {
+      detail: {
+        source: 'CampusLocationService',
+        timestamp: Date.now(),
+        error: errorMessage
+      }
+    }));
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Invalidate cached location data for fresh data requests
+   * Forces fresh location API calls by clearing existing cache
+   */
+  invalidateLocationCache() {
+    console.log('🗑️ [CampusLocationService] Invalidating location cache for fresh data request');
+    
+    // Clear browser location cache by setting maximumAge to 0
+    this.freshLocationOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0 // Force fresh location
+    };
+    
+    // Clear any internal service cache
+    if (this.lastLocationCache) {
+      this.lastLocationCache = null;
+    }
+    
+    // Clear Google API cache if it exists
+    if (this.googleProvider?.clearCache) {
+      this.googleProvider.clearCache();
+    }
+    
+    console.log('✅ Location cache invalidated successfully');
   }
 
   /**
@@ -3934,7 +4253,8 @@ export class CampusLocationService {
         return;
       }
       
-      const options = {
+      // Use fresh location options if available (for fresh data priority)
+      const options = this.freshLocationOptions || {
         enableHighAccuracy: highAccuracy !== false,
         timeout: 8000, // Shorter timeout to fail fast
         maximumAge: 30000

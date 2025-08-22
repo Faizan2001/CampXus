@@ -295,11 +295,28 @@ This file contains CSS styles for the Campus Presence feature including:
   background: var(--glass-bg, rgba(42, 45, 56, 0.75));
   color: var(--text-secondary, #9CA3AF);
   animation: presenceLoading 1.5s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.presence-dot.loading .loading-spinner {
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: presenceSpinner 0.8s linear infinite;
 }
 
 @keyframes presenceLoading {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 0.8; }
+}
+
+@keyframes presenceSpinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* ===== PRESENCE DOT ERROR STATE ===== */
@@ -318,5 +335,69 @@ This file contains CSS styles for the Campus Presence feature including:
   50% { 
     transform: scale(1.1);
     box-shadow: 0 2px 6px rgba(255, 165, 0, 0.4);
+  }
+}
+
+/* ===== FRESH DATA LOADING ANIMATIONS ===== */
+
+.presence-dot.loading .loading-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary, #8B5CF6);
+  animation: loadingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+}
+
+/* Fresh data update animation */
+@keyframes fresh-data-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  25% {
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 3px 8px rgba(139, 92, 246, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+}
+
+/* Loading state for mobile devices */
+@media (max-width: 768px) {
+  .presence-dot.loading .loading-pulse {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .presence-dot.loading .loading-pulse {
+    width: 5px;
+    height: 5px;
   }
 }

@@ -634,11 +634,12 @@ export class HorizontalFriendsBar {
     const userProfile = currentUser.profile;
     const systemInfo = userProfile?.systemInfo || {};
     
-    // Create presence dot for user's own avatar
-    const userPresenceDot = PresenceDot.create(
+    // Create presence dot for user's own avatar with fresh data priority
+    const userPresenceDot = PresenceDot.createWithFreshDataPriority(
       systemInfo.lastActive,
       systemInfo.lastKnownLocation,
-      systemInfo.locationSharingEnabled || false
+      systemInfo.locationSharingEnabled || false,
+      this.waitingForFreshData || false
     );
 
     console.log('[HorizontalFriendsBar] Creating user presence dot:', {
@@ -698,11 +699,12 @@ export class HorizontalFriendsBar {
         friend.privacyStatus?.tooltip ||
         (isDisabled ? "Schedule access restricted" : "Click to view schedule");
 
-      // Add presence dot based on location sharing status
-      const presenceDot = PresenceDot.create(
+      // Add presence dot based on location sharing status with fresh data priority
+      const presenceDot = PresenceDot.createWithFreshDataPriority(
         friend.lastActive,
         friend.lastKnownLocation,
-        friend.hasLocationSharing
+        friend.hasLocationSharing,
+        this.waitingForFreshData || false
       );
 
       console.log(
@@ -2078,6 +2080,204 @@ export class HorizontalFriendsBar {
     console.log(
       "✅ Smart real-time listeners set up successfully with optimized privacy, presence, and activity updates"
     );
+
+    // 🚀 FRESH DATA PRIORITY: Set up Campus Presence fresh data event listeners
+    this.setupFreshDataEventListeners();
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Set up event listeners for Campus Presence fresh data
+   * Handles loading states and fresh data updates for presence dots
+   */
+  setupFreshDataEventListeners() {
+    console.log("📡 Setting up Campus Presence fresh data event listeners...");
+
+    // Track whether we're currently waiting for fresh data
+    this.waitingForFreshData = sessionStorage.getItem('campusPresence_forceFreshData') === 'true';
+
+    // 🎯 NEW: Listen for campus presence loading events (from app.js background init)
+    document.addEventListener('campus-presence:loading', (event) => {
+      console.log('🔄 [HorizontalFriendsBar] Campus presence loading started:', event.detail);
+      this.waitingForFreshData = true;
+      this.showPresenceDotsLoading();
+    });
+
+    // 🎯 NEW: Listen for campus presence ready events (from app.js background init)
+    document.addEventListener('campus-presence:ready', (event) => {
+      console.log('✅ [HorizontalFriendsBar] Campus presence ready:', event.detail);
+      this.waitingForFreshData = false;
+      
+      if (event.detail.freshDataLoaded) {
+        console.log('🎯 Fresh data was loaded - refreshing presence dots');
+        this.refreshPresenceDotsWithLatestData();
+      } else {
+        console.log('📦 Using cached data - showing existing presence dots');
+        this.hidePresenceDotsLoading();
+      }
+    });
+
+    // 🎯 NEW: Listen for priority location fetch events 
+    document.addEventListener('campus-presence:fetching-fresh', (event) => {
+      console.log('🎯 [HorizontalFriendsBar] Priority location fetch started:', event.detail);
+      // Keep loading state active during priority fetch
+      this.waitingForFreshData = true;
+    });
+
+    // 🎯 NEW: Listen for campus presence errors
+    document.addEventListener('campus-presence:error', (event) => {
+      console.error('❌ [HorizontalFriendsBar] Campus presence error:', event.detail.error);
+      this.waitingForFreshData = false;
+      this.hidePresenceDotsLoading();
+    });
+
+    // LEGACY: Keep existing event listeners for backward compatibility
+    document.addEventListener('campus-presence:data-loading', (event) => {
+      console.log('🔄 [HorizontalFriendsBar] Legacy data loading event');
+      this.waitingForFreshData = true;
+      this.showPresenceDotsLoading();
+    });
+
+    document.addEventListener('campus-presence:fresh-data-ready', (event) => {
+      console.log('✅ [HorizontalFriendsBar] Legacy fresh data received:', event.detail);
+      this.waitingForFreshData = false;
+      this.updatePresenceDotsWithFreshData(event.detail.locationData);
+    });
+
+    document.addEventListener('campus-presence:data-error', (event) => {
+      console.error('❌ [HorizontalFriendsBar] Legacy data error:', event.detail.error);
+      this.waitingForFreshData = false;
+      this.hidePresenceDotsLoading();
+    });
+
+    console.log('✅ Enhanced fresh data event listeners set up successfully');
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Show loading state on presence dots
+   */
+  showPresenceDotsLoading() {
+    console.log('🔄 [HorizontalFriendsBar] Showing loading state on presence dots');
+    
+    // Update user's own presence dot
+    if (this.userAvatarElement) {
+      const userDot = this.userAvatarElement.querySelector('.presence-dot');
+      if (userDot) {
+        userDot.className = 'presence-dot loading';
+        userDot.title = 'Loading fresh location data...';
+        userDot.innerHTML = '<div class="loading-pulse"></div>';
+      }
+    }
+
+    // Update friends' presence dots if they have location sharing
+    this.quickAccessFriends.forEach(friend => {
+      if (friend.hasLocationSharing) {
+        const avatarElement = this.avatarElements.get(friend.uid);
+        if (avatarElement) {
+          const friendDot = avatarElement.querySelector('.presence-dot');
+          if (friendDot) {
+            friendDot.className = 'presence-dot loading';
+            friendDot.title = 'Loading fresh location data...';
+            friendDot.innerHTML = '<div class="loading-pulse"></div>';
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Update presence dots with fresh location data
+   */
+  updatePresenceDotsWithFreshData(freshLocationData) {
+    console.log('📍 [HorizontalFriendsBar] Updating presence dots with fresh data:', freshLocationData);
+
+    // Update user's presence dot if current user has location sharing
+    if (this.currentUser && this.userAvatarElement) {
+      const systemInfo = this.currentUser.systemInfo;
+      if (systemInfo?.locationSharingEnabled) {
+        const userDot = this.userAvatarElement.querySelector('.presence-dot');
+        if (userDot) {
+          // Import PresenceDot dynamically to avoid circular imports
+          import('../../components/presence/PresenceDot.js').then(({ PresenceDot }) => {
+            PresenceDot.updateWithFreshData(
+              userDot,
+              systemInfo.lastActive,
+              systemInfo.lastKnownLocation,
+              systemInfo.locationSharingEnabled
+            );
+          }).catch(error => {
+            console.error('Failed to load PresenceDot:', error);
+            this.hidePresenceDotsLoading();
+          });
+        }
+      }
+    }
+
+    // Update friends' presence dots
+    this.quickAccessFriends.forEach(friend => {
+      if (friend.hasLocationSharing) {
+        const avatarElement = this.avatarElements.get(friend.uid);
+        if (avatarElement) {
+          const friendDot = avatarElement.querySelector('.presence-dot');
+          if (friendDot) {
+            import('../../components/presence/PresenceDot.js').then(({ PresenceDot }) => {
+              PresenceDot.updateWithFreshData(
+                friendDot,
+                friend.lastActive,
+                friend.lastKnownLocation,
+                friend.hasLocationSharing
+              );
+            }).catch(error => {
+              console.error('Failed to load PresenceDot for friend:', error);
+            });
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * 🚀 FRESH DATA PRIORITY: Hide loading state on presence dots
+   */
+  hidePresenceDotsLoading() {
+    console.log('⏹️ [HorizontalFriendsBar] Hiding loading state on presence dots');
+    
+    // This will trigger a regular re-render which will show normal presence dots
+    this.render();
+  }
+
+  /**
+   * 🎯 FRESH DATA PRIORITY: Refresh presence dots with latest data after background load
+   */
+  refreshPresenceDotsWithLatestData() {
+    console.log('🔄 [HorizontalFriendsBar] Refreshing presence dots with latest data...');
+    
+    try {
+      // Update user's presence dot with latest data
+      if (this.currentUser && this.userAvatarElement) {
+        const systemInfo = this.currentUser.systemInfo;
+        if (systemInfo) {
+          this.updateUserPresenceDot(systemInfo);
+          console.log('✅ User presence dot refreshed with latest data');
+        }
+      }
+      
+      // Update friends' presence dots with latest data
+      if (this.quickAccessFriends && this.quickAccessFriends.length > 0) {
+        this.quickAccessFriends.forEach((friend, index) => {
+          if (friend && friend.hasLocationSharing) {
+            this.updateFriendPresenceDot(index, friend);
+          }
+        });
+        console.log(`✅ Refreshed ${this.quickAccessFriends.length} friend presence dots with latest data`);
+      }
+      
+      console.log('✅ [HorizontalFriendsBar] All presence dots refreshed with latest data');
+      
+    } catch (error) {
+      console.error('❌ [HorizontalFriendsBar] Failed to refresh presence dots:', error);
+      // Fallback to hiding loading state
+      this.hidePresenceDotsLoading();
+    }
   }
 
   /**
@@ -3719,10 +3919,11 @@ export class HorizontalFriendsBar {
       }
 
       // Generate new presence dot HTML
-      const newPresenceDot = PresenceDot.create(
+      const newPresenceDot = PresenceDot.createWithFreshDataPriority(
         friend.lastActive,
         friend.lastKnownLocation,
-        friend.hasLocationSharing
+        friend.hasLocationSharing,
+        this.waitingForFreshData || false
       );
 
       // Create a temporary container to parse the HTML
@@ -4626,10 +4827,11 @@ export class HorizontalFriendsBar {
     const existingDot = this.userAvatarElement.querySelector('.presence-dot');
     
     // Create new presence dot
-    const newPresenceDot = PresenceDot.create(
+    const newPresenceDot = PresenceDot.createWithFreshDataPriority(
       systemInfo.lastActive,
       systemInfo.lastKnownLocation,
-      systemInfo.locationSharingEnabled || false
+      systemInfo.locationSharingEnabled || false,
+      this.waitingForFreshData || false
     );
     
     if (existingDot && document.contains(existingDot)) {
@@ -4685,10 +4887,11 @@ export class HorizontalFriendsBar {
       });
       
       // Create new presence dot
-      const newPresenceDot = PresenceDot.create(
+      const newPresenceDot = PresenceDot.createWithFreshDataPriority(
         systemInfo.lastActive,
         systemInfo.lastKnownLocation,
-        systemInfo.locationSharingEnabled || false
+        systemInfo.locationSharingEnabled || false,
+        this.waitingForFreshData || false
       );
       
       // Add to avatar image
