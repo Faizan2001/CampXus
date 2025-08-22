@@ -1506,18 +1506,60 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
 /* ================================
    STATE PERSISTENCE (Phase-1: Firestore + localStorage Cache)
 ================================== */
-async function loadState() {
+async function loadState(retryAttempt = 0) {
   try {
     console.log("📡 [Phase-1] Loading user schedule...");
 
-    // Check if user is authenticated
-    const user = authManager.getCurrentUser();
-    if (!user) {
-      console.log("⚠️ [Phase-1] No authenticated user, skipping schedule load");
+    // Prevent infinite recursion
+    if (retryAttempt > 2) {
+      console.log("⚠️ [Phase-1] Maximum retry attempts reached, stopping");
       return;
     }
 
+    // Check if user is authenticated with retry mechanism for race condition fix
+    let user = authManager.getCurrentUser();
+    if (!user) {
+      console.log("⚠️ [Phase-1] No authenticated user found, waiting for auth state to settle...");
+      
+      // Wait a brief moment for auth state listener to fire after login
+      await new Promise(resolve => setTimeout(resolve, 500));
+      user = authManager.getCurrentUser();
+      
+      if (!user) {
+        console.log("⚠️ [Phase-1] Still no authenticated user after delay, will retry when auth state becomes available");
+        
+        // Set up a one-time listener for when auth state becomes available
+        const unsubscribe = currentUser.subscribe((userState) => {
+          if (userState.isLoggedIn && userState.user) {
+            console.log("🔄 [Phase-1] Auth state became available, retrying schedule load");
+            unsubscribe(); // Clean up listener
+            loadState(retryAttempt + 1); // Retry loading with incremented attempt count
+          }
+        });
+        
+        return;
+      }
+      
+      console.log("✅ [Phase-1] Found authenticated user after delay, proceeding with schedule load");
+    }
+
     console.log(`👤 [Phase-1] Loading schedule for user: ${user.uid}`);
+
+    // 🚀 RACE CONDITION FIX: Set activeUserId immediately to enable UI
+    // This prevents the schedule from being disabled while loading
+    if (!state.activeUserId) {
+      state.activeUserId = user.uid;
+      
+      // Create a minimal user object to enable UI immediately
+      if (!state.users[user.uid]) {
+        state.users[user.uid] = createEmptyUser(user.uid);
+      }
+      
+      console.log("🎯 [Phase-1] Set activeUserId immediately to enable UI during loading");
+      
+      // Update UI immediately to enable schedule controls
+      updateUI();
+    }
 
     // Set loading state in userStore
     currentUser.setScheduleLoading(true);
@@ -3301,9 +3343,26 @@ function setupInputValidation() {
 
 function setupEventListeners() {
   // 🛡️ GUARD: Prevent multiple calls during same page load
+  // But also verify DOM elements exist (fix for signin flow issue)
   if (state.eventListenersSetup) {
-    console.log("🔒 Event listeners already set up - skipping duplicate setup");
-    return;
+    // Double-check: verify critical DOM elements still exist
+    const criticalElements = [
+      DOM_ELEMENTS.togglePinModeBtn,
+      DOM_ELEMENTS.addNewTimeSlotBtn,
+      DOM_ELEMENTS.dayViewBtn,
+      DOM_ELEMENTS.gridViewBtn
+    ];
+    
+    const elementsExist = criticalElements.every(el => el && document.contains(el));
+    
+    if (elementsExist) {
+      console.log("🔒 Event listeners already set up - skipping duplicate setup");
+      return;
+    } else {
+      console.log("🔄 Event listeners flag was set but DOM elements missing - resetting for signin flow");
+      state.eventListenersSetup = false;
+      // Continue with setup...
+    }
   }
 
   console.log("🎯 Setting up HomePage event listeners (hybrid approach)...");
@@ -3362,11 +3421,21 @@ function setupEventListeners() {
 
   if (DOM_ELEMENTS.scheduleTable) {
     console.log("✅ Adding listeners to schedule table...");
+    console.log("🚨 DEBUG: handleScheduleTableClick function exists:", typeof handleScheduleTableClick);
+    console.log("🚨 DEBUG: scheduleTable element:", DOM_ELEMENTS.scheduleTable.tagName, DOM_ELEMENTS.scheduleTable.id);
+    
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
       "click",
       handleScheduleTableClick
     );
+    
+    // 🚨 EMERGENCY FIX: Add direct event listener as backup
+    console.log("🚨 DEBUG: Adding direct event listener as backup...");
+    DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
+      console.log("🚨 DIRECT LISTENER: Schedule table clicked!", e.target.tagName, e.target.className);
+      handleScheduleTableClick(e);
+    });
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
       "mouseover",
@@ -3445,6 +3514,9 @@ function handleScheduleTableClick(e) {
     e.target,
     e.target.classList.toString()
   );
+  
+  // 🚀 CRITICAL DEBUG: Force log to verify function is called
+  console.log("🚨 DEBUG: handleScheduleTableClick function is being called!");
 
   // Time slot header clicks (for editing time slots)
   if (e.target.classList.contains("editable-timeslot-header")) {
@@ -3523,34 +3595,63 @@ function handleScheduleTableMouseOut(e) {
 
 // ===== DAY VIEW EVENT HANDLER =====
 function handleDayViewClick(e) {
+  console.log("🔥 DAY VIEW CLICKED", {
+    target: e.target,
+    classList: Array.from(e.target.classList),
+    dataset: e.target.dataset,
+    nodeName: e.target.nodeName
+  });
+
   // Pin toggle actions
   if (e.target.dataset.action === "pin-toggle") {
+    console.log("📌 Pin toggle action detected in day view");
     if (!state.pinModeActive) return;
 
     const day = parseInt(e.target.dataset.day, 10);
-    const time = parseInt(e.target.dataset.time, 10);
+    const time = parseInt(e.target.dataset.time || e.target.dataset.timeIndex, 10);
     if (!isNaN(day) && !isNaN(time)) {
       handlePinSlotClick(day, time, e);
     }
     return;
   }
 
-  // Schedule slot clicks
-  if (e.target.classList.contains("slot")) {
+  // 🎯 CORE FIX: Handle both day-time-slot (day view) and slot (grid view) elements
+  if (e.target.classList.contains("day-time-slot") || e.target.classList.contains("slot")) {
+    console.log("🎯 Day view schedule slot clicked!", {
+      isDayTimeSlot: e.target.classList.contains("day-time-slot"),
+      isSlot: e.target.classList.contains("slot"),
+      hasDataTime: !!e.target.dataset.time,
+      hasDataTimeIndex: !!e.target.dataset.timeIndex
+    });
+
     const day = parseInt(e.target.dataset.day, 10);
-    const time = parseInt(e.target.dataset.time, 10);
+    // 🔧 Handle both data-time (grid view) and data-time-index (day view)
+    const time = parseInt(e.target.dataset.time || e.target.dataset.timeIndex, 10);
+
+    console.log("📊 Extracted slot coordinates:", { day, time });
 
     if (!isNaN(day) && !isNaN(time)) {
       if (state.pinModeActive && !state.compareMode) {
+        console.log("📌 Pin mode active - checking if slot is free");
         const activeUser = state.users[state.activeUserId];
         const isSlotFree = activeUser && !activeUser.schedule[day][time];
         if (isSlotFree) {
+          console.log("✅ Slot is free - handling pin click");
           handlePinSlotClick(day, time, e);
+        } else {
+          console.log("❌ Slot is not free - cannot pin");
         }
       } else if (!state.compareMode) {
+        console.log("🔄 Normal mode - toggling schedule slot");
         handleToggleScheduleSlot(day, time);
+      } else {
+        console.log("👥 Compare mode active - slot interaction disabled");
       }
+    } else {
+      console.error("❌ Invalid day/time coordinates:", { day, time });
     }
+  } else {
+    console.log("ℹ️ Day view click on non-slot element:", e.target);
   }
 }
 
@@ -3593,11 +3694,28 @@ function handleScheduleWrapperFeedback(e) {
  */
 function initializeMobileSchedule() {
   // 🛡️ GUARD: Prevent multiple mobile initialization calls
+  // But also verify DOM elements exist (fix for signin flow issue)
   if (state.mobileScheduleInitialized) {
-    console.log(
-      "🔒 Mobile schedule already initialized - skipping duplicate initialization"
-    );
-    return;
+    // Double-check: verify critical mobile DOM elements still exist
+    const criticalMobileElements = [
+      DOM_ELEMENTS.dayBtn0,
+      DOM_ELEMENTS.dayBtn1,
+      DOM_ELEMENTS.dayViewBtn,
+      DOM_ELEMENTS.gridViewBtn
+    ];
+    
+    const elementsExist = criticalMobileElements.every(el => el && document.contains(el));
+    
+    if (elementsExist) {
+      console.log(
+        "🔒 Mobile schedule already initialized - skipping duplicate initialization"
+      );
+      return;
+    } else {
+      console.log("🔄 Mobile schedule flag was set but DOM elements missing - resetting for signin flow");
+      state.mobileScheduleInitialized = false;
+      // Continue with setup...
+    }
   }
 
   // Detect if user is on mobile device

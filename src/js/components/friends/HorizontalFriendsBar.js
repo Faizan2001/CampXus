@@ -4713,12 +4713,12 @@ export class HorizontalFriendsBar {
     const indicator = this.userAvatarElement.querySelector('.location-update-indicator');
     if (!indicator) return;
     
-    // 🛡️ ANIMATION DEBOUNCING: Prevent rapid successive animations
+    // 🛡️ ENHANCED ANIMATION DEBOUNCING: Prevent rapid successive animations
     const now = Date.now();
-    const minAnimationInterval = 3000; // Minimum 3 seconds between animations
+    const minAnimationInterval = 10000; // Increased to 10 seconds between animations to reduce pulse frequency
     
     if (this.lastLocationAnimationTime && (now - this.lastLocationAnimationTime) < minAnimationInterval) {
-      console.log('[HorizontalFriendsBar] 🛑 Animation debounced - too frequent');
+      console.log('[HorizontalFriendsBar] 🛑 Animation debounced - too frequent (within 10s)');
       return;
     }
     
@@ -4753,9 +4753,23 @@ export class HorizontalFriendsBar {
         return;
       }
       
+      // 🛡️ ADDITIONAL SAFETY: Only animate for significant campus status changes
+      // Skip animation for minor coordinate changes without campus status changes
+      if (coordinatesChanged && !campusStatusChanged && previousStatus === newStatus) {
+        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - minor coordinate change without campus status change');
+        return;
+      }
+      
       // Skip animation for unknown status transitions (GPS failures)
       if (newStatus === 'unknown' && previousStatus !== 'unknown') {
         console.log('[HorizontalFriendsBar] 🛑 Animation skipped - status became unknown (GPS failure)');
+        return;
+      }
+      
+      // 🚀 CRITICAL FIX: Skip animations when previous status is unknown (common on app start)
+      // This prevents continuous animations during initial GPS acquisition
+      if (previousStatus === 'unknown' && newStatus !== 'unknown') {
+        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - previous status unknown (initial GPS acquisition)');
         return;
       }
       

@@ -174,7 +174,7 @@ export class CampusLocationService {
 
     // 💰 COST OPTIMIZATION: Strategic Google API usage control
     // Reasonable limits for 2000+ university users while controlling costs
-    this.maxGoogleCallsPerUser = 8; // Max Google API calls per user per day (allows active campus use)
+    this.maxGoogleCallsPerUser = 10; // Max Google API calls per user per day (allows active campus use)
     this.maxDailyGoogleCalls = 1500; // Max total Google API calls per day (caps cost at ~$7.50/day)
     this.googleApiCooldown = 3 * 60 * 1000; // 3 minutes between Google API calls per user (reduced for better UX)
     
@@ -428,7 +428,7 @@ export class CampusLocationService {
    * TIER 3: Google API (PAID) - Strategic use only for critical scenarios
    * 
    * Google API Rate Limits:
-   * - 8 calls per user per day (allows active campus use)
+   * - 10 calls per user per day (allows active campus use)
    * - 1500 total calls per day (max cost: $7.50/day = $225/month)
    * - 3-minute cooldown between user calls
    * 
