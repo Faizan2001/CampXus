@@ -11,13 +11,18 @@ class ViewModeManager {
   constructor() {
     this.currentViewMode = "day"; // Default to day view
     this.isInitialized = false;
-    this.eventListeners = new Map(); // Track event listeners for cleanup
     this.retryAttempts = 0;
     this.maxRetries = 3;
     this.debugMode = false;
     
+    // Event delegation handler references for cleanup
+    this.bodyClickHandler = null;
+    this.spaPageLoadHandler = null;
+    
     // Bind methods to preserve context
     this.handleViewModeChange = this.handleViewModeChange.bind(this);
+    this.handleBodyClick = this.handleBodyClick.bind(this);
+    this.handleSPAPageLoad = this.handleSPAPageLoad.bind(this);
     this.setupEventListeners = this.setupEventListeners.bind(this);
     this.validateElements = this.validateElements.bind(this);
   }
@@ -97,39 +102,95 @@ class ViewModeManager {
   }
 
   /**
-   * Setup event listeners with proper cleanup tracking
+   * Setup event listeners using event delegation pattern
+   * This fixes the issue where direct element listeners are lost after DOM replacement
    */
   setupEventListeners() {
-    this.log("📡 Setting up view mode event listeners");
+    this.log("📡 Setting up view mode event listeners with event delegation");
 
     // Clean up existing listeners first
     this.cleanup();
 
-    // Day view button
-    if (DOM_ELEMENTS.dayViewBtn) {
-      const dayClickHandler = () => this.handleViewModeChange("day");
-      DOM_ELEMENTS.dayViewBtn.addEventListener("click", dayClickHandler);
-      this.eventListeners.set("dayViewBtn", {
-        element: DOM_ELEMENTS.dayViewBtn,
-        event: "click",
-        handler: dayClickHandler
-      });
-      this.log("✅ Day view button listener added");
-    }
+    // Use event delegation on document.body to handle clicks on view mode buttons
+    // This works even when DOM elements are replaced during SPA navigation
+    this.bodyClickHandler = (event) => {
+      const target = event.target.closest('#dayViewBtn, #gridViewBtn');
+      if (!target) return;
 
-    // Grid view button
-    if (DOM_ELEMENTS.gridViewBtn) {
-      const gridClickHandler = () => this.handleViewModeChange("grid");
-      DOM_ELEMENTS.gridViewBtn.addEventListener("click", gridClickHandler);
-      this.eventListeners.set("gridViewBtn", {
-        element: DOM_ELEMENTS.gridViewBtn,
-        event: "click",
-        handler: gridClickHandler
-      });
-      this.log("✅ Grid view button listener added");
-    }
+      event.preventDefault();
+      event.stopPropagation();
 
-    this.log(`📡 Event listeners setup complete - tracking ${this.eventListeners.size} listeners`);
+      // Determine which view mode was clicked
+      if (target.id === 'dayViewBtn') {
+        this.log("🖱️ Day view button clicked (via delegation)");
+        this.handleViewModeChange("day");
+      } else if (target.id === 'gridViewBtn') {
+        this.log("🖱️ Grid view button clicked (via delegation)");
+        this.handleViewModeChange("grid");
+      }
+    };
+
+    document.body.addEventListener("click", this.bodyClickHandler);
+    this.log("✅ Event delegation setup complete on document.body");
+
+    // Listen for SPA page load events to reinitialize after template reload
+    this.spaPageLoadHandler = (event) => {
+      const route = event.detail?.route;
+      if (route === 'home') {
+        this.log(`🔄 SPA page load detected for home route - reinitializing ViewModeManager`);
+        // Small delay to ensure DOM is fully updated
+        setTimeout(() => {
+          this.reinitializeAfterPageLoad();
+        }, 50);
+      }
+    };
+
+    document.addEventListener("spa:page:load", this.spaPageLoadHandler);
+    this.log("✅ SPA page load listener setup complete");
+  }
+
+  /**
+   * Reinitialize after SPA template reload
+   * This addresses the core issue where DOM elements are replaced
+   */
+  async reinitializeAfterPageLoad() {
+    this.log("🔄 Reinitializing ViewModeManager after SPA template reload");
+    
+    // Re-fetch DOM elements
+    reinitializeViewModeElements();
+    
+    if (this.validateElements()) {
+      // Update UI to reflect current state
+      this.updateUI();
+      this.log("✅ ViewModeManager successfully reinitialized after template reload");
+      
+      // Dispatch reinit event for other components
+      const event = new CustomEvent("viewModeManagerReinitialized", {
+        detail: {
+          currentViewMode: this.currentViewMode,
+          timestamp: Date.now()
+        }
+      });
+      document.dispatchEvent(event);
+    } else {
+      this.log("⚠️ Failed to validate elements after template reload - will retry on next interaction");
+    }
+  }
+
+  /**
+   * Handle body click events (event delegation)
+   */
+  handleBodyClick(event) {
+    // This is handled in setupEventListeners
+    // Keeping this method for consistency with the bound handler
+  }
+
+  /**
+   * Handle SPA page load events
+   */
+  handleSPAPageLoad(event) {
+    // This is handled in setupEventListeners
+    // Keeping this method for consistency with the bound handler
   }
 
   /**
@@ -150,11 +211,14 @@ class ViewModeManager {
       return;
     }
 
-    // Validate elements before proceeding
+    // Validate elements before proceeding - they might have been replaced
     if (!this.validateElements()) {
       this.log("❌ DOM elements invalid - re-initializing");
-      await this.initialize(newViewMode, this.debugMode);
-      return;
+      await this.reinitializeAfterPageLoad();
+      if (!this.validateElements()) {
+        this.log("❌ Failed to reinitialize - cannot change view mode");
+        return;
+      }
     }
 
     const previousMode = this.currentViewMode;
@@ -195,12 +259,16 @@ class ViewModeManager {
       const shouldBeActive = this.currentViewMode === "day";
       dayViewBtn.classList.toggle("active", shouldBeActive);
       this.log(`📍 Day button updated - active: ${shouldBeActive}`);
+    } else {
+      this.log("⚠️ Day view button not found during update");
     }
 
     if (gridViewBtn) {
       const shouldBeActive = this.currentViewMode === "grid";
       gridViewBtn.classList.toggle("active", shouldBeActive);
       this.log(`📍 Grid button updated - active: ${shouldBeActive}`);
+    } else {
+      this.log("⚠️ Grid view button not found during update");
     }
   }
 
@@ -214,14 +282,17 @@ class ViewModeManager {
 
     if (dayView) {
       dayView.classList.toggle("active", this.currentViewMode === "day");
+      this.log(`📍 Day view container updated - active: ${this.currentViewMode === "day"}`);
     }
 
     if (gridView) {
       gridView.classList.toggle("active", this.currentViewMode === "grid");
+      this.log(`📍 Grid view container updated - active: ${this.currentViewMode === "grid"}`);
     }
 
     if (daySelector) {
       daySelector.classList.toggle("show", this.currentViewMode === "day");
+      this.log(`📍 Day selector container updated - show: ${this.currentViewMode === "day"}`);
     }
   }
 
@@ -264,7 +335,8 @@ class ViewModeManager {
       currentViewMode: this.currentViewMode,
       isInitialized: this.isInitialized,
       retryAttempts: this.retryAttempts,
-      eventListenersCount: this.eventListeners.size,
+      hasBodyClickHandler: !!this.bodyClickHandler,
+      hasSpaPageLoadHandler: !!this.spaPageLoadHandler,
       elementsValid: this.validateElements(),
       availableElements: this.getAvailableElements(),
       domState: this.getDOMState(),
@@ -301,16 +373,21 @@ class ViewModeManager {
    * Clean up event listeners
    */
   cleanup() {
-    this.log(`🧹 Cleaning up ${this.eventListeners.size} event listeners`);
+    this.log(`🧹 Cleaning up event listeners`);
 
-    for (const [key, listener] of this.eventListeners) {
-      if (listener.element && listener.handler) {
-        listener.element.removeEventListener(listener.event, listener.handler);
-        this.log(`🗑️ Removed listener: ${key}`);
-      }
+    // Remove event delegation listeners
+    if (this.bodyClickHandler) {
+      document.body.removeEventListener("click", this.bodyClickHandler);
+      this.bodyClickHandler = null;
+      this.log("🗑️ Removed body click handler");
     }
 
-    this.eventListeners.clear();
+    if (this.spaPageLoadHandler) {
+      document.removeEventListener("spa:page:load", this.spaPageLoadHandler);
+      this.spaPageLoadHandler = null;
+      this.log("🗑️ Removed SPA page load handler");
+    }
+
     this.log("✅ Cleanup complete");
   }
 
@@ -341,5 +418,36 @@ class ViewModeManager {
 
 // Create singleton instance
 const viewModeManager = new ViewModeManager();
+
+// Make available to window for SPA integration
+if (typeof window !== 'undefined') {
+  window.viewModeManager = viewModeManager;
+  
+  // Add debug helpers for testing
+  window.testViewModeManager = {
+    info: () => viewModeManager.getDebugInfo(),
+    test: () => {
+      console.log('🧪 Testing ViewModeManager event delegation...');
+      
+      // Test clicking buttons programmatically
+      const dayBtn = document.getElementById('dayViewBtn');
+      const gridBtn = document.getElementById('gridViewBtn');
+      
+      if (dayBtn) {
+        console.log('📍 Found day view button:', dayBtn);
+        dayBtn.click();
+        console.log('✅ Day button clicked - should see delegation working');
+      }
+      
+      if (gridBtn) {
+        console.log('📍 Found grid view button:', gridBtn);
+        gridBtn.click();
+        console.log('✅ Grid button clicked - should see delegation working');
+      }
+      
+      return viewModeManager.getDebugInfo();
+    }
+  };
+}
 
 export default viewModeManager;

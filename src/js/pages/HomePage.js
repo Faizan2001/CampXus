@@ -2926,9 +2926,11 @@ async function updateUI() {
     2000
   );
 
-  // Update mobile view controls
-  updateViewModeButtons();
-  updateViewContainers();
+  // Safely update mobile view controls with DOM readiness checks
+  await safeUIUpdate(async () => {
+    updateViewModeButtons();
+    updateViewContainers();
+  }, 'View Mode Controls Update');
 
   // Render appropriate view based on current mode
   await renderScheduleForCurrentView();
@@ -3342,8 +3344,8 @@ function setupInputValidation() {
 }
 
 function setupEventListeners() {
-  // 🛡️ GUARD: Prevent multiple calls during same page load
-  // But also verify DOM elements exist (fix for signin flow issue)
+  // 🛡️ ENHANCED GUARD: Prevent multiple calls during same page load
+  // But also verify DOM elements exist AND have active event listeners
   if (state.eventListenersSetup) {
     // Double-check: verify critical DOM elements still exist
     const criticalElements = [
@@ -3356,8 +3358,32 @@ function setupEventListeners() {
     const elementsExist = criticalElements.every(el => el && document.contains(el));
     
     if (elementsExist) {
-      console.log("🔒 Event listeners already set up - skipping duplicate setup");
-      return;
+      // 🔍 ENHANCED CHECK: Verify listeners are actually attached
+      // Check if any critical elements have active listeners in our tracking array
+      const hasActiveListeners = criticalElements.some(element => {
+        if (!element) return false;
+        
+        const elementKey = element.id || 
+          element.tagName + "_" + (element.className || "").replace(/\s+/g, "_");
+        
+        return state.uiControlListeners.some(listener => {
+          const listenerKey = listener.element.id ||
+            listener.element.tagName + "_" + 
+            (listener.element.className || "").replace(/\s+/g, "_");
+          return listenerKey === elementKey && 
+                 listener.element === element && 
+                 document.contains(listener.element);
+        });
+      });
+      
+      if (hasActiveListeners) {
+        console.log("🔒 Event listeners already set up and active - skipping duplicate setup");
+        return;
+      } else {
+        console.log("🔄 DOM elements exist but no active listeners found - resetting for signin flow");
+        state.eventListenersSetup = false;
+        // Continue with setup...
+      }
     } else {
       console.log("🔄 Event listeners flag was set but DOM elements missing - resetting for signin flow");
       state.eventListenersSetup = false;
@@ -3370,6 +3396,7 @@ function setupEventListeners() {
     "📊 Current UI control listeners before setup:",
     state.uiControlListeners.length
   );
+  console.log("🔧 Event listeners setup triggered by signin flow or page load");
   console.log("📍 Call stack:", new Error().stack.slice(0, 400));
 
   // ===== CRITICAL: Document-level listeners will be set up by setupFriendsBarEventListeners() =====
@@ -4173,6 +4200,105 @@ function handleDayKeyNavigation(e) {
 /**
  * Update view mode button states
  */
+/**
+ * DOM Readiness System - Ensures critical DOM elements are available before UI updates
+ * Addresses timing issue where spa:page:load fires before template elements are accessible
+ */
+
+/**
+ * Checks if critical DOM elements for HomePage are available
+ * @returns {boolean} True if all critical elements exist
+ */
+function checkDOMElementsReady() {
+  const criticalElements = [
+    'dayViewBtn',
+    'gridViewBtn', 
+    'scheduleDayView',
+    'scheduleGridView',
+    'daySelectorContainer'
+  ];
+
+  const missingElements = criticalElements.filter(elementKey => {
+    const element = DOM_ELEMENTS[elementKey];
+    const exists = element && element.nodeType === Node.ELEMENT_NODE;
+    
+    if (!exists) {
+      console.log(`🔍 Critical DOM element missing: ${elementKey}`);
+    }
+    
+    return !exists;
+  });
+
+  const isReady = missingElements.length === 0;
+  
+  if (isReady) {
+    console.log('✅ All critical DOM elements are ready for UI updates');
+  } else {
+    console.log(`⏳ DOM not ready - missing elements: ${missingElements.join(', ')}`);
+  }
+  
+  return isReady;
+}
+
+/**
+ * Waits for critical DOM elements to become available with exponential backoff
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 10)
+ * @param {number} initialDelay - Initial delay in ms (default: 50)
+ * @returns {Promise<boolean>} Resolves to true when DOM is ready, false on timeout
+ */
+function waitForDOMReady(maxRetries = 10, initialDelay = 50) {
+  return new Promise((resolve) => {
+    let attempts = 0;
+    
+    function checkAndRetry() {
+      attempts++;
+      
+      // Re-initialize DOM elements on each attempt to catch newly loaded elements
+      initializeDomElements();
+      
+      if (checkDOMElementsReady()) {
+        console.log(`🎯 DOM ready after ${attempts} attempts`);
+        resolve(true);
+        return;
+      }
+      
+      if (attempts >= maxRetries) {
+        console.warn(`⚠️ DOM readiness timeout after ${attempts} attempts - proceeding anyway`);
+        resolve(false);
+        return;
+      }
+      
+      // Exponential backoff with jitter
+      const delay = initialDelay * Math.pow(1.5, attempts - 1) + Math.random() * 10;
+      console.log(`⏱️ Retrying DOM check in ${Math.round(delay)}ms (attempt ${attempts}/${maxRetries})`);
+      
+      setTimeout(checkAndRetry, delay);
+    }
+    
+    checkAndRetry();
+  });
+}
+
+/**
+ * Safe wrapper for UI update functions that require DOM elements
+ * @param {Function} updateFunction - Function to execute when DOM is ready
+ * @param {string} functionName - Name of the function for logging
+ * @returns {Promise<void>}
+ */
+async function safeUIUpdate(updateFunction, functionName = 'UI update') {
+  const isReady = await waitForDOMReady();
+  
+  if (!isReady) {
+    console.warn(`⚠️ ${functionName} called but DOM elements not fully ready - may have limited functionality`);
+  }
+  
+  try {
+    await updateFunction();
+  } catch (error) {
+    console.error(`❌ Error in ${functionName}:`, error);
+  }
+}
+
 function updateViewModeButtons() {
   const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
   const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
@@ -4189,7 +4315,7 @@ function updateViewModeButtons() {
     dayViewBtn.classList.toggle("active", shouldBeActive);
     console.log(`📍 Day view button updated - active: ${shouldBeActive}`);
   } else {
-    console.error(`❌ Day view button not found - cannot update UI`);
+    console.warn(`⚠️ Day view button not found - skipping update (may still be loading)`);
   }
 
   if (gridViewBtn) {
@@ -4197,7 +4323,7 @@ function updateViewModeButtons() {
     gridViewBtn.classList.toggle("active", shouldBeActive);
     console.log(`📍 Grid view button updated - active: ${shouldBeActive}`);
   } else {
-    console.error(`❌ Grid view button not found - cannot update UI`);
+    console.warn(`⚠️ Grid view button not found - skipping update (may still be loading)`);
   }
 }
 
@@ -4209,16 +4335,29 @@ function updateViewContainers() {
   const gridView = DOM_ELEMENTS.scheduleGridView;
   const daySelector = DOM_ELEMENTS.daySelectorContainer;
 
+  console.log('🎛️ Updating view containers:', {
+    dayView: !!dayView,
+    gridView: !!gridView,
+    daySelector: !!daySelector,
+    viewMode: state.viewMode
+  });
+
   if (dayView) {
     dayView.classList.toggle("active", state.viewMode === "day");
+  } else {
+    console.warn(`⚠️ Day view container not found - skipping update (may still be loading)`);
   }
 
   if (gridView) {
     gridView.classList.toggle("active", state.viewMode === "grid");
+  } else {
+    console.warn(`⚠️ Grid view container not found - skipping update (may still be loading)`);
   }
 
   if (daySelector) {
     daySelector.classList.toggle("show", state.viewMode === "day");
+  } else {
+    console.warn(`⚠️ Day selector container not found - skipping update (may still be loading)`);
   }
 }
 
@@ -5493,6 +5632,11 @@ function setupAuthenticationCallbacks() {
         console.log(
           "✅ Profile complete, navigating to home/schedule screen..."
         );
+        
+        // 🔧 SIGNIN FIX: Reset event listeners setup to ensure fresh setup after signin
+        console.log("🔧 Resetting event listeners for fresh setup after signin");
+        state.eventListenersSetup = false;
+        
         navigateTo("home");
       }
     } catch (error) {
@@ -5500,6 +5644,11 @@ function setupAuthenticationCallbacks() {
       // On error, navigate to home to avoid getting stuck in profile setup
       // Users can manually navigate to profile setup if needed
       console.log("⚠️ Error occurred, navigating to home for safety...");
+      
+      // 🔧 SIGNIN FIX: Reset event listeners setup to ensure fresh setup after signin error
+      console.log("🔧 Resetting event listeners for fresh setup after signin error");
+      state.eventListenersSetup = false;
+      
       navigateTo("home");
     }
   });
@@ -6631,7 +6780,7 @@ function cleanupHorizontalFriendsBar() {
  * that the home page's content has been loaded into the DOM.
  * This replaces the old, less reliable `DOMContentLoaded` and custom event listeners.
  */
-document.addEventListener("spa:page:load", (event) => {
+document.addEventListener("spa:page:load", async (event) => {
   const { route } = event.detail;
   console.log(`[script.js] Received spa:page:load event for route: ${route}`);
 
@@ -6639,18 +6788,25 @@ document.addEventListener("spa:page:load", (event) => {
     // Only initialize the schedule app when the home page is loaded.
     console.log("🚀 Starting CampXus Schedule App (via SPA event)...");
 
+    // 🔄 CRITICAL FIX: Reset initialization flags when DOM gets replaced
+    // This fixes the issue where event listeners stop working after signin
+    console.log("🔄 Resetting initialization flags for DOM replacement handling...");
+    state.eventListenersSetup = false;
+    state.mobileScheduleInitialized = false;
+    console.log("✅ Initialization flags reset - allowing fresh setup after template reload");
+
     // Essential: Always load state first so user data is available
     console.log("💾 Loading state from storage...");
     loadState();
 
-    console.log("� Current state after loading:", {
+    console.log("🔍 Current state after loading:", {
       activeUserId: state.activeUserId,
       userCount: Object.keys(state.users).length,
       users: Object.keys(state.users),
     });
 
-    // Initialize DOM elements for the home page
-    console.log("📋 Checking DOM elements...");
+    // Initialize DOM elements for the home page (first pass)
+    console.log("📋 Initializing DOM elements...");
     initializeDomElements();
 
     // Create tooltip if it doesn't exist
@@ -6664,10 +6820,6 @@ document.addEventListener("spa:page:load", (event) => {
       console.log("Tooltip element created dynamically");
     }
 
-    // Initialize modal system - This is now handled in spa-init.js
-    // console.log("🎛️ Initializing modal...");
-    // initModal(DOM_ELEMENTS);
-
     // Initialize mobile schedule functionality
     console.log("📱 Initializing mobile schedule...");
     initializeMobileSchedule();
@@ -6676,6 +6828,20 @@ document.addEventListener("spa:page:load", (event) => {
     console.log("🔧 Setting up validation and listeners...");
     setupInputValidation();
     setupEventListeners();
+
+    // 🔧 CRITICAL FIX: Initialize ViewModeManager after template reload
+    // This ensures view mode buttons work after signin
+    console.log("🎛️ Initializing ViewModeManager after template reload...");
+    try {
+      if (window.viewModeManager && typeof window.viewModeManager.reinitializeAfterPageLoad === 'function') {
+        await window.viewModeManager.reinitializeAfterPageLoad();
+        console.log("✅ ViewModeManager reinitialized successfully");
+      } else {
+        console.warn("⚠️ ViewModeManager not available for reinitialization");
+      }
+    } catch (error) {
+      console.error("❌ Error reinitializing ViewModeManager:", error);
+    }
 
     // Initialize Phase-3: Horizontal Friends Bar
     console.log("⭐ Initializing Horizontal Friends Bar...");
@@ -6686,9 +6852,17 @@ document.addEventListener("spa:page:load", (event) => {
     FRIENDS_SCHEDULE_CACHE.cleanup();
     CACHE_MAINTENANCE.start();
 
-    // Render UI with loaded data
+    // Wait for critical DOM elements to be available before updating UI
+    console.log("⏳ Waiting for critical DOM elements to be ready...");
+    const isDOMReady = await waitForDOMReady(10, 50);
+    
+    if (!isDOMReady) {
+      console.warn("⚠️ DOM elements may not be fully ready, but proceeding with initialization");
+    }
+
+    // Render UI with loaded data - now safely with DOM readiness checks
     console.log("🎨 Updating UI with loaded data...");
-    updateUI();
+    await updateUI();
 
     // 🎯 REMOVED: Preselection now handled by HorizontalFriendsBar.forceUserSelection()
     // The HorizontalFriendsBar will auto-select user after it's fully rendered
@@ -6697,6 +6871,36 @@ document.addEventListener("spa:page:load", (event) => {
     setupAuthenticationCallbacks();
 
     console.log("✅ CampXus Schedule App loaded successfully!");
+    
+    // 🧪 DEBUG: Add test helper for day navigation buttons
+    if (typeof window !== 'undefined') {
+      window.testDayNavigation = () => {
+        console.log('🧪 Testing day navigation buttons...');
+        const results = {};
+        
+        for (let i = 0; i < 7; i++) {
+          const dayBtn = DOM_ELEMENTS[`dayBtn${i}`];
+          if (dayBtn) {
+            console.log(`📍 Day ${i} button found:`, dayBtn);
+            results[`dayBtn${i}`] = 'found';
+            
+            // Test clicking it
+            dayBtn.click();
+            console.log(`✅ Day ${i} button clicked`);
+          } else {
+            console.log(`❌ Day ${i} button not found`);
+            results[`dayBtn${i}`] = 'missing';
+          }
+        }
+        
+        return {
+          results,
+          eventListenersCount: state.uiControlListeners.length,
+          mobileInitialized: state.mobileScheduleInitialized,
+          eventListenersSetup: state.eventListenersSetup
+        };
+      };
+    }
   }
 });
 
