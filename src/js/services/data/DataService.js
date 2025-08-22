@@ -747,8 +747,8 @@ class DataManager {
           searchable: true,
           lastFriendActivity: null,
           // Campus Presence location fields (2025 Enhancement)
-          locationPrivacyLevel: "friends_only",     // "friends_only" | "nobody"
-          defaultLocationSharing: false            // Default for new friendships
+          locationPrivacyLevel: "friends_only", // "friends_only" | "nobody"
+          defaultLocationSharing: false, // Default for new friendships
         };
       }
       // --- END: Auto-generate search fields and ensure socialInfo ---
@@ -2495,9 +2495,11 @@ class DataManager {
 
       // 🔧 MOBILE FIX: Import mobile-resilient listener system
       const isMobile = this.detectMobileBrowser();
-      
+
       if (isMobile) {
-        console.log("📱 Using mobile-resilient Firebase listener for friendships");
+        console.log(
+          "📱 Using mobile-resilient Firebase listener for friendships"
+        );
         return this.setupMobileResilientFriendshipsListener(userId, callback);
       }
 
@@ -2571,8 +2573,11 @@ class DataManager {
 
   // 🔧 MOBILE-RESILIENT FRIENDSHIPS LISTENER
   setupMobileResilientFriendshipsListener(userId, callback) {
-    console.log("📱 Setting up mobile-resilient friendships listener for:", userId);
-    
+    console.log(
+      "📱 Setting up mobile-resilient friendships listener for:",
+      userId
+    );
+
     const friendshipsRef = collection(db, "friendships");
     const q = query(
       friendshipsRef,
@@ -2608,20 +2613,29 @@ class DataManager {
 
         const updateInfo = {
           count: friendships.length,
-          fromCache: metadata.fromCache || querySnapshot.metadata?.fromCache || false,
-          hasPendingWrites: metadata.hasPendingWrites || querySnapshot.metadata?.hasPendingWrites || false,
+          fromCache:
+            metadata.fromCache || querySnapshot.metadata?.fromCache || false,
+          hasPendingWrites:
+            metadata.hasPendingWrites ||
+            querySnapshot.metadata?.hasPendingWrites ||
+            false,
           isMobileOptimized: true,
           connectionAttempts: reconnectionAttempts,
-          networkChanges: networkChangeCount
+          networkChanges: networkChangeCount,
         };
 
-        console.log(`📱 Mobile-resilient friendships update: ${updateInfo.count} friendships`, updateInfo);
+        console.log(
+          `📱 Mobile-resilient friendships update: ${updateInfo.count} friendships`,
+          updateInfo
+        );
 
         // Transform for UI consumption
         const transformedFriendships = friendships.map((friendship) => {
           const friendId = friendship.users.find((id) => id !== userId);
           const isUser1 = friendship.user1Id === userId;
-          const friendInfo = isUser1 ? friendship.user2Info : friendship.user1Info;
+          const friendInfo = isUser1
+            ? friendship.user2Info
+            : friendship.user1Info;
 
           return {
             ...friendship,
@@ -2630,15 +2644,17 @@ class DataManager {
               displayName: "Unknown User",
               major: "Unknown Major",
             },
-            _mobileMetadata: updateInfo
+            _mobileMetadata: updateInfo,
           };
         });
 
         callback(transformedFriendships);
         lastSuccessfulUpdate = Date.now();
-        
       } catch (processingError) {
-        console.error("📱 Error processing mobile friendships update:", processingError);
+        console.error(
+          "📱 Error processing mobile friendships update:",
+          processingError
+        );
       }
     };
 
@@ -2648,18 +2664,23 @@ class DataManager {
         message: error.message,
         connectionAttempts: reconnectionAttempts,
         isOnline: navigator.onLine,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       isConnected = false;
 
       // Handle different error types with mobile-specific strategies
-      const shouldReconnect = this.shouldReconnectMobileListener(error, reconnectionAttempts);
-      
+      const shouldReconnect = this.shouldReconnectMobileListener(
+        error,
+        reconnectionAttempts
+      );
+
       if (shouldReconnect && reconnectionAttempts < maxReconnectionAttempts) {
         scheduleReconnection();
       } else if (error.code !== "permission-denied") {
-        console.warn("📱 Mobile friendships listener: Max reconnection attempts reached or permanent error");
+        console.warn(
+          "📱 Mobile friendships listener: Max reconnection attempts reached or permanent error"
+        );
         callback([]); // Fallback to empty array for non-permission errors
       }
     };
@@ -2668,12 +2689,18 @@ class DataManager {
       if (reconnectionTimeout) return; // Already scheduled
 
       reconnectionAttempts++;
-      const delay = Math.min(
-        reconnectionDelayBase * Math.pow(2, reconnectionAttempts - 1),
-        maxReconnectionDelay
-      ) + Math.random() * 1000; // Add jitter
+      const delay =
+        Math.min(
+          reconnectionDelayBase * Math.pow(2, reconnectionAttempts - 1),
+          maxReconnectionDelay
+        ) +
+        Math.random() * 1000; // Add jitter
 
-      console.log(`📱 Scheduling friendships listener reconnection in ${Math.round(delay)}ms (attempt ${reconnectionAttempts}/${maxReconnectionAttempts})`);
+      console.log(
+        `📱 Scheduling friendships listener reconnection in ${Math.round(
+          delay
+        )}ms (attempt ${reconnectionAttempts}/${maxReconnectionAttempts})`
+      );
 
       reconnectionTimeout = setTimeout(() => {
         reconnectionTimeout = null;
@@ -2688,7 +2715,11 @@ class DataManager {
         currentUnsubscribe = null;
       }
 
-      console.log(`📱 Connecting mobile-resilient friendships listener (attempt ${reconnectionAttempts + 1})`);
+      console.log(
+        `📱 Connecting mobile-resilient friendships listener (attempt ${
+          reconnectionAttempts + 1
+        })`
+      );
 
       try {
         currentUnsubscribe = onSnapshot(
@@ -2696,11 +2727,15 @@ class DataManager {
           (querySnapshot) => {
             isConnected = true;
             reconnectionAttempts = 0; // Reset on successful connection
-            
+
             // Process queued updates first if any
             if (queuedUpdates.length > 0) {
-              console.log(`📱 Processing ${queuedUpdates.length} queued friendships updates`);
-              queuedUpdates.forEach(update => processUpdate(update.snapshot, update.metadata));
+              console.log(
+                `📱 Processing ${queuedUpdates.length} queued friendships updates`
+              );
+              queuedUpdates.forEach((update) =>
+                processUpdate(update.snapshot, update.metadata)
+              );
               queuedUpdates = [];
             }
 
@@ -2711,22 +2746,32 @@ class DataManager {
 
         // Start health monitoring
         startHealthMonitoring();
-        
       } catch (connectionError) {
-        console.error("📱 Failed to connect mobile-resilient friendships listener:", connectionError);
+        console.error(
+          "📱 Failed to connect mobile-resilient friendships listener:",
+          connectionError
+        );
         handleError(connectionError);
       }
     };
 
     const startHealthMonitoring = () => {
       if (healthCheckInterval) clearInterval(healthCheckInterval);
-      
+
       healthCheckInterval = setInterval(() => {
         const timeSinceLastUpdate = Date.now() - lastSuccessfulUpdate;
         const healthThreshold = 90000; // 90 seconds threshold for mobile
 
-        if (timeSinceLastUpdate > healthThreshold && navigator.onLine && isConnected) {
-          console.warn(`📱 Friendships listener health check failed - ${Math.round(timeSinceLastUpdate/1000)}s since last update`);
+        if (
+          timeSinceLastUpdate > healthThreshold &&
+          navigator.onLine &&
+          isConnected
+        ) {
+          console.warn(
+            `📱 Friendships listener health check failed - ${Math.round(
+              timeSinceLastUpdate / 1000
+            )}s since last update`
+          );
           // Force reconnection
           reconnectionAttempts = 0;
           scheduleReconnection();
@@ -2737,17 +2782,21 @@ class DataManager {
     // Handle network state changes
     const handleNetworkChange = () => {
       networkChangeCount++;
-      console.log(`📱 Network change detected for friendships listener (count: ${networkChangeCount})`);
-      
+      console.log(
+        `📱 Network change detected for friendships listener (count: ${networkChangeCount})`
+      );
+
       if (navigator.onLine && !isConnected) {
-        console.log("📱 Network back online - reconnecting friendships listener");
+        console.log(
+          "📱 Network back online - reconnecting friendships listener"
+        );
         reconnectionAttempts = 0; // Reset attempts on network recovery
         scheduleReconnection();
       }
     };
 
-    window.addEventListener('online', handleNetworkChange);
-    window.addEventListener('offline', handleNetworkChange);
+    window.addEventListener("online", handleNetworkChange);
+    window.addEventListener("offline", handleNetworkChange);
 
     // Initial connection
     connectListener();
@@ -2755,40 +2804,42 @@ class DataManager {
     // Return cleanup function
     return () => {
       console.log("📱 Cleaning up mobile-resilient friendships listener");
-      
+
       if (currentUnsubscribe) currentUnsubscribe();
       if (reconnectionTimeout) clearTimeout(reconnectionTimeout);
       if (healthCheckInterval) clearInterval(healthCheckInterval);
-      
-      window.removeEventListener('online', handleNetworkChange);
-      window.removeEventListener('offline', handleNetworkChange);
-      
+
+      window.removeEventListener("online", handleNetworkChange);
+      window.removeEventListener("offline", handleNetworkChange);
+
       isConnected = false;
       queuedUpdates = [];
     };
   }
 
   shouldReconnectMobileListener(error, attempts) {
-    const networkErrors = ['unavailable', 'cancelled', 'deadline-exceeded'];
-    const permanentErrors = ['permission-denied', 'not-found'];
-    
+    const networkErrors = ["unavailable", "cancelled", "deadline-exceeded"];
+    const permanentErrors = ["permission-denied", "not-found"];
+
     if (permanentErrors.includes(error.code)) {
       return false;
     }
-    
+
     if (networkErrors.includes(error.code) && navigator.onLine) {
       return attempts < 5; // More aggressive retry for network errors when online
     }
-    
+
     return attempts < 3; // Conservative retry for other errors
   }
 
   detectMobileBrowser() {
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-    const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
-    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.screen.width <= 768 || window.screen.height <= 768;
-    
+    const mobileRegex =
+      /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+    const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen =
+      window.screen.width <= 768 || window.screen.height <= 768;
+
     return mobileRegex.test(userAgent) || (hasTouch && isSmallScreen);
   }
 
@@ -3414,19 +3465,53 @@ class DataManager {
 
       // Safe nested field update: ensure systemInfo object exists first
       const userRef = doc(db, "users", userId);
-      
+
       // First, ensure systemInfo parent object exists
       await this.ensureSystemInfoExists(userId);
 
+      // 🔧 VALIDATION: Only write to database if we have valid location data
+      // Check if coordinates are valid (not null) and accuracy is acceptable
+      const hasValidCoordinates =
+        coordinates &&
+        coordinates.latitude !== null &&
+        coordinates.longitude !== null &&
+        coordinates.latitude !== undefined &&
+        coordinates.longitude !== undefined;
+
+      const hasAcceptableAccuracy =
+        coordinates &&
+        coordinates.accuracy !== null &&
+        coordinates.accuracy !== undefined &&
+        coordinates.accuracy <= 1000;
+
+      // 🚫 SKIP DATABASE WRITE: Invalid coordinates or poor accuracy
+      if (!hasValidCoordinates || !hasAcceptableAccuracy) {
+        const reason = !hasValidCoordinates
+          ? "null/invalid coordinates"
+          : `poor accuracy (${coordinates?.accuracy}m > 1000m)`;
+        console.log(
+          `🚫 [DataManager] SKIPPING database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
+        );
+
+        return {
+          success: true,
+          skipped: true,
+          reason: reason,
+          message: "3-tier system will continue to get better location data",
+        };
+      }
+
       // 🔧 FIX: Properly structure coordinates for Firestore
       let coordinatesForFirestore = null;
-      if (coordinates && typeof coordinates === 'object') {
+      if (coordinates && typeof coordinates === "object") {
         coordinatesForFirestore = {
-          latitude: coordinates.latitude || 0,
-          longitude: coordinates.longitude || 0,
-          accuracy: coordinates.accuracy || 0,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          accuracy: coordinates.accuracy,
           // Convert timestamp to proper format for Firestore
-          timestamp: coordinates.timestamp ? new Date(coordinates.timestamp).toISOString() : new Date().toISOString()
+          timestamp: coordinates.timestamp
+            ? new Date(coordinates.timestamp).toISOString()
+            : new Date().toISOString(),
         };
       }
 
@@ -3483,7 +3568,7 @@ class DataManager {
 
       // Safe nested field update: ensure systemInfo object exists first
       const userRef = doc(db, "users", userId);
-      
+
       // First, ensure systemInfo parent object exists
       await this.ensureSystemInfoExists(userId);
 
@@ -3492,22 +3577,21 @@ class DataManager {
       };
 
       if (!this.isOnline) {
-        this.pendingOperations.push(() =>
-          this.updateUserLastActive(userId)
+        this.pendingOperations.push(() => this.updateUserLastActive(userId));
+        console.log(
+          `📶 [DataManager] Activity update cached for user ${userId} (offline)`
         );
-        console.log(`📶 [DataManager] Activity update cached for user ${userId} (offline)`);
         return { success: true, cached: true };
       }
 
       await updateDoc(userRef, updates);
 
-      console.log(`✅ [DataManager] Updated last active timestamp for user ${userId}`);
+      console.log(
+        `✅ [DataManager] Updated last active timestamp for user ${userId}`
+      );
       return { success: true };
     } catch (error) {
-      console.error(
-        `❌ [DataManager] Error updating user last active:`,
-        error
-      );
+      console.error(`❌ [DataManager] Error updating user last active:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -3530,7 +3614,7 @@ class DataManager {
 
       // Safe nested field update: ensure systemInfo object exists first
       const userRef = doc(db, "users", userId);
-      
+
       // First, ensure systemInfo parent object exists
       await this.ensureSystemInfoExists(userId);
 
@@ -3575,17 +3659,19 @@ class DataManager {
     try {
       const userRef = doc(db, "users", userId);
       const userDoc = await getDoc(userRef);
-      
+
       if (!userDoc.exists()) {
         throw new Error(`User document not found: ${userId}`);
       }
-      
+
       const userData = userDoc.data();
-      
+
       // Check if systemInfo object exists and has basic structure
-      if (!userData.systemInfo || typeof userData.systemInfo !== 'object') {
-        console.log(`🔧 [DataManager] Creating missing systemInfo object for user: ${userId}`);
-        
+      if (!userData.systemInfo || typeof userData.systemInfo !== "object") {
+        console.log(
+          `🔧 [DataManager] Creating missing systemInfo object for user: ${userId}`
+        );
+
         // Create systemInfo with essential fields
         const systemInfoDefaults = {
           uid: userId,
@@ -3594,17 +3680,22 @@ class DataManager {
           lastUpdated: serverTimestamp(),
           // Location fields will be added as needed
         };
-        
+
         await updateDoc(userRef, {
-          systemInfo: systemInfoDefaults
+          systemInfo: systemInfoDefaults,
         });
-        
-        console.log(`✅ [DataManager] Created systemInfo object for user: ${userId}`);
+
+        console.log(
+          `✅ [DataManager] Created systemInfo object for user: ${userId}`
+        );
       }
-      
+
       return true;
     } catch (error) {
-      console.error(`❌ [DataManager] Error ensuring systemInfo exists for ${userId}:`, error);
+      console.error(
+        `❌ [DataManager] Error ensuring systemInfo exists for ${userId}:`,
+        error
+      );
       throw error;
     }
   }
@@ -3621,13 +3712,17 @@ class DataManager {
         return null;
       }
 
-      console.log(`📋 [DataManager] Fetching friendship document: ${friendshipId}`);
+      console.log(
+        `📋 [DataManager] Fetching friendship document: ${friendshipId}`
+      );
 
       const friendshipRef = doc(db, "friendships", friendshipId);
       const friendshipDoc = await getDoc(friendshipRef);
 
       if (!friendshipDoc.exists()) {
-        console.warn(`⚠️ [DataManager] Friendship document not found: ${friendshipId}`);
+        console.warn(
+          `⚠️ [DataManager] Friendship document not found: ${friendshipId}`
+        );
         return null;
       }
 
@@ -3636,10 +3731,15 @@ class DataManager {
         ...friendshipDoc.data(),
       };
 
-      console.log(`✅ [DataManager] Successfully fetched friendship document: ${friendshipId}`);
+      console.log(
+        `✅ [DataManager] Successfully fetched friendship document: ${friendshipId}`
+      );
       return friendshipData;
     } catch (error) {
-      console.error(`❌ [DataManager] Error fetching friendship document ${friendshipId}:`, error);
+      console.error(
+        `❌ [DataManager] Error fetching friendship document ${friendshipId}:`,
+        error
+      );
       return null;
     }
   }

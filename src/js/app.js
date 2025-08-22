@@ -39,9 +39,6 @@ import "./pages/NotificationsPage.js"; // 🔔 Campus Presence: Notifications sy
 import { campusLocationService } from "./services/location/CampusLocationService.js";
 import { locationPrivacyService } from "./services/location/LocationPrivacyService.js";
 
-// 🎯 Hybrid GPS Testing Suite (Development Only)
-import { hybridGpsTestingSuite } from "./utils/debug/HybridGpsTestingSuite.js";
-
 // 🎯 DEBUG: Log that modules are imported
 console.log("🔧 SPA Init: All page-specific modules imported and ready");
 
@@ -124,7 +121,7 @@ async function initializeSPA() {
 
   // 🌍 Initialize Campus Presence services in background (NON-BLOCKING)
   console.log("🌍 Starting Campus Presence services in background...");
-  
+
   // Start background initialization without blocking app startup
   initializeCampusPresenceInBackground();
 
@@ -132,7 +129,6 @@ async function initializeSPA() {
 
   // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
   spaRouter.loadInitialPage();
-
 
   // ── BUG FIX ──
   // Register the profile setup completion listeners so that
@@ -144,9 +140,11 @@ async function initializeSPA() {
   setupSPAEventListeners();
 
   // 💰 COST OPTIMIZATION: Detect manual reloads for strategic Google API usage
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener("beforeunload", () => {
     // Mark that a manual reload is happening
-    if (typeof campusLocationService?.constructor?.markManualReload === 'function') {
+    if (
+      typeof campusLocationService?.constructor?.markManualReload === "function"
+    ) {
       campusLocationService.constructor.markManualReload();
     }
   });
@@ -280,7 +278,6 @@ function updateGlobalUIForPage(route) {
   // (though the router already handles this)
 }
 
-
 /**
  * Export navigateTo function for external use instead of window global
  * 🎯 Learning: Provide a simple way for other scripts to navigate
@@ -306,102 +303,129 @@ export { setupProfileCompletionFlow, updatePageTitle };
  */
 async function initializeCampusPresenceInBackground() {
   try {
-    console.log("🔄 Background: Non-blocking Campus Presence initialization started...");
-    
+    console.log(
+      "🔄 Background: Non-blocking Campus Presence initialization started..."
+    );
+
     // Enhanced fresh data detection with cache validation
-    const isFirstVisit = !localStorage.getItem('campusLocationService_visited');
-    const lastCacheTime = localStorage.getItem('campusPresence_lastFreshData');
-    const cacheAge = lastCacheTime ? Date.now() - parseInt(lastCacheTime) : Infinity;
-    const isCacheStale = cacheAge > (12 * 60 * 60 * 1000); // 12 hours cache expiry
-    const forceRefresh = sessionStorage.getItem('campusLocationService_requiresFreshData') === 'true';
-    
+    const isFirstVisit = !localStorage.getItem("campusLocationService_visited");
+    const lastCacheTime = localStorage.getItem("campusPresence_lastFreshData");
+    const cacheAge = lastCacheTime
+      ? Date.now() - parseInt(lastCacheTime)
+      : Infinity;
+    const isCacheStale = cacheAge > 12 * 60 * 60 * 1000; // 12 hours cache expiry
+    const forceRefresh =
+      sessionStorage.getItem("campusLocationService_requiresFreshData") ===
+      "true";
+
     const isFreshDataRequired = isFirstVisit || isCacheStale || forceRefresh;
-    
+
     console.log("🎯 Fresh data analysis:", {
       isFirstVisit,
       isCacheStale: isCacheStale && lastCacheTime,
       forceRefresh,
       cacheAge: Math.round(cacheAge / (60 * 1000)), // in minutes
-      isFreshDataRequired
+      isFreshDataRequired,
     });
-    
+
     // Set priority mode for presence dots
     if (isFreshDataRequired) {
-      console.log("🎯 Fresh data required - setting priority mode for presence dots");
-      sessionStorage.setItem('campusPresence_forceFreshData', 'true');
-      sessionStorage.setItem('campusPresence_priorityMode', 'fresh_data');
-      
+      console.log(
+        "🎯 Fresh data required - setting priority mode for presence dots"
+      );
+      sessionStorage.setItem("campusPresence_forceFreshData", "true");
+      sessionStorage.setItem("campusPresence_priorityMode", "fresh_data");
+
       // Emit immediate loading event for presence dots
-      document.dispatchEvent(new CustomEvent('campus-presence:loading', {
-        detail: { 
-          forceFreshData: true,
-          priority: 'presence_dots',
-          reason: isFirstVisit ? 'first_visit' : (isCacheStale ? 'cache_stale' : 'force_refresh')
-        }
-      }));
+      document.dispatchEvent(
+        new CustomEvent("campus-presence:loading", {
+          detail: {
+            forceFreshData: true,
+            priority: "presence_dots",
+            reason: isFirstVisit
+              ? "first_visit"
+              : isCacheStale
+              ? "cache_stale"
+              : "force_refresh",
+          },
+        })
+      );
     } else {
       console.log("✅ Using cached data for immediate presence display");
-      sessionStorage.setItem('campusPresence_priorityMode', 'cached');
+      sessionStorage.setItem("campusPresence_priorityMode", "cached");
     }
-    
+
     // Initialize location services with enhanced background processing
     const initializationPromise = (async () => {
-      if (typeof campusLocationService.handleInitialization === 'function') {
+      if (typeof campusLocationService.handleInitialization === "function") {
         await campusLocationService.handleInitialization();
-      } else if (typeof campusLocationService.initialize === 'function') {
+      } else if (typeof campusLocationService.initialize === "function") {
         await campusLocationService.initialize();
       }
-      
-      if (typeof locationPrivacyService.initialize === 'function') {
+
+      if (typeof locationPrivacyService.initialize === "function") {
         await locationPrivacyService.initialize();
       }
     })();
-    
+
     // For fresh data scenarios, start immediate location fetch in parallel
     if (isFreshDataRequired) {
-      console.log("🚀 Starting priority location fetch for fresh presence data...");
-      
+      console.log(
+        "🚀 Starting priority location fetch for fresh presence data..."
+      );
+
       // Start fresh location fetch without blocking the main initialization
-      fetchFreshLocationForPresence().catch(error => {
+      fetchFreshLocationForPresence().catch((error) => {
         console.warn("⚠️ Priority location fetch failed:", error);
         // Continue with standard initialization
       });
     }
-    
+
     // Wait for main initialization to complete
     await initializationPromise;
-    
-    console.log("✅ Background: Campus Presence services initialized successfully!");
-    
+
+    console.log(
+      "✅ Background: Campus Presence services initialized successfully!"
+    );
+
     // Update cache timestamp if fresh data was loaded
     if (isFreshDataRequired) {
-      localStorage.setItem('campusPresence_lastFreshData', Date.now().toString());
+      localStorage.setItem(
+        "campusPresence_lastFreshData",
+        Date.now().toString()
+      );
     }
-    
+
     // Clean up temporary flags and notify completion
-    sessionStorage.removeItem('campusPresence_forceFreshData');
-    sessionStorage.removeItem('campusPresence_priorityMode');
-    
-    document.dispatchEvent(new CustomEvent('campus-presence:ready', {
-      detail: { 
-        freshDataLoaded: isFreshDataRequired,
-        cacheUsed: !isFreshDataRequired,
-        initializationTime: Date.now()
-      }
-    }));
-    
+    sessionStorage.removeItem("campusPresence_forceFreshData");
+    sessionStorage.removeItem("campusPresence_priorityMode");
+
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:ready", {
+        detail: {
+          freshDataLoaded: isFreshDataRequired,
+          cacheUsed: !isFreshDataRequired,
+          initializationTime: Date.now(),
+        },
+      })
+    );
   } catch (error) {
-    console.error("❌ Background: Failed to initialize Campus Presence services:", error);
-    
+    console.error(
+      "❌ Background: Failed to initialize Campus Presence services:",
+      error
+    );
+
     // Clean up flags on error
-    sessionStorage.removeItem('campusPresence_forceFreshData');
-    sessionStorage.removeItem('campusPresence_priorityMode');
-    
+    sessionStorage.removeItem("campusPresence_forceFreshData");
+    sessionStorage.removeItem("campusPresence_priorityMode");
+
     // Emit error event for component handling
-    document.dispatchEvent(new CustomEvent('campus-presence:error', {
-      detail: { error: error.message, timestamp: Date.now() }
-    }));
-    
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:error", {
+        detail: { error: error.message, timestamp: Date.now() },
+      })
+    );
+
     // Continue - don't fail the app for location services
   }
 }
@@ -412,32 +436,40 @@ async function initializeCampusPresenceInBackground() {
  */
 async function fetchFreshLocationForPresence() {
   console.log("🎯 Priority: Fetching fresh location data for presence dots...");
-  
+
   try {
     // Use immediate location fetch for presence priority
-    if (typeof campusLocationService.requestSingleLocationUpdate === 'function') {
+    if (
+      typeof campusLocationService.requestSingleLocationUpdate === "function"
+    ) {
       // This method bypasses debouncing and gets fresh GPS immediately
       campusLocationService.requestSingleLocationUpdate();
-      console.log("✅ Priority: Fresh location request initiated for presence dots");
-    } else if (typeof campusLocationService.handleTriggerEvent === 'function') {
+      console.log(
+        "✅ Priority: Fresh location request initiated for presence dots"
+      );
+    } else if (typeof campusLocationService.handleTriggerEvent === "function") {
       // Alternative method for immediate location update
-      await campusLocationService.handleTriggerEvent('presence_priority');
+      await campusLocationService.handleTriggerEvent("presence_priority");
       console.log("✅ Priority: Trigger event sent for fresh presence data");
     } else {
       console.warn("⚠️ Priority: No immediate location method available");
     }
-    
+
     // Emit event that fresh data is being fetched
-    document.dispatchEvent(new CustomEvent('campus-presence:fetching-fresh', {
-      detail: { 
-        priority: true,
-        method: 'immediate_gps',
-        timestamp: Date.now()
-      }
-    }));
-    
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:fetching-fresh", {
+        detail: {
+          priority: true,
+          method: "immediate_gps",
+          timestamp: Date.now(),
+        },
+      })
+    );
   } catch (error) {
-    console.error("❌ Priority: Failed to fetch fresh location for presence:", error);
+    console.error(
+      "❌ Priority: Failed to fetch fresh location for presence:",
+      error
+    );
     throw error;
   }
 }
@@ -446,4 +478,9 @@ async function fetchFreshLocationForPresence() {
  * Export Campus Presence services for debugging and testing
  * 🌍 Learning: Expose services for console debugging and external access
  */
-export { campusLocationService, locationPrivacyService, initializeCampusPresenceInBackground, fetchFreshLocationForPresence };
+export {
+  campusLocationService,
+  locationPrivacyService,
+  initializeCampusPresenceInBackground,
+  fetchFreshLocationForPresence,
+};
