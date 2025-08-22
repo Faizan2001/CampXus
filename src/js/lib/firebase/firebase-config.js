@@ -1,7 +1,11 @@
 // Firebase configuration for browser environment
 import "./env-config.js";
 import { initializeApp } from "firebase/app";
-import { initializeAuth, browserLocalPersistence, indexedDBLocalPersistence } from "firebase/auth";
+import {
+  initializeAuth,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -48,7 +52,12 @@ const firebaseConfig = loadFirebaseConfig();
 let app;
 try {
   app = initializeApp(firebaseConfig);
-  console.log("Firebase initialized successfully");
+  // Prefer structured logging via logManager when available
+  if (typeof window !== "undefined" && window.logManager) {
+    window.logManager.system.init("Firebase initialized successfully");
+  } else {
+    console.log("Firebase initialized successfully");
+  }
 } catch (error) {
   console.error("Firebase initialization error:", error);
   throw new Error("Failed to initialize Firebase");
@@ -59,15 +68,39 @@ let auth;
 try {
   // Try browserLocalPersistence first (uses localStorage, fewer IDBRequest listeners)
   auth = initializeAuth(app, {
-    persistence: [browserLocalPersistence, indexedDBLocalPersistence]
+    persistence: [browserLocalPersistence, indexedDBLocalPersistence],
   });
-  console.log("✅ Firebase Auth initialized with optimized persistence (localStorage priority)");
+  if (typeof window !== "undefined" && window.logManager) {
+    window.logManager.auth.user(
+      "Firebase Auth initialized with optimized persistence (localStorage priority)"
+    );
+  } else {
+    console.log(
+      "✅ Firebase Auth initialized with optimized persistence (localStorage priority)"
+    );
+  }
 } catch (error) {
-  console.warn("⚠️ Failed to initialize Auth with custom persistence, falling back to default:", error.message);
+  if (typeof window !== "undefined" && window.logManager) {
+    window.logManager.auth.error(
+      "Failed to initialize Auth with custom persistence, falling back to default",
+      { message: error.message }
+    );
+  } else {
+    console.warn(
+      "⚠️ Failed to initialize Auth with custom persistence, falling back to default:",
+      error.message
+    );
+  }
   // Fallback to default auth initialization if custom persistence fails
   const { getAuth } = await import("firebase/auth");
   auth = getAuth(app);
-  console.log("✅ Firebase Auth initialized with default persistence");
+  if (typeof window !== "undefined" && window.logManager) {
+    window.logManager.auth.user(
+      "Firebase Auth initialized with default persistence"
+    );
+  } else {
+    console.log("✅ Firebase Auth initialized with default persistence");
+  }
 }
 
 // Initialize other services with error handling

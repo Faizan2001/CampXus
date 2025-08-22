@@ -39,6 +39,7 @@ import { currentUser } from "../../store/userStore.js";
 import { renderUserAvatar } from "../../utils/avatar/avatarUtils.js";
 import { dataManager } from "../../services/data/DataService.js";
 import { notificationManager } from "../../services/realtime/NotificationService.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 import {
   realTimeManager,
   REALTIME_EVENTS,
@@ -118,8 +119,8 @@ export class HorizontalFriendsBar {
     this.lastLocationAnimationTime = 0; // Debounce animation timing
     this.isLocationAnimationRunning = false; // Prevent overlapping animations
 
-    console.log(
-      `🏗️ HorizontalFriendsBar created with enhanced loop prevention and privacy optimization for container: ${containerId}`
+    logManager.ui.init(
+      `HorizontalFriendsBar created for container: ${containerId}`
     );
   }
 
@@ -129,7 +130,7 @@ export class HorizontalFriendsBar {
    */
   async init() {
     try {
-      console.log("🚀 Initializing HorizontalFriendsBar...");
+      logManager.ui.init("Initializing HorizontalFriendsBar");
 
       // Get container element
       this.container = document.getElementById(this.containerId);
@@ -168,31 +169,26 @@ export class HorizontalFriendsBar {
       // Default select user's own schedule after DOM is ready
       this.addTrackedTimeout(async () => {
         await this.selectUser();
-        console.log("🔍 DEBUG: User selection called after DOM ready");
+        logManager.dev.debug("User selection called after DOM ready");
       }, 50);
 
       // Add global debug function for testing selection rings
       window.testSelectionRings = () => {
-        console.log("🔍 Testing selection rings...");
+        logManager.dev.test("Testing selection rings");
         this.avatarElements.forEach((element, friendId) => {
           const ring = element.querySelector(".selection-ring");
-          console.log(`Ring for ${friendId}:`, {
-            element,
-            ring,
+          logManager.dev.debug(`Ring for ${friendId}`, {
             hasSelected: element.classList.contains("selected"),
             ringOpacity: ring ? getComputedStyle(ring).opacity : "N/A",
-            ringDisplay: ring ? getComputedStyle(ring).display : "N/A",
-            ringWidth: ring ? getComputedStyle(ring).width : "N/A",
-            ringHeight: ring ? getComputedStyle(ring).height : "N/A",
           });
         });
       };
 
-      console.log("🔍 Added window.testSelectionRings() for debugging");
+      logManager.dev.debug("Added window.testSelectionRings() for debugging");
 
       // Add test function to window for debugging avatar comparison
       window.testAvatarComparison = () => {
-        console.log("🧪 Testing avatar comparison logic...");
+        logManager.dev.test("Testing avatar comparison logic");
 
         const testCases = [
           {
@@ -366,34 +362,33 @@ export class HorizontalFriendsBar {
       console.log(
         "🔍 Added window.debugHorizontalFriendsBar() for comprehensive debugging"
       );
-      
+
       // Add global function for testing location animation
       window.testLocationAnimation = () => {
-        console.log('🗺 Testing location update animation...');
+        console.log("🗺 Testing location update animation...");
         this.notifyLocationUpdated();
       };
-      
-      console.log('🗺 Added window.testLocationAnimation() for testing location updates');
+
+      console.log(
+        "🗺 Added window.testLocationAnimation() for testing location updates"
+      );
 
       // Store global instance for external access
       globalHorizontalFriendsBarInstance = this;
-      
+
       this.isInitialized = true;
-      console.log("✅ HorizontalFriendsBar initialized successfully");
-      
+      logManager.ui.init("HorizontalFriendsBar initialized successfully");
+
       // Process any queued location animations
       this.processQueuedLocationAnimations();
 
-      // Debug: Verify user selection after initialization
-      console.log("🔍 DEBUG: User selection state after init:", {
+      // Debug: Verify user selection after initialization (only in debug mode)
+      logManager.dev.debug("User selection state after init", {
         selectedFriendId: this.selectedFriendId,
         userElementExists: this.avatarElements.has("user"),
-        userElementSelected: this.avatarElements
-          .get("user")
-          ?.classList.contains("selected"),
       });
     } catch (error) {
-      console.error("❌ Failed to initialize HorizontalFriendsBar:", error);
+      logManager.ui.error("Failed to initialize HorizontalFriendsBar", error);
       this.showErrorState(error.message);
     }
   }
@@ -633,7 +628,7 @@ export class HorizontalFriendsBar {
     // Get user's current location data from profile
     const userProfile = currentUser.profile;
     const systemInfo = userProfile?.systemInfo || {};
-    
+
     // Create presence dot for user's own avatar with fresh data priority
     const userPresenceDot = PresenceDot.createWithFreshDataPriority(
       systemInfo.lastActive,
@@ -642,12 +637,12 @@ export class HorizontalFriendsBar {
       this.waitingForFreshData || false
     );
 
-    console.log('[HorizontalFriendsBar] Creating user presence dot:', {
+    console.log("[HorizontalFriendsBar] Creating user presence dot:", {
       hasLastActive: !!systemInfo.lastActive,
       hasLocation: !!systemInfo.lastKnownLocation,
       hasLocationSharing: systemInfo.locationSharingEnabled,
       campusStatus: systemInfo.lastKnownLocation?.campusStatus,
-      presenceDotPreview: userPresenceDot.substring(0, 50) + "..."
+      presenceDotPreview: userPresenceDot.substring(0, 50) + "...",
     });
 
     const userAvatarHtml = `
@@ -675,8 +670,10 @@ export class HorizontalFriendsBar {
     const userElement = container.querySelector('[data-friend-id="user"]');
     if (userElement) {
       this.avatarElements.set("user", userElement);
-      console.log("👤 User avatar rendered with presence dot and location indicator");
-      
+      console.log(
+        "👤 User avatar rendered with presence dot and location indicator"
+      );
+
       // Set up location update animation listener
       this.setupUserLocationUpdateListener(userElement);
     } else {
@@ -1807,13 +1804,18 @@ export class HorizontalFriendsBar {
    * Set up real-time listeners for Quick Access changes and privacy updates
    */
   setupRealTimeListeners() {
-    console.log(
-      "📡 Setting up smart real-time listeners for HorizontalFriendsBar..."
+    logManager.realtimeListener(
+      "Setting up",
+      "smart listeners",
+      "HorizontalFriendsBar"
     );
 
     // ENHANCED: Smart database listener with change detection to prevent loops
     if (currentUser?.user?.uid && dataManager?.listenToUserProfile) {
-      console.log("📡 Setting up smart database listener with loop prevention");
+      logManager.realtimeListener(
+        "Setting up",
+        "database listener with loop prevention"
+      );
 
       const userProfileUnsubscriber = dataManager.listenToUserProfile(
         currentUser.user.uid,
@@ -1824,8 +1826,8 @@ export class HorizontalFriendsBar {
             this.isPrivacySyncing ||
             window.profile_updates_in_progress
           ) {
-            console.log(
-              "🛑 CIRCUIT BREAKER: Ignoring database update during our own sync operations"
+            logManager.dev.debug(
+              "CIRCUIT BREAKER: Ignoring database update during sync operations"
             );
             return;
           }
@@ -2093,90 +2095,106 @@ export class HorizontalFriendsBar {
     console.log("📡 Setting up Campus Presence fresh data event listeners...");
 
     // Track whether we're currently waiting for fresh data
-    this.waitingForFreshData = sessionStorage.getItem('campusPresence_forceFreshData') === 'true';
+    this.waitingForFreshData =
+      sessionStorage.getItem("campusPresence_forceFreshData") === "true";
 
     // 🎯 NEW: Listen for campus presence loading events (from app.js background init)
-    document.addEventListener('campus-presence:loading', (event) => {
-      console.log('🔄 [HorizontalFriendsBar] Campus presence loading started:', event.detail);
+    document.addEventListener("campus-presence:loading", (event) => {
+      console.log(
+        "🔄 [HorizontalFriendsBar] Campus presence loading started:",
+        event.detail
+      );
       this.waitingForFreshData = true;
       this.showPresenceDotsLoading();
     });
 
     // 🎯 NEW: Listen for campus presence ready events (from app.js background init)
-    document.addEventListener('campus-presence:ready', (event) => {
-      console.log('✅ [HorizontalFriendsBar] Campus presence ready:', event.detail);
+    document.addEventListener("campus-presence:ready", (event) => {
+      console.log(
+        "✅ [HorizontalFriendsBar] Campus presence ready:",
+        event.detail
+      );
       this.waitingForFreshData = false;
-      
+
       if (event.detail.freshDataLoaded) {
-        console.log('🎯 Fresh data was loaded - refreshing presence dots');
+        console.log("🎯 Fresh data was loaded - refreshing presence dots");
         this.refreshPresenceDotsWithLatestData();
       } else {
-        console.log('📦 Using cached data - showing existing presence dots');
+        console.log("📦 Using cached data - showing existing presence dots");
         this.hidePresenceDotsLoading();
       }
     });
 
-    // 🎯 NEW: Listen for priority location fetch events 
-    document.addEventListener('campus-presence:fetching-fresh', (event) => {
-      console.log('🎯 [HorizontalFriendsBar] Priority location fetch started:', event.detail);
+    // 🎯 NEW: Listen for priority location fetch events
+    document.addEventListener("campus-presence:fetching-fresh", (event) => {
+      console.log(
+        "🎯 [HorizontalFriendsBar] Priority location fetch started:",
+        event.detail
+      );
       // Keep loading state active during priority fetch
       this.waitingForFreshData = true;
     });
 
     // 🎯 NEW: Listen for campus presence errors
-    document.addEventListener('campus-presence:error', (event) => {
-      console.error('❌ [HorizontalFriendsBar] Campus presence error:', event.detail.error);
+    document.addEventListener("campus-presence:error", (event) => {
+      console.error(
+        "❌ [HorizontalFriendsBar] Campus presence error:",
+        event.detail.error
+      );
       this.waitingForFreshData = false;
       this.hidePresenceDotsLoading();
     });
 
     // LEGACY: Keep existing event listeners for backward compatibility
-    document.addEventListener('campus-presence:data-loading', (event) => {
-      console.log('🔄 [HorizontalFriendsBar] Legacy data loading event');
+    document.addEventListener("campus-presence:data-loading", (event) => {
+      logManager.dev.debug("Legacy data loading event");
       this.waitingForFreshData = true;
       this.showPresenceDotsLoading();
     });
 
-    document.addEventListener('campus-presence:fresh-data-ready', (event) => {
-      console.log('✅ [HorizontalFriendsBar] Legacy fresh data received:', event.detail);
+    document.addEventListener("campus-presence:fresh-data-ready", (event) => {
+      logManager.location.info("Legacy fresh data received:", event.detail);
       this.waitingForFreshData = false;
       this.updatePresenceDotsWithFreshData(event.detail.locationData);
     });
 
-    document.addEventListener('campus-presence:data-error', (event) => {
-      console.error('❌ [HorizontalFriendsBar] Legacy data error:', event.detail.error);
+    document.addEventListener("campus-presence:data-error", (event) => {
+      console.error(
+        "❌ [HorizontalFriendsBar] Legacy data error:",
+        event.detail.error
+      );
       this.waitingForFreshData = false;
       this.hidePresenceDotsLoading();
     });
 
-    console.log('✅ Enhanced fresh data event listeners set up successfully');
+    console.log("✅ Enhanced fresh data event listeners set up successfully");
   }
 
   /**
    * 🚀 FRESH DATA PRIORITY: Show loading state on presence dots
    */
   showPresenceDotsLoading() {
-    console.log('🔄 [HorizontalFriendsBar] Showing loading state on presence dots');
-    
+    logManager.dev.debug("Showing loading state on presence dots");
+
     // Update user's own presence dot
     if (this.userAvatarElement) {
-      const userDot = this.userAvatarElement.querySelector('.presence-dot');
+      const userDot = this.userAvatarElement.querySelector(".presence-dot");
       if (userDot) {
-        userDot.className = 'presence-dot loading';
-        userDot.title = 'Loading fresh location data...';
+        userDot.className = "presence-dot loading";
+        userDot.title = "Loading fresh location data...";
         userDot.innerHTML = '<div class="loading-pulse"></div>';
       }
     }
 
     // Update friends' presence dots if they have location sharing
-    this.quickAccessFriends.forEach(friend => {
+    this.quickAccessFriends.forEach((friend) => {
       if (friend.hasLocationSharing) {
         const avatarElement = this.avatarElements.get(friend.uid);
         if (avatarElement) {
-          const friendDot = avatarElement.querySelector('.presence-dot');
+          const friendDot = avatarElement.querySelector(".presence-dot");
           if (friendDot) {
-            friendDot.className = 'presence-dot loading';
-            friendDot.title = 'Loading fresh location data...';
+            friendDot.className = "presence-dot loading";
+            friendDot.title = "Loading fresh location data...";
             friendDot.innerHTML = '<div class="loading-pulse"></div>';
           }
         }
@@ -2188,47 +2206,54 @@ export class HorizontalFriendsBar {
    * 🚀 FRESH DATA PRIORITY: Update presence dots with fresh location data
    */
   updatePresenceDotsWithFreshData(freshLocationData) {
-    console.log('📍 [HorizontalFriendsBar] Updating presence dots with fresh data:', freshLocationData);
+    logManager.dev.debug(
+      "Updating presence dots with fresh data:",
+      freshLocationData
+    );
 
     // Update user's presence dot if current user has location sharing
     if (this.currentUser && this.userAvatarElement) {
       const systemInfo = this.currentUser.systemInfo;
       if (systemInfo?.locationSharingEnabled) {
-        const userDot = this.userAvatarElement.querySelector('.presence-dot');
+        const userDot = this.userAvatarElement.querySelector(".presence-dot");
         if (userDot) {
           // Import PresenceDot dynamically to avoid circular imports
-          import('../../components/presence/PresenceDot.js').then(({ PresenceDot }) => {
-            PresenceDot.updateWithFreshData(
-              userDot,
-              systemInfo.lastActive,
-              systemInfo.lastKnownLocation,
-              systemInfo.locationSharingEnabled
-            );
-          }).catch(error => {
-            console.error('Failed to load PresenceDot:', error);
-            this.hidePresenceDotsLoading();
-          });
+          import("../../components/presence/PresenceDot.js")
+            .then(({ PresenceDot }) => {
+              PresenceDot.updateWithFreshData(
+                userDot,
+                systemInfo.lastActive,
+                systemInfo.lastKnownLocation,
+                systemInfo.locationSharingEnabled
+              );
+            })
+            .catch((error) => {
+              console.error("Failed to load PresenceDot:", error);
+              this.hidePresenceDotsLoading();
+            });
         }
       }
     }
 
     // Update friends' presence dots
-    this.quickAccessFriends.forEach(friend => {
+    this.quickAccessFriends.forEach((friend) => {
       if (friend.hasLocationSharing) {
         const avatarElement = this.avatarElements.get(friend.uid);
         if (avatarElement) {
-          const friendDot = avatarElement.querySelector('.presence-dot');
+          const friendDot = avatarElement.querySelector(".presence-dot");
           if (friendDot) {
-            import('../../components/presence/PresenceDot.js').then(({ PresenceDot }) => {
-              PresenceDot.updateWithFreshData(
-                friendDot,
-                friend.lastActive,
-                friend.lastKnownLocation,
-                friend.hasLocationSharing
-              );
-            }).catch(error => {
-              console.error('Failed to load PresenceDot for friend:', error);
-            });
+            import("../../components/presence/PresenceDot.js")
+              .then(({ PresenceDot }) => {
+                PresenceDot.updateWithFreshData(
+                  friendDot,
+                  friend.lastActive,
+                  friend.lastKnownLocation,
+                  friend.hasLocationSharing
+                );
+              })
+              .catch((error) => {
+                console.error("Failed to load PresenceDot for friend:", error);
+              });
           }
         }
       }
@@ -2239,8 +2264,10 @@ export class HorizontalFriendsBar {
    * 🚀 FRESH DATA PRIORITY: Hide loading state on presence dots
    */
   hidePresenceDotsLoading() {
-    console.log('⏹️ [HorizontalFriendsBar] Hiding loading state on presence dots');
-    
+    console.log(
+      "⏹️ [HorizontalFriendsBar] Hiding loading state on presence dots"
+    );
+
     // This will trigger a regular re-render which will show normal presence dots
     this.render();
   }
@@ -2249,18 +2276,20 @@ export class HorizontalFriendsBar {
    * 🎯 FRESH DATA PRIORITY: Refresh presence dots with latest data after background load
    */
   refreshPresenceDotsWithLatestData() {
-    console.log('🔄 [HorizontalFriendsBar] Refreshing presence dots with latest data...');
-    
+    console.log(
+      "🔄 [HorizontalFriendsBar] Refreshing presence dots with latest data..."
+    );
+
     try {
       // Update user's presence dot with latest data
       if (this.currentUser && this.userAvatarElement) {
         const systemInfo = this.currentUser.systemInfo;
         if (systemInfo) {
           this.updateUserPresenceDot(systemInfo);
-          console.log('✅ User presence dot refreshed with latest data');
+          console.log("✅ User presence dot refreshed with latest data");
         }
       }
-      
+
       // Update friends' presence dots with latest data
       if (this.quickAccessFriends && this.quickAccessFriends.length > 0) {
         this.quickAccessFriends.forEach((friend, index) => {
@@ -2268,13 +2297,19 @@ export class HorizontalFriendsBar {
             this.updateFriendPresenceDot(index, friend);
           }
         });
-        console.log(`✅ Refreshed ${this.quickAccessFriends.length} friend presence dots with latest data`);
+        console.log(
+          `✅ Refreshed ${this.quickAccessFriends.length} friend presence dots with latest data`
+        );
       }
-      
-      console.log('✅ [HorizontalFriendsBar] All presence dots refreshed with latest data');
-      
+
+      console.log(
+        "✅ [HorizontalFriendsBar] All presence dots refreshed with latest data"
+      );
     } catch (error) {
-      console.error('❌ [HorizontalFriendsBar] Failed to refresh presence dots:', error);
+      console.error(
+        "❌ [HorizontalFriendsBar] Failed to refresh presence dots:",
+        error
+      );
       // Fallback to hiding loading state
       this.hidePresenceDotsLoading();
     }
@@ -2581,15 +2616,15 @@ export class HorizontalFriendsBar {
     // ENHANCED CIRCUIT BREAKER: Only block PROFILE updates, not privacy updates
     const profileUpdateKey = `profile_updating_${friendId}`;
     if (this[profileUpdateKey]) {
-      console.log(`🔄 Profile update lock active for ${friendId}, skipping`);
+      logManager.profileUpdate(friendId, "skipped - lock active");
       return;
     }
 
     // Check if this is a privacy-only update (bypass circuit breaker)
     const isPrivacyUpdate = this.isPrivacyOnlyUpdate(friendProfile);
     if (isPrivacyUpdate) {
-      console.log(
-        `🔒 Detected privacy-only update for ${friendId}, bypassing circuit breaker`
+      logManager.dev.debug(
+        `Privacy-only update for ${friendId}, bypassing circuit breaker`
       );
       return this.handlePrivacyStatusUpdate(
         friendId,
@@ -2611,13 +2646,13 @@ export class HorizontalFriendsBar {
     this[profileUpdateKey] = true;
 
     try {
-      console.log(`📡 Profile update for ${friendId}`);
+      logManager.profileUpdate(friendId, "processing");
 
       const friendIndex = this.quickAccessFriends.findIndex(
         (f) => f.friendId === friendId || f.userId === friendId
       );
       if (friendIndex === -1) {
-        console.log(
+        logManager.dev.debug(
           `📡 Friend ${friendId} not in starred list, ignoring update`
         );
         return;
@@ -2774,10 +2809,7 @@ export class HorizontalFriendsBar {
    */
   async handlePrivacyStatusUpdate(friendId, newPrivacyStatus) {
     // NO CIRCUIT BREAKER for privacy updates - they must be immediate per R3.1
-    console.log(
-      `🔒 IMMEDIATE privacy update for ${friendId}:`,
-      newPrivacyStatus
-    );
+    logManager.realtimeListener("processing", "privacy update", friendId);
 
     try {
       // Find the friend in our starred friends list
@@ -3802,21 +3834,24 @@ export class HorizontalFriendsBar {
         console.log(
           `🌍 Current user's campus presence changed: ${campusStatus}`
         );
-        
+
         // 🚀 ENTERPRISE FIX: Track campus status changes for smart animation
-        const previousStatus = this.lastKnownCampusStatus || 'unknown';
+        const previousStatus = this.lastKnownCampusStatus || "unknown";
         const campusStatusChange = {
           previousStatus,
-          newStatus: campusStatus
+          newStatus: campusStatus,
         };
-        
+
         // Update tracked status
         this.lastKnownCampusStatus = campusStatus;
-        
+
         // Trigger smart location update animation with status change context
-        console.log('[HorizontalFriendsBar] Triggering smart location animation for campus presence change:', campusStatusChange);
+        console.log(
+          "[HorizontalFriendsBar] Triggering smart location animation for campus presence change:",
+          campusStatusChange
+        );
         this.triggerLocationUpdateAnimation(campusStatusChange);
-        
+
         // For current user, we don't need to update the friends list,
         // but we should trigger a re-enhancement of friends data to reflect
         // our own location sharing status in bilateral calculations
@@ -4648,12 +4683,12 @@ export class HorizontalFriendsBar {
     this.lastUpdateTimestamp = 0;
 
     this.isInitialized = false;
-    
+
     // Clear global instance if this was the active one
     if (globalHorizontalFriendsBarInstance === this) {
       globalHorizontalFriendsBarInstance = null;
     }
-    
+
     console.log(
       "✅ HorizontalFriendsBar destroyed successfully with enhanced cleanup including privacy listeners"
     );
@@ -4697,16 +4732,18 @@ export class HorizontalFriendsBar {
    * @param {HTMLElement} userElement - The user avatar element
    */
   setupUserLocationUpdateListener(userElement) {
-    console.log('[HorizontalFriendsBar] Setting up user location update listener');
-    
+    console.log(
+      "[HorizontalFriendsBar] Setting up user location update listener"
+    );
+
     // Store reference for location updates
     this.userAvatarElement = userElement;
-    
+
     // Listen for real-time user profile changes that include location updates
     if (currentUser.uid) {
       this.listenToUserLocationUpdates(currentUser.uid);
     }
-    
+
     // Set up periodic presence dot refresh
     this.setupUserPresenceRefresh();
   }
@@ -4717,28 +4754,40 @@ export class HorizontalFriendsBar {
    */
   listenToUserLocationUpdates(userId) {
     if (!userId) return;
-    
-    console.log('[HorizontalFriendsBar] Starting user location update listener');
-    
+
+    console.log(
+      "[HorizontalFriendsBar] Starting user location update listener"
+    );
+
     // Listen for campus presence changes via RealtimeService
     try {
       // Subscribe to campus presence change events
-      const unsubscribe = realTimeManager.on('campusPresenceChanged', (data) => {
-        if (data.userId === userId) {
-          console.log('[HorizontalFriendsBar] User location update detected via campus presence:', data);
-          this.handleUserLocationUpdate({ systemInfo: data.locationData });
+      const unsubscribe = realTimeManager.on(
+        "campusPresenceChanged",
+        (data) => {
+          if (data.userId === userId) {
+            console.log(
+              "[HorizontalFriendsBar] User location update detected via campus presence:",
+              data
+            );
+            this.handleUserLocationUpdate({ systemInfo: data.locationData });
+          }
         }
-      });
-      
+      );
+
       // Store unsubscriber for cleanup
       this.realTimeUnsubscribers.push(() => {
-        realTimeManager.off('campusPresenceChanged', unsubscribe);
+        realTimeManager.off("campusPresenceChanged", unsubscribe);
       });
-      
-      console.log('[HorizontalFriendsBar] Successfully set up user location listener via RealtimeService');
-      
+
+      console.log(
+        "[HorizontalFriendsBar] Successfully set up user location listener via RealtimeService"
+      );
     } catch (error) {
-      console.error('[HorizontalFriendsBar] Failed to set up user location listener:', error);
+      console.error(
+        "[HorizontalFriendsBar] Failed to set up user location listener:",
+        error
+      );
     }
   }
 
@@ -4748,11 +4797,11 @@ export class HorizontalFriendsBar {
    */
   handleUserLocationUpdate(userData) {
     if (!this.userAvatarElement) return;
-    
+
     // Handle different data structures from campus presence vs profile updates
     let systemInfo;
     let hasLocationUpdate = false;
-    
+
     if (userData?.systemInfo) {
       // Direct profile update - use systemInfo structure
       systemInfo = userData.systemInfo;
@@ -4762,50 +4811,59 @@ export class HorizontalFriendsBar {
       systemInfo = {
         lastKnownLocation: {
           ...userData.locationData,
-          campusStatus: userData.campusStatus
+          campusStatus: userData.campusStatus,
         },
         lastActive: userData.locationData?.timestamp || userData.timestamp,
         locationSharingEnabled: true, // Presence events only fire when sharing is enabled
-        status: 'online' // User is active if generating location events
+        status: "online", // User is active if generating location events
       };
       hasLocationUpdate = true;
-      
-      console.log('[HorizontalFriendsBar] 🔄 Converted campus presence to systemInfo:', {
-        campusStatus: userData.campusStatus,
-        hasLocationData: !!userData.locationData,
-        timestamp: userData.timestamp
-      });
+
+      console.log(
+        "[HorizontalFriendsBar] 🔄 Converted campus presence to systemInfo:",
+        {
+          campusStatus: userData.campusStatus,
+          hasLocationData: !!userData.locationData,
+          timestamp: userData.timestamp,
+        }
+      );
     } else {
-      console.warn('[HorizontalFriendsBar] Invalid user location update data structure:', userData);
+      console.warn(
+        "[HorizontalFriendsBar] Invalid user location update data structure:",
+        userData
+      );
       return;
     }
-    
-    console.log('[HorizontalFriendsBar] User location update received:', {
+
+    console.log("[HorizontalFriendsBar] User location update received:", {
       hasLocation: !!systemInfo.lastKnownLocation,
       hasLastActive: !!systemInfo.lastActive,
       locationSharingEnabled: systemInfo.locationSharingEnabled,
       campusStatus: systemInfo.lastKnownLocation?.campusStatus,
-      source: userData?.systemInfo ? 'profile_update' : 'campus_presence'
+      source: userData?.systemInfo ? "profile_update" : "campus_presence",
     });
-    
+
     // Update presence dot immediately
     this.updateUserPresenceDot(systemInfo);
-    
+
     // Trigger location update animation for location updates
     if (hasLocationUpdate) {
       // 🚀 ENTERPRISE FIX: Track campus status changes for smart animation
       const newCampusStatus = systemInfo.lastKnownLocation?.campusStatus;
-      const previousStatus = this.lastKnownCampusStatus || 'unknown';
-      
+      const previousStatus = this.lastKnownCampusStatus || "unknown";
+
       const campusStatusChange = {
         previousStatus,
-        newStatus: newCampusStatus
+        newStatus: newCampusStatus,
       };
-      
+
       // Update tracked status
       this.lastKnownCampusStatus = newCampusStatus;
-      
-      console.log('[HorizontalFriendsBar] Triggering smart location update animation with status change:', campusStatusChange);
+
+      console.log(
+        "[HorizontalFriendsBar] Triggering smart location update animation with status change:",
+        campusStatusChange
+      );
       this.triggerLocationUpdateAnimation(campusStatusChange);
     }
   }
@@ -4816,16 +4874,18 @@ export class HorizontalFriendsBar {
    */
   updateUserPresenceDot(systemInfo) {
     if (!this.userAvatarElement || !this.isInitialized) return;
-    
+
     // 🛡️ SAFETY CHECK: Verify element is still in DOM
     if (!document.contains(this.userAvatarElement)) {
-      console.warn('[HorizontalFriendsBar] User avatar element detached from DOM, skipping update');
+      console.warn(
+        "[HorizontalFriendsBar] User avatar element detached from DOM, skipping update"
+      );
       return;
     }
-    
+
     // Find existing presence dot
-    const existingDot = this.userAvatarElement.querySelector('.presence-dot');
-    
+    const existingDot = this.userAvatarElement.querySelector(".presence-dot");
+
     // Create new presence dot
     const newPresenceDot = PresenceDot.createWithFreshDataPriority(
       systemInfo.lastActive,
@@ -4833,59 +4893,64 @@ export class HorizontalFriendsBar {
       systemInfo.locationSharingEnabled || false,
       this.waitingForFreshData || false
     );
-    
+
     if (existingDot && document.contains(existingDot)) {
       // 🔄 SAFE REPLACEMENT: Use insertAdjacentHTML instead of outerHTML
       try {
         // Create temporary container
-        const tempContainer = document.createElement('div');
+        const tempContainer = document.createElement("div");
         tempContainer.innerHTML = newPresenceDot;
         const newDot = tempContainer.firstElementChild;
-        
+
         if (newDot && existingDot.parentNode) {
           existingDot.parentNode.replaceChild(newDot, existingDot);
-          
+
           // Add fade-in animation
-          newDot.style.opacity = '0';
+          newDot.style.opacity = "0";
           requestAnimationFrame(() => {
-            newDot.style.transition = 'opacity 0.3s ease';
-            newDot.style.opacity = '1';
+            newDot.style.transition = "opacity 0.3s ease";
+            newDot.style.opacity = "1";
           });
         }
       } catch (error) {
-        console.warn('[HorizontalFriendsBar] Safe presence dot replacement failed:', error);
+        console.warn(
+          "[HorizontalFriendsBar] Safe presence dot replacement failed:",
+          error
+        );
         // Fallback: force recreate entire dot structure
         this.recreateUserPresenceDot(systemInfo);
       }
     } else {
       // Add new presence dot if none exists
-      const avatarImage = this.userAvatarElement.querySelector('.avatar-image');
+      const avatarImage = this.userAvatarElement.querySelector(".avatar-image");
       if (avatarImage && document.contains(avatarImage)) {
-        const selectionRing = avatarImage.querySelector('.selection-ring');
+        const selectionRing = avatarImage.querySelector(".selection-ring");
         if (selectionRing) {
-          selectionRing.insertAdjacentHTML('beforebegin', newPresenceDot);
+          selectionRing.insertAdjacentHTML("beforebegin", newPresenceDot);
         } else {
-          avatarImage.insertAdjacentHTML('beforeend', newPresenceDot);
+          avatarImage.insertAdjacentHTML("beforeend", newPresenceDot);
         }
       }
     }
-    
-    console.log('[HorizontalFriendsBar] User presence dot updated safely');
+
+    console.log("[HorizontalFriendsBar] User presence dot updated safely");
   }
 
   /**
    * 🔄 EMERGENCY FALLBACK: Completely recreate user presence dot structure
    */
   recreateUserPresenceDot(systemInfo) {
-    if (!this.userAvatarElement || !document.contains(this.userAvatarElement)) return;
-    
+    if (!this.userAvatarElement || !document.contains(this.userAvatarElement))
+      return;
+
     try {
       // Remove any existing presence dots
-      const existingDots = this.userAvatarElement.querySelectorAll('.presence-dot');
-      existingDots.forEach(dot => {
+      const existingDots =
+        this.userAvatarElement.querySelectorAll(".presence-dot");
+      existingDots.forEach((dot) => {
         if (dot.parentNode) dot.parentNode.removeChild(dot);
       });
-      
+
       // Create new presence dot
       const newPresenceDot = PresenceDot.createWithFreshDataPriority(
         systemInfo.lastActive,
@@ -4893,16 +4958,21 @@ export class HorizontalFriendsBar {
         systemInfo.locationSharingEnabled || false,
         this.waitingForFreshData || false
       );
-      
+
       // Add to avatar image
-      const avatarImage = this.userAvatarElement.querySelector('.avatar-image');
+      const avatarImage = this.userAvatarElement.querySelector(".avatar-image");
       if (avatarImage) {
-        avatarImage.insertAdjacentHTML('beforeend', newPresenceDot);
+        avatarImage.insertAdjacentHTML("beforeend", newPresenceDot);
       }
-      
-      console.log('[HorizontalFriendsBar] User presence dot recreated from scratch');
+
+      console.log(
+        "[HorizontalFriendsBar] User presence dot recreated from scratch"
+      );
     } catch (error) {
-      console.error('[HorizontalFriendsBar] Failed to recreate presence dot:', error);
+      console.error(
+        "[HorizontalFriendsBar] Failed to recreate presence dot:",
+        error
+      );
     }
   }
 
@@ -4912,102 +4982,135 @@ export class HorizontalFriendsBar {
    */
   triggerLocationUpdateAnimation(locationUpdate = null) {
     if (!this.userAvatarElement) return;
-    
-    const indicator = this.userAvatarElement.querySelector('.location-update-indicator');
+
+    const indicator = this.userAvatarElement.querySelector(
+      ".location-update-indicator"
+    );
     if (!indicator) return;
-    
+
     // 🛡️ ENHANCED ANIMATION DEBOUNCING: Prevent rapid successive animations
     const now = Date.now();
     const minAnimationInterval = 10000; // Increased to 10 seconds between animations to reduce pulse frequency
-    
-    if (this.lastLocationAnimationTime && (now - this.lastLocationAnimationTime) < minAnimationInterval) {
-      console.log('[HorizontalFriendsBar] 🛑 Animation debounced - too frequent (within 10s)');
+
+    if (
+      this.lastLocationAnimationTime &&
+      now - this.lastLocationAnimationTime < minAnimationInterval
+    ) {
+      console.log(
+        "[HorizontalFriendsBar] 🛑 Animation debounced - too frequent (within 10s)"
+      );
       return;
     }
-    
+
     // 🚀 ENTERPRISE FIX: Enhanced validation for meaningful location updates
     if (locationUpdate) {
-      const { 
-        coordinatesChanged, 
-        campusStatusChanged, 
-        hasValidCoordinates, 
-        hasLastActiveUpdate,
-        previousStatus, 
-        newStatus 
-      } = locationUpdate;
-      
-      // ✅ USER REQUIREMENT: Animation only when BOTH lastActive AND coordinates are updated AND coordinates are not null
-      if (!hasValidCoordinates || !locationUpdate.coordinates) {
-        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - coordinates are null/invalid', {
-          hasValidCoordinates,
-          hasCoordinatesObject: !!locationUpdate.coordinates,
-          coordinates: locationUpdate.coordinates
-        });
-        return;
-      }
-      
-      if (!hasLastActiveUpdate) {
-        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - no lastActive update');
-        return;
-      }
-      
-      if (!coordinatesChanged && !campusStatusChanged) {
-        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - no meaningful coordinate or status change');
-        return;
-      }
-      
-      // 🛡️ ADDITIONAL SAFETY: Only animate for significant campus status changes
-      // Skip animation for minor coordinate changes without campus status changes
-      if (coordinatesChanged && !campusStatusChanged && previousStatus === newStatus) {
-        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - minor coordinate change without campus status change');
-        return;
-      }
-      
-      // Skip animation for unknown status transitions (GPS failures)
-      if (newStatus === 'unknown' && previousStatus !== 'unknown') {
-        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - status became unknown (GPS failure)');
-        return;
-      }
-      
-      // 🚀 CRITICAL FIX: Skip animations when previous status is unknown (common on app start)
-      // This prevents continuous animations during initial GPS acquisition
-      if (previousStatus === 'unknown' && newStatus !== 'unknown') {
-        console.log('[HorizontalFriendsBar] 🛑 Animation skipped - previous status unknown (initial GPS acquisition)');
-        return;
-      }
-      
-      console.log('[HorizontalFriendsBar] 🌍 Meaningful location update validated for animation:', {
+      const {
         coordinatesChanged,
         campusStatusChanged,
         hasValidCoordinates,
         hasLastActiveUpdate,
-        statusTransition: `${previousStatus} → ${newStatus}`
-      });
+        previousStatus,
+        newStatus,
+      } = locationUpdate;
+
+      // ✅ USER REQUIREMENT: Animation only when BOTH lastActive AND coordinates are updated AND coordinates are not null
+      if (!hasValidCoordinates || !locationUpdate.coordinates) {
+        console.log(
+          "[HorizontalFriendsBar] 🛑 Animation skipped - coordinates are null/invalid",
+          {
+            hasValidCoordinates,
+            hasCoordinatesObject: !!locationUpdate.coordinates,
+            coordinates: locationUpdate.coordinates,
+          }
+        );
+        return;
+      }
+
+      if (!hasLastActiveUpdate) {
+        console.log(
+          "[HorizontalFriendsBar] 🛑 Animation skipped - no lastActive update"
+        );
+        return;
+      }
+
+      if (!coordinatesChanged && !campusStatusChanged) {
+        console.log(
+          "[HorizontalFriendsBar] 🛑 Animation skipped - no meaningful coordinate or status change"
+        );
+        return;
+      }
+
+      // 🛡️ ADDITIONAL SAFETY: Only animate for significant campus status changes
+      // Skip animation for minor coordinate changes without campus status changes
+      if (
+        coordinatesChanged &&
+        !campusStatusChanged &&
+        previousStatus === newStatus
+      ) {
+        console.log(
+          "[HorizontalFriendsBar] 🛑 Animation skipped - minor coordinate change without campus status change"
+        );
+        return;
+      }
+
+      // Skip animation for unknown status transitions (GPS failures)
+      if (newStatus === "unknown" && previousStatus !== "unknown") {
+        console.log(
+          "[HorizontalFriendsBar] 🛑 Animation skipped - status became unknown (GPS failure)"
+        );
+        return;
+      }
+
+      // 🚀 CRITICAL FIX: Skip animations when previous status is unknown (common on app start)
+      // This prevents continuous animations during initial GPS acquisition
+      if (previousStatus === "unknown" && newStatus !== "unknown") {
+        console.log(
+          "[HorizontalFriendsBar] 🛑 Animation skipped - previous status unknown (initial GPS acquisition)"
+        );
+        return;
+      }
+
+      console.log(
+        "[HorizontalFriendsBar] 🌍 Meaningful location update validated for animation:",
+        {
+          coordinatesChanged,
+          campusStatusChanged,
+          hasValidCoordinates,
+          hasLastActiveUpdate,
+          statusTransition: `${previousStatus} → ${newStatus}`,
+        }
+      );
     } else {
-      console.log('[HorizontalFriendsBar] ⚠️ No locationUpdate data provided - proceeding with basic animation');
+      console.log(
+        "[HorizontalFriendsBar] ⚠️ No locationUpdate data provided - proceeding with basic animation"
+      );
     }
-    
+
     // 🛡️ ANIMATION STATE MANAGEMENT: Prevent overlapping animations
     if (this.isLocationAnimationRunning) {
-      console.log('[HorizontalFriendsBar] 🛑 Animation already running - skipping');
+      console.log(
+        "[HorizontalFriendsBar] 🛑 Animation already running - skipping"
+      );
       return;
     }
-    
-    console.log('[HorizontalFriendsBar] ✨ Triggering smart location update animation');
-    
+
+    console.log(
+      "[HorizontalFriendsBar] ✨ Triggering smart location update animation"
+    );
+
     this.lastLocationAnimationTime = now;
     this.isLocationAnimationRunning = true;
-    
+
     // Reset animation state
-    indicator.classList.remove('location-updated');
-    
+    indicator.classList.remove("location-updated");
+
     // Trigger animation with slight delay for better visual effect
     setTimeout(() => {
-      indicator.classList.add('location-updated');
-      
+      indicator.classList.add("location-updated");
+
       // Clean up animation state after completion
       setTimeout(() => {
-        indicator.classList.remove('location-updated');
+        indicator.classList.remove("location-updated");
         this.isLocationAnimationRunning = false;
       }, 2000); // Animation duration
     }, 50);
@@ -5019,51 +5122,57 @@ export class HorizontalFriendsBar {
   setupUserPresenceRefresh() {
     // 🚀 REAL-TIME: Set up direct user profile listener for immediate presence updates
     if (currentUser?.uid) {
-      console.log('[HorizontalFriendsBar] Setting up real-time user profile listener for immediate presence updates');
-      
-      const unsubscribe = dataManager.listenToUserProfile(currentUser.uid, (profileData) => {
-        if (profileData?.systemInfo) {
-          // 🛡️ SAFETY: Validate timestamp data to prevent grey→timer flickering
-          const systemInfo = profileData.systemInfo;
-          const hasValidTimestamp = systemInfo.lastActive && 
-                                  (systemInfo.lastActive.toDate || systemInfo.lastActive.seconds);
-          
-          if (!hasValidTimestamp) {
-            console.log('[HorizontalFriendsBar] ⚠️ Skipping presence update - incomplete timestamp data');
-            return;
+      console.log(
+        "[HorizontalFriendsBar] Setting up real-time user profile listener for immediate presence updates"
+      );
+
+      const unsubscribe = dataManager.listenToUserProfile(
+        currentUser.uid,
+        (profileData) => {
+          if (profileData?.systemInfo) {
+            // 🛡️ SAFETY: Validate timestamp data to prevent grey→timer flickering
+            const systemInfo = profileData.systemInfo;
+            const hasValidTimestamp =
+              systemInfo.lastActive &&
+              (systemInfo.lastActive.toDate || systemInfo.lastActive.seconds);
+
+            if (!hasValidTimestamp) {
+              console.log(
+                "[HorizontalFriendsBar] ⚠️ Skipping presence update - incomplete timestamp data"
+              );
+              return;
+            }
+
+            logManager.realtimeListener(
+              "updating",
+              "user presence dot",
+              "real-time profile"
+            );
+
+            // Update presence dot immediately with new profile data
+            this.updateUserPresenceDot(systemInfo);
           }
-          
-          console.log('[HorizontalFriendsBar] 🔄 Real-time user profile update - refreshing presence dot:', {
-            hasLocation: !!systemInfo.lastKnownLocation,
-            campusStatus: systemInfo.lastKnownLocation?.campusStatus,
-            lastActive: systemInfo.lastActive,
-            locationSharing: systemInfo.locationSharingEnabled,
-            timestampValid: hasValidTimestamp
-          });
-          
-          // Update presence dot immediately with new profile data
-          this.updateUserPresenceDot(systemInfo);
         }
-      });
-      
+      );
+
       // Store unsubscriber for cleanup
       this.realTimeUnsubscribers.push(unsubscribe);
     }
-    
+
     // Also keep periodic refresh for time updates (every 30 seconds)
     const refreshInterval = setInterval(() => {
       if (!this.isInitialized || !this.userAvatarElement) {
         clearInterval(refreshInterval);
         return;
       }
-      
+
       // Get current user data and refresh presence dot for time updates only
       // 🔧 FIX: Use currentUser.systemInfo directly (not currentUser.profile.systemInfo)
       if (currentUser?.systemInfo) {
         this.updateUserPresenceDot(currentUser.systemInfo);
       }
     }, 30000); // 30 seconds for time display updates
-    
+
     // Store interval for cleanup
     this.activeTimeouts.add(refreshInterval);
   }
@@ -5074,31 +5183,40 @@ export class HorizontalFriendsBar {
    * @param {Object} locationUpdate - Location update data with coordinates and status
    */
   notifyLocationUpdated(locationUpdate = null) {
-    console.log('[HorizontalFriendsBar] Location update notification received:', locationUpdate);
-    
+    logManager.dev.debug(
+      "Location update notification received:",
+      locationUpdate
+    );
+
     // If locationUpdate is provided from CampusLocationService, use it directly
-    if (locationUpdate && typeof locationUpdate === 'object') {
-      console.log('[HorizontalFriendsBar] Using provided location update data:', locationUpdate);
+    if (locationUpdate && typeof locationUpdate === "object") {
+      console.log(
+        "[HorizontalFriendsBar] Using provided location update data:",
+        locationUpdate
+      );
       this.triggerLocationUpdateAnimation(locationUpdate);
       return;
     }
-    
+
     // Fallback: Try to get current user status for context
     const systemInfo = currentUser?.profile?.systemInfo;
     const lastKnownLocation = systemInfo?.lastKnownLocation;
-    
+
     if (!lastKnownLocation) {
-      console.log('[HorizontalFriendsBar] 🛑 No location data available - skipping animation');
+      console.log(
+        "[HorizontalFriendsBar] 🛑 No location data available - skipping animation"
+      );
       return;
     }
-    
+
     const currentStatus = lastKnownLocation.campusStatus;
-    const previousStatus = this.lastKnownCampusStatus || 'unknown';
-    const hasValidCoordinates = lastKnownLocation.latitude != null && 
-                               lastKnownLocation.longitude != null &&
-                               !isNaN(lastKnownLocation.latitude) && 
-                               !isNaN(lastKnownLocation.longitude);
-    
+    const previousStatus = this.lastKnownCampusStatus || "unknown";
+    const hasValidCoordinates =
+      lastKnownLocation.latitude != null &&
+      lastKnownLocation.longitude != null &&
+      !isNaN(lastKnownLocation.latitude) &&
+      !isNaN(lastKnownLocation.longitude);
+
     const fallbackLocationUpdate = {
       previousStatus,
       newStatus: currentStatus,
@@ -5106,17 +5224,22 @@ export class HorizontalFriendsBar {
       campusStatusChanged: previousStatus !== currentStatus,
       hasValidCoordinates,
       hasLastActiveUpdate: systemInfo?.lastActive != null,
-      coordinates: hasValidCoordinates ? {
-        latitude: lastKnownLocation.latitude,
-        longitude: lastKnownLocation.longitude
-      } : null
+      coordinates: hasValidCoordinates
+        ? {
+            latitude: lastKnownLocation.latitude,
+            longitude: lastKnownLocation.longitude,
+          }
+        : null,
     };
-    
-    console.log('[HorizontalFriendsBar] Using fallback location update data:', fallbackLocationUpdate);
-    
+
+    console.log(
+      "[HorizontalFriendsBar] Using fallback location update data:",
+      fallbackLocationUpdate
+    );
+
     // Update tracked status
     this.lastKnownCampusStatus = currentStatus;
-    
+
     this.triggerLocationUpdateAnimation(fallbackLocationUpdate);
   }
 
@@ -5127,24 +5250,29 @@ export class HorizontalFriendsBar {
     if (pendingLocationAnimations.length === 0) {
       return;
     }
-    
-    console.log(`[HorizontalFriendsBar] Processing ${pendingLocationAnimations.length} queued location animations`);
-    
+
+    console.log(
+      `[HorizontalFriendsBar] Processing ${pendingLocationAnimations.length} queued location animations`
+    );
+
     // Process the most recent animation (last one in queue)
-    const mostRecentAnimation = pendingLocationAnimations[pendingLocationAnimations.length - 1];
-    
+    const mostRecentAnimation =
+      pendingLocationAnimations[pendingLocationAnimations.length - 1];
+
     // Check if the animation is recent enough (within 30 seconds)
     const now = Date.now();
     const age = now - mostRecentAnimation.timestamp;
     const maxAge = 30000; // 30 seconds
-    
+
     if (age <= maxAge) {
-      console.log('[HorizontalFriendsBar] Processing recent queued animation');
+      console.log("[HorizontalFriendsBar] Processing recent queued animation");
       this.notifyLocationUpdated(mostRecentAnimation.locationUpdate);
     } else {
-      console.log('[HorizontalFriendsBar] Skipping stale queued animations (too old)');
+      console.log(
+        "[HorizontalFriendsBar] Skipping stale queued animations (too old)"
+      );
     }
-    
+
     // Clear the queue
     pendingLocationAnimations.length = 0;
   }
@@ -5156,13 +5284,15 @@ export class HorizontalFriendsBar {
   getUserPresenceStatus() {
     const userProfile = currentUser.profile;
     const systemInfo = userProfile?.systemInfo || {};
-    
+
     return {
       hasLocationSharing: systemInfo.locationSharingEnabled || false,
       lastActive: systemInfo.lastActive,
       lastKnownLocation: systemInfo.lastKnownLocation,
       campusStatus: systemInfo.lastKnownLocation?.campusStatus,
-      isPresenceVisible: !!(systemInfo.lastActive && systemInfo.lastKnownLocation)
+      isPresenceVisible: !!(
+        systemInfo.lastActive && systemInfo.lastKnownLocation
+      ),
     };
   }
 }
@@ -5185,21 +5315,28 @@ export function getHorizontalFriendsBarInstance() {
  * @param {Object} locationUpdate - Location update data with coordinates and status
  */
 export function triggerUserLocationUpdateAnimation(locationUpdate = null) {
-  if (globalHorizontalFriendsBarInstance && globalHorizontalFriendsBarInstance.isInitialized) {
-    console.log('[HorizontalFriendsBar] External trigger: Location update animation');
+  if (
+    globalHorizontalFriendsBarInstance &&
+    globalHorizontalFriendsBarInstance.isInitialized
+  ) {
+    logManager.dev.debug("External trigger: Location update animation");
     globalHorizontalFriendsBarInstance.notifyLocationUpdated(locationUpdate);
   } else {
     // Queue the animation for when the instance becomes available
-    console.log('[HorizontalFriendsBar] Queueing location animation - instance not ready yet');
+    console.log(
+      "[HorizontalFriendsBar] Queueing location animation - instance not ready yet"
+    );
     pendingLocationAnimations.push({
       locationUpdate,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    
+
     // Limit queue size to prevent memory leaks
     if (pendingLocationAnimations.length > 10) {
       pendingLocationAnimations = pendingLocationAnimations.slice(-5); // Keep only the last 5
-      console.log('[HorizontalFriendsBar] Trimmed animation queue to prevent memory leaks');
+      console.log(
+        "[HorizontalFriendsBar] Trimmed animation queue to prevent memory leaks"
+      );
     }
   }
 }

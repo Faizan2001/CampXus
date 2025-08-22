@@ -353,7 +353,10 @@ class CurrentUserManager {
   reset() {
     // Stop friends listeners before resetting user state
     if (window.friendsManager) {
-      console.log("🛑 Stopping friends listeners from user store reset...");
+      if (window.logManager)
+        window.logManager.dev.info(
+          "Stopping friends listeners from user store reset..."
+        );
       window.friendsManager.stopRealTimeListening();
     }
 
@@ -378,10 +381,11 @@ class CurrentUserManager {
 
 export const currentUser = new CurrentUserManager();
 
-// Only expose globally for development/debugging 
+// Only expose globally for development/debugging
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.currentUser = currentUser;
-  console.log(
-    "🛠️ CurrentUser available globally as window.currentUser for debugging"
-  );
+  if (window.logManager)
+    window.logManager.dev.info(
+      "CurrentUser available globally as window.currentUser for debugging"
+    );
 }

@@ -19,6 +19,9 @@ import { googleGeolocationProvider } from "./GoogleGeolocationProvider.js";
 // Import Tier 1 network detection service (FREE)
 import { networkDetectionService } from "./NetworkDetectionService.js";
 
+// Import centralized logging system
+import { logManager } from "../../utils/debug/LogManager.js";
+
 /**
  * Service class for campus location detection and presence management
  */
@@ -43,8 +46,8 @@ export class CampusLocationService {
         this.wasDocumentHidden
       ) {
         // Tab returned - trigger immediate location update
-        console.log(
-          "[CampusLocationService] 👁️ Tab return detected - triggering immediate location update"
+        logManager.system.init(
+          "Tab return detected - triggering location update"
         );
         this.handleTriggerEvent("tab_return");
       }
@@ -53,12 +56,12 @@ export class CampusLocationService {
     // Track authentication events for login detection
     window.addEventListener("storage", (e) => {
       if (e.key === "campusLocation_authTime") {
-        console.log("[CampusLocationService] 🔐 Login event detected");
+        logManager.auth.login("Login event detected via storage");
         this.handleTriggerEvent("login");
       }
     });
 
-    console.log("[CampusLocationService] 📱 Lifecycle tracking initialized");
+    logManager.system.init("Lifecycle tracking initialized");
   }
 
   /**
@@ -66,15 +69,11 @@ export class CampusLocationService {
    */
   async handleTriggerEvent(triggerType) {
     try {
-      console.log(
-        `[CampusLocationService] ⚡ Handling trigger event: ${triggerType}`
-      );
+      logManager.system.init(`Handling trigger event: ${triggerType}`);
 
       // Skip if we're already handling an update to prevent conflicts
       if (this.isUpdatingLocation) {
-        console.log(
-          "[CampusLocationService] ⚠️ Update in progress, skipping trigger event"
-        );
+        logManager.system.warn("Update in progress, skipping trigger event");
         return;
       }
 
@@ -83,16 +82,13 @@ export class CampusLocationService {
 
       // For high-priority scenarios, also get fresh GPS if possible
       if (["login", "tab_return", "reload"].includes(triggerType)) {
-        console.log(
-          `[CampusLocationService] 📍 High-priority trigger (${triggerType}) - requesting fresh GPS`
+        logManager.location.tier1(
+          `High-priority trigger (${triggerType}) - requesting fresh GPS`
         );
         this.requestSingleLocationUpdate();
       }
     } catch (error) {
-      console.error(
-        "[CampusLocationService] ❌ Failed to handle trigger event:",
-        error
-      );
+      logManager.system.error("Failed to handle trigger event", error);
     }
   }
 
@@ -103,17 +99,14 @@ export class CampusLocationService {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log(
-            "[CampusLocationService] 🎯 Fresh GPS obtained for trigger event"
-          );
+          logManager.location.success("Fresh GPS obtained for trigger event", {
+            position,
+          });
           // Process immediately without debounce for trigger events
           this.processFreshLocation(position);
         },
         (error) => {
-          console.warn(
-            "[CampusLocationService] ⚠️ Fresh GPS failed for trigger event:",
-            error
-          );
+          logManager.location.warn("Fresh GPS failed for trigger event", error);
         },
         {
           enableHighAccuracy: true,
@@ -129,21 +122,19 @@ export class CampusLocationService {
    */
   async processFreshLocation(position) {
     try {
-      console.log(
-        "[CampusLocationService] 🎯 Processing fresh location for trigger event (immediate database write)"
+      logManager.location.info(
+        "Processing fresh location for trigger event (immediate database write)",
+        { position }
       );
 
       // 🚀 TRIGGER EVENT: Use smart system with trigger flag for immediate database write
       this.debouncedLocationUpdate(position, { isTrigger: true });
 
-      console.log(
-        "[CampusLocationService] ✅ Fresh trigger location queued for immediate processing"
+      logManager.location.success(
+        "Fresh trigger location queued for immediate processing"
       );
     } catch (error) {
-      console.error(
-        "[CampusLocationService] ❌ Failed to process fresh location:",
-        error
-      );
+      logManager.location.fail("Failed to process fresh location", error);
     }
   }
   constructor() {
@@ -231,8 +222,8 @@ export class CampusLocationService {
     this.locationCache = new Map();
     this.cacheExpiry = 15 * 60 * 1000; // 15 minutes cache
 
-    console.log(
-      "[CampusLocationService] Service initialized with cost optimization",
+    logManager.location.info(
+      "Service initialized with cost optimization",
       {
         geolocationSupported: this.isLocationSupported,
         isMobile: this.isMobile,
@@ -242,7 +233,7 @@ export class CampusLocationService {
           maxGoogleCallsPerUser: this.maxGoogleCallsPerUser,
           maxDailyGoogleCalls: this.maxDailyGoogleCalls,
           currentDailyUsage: this.dailyApiUsage,
-          estimatedMaxDailyCost: `$${(this.maxDailyGoogleCalls * 0.005).toFixed(
+          estimatedMaxDailyCost: `${(this.maxDailyGoogleCalls * 0.005).toFixed(
             2
           )}`,
         },
@@ -256,9 +247,7 @@ export class CampusLocationService {
     // 🔧 MOBILE FIX: Initialize mobile lifecycle management
     if (this.isMobile) {
       this.initializeMobileLifecycleHandlers();
-      console.log(
-        "[CampusLocationService] 📱 Mobile lifecycle management initialized"
-      );
+      logManager.location.info("📱 Mobile lifecycle management initialized");
     }
 
     // 🎯 PHASE 2 ENHANCEMENT: Initialize lifecycle tracking for trigger scenarios
@@ -271,12 +260,10 @@ export class CampusLocationService {
    * @returns {Promise<boolean>} True if permission granted, false otherwise
    */
   async requestLocationPermission() {
-    console.log("[CampusLocationService] Requesting location permission...");
+    logManager.location.info("Requesting location permission...");
 
     if (!this.isLocationSupported) {
-      console.error(
-        "[CampusLocationService] Geolocation not supported by browser"
-      );
+      logManager.location.error("Geolocation not supported by browser");
       return false;
     }
 
@@ -289,8 +276,8 @@ export class CampusLocationService {
         location.hostname === "127.0.0.1";
 
       if (!isSecureContext) {
-        console.warn(
-          "[CampusLocationService] ⚠️ Geolocation requires HTTPS in production. For development, this will show a graceful fallback."
+        logManager.location.warn(
+          "⚠️ Geolocation requires HTTPS in production. For development, this will show a graceful fallback."
         );
         // In development over HTTP, provide a mock location for testing
         this.permissionStatus = "granted";
@@ -302,7 +289,7 @@ export class CampusLocationService {
       const isIOSSafari = this.detectIOSSafari();
       const isAndroidChrome = this.detectAndroidChrome();
 
-      console.log("[CampusLocationService] Mobile browser detection:", {
+      logManager.location.info("Mobile browser detection:", {
         isMobile,
         isIOSSafari,
         isAndroidChrome,
@@ -311,8 +298,8 @@ export class CampusLocationService {
 
       // IMPORTANT: To trigger the browser permission dialog, we must actually call getCurrentPosition
       // Just checking permissions.query doesn't trigger the dialog
-      console.log(
-        "[CampusLocationService] Triggering permission dialog with getCurrentPosition..."
+      logManager.location.info(
+        "Triggering permission dialog with getCurrentPosition..."
       );
 
       return new Promise((resolve) => {
@@ -326,8 +313,8 @@ export class CampusLocationService {
           timeoutDuration = 40000; // Other mobile browsers get 40 seconds
         }
 
-        console.log(
-          `[CampusLocationService] Using ${timeoutDuration}ms timeout for ${
+        logManager.location.info(
+          `Using ${timeoutDuration}ms timeout for ${
             isMobile ? "mobile" : "desktop"
           } platform`
         );
@@ -340,20 +327,20 @@ export class CampusLocationService {
 
         // 🔧 MOBILE FIX: iOS Safari permission handling with user interaction context
         if (isIOSSafari) {
-          console.log(
-            "[CampusLocationService] Applying iOS Safari permission handling"
+          logManager.location.info(
+            "Applying iOS Safari permission handling"
           );
           // iOS Safari requires permission requests to be triggered by user interaction
           // We'll log this for debugging mobile permission issues
-          console.log(
-            "[CampusLocationService] iOS detected - permission must be user-initiated"
+          logManager.location.info(
+            "iOS detected - permission must be user-initiated"
           );
         }
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            console.log(
-              "[CampusLocationService] ✅ Location permission GRANTED by user"
+            logManager.location.success(
+              "✅ Location permission GRANTED by user"
             );
             this.permissionStatus = "granted";
             this.currentPosition = position;
@@ -363,29 +350,29 @@ export class CampusLocationService {
               navigator.permissions
                 .query({ name: "geolocation" })
                 .then((permission) => {
-                  console.log(
-                    `[CampusLocationService] Permission API state: ${permission.state}`
+                  logManager.location.info(
+                    `Permission API state: ${permission.state}`
                   );
 
                   permission.addEventListener("change", () => {
                     this.permissionStatus = permission.state;
-                    console.log(
-                      "[CampusLocationService] Permission changed to:",
+                    logManager.location.info(
+                      "Permission changed to:",
                       permission.state
                     );
 
                     // 🔧 MOBILE FIX: Handle mobile-specific permission revocation
                     if (permission.state === "denied" && isMobile) {
-                      console.warn(
-                        "[CampusLocationService] 📱 Mobile permission revoked - stopping all location tracking"
+                      logManager.location.warn(
+                        "📱 Mobile permission revoked - stopping all location tracking"
                       );
                       this.stopLocationTracking();
                     }
                   });
                 })
                 .catch((permError) => {
-                  console.warn(
-                    "[CampusLocationService] Permission API not fully supported:",
+                  logManager.location.warn(
+                    "Permission API not fully supported:",
                     permError
                   );
                 });
@@ -394,7 +381,7 @@ export class CampusLocationService {
             resolve(true);
           },
           (error) => {
-            console.log("[CampusLocationService] Location permission result:", {
+            logManager.location.info("Location permission result:", {
               code: error.code,
               message: error.message,
               timestamp: new Date().toISOString(),
@@ -409,44 +396,44 @@ export class CampusLocationService {
             // 🔧 MOBILE FIX: Enhanced mobile-specific error handling
             switch (error.code) {
               case error.PERMISSION_DENIED:
-                console.log(
-                  "[CampusLocationService] ❌ Location permission DENIED by user"
+                logManager.location.error(
+                  "❌ Location permission DENIED by user"
                 );
                 this.permissionStatus = "denied";
 
                 if (isIOSSafari) {
-                  console.log(
-                    "[CampusLocationService] 📱 iOS Safari: User must enable location in Settings > Safari > Location Services"
+                  logManager.location.info(
+                    "📱 iOS Safari: User must enable location in Settings > Safari > Location Services"
                   );
                 } else if (isAndroidChrome) {
-                  console.log(
-                    "[CampusLocationService] 📱 Android Chrome: Check site permissions in browser settings"
+                  logManager.location.info(
+                    "📱 Android Chrome: Check site permissions in browser settings"
                   );
                 }
                 break;
 
               case error.POSITION_UNAVAILABLE:
-                console.log(
-                  "[CampusLocationService] ⚠️ Location unavailable (GPS off or no signal)"
+                logManager.location.warn(
+                  "⚠️ Location unavailable (GPS off or no signal)"
                 );
                 this.permissionStatus = "granted"; // Permission granted but location unavailable
 
                 if (isMobile) {
-                  console.log(
-                    "[CampusLocationService] 📱 Mobile: Try moving outdoors or enabling high accuracy GPS"
+                  logManager.location.info(
+                    "📱 Mobile: Try moving outdoors or enabling high accuracy GPS"
                   );
                 }
                 break;
 
               case error.TIMEOUT:
-                console.log(
-                  `[CampusLocationService] ⏱️ Location request timeout after ${timeoutDuration}ms`
+                logManager.location.warn(
+                  `⏱️ Location request timeout after ${timeoutDuration}ms`
                 );
                 this.permissionStatus = "granted"; // Permission granted but timed out
 
                 if (isMobile) {
-                  console.log(
-                    "[CampusLocationService] 📱 Mobile timeout: GPS acquisition can take longer indoors"
+                  logManager.location.info(
+                    "📱 Mobile timeout: GPS acquisition can take longer indoors"
                   );
                   // On mobile timeout, we still consider permission potentially granted
                   // The user will get another chance during actual location tracking
@@ -456,8 +443,8 @@ export class CampusLocationService {
                 break;
 
               default:
-                console.log(
-                  "[CampusLocationService] ❓ Unknown location error"
+                logManager.location.info(
+                  "❓ Unknown location error"
                 );
                 this.permissionStatus = "prompt";
                 break;
@@ -477,8 +464,8 @@ export class CampusLocationService {
         );
       });
     } catch (error) {
-      console.error(
-        "[CampusLocationService] Error requesting location permission:",
+      logManager.location.error(
+        "Error requesting location permission:",
         error
       );
       this.permissionStatus = "denied";
@@ -525,18 +512,15 @@ export class CampusLocationService {
     userId = null
   ) {
     const startTime = Date.now();
-    console.log(
-      `🎯 [CampusLocationService] 3-TIER location request: ${trigger}`,
-      {
-        userId: userId ? userId.substring(0, 8) + "..." : "anonymous",
-        trigger,
-        highAccuracy,
-        timestamp: new Date().toLocaleTimeString(),
-      }
-    );
+    logManager.location.info(`3-TIER location request: ${trigger}`, {
+      userId: userId ? userId.substring(0, 8) + "..." : "anonymous",
+      trigger,
+      highAccuracy,
+      timestamp: new Date().toLocaleTimeString(),
+    });
 
     if (!this.isLocationSupported) {
-      console.error("[CampusLocationService] Geolocation not supported");
+      logManager.system.error("Geolocation not supported");
       return null;
     }
 
@@ -551,23 +535,21 @@ export class CampusLocationService {
       // ============================================================================
       // 🆓 TIER 1: NETWORK/IP DETECTION (FREE - No API costs)
       // ============================================================================
-      console.log(
-        "🌐 [CampusLocationService] TIER 1: Network/IP Detection (FREE)..."
-      );
+      logManager.location.tier1("Network/IP Detection starting (FREE)");
 
       try {
         tier1Result = await networkDetectionService.detectCampusPresence("iub");
 
         if (tier1Result.success) {
           const responseTime = Date.now() - startTime;
-          console.log(
-            `✅ TIER 1 SUCCESS in ${responseTime}ms: ${tier1Result.campusStatus.toUpperCase()} via IP detection`
+          logManager.location.success(
+            `TIER 1 completed in ${responseTime}ms: ${tier1Result.campusStatus.toUpperCase()} via IP detection`
           );
 
           // 🎯 DECISION LOGIC: ON campus via IP = high confidence, can return early
           if (tier1Result.campusStatus === "on_campus") {
-            console.log(
-              `🏛️ [CampusLocationService] ON CAMPUS detected via IUB IP range - HIGH CONFIDENCE, returning immediately`
+            logManager.location.tier1(
+              `ON CAMPUS detected via IUB IP - returning immediately (high confidence)`
             );
 
             const locationResult = {
@@ -596,11 +578,8 @@ export class CampusLocationService {
             return locationResult;
           } else {
             // � OFF CAMPUS via IP: Low confidence, continue to GPS tiers for verification
-            console.log(
-              `🌍 [CampusLocationService] OFF CAMPUS detected via IP (${tier1Result.userIP}) - continuing to GPS verification (Tier 2)...`
-            );
-            console.log(
-              `💡 [CampusLocationService] Reason: Student might be on campus using mobile data instead of IUB WiFi`
+            logManager.location.info(
+              `OFF CAMPUS detected via IP (${tier1Result.userIP}) - continuing to GPS verification (might be using mobile data)`
             );
 
             // Store IP result for later use but continue to GPS tiers
@@ -608,15 +587,15 @@ export class CampusLocationService {
           }
         }
       } catch (error) {
-        console.warn(`⚠️ TIER 1 FAILED: ${error.message}`);
+        logManager.location.warn(`TIER 1 failed: ${error.message}`);
         tier1Result = { success: false, error: error.message };
       }
 
       // ============================================================================
       // 🆓 TIER 2: ENHANCED BROWSER GPS (FREE - 3 attempts, 12s timeout)
       // ============================================================================
-      console.log(
-        "📍 [CampusLocationService] TIER 2: Enhanced Browser GPS (FREE) - 3 attempts, 12s timeout..."
+      logManager.location.tier2(
+        "Enhanced Browser GPS starting (FREE) - 3 attempts, 12s timeout"
       );
 
       const browserAttempts = 3;
@@ -625,10 +604,10 @@ export class CampusLocationService {
 
       for (let attempt = 1; attempt <= browserAttempts; attempt++) {
         try {
-          console.log(
-            `📱 [CampusLocationService] TIER 2 Attempt ${attempt}/${browserAttempts} (${
+          logManager.location.attempt(
+            `Attempt ${attempt}/${browserAttempts} (${
               browserTimeout / 1000
-            }s timeout)...`
+            }s timeout)`
           );
 
           const browserResult = await this.getBrowserLocationWithTimeout(
@@ -640,14 +619,14 @@ export class CampusLocationService {
             const accuracy = Math.round(browserResult.coords.accuracy);
             const responseTime = Date.now() - startTime;
 
-            console.log(
-              `✅ TIER 2 SUCCESS in ${responseTime}ms (attempt ${attempt}): ±${accuracy}m accuracy`
+            logManager.location.success(
+              `TIER 2 completed in ${responseTime}ms (attempt ${attempt}): ±${accuracy}m accuracy`
             );
 
             // ⚡ ACCURACY CHECK: Only proceed if accuracy is acceptable
             if (browserResult.coords.accuracy <= 1000) {
-              console.log(
-                `🎯 [CampusLocationService] Accuracy ±${accuracy}m ≤ 1000m - PROCEEDING WITH DATABASE WRITE`
+              logManager.location.success(
+                `Accuracy ±${accuracy}m ≤ 1000m - proceeding with database write`
               );
 
               tier2Result = this.formatLocationResponse(
@@ -677,8 +656,8 @@ export class CampusLocationService {
 
               return tier2Result;
             } else {
-              console.log(
-                `🚫 [CampusLocationService] TIER 2 ACCURACY FAILED: ±${accuracy}m > 1000m - continuing to TIER 3 for better GPS`
+              logManager.location.warn(
+                `TIER 2 accuracy failed: ±${accuracy}m > 1000m - continuing to TIER 3 for better GPS`
               );
               browserErrors.push(
                 `Attempt ${attempt}: Low accuracy (±${accuracy}m > 1000m threshold)`
@@ -686,14 +665,16 @@ export class CampusLocationService {
             }
           }
         } catch (error) {
-          console.warn(`❌ TIER 2 Attempt ${attempt} failed:`, error.message);
+          logManager.location.warn(
+            `TIER 2 attempt ${attempt} failed: ${error.message}`
+          );
           browserErrors.push(`Attempt ${attempt}: ${error.message}`);
 
           // If permission denied, don't retry
           if (error.code === 1) {
             // GeolocationPositionError.PERMISSION_DENIED
-            console.log(
-              "🚫 Location permission denied by user - stopping TIER 2 attempts"
+            logManager.location.warn(
+              "Location permission denied by user - stopping TIER 2 attempts"
             );
             break;
           }
@@ -701,16 +682,16 @@ export class CampusLocationService {
           // Progressive delay between attempts: 1s, 2s
           if (attempt < browserAttempts) {
             const delay = attempt * 1000;
-            console.log(
-              `⏳ [CampusLocationService] Waiting ${delay}ms before next attempt...`
+            logManager.location.attempt(
+              `Waiting ${delay}ms before next attempt...`
             );
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
       }
 
-      console.warn(
-        `❌ TIER 2 FAILED after ${browserAttempts} attempts:`,
+      logManager.location.warn(
+        `TIER 2 failed after ${browserAttempts} attempts`,
         browserErrors
       );
       tier2Result = { success: false, errors: browserErrors };
@@ -718,14 +699,14 @@ export class CampusLocationService {
       // ============================================================================
       // 💰 TIER 3: GOOGLE GEOLOCATION API (PAID - Last resort only)
       // ============================================================================
-      console.log(
-        "💰 [CampusLocationService] TIER 3: Google Geolocation API (PAID - Last resort)..."
+      logManager.location.tier3(
+        "Google Geolocation API starting (PAID - Last resort)"
       );
 
       // Check if user can use Google API (5 calls/day limit)
       if (!this.canUseGoogleAPI(userId)) {
-        console.log(
-          "🚫 TIER 3 BLOCKED: User has reached daily limit (5 calls/day) or global limit reached"
+        logManager.location.warn(
+          "TIER 3 blocked: User has reached daily limit (5 calls/day) or global limit reached"
         );
         tier3Result = { success: false, error: "Daily limit exceeded" };
       } else {
@@ -740,8 +721,8 @@ export class CampusLocationService {
             const responseTime = Date.now() - startTime;
             const cost = 0.005; // $0.005 per call
 
-            console.log(
-              `✅ TIER 3 SUCCESS in ${responseTime}ms: ±${accuracy}m accuracy (COST: $${cost})`
+            logManager.location.success(
+              `TIER 3 completed in ${responseTime}ms: ±${accuracy}m accuracy (COST: $${cost})`
             );
 
             tier3Result = this.formatLocationResponse(
@@ -764,12 +745,12 @@ export class CampusLocationService {
             }
 
             if (tier3Result.shouldWriteToDatabase) {
-              console.log(
-                `🎯 [CampusLocationService] TIER 3 SUCCESS: Google API accuracy ±${accuracy}m ≤ 1000m - PROCEEDING WITH DATABASE WRITE`
+              logManager.location.success(
+                `TIER 3 success: Google API accuracy ±${accuracy}m ≤ 1000m - proceeding with database write`
               );
             } else {
-              console.log(
-                `🚫 [CampusLocationService] TIER 3 ACCURACY FAILED: Google API accuracy ±${accuracy}m > 1000m - NO DATABASE WRITE`
+              logManager.location.warn(
+                `TIER 3 accuracy failed: Google API accuracy ±${accuracy}m > 1000m - no database write`
               );
             }
 
@@ -783,7 +764,7 @@ export class CampusLocationService {
             return tier3Result;
           }
         } catch (error) {
-          console.error(`❌ TIER 3 FAILED:`, error.message);
+          logManager.location.fail(`TIER 3 failed: ${error.message}`);
           tier3Result = { success: false, error: error.message };
         }
       }
@@ -792,29 +773,35 @@ export class CampusLocationService {
       // 🔴 ALL TIERS FAILED OR INSUFFICIENT ACCURACY - Return grey presence status
       // ============================================================================
       const totalTime = Date.now() - startTime;
-      console.error(
-        `🚫 [CampusLocationService] ALL 3 TIERS FAILED OR INSUFFICIENT ACCURACY in ${totalTime}ms`
-      );
-      console.error(
-        "📊 [CampusLocationService] 3-Tier System Failure Summary:",
-        {
-          tier1: tier1Result?.success
-            ? `IP detection successful (${tier1Result.campusStatus}) - no coordinates`
-            : tier1Result?.error || "IP detection failed",
-          tier2:
-            tier2Result?.errors ||
-            (browserErrors.length
-              ? browserErrors
-              : ["Browser GPS failed or accuracy > 1000m"]),
-          tier3: tier3Result?.error || "Google API failed or accuracy > 1000m",
-        }
-      );
-      console.error(
-        "🔍 [CampusLocationService] REASON: No GPS tier provided coordinates with accuracy ≤ 1000m - database write prevented"
-      );
-      console.error(
-        "💡 [CampusLocationService] SOLUTION: User needs to enable location permissions or move to an area with better GPS signal"
-      );
+
+      logManager.group("3-Tier System Failure Summary", () => {
+        logManager.location.fail(
+          `All 3 tiers failed or insufficient accuracy in ${totalTime}ms`
+        );
+        logManager.location.fail(
+          "Tier 1: " +
+            (tier1Result?.success
+              ? `IP detection successful (${tier1Result.campusStatus}) - no coordinates`
+              : tier1Result?.error || "IP detection failed")
+        );
+        logManager.location.fail(
+          "Tier 2: " +
+            (tier2Result?.errors ||
+              (browserErrors.length
+                ? browserErrors.join(", ")
+                : "Browser GPS failed or accuracy > 1000m"))
+        );
+        logManager.location.fail(
+          "Tier 3: " +
+            (tier3Result?.error || "Google API failed or accuracy > 1000m")
+        );
+        logManager.dev.info(
+          "No GPS tier provided coordinates with accuracy ≤ 1000m - database write prevented"
+        );
+        logManager.dev.info(
+          "Solution: User needs to enable location permissions or move to an area with better GPS signal"
+        );
+      });
 
       // Return "unknown" status for grey presence dot
       const allFailedResult = {
@@ -873,18 +860,20 @@ export class CampusLocationService {
         maximumAge: 0, // Force fresh location
       };
 
-      console.log(`📱 [CampusLocationService] Browser GPS request:`, {
-        highAccuracy,
-        timeout: `${timeout / 1000}s`,
-        options,
-      });
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info("📱 [CampusLocationService] Browser GPS request", {
+          highAccuracy,
+          timeout: `${timeout / 1000}s`,
+          options,
+        });
+      }
 
       const successCallback = (position) => {
-        console.log(
-          `✅ [CampusLocationService] Browser GPS success: ±${Math.round(
-            position.coords.accuracy
-          )}m`
-        );
+        if (typeof logManager !== "undefined") {
+          logManager.location.success(
+            `✅ Browser GPS success: ±${Math.round(position.coords.accuracy)}m`
+          );
+        }
         resolve(position);
       };
 
@@ -896,10 +885,12 @@ export class CampusLocationService {
         };
 
         const errorType = errorMessages[error.code] || "UNKNOWN_ERROR";
-        console.warn(
-          `❌ [CampusLocationService] Browser GPS error: ${errorType}`,
-          error.message
-        );
+        if (typeof logManager !== "undefined") {
+          logManager.location.warn(
+            `❌ Browser GPS error: ${errorType}`,
+            error.message
+          );
+        }
 
         // Create enhanced error with code for permission handling
         const enhancedError = new Error(`${errorType}: ${error.message}`);
@@ -921,10 +912,12 @@ export class CampusLocationService {
    * @returns {Promise<{onCampus: boolean, confidence: number, location?: object}>}
    */
   async detectCampusPresence(university) {
-    console.log(
-      "[CampusLocationService] Detecting campus presence for:",
-      university
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.info(
+        "[CampusLocationService] Detecting campus presence for:",
+        { university }
+      );
+    }
 
     try {
       // Get current location for campus boundary detection
@@ -933,9 +926,11 @@ export class CampusLocationService {
         "campus_boundary_detection"
       );
       if (!position) {
-        console.warn(
-          "[CampusLocationService] Cannot detect campus presence - location unavailable"
-        );
+        if (typeof logManager !== "undefined") {
+          logManager.location.warn(
+            "Cannot detect campus presence - location unavailable"
+          );
+        }
         return {
           onCampus: false,
           confidence: 0,
@@ -946,17 +941,22 @@ export class CampusLocationService {
       // Check if on campus using polygon detection
       const result = this.isLocationOnCampus(position, university);
 
-      console.log("[CampusLocationService] Campus presence detection result:", {
-        university,
-        onCampus: result.onCampus,
-        confidence: result.confidence,
-        location: {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        },
-        timestamp: new Date().toISOString(),
-      });
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info(
+          "[CampusLocationService] Campus presence detection result",
+          {
+            university,
+            onCampus: result.onCampus,
+            confidence: result.confidence,
+            location: {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            },
+            timestamp: new Date().toISOString(),
+          }
+        );
+      }
 
       return {
         ...result,
@@ -968,8 +968,8 @@ export class CampusLocationService {
         },
       };
     } catch (error) {
-      console.error(
-        "[CampusLocationService] Error detecting campus presence:",
+      logManager.location.error(
+        "Error detecting campus presence:",
         error
       );
       return {
@@ -987,11 +987,16 @@ export class CampusLocationService {
    * @returns {{onCampus: boolean, confidence: number, distanceFromCenter?: number}}
    */
   isLocationOnCampus(position, university) {
-    console.log("[CampusLocationService] Checking if location is on campus:", {
-      university,
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-    });
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug(
+        "[CampusLocationService] Checking if location is on campus",
+        {
+          university,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+      );
+    }
 
     // Get campus configuration for the university
     const campusConfig = getCampusConfig(university);
@@ -1033,14 +1038,19 @@ export class CampusLocationService {
       confidence = Math.min(1, accuracyFactor * 0.6 + distanceFactor * 0.4);
     }
 
-    console.log("[CampusLocationService] Campus boundary check result:", {
-      university,
-      isInside,
-      confidence: Math.round(confidence * 100),
-      distanceFromCenter: Math.round(distanceFromCenter),
-      gpsAccuracy: position.coords.accuracy,
-      campusRadius: campusConfig.radius,
-    });
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug(
+        "[CampusLocationService] Campus boundary check result",
+        {
+          university,
+          isInside,
+          confidence: Math.round(confidence * 100),
+          distanceFromCenter: Math.round(distanceFromCenter),
+          gpsAccuracy: position.coords.accuracy,
+          campusRadius: campusConfig.radius,
+        }
+      );
+    }
 
     return {
       onCampus: isInside,
@@ -1056,15 +1066,20 @@ export class CampusLocationService {
    * @returns {boolean} True if point is inside polygon
    */
   pointInPolygon(point, polygon) {
-    console.log("[CampusLocationService] Running point-in-polygon check for:", {
-      point,
-      polygonVertices: polygon.length,
-    });
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug(
+        "[CampusLocationService] Running point-in-polygon check",
+        {
+          point,
+          polygonVertices: polygon.length,
+        }
+      );
+    }
 
     if (!polygon || polygon.length < 3) {
-      console.error(
-        "[CampusLocationService] Invalid polygon - need at least 3 vertices"
-      );
+      if (typeof logManager !== "undefined") {
+        logManager.location.fail("Invalid polygon - need at least 3 vertices");
+      }
       return false;
     }
 
@@ -1084,11 +1099,13 @@ export class CampusLocationService {
       }
     }
 
-    console.log("[CampusLocationService] Point-in-polygon result:", {
-      point,
-      isInside,
-      algorithm: "ray-casting",
-    });
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug("[CampusLocationService] Point-in-polygon result", {
+        point,
+        isInside,
+        algorithm: "ray-casting",
+      });
+    }
 
     return isInside;
   }
@@ -1113,12 +1130,14 @@ export class CampusLocationService {
 
     const distance = R * c;
 
-    console.log("[CampusLocationService] Distance calculated:", {
-      from: point1,
-      to: point2,
-      distance: Math.round(distance),
-      unit: "meters",
-    });
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug("[CampusLocationService] Distance calculated", {
+        from: point1,
+        to: point2,
+        distance: Math.round(distance),
+        unit: "meters",
+      });
+    }
 
     return distance;
   }
@@ -1157,9 +1176,14 @@ export class CampusLocationService {
 
     const isMobile = isMobileUA || (hasTouch && isSmallScreen);
 
-    console.log(
-      `[CampusLocationService] Mobile detection: UA=${isMobileUA}, Touch=${hasTouch}, SmallScreen=${isSmallScreen}, Result=${isMobile}`
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug("[CampusLocationService] Mobile detection", {
+        isMobileUA,
+        hasTouch,
+        isSmallScreen,
+        result: isMobile,
+      });
+    }
 
     return isMobile;
   }
@@ -1176,9 +1200,14 @@ export class CampusLocationService {
 
     const result = isIOS && (isSafari || isIOSWebView);
 
-    console.log(
-      `[CampusLocationService] iOS Safari detection: iOS=${isIOS}, Safari=${isSafari}, WebView=${isIOSWebView}, Result=${result}`
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug("[CampusLocationService] iOS Safari detection", {
+        isIOS,
+        isSafari,
+        isIOSWebView,
+        result,
+      });
+    }
 
     return result;
   }
@@ -1191,9 +1220,13 @@ export class CampusLocationService {
     // Check for Android Chrome specifically
     const isChromeAndroid = isAndroid && isChrome;
 
-    console.log(
-      `[CampusLocationService] Android Chrome detection: Android=${isAndroid}, Chrome=${isChrome}, Result=${isChromeAndroid}`
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.debug("[CampusLocationService] Android Chrome detection", {
+        isAndroid,
+        isChrome,
+        result: isChromeAndroid,
+      });
+    }
 
     return isChromeAndroid;
   }
@@ -1203,13 +1236,13 @@ export class CampusLocationService {
     this.isAppVisible = !document.hidden;
     this.visibilityChangeCount++;
 
-    console.log(
-      `[CampusLocationService] 📱 Visibility changed: ${
-        wasVisible ? "visible" : "hidden"
-      } → ${this.isAppVisible ? "visible" : "hidden"} (count: ${
-        this.visibilityChangeCount
-      })`
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.info("📱 Visibility changed", {
+        from: wasVisible ? "visible" : "hidden",
+        to: this.isAppVisible ? "visible" : "hidden",
+        count: this.visibilityChangeCount,
+      });
+    }
 
     if (!this.isAppVisible && wasVisible) {
       // App going to background
@@ -1221,9 +1254,9 @@ export class CampusLocationService {
   }
 
   handleAppGoingToBackground() {
-    console.log(
-      "[CampusLocationService] 📱 App going to background - implementing smart pause strategy"
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.info("📱 App going to background - smart pause strategy");
+    }
 
     this.backgroundStartTime = Date.now();
     this.wasTrackingBeforeBackground = this.isTrackingActive();
@@ -1236,9 +1269,11 @@ export class CampusLocationService {
     // Don't immediately pause - give a grace period for quick app switches
     this.backgroundPauseTimeout = setTimeout(() => {
       if (!this.isAppVisible) {
-        console.log(
-          "[CampusLocationService] 📱 Grace period expired - pausing location tracking for battery conservation"
-        );
+        if (typeof logManager !== "undefined") {
+          logManager.dev.info(
+            "📱 Grace period expired - pausing location tracking for battery conservation"
+          );
+        }
 
         // Pause location tracking but maintain minimal presence updates
         if (this.wasTrackingBeforeBackground) {
@@ -1249,9 +1284,11 @@ export class CampusLocationService {
   }
 
   handleAppReturningToForeground() {
-    console.log(
-      "[CampusLocationService] 📱 App returning to foreground - implementing smart resume strategy"
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.info(
+        "📱 App returning to foreground - smart resume strategy"
+      );
+    }
 
     this.foregroundResumeTime = Date.now();
 
@@ -1266,11 +1303,11 @@ export class CampusLocationService {
       ? this.foregroundResumeTime - this.backgroundStartTime
       : 0;
 
-    console.log(
-      `[CampusLocationService] 📱 Background duration: ${Math.round(
-        backgroundDuration / 1000
-      )}s`
-    );
+    if (typeof logManager !== "undefined") {
+      logManager.dev.info("📱 Background duration", {
+        seconds: Math.round(backgroundDuration / 1000),
+      });
+    }
 
     // Clear any existing resume timeout
     if (this.foregroundResumeTimeout) {
@@ -1284,16 +1321,16 @@ export class CampusLocationService {
   }
 
   pauseLocationTrackingForBackground() {
-    console.log(
-      "[CampusLocationService] 📱 Pausing location tracking for background mode"
+    logManager.location.info(
+      "📱 Pausing location tracking for background mode"
     );
 
     // Stop active location tracking to save battery
     if (this.trackingWatchId) {
       navigator.geolocation.clearWatch(this.trackingWatchId);
       this.trackingWatchId = null;
-      console.log(
-        "[CampusLocationService] 📱 Stopped watchPosition for background"
+      logManager.location.info(
+        "📱 Stopped watchPosition for background"
       );
     }
 
@@ -1306,15 +1343,15 @@ export class CampusLocationService {
     // Start ultra-low-frequency background updates (every 10 minutes)
     this.periodicUpdateInterval = setInterval(async () => {
       if (!this.isAppVisible) {
-        console.log("[CampusLocationService] 📱 Background location ping");
+        logManager.location.info("📱 Background location ping");
         try {
           // Background updates are low priority - no immediate database write needed
-          console.log(
-            "[CampusLocationService] 📱 Skipping background location update - user not visible"
+          logManager.location.info(
+            "📱 Skipping background location update - user not visible"
           );
         } catch (error) {
-          console.warn(
-            "[CampusLocationService] 📱 Background location update failed:",
+          logManager.location.warn(
+            "📱 Background location update failed:",
             error
           );
         }
@@ -1323,15 +1360,15 @@ export class CampusLocationService {
   }
 
   async resumeLocationTrackingFromBackground(backgroundDuration) {
-    console.log(
-      "[CampusLocationService] 📱 Resuming location tracking from background"
+    logManager.location.info(
+      "📱 Resuming location tracking from background"
     );
 
     try {
       // If we were tracking before background, resume tracking
       if (this.wasTrackingBeforeBackground) {
-        console.log(
-          "[CampusLocationService] 📱 Restarting location tracking after background period"
+        logManager.location.info(
+          "📱 Restarting location tracking after background period"
         );
 
         // Force a fresh location reading first
@@ -1341,15 +1378,15 @@ export class CampusLocationService {
         );
 
         if (currentLocation) {
-          console.log(
-            "[CampusLocationService] 📱 Fresh location acquired after resume"
+          logManager.location.info(
+            "📱 Fresh location acquired after resume"
           );
 
           // Update location immediately
           this.debouncedLocationUpdate(currentLocation, { isTrigger: true }); // App resume = trigger event
         } else {
-          console.warn(
-            "[CampusLocationService] 📱 Failed to get fresh location after resume"
+          logManager.location.warn(
+            "📱 Failed to get fresh location after resume"
           );
         }
 
@@ -1370,12 +1407,12 @@ export class CampusLocationService {
       this.backgroundStartTime = null;
       this.foregroundResumeTime = null;
 
-      console.log(
-        "[CampusLocationService] 📱 Successfully resumed from background mode"
+      logManager.location.info(
+        "📱 Successfully resumed from background mode"
       );
     } catch (error) {
-      console.error(
-        "[CampusLocationService] 📱 Error resuming from background:",
+      logManager.location.error(
+        "📱 Error resuming from background:",
         error
       );
 
@@ -1393,8 +1430,8 @@ export class CampusLocationService {
     const wasOnline = this.isOnline;
     this.isOnline = true;
 
-    console.log(
-      `[CampusLocationService] 📱 Network reconnected: ${
+    logManager.location.info(
+      `📱 Network reconnected: ${
         wasOnline ? "was online" : "was offline"
       } → online`
     );
@@ -1415,8 +1452,8 @@ export class CampusLocationService {
   handleNetworkDisconnection() {
     this.isOnline = false;
 
-    console.log(
-      "[CampusLocationService] 📱 Network disconnected - maintaining location tracking but reducing frequency"
+    logManager.location.info(
+      "📱 Network disconnected - maintaining location tracking but reducing frequency"
     );
 
     // Don't stop location tracking completely, but reduce frequency
@@ -1424,8 +1461,8 @@ export class CampusLocationService {
   }
 
   async handleNetworkReconnectionRecovery() {
-    console.log(
-      "[CampusLocationService] 📱 Recovering from network disconnection"
+    logManager.location.info(
+      "📱 Recovering from network disconnection"
     );
 
     this.networkReconnectionAttempts++;
@@ -1433,8 +1470,8 @@ export class CampusLocationService {
     try {
       // Force a location update to sync with server after reconnection
       if (this.currentPosition) {
-        console.log(
-          "[CampusLocationService] 📱 Syncing location after network recovery"
+        logManager.location.info(
+          "📱 Syncing location after network recovery"
         );
         this.debouncedLocationUpdate(this.currentPosition, { isTrigger: true }); // Network reconnection = trigger event
       }
@@ -1445,28 +1482,28 @@ export class CampusLocationService {
       // Reset network reconnection attempts
       this.networkReconnectionAttempts = 0;
 
-      console.log(
-        "[CampusLocationService] 📱 Network recovery completed successfully"
+      logManager.location.info(
+        "📱 Network recovery completed successfully"
       );
     } catch (error) {
-      console.error(
-        "[CampusLocationService] 📱 Network recovery failed:",
+      logManager.location.error(
+        "📱 Network recovery failed:",
         error
       );
 
       if (
         this.networkReconnectionAttempts < this.maxNetworkReconnectionAttempts
       ) {
-        console.log(
-          `[CampusLocationService] 📱 Retrying network recovery (${this.networkReconnectionAttempts}/${this.maxNetworkReconnectionAttempts})`
+        logManager.location.info(
+          `📱 Retrying network recovery (${this.networkReconnectionAttempts}/${this.maxNetworkReconnectionAttempts})`
         );
 
         setTimeout(() => {
           this.handleNetworkReconnectionRecovery();
         }, 5000 * this.networkReconnectionAttempts); // Progressive backoff
       } else {
-        console.error(
-          "[CampusLocationService] 📱 Max network recovery attempts reached"
+        logManager.location.error(
+          "📱 Max network recovery attempts reached"
         );
         this.networkReconnectionAttempts = 0; // Reset for next time
       }
@@ -1474,7 +1511,7 @@ export class CampusLocationService {
   }
 
   handleAppFocus() {
-    console.log("[CampusLocationService] 📱 App gained focus");
+    logManager.location.info("📱 App gained focus");
 
     // Additional check if visibility API missed the event
     if (!this.isAppVisible) {
@@ -1484,7 +1521,7 @@ export class CampusLocationService {
   }
 
   handleAppBlur() {
-    console.log("[CampusLocationService] 📱 App lost focus");
+    logManager.location.info("📱 App lost focus");
 
     // Additional check if visibility API missed the event
     if (this.isAppVisible) {
@@ -1494,8 +1531,8 @@ export class CampusLocationService {
   }
 
   handleAppUnload() {
-    console.log(
-      "[CampusLocationService] 📱 App unloading - cleaning up resources"
+    logManager.location.info(
+      "📱 App unloading - cleaning up resources"
     );
 
     // Clear all timeouts and intervals
@@ -1510,8 +1547,8 @@ export class CampusLocationService {
   }
 
   handlePageShow(event) {
-    console.log(
-      `[CampusLocationService] 📱 Page show event (persisted: ${event.persisted})`
+    logManager.location.info(
+      `📱 Page show event (persisted: ${event.persisted})`
     );
 
     // If page was loaded from cache (back/forward navigation), ensure proper state
@@ -1523,8 +1560,8 @@ export class CampusLocationService {
   }
 
   handlePageHide(event) {
-    console.log(
-      `[CampusLocationService] 📱 Page hide event (persisted: ${event.persisted})`
+    logManager.location.info(
+      `📱 Page hide event (persisted: ${event.persisted})`
     );
 
     // Handle page going into back/forward cache
@@ -1536,7 +1573,7 @@ export class CampusLocationService {
   // 🎯 SPA NAVIGATION HANDLER: Handle single-page app navigation events
   async handleSPANavigation(event) {
     const { route } = event.detail;
-    console.log(`[CampusLocationService] 🎯 SPA navigation detected: ${route}`);
+    logManager.location.info(`🎯 SPA navigation detected: ${route}`);
 
     try {
       // Import required services
@@ -1544,8 +1581,8 @@ export class CampusLocationService {
 
       // Only trigger location updates for authenticated users
       if (!currentUser?.uid) {
-        console.log(
-          "[CampusLocationService] ⏳ No user logged in - skipping navigation location update"
+        logManager.location.info(
+          "⏳ No user logged in - skipping navigation location update"
         );
         return;
       }
@@ -1554,8 +1591,8 @@ export class CampusLocationService {
       const locationRelevantPages = ["home", "friends"];
 
       if (locationRelevantPages.includes(route)) {
-        console.log(
-          `[CampusLocationService] 🎯 Navigation to ${route} - triggering immediate location update`
+        logManager.location.info(
+          `🎯 Navigation to ${route} - triggering immediate location update`
         );
 
         // Mark this as user activity (navigation is active user behavior)
@@ -1566,22 +1603,22 @@ export class CampusLocationService {
         const success = await this.immediatePresenceUpdate("spa_navigation");
 
         if (success) {
-          console.log(
-            `[CampusLocationService] ✅ Navigation-triggered location update completed for ${route}`
+          logManager.location.success(
+            `✅ Navigation-triggered location update completed for ${route}`
           );
         } else {
-          console.warn(
-            `[CampusLocationService] ⚠️ Navigation-triggered location update failed for ${route}`
+          logManager.location.warn(
+            `⚠️ Navigation-triggered location update failed for ${route}`
           );
         }
       } else {
-        console.log(
-          `[CampusLocationService] ℹ️ Navigation to ${route} - no location update needed`
+        logManager.location.info(
+          `ℹ️ Navigation to ${route} - no location update needed`
         );
       }
     } catch (error) {
-      console.error(
-        "[CampusLocationService] ❌ SPA navigation handler error:",
+      logManager.location.error(
+        "❌ SPA navigation handler error:",
         error
       );
     }
@@ -1833,7 +1870,7 @@ export class CampusLocationService {
         return null;
       }
 
-      console.log("[CampusLocationService] 📦 Found cached location:", {
+      logManager.location.info("📦 Found cached location:", {
         campusStatus: locationData.campusStatus,
         ageMinutes: Math.round(cacheAge / 60000),
         accuracy: locationData.accuracy,
@@ -1862,12 +1899,12 @@ export class CampusLocationService {
 
       localStorage.setItem("campxus_last_location", JSON.stringify(cacheData));
 
-      console.log("[CampusLocationService] 💾 Cached location:", {
+      logManager.location.info("💾 Cached location:", {
         campusStatus: locationData.campusStatus,
         accuracy: locationData.accuracy,
       });
     } catch (error) {
-      console.warn("[CampusLocationService] Failed to cache location:", error);
+      logManager.location.warn("[CampusLocationService] Failed to cache location:", error);
     }
   }
 
@@ -2245,93 +2282,100 @@ export class CampusLocationService {
 
   // 🔧 POLYGON DEBUGGING HELPER
   debugPolygonDetection(userLat, userLng, university = "iub") {
-    console.log("🔍 [POLYGON DEBUG] Starting detailed polygon analysis");
+    // Group polygon debug output to reduce console noise while preserving
+    // all the diagnostic details for future debugging.
+    logManager.dev.groupCollapsed(
+      "🔍 [POLYGON DEBUG] Detailed polygon analysis",
+      () => {
+        // Import campus config
+        import("../location/UniversityCampusConfig.js")
+          .then(({ getCampusConfig }) => {
+            const campusConfig = getCampusConfig(university);
+            if (!campusConfig) {
+              logManager.dev.error(
+                `🔍 [POLYGON DEBUG] No campus config found for: ${university}`
+              );
+              return;
+            }
 
-    // Import campus config
-    import("../location/UniversityCampusConfig.js")
-      .then(({ getCampusConfig }) => {
-        const campusConfig = getCampusConfig(university);
-        if (!campusConfig) {
-          console.error(
-            "🔍 [POLYGON DEBUG] No campus config found for:",
-            university
-          );
-          return;
-        }
+            const userPoint = { lat: userLat, lng: userLng };
 
-        const userPoint = { lat: userLat, lng: userLng };
+            logManager.dev.info("Analysis Details", {
+              userLocation: userPoint,
+              campusCenter: campusConfig.center,
+              boundaryPoints: campusConfig.boundary.length,
+            });
 
-        console.log("🔍 [POLYGON DEBUG] Analysis Details:", {
-          userLocation: userPoint,
-          campusCenter: campusConfig.center,
-          boundaryPoints: campusConfig.boundary.length,
-        });
+            // Calculate distance from center
+            const distanceFromCenter = this.calculateDistance(
+              userPoint,
+              campusConfig.center
+            );
 
-        // Calculate distance from center
-        const distanceFromCenter = this.calculateDistance(
-          userPoint,
-          campusConfig.center
-        );
+            logManager.dev.info("Distance Analysis", {
+              distanceFromCenterMeters: Math.round(distanceFromCenter),
+              userPoint,
+              campusCenter: campusConfig.center,
+            });
 
-        console.log("🔍 [POLYGON DEBUG] Distance Analysis:", {
-          distanceFromCenterMeters: Math.round(distanceFromCenter),
-          userPoint,
-          campusCenter: campusConfig.center,
-        });
+            // Show boundary coordinate ranges
+            const lats = campusConfig.boundary.map((p) => p.lat);
+            const lngs = campusConfig.boundary.map((p) => p.lng);
+            const boundaryBounds = {
+              latMin: Math.min(...lats),
+              latMax: Math.max(...lats),
+              lngMin: Math.min(...lngs),
+              lngMax: Math.max(...lngs),
+            };
 
-        // Show boundary coordinate ranges
-        const lats = campusConfig.boundary.map((p) => p.lat);
-        const lngs = campusConfig.boundary.map((p) => p.lng);
-        const boundaryBounds = {
-          latMin: Math.min(...lats),
-          latMax: Math.max(...lats),
-          lngMin: Math.min(...lngs),
-          lngMax: Math.max(...lngs),
-        };
+            logManager.dev.info("Boundary Bounds", boundaryBounds);
 
-        console.log("🔍 [POLYGON DEBUG] Boundary Bounds:", boundaryBounds);
+            // Check if user is within bounding rectangle
+            const withinBounds =
+              userLat >= boundaryBounds.latMin &&
+              userLat <= boundaryBounds.latMax &&
+              userLng >= boundaryBounds.lngMin &&
+              userLng <= boundaryBounds.lngMax;
 
-        // Check if user is within bounding rectangle
-        const withinBounds =
-          userLat >= boundaryBounds.latMin &&
-          userLat <= boundaryBounds.latMax &&
-          userLng >= boundaryBounds.lngMin &&
-          userLng <= boundaryBounds.lngMax;
+            logManager.dev.info("Bounding Box Check", {
+              withinBoundingRectangle: withinBounds,
+              userLat,
+              userLng,
+              bounds: boundaryBounds,
+            });
 
-        console.log("🔍 [POLYGON DEBUG] Bounding Box Check:", {
-          withinBoundingRectangle: withinBounds,
-          userLat,
-          userLng,
-          bounds: boundaryBounds,
-        });
+            // Run point-in-polygon with detailed logging
+            logManager.dev.info("Running detailed ray casting");
+            const isInside = this.debugPointInPolygon(
+              userPoint,
+              campusConfig.boundary
+            );
 
-        // Run point-in-polygon with detailed logging
-        console.log("🔍 [POLYGON DEBUG] Running detailed ray casting...");
-        const isInside = this.debugPointInPolygon(
-          userPoint,
-          campusConfig.boundary
-        );
+            logManager.dev.info("Final Result", {
+              pointInPolygon: isInside,
+              withinBoundingBox: withinBounds,
+              distanceFromCenter: Math.round(distanceFromCenter),
+              recommendation: isInside
+                ? "✅ Should show GREEN dot"
+                : "❌ Shows RED dot - check coordinates",
+            });
 
-        console.log("🔍 [POLYGON DEBUG] Final Result:", {
-          pointInPolygon: isInside,
-          withinBoundingBox: withinBounds,
-          distanceFromCenter: Math.round(distanceFromCenter),
-          recommendation: isInside
-            ? "✅ Should show GREEN dot"
-            : "❌ Shows RED dot - check coordinates",
-        });
-
-        // Generate Google Maps URL for visual verification
-        const mapsUrl = `https://www.google.com/maps?q=${userLat},${userLng}&z=18`;
-        console.log("🔍 [POLYGON DEBUG] Visual Check:", {
-          googleMapsUrl: mapsUrl,
-          instructions:
-            "Open this URL to verify your actual GPS location matches expected location",
-        });
-      })
-      .catch((error) => {
-        console.error("🔍 [POLYGON DEBUG] Error loading campus config:", error);
-      });
+            // Generate Google Maps URL for visual verification
+            const mapsUrl = `https://www.google.com/maps?q=${userLat},${userLng}&z=18`;
+            logManager.dev.info("Visual Check", {
+              googleMapsUrl: mapsUrl,
+              instructions:
+                "Open this URL to verify your actual GPS location matches expected location",
+            });
+          })
+          .catch((error) => {
+            logManager.dev.error(
+              "🔍 [POLYGON DEBUG] Error loading campus config:",
+              error
+            );
+          });
+      }
+    );
   }
 
   debugPointInPolygon(point, polygon) {
@@ -2351,8 +2395,8 @@ export class CampusLocationService {
     const x = point.lng;
     const y = point.lat;
 
-    console.log("🔍 [RAY CASTING DEBUG] Test point:", { x, y });
-    console.log("🔍 [RAY CASTING DEBUG] Polygon vertices:", polygon.length);
+    logManager.dev.debug("🔍 [RAY CASTING DEBUG] Test point:", { x, y });
+    logManager.dev.debug("🔍 [RAY CASTING DEBUG] Polygon vertices:", polygon.length);
 
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
       const xi = polygon[i].lng;
@@ -2447,7 +2491,7 @@ export class CampusLocationService {
 
   // 🔧 TEST DIFFERENT BUFFER SIZES
   testPolygonWithBuffers(userLat, userLng, university = "iub") {
-    console.log("🔍 [BUFFER TEST] Testing polygon with different buffer sizes");
+    logManager.dev.debug("🔍 [BUFFER TEST] Testing polygon with different buffer sizes");
 
     import("../location/UniversityCampusConfig.js").then(
       ({ getCampusConfig }) => {
@@ -2641,7 +2685,7 @@ export class CampusLocationService {
   }
 
   handleAppFocus() {
-    console.log("[CampusLocationService] 📱 App gained focus");
+    logManager.dev.debug("[CampusLocationService] 📱 App gained focus");
     // App focus doesn't always trigger visibility change on mobile
     if (!this.hasFocus) {
       this.hasFocus = true;
@@ -2653,7 +2697,7 @@ export class CampusLocationService {
   }
 
   handleAppBlur() {
-    console.log("[CampusLocationService] 📱 App lost focus");
+    logManager.dev.debug("[CampusLocationService] 📱 App lost focus");
     this.hasFocus = false;
     // Don't immediately pause - wait for visibility change
     // This prevents unnecessary pause/resume cycles during quick focus changes
@@ -2715,7 +2759,7 @@ export class CampusLocationService {
 
     // Restart GPS watching if it was active
     if (this.pausedWatchId && !this.trackingWatchId) {
-      console.log("[CampusLocationService] 📱 Restarting GPS watch");
+      logManager.dev.debug("[CampusLocationService] 📱 Restarting GPS watch");
       this.startLocationTracking();
     }
 
@@ -2869,7 +2913,7 @@ export class CampusLocationService {
         this.lastSuccessfulGPSUpdate = Date.now();
         const accuracy = position.coords.accuracy;
 
-        console.log("[CampusLocationService] 🌍 Position update received:", {
+        logManager.location.info("Position update received:", {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           accuracy: accuracy + "m",
@@ -2932,10 +2976,8 @@ export class CampusLocationService {
 
         switch (error.code) {
           case error.TIMEOUT:
-            console.warn(
-              "[CampusLocationService] ⏱️ GPS timeout - will retry on next update (error",
-              this.consecutiveGPSErrors,
-              "of 5)"
+            logManager.location.warn(
+              `GPS timeout - will retry on next update (error ${this.consecutiveGPSErrors} of 5)`
             );
             break;
           case error.PERMISSION_DENIED:
@@ -2984,7 +3026,7 @@ export class CampusLocationService {
       );
       return watchId;
     } else {
-      console.error("[CampusLocationService] Failed to start position watch");
+      logManager.location.error("[CampusLocationService] Failed to start position watch");
       return null;
     }
   }
@@ -3022,7 +3064,7 @@ export class CampusLocationService {
 
     // Don't start tracking if already tracking
     if (this.trackingWatchId) {
-      console.log("[CampusLocationService] Location tracking already active");
+      logManager.dev.debug("[CampusLocationService] Location tracking already active");
       return;
     }
 
@@ -3060,8 +3102,8 @@ export class CampusLocationService {
               );
               break;
             case 3: // TIMEOUT
-              console.warn(
-                "[CampusLocationService] ⏱️ Location timeout (normal indoors) - GPS will retry automatically with longer interval"
+              logManager.location.warn(
+                "Location timeout (normal indoors) - GPS will retry automatically with longer interval"
               );
               break;
             default:
@@ -3108,21 +3150,21 @@ export class CampusLocationService {
     if (this.trackingWatchId) {
       this.clearWatch(this.trackingWatchId);
       this.trackingWatchId = null;
-      console.log("[CampusLocationService] Position watch stopped");
+      logManager.dev.debug("[CampusLocationService] Position watch stopped");
     }
 
     // Clear periodic updates
     if (this.periodicUpdateInterval) {
       clearInterval(this.periodicUpdateInterval);
       this.periodicUpdateInterval = null;
-      console.log("[CampusLocationService] Periodic updates stopped");
+      logManager.dev.debug("[CampusLocationService] Periodic updates stopped");
     }
 
     // Clear debounce timeout
     if (this.locationUpdateDebounceTimeout) {
       clearTimeout(this.locationUpdateDebounceTimeout);
       this.locationUpdateDebounceTimeout = null;
-      console.log("[CampusLocationService] Location update debounce cleared");
+      logManager.dev.debug("[CampusLocationService] Location update debounce cleared");
     }
 
     // Stop activity heartbeat and health monitoring
@@ -3936,7 +3978,7 @@ export class CampusLocationService {
    * Called from constructor to set up battery-efficient activity monitoring
    */
   initializeActivityDetection() {
-    console.log("[CampusLocationService] Initializing activity detection...");
+    logManager.dev.debug("[CampusLocationService] Initializing activity detection...");
 
     // 🔧 FIX: Mark page load/initialization as user activity
     this.isUserCurrentlyActive = true;
@@ -3981,7 +4023,7 @@ export class CampusLocationService {
    */
   startActivityHeartbeat() {
     if (this.activityHeartbeatInterval) {
-      console.log("[CampusLocationService] Activity heartbeat already running");
+      logManager.dev.debug("[CampusLocationService] Activity heartbeat already running");
       return;
     }
 
@@ -4044,7 +4086,7 @@ export class CampusLocationService {
       }
     }, this.minActivityInterval); // 60 seconds (optimized)
 
-    console.log("[CampusLocationService] ✅ Activity heartbeat started");
+    logManager.dev.debug("[CampusLocationService] ✅ Activity heartbeat started");
   }
 
   /**
@@ -4054,7 +4096,7 @@ export class CampusLocationService {
     if (this.activityHeartbeatInterval) {
       clearInterval(this.activityHeartbeatInterval);
       this.activityHeartbeatInterval = null;
-      console.log("[CampusLocationService] Activity heartbeat stopped");
+      logManager.dev.debug("[CampusLocationService] Activity heartbeat stopped");
     }
   }
 
@@ -4139,7 +4181,7 @@ export class CampusLocationService {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
-      console.log("[CampusLocationService] 💊 Health monitoring stopped");
+      logManager.dev.debug("[CampusLocationService] 💊 Health monitoring stopped");
     }
   }
 
@@ -4149,7 +4191,7 @@ export class CampusLocationService {
    */
   async performHealthCheck() {
     const now = Date.now();
-    console.log("[CampusLocationService] 🏥 Performing health check...");
+    logManager.dev.debug("[CampusLocationService] 🏥 Performing health check...");
 
     const healthStatus = {
       timestamp: new Date().toISOString(),
@@ -4314,7 +4356,7 @@ export class CampusLocationService {
    */
   isValidCoordinates(position) {
     if (!position || !position.coords) {
-      console.warn("[CampusLocationService] ❌ Invalid position object");
+      logManager.location.warn("[CampusLocationService] ❌ Invalid position object");
       return false;
     }
 
@@ -4709,13 +4751,13 @@ export class CampusLocationService {
    */
   async performGPSReset() {
     try {
-      console.log("[CampusLocationService] 🔄 Performing GPS reset...");
+      logManager.dev.debug("[CampusLocationService] 🔄 Performing GPS reset...");
 
       // Stop current tracking
       if (this.trackingWatchId) {
         navigator.geolocation.clearWatch(this.trackingWatchId);
         this.trackingWatchId = null;
-        console.log("[CampusLocationService] 🔄 Stopped existing GPS watch");
+        logManager.dev.debug("[CampusLocationService] 🔄 Stopped existing GPS watch");
       }
 
       // Clear GPS-related state
@@ -4741,7 +4783,7 @@ export class CampusLocationService {
         "[CampusLocationService] ✅ GPS reset completed successfully"
       );
     } catch (error) {
-      console.error("[CampusLocationService] ❌ GPS reset failed:", error);
+      logManager.location.error("[CampusLocationService] ❌ GPS reset failed:", error);
     } finally {
       this.isGPSResetInProgress = false;
     }
@@ -4832,11 +4874,11 @@ export class CampusLocationService {
       } else if (isReload) {
         trigger = "manual_reload";
         priorityMode = "fresh_data_priority";
-        console.log("🎯 Manual reload detected - Fresh data priority mode");
+        logManager.dev.debug("🎯 Manual reload detected - Fresh data priority mode");
       } else if (requiresFreshData) {
         trigger = "fresh_data_request";
         priorityMode = "fresh_data_priority";
-        console.log("🎯 Fresh data required - Priority mode activated");
+        logManager.dev.debug("🎯 Fresh data required - Priority mode activated");
       } else {
         trigger = "app_init";
         priorityMode = "standard";
@@ -4876,7 +4918,7 @@ export class CampusLocationService {
           this.emitFreshPresenceData(position, presenceResult);
         }
       } else {
-        console.warn("⚠️ Failed to acquire initial location");
+        logManager.location.warn("⚠️ Failed to acquire initial location");
 
         // Still emit events for UI state management
         if (priorityMode === "fresh_data_priority") {
@@ -4884,7 +4926,7 @@ export class CampusLocationService {
         }
       }
     } catch (error) {
-      console.error("❌ Failed to handle initialization:", error);
+      logManager.location.error("❌ Failed to handle initialization:", error);
 
       // Emit error event for fresh data priority mode
       if (this.priorityMode === "fresh_data_priority") {
@@ -4987,7 +5029,7 @@ export class CampusLocationService {
       this.googleProvider.clearCache();
     }
 
-    console.log("✅ Location cache invalidated successfully");
+    logManager.dev.debug("✅ Location cache invalidated successfully");
   }
 
   /**
@@ -5006,7 +5048,7 @@ export class CampusLocationService {
     if (highAccuracy && userId) {
       const userUsage = this.getUserApiUsage(userId);
       if (userUsage.googleCalls < this.maxGoogleCallsPerUser) {
-        console.log("🎯 High accuracy request - Google API authorized");
+        logManager.dev.debug("🎯 High accuracy request - Google API authorized");
         return true;
       }
     }
@@ -5186,7 +5228,7 @@ export class CampusLocationService {
         }
       }
     } catch (error) {
-      console.warn("Failed to load daily API usage:", error);
+      logManager.location.warn("Failed to load daily API usage:", error);
     }
     return 0;
   }
@@ -5202,7 +5244,7 @@ export class CampusLocationService {
       };
       localStorage.setItem("daily_google_api_usage", JSON.stringify(data));
     } catch (error) {
-      console.warn("Failed to save daily API usage:", error);
+      logManager.location.warn("Failed to save daily API usage:", error);
     }
   }
 
@@ -5259,7 +5301,7 @@ export class CampusLocationService {
     this.dailyApiUsage = 0;
     this.userApiUsage.clear();
     this.saveDailyUsage();
-    console.log("🔄 Daily API usage reset - all limits cleared");
+    logManager.dev.debug("🔄 Daily API usage reset - all limits cleared");
 
     return {
       message: "Daily usage reset successfully",

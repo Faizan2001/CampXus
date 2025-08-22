@@ -24,6 +24,7 @@ import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { HorizontalFriendsBar } from "../components/friends/HorizontalFriendsBar.js";
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
+import { logManager } from "../utils/debug/LogManager.js";
 
 /* ================================
    APPLICATION STATE
@@ -156,15 +157,7 @@ function debouncedSaveStateToStorage(immediate = false, transactionId = null) {
   });
 }
 
-// Smart logging with frequency control
-let lastLogTimes = {};
-function smartLog(key, message, data, minInterval = 1000) {
-  const now = Date.now();
-  if (!lastLogTimes[key] || now - lastLogTimes[key] > minInterval) {
-    console.log(message, data);
-    lastLogTimes[key] = now;
-  }
-}
+// NOTE: Removed smartLog function - now using LogManager for all throttled logging
 
 /**
  * Detects if the user is on a mobile device or tablet.
@@ -936,13 +929,7 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   // Migrate pins to preserve pin intentions when schedule structure changes
   migratePinsToTimeBased(user);
 
-  console.log("[Interaction] Custom time slot added", {
-    user: user.name,
-    timeSlot: newSlotLabel,
-    totalSlots: user.timeSlots.length,
-    startTime: hhmmStartTime,
-    endTime: hhmmEndTime,
-  });
+  logManager.ui.init(`Time slot "${newSlotLabel}" added for ${user.name}`);
 
   saveStateToStorage();
   updateUI();
@@ -1519,28 +1506,36 @@ async function loadState(retryAttempt = 0) {
     // Check if user is authenticated with retry mechanism for race condition fix
     let user = authManager.getCurrentUser();
     if (!user) {
-      console.log("⚠️ [Phase-1] No authenticated user found, waiting for auth state to settle...");
-      
+      logManager.auth.user(
+        "No authenticated user found, waiting for auth state to settle"
+      );
+
       // Wait a brief moment for auth state listener to fire after login
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       user = authManager.getCurrentUser();
-      
+
       if (!user) {
-        console.log("⚠️ [Phase-1] Still no authenticated user after delay, will retry when auth state becomes available");
-        
+        console.log(
+          "⚠️ [Phase-1] Still no authenticated user after delay, will retry when auth state becomes available"
+        );
+
         // Set up a one-time listener for when auth state becomes available
         const unsubscribe = currentUser.subscribe((userState) => {
           if (userState.isLoggedIn && userState.user) {
-            console.log("🔄 [Phase-1] Auth state became available, retrying schedule load");
+            console.log(
+              "🔄 [Phase-1] Auth state became available, retrying schedule load"
+            );
             unsubscribe(); // Clean up listener
             loadState(retryAttempt + 1); // Retry loading with incremented attempt count
           }
         });
-        
+
         return;
       }
-      
-      console.log("✅ [Phase-1] Found authenticated user after delay, proceeding with schedule load");
+
+      console.log(
+        "✅ [Phase-1] Found authenticated user after delay, proceeding with schedule load"
+      );
     }
 
     console.log(`👤 [Phase-1] Loading schedule for user: ${user.uid}`);
@@ -1549,14 +1544,16 @@ async function loadState(retryAttempt = 0) {
     // This prevents the schedule from being disabled while loading
     if (!state.activeUserId) {
       state.activeUserId = user.uid;
-      
+
       // Create a minimal user object to enable UI immediately
       if (!state.users[user.uid]) {
         state.users[user.uid] = createEmptyUser(user.uid);
       }
-      
-      console.log("🎯 [Phase-1] Set activeUserId immediately to enable UI during loading");
-      
+
+      console.log(
+        "🎯 [Phase-1] Set activeUserId immediately to enable UI during loading"
+      );
+
       // Update UI immediately to enable schedule controls
       updateUI();
     }
@@ -2910,27 +2907,19 @@ async function updateUI() {
   // Clear memoization cache when UI updates (state changes)
   memoCache.clear();
 
-  // Smart logging - only log state changes every 2 seconds
-  smartLog(
-    "updateUI",
-    "🔄 updateUI called:",
-    {
-      viewMode: state.viewMode,
-      compareMode: state.compareMode,
-      pinModeActive: state.pinModeActive,
-      activeUserId: state.activeUserId,
-      selectedUserIds: Array.from(state.selectedUserIds),
-      totalUsers: Object.keys(state.users).length,
-      isMobile: state.isMobile,
-    },
-    2000
-  );
+  // Throttled logging for UI updates
+  logManager.uiRender("UpdateUI", {
+    viewMode: state.viewMode,
+    compareMode: state.compareMode,
+    activeUserId: state.activeUserId,
+    totalUsers: Object.keys(state.users).length,
+  });
 
   // Safely update mobile view controls with DOM readiness checks
   await safeUIUpdate(async () => {
     updateViewModeButtons();
     updateViewContainers();
-  }, 'View Mode Controls Update');
+  }, "View Mode Controls Update");
 
   // Render appropriate view based on current mode
   await renderScheduleForCurrentView();
@@ -2992,7 +2981,7 @@ async function updateUI() {
   // --- END: Logic for Add Time Slot Button ---
 
   // Note: Mobile compare mode sync is handled directly in event handlers to prevent circular calls
-  console.log(`✅ updateUI completed successfully`);
+  // Success logged via throttled uiRender above
 }
 
 /* ================================
@@ -3352,40 +3341,55 @@ function setupEventListeners() {
       DOM_ELEMENTS.togglePinModeBtn,
       DOM_ELEMENTS.addNewTimeSlotBtn,
       DOM_ELEMENTS.dayViewBtn,
-      DOM_ELEMENTS.gridViewBtn
+      DOM_ELEMENTS.gridViewBtn,
     ];
-    
-    const elementsExist = criticalElements.every(el => el && document.contains(el));
-    
+
+    const elementsExist = criticalElements.every(
+      (el) => el && document.contains(el)
+    );
+
     if (elementsExist) {
       // 🔍 ENHANCED CHECK: Verify listeners are actually attached
       // Check if any critical elements have active listeners in our tracking array
-      const hasActiveListeners = criticalElements.some(element => {
+      const hasActiveListeners = criticalElements.some((element) => {
         if (!element) return false;
-        
-        const elementKey = element.id || 
-          element.tagName + "_" + (element.className || "").replace(/\s+/g, "_");
-        
-        return state.uiControlListeners.some(listener => {
-          const listenerKey = listener.element.id ||
-            listener.element.tagName + "_" + 
-            (listener.element.className || "").replace(/\s+/g, "_");
-          return listenerKey === elementKey && 
-                 listener.element === element && 
-                 document.contains(listener.element);
+
+        const elementKey =
+          element.id ||
+          element.tagName +
+            "_" +
+            (element.className || "").replace(/\s+/g, "_");
+
+        return state.uiControlListeners.some((listener) => {
+          const listenerKey =
+            listener.element.id ||
+            listener.element.tagName +
+              "_" +
+              (listener.element.className || "").replace(/\s+/g, "_");
+          return (
+            listenerKey === elementKey &&
+            listener.element === element &&
+            document.contains(listener.element)
+          );
         });
       });
-      
+
       if (hasActiveListeners) {
-        console.log("🔒 Event listeners already set up and active - skipping duplicate setup");
+        console.log(
+          "🔒 Event listeners already set up and active - skipping duplicate setup"
+        );
         return;
       } else {
-        console.log("🔄 DOM elements exist but no active listeners found - resetting for signin flow");
+        console.log(
+          "🔄 DOM elements exist but no active listeners found - resetting for signin flow"
+        );
         state.eventListenersSetup = false;
         // Continue with setup...
       }
     } else {
-      console.log("🔄 Event listeners flag was set but DOM elements missing - resetting for signin flow");
+      console.log(
+        "🔄 Event listeners flag was set but DOM elements missing - resetting for signin flow"
+      );
       state.eventListenersSetup = false;
       // Continue with setup...
     }
@@ -3448,19 +3452,30 @@ function setupEventListeners() {
 
   if (DOM_ELEMENTS.scheduleTable) {
     console.log("✅ Adding listeners to schedule table...");
-    console.log("🚨 DEBUG: handleScheduleTableClick function exists:", typeof handleScheduleTableClick);
-    console.log("🚨 DEBUG: scheduleTable element:", DOM_ELEMENTS.scheduleTable.tagName, DOM_ELEMENTS.scheduleTable.id);
-    
+    console.log(
+      "🚨 DEBUG: handleScheduleTableClick function exists:",
+      typeof handleScheduleTableClick
+    );
+    console.log(
+      "🚨 DEBUG: scheduleTable element:",
+      DOM_ELEMENTS.scheduleTable.tagName,
+      DOM_ELEMENTS.scheduleTable.id
+    );
+
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
       "click",
       handleScheduleTableClick
     );
-    
+
     // 🚨 EMERGENCY FIX: Add direct event listener as backup
     console.log("🚨 DEBUG: Adding direct event listener as backup...");
     DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
-      console.log("🚨 DIRECT LISTENER: Schedule table clicked!", e.target.tagName, e.target.className);
+      console.log(
+        "🚨 DIRECT LISTENER: Schedule table clicked!",
+        e.target.tagName,
+        e.target.className
+      );
       handleScheduleTableClick(e);
     });
     addUIControlListener(
@@ -3541,7 +3556,7 @@ function handleScheduleTableClick(e) {
     e.target,
     e.target.classList.toString()
   );
-  
+
   // 🚀 CRITICAL DEBUG: Force log to verify function is called
   console.log("🚨 DEBUG: handleScheduleTableClick function is being called!");
 
@@ -3626,7 +3641,7 @@ function handleDayViewClick(e) {
     target: e.target,
     classList: Array.from(e.target.classList),
     dataset: e.target.dataset,
-    nodeName: e.target.nodeName
+    nodeName: e.target.nodeName,
   });
 
   // Pin toggle actions
@@ -3635,7 +3650,10 @@ function handleDayViewClick(e) {
     if (!state.pinModeActive) return;
 
     const day = parseInt(e.target.dataset.day, 10);
-    const time = parseInt(e.target.dataset.time || e.target.dataset.timeIndex, 10);
+    const time = parseInt(
+      e.target.dataset.time || e.target.dataset.timeIndex,
+      10
+    );
     if (!isNaN(day) && !isNaN(time)) {
       handlePinSlotClick(day, time, e);
     }
@@ -3643,17 +3661,23 @@ function handleDayViewClick(e) {
   }
 
   // 🎯 CORE FIX: Handle both day-time-slot (day view) and slot (grid view) elements
-  if (e.target.classList.contains("day-time-slot") || e.target.classList.contains("slot")) {
+  if (
+    e.target.classList.contains("day-time-slot") ||
+    e.target.classList.contains("slot")
+  ) {
     console.log("🎯 Day view schedule slot clicked!", {
       isDayTimeSlot: e.target.classList.contains("day-time-slot"),
       isSlot: e.target.classList.contains("slot"),
       hasDataTime: !!e.target.dataset.time,
-      hasDataTimeIndex: !!e.target.dataset.timeIndex
+      hasDataTimeIndex: !!e.target.dataset.timeIndex,
     });
 
     const day = parseInt(e.target.dataset.day, 10);
     // 🔧 Handle both data-time (grid view) and data-time-index (day view)
-    const time = parseInt(e.target.dataset.time || e.target.dataset.timeIndex, 10);
+    const time = parseInt(
+      e.target.dataset.time || e.target.dataset.timeIndex,
+      10
+    );
 
     console.log("📊 Extracted slot coordinates:", { day, time });
 
@@ -3728,18 +3752,22 @@ function initializeMobileSchedule() {
       DOM_ELEMENTS.dayBtn0,
       DOM_ELEMENTS.dayBtn1,
       DOM_ELEMENTS.dayViewBtn,
-      DOM_ELEMENTS.gridViewBtn
+      DOM_ELEMENTS.gridViewBtn,
     ];
-    
-    const elementsExist = criticalMobileElements.every(el => el && document.contains(el));
-    
+
+    const elementsExist = criticalMobileElements.every(
+      (el) => el && document.contains(el)
+    );
+
     if (elementsExist) {
       console.log(
         "🔒 Mobile schedule already initialized - skipping duplicate initialization"
       );
       return;
     } else {
-      console.log("🔄 Mobile schedule flag was set but DOM elements missing - resetting for signin flow");
+      console.log(
+        "🔄 Mobile schedule flag was set but DOM elements missing - resetting for signin flow"
+      );
       state.mobileScheduleInitialized = false;
       // Continue with setup...
     }
@@ -3858,30 +3886,29 @@ function scrollToCurrentDay() {
  */
 async function setupViewModeToggle() {
   console.log("📱 Setting up view mode toggle listeners...");
-  
+
   try {
     // Make ViewModeManager globally available for debugging
     window.viewModeManager = viewModeManager;
-    
+
     // Use ViewModeManager for robust setup
     await viewModeManager.initialize(state.viewMode, true); // Enable debug mode
     console.log("✅ ViewModeManager initialized successfully");
-    
+
     // Listen for view mode changes
     document.addEventListener("viewModeChanged", (event) => {
       const { previousMode, newMode } = event.detail;
       console.log(`🔄 ViewMode changed: ${previousMode} → ${newMode}`);
-      
+
       // Update internal state
       state.viewMode = newMode;
-      
+
       // Re-render for new view mode
       renderScheduleForCurrentView();
     });
-    
   } catch (error) {
     console.error("❌ Failed to initialize ViewModeManager:", error);
-    
+
     // Fallback to legacy method
     console.log("🔄 Falling back to legacy view mode setup");
     setupViewModeToggleSafe();
@@ -3894,13 +3921,15 @@ async function setupViewModeToggle() {
 function setupViewModeToggleSafe() {
   let retryCount = 0;
   const maxRetries = 3;
-  
+
   function attemptSetup() {
-    console.log(`🔄 Attempting view mode setup (attempt ${retryCount + 1}/${maxRetries})`);
-    
+    console.log(
+      `🔄 Attempting view mode setup (attempt ${retryCount + 1}/${maxRetries})`
+    );
+
     // Re-initialize DOM elements to ensure they're current
     reinitializeViewModeElements();
-    
+
     const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
     const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
 
@@ -3910,22 +3939,28 @@ function setupViewModeToggleSafe() {
       dayViewBtnId: dayViewBtn?.id,
       gridViewBtnId: gridViewBtn?.id,
       retryCount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // Check if both critical buttons are available
     if (!dayViewBtn || !gridViewBtn) {
       retryCount++;
       if (retryCount < maxRetries) {
-        console.warn(`⚠️ View mode buttons not ready - retrying in 100ms (attempt ${retryCount}/${maxRetries})`);
+        console.warn(
+          `⚠️ View mode buttons not ready - retrying in 100ms (attempt ${retryCount}/${maxRetries})`
+        );
         setTimeout(attemptSetup, 100);
         return;
       } else {
-        console.error("❌ Failed to initialize view mode buttons after maximum retries");
+        console.error(
+          "❌ Failed to initialize view mode buttons after maximum retries"
+        );
         console.log("🔍 Final DOM state:", {
-          availableElements: Array.from(document.querySelectorAll('[id*="View"]')).map(el => el.id),
+          availableElements: Array.from(
+            document.querySelectorAll('[id*="View"]')
+          ).map((el) => el.id),
           templateLoaded: !!document.getElementById("scheduleTable"),
-          homeTemplatePresent: !!document.querySelector('.schedule-section')
+          homeTemplatePresent: !!document.querySelector(".schedule-section"),
         });
         return;
       }
@@ -3944,19 +3979,23 @@ function setupViewModeToggleSafe() {
 
     if (gridViewBtn) {
       addUIControlListener(gridViewBtn, "click", () => {
-        console.log("🎯 Grid view button clicked - triggering view mode change");
+        console.log(
+          "🎯 Grid view button clicked - triggering view mode change"
+        );
         handleViewModeChange("grid");
       });
       console.log("✅ Grid view button listener added");
     }
 
-    console.log("📱 View mode toggle listeners successfully set up with safe method");
-    
+    console.log(
+      "📱 View mode toggle listeners successfully set up with safe method"
+    );
+
     // Set initial state
     updateViewModeButtons();
     updateViewContainers();
   }
-  
+
   attemptSetup();
 }
 
@@ -4118,7 +4157,7 @@ async function handleViewModeChange(newViewMode) {
     dayViewBtn: !!DOM_ELEMENTS.dayViewBtn,
     gridViewBtn: !!DOM_ELEMENTS.gridViewBtn,
     scheduleDayView: !!DOM_ELEMENTS.scheduleDayView,
-    scheduleGridView: !!DOM_ELEMENTS.scheduleGridView
+    scheduleGridView: !!DOM_ELEMENTS.scheduleGridView,
   });
 
   if (state.viewMode === newViewMode) {
@@ -4129,7 +4168,9 @@ async function handleViewModeChange(newViewMode) {
   const previousViewMode = state.viewMode;
   state.viewMode = newViewMode;
 
-  console.log(`✅ View mode changed from ${previousViewMode} to ${newViewMode}`);
+  console.log(
+    `✅ View mode changed from ${previousViewMode} to ${newViewMode}`
+  );
 
   // Update UI elements
   updateViewModeButtons();
@@ -4211,32 +4252,34 @@ function handleDayKeyNavigation(e) {
  */
 function checkDOMElementsReady() {
   const criticalElements = [
-    'dayViewBtn',
-    'gridViewBtn', 
-    'scheduleDayView',
-    'scheduleGridView',
-    'daySelectorContainer'
+    "dayViewBtn",
+    "gridViewBtn",
+    "scheduleDayView",
+    "scheduleGridView",
+    "daySelectorContainer",
   ];
 
-  const missingElements = criticalElements.filter(elementKey => {
+  const missingElements = criticalElements.filter((elementKey) => {
     const element = DOM_ELEMENTS[elementKey];
     const exists = element && element.nodeType === Node.ELEMENT_NODE;
-    
+
     if (!exists) {
       console.log(`🔍 Critical DOM element missing: ${elementKey}`);
     }
-    
+
     return !exists;
   });
 
   const isReady = missingElements.length === 0;
-  
+
   if (isReady) {
-    console.log('✅ All critical DOM elements are ready for UI updates');
+    console.log("✅ All critical DOM elements are ready for UI updates");
   } else {
-    console.log(`⏳ DOM not ready - missing elements: ${missingElements.join(', ')}`);
+    console.log(
+      `⏳ DOM not ready - missing elements: ${missingElements.join(", ")}`
+    );
   }
-  
+
   return isReady;
 }
 
@@ -4249,32 +4292,39 @@ function checkDOMElementsReady() {
 function waitForDOMReady(maxRetries = 10, initialDelay = 50) {
   return new Promise((resolve) => {
     let attempts = 0;
-    
+
     function checkAndRetry() {
       attempts++;
-      
+
       // Re-initialize DOM elements on each attempt to catch newly loaded elements
       initializeDomElements();
-      
+
       if (checkDOMElementsReady()) {
         console.log(`🎯 DOM ready after ${attempts} attempts`);
         resolve(true);
         return;
       }
-      
+
       if (attempts >= maxRetries) {
-        console.warn(`⚠️ DOM readiness timeout after ${attempts} attempts - proceeding anyway`);
+        console.warn(
+          `⚠️ DOM readiness timeout after ${attempts} attempts - proceeding anyway`
+        );
         resolve(false);
         return;
       }
-      
+
       // Exponential backoff with jitter
-      const delay = initialDelay * Math.pow(1.5, attempts - 1) + Math.random() * 10;
-      console.log(`⏱️ Retrying DOM check in ${Math.round(delay)}ms (attempt ${attempts}/${maxRetries})`);
-      
+      const delay =
+        initialDelay * Math.pow(1.5, attempts - 1) + Math.random() * 10;
+      console.log(
+        `⏱️ Retrying DOM check in ${Math.round(
+          delay
+        )}ms (attempt ${attempts}/${maxRetries})`
+      );
+
       setTimeout(checkAndRetry, delay);
     }
-    
+
     checkAndRetry();
   });
 }
@@ -4285,13 +4335,15 @@ function waitForDOMReady(maxRetries = 10, initialDelay = 50) {
  * @param {string} functionName - Name of the function for logging
  * @returns {Promise<void>}
  */
-async function safeUIUpdate(updateFunction, functionName = 'UI update') {
+async function safeUIUpdate(updateFunction, functionName = "UI update") {
   const isReady = await waitForDOMReady();
-  
+
   if (!isReady) {
-    console.warn(`⚠️ ${functionName} called but DOM elements not fully ready - may have limited functionality`);
+    console.warn(
+      `⚠️ ${functionName} called but DOM elements not fully ready - may have limited functionality`
+    );
   }
-  
+
   try {
     await updateFunction();
   } catch (error) {
@@ -4303,27 +4355,25 @@ function updateViewModeButtons() {
   const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
   const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
 
-  console.log(`🎛️ Updating view mode buttons for mode: ${state.viewMode}`, {
-    dayViewBtn: !!dayViewBtn,
-    gridViewBtn: !!gridViewBtn,
-    dayViewBtnActive: dayViewBtn?.classList.contains("active"),
-    gridViewBtnActive: gridViewBtn?.classList.contains("active")
+  logManager.uiRender("ViewModeButtons", {
+    mode: state.viewMode,
+    buttons: { day: !!dayViewBtn, grid: !!gridViewBtn },
   });
 
   if (dayViewBtn) {
     const shouldBeActive = state.viewMode === "day";
     dayViewBtn.classList.toggle("active", shouldBeActive);
-    console.log(`📍 Day view button updated - active: ${shouldBeActive}`);
+    logManager.ui.render(`Day button - active: ${shouldBeActive}`);
   } else {
-    console.warn(`⚠️ Day view button not found - skipping update (may still be loading)`);
+    logManager.ui.error("Day view button not found - skipping update");
   }
 
   if (gridViewBtn) {
     const shouldBeActive = state.viewMode === "grid";
     gridViewBtn.classList.toggle("active", shouldBeActive);
-    console.log(`📍 Grid view button updated - active: ${shouldBeActive}`);
+    logManager.ui.render(`Grid button - active: ${shouldBeActive}`);
   } else {
-    console.warn(`⚠️ Grid view button not found - skipping update (may still be loading)`);
+    logManager.ui.error("Grid view button not found - skipping update");
   }
 }
 
@@ -4335,29 +4385,35 @@ function updateViewContainers() {
   const gridView = DOM_ELEMENTS.scheduleGridView;
   const daySelector = DOM_ELEMENTS.daySelectorContainer;
 
-  console.log('🎛️ Updating view containers:', {
+  logManager.ui.render("UpdateViewContainers", {
     dayView: !!dayView,
     gridView: !!gridView,
     daySelector: !!daySelector,
-    viewMode: state.viewMode
+    viewMode: state.viewMode,
   });
 
   if (dayView) {
     dayView.classList.toggle("active", state.viewMode === "day");
   } else {
-    console.warn(`⚠️ Day view container not found - skipping update (may still be loading)`);
+    console.warn(
+      `⚠️ Day view container not found - skipping update (may still be loading)`
+    );
   }
 
   if (gridView) {
     gridView.classList.toggle("active", state.viewMode === "grid");
   } else {
-    console.warn(`⚠️ Grid view container not found - skipping update (may still be loading)`);
+    console.warn(
+      `⚠️ Grid view container not found - skipping update (may still be loading)`
+    );
   }
 
   if (daySelector) {
     daySelector.classList.toggle("show", state.viewMode === "day");
   } else {
-    console.warn(`⚠️ Day selector container not found - skipping update (may still be loading)`);
+    console.warn(
+      `⚠️ Day selector container not found - skipping update (may still be loading)`
+    );
   }
 }
 
@@ -4376,18 +4432,16 @@ async function renderScheduleForCurrentView() {
  * Render the day view for the selected day
  */
 async function renderDayView() {
-  console.log(`📅 renderDayView called:`, {
+  logManager.uiRender("DayView", {
     selectedDay: state.selectedDay,
     dayName: getDayName(state.selectedDay),
     compareMode: state.compareMode,
-    selectedUserIds: Array.from(state.selectedUserIds),
     activeUserId: state.activeUserId,
-    totalUsers: Object.keys(state.users).length,
   });
 
   const container = DOM_ELEMENTS.dayViewContainer;
   if (!container) {
-    console.error("❌ Day view container not found");
+    logManager.ui.error("Day view container not found");
     return;
   }
 
@@ -4498,11 +4552,11 @@ async function renderDayView() {
     container.appendChild(slotElement);
   });
 
-  console.log(
-    `✅ Day view rendered for ${getDayName(state.selectedDay)} with ${
-      currentTimeSlotsToRender.length
-    } time slots (unified: ${usedUnifiedSchedule})`
-  );
+  logManager.uiRender("DayViewRender", {
+    day: getDayName(state.selectedDay),
+    slotCount: currentTimeSlotsToRender.length,
+    usedUnifiedSchedule,
+  });
 }
 
 /**
@@ -5632,11 +5686,13 @@ function setupAuthenticationCallbacks() {
         console.log(
           "✅ Profile complete, navigating to home/schedule screen..."
         );
-        
+
         // 🔧 SIGNIN FIX: Reset event listeners setup to ensure fresh setup after signin
-        console.log("🔧 Resetting event listeners for fresh setup after signin");
+        console.log(
+          "🔧 Resetting event listeners for fresh setup after signin"
+        );
         state.eventListenersSetup = false;
-        
+
         navigateTo("home");
       }
     } catch (error) {
@@ -5644,11 +5700,13 @@ function setupAuthenticationCallbacks() {
       // On error, navigate to home to avoid getting stuck in profile setup
       // Users can manually navigate to profile setup if needed
       console.log("⚠️ Error occurred, navigating to home for safety...");
-      
+
       // 🔧 SIGNIN FIX: Reset event listeners setup to ensure fresh setup after signin error
-      console.log("🔧 Resetting event listeners for fresh setup after signin error");
+      console.log(
+        "🔧 Resetting event listeners for fresh setup after signin error"
+      );
       state.eventListenersSetup = false;
-      
+
       navigateTo("home");
     }
   });
@@ -6790,10 +6848,14 @@ document.addEventListener("spa:page:load", async (event) => {
 
     // 🔄 CRITICAL FIX: Reset initialization flags when DOM gets replaced
     // This fixes the issue where event listeners stop working after signin
-    console.log("🔄 Resetting initialization flags for DOM replacement handling...");
+    console.log(
+      "🔄 Resetting initialization flags for DOM replacement handling..."
+    );
     state.eventListenersSetup = false;
     state.mobileScheduleInitialized = false;
-    console.log("✅ Initialization flags reset - allowing fresh setup after template reload");
+    console.log(
+      "✅ Initialization flags reset - allowing fresh setup after template reload"
+    );
 
     // Essential: Always load state first so user data is available
     console.log("💾 Loading state from storage...");
@@ -6833,7 +6895,10 @@ document.addEventListener("spa:page:load", async (event) => {
     // This ensures view mode buttons work after signin
     console.log("🎛️ Initializing ViewModeManager after template reload...");
     try {
-      if (window.viewModeManager && typeof window.viewModeManager.reinitializeAfterPageLoad === 'function') {
+      if (
+        window.viewModeManager &&
+        typeof window.viewModeManager.reinitializeAfterPageLoad === "function"
+      ) {
         await window.viewModeManager.reinitializeAfterPageLoad();
         console.log("✅ ViewModeManager reinitialized successfully");
       } else {
@@ -6855,9 +6920,11 @@ document.addEventListener("spa:page:load", async (event) => {
     // Wait for critical DOM elements to be available before updating UI
     console.log("⏳ Waiting for critical DOM elements to be ready...");
     const isDOMReady = await waitForDOMReady(10, 50);
-    
+
     if (!isDOMReady) {
-      console.warn("⚠️ DOM elements may not be fully ready, but proceeding with initialization");
+      console.warn(
+        "⚠️ DOM elements may not be fully ready, but proceeding with initialization"
+      );
     }
 
     // Render UI with loaded data - now safely with DOM readiness checks
@@ -6871,33 +6938,33 @@ document.addEventListener("spa:page:load", async (event) => {
     setupAuthenticationCallbacks();
 
     console.log("✅ CampXus Schedule App loaded successfully!");
-    
+
     // 🧪 DEBUG: Add test helper for day navigation buttons
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       window.testDayNavigation = () => {
-        console.log('🧪 Testing day navigation buttons...');
+        console.log("🧪 Testing day navigation buttons...");
         const results = {};
-        
+
         for (let i = 0; i < 7; i++) {
           const dayBtn = DOM_ELEMENTS[`dayBtn${i}`];
           if (dayBtn) {
             console.log(`📍 Day ${i} button found:`, dayBtn);
-            results[`dayBtn${i}`] = 'found';
-            
+            results[`dayBtn${i}`] = "found";
+
             // Test clicking it
             dayBtn.click();
             console.log(`✅ Day ${i} button clicked`);
           } else {
             console.log(`❌ Day ${i} button not found`);
-            results[`dayBtn${i}`] = 'missing';
+            results[`dayBtn${i}`] = "missing";
           }
         }
-        
+
         return {
           results,
           eventListenersCount: state.uiControlListeners.length,
           mobileInitialized: state.mobileScheduleInitialized,
-          eventListenersSetup: state.eventListenersSetup
+          eventListenersSetup: state.eventListenersSetup,
         };
       };
     }

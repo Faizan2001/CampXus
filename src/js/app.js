@@ -39,8 +39,23 @@ import "./pages/NotificationsPage.js"; // 🔔 Campus Presence: Notifications sy
 import { campusLocationService } from "./services/location/CampusLocationService.js";
 import { locationPrivacyService } from "./services/location/LocationPrivacyService.js";
 
+// 🔧 Development tools
+import { logManager } from "./utils/debug/LogManager.js";
+
 // 🎯 DEBUG: Log that modules are imported
-console.log("🔧 SPA Init: All page-specific modules imported and ready");
+logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
+
+// 🔧 Development: Configure logging level based on environment
+if (
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+) {
+  logManager.setLevel("debug"); // Show all logs in development
+  logManager.dev.info("Debug mode enabled - showing all logs");
+} else {
+  logManager.setLevel("warn"); // Only show warnings and errors in production
+  logManager.system.init("Production mode - showing warnings and errors only");
+}
 
 // 🎯 NEW: Create module-level variables instead of window globals
 let spaRouter = null;
@@ -50,20 +65,14 @@ let spaRouter = null;
  * 🎯 Learning: We wait for the DOM to load before setting up our app
  */
 async function initializeSPA() {
-  console.groupCollapsed("🚀 CampXus SPA Initialization");
-  console.log("Document ready state:", document.readyState);
+  logManager.system.init("CampXus SPA Initialization");
 
   // Double-check that essential DOM elements exist
   const mainContent = document.querySelector(".main-content");
   const topNav = document.querySelector(".top-nav");
 
-  console.log("🔍 Essential DOM elements check:");
-  console.log("  - .main-content:", mainContent ? "✅ Found" : "❌ Missing");
-  console.log("  - .top-nav:", topNav ? "✅ Found" : "❌ Missing");
-
   if (!mainContent) {
-    console.error("CRITICAL: .main-content not found. Cannot initialize SPA.");
-    console.groupEnd();
+    logManager.system.error("CRITICAL: .main-content not found. Cannot initialize SPA.");
     return;
   }
 
@@ -73,7 +82,7 @@ async function initializeSPA() {
   // The `authReady` is a Promise we created in AuthManager that resolves
   // only after the initial `onAuthStateChanged` event has fired.
   if (authManager?.authReady) {
-    console.log("⏳ Waiting for authentication to be ready...");
+    logManager.auth.login("Waiting for authentication to be ready...");
 
     try {
       // Add a timeout to prevent waiting forever
@@ -85,42 +94,39 @@ async function initializeSPA() {
       );
 
       await Promise.race([authManager.authReady, authTimeout]);
-      console.log("✅ Authentication ready!");
+      logManager.auth.login("Authentication ready!");
     } catch (error) {
-      console.warn(
-        "⚠️ Authentication timeout or error, proceeding anyway:",
-        error.message
+      logManager.auth.warn(
+        `Authentication timeout or error, proceeding anyway: ${error.message}`
       );
       // Continue initialization even if auth times out
     }
   } else {
-    console.warn(
+    logManager.auth.warn(
       "AuthManager or authReady promise not found. Proceeding without auth check."
     );
   }
 
   // Now that we're sure about the auth status, we can initialize the router.
-  console.log("🔧 Creating SPA Router instance...");
+  logManager.system.init("Creating SPA Router instance...");
 
   // Check if main-content container exists
   const mainContentContainer = document.querySelector(".main-content");
   if (!mainContentContainer) {
-    console.error(
+    logManager.system.error(
       "CRITICAL: .main-content container not found! SPA Router cannot work."
     );
-    console.groupEnd();
     return;
   }
-  console.log("✅ Main content container found:", mainContentContainer);
 
   // 🎯 FIX: Initialize DOM elements and modal system for app-wide availability
-  console.log("🔧 Initializing DOM elements and modal system...");
+  logManager.system.init("Initializing DOM elements and modal system...");
   initializeDomElements();
   initModal(DOM_ELEMENTS);
-  console.log("✅ Modal system initialized successfully!");
+  logManager.system.init("Modal system initialized successfully!");
 
   // 🌍 Initialize Campus Presence services in background (NON-BLOCKING)
-  console.log("🌍 Starting Campus Presence services in background...");
+  logManager.system.init("Starting Campus Presence services in background...");
 
   // Start background initialization without blocking app startup
   initializeCampusPresenceInBackground();
@@ -149,7 +155,7 @@ async function initializeSPA() {
     }
   });
 
-  console.groupEnd();
+  logManager.system.init("SPA Initialization completed");
 }
 
 // Initialize when DOM is ready, or immediately if already ready
@@ -157,7 +163,7 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeSPA);
 } else {
   // DOM is already ready, execute immediately
-  console.log("🏃‍♂️ DOM already ready, initializing SPA immediately...");
+  logManager.system.init("DOM already ready, initializing SPA immediately...");
   initializeSPA();
 }
 
@@ -168,14 +174,14 @@ if (document.readyState === "loading") {
 function setupProfileCompletionFlow() {
   // Listen for profile setup completion
   document.addEventListener("profile:setup:complete", async (event) => {
-    console.log(
-      "📝 Profile setup completed, refreshing user data and redirecting..."
+    logManager.auth.user(
+      "Profile setup completed, refreshing user data and redirecting..."
     );
 
     // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data
     const userData = event.detail.userData;
     if (userData && currentUser) {
-      console.log("🔄 Updating currentUser store with fresh profile data...");
+      logManager.auth.user("Updating currentUser store with fresh profile data...");
 
       // Update the currentUser store with the fresh profile data
       currentUser.setProfile(userData);
@@ -185,19 +191,19 @@ function setupProfileCompletionFlow() {
         currentUser.setUser(authManager.getCurrentUser());
       }
 
-      console.log("✅ currentUser store updated with fresh profile data");
+      logManager.auth.user("currentUser store updated with fresh profile data");
     }
 
     // Show success message briefly, then redirect
     setTimeout(() => {
       if (spaRouter) {
-        console.log("🏠 Navigating to home after profile completion...");
+        logManager.ui.click("Navigating to home after profile completion...");
         // Set completion flag for the SPA router to handle
         sessionStorage.setItem("profileJustCompleted", "true");
         spaRouter.navigateTo("home");
       } else {
-        console.error(
-          "❌ SPA Router not available for profile completion navigation!"
+        logManager.system.error(
+          "SPA Router not available for profile completion navigation!"
         );
       }
     }, 500); // Reduced to 0.5 second delay
@@ -303,8 +309,8 @@ export { setupProfileCompletionFlow, updatePageTitle };
  */
 async function initializeCampusPresenceInBackground() {
   try {
-    console.log(
-      "🔄 Background: Non-blocking Campus Presence initialization started..."
+    logManager.system.init(
+      "Background: Non-blocking Campus Presence initialization started..."
     );
 
     // Enhanced fresh data detection with cache validation
@@ -320,18 +326,10 @@ async function initializeCampusPresenceInBackground() {
 
     const isFreshDataRequired = isFirstVisit || isCacheStale || forceRefresh;
 
-    console.log("🎯 Fresh data analysis:", {
-      isFirstVisit,
-      isCacheStale: isCacheStale && lastCacheTime,
-      forceRefresh,
-      cacheAge: Math.round(cacheAge / (60 * 1000)), // in minutes
-      isFreshDataRequired,
-    });
-
     // Set priority mode for presence dots
     if (isFreshDataRequired) {
-      console.log(
-        "🎯 Fresh data required - setting priority mode for presence dots"
+      logManager.location.info(
+        "Fresh data required - setting priority mode for presence dots"
       );
       sessionStorage.setItem("campusPresence_forceFreshData", "true");
       sessionStorage.setItem("campusPresence_priorityMode", "fresh_data");
@@ -351,7 +349,7 @@ async function initializeCampusPresenceInBackground() {
         })
       );
     } else {
-      console.log("✅ Using cached data for immediate presence display");
+      logManager.location.info("Using cached data for immediate presence display");
       sessionStorage.setItem("campusPresence_priorityMode", "cached");
     }
 
@@ -370,13 +368,13 @@ async function initializeCampusPresenceInBackground() {
 
     // For fresh data scenarios, start immediate location fetch in parallel
     if (isFreshDataRequired) {
-      console.log(
-        "🚀 Starting priority location fetch for fresh presence data..."
+      logManager.location.info(
+        "Starting priority location fetch for fresh presence data..."
       );
 
       // Start fresh location fetch without blocking the main initialization
       fetchFreshLocationForPresence().catch((error) => {
-        console.warn("⚠️ Priority location fetch failed:", error);
+        logManager.location.warn(`Priority location fetch failed: ${error}`);
         // Continue with standard initialization
       });
     }
@@ -384,8 +382,8 @@ async function initializeCampusPresenceInBackground() {
     // Wait for main initialization to complete
     await initializationPromise;
 
-    console.log(
-      "✅ Background: Campus Presence services initialized successfully!"
+    logManager.system.init(
+      "Background: Campus Presence services initialized successfully!"
     );
 
     // Update cache timestamp if fresh data was loaded
@@ -410,9 +408,8 @@ async function initializeCampusPresenceInBackground() {
       })
     );
   } catch (error) {
-    console.error(
-      "❌ Background: Failed to initialize Campus Presence services:",
-      error
+    logManager.system.error(
+      `Background: Failed to initialize Campus Presence services: ${error}`
     );
 
     // Clean up flags on error

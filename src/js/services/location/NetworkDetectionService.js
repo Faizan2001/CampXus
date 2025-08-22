@@ -1,45 +1,50 @@
 /**
  * NetworkDetectionService.js
- * 
+ *
  * Tier 1 location detection using IP range analysis for FREE campus presence detection.
  * Provides instant, accurate campus detection without GPS or expensive API calls.
- * 
+ *
  * 🆓 FREE TIER - No API costs, unlimited usage
- * ⚡ INSTANT - No GPS delays or permission prompts  
+ * ⚡ INSTANT - No GPS delays or permission prompts
  * 🎯 ACCURATE - Highly reliable for campus network detection
  */
+
+import { logManager } from "../../utils/debug/LogManager.js";
 
 export class NetworkDetectionService {
   constructor() {
     // University IP range configurations
     this.universityIpRanges = {
-      'iub': [
+      iub: [
         // 🧪 PLACEHOLDER - Will be updated with real IUB IP ranges after testing
 
-        '103.81.68.0/24',       // Example: IUB network range? Verify
-        '103.81.69.0/24',      // Example: IUB network range? Verify
-        '103.81.70.0/24',      // Example: IUB network range? Verify
-        '103.81.71.0/24'       // Example: IUB network range? Verify
-
+        "103.81.68.0/24", // Example: IUB network range? Verify
+        "103.81.69.0/24", // Example: IUB network range? Verify
+        "103.81.70.0/24", // Example: IUB network range? Verify
+        "103.81.71.0/24", // Example: IUB network range? Verify
       ],
       // Add more universities as needed
-      'buet': [
-        '103.230.106.0/24'    // Example: BUET network
-      ]
+      buet: [
+        "103.230.106.0/24", // Example: BUET network
+      ],
     };
 
     // IP detection service endpoints (with fallbacks)
     this.ipServiceEndpoints = [
-      'https://api.ipify.org?format=json',          // Primary
-      'https://ipapi.co/json/',                     // Fallback 1  
-      'https://ip.seeip.org/jsonip'                 // Fallback 2
+      "https://api.ipify.org?format=json", // Primary
+      "https://ipapi.co/json/", // Fallback 1
+      "https://ip.seeip.org/jsonip", // Fallback 2
     ];
 
     this.maxRetries = 3;
     this.requestTimeout = 5000; // 5 second timeout for IP detection
-    
-    console.log('🌐 NetworkDetectionService initialized with university IP ranges:', 
-      Object.keys(this.universityIpRanges));
+
+    logManager.location.info(
+      "NetworkDetectionService initialized with university IP ranges",
+      {
+        universities: Object.keys(this.universityIpRanges),
+      }
+    );
   }
 
   /**
@@ -47,21 +52,24 @@ export class NetworkDetectionService {
    * @param {string} university - University code (e.g., 'iub')
    * @returns {Promise<Object>} Detection result with campus status
    */
-  async detectCampusPresence(university = 'iub') {
+  async detectCampusPresence(university = "iub") {
     const startTime = Date.now();
-    
+
     try {
-      console.log(`🔍 [NetworkDetection] Tier 1: Starting IP-based campus detection for ${university.toUpperCase()}`);
-      
+      logManager.location.tier1(
+        `Starting IP-based campus detection for ${university.toUpperCase()}`
+      );
+
       // Step 1: Get user's public IP address
       const userIP = await this.getUserPublicIP();
       if (!userIP) {
-        throw new Error('Unable to detect public IP address');
+        throw new Error("Unable to detect public IP address");
       }
 
       // 🧪 TESTING: Log actual IP for tomorrow's campus testing
-      console.log(`📍 [NetworkDetection] 🧪 TESTING MODE: Your current IP is ${userIP}`);
-      console.log(`📍 [NetworkDetection] 🧪 Save this IP when you're on campus tomorrow for configuration!`);
+      logManager.location.info("TESTING MODE: current IP for debugging", {
+        ip: userIP,
+      });
 
       // Step 2: Check if IP falls within university ranges
       const isOnCampus = this.isIPInUniversityRange(userIP, university);
@@ -69,41 +77,50 @@ export class NetworkDetectionService {
 
       const result = {
         success: true,
-        method: 'ip_range_detection',
+        method: "ip_range_detection",
         tier: 1,
-        campusStatus: isOnCampus ? 'on_campus' : 'off_campus',
-        confidence: isOnCampus ? 'high' : 'high', // IP detection is always high confidence
+        campusStatus: isOnCampus ? "on_campus" : "off_campus",
+        confidence: isOnCampus ? "high" : "high", // IP detection is always high confidence
         userIP: userIP,
         university: university,
         responseTime: responseTime,
         timestamp: Date.now(),
         // For debugging
-        matchedRange: isOnCampus ? this.getMatchingRange(userIP, university) : null,
-        availableRanges: this.universityIpRanges[university] || []
+        matchedRange: isOnCampus
+          ? this.getMatchingRange(userIP, university)
+          : null,
+        availableRanges: this.universityIpRanges[university] || [],
       };
 
-      console.log(`✅ [NetworkDetection] Tier 1 SUCCESS in ${responseTime}ms:`, {
-        campusStatus: result.campusStatus,
-        userIP: userIP,
-        matchedRange: result.matchedRange,
-        confidence: result.confidence
-      });
+      // Downgrade this to a dev/info level so the higher-level orchestrator
+      // (`CampusLocationService`) remains the canonical emitter of final
+      // "TIER X completed" messages and prevents duplicate entries.
+      logManager.dev.info(
+        `NetworkDetectionService: TIER 1 result in ${responseTime}ms: ${result.campusStatus.toUpperCase()} via IP detection`,
+        {
+          userIP,
+          matchedRange: result.matchedRange,
+          confidence: result.confidence,
+          responseTime,
+        }
+      );
 
       return result;
-
     } catch (error) {
       const responseTime = Date.now() - startTime;
-      
-      console.warn(`❌ [NetworkDetection] Tier 1 FAILED in ${responseTime}ms:`, error.message);
-      
+
+      logManager.location.fail(
+        `TIER 1 failed in ${responseTime}ms: ${error.message}`
+      );
+
       return {
         success: false,
-        method: 'ip_range_detection',
+        method: "ip_range_detection",
         tier: 1,
         error: error.message,
         responseTime: responseTime,
         timestamp: Date.now(),
-        fallbackReason: 'ip_detection_failed'
+        fallbackReason: "ip_detection_failed",
       };
     }
   }
@@ -115,46 +132,53 @@ export class NetworkDetectionService {
   async getUserPublicIP() {
     for (let i = 0; i < this.ipServiceEndpoints.length; i++) {
       const endpoint = this.ipServiceEndpoints[i];
-      
+
       try {
-        console.log(`🌐 [NetworkDetection] Trying IP service ${i + 1}/${this.ipServiceEndpoints.length}: ${endpoint}`);
-        
+        logManager.location.info(
+          `Trying IP service ${i + 1}/${this.ipServiceEndpoints.length}`,
+          { endpoint }
+        );
+
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
-        
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          this.requestTimeout
+        );
+
         const response = await fetch(endpoint, {
           signal: controller.signal,
           headers: {
-            'Accept': 'application/json'
-          }
+            Accept: "application/json",
+          },
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Different services return IP in different fields
         const ip = data.ip || data.query || data.IPv4;
-        
+
         if (ip && this.isValidIP(ip)) {
-          console.log(`✅ [NetworkDetection] IP detected successfully: ${ip}`);
+          logManager.location.success(`IP detected successfully`, { ip });
           return ip;
         } else {
-          throw new Error('Invalid IP format in response');
+          throw new Error("Invalid IP format in response");
         }
-        
       } catch (error) {
-        console.warn(`⚠️ [NetworkDetection] IP service ${i + 1} failed:`, error.message);
-        
+        logManager.location.warn(
+          `IP service ${i + 1} failed: ${error.message}`
+        );
+
         // If this was the last endpoint, throw the error
         if (i === this.ipServiceEndpoints.length - 1) {
-          throw new Error('All IP detection services failed');
+          throw new Error("All IP detection services failed");
         }
-        
+
         // Otherwise, try the next endpoint
         continue;
       }
@@ -169,20 +193,24 @@ export class NetworkDetectionService {
    */
   isIPInUniversityRange(userIP, university) {
     const ranges = this.universityIpRanges[university];
-    
+
     if (!ranges || ranges.length === 0) {
-      console.warn(`⚠️ [NetworkDetection] No IP ranges configured for ${university}`);
+      logManager.location.warn(`No IP ranges configured for ${university}`);
       return false;
     }
 
     for (const range of ranges) {
       if (this.isIPInRange(userIP, range)) {
-        console.log(`🎯 [NetworkDetection] IP ${userIP} matches university range: ${range}`);
+        logManager.location.tier1(
+          `IP ${userIP} matches university range: ${range}`
+        );
         return true;
       }
     }
 
-    console.log(`❌ [NetworkDetection] IP ${userIP} not in any university ranges for ${university}`);
+    logManager.location.info(
+      `IP ${userIP} not in any university ranges for ${university}`
+    );
     return false;
   }
 
@@ -194,21 +222,22 @@ export class NetworkDetectionService {
    */
   isIPInRange(ip, cidr) {
     try {
-      const [rangeIP, prefixLength] = cidr.split('/');
+      const [rangeIP, prefixLength] = cidr.split("/");
       const prefix = parseInt(prefixLength, 10);
-      
+
       // Convert IP addresses to 32-bit integers
       const ipInt = this.ipToInt(ip);
       const rangeInt = this.ipToInt(rangeIP);
-      
+
       // Create subnet mask
-      const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-      
+      const mask = (0xffffffff << (32 - prefix)) >>> 0;
+
       // Check if IP is in the subnet
       return (ipInt & mask) === (rangeInt & mask);
-      
     } catch (error) {
-      console.warn(`⚠️ [NetworkDetection] Error checking IP range ${ip} in ${cidr}:`, error.message);
+      logManager.dev.warn(
+        `⚠️ [NetworkDetection] Error checking IP range ${ip} in ${cidr}: ${error.message}`
+      );
       return false;
     }
   }
@@ -219,14 +248,16 @@ export class NetworkDetectionService {
    * @returns {number} 32-bit integer representation
    */
   ipToInt(ip) {
-    return ip.split('.').reduce((int, octet, index) => {
-      return int + (parseInt(octet, 10) << ((3 - index) * 8));
-    }, 0) >>> 0; // Unsigned right shift to ensure positive number
+    return (
+      ip.split(".").reduce((int, octet, index) => {
+        return int + (parseInt(octet, 10) << ((3 - index) * 8));
+      }, 0) >>> 0
+    ); // Unsigned right shift to ensure positive number
   }
 
   /**
    * 🔍 Get the matching IP range for debugging
-   * @param {string} userIP - User's IP address  
+   * @param {string} userIP - User's IP address
    * @param {string} university - University code
    * @returns {string|null} Matching CIDR range
    */
@@ -250,8 +281,8 @@ export class NetworkDetectionService {
   isValidIP(ip) {
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(ip)) return false;
-    
-    return ip.split('.').every(octet => {
+
+    return ip.split(".").every((octet) => {
       const num = parseInt(octet, 10);
       return num >= 0 && num <= 255;
     });
@@ -263,7 +294,10 @@ export class NetworkDetectionService {
    * @param {string[]} ranges - Array of CIDR ranges
    */
   updateUniversityRanges(university, ranges) {
-    console.log(`⚙️ [NetworkDetection] Updating IP ranges for ${university}:`, ranges);
+    logManager.dev.info(
+      `⚙️ [NetworkDetection] Updating IP ranges for ${university}:`,
+      { ranges }
+    );
     this.universityIpRanges[university] = ranges;
   }
 
@@ -273,14 +307,17 @@ export class NetworkDetectionService {
    */
   getServiceInfo() {
     return {
-      serviceType: 'network_ip_detection',
+      serviceType: "network_ip_detection",
       tier: 1,
-      cost: 'FREE',
+      cost: "FREE",
       supportedUniversities: Object.keys(this.universityIpRanges),
-      totalRanges: Object.values(this.universityIpRanges).reduce((total, ranges) => total + ranges.length, 0),
+      totalRanges: Object.values(this.universityIpRanges).reduce(
+        (total, ranges) => total + ranges.length,
+        0
+      ),
       endpoints: this.ipServiceEndpoints,
       timeout: this.requestTimeout,
-      maxRetries: this.maxRetries
+      maxRetries: this.maxRetries,
     };
   }
 
@@ -289,19 +326,24 @@ export class NetworkDetectionService {
    * @param {string} university - University to test for
    * @returns {Promise<Object>} Test results
    */
-  async testService(university = 'iub') {
-    console.log(`🧪 [NetworkDetection] Testing service for ${university}...`);
-    
+  async testService(university = "iub") {
+    logManager.dev.info(
+      `🧪 [NetworkDetection] Testing service for ${university}...`
+    );
+
     const testStartTime = Date.now();
     const result = await this.detectCampusPresence(university);
     const testDuration = Date.now() - testStartTime;
-    
-    console.log(`🧪 [NetworkDetection] Test completed in ${testDuration}ms:`, result);
-    
+
+    logManager.dev.info(
+      `🧪 [NetworkDetection] Test completed in ${testDuration}ms`,
+      { result }
+    );
+
     return {
       ...result,
       testDuration,
-      serviceInfo: this.getServiceInfo()
+      serviceInfo: this.getServiceInfo(),
     };
   }
 }
@@ -310,13 +352,17 @@ export class NetworkDetectionService {
 export const networkDetectionService = new NetworkDetectionService();
 
 // 🧪 TESTING HELPER - Available in browser console for manual testing
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.debugNetworkDetection = {
-    test: () => networkDetectionService.testService('iub'),
+    test: () => networkDetectionService.testService("iub"),
     checkIP: (ip, range) => networkDetectionService.isIPInRange(ip, range),
     getInfo: () => networkDetectionService.getServiceInfo(),
-    updateRanges: (university, ranges) => networkDetectionService.updateUniversityRanges(university, ranges)
+    updateRanges: (university, ranges) =>
+      networkDetectionService.updateUniversityRanges(university, ranges),
   };
-  
-  console.log('🧪 [NetworkDetection] Debug helpers available: window.debugNetworkDetection');
+
+  // Expose a single centralized debug message
+  logManager.dev.info(
+    "NetworkDetection debug helpers available: window.debugNetworkDetection"
+  );
 }

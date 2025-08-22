@@ -928,7 +928,8 @@ describe("Schedule Disabled State", () => {
 
   test("should remove disabled class when active user is set", () => {
     const state = getState();
-    // Legacy createUserObject removed
+    // Create a mock user for testing
+    const user = { id: "test-user", name: "Test User" };
     state.users[user.id] = user;
     state.activeUserId = user.id;
 
@@ -945,7 +946,4 @@ describe("Schedule Disabled State", () => {
       "schedule-disabled"
     );
   });
-
-
-
 });

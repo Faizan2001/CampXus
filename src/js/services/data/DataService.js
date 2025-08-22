@@ -72,6 +72,7 @@ import { db } from "../../lib/firebase/firebase-config.js";
 import { auth } from "../../lib/firebase/firebase-config.js";
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
 import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {
@@ -166,7 +167,9 @@ class DataManager {
       this.cleanupExpiredCacheEntries();
     }, 10 * 60 * 1000);
 
-    console.log("🧹 Cache cleanup interval started (every 10 minutes)");
+    logManager.system.cleanup(
+      "Cache cleanup interval started (every 10 minutes)"
+    );
   }
 
   /**
@@ -185,7 +188,9 @@ class DataManager {
     }
 
     if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned up ${cleanedCount} expired cache entries`);
+      logManager.system.cleanup(
+        `Cleaned up ${cleanedCount} expired cache entries`
+      );
     }
   }
 
@@ -313,7 +318,7 @@ class DataManager {
    */
   clearCache() {
     this.cache.clear();
-    console.log("🧹 Cache cleared.");
+    logManager.system.cleanup("Cache cleared.");
   }
 
   /**
@@ -329,13 +334,13 @@ class DataManager {
     // Set new timeout
     const timeoutId = setTimeout(() => {
       syncUserDataCache(userId).catch((error) =>
-        console.warn("⚠️ Friend cache sync failed:", error)
+        logManager.network.error("Friend cache sync failed", error)
       );
       this.syncDebounceMap.delete(userId);
     }, 1000); // 1 second debounce
 
     this.syncDebounceMap.set(userId, timeoutId);
-    console.log(`⏱️ Debounced cache sync for user: ${userId}`);
+    logManager.system.perf(`Debounced cache sync for user: ${userId}`);
   }
 
   /**
@@ -2881,9 +2886,7 @@ class DataManager {
             const throttleDelay = 3000; // 3 seconds
 
             if (now - lastProcessTime < throttleDelay) {
-              console.log(
-                `⏱️ Throttling profile change for ${userId} (too frequent)`
-              );
+              logManager.profileUpdate(userId, "throttled");
               // Update cache but skip processing
               this.setCachedData(`user_${userId}`, profileData);
               callback(profileData);
@@ -2891,7 +2894,7 @@ class DataManager {
             }
 
             this.profileChangeThrottle.set(userId, now);
-            console.log(`👤 Real-time update: Profile changed for ${userId}`);
+            logManager.profileUpdate(userId, "changed");
 
             // 🔄 Skip cache sync if this is a Quick Access update to prevent cascading
             const isQuickAccessUpdate =
@@ -3489,8 +3492,8 @@ class DataManager {
         const reason = !hasValidCoordinates
           ? "null/invalid coordinates"
           : `poor accuracy (${coordinates?.accuracy}m > 1000m)`;
-        console.log(
-          `🚫 [DataManager] SKIPPING database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
+        logManager.db.write(
+          `Skipping database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
         );
 
         return {
