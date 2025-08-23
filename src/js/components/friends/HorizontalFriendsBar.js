@@ -556,11 +556,7 @@ export class HorizontalFriendsBar {
         }
       );
 
-      console.log(
-        `🔍 DEBUG: Validated ${validatedFriends.length}/${
-          (quickAccessWithLocation || []).length
-        } friends during load with presence data`
-      );
+      // Validation completed (reduced logging for console noise)
 
       this.quickAccessFriends = validatedFriends;
 
@@ -3711,7 +3707,7 @@ export class HorizontalFriendsBar {
       // Only log in development to reduce console spam in production
       if (window.location.hostname === "localhost") {
         console.log(
-          "⭐ Processing real-time Quick Access update in horizontal bar"
+          // Processing real-time Quick Access update (logging reduced)"
         );
       }
 
@@ -3740,7 +3736,7 @@ export class HorizontalFriendsBar {
       });
 
       console.log(
-        `🔍 DEBUG: Real-time update validated ${validatedFriends.length}/${quickAccessFriends.length} friends`
+        // Real-time update validated (logging reduced)
       );
 
       // Check if the friend list actually changed to prevent unnecessary operations
@@ -3755,7 +3751,7 @@ export class HorizontalFriendsBar {
 
       if (!friendListChanged) {
         console.log(
-          "📡 Quick Access friend list unchanged, skipping expensive operations"
+          // Friend list unchanged, skipping operations (logging reduced)"
         );
         return;
       }

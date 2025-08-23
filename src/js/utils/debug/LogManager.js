@@ -98,28 +98,82 @@ class LogManager {
     // Performance tracking
     this.performanceMarkers = new Map();
 
-    // Default throttle periods (in milliseconds)
+    // More aggressive throttle periods (in milliseconds)
     this.defaultThrottlePeriods = {
-      "profile-update": 5000, // Profile updates every 5s max
-      "ui-render": 1000, // UI renders every 1s max
-      "listener-setup": 3000, // Listener setups every 3s max
-      "real-time-update": 2000, // Real-time updates every 2s max
-      "location-attempt": 1000, // Location attempts every 1s max
-      "presence-dot-update": 2000, // Presence dot updates every 2s max
-      "friend-profile-change": 3000, // Friend profile changes every 3s max
+      "profile-update": 15000, // Profile updates every 15s max (was 5s)
+      "ui-render": 5000, // UI renders every 5s max (was 1s)  
+      "listener-setup": 10000, // Listener setups every 10s max (was 3s)
+      "real-time-update": 8000, // Real-time updates every 8s max (was 2s)
+      "location-attempt": 3000, // Location attempts every 3s max (was 1s)
+      "presence-dot-update": 10000, // Presence dot updates every 10s max (was 2s)
+      "friend-profile-change": 15000, // Friend profile changes every 15s max (was 3s)
+      "view-mode-update": 30000, // View mode changes every 30s max
+      "schedule-update": 10000, // Schedule updates every 10s max
+      "cleanup": 60000, // Cleanup operations every 60s max
+      "debug-validation": 30000, // Debug validation every 30s max
     };
 
-    // High-frequency messages that should be heavily throttled
+    // Much more aggressive heavy throttling for noisy messages
     this.heavyThrottleMessages = new Set([
+      // Presence/Location related noise
       "Profile changed for:",
       "PresenceDot: Creating presence dot",
-      "PresenceDot: Time calculation",
-      "PresenceDot: User inactive - showing timer dot",
+      "PresenceDot: Time calculation", 
+      "PresenceDot: User inactive for 2+ minutes - showing timer dot",
+      "PresenceDot: User active within 2 minutes - showing solid dot",
       "User presence dot updated safely",
+      "Updated presence dot for",
+      "Processing user activity update",
+      
+      // HorizontalFriendsBar noise
       "CIRCUIT BREAKER: Ignoring database update during sync operations",
       "DEBUG: Validated",
-      "DEBUG: Real-time update validated",
-      "Quick Access friend list unchanged, skipping expensive operations"
+      "DEBUG: Real-time update validated", 
+      "Quick Access friend list unchanged, skipping expensive operations",
+      "Processing real-time Quick Access update",
+      "External database update received",
+      "Friend list unchanged, updating presence dots only",
+      "IMMEDIATE: Privacy changes synced to database",
+      "External starred friends update detected",
+      
+      // UI/ViewMode repetitive updates
+      "Day button - active:",
+      "Grid button - active:",
+      "UpdateViewContainers",
+      "UpdateUI rendered",
+      "Day view data source:",
+      "All critical DOM elements are ready",
+      "DOM ready after",
+      "UI updated with real-time changes",
+      "Cleaning up 0 schedule content event listeners",
+      "Successfully cleaned up all schedule content event listeners",
+      
+      // Real-time update spam
+      "Real-time schedule update received",
+      "Broadcasting",
+      "New subscriber for",
+      "User profile update for:",
+      "Schedule data update:",
+      "Quick Access update:",
+      "Profile throttled for:",
+      
+      // Location service noise
+      "GPS success:",
+      "Browser GPS request",
+      "TIER 1:",
+      "TIER 2:",
+      "TIER 3:",
+      "IP detected successfully",
+      "Activity heartbeat",
+      "Health check passed",
+      
+      // Generic debug spam
+      "Setting up",
+      "Found",
+      "Fetching",
+      "Available globally",
+      "initialized successfully",
+      "listener established",
     ]);
   }
 

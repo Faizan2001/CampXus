@@ -193,6 +193,15 @@ export class CampusLocationService {
     this.isFirstLocationUpdate = true; // Track if this is the first location update
     this.lastUpdateTrigger = null; // Track the trigger for the last update
 
+    // Campus Boundary Detection Debouncing (Enhanced API Call Reduction)
+    this.campusBoundaryCache = new Map(); // Cache boundary detection results
+    this.boundaryDetectionDebounceTimeout = null;
+    this.minBoundaryDetectionInterval = 60000; // Minimum 1 minute between boundary detections
+    this.lastBoundaryDetectionTime = null;
+    this.activeBoundaryDetections = new Map(); // Track ongoing boundary detections
+    this.boundaryDetectionQueue = [];
+    this.isBoundaryDetectionThrottled = false;
+
     // 💰 COST OPTIMIZATION: Strategic Google API usage control
     // Reasonable limits for 2000+ university users while controlling costs
     this.maxGoogleCallsPerUser = 5; // Max Google API calls per user per day (REDUCED from 10 - cost optimization)
@@ -263,7 +272,7 @@ export class CampusLocationService {
     logManager.location.info("Requesting location permission...");
 
     if (!this.isLocationSupported) {
-      logManager.location.error("Geolocation not supported by browser");
+      logManager.location.fail("Geolocation not supported by browser");
       return false;
     }
 
@@ -396,7 +405,7 @@ export class CampusLocationService {
             // 🔧 MOBILE FIX: Enhanced mobile-specific error handling
             switch (error.code) {
               case error.PERMISSION_DENIED:
-                logManager.location.error(
+                logManager.location.fail(
                   "❌ Location permission DENIED by user"
                 );
                 this.permissionStatus = "denied";
@@ -464,7 +473,7 @@ export class CampusLocationService {
         );
       });
     } catch (error) {
-      logManager.location.error(
+      logManager.location.fail(
         "Error requesting location permission:",
         error
       );
@@ -503,7 +512,7 @@ export class CampusLocationService {
    * 🎯 NEW 3-TIER COST-OPTIMIZED GEOLOCATION SYSTEM
    *
    * TIER 1: Network/IP Detection (FREE) - Instant campus detection via university IP ranges
-   * TIER 2: Browser GPS (FREE) - 3 attempts with 12s timeout, write only if ≤1000m accuracy
+   * TIER 2: Browser GPS (FREE) - 3 attempts with 12s timeout, write only if ≤2100m accuracy (2000m + 5% tolerance)
    * TIER 3: Google API (PAID) - Last resort only, 5 calls/day per user limit
    */
   async getCurrentLocation(
@@ -623,10 +632,13 @@ export class CampusLocationService {
               `TIER 2 completed in ${responseTime}ms (attempt ${attempt}): ±${accuracy}m accuracy`
             );
 
-            // ⚡ ACCURACY CHECK: Only proceed if accuracy is acceptable
-            if (browserResult.coords.accuracy <= 1000) {
+            // ⚡ ACCURACY CHECK: Only proceed if accuracy is acceptable (2000m threshold with 5% tolerance)
+            const accuracyThreshold = 2000;
+            const tolerance = accuracyThreshold * 0.05; // 5% tolerance (100m)
+            const acceptableAccuracy = accuracyThreshold + tolerance; // 2100m
+            if (browserResult.coords.accuracy <= acceptableAccuracy) {
               logManager.location.success(
-                `Accuracy ±${accuracy}m ≤ 1000m - proceeding with database write`
+                `Accuracy ±${accuracy}m ≤ ${Math.round(acceptableAccuracy)}m - proceeding with database write`
               );
 
               tier2Result = this.formatLocationResponse(
@@ -657,10 +669,10 @@ export class CampusLocationService {
               return tier2Result;
             } else {
               logManager.location.warn(
-                `TIER 2 accuracy failed: ±${accuracy}m > 1000m - continuing to TIER 3 for better GPS`
+                `TIER 2 accuracy failed: ±${accuracy}m > ${Math.round(acceptableAccuracy)}m - continuing to TIER 3 for better GPS`
               );
               browserErrors.push(
-                `Attempt ${attempt}: Low accuracy (±${accuracy}m > 1000m threshold)`
+                `Attempt ${attempt}: Low accuracy (±${accuracy}m > ${Math.round(acceptableAccuracy)}m threshold)`
               );
             }
           }
@@ -732,8 +744,12 @@ export class CampusLocationService {
             );
             tier3Result.tier = 3;
             tier3Result.responseTime = responseTime;
+            // Apply same tolerance for TIER 3 as TIER 2
+            const tier3AccuracyThreshold = 2000;
+            const tier3Tolerance = tier3AccuracyThreshold * 0.05; // 5% tolerance (100m)
+            const tier3AcceptableAccuracy = tier3AccuracyThreshold + tier3Tolerance; // 2100m
             tier3Result.shouldWriteToDatabase =
-              googleResult.coords.accuracy <= 1000;
+              googleResult.coords.accuracy <= tier3AcceptableAccuracy;
 
             // Add IP detection result as context if available
             if (tier1Result && tier1Result.success) {
@@ -746,11 +762,11 @@ export class CampusLocationService {
 
             if (tier3Result.shouldWriteToDatabase) {
               logManager.location.success(
-                `TIER 3 success: Google API accuracy ±${accuracy}m ≤ 1000m - proceeding with database write`
+                `TIER 3 success: Google API accuracy ±${accuracy}m ≤ ${Math.round(tier3AcceptableAccuracy)}m - proceeding with database write`
               );
             } else {
               logManager.location.warn(
-                `TIER 3 accuracy failed: Google API accuracy ±${accuracy}m > 1000m - no database write`
+                `TIER 3 accuracy failed: Google API accuracy ±${accuracy}m > ${Math.round(tier3AcceptableAccuracy)}m - no database write`
               );
             }
 
@@ -789,14 +805,14 @@ export class CampusLocationService {
             (tier2Result?.errors ||
               (browserErrors.length
                 ? browserErrors.join(", ")
-                : "Browser GPS failed or accuracy > 1000m"))
+                : "Browser GPS failed or accuracy > 2000m"))
         );
         logManager.location.fail(
           "Tier 3: " +
-            (tier3Result?.error || "Google API failed or accuracy > 1000m")
+            (tier3Result?.error || "Google API failed or accuracy > 2000m")
         );
         logManager.dev.info(
-          "No GPS tier provided coordinates with accuracy ≤ 1000m - database write prevented"
+          "No GPS tier provided coordinates with accuracy ≤ 2000m - database write prevented"
         );
         logManager.dev.info(
           "Solution: User needs to enable location permissions or move to an area with better GPS signal"
@@ -919,64 +935,159 @@ export class CampusLocationService {
       );
     }
 
+    // Check cache first to avoid unnecessary location calls
+    const cacheKey = `${university}_boundary_detection`;
+    const cachedResult = this.getCachedBoundaryDetection(cacheKey);
+    if (cachedResult) {
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info(
+          "💾 [CampusLocationService] Returning cached campus presence result",
+          { university, fromCache: true }
+        );
+      }
+      return cachedResult;
+    }
+
+    // Check if we're currently throttled
+    if (this.isBoundaryDetectionThrottled) {
+      if (typeof logManager !== "undefined") {
+        logManager.location.warn(
+          "⏳ Campus boundary detection throttled - returning last known result or queuing"
+        );
+      }
+      
+      // Return cached result or queue for later processing
+      const lastResult = this.campusBoundaryCache.get(cacheKey);
+      if (lastResult) {
+        return { ...lastResult, fromThrottle: true };
+      }
+    }
+
+    // Check for active detection to prevent duplicates
+    if (this.activeBoundaryDetections.has(university)) {
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info(
+          "🔄 [CampusLocationService] Boundary detection already in progress, returning existing promise"
+        );
+      }
+      return this.activeBoundaryDetections.get(university);
+    }
+
+    // Create the detection promise and store it
+    const detectionPromise = this.performBoundaryDetection(university, cacheKey);
+    this.activeBoundaryDetections.set(university, detectionPromise);
+
     try {
-      // Get current location for campus boundary detection
-      const position = await this.getCurrentLocation(
-        false,
-        "campus_boundary_detection"
-      );
-      if (!position) {
+      const result = await detectionPromise;
+      return result;
+    } finally {
+      // Clean up active detection tracking
+      this.activeBoundaryDetections.delete(university);
+    }
+  }
+
+  /**
+   * Performs the actual boundary detection logic for campus presence
+   * @param {string} university - The university identifier
+   * @param {string} cacheKey - Cache key for storing results
+   * @returns {Promise<Object>} Campus presence detection result
+   */
+  async performBoundaryDetection(university, cacheKey) {
+    try {
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info(
+          "🎯 [CampusLocationService] Starting boundary detection",
+          { university, cacheKey }
+        );
+      }
+
+      // Get current location using the 3-tier system
+      const position = await this.getCurrentLocation(true, 'campus-boundary-detection');
+      
+      if (!position || !position.coords) {
+        const error = "Failed to get location for boundary detection";
         if (typeof logManager !== "undefined") {
-          logManager.location.warn(
-            "Cannot detect campus presence - location unavailable"
+          logManager.location.fail(
+            "❌ [CampusLocationService] Boundary detection failed - no position",
+            { university, error }
           );
         }
         return {
           onCampus: false,
           confidence: 0,
-          error: "Location unavailable",
+          error: error,
+          source: 'boundary-detection-error',
+          timestamp: Date.now()
         };
       }
 
-      // Check if on campus using polygon detection
-      const result = this.isLocationOnCampus(position, university);
+      // Check if location is on campus using polygon detection
+      const campusResult = this.isLocationOnCampus(position, university);
+      
+      // Cache the result for future use
+      const result = {
+        ...campusResult,
+        position: {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        },
+        source: position.source || 'boundary-detection',
+        timestamp: Date.now(),
+        university: university
+      };
+
+      // Cache with 1-minute TTL as defined in getCachedBoundaryDetection
+      this.campusBoundaryCache.set(cacheKey, {
+        ...result,
+        cachedAt: Date.now()
+      });
 
       if (typeof logManager !== "undefined") {
         logManager.dev.info(
-          "[CampusLocationService] Campus presence detection result",
+          "✅ [CampusLocationService] Boundary detection completed",
           {
             university,
             onCampus: result.onCampus,
             confidence: result.confidence,
-            location: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-            },
-            timestamp: new Date().toISOString(),
+            source: result.source,
+            accuracy: position.coords.accuracy
           }
         );
       }
 
-      return {
-        ...result,
-        location: {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: position.timestamp,
-        },
-      };
+      // Apply throttling after successful detection
+      this.isBoundaryDetectionThrottled = true;
+      setTimeout(() => {
+        this.isBoundaryDetectionThrottled = false;
+      }, 5000); // 5-second throttle
+
+      return result;
+
     } catch (error) {
-      logManager.location.error(
-        "Error detecting campus presence:",
-        error
-      );
-      return {
+      if (typeof logManager !== "undefined") {
+        logManager.location.fail(
+          "❌ [CampusLocationService] Boundary detection error",
+          { university, error: error.message, stack: error.stack }
+        );
+      }
+
+      const errorResult = {
         onCampus: false,
         confidence: 0,
         error: error.message,
+        source: 'boundary-detection-error',
+        timestamp: Date.now(),
+        university: university
       };
+
+      // Cache error result briefly to prevent immediate retries
+      this.campusBoundaryCache.set(cacheKey, {
+        ...errorResult,
+        cachedAt: Date.now()
+      });
+
+      return errorResult;
     }
   }
 
@@ -1411,7 +1522,7 @@ export class CampusLocationService {
         "📱 Successfully resumed from background mode"
       );
     } catch (error) {
-      logManager.location.error(
+      logManager.location.fail(
         "📱 Error resuming from background:",
         error
       );
@@ -1486,7 +1597,7 @@ export class CampusLocationService {
         "📱 Network recovery completed successfully"
       );
     } catch (error) {
-      logManager.location.error(
+      logManager.location.fail(
         "📱 Network recovery failed:",
         error
       );
@@ -1502,7 +1613,7 @@ export class CampusLocationService {
           this.handleNetworkReconnectionRecovery();
         }, 5000 * this.networkReconnectionAttempts); // Progressive backoff
       } else {
-        logManager.location.error(
+        logManager.location.fail(
           "📱 Max network recovery attempts reached"
         );
         this.networkReconnectionAttempts = 0; // Reset for next time
@@ -1617,7 +1728,7 @@ export class CampusLocationService {
         );
       }
     } catch (error) {
-      logManager.location.error(
+      logManager.location.fail(
         "❌ SPA navigation handler error:",
         error
       );
@@ -1880,6 +1991,51 @@ export class CampusLocationService {
     } catch (error) {
       console.warn(
         "[CampusLocationService] Failed to get cached location:",
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get cached boundary detection result
+   * @param {string} cacheKey - Cache key for the boundary detection
+   * @returns {Object|null} Cached boundary detection result or null if expired/not found
+   */
+  getCachedBoundaryDetection(cacheKey) {
+    try {
+      if (!this.campusBoundaryCache.has(cacheKey)) {
+        return null;
+      }
+
+      const cached = this.campusBoundaryCache.get(cacheKey);
+      
+      // Check if cache is expired (1 minute TTL for boundary detection)
+      const cacheAge = Date.now() - cached.timestamp;
+      const maxAge = 60 * 1000; // 1 minute TTL
+      
+      if (cacheAge > maxAge) {
+        logManager.location.info(
+          `🗑️ [CampusLocationService] Boundary detection cache expired for ${cacheKey}`,
+          { ageSeconds: Math.round(cacheAge / 1000) }
+        );
+        this.campusBoundaryCache.delete(cacheKey);
+        return null;
+      }
+
+      logManager.location.info(
+        `💾 [CampusLocationService] Found cached boundary detection for ${cacheKey}`,
+        { 
+          ageSeconds: Math.round(cacheAge / 1000),
+          onCampus: cached.onCampus,
+          confidence: cached.confidence 
+        }
+      );
+
+      return cached;
+    } catch (error) {
+      logManager.location.fail(
+        "[CampusLocationService] Failed to get cached boundary detection:",
         error
       );
       return null;
@@ -3026,7 +3182,7 @@ export class CampusLocationService {
       );
       return watchId;
     } else {
-      logManager.location.error("[CampusLocationService] Failed to start position watch");
+      logManager.location.fail("[CampusLocationService] Failed to start position watch");
       return null;
     }
   }
@@ -4462,7 +4618,7 @@ export class CampusLocationService {
     const accuracy = position.coords.accuracy;
 
     // 🔧 FIX: More lenient accuracy requirements for initial/reload scenarios
-    let maxAccuracy = 1000; // Default threshold
+    let maxAccuracy = 2000; // Default threshold
     if (
       context === "initial" ||
       context === "reload" ||
@@ -4783,7 +4939,7 @@ export class CampusLocationService {
         "[CampusLocationService] ✅ GPS reset completed successfully"
       );
     } catch (error) {
-      logManager.location.error("[CampusLocationService] ❌ GPS reset failed:", error);
+      logManager.location.fail("[CampusLocationService] ❌ GPS reset failed:", error);
     } finally {
       this.isGPSResetInProgress = false;
     }
@@ -4926,7 +5082,7 @@ export class CampusLocationService {
         }
       }
     } catch (error) {
-      logManager.location.error("❌ Failed to handle initialization:", error);
+      logManager.location.fail("❌ Failed to handle initialization:", error);
 
       // Emit error event for fresh data priority mode
       if (this.priorityMode === "fresh_data_priority") {
@@ -5179,7 +5335,7 @@ export class CampusLocationService {
    */
   formatLocationResponse(location, tier, cost) {
     // Cache good locations
-    if (location.coords.accuracy <= 1000) {
+    if (location.coords.accuracy <= 2000) {
       this.locationCache.set("last_good", {
         data: location,
         timestamp: Date.now(),

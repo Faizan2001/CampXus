@@ -61,8 +61,6 @@ export class PresenceDot {
    * @returns {string} HTML string for loading presence dot
    */
   static createLoading(loadingText = "") {
-    console.log("[PresenceDot] Creating loading dot for fresh data");
-    if (window.logManager) window.logManager.dev.debug('PresenceDot: Creating loading dot for fresh data');
     return `
       <div class="presence-dot loading" title="Loading fresh location data...">
         <div class="loading-spinner"></div>
@@ -83,23 +81,6 @@ export class PresenceDot {
    * @returns {string} HTML string for presence dot element
    */
   static create(lastActive, lastKnownLocation, hasLocationSharing = false, options = {}) {
-    console.log("[PresenceDot] Creating presence dot:", {
-      hasLastActive: !!lastActive,
-      hasLocation: !!lastKnownLocation,
-      hasLocationSharing,
-      campusStatus: lastKnownLocation?.campusStatus,
-      isLoading: options.isLoading,
-      forceFreshData: options.forceFreshData,
-    });
-      if (window.logManager) window.logManager.dev.debug('PresenceDot: Creating presence dot', {
-        hasLastActive: !!lastActive,
-        hasLocation: !!lastKnownLocation,
-        hasLocationSharing,
-        campusStatus: lastKnownLocation?.campusStatus,
-        isLoading: options.isLoading,
-        forceFreshData: options.forceFreshData,
-      });
-
     // Show loading state if explicitly requested or if fresh data is being fetched
     if (options.isLoading || options.forceFreshData) {
       return this.createLoading();
@@ -107,22 +88,14 @@ export class PresenceDot {
 
     // Input validation and early returns for grey dots
     if (!hasLocationSharing) {
-      console.log("[PresenceDot] No location sharing - returning grey dot");
-    if (window.logManager) window.logManager.dev.debug('PresenceDot: No location sharing - returning grey dot');
       return '<div class="presence-dot grey"></div>';
     }
 
     if (!lastActive) {
-      console.log("[PresenceDot] No lastActive timestamp - returning grey dot");
-    if (window.logManager) window.logManager.dev.debug('PresenceDot: No lastActive timestamp - returning grey dot');
       return '<div class="presence-dot grey"></div>';
     }
 
     if (!lastKnownLocation) {
-      console.log(
-        "[PresenceDot] No lastKnownLocation data - returning grey dot"
-      );
-    if (window.logManager) window.logManager.dev.debug('PresenceDot: No lastKnownLocation data - returning grey dot');
       return '<div class="presence-dot grey"></div>';
     }
 
@@ -136,31 +109,14 @@ export class PresenceDot {
         throw new Error("Invalid date");
       }
     } catch (error) {
-      console.warn(
-        "[PresenceDot] Invalid lastActive timestamp:",
-        lastActive,
-        error
-      );
-    console.warn("[PresenceDot] Invalid lastActive timestamp:", lastActive, error);
+      console.warn("[PresenceDot] Invalid lastActive timestamp:", lastActive, error);
       return '<div class="presence-dot grey"></div>';
     }
 
     const minutesAgo = Math.floor((now - lastActiveTime) / (1000 * 60));
-    console.log("[PresenceDot] Time calculation:", {
-      now,
-      lastActiveTime: lastActiveTime.toISOString(),
-      minutesAgo,
-    });
-      if (window.logManager) window.logManager.dev.debug('PresenceDot: Time calculation', {
-        now,
-        lastActiveTime: lastActiveTime.toISOString(),
-        minutesAgo,
-      });
 
     // Don't show presence if >12 hours (720 minutes)
     if (minutesAgo > 12 * 60) {
-      console.log("[PresenceDot] Activity too old (>12h) - returning grey dot");
-    if (window.logManager) window.logManager.dev.debug('PresenceDot: Activity too old (>12h) - returning grey dot');
       return '<div class="presence-dot grey"></div>';
     }
 
@@ -176,26 +132,13 @@ export class PresenceDot {
 
     // Return grey dot if status is unknown
     if (dotClass === "grey") {
-      console.log("[PresenceDot] Unknown campus status - returning grey dot");
-    if (window.logManager) window.logManager.dev.debug('PresenceDot: Unknown campus status - returning grey dot');
       return '<div class="presence-dot grey"></div>';
     }
 
     // NEW LOGIC: Show solid dot (no text) for active users within 2 minutes
     if (minutesAgo < 2) {
-      console.log(
-        "[PresenceDot] User active within 2 minutes - showing solid dot (no text):",
-        {
-          campusStatus,
-          dotClass,
-          minutesAgo: minutesAgo.toFixed(1),
-        }
-      );
-        if (window.logManager) window.logManager.dev.debug('PresenceDot: User active within 2 minutes - showing solid dot', {
-          campusStatus,
-          dotClass,
-          minutesAgo: minutesAgo.toFixed(1),
-        });
+      // Only log when actually creating for active user (throttled by LogManager)
+      if (window.logManager) window.logManager.presenceDotUpdate('user', `active ${campusStatus}`);
 
       return `
         <div class="presence-dot ${dotClass}" 
@@ -206,22 +149,6 @@ export class PresenceDot {
 
     // EXISTING LOGIC: Show timer text for inactive users (2+ minutes)
     const timeText = this.getTimeText(minutesAgo);
-
-    console.log(
-      "[PresenceDot] User inactive for 2+ minutes - showing timer dot:",
-      {
-        timeText,
-        campusStatus,
-        dotClass,
-        minutesAgo,
-      }
-    );
-      if (window.logManager) window.logManager.dev.debug('PresenceDot: User inactive - showing timer dot', {
-        timeText,
-        campusStatus,
-        dotClass,
-        minutesAgo,
-      });
 
     const presenceDot = `
       <div class="presence-dot ${dotClass}" 
@@ -244,13 +171,6 @@ export class PresenceDot {
    * @returns {string} HTML string for presence dot element
    */
   static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = false, isWaitingForFreshData = false) {
-    console.log("[PresenceDot] Creating presence dot with fresh data priority:", {
-      hasLastActive: !!lastActive,
-      hasLocation: !!lastKnownLocation,
-      hasLocationSharing,
-      isWaitingForFreshData
-    });
-
     // Check if we should show loading state for fresh data
     const forceFreshData = sessionStorage.getItem('campusPresence_forceFreshData') === 'true';
     const priorityMode = sessionStorage.getItem('campusPresence_priorityMode');
@@ -274,8 +194,7 @@ export class PresenceDot {
   static updateWithFreshData(dotElement, lastActive, lastKnownLocation, hasLocationSharing) {
     if (!dotElement) return;
     
-    console.log("[PresenceDot] Updating presence dot with fresh data");
-  if (window.logManager) window.logManager.dev.debug('PresenceDot: Updating presence dot with fresh data');
+    // Update dot with fresh data (no excessive logging)
     
     // Generate fresh presence dot HTML
     const freshDotHtml = this.create(lastActive, lastKnownLocation, hasLocationSharing);
@@ -291,14 +210,7 @@ export class PresenceDot {
       dotElement.innerHTML = freshDotElement.innerHTML;
       dotElement.title = freshDotElement.title;
       
-      console.log("[PresenceDot] ✅ Presence dot updated with fresh data:", {
-        newClass: dotElement.className,
-        hasContent: dotElement.innerHTML.length > 0
-      });
-        if (window.logManager) window.logManager.dev.info('PresenceDot: Presence dot updated with fresh data', {
-          newClass: dotElement.className,
-          hasContent: dotElement.innerHTML.length > 0
-        });
+      // Dot updated successfully (logging removed to reduce noise)
     }
   }
 
@@ -449,7 +361,7 @@ export class PresenceDot {
       return '<div class="presence-dot grey"></div>';
     }
 
-    console.log("[PresenceDot] Creating loading presence dot for fresh data");
+    // Creating loading dot (logging removed to reduce console noise)
     return `<div class="presence-dot loading" title="Loading fresh location data...">
       <div class="loading-pulse"></div>
     </div>`;
@@ -512,7 +424,7 @@ export class PresenceDot {
         }
       }, 500);
       
-      console.log("[PresenceDot] Updated with fresh data successfully");
+      // Dot updated successfully
     }
   }
 }

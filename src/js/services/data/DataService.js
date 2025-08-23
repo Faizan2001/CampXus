@@ -3481,17 +3481,21 @@ class DataManager {
         coordinates.latitude !== undefined &&
         coordinates.longitude !== undefined;
 
+      // Use same accuracy threshold as 3-tier system (2000m + 5% tolerance = 2100m)
+      const accuracyThreshold = 2000;
+      const tolerance = accuracyThreshold * 0.05; // 5% tolerance (100m)
+      const acceptableAccuracy = accuracyThreshold + tolerance; // 2100m
       const hasAcceptableAccuracy =
         coordinates &&
         coordinates.accuracy !== null &&
         coordinates.accuracy !== undefined &&
-        coordinates.accuracy <= 1000;
+        coordinates.accuracy <= acceptableAccuracy;
 
       // 🚫 SKIP DATABASE WRITE: Invalid coordinates or poor accuracy
       if (!hasValidCoordinates || !hasAcceptableAccuracy) {
         const reason = !hasValidCoordinates
           ? "null/invalid coordinates"
-          : `poor accuracy (${coordinates?.accuracy}m > 1000m)`;
+          : `poor accuracy (${coordinates?.accuracy}m > ${Math.round(acceptableAccuracy)}m)`;
         logManager.db.write(
           `Skipping database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
         );

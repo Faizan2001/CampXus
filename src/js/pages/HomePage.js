@@ -25,6 +25,7 @@ import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { HorizontalFriendsBar } from "../components/friends/HorizontalFriendsBar.js";
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { logManager } from "../utils/debug/LogManager.js";
+import { locationIntegration } from "../services/location/LocationIntegration.js"; // Enable location debug commands
 
 /* ================================
    APPLICATION STATE
