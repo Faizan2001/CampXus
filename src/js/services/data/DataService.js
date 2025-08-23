@@ -3452,7 +3452,7 @@ class DataManager {
   /**
    * Updates a user's campus location status
    * @param {string} userId - The user's ID
-   * @param {string} campusStatus - "on-campus", "off-campus", or "unknown"
+   * @param {string} campusStatus - "on_campus", "off_campus", or "unknown"
    * @param {Object|null} coordinates - Optional coordinates {latitude, longitude}
    * @returns {Promise<Object>} Result object with success status
    */
@@ -3462,8 +3462,10 @@ class DataManager {
         throw new Error("Invalid userId");
       }
 
-      if (!campusStatus || typeof campusStatus !== "string") {
-        throw new Error("Invalid campusStatus");
+      // Validate campusStatus values
+      const validStatuses = ["on_campus", "off_campus", "unknown"];
+      if (!campusStatus || typeof campusStatus !== "string" || !validStatuses.includes(campusStatus)) {
+        throw new Error(`Invalid campusStatus: "${campusStatus}". Must be one of: ${validStatuses.join(", ")}`);
       }
 
       // Safe nested field update: ensure systemInfo object exists first

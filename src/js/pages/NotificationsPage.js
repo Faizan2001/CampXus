@@ -520,7 +520,9 @@ export class NotificationsPage {
         // 5. Update user's location status immediately with current detection
         console.log("🏫 Attempting initial campus detection...");
         try {
-          const campusStatus = await campusLocationService.detectCampusPresence("iub");
+          const campusDetectionResult = await campusLocationService.detectCampusPresence("iub");
+          // Extract the campus status string from the detection result
+          const campusStatus = campusDetectionResult.onCampus ? "on_campus" : "off_campus";
           await dataManager.updateUserLocationStatus(currentUser.uid, campusStatus);
           console.log(`✅ Initial campus status set: ${campusStatus}`);
         } catch (detectionError) {
