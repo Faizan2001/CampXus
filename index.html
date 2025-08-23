@@ -24,10 +24,7 @@
          https://*.googleapis.com
          https://api.dicebear.com
          https://cdn.jsdelivr.net
-         https://api.ipify.org
-         https://ipapi.co
-         http://ip-api.com
-         https://ip.seeip.org
+         https://ipinfo.io
          data: blob:
          wss://*.firebaseio.com;
        child-src 'self' blob:;
@@ -47,7 +44,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
-    
+
     <!-- Main application styles -->
     <link rel="stylesheet" href="/src/css/styles.css" />
 
@@ -78,7 +75,11 @@
               <i class="fas fa-users"></i>
               <span class="nav-text">Friends</span>
             </a>
-            <a data-spa-route="notifications" class="nav-link" href="#notifications">
+            <a
+              data-spa-route="notifications"
+              class="nav-link"
+              href="#notifications"
+            >
               <i class="fas fa-bell"></i>
               <span class="nav-text">Notifications</span>
             </a>
@@ -179,8 +180,6 @@
           <p id="modalMessage" class="modal-message">
             This is a sample message.
           </p>
-
-
 
           <!-- Edit Time Slot Content (Hidden by default) -->
           <div

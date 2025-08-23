@@ -15,28 +15,15 @@ import { getCampusConfig } from "./UniversityCampusConfig.js";
 
 export class NetworkDetectionService {
   constructor() {
-    // IP information service endpoints that provide organization data
-    // ip-api.com is the primary choice for organization data, but requires HTTP (no HTTPS in free tier)
+    // Using ipinfo.io as the primary, reliable source for IP and organization data.
     this.ipServiceEndpoints = [
       {
-        url: "http://ip-api.com/json/",
-        name: "ip-api.com",
-        orgField: "org",
-        ipField: "query",
-        ispField: "isp", 
-        asField: "as",
-        // Request specific fields to save bandwidth and get organization data
-        customUrl: "http://ip-api.com/json/?fields=status,message,query,org,isp,as",
-        requiresHTTP: true, // Flag to indicate this needs HTTP (not HTTPS)
-        primary: true // This is our primary choice for organization data
-      },
-      {
-        url: "https://api.ipify.org?format=json",
-        name: "ipify.org (HTTPS fallback)",
-        orgField: null, 
+        url: "https://ipinfo.io?token=d951df9d159d4d",
+        name: "ipinfo.io",
+        orgField: "org", // The organization name is in the 'org' field for this endpoint
         ipField: "ip",
-        ipOnly: true, // This service only provides IP address
-        fallback: true
+        ispField: "org", // Use org as a substitute for ISP
+        asField: "org"
       }
     ];
 
