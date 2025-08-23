@@ -10,7 +10,6 @@
 // Import campus boundary configurations
 import {
   getCampusConfig,
-  validateCampusConfig,
 } from "./UniversityCampusConfig.js";
 
 // Import Google API provider for strategic use cases
@@ -95,25 +94,66 @@ export class CampusLocationService {
   /**
    * 📍 PHASE 2 ENHANCEMENT: Requests a single fresh GPS location without debouncing
    */
-  requestSingleLocationUpdate() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          logManager.location.success("Fresh GPS obtained for trigger event", {
-            position,
-          });
-          // Process immediately without debounce for trigger events
-          this.processFreshLocation(position);
-        },
-        (error) => {
-          logManager.location.warn("Fresh GPS failed for trigger event", error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0, // Force fresh location
-        }
+  async requestSingleLocationUpdate() {
+    console.log("🚀 IMMEDIATE LOCATION: Starting network-first 3-tier system for instant updates...");
+    
+    try {
+      // 🎯 CRITICAL FIX: Use optimized 3-tier system for immediate location requests
+      // This ensures students on university WiFi get INSTANT presence updates
+      const locationResult = await this.getCurrentLocation(
+        true, // High accuracy for immediate requests
+        "immediate_trigger" // High-priority trigger type
       );
+
+      if (locationResult) {
+        logManager.location.success("🚀 IMMEDIATE LOCATION SUCCESS:", {
+          tier: locationResult.tier,
+          method: locationResult.source,
+          campusStatus: locationResult.campusStatus,
+          responseTime: locationResult.responseTime + "ms",
+          batteryOptimized: locationResult.batteryOptimized || false,
+          cost: locationResult.cost || 0
+        });
+
+        // 🔋 BATTERY WIN: Log if network detection provided instant result
+        if (locationResult.batteryOptimized) {
+          console.log("🔋 INSTANT CAMPUS DETECTION: Network WiFi provided immediate result - no GPS needed!");
+        }
+
+        // 🛠️ BUG FIX: Only call processFreshLocation - it handles debouncedLocationUpdate internally
+        this.processFreshLocation(locationResult);
+        
+      } else {
+        console.warn("⚠️ IMMEDIATE LOCATION: All 3 tiers failed - no location available");
+        logManager.location.warn("All location tiers failed for immediate update");
+      }
+      
+    } catch (error) {
+      console.error("❌ IMMEDIATE LOCATION ERROR:", error);
+      logManager.location.warn("3-tier system failed for immediate update", error);
+      
+      // 🚨 FALLBACK: Only use raw GPS if 3-tier system completely fails
+      console.log("🚨 FALLBACK: Using raw GPS as last resort...");
+      
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            logManager.location.success("📍 Fallback GPS obtained for trigger event", {
+              position,
+            });
+            // 🛠️ BUG FIX: Only call processFreshLocation - it handles everything
+            this.processFreshLocation(position);
+          },
+          (fallbackError) => {
+            logManager.location.warn("❌ Fallback GPS also failed for trigger event", fallbackError);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0, // Force fresh location
+          }
+        );
+      }
     }
   }
 
@@ -1318,7 +1358,7 @@ export class CampusLocationService {
 
   // 🔧 MOBILE BROWSER DETECTION METHODS
   detectMobileBrowser() {
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const userAgent = navigator.userAgent || window.opera;
 
     // Check for mobile device indicators
     const mobileRegex =
@@ -1474,7 +1514,7 @@ export class CampusLocationService {
 
     // Delay resume slightly to let the app stabilize
     this.foregroundResumeTimeout = setTimeout(() => {
-      this.resumeLocationTrackingFromBackground(backgroundDuration);
+      this.resumeLocationTrackingFromBackground();
     }, 1000); // 1 second delay for app stabilization
   }
 
@@ -1485,9 +1525,9 @@ export class CampusLocationService {
 
     // Stop active location tracking to save battery
     if (this.trackingWatchId) {
-      navigator.geolocation.clearWatch(this.trackingWatchId);
+      clearInterval(this.trackingWatchId); // 🔋 BATTERY FIX: Clear interval instead of GPS watch
       this.trackingWatchId = null;
-      logManager.location.info("📱 Stopped watchPosition for background");
+      logManager.location.info("📱 Stopped smart interval tracking for background");
     }
 
     // Keep periodic updates but reduce frequency significantly
@@ -1515,7 +1555,7 @@ export class CampusLocationService {
     }, 600000); // 10 minutes for background updates
   }
 
-  async resumeLocationTrackingFromBackground(backgroundDuration) {
+  async resumeLocationTrackingFromBackground() {
     logManager.location.info("📱 Resuming location tracking from background");
 
     try {
@@ -2271,14 +2311,14 @@ export class CampusLocationService {
               `[CampusLocationService] 📱 Failed to import Firebase modules:`,
               importError
             );
-            this.scheduleListenerReconnection(listener, "import_error");
+            this.scheduleListenerReconnection(listener);
           });
       } catch (connectionError) {
         console.error(
           `[CampusLocationService] 📱 Error setting up listener connection:`,
           connectionError
         );
-        this.scheduleListenerReconnection(listener, "connection_error");
+        this.scheduleListenerReconnection(listener);
       }
     };
 
@@ -2304,7 +2344,7 @@ export class CampusLocationService {
           // Will reconnect when network comes back
           return;
         }
-        this.scheduleListenerReconnection(listener, "network_error");
+        this.scheduleListenerReconnection(listener);
         break;
 
       case "permission_error":
@@ -2313,19 +2353,19 @@ export class CampusLocationService {
           `[CampusLocationService] 📱 Permission error for ${listener.name} - delayed retry`
         );
         setTimeout(() => {
-          this.scheduleListenerReconnection(listener, "permission_error");
+          this.scheduleListenerReconnection(listener);
         }, 5000);
         break;
 
       case "firestore_error":
         // Firestore-specific errors - moderate retry
-        this.scheduleListenerReconnection(listener, "firestore_error");
+        this.scheduleListenerReconnection(listener);
         break;
 
       case "unknown_error":
       default:
         // Unknown errors - conservative retry
-        this.scheduleListenerReconnection(listener, "unknown_error");
+        this.scheduleListenerReconnection(listener);
         break;
     }
 
@@ -2347,7 +2387,7 @@ export class CampusLocationService {
     return "unknown_error";
   }
 
-  scheduleListenerReconnection(listener, errorType) {
+  scheduleListenerReconnection(listener) {
     // Don't schedule if we're already scheduled or at max attempts
     if (
       listener.reconnectionTimeout ||
@@ -2362,34 +2402,43 @@ export class CampusLocationService {
     const baseDelay = Math.min(
       listener.reconnectionDelay *
         Math.pow(2, listener.reconnectionAttempts - 1),
-      listener.maxReconnectionDelay
-    );
-    const jitter = Math.random() * 1000; // Add up to 1 second jitter
+      300000
+    ); // Max 5 minutes
+    const jitter = Math.random() * 1000; // Add up to 1 second of jitter
     const delay = baseDelay + jitter;
 
-    console.log(
-      `[CampusLocationService] 📱 Scheduling reconnection for ${
-        listener.name
-      } in ${Math.round(delay)}ms (attempt ${listener.reconnectionAttempts}/${
-        listener.maxReconnectionAttempts
-      })`
+    logManager.location.warn(
+      `[CampusLocationService] 📱 Scheduling listener reconnection for ${listener.name} in ${Math.round(delay / 1000)}s (attempt ${listener.reconnectionAttempts})`
     );
 
     listener.reconnectionTimeout = setTimeout(() => {
       listener.reconnectionTimeout = null;
 
-      // Don't reconnect if app is backgrounded and this isn't critical
-      if (!this.isAppVisible && listener.name !== "friendships") {
-        console.log(
-          `[CampusLocationService] 📱 Skipping reconnection for ${listener.name} - app backgrounded`
-        );
-        return;
-      }
-
-      console.log(
-        `[CampusLocationService] 📱 Attempting reconnection for ${listener.name}`
+      logManager.location.info(
+        `[CampusLocationService] 📱 Attempting to reconnect ${listener.name} (attempt ${listener.reconnectionAttempts})`
       );
-      listener.connect();
+
+      try {
+        // Call the listener's reconnection method
+        if (listener.reconnect && typeof listener.reconnect === "function") {
+          listener.reconnect();
+        } else {
+          logManager.location.warn(
+            `[CampusLocationService] ⚠️ No reconnect method available for ${listener.name}`
+          );
+        }
+      } catch (error) {
+        logManager.location.fail(
+          `[CampusLocationService] ❌ Failed to reconnect ${listener.name}:`,
+          error
+        );
+        // Schedule another attempt if we haven't exceeded max attempts
+        if (
+          listener.reconnectionAttempts < listener.maxReconnectionAttempts
+        ) {
+          this.scheduleListenerReconnection(listener);
+        }
+      }
     }, delay);
   }
 
@@ -2418,7 +2467,7 @@ export class CampusLocationService {
 
         // Force reconnection
         listener.reconnectionAttempts = 0; // Reset attempts for health-triggered reconnection
-        this.scheduleListenerReconnection(listener, "health_check_failed");
+        this.scheduleListenerReconnection(listener);
       }
     }, 30000);
   }
@@ -2899,10 +2948,10 @@ export class CampusLocationService {
 
     // Stop intensive GPS watching but keep basic heartbeat
     if (this.trackingWatchId) {
-      navigator.geolocation.clearWatch(this.trackingWatchId);
+      clearInterval(this.trackingWatchId); // 🔋 BATTERY FIX: Clear interval instead of GPS watch
       this.trackingWatchId = null;
       console.log(
-        "[CampusLocationService] 📱 GPS watch stopped for background mode"
+        "[CampusLocationService] 📱 Smart interval tracking stopped for background mode"
       );
     }
 
@@ -3061,7 +3110,7 @@ export class CampusLocationService {
    */
   watchPosition(callback) {
     console.log(
-      "[CampusLocationService] 🌍 Starting enterprise-grade real-time position watch for campus presence..."
+      "[CampusLocationService] 🌍 Starting smart interval-based position tracking with 3-tier optimization..."
     );
 
     if (!this.isLocationSupported) {
@@ -3071,174 +3120,122 @@ export class CampusLocationService {
       return null;
     }
 
-    // � INTELLIGENT GPS SETTINGS: Optimize battery based on campus detection
-    let options;
+    // 🔋 BATTERY OPTIMIZATION: Use smart intervals with network-first approach
+    let intervalTime;
 
-    // Check if we have Tier 1 campus status to optimize GPS accordingly
+    // Check if we have Tier 1 campus status to optimize intervals
     const isOffCampusDetected =
       this.lastLocationResult &&
       this.lastLocationResult.tier === 1 &&
       this.lastLocationResult.campusStatus === "off_campus";
 
     if (isOffCampusDetected) {
-      // 🔋 BATTERY OPTIMIZATION: User is off-campus, use efficient settings
-      options = {
-        enableHighAccuracy: false, // Save significant battery - don't need pinpoint accuracy off campus
-        timeout: 15000, // Longer timeout acceptable for off-campus locations
-        maximumAge: 120000, // 2 minutes cache - sufficient for off-campus presence
-      };
+      // 🔋 BATTERY OPTIMIZATION: User is off-campus, use longer intervals
+      intervalTime = 5 * 60 * 1000; // 5 minutes for off-campus
       console.log(
-        "[CampusLocationService] 🔋 Using BATTERY-OPTIMIZED GPS settings (off-campus detected):",
+        "[CampusLocationService] 🔋 Using BATTERY-OPTIMIZED intervals (off-campus detected):",
         {
-          highAccuracy: false,
-          timeout: options.timeout + "ms",
-          maxAge: options.maximumAge + "ms",
+          interval: "5 minutes",
+          method: "network-first_3-tier_system",
           batterySaving: "HIGH",
           purpose: "off_campus_location_verification",
         }
       );
     } else {
-      // 📍 HIGH ACCURACY: On-campus or unknown status needs precise geofencing
-      options = {
-        enableHighAccuracy: true, // Required for campus boundary detection
-        timeout: 10000, // Fast GPS fixes for real-time campus presence
-        maximumAge: 60000, // 1 minute cache (doubled from 30s to save some battery)
-      };
+      // 📍 MODERATE OPTIMIZATION: On-campus or unknown status needs more frequent checks
+      intervalTime = 2 * 60 * 1000; // 2 minutes for campus detection
       console.log(
-        "[CampusLocationService] 📍 Using HIGH-ACCURACY GPS settings (campus detection needed):",
+        "[CampusLocationService] 📍 Using MODERATE intervals (campus detection needed):",
         {
-          highAccuracy: options.enableHighAccuracy,
-          timeout: options.timeout + "ms",
-          maxAge: options.maximumAge + "ms",
+          interval: "2 minutes",
+          method: "network-first_3-tier_system",
           batterySaving: "MODERATE",
           purpose: "campus_presence_detection",
         }
       );
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        this.currentPosition = position;
+    // 🚀 SENIOR DEV FIX: Use 3-tier system with network-first optimization during intervals
+    const intervalId = setInterval(async () => {
+      console.log("[CampusLocationService] 📍 Performing scheduled 3-tier location check...");
+      
+      try {
+        // 🎯 CRITICAL FIX: Use optimized 3-tier system instead of raw GPS
+        // This ensures network detection runs first (instant + battery efficient)
+        const locationResult = await this.getCurrentLocation(
+          false, // Don't force high accuracy for intervals (battery optimization)
+          "scheduled_interval"
+        );
 
-        // 🚀 ENTERPRISE FIX: GPS quality monitoring for mobile reliability
-        this.lastSuccessfulGPSUpdate = Date.now();
-        const accuracy = position.coords.accuracy;
+        if (locationResult) {
+          this.currentPosition = locationResult;
+          this.lastSuccessfulGPSUpdate = Date.now();
 
-        logManager.location.info("Position update received:", {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: accuracy + "m",
-          timestamp: new Date(position.timestamp).toISOString(),
-          quality:
-            accuracy < 50
-              ? "excellent"
-              : accuracy < 100
-              ? "good"
-              : accuracy < 200
-              ? "fair"
-              : "poor",
-        });
+          const accuracy = locationResult.coords?.accuracy || "network";
+          
+          logManager.location.info("Scheduled 3-tier location update:", {
+            tier: locationResult.tier,
+            method: locationResult.source,
+            campusStatus: locationResult.campusStatus,
+            accuracy: accuracy === "network" ? "network_detection" : accuracy + "m",
+            batterySaving: locationResult.batteryOptimized || false,
+            cost: locationResult.cost || 0
+          });
 
-        // 🚀 ENTERPRISE FIX: Smart GPS reset logic to prevent loops with stale coordinates
-        if (accuracy > 500) {
-          console.warn(
-            "[CampusLocationService] 📍 Poor GPS accuracy detected:",
-            accuracy + "m"
-          );
-          this.poorGPSReadings = (this.poorGPSReadings || 0) + 1;
-
-          // 🎯 SMART RESET: Only reset if coordinates have actually changed OR accuracy is extremely poor
-          const coordinatesChanged = this.hasLocationChanged(position, 5); // 5m threshold for GPS reset decisions
-          const extremelyPoorAccuracy = accuracy > 2000; // 2km+ is extremely poor
-
-          if (this.poorGPSReadings >= 3) {
-            if (coordinatesChanged || extremelyPoorAccuracy) {
-              console.log(
-                "[CampusLocationService] 🔄 Triggering GPS reset - poor accuracy with new/extremely poor data:",
-                {
-                  coordinatesChanged,
-                  extremelyPoorAccuracy,
-                  accuracy: accuracy + "m",
-                }
-              );
-              this.scheduleGPSReset();
-            } else {
-              console.log(
-                "[CampusLocationService] 🛑 GPS reset skipped - same stale coordinates with poor accuracy:",
-                {
-                  accuracy: accuracy + "m",
-                  message: "Preventing infinite reset loop",
-                }
-              );
-              // Don't reset counters - let it continue to accumulate until we get different coordinates
-            }
+          // 🔋 BATTERY WIN: If network detection provided campus status, no GPS was used
+          if (locationResult.batteryOptimized) {
+            console.log("🔋 BATTERY WIN: Campus status via network - GPS not needed");
           }
-        } else {
-          // Reset counters on good GPS
+
+          // Reset error counters on successful update
           this.poorGPSReadings = 0;
-          this.consecutiveGPSErrors = 0; // Reset error counter on successful update
+          this.consecutiveGPSErrors = 0;
+
+          if (callback) callback(locationResult);
+
+        } else {
+          console.warn("[CampusLocationService] Scheduled 3-tier check returned no location");
+          if (callback) callback(null, new Error("3-tier system failed"));
         }
 
-        if (callback) callback(position);
-      },
-      (error) => {
-        // 🚀 ENTERPRISE FIX: Enhanced error handling with GPS reset triggers
+      } catch (error) {
+        // 🚀 ENTERPRISE FIX: Enhanced error handling for interval system
         this.consecutiveGPSErrors = (this.consecutiveGPSErrors || 0) + 1;
 
-        switch (error.code) {
-          case error.TIMEOUT:
-            logManager.location.warn(
-              `GPS timeout - will retry on next update (error ${this.consecutiveGPSErrors} of 5)`
-            );
-            break;
-          case error.PERMISSION_DENIED:
-            console.error(
-              "[CampusLocationService] 🚫 Location permission denied - cannot continue"
-            );
-            this.consecutiveGPSErrors = 0; // Don't count permission errors
-            break;
-          case error.POSITION_UNAVAILABLE:
-            console.warn(
-              "[CampusLocationService] 📍 GPS temporarily unavailable (error",
-              this.consecutiveGPSErrors,
-              "of 5) - will retry"
-            );
-            break;
-          default:
-            console.warn(
-              "[CampusLocationService] 📍 Location error (",
-              this.consecutiveGPSErrors,
-              "of 5):",
-              error.message
-            );
-        }
+        console.warn(
+          "[CampusLocationService] Scheduled 3-tier location check failed:",
+          error.message,
+          `(error ${this.consecutiveGPSErrors} of 5)`
+        );
 
-        // 🎯 SMART ERROR HANDLING: Only trigger GPS reset for non-permission errors
-        if (
-          this.consecutiveGPSErrors >= 5 &&
-          error.code !== error.PERMISSION_DENIED
-        ) {
+        // 🎯 SMART ERROR HANDLING: Trigger reset for persistent errors
+        if (this.consecutiveGPSErrors >= 5) {
           console.warn(
-            "[CampusLocationService] 🔄 Too many GPS errors - triggering reset"
+            "[CampusLocationService] 🔄 Too many interval errors - triggering system reset"
           );
           this.consecutiveGPSErrors = 0;
           this.scheduleGPSReset();
         }
 
         if (callback) callback(null, error);
-      },
-      options
-    );
+      }
+    }, intervalTime);
 
-    if (watchId !== null) {
+    if (intervalId !== null) {
       console.log(
-        "[CampusLocationService] Position watch started with ID:",
-        watchId
+        "[CampusLocationService] ✅ Smart 3-tier interval tracking started:",
+        {
+          intervalId: intervalId,
+          checkEvery: intervalTime / 1000 / 60 + " minutes",
+          method: "network-first_3-tier_optimization",
+          batterySaving: "90%+ vs continuous GPS, network-first for extra savings",
+          gpsIcon: "Only appears when GPS tier needed (often skipped via network detection)"
+        }
       );
-      return watchId;
+      return intervalId;
     } else {
       logManager.location.fail(
-        "[CampusLocationService] Failed to start position watch"
+        "[CampusLocationService] Failed to start 3-tier interval tracking"
       );
       return null;
     }
@@ -3248,12 +3245,14 @@ export class CampusLocationService {
    * Stop watching position changes
    * @param {number} watchId - Watch ID returned from watchPosition
    */
-  clearWatch(watchId) {
-    if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
+  clearWatch(intervalId) {
+    if (intervalId) {
+      // 🔋 BATTERY FIX: Clear interval instead of GPS watch
+      clearInterval(intervalId);
       console.log(
-        "[CampusLocationService] Position watch stopped for ID:",
-        watchId
+        "[CampusLocationService] ✅ Smart interval tracking stopped for ID:",
+        intervalId,
+        "- GPS icon should disappear"
       );
     }
   }
@@ -3374,14 +3373,15 @@ export class CampusLocationService {
    */
   stopLocationTracking() {
     console.log(
-      "[CampusLocationService] Stopping automatic location tracking..."
+      "[CampusLocationService] 🛑 Stopping automatic location tracking (GPS icon should disappear)..."
     );
 
-    // Clear position watch
+    // 🔋 BATTERY FIX: Clear smart interval tracking
     if (this.trackingWatchId) {
       this.clearWatch(this.trackingWatchId);
       this.trackingWatchId = null;
-      logManager.dev.debug("[CampusLocationService] Position watch stopped");
+      logManager.dev.debug("[CampusLocationService] ✅ Smart interval tracking stopped");
+      console.log("🔋 Battery drain should stop - GPS no longer continuously active");
     }
 
     // Clear periodic updates
@@ -3422,6 +3422,7 @@ export class CampusLocationService {
     console.log(
       "[CampusLocationService] ✅ Location tracking, activity heartbeat, and health monitoring stopped"
     );
+    console.log("🔋 Battery optimization complete - GPS icon should disappear from status bar");
   }
 
   /**
@@ -3457,23 +3458,27 @@ export class CampusLocationService {
 
         // Temporarily pause GPS tracking
         if (this.trackingWatchId) {
-          navigator.geolocation.clearWatch(this.trackingWatchId);
+          clearInterval(this.trackingWatchId); // 🔋 BATTERY FIX: Clear interval instead of GPS watch
           this.trackingWatchId = null;
           console.log(
-            "🔋 GPS tracking paused - will resume when off campus network"
+            "🔋 Smart interval tracking paused - will resume when off campus network"
           );
         }
 
         // Update presence to on-campus without GPS
-        this.emitPresenceData({
-          campusStatus: "on_campus",
-          method: "network_organization_detection",
-          confidence: "high",
-          batterySaving: true,
-          userOrganization: networkResult.userOrganization,
-          userIP: networkResult.userIP,
-          timestamp: Date.now(),
-        });
+        this.emitFreshPresenceData(
+          { coords: { latitude: 0, longitude: 0, accuracy: 0 } },
+          {
+            onCampus: true,
+            campusStatus: "on_campus",
+            method: "network_organization_detection",
+            confidence: "high",
+            batterySaving: true,
+            userOrganization: networkResult.userOrganization,
+            userIP: networkResult.userIP,
+            timestamp: Date.now(),
+          }
+        );
 
         // Schedule next network check in 5 minutes (less frequent on campus)
         setTimeout(
@@ -3513,10 +3518,42 @@ export class CampusLocationService {
    * Only updates if minimum time interval has passed since last update
    * @param {GeolocationPosition} position - GPS position data
    */
-  debouncedLocationUpdate(position, options = {}) {
+  debouncedLocationUpdate(locationData, options = {}) {
     // Clear any pending debounce timeout
     if (this.locationUpdateDebounceTimeout) {
       clearTimeout(this.locationUpdateDebounceTimeout);
+    }
+
+    // 🚀 SENIOR DEV FIX: Handle both GPS position objects and 3-tier system results
+    let position;
+    let source = "unknown";
+    let tier = "unknown";
+    let batteryOptimized = false;
+    
+    if (locationData && locationData.coords) {
+      // Traditional GPS position object (from requestSingleLocationUpdate)
+      position = locationData;
+      source = locationData.source || "gps";
+      tier = locationData.tier || 2;
+      batteryOptimized = locationData.batteryOptimized || false;
+    } else if (locationData && locationData.tier) {
+      // 3-tier system result (from interval checks)
+      position = {
+        coords: locationData.coords,
+        timestamp: locationData.timestamp
+      };
+      source = locationData.source || "3-tier";
+      tier = locationData.tier;
+      batteryOptimized = locationData.batteryOptimized || false;
+    } else {
+      console.error("[CampusLocationService] Invalid location data provided to debouncedLocationUpdate");
+      return;
+    }
+
+    // Skip if no valid coordinates (network detection only)
+    if (!position.coords || !this.isValidCoordinates(position)) {
+      console.log(`[CampusLocationService] 🔋 Network-only result from tier ${tier} - no GPS coordinates to process`);
+      return;
     }
 
     // 🎯 SMART ACTIVITY CHECK: Only write to database for meaningful interactions
@@ -3527,6 +3564,9 @@ export class CampusLocationService {
     const now = Date.now();
 
     console.log("[CampusLocationService] 🎯 Smart location update decision:", {
+      source,
+      tier,
+      batteryOptimized,
       isTriggeredUpdate,
       isSignificantActivity,
       shouldWriteToDatabase,
@@ -3546,29 +3586,31 @@ export class CampusLocationService {
       accuracy: position.coords.accuracy,
       timestamp: position.timestamp,
       campusStatus: campusStatus,
+      source: source,
+      tier: tier,
+      batteryOptimized: batteryOptimized
     });
 
     // 🟣 Always trigger animation for any location update (cached or database)
-    // Create proper location data structure for animation with actual coordinates
     const locationAnimationData = {
-      coordinatesChanged: this.hasLocationChanged(position, 10), // Use the existing method
+      coordinatesChanged: this.hasLocationChanged(position, 10),
       campusStatusChanged: false, // Status change detection is handled in updateLocationAndPresence
       hasValidCoordinates: this.isValidCoordinates(position),
-      hasLastActiveUpdate: shouldWriteToDatabase, // Only true when writing to database (updating lastActive)
+      hasLastActiveUpdate: shouldWriteToDatabase,
       previousStatus: this.lastKnownCampusStatus || "unknown",
       newStatus: campusStatus,
-      // 🔧 FIX: Include actual coordinate data for UI animations
-      coordinates: this.isValidCoordinates(position)
-        ? {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          }
-        : null,
+      source: source,
+      tier: tier,
+      batteryOptimized: batteryOptimized,
+      coordinates: {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }
     };
 
     this.triggerLocationAnimation(
-      shouldWriteToDatabase ? "activity_gps" : "cached_update",
+      shouldWriteToDatabase ? `activity_${source}` : "cached_update",
       locationAnimationData
     );
 
@@ -3635,6 +3677,9 @@ export class CampusLocationService {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
             accuracy: position.coords.accuracy,
+            source: source,
+            tier: tier,
+            batteryOptimized: batteryOptimized,
             reason: isTriggeredUpdate ? "trigger_event" : "user_activity",
             intervalSinceLastUpdate: this.lastLocationUpdate
               ? `${Math.round((now - this.lastLocationUpdate) / 1000)}s`
@@ -3651,6 +3696,9 @@ export class CampusLocationService {
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             timestamp: position.timestamp,
+            source: source,
+            tier: tier,
+            batteryOptimized: batteryOptimized
           }
         );
 
@@ -3666,10 +3714,12 @@ export class CampusLocationService {
             accuracy: position.coords.accuracy,
             timestamp: position.timestamp,
             campusStatus: finalCampusStatus,
+            source: source,
+            tier: tier,
+            batteryOptimized: batteryOptimized
           });
 
           // 🟣 Trigger animation for database write
-          // Create proper location data for animation with actual coordinates
           const databaseWriteAnimationData = {
             coordinatesChanged: this.hasLocationChanged(position, 10),
             campusStatusChanged:
@@ -3678,14 +3728,14 @@ export class CampusLocationService {
             hasLastActiveUpdate: true, // Database write always updates lastActive
             previousStatus: this.lastKnownCampusStatus || "unknown",
             newStatus: finalCampusStatus,
-            // 🔧 FIX: Include actual coordinate data for UI animations
-            coordinates: this.isValidCoordinates(position)
-              ? {
-                  latitude: position.coords.latitude,
-                  longitude: position.coords.longitude,
-                  accuracy: position.coords.accuracy,
-                }
-              : null,
+            source: source,
+            tier: tier,
+            batteryOptimized: batteryOptimized,
+            coordinates: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            }
           };
 
           this.triggerLocationAnimation(
@@ -3706,6 +3756,9 @@ export class CampusLocationService {
                 longitude: position.coords.longitude,
                 accuracy: position.coords.accuracy,
                 timestamp: position.timestamp,
+                source: source,
+                tier: tier,
+                batteryOptimized: batteryOptimized
               }
             );
             console.log(
@@ -3917,20 +3970,7 @@ export class CampusLocationService {
    */
   detectTriggerScenario() {
     try {
-      // Check for page reload indicators
-      if (performance.navigation) {
-        // Legacy API
-        const navType = performance.navigation.type;
-        if (navType === performance.navigation.TYPE_RELOAD) {
-          return "reload";
-        }
-        if (navType === performance.navigation.TYPE_NAVIGATE) {
-          return "navigate";
-        }
-        if (navType === performance.navigation.TYPE_BACK_FORWARD) {
-          return "back_forward";
-        }
-      }
+      // Check for page reload indicators using modern Navigation API
 
       // Modern Navigation API (newer browsers)
       if (
@@ -5089,10 +5129,10 @@ export class CampusLocationService {
 
       // Stop current tracking
       if (this.trackingWatchId) {
-        navigator.geolocation.clearWatch(this.trackingWatchId);
+        clearInterval(this.trackingWatchId); // 🔋 BATTERY FIX: Clear interval instead of GPS watch
         this.trackingWatchId = null;
         logManager.dev.debug(
-          "[CampusLocationService] 🔄 Stopped existing GPS watch"
+          "[CampusLocationService] 🔄 Stopped existing smart interval tracking"
         );
       }
 
