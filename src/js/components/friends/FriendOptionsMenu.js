@@ -22,6 +22,9 @@
 
 import { friendshipPrivacyService } from "../../services/friends/FriendshipPrivacyService.js";
 import { currentUser } from "../../store/userStore.js";
+import { dataManager } from "../../services/data/DataService.js";
+import { friendsManager } from "../../services/friends/FriendsService.js";
+import { campusLocationService } from "../../services/location/CampusLocationService.js";
 
 export class FriendOptionsMenu {
   constructor(friend, options = {}) {
@@ -90,10 +93,10 @@ export class FriendOptionsMenu {
       this.currentLocationStatus?.userLocationVisible ?? false;
 
     // Clear labeling for bilateral location sharing
-    const locationText = myLocationVisible
-      ? "Hide location"
-      : "Share location";
-    const locationIcon = myLocationVisible ? "fa-location-arrow" : "fa-location-dot";
+    const locationText = myLocationVisible ? "Hide location" : "Share location";
+    const locationIcon = myLocationVisible
+      ? "fa-location-arrow"
+      : "fa-location-dot";
     const locationClass = myLocationVisible
       ? "hide-my-location"
       : "share-my-location";
@@ -129,7 +132,8 @@ export class FriendOptionsMenu {
               : ""
           }
           
-          ${this.options.showLocationToggle
+          ${
+            this.options.showLocationToggle
               ? `
             <li role="menuitem" class="menu-option location-toggle-option ${locationClass}"
                 title="${
@@ -259,7 +263,9 @@ export class FriendOptionsMenu {
 
     // Menu option clicks
     const privacyOption = this.element.querySelector(".privacy-toggle-option");
-    const locationOption = this.element.querySelector(".location-toggle-option");
+    const locationOption = this.element.querySelector(
+      ".location-toggle-option"
+    );
     const unfriendOption = this.element.querySelector(".unfriend-option");
 
     if (privacyOption) {
@@ -433,11 +439,14 @@ export class FriendOptionsMenu {
 
     // Update database and create notifications if enabling location sharing
     let success = false;
-    
+
     if (newVisibility) {
       // STEP 1: First enable global location sharing for current user
       console.log("🔧 Enabling global location sharing for requesting user...");
-      const globalResult = await dataManager.updateLocationSharingPreference(currentUserUid, true);
+      const globalResult = await dataManager.updateLocationSharingPreference(
+        currentUserUid,
+        true
+      );
       if (!globalResult.success) {
         console.error("❌ Failed to enable global location sharing");
         // Revert UI on failure
@@ -450,21 +459,29 @@ export class FriendOptionsMenu {
       // STEP 2: Use requestLocationSharing to enable bilateral sharing WITH notifications
       const result = await friendsManager.requestLocationSharing(
         this.friend.id,
-        this.friend.friendshipId || this.generateFriendshipId(currentUserUid, this.friend.id)
+        this.friend.friendshipId ||
+          this.generateFriendshipId(currentUserUid, this.friend.id)
       );
       success = result.success;
-      
+
       if (result.success) {
-        console.log(`📍 Location sharing request sent to ${this.friend.displayName} with notification`);
-        
+        console.log(
+          `📍 Location sharing request sent to ${this.friend.displayName} with notification`
+        );
+
         // STEP 3: Start automatic location tracking (replaces one-time detection)
-        console.log("📍 Starting automatic location tracking for requesting user...");
+        console.log(
+          "📍 Starting automatic location tracking for requesting user..."
+        );
         try {
           // Start continuous location tracking with automatic database updates
           await campusLocationService.startLocationTracking();
           console.log("✅ Automatic location tracking started successfully");
         } catch (trackingError) {
-          console.warn("⚠️ Location tracking failed to start, setting unknown status", trackingError);
+          console.warn(
+            "⚠️ Location tracking failed to start, setting unknown status",
+            trackingError
+          );
           await dataManager.updateUserLocationStatus(currentUserUid, "unknown");
         }
       }
@@ -482,10 +499,10 @@ export class FriendOptionsMenu {
       if (this.currentLocationStatus) {
         this.currentLocationStatus.userLocationVisible = newVisibility;
         if (this.currentLocationStatus.location?.userToFriend) {
-          this.currentLocationStatus.location.userToFriend.visible = newVisibility;
-          this.currentLocationStatus.location.userToFriend.status = newVisibility
-            ? "visible"
-            : "hidden";
+          this.currentLocationStatus.location.userToFriend.visible =
+            newVisibility;
+          this.currentLocationStatus.location.userToFriend.status =
+            newVisibility ? "visible" : "hidden";
         }
       }
 
@@ -597,7 +614,9 @@ export class FriendOptionsMenu {
         this.currentLocationStatus?.userLocationVisible ?? false;
     }
 
-    const locationOption = this.element.querySelector(".location-toggle-option");
+    const locationOption = this.element.querySelector(
+      ".location-toggle-option"
+    );
     const icon = locationOption?.querySelector("i");
     const text = locationOption?.querySelector("span");
 
@@ -613,9 +632,7 @@ export class FriendOptionsMenu {
         }
 
         // Update text content
-        const newText = myLocationVisible
-          ? "Hide location"
-          : "Share location";
+        const newText = myLocationVisible ? "Hide location" : "Share location";
         if (text.textContent !== newText) {
           text.textContent = newText;
         }
@@ -708,7 +725,9 @@ export class FriendOptionsMenu {
   updateFriendCardLocationStatus(myLocationVisible) {
     // Guard clause: Check if element still exists (menu might have been destroyed during re-render)
     if (!this.element || !this.element.parentNode) {
-      console.log("🔄 FriendOptionsMenu element destroyed, skipping location status update");
+      console.log(
+        "🔄 FriendOptionsMenu element destroyed, skipping location status update"
+      );
       return;
     }
 
@@ -727,7 +746,9 @@ export class FriendOptionsMenu {
 
     if (icon && span) {
       // Update icon class
-      icon.className = myLocationVisible ? "fas fa-location-arrow" : "fas fa-location-dot";
+      icon.className = myLocationVisible
+        ? "fas fa-location-arrow"
+        : "fas fa-location-dot";
 
       // Update text content
       span.textContent = myLocationVisible
@@ -758,7 +779,9 @@ export class FriendOptionsMenu {
   updateFriendCardPrivacyStatus(myScheduleVisible) {
     // Guard clause: Check if element still exists (menu might have been destroyed during re-render)
     if (!this.element || !this.element.parentNode) {
-      console.log("🔄 FriendOptionsMenu element destroyed, skipping privacy status update");
+      console.log(
+        "🔄 FriendOptionsMenu element destroyed, skipping privacy status update"
+      );
       return;
     }
 
@@ -912,7 +935,10 @@ export class FriendOptionsMenu {
    */
   generateFriendshipId(uid1, uid2) {
     if (!uid1 || !uid2 || uid1 === uid2) {
-      console.error("❌ Cannot generate friendship ID with invalid user IDs:", { uid1, uid2 });
+      console.error("❌ Cannot generate friendship ID with invalid user IDs:", {
+        uid1,
+        uid2,
+      });
       return null;
     }
     return [uid1, uid2].sort().join("_");
