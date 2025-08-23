@@ -1710,10 +1710,15 @@ function setupScheduleRealTimeSync(userId) {
         currentUser.setScheduleData(updatedScheduleData);
         currentUser.setScheduleLastSynced(new Date());
 
-        // Re-render UI
-        updateUI();
-
-        console.log("✅ [Phase-1] UI updated with real-time changes");
+        // 🛡️ SAFETY CHECK: Only update UI if we're still on the home page
+        const currentRoute = window.location.hash.replace('#', '') || 'home';
+        if (currentRoute === 'home') {
+          // Re-render UI
+          updateUI();
+          console.log("✅ [Phase-1] UI updated with real-time changes");
+        } else {
+          console.log("⏭️ [Phase-1] Skipping UI update - not on home page");
+        }
       }
     }
   );
@@ -2905,6 +2910,13 @@ function getPinModeButtonDynamicState(
 }
 
 async function updateUI() {
+  // 🛡️ SAFETY CHECK: Don't attempt UI updates if not on home page
+  const currentRoute = window.location.hash.replace('#', '') || 'home';
+  if (currentRoute !== 'home') {
+    console.log("⏭️ [updateUI] Skipping UI update - not on home page");
+    return;
+  }
+
   // Clear memoization cache when UI updates (state changes)
   memoCache.clear();
 
@@ -4331,6 +4343,13 @@ function waitForDOMReady(maxRetries = 10, initialDelay = 50) {
  * @returns {Promise<void>}
  */
 async function safeUIUpdate(updateFunction, functionName = "UI update") {
+  // 🛡️ SAFETY CHECK: Don't attempt UI updates if not on home page
+  const currentRoute = window.location.hash.replace('#', '') || 'home';
+  if (currentRoute !== 'home') {
+    console.log(`⏭️ [${functionName}] Skipping - not on home page`);
+    return;
+  }
+
   const isReady = await waitForDOMReady();
 
   if (!isReady) {
@@ -4360,7 +4379,7 @@ function updateViewModeButtons() {
     dayViewBtn.classList.toggle("active", shouldBeActive);
     logManager.ui.render(`Day button - active: ${shouldBeActive}`);
   } else {
-    logManager.ui.error("Day view button not found - skipping update");
+    logManager.ui.warn("Day view button not found - skipping update (normal when not on home page)");
   }
 
   if (gridViewBtn) {
@@ -4368,7 +4387,7 @@ function updateViewModeButtons() {
     gridViewBtn.classList.toggle("active", shouldBeActive);
     logManager.ui.render(`Grid button - active: ${shouldBeActive}`);
   } else {
-    logManager.ui.error("Grid view button not found - skipping update");
+    logManager.ui.warn("Grid view button not found - skipping update (normal when not on home page)");
   }
 }
 
@@ -4390,24 +4409,24 @@ function updateViewContainers() {
   if (dayView) {
     dayView.classList.toggle("active", state.viewMode === "day");
   } else {
-    console.warn(
-      `⚠️ Day view container not found - skipping update (may still be loading)`
+    console.log(
+      `ℹ️ Day view container not found - skipping update (normal when not on home page)`
     );
   }
 
   if (gridView) {
     gridView.classList.toggle("active", state.viewMode === "grid");
   } else {
-    console.warn(
-      `⚠️ Grid view container not found - skipping update (may still be loading)`
+    console.log(
+      `ℹ️ Grid view container not found - skipping update (normal when not on home page)`
     );
   }
 
   if (daySelector) {
     daySelector.classList.toggle("show", state.viewMode === "day");
   } else {
-    console.warn(
-      `⚠️ Day selector container not found - skipping update (may still be loading)`
+    console.log(
+      `ℹ️ Day selector container not found - skipping update (normal when not on home page)`
     );
   }
 }
@@ -4436,7 +4455,7 @@ async function renderDayView() {
 
   const container = DOM_ELEMENTS.dayViewContainer;
   if (!container) {
-    logManager.ui.error("Day view container not found");
+    console.log("ℹ️ Day view container not found - skipping render (normal when not on home page)");
     return;
   }
 
@@ -6976,6 +6995,13 @@ document.addEventListener("spa:page:unload", (event) => {
   // Only clean up if we're leaving the home page
   if (route === "home") {
     console.log("🧹 Cleaning up home page resources...");
+
+    // 🧹 CRITICAL FIX: Clean up Firestore real-time listeners first
+    if (window.scheduleRealtimeUnsubscribe) {
+      console.log("🧹 Cleaning up schedule real-time listener...");
+      window.scheduleRealtimeUnsubscribe();
+      window.scheduleRealtimeUnsubscribe = null;
+    }
 
     // 🧹 MEMORY LEAK FIX: Clean up all tracked event listeners
     cleanupScheduleEventListeners(); // Clean up schedule content listeners

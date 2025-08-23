@@ -3464,8 +3464,16 @@ class DataManager {
 
       // Validate campusStatus values
       const validStatuses = ["on_campus", "off_campus", "unknown"];
-      if (!campusStatus || typeof campusStatus !== "string" || !validStatuses.includes(campusStatus)) {
-        throw new Error(`Invalid campusStatus: "${campusStatus}". Must be one of: ${validStatuses.join(", ")}`);
+      if (
+        !campusStatus ||
+        typeof campusStatus !== "string" ||
+        !validStatuses.includes(campusStatus)
+      ) {
+        throw new Error(
+          `Invalid campusStatus: "${campusStatus}". Must be one of: ${validStatuses.join(
+            ", "
+          )}`
+        );
       }
 
       // Safe nested field update: ensure systemInfo object exists first
@@ -3497,7 +3505,9 @@ class DataManager {
       if (!hasValidCoordinates || !hasAcceptableAccuracy) {
         const reason = !hasValidCoordinates
           ? "null/invalid coordinates"
-          : `poor accuracy (${coordinates?.accuracy}m > ${Math.round(acceptableAccuracy)}m)`;
+          : `poor accuracy (${coordinates?.accuracy}m > ${Math.round(
+              acceptableAccuracy
+            )}m)`;
         logManager.db.write(
           `Skipping database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
         );
