@@ -145,6 +145,7 @@ export class CampusLocationService {
     // Location tracking properties
     this.trackingWatchId = null;
     this.periodicUpdateInterval = null;
+    this.isTracking = false; // 🔋 Flag to track if location tracking is active
 
     // Debouncing and optimization properties
     this.lastLocationUpdate = null;
@@ -552,43 +553,58 @@ export class CampusLocationService {
         if (tier1Result.success) {
           const responseTime = Date.now() - startTime;
           logManager.location.success(
-            `TIER 1 completed in ${responseTime}ms: ${tier1Result.campusStatus.toUpperCase()} via IP detection`
+            `TIER 1 completed in ${responseTime}ms: ${tier1Result.campusStatus.toUpperCase()} via ${tier1Result.method}`
           );
 
-          // 🎯 DECISION LOGIC: ON campus via IP = high confidence, can return early
+          // 🎯 DECISION LOGIC: ON campus via Organization = high confidence, can return early
           if (tier1Result.campusStatus === "on_campus") {
+            // 🏢 DISTINCT LOG: Campus WiFi Detection Success
+            console.log("🏢✅ CAMPUS WIFI DETECTED! User is on university network");
+            console.log(`📍 Organization: "${tier1Result.userOrganization}"`);
+            console.log(`🌐 IP Address: ${tier1Result.userIP}`);
+            console.log(`⚡ Detection Speed: ${responseTime}ms (instant)`);
+            console.log("🔋 Battery Optimization: Skipping GPS - using network detection only");
+            
             logManager.location.tier1(
-              `ON CAMPUS detected via IUB IP - returning immediately (high confidence)`
+              `🏢 ON CAMPUS detected via organization "${tier1Result.userOrganization}" - returning immediately (high confidence)`
             );
 
             const locationResult = {
               coords: {
-                latitude: null, // IP detection doesn't provide exact coordinates
-                longitude: null, // IP detection doesn't provide exact coordinates
-                accuracy: 50, // High confidence for on-campus IP detection
+                latitude: null, // Organization detection doesn't provide exact coordinates
+                longitude: null, // Organization detection doesn't provide exact coordinates
+                accuracy: 50, // High confidence for on-campus organization detection
                 altitude: null,
                 altitudeAccuracy: null,
                 heading: null,
                 speed: null,
               },
               timestamp: Date.now(),
-              source: "network_ip_detection",
+              source: "ip_organization_detection",
               tier: 1,
               cost: 0,
               campusStatus: "on_campus",
               confidence: "high",
               userIP: tier1Result.userIP,
+              userOrganization: tier1Result.userOrganization,
+              matchReason: tier1Result.matchReason,
               responseTime: responseTime,
-              method: "ip_range_detection",
+              method: tier1Result.method,
               provider: "network_detection_service",
-              shouldWriteToDatabase: true, // On campus via IP is reliable enough
+              shouldWriteToDatabase: true, // On campus via organization is reliable enough
+              batteryOptimized: true, // Flag to indicate this saved battery by skipping GPS
             };
 
             return locationResult;
           } else {
-            // � OFF CAMPUS via IP: Low confidence, continue to GPS tiers for verification
+            // 🌐 OFF CAMPUS via Organization: Continue to GPS tiers for location verification
+            console.log("🌐 External Network Detected - continuing to GPS verification");
+            console.log(`📍 Organization: "${tier1Result.userOrganization}"`);
+            console.log(`🌐 IP Address: ${tier1Result.userIP}`);
+            console.log("📍 GPS will determine exact campus proximity");
+            
             logManager.location.info(
-              `OFF CAMPUS detected via IP (${tier1Result.userIP}) - continuing to GPS verification (might be using mobile data)`
+              `🌐 OFF CAMPUS detected via organization "${tier1Result.userOrganization}" (${tier1Result.userIP}) - continuing to GPS verification (might be off-campus or using mobile data)`
             );
 
             // Store IP result for later use but continue to GPS tiers
@@ -619,8 +635,21 @@ export class CampusLocationService {
             }s timeout)`
           );
 
+          // 🔋 BATTERY OPTIMIZATION: Adjust GPS accuracy based on Tier 1 campus detection
+          let tier2Accuracy = highAccuracy; // Default to parameter value
+          
+          if (tier1Result && tier1Result.campusStatus === "off_campus") {
+            // 🔋 OFF CAMPUS: Use low accuracy to save battery
+            tier2Accuracy = false;
+            console.log("🔋 Tier 2 Battery Mode: Using low accuracy (off-campus detected via organization)");
+          } else {
+            // 📍 ON CAMPUS or UNKNOWN: Need high accuracy for campus boundary detection
+            tier2Accuracy = true;
+            console.log("📍 Tier 2 Accuracy Mode: Using high accuracy (campus detection needed)");
+          }
+
           const browserResult = await this.getBrowserLocationWithTimeout(
-            highAccuracy,
+            tier2Accuracy,
             browserTimeout
           );
 
@@ -3043,23 +3072,49 @@ export class CampusLocationService {
       return null;
     }
 
-    // 🚀 ENTERPRISE FIX: Aggressive real-time settings for campus presence tracking
-    // Trade battery for accuracy - campus presence requires immediate updates
-    const options = {
-      enableHighAccuracy: true, // CHANGED: High accuracy required for campus geofencing
-      timeout: 10000, // REDUCED: 10 seconds for faster GPS fixes
-      maximumAge: 30000, // REDUCED: 30 seconds cache for more frequent updates
-    };
-
-    console.log(
-      "[CampusLocationService] 🎯 Using aggressive GPS settings for real-time campus tracking:",
-      {
-        highAccuracy: options.enableHighAccuracy,
-        timeout: options.timeout + "ms",
-        maxAge: options.maximumAge + "ms",
-        purpose: "campus_presence_detection",
-      }
-    );
+    // � INTELLIGENT GPS SETTINGS: Optimize battery based on campus detection
+    let options;
+    
+    // Check if we have Tier 1 campus status to optimize GPS accordingly
+    const isOffCampusDetected = this.lastLocationResult && 
+                               this.lastLocationResult.tier === 1 && 
+                               this.lastLocationResult.campusStatus === "off_campus";
+    
+    if (isOffCampusDetected) {
+      // 🔋 BATTERY OPTIMIZATION: User is off-campus, use efficient settings
+      options = {
+        enableHighAccuracy: false, // Save significant battery - don't need pinpoint accuracy off campus
+        timeout: 15000, // Longer timeout acceptable for off-campus locations
+        maximumAge: 120000, // 2 minutes cache - sufficient for off-campus presence
+      };
+      console.log(
+        "[CampusLocationService] 🔋 Using BATTERY-OPTIMIZED GPS settings (off-campus detected):",
+        {
+          highAccuracy: false,
+          timeout: options.timeout + "ms",
+          maxAge: options.maximumAge + "ms",
+          batterySaving: "HIGH",
+          purpose: "off_campus_location_verification",
+        }
+      );
+    } else {
+      // 📍 HIGH ACCURACY: On-campus or unknown status needs precise geofencing
+      options = {
+        enableHighAccuracy: true, // Required for campus boundary detection
+        timeout: 10000, // Fast GPS fixes for real-time campus presence
+        maximumAge: 60000, // 1 minute cache (doubled from 30s to save some battery)
+      };
+      console.log(
+        "[CampusLocationService] 📍 Using HIGH-ACCURACY GPS settings (campus detection needed):",
+        {
+          highAccuracy: options.enableHighAccuracy,
+          timeout: options.timeout + "ms",
+          maxAge: options.maximumAge + "ms",
+          batterySaving: "MODERATE",
+          purpose: "campus_presence_detection",
+        }
+      );
+    }
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -3224,6 +3279,9 @@ export class CampusLocationService {
       return;
     }
 
+    // Set tracking flag
+    this.isTracking = true;
+
     try {
       // Import DataService dynamically to avoid circular dependencies
       const { dataManager } = await import("../data/DataService.js");
@@ -3281,6 +3339,15 @@ export class CampusLocationService {
         "[CampusLocationService] ✅ Automatic location tracking started with watch ID:",
         this.trackingWatchId
       );
+
+      // 🔋 BATTERY OPTIMIZATION: Start smart network detection to pause GPS when on campus
+      if (this.networkDetectionService) {
+        console.log("[CampusLocationService] 🔋 Starting smart battery optimization with network detection");
+        // Start optimization check in 30 seconds to allow initial GPS lock
+        setTimeout(() => this.optimizeBatteryWithNetworkDetection(), 30 * 1000);
+      } else {
+        console.warn("[CampusLocationService] 🔋 Network detection service not available - battery optimization disabled");
+      }
 
       // Don't start periodic updates when watchPosition is active to avoid dual tracking
       console.log(
@@ -3340,10 +3407,72 @@ export class CampusLocationService {
     this.isInitialized = false;
     this.initializationAttempts = 0;
     this.initializationErrors = [];
+    this.isTracking = false; // 🔋 Reset tracking flag
 
     console.log(
       "[CampusLocationService] ✅ Location tracking, activity heartbeat, and health monitoring stopped"
     );
+  }
+
+  /**
+   * 🔋 SMART CAMPUS DETECTION: Optimizes battery by pausing GPS when on campus network
+   * This method periodically checks if user is on campus WiFi and pauses GPS tracking accordingly
+   */
+  async optimizeBatteryWithNetworkDetection() {
+    if (!this.networkDetectionService) {
+      console.warn("[CampusLocationService] 🔋 Network detection service not available for optimization");
+      return;
+    }
+
+    try {
+      console.log("[CampusLocationService] 🔋 Checking campus network for battery optimization...");
+      
+      const networkResult = await this.networkDetectionService.detectCampusPresence("iub");
+      
+      if (networkResult.success && networkResult.campusStatus === "on_campus") {
+        // 🏢 ON CAMPUS NETWORK: Pause GPS to save battery
+        console.log("🔋🏢 CAMPUS NETWORK DETECTED - Pausing GPS tracking for battery optimization");
+        console.log(`📍 Organization: "${networkResult.userOrganization}"`);
+        console.log(`🌐 IP: ${networkResult.userIP}`);
+        console.log("⚡ Battery Benefit: GPS tracking paused while on campus WiFi");
+        
+        // Temporarily pause GPS tracking
+        if (this.trackingWatchId) {
+          navigator.geolocation.clearWatch(this.trackingWatchId);
+          this.trackingWatchId = null;
+          console.log("🔋 GPS tracking paused - will resume when off campus network");
+        }
+        
+        // Update presence to on-campus without GPS
+        this.emitPresenceData({
+          campusStatus: "on_campus",
+          method: "network_organization_detection",
+          confidence: "high",
+          batterySaving: true,
+          userOrganization: networkResult.userOrganization,
+          userIP: networkResult.userIP,
+          timestamp: Date.now()
+        });
+        
+        // Schedule next network check in 5 minutes (less frequent on campus)
+        setTimeout(() => this.optimizeBatteryWithNetworkDetection(), 5 * 60 * 1000);
+        
+      } else {
+        // 🌐 OFF CAMPUS NETWORK: Resume GPS if needed
+        if (!this.trackingWatchId && this.isTracking) {
+          console.log("🌐 Off campus network - resuming GPS tracking for location accuracy");
+          this.startLocationTracking(); // This will restart GPS tracking
+        }
+        
+        // Schedule next network check in 2 minutes (more frequent off campus)
+        setTimeout(() => this.optimizeBatteryWithNetworkDetection(), 2 * 60 * 1000);
+      }
+      
+    } catch (error) {
+      console.warn("[CampusLocationService] 🔋 Network optimization check failed:", error.message);
+      // Schedule retry in 3 minutes on error
+      setTimeout(() => this.optimizeBatteryWithNetworkDetection(), 3 * 60 * 1000);
+    }
   }
 
   /**

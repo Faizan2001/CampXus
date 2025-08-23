@@ -108,7 +108,23 @@ const campuses = {
      "Cafeteria",
      "Sports Complex",
      "Parking Areas"
-   ]
+   ],
+  
+   // NEW and IMPROVED: Network information for IP-based campus detection
+   // Uses organization name detection instead of fragile IP ranges
+   networkInfo: {
+     organization: "Independent Univeristy, Bangladesh", // From ip-api.com 'org' field
+     asname: "INDEPENDENT-AS-AP", // From ip-api.com 'asname' field (fallback)
+     // Alternative organization names to check (for variations in spelling/formatting)
+     alternativeNames: [
+       "Independent University, Bangladesh",
+       "Independent University Bangladesh",
+       "IUB"
+     ]
+   }
+   
+   // REMOVED: Old ipRanges are no longer needed with organization-based detection
+   // This new method is more reliable and scales better to other universities
  }
   // Additional universities can be added here following the same structure
  // Example structure for future expansion:

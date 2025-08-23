@@ -1,54 +1,53 @@
 /**
  * NetworkDetectionService.js
  *
- * Tier 1 location detection using IP range analysis for FREE campus presence detection.
- * Provides instant, accurate campus detection without GPS or expensive API calls.
+ * Tier 1 location detection using IP ownership/organization analysis. 
+ * This is a reliable and scalable method for instant campus detection.
  *
- * 🆓 FREE TIER - No API costs, unlimited usage
- * ⚡ INSTANT - No GPS delays or permission prompts
+ * 🆓 FREE TIER - No API costs, 45 requests/minute limit
+ * ⚡ INSTANT - No GPS delays or permission prompts  
  * 🎯 ACCURATE - Highly reliable for campus network detection
+ * 🏢 SCALABLE - Works for any university by checking organization name
  */
 
 import { logManager } from "../../utils/debug/LogManager.js";
+import { getCampusConfig } from "./UniversityCampusConfig.js";
 
 export class NetworkDetectionService {
   constructor() {
-    // University IP range configurations
-    this.universityIpRanges = {
-      iub: [
-        // 🧪 PLACEHOLDER - Will be updated with real IUB IP ranges after testing
-
-        "103.81.68.0/24", // Example: IUB network range? Verify
-        "103.81.69.0/24", // Example: IUB network range? Verify
-        "103.81.70.0/24", // Example: IUB network range? Verify
-        "103.81.71.0/24", // Example: IUB network range? Verify
-      ],
-      // Add more universities as needed
-      buet: [
-        "103.230.106.0/24", // Example: BUET network
-      ],
-    };
-
-    // IP detection service endpoints (with fallbacks)
+    // IP information service endpoints that provide organization data
     this.ipServiceEndpoints = [
-      "https://api.ipify.org?format=json", // Primary
-      "https://ipapi.co/json/", // Fallback 1
-      "https://ip.seeip.org/jsonip", // Fallback 2
+      {
+        url: "http://ip-api.com/json/",
+        name: "ip-api.com",
+        orgField: "org",
+        ipField: "query",
+        // Request specific fields to save bandwidth: status, message, query, org, isp, as
+        customUrl: "http://ip-api.com/json/?fields=status,message,query,org,isp,as"
+      },
+      {
+        url: "https://ipapi.co/json/", 
+        name: "ipapi.co",
+        orgField: "org",
+        ipField: "ip"
+      }
     ];
 
-    this.maxRetries = 3;
-    this.requestTimeout = 5000; // 5 second timeout for IP detection
+    this.maxRetries = 2;
+    this.requestTimeout = 5000; // 5 second timeout
+    this.rateLimitDelay = 1500; // Small delay between requests to respect rate limits
 
     logManager.location.info(
-      "NetworkDetectionService initialized with university IP ranges",
+      "NetworkDetectionService initialized for organization-based detection",
       {
-        universities: Object.keys(this.universityIpRanges),
+        primaryEndpoint: this.ipServiceEndpoints[0].name,
+        fallbackEndpoints: this.ipServiceEndpoints.slice(1).map(e => e.name)
       }
     );
   }
 
   /**
-   * 🎯 MAIN METHOD: Detect campus presence using IP range analysis
+   * 🎯 MAIN METHOD: Detect campus presence using IP Organization analysis
    * @param {string} university - University code (e.g., 'iub')
    * @returns {Promise<Object>} Detection result with campus status
    */
@@ -57,51 +56,66 @@ export class NetworkDetectionService {
 
     try {
       logManager.location.tier1(
-        `Starting IP-based campus detection for ${university.toUpperCase()}`
+        `Starting IP Organization detection for ${university.toUpperCase()}`
       );
 
-      // Step 1: Get user's public IP address
-      const userIP = await this.getUserPublicIP();
-      if (!userIP) {
-        throw new Error("Unable to detect public IP address");
+      // Step 1: Get the campus configuration which contains the network info
+      const campusConfig = getCampusConfig(university);
+      if (!campusConfig?.networkInfo?.organization) {
+        throw new Error(`No networkInfo.organization configured for university: ${university}`);
       }
 
-      // 🧪 TESTING: Log actual IP for tomorrow's campus testing
-      logManager.location.info("TESTING MODE: current IP for debugging", {
+      const expectedOrg = campusConfig.networkInfo.organization;
+      const alternativeNames = campusConfig.networkInfo.alternativeNames || [];
+
+      // Step 2: Get user's public IP information including organization
+      const userIpInfo = await this.getUserIPInfo();
+      if (!userIpInfo) {
+        throw new Error("Unable to detect IP information");
+      }
+
+      const userOrg = userIpInfo.organization;
+      const userIP = userIpInfo.ip;
+      const userISP = userIpInfo.isp;
+      const userAS = userIpInfo.as;
+
+      logManager.location.info("User network info detected", {
         ip: userIP,
+        organization: userOrg,
+        isp: userISP,
+        as: userAS,
+        expectedOrganization: expectedOrg
       });
 
-      // Step 2: Check if IP falls within university ranges
-      const isOnCampus = this.isIPInUniversityRange(userIP, university);
+      // Step 3: Check if the user's organization matches the university
+      const isOnCampus = this.checkOrganizationMatch(userOrg, expectedOrg, alternativeNames);
       const responseTime = Date.now() - startTime;
 
       const result = {
         success: true,
-        method: "ip_range_detection",
+        method: "ip_organization_detection",
         tier: 1,
         campusStatus: isOnCampus ? "on_campus" : "off_campus",
-        confidence: isOnCampus ? "high" : "high", // IP detection is always high confidence
+        confidence: isOnCampus ? "high" : "high", // Organization detection is always high confidence
         userIP: userIP,
+        userOrganization: userOrg,
+        userISP: userISP,
+        userAS: userAS,
+        expectedOrganization: expectedOrg,
         university: university,
         responseTime: responseTime,
         timestamp: Date.now(),
-        // For debugging
-        matchedRange: isOnCampus
-          ? this.getMatchingRange(userIP, university)
-          : null,
-        availableRanges: this.universityIpRanges[university] || [],
+        matchReason: isOnCampus ? this.getMatchReason(userOrg, expectedOrg, alternativeNames) : "no_match"
       };
 
-      // Downgrade this to a dev/info level so the higher-level orchestrator
-      // (`CampusLocationService`) remains the canonical emitter of final
-      // "TIER X completed" messages and prevents duplicate entries.
       logManager.dev.info(
-        `NetworkDetectionService: TIER 1 result in ${responseTime}ms: ${result.campusStatus.toUpperCase()} via IP detection`,
+        `NetworkDetectionService: TIER 1 result in ${responseTime}ms: ${result.campusStatus.toUpperCase()} via organization detection`,
         {
-          userIP,
-          matchedRange: result.matchedRange,
+          userOrg,
+          expectedOrg,
+          matchReason: result.matchReason,
           confidence: result.confidence,
-          responseTime,
+          responseTime
         }
       );
 
@@ -115,7 +129,7 @@ export class NetworkDetectionService {
 
       return {
         success: false,
-        method: "ip_range_detection",
+        method: "ip_organization_detection",
         tier: 1,
         error: error.message,
         responseTime: responseTime,
@@ -126,18 +140,23 @@ export class NetworkDetectionService {
   }
 
   /**
-   * 🌐 Get user's public IP address with fallback endpoints
-   * @returns {Promise<string>} User's public IP address
+   * 🌐 Get user's public IP information including organization data
+   * @returns {Promise<Object>} User's IP info including organization, IP, ISP, etc.
    */
-  async getUserPublicIP() {
+  async getUserIPInfo() {
     for (let i = 0; i < this.ipServiceEndpoints.length; i++) {
       const endpoint = this.ipServiceEndpoints[i];
 
       try {
         logManager.location.info(
-          `Trying IP service ${i + 1}/${this.ipServiceEndpoints.length}`,
-          { endpoint }
+          `Trying IP info service ${i + 1}/${this.ipServiceEndpoints.length}`,
+          { service: endpoint.name }
         );
+
+        // Add delay between requests to respect rate limits
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay));
+        }
 
         const controller = new AbortController();
         const timeoutId = setTimeout(
@@ -145,7 +164,8 @@ export class NetworkDetectionService {
           this.requestTimeout
         );
 
-        const response = await fetch(endpoint, {
+        const requestUrl = endpoint.customUrl || endpoint.url;
+        const response = await fetch(requestUrl, {
           signal: controller.signal,
           headers: {
             Accept: "application/json",
@@ -160,18 +180,42 @@ export class NetworkDetectionService {
 
         const data = await response.json();
 
-        // Different services return IP in different fields
-        const ip = data.ip || data.query || data.IPv4;
-
-        if (ip && this.isValidIP(ip)) {
-          logManager.location.success(`IP detected successfully`, { ip });
-          return ip;
-        } else {
-          throw new Error("Invalid IP format in response");
+        // Check for API-specific error status
+        if (data.status === 'fail') {
+          throw new Error(`API error: ${data.message || 'Unknown error'}`);
         }
+
+        // Extract the required fields based on the endpoint
+        const organization = data[endpoint.orgField];
+        const ip = data[endpoint.ipField];
+        const isp = data.isp || data.ISP;
+        const as = data.as || data.AS;
+
+        if (!organization || !ip) {
+          throw new Error(`Missing required fields: org=${!!organization}, ip=${!!ip}`);
+        }
+
+        const result = {
+          organization,
+          ip,
+          isp: isp || 'Unknown',
+          as: as || 'Unknown',
+          service: endpoint.name,
+          rawData: data
+        };
+
+        logManager.location.success(`IP info detected successfully via ${endpoint.name}`, {
+          ip,
+          organization,
+          isp,
+          service: endpoint.name
+        });
+
+        return result;
+
       } catch (error) {
         logManager.location.warn(
-          `IP service ${i + 1} failed: ${error.message}`
+          `IP service ${endpoint.name} failed: ${error.message}`
         );
 
         // If this was the last endpoint, throw the error
@@ -186,91 +230,66 @@ export class NetworkDetectionService {
   }
 
   /**
-   * 🎯 Check if IP address falls within university network ranges
-   * @param {string} userIP - User's IP address
-   * @param {string} university - University code
-   * @returns {boolean} True if IP is within university ranges
+   * 🎯 Check if user's organization matches university organization
+   * @param {string} userOrg - User's detected organization
+   * @param {string} expectedOrg - Expected university organization 
+   * @param {string[]} alternativeNames - Alternative organization names to check
+   * @returns {boolean} True if organization matches
    */
-  isIPInUniversityRange(userIP, university) {
-    const ranges = this.universityIpRanges[university];
+  checkOrganizationMatch(userOrg, expectedOrg, alternativeNames = []) {
+    if (!userOrg || !expectedOrg) return false;
 
-    if (!ranges || ranges.length === 0) {
-      logManager.location.warn(`No IP ranges configured for ${university}`);
-      return false;
+    const userOrgLower = userOrg.toLowerCase();
+    const expectedOrgLower = expectedOrg.toLowerCase();
+
+    // Direct match
+    if (userOrgLower.includes(expectedOrgLower)) {
+      return true;
     }
 
-    for (const range of ranges) {
-      if (this.isIPInRange(userIP, range)) {
-        logManager.location.tier1(
-          `IP ${userIP} matches university range: ${range}`
-        );
+    // Check alternative names
+    for (const altName of alternativeNames) {
+      if (userOrgLower.includes(altName.toLowerCase())) {
         return true;
       }
     }
 
-    logManager.location.info(
-      `IP ${userIP} not in any university ranges for ${university}`
-    );
+    // Check if expected org is contained in user org (reverse check)
+    if (expectedOrgLower.includes(userOrgLower)) {
+      return true;
+    }
+
     return false;
   }
 
   /**
-   * 📐 Check if an IP address falls within a CIDR range
-   * @param {string} ip - IP address to check
-   * @param {string} cidr - CIDR range (e.g., '192.168.1.0/24')
-   * @returns {boolean} True if IP is in range
+   * � Get the reason why organizations matched (for debugging)
+   * @param {string} userOrg - User's detected organization
+   * @param {string} expectedOrg - Expected university organization
+   * @param {string[]} alternativeNames - Alternative organization names
+   * @returns {string} Match reason
    */
-  isIPInRange(ip, cidr) {
-    try {
-      const [rangeIP, prefixLength] = cidr.split("/");
-      const prefix = parseInt(prefixLength, 10);
+  getMatchReason(userOrg, expectedOrg, alternativeNames = []) {
+    if (!userOrg || !expectedOrg) return "no_data";
 
-      // Convert IP addresses to 32-bit integers
-      const ipInt = this.ipToInt(ip);
-      const rangeInt = this.ipToInt(rangeIP);
+    const userOrgLower = userOrg.toLowerCase();
+    const expectedOrgLower = expectedOrg.toLowerCase();
 
-      // Create subnet mask
-      const mask = (0xffffffff << (32 - prefix)) >>> 0;
-
-      // Check if IP is in the subnet
-      return (ipInt & mask) === (rangeInt & mask);
-    } catch (error) {
-      logManager.dev.warn(
-        `⚠️ [NetworkDetection] Error checking IP range ${ip} in ${cidr}: ${error.message}`
-      );
-      return false;
+    if (userOrgLower.includes(expectedOrgLower)) {
+      return "direct_match";
     }
-  }
 
-  /**
-   * 🔢 Convert IP address string to 32-bit integer
-   * @param {string} ip - IP address string
-   * @returns {number} 32-bit integer representation
-   */
-  ipToInt(ip) {
-    return (
-      ip.split(".").reduce((int, octet, index) => {
-        return int + (parseInt(octet, 10) << ((3 - index) * 8));
-      }, 0) >>> 0
-    ); // Unsigned right shift to ensure positive number
-  }
-
-  /**
-   * 🔍 Get the matching IP range for debugging
-   * @param {string} userIP - User's IP address
-   * @param {string} university - University code
-   * @returns {string|null} Matching CIDR range
-   */
-  getMatchingRange(userIP, university) {
-    const ranges = this.universityIpRanges[university];
-    if (!ranges) return null;
-
-    for (const range of ranges) {
-      if (this.isIPInRange(userIP, range)) {
-        return range;
+    for (const altName of alternativeNames) {
+      if (userOrgLower.includes(altName.toLowerCase())) {
+        return `alternative_match:${altName}`;
       }
     }
-    return null;
+
+    if (expectedOrgLower.includes(userOrgLower)) {
+      return "reverse_match";
+    }
+
+    return "no_match";
   }
 
   /**
@@ -289,16 +308,17 @@ export class NetworkDetectionService {
   }
 
   /**
-   * ⚙️ Update university IP ranges (for dynamic configuration)
+   * ⚙️ Update university network info (for dynamic configuration)
    * @param {string} university - University code
-   * @param {string[]} ranges - Array of CIDR ranges
+   * @param {Object} networkInfo - Network information object
    */
-  updateUniversityRanges(university, ranges) {
+  updateUniversityNetworkInfo(university, networkInfo) {
     logManager.dev.info(
-      `⚙️ [NetworkDetection] Updating IP ranges for ${university}:`,
-      { ranges }
+      `⚙️ [NetworkDetection] Updating network info for ${university}:`,
+      { networkInfo }
     );
-    this.universityIpRanges[university] = ranges;
+    // This would need to update the campus config, but for now just log
+    // In a full implementation, this could update a dynamic config store
   }
 
   /**
@@ -307,28 +327,30 @@ export class NetworkDetectionService {
    */
   getServiceInfo() {
     return {
-      serviceType: "network_ip_detection",
+      serviceType: "ip_organization_detection",
       tier: 1,
       cost: "FREE",
-      supportedUniversities: Object.keys(this.universityIpRanges),
-      totalRanges: Object.values(this.universityIpRanges).reduce(
-        (total, ranges) => total + ranges.length,
-        0
-      ),
-      endpoints: this.ipServiceEndpoints,
+      rateLimit: "45 requests/minute",
+      method: "Organization name matching",
+      endpoints: this.ipServiceEndpoints.map(e => ({
+        name: e.name,
+        url: e.url,
+        orgField: e.orgField,
+        ipField: e.ipField
+      })),
       timeout: this.requestTimeout,
       maxRetries: this.maxRetries,
     };
   }
 
   /**
-   * 🧪 Test network detection service
+   * 🧪 Test organization detection service
    * @param {string} university - University to test for
    * @returns {Promise<Object>} Test results
    */
   async testService(university = "iub") {
     logManager.dev.info(
-      `🧪 [NetworkDetection] Testing service for ${university}...`
+      `🧪 [NetworkDetection] Testing organization detection service for ${university}...`
     );
 
     const testStartTime = Date.now();
@@ -355,14 +377,14 @@ export const networkDetectionService = new NetworkDetectionService();
 if (typeof window !== "undefined") {
   window.debugNetworkDetection = {
     test: () => networkDetectionService.testService("iub"),
-    checkIP: (ip, range) => networkDetectionService.isIPInRange(ip, range),
+    getIPInfo: () => networkDetectionService.getUserIPInfo(),
     getInfo: () => networkDetectionService.getServiceInfo(),
-    updateRanges: (university, ranges) =>
-      networkDetectionService.updateUniversityRanges(university, ranges),
+    updateNetworkInfo: (university, networkInfo) =>
+      networkDetectionService.updateUniversityNetworkInfo(university, networkInfo),
   };
 
   // Expose a single centralized debug message
   logManager.dev.info(
-    "NetworkDetection debug helpers available: window.debugNetworkDetection"
+    "🏢 Organization-based NetworkDetection debug helpers available: window.debugNetworkDetection"
   );
 }

@@ -9,7 +9,7 @@
  */
 
 import { googleGeolocationProvider } from './GoogleGeolocationProvider.js';
-import { locationOrchestrator } from './LocationOrchestrator.js';
+import { campusLocationService } from './CampusLocationService.js';
 
 /**
  * Enhanced location integration with comprehensive monitoring
@@ -539,9 +539,9 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
       
       const userContext = uid ? ` for user ${uid}` : ' (aggregate)';
       console.log(`💰 Estimated cost savings${userContext}:
-- Today: $${dailySavings.toFixed(3)}
-- Monthly: $${monthlySavings.toFixed(2)}
-- Yearly: $${yearlySavings.toFixed(2)}`);
+- Today: ${dailySavings.toFixed(3)}
+- Monthly: ${monthlySavings.toFixed(2)}
+- Yearly: ${yearlySavings.toFixed(2)}`);
       
       return { userId: uid, dailySavings, monthlySavings, yearlySavings };
     },
