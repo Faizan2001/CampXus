@@ -2851,7 +2851,7 @@ async function _renderScheduleGridInternal() {
   const scheduleTable = DOM_ELEMENTS.scheduleTable;
 
   // Smart logging for grid completion - only every 5 seconds
-  smartLog("gridComplete", "🎨 Grid rendering complete:", {
+  logManager.uiRender("🎨 Grid rendering complete:", {
     timeSlots: slotCount,
     usedUnifiedSchedule,
     allowEditingHeaders,
@@ -3050,10 +3050,7 @@ function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
 
   // Smart logging - only log compare mode changes every 1 second
-  smartLog(
-    "compareMode",
-    "🔄 Toggle compare mode:",
-    {
+  logManager.uiRender("🔄 Toggle compare mode:", {
       from: previousCompareMode,
       to: state.compareMode,
       previousActiveUser,
@@ -3100,12 +3097,9 @@ function handleToggleCompareMode() {
   updateUI();
 
   // Smart logging for mode completion - only every 2 seconds
-  smartLog(
-    "compareModeComplete",
-    "✅ Compare mode toggle completed:",
-    { newState: state.compareMode },
-    2000
-  );
+  logManager.uiRender("✅ Compare mode toggle completed:", {
+    newState: state.compareMode
+  });
 }
 
 function handleToggleUserSelectionForCompare(userId) {
