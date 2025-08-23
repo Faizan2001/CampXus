@@ -16,20 +16,27 @@ import { getCampusConfig } from "./UniversityCampusConfig.js";
 export class NetworkDetectionService {
   constructor() {
     // IP information service endpoints that provide organization data
+    // ip-api.com is the primary choice for organization data, but requires HTTP (no HTTPS in free tier)
     this.ipServiceEndpoints = [
       {
         url: "http://ip-api.com/json/",
         name: "ip-api.com",
         orgField: "org",
         ipField: "query",
-        // Request specific fields to save bandwidth: status, message, query, org, isp, as
-        customUrl: "http://ip-api.com/json/?fields=status,message,query,org,isp,as"
+        ispField: "isp", 
+        asField: "as",
+        // Request specific fields to save bandwidth and get organization data
+        customUrl: "http://ip-api.com/json/?fields=status,message,query,org,isp,as",
+        requiresHTTP: true, // Flag to indicate this needs HTTP (not HTTPS)
+        primary: true // This is our primary choice for organization data
       },
       {
-        url: "https://ipapi.co/json/", 
-        name: "ipapi.co",
-        orgField: "org",
-        ipField: "ip"
+        url: "https://api.ipify.org?format=json",
+        name: "ipify.org (HTTPS fallback)",
+        orgField: null, 
+        ipField: "ip",
+        ipOnly: true, // This service only provides IP address
+        fallback: true
       }
     ];
 
@@ -78,6 +85,27 @@ export class NetworkDetectionService {
       const userIP = userIpInfo.ip;
       const userISP = userIpInfo.isp;
       const userAS = userIpInfo.as;
+
+      // 🔍 CHECK: Do we have organization data for campus detection?
+      if (!userOrg || userIpInfo.ipOnly) {
+        logManager.location.warn(`⚠️ No organization data available from ${userIpInfo.service} - cannot perform campus detection`);
+        logManager.location.info(`📍 IP detected: ${userIP} via ${userIpInfo.service}`);
+        
+        return {
+          success: false,
+          method: "ip_organization_detection",
+          tier: 1,
+          error: "Organization data not available - fallback to GPS detection",
+          userIP: userIP,
+          userOrganization: null,
+          userISP: userISP,
+          userAS: userAS,
+          responseTime: Date.now() - startTime,
+          timestamp: Date.now(),
+          fallbackReason: "no_organization_data",
+          gracefulFallback: true
+        };
+      }
 
       logManager.location.info("User network info detected", {
         ip: userIP,
@@ -188,11 +216,32 @@ export class NetworkDetectionService {
         // Extract the required fields based on the endpoint
         const organization = data[endpoint.orgField];
         const ip = data[endpoint.ipField];
-        const isp = data.isp || data.ISP;
-        const as = data.as || data.AS;
+        const isp = data[endpoint.ispField] || data.isp || data.ISP;
+        const as = data[endpoint.asField] || data.as || data.AS;
 
+        // For endpoints that only provide IP (no organization data)
+        if (endpoint.ipOnly) {
+          if (!ip) {
+            throw new Error(`Missing IP field from ${endpoint.name}`);
+          }
+          
+          const result = {
+            organization: null,
+            ip,
+            isp: 'Unknown',
+            as: 'Unknown',
+            service: endpoint.name,
+            ipOnly: true,
+            rawData: data
+          };
+
+          logManager.location.info(`IP-only service ${endpoint.name} provided IP: ${ip}`);
+          return result;
+        }
+
+        // For full organization detection endpoints
         if (!organization || !ip) {
-          throw new Error(`Missing required fields: org=${!!organization}, ip=${!!ip}`);
+          throw new Error(`Missing required fields from ${endpoint.name}: org=${!!organization}, ip=${!!ip}`);
         }
 
         const result = {
@@ -204,7 +253,7 @@ export class NetworkDetectionService {
           rawData: data
         };
 
-        logManager.location.success(`IP info detected successfully via ${endpoint.name}`, {
+        logManager.location.success(`Full IP info detected successfully via ${endpoint.name}`, {
           ip,
           organization,
           isp,
