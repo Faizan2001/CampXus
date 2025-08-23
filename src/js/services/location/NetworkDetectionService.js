@@ -1,11 +1,11 @@
 /**
  * NetworkDetectionService.js
  *
- * Tier 1 location detection using IP ownership/organization analysis. 
+ * Tier 1 location detection using IP ownership/organization analysis.
  * This is a reliable and scalable method for instant campus detection.
  *
  * 🆓 FREE TIER - No API costs, 45 requests/minute limit
- * ⚡ INSTANT - No GPS delays or permission prompts  
+ * ⚡ INSTANT - No GPS delays or permission prompts
  * 🎯 ACCURATE - Highly reliable for campus network detection
  * 🏢 SCALABLE - Works for any university by checking organization name
  */
@@ -23,8 +23,8 @@ export class NetworkDetectionService {
         orgField: "org", // The organization name is in the 'org' field for this endpoint
         ipField: "ip",
         ispField: "org", // Use org as a substitute for ISP
-        asField: "org"
-      }
+        asField: "asn",
+      },
     ];
 
     this.maxRetries = 2;
@@ -35,7 +35,7 @@ export class NetworkDetectionService {
       "NetworkDetectionService initialized for organization-based detection",
       {
         primaryEndpoint: this.ipServiceEndpoints[0].name,
-        fallbackEndpoints: this.ipServiceEndpoints.slice(1).map(e => e.name)
+        fallbackEndpoints: this.ipServiceEndpoints.slice(1).map((e) => e.name),
       }
     );
   }
@@ -56,7 +56,9 @@ export class NetworkDetectionService {
       // Step 1: Get the campus configuration which contains the network info
       const campusConfig = getCampusConfig(university);
       if (!campusConfig?.networkInfo?.organization) {
-        throw new Error(`No networkInfo.organization configured for university: ${university}`);
+        throw new Error(
+          `No networkInfo.organization configured for university: ${university}`
+        );
       }
 
       const expectedOrg = campusConfig.networkInfo.organization;
@@ -75,9 +77,13 @@ export class NetworkDetectionService {
 
       // 🔍 CHECK: Do we have organization data for campus detection?
       if (!userOrg || userIpInfo.ipOnly) {
-        logManager.location.warn(`⚠️ No organization data available from ${userIpInfo.service} - cannot perform campus detection`);
-        logManager.location.info(`📍 IP detected: ${userIP} via ${userIpInfo.service}`);
-        
+        logManager.location.warn(
+          `⚠️ No organization data available from ${userIpInfo.service} - cannot perform campus detection`
+        );
+        logManager.location.info(
+          `📍 IP detected: ${userIP} via ${userIpInfo.service}`
+        );
+
         return {
           success: false,
           method: "ip_organization_detection",
@@ -90,7 +96,7 @@ export class NetworkDetectionService {
           responseTime: Date.now() - startTime,
           timestamp: Date.now(),
           fallbackReason: "no_organization_data",
-          gracefulFallback: true
+          gracefulFallback: true,
         };
       }
 
@@ -99,11 +105,15 @@ export class NetworkDetectionService {
         organization: userOrg,
         isp: userISP,
         as: userAS,
-        expectedOrganization: expectedOrg
+        expectedOrganization: expectedOrg,
       });
 
       // Step 3: Check if the user's organization matches the university
-      const isOnCampus = this.checkOrganizationMatch(userOrg, expectedOrg, alternativeNames);
+      const isOnCampus = this.checkOrganizationMatch(
+        userOrg,
+        expectedOrg,
+        alternativeNames
+      );
       const responseTime = Date.now() - startTime;
 
       const result = {
@@ -120,7 +130,9 @@ export class NetworkDetectionService {
         university: university,
         responseTime: responseTime,
         timestamp: Date.now(),
-        matchReason: isOnCampus ? this.getMatchReason(userOrg, expectedOrg, alternativeNames) : "no_match"
+        matchReason: isOnCampus
+          ? this.getMatchReason(userOrg, expectedOrg, alternativeNames)
+          : "no_match",
       };
 
       logManager.dev.info(
@@ -130,7 +142,7 @@ export class NetworkDetectionService {
           expectedOrg,
           matchReason: result.matchReason,
           confidence: result.confidence,
-          responseTime
+          responseTime,
         }
       );
 
@@ -170,7 +182,9 @@ export class NetworkDetectionService {
 
         // Add delay between requests to respect rate limits
         if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay));
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.rateLimitDelay)
+          );
         }
 
         const controller = new AbortController();
@@ -196,8 +210,8 @@ export class NetworkDetectionService {
         const data = await response.json();
 
         // Check for API-specific error status
-        if (data.status === 'fail') {
-          throw new Error(`API error: ${data.message || 'Unknown error'}`);
+        if (data.status === "fail") {
+          throw new Error(`API error: ${data.message || "Unknown error"}`);
         }
 
         // Extract the required fields based on the endpoint
@@ -211,44 +225,52 @@ export class NetworkDetectionService {
           if (!ip) {
             throw new Error(`Missing IP field from ${endpoint.name}`);
           }
-          
+
           const result = {
             organization: null,
             ip,
-            isp: 'Unknown',
-            as: 'Unknown',
+            isp: "Unknown",
+            as: "Unknown",
             service: endpoint.name,
             ipOnly: true,
-            rawData: data
+            rawData: data,
           };
 
-          logManager.location.info(`IP-only service ${endpoint.name} provided IP: ${ip}`);
+          logManager.location.info(
+            `IP-only service ${endpoint.name} provided IP: ${ip}`
+          );
           return result;
         }
 
         // For full organization detection endpoints
         if (!organization || !ip) {
-          throw new Error(`Missing required fields from ${endpoint.name}: org=${!!organization}, ip=${!!ip}`);
+          throw new Error(
+            `Missing required fields from ${
+              endpoint.name
+            }: org=${!!organization}, ip=${!!ip}`
+          );
         }
 
         const result = {
           organization,
           ip,
-          isp: isp || 'Unknown',
-          as: as || 'Unknown',
+          isp: isp || "Unknown",
+          as: as || "Unknown",
           service: endpoint.name,
-          rawData: data
+          rawData: data,
         };
 
-        logManager.location.success(`Full IP info detected successfully via ${endpoint.name}`, {
-          ip,
-          organization,
-          isp,
-          service: endpoint.name
-        });
+        logManager.location.success(
+          `Full IP info detected successfully via ${endpoint.name}`,
+          {
+            ip,
+            organization,
+            isp,
+            service: endpoint.name,
+          }
+        );
 
         return result;
-
       } catch (error) {
         logManager.location.warn(
           `IP service ${endpoint.name} failed: ${error.message}`
@@ -268,7 +290,7 @@ export class NetworkDetectionService {
   /**
    * 🎯 Check if user's organization matches university organization
    * @param {string} userOrg - User's detected organization
-   * @param {string} expectedOrg - Expected university organization 
+   * @param {string} expectedOrg - Expected university organization
    * @param {string[]} alternativeNames - Alternative organization names to check
    * @returns {boolean} True if organization matches
    */
@@ -368,11 +390,11 @@ export class NetworkDetectionService {
       cost: "FREE",
       rateLimit: "45 requests/minute",
       method: "Organization name matching",
-      endpoints: this.ipServiceEndpoints.map(e => ({
+      endpoints: this.ipServiceEndpoints.map((e) => ({
         name: e.name,
         url: e.url,
         orgField: e.orgField,
-        ipField: e.ipField
+        ipField: e.ipField,
       })),
       timeout: this.requestTimeout,
       maxRetries: this.maxRetries,
@@ -416,7 +438,10 @@ if (typeof window !== "undefined") {
     getIPInfo: () => networkDetectionService.getUserIPInfo(),
     getInfo: () => networkDetectionService.getServiceInfo(),
     updateNetworkInfo: (university, networkInfo) =>
-      networkDetectionService.updateUniversityNetworkInfo(university, networkInfo),
+      networkDetectionService.updateUniversityNetworkInfo(
+        university,
+        networkInfo
+      ),
   };
 
   // Expose a single centralized debug message
