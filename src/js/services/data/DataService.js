@@ -3482,7 +3482,10 @@ class DataManager {
       // First, ensure systemInfo parent object exists
       await this.ensureSystemInfoExists(userId);
 
-      // 🔧 VALIDATION: Only write to database if we have valid location data
+      // 🔧 NEW: Detect if this is network-based detection (TIER 1)
+      const isNetworkDetection = coordinates && coordinates.networkDetection === true;
+      
+      // 🔧 VALIDATION: Handle network detection vs GPS-based detection differently
       // Check if coordinates are valid (not null) and accuracy is acceptable
       const hasValidCoordinates =
         coordinates &&
@@ -3501,33 +3504,60 @@ class DataManager {
         coordinates.accuracy !== undefined &&
         coordinates.accuracy <= acceptableAccuracy;
 
-      // 🚫 SKIP DATABASE WRITE: Invalid coordinates or poor accuracy
-      if (!hasValidCoordinates || !hasAcceptableAccuracy) {
-        const reason = !hasValidCoordinates
-          ? "null/invalid coordinates"
-          : `poor accuracy (${coordinates?.accuracy}m > ${Math.round(
-              acceptableAccuracy
-            )}m)`;
-        logManager.db.write(
-          `Skipping database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
+      // 🔧 TIER 1 NETWORK DETECTION: Allow without GPS coordinates
+      if (isNetworkDetection) {
+        console.log(
+          `🏢 [DataManager] Network-based detection for user ${userId} - proceeding without GPS validation`
         );
+        
+        // Enable location sharing for network detection
+        await this.ensureSystemInfoExists(userId);
+        await updateDoc(userRef, {
+          "systemInfo.locationSharingEnabled": true,
+        });
+        
+      } else {
+        // 🔧 GPS-BASED DETECTION: Require valid coordinates and accuracy
+        if (!hasValidCoordinates || !hasAcceptableAccuracy) {
+          const reason = !hasValidCoordinates
+            ? "null/invalid coordinates"
+            : `poor accuracy (${coordinates?.accuracy}m > ${Math.round(
+                acceptableAccuracy
+              )}m)`;
+          logManager.db.write(
+            `Skipping database write for user ${userId}: ${reason} - letting 3-tier system continue to next tier`
+          );
 
-        return {
-          success: true,
-          skipped: true,
-          reason: reason,
-          message: "3-tier system will continue to get better location data",
-        };
+          return {
+            success: true,
+            skipped: true,
+            reason: reason,
+            message: "3-tier system will continue to get better location data",
+          };
+        }
       }
 
       // 🔧 FIX: Properly structure coordinates for Firestore
       let coordinatesForFirestore = null;
-      if (coordinates && typeof coordinates === "object") {
+      if (coordinates && typeof coordinates === "object" && hasValidCoordinates) {
         coordinatesForFirestore = {
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
           accuracy: coordinates.accuracy,
           // Convert timestamp to proper format for Firestore
+          timestamp: coordinates.timestamp
+            ? new Date(coordinates.timestamp).toISOString()
+            : new Date().toISOString(),
+        };
+      }
+
+      // 🔧 NEW: Structure network detection info for Firestore
+      let networkInfo = null;
+      if (isNetworkDetection && coordinates) {
+        networkInfo = {
+          networkDetection: true,
+          ipOrganization: coordinates.ipOrganization || "Unknown",
+          detectionMethod: "ip_organization_detection",
           timestamp: coordinates.timestamp
             ? new Date(coordinates.timestamp).toISOString()
             : new Date().toISOString(),
@@ -3542,6 +3572,7 @@ class DataManager {
           detectedAt: serverTimestamp(),
           lastUpdated: serverTimestamp(), // 🔧 FIX: Add lastUpdated field
           coordinates: coordinatesForFirestore,
+          ...(networkInfo && { networkInfo }), // Add network info if available
         },
       };
 
@@ -3561,6 +3592,8 @@ class DataManager {
         `✅ [DataManager] Updated location status for user ${userId}: ${campusStatus}`,
         coordinatesForFirestore
           ? `at coordinates ${coordinatesForFirestore.latitude}, ${coordinatesForFirestore.longitude} (accuracy: ${coordinatesForFirestore.accuracy}m)`
+          : isNetworkDetection
+          ? `via network detection (${coordinates?.ipOrganization || "Unknown"})`
           : "without coordinates"
       );
       return { success: true };

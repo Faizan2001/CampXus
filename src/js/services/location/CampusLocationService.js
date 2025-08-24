@@ -631,6 +631,9 @@ export class CampusLocationService {
               batteryOptimized: true, // Flag to indicate this saved battery by skipping GPS
             };
 
+            // 🎯 Cache TIER 1 ON_CAMPUS result to prevent boundary detection override
+            this.cacheTier1Result("iub", tier1Result);
+
             return locationResult;
           } else {
             // 🌐 OFF CAMPUS via Organization: Continue to GPS tiers for location verification
@@ -1017,6 +1020,39 @@ export class CampusLocationService {
       );
     }
 
+    // 🎯 NEW LOGIC: Check for recent successful TIER 1 ON_CAMPUS results first
+    // This prevents boundary detection from overriding successful network detection
+    const recentTier1Result = this.getRecentTier1Result(university);
+    if (recentTier1Result && recentTier1Result.campusStatus === "on_campus") {
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info(
+          "💡 [CampusLocationService] Using recent TIER 1 ON_CAMPUS result - bypassing boundary detection",
+          { 
+            university, 
+            tier1Method: recentTier1Result.method,
+            tier1Confidence: recentTier1Result.confidence,
+            tier1Age: Date.now() - recentTier1Result.timestamp
+          }
+        );
+      }
+      
+      // Convert TIER 1 result to campus presence format
+      return {
+        onCampus: true,
+        confidence: 0.95, // High confidence for network detection
+        source: recentTier1Result.method || "ip_organization_detection",
+        timestamp: Date.now(),
+        university: university,
+        bypassedBoundaryDetection: true,
+        tier1Result: {
+          method: recentTier1Result.method,
+          userIP: recentTier1Result.userIP,
+          userOrganization: recentTier1Result.userOrganization,
+          matchReason: recentTier1Result.matchReason
+        }
+      };
+    }
+
     // Check cache first to avoid unnecessary location calls
     const cacheKey = `${university}_boundary_detection`;
     const cachedResult = this.getCachedBoundaryDetection(cacheKey);
@@ -1053,6 +1089,14 @@ export class CampusLocationService {
         );
       }
       return this.activeBoundaryDetections.get(university);
+    }
+
+    // Only proceed with boundary detection if TIER 1 was inconclusive or OFF_CAMPUS
+    if (typeof logManager !== "undefined") {
+      logManager.dev.info(
+        "🎯 [CampusLocationService] No recent TIER 1 ON_CAMPUS result found - proceeding with boundary detection",
+        { university }
+      );
     }
 
     // Create the detection promise and store it
@@ -1106,6 +1150,70 @@ export class CampusLocationService {
           error: error,
           source: "boundary-detection-error",
           timestamp: Date.now(),
+        };
+      }
+
+      // 🎯 CRITICAL FIX: Handle TIER 1 network detection results
+      // If TIER 1 detected ON_CAMPUS via network, trust that result even with null coordinates
+      if (position.source === "ip_organization_detection" && position.campusStatus === "on_campus") {
+        if (typeof logManager !== "undefined") {
+          logManager.dev.info(
+            "🏢 [CampusLocationService] TIER 1 network detection confirmed ON_CAMPUS - trusting network result",
+            { 
+              university, 
+              userOrganization: position.userOrganization,
+              userIP: position.userIP,
+              method: position.method,
+              confidence: position.confidence
+            }
+          );
+        }
+
+        const networkBasedResult = {
+          onCampus: true,
+          confidence: 0.95, // High confidence for network detection
+          source: position.source,
+          timestamp: Date.now(),
+          university: university,
+          networkDetection: {
+            userIP: position.userIP,
+            userOrganization: position.userOrganization,
+            method: position.method,
+            responseTime: position.responseTime
+          },
+          skippedPolygonCheck: true // Flag to indicate we bypassed GPS polygon check
+        };
+
+        // Cache the network-based result
+        this.campusBoundaryCache.set(cacheKey, {
+          ...networkBasedResult,
+          cachedAt: Date.now(),
+        });
+
+        return networkBasedResult;
+      }
+
+      // 🎯 VALIDATION: Only proceed with polygon checks if we have valid coordinates
+      if (!position.coords.latitude || !position.coords.longitude) {
+        if (typeof logManager !== "undefined") {
+          logManager.dev.warn(
+            "⚠️ [CampusLocationService] No valid coordinates for polygon check - returning OFF_CAMPUS",
+            { 
+              university, 
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              source: position.source
+            }
+          );
+        }
+        
+        return {
+          onCampus: false,
+          confidence: 0,
+          error: "No valid coordinates for polygon check",
+          source: position.source || "invalid-coordinates",
+          timestamp: Date.now(),
+          university: university,
         };
       }
 
@@ -2099,6 +2207,117 @@ export class CampusLocationService {
         error
       );
       return null;
+    }
+  }
+
+  /**
+   * 🎯 NEW METHOD: Get recent TIER 1 network detection result
+   * Prevents boundary detection from overriding successful organization detection
+   * @param {string} university - University code (e.g., "iub")
+   * @returns {Object|null} Recent TIER 1 result or null if not found/expired
+   */
+  getRecentTier1Result(university) {
+    try {
+      // Check if we have a TIER 1 cache for this university
+      if (!this.tier1ResultCache) {
+        this.tier1ResultCache = new Map();
+      }
+      
+      const cacheKey = `tier1_${university}`;
+      if (!this.tier1ResultCache.has(cacheKey)) {
+        return null;
+      }
+
+      const cached = this.tier1ResultCache.get(cacheKey);
+      
+      // Check if cache is expired (5 minute TTL for TIER 1 results)
+      const cacheAge = Date.now() - cached.timestamp;
+      const maxAge = 5 * 60 * 1000; // 5 minutes TTL
+
+      if (cacheAge > maxAge) {
+        if (typeof logManager !== "undefined") {
+          logManager.dev.info(
+            "🗑️ [CampusLocationService] TIER 1 result cache expired",
+            { 
+              university,
+              ageMinutes: Math.round(cacheAge / (60 * 1000)),
+              method: cached.method
+            }
+          );
+        }
+        this.tier1ResultCache.delete(cacheKey);
+        return null;
+      }
+
+      if (typeof logManager !== "undefined") {
+        logManager.dev.info(
+          "💾 [CampusLocationService] Found recent TIER 1 result",
+          {
+            university,
+            ageSeconds: Math.round(cacheAge / 1000),
+            campusStatus: cached.campusStatus,
+            method: cached.method,
+            confidence: cached.confidence
+          }
+        );
+      }
+
+      return cached;
+    } catch (error) {
+      if (typeof logManager !== "undefined") {
+        logManager.dev.fail(
+          "[CampusLocationService] Failed to get recent TIER 1 result:",
+          error
+        );
+      }
+      return null;
+    }
+  }
+
+  /**
+   * 🎯 NEW METHOD: Cache TIER 1 network detection result
+   * Stores successful network detection results to prevent redundant boundary checks
+   * @param {string} university - University code (e.g., "iub")
+   * @param {Object} tier1Result - TIER 1 result from network detection
+   */
+  cacheTier1Result(university, tier1Result) {
+    try {
+      // Initialize TIER 1 cache if it doesn't exist
+      if (!this.tier1ResultCache) {
+        this.tier1ResultCache = new Map();
+      }
+      
+      const cacheKey = `tier1_${university}`;
+      
+      // Only cache ON_CAMPUS results (high confidence network detection)
+      if (tier1Result.campusStatus === "on_campus") {
+        const cacheData = {
+          ...tier1Result,
+          timestamp: Date.now(),
+          cachedAt: Date.now()
+        };
+        
+        this.tier1ResultCache.set(cacheKey, cacheData);
+        
+        if (typeof logManager !== "undefined") {
+          logManager.dev.info(
+            "💾 [CampusLocationService] Cached TIER 1 ON_CAMPUS result",
+            {
+              university,
+              method: tier1Result.method,
+              userOrganization: tier1Result.userOrganization,
+              confidence: tier1Result.confidence
+            }
+          );
+        }
+      }
+    } catch (error) {
+      if (typeof logManager !== "undefined") {
+        logManager.dev.fail(
+          "[CampusLocationService] Failed to cache TIER 1 result:",
+          error
+        );
+      }
     }
   }
 
@@ -3550,16 +3769,25 @@ export class CampusLocationService {
       return;
     }
 
-    // Skip if no valid coordinates (network detection only)
-    if (!position.coords || !this.isValidCoordinates(position)) {
-      console.log(`[CampusLocationService] 🔋 Network-only result from tier ${tier} - no GPS coordinates to process`);
+    // 🎯 CRITICAL FIX: Handle TIER 1 network detection results with null coordinates
+    // For network detection (TIER 1), null coordinates are expected and valid!
+    const isNetworkDetection = source === "ip_organization_detection" || tier === 1;
+    const hasValidCoordinates = position.coords && this.isValidCoordinates(position);
+    
+    if (!isNetworkDetection && !hasValidCoordinates) {
+      console.log(`[CampusLocationService] 🔋 Non-network result from tier ${tier} - no valid GPS coordinates to process`);
       return;
+    }
+
+    // For network detection, we can still proceed without GPS coordinates
+    if (isNetworkDetection && !hasValidCoordinates) {
+      console.log(`[CampusLocationService] 🏢 TIER 1 network detection result - proceeding without GPS coordinates (campusStatus via IP)`);
     }
 
     // 🎯 SMART ACTIVITY CHECK: Only write to database for meaningful interactions
     const isTriggeredUpdate = options.isTrigger || false;
     const isSignificantActivity = this.isSignificantUserActivity();
-    const shouldWriteToDatabase = isTriggeredUpdate || isSignificantActivity;
+    const shouldWriteToDatabase = isTriggeredUpdate || isSignificantActivity || isNetworkDetection; // Always write network detection results
 
     const now = Date.now();
 
@@ -3567,6 +3795,8 @@ export class CampusLocationService {
       source,
       tier,
       batteryOptimized,
+      isNetworkDetection,
+      hasValidCoordinates,
       isTriggeredUpdate,
       isSignificantActivity,
       shouldWriteToDatabase,
@@ -3579,34 +3809,45 @@ export class CampusLocationService {
     });
 
     // Always update cache for immediate presence updates, regardless of database write decision
-    const campusStatus = this.getCachedCampusStatus(position) || "unknown";
-    this.setCachedLocation({
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy,
-      timestamp: position.timestamp,
-      campusStatus: campusStatus,
-      source: source,
-      tier: tier,
-      batteryOptimized: batteryOptimized
-    });
+    // For network detection, get campus status from the detection result rather than coordinates
+    let campusStatus = "unknown";
+    if (isNetworkDetection) {
+      // For network detection, the campus status should come from the detection result
+      // We'll determine this in the database write section
+    } else if (hasValidCoordinates) {
+      campusStatus = this.getCachedCampusStatus(position) || "unknown";
+    }
+
+    // Only update location cache if we have valid coordinates
+    if (hasValidCoordinates) {
+      this.setCachedLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: position.timestamp,
+        campusStatus: campusStatus,
+        source: source,
+        tier: tier,
+        batteryOptimized: batteryOptimized
+      });
+    }
 
     // 🟣 Always trigger animation for any location update (cached or database)
     const locationAnimationData = {
-      coordinatesChanged: this.hasLocationChanged(position, 10),
+      coordinatesChanged: hasValidCoordinates ? this.hasLocationChanged(position, 10) : false,
       campusStatusChanged: false, // Status change detection is handled in updateLocationAndPresence
-      hasValidCoordinates: this.isValidCoordinates(position),
+      hasValidCoordinates: hasValidCoordinates,
       hasLastActiveUpdate: shouldWriteToDatabase,
       previousStatus: this.lastKnownCampusStatus || "unknown",
       newStatus: campusStatus,
       source: source,
       tier: tier,
       batteryOptimized: batteryOptimized,
-      coordinates: {
+      coordinates: hasValidCoordinates ? {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy: position.coords.accuracy,
-      }
+      } : null
     };
 
     this.triggerLocationAnimation(
@@ -3621,11 +3862,12 @@ export class CampusLocationService {
       return;
     }
 
-    // Check timing constraints for database writes
+    // Check timing constraints for database writes (but allow immediate network detection writes)
     if (
       this.lastLocationUpdate &&
       now - this.lastLocationUpdate < this.minUpdateInterval &&
-      !isTriggeredUpdate
+      !isTriggeredUpdate &&
+      !isNetworkDetection
     ) {
       console.log(
         `[CampusLocationService] ⏱️ Skipping database write - only ${Math.round(
@@ -3635,8 +3877,8 @@ export class CampusLocationService {
       return;
     }
 
-    // 🚀 SMART DATABASE WRITE: Only for meaningful user activity
-    const debounceTime = isTriggeredUpdate ? 1000 : 10000; // Faster for triggers, slower for activity
+    // 🚀 SMART DATABASE WRITE: Only for meaningful user activity or network detection
+    const debounceTime = (isTriggeredUpdate || isNetworkDetection) ? 1000 : 10000; // Faster for triggers and network detection
 
     this.locationUpdateDebounceTimeout = setTimeout(async () => {
       try {
@@ -3674,74 +3916,93 @@ export class CampusLocationService {
           "[CampusLocationService] 🎯 SMART UPDATE: Writing to database:",
           {
             campusStatus: finalCampusStatus,
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy,
+            lat: hasValidCoordinates ? position.coords.latitude : "N/A (network detection)",
+            lng: hasValidCoordinates ? position.coords.longitude : "N/A (network detection)", 
+            accuracy: hasValidCoordinates ? position.coords.accuracy : "N/A (network detection)",
             source: source,
             tier: tier,
+            isNetworkDetection,
             batteryOptimized: batteryOptimized,
-            reason: isTriggeredUpdate ? "trigger_event" : "user_activity",
+            reason: isTriggeredUpdate ? "trigger_event" : isNetworkDetection ? "network_detection" : "user_activity",
             intervalSinceLastUpdate: this.lastLocationUpdate
               ? `${Math.round((now - this.lastLocationUpdate) / 1000)}s`
               : "first_update",
           }
         );
 
-        // Update user location status in database
+        // 🎯 CRITICAL FIX: Update user location status with proper coordinate handling
+        const locationInfo = hasValidCoordinates ? {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+          source: source,
+          tier: tier,
+          batteryOptimized: batteryOptimized
+        } : {
+          // For network detection, store null coordinates but include detection metadata
+          latitude: null,
+          longitude: null,
+          accuracy: null,
+          timestamp: position.timestamp,
+          source: source,
+          tier: tier,
+          batteryOptimized: batteryOptimized,
+          networkDetection: true,
+          ipOrganization: position.userOrganization || "Unknown"
+        };
+
         const updateResult = await dataManager.updateUserLocationStatus(
           currentUser.uid,
           finalCampusStatus,
-          {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: position.timestamp,
-            source: source,
-            tier: tier,
-            batteryOptimized: batteryOptimized
-          }
+          locationInfo
         );
 
         if (updateResult.success) {
           console.log(
-            "[CampusLocationService] ✅ Smart location update successful"
+            "[CampusLocationService] ✅ Smart location update successful - campus status written to database"
           );
 
-          // Update cache with accurate data
-          this.setCachedLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: position.timestamp,
-            campusStatus: finalCampusStatus,
-            source: source,
-            tier: tier,
-            batteryOptimized: batteryOptimized
-          });
+          // Update cache with accurate data (only if we have coordinates)
+          if (hasValidCoordinates) {
+            this.setCachedLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              timestamp: position.timestamp,
+              campusStatus: finalCampusStatus,
+              source: source,
+              tier: tier,
+              batteryOptimized: batteryOptimized
+            });
+          }
 
           // 🟣 Trigger animation for database write
           const databaseWriteAnimationData = {
-            coordinatesChanged: this.hasLocationChanged(position, 10),
+            coordinatesChanged: hasValidCoordinates ? this.hasLocationChanged(position, 10) : false,
             campusStatusChanged:
               (this.lastKnownCampusStatus || "unknown") !== finalCampusStatus,
-            hasValidCoordinates: this.isValidCoordinates(position),
+            hasValidCoordinates: hasValidCoordinates,
             hasLastActiveUpdate: true, // Database write always updates lastActive
             previousStatus: this.lastKnownCampusStatus || "unknown",
             newStatus: finalCampusStatus,
             source: source,
             tier: tier,
             batteryOptimized: batteryOptimized,
-            coordinates: {
+            coordinates: hasValidCoordinates ? {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
               accuracy: position.coords.accuracy,
-            }
+            } : null
           };
 
           this.triggerLocationAnimation(
             "database_write",
             databaseWriteAnimationData
           );
+
+          // 🎯 CRITICAL: Update known campus status for presence dots
+          this.lastKnownCampusStatus = finalCampusStatus;
 
           // Emit real-time campus presence change event for friends to see updates
           try {
@@ -3751,7 +4012,7 @@ export class CampusLocationService {
             realTimeManager.emitCampusPresenceChange(
               currentUser.uid,
               finalCampusStatus,
-              {
+              hasValidCoordinates ? {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
                 accuracy: position.coords.accuracy,
@@ -3759,6 +4020,16 @@ export class CampusLocationService {
                 source: source,
                 tier: tier,
                 batteryOptimized: batteryOptimized
+              } : {
+                // For network detection, emit without coordinates
+                latitude: null,
+                longitude: null,
+                accuracy: null,
+                timestamp: position.timestamp,
+                source: source,
+                tier: tier,
+                batteryOptimized: batteryOptimized,
+                networkDetection: true
               }
             );
             console.log(
