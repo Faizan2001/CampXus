@@ -1012,11 +1012,11 @@ export class CampusLocationService {
    * @param {string} university - University code (e.g., 'iub', 'du')
    * @returns {Promise<{onCampus: boolean, confidence: number, location?: object}>}
    */
-  async detectCampusPresence(university) {
+  async detectCampusPresence(university, locationData = null) {
     if (typeof logManager !== "undefined") {
       logManager.dev.info(
         "[CampusLocationService] Detecting campus presence for:",
-        { university }
+        { university, hasLocationData: !!locationData }
       );
     }
 
@@ -1031,7 +1031,8 @@ export class CampusLocationService {
             university, 
             tier1Method: recentTier1Result.method,
             tier1Confidence: recentTier1Result.confidence,
-            tier1Age: Date.now() - recentTier1Result.timestamp
+            tier1Age: Date.now() - recentTier1Result.timestamp,
+            providedLocationData: !!locationData
           }
         );
       }
@@ -1044,6 +1045,7 @@ export class CampusLocationService {
         timestamp: Date.now(),
         university: university,
         bypassedBoundaryDetection: true,
+        recursiveCallAvoided: !!locationData, // Track optimization
         tier1Result: {
           method: recentTier1Result.method,
           userIP: recentTier1Result.userIP,
@@ -1060,10 +1062,13 @@ export class CampusLocationService {
       if (typeof logManager !== "undefined") {
         logManager.dev.info(
           "💾 [CampusLocationService] Returning cached campus presence result",
-          { university, fromCache: true }
+          { university, fromCache: true, providedLocationData: !!locationData }
         );
       }
-      return cachedResult;
+      return {
+        ...cachedResult,
+        recursiveCallAvoided: !!locationData // Track optimization even for cached results
+      };
     }
 
     // Check if we're currently throttled
@@ -1077,7 +1082,11 @@ export class CampusLocationService {
       // Return cached result or queue for later processing
       const lastResult = this.campusBoundaryCache.get(cacheKey);
       if (lastResult) {
-        return { ...lastResult, fromThrottle: true };
+        return { 
+          ...lastResult, 
+          fromThrottle: true,
+          recursiveCallAvoided: !!locationData
+        };
       }
     }
 
@@ -1095,19 +1104,26 @@ export class CampusLocationService {
     if (typeof logManager !== "undefined") {
       logManager.dev.info(
         "🎯 [CampusLocationService] No recent TIER 1 ON_CAMPUS result found - proceeding with boundary detection",
-        { university }
+        { university, hasLocationData: !!locationData }
       );
     }
 
-    // Create the detection promise and store it
+    // 🚀 PERFORMANCE FIX: Pass locationData to performBoundaryDetection to avoid recursive calls
     const detectionPromise = this.performBoundaryDetection(
       university,
-      cacheKey
+      cacheKey,
+      locationData // ⚡ Pass location data to avoid duplicate getCurrentLocation calls
     );
     this.activeBoundaryDetections.set(university, detectionPromise);
 
     try {
       const result = await detectionPromise;
+      
+      // Add tracking flag to result if not already present
+      if (result && !result.hasOwnProperty('recursiveCallAvoided')) {
+        result.recursiveCallAvoided = !!locationData;
+      }
+      
       return result;
     } finally {
       // Clean up active detection tracking
@@ -1121,20 +1137,41 @@ export class CampusLocationService {
    * @param {string} cacheKey - Cache key for storing results
    * @returns {Promise<Object>} Campus presence detection result
    */
-  async performBoundaryDetection(university, cacheKey) {
+  async performBoundaryDetection(university, cacheKey, locationData = null) {
     try {
       if (typeof logManager !== "undefined") {
         logManager.dev.info(
           "🎯 [CampusLocationService] Starting boundary detection",
-          { university, cacheKey }
+          { university, cacheKey, hasLocationData: !!locationData }
         );
       }
 
-      // Get current location using the 3-tier system
-      const position = await this.getCurrentLocation(
-        true,
-        "campus-boundary-detection"
-      );
+      // 🚀 PERFORMANCE FIX: Use provided locationData to avoid recursive getCurrentLocation calls
+      let position;
+      if (locationData) {
+        position = locationData;
+        if (typeof logManager !== "undefined") {
+          logManager.dev.info(
+            "⚡ [CampusLocationService] Using provided locationData - avoiding recursive getCurrentLocation call",
+            { 
+              source: locationData.source,
+              tier: locationData.tier,
+              campusStatus: locationData.campusStatus
+            }
+          );
+        }
+      } else {
+        // Fallback to getting fresh location if no data provided
+        if (typeof logManager !== "undefined") {
+          logManager.dev.info(
+            "🔄 [CampusLocationService] No locationData provided - calling getCurrentLocation as fallback"
+          );
+        }
+        position = await this.getCurrentLocation(
+          true,
+          "campus-boundary-detection"
+        );
+      }
 
       if (!position || !position.coords) {
         const error = "Failed to get location for boundary detection";
@@ -1164,7 +1201,8 @@ export class CampusLocationService {
               userOrganization: position.userOrganization,
               userIP: position.userIP,
               method: position.method,
-              confidence: position.confidence
+              confidence: position.confidence,
+              recursiveCallAvoided: !!locationData
             }
           );
         }
@@ -1181,7 +1219,8 @@ export class CampusLocationService {
             method: position.method,
             responseTime: position.responseTime
           },
-          skippedPolygonCheck: true // Flag to indicate we bypassed GPS polygon check
+          skippedPolygonCheck: true, // Flag to indicate we bypassed GPS polygon check
+          recursiveCallAvoided: !!locationData // Flag to track performance optimization
         };
 
         // Cache the network-based result
@@ -1202,7 +1241,8 @@ export class CampusLocationService {
               university, 
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
-              source: position.source
+              source: position.source,
+              recursiveCallAvoided: !!locationData
             }
           );
         }
@@ -1214,6 +1254,7 @@ export class CampusLocationService {
           source: position.source || "invalid-coordinates",
           timestamp: Date.now(),
           university: university,
+          recursiveCallAvoided: !!locationData
         };
       }
 
@@ -1231,6 +1272,7 @@ export class CampusLocationService {
         source: position.source || "boundary-detection",
         timestamp: Date.now(),
         university: university,
+        recursiveCallAvoided: !!locationData // Track performance optimization
       };
 
       // Cache with 1-minute TTL as defined in getCachedBoundaryDetection
@@ -1248,6 +1290,7 @@ export class CampusLocationService {
             confidence: result.confidence,
             source: result.source,
             accuracy: position.coords.accuracy,
+            recursiveCallAvoided: !!locationData
           }
         );
       }
@@ -1263,7 +1306,7 @@ export class CampusLocationService {
       if (typeof logManager !== "undefined") {
         logManager.location.fail(
           "❌ [CampusLocationService] Boundary detection error",
-          { university, error: error.message, stack: error.stack }
+          { university, error: error.message, stack: error.stack, recursiveCallAvoided: !!locationData }
         );
       }
 
@@ -1274,6 +1317,7 @@ export class CampusLocationService {
         source: "boundary-detection-error",
         timestamp: Date.now(),
         university: university,
+        recursiveCallAvoided: !!locationData
       };
 
       // Cache error result briefly to prevent immediate retries
@@ -1977,9 +2021,10 @@ export class CampusLocationService {
               "[CampusLocationService] ✅ 3-tier system provided valid location data - proceeding with campus detection..."
             );
 
-            // Detect campus presence with fresh coordinates
+            // 🚀 PERFORMANCE FIX: Pass freshLocation to avoid recursive getCurrentLocation calls
             const campusResult = await this.detectCampusPresence(
-              currentUser.university || "iub"
+              currentUser.university || "iub",
+              freshLocation  // ⚡ Pass location data to avoid duplicate 3-tier system execution
             );
 
             if (campusResult && campusResult.onCampus !== undefined) {
@@ -2010,6 +2055,7 @@ export class CampusLocationService {
                   )}, ${coordinates.longitude.toFixed(6)}`,
                   tier: freshLocation.tier,
                   cost: freshLocation.cost || 0,
+                  recursiveCallAvoided: true // Track performance optimization
                 }
               );
 
@@ -2051,7 +2097,7 @@ export class CampusLocationService {
           cachedLocation.coordinates
         );
         console.log(
-          "[CampusLocationService] 📍 Using cached location with coordinates for immediate update:",
+          "[CampusLocationService] 💾 Using cached location with coordinates for immediate update:",
           {
             campusStatus: cachedLocation.campusStatus,
             age:
@@ -2098,6 +2144,7 @@ export class CampusLocationService {
         hasLastActiveUpdate: true, // We're always updating lastActive in immediate presence
         previousStatus: "unknown",
         newStatus: cachedLocation ? cachedLocation.campusStatus : "unknown",
+        recursiveCallAvoided: true, // Track performance optimization
         // 🔧 FIX: Include actual coordinate data for UI animations
         coordinates:
           cachedLocation &&
@@ -3843,6 +3890,7 @@ export class CampusLocationService {
       source: source,
       tier: tier,
       batteryOptimized: batteryOptimized,
+      recursiveCallAvoided: true, // Track performance optimization
       coordinates: hasValidCoordinates ? {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -3903,8 +3951,8 @@ export class CampusLocationService {
           return;
         }
 
-        // Detect campus presence
-        const campusPresenceResult = await this.detectCampusPresence("iub");
+        // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
+        const campusPresenceResult = await this.detectCampusPresence("iub", position);
         const finalCampusStatus =
           campusPresenceResult?.onCampus !== undefined
             ? campusPresenceResult.onCampus
@@ -3923,6 +3971,7 @@ export class CampusLocationService {
             tier: tier,
             isNetworkDetection,
             batteryOptimized: batteryOptimized,
+            recursiveCallAvoided: true,
             reason: isTriggeredUpdate ? "trigger_event" : isNetworkDetection ? "network_detection" : "user_activity",
             intervalSinceLastUpdate: this.lastLocationUpdate
               ? `${Math.round((now - this.lastLocationUpdate) / 1000)}s`
@@ -3989,6 +4038,7 @@ export class CampusLocationService {
             source: source,
             tier: tier,
             batteryOptimized: batteryOptimized,
+            recursiveCallAvoided: true,
             coordinates: hasValidCoordinates ? {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -4178,7 +4228,8 @@ export class CampusLocationService {
           "periodic_update"
         );
         if (position) {
-          const campusPresenceResult = await this.detectCampusPresence("iub");
+          // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
+          const campusPresenceResult = await this.detectCampusPresence("iub", position);
           const campusStatus =
             campusPresenceResult?.onCampus !== undefined
               ? campusPresenceResult.onCampus
@@ -4188,7 +4239,12 @@ export class CampusLocationService {
 
           console.log(
             "[CampusLocationService] Periodic update - Campus status:",
-            campusStatus
+            {
+              campusStatus,
+              tier: position.tier,
+              source: position.source,
+              recursiveCallAvoided: true
+            }
           );
 
           const updateResult = await dataManager.updateUserLocationStatus(
@@ -5186,8 +5242,8 @@ export class CampusLocationService {
         return;
       }
 
-      // Determine campus status
-      const campusPresenceResult = await this.detectCampusPresence("iub");
+      // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
+      const campusPresenceResult = await this.detectCampusPresence("iub", position);
       const newCampusStatus =
         campusPresenceResult?.onCampus !== undefined
           ? campusPresenceResult.onCampus
@@ -5206,6 +5262,7 @@ export class CampusLocationService {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy: position.coords.accuracy + "m",
+        recursiveCallAvoided: true // Track optimization
       });
 
       // Update cached status
@@ -5268,6 +5325,7 @@ export class CampusLocationService {
               campusStatusChanged: updateWorthiness.campusStatusChanged,
               hasValidCoordinates: true,
               hasLastActiveUpdate: true, // We're updating lastActive in database
+              recursiveCallAvoided: true // Track performance optimization
             });
           }
         }
@@ -5564,8 +5622,15 @@ export class CampusLocationService {
           priorityMode,
         });
 
-        // Start presence detection
-        const presenceResult = await this.detectCampusPresence("iub");
+        // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
+        const presenceResult = await this.detectCampusPresence("iub", position);
+
+        console.log("🎯 Initialization presence detection completed:", {
+          campusStatus: presenceResult?.onCampus ? "on_campus" : "off_campus",
+          confidence: presenceResult?.confidence,
+          source: presenceResult?.source,
+          recursiveCallAvoided: true
+        });
 
         // For fresh data priority, emit fresh data ready event
         if (priorityMode === "fresh_data_priority") {
