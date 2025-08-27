@@ -415,6 +415,14 @@ class AuthManager {
       // *** Immediately set the profile so UI subscribers in menu.js fire ***
       currentUser.setProfile(profile);
 
+      // 🚀 IMMEDIATE PRESENCE UPDATE: Update lastActive immediately on successful login
+      try {
+        await dataManager.updateUserLastActive(user.uid);
+        console.log("⚡ Immediate lastActive update on login successful");
+      } catch (lastActiveError) {
+        console.warn("⚠️ Failed to update lastActive on login (non-critical):", lastActiveError);
+      }
+
       // 3. Success! Hide modal and trigger success event.
       console.log(`🎉 Successfully signed in user: ${email}`);
       this.hideAuthModal();

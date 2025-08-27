@@ -27,10 +27,12 @@ export class PresenceDot {
     if (minutesAgo < 1) return "1m";
     if (minutesAgo < 2) return "2m";
     if (minutesAgo < 3) return "3m";
+    if (minutesAgo < 4) return "4m";  // 🛠️ FIX: Added missing "4m" case
     if (minutesAgo < 5) return "5m";
     if (minutesAgo < 6) return "6m";
     if (minutesAgo < 7) return "7m";
     if (minutesAgo < 8) return "8m";
+    if (minutesAgo < 9) return "9m";  // 🛠️ FIX: Added missing "9m" case
     if (minutesAgo < 10) return "10m";
     if (minutesAgo < 15) return "15m";
     if (minutesAgo < 20) return "20m";

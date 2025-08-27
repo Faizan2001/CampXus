@@ -496,6 +496,18 @@ class SPARouter {
 
     console.log(`🚀 Navigating to: ${route}`);
 
+    // 🚀 IMMEDIATE PRESENCE UPDATE: Update lastActive on SPA navigation to key pages
+    if (currentUser.isLoggedIn() && (route === 'home' || route === 'friends')) {
+      try {
+        // Import DataService dynamically to avoid circular dependencies
+        const { dataManager } = await import("../services/data/DataService.js");
+        await dataManager.updateUserLastActive(currentUser.user.uid);
+        console.log(`⚡ Immediate lastActive update on navigation to ${route}`);
+      } catch (lastActiveError) {
+        console.warn(`⚠️ Failed to update lastActive on ${route} navigation (non-critical):`, lastActiveError);
+      }
+    }
+
     try {
       // 🎯 LEARNING: Show the loading indicator at the start of the navigation process.
       this.showLoading();

@@ -209,8 +209,14 @@ export class CampusLocationService {
     this.isUserCurrentlyActive = false;
     this.lastActivityDetected = null;
     this.activityHeartbeatInterval = null;
-    this.minActivityInterval = 60000; // OPTIMIZED: Activity updates every 60 seconds for better battery life
     this.isUpdatingActivity = false; // Prevent concurrent activity updates
+    
+    // 🚀 ADAPTIVE HEARTBEAT SYSTEM - Smart cost optimization
+    this.activeHeartbeatInterval = 15000;   // 15s when user is actively clicking/scrolling
+    this.idleHeartbeatInterval = 60000;     // 60s when user is idle but tab visible  
+    this.currentHeartbeatInterval = 60000;  // Current interval being used
+    this.activityState = 'idle';            // 'active', 'idle', 'background'
+    this.lastStateChange = Date.now();      // Track when state changed for cost monitoring
 
     // 🔧 MOBILE LIFECYCLE MANAGEMENT PROPERTIES
     this.isMobile = this.detectMobileBrowser();
@@ -4664,49 +4670,70 @@ export class CampusLocationService {
    */
   initializeActivityDetection() {
     logManager.dev.debug(
-      "[CampusLocationService] Initializing activity detection..."
+      "[CampusLocationService] Initializing ADAPTIVE activity detection..."
     );
 
-    // 🔧 FIX: Mark page load/initialization as user activity
+    // 🛠️ FIX: Mark page load/initialization as user activity  
     this.isUserCurrentlyActive = true;
     this.lastActivityDetected = Date.now();
     console.log(
       "[CampusLocationService] 🚀 Page load detected - marked as initial user activity"
     );
+    
+    // 🚀 ADAPTIVE: Switch to active state on page load
+    this.switchToActiveState();
 
-    // Page Visibility API - detect when user switches tabs/apps
+    // 🚀 ADAPTIVE: Page Visibility API - smart state switching
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
+        // User returned to tab - immediate activity update + switch to active
         this.isUserCurrentlyActive = true;
         this.lastActivityDetected = Date.now();
+        this.switchToActiveState();
         console.log(
-          "[CampusLocationService] 👁️ User returned to tab - marked as active"
+          "[CampusLocationService] 👁️ User returned to tab - ACTIVE state activated"
+        );
+      } else {
+        // Tab hidden - switch to background (stops heartbeat entirely)
+        this.switchToBackgroundState();
+        console.log(
+          "[CampusLocationService] 👁️ Tab hidden - BACKGROUND state activated"
         );
       }
     });
 
-    // Passive activity listeners - battery efficient, no preventDefault
+    // 🚀 ADAPTIVE: Activity events trigger active state
     const activityEvents = ["mousedown", "keydown", "scroll", "touchstart"];
-    const throttledActivityHandler = this.throttle(() => {
+    const adaptiveActivityHandler = this.throttle(() => {
       this.isUserCurrentlyActive = true;
       this.lastActivityDetected = Date.now();
-    }, 5000); // Throttle to max once per 5 seconds
+      
+      // 🚀 ADAPTIVE: Switch to active state on user interaction
+      this.switchToActiveState();
+    }, 2000); // Reduced throttle to 2 seconds for better responsiveness
 
     activityEvents.forEach((event) => {
-      document.addEventListener(event, throttledActivityHandler, {
+      document.addEventListener(event, adaptiveActivityHandler, {
         passive: true,
         capture: false,
       });
     });
 
     console.log(
-      "[CampusLocationService] ✅ Activity detection initialized with passive listeners"
+      "[CampusLocationService] ✅ ADAPTIVE activity detection initialized with smart state switching"
     );
   }
 
   /**
    * Start activity heartbeat system (30-second intervals)
    * Separate from location tracking for better battery efficiency
+   */
+  /**
+   * 🚀 ADAPTIVE ACTIVITY HEARTBEAT - Smart cost optimization for 3000+ users
+   * Dynamically adjusts update frequency based on user activity state:
+   * - Active: 15s intervals (clicking/scrolling)
+   * - Idle: 60s intervals (tab visible, no activity) 
+   * - Background: Stopped entirely (tab hidden)
    */
   startActivityHeartbeat() {
     if (this.activityHeartbeatInterval) {
@@ -4717,7 +4744,7 @@ export class CampusLocationService {
     }
 
     console.log(
-      "[CampusLocationService] Starting activity heartbeat (60s intervals - optimized for battery life)..."
+      `[CampusLocationService] 🚀 Starting ADAPTIVE activity heartbeat (${this.currentHeartbeatInterval/1000}s intervals - state: ${this.activityState})`
     );
 
     this.activityHeartbeatInterval = setInterval(async () => {
@@ -4743,7 +4770,7 @@ export class CampusLocationService {
             // Only log activity heartbeat in development to reduce console spam
             if (window.location.hostname === "localhost") {
               console.log(
-                "[CampusLocationService] 💓 Activity heartbeat - updating user last active"
+                `[CampusLocationService] 💓 ADAPTIVE heartbeat (${this.activityState}) - updating user last active`
               );
             }
             await dataManager.updateUserLastActive(currentUser.uid);
@@ -4762,21 +4789,23 @@ export class CampusLocationService {
             }
           }
 
-          // Reset activity flag after successful update
-          this.isUserCurrentlyActive = false;
+          // 🔄 ADAPTIVE LOGIC: Switch to idle state after successful activity update
+          if (this.activityState === 'active') {
+            this.switchToIdleState();
+          }
         } catch (error) {
           console.error(
-            "[CampusLocationService] Error in activity heartbeat:",
+            "[CampusLocationService] Error in adaptive activity heartbeat:",
             error
           );
         } finally {
           this.isUpdatingActivity = false;
         }
       }
-    }, this.minActivityInterval); // 60 seconds (optimized)
+    }, this.currentHeartbeatInterval); // 🚀 ADAPTIVE: Uses current adaptive interval
 
     logManager.dev.debug(
-      "[CampusLocationService] ✅ Activity heartbeat started"
+      `[CampusLocationService] ✅ Adaptive activity heartbeat started (${this.activityState} mode)`
     );
   }
 
@@ -4791,6 +4820,72 @@ export class CampusLocationService {
         "[CampusLocationService] Activity heartbeat stopped"
       );
     }
+  }
+
+  /**
+   * 🚀 ADAPTIVE STATE MANAGEMENT - Smart cost optimization
+   * Switch to ACTIVE state: 15-second intervals for responsive presence updates
+   */
+  switchToActiveState() {
+    if (this.activityState === 'active') return; // Already active
+
+    this.activityState = 'active';
+    this.currentHeartbeatInterval = this.activeHeartbeatInterval;
+    this.lastStateChange = Date.now();
+    
+    console.log(
+      `[CampusLocationService] 🟢 SWITCHING TO ACTIVE STATE (${this.activeHeartbeatInterval/1000}s intervals)`
+    );
+    
+    this.restartHeartbeatWithNewInterval();
+  }
+
+  /**
+   * 🚀 ADAPTIVE STATE MANAGEMENT - Smart cost optimization  
+   * Switch to IDLE state: 60-second intervals for battery efficiency
+   */
+  switchToIdleState() {
+    if (this.activityState === 'idle') return; // Already idle
+
+    this.activityState = 'idle';
+    this.currentHeartbeatInterval = this.idleHeartbeatInterval;
+    this.lastStateChange = Date.now();
+    
+    console.log(
+      `[CampusLocationService] 🟡 SWITCHING TO IDLE STATE (${this.idleHeartbeatInterval/1000}s intervals)`
+    );
+    
+    this.restartHeartbeatWithNewInterval();
+  }
+
+  /**
+   * 🚀 ADAPTIVE STATE MANAGEMENT - Smart cost optimization
+   * Switch to BACKGROUND state: Stop heartbeat entirely to minimize costs  
+   */
+  switchToBackgroundState() {
+    if (this.activityState === 'background') return; // Already background
+
+    this.activityState = 'background';
+    this.lastStateChange = Date.now();
+    
+    console.log(
+      "[CampusLocationService] 🔴 SWITCHING TO BACKGROUND STATE (heartbeat stopped)"
+    );
+    
+    this.stopActivityHeartbeat();
+  }
+
+  /**
+   * 🚀 ADAPTIVE HELPER - Restart heartbeat with new interval
+   * Used when switching between active/idle states
+   */
+  restartHeartbeatWithNewInterval() {
+    this.stopActivityHeartbeat();
+    
+    // Small delay to ensure clean restart
+    setTimeout(() => {
+      this.startActivityHeartbeat();
+    }, 100);
   }
 
   /**
