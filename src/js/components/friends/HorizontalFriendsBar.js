@@ -5009,11 +5009,13 @@ export class HorizontalFriendsBar {
         newStatus,
       } = locationUpdate;
 
-      // ✅ USER REQUIREMENT: Animation only when BOTH lastActive AND coordinates are updated AND coordinates are not null
-      if (!hasValidCoordinates || !locationUpdate.coordinates) {
+      // 🔧 TIER 1 FIX: Allow animations for campus status changes even without GPS coordinates
+      // TIER 1 network detection can detect campus presence without coordinates
+      if (!campusStatusChanged && (!hasValidCoordinates || !locationUpdate.coordinates)) {
         console.log(
-          "[HorizontalFriendsBar] 🛑 Animation skipped - coordinates are null/invalid",
+          "[HorizontalFriendsBar] 🛑 Animation skipped - no campus status change and coordinates are null/invalid",
           {
+            campusStatusChanged,
             hasValidCoordinates,
             hasCoordinatesObject: !!locationUpdate.coordinates,
             coordinates: locationUpdate.coordinates,
