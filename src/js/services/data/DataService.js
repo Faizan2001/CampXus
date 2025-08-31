@@ -2939,13 +2939,9 @@ class DataManager {
               // Debounce cache sync to prevent excessive operations
               this.debounceCacheSync(userId);
             } else if (hasSignificantChange && !isCurrentUserProfile) {
-              console.log(
-                `🔒 Profile change detected for ${userId}, but skipping cache sync (not current user)`
-              );
+              // Skipping cache sync (not current user)
             } else if (isQuickAccessUpdate) {
-              console.log(
-                "⭐ Skipping cache sync for Quick Access update to prevent cascading"
-              );
+              // Skipping cache sync for Quick Access update to prevent cascading
             }
 
             // Call the callback with the fresh profile data
@@ -3588,14 +3584,7 @@ class DataManager {
 
       await updateDoc(userRef, updates);
 
-      console.log(
-        `✅ [DataManager] Updated location status for user ${userId}: ${campusStatus}`,
-        coordinatesForFirestore
-          ? `at coordinates ${coordinatesForFirestore.latitude}, ${coordinatesForFirestore.longitude} (accuracy: ${coordinatesForFirestore.accuracy}m)`
-          : isNetworkDetection
-          ? `via network detection (${coordinates?.ipOrganization || "Unknown"})`
-          : "without coordinates"
-      );
+      // Updated location status in database
       return { success: true };
     } catch (error) {
       console.error(
@@ -3630,17 +3619,13 @@ class DataManager {
 
       if (!this.isOnline) {
         this.pendingOperations.push(() => this.updateUserLastActive(userId));
-        console.log(
-          `📶 [DataManager] Activity update cached for user ${userId} (offline)`
-        );
+      // Activity update cached (offline)
         return { success: true, cached: true };
       }
 
       await updateDoc(userRef, updates);
 
-      console.log(
-        `✅ [DataManager] Updated last active timestamp for user ${userId}`
-      );
+      // Updated last active timestamp
       return { success: true };
     } catch (error) {
       console.error(`❌ [DataManager] Error updating user last active:`, error);

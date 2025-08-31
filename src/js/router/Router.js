@@ -105,10 +105,9 @@ class SPARouter {
    * 🎯 Learning: This sets up all the event listeners and prepares the router
    */
   init() {
-    console.log("🚀 Initializing SPA Router...");
+    // Initialize SPA Router
 
     // Find the main content container
-    console.log("🔍 Looking for .main-content container...");
     this.mainContentContainer = document.querySelector(".main-content");
     if (!this.mainContentContainer) {
       console.error(
@@ -124,7 +123,7 @@ class SPARouter {
       );
       return;
     }
-    console.log("✅ Found main content container:", this.mainContentContainer);
+    // Found main content container
 
     // Create loading indicator
     this.createLoadingIndicator();
@@ -136,10 +135,9 @@ class SPARouter {
     this.setupBrowserNavigation();
 
     // Load the initial page based on URL
-    console.log("📄 Loading initial page...");
     // this.loadInitialPage(); // 🎯 FIXED: We now call this from spa-init.js
 
-    console.log("✅ SPA Router initialized successfully!");
+    // SPA Router initialized
   }
 
   /**
@@ -397,7 +395,7 @@ class SPARouter {
       if (routeElement) {
         event.preventDefault(); // Stop the normal link behavior
         const route = routeElement.getAttribute("data-spa-route");
-        console.log(`🖱️ Navigation clicked: ${route}`);
+        // Navigation clicked
         this.navigateTo(route);
       }
     });
@@ -409,7 +407,7 @@ class SPARouter {
    */
   setupBrowserNavigation() {
     window.addEventListener("popstate", (event) => {
-      console.log("🔄 Browser navigation detected", event.state);
+      // Browser navigation detected
 
       // Try to get route from event state first, then from URL hash
       let route = event.state?.route;
@@ -418,19 +416,19 @@ class SPARouter {
         route = hash && this.routes[hash] ? hash : "home";
       }
 
-      console.log(`🧭 Navigating via browser to: ${route}`);
+      // Navigating via browser
       this.loadPage(route, false); // Don't update history again
     });
 
     // Also listen for hash changes (in case someone manually types a URL)
     window.addEventListener("hashchange", (event) => {
-      console.log("🔗 Hash change detected", event);
+      // Hash change detected
       const hash = window.location.hash.slice(1);
       const route = hash && this.routes[hash] ? hash : "home";
 
       // Only navigate if it's different from current page
       if (route !== this.currentPage) {
-        console.log(`🎯 Hash navigation to: ${route}`);
+        // Hash navigation
         this.loadPage(route, false);
       }
     });
@@ -441,17 +439,16 @@ class SPARouter {
    * 🎯 Learning: When someone visits a direct link, show the right page
    */
   loadInitialPage() {
-    console.log("📄 loadInitialPage() called");
+    // loadInitialPage called
 
     // Parse the current URL to determine which page to load
     const hash = window.location.hash.slice(1); // Remove the # symbol
     const route = hash && this.routes[hash] ? hash : "home";
 
-    console.log(`🎯 Initial page load: hash="${hash}", route="${route}"`);
-    console.log("🗺️ Available routes:", Object.keys(this.routes));
+    // Initial page load
 
     // Load the determined route without updating history (since we're loading from URL)
-    console.log(`🚀 Calling navigateTo("${route}") for initial load...`);
+    // Navigating for initial load
     this.navigateTo(route, false);
   }
 
@@ -494,7 +491,7 @@ class SPARouter {
       }
     }
 
-    console.log(`🚀 Navigating to: ${route}`);
+    // Navigating to route
 
     // 🚀 IMMEDIATE PRESENCE UPDATE: Update lastActive on SPA navigation to key pages
     if (currentUser.isLoggedIn() && (route === 'home' || route === 'friends')) {
@@ -560,8 +557,7 @@ class SPARouter {
       this._abortController = new AbortController();
       const { signal } = this._abortController;
 
-      console.log(`🔄 Loading page: ${route}, current: ${this.currentPage}`);
-      console.log(`📋 Route config:`, {
+      // Loading page and route config
         title: routeData.title,
         template: routeData.template,
         cssFiles: routeData.cssFiles?.length || 0,
@@ -693,23 +689,18 @@ class SPARouter {
       (window.location.port && parseInt(window.location.port) >= 4173);
 
     if (isBuiltMode) {
-      console.log(
-        "🏗️ Production/preview mode detected - skipping dynamic CSS loading (CSS is bundled by Vite)"
-      );
+      // Production/preview mode: CSS bundled by Vite
       return;
     }
 
     // 🔧 Development mode: Load CSS dynamically for hot reloading
-    console.log(
-      "🔧 Development mode - loading CSS files dynamically:",
-      cssFiles
-    );
+    // Development mode - loading CSS files dynamically
 
     const promises = cssFiles.map((cssFile) => {
       return new Promise((resolve, reject) => {
         // Check if already loaded
         if (document.querySelector(`link[href="${cssFile}"]`)) {
-          console.log(`✅ CSS already loaded: ${cssFile}`);
+          // CSS already loaded
           resolve();
           return;
         }
@@ -718,7 +709,7 @@ class SPARouter {
         link.rel = "stylesheet";
         link.href = cssFile;
         link.onload = () => {
-          console.log(`✅ CSS loaded successfully: ${cssFile}`);
+          // CSS loaded successfully
           resolve();
         };
         link.onerror = (error) => {
@@ -771,9 +762,7 @@ class SPARouter {
       );
     }
 
-    console.log(
-      `✅ Template loaded successfully: ${url} (${html.length} chars)`
-    );
+    // Template loaded successfully
     return html;
   }
 

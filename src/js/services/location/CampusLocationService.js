@@ -71,7 +71,7 @@ export class CampusLocationService {
    * Emits campus-presence:loading before each poll so UI can show spinner overlay,
    * and ensures database writes via processFreshLocation.
    */
-  startPresencePolling(intervalMs = 30000) {
+  startPresencePolling(intervalMs = 20000) {
     try {
       // If already started, adjust interval if needed
       if (this.presencePollingIntervalId) {
@@ -363,7 +363,7 @@ export class CampusLocationService {
 
     // Presence polling (explicit interval regardless of page)
     this.presencePollingIntervalId = null;
-    this.presencePollingIntervalMs = 30000;
+    this.presencePollingIntervalMs = 20000;
     this._isPresencePollRunning = false;
 
     // 🎯 STRATEGIC GOOGLE API TRIGGERS: Only use paid API for these critical scenarios
@@ -2174,9 +2174,7 @@ export class CampusLocationService {
         "../../components/friends/HorizontalFriendsBar.js"
       );
 
-      console.log(
-        `[CampusLocationService] 🟣 Triggering location animation (${source})`
-      );
+      // Triggering location animation
 
       // Pass proper data structure to HorizontalFriendsBar
       if (locationData) {
@@ -3189,7 +3187,7 @@ export class CampusLocationService {
 
     // 🚀 SENIOR DEV FIX: Use 3-tier system with network-first optimization during intervals
     const intervalId = setInterval(async () => {
-      console.log("[CampusLocationService] 📍 Performing scheduled 3-tier location check...");
+    // Performing scheduled 3-tier location check
       
       try {
         // 🎯 CRITICAL FIX: Use optimized 3-tier system instead of raw GPS
@@ -3604,22 +3602,7 @@ export class CampusLocationService {
 
     const now = Date.now();
 
-    console.log("[CampusLocationService] 🎯 Smart location update decision:", {
-      source,
-      tier,
-      batteryOptimized,
-      isNetworkDetection,
-      hasValidCoordinates,
-      isTriggeredUpdate,
-      isSignificantActivity,
-      shouldWriteToDatabase,
-      timeSinceLastActivity: this.lastActivityDetected
-        ? Math.round((now - this.lastActivityDetected) / 1000) + "s"
-        : "none",
-      timeSinceLastUpdate: this.lastLocationUpdate
-        ? Math.round((now - this.lastLocationUpdate) / 1000) + "s"
-        : "none",
-    });
+    // Smart location update decision (omitted verbose console output)
 
     // Always update cache for immediate presence updates, regardless of database write decision
     // For network detection, get campus status from the detection result rather than coordinates
@@ -3670,9 +3653,7 @@ export class CampusLocationService {
     );
 
     if (!shouldWriteToDatabase) {
-      console.log(
-        "[CampusLocationService] 🎯 SMART SKIP: Not writing to database - user is passively browsing"
-      );
+      // SMART SKIP: Not writing to database - user is passively browsing
       return;
     }
 
@@ -3683,11 +3664,7 @@ export class CampusLocationService {
       !isTriggeredUpdate &&
       !isNetworkDetection
     ) {
-      console.log(
-        `[CampusLocationService] ⏱️ Skipping database write - only ${Math.round(
-          (now - this.lastLocationUpdate) / 1000
-        )}s since last write (min: 60s)`
-      );
+      // Skipping database write due to min interval
       return;
     }
 
@@ -3697,9 +3674,7 @@ export class CampusLocationService {
     this.locationUpdateDebounceTimeout = setTimeout(async () => {
       try {
         if (this.isUpdatingLocation) {
-          console.log(
-            "[CampusLocationService] ⚠️ Location update already in progress, skipping"
-          );
+          // Location update already in progress, skipping
           return;
         }
 
@@ -3726,24 +3701,7 @@ export class CampusLocationService {
               : "off_campus"
             : "unknown";
 
-        console.log(
-          "[CampusLocationService] 🎯 SMART UPDATE: Writing to database:",
-          {
-            campusStatus: finalCampusStatus,
-            lat: hasValidCoordinates ? position.coords.latitude : "N/A (network detection)",
-            lng: hasValidCoordinates ? position.coords.longitude : "N/A (network detection)", 
-            accuracy: hasValidCoordinates ? position.coords.accuracy : "N/A (network detection)",
-            source: source,
-            tier: tier,
-            isNetworkDetection,
-            batteryOptimized: batteryOptimized,
-            recursiveCallAvoided: true,
-            reason: isTriggeredUpdate ? "trigger_event" : isNetworkDetection ? "network_detection" : "user_activity",
-            intervalSinceLastUpdate: this.lastLocationUpdate
-              ? `${Math.round((now - this.lastLocationUpdate) / 1000)}s`
-              : "first_update",
-          }
-        );
+        // SMART UPDATE: Writing to database (details omitted for console noise)
 
         // 🎯 CRITICAL FIX: Update user location status with proper coordinate handling
         const locationInfo = hasValidCoordinates ? {
@@ -3774,9 +3732,7 @@ export class CampusLocationService {
         );
 
         if (updateResult.success) {
-          console.log(
-            "[CampusLocationService] ✅ Smart location update successful - campus status written to database"
-          );
+          // Smart location update successful
 
           // Update cache with accurate data (only if we have coordinates)
           if (hasValidCoordinates) {
@@ -4503,9 +4459,7 @@ export class CampusLocationService {
       return;
     }
 
-    console.log(
-      `[CampusLocationService] 🚀 Starting ADAPTIVE activity heartbeat (${this.currentHeartbeatInterval/1000}s intervals - state: ${this.activityState})`
-    );
+    // Start adaptive activity heartbeat
 
     this.activityHeartbeatInterval = setInterval(async () => {
       if (this.isUserCurrentlyActive) {
@@ -4527,12 +4481,7 @@ export class CampusLocationService {
           const { currentUser } = await import("../../store/userStore.js");
 
           if (currentUser?.uid) {
-            // Only log activity heartbeat in development to reduce console spam
-            if (window.location.hostname === "localhost") {
-              console.log(
-                `[CampusLocationService] 💓 ADAPTIVE heartbeat (${this.activityState}) - updating user last active`
-              );
-            }
+            // Updating user last active (heartbeat)
             await dataManager.updateUserLastActive(currentUser.uid);
 
             // Emit activity change event for real-time updates
@@ -4593,9 +4542,7 @@ export class CampusLocationService {
     this.currentHeartbeatInterval = this.activeHeartbeatInterval;
     this.lastStateChange = Date.now();
     
-    console.log(
-      `[CampusLocationService] 🟢 SWITCHING TO ACTIVE STATE (${this.activeHeartbeatInterval/1000}s intervals)`
-    );
+    // Switching to ACTIVE state
     
     this.restartHeartbeatWithNewInterval();
   }
@@ -4611,9 +4558,7 @@ export class CampusLocationService {
     this.currentHeartbeatInterval = this.idleHeartbeatInterval;
     this.lastStateChange = Date.now();
     
-    console.log(
-      `[CampusLocationService] 🟡 SWITCHING TO IDLE STATE (${this.idleHeartbeatInterval/1000}s intervals)`
-    );
+    // Switching to IDLE state
     
     this.restartHeartbeatWithNewInterval();
   }
@@ -4628,9 +4573,7 @@ export class CampusLocationService {
     this.activityState = 'background';
     this.lastStateChange = Date.now();
     
-    console.log(
-      "[CampusLocationService] 🔴 SWITCHING TO BACKGROUND STATE (heartbeat stopped)"
-    );
+    // Switching to BACKGROUND state (heartbeat stopped)
     
     this.stopActivityHeartbeat();
   }
@@ -4954,14 +4897,7 @@ export class CampusLocationService {
       return false;
     }
 
-    console.log(
-      "[CampusLocationService] ✅ Coordinates validated successfully:",
-      {
-        latitude,
-        longitude,
-        accuracy: accuracy + "m",
-      }
-    );
+    // Coordinates validated successfully
 
     return true;
   }
@@ -4972,9 +4908,7 @@ export class CampusLocationService {
   hasLocationChanged(newPosition, thresholdMeters = 10) {
     // Always return true if no previous location cached
     if (!this.lastSignificantLocation) {
-      console.log(
-        "[CampusLocationService] 📍 No previous location - treating as changed"
-      );
+      // No previous location - treating as changed
       return true;
     }
 
@@ -5520,9 +5454,7 @@ export class CampusLocationService {
    * 🚀 FRESH DATA PRIORITY: Emit loading event for presence dots
    */
   emitPresenceDataLoading() {
-    console.log(
-      "📡 [CampusLocationService] Emitting presence data loading event"
-    );
+    // Emitting presence data loading event
     // New event for modern components
     document.dispatchEvent(
       new CustomEvent("campus-presence:loading", {

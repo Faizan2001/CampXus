@@ -183,9 +183,7 @@ export class ScheduleStorageService {
           callback(scheduleData);
         }
 
-        console.log(
-          "🔄 Real-time schedule update received via RealtimeService"
-        );
+        // Real-time schedule update received via RealtimeService
       }
     );
 
@@ -194,7 +192,7 @@ export class ScheduleStorageService {
       !realTimeManager.isListening ||
       realTimeManager.currentUserId !== userId
     ) {
-      console.log("🚀 Starting RealtimeService for schedule sync");
+      // Starting RealtimeService for schedule sync
       realTimeManager.startListening(userId);
     }
 

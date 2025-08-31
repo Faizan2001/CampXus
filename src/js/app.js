@@ -146,9 +146,9 @@ async function initializeSPA() {
   // Start background initialization without blocking app startup
   initializeCampusPresenceInBackground();
 
-  // Ensure presence polling runs every 30s across the app lifespan
+  // Ensure presence polling runs every 20s across the app lifespan
   try {
-    campusLocationService.startPresencePolling(30000);
+    campusLocationService.startPresencePolling(20000);
   } catch (e) {
     console.warn("Presence polling start failed (non-critical):", e?.message || e);
   }

@@ -628,7 +628,7 @@ export class HorizontalFriendsBar {
       return;
     }
 
-    console.log("🎨 Rendering HorizontalFriendsBar...");
+    // Rendering HorizontalFriendsBar
 
     // Clear existing avatars
     this.userContainer.innerHTML = "";
@@ -670,7 +670,7 @@ export class HorizontalFriendsBar {
       this.loadingState.user || false
     );
 
-    console.log("[HorizontalFriendsBar] Creating user presence dot:", {
+    // Creating user presence dot
       hasLastActive: !!systemInfo.lastActive,
       hasLocation: !!systemInfo.lastKnownLocation,
       hasLocationSharing: systemInfo.locationSharingEnabled,
@@ -702,9 +702,7 @@ export class HorizontalFriendsBar {
     const userElement = container.querySelector('[data-friend-id="user"]');
     if (userElement) {
       this.avatarElements.set("user", userElement);
-      console.log(
-        "👤 User avatar rendered with presence dot and location indicator"
-      );
+      // User avatar rendered with presence dot and location indicator
 
       // Set up location update animation listener
       this.setupUserLocationUpdateListener(userElement);
@@ -776,9 +774,7 @@ export class HorizontalFriendsBar {
       this.avatarElements.set(friend.friendId || friend.userId, friendElement);
     });
 
-    console.log(
-      `👥 ${this.quickAccessFriends.length} friend avatars rendered with privacy status and presence dots`
-    );
+    // Friend avatars rendered with privacy status and presence dots
   }
 
   /**
@@ -796,7 +792,7 @@ export class HorizontalFriendsBar {
     `;
 
     container.insertAdjacentHTML("beforeend", emptyStateHtml);
-    console.log("🏳️ Empty state rendered");
+    // Empty state rendered
   }
 
   /**
@@ -2101,9 +2097,7 @@ export class HorizontalFriendsBar {
     );
     this.realTimeUnsubscribers.push(activityUnsubscriber);
 
-    console.log(
-      "✅ Smart real-time listeners set up successfully with optimized privacy, presence, and activity updates"
-    );
+    // Smart real-time listeners set up successfully
 
     // 🚀 FRESH DATA PRIORITY: Set up Campus Presence fresh data event listeners
     this.setupFreshDataEventListeners();
@@ -2114,7 +2108,8 @@ export class HorizontalFriendsBar {
    * Handles loading states and fresh data updates for presence dots
    */
   setupFreshDataEventListeners() {
-    console.log("📡 Setting up Campus Presence fresh data event listeners...");
+    if (this._freshDataListenersSetup) return; // Idempotent
+    // Setting up Campus Presence fresh data event listeners
 
     // Track whether we're currently waiting for fresh data (user only by default)
     this.loadingState.user =
@@ -2122,10 +2117,7 @@ export class HorizontalFriendsBar {
 
     // 🎯 NEW: Listen for campus presence loading events (from app.js background init)
     document.addEventListener("campus-presence:loading", (event) => {
-      console.log(
-        "🔄 [HorizontalFriendsBar] Campus presence loading started:",
-        event.detail
-      );
+      // Campus presence loading started
       const priority = event?.detail?.priority || "fresh_data";
       if (priority === "presence_poll") {
         this.loadingState.user = true;
@@ -2143,45 +2135,37 @@ export class HorizontalFriendsBar {
 
     // 🎯 NEW: Listen for campus presence ready events (from app.js background init)
     document.addEventListener("campus-presence:ready", (event) => {
-      console.log(
-        "✅ [HorizontalFriendsBar] Campus presence ready:",
-        event.detail
-      );
+      // Campus presence ready
       this.loadingState.user = false;
 
       if (event.detail.freshDataLoaded) {
-        console.log("🎯 Fresh data was loaded - refreshing presence dots");
+        // Fresh data was loaded - refreshing presence dots
         if (!this.initialFreshComplete) {
           this.initialFreshComplete = true;
           this.friendLoading.clear();
         }
         this.refreshPresenceDotsWithLatestData();
       } else {
-        console.log("📦 Using cached data - showing existing presence dots");
+        // Using cached data - showing existing presence dots
         this.hidePresenceDotsLoading();
       }
     });
 
     // 🎯 NEW: Listen for priority location fetch events
     document.addEventListener("campus-presence:fetching-fresh", (event) => {
-      console.log(
-        "🎯 [HorizontalFriendsBar] Priority location fetch started:",
-        event.detail
-      );
+      // Priority location fetch started
       // Keep loading state active during priority fetch
       this.loadingState.user = true;
     });
 
     // 🎯 NEW: Listen for campus presence errors
     document.addEventListener("campus-presence:error", (event) => {
-      console.error(
-        "❌ [HorizontalFriendsBar] Campus presence error:",
-        event.detail.error
-      );
+      console.error("❌ [HorizontalFriendsBar] Campus presence error:", event.detail.error);
       this.loadingState.user = false;
       this.hidePresenceDotsLoading();
     });
 
+    this._freshDataListenersSetup = true;
     // LEGACY: Keep existing event listeners for backward compatibility
     document.addEventListener("campus-presence:data-loading", (event) => {
       if (this.initialFreshComplete) return;
@@ -2219,7 +2203,7 @@ export class HorizontalFriendsBar {
     // Update user's own presence dot
     if (this.userAvatarElement) {
       const userDot = this.userAvatarElement.querySelector(".presence-dot");
-      if (userDot) {
+      if (userDot && !userDot.classList.contains("spinner-overlay")) {
         userDot.classList.add("spinner-overlay");
         userDot.title = "Loading fresh location data...";
       }
@@ -2235,7 +2219,7 @@ export class HorizontalFriendsBar {
         const avatarElement = this.avatarElements.get(key);
         if (avatarElement) {
           const friendDot = avatarElement.querySelector(".presence-dot");
-          if (friendDot) {
+          if (friendDot && !friendDot.classList.contains("spinner-overlay")) {
             friendDot.classList.add("spinner-overlay");
             friendDot.title = "Loading fresh location data...";
           }
@@ -2268,6 +2252,9 @@ export class HorizontalFriendsBar {
                 systemInfo.lastKnownLocation,
                 systemInfo.locationSharingEnabled
               );
+              // Ensure spinner is cleared after update
+              userDot.classList.remove("spinner-overlay");
+              userDot.title = "";
             })
             .catch((error) => {
               console.error("Failed to load PresenceDot:", error);
@@ -2293,6 +2280,8 @@ export class HorizontalFriendsBar {
                   friend.lastKnownLocation,
                   friend.hasLocationSharing
                 );
+                friendDot.classList.remove("spinner-overlay");
+                friendDot.title = "";
               })
               .catch((error) => {
                 console.error("Failed to load PresenceDot for friend:", error);
@@ -2330,9 +2319,7 @@ export class HorizontalFriendsBar {
    * 🎯 FRESH DATA PRIORITY: Refresh presence dots with latest data after background load
    */
   refreshPresenceDotsWithLatestData() {
-    console.log(
-      "🔄 [HorizontalFriendsBar] Refreshing presence dots with latest data..."
-    );
+    // Refreshing presence dots with latest data
 
     try {
       // Update user's presence dot with latest data
@@ -2340,7 +2327,6 @@ export class HorizontalFriendsBar {
         const systemInfo = this.currentUser.systemInfo;
         if (systemInfo) {
           this.updateUserPresenceDot(systemInfo);
-          console.log("✅ User presence dot refreshed with latest data");
         }
       }
 
@@ -2351,14 +2337,10 @@ export class HorizontalFriendsBar {
             this.updateFriendPresenceDot(index, friend);
           }
         });
-        console.log(
-          `✅ Refreshed ${this.quickAccessFriends.length} friend presence dots with latest data`
-        );
+        // Refreshed friend presence dots with latest data
       }
 
-      console.log(
-        "✅ [HorizontalFriendsBar] All presence dots refreshed with latest data"
-      );
+      // All presence dots refreshed with latest data
     } catch (error) {
       console.error(
         "❌ [HorizontalFriendsBar] Failed to refresh presence dots:",
@@ -2747,18 +2729,7 @@ export class HorizontalFriendsBar {
         return;
       }
 
-      console.log(
-        `📡 Applying UI-only profile update for ${currentFriend.displayName}`,
-        {
-          nameChanged: nameChanged
-            ? `${currentFriend.displayName} → ${newDisplayName}`
-            : false,
-          avatarChanged,
-          lastActiveChanged: lastActiveChanged
-            ? "presence data updated"
-            : false,
-        }
-      );
+      // Applying UI-only profile update
 
       // LOCAL UPDATE ONLY - Do NOT sync to database immediately
       const updatedFriend = { ...currentFriend };
@@ -2801,9 +2772,7 @@ export class HorizontalFriendsBar {
         );
         if (friendIndex !== -1) {
           this.updateFriendPresenceDot(friendIndex, updatedFriend);
-          console.log(
-            `🌍 Updated presence dot for ${updatedFriend.displayName} due to activity change`
-          );
+          // Updated presence dot due to activity change
         }
       }
 
@@ -2814,15 +2783,11 @@ export class HorizontalFriendsBar {
         // Only trigger full re-render for profile changes (name/avatar), not for presence updates
         if (nameChanged || avatarChanged) {
           this.debouncedRender();
-          console.log(
-            `✅ Profile UI updated for ${updatedFriend.displayName} (no database sync)`
-          );
+          // Profile UI updated (no database sync)
           // Schedule a batched database sync for profile changes only (longer delay)
           this.scheduleBatchedDatabaseSync();
         } else if (lastActiveChanged) {
-          console.log(
-            `✅ Presence updated for ${updatedFriend.displayName} (no full re-render)`
-          );
+          // Presence updated (no full re-render)
         }
       }
     } catch (error) {
@@ -4027,12 +3992,9 @@ export class HorizontalFriendsBar {
 
         // Stop spinner for this friend after fresh data applied
         this.friendLoading.set(friendId, false);
-        console.log(`🌍 ✅ Updated presence dot for ${friend.displayName}:`, {
-          newClass: newPresenceDotElement.className,
-          newText:
-            newPresenceDotElement.querySelector(".dot-text")?.textContent,
-          campusStatus: friend.lastKnownLocation?.campusStatus,
-        });
+        newPresenceDotElement.classList.remove("spinner-overlay");
+        newPresenceDotElement.title = "";
+        // Updated presence dot for friend
       } else {
         console.warn(
           `🌍 Failed to create new presence dot element for ${friend.displayName}`
@@ -4994,7 +4956,7 @@ export class HorizontalFriendsBar {
     // Remove overlay if any lingering
     const finalDot = this.userAvatarElement.querySelector(".presence-dot");
     if (finalDot) finalDot.classList.remove("spinner-overlay");
-    console.log("[HorizontalFriendsBar] User presence dot updated safely");
+    // User presence dot updated
   }
 
   /**
@@ -5192,9 +5154,7 @@ export class HorizontalFriendsBar {
               (systemInfo.lastActive.toDate || systemInfo.lastActive.seconds);
 
             if (!hasValidTimestamp) {
-              console.log(
-                "[HorizontalFriendsBar] ⚠️ Skipping presence update - incomplete timestamp data"
-              );
+              // Skipping presence update - incomplete timestamp data
               return;
             }
 
@@ -5245,10 +5205,7 @@ export class HorizontalFriendsBar {
 
     // If locationUpdate is provided from CampusLocationService, use it directly
     if (locationUpdate && typeof locationUpdate === "object") {
-      console.log(
-        "[HorizontalFriendsBar] Using provided location update data:",
-        locationUpdate
-      );
+      // Using provided location update data
       this.triggerLocationUpdateAnimation(locationUpdate);
       return;
     }
@@ -5287,10 +5244,7 @@ export class HorizontalFriendsBar {
         : null,
     };
 
-    console.log(
-      "[HorizontalFriendsBar] Using fallback location update data:",
-      fallbackLocationUpdate
-    );
+    // Using fallback location update data
 
     // Update tracked status
     this.lastKnownCampusStatus = currentStatus;

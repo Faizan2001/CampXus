@@ -163,9 +163,7 @@ export function getCampusConfig(university) {
     );
     return null;
   }
-  console.log(
-    `UniversityCampusConfig: Loaded configuration for ${config.name}`
-  );
+  // Loaded configuration for campus
   return config;
 }
 
@@ -180,10 +178,7 @@ export function getCampusConfig(university) {
  */
 export function getSupportedUniversities() {
   const universities = Object.keys(campuses);
-  console.log(
-    `UniversityCampusConfig: ${universities.length} universities configured:`,
-    universities
-  );
+  // Universities configured: count
   return universities;
 }
 
@@ -223,9 +218,7 @@ export function validateCampusConfig(university) {
     );
     return false;
   }
-  console.log(
-    `UniversityCampusConfig: Configuration for ${university} is valid`
-  );
+  // Configuration valid
   return true;
 }
 
@@ -251,10 +244,4 @@ export function getCampusBoundaryArray(university) {
 export { campuses };
 
 // Log configuration loading
-console.log("UniversityCampusConfig: Module loaded with campus configurations");
-console.log(
-  `UniversityCampusConfig: IMPORTANT - Current coordinates are PLACEHOLDERS for testing`
-);
-console.log(
-  `UniversityCampusConfig: Real IUB campus coordinates will be provided later`
-);
+// Module loaded (suppress verbose banners)

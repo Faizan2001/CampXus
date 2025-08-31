@@ -104,8 +104,11 @@ class RealTimeManager {
     this.isListening = false;
     this.currentUserId = null;
 
-    // Debug mode flag
-    this.debugMode = process.env.NODE_ENV === "development";
+    // Debug mode flag: only verbose if explicitly requested via log profile
+    const profile = (typeof window !== 'undefined' && window.localStorage)
+      ? (window.localStorage.getItem('campxus:logProfile') || '').toLowerCase()
+      : '';
+    this.debugMode = (process.env.NODE_ENV === "development") && (profile === 'debug' || profile === 'all');
 
     // Debounced emitters to reduce CPU usage on low-end devices (300ms delay)
     this.debouncedEmit = debounce(this.emit.bind(this), 300);
@@ -180,7 +183,6 @@ class RealTimeManager {
     }
 
     const callbacks = this.subscribers.get(eventType);
-    this.log(`📢 Broadcasting ${eventType} to ${callbacks.size} subscribers`);
 
     // Call all subscriber callbacks
     callbacks.forEach((callback) => {

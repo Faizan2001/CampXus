@@ -1028,12 +1028,6 @@ export function handleAddNewTimeSlotClick() {
 }
 
 function handleTogglePinMode() {
-  console.log("🚀 handleTogglePinMode called!", {
-    currentPinState: state.pinModeActive,
-    activeUserId: state.activeUserId,
-    compareMode: state.compareMode,
-    currentViewingFriendId: state.currentViewingFriendId,
-  });
 
   const previousState = state.pinModeActive;
 
@@ -1062,13 +1056,7 @@ function handleTogglePinMode() {
       // activeUserId should still be set if we entered here
     }
 
-    console.log(
-      `[Mode] Pin Mode ${state.pinModeActive ? "enabled" : "disabled"}`,
-      {
-        activeUser: state.users[state.activeUserId]?.name,
-        previousState,
-      }
-    );
+    // Pin mode toggled; UI reflects state without verbose logging
   }
   updateUI(); // This will re-apply the .active class to the button based on the new state.pinModeActive
 }
@@ -1087,7 +1075,6 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   // Debounce rapid clicks
   const now = Date.now();
   if (now - lastPinClickTime < PIN_CLICK_DEBOUNCE) {
-    console.log("🚫 Pin click debounced - too rapid");
     return;
   }
   lastPinClickTime = now;
@@ -1098,7 +1085,6 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
     state.currentViewingFriendId
   ) {
     if (state.currentViewingFriendId) {
-      console.log("🔒 Cannot pin in friend's schedule - read-only mode");
       return;
     }
 
@@ -1160,12 +1146,6 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const timeSlot = activeUserObject.timeSlots[slotIndex];
 
-  console.log(`[Interaction] Pin ${newPinState ? "added" : "removed"}`, {
-    user: activeUserObject.name,
-    day: dayNames[dayIndex],
-    time: timeSlot?.label || `slot-${slotIndex}`,
-    coordinates: `[${dayIndex}, ${slotIndex}]`,
-  });
 
   // Create transaction ID for this pin operation
   const transactionId = `pin_${
@@ -1181,7 +1161,6 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
   // Add to pending transactions to prevent real-time overwrites
   state.pendingTransactions.set(transactionId, transactionData);
-  console.log(`📝 Started transaction: ${transactionId}`);
 
   // Prevent double UI update by temporarily ignoring real-time updates
   state.isLocalUpdate = true;
@@ -2128,9 +2107,7 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
  * @returns {Promise<void>} Promise that resolves when cleanup is complete
  */
 async function cleanupScheduleEventListeners() {
-  console.log(
-    `🧹 Cleaning up ${state.scheduleEventListeners.length} schedule content event listeners`
-  );
+  // Clean up tracked schedule content event listeners
 
   // Process cleanup in batches to prevent blocking and race conditions
   const batchSize = 10;
@@ -2160,9 +2137,6 @@ async function cleanupScheduleEventListeners() {
 
   // Clear the tracking array
   state.scheduleEventListeners = [];
-  console.log(
-    `🧹 Successfully cleaned up all schedule content event listeners`
-  );
 }
 
 /**
@@ -2171,9 +2145,7 @@ async function cleanupScheduleEventListeners() {
  * @returns {Promise<void>} Promise that resolves when cleanup is complete
  */
 async function cleanupUIControlListeners() {
-  console.log(
-    `🧹 Cleaning up ${state.uiControlListeners.length} UI control event listeners`
-  );
+  // Clean up tracked UI control event listeners
 
   const batchSize = 10;
   const listeners = [...state.uiControlListeners]; // Create copy for safety
@@ -2199,7 +2171,6 @@ async function cleanupUIControlListeners() {
 
   // Clear the tracking array
   state.uiControlListeners = [];
-  console.log(`🧹 Successfully cleaned up all UI control event listeners`);
 }
 
 /**
@@ -2213,13 +2184,6 @@ async function cleanupUIControlListeners() {
 function addTrackedEventListener(element, eventType, handler, options = null) {
   element.addEventListener(eventType, handler, options);
   state.scheduleEventListeners.push({ element, eventType, handler, options });
-  console.log(
-    `📍 Added tracked listener: ${eventType} on ${element.tagName}${
-      element.id ? "#" + element.id : ""
-    }${
-      element.className ? "." + element.className.split(" ")[0] : ""
-    } (Total: ${state.scheduleEventListeners.length})`
-  );
 }
 
 /**
@@ -2275,10 +2239,6 @@ function addUIControlListener(element, eventType, handler, options = null) {
         state.uiControlListeners.splice(index, 1);
       }
     });
-
-    console.log(
-      `🧹 Cleaned up ${existingListeners.length} duplicate ${eventType} listeners for ${elementKey}`
-    );
   }
 
   element.addEventListener(eventType, handler, options);
@@ -2290,9 +2250,6 @@ function addUIControlListener(element, eventType, handler, options = null) {
     elementKey,
   });
 
-  console.log(
-    `➕ Added UI control listener: ${eventType} on ${elementKey} (Total: ${state.uiControlListeners.length})`
-  );
 }
 
 /* ================================
@@ -2317,15 +2274,7 @@ async function renderScheduleGrid() {
 }
 
 async function _renderScheduleGridInternal() {
-  // Temporarily disable smart logging for debugging - log every call
-  console.log("🏗️ renderScheduleGrid called:", {
-    compareMode: state.compareMode,
-    selectedUserIds: Array.from(state.selectedUserIds),
-    activeUserId: state.activeUserId,
-    totalLoadedUsers: Object.keys(state.users).length, // Only loaded users
-    loadedUserIds: Object.keys(state.users),
-    note: "In compare mode, only selected users' data is loaded on-demand",
-  });
+  // Render the schedule grid
 
   if (!DOM_ELEMENTS.scheduleTable) {
     console.error("❌ Schedule table element not found.");
@@ -2337,19 +2286,10 @@ async function _renderScheduleGridInternal() {
   if (scheduleWrapper) {
     const shouldDisable = !state.activeUserId && !state.compareMode;
 
-    console.log("🔍 SCHEDULE DISABLE CHECK:", {
-      activeUserId: state.activeUserId,
-      compareMode: state.compareMode,
-      shouldDisable: shouldDisable,
-      currentClasses: scheduleWrapper.className,
-    });
-
     if (shouldDisable) {
       scheduleWrapper.classList.add("schedule-disabled");
-      console.log("🔒 Schedule DISABLED - no active user");
     } else {
       scheduleWrapper.classList.remove("schedule-disabled");
-      console.log("✅ Schedule ENABLED - active user found");
     }
   }
 
@@ -2525,16 +2465,7 @@ async function _renderScheduleGridInternal() {
             busyUsers = slotStatus.busy || [];
             freeUsers = slotStatus.available || [];
 
-            // Smart logging: Only log unified grid status for first few slots to prevent flooding
-            if (
-              (dayIndex === 0 && timeIndex < 2) ||
-              (dayIndex === 6 &&
-                timeIndex === currentTimeSlotsToRender.length - 1)
-            ) {
-              console.log(
-                `📊 Unified Grid - slot [${dayIndex}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`
-              );
-            }
+            // Omit verbose per-slot comparison logging
 
             // Add granular time information to the cell for enhanced debugging
             dayCell.dataset.unifiedSlot = "true";
@@ -2554,25 +2485,10 @@ async function _renderScheduleGridInternal() {
                 user.schedule[dayIndex][timeIndex] !== undefined
               ) {
                 const isBusy = user.schedule[dayIndex][timeIndex];
-                // Smart logging: Only log first slot of each day to prevent flooding
-                if (timeIndex === 0) {
-                  console.log(
-                    `📊 Direct compare - user ${
-                      user.name || user.id
-                    } status for day ${dayIndex}: ${isBusy ? "BUSY" : "FREE"}`
-                  );
-                }
                 return isBusy;
               }
               // Only log warning if timeIndex is within expected range
-              // Smart logging: Only warn once per user per day if missing schedule data
-              if (timeIndex === 0 && !user.schedule?.[dayIndex]) {
-                console.log(
-                  `⚠️ Direct compare - user ${
-                    user.name || user.id
-                  } missing schedule data for day ${dayIndex}`
-                );
-              }
+              // Avoid verbose info logs for missing data in compare calculations
               return false;
             });
 
@@ -3084,24 +3000,13 @@ function handleToggleCompareMode() {
     state.pinModeActive = false; // Disable pin mode in compare mode
     state.selectedUserIds.clear(); // Clear selected users when entering compare mode
 
-    console.log("[Mode] Compare Mode ENABLED", {
-      previousActiveUser,
-      totalUsers: Object.keys(state.users).length,
-      clearedSelectedUsers: true,
-      clearedActiveUser: true,
-      disabledPinMode: true,
-    });
+    // Compare Mode enabled
   } else {
     // ✅ FIXED: When exiting compare mode, don't auto-select user
     state.selectedUserIds.clear(); // Clear selected user IDs when exiting compare mode
     // activeUserId remains null - user must explicitly select someone after compare mode
 
-    console.log("[Mode] Compare Mode DISABLED", {
-      previouslySelected: selectedCount,
-      totalUsers: Object.keys(state.users).length,
-      clearedSelections: true,
-      activeUserRemains: state.activeUserId,
-    });
+    // Compare Mode disabled
   }
 
   // Update mobile compare mode for day view
@@ -3117,21 +3022,12 @@ function handleToggleCompareMode() {
 
 function handleToggleUserSelectionForCompare(userId) {
   if (!state.compareMode) {
-    console.log(
-      `⚠️ Attempted to toggle user selection but compare mode is disabled:`,
-      {
-        userId,
-        compareMode: state.compareMode,
-      }
-    );
+    // Attempted to toggle selection while compare mode is disabled
     return;
   }
 
   if (!state.users[userId]) {
-    console.log(`❌ Attempted to toggle selection for non-existent user:`, {
-      userId,
-      availableUsers: Object.keys(state.users),
-    });
+    // Attempted to toggle selection for non-existent user
     return;
   }
 
@@ -3139,20 +3035,10 @@ function handleToggleUserSelectionForCompare(userId) {
 
   if (wasSelected) {
     state.selectedUserIds.delete(userId);
-    console.log(`➖ User deselected for comparison:`, {
-      userId,
-      userName: state.users[userId]?.name || "unknown",
-      remainingSelected: Array.from(state.selectedUserIds),
-      totalSelected: state.selectedUserIds.size,
-    });
+    // User deselected for comparison
   } else {
     state.selectedUserIds.add(userId);
-    console.log(`➕ User selected for comparison:`, {
-      userId,
-      userName: state.users[userId]?.name || "unknown",
-      allSelected: Array.from(state.selectedUserIds),
-      totalSelected: state.selectedUserIds.size,
-    });
+    // User selected for comparison
   }
 
   updateUI();
@@ -3167,8 +3053,7 @@ function handleToggleScheduleSlot(dayIndex, timeIndex) {
   ) {
     // No active user, in compare mode, viewing friend's schedule, or user doesn't exist: show visual feedback
     if (state.currentViewingFriendId) {
-      // Viewing friend's schedule - show read-only feedback
-      console.log("🔒 Cannot edit friend's schedule - read-only mode");
+      // Viewing friend's schedule - read-only
       return;
     }
 
@@ -3463,11 +3348,7 @@ function setupEventListeners() {
       "🚨 DEBUG: handleScheduleTableClick function exists:",
       typeof handleScheduleTableClick
     );
-    console.log(
-      "🚨 DEBUG: scheduleTable element:",
-      DOM_ELEMENTS.scheduleTable.tagName,
-      DOM_ELEMENTS.scheduleTable.id
-    );
+    // Debug logs removed; keep listeners
 
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
@@ -3476,13 +3357,7 @@ function setupEventListeners() {
     );
 
     // 🚨 EMERGENCY FIX: Add direct event listener as backup
-    console.log("🚨 DEBUG: Adding direct event listener as backup...");
     DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
-      console.log(
-        "🚨 DIRECT LISTENER: Schedule table clicked!",
-        e.target.tagName,
-        e.target.className
-      );
       handleScheduleTableClick(e);
     });
     addUIControlListener(
@@ -3501,7 +3376,6 @@ function setupEventListeners() {
 
   // ===== DAY VIEW CONTAINER (event delegation) =====
   if (DOM_ELEMENTS.dayViewContainer) {
-    console.log("✅ Adding listener to day view container...");
     addUIControlListener(
       DOM_ELEMENTS.dayViewContainer,
       "click",
@@ -3513,7 +3387,6 @@ function setupEventListeners() {
 
   // ===== SCHEDULE WRAPPER FEEDBACK =====
   if (DOM_ELEMENTS.scheduleWrapper) {
-    console.log("✅ Adding listener to schedule wrapper...");
     addUIControlListener(
       DOM_ELEMENTS.scheduleWrapper,
       "click",
@@ -3538,19 +3411,7 @@ function setupEventListeners() {
     /* Placeholder */
   }
 
-  // TEST: Add multiple test listeners to verify different elements
-  addUIControlListener(document.body, "click", (e) => {
-    console.log(
-      "🔥 BODY CLICKED - addUIControlListener is working!",
-      e.target,
-      e.target.tagName,
-      e.target.className
-    );
-  });
-
-  console.log(
-    "✅ Event listeners set up - hybrid approach (specific + delegation)"
-  );
+  // Test listeners removed for production cleanliness
 
   // 🛡️ Mark event listeners as set up to prevent duplicates
   state.eventListenersSetup = true;
@@ -3558,14 +3419,7 @@ function setupEventListeners() {
 
 // ===== SCHEDULE TABLE EVENT HANDLER =====
 function handleScheduleTableClick(e) {
-  console.log(
-    "🔥 SCHEDULE TABLE CLICKED:",
-    e.target,
-    e.target.classList.toString()
-  );
-
-  // 🚀 CRITICAL DEBUG: Force log to verify function is called
-  console.log("🚨 DEBUG: handleScheduleTableClick function is being called!");
+  // Compact handler without verbose debug logs
 
   // Time slot header clicks (for editing time slots)
   if (e.target.classList.contains("editable-timeslot-header")) {
@@ -3686,30 +3540,28 @@ function handleDayViewClick(e) {
       10
     );
 
-    console.log("📊 Extracted slot coordinates:", { day, time });
+    // Coordinates extracted
 
     if (!isNaN(day) && !isNaN(time)) {
       if (state.pinModeActive && !state.compareMode) {
-        console.log("📌 Pin mode active - checking if slot is free");
+        // Pin mode active - check if slot is free
         const activeUser = state.users[state.activeUserId];
         const isSlotFree = activeUser && !activeUser.schedule[day][time];
         if (isSlotFree) {
-          console.log("✅ Slot is free - handling pin click");
           handlePinSlotClick(day, time, e);
         } else {
-          console.log("❌ Slot is not free - cannot pin");
+          // Slot not free - cannot pin
         }
       } else if (!state.compareMode) {
-        console.log("🔄 Normal mode - toggling schedule slot");
         handleToggleScheduleSlot(day, time);
       } else {
-        console.log("👥 Compare mode active - slot interaction disabled");
+        // Compare mode active - slot interaction disabled
       }
     } else {
       console.error("❌ Invalid day/time coordinates:", { day, time });
     }
   } else {
-    console.log("ℹ️ Day view click on non-slot element:", e.target);
+    // Click on non-slot element ignored
   }
 }
 
@@ -3722,14 +3574,11 @@ function handleScheduleWrapperFeedback(e) {
     !e.target.closest(".slot")
   ) {
     const totalUserCount = Object.keys(state.users).length;
-    console.log("Schedule disabled clicked - Total users:", totalUserCount);
 
     if (totalUserCount === 0) {
-      console.log("No users exist, triggering add user glow");
+      // No users exist, trigger add user glow
     } else {
-      console.log(
-        "Users exist but no active user, triggering users section glow"
-      );
+      // Users exist but no active user, trigger users section glow
     }
   }
 }
@@ -3807,11 +3656,7 @@ function initializeMobileSchedule() {
     setupSwipeGestures();
   }
 
-  console.log(
-    `📱 Mobile schedule initialized - Device: ${
-      state.isMobile ? "Mobile" : "Desktop"
-    }, View: ${state.viewMode}, Selected Day: ${getDayName(state.selectedDay)}`
-  );
+  // Mobile schedule initialized
 
   // 🛡️ Mark mobile schedule as initialized
   state.mobileScheduleInitialized = true;
@@ -4010,7 +3855,7 @@ function setupViewModeToggleSafe() {
  * Set up day navigation functionality
  */
 function setupDayNavigation() {
-  console.log("📱 Setting up day navigation listeners...");
+  // Set up day navigation listeners
 
   // Add click listeners to all day buttons
   for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
@@ -4020,7 +3865,7 @@ function setupDayNavigation() {
     }
   }
 
-  console.log("📱 Day navigation listeners set up (7 day buttons)");
+  // Day navigation listeners set up
 
   // Add keyboard navigation
   if (DOM_ELEMENTS.daySelector) {
@@ -4031,7 +3876,7 @@ function setupDayNavigation() {
     );
   }
 
-  console.log("📱 Mobile listeners initialization complete");
+  // Mobile listeners initialization complete
 }
 
 /**
@@ -4270,22 +4115,14 @@ function checkDOMElementsReady() {
     const element = DOM_ELEMENTS[elementKey];
     const exists = element && element.nodeType === Node.ELEMENT_NODE;
 
-    if (!exists) {
-      console.log(`🔍 Critical DOM element missing: ${elementKey}`);
-    }
+    // Skip verbose logging for missing elements here
 
     return !exists;
   });
 
   const isReady = missingElements.length === 0;
 
-  if (isReady) {
-    console.log("✅ All critical DOM elements are ready for UI updates");
-  } else {
-    console.log(
-      `⏳ DOM not ready - missing elements: ${missingElements.join(", ")}`
-    );
-  }
+  // Avoid verbose DOM readiness logs in production
 
   return isReady;
 }
@@ -4307,7 +4144,7 @@ function waitForDOMReady(maxRetries = 10, initialDelay = 50) {
       initializeDomElements();
 
       if (checkDOMElementsReady()) {
-        console.log(`🎯 DOM ready after ${attempts} attempts`);
+        // DOM ready after attempts
         resolve(true);
         return;
       }
