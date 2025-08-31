@@ -670,13 +670,7 @@ export class HorizontalFriendsBar {
       this.loadingState.user || false
     );
 
-    // Creating user presence dot
-      hasLastActive: !!systemInfo.lastActive,
-      hasLocation: !!systemInfo.lastKnownLocation,
-      hasLocationSharing: systemInfo.locationSharingEnabled,
-      campusStatus: systemInfo.lastKnownLocation?.campusStatus,
-      presenceDotPreview: userPresenceDot.substring(0, 50) + "...",
-    });
+    // Creating user presence dot (debug details removed)
 
     const userAvatarHtml = `
       <div class="friend-avatar-item" 

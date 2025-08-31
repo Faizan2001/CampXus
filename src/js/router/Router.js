@@ -558,11 +558,6 @@ class SPARouter {
       const { signal } = this._abortController;
 
       // Loading page and route config
-        title: routeData.title,
-        template: routeData.template,
-        cssFiles: routeData.cssFiles?.length || 0,
-        jsFiles: routeData.jsFiles?.length || 0,
-      });
 
       // Update page title
       document.title = routeData.title;
