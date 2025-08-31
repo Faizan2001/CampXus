@@ -17,6 +17,7 @@ import { googleGeolocationProvider } from "./GoogleGeolocationProvider.js";
 
 // Import Tier 1 network detection service (FREE)
 import { networkDetectionService } from "./NetworkDetectionService.js";
+import { locationTierService } from "./LocationTierService.js";
 
 // Import centralized logging system
 import { logManager } from "../../utils/debug/LogManager.js";
@@ -61,6 +62,107 @@ export class CampusLocationService {
     });
 
     logManager.system.init("Lifecycle tracking initialized");
+  }
+
+  /*
+
+  /**
+   * Start periodic presence polling using the 3-tier system every intervalMs.
+   * Emits campus-presence:loading before each poll so UI can show spinner overlay,
+   * and ensures database writes via processFreshLocation.
+   */
+  startPresencePolling(intervalMs = 30000) {
+    try {
+      // If already started, adjust interval if needed
+      if (this.presencePollingIntervalId) {
+        if (intervalMs !== this.presencePollingIntervalMs) {
+          clearInterval(this.presencePollingIntervalId);
+          this.presencePollingIntervalId = null;
+        } else {
+          return; // already running
+        }
+      }
+
+      this.presencePollingIntervalMs = intervalMs;
+
+      // Run once immediately, then on interval
+      this._runPresencePollSafely();
+      this.presencePollingIntervalId = setInterval(
+        () => this._runPresencePollSafely(),
+        this.presencePollingIntervalMs
+      );
+      logManager.location.info(
+        `Presence polling started: every ${Math.round(intervalMs / 1000)}s`
+      );
+    } catch (e) {
+      logManager.location.warn(
+        `Failed to start presence polling: ${e?.message || e}`
+      );
+    }
+  }
+
+  async _runPresencePollSafely() {
+    if (this._isPresencePollRunning) return;
+    this._isPresencePollRunning = true;
+    try {
+      document.dispatchEvent(
+        new CustomEvent("campus-presence:loading", {
+          detail: { priority: "presence_poll", timestamp: Date.now() },
+        })
+      );
+
+      let result = await this.getCurrentLocation(false, "presence_poller");
+      // Ensure coordinates are available every poll; if tier1 (network-only) returned, fetch browser coords
+      if (result && (!result.coords || result.coords.latitude == null || result.coords.longitude == null)) {
+        try {
+          const browserPos = await this.getBrowserLocationWithTimeout(false, 10000);
+          if (browserPos?.coords) {
+            const enriched = {
+              ...result,
+              ...{
+                coords: {
+                  latitude: browserPos.coords.latitude,
+                  longitude: browserPos.coords.longitude,
+                  accuracy: browserPos.coords.accuracy,
+                  altitude: browserPos.coords.altitude ?? null,
+                  altitudeAccuracy: browserPos.coords.altitudeAccuracy ?? null,
+                  heading: browserPos.coords.heading ?? null,
+                  speed: browserPos.coords.speed ?? null,
+                },
+                timestamp: browserPos.timestamp || Date.now(),
+                source: "browser_enhanced",
+                provider: "browser_enhanced",
+                tier: 2,
+                cost: 0,
+                shouldWriteToDatabase: true,
+              },
+            };
+            result = enriched;
+          }
+        } catch (_) {
+          // best-effort enrichment; ignore errors
+        }
+      }
+      if (result) await this.processFreshLocation(result);
+
+      document.dispatchEvent(
+        new CustomEvent("campus-presence:ready", {
+          detail: {
+            freshDataLoaded: true,
+            source: "presence_poller",
+            timestamp: Date.now(),
+          },
+        })
+      );
+    } catch (err) {
+      document.dispatchEvent(
+        new CustomEvent("campus-presence:error", {
+          detail: { error: err?.message || String(err), timestamp: Date.now() },
+        })
+      );
+    } finally {
+      this._isPresencePollRunning = false;
+    }
   }
 
   /**
@@ -243,7 +345,7 @@ export class CampusLocationService {
     // Campus Boundary Detection Debouncing (Enhanced API Call Reduction)
     this.campusBoundaryCache = new Map(); // Cache boundary detection results
     this.boundaryDetectionDebounceTimeout = null;
-    this.minBoundaryDetectionInterval = 60000; // Minimum 1 minute between boundary detections
+    this.minBoundaryDetectionInterval = 30000; // Minimum 30s between boundary detections
     this.lastBoundaryDetectionTime = null;
     this.activeBoundaryDetections = new Map(); // Track ongoing boundary detections
     this.boundaryDetectionQueue = [];
@@ -258,6 +360,11 @@ export class CampusLocationService {
     // User tracking for rate limiting
     this.userApiUsage = new Map(); // Track per-user API usage
     this.dailyApiUsage = this.loadDailyUsage(); // Track total daily usage
+
+    // Presence polling (explicit interval regardless of page)
+    this.presencePollingIntervalId = null;
+    this.presencePollingIntervalMs = 30000;
+    this._isPresencePollRunning = false;
 
     // 🎯 STRATEGIC GOOGLE API TRIGGERS: Only use paid API for these critical scenarios
     // This prevents unnecessary costs while ensuring accuracy when it matters most
@@ -557,400 +664,19 @@ export class CampusLocationService {
     trigger = "unknown",
     userId = null
   ) {
-    const startTime = Date.now();
-    logManager.location.info(`3-TIER location request: ${trigger}`, {
-      userId: userId ? userId.substring(0, 8) + "..." : "anonymous",
-      trigger,
-      highAccuracy,
-      timestamp: new Date().toLocaleTimeString(),
-    });
-
+    // Delegated to LocationTierService (extracted 3-tier pipeline)
     if (!this.isLocationSupported) {
       logManager.system.error("Geolocation not supported");
       return null;
     }
-
-    // 🎯 LOADING EVENT: Notify UI that location fetching has started
     this.emitPresenceDataLoading();
-
-    let tier1Result = null;
-    let tier2Result = null;
-    let tier3Result = null;
-
     try {
-      // ============================================================================
-      // 🆓 TIER 1: NETWORK/IP DETECTION (FREE - No API costs)
-      // ============================================================================
-      logManager.location.tier1("Network/IP Detection starting (FREE)");
-
-      try {
-        tier1Result = await networkDetectionService.detectCampusPresence("iub");
-
-        if (tier1Result.success) {
-          const responseTime = Date.now() - startTime;
-          logManager.location.success(
-            `TIER 1 completed in ${responseTime}ms: ${tier1Result.campusStatus.toUpperCase()} via ${
-              tier1Result.method
-            }`
-          );
-
-          // 🎯 DECISION LOGIC: ON campus via Organization = high confidence, can return early
-          if (tier1Result.campusStatus === "on_campus") {
-            // 🏢 DISTINCT LOG: Campus WiFi Detection Success
-            console.log(
-              "🏢✅ CAMPUS WIFI DETECTED! User is on university network"
-            );
-            console.log(`📍 Organization: "${tier1Result.userOrganization}"`);
-            console.log(`🌐 IP Address: ${tier1Result.userIP}`);
-            console.log(`⚡ Detection Speed: ${responseTime}ms (instant)`);
-            console.log(
-              "🔋 Battery Optimization: Skipping GPS - using network detection only"
-            );
-
-            logManager.location.tier1(
-              `🏢 ON CAMPUS detected via organization "${tier1Result.userOrganization}" - returning immediately (high confidence)`
-            );
-
-            const locationResult = {
-              coords: {
-                latitude: null, // Organization detection doesn't provide exact coordinates
-                longitude: null, // Organization detection doesn't provide exact coordinates
-                accuracy: 50, // High confidence for on-campus organization detection
-                altitude: null,
-                altitudeAccuracy: null,
-                heading: null,
-                speed: null,
-              },
-              timestamp: Date.now(),
-              source: "ip_organization_detection",
-              tier: 1,
-              cost: 0,
-              campusStatus: "on_campus",
-              confidence: "high",
-              userIP: tier1Result.userIP,
-              userOrganization: tier1Result.userOrganization,
-              matchReason: tier1Result.matchReason,
-              responseTime: responseTime,
-              method: tier1Result.method,
-              provider: "network_detection_service",
-              shouldWriteToDatabase: true, // On campus via organization is reliable enough
-              batteryOptimized: true, // Flag to indicate this saved battery by skipping GPS
-            };
-
-            // 🎯 Cache TIER 1 ON_CAMPUS result to prevent boundary detection override
-            this.cacheTier1Result("iub", tier1Result);
-
-            return locationResult;
-          } else {
-            // 🌐 OFF CAMPUS via Organization: Continue to GPS tiers for location verification
-            console.log(
-              "🌐 External Network Detected - continuing to GPS verification"
-            );
-            console.log(`📍 Organization: "${tier1Result.userOrganization}"`);
-            console.log(`🌐 IP Address: ${tier1Result.userIP}`);
-            console.log("📍 GPS will determine exact campus proximity");
-
-            logManager.location.info(
-              `🌐 OFF CAMPUS detected via organization "${tier1Result.userOrganization}" (${tier1Result.userIP}) - continuing to GPS verification (might be off-campus or using mobile data)`
-            );
-
-            // Store IP result for later use but continue to GPS tiers
-            tier1Result.continueToGPS = true;
-          }
-        }
-      } catch (error) {
-        logManager.location.warn(`TIER 1 failed: ${error.message}`);
-        tier1Result = { success: false, error: error.message };
-      }
-
-      // ============================================================================
-      // 🆓 TIER 2: ENHANCED BROWSER GPS (FREE - 3 attempts, 12s timeout)
-      // ============================================================================
-      logManager.location.tier2(
-        "Enhanced Browser GPS starting (FREE) - 3 attempts, 12s timeout"
-      );
-
-      const browserAttempts = 3;
-      const browserTimeout = 12000; // 12 seconds per attempt
-      let browserErrors = [];
-
-      for (let attempt = 1; attempt <= browserAttempts; attempt++) {
-        try {
-          logManager.location.attempt(
-            `Attempt ${attempt}/${browserAttempts} (${
-              browserTimeout / 1000
-            }s timeout)`
-          );
-
-          // 🔋 BATTERY OPTIMIZATION: Adjust GPS accuracy based on Tier 1 campus detection
-          let tier2Accuracy = highAccuracy; // Default to parameter value
-
-          if (tier1Result && tier1Result.campusStatus === "off_campus") {
-            // 🔋 OFF CAMPUS: Use low accuracy to save battery
-            tier2Accuracy = false;
-            console.log(
-              "🔋 Tier 2 Battery Mode: Using low accuracy (off-campus detected via organization)"
-            );
-          } else {
-            // 📍 ON CAMPUS or UNKNOWN: Need high accuracy for campus boundary detection
-            tier2Accuracy = true;
-            console.log(
-              "📍 Tier 2 Accuracy Mode: Using high accuracy (campus detection needed)"
-            );
-          }
-
-          const browserResult = await this.getBrowserLocationWithTimeout(
-            tier2Accuracy,
-            browserTimeout
-          );
-
-          if (browserResult && browserResult.coords) {
-            const accuracy = Math.round(browserResult.coords.accuracy);
-            const responseTime = Date.now() - startTime;
-
-            logManager.location.success(
-              `TIER 2 completed in ${responseTime}ms (attempt ${attempt}): ±${accuracy}m accuracy`
-            );
-
-            // ⚡ ACCURACY CHECK: Only proceed if accuracy is acceptable (2000m threshold with 5% tolerance)
-            const accuracyThreshold = 2000;
-            const tolerance = accuracyThreshold * 0.05; // 5% tolerance (100m)
-            const acceptableAccuracy = accuracyThreshold + tolerance; // 2100m
-            if (browserResult.coords.accuracy <= acceptableAccuracy) {
-              logManager.location.success(
-                `Accuracy ±${accuracy}m ≤ ${Math.round(
-                  acceptableAccuracy
-                )}m - proceeding with database write`
-              );
-
-              tier2Result = this.formatLocationResponse(
-                browserResult,
-                "browser_enhanced",
-                0
-              );
-              tier2Result.tier = 2;
-              tier2Result.attempt = attempt;
-              tier2Result.responseTime = responseTime;
-              tier2Result.shouldWriteToDatabase = true;
-
-              // Add IP detection result as context if available
-              if (tier1Result && tier1Result.success) {
-                tier2Result.ipDetectionHint = {
-                  campusStatus: tier1Result.campusStatus,
-                  userIP: tier1Result.userIP,
-                  confidence: tier1Result.confidence,
-                };
-              }
-
-              // 🎯 SUCCESS EVENT: Notify UI that location was successfully obtained
-              this.emitFreshPresenceData(tier2Result, {
-                tier: 2,
-                accuracy: accuracy,
-              });
-
-              return tier2Result;
-            } else {
-              logManager.location.warn(
-                `TIER 2 accuracy failed: ±${accuracy}m > ${Math.round(
-                  acceptableAccuracy
-                )}m - continuing to TIER 3 for better GPS`
-              );
-              browserErrors.push(
-                `Attempt ${attempt}: Low accuracy (±${accuracy}m > ${Math.round(
-                  acceptableAccuracy
-                )}m threshold)`
-              );
-            }
-          }
-        } catch (error) {
-          logManager.location.warn(
-            `TIER 2 attempt ${attempt} failed: ${error.message}`
-          );
-          browserErrors.push(`Attempt ${attempt}: ${error.message}`);
-
-          // If permission denied, don't retry
-          if (error.code === 1) {
-            // GeolocationPositionError.PERMISSION_DENIED
-            logManager.location.warn(
-              "Location permission denied by user - stopping TIER 2 attempts"
-            );
-            break;
-          }
-
-          // Progressive delay between attempts: 1s, 2s
-          if (attempt < browserAttempts) {
-            const delay = attempt * 1000;
-            logManager.location.attempt(
-              `Waiting ${delay}ms before next attempt...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, delay));
-          }
-        }
-      }
-
-      logManager.location.warn(
-        `TIER 2 failed after ${browserAttempts} attempts`,
-        browserErrors
-      );
-      tier2Result = { success: false, errors: browserErrors };
-
-      // ============================================================================
-      // 💰 TIER 3: GOOGLE GEOLOCATION API (PAID - Last resort only)
-      // ============================================================================
-      logManager.location.tier3(
-        "Google Geolocation API starting (PAID - Last resort)"
-      );
-
-      // Check if user can use Google API (5 calls/day limit)
-      if (!this.canUseGoogleAPI(userId)) {
-        logManager.location.warn(
-          "TIER 3 blocked: User has reached daily limit (5 calls/day) or global limit reached"
-        );
-        tier3Result = { success: false, error: "Daily limit exceeded" };
-      } else {
-        try {
-          const googleResult = await this.getGoogleLocation(highAccuracy);
-
-          if (googleResult && googleResult.coords) {
-            // Track usage for cost monitoring
-            this.trackGoogleApiUsage(userId, trigger);
-
-            const accuracy = Math.round(googleResult.coords.accuracy);
-            const responseTime = Date.now() - startTime;
-            const cost = 0.005; // $0.005 per call
-
-            logManager.location.success(
-              `TIER 3 completed in ${responseTime}ms: ±${accuracy}m accuracy (COST: $${cost})`
-            );
-
-            tier3Result = this.formatLocationResponse(
-              googleResult,
-              "google_api",
-              cost
-            );
-            tier3Result.tier = 3;
-            tier3Result.responseTime = responseTime;
-            // Apply same tolerance for TIER 3 as TIER 2
-            const tier3AccuracyThreshold = 2000;
-            const tier3Tolerance = tier3AccuracyThreshold * 0.05; // 5% tolerance (100m)
-            const tier3AcceptableAccuracy =
-              tier3AccuracyThreshold + tier3Tolerance; // 2100m
-            tier3Result.shouldWriteToDatabase =
-              googleResult.coords.accuracy <= tier3AcceptableAccuracy;
-
-            // Add IP detection result as context if available
-            if (tier1Result && tier1Result.success) {
-              tier3Result.ipDetectionHint = {
-                campusStatus: tier1Result.campusStatus,
-                userIP: tier1Result.userIP,
-                confidence: tier1Result.confidence,
-              };
-            }
-
-            if (tier3Result.shouldWriteToDatabase) {
-              logManager.location.success(
-                `TIER 3 success: Google API accuracy ±${accuracy}m ≤ ${Math.round(
-                  tier3AcceptableAccuracy
-                )}m - proceeding with database write`
-              );
-            } else {
-              logManager.location.warn(
-                `TIER 3 accuracy failed: Google API accuracy ±${accuracy}m > ${Math.round(
-                  tier3AcceptableAccuracy
-                )}m - no database write`
-              );
-            }
-
-            // 🎯 SUCCESS EVENT: Notify UI that location was successfully obtained
-            this.emitFreshPresenceData(tier3Result, {
-              tier: 3,
-              accuracy: accuracy,
-              cost: cost,
-            });
-
-            return tier3Result;
-          }
-        } catch (error) {
-          logManager.location.fail(`TIER 3 failed: ${error.message}`);
-          tier3Result = { success: false, error: error.message };
-        }
-      }
-
-      // ============================================================================
-      // 🔴 ALL TIERS FAILED OR INSUFFICIENT ACCURACY - Return grey presence status
-      // ============================================================================
-      const totalTime = Date.now() - startTime;
-
-      logManager.group("3-Tier System Failure Summary", () => {
-        logManager.location.fail(
-          `All 3 tiers failed or insufficient accuracy in ${totalTime}ms`
-        );
-        logManager.location.fail(
-          "Tier 1: " +
-            (tier1Result?.success
-              ? `IP detection successful (${tier1Result.campusStatus}) - no coordinates`
-              : tier1Result?.error || "IP detection failed")
-        );
-        logManager.location.fail(
-          "Tier 2: " +
-            (tier2Result?.errors ||
-              (browserErrors.length
-                ? browserErrors.join(", ")
-                : "Browser GPS failed or accuracy > 2000m"))
-        );
-        logManager.location.fail(
-          "Tier 3: " +
-            (tier3Result?.error || "Google API failed or accuracy > 2000m")
-        );
-        logManager.dev.info(
-          "No GPS tier provided coordinates with accuracy ≤ 2000m - database write prevented"
-        );
-        logManager.dev.info(
-          "Solution: User needs to enable location permissions or move to an area with better GPS signal"
-        );
-      });
-
-      // Return "unknown" status for grey presence dot
-      const allFailedResult = {
-        coords: {
-          latitude: null,
-          longitude: null,
-          accuracy: Infinity,
-          altitude: null,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-        source: "all_tiers_failed",
-        tier: "failed",
-        cost: 0,
-        campusStatus: "unknown", // This will trigger grey presence dot
-        confidence: "none",
-        responseTime: totalTime,
-        shouldWriteToDatabase: false, // Don't write failed attempts
-        errors: {
-          tier1: tier1Result?.error,
-          tier2: tier2Result?.errors,
-          tier3: tier3Result?.error,
-        },
-      };
-
-      // 🎯 ERROR EVENT: Notify UI that all location tiers failed
-      this.emitPresenceDataError("All 3 location tiers failed");
-
-      return allFailedResult;
-    } catch (error) {
-      console.error(
-        "[CampusLocationService] Unexpected error in 3-tier system:",
-        error
-      );
-
-      // 🎯 ERROR EVENT: Notify UI of unexpected system error
-      this.emitPresenceDataError(`System error: ${error.message}`);
-
+      return await locationTierService.getCurrentLocation(highAccuracy, trigger, userId);
+    } catch (e) {
+      logManager.location.fail("3-tier location request failed", e);
       return null;
     }
+    // Legacy inline tier pipeline removed. Method delegates to LocationTierService.
   }
 
   /**
@@ -1063,7 +789,7 @@ export class CampusLocationService {
 
     // Check cache first to avoid unnecessary location calls
     const cacheKey = `${university}_boundary_detection`;
-    const cachedResult = this.getCachedBoundaryDetection(cacheKey);
+    const cachedResult = this.getCachedBoundaryDetection(cacheKey, locationData);
     if (cachedResult) {
       if (typeof logManager !== "undefined") {
         logManager.dev.info(
@@ -2223,7 +1949,7 @@ export class CampusLocationService {
    * @param {string} cacheKey - Cache key for the boundary detection
    * @returns {Object|null} Cached boundary detection result or null if expired/not found
    */
-  getCachedBoundaryDetection(cacheKey) {
+  getCachedBoundaryDetection(cacheKey, locationData = null) {
     try {
       if (!this.campusBoundaryCache.has(cacheKey)) {
         return null;
@@ -2231,9 +1957,27 @@ export class CampusLocationService {
 
       const cached = this.campusBoundaryCache.get(cacheKey);
 
-      // Check if cache is expired (1 minute TTL for boundary detection)
+      // If we have fresh coordinates, bypass cache when user moved significantly
+      if (locationData?.coords && cached?.position) {
+        const movedMeters = this.calculateDistanceMeters(
+          cached.position.lat,
+          cached.position.lng,
+          locationData.coords.latitude,
+          locationData.coords.longitude
+        );
+        // Treat >100m movement as significant; forces fresh boundary check
+        if (movedMeters > 100) {
+          logManager.location.info(
+            `🚶 [CampusLocationService] Significant movement detected (${Math.round(movedMeters)}m) - bypassing boundary cache for ${cacheKey}`
+          );
+          this.campusBoundaryCache.delete(cacheKey);
+          return null;
+        }
+      }
+
+      // Check if cache is expired (30s TTL for boundary detection)
       const cacheAge = Date.now() - cached.timestamp;
-      const maxAge = 60 * 1000; // 1 minute TTL
+      const maxAge = 30 * 1000; // 30 seconds TTL
 
       if (cacheAge > maxAge) {
         logManager.location.info(
@@ -2262,6 +2006,22 @@ export class CampusLocationService {
       return null;
     }
   }
+
+  /**
+   * Calculate distance between two lat/lng in meters (Haversine)
+   */
+  calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const R = 6371000; // meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+    }
 
   /**
    * 🎯 NEW METHOD: Get recent TIER 1 network detection result
@@ -5763,6 +5523,16 @@ export class CampusLocationService {
     console.log(
       "📡 [CampusLocationService] Emitting presence data loading event"
     );
+    // New event for modern components
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:loading", {
+        detail: {
+          source: "CampusLocationService",
+          timestamp: Date.now(),
+          priority: "fresh_data",
+        },
+      })
+    );
     document.dispatchEvent(
       new CustomEvent("campus-presence:data-loading", {
         detail: {
@@ -5780,6 +5550,16 @@ export class CampusLocationService {
   emitFreshPresenceData(position, presenceResult) {
     console.log(
       "📡 [CampusLocationService] Emitting fresh presence data ready event"
+    );
+    // New event for modern components
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:ready", {
+        detail: {
+          freshDataLoaded: true,
+          source: "CampusLocationService",
+          timestamp: Date.now(),
+        },
+      })
     );
     document.dispatchEvent(
       new CustomEvent("campus-presence:fresh-data-ready", {
@@ -5805,6 +5585,16 @@ export class CampusLocationService {
     console.error(
       "📡 [CampusLocationService] Emitting presence data error event:",
       errorMessage
+    );
+    // New event for modern components
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:error", {
+        detail: {
+          source: "CampusLocationService",
+          timestamp: Date.now(),
+          error: errorMessage,
+        },
+      })
     );
     document.dispatchEvent(
       new CustomEvent("campus-presence:data-error", {

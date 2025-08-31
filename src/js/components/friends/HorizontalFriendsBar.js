@@ -119,6 +119,11 @@ export class HorizontalFriendsBar {
     this.lastLocationAnimationTime = 0; // Debounce animation timing
     this.isLocationAnimationRunning = false; // Prevent overlapping animations
 
+    // 🚀 Presence loading state control (per user and per friend)
+    this.loadingState = { user: false };
+    this.friendLoading = new Map(); // friendId -> boolean
+    this.initialFreshComplete = false;
+
     logManager.ui.init(
       `HorizontalFriendsBar created for container: ${containerId}`
     );
@@ -138,6 +143,10 @@ export class HorizontalFriendsBar {
         throw new Error(`Container element not found: ${this.containerId}`);
       }
 
+      // Establish fresh-data state BEFORE any render so presence dots start as loading
+      this.loadingState.user =
+        sessionStorage.getItem("campusPresence_forceFreshData") === "true";
+
       // Get current user data
       this.currentUser = currentUser?.profile;
       if (!this.currentUser) {
@@ -147,11 +156,14 @@ export class HorizontalFriendsBar {
       // Create the UI structure
       this.createUIStructure();
 
+      // Set up Campus Presence fresh data listeners early so we catch initial events
+      this.setupFreshDataEventListeners();
+
       // Set up event handlers
       this.setupEventHandlers();
 
       // Load initial data
-      await this.loadQuickAccessFriends();
+      await this.loadQuickAccessFriends(true);
 
       // Render the friends bar
       this.render();
@@ -493,26 +505,50 @@ export class HorizontalFriendsBar {
         }...`
       );
 
+      const firstLoad = this.isFirstLoad;
       this.isLoading = true;
-      this.showLoadingState();
+      // Do not overlay big loader on first paint; we want avatars + loading dots to show
+      if (!firstLoad) this.showLoadingState();
 
-      // Smart cache strategy: Always fetch fresh data on init, but use cache for subsequent loads
-      const shouldUseFreshData = !useCache || this.isFirstLoad;
-      this.isFirstLoad = false; // Mark as no longer first load
+      // Cache-first on first paint for speed; otherwise honor caller's preference
+      const cachePreferred = useCache || firstLoad;
 
       // Get Quick Access friends with privacy status
       console.log(
         "[HorizontalFriendsBar] Loading friends with location context for presence dots..."
       );
-      const quickAccessData =
-        await friendsManager.getQuickAccessFriendsWithPrivacy(
-          !shouldUseFreshData
-        );
-
-      // 🌍 Campus Presence: Enhance friends with location data using extracted method
-      const quickAccessWithLocation = await this.enhanceFriendsWithLocationData(
-        quickAccessData
+      const quickAccessData = await friendsManager.getQuickAccessFriendsWithPrivacy(
+        cachePreferred
       );
+
+      // On first paint, avoid heavy per-friend profile fetch. Render ASAP with loading dots,
+      // then hydrate presence/lastActive in the background.
+      let quickAccessWithLocation = [];
+      if (firstLoad) {
+        quickAccessWithLocation = quickAccessData;
+        // Background enhancement for presence data
+        this.addTrackedTimeout(async () => {
+          try {
+            const hydrated = await this.enhanceFriendsWithLocationData(
+              quickAccessData
+            );
+            // Only apply if component is still alive
+            if (!this.isInitialized) return;
+            this.quickAccessFriends = hydrated;
+            // Refresh presence dots with latest data without blowing away timers
+            this.refreshPresenceDotsWithLatestData();
+            // Ensure profile listeners are bound
+            await this.setupStarredFriendProfileListeners();
+          } catch (bgErr) {
+            console.warn("⚠️ Background enhancement failed:", bgErr);
+          }
+        }, 0);
+      } else {
+        // 🌍 Campus Presence: Enhance friends with location data (non-first paints)
+        quickAccessWithLocation = await this.enhanceFriendsWithLocationData(
+          quickAccessData
+        );
+      }
 
       console.log(
         "[HorizontalFriendsBar] Enhanced friends with location data:",
@@ -560,8 +596,8 @@ export class HorizontalFriendsBar {
 
       this.quickAccessFriends = validatedFriends;
 
-      // Set up profile listeners for starred friends to detect avatar/name changes
-      if (this.quickAccessFriends.length > 0) {
+      // Set up profile listeners (skip await on first paint; background task handles it)
+      if (this.quickAccessFriends.length > 0 && !firstLoad) {
         await this.setupStarredFriendProfileListeners();
       }
 
@@ -570,7 +606,7 @@ export class HorizontalFriendsBar {
 
       console.log(
         `📊 Loaded ${this.quickAccessFriends.length} Quick Access friends${
-          shouldUseFreshData ? " (fresh)" : " (cached)"
+          cachePreferred ? " (cached-first)" : " (fresh)"
         }`
       );
     } catch (error) {
@@ -578,7 +614,8 @@ export class HorizontalFriendsBar {
       this.quickAccessFriends = [];
     } finally {
       this.isLoading = false;
-      this.hideLoadingState();
+      if (!this.isFirstLoad) this.hideLoadingState();
+      this.isFirstLoad = false;
     }
   }
 
@@ -630,7 +667,7 @@ export class HorizontalFriendsBar {
       systemInfo.lastActive,
       systemInfo.lastKnownLocation,
       systemInfo.locationSharingEnabled || false,
-      this.waitingForFreshData || false
+      this.loadingState.user || false
     );
 
     console.log("[HorizontalFriendsBar] Creating user presence dot:", {
@@ -642,7 +679,7 @@ export class HorizontalFriendsBar {
     });
 
     const userAvatarHtml = `
-      <div class="friend-avatar-item user-avatar" 
+      <div class="friend-avatar-item" 
            data-friend-id="user" 
            data-friend-name="${this.currentUser.displayName || "You"}"
            role="button"
@@ -653,7 +690,6 @@ export class HorizontalFriendsBar {
             ${renderUserAvatar(this.currentUser, true)}
             ${userPresenceDot}
             <div class="selection-ring"></div>
-            <div class="location-update-indicator"></div>
           </div>
         </div>
         <div class="avatar-label">Me</div>
@@ -697,7 +733,7 @@ export class HorizontalFriendsBar {
         friend.lastActive,
         friend.lastKnownLocation,
         friend.hasLocationSharing,
-        this.waitingForFreshData || false
+        (this.friendLoading.get(friend.friendId || friend.userId) || false)
       );
 
       console.log(
@@ -793,7 +829,7 @@ export class HorizontalFriendsBar {
     if (avatarItem.classList.contains("loading")) return;
 
     // Check if avatar is disabled due to privacy restrictions
-    if (isRestricted && !avatarItem.classList.contains("user-avatar")) {
+    if (isRestricted && friendId !== "user") {
       console.log(
         `🔒 Access restricted for ${friendName} - showing notification`
       );
@@ -1034,20 +1070,8 @@ export class HorizontalFriendsBar {
     if (selectedElement) {
       selectedElement.classList.add("selected");
 
-      // Force the selection ring to be visible immediately for debugging
+      // Rely on CSS for ring appearance; avoid inline styles that can distort shape
       const ring = selectedElement.querySelector(".selection-ring");
-      if (ring) {
-        // Force the ring to be visible by setting inline styles as backup
-        ring.style.opacity = "1";
-        ring.style.transform = "scale(1.12)";
-        ring.style.borderColor = "#9333ea";
-        ring.style.borderWidth = "3px";
-        ring.style.zIndex = "2";
-
-        console.log(`🔍 DEBUG: Forced ring styles for ${selectedFriendId}`);
-      }
-
-      // Debug the ring element
       console.log(`🔍 DEBUG: Selected element for ${selectedFriendId}:`, {
         element: selectedElement,
         hasSelectedClass: selectedElement.classList.contains("selected"),
@@ -1057,6 +1081,8 @@ export class HorizontalFriendsBar {
         ringDisplay: ring ? getComputedStyle(ring).display : "N/A",
         ringTransform: ring ? getComputedStyle(ring).transform : "N/A",
       });
+
+      // Debug info logged above
 
       // Scroll to selected avatar if needed
       this.scrollToAvatar(selectedElement);
@@ -2090,8 +2116,8 @@ export class HorizontalFriendsBar {
   setupFreshDataEventListeners() {
     console.log("📡 Setting up Campus Presence fresh data event listeners...");
 
-    // Track whether we're currently waiting for fresh data
-    this.waitingForFreshData =
+    // Track whether we're currently waiting for fresh data (user only by default)
+    this.loadingState.user =
       sessionStorage.getItem("campusPresence_forceFreshData") === "true";
 
     // 🎯 NEW: Listen for campus presence loading events (from app.js background init)
@@ -2100,8 +2126,19 @@ export class HorizontalFriendsBar {
         "🔄 [HorizontalFriendsBar] Campus presence loading started:",
         event.detail
       );
-      this.waitingForFreshData = true;
-      this.showPresenceDotsLoading();
+      const priority = event?.detail?.priority || "fresh_data";
+      if (priority === "presence_poll") {
+        this.loadingState.user = true;
+      } else {
+        this.loadingState.user = true;
+        if (!this.initialFreshComplete) {
+          this.quickAccessFriends.forEach((f) => {
+            const key = f.friendId || f.userId || f.uid;
+            if (key) this.friendLoading.set(key, true);
+          });
+        }
+      }
+      this.showPresenceDotsLoading(priority);
     });
 
     // 🎯 NEW: Listen for campus presence ready events (from app.js background init)
@@ -2110,10 +2147,14 @@ export class HorizontalFriendsBar {
         "✅ [HorizontalFriendsBar] Campus presence ready:",
         event.detail
       );
-      this.waitingForFreshData = false;
+      this.loadingState.user = false;
 
       if (event.detail.freshDataLoaded) {
         console.log("🎯 Fresh data was loaded - refreshing presence dots");
+        if (!this.initialFreshComplete) {
+          this.initialFreshComplete = true;
+          this.friendLoading.clear();
+        }
         this.refreshPresenceDotsWithLatestData();
       } else {
         console.log("📦 Using cached data - showing existing presence dots");
@@ -2128,7 +2169,7 @@ export class HorizontalFriendsBar {
         event.detail
       );
       // Keep loading state active during priority fetch
-      this.waitingForFreshData = true;
+      this.loadingState.user = true;
     });
 
     // 🎯 NEW: Listen for campus presence errors
@@ -2137,29 +2178,32 @@ export class HorizontalFriendsBar {
         "❌ [HorizontalFriendsBar] Campus presence error:",
         event.detail.error
       );
-      this.waitingForFreshData = false;
+      this.loadingState.user = false;
       this.hidePresenceDotsLoading();
     });
 
     // LEGACY: Keep existing event listeners for backward compatibility
     document.addEventListener("campus-presence:data-loading", (event) => {
+      if (this.initialFreshComplete) return;
       logManager.dev.debug("Legacy data loading event");
-      this.waitingForFreshData = true;
-      this.showPresenceDotsLoading();
+      this.loadingState.user = true;
+      this.showPresenceDotsLoading("legacy");
     });
 
     document.addEventListener("campus-presence:fresh-data-ready", (event) => {
+      if (this.initialFreshComplete) return;
       logManager.location.info("Legacy fresh data received:", event.detail);
-      this.waitingForFreshData = false;
+      this.loadingState.user = false;
       this.updatePresenceDotsWithFreshData(event.detail.locationData);
     });
 
     document.addEventListener("campus-presence:data-error", (event) => {
+      if (this.initialFreshComplete) return;
       console.error(
         "❌ [HorizontalFriendsBar] Legacy data error:",
         event.detail.error
       );
-      this.waitingForFreshData = false;
+      this.loadingState.user = false;
       this.hidePresenceDotsLoading();
     });
 
@@ -2169,33 +2213,35 @@ export class HorizontalFriendsBar {
   /**
    * 🚀 FRESH DATA PRIORITY: Show loading state on presence dots
    */
-  showPresenceDotsLoading() {
-    logManager.dev.debug("Showing loading state on presence dots");
+  showPresenceDotsLoading(priority = "fresh_data") {
+    logManager.dev.debug("Showing loading state on presence dots", { priority });
 
     // Update user's own presence dot
     if (this.userAvatarElement) {
       const userDot = this.userAvatarElement.querySelector(".presence-dot");
       if (userDot) {
-        userDot.className = "presence-dot loading";
+        userDot.classList.add("spinner-overlay");
         userDot.title = "Loading fresh location data...";
-        userDot.innerHTML = '<div class="loading-pulse"></div>';
       }
     }
 
     // Update friends' presence dots if they have location sharing
-    this.quickAccessFriends.forEach((friend) => {
-      if (friend.hasLocationSharing) {
-        const avatarElement = this.avatarElements.get(friend.uid);
+    // For first fresh load, we show overlay on friends too.
+    // For periodic presence polling, only show overlay on user's dot to avoid noise.
+    if (priority !== "presence_poll") {
+      this.quickAccessFriends.forEach((friend) => {
+        const key = friend.friendId || friend.userId || friend.uid;
+        if (!this.friendLoading.get(key)) return; // only overlay friends marked as loading
+        const avatarElement = this.avatarElements.get(key);
         if (avatarElement) {
           const friendDot = avatarElement.querySelector(".presence-dot");
           if (friendDot) {
-            friendDot.className = "presence-dot loading";
+            friendDot.classList.add("spinner-overlay");
             friendDot.title = "Loading fresh location data...";
-            friendDot.innerHTML = '<div class="loading-pulse"></div>';
           }
         }
-      }
-    });
+      });
+    }
   }
 
   /**
@@ -2234,7 +2280,8 @@ export class HorizontalFriendsBar {
     // Update friends' presence dots
     this.quickAccessFriends.forEach((friend) => {
       if (friend.hasLocationSharing) {
-        const avatarElement = this.avatarElements.get(friend.uid);
+        const key = friend.friendId || friend.userId || friend.uid;
+        const avatarElement = this.avatarElements.get(key);
         if (avatarElement) {
           const friendDot = avatarElement.querySelector(".presence-dot");
           if (friendDot) {
@@ -2260,12 +2307,23 @@ export class HorizontalFriendsBar {
    * 🚀 FRESH DATA PRIORITY: Hide loading state on presence dots
    */
   hidePresenceDotsLoading() {
-    console.log(
-      "⏹️ [HorizontalFriendsBar] Hiding loading state on presence dots"
-    );
+    console.log("⏹️ [HorizontalFriendsBar] Hiding loading overlay on presence dots");
 
-    // This will trigger a regular re-render which will show normal presence dots
-    this.render();
+    // Remove overlay from user's dot
+    if (this.userAvatarElement) {
+      const userDot = this.userAvatarElement.querySelector(".presence-dot");
+      if (userDot) userDot.classList.remove("spinner-overlay");
+    }
+
+    // Remove overlay from friends' dots
+    this.quickAccessFriends.forEach((friend) => {
+      const key = friend.friendId || friend.userId || friend.uid;
+      const avatarElement = this.avatarElements.get(key);
+      if (avatarElement) {
+        const friendDot = avatarElement.querySelector(".presence-dot");
+        if (friendDot) friendDot.classList.remove("spinner-overlay");
+      }
+    });
   }
 
   /**
@@ -3950,12 +4008,12 @@ export class HorizontalFriendsBar {
       }
 
       // Generate new presence dot HTML
-      const newPresenceDot = PresenceDot.createWithFreshDataPriority(
-        friend.lastActive,
-        friend.lastKnownLocation,
-        friend.hasLocationSharing,
-        this.waitingForFreshData || false
-      );
+    const newPresenceDot = PresenceDot.createWithFreshDataPriority(
+      friend.lastActive,
+      friend.lastKnownLocation,
+      friend.hasLocationSharing,
+      (this.friendLoading.get(friendId) || false)
+    );
 
       // Create a temporary container to parse the HTML
       const tempContainer = document.createElement("div");
@@ -3967,6 +4025,8 @@ export class HorizontalFriendsBar {
         // Replace the old presence dot with the new one
         existingPresenceDot.replaceWith(newPresenceDotElement);
 
+        // Stop spinner for this friend after fresh data applied
+        this.friendLoading.set(friendId, false);
         console.log(`🌍 ✅ Updated presence dot for ${friend.displayName}:`, {
           newClass: newPresenceDotElement.className,
           newText:
@@ -4887,7 +4947,7 @@ export class HorizontalFriendsBar {
       systemInfo.lastActive,
       systemInfo.lastKnownLocation,
       systemInfo.locationSharingEnabled || false,
-      this.waitingForFreshData || false
+      this.loadingState.user || false
     );
 
     if (existingDot && document.contains(existingDot)) {
@@ -4929,6 +4989,11 @@ export class HorizontalFriendsBar {
       }
     }
 
+    // Stop spinner for user after fresh data applied
+    this.loadingState.user = false;
+    // Remove overlay if any lingering
+    const finalDot = this.userAvatarElement.querySelector(".presence-dot");
+    if (finalDot) finalDot.classList.remove("spinner-overlay");
     console.log("[HorizontalFriendsBar] User presence dot updated safely");
   }
 
@@ -4948,12 +5013,12 @@ export class HorizontalFriendsBar {
       });
 
       // Create new presence dot
-      const newPresenceDot = PresenceDot.createWithFreshDataPriority(
-        systemInfo.lastActive,
-        systemInfo.lastKnownLocation,
-        systemInfo.locationSharingEnabled || false,
-        this.waitingForFreshData || false
-      );
+    const newPresenceDot = PresenceDot.createWithFreshDataPriority(
+      systemInfo.lastActive,
+      systemInfo.lastKnownLocation,
+      systemInfo.locationSharingEnabled || false,
+      this.loadingState.user || false
+    );
 
       // Add to avatar image
       const avatarImage = this.userAvatarElement.querySelector(".avatar-image");
@@ -4979,10 +5044,9 @@ export class HorizontalFriendsBar {
   triggerLocationUpdateAnimation(locationUpdate = null) {
     if (!this.userAvatarElement) return;
 
-    const indicator = this.userAvatarElement.querySelector(
-      ".location-update-indicator"
-    );
-    if (!indicator) return;
+    // Use presence dot spinner overlay to indicate update (replaces indicator)
+    const presenceDot = this.userAvatarElement.querySelector(".presence-dot");
+    if (!presenceDot) return;
 
     // 🛡️ ENHANCED ANIMATION DEBOUNCING: Prevent rapid successive animations
     const now = Date.now();
@@ -5099,19 +5163,12 @@ export class HorizontalFriendsBar {
     this.lastLocationAnimationTime = now;
     this.isLocationAnimationRunning = true;
 
-    // Reset animation state
-    indicator.classList.remove("location-updated");
-
-    // Trigger animation with slight delay for better visual effect
+    // Add spinner overlay briefly to show update
+    presenceDot.classList.add("spinner-overlay");
     setTimeout(() => {
-      indicator.classList.add("location-updated");
-
-      // Clean up animation state after completion
-      setTimeout(() => {
-        indicator.classList.remove("location-updated");
-        this.isLocationAnimationRunning = false;
-      }, 2000); // Animation duration
-    }, 50);
+      presenceDot.classList.remove("spinner-overlay");
+      this.isLocationAnimationRunning = false;
+    }, 2000);
   }
 
   /**

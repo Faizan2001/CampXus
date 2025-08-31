@@ -2056,7 +2056,8 @@ body:not(.dark-mode) #slotTooltip {
   display: flex;
   align-items: center; /* Center the avatar vertically */
   overflow: visible; /* Allow ring to extend outside */
-  padding: 0.3rem 0.25rem 0 0; /* Reduced top padding for ring, no bottom/right */
+  /* Match friends list vertical padding for consistent ring spacing */
+  padding: 0.3rem 0.5rem 0.25rem 0.5rem;
 }
 
 /* ===== FRIENDS SCROLL CONTAINER (SCROLLABLE) ===== */
@@ -2173,29 +2174,22 @@ body:not(.dark-mode) #slotTooltip {
   left: 0;
   right: 0;
   bottom: 0;
-  transform: scale(1.08); /* Slightly smaller scale for thinner appearance */
-  border: 3px solid #9333ea; /* More prominent border with stronger purple */
+  /* Use box-shadow outline instead of transform/border to avoid distortion */
+  border: none;
   border-radius: 50%;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
   opacity: 0;
   z-index: 2; /* Above the user-avatar-img */
-  /* NO GLOW EFFECT - Clean neon ring only */
   box-shadow: none;
-  /* Ensure ring is always visible when selected */
   display: block;
 }
 
 /* Normal mode selection (purple rings) */
 .friend-avatar-item.selected .selection-ring {
   opacity: 1 !important;
-  transform: scale(
-    1.12
-  ) !important; /* Slightly larger scale when selected for more prominent ring */
-  border-color: #9333ea !important; /* Stronger purple for maximum prominence */
-  border-width: 3px !important; /* More prominent border for all screen sizes */
-  /* NO GLOW - Clean neon ring only */
-  box-shadow: none !important;
+  /* 3px ring using outline shadow; no transform to keep perfect circle */
+  box-shadow: 0 0 0 3px #9333ea !important;
   z-index: 2 !important; /* Above the user-avatar-img */
 }
 
@@ -2209,8 +2203,6 @@ body:not(.dark-mode) #slotTooltip {
 
 .friend-avatar-item:hover:not(.selected) .selection-ring {
   opacity: 0.5; /* Slightly more visible on hover */
-  transform: scale(1.08); /* Same scale as default but visible on hover */
-  box-shadow: none; /* No glow on hover either */
 }
 
 /* ===== AVATAR LABELS ===== */
@@ -2250,11 +2242,7 @@ body:not(.dark-mode) #slotTooltip {
 
 .friend-avatar-item.user-avatar.selected .selection-ring {
   opacity: 1 !important;
-  transform: scale(1.12) !important; /* Same as other selected rings */
-  border-color: #9333ea !important; /* Same stronger purple */
-  border-width: 3px !important; /* More prominent border for all screen sizes */
-  /* NO GLOW - Clean neon ring only */
-  box-shadow: none !important;
+  box-shadow: 0 0 0 3px #9333ea !important;
   z-index: 2 !important; /* Above the user-avatar-img like others */
 }
 

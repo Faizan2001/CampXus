@@ -56,20 +56,7 @@ export class PresenceDot {
     return "12h"; // Cap at 12h since dots disappear after that
   }
 
-  /**
-   * Creates a loading presence dot for fresh data scenarios
-   * 
-   * @param {string} loadingText - Optional loading text (defaults to empty)
-   * @returns {string} HTML string for loading presence dot
-   */
-  static createLoading(loadingText = "") {
-    return `
-      <div class="presence-dot loading" title="Loading fresh location data...">
-        <div class="loading-spinner"></div>
-        ${loadingText ? `<span class="dot-text">${loadingText}</span>` : ''}
-      </div>
-    `;
-  }
+  // Removed legacy loading markup in favor of non-intrusive spinner overlay
 
   /**
    * Creates a presence dot HTML element
@@ -83,10 +70,7 @@ export class PresenceDot {
    * @returns {string} HTML string for presence dot element
    */
   static create(lastActive, lastKnownLocation, hasLocationSharing = false, options = {}) {
-    // Show loading state if explicitly requested or if fresh data is being fetched
-    if (options.isLoading || options.forceFreshData) {
-      return this.createLoading();
-    }
+    // Legacy inline loading removed: overlay ring is applied via CSS class instead
 
     // Input validation and early returns for grey dots
     if (!hasLocationSharing) {
@@ -142,8 +126,9 @@ export class PresenceDot {
       // Only log when actually creating for active user (throttled by LogManager)
       if (window.logManager) window.logManager.presenceDotUpdate('user', `active ${campusStatus}`);
 
+      const extraClass = options.extraClass ? ` ${options.extraClass}` : '';
       return `
-        <div class="presence-dot ${dotClass}" 
+        <div class="presence-dot ${dotClass}${extraClass}" 
              title="${this.getTooltip(lastActive, lastKnownLocation)}">
         </div>
       `;
@@ -152,8 +137,9 @@ export class PresenceDot {
     // EXISTING LOGIC: Show timer text for inactive users (2+ minutes)
     const timeText = this.getTimeText(minutesAgo);
 
+    const extraClass = options.extraClass ? ` ${options.extraClass}` : '';
     const presenceDot = `
-      <div class="presence-dot ${dotClass}" 
+      <div class="presence-dot ${dotClass}${extraClass}" 
            title="${this.getTooltip(lastActive, lastKnownLocation)}">
         <span class="dot-text">${timeText}</span>
       </div>
@@ -162,28 +148,7 @@ export class PresenceDot {
     return presenceDot;
   }
 
-  /**
-   * Creates a presence dot with fresh data priority support
-   * This method checks for fresh data requirements and shows loading state if needed
-   * 
-   * @param {Date|Object|null} lastActive - Last activity timestamp  
-   * @param {Object|null} lastKnownLocation - Location data with campusStatus
-   * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
-   * @param {boolean} isWaitingForFreshData - Whether fresh data is being loaded
-   * @returns {string} HTML string for presence dot element
-   */
-  static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = false, isWaitingForFreshData = false) {
-    // Check if we should show loading state for fresh data
-    const forceFreshData = sessionStorage.getItem('campusPresence_forceFreshData') === 'true';
-    const priorityMode = sessionStorage.getItem('campusPresence_priorityMode');
-    
-    if (isWaitingForFreshData || forceFreshData || priorityMode === 'fresh_data') {
-      return this.createLoading();
-    }
-    
-    // Otherwise create normal presence dot
-    return this.create(lastActive, lastKnownLocation, hasLocationSharing);
-  }
+  // Removed duplicate createWithFreshDataPriority (use the unified version below)
 
   /**
    * Updates an existing presence dot element with fresh location data
@@ -193,28 +158,7 @@ export class PresenceDot {
    * @param {Object|null} lastKnownLocation - Fresh location data
    * @param {boolean} hasLocationSharing - Location sharing status
    */
-  static updateWithFreshData(dotElement, lastActive, lastKnownLocation, hasLocationSharing) {
-    if (!dotElement) return;
-    
-    // Update dot with fresh data (no excessive logging)
-    
-    // Generate fresh presence dot HTML
-    const freshDotHtml = this.create(lastActive, lastKnownLocation, hasLocationSharing);
-    
-    // Parse the HTML to get the new element
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = freshDotHtml;
-    const freshDotElement = tempContainer.querySelector('.presence-dot');
-    
-    if (freshDotElement && dotElement.parentNode) {
-      // Copy classes and attributes from the fresh element
-      dotElement.className = freshDotElement.className;
-      dotElement.innerHTML = freshDotElement.innerHTML;
-      dotElement.title = freshDotElement.title;
-      
-      // Dot updated successfully (logging removed to reduce noise)
-    }
-  }
+  // Removed duplicate updateWithFreshData (use the unified version below)
 
   /**
    * Generates tooltip text for presence dots
@@ -351,23 +295,7 @@ export class PresenceDot {
     }
   }
 
-  /**
-   * 🚀 FRESH DATA PRIORITY: Create a loading presence dot for fresh data requests
-   * Shows animated loading state until fresh location data arrives
-   *
-   * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
-   * @returns {string} HTML string for loading presence dot
-   */
-  static createLoadingDot(hasLocationSharing = false) {
-    if (!hasLocationSharing) {
-      return '<div class="presence-dot grey"></div>';
-    }
-
-    // Creating loading dot (logging removed to reduce console noise)
-    return `<div class="presence-dot loading" title="Loading fresh location data...">
-      <div class="loading-pulse"></div>
-    </div>`;
-  }
+  // Removed legacy createLoadingDot in favor of overlay ring
 
   /**
    * 🚀 FRESH DATA PRIORITY: Create presence dot with fresh data priority
@@ -379,14 +307,22 @@ export class PresenceDot {
    * @param {boolean} waitingForFreshData - Whether to show loading state for fresh data
    * @returns {string} HTML string for presence dot element
    */
-  static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = false, waitingForFreshData = false) {
-    // If waiting for fresh data and location sharing is enabled, show loading state
-    if (waitingForFreshData && hasLocationSharing) {
-      return this.createLoadingDot(hasLocationSharing);
+  static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = undefined, waitingForFreshData = false) {
+    const sharingUnknown = typeof hasLocationSharing !== "boolean";
+    const forceFreshData = sessionStorage.getItem("campusPresence_forceFreshData") === "true";
+    const priorityMode = sessionStorage.getItem("campusPresence_priorityMode");
+
+    const addOverlay = waitingForFreshData || forceFreshData || priorityMode === "fresh_data" || sharingUnknown;
+
+    // If explicitly disabled, show grey (no overlay)
+    if (hasLocationSharing === false) {
+      return '<div class="presence-dot grey"></div>';
     }
 
-    // Otherwise, use normal creation logic
-    return this.create(lastActive, lastKnownLocation, hasLocationSharing);
+    // Build normal dot and add spinner overlay class if needed
+    const extraClass = addOverlay ? 'spinner-overlay' : '';
+    const sharingFlag = hasLocationSharing === true;
+    return this.create(lastActive, lastKnownLocation, sharingFlag, { extraClass });
   }
 
   /**

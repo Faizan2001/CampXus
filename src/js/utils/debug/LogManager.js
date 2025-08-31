@@ -124,7 +124,12 @@ class LogManager {
       "User presence dot updated safely",
       "Updated presence dot for",
       "Processing user activity update",
-      
+      "Presence loading started:",
+      "Emitting presence data loading event",
+      "Presence polling started:",
+      "Campus presence loading started:",
+      "Campus presence ready:",
+
       // HorizontalFriendsBar noise
       "CIRCUIT BREAKER: Ignoring database update during sync operations",
       "DEBUG: Validated",
@@ -156,8 +161,11 @@ class LogManager {
       "Schedule data update:",
       "Quick Access update:",
       "Profile throttled for:",
-      
+      "External database update received:",
+
       // Location service noise
+      "3-TIER location request",
+      "Trying IP info service",
       "GPS success:",
       "Browser GPS request",
       "TIER 1:",
@@ -166,7 +174,10 @@ class LogManager {
       "IP detected successfully",
       "Activity heartbeat",
       "Health check passed",
-      
+      "Boundary detection",
+      "Campus boundary check result",
+      "3-tier system provided valid location data",
+
       // Generic debug spam
       "Setting up",
       "Found",
@@ -174,6 +185,12 @@ class LogManager {
       "Available globally",
       "initialized successfully",
       "listener established",
+      "SPA Initialization",
+      "Creating SPA Router instance",
+      "Template loaded successfully",
+      "Injecting template content",
+      "ViewModeManager",
+      "UniversityCampusConfig",
     ]);
   }
 

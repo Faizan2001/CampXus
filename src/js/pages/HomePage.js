@@ -5777,15 +5777,23 @@ async function initializeHorizontalFriendsBar() {
     // Ensure user profile is available (avoid race on first load)
     if (!currentUser?.profile) {
       try {
-        await currentUser.waitForProfileWithTimeout(8000);
+        await currentUser.waitForProfileWithTimeout(2000);
       } catch (e) {
         console.warn(
-          "⏱️ Profile not ready in time; skipping friends bar init this round"
+          "⏱️ Profile not ready in 2s; will initialize friends bar when profile arrives"
         );
-        return;
       }
       if (!currentUser?.profile) {
-        console.warn("⚠️ No profile after wait; skipping friends bar init");
+        // Defer initialization until profile becomes available (non-blocking)
+        const unsubscribe = currentUser.subscribe((snapshot) => {
+          if (snapshot.profile && !state.horizontalFriendsBar) {
+            try {
+              unsubscribe && unsubscribe();
+            } catch {}
+            // Retry initialization now that profile exists
+            initializeHorizontalFriendsBar();
+          }
+        });
         return;
       }
     }

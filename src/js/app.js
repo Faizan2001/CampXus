@@ -45,17 +45,63 @@ import { logManager } from "./utils/debug/LogManager.js";
 // 🎯 DEBUG: Log that modules are imported
 logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
 
-// 🔧 Development: Configure logging level based on environment
-if (
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
-) {
-  logManager.setLevel("debug"); // Show all logs in development
-  logManager.dev.info("Debug mode enabled - showing all logs");
-} else {
-  logManager.setLevel("warn"); // Only show warnings and errors in production
-  logManager.system.init("Production mode - showing warnings and errors only");
-}
+// 🔧 Logging profile: keep console clean by default, allow opt-in verbosity
+(() => {
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  const params = new URLSearchParams(window.location.search);
+  const storedProfile = localStorage.getItem("campxus:logProfile");
+  const requestedProfile = params.get("logs") || storedProfile;
+
+  const applyProfile = (profile) => {
+    switch ((profile || "").toLowerCase()) {
+      case "all":
+      case "debug":
+        logManager.setLevel("debug");
+        logManager.enableCategories(["all"]);
+        logManager.dev.info("Debug profile: all logs enabled");
+        break;
+      case "info":
+        logManager.setLevel("info");
+        logManager.enableCategories(["system", "presence", "location", "auth"]);
+        logManager.system.config("Info profile: key categories only");
+        break;
+      case "location":
+        logManager.setLevel("debug");
+        logManager.enableCategories(["location"]);
+        logManager.system.config("Location profile: location-only logs");
+        break;
+      case "presence":
+        logManager.setLevel("debug");
+        logManager.enableCategories(["presence"]);
+        logManager.system.config("Presence profile: presence-only logs");
+        break;
+      case "critical":
+        logManager.setLevel("warn");
+        logManager.enableCategories(["error", "auth", "system", "presence"]);
+        logManager.system.config("Critical profile: warnings/errors + key categories");
+        break;
+      case "quiet":
+      default:
+        logManager.setLevel("warn");
+        logManager.enableCategories(["all"]);
+        if (profile === "quiet") {
+          logManager.system.config("Quiet profile: warnings and errors only");
+        }
+        break;
+    }
+  };
+
+  if (requestedProfile) {
+    applyProfile(requestedProfile);
+  } else if (isLocal) {
+    // Default to a quiet console locally; opt-in verbosity via ?logs=debug or localStorage
+    applyProfile("critical");
+  } else {
+    applyProfile("critical");
+  }
+})();
 
 // 🎯 NEW: Create module-level variables instead of window globals
 let spaRouter = null;
@@ -76,38 +122,7 @@ async function initializeSPA() {
     return;
   }
 
-  // 🎯 LEARNING: This is the critical fix for our race condition.
-  // We're telling our app to PAUSE and wait until the AuthManager
-  // confirms the user's login status from Firebase.
-  // The `authReady` is a Promise we created in AuthManager that resolves
-  // only after the initial `onAuthStateChanged` event has fired.
-  if (authManager?.authReady) {
-    logManager.auth.login("Waiting for authentication to be ready...");
-
-    try {
-      // Add a timeout to prevent waiting forever
-      const authTimeout = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Auth timeout after 3 seconds")),
-          3000
-        )
-      );
-
-      await Promise.race([authManager.authReady, authTimeout]);
-      logManager.auth.login("Authentication ready!");
-    } catch (error) {
-      logManager.auth.warn(
-        `Authentication timeout or error, proceeding anyway: ${error.message}`
-      );
-      // Continue initialization even if auth times out
-    }
-  } else {
-    logManager.auth.warn(
-      "AuthManager or authReady promise not found. Proceeding without auth check."
-    );
-  }
-
-  // Now that we're sure about the auth status, we can initialize the router.
+  // Initialize UI and routing immediately (do not block on auth)
   logManager.system.init("Creating SPA Router instance...");
 
   // Check if main-content container exists
@@ -131,10 +146,40 @@ async function initializeSPA() {
   // Start background initialization without blocking app startup
   initializeCampusPresenceInBackground();
 
+  // Ensure presence polling runs every 30s across the app lifespan
+  try {
+    campusLocationService.startPresencePolling(30000);
+  } catch (e) {
+    console.warn("Presence polling start failed (non-critical):", e?.message || e);
+  }
+
   spaRouter = new SPARouter();
 
-  // 🎯 FIXED: Manually trigger the initial page load now that auth is ready.
+  // 🎯 FIXED: Manually trigger the initial page load immediately
   spaRouter.loadInitialPage();
+
+  // 🔐 Continue waiting for auth in the background (non-blocking for UI)
+  if (authManager?.authReady) {
+    logManager.auth.login("Auth check running in background...");
+    const authTimeoutMs = 1000; // faster fallback to keep UI responsive
+    const authTimeout = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Auth timeout after ${authTimeoutMs} ms`)),
+        authTimeoutMs
+      )
+    );
+    Promise.race([authManager.authReady, authTimeout])
+      .then(() => logManager.auth.login("Authentication ready (background)!"))
+      .catch((error) => {
+        console.warn(
+          `Authentication timeout or error (background), continuing: ${error.message}`
+        );
+      });
+  } else {
+    console.warn(
+      "AuthManager or authReady promise not found. Proceeding without auth check."
+    );
+  }
 
   // ── BUG FIX ──
   // Register the profile setup completion listeners so that
