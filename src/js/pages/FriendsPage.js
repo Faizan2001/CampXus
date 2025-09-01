@@ -591,39 +591,18 @@ class FriendsUI {
    * 📍 Add compact global location sharing toggle in header
    */
   async addHeaderLocationToggle() {
-    const header = document.querySelector(".friends-header .page-title-section");
-    if (!header) {
-      console.warn("⚠️ Friends header not found for header location toggle");
+    const toggleContainer = document.querySelector(".campus-presence-header .header-location-toggle-container");
+    if (!toggleContainer) {
+      console.warn("⚠️ Header location toggle container not found");
       return;
     }
 
-    // Create container in header (placed at far left)
-    let headerToggle = header.querySelector(".header-location-toggle");
-    if (!headerToggle) {
-      headerToggle = document.createElement("div");
-      headerToggle.className = "header-location-toggle";
-      headerToggle.innerHTML = `
-        <div class="header-location-title">
-          <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-          <span>Location Sharing</span>
-        </div>
-        <div class="header-location-toggle-container"></div>
-      `;
-      header.prepend(headerToggle);
-    }
-
-    // Initialize compact global location toggle
     try {
+      // Initialize LocationSharingToggle with global mode
       this.globalLocationToggle = new LocationSharingToggle({
-        mode: "global",
-        showPermissionHelper: false,
-        showStatus: false,
-        containerClass: "compact",
+        mode: "global"
       });
 
-      const toggleContainer = headerToggle.querySelector(
-        ".header-location-toggle-container"
-      );
       // Clear previous render if any
       toggleContainer.innerHTML = "";
       await this.globalLocationToggle.render(toggleContainer);
@@ -2709,9 +2688,9 @@ class FriendsUI {
         this.globalLocationToggle = null;
       }
 
-      // Remove header location toggle
-      const headerToggle = document.querySelector(".header-location-toggle");
-      if (headerToggle) headerToggle.remove();
+      // Remove header location toggle DOM (new structure)
+      const headerContainer = document.querySelector(".campus-presence-header .header-location-toggle-container");
+      if (headerContainer) headerContainer.innerHTML = "";
 
       console.log("🧹 Campus presence components cleaned up");
     } catch (error) {

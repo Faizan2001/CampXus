@@ -55,20 +55,43 @@ body.page-friends .schedule-section {
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem; /* 12px - reduced from 1.5rem for tighter spacing */
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-.friends-header .page-title {
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
+/* Mobile-optimized spacing */
+@media (max-width: 768px) {
+  .friends-container {
+    padding: 0.75rem;
+    gap: 0.75rem; /* Reduced from 1.5rem for mobile */
+  }
+  
+  /* Remove glass card borders on mobile for friends page only */
+  .friends-container .glass-card {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
 }
 
-.friends-header .page-subtitle {
+.campus-presence-header .page-title {
+  /* Match other friends page glass-card h3 styles exactly */
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Align left like other cards */
+  gap: 0.5rem;
+}
+
+.campus-presence-header .page-title i {
+  color: var(--primary-color, #667eea);
+}
+
+.campus-presence-header .page-subtitle {
   color: var(--text-secondary);
   font-size: 1.1rem;
   line-height: 1.6;
@@ -677,15 +700,50 @@ body.page-friends .schedule-section {
   min-height: 72px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
-  flex-direction: row; /* Horizontal layout for main content */
+  flex-direction: row;
   align-items: center;
   gap: 16px;
   width: 100%;
   position: relative;
-  overflow: visible; /* Allow dropdown menus to extend outside card */
+  overflow: visible;
 
   /* Light reflection effect */
   box-shadow: var(--friends-card-shadow);
+}
+
+/* Mobile-optimized friend cards for better scanning */
+@media (max-width: 768px) {
+  .friend-card {
+    padding: 14px;
+    min-height: 68px;
+    gap: 12px;
+    margin-bottom: 6px;
+    /* Increased touch target */
+    min-height: 76px;
+  }
+  
+  .friend-info {
+    /* Tighter text spacing on mobile */
+    gap: 2px;
+  }
+  
+  .friend-name {
+    font-size: 0.95rem;
+    font-weight: 600; /* Bolder for better readability */
+    margin-bottom: 2px;
+  }
+  
+  .friend-major,
+  .mutual-friends {
+    font-size: 0.82rem;
+    opacity: 0.9;
+  }
+  
+  .friend-actions {
+    gap: 6px;
+    /* Ensure buttons maintain proper touch targets */
+    min-height: 44px;
+  }
 }
 
 /* Friend card main content (avatar, info, actions) - removed as layout is now direct in .friend-card */
@@ -980,12 +1038,12 @@ body.page-friends .schedule-section {
     width: 100%;
     max-width: 100%;
   }
-  
-  .friends-header .page-title {
-    font-size: 1.5rem;
+  /* Keep Campus Presence title consistent with other glass cards */
+  .campus-presence-header .page-title {
+    font-size: 1.25rem;
   }
   
-  .friends-header .page-subtitle {
+  .campus-presence-header .page-subtitle {
     font-size: 1rem;
   }
   
@@ -1889,76 +1947,364 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
 }
 
 /* =================================
-   HEADER LOCATION TOGGLE (Compact)
+   LOCATION TOGGLE
 ================================= */
 
-.friends-header .page-title-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.friends-header .header-location-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.friends-header .header-location-title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.friends-header .location-sharing-toggle.compact .toggle-switch {
+/* Campus presence controls layout (no grid)
+   - Label visually centered in the card
+   - Toggle anchored to the right with edge inset
+*/
+.campus-presence-controls {
   position: relative;
-  display: inline-flex;
+  display: flex; /* Center contents and keep on one line */
+  align-items: center; /* Vertical centering */
+  justify-content: center; /* Center horizontally */
+  width: 100%;
+  min-height: 44px; /* Mobile-friendly touch target */
+  gap: 12px; /* Exact gap between label and toggle */
+}
+
+.presence-label {
+  color: var(--text-primary);
+  font-size: clamp(0.95rem, 2.8vw, 1rem); /* Mobile-first sizing */
+  font-weight: 500;
+  display: inline-flex; /* Enable vertical centering within span */
+  align-items: center; /* Vertically center text */
+  height: 32px; /* Match base toggle height */
+  line-height: 1; /* Use flex centering instead of line-height */
+  white-space: nowrap; /* Prevent wrapping to keep one line */
+}
+
+.campus-presence-header .header-location-toggle-container {
+  position: static; /* Participate in flex layout */
+  display: flex;
   align-items: center;
-  width: 44px;
-  height: 24px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  background: #b91c1c; /* red when OFF */
+}
+
+/* Remove special width constraint to match other cards */
+
+/* Responsive layout for campus presence controls */
+@media (max-width: 768px) {
+  /* Keep label centered and toggle right on mobile on a single line */
+  .campus-presence-controls {
+    gap: 12px; /* Maintain consistent gap on mobile */
+  }
+  
+  .presence-label {
+    font-size: 0.95rem;
+  }
+
+  /* Tighter vertical rhythm under title on small screens */
+  .campus-presence-header .page-title {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Removed obsolete classes that no longer exist in simplified HTML structure */
+
+.location-toggle-switch {
+  position: relative;
+  width: 64px;
+  height: 32px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.9), 
+    rgba(220, 38, 38, 0.95)
+  );
   cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(239, 68, 68, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent; /* Better mobile tap feel */
+  touch-action: manipulation; /* Avoid 300ms delay on some browsers */
 }
 
-.friends-header .location-sharing-toggle.compact .toggle-switch.enabled {
-  background: #16a34a; /* green when ON */
-  border-color: rgba(0, 0, 0, 0.15);
+.location-toggle-switch.enabled {
+  background: linear-gradient(135deg, 
+    rgba(34, 197, 94, 0.9), 
+    rgba(22, 163, 74, 0.95)
+  );
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 4px 20px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
 }
 
-/* Ensure compact toggle stands out when enabled */
-.friends-header .location-sharing-toggle.compact .toggle-switch.enabled:hover {
-  filter: brightness(1.05);
+.location-toggle-switch:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.15),
+    0 6px 24px rgba(239, 68, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.friends-header .location-sharing-toggle.compact .toggle-switch .toggle-slider {
+.location-toggle-switch.enabled:hover {
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.15),
+    0 6px 28px rgba(34, 197, 94, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* ON/OFF Text Labels - Positioned in empty space */
+.location-toggle-text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 8px rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  user-select: none;
+}
+
+.location-toggle-off {
+  left: 30px; /* Position in right side when slider is left */
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.location-toggle-on {
+  left: 10px; /* Position in left side when slider is right */
+  opacity: 0;
+  transform: translateY(-50%) scale(0.7);
+}
+
+/* When enabled, show ON and hide OFF */
+.location-toggle-switch.enabled .location-toggle-off {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.7);
+}
+
+.location-toggle-switch.enabled .location-toggle-on {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+/* Premium Glass Slider Circle */
+.location-toggle-slider {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 18px;
-  height: 18px;
-  background: #ffffff;
+  width: 26px;
+  height: 26px;
+  background: linear-gradient(145deg, 
+    rgba(255, 255, 255, 0.98),
+    rgba(248, 250, 252, 0.95)
+  );
   border-radius: 50%;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+  z-index: 3;
 }
 
-.friends-header .location-sharing-toggle.compact .toggle-switch.enabled .toggle-slider {
-  transform: translateX(20px);
+.location-toggle-switch.enabled .location-toggle-slider {
+  transform: translateX(34px);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.2),
+    0 3px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03);
 }
 
-.friends-header .location-sharing-toggle.compact .toggle-switch .toggle-text {
-  display: none; /* compact mode hides text */
+/* Focus States */
+.location-toggle-switch:focus {
+  outline: none;
+  border-color: rgba(var(--primary-color-rgb), 0.6);
+  box-shadow: 
+    0 0 0 3px rgba(var(--primary-color-rgb), 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Global privacy controls removed - individual privacy controls now available via friend card menus */
+/* Active/Pressed State */
+.location-toggle-switch:active .location-toggle-slider {
+  transform: scale(0.95) translateX(0);
+}
+
+.location-toggle-switch.enabled:active .location-toggle-slider {
+  transform: scale(0.95) translateX(32px);
+}
+
+@media (max-width: 767px) {
+  /* Mobile-specific adjustments for campus presence controls */
+  
+  /* Removed obsolete .location-toggle-label style */
+  
+  .location-toggle-switch {
+    width: 56px;
+    height: 28px;
+    border-radius: 14px; /* Perfect capsule shape */
+    /* Remove min-height and padding that break the shape */
+    backdrop-filter: blur(10px) saturate(1.1);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    
+    /* Create larger touch target without breaking visual shape */
+    position: relative;
+  }
+  
+  /* Invisible touch target overlay */
+  .location-toggle-switch::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -4px;
+    right: -4px;
+    bottom: -8px;
+    min-height: 44px;
+    min-width: 44px;
+    z-index: -1;
+  }
+  
+  .location-toggle-text {
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+  }
+  
+  .location-toggle-off {
+    left: 26px; /* Position in right space when slider is left */
+  }
+  
+  .location-toggle-on {
+    left: 8px; /* Position in left space when slider is right */
+  }
+  
+  .location-toggle-slider {
+    width: 22px;
+    height: 22px;
+    top: 1px;
+    left: 1px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  
+  .location-toggle-switch.enabled .location-toggle-slider {
+    transform: translateX(26px);
+  }
+  
+  .location-toggle-switch:active .location-toggle-slider {
+    transform: scale(0.9) translateX(0);
+  }
+
+  .location-toggle-switch.enabled:active .location-toggle-slider {
+    transform: scale(0.9) translateX(26px);
+  }
+
+  /* Align label height to mobile toggle height */
+  .presence-label {
+    height: 28px;
+    line-height: 1;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Tablet-specific campus presence control adjustments */
+  
+  .location-toggle-switch {
+    width: 60px;
+    height: 30px;
+    border-radius: 15px;
+  }
+  
+  .location-toggle-text {
+    font-size: 8px;
+    font-weight: 900;
+  }
+  
+  .location-toggle-off {
+    left: 28px;
+  }
+  
+  .location-toggle-on {
+    left: 9px;
+  }
+  
+  .location-toggle-slider {
+    width: 24px;
+    height: 24px;
+    top: 1px;
+    left: 1px;
+  }
+  
+  .location-toggle-switch.enabled .location-toggle-slider {
+    transform: translateX(30px);
+  }
+  
+  .location-toggle-switch.enabled:active .location-toggle-slider {
+    transform: scale(0.95) translateX(30px);
+  }
+
+  /* Align label to tablet toggle height */
+  .presence-label {
+    height: 30px;
+    line-height: 1;
+  }
+}
+
+/* Desktop enhancements */
+@media (min-width: 1024px) {
+  .location-toggle-switch {
+    width: 68px;
+    height: 34px;
+    border-radius: 17px;
+  }
+  
+  .location-toggle-text {
+    font-size: 10px;
+    font-weight: 800;
+  }
+  
+  .location-toggle-off {
+    left: 32px; /* Position in right space when slider is left */
+  }
+  
+  .location-toggle-on {
+    left: 12px; /* Position in left space when slider is right */
+  }
+  
+  .location-toggle-slider {
+    width: 28px;
+    height: 28px;
+    top: 1px;
+    left: 1px;
+  }
+  
+  .location-toggle-switch.enabled .location-toggle-slider {
+    transform: translateX(36px);
+  }
+  
+  .location-toggle-switch.enabled:active .location-toggle-slider {
+    transform: scale(0.95) translateX(36px);
+  }
+
+  /* Align label to desktop toggle height */
+  .presence-label {
+    height: 34px;
+    line-height: 1;
+  }
+}
 
 /* =================================
    SCHEDULE ACCESS INDICATORS

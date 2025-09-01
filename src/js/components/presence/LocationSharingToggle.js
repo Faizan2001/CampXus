@@ -29,7 +29,6 @@
  */
 
 import { locationPrivacyService } from "../../services/location/LocationPrivacyService.js";
-import { campusLocationService } from "../../services/location/CampusLocationService.js";
 import { currentUser } from "../../store/userStore.js";
 import { notificationManager } from "../../services/realtime/NotificationService.js";
 
@@ -66,15 +65,12 @@ export class LocationSharingToggle {
     this.isLoading = false;
     this.currentState = {
       globalEnabled: false,
-      friendEnabled: false,
-      hasPermission: false,
-      permissionStatus: 'prompt' // 'granted' | 'denied' | 'prompt'
+      friendEnabled: false
     };
 
     // Bind methods to preserve context
     this.handleGlobalToggle = this.handleGlobalToggle.bind(this);
     this.handleFriendToggle = this.handleFriendToggle.bind(this);
-    this.handlePermissionRequest = this.handlePermissionRequest.bind(this);
 
     console.log(`🎯 LocationSharingToggle created in ${this.options.mode} mode`, this.options);
   }
@@ -110,82 +106,20 @@ export class LocationSharingToggle {
    * 🌍 Generate HTML for global location sharing toggle
    */
   generateGlobalToggleHTML() {
-    const { globalEnabled, hasPermission, permissionStatus } = this.currentState;
-    const needsPermission = !hasPermission && permissionStatus !== 'denied';
-    const permissionDenied = permissionStatus === 'denied';
+    const { globalEnabled } = this.currentState;
 
     return `
-      <div class="toggle-section global-location-toggle">
-        <div class="toggle-header">
-          <h3 class="toggle-title">
-            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-            Location Sharing
-          </h3>
-          ${this.options.showStatus ? `
-            <div class="location-status ${this.getStatusClass()}">
-              <i class="fas ${this.getStatusIcon()}" aria-hidden="true"></i>
-              <span class="status-text">${this.getStatusText()}</span>
-            </div>
-          ` : ''}
-        </div>
-
-        <div class="toggle-controls">
-          <div class="toggle-row main-toggle">
-            <label class="toggle-label">
-              <span class="label-text">Share my location with friends</span>
-              <span class="label-description">Allow friends to see when you're on campus</span>
-            </label>
-            <div class="toggle-switch-wrapper">
-              <button class="toggle-switch ${globalEnabled ? 'enabled' : 'disabled'}"
-                      type="button"
-                      role="switch"
-                      aria-checked="${globalEnabled}"
-                      aria-label="Toggle global location sharing"
-                      data-action="toggle-global"
-                      ${this.isLoading ? 'disabled' : ''}>
-                <span class="toggle-slider"></span>
-                <span class="toggle-text">${globalEnabled ? 'ON' : 'OFF'}</span>
-              </button>
-            </div>
-          </div>
-
-          ${needsPermission ? `
-            <div class="permission-helper">
-              <div class="permission-notice">
-                <i class="fas fa-info-circle" aria-hidden="true"></i>
-                <span>Location permission required</span>
-              </div>
-              <button class="permission-request-btn btn-primary"
-                      type="button"
-                      data-action="request-permission"
-                      ${this.isLoading ? 'disabled' : ''}>
-                <i class="fas fa-unlock" aria-hidden="true"></i>
-                Grant Permission
-              </button>
-            </div>
-          ` : ''}
-
-          ${permissionDenied ? `
-            <div class="permission-denied">
-              <div class="denied-notice">
-                <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                <span>Location access was denied</span>
-              </div>
-              <p class="denied-help">
-                To enable location sharing, please allow location access in your browser settings 
-                and refresh the page.
-              </p>
-            </div>
-          ` : ''}
-        </div>
-
-        ${this.isLoading ? `
-          <div class="loading-overlay">
-            <div class="loading-spinner"></div>
-            <span class="loading-text">Updating location settings...</span>
-          </div>
-        ` : ''}
-      </div>
+      <button class="location-toggle-switch ${globalEnabled ? 'enabled' : 'disabled'}"
+              type="button"
+              role="switch"
+              aria-checked="${globalEnabled}"
+              aria-label="Toggle campus presence sharing with friends"
+              data-action="toggle-global"
+              ${this.isLoading ? 'disabled' : ''}>
+        <span class="location-toggle-text location-toggle-off">OFF</span>
+        <span class="location-toggle-text location-toggle-on">ON</span>
+        <span class="location-toggle-slider"></span>
+      </button>
     `;
   }
 
@@ -254,12 +188,6 @@ export class LocationSharingToggle {
       friendToggle.addEventListener('click', this.handleFriendToggle);
     }
 
-    // Permission request handler
-    const permissionBtn = this.element.querySelector('[data-action="request-permission"]');
-    if (permissionBtn) {
-      permissionBtn.addEventListener('click', this.handlePermissionRequest);
-    }
-
     // Keyboard navigation
     this.element.addEventListener('keydown', this.handleKeyDown.bind(this));
 
@@ -286,15 +214,6 @@ export class LocationSharingToggle {
     this.setLoading(true);
 
     try {
-      // Check permission first if enabling
-      if (newEnabled && !this.currentState.hasPermission) {
-        const permissionGranted = await this.requestLocationPermission();
-        if (!permissionGranted) {
-          this.setLoading(false);
-          return;
-        }
-      }
-
       // Update global preferences
       const success = await locationPrivacyService.setGlobalLocationPreferences(
         currentUserUid,
@@ -388,66 +307,6 @@ export class LocationSharingToggle {
     this.setLoading(false);
   }
 
-  /**
-   * 🔓 Handle location permission request
-   */
-  async handlePermissionRequest(e) {
-    e.preventDefault();
-    if (this.isLoading) return;
-
-    console.log('🔓 Requesting location permission');
-    this.setLoading(true);
-
-    try {
-      const permissionGranted = await this.requestLocationPermission();
-      
-      if (permissionGranted) {
-        notificationManager.show('Location permission granted!', 'success');
-        // Re-render to update UI
-        await this.updateCurrentState();
-        this.updateToggleState();
-      }
-    } catch (error) {
-      console.error('Error requesting location permission:', error);
-      notificationManager.show('Failed to request location permission', 'error');
-    }
-
-    this.setLoading(false);
-  }
-
-  /**
-   * 🔐 Request location permission from browser
-   * @returns {boolean} Whether permission was granted
-   */
-  async requestLocationPermission() {
-    try {
-      const result = await campusLocationService.requestLocationPermission();
-      
-      if (result.success) {
-        this.currentState.hasPermission = true;
-        this.currentState.permissionStatus = 'granted';
-        return true;
-      } else {
-        this.currentState.hasPermission = false;
-        this.currentState.permissionStatus = result.error === 'denied' ? 'denied' : 'prompt';
-        
-        if (result.error === 'denied') {
-          notificationManager.show(
-            'Location access denied. Please enable in browser settings.',
-            'warning'
-          );
-        } else {
-          notificationManager.show(result.message || 'Location permission required', 'info');
-        }
-        return false;
-      }
-    } catch (error) {
-      console.error('Error requesting location permission:', error);
-      this.currentState.hasPermission = false;
-      this.currentState.permissionStatus = 'denied';
-      return false;
-    }
-  }
 
   /**
    * 📊 Update current state from services
@@ -460,11 +319,6 @@ export class LocationSharingToggle {
     }
 
     try {
-      // Get permission status
-      const permissionStatus = await campusLocationService.getPermissionStatus();
-      this.currentState.permissionStatus = permissionStatus;
-      this.currentState.hasPermission = permissionStatus === 'granted';
-
       // Get global preferences
       if (this.options.mode === 'global') {
         const globalPrefs = await locationPrivacyService.getGlobalLocationPreferences(currentUserUid);
@@ -492,77 +346,24 @@ export class LocationSharingToggle {
   updateToggleState() {
     if (!this.element) return;
 
-    // Update global toggle
-    const globalToggle = this.element.querySelector('[data-action="toggle-global"]');
-    if (globalToggle) {
-      const enabled = this.currentState.globalEnabled;
-      globalToggle.className = `toggle-switch ${enabled ? 'enabled' : 'disabled'}`;
-      globalToggle.setAttribute('aria-checked', enabled);
-      
-      const toggleText = globalToggle.querySelector('.toggle-text');
-      if (toggleText) {
-        toggleText.textContent = enabled ? 'ON' : 'OFF';
-      }
-    }
+    // Support both global (new class) and friend (legacy class) toggles
+    const toggle = this.element.querySelector(
+      this.options.mode === 'global' ? '.location-toggle-switch' : '.toggle-switch'
+    );
+    if (toggle) {
+      const enabled = this.options.mode === 'global'
+        ? this.currentState.globalEnabled
+        : this.currentState.friendEnabled;
 
-    // Update friend toggle
-    const friendToggle = this.element.querySelector('[data-action="toggle-friend"]');
-    if (friendToggle) {
-      const enabled = this.currentState.friendEnabled;
-      friendToggle.className = `toggle-switch ${enabled ? 'enabled' : 'disabled'}`;
-      friendToggle.setAttribute('aria-checked', enabled);
-      
-      const toggleText = friendToggle.querySelector('.toggle-text');
-      if (toggleText) {
-        toggleText.textContent = enabled ? 'ON' : 'OFF';
+      if (toggle.classList.contains('location-toggle-switch')) {
+        toggle.className = `location-toggle-switch ${enabled ? 'enabled' : 'disabled'}`;
+      } else if (toggle.classList.contains('toggle-switch')) {
+        toggle.className = `toggle-switch ${enabled ? 'enabled' : 'disabled'}`;
       }
-    }
-
-    // Update status display
-    if (this.options.showStatus) {
-      const statusElement = this.element.querySelector('.location-status');
-      if (statusElement) {
-        statusElement.className = `location-status ${this.getStatusClass()}`;
-        
-        const statusIcon = statusElement.querySelector('i');
-        const statusText = statusElement.querySelector('.status-text');
-        
-        if (statusIcon) {
-          statusIcon.className = `fas ${this.getStatusIcon()}`;
-        }
-        if (statusText) {
-          statusText.textContent = this.getStatusText();
-        }
-      }
+      toggle.setAttribute('aria-checked', enabled);
     }
   }
 
-  /**
-   * 🏷️ Get CSS class for current status
-   */
-  getStatusClass() {
-    if (!this.currentState.hasPermission) return 'status-no-permission';
-    if (this.currentState.globalEnabled) return 'status-enabled';
-    return 'status-disabled';
-  }
-
-  /**
-   * 🎯 Get icon for current status
-   */
-  getStatusIcon() {
-    if (!this.currentState.hasPermission) return 'fa-lock';
-    if (this.currentState.globalEnabled) return 'fa-check-circle';
-    return 'fa-times-circle';
-  }
-
-  /**
-   * 📝 Get text for current status
-   */
-  getStatusText() {
-    if (!this.currentState.hasPermission) return 'Permission required';
-    if (this.currentState.globalEnabled) return 'Location sharing enabled';
-    return 'Location sharing disabled';
-  }
 
   /**
    * ⏳ Set loading state
@@ -612,8 +413,9 @@ export class LocationSharingToggle {
    * ⌨️ Handle keyboard navigation
    */
   handleKeyDown(e) {
-    // Handle Enter and Space for toggle buttons
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.toggle-switch')) {
+    // Handle Enter and Space for toggle buttons (support both class names and ARIA role)
+    const isSwitch = e.target.matches('.location-toggle-switch, .toggle-switch, [role="switch"]');
+    if ((e.key === 'Enter' || e.key === ' ') && isSwitch) {
       e.preventDefault();
       e.target.click();
     }
