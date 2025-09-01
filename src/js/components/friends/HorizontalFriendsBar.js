@@ -3951,18 +3951,14 @@ export class HorizontalFriendsBar {
       }
 
       if (!avatarElement) {
-        console.warn(
-          `🌍 Avatar element not found for friend ${friend.displayName} (ID: ${friendId})`
-        );
+        // Component not mounted or avatar not in DOM; skip quietly
         return;
       }
 
       // Find the existing presence dot within the avatar
       const existingPresenceDot = avatarElement.querySelector(".presence-dot");
       if (!existingPresenceDot) {
-        console.warn(
-          `🌍 Presence dot element not found for friend ${friend.displayName}`
-        );
+        // No presence dot element yet; skip quietly
         return;
       }
 

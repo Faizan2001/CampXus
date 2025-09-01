@@ -415,17 +415,28 @@ class LocationPrivacyService {
 
       // Extract location preferences with defaults
       const preferences = {
-        globalLocationSharingEnabled: userProfile.socialInfo?.globalLocationSharingEnabled || false,
-        campusPresenceVisible: userProfile.socialInfo?.campusPresenceVisible !== false, // Default true
-        locationSharingRadius: userProfile.socialInfo?.locationSharingRadius || 100, // Default 100m
-        autoEnableCampusSharing: userProfile.socialInfo?.autoEnableCampusSharing || false,
-        locationSharingSchedule: userProfile.socialInfo?.locationSharingSchedule || {
-          enabled: false,
-          startTime: '09:00',
-          endTime: '17:00',
-          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-        },
-        lastPreferencesUpdate: userProfile.socialInfo?.lastLocationPreferencesUpdate || userProfile.systemInfo?.createdAt,
+        // New canonical field (system-level) reflected as `enabled`
+        enabled: userProfile.systemInfo?.locationSharingEnabled ?? false,
+
+        // Legacy/extended preferences preserved for compatibility
+        globalLocationSharingEnabled:
+          userProfile.socialInfo?.globalLocationSharingEnabled || false,
+        campusPresenceVisible:
+          userProfile.socialInfo?.campusPresenceVisible !== false, // Default true
+        locationSharingRadius:
+          userProfile.socialInfo?.locationSharingRadius || 100, // Default 100m
+        autoEnableCampusSharing:
+          userProfile.socialInfo?.autoEnableCampusSharing || false,
+        locationSharingSchedule:
+          userProfile.socialInfo?.locationSharingSchedule || {
+            enabled: false,
+            startTime: '09:00',
+            endTime: '17:00',
+            days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+          },
+        lastPreferencesUpdate:
+          userProfile.socialInfo?.lastLocationPreferencesUpdate ||
+          userProfile.systemInfo?.createdAt,
       };
 
       // Cache the preferences
@@ -461,45 +472,71 @@ class LocationPrivacyService {
     try {
       console.log(`⚙️ Setting global location preferences for: ${userUid}`, preferences);
       
-      // Prepare update object with validation
+      // 1) Update canonical system-level flag if provided (preferences.enabled)
+      let systemUpdateOk = true;
+      if (typeof preferences.enabled === 'boolean') {
+        const res = await dataManager.updateLocationSharingPreference(
+          userUid,
+          preferences.enabled
+        );
+        systemUpdateOk = !!res?.success;
+      }
+
+      // 2) Back-compat and extended preferences under socialInfo
       const updateData = {
         'socialInfo.lastLocationPreferencesUpdate': Date.now(),
       };
 
-      // Validate and set each preference
       if (typeof preferences.globalLocationSharingEnabled === 'boolean') {
-        updateData['socialInfo.globalLocationSharingEnabled'] = preferences.globalLocationSharingEnabled;
+        updateData['socialInfo.globalLocationSharingEnabled'] =
+          preferences.globalLocationSharingEnabled;
       }
-      
+
       if (typeof preferences.campusPresenceVisible === 'boolean') {
-        updateData['socialInfo.campusPresenceVisible'] = preferences.campusPresenceVisible;
+        updateData['socialInfo.campusPresenceVisible'] =
+          preferences.campusPresenceVisible;
       }
-      
-      if (typeof preferences.locationSharingRadius === 'number' && preferences.locationSharingRadius > 0) {
-        updateData['socialInfo.locationSharingRadius'] = Math.min(preferences.locationSharingRadius, 1000); // Max 1km
+
+      if (
+        typeof preferences.locationSharingRadius === 'number' &&
+        preferences.locationSharingRadius > 0
+      ) {
+        updateData['socialInfo.locationSharingRadius'] = Math.min(
+          preferences.locationSharingRadius,
+          1000
+        ); // Max 1km
       }
-      
+
       if (typeof preferences.autoEnableCampusSharing === 'boolean') {
-        updateData['socialInfo.autoEnableCampusSharing'] = preferences.autoEnableCampusSharing;
-      }
-      
-      if (preferences.locationSharingSchedule && typeof preferences.locationSharingSchedule === 'object') {
-        updateData['socialInfo.locationSharingSchedule'] = preferences.locationSharingSchedule;
+        updateData['socialInfo.autoEnableCampusSharing'] =
+          preferences.autoEnableCampusSharing;
       }
 
-      // Update preferences using DataService
-      const success = await dataManager.updateUserProfile(userUid, updateData);
+      if (
+        preferences.locationSharingSchedule &&
+        typeof preferences.locationSharingSchedule === 'object'
+      ) {
+        updateData['socialInfo.locationSharingSchedule'] =
+          preferences.locationSharingSchedule;
+      }
 
-      if (success) {
+      // Update profile with extended preferences
+      const profileUpdated = await dataManager.updateUserProfile(
+        userUid,
+        updateData
+      );
+
+      if (systemUpdateOk && profileUpdated) {
         // Clear preferences cache
         this.globalPreferencesCache.delete(userUid);
-        
         console.log(`✅ Global location preferences updated for: ${userUid}`);
         return true;
-      } else {
-        console.error(`❌ Failed to update global location preferences for: ${userUid}`);
-        return false;
       }
+
+      console.error(
+        `❌ Failed to update global location preferences for: ${userUid}`
+      );
+      return false;
     } catch (error) {
       console.error('❌ Error setting global location preferences:', error);
       return false;

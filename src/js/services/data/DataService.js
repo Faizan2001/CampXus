@@ -3505,13 +3505,8 @@ class DataManager {
         console.log(
           `🏢 [DataManager] Network-based detection for user ${userId} - proceeding without GPS validation`
         );
-        
-        // Enable location sharing for network detection
-        await this.ensureSystemInfoExists(userId);
-        await updateDoc(userRef, {
-          "systemInfo.locationSharingEnabled": true,
-        });
-        
+        // Respect user preference: do NOT auto-enable global location sharing
+        // Only update lastKnownLocation below; the global flag is controlled by explicit user action
       } else {
         // 🔧 GPS-BASED DETECTION: Require valid coordinates and accuracy
         if (!hasValidCoordinates || !hasAcceptableAccuracy) {
@@ -3677,6 +3672,33 @@ class DataManager {
           enabled ? "enabled" : "disabled"
         }`
       );
+      // Update in-memory cache
+      const cacheKey = `user_${userId}`;
+      const cachedData = this.getCachedData(cacheKey);
+      if (cachedData) {
+        if (!cachedData.systemInfo) cachedData.systemInfo = {};
+        cachedData.systemInfo.locationSharingEnabled = enabled;
+        cachedData.systemInfo.lastUpdated = new Date().toISOString();
+        this.setCachedData(cacheKey, cachedData);
+      }
+
+      // Update current user store if applicable
+      try {
+        const { currentUser } = await import("../../store/userStore.js");
+        if (currentUser?.uid === userId && currentUser?.profile) {
+          const merged = {
+            ...currentUser.profile,
+            systemInfo: {
+              ...(currentUser.profile.systemInfo || {}),
+              locationSharingEnabled: enabled,
+            },
+          };
+          currentUser.setProfile(merged);
+        }
+      } catch (_) {
+        // best-effort; ignore store update errors
+      }
+
       return { success: true };
     } catch (error) {
       console.error(

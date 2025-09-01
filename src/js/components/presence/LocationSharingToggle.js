@@ -678,13 +678,22 @@ export class LocationSharingToggle {
       if (enabled) {
         // Global location sharing was enabled - start tracking if conditions are met
         console.log('🌍 Global location sharing enabled - checking if automatic tracking should start...');
-        setTimeout(() => {
-          campusLocationService.autoStartLocationTracking();
-        }, 500);
+        setTimeout(async () => {
+          try {
+            // Start 3-tier presence polling (it executes one poll immediately)
+            await campusLocationService.startPresencePolling(20000);
+          } catch (e) {
+            console.warn('⚠️ Failed to start presence polling after enabling:', e?.message || e);
+          }
+        }, 150);
       } else {
         // Global location sharing was disabled - stop tracking immediately
         console.log('🌍 Global location sharing disabled - stopping location tracking');
         campusLocationService.stopLocationTracking();
+        // Stop background polling
+        if (typeof campusLocationService.stopPresencePolling === 'function') {
+          campusLocationService.stopPresencePolling();
+        }
       }
     } catch (error) {
       console.error('🌍 Error handling location tracking for global toggle:', error);

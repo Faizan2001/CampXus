@@ -71,8 +71,23 @@ export class CampusLocationService {
    * Emits campus-presence:loading before each poll so UI can show spinner overlay,
    * and ensures database writes via processFreshLocation.
    */
-  startPresencePolling(intervalMs = 20000) {
+  async startPresencePolling(intervalMs = 20000) {
     try {
+      // Guard: require signed-in user and global sharing enabled
+      const { currentUser } = await import("../../store/userStore.js");
+      const uid = currentUser?.uid;
+      const enabled = currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+      if (!uid || !enabled) {
+        // Stop if previously running
+        if (this.presencePollingIntervalId) {
+          clearInterval(this.presencePollingIntervalId);
+          this.presencePollingIntervalId = null;
+        }
+        logManager.location.info(
+          "[CampusLocationService] Presence polling not started (no user or disabled)"
+        );
+        return;
+      }
       // If already started, adjust interval if needed
       if (this.presencePollingIntervalId) {
         if (intervalMs !== this.presencePollingIntervalMs) {
@@ -101,10 +116,47 @@ export class CampusLocationService {
     }
   }
 
+  /**
+   * Stop presence polling interval if active
+   */
+  stopPresencePolling() {
+    if (this.presencePollingIntervalId) {
+      clearInterval(this.presencePollingIntervalId);
+      this.presencePollingIntervalId = null;
+      logManager.location.info(
+        "[CampusLocationService] Presence polling stopped"
+      );
+    }
+  }
+
+  /**
+   * Trigger a presence poll immediately (public wrapper)
+   */
+  async runPresencePollNow() {
+    try {
+      await this._runPresencePollSafely();
+      logManager.location.info(
+        "[CampusLocationService] Presence poll executed immediately"
+      );
+    } catch (e) {
+      logManager.location.warn(
+        `[CampusLocationService] Immediate presence poll failed: ${e?.message || e}`
+      );
+    }
+  }
+
   async _runPresencePollSafely() {
     if (this._isPresencePollRunning) return;
     this._isPresencePollRunning = true;
     try {
+      // Guard: do nothing if user not signed in or sharing disabled
+      const { currentUser } = await import("../../store/userStore.js");
+      if (
+        !currentUser?.uid ||
+        currentUser?.profile?.systemInfo?.locationSharingEnabled !== true
+      ) {
+        return;
+      }
       document.dispatchEvent(
         new CustomEvent("campus-presence:loading", {
           detail: { priority: "presence_poll", timestamp: Date.now() },
@@ -183,6 +235,15 @@ export class CampusLocationService {
 
       // For high-priority scenarios, also get fresh GPS if possible
       if (["login", "tab_return", "reload"].includes(triggerType)) {
+        // Guard: only request GPS if sharing is enabled
+        try {
+          const { currentUser } = await import("../../store/userStore.js");
+          if (currentUser?.profile?.systemInfo?.locationSharingEnabled !== true) {
+            return;
+          }
+        } catch (_) {
+          return;
+        }
         logManager.location.tier1(
           `High-priority trigger (${triggerType}) - requesting fresh GPS`
         );
@@ -200,6 +261,14 @@ export class CampusLocationService {
     console.log("🚀 IMMEDIATE LOCATION: Starting network-first 3-tier system for instant updates...");
     
     try {
+      // Guard: require enabled global sharing and signed-in user
+      const { currentUser } = await import("../../store/userStore.js");
+      if (
+        !currentUser?.uid ||
+        currentUser?.profile?.systemInfo?.locationSharingEnabled !== true
+      ) {
+        return;
+      }
       // 🎯 CRITICAL FIX: Use optimized 3-tier system for immediate location requests
       // This ensures students on university WiFi get INSTANT presence updates
       const locationResult = await this.getCurrentLocation(
@@ -417,17 +486,25 @@ export class CampusLocationService {
   /**
    * Request geolocation permission from the browser
    * This method actually triggers the browser's permission dialog
-   * @returns {Promise<boolean>} True if permission granted, false otherwise
+   * @returns {Promise<{success: boolean, error?: string, message?: string}>}
    */
   async requestLocationPermission() {
     logManager.location.info("Requesting location permission...");
 
     if (!this.isLocationSupported) {
       logManager.location.fail("Geolocation not supported by browser");
-      return false;
+      return { success: false, error: 'unsupported', message: 'Geolocation not supported' };
     }
 
     try {
+      // Guard: require signed-in user; do not prompt for guests
+      const { currentUser } = await import("../../store/userStore.js");
+      if (!currentUser?.uid) {
+        logManager.location.warn(
+          "[CampusLocationService] Permission request blocked - user not signed in"
+        );
+        return { success: false, error: 'not_signed_in', message: 'Sign in required' };
+      }
       // Check if we're on a secure context (HTTPS or localhost)
       const isSecureContext =
         window.isSecureContext ||
@@ -441,7 +518,7 @@ export class CampusLocationService {
         );
         // In development over HTTP, provide a mock location for testing
         this.permissionStatus = "granted";
-        return true;
+        return { success: true, message: 'insecure_context_mock' };
       }
 
       // 🔧 MOBILE FIX: Detect mobile browser and adjust behavior accordingly
@@ -536,7 +613,7 @@ export class CampusLocationService {
                 });
             }
 
-            resolve(true);
+            resolve({ success: true });
           },
           (error) => {
             logManager.location.info("Location permission result:", {
@@ -568,7 +645,8 @@ export class CampusLocationService {
                     "📱 Android Chrome: Check site permissions in browser settings"
                   );
                 }
-                break;
+                resolve({ success: false, error: 'denied', message: 'User denied location' });
+                return;
 
               case error.POSITION_UNAVAILABLE:
                 logManager.location.warn(
@@ -581,7 +659,9 @@ export class CampusLocationService {
                     "📱 Mobile: Try moving outdoors or enabling high accuracy GPS"
                   );
                 }
-                break;
+                // Treat unavailable as permission granted (we only needed permission state)
+                resolve({ success: true, message: 'position_unavailable' });
+                return;
 
               case error.TIMEOUT:
                 logManager.location.warn(
@@ -595,26 +675,22 @@ export class CampusLocationService {
                   );
                   // On mobile timeout, we still consider permission potentially granted
                   // The user will get another chance during actual location tracking
-                  resolve(true);
+                  resolve({ success: true, message: 'timeout_mobile' });
                   return;
                 }
-                break;
+                // Desktop timeout - likely granted; continue to resolve below
+                resolve({ success: true, message: 'timeout' });
+                return;
 
               default:
                 logManager.location.info("❓ Unknown location error");
                 this.permissionStatus = "prompt";
-                break;
+                resolve({ success: false, error: 'unknown', message: 'Unknown geolocation error' });
+                return;
             }
 
-            // 🔧 MOBILE FIX: More lenient mobile permission resolution
-            // On mobile, timeouts and position unavailable don't necessarily mean permission denied
-            const mobilePermissionGranted =
-              isMobile &&
-              (error.code === error.TIMEOUT ||
-                error.code === error.POSITION_UNAVAILABLE);
-            resolve(
-              error.code !== error.PERMISSION_DENIED || mobilePermissionGranted
-            );
+            // Fallback resolution (should rarely reach here)
+            resolve({ success: false, error: 'unhandled', message: 'Unhandled geolocation error' });
           },
           permissionOptions
         );
@@ -622,7 +698,7 @@ export class CampusLocationService {
     } catch (error) {
       logManager.location.fail("Error requesting location permission:", error);
       this.permissionStatus = "denied";
-      return false;
+      return { success: false, error: 'exception', message: error?.message };
     }
   }
 
@@ -1406,37 +1482,10 @@ export class CampusLocationService {
     logManager.location.info(
       "📱 Pausing location tracking for background mode"
     );
-
-    // Stop active location tracking to save battery
-    if (this.trackingWatchId) {
-      clearInterval(this.trackingWatchId); // 🔋 BATTERY FIX: Clear interval instead of GPS watch
-      this.trackingWatchId = null;
-      logManager.location.info("📱 Stopped smart interval tracking for background");
+    // Polling-only approach: stop presence polling while in background to save battery
+    if (typeof this.stopPresencePolling === 'function') {
+      this.stopPresencePolling();
     }
-
-    // Keep periodic updates but reduce frequency significantly
-    if (this.periodicUpdateInterval) {
-      clearInterval(this.periodicUpdateInterval);
-      this.periodicUpdateInterval = null;
-    }
-
-    // Start ultra-low-frequency background updates (every 10 minutes)
-    this.periodicUpdateInterval = setInterval(async () => {
-      if (!this.isAppVisible) {
-        logManager.location.info("📱 Background location ping");
-        try {
-          // Background updates are low priority - no immediate database write needed
-          logManager.location.info(
-            "📱 Skipping background location update - user not visible"
-          );
-        } catch (error) {
-          logManager.location.warn(
-            "📱 Background location update failed:",
-            error
-          );
-        }
-      }
-    }, 600000); // 10 minutes for background updates
   }
 
   async resumeLocationTrackingFromBackground() {
@@ -1466,16 +1515,10 @@ export class CampusLocationService {
           );
         }
 
-        // Restart full location tracking
-        await this.startLocationTracking();
-
-        // Restart activity heartbeat
+        // Restart polling and activity heartbeat (startPresencePolling runs one poll immediately)
+        await this.startPresencePolling(20000);
         this.startActivityHeartbeat();
-
-        // Perform health check
-        setTimeout(() => {
-          this.performHealthCheck();
-        }, 5000);
+        setTimeout(() => this.performHealthCheck(), 5000);
       }
 
       // Reset background state
@@ -1488,13 +1531,8 @@ export class CampusLocationService {
       logManager.location.fail("📱 Error resuming from background:", error);
 
       // Try to recover by reinitializing
-      setTimeout(() => {
-        console.log(
-          "[CampusLocationService] 📱 Attempting recovery reinitialization"
-        );
-        this.autoStartLocationTracking();
-      }, 3000);
-    }
+      setTimeout(() => this.autoStartLocationTracking(), 3000);
+  }
   }
 
   handleNetworkReconnection() {
@@ -1729,7 +1767,10 @@ export class CampusLocationService {
       }
 
       // 🔧 FIX: For reload scenarios, fetch fresh coordinates immediately using 3-tier system
-      if (scenario === "reload") {
+      if (
+        scenario === "reload" &&
+        currentUser?.profile?.systemInfo?.locationSharingEnabled === true
+      ) {
         console.log(
           "[CampusLocationService] 🚀 Reload detected - fetching fresh coordinates with 3-tier system..."
         );
@@ -3020,25 +3061,11 @@ export class CampusLocationService {
       return;
     }
 
-    // Restart GPS watching if it was active
-    if (this.pausedWatchId && !this.trackingWatchId) {
-      logManager.dev.debug("[CampusLocationService] 📱 Restarting GPS watch");
-      this.startLocationTracking();
-    }
-
-    // Reset periodic updates to normal frequency
-    if (this.periodicLocationTimer) {
-      clearInterval(this.periodicLocationTimer);
-      this.startPeriodicLocationUpdates();
-    }
+    // Restart polling
+    this.startPresencePolling(20000);
 
     // Immediate location update to refresh presence
-    setTimeout(() => {
-      console.log(
-        "[CampusLocationService] 📱 Performing immediate location update after resume"
-      );
-      this.updateLocationAndPresence(false);
-    }, 1000);
+    setTimeout(() => this.runPresencePollNow(), 1000);
 
     this.pausedWatchId = null;
     this.pausedPeriodicTimer = null;
@@ -3057,12 +3084,7 @@ export class CampusLocationService {
     this.stopLocationTracking();
 
     // Restart the full initialization process
-    setTimeout(() => {
-      console.log(
-        "[CampusLocationService] 📱 Starting fresh initialization after resume"
-      );
-      this.autoStartLocationTracking();
-    }, 1000);
+    setTimeout(() => this.autoStartLocationTracking(), 1000);
   }
 
   adjustTrackingForBattery() {
@@ -3076,27 +3098,7 @@ export class CampusLocationService {
     );
 
     // If battery is low and not charging, reduce location tracking frequency
-    if (batteryPercent < 20 && !this.isCharging) {
-      console.log(
-        "[CampusLocationService] 🔋 Low battery detected - reducing location tracking frequency"
-      );
-
-      if (this.periodicLocationTimer) {
-        clearInterval(this.periodicLocationTimer);
-        // Increase interval to 10 minutes when battery is low
-        this.periodicLocationTimer = setInterval(() => {
-          this.updateLocationAndPresence(false); // Force low accuracy
-        }, 10 * 60 * 1000);
-      }
-    } else if (batteryPercent > 50 || this.isCharging) {
-      // Normal battery level - resume normal tracking
-      if (this.isTrackingActive() && this.periodicLocationTimer) {
-        console.log(
-          "[CampusLocationService] 🔋 Battery level good - resuming normal location tracking frequency"
-        );
-        this.startPeriodicLocationUpdates(); // This will reset to normal 5-minute interval
-      }
-    }
+    // Polling-only approach: battery adjustment is handled by poll interval settings
   }
 
   shouldTrackLocation() {
@@ -3138,154 +3140,13 @@ export class CampusLocationService {
    * @param {Function} callback - Callback function for position updates
    * @returns {number|null} Watch ID for stopping the watch
    */
-  watchPosition(callback) {
-    console.log(
-      "[CampusLocationService] 🌍 Starting smart interval-based position tracking with 3-tier optimization..."
-    );
-
-    if (!this.isLocationSupported) {
-      console.error(
-        "[CampusLocationService] Cannot watch position - geolocation not supported"
-      );
-      return null;
-    }
-
-    // 🔋 BATTERY OPTIMIZATION: Use smart intervals with network-first approach
-    let intervalTime;
-
-    // Check if we have Tier 1 campus status to optimize intervals
-    const isOffCampusDetected =
-      this.lastLocationResult &&
-      this.lastLocationResult.tier === 1 &&
-      this.lastLocationResult.campusStatus === "off_campus";
-
-    if (isOffCampusDetected) {
-      // 🔋 BATTERY OPTIMIZATION: User is off-campus, use longer intervals
-      intervalTime = 5 * 60 * 1000; // 5 minutes for off-campus
-      console.log(
-        "[CampusLocationService] 🔋 Using BATTERY-OPTIMIZED intervals (off-campus detected):",
-        {
-          interval: "5 minutes",
-          method: "network-first_3-tier_system",
-          batterySaving: "HIGH",
-          purpose: "off_campus_location_verification",
-        }
-      );
-    } else {
-      // 📍 MODERATE OPTIMIZATION: On-campus or unknown status needs more frequent checks
-      intervalTime = 2 * 60 * 1000; // 2 minutes for campus detection
-      console.log(
-        "[CampusLocationService] 📍 Using MODERATE intervals (campus detection needed):",
-        {
-          interval: "2 minutes",
-          method: "network-first_3-tier_system",
-          batterySaving: "MODERATE",
-          purpose: "campus_presence_detection",
-        }
-      );
-    }
-
-    // 🚀 SENIOR DEV FIX: Use 3-tier system with network-first optimization during intervals
-    const intervalId = setInterval(async () => {
-    // Performing scheduled 3-tier location check
-      
-      try {
-        // 🎯 CRITICAL FIX: Use optimized 3-tier system instead of raw GPS
-        // This ensures network detection runs first (instant + battery efficient)
-        const locationResult = await this.getCurrentLocation(
-          false, // Don't force high accuracy for intervals (battery optimization)
-          "scheduled_interval"
-        );
-
-        if (locationResult) {
-          this.currentPosition = locationResult;
-          this.lastSuccessfulGPSUpdate = Date.now();
-
-          const accuracy = locationResult.coords?.accuracy || "network";
-          
-          logManager.location.info("Scheduled 3-tier location update:", {
-            tier: locationResult.tier,
-            method: locationResult.source,
-            campusStatus: locationResult.campusStatus,
-            accuracy: accuracy === "network" ? "network_detection" : accuracy + "m",
-            batterySaving: locationResult.batteryOptimized || false,
-            cost: locationResult.cost || 0
-          });
-
-          // 🔋 BATTERY WIN: If network detection provided campus status, no GPS was used
-          if (locationResult.batteryOptimized) {
-            console.log("🔋 BATTERY WIN: Campus status via network - GPS not needed");
-          }
-
-          // Reset error counters on successful update
-          this.poorGPSReadings = 0;
-          this.consecutiveGPSErrors = 0;
-
-          if (callback) callback(locationResult);
-
-        } else {
-          console.warn("[CampusLocationService] Scheduled 3-tier check returned no location");
-          if (callback) callback(null, new Error("3-tier system failed"));
-        }
-
-      } catch (error) {
-        // 🚀 ENTERPRISE FIX: Enhanced error handling for interval system
-        this.consecutiveGPSErrors = (this.consecutiveGPSErrors || 0) + 1;
-
-        console.warn(
-          "[CampusLocationService] Scheduled 3-tier location check failed:",
-          error.message,
-          `(error ${this.consecutiveGPSErrors} of 5)`
-        );
-
-        // 🎯 SMART ERROR HANDLING: Trigger reset for persistent errors
-        if (this.consecutiveGPSErrors >= 5) {
-          console.warn(
-            "[CampusLocationService] 🔄 Too many interval errors - triggering system reset"
-          );
-          this.consecutiveGPSErrors = 0;
-          this.scheduleGPSReset();
-        }
-
-        if (callback) callback(null, error);
-      }
-    }, intervalTime);
-
-    if (intervalId !== null) {
-      console.log(
-        "[CampusLocationService] ✅ Smart 3-tier interval tracking started:",
-        {
-          intervalId: intervalId,
-          checkEvery: intervalTime / 1000 / 60 + " minutes",
-          method: "network-first_3-tier_optimization",
-          batterySaving: "90%+ vs continuous GPS, network-first for extra savings",
-          gpsIcon: "Only appears when GPS tier needed (often skipped via network detection)"
-        }
-      );
-      return intervalId;
-    } else {
-      logManager.location.fail(
-        "[CampusLocationService] Failed to start 3-tier interval tracking"
-      );
-      return null;
-    }
-  }
+  
 
   /**
    * Stop watching position changes
    * @param {number} watchId - Watch ID returned from watchPosition
    */
-  clearWatch(intervalId) {
-    if (intervalId) {
-      // 🔋 BATTERY FIX: Clear interval instead of GPS watch
-      clearInterval(intervalId);
-      console.log(
-        "[CampusLocationService] ✅ Smart interval tracking stopped for ID:",
-        intervalId,
-        "- GPS icon should disappear"
-      );
-    }
-  }
+  
 
   /**
    * Start automatic location tracking for campus presence
@@ -3293,108 +3154,17 @@ export class CampusLocationService {
    * Called when users enable location sharing
    */
   async startLocationTracking() {
-    console.log(
-      "[CampusLocationService] Starting automatic location tracking..."
-    );
-
-    if (!this.isLocationSupported) {
-      console.error(
-        "[CampusLocationService] Cannot start tracking - geolocation not supported"
-      );
-      return;
-    }
-
-    // Don't start tracking if already tracking
-    if (this.trackingWatchId) {
-      logManager.dev.debug(
-        "[CampusLocationService] Location tracking already active"
-      );
-      return;
-    }
-
-    // Set tracking flag
-    this.isTracking = true;
-
+    // Repurposed to 3-tier polling only (no watchPosition)
     try {
-      // Import DataService dynamically to avoid circular dependencies
-      const { dataManager } = await import("../data/DataService.js");
       const { currentUser } = await import("../../store/userStore.js");
+      if (!currentUser?.uid) return;
+      if (currentUser?.profile?.systemInfo?.locationSharingEnabled !== true) return;
 
-      if (!currentUser?.uid) {
-        console.error(
-          "[CampusLocationService] Cannot start tracking - no current user"
-        );
-        return;
-      }
-
-      console.log(
-        "[CampusLocationService] Starting position watch for automatic tracking..."
-      );
-
-      // Start watching position with debounced automatic database updates
-      // OPTIMIZED: Use battery-efficient GPS settings for continuous tracking
-      this.trackingWatchId = this.watchPosition(async (position, error) => {
-        if (error) {
-          // Enhanced error handling with battery-conscious retry strategies
-          switch (error.code) {
-            case 1: // PERMISSION_DENIED
-              console.error(
-                "[CampusLocationService] 🚫 Location permission denied - stopping tracking"
-              );
-              this.stopLocationTracking();
-              return;
-            case 2: // POSITION_UNAVAILABLE
-              console.warn(
-                "[CampusLocationService] 📍 GPS temporarily unavailable - will retry (battery optimized)"
-              );
-              break;
-            case 3: // TIMEOUT
-              logManager.location.warn(
-                "Location timeout (normal indoors) - GPS will retry automatically with longer interval"
-              );
-              break;
-            default:
-              console.warn(
-                "[CampusLocationService] ⚠️ Location error:",
-                error.message
-              );
-          }
-          return;
-        }
-
-        if (position) {
-          // Use debounced update to prevent excessive database calls
-          this.debouncedLocationUpdate(position);
-        }
-      });
-
-      console.log(
-        "[CampusLocationService] ✅ Automatic location tracking started with watch ID:",
-        this.trackingWatchId
-      );
-
-      // 🔋 BATTERY OPTIMIZATION: Start smart network detection to pause GPS when on campus
-      if (this.networkDetectionService) {
-        console.log(
-          "[CampusLocationService] 🔋 Starting smart battery optimization with network detection"
-        );
-        // Start optimization check in 30 seconds to allow initial GPS lock
-        setTimeout(() => this.optimizeBatteryWithNetworkDetection(), 30 * 1000);
-      } else {
-        console.warn(
-          "[CampusLocationService] 🔋 Network detection service not available - battery optimization disabled"
-        );
-      }
-
-      // Don't start periodic updates when watchPosition is active to avoid dual tracking
-      console.log(
-        "[CampusLocationService] ⚠️  Skipping periodic updates - watchPosition is handling real-time tracking"
-      );
+      // Start presence polling and run an immediate poll for fast update
+      await this.startPresencePolling(20000);
+      await this.runPresencePollNow();
     } catch (error) {
-      console.error(
-        "[CampusLocationService] Error starting location tracking:",
-        error
-      );
+      console.error("[CampusLocationService] Error starting polling:", error);
     }
   }
 
@@ -3402,24 +3172,8 @@ export class CampusLocationService {
    * Stop automatic location tracking
    */
   stopLocationTracking() {
-    console.log(
-      "[CampusLocationService] 🛑 Stopping automatic location tracking (GPS icon should disappear)..."
-    );
-
-    // 🔋 BATTERY FIX: Clear smart interval tracking
-    if (this.trackingWatchId) {
-      this.clearWatch(this.trackingWatchId);
-      this.trackingWatchId = null;
-      logManager.dev.debug("[CampusLocationService] ✅ Smart interval tracking stopped");
-      console.log("🔋 Battery drain should stop - GPS no longer continuously active");
-    }
-
-    // Clear periodic updates
-    if (this.periodicUpdateInterval) {
-      clearInterval(this.periodicUpdateInterval);
-      this.periodicUpdateInterval = null;
-      logManager.dev.debug("[CampusLocationService] Periodic updates stopped");
-    }
+    // Stop presence polling only; no watchPosition is used
+    this.stopPresencePolling();
 
     // Clear debounce timeout
     if (this.locationUpdateDebounceTimeout) {
@@ -3449,10 +3203,7 @@ export class CampusLocationService {
     this.initializationErrors = [];
     this.isTracking = false; // 🔋 Reset tracking flag
 
-    console.log(
-      "[CampusLocationService] ✅ Location tracking, activity heartbeat, and health monitoring stopped"
-    );
-    console.log("🔋 Battery optimization complete - GPS icon should disappear from status bar");
+    console.log("[CampusLocationService] ✅ Location polling and health systems stopped");
   }
 
   /**
@@ -3517,12 +3268,7 @@ export class CampusLocationService {
         );
       } else {
         // 🌐 OFF CAMPUS NETWORK: Resume GPS if needed
-        if (!this.trackingWatchId && this.isTracking) {
-          console.log(
-            "🌐 Off campus network - resuming GPS tracking for location accuracy"
-          );
-          this.startLocationTracking(); // This will restart GPS tracking
-        }
+        // With polling-only approach, nothing to resume here
 
         // Schedule next network check in 2 minutes (more frequent off campus)
         setTimeout(
@@ -3902,111 +3648,7 @@ export class CampusLocationService {
     return R * c; // Distance in meters
   }
 
-  /**
-   * Set up periodic location updates as fallback system
-   * ENHANCED: Now works alongside watchPosition with health monitoring
-   * Updates location every 5 minutes as backup when primary GPS tracking fails
-   */
-  async startPeriodicLocationUpdates() {
-    if (this.periodicUpdateInterval) {
-      console.log(
-        "[CampusLocationService] ⚠️ Periodic updates already running"
-      );
-      return;
-    }
-
-    // FIXED: Allow periodic updates to run as backup even with watchPosition active
-    // This provides redundancy when GPS becomes unreliable
-    console.log(
-      "[CampusLocationService] 🔄 Starting periodic location updates as backup system..."
-    );
-
-    this.periodicUpdateInterval = setInterval(async () => {
-      // Skip if a location update is already in progress to prevent conflicts
-      if (this.isUpdatingLocation) {
-        console.log(
-          "[CampusLocationService] ⏭️ Skipping periodic update - location update in progress"
-        );
-        return;
-      }
-      try {
-        const { dataManager } = await import("../data/DataService.js");
-        const { currentUser } = await import("../../store/userStore.js");
-
-        if (!currentUser?.uid) {
-          console.warn(
-            "[CampusLocationService] No current user for periodic update"
-          );
-          return;
-        }
-
-        console.log(
-          "[CampusLocationService] 🔄 Performing periodic location update (battery optimized)..."
-        );
-
-        // Use battery-optimized GPS for periodic updates
-        const position = await this.getCurrentLocation(
-          false,
-          "periodic_update"
-        );
-        if (position) {
-          // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
-          const campusPresenceResult = await this.detectCampusPresence("iub", position);
-          const campusStatus =
-            campusPresenceResult?.onCampus !== undefined
-              ? campusPresenceResult.onCampus
-                ? "on_campus"
-                : "off_campus"
-              : "unknown";
-
-          console.log(
-            "[CampusLocationService] Periodic update - Campus status:",
-            {
-              campusStatus,
-              tier: position.tier,
-              source: position.source,
-              recursiveCallAvoided: true
-            }
-          );
-
-          const updateResult = await dataManager.updateUserLocationStatus(
-            currentUser.uid,
-            campusStatus,
-            {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              timestamp: position.timestamp,
-            }
-          );
-
-          if (updateResult.success) {
-            console.log(
-              "[CampusLocationService] ✅ Periodic location update successful"
-            );
-          } else {
-            console.error(
-              "[CampusLocationService] ❌ Periodic location update failed:",
-              updateResult.error
-            );
-          }
-        } else {
-          console.warn(
-            "[CampusLocationService] Periodic update - no position available"
-          );
-        }
-      } catch (error) {
-        console.error(
-          "[CampusLocationService] Error in periodic location update:",
-          error
-        );
-      }
-    }, 5 * 60 * 1000); // 5 minutes as specified in implementation plan
-
-    console.log(
-      "[CampusLocationService] ✅ Periodic location updates started as backup system (5-minute intervals)"
-    );
-  }
+  
 
   /**
    * Automatically start location tracking if user has location sharing enabled
@@ -4096,192 +3738,14 @@ export class CampusLocationService {
   }
 
   async autoStartLocationTracking() {
-    this.initializationAttempts++;
-
+    // Polling-only initialization (3-tier)
     try {
-      console.log(
-        `[CampusLocationService] 🚀 Initialization attempt ${this.initializationAttempts}/${this.maxInitializationAttempts} - checking if automatic location tracking should start...`
-      );
-
-      // 🎯 PHASE 2 ENHANCEMENT: Detect trigger scenario for optimized handling
-      const triggerScenario = this.detectTriggerScenario();
-      this.lastUpdateTrigger = triggerScenario; // Store trigger for accuracy context
-      console.log(
-        `[CampusLocationService] 🎯 Trigger scenario detected: ${triggerScenario}`
-      );
-
-      // Import required services with error handling
-      let currentUser;
-      try {
-        const userModule = await import("../../store/userStore.js");
-        currentUser = userModule.currentUser;
-      } catch (importError) {
-        console.error(
-          "[CampusLocationService] ❌ Failed to import required services:",
-          importError
-        );
-        this.scheduleInitializationRetry("Service import failed");
-        return;
-      }
-
-      // Check if user is logged in
-      if (!currentUser?.uid) {
-        console.log(
-          "[CampusLocationService] ⏳ No user logged in - scheduling retry"
-        );
-        this.scheduleInitializationRetry("No current user");
-        return;
-      }
-
-      // 🚀 PHASE 1: Immediate presence update with trigger context
-      console.log(
-        `[CampusLocationService] 🚀 Starting Phase 1: Immediate presence update (${triggerScenario})...`
-      );
-      const immediateUpdateSuccess = await this.immediatePresenceUpdate(
-        triggerScenario
-      );
-
-      if (immediateUpdateSuccess) {
-        console.log(
-          "[CampusLocationService] ✅ Phase 1 complete - user presence updated immediately"
-        );
-
-        // 🎯 PHASE 2 ENHANCEMENT: For high-priority triggers, request fresh GPS immediately
-        if (["login", "reload", "tab_return"].includes(triggerScenario)) {
-          console.log(
-            `[CampusLocationService] ⚡ High-priority trigger detected - requesting immediate fresh GPS`
-          );
-          this.requestSingleLocationUpdate();
-        }
-      } else {
-        console.warn(
-          "[CampusLocationService] ⚠️ Phase 1 failed - continuing with Phase 2"
-        );
-      }
-
-      console.log(
-        "[CampusLocationService] 🔍 Starting Phase 2: Accurate location acquisition..."
-      );
-
-      // Wait for user profile with timeout to prevent infinite waiting
-      let userProfile;
-      try {
-        const profilePromise = currentUser.waitForProfile();
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Profile load timeout")), 10000)
-        );
-        userProfile = await Promise.race([profilePromise, timeoutPromise]);
-      } catch (profileError) {
-        console.warn(
-          "[CampusLocationService] ⏳ Profile loading failed, scheduling retry:",
-          profileError.message
-        );
-        this.scheduleInitializationRetry("Profile unavailable");
-        return;
-      }
-
-      if (!userProfile) {
-        console.log(
-          "[CampusLocationService] ⏳ No user profile available - scheduling retry"
-        );
-        this.scheduleInitializationRetry("Profile not ready");
-        return;
-      }
-
-      // Check if global location sharing is enabled
-      const globalLocationEnabled =
-        userProfile?.systemInfo?.locationSharingEnabled;
-      if (!globalLocationEnabled) {
-        console.log(
-          "[CampusLocationService] 🔒 Global location sharing disabled - initialization complete (tracking disabled)"
-        );
-        this.isInitialized = true;
-        return;
-      }
-
-      // Check if user has any friends with mutual location sharing enabled
-      let hasLocationSharingFriends;
-      try {
-        hasLocationSharingFriends = await this.checkForLocationSharingFriends();
-      } catch (friendsError) {
-        console.warn(
-          "[CampusLocationService] ⚠️ Failed to check location sharing friends:",
-          friendsError
-        );
-        this.scheduleInitializationRetry("Friends check failed");
-        return;
-      }
-
-      if (!hasLocationSharingFriends) {
-        console.log(
-          "[CampusLocationService] 👥 No friends with mutual location sharing - initialization complete (no sharing needed)"
-        );
-        this.isInitialized = true;
-        return;
-      }
-
-      // Check if tracking is already active
-      if (this.isTrackingActive()) {
-        console.log(
-          "[CampusLocationService] ✅ Location tracking already active - initialization complete"
-        );
-        this.isInitialized = true;
-        return;
-      }
-
-      console.log(
-        "[CampusLocationService] ✅ All conditions met - starting Phase 2 location tracking with GPS accuracy"
-      );
-
-      // Start location tracking with fallback mechanisms
-      try {
-        await this.startLocationTracking();
-
-        // Verify tracking started successfully with health check
-        setTimeout(() => this.performHealthCheck(), 5000);
-      } catch (trackingError) {
-        console.warn(
-          "[CampusLocationService] ⚠️ Primary location tracking failed:",
-          trackingError
-        );
-      }
-
-      // Always try to start periodic updates as fallback if watchPosition isn't working
-      if (!this.trackingWatchId) {
-        console.log(
-          "[CampusLocationService] 🔄 watchPosition not active, starting periodic updates as fallback"
-        );
-        try {
-          await this.startPeriodicLocationUpdates();
-        } catch (periodicError) {
-          console.error(
-            "[CampusLocationService] ❌ Periodic updates also failed:",
-            periodicError
-          );
-          this.scheduleInitializationRetry("All tracking methods failed");
-          return;
-        }
-      }
-
-      // Always start activity heartbeat for user presence tracking
+      await this.startPresencePolling(20000);
+      await this.runPresencePollNow();
       this.startActivityHeartbeat();
-
-      // Start health monitoring
-      this.startHealthMonitoring();
-
       this.isInitialized = true;
-      this.initializationAttempts = 0; // Reset counter on success
-      this.initializationErrors = []; // Clear error history
-
-      console.log(
-        `[CampusLocationService] 🎉 Location tracking initialization completed successfully (${triggerScenario})`
-      );
     } catch (error) {
-      console.error(
-        "[CampusLocationService] ❌ Unexpected error in auto-start location tracking:",
-        error
-      );
-      this.scheduleInitializationRetry(error.message);
+      this.scheduleInitializationRetry(error?.message || "Polling auto-start failed");
     }
   }
 
@@ -4630,7 +4094,7 @@ export class CampusLocationService {
    * @returns {boolean} True if tracking is active
    */
   isTrackingActive() {
-    return this.trackingWatchId !== null && this.trackingWatchId !== undefined;
+    return this.presencePollingIntervalId !== null && this.presencePollingIntervalId !== undefined;
   }
 
   /**
@@ -4690,8 +4154,7 @@ export class CampusLocationService {
 
     const healthStatus = {
       timestamp: new Date().toISOString(),
-      watchPositionActive: this.trackingWatchId !== null,
-      periodicUpdatesActive: this.periodicUpdateInterval !== null,
+      presencePollingActive: this.presencePollingIntervalId !== null,
       activityHeartbeatActive: this.activityHeartbeatInterval !== null,
       lastLocationUpdate: this.lastLocationUpdate,
       timeSinceLastUpdate: this.lastLocationUpdate
@@ -4725,9 +4188,9 @@ export class CampusLocationService {
           setTimeout(async () => {
             await this.startLocationTracking();
 
-            // If watchPosition fails, ensure periodic updates are running
-            if (!this.trackingWatchId && !this.periodicUpdateInterval) {
-              await this.startPeriodicLocationUpdates();
+            // Ensure presence polling is running
+            if (!this.presencePollingIntervalId) {
+              await this.startPresencePolling(20000);
             }
           }, 2000);
         } catch (restartError) {
@@ -4740,43 +4203,24 @@ export class CampusLocationService {
       }
     }
 
-    // Check if watchPosition exists but isn't working (common issue)
-    if (
-      healthStatus.watchPositionActive &&
-      healthStatus.timeSinceLastUpdate > 10 * 60 * 1000
-    ) {
-      healthStatus.issues.push(
-        "watchPosition exists but not providing updates"
-      );
-
-      // Start periodic updates as backup if not already running
-      if (!healthStatus.periodicUpdatesActive) {
-        console.log(
-          "[CampusLocationService] 🆘 Starting periodic updates as backup for failing watchPosition..."
-        );
-        healthStatus.actions.push("Starting periodic updates backup");
-        await this.startPeriodicLocationUpdates();
-      }
+    // Ensure polling is running
+    if (!healthStatus.presencePollingActive) {
+      console.log("[CampusLocationService] 🆘 Presence polling not active - starting...");
+      healthStatus.actions.push("Starting presence polling");
+      await this.startPresencePolling(20000);
     }
 
     // Check if neither tracking method is active
-    if (
-      !healthStatus.watchPositionActive &&
-      !healthStatus.periodicUpdatesActive
-    ) {
+    if (!healthStatus.presencePollingActive) {
       healthStatus.issues.push("No location tracking methods active");
 
-      // Try to restart both
-      console.log(
-        "[CampusLocationService] 🚨 No tracking active - attempting full restart..."
-      );
-      healthStatus.actions.push("Full location tracking restart");
+      // Try to start polling
+      console.log("[CampusLocationService] 🚨 No tracking active - starting presence polling...");
+      healthStatus.actions.push("Start presence polling");
 
       try {
-        await this.startLocationTracking();
-        if (!this.trackingWatchId) {
-          await this.startPeriodicLocationUpdates();
-        }
+        await this.startPresencePolling(20000);
+        await this.runPresencePollNow();
       } catch (fullRestartError) {
         console.error(
           "[CampusLocationService] ❌ Full restart failed:",
@@ -4817,9 +4261,7 @@ export class CampusLocationService {
       isLocationSupported: this.isLocationSupported,
       permissionStatus: this.permissionStatus,
       tracking: {
-        watchPositionActive: this.trackingWatchId !== null,
-        watchId: this.trackingWatchId,
-        periodicUpdatesActive: this.periodicUpdateInterval !== null,
+        presencePollingActive: this.presencePollingIntervalId !== null,
         activityHeartbeatActive: this.activityHeartbeatInterval !== null,
         isUpdatingLocation: this.isUpdatingLocation,
         lastLocationUpdate: this.lastLocationUpdate,
@@ -5400,6 +4842,18 @@ export class CampusLocationService {
         this.emitPresenceDataLoading();
       }
 
+      // Respect user preference: only request location if signed-in and sharing enabled
+      const { currentUser } = await import("../../store/userStore.js");
+      const uid = currentUser?.uid;
+      const enabled = currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+      if (!uid || !enabled) {
+        console.log(
+          "[CampusLocationService] 🔒 Skipping initial location fetch (no user or sharing disabled)"
+        );
+        this.emitPresenceDataReady(false /* freshDataLoaded */);
+        return;
+      }
+
       // Request initial location with appropriate trigger
       const position = await this.getCurrentLocation(false, trigger);
 
@@ -5505,6 +4959,21 @@ export class CampusLocationService {
             campusStatus: presenceResult?.onCampus,
           },
           presenceData: presenceResult,
+        },
+      })
+    );
+  }
+
+  /**
+   * Emit readiness when skipping location (disabled/user not signed-in)
+   */
+  emitPresenceDataReady(freshDataLoaded = false) {
+    document.dispatchEvent(
+      new CustomEvent("campus-presence:ready", {
+        detail: {
+          freshDataLoaded,
+          source: "CampusLocationService",
+          timestamp: Date.now(),
         },
       })
     );

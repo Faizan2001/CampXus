@@ -578,11 +578,8 @@ class FriendsUI {
     try {
       console.log("📍 Initializing Campus Presence features...");
 
-      // Add global location sharing card to the page
-      await this.addGlobalLocationCard();
-
-      // Add notifications navigation button
-      this.addNotificationsNavigation();
+      // Add compact location sharing toggle in header
+      await this.addHeaderLocationToggle();
 
       console.log("✅ Campus Presence features initialized successfully");
     } catch (error) {
@@ -591,131 +588,53 @@ class FriendsUI {
   }
 
   /**
-   * 📍 Add global location sharing card to the friends page
+   * 📍 Add compact global location sharing toggle in header
    */
-  async addGlobalLocationCard() {
-    const friendsContainer = document.querySelector(".friends-container");
-    if (!friendsContainer) {
-      console.warn("⚠️ Friends container not found for global location card");
+  async addHeaderLocationToggle() {
+    const header = document.querySelector(".friends-header .page-title-section");
+    if (!header) {
+      console.warn("⚠️ Friends header not found for header location toggle");
       return;
     }
 
-    // Find the insertion point (after the search section)
-    const searchSection = friendsContainer.querySelector(".friends-search");
-    if (!searchSection) {
-      console.warn(
-        "⚠️ Search section not found for global location card insertion"
-      );
-      return;
+    // Create container in header (placed at far left)
+    let headerToggle = header.querySelector(".header-location-toggle");
+    if (!headerToggle) {
+      headerToggle = document.createElement("div");
+      headerToggle.className = "header-location-toggle";
+      headerToggle.innerHTML = `
+        <div class="header-location-title">
+          <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+          <span>Location Sharing</span>
+        </div>
+        <div class="header-location-toggle-container"></div>
+      `;
+      header.prepend(headerToggle);
     }
 
-    // Create global location sharing card
-    const locationCard = document.createElement("section");
-    locationCard.className = "glass-card global-location-sharing";
-    locationCard.innerHTML = `
-      <h3>
-        <i class="fas fa-map-marker-alt"></i>
-        Campus Presence
-      </h3>
-      <div class="location-description">
-        <p>Share your campus location with friends to see who's nearby and plan spontaneous meetups.</p>
-      </div>
-      <div class="global-location-toggle-container">
-        <!-- LocationSharingToggle component will be rendered here -->
-      </div>
-    `;
-
-    // Insert the card after the search section
-    searchSection.insertAdjacentElement("afterend", locationCard);
-
-    // Initialize the global location toggle component
+    // Initialize compact global location toggle
     try {
       this.globalLocationToggle = new LocationSharingToggle({
         mode: "global",
-        showPermissionHelper: true,
-        showStatus: true,
-        containerClass: "global-location-toggle",
+        showPermissionHelper: false,
+        showStatus: false,
+        containerClass: "compact",
       });
 
-      const toggleContainer = locationCard.querySelector(
-        ".global-location-toggle-container"
+      const toggleContainer = headerToggle.querySelector(
+        ".header-location-toggle-container"
       );
+      // Clear previous render if any
+      toggleContainer.innerHTML = "";
       await this.globalLocationToggle.render(toggleContainer);
 
-      console.log("✅ Global location sharing card added successfully");
+      console.log("✅ Header location sharing toggle added successfully");
     } catch (error) {
-      console.error("❌ Error initializing global location toggle:", error);
+      console.error("❌ Error initializing header location toggle:", error);
     }
   }
 
-  /**
-   * 📬 Add notifications navigation button
-   */
-  addNotificationsNavigation() {
-    const friendsHeader = document.querySelector(
-      ".friends-header .page-title-section"
-    );
-    if (!friendsHeader) {
-      console.warn("⚠️ Friends header not found for notifications navigation");
-      return;
-    }
-
-    // Create notifications navigation button
-    const notificationsNav = document.createElement("div");
-    notificationsNav.className = "notifications-navigation";
-    notificationsNav.innerHTML = `
-      <button class="btn-notifications" type="button" title="View notifications">
-        <i class="fas fa-bell" aria-hidden="true"></i>
-        <span class="button-text">Notifications</span>
-        <span class="notification-badge" style="display: none;">0</span>
-      </button>
-    `;
-
-    // Add to friends header
-    friendsHeader.appendChild(notificationsNav);
-
-    // Set up event listener for notifications navigation
-    const notificationsButton =
-      notificationsNav.querySelector(".btn-notifications");
-    notificationsButton.addEventListener(
-      "click",
-      this.handleNotificationsNavigation.bind(this)
-    );
-
-    console.log("✅ Notifications navigation added successfully");
-  }
-
-  /**
-   * 📬 Handle notifications navigation
-   */
-  handleNotificationsNavigation() {
-    console.log("📬 Navigating to notifications page...");
-    // Prefer SPA router navigation when available
-    try {
-      if (
-        window.spaRouter &&
-        typeof window.spaRouter.navigateTo === "function"
-      ) {
-        window.spaRouter.navigateTo("notifications");
-        return;
-      }
-
-      // Fallback: try global router if exported
-      if (
-        typeof router !== "undefined" &&
-        typeof router.navigateTo === "function"
-      ) {
-        router.navigateTo("notifications");
-        return;
-      }
-
-      // Final fallback: show a friendly message
-      this.showMessage("Notifications page coming soon!", "info");
-    } catch (error) {
-      console.error("❌ Error navigating to notifications page:", error);
-      this.showMessage("Notifications page coming soon!", "info");
-    }
-  }
+  
 
   /**
    * 📊 Load initial data when page opens
@@ -2790,19 +2709,9 @@ class FriendsUI {
         this.globalLocationToggle = null;
       }
 
-      // Remove global location card
-      const locationCard = document.querySelector(".global-location-sharing");
-      if (locationCard) {
-        locationCard.remove();
-      }
-
-      // Remove notifications navigation
-      const notificationsNav = document.querySelector(
-        ".notifications-navigation"
-      );
-      if (notificationsNav) {
-        notificationsNav.remove();
-      }
+      // Remove header location toggle
+      const headerToggle = document.querySelector(".header-location-toggle");
+      if (headerToggle) headerToggle.remove();
 
       console.log("🧹 Campus presence components cleaned up");
     } catch (error) {

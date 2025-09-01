@@ -1836,25 +1836,7 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
   }
 }
 
-/* =================================
-   NOTIFICATION BADGES
-================================= */
-
-.friends-notification-badge {
-  background: var(--error-red);
-  color: var(--friends-color-white);
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  position: absolute;
-  top: -5px;
-  right: -5px;
-}
+/* (Removed legacy notification badge styles tied to friends page) */
 
 /* =================================
    DARK MODE SUPPORT
@@ -1904,6 +1886,76 @@ body.page-friends .friends-container .friends-scrollable-container .friend-card 
     background: var(--friends-privacy-tooltip-bg-dark);
     color: var(--friends-privacy-tooltip-color-dark);
   }
+}
+
+/* =================================
+   HEADER LOCATION TOGGLE (Compact)
+================================= */
+
+.friends-header .page-title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.friends-header .header-location-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.friends-header .header-location-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.friends-header .location-sharing-toggle.compact .toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #b91c1c; /* red when OFF */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.friends-header .location-sharing-toggle.compact .toggle-switch.enabled {
+  background: #16a34a; /* green when ON */
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure compact toggle stands out when enabled */
+.friends-header .location-sharing-toggle.compact .toggle-switch.enabled:hover {
+  filter: brightness(1.05);
+}
+
+.friends-header .location-sharing-toggle.compact .toggle-switch .toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.friends-header .location-sharing-toggle.compact .toggle-switch.enabled .toggle-slider {
+  transform: translateX(20px);
+}
+
+.friends-header .location-sharing-toggle.compact .toggle-switch .toggle-text {
+  display: none; /* compact mode hides text */
 }
 
 /* Global privacy controls removed - individual privacy controls now available via friend card menus */
