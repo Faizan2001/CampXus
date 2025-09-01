@@ -47,6 +47,7 @@ import {
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import { PresenceDot } from "../presence/PresenceDot.js";
+import { friendshipPrivacyService } from "../../services/friends/FriendshipPrivacyService.js";
 
 // Global instance for external access
 let globalHorizontalFriendsBarInstance = null;
@@ -806,7 +807,7 @@ export class HorizontalFriendsBar {
 
     const friendId = avatarItem.dataset.friendId;
     const friendName = avatarItem.dataset.friendName;
-    const isRestricted = avatarItem.dataset.privacyRestricted === "true";
+    let isRestricted = avatarItem.dataset.privacyRestricted === "true";
 
     console.log(`👆 Avatar clicked: ${friendName} (${friendId})`);
     console.log(
@@ -818,7 +819,41 @@ export class HorizontalFriendsBar {
     // Prevent multiple clicks while processing
     if (avatarItem.classList.contains("loading")) return;
 
-    // Check if avatar is disabled due to privacy restrictions
+    // If dataset says not restricted, double-check with live privacy to avoid race conditions
+    if (!isRestricted && friendId !== "user") {
+      try {
+        const liveRestricted = await friendsManager.isQuickAccessRestricted(
+          friendId
+        );
+        if (liveRestricted === true) {
+          isRestricted = true;
+          // Update DOM to reflect disabled state immediately
+          avatarItem.dataset.privacyRestricted = "true";
+          avatarItem.classList.add("disabled");
+        }
+      } catch (e) {
+        // On error, do not block normal flow; fallback to current flag
+      }
+    }
+
+    // If dataset says restricted, verify live again to allow immediate unblocks after privacy changes
+    if (isRestricted && friendId !== "user") {
+      try {
+        const liveRestricted = await friendsManager.isQuickAccessRestricted(
+          friendId
+        );
+        if (liveRestricted === false) {
+          // Privacy now allows access; update DOM and continue selection
+          isRestricted = false;
+          avatarItem.dataset.privacyRestricted = "false";
+          avatarItem.classList.remove("disabled");
+        }
+      } catch (e) {
+        // If check fails, keep current restricted state
+      }
+    }
+
+    // Check if avatar is disabled due to privacy restrictions (after live verification)
     if (isRestricted && friendId !== "user") {
       console.log(
         `🔒 Access restricted for ${friendName} - showing notification`
@@ -2609,12 +2644,21 @@ export class HorizontalFriendsBar {
     const currentUserUid = currentUser?.user?.uid;
     if (!currentUserUid) return;
 
+    // Ensure any cached privacy data is invalidated for fresh checks
+    try {
+      friendshipPrivacyService.clearFriendshipCache(currentUserUid, friendId);
+    } catch (e) {
+      // Non-fatal; proceed with UI update regardless
+    }
+
     // Extract schedule visibility for current user
     const scheduleVisibility = friendshipData.scheduleVisibility;
     if (!scheduleVisibility) return;
 
-    // Check if this friend's schedule is visible to current user
-    const isScheduleVisible = scheduleVisibility[friendId] === true;
+    // Mutual (AND) gating: both sides must allow to view
+    const friendAllows = scheduleVisibility[friendId] === true;
+    const currentUserAllows = scheduleVisibility[currentUserUid] === true;
+    const isScheduleVisible = friendAllows && currentUserAllows;
 
     console.log(
       `🔒 Schedule visibility for ${friendId} → ${currentUserUid}: ${isScheduleVisible}`
@@ -2628,7 +2672,7 @@ export class HorizontalFriendsBar {
         : "Schedule access restricted",
       description: isScheduleVisible
         ? "Schedule is visible - quick access enabled"
-        : "This user has hidden their schedule from you",
+        : "Schedule access is restricted",
       lastUpdated: new Date().toISOString(),
       source: "friendship_document_change",
     };
@@ -2909,38 +2953,21 @@ export class HorizontalFriendsBar {
       );
 
       // Update the avatar's classes and attributes based on new privacy status
-      const avatarImg = existingElement.querySelector(".friend-avatar-img");
-      const lockIcon = existingElement.querySelector(".privacy-lock-icon");
+      const avatarImg = existingElement.querySelector(".user-avatar-img");
 
       if (updatedFriend.isRestricted) {
-        // Add disabled styling
+        // Add disabled styling only (no lock icon)
         existingElement.classList.add("disabled");
         avatarImg?.classList.add("grayscale");
-
-        // Add/update lock icon
-        if (!lockIcon) {
-          const lockElement = document.createElement("div");
-          lockElement.className = "privacy-lock-icon";
-          lockElement.innerHTML = "🔒";
-          lockElement.title =
-            updatedFriend.privacyStatus?.tooltip ||
-            "Schedule access restricted";
-          existingElement.appendChild(lockElement);
-        } else {
-          lockIcon.title =
-            updatedFriend.privacyStatus?.tooltip ||
-            "Schedule access restricted";
-        }
       } else {
         // Remove disabled styling
         existingElement.classList.remove("disabled");
         avatarImg?.classList.remove("grayscale");
-
-        // Remove lock icon
-        if (lockIcon) {
-          lockIcon.remove();
-        }
       }
+
+      // Always remove any existing lock icon remnants for cleanliness
+      const existingLock = existingElement.querySelector(".privacy-lock-icon");
+      if (existingLock) existingLock.remove();
 
       // Update tooltip for the entire avatar
       existingElement.title =

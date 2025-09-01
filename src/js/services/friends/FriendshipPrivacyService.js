@@ -164,7 +164,8 @@ class FriendshipPrivacyService {
 
       const isVisible = isScheduleVisibleToFriend(
         friendshipDoc,
-        scheduleOwnerUid
+        scheduleOwnerUid,
+        friendUid
       );
       console.log(
         `✅ Schedule visibility result: ${scheduleOwnerUid} → ${friendUid} = ${isVisible}`
@@ -705,7 +706,8 @@ class FriendshipPrivacyService {
       // Get schedule visibility status
       const isScheduleVisible = isScheduleVisibleToFriend(
         friendshipDoc,
-        userUid
+        userUid,
+        friendUid
       );
       const isQuickAccessRestricted = !isScheduleVisible;
 

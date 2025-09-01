@@ -97,14 +97,32 @@ export function createEnhancedFriendshipDocument(
  * @param {string} scheduleOwnerUid - User whose schedule visibility we're checking
  * @returns {boolean} True if schedule is visible, false if hidden
  */
-export function isScheduleVisibleToFriend(friendshipDoc, scheduleOwnerUid) {
-  if (!friendshipDoc || !friendshipDoc.scheduleVisibility) {
-    // Default to visible if no privacy settings found (backward compatibility)
-    return true;
+export function isScheduleVisibleToFriend(
+  friendshipDoc,
+  scheduleOwnerUid,
+  viewerUid
+) {
+  if (!friendshipDoc) {
+    return false;
   }
 
-  // Check bilateral privacy setting for the schedule owner
-  return friendshipDoc.scheduleVisibility[scheduleOwnerUid] !== false;
+  // Default to visible if no privacy map found (backward compatibility)
+  const vis = friendshipDoc.scheduleVisibility || {};
+
+  // AND-gate: both sides must have their own visibility set to true
+  const ownerAllows = vis[scheduleOwnerUid] !== false; // default true
+  const viewerAllows = vis[viewerUid] !== false; // default true
+  return ownerAllows && viewerAllows;
+}
+
+/**
+ * Check if a given user has their own schedule sharing enabled in this friendship
+ * (unilateral flag for UI copy such as "Your schedule is visible/hidden")
+ */
+export function isUserScheduleSharingEnabled(friendshipDoc, userUid) {
+  if (!friendshipDoc) return true;
+  const vis = friendshipDoc.scheduleVisibility || {};
+  return vis[userUid] !== false; // default true
 }
 
 /**
@@ -158,11 +176,12 @@ export function updateScheduleVisibility(friendshipDoc, userUid, isVisible) {
  * @returns {Object} Privacy status for both users
  */
 export function getPrivacyStatus(friendshipDoc, currentUserUid, friendUid) {
-  const currentUserVisible = isScheduleVisibleToFriend(
+  // For UI labels, show unilateral states (your setting and their setting)
+  const currentUserVisible = isUserScheduleSharingEnabled(
     friendshipDoc,
     currentUserUid
   );
-  const friendVisible = isScheduleVisibleToFriend(friendshipDoc, friendUid);
+  const friendVisible = isUserScheduleSharingEnabled(friendshipDoc, friendUid);
 
   return {
     // Current user's privacy status
