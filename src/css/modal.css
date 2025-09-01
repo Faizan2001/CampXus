@@ -37,6 +37,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box; /* prevent overflow on mobile */
 }
 
 .modal-overlay.active .modal-content {
@@ -100,8 +101,9 @@
 }
 
 .modal-button {
-  min-width: 120px;
-  width: 120px;
+  min-width: 110px;
+  width: auto;
+  flex: 0 0 auto;
   height: 48px; /* Fixed height for consistency */
   padding: 0.75rem 1rem;
   border: 1px solid transparent;
@@ -115,6 +117,48 @@
   justify-content: center;
   gap: 0.5rem;
   box-sizing: border-box;
+}
+
+/* Mobile-first adjustments */
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 0 12px; /* keep content away from screen edges */
+  }
+  .modal-content {
+    width: 88%;
+    max-width: 420px;
+    max-height: 82vh;
+    padding: 1rem 1rem 1.25rem;
+    border-radius: 1rem;
+    margin: 0 auto; /* center within overlay padding */
+  }
+  .modal-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .modal-message {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+  }
+  .modal-action-buttons {
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .modal-button,
+  .modal-close-btn {
+    width: auto;           /* do not stretch to full width */
+    min-width: 120px;      /* readable tap target */
+    height: 44px;          /* comfortable touch height */
+  }
+  /* If glass-card variant is used, ensure same sizing */
+  .modal-content.glass-card {
+    width: 88%;
+    max-width: 420px;
+    padding: 1rem;
+    border-radius: 1rem;
+  }
 }
 
 .modal-button.confirm {
@@ -408,11 +452,10 @@
   }
 
   .modal-close-btn {
-    width: 100% !important;
-    height: 48px !important; /* Consistent height */
-    min-width: auto !important; /* Reset min-width for mobile */
-    max-width: none !important; /* Ensure no width restrictions */
-    box-sizing: border-box !important;
+    width: auto;
+    min-width: 120px;
+    height: 48px; /* Consistent height */
+    box-sizing: border-box;
   }
 
   .add-timeslot-form-content
@@ -438,6 +481,17 @@
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
+  box-sizing: border-box;
+}
+
+/* Tablet adjustments */
+@media (max-width: 768px) {
+  .modal-overlay { padding: 0 16px; }
+  .modal-content,
+  .modal-content.glass-card {
+    width: 92%;
+    max-width: 520px;
+  }
 }
 
 /* Animation classes for JS */

@@ -3153,3 +3153,117 @@ div.friend-options-menu.show div.options-dropdown,
 }
 
 /* Removed: user avatar location update indicator (now using presence-dot spinner overlay) */
+/* Mutual Location Button - same sizing and glassmorphism as schedule */
+.mutual-location-btn {
+  background: linear-gradient(135deg,
+    rgba(34, 197, 94, 0.12) 0%,      /* Green tint */
+    rgba(16, 185, 129, 0.16) 100%    /* Teal tint */
+  );
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  margin-right: 4px; /* Align gap with other icons */
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.mutual-location-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  border-radius: 8px 8px 0 0;
+  pointer-events: none;
+}
+
+.mutual-location-btn:hover {
+  transform: translateY(-1px) scale(1.05);
+  box-shadow:
+    0 4px 16px rgba(16, 185, 129, 0.25),
+    0 2px 8px rgba(16, 185, 129, 0.2),
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.mutual-location-btn i {
+  font-size: 0.875rem;
+  color: rgba(34, 197, 94, 0.85);
+  transition: all 0.3s ease;
+  z-index: 1;
+  position: relative;
+}
+
+.mutual-location-btn.restricted {
+  background: linear-gradient(135deg,
+    rgba(239, 68, 68, 0.12) 0%,
+    rgba(244, 63, 94, 0.16) 100%
+  );
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow:
+    0 2px 8px rgba(239, 68, 68, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.mutual-location-btn.restricted i {
+  color: rgba(239, 68, 68, 0.9);
+}
+
+/* Reuse mine-visible/mine-hidden border semantics for location */
+.mutual-location-btn.mine-visible {
+  border-color: #10B981 !important;
+}
+.mutual-location-btn.mine-hidden {
+  border-color: #EF4444 !important;
+}
+/* Reduce motion on touch devices for friend options menu */
+@media (hover: none) {
+  /* Prevent button shifting on tap/open */
+  .friend-options-menu .options-button,
+  .friend-options-menu .options-button:hover,
+  .friend-options-menu .options-button:active,
+  .friend-options-menu .options-button[aria-expanded="true"] {
+    transform: none !important;
+  }
+
+  /* Keep dropdown fixed; only fade */
+  .friend-options-menu .options-dropdown {
+    transform: none !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+  }
+
+  /* Prevent menu items from sliding on tap */
+  .friend-options-menu .menu-option:hover,
+  .friend-options-menu .menu-option:focus {
+    transform: none !important;
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .friend-options-menu .options-button,
+  .friend-options-menu .options-dropdown,
+  .friend-options-menu .menu-option {
+    transition: none !important;
+    transform: none !important;
+  }
+}

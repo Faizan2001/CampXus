@@ -74,6 +74,12 @@ class FriendsUI {
 
     // Track last known mutual status per friend to show success once
     this.mutualStatus = new Map(); // friendId -> boolean
+
+    // Track first-time handshake for location sharing (mutualSharingEnabled)
+    this.mutualLocationHandshake = new Map(); // friendId -> boolean
+
+    // Track latest per-friend location visibility (my vs friend) from snapshots
+    this.locationVisibilityState = new Map(); // friendId -> { my: boolean, friend: boolean }
   }
 
   /**
@@ -995,6 +1001,12 @@ class FriendsUI {
           ${this.renderScheduleAccessStatus(friend)}
         </div>
         <div class="friend-actions">
+          <button class="mutual-location-btn" 
+                  data-friend-id="${friend.id}"
+                  aria-label="Mutual location status"
+                  title="Mutual location status">
+            <i class="fas fa-map-marker-alt"></i>
+          </button>
           <button class="mutual-schedule-btn" 
                   data-friend-id="${friend.id}"
                   aria-label="Mutual schedule status"
@@ -1211,19 +1223,8 @@ class FriendsUI {
    * @returns {string} HTML for enhanced dual privacy indicators with location sharing
    */
   renderScheduleAccessStatus(friend) {
-    // Only show bilateral location sharing status in info area.
-    // Mutual schedule icon now lives in friend-actions.
-    return `
-      <div class="dual-privacy-container">
-        <!-- Bilateral location sharing status (unchanged) -->
-        <div class="location-sharing-status bilateral-location location-sharing-disabled" 
-             data-friend-id="${friend.id || friend.uid}"
-             title="Location sharing status - will be updated by location privacy system">
-          <i class="fas fa-map-marker-alt"></i>
-          <span>Location sharing</span>
-        </div>
-      </div>
-    `;
+    // Removed old inline indicators. All icons live in friend-actions.
+    return ``;
   }
 
   /**
@@ -1855,6 +1856,114 @@ class FriendsUI {
         return;
       }
 
+      // Mutual location status toggle handler with first-time request flow
+      if (e.target.closest('.mutual-location-btn')) {
+        const btn = e.target.closest('.mutual-location-btn');
+        const friendCard = btn.closest('.friend-card');
+        const friendId = friendCard?.dataset.friendId;
+        const friend = this.currentFriendsData.find((f) => f.id === friendId);
+        if (!friendId || !friend) return;
+
+        if (btn.classList.contains('loading')) return;
+        btn.classList.add('loading');
+
+        try {
+          const userUid = currentUser.state?.user?.uid;
+          if (!userUid) throw new Error('Not signed in');
+
+          // Build friendshipId
+          let friendshipId = friend.friendshipId;
+          if (!friendshipId) {
+            friendshipId = userUid < friendId ? `${userUid}_${friendId}` : `${friendId}_${userUid}`;
+          }
+
+          // Prefer realtime cached handshake flag; fallback to a direct read
+          let mutualMeta = this.mutualLocationHandshake.get(friendId);
+          if (typeof mutualMeta !== 'boolean') {
+            const friendshipDoc = await dataManager.getFriendshipDocument(friendshipId);
+            mutualMeta = friendshipDoc?.locationSharingMetadata?.mutualSharingEnabled === true;
+          }
+
+          if (!mutualMeta) {
+            // First-time confirmation and request
+            showModal({
+              title: 'Send Location Share Request',
+              content: `Send location sharing request to ${friend.displayName}? They will be notified. You only need to do this once.`,
+              showConfirmationButtons: true,
+              confirmText: 'Send Request',
+              cancelText: 'Cancel',
+              onConfirm: async () => {
+                try {
+                  const result = await friendsManager.requestLocationSharing(friendId, friendshipId);
+                  if (result?.success) {
+                    // Optimistic border for my setting
+                    btn.classList.add('mine-visible');
+                    btn.classList.remove('mine-hidden');
+                    notificationManager.showSystemNotification(`Request sent to ${friend.displayName}`,'success',{duration:2500});
+                  } else {
+                    notificationManager.showSystemNotification(result?.message||'Failed to send request','error',{duration:3500});
+                  }
+                } catch (reqErr) {
+                  console.error('❌ Failed to send location share request:', reqErr);
+                  notificationManager.showSystemNotification('Failed to send request','error',{duration:3500});
+                }
+                return true;
+              }
+            });
+          } else {
+            // Post-handshake: decide based on precise per-user visibility
+            let state = this.locationVisibilityState.get(friendId);
+            if (!state) {
+              const friendshipDoc = await dataManager.getFriendshipDocument(friendshipId);
+              const vis = friendshipDoc?.locationVisibility || {};
+              state = { my: vis[userUid] === true, friend: vis[friendId] === true };
+            }
+
+            // If my visibility is true and friend is false => block and show mutual required
+            if (state.my === true && state.friend === false) {
+              showModal({
+                title: 'Mutual Location Sharing Required',
+                content: `${friend.displayName} has hidden their location. Both must share to see each other.`,
+                showConfirmationButtons: true,
+                confirmText: 'OK',
+                cancelText: ''
+              });
+              e.stopPropagation();
+              return;
+            }
+
+            // Otherwise: toggle my location sharing
+            const newEnabled = await friendshipPrivacyService.toggleLocationVisibility(userUid, friendId);
+            btn.classList.toggle('mine-visible', !!newEnabled);
+            btn.classList.toggle('mine-hidden', !newEnabled);
+            if (newEnabled) {
+              setTimeout(()=>{
+                // Check latest mutual state from snapshot cache; avoid false modal if snapshot just landed
+                const vis = this.locationVisibilityState.get(friendId);
+                const isMutualNow = vis && vis.my === true && vis.friend === true;
+                if (!isMutualNow) {
+                  showModal({
+                    title: 'Mutual Location Sharing Required',
+                    content: `You enabled location sharing, but ${friend.displayName} is still hidden. Both must share to see each other.`,
+                    showConfirmationButtons: true,
+                    confirmText: 'OK',
+                    cancelText: ''
+                  });
+                }
+              },400);
+            }
+          }
+        } catch(err) {
+          console.error('❌ Failed to toggle/request location sharing:', err);
+          notificationManager.showSystemNotification('Failed to update location sharing','error',{duration:3500});
+        } finally {
+          btn.classList.remove('loading');
+        }
+
+        e.stopPropagation();
+        return;
+      }
+
       // 👥 Friend avatar click handling for schedule viewing (Phase 3.2)
       if (e.target.closest(".friend-avatar")) {
         const avatarElement = e.target.closest(".friend-avatar");
@@ -1989,6 +2098,23 @@ class FriendsUI {
             btn.classList.toggle('mine-hidden', !myVisible);
             this.mutualStatus.set(friendId, mutualAllowed);
           }
+
+          // Update mutual-location button from locationVisibility and metadata
+          const loc = data.locationVisibility || {};
+          const mutualLoc = loc[currentUserUid] === true && loc[friendId] === true;
+          const myLoc = loc[currentUserUid] === true;
+          const friendLoc = loc[friendId] === true;
+          const locBtn = card.querySelector('.mutual-location-btn');
+          const locIcon = locBtn?.querySelector('i');
+          if (locBtn && locIcon) {
+            locIcon.className = 'fas fa-map-marker-alt';
+            locBtn.classList.toggle('restricted', !mutualLoc);
+            locBtn.classList.toggle('mine-visible', !!myLoc);
+            locBtn.classList.toggle('mine-hidden', !myLoc);
+          }
+          const handshake = data.locationSharingMetadata?.mutualSharingEnabled === true;
+          this.mutualLocationHandshake.set(friendId, handshake);
+          this.locationVisibilityState.set(friendId, { my: !!myLoc, friend: !!friendLoc });
         }, (err) => {
           console.warn('⚠️ Friendship listener error', friendshipId, err);
         });
@@ -2514,21 +2640,27 @@ class FriendsUI {
         locationVisibility
       });
 
-      // Update the visual indicator
-      let statusMessage;
-      if (mutualLocationSharing) {
-        statusMessage = "Mutual location sharing enabled";
-      } else if (currentUserSharing && !friendSharing) {
-        statusMessage = "You share location, they don't";
-      } else if (!currentUserSharing && friendSharing) {
-        statusMessage = "They share location, you don't";
-      } else {
-        statusMessage = "Location sharing disabled";
+      // Update the action button (mutual-location-btn)
+      const friendCard = this.elements.friendsList.querySelector(
+        `.friend-card[data-friend-id="${friendId}"]`
+      );
+      const btn = friendCard?.querySelector('.mutual-location-btn');
+      const icon = btn?.querySelector('i');
+      if (btn && icon) {
+        icon.className = mutualLocationSharing ? 'fas fa-map-marker-alt' : 'fas fa-map-marker-alt';
+        btn.classList.toggle('restricted', !mutualLocationSharing);
+        btn.classList.toggle('mine-visible', !!currentUserSharing);
+        btn.classList.toggle('mine-hidden', !currentUserSharing);
+        btn.title = mutualLocationSharing
+          ? 'Mutual: You and this friend share location'
+          : (currentUserSharing && !friendSharing)
+            ? "You share location, they don't"
+            : (!currentUserSharing && friendSharing)
+              ? "They share location, you don't"
+              : 'Location sharing disabled';
       }
 
-      this.updateLocationSharingVisualIndicator(friendId, mutualLocationSharing, statusMessage);
-
-      console.log(`✅ Updated location sharing indicator for ${friend.displayName}: ${statusMessage}`);
+      console.log(`✅ Updated location sharing indicator for ${friend.displayName}`);
 
     } catch (error) {
       console.error(`❌ Error updating location sharing indicator for ${friend.displayName}:`, error);
@@ -2542,54 +2674,7 @@ class FriendsUI {
    * @param {boolean} isMutualSharingEnabled - Whether bilateral location sharing is enabled
    * @param {string} statusMessage - Status message for tooltip
    */
-  updateLocationSharingVisualIndicator(friendId, isMutualSharingEnabled, statusMessage) {
-    const friendCard = this.elements.friendsList.querySelector(
-      `.friend-card[data-friend-id="${friendId}"]`
-    );
-
-    if (!friendCard) {
-      console.warn(`⚠️ Friend card not found for location sharing update: ${friendId}`);
-      return;
-    }
-
-    const locationIndicator = friendCard.querySelector('.location-sharing-status');
-    if (!locationIndicator) {
-      console.warn(`⚠️ Location sharing indicator not found for friend: ${friendId}`);
-      return;
-    }
-
-    // Update CSS classes based on mutual sharing status
-    if (isMutualSharingEnabled) {
-      locationIndicator.className = 'location-sharing-status bilateral-location location-sharing-enabled';
-    } else {
-      locationIndicator.className = 'location-sharing-status bilateral-location location-sharing-disabled';
-    }
-
-    // Update icon based on status
-    const icon = locationIndicator.querySelector('i');
-    if (icon) {
-      if (isMutualSharingEnabled) {
-        icon.className = 'fas fa-map-marker-alt'; // Green location icon
-      } else {
-        icon.className = 'fas fa-map-marker-alt'; // Red location icon (color controlled by CSS)
-      }
-    }
-
-    // Update text
-    const textSpan = locationIndicator.querySelector('span');
-    if (textSpan) {
-      if (isMutualSharingEnabled) {
-        textSpan.textContent = 'Location shared';
-      } else {
-        textSpan.textContent = 'Location private';
-      }
-    }
-
-    // Update tooltip
-    locationIndicator.title = `Location sharing: ${statusMessage}`;
-
-    console.log(`🎨 Updated location sharing visual indicator for ${friendId}: ${isMutualSharingEnabled ? 'enabled' : 'disabled'}`);
-  }
+  updateLocationSharingVisualIndicator() {}
 
   /**
    * 🧹 Clean up friend options menus and campus presence components

@@ -32,7 +32,7 @@ export class FriendOptionsMenu {
     this.options = {
       showUnfriend: options.showUnfriend !== false, // Default to true
       showPrivacyToggle: false, // Removed: schedule privacy toggle now handled by calendar icon
-      showLocationToggle: options.enableLocationSharing === true, // Default to false unless explicitly enabled
+      showLocationToggle: false, // Removed: location toggle handled by action button
       ...options,
     };
 
@@ -69,9 +69,7 @@ export class FriendOptionsMenu {
     // Skip schedule privacy fetch (handled by card icon). Only fetch if needed in future.
 
     // Get location sharing status if location toggle is enabled
-    if (this.options.showLocationToggle) {
-      await this.updateLocationStatus();
-    }
+    // Removed: location status fetch; action button and snapshots drive UI
 
     // Determine current privacy state (user's own schedule visibility)
     const currentUserUid = currentUser.state?.user?.uid;
@@ -107,21 +105,7 @@ export class FriendOptionsMenu {
         <ul role="none">
           
           
-          ${
-            this.options.showLocationToggle
-              ? `
-            <li role="menuitem" class="menu-option location-toggle-option ${locationClass}"
-                title="${
-                  myLocationVisible
-                    ? "Hide your location from this friend"
-                    : "Share your location with this friend"
-                }">
-              <i class="fas ${locationIcon}" aria-hidden="true"></i>
-              <span>${locationText}</span>
-            </li>
-          `
-              : ""
-          }
+          
           
           ${
             this.options.showUnfriend
@@ -145,44 +129,7 @@ export class FriendOptionsMenu {
   /**
    * 🌍 Update location sharing status from bilateral privacy service
    */
-  async updateLocationStatus() {
-    try {
-      const currentUserUid = currentUser.state?.user?.uid;
-      if (!currentUserUid) {
-        console.warn("No current user found for location status update");
-        return;
-      }
-
-      this.currentLocationStatus =
-        await friendshipPrivacyService.getLocationVisibilityStatus(
-          currentUserUid,
-          this.friend.id
-        );
-
-      console.log(
-        `🌍 Location status updated for ${this.friend.displayName}:`,
-        this.currentLocationStatus
-      );
-    } catch (error) {
-      console.warn(
-        `⚠️ Could not fetch location status for ${this.friend.displayName}:`,
-        error.message
-      );
-      // Fallback to default location state
-      this.currentLocationStatus = {
-        userLocationVisible: false,
-        friendLocationVisible: false,
-        mutualSharingEnabled: false,
-        location: {
-          userToFriend: { visible: false, status: "hidden" },
-          friendToUser: { visible: false, status: "hidden" },
-        },
-      };
-      console.log(
-        `🌍 Using default location status for ${this.friend.displayName}`
-      );
-    }
-  }
+  // Removed: updateLocationStatus (location handled by friend card action button)
 
   /**
    * 📊 Update privacy status from bilateral privacy service
@@ -238,20 +185,11 @@ export class FriendOptionsMenu {
 
     // Menu option clicks
     // Removed: privacy toggle option handled by mutual icon in card actions
-    const locationOption = this.element.querySelector(
-      ".location-toggle-option"
-    );
     const unfriendOption = this.element.querySelector(".unfriend-option");
 
     
 
-    if (locationOption) {
-      locationOption.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.handleLocationToggle();
-        this.closeDropdown();
-      });
-    }
+    // Removed: location toggle option (handled by mutual-location button)
 
     if (unfriendOption) {
       unfriendOption.addEventListener("click", (e) => {
@@ -381,124 +319,7 @@ export class FriendOptionsMenu {
   /**
    * 🌍 Handle location toggle (bilateral - user controls their own location visibility)
    */
-  async handleLocationToggle() {
-    const currentUserUid = currentUser.state?.user?.uid;
-    if (!currentUserUid) {
-      console.error("No current user found for location toggle");
-      return;
-    }
-
-    const currentlyVisible =
-      this.currentLocationStatus?.userLocationVisible ?? false;
-    const newVisibility = !currentlyVisible;
-
-    console.log(
-      `🌍 Bilateral location toggle for ${this.friend.displayName}: ${currentlyVisible} → ${newVisibility}`
-    );
-
-    // Set flag to prevent friends list re-render during location update
-    if (window.friendsPage) {
-      window.friendsPage.isUpdatingLocation = true;
-    }
-
-    // Batch DOM updates to prevent flickering
-    requestAnimationFrame(() => {
-      this.updateLocationUI(newVisibility);
-    });
-
-    // Update database and create notifications if enabling location sharing
-    let success = false;
-
-    if (newVisibility) {
-      // STEP 1: First enable global location sharing for current user
-      console.log("🔧 Enabling global location sharing for requesting user...");
-      const globalResult = await dataManager.updateLocationSharingPreference(
-        currentUserUid,
-        true
-      );
-      if (!globalResult.success) {
-        console.error("❌ Failed to enable global location sharing");
-        // Revert UI on failure
-        requestAnimationFrame(() => {
-          this.updateLocationUI(currentlyVisible);
-        });
-        return;
-      }
-
-      // STEP 2: Use requestLocationSharing to enable bilateral sharing WITH notifications
-      const result = await friendsManager.requestLocationSharing(
-        this.friend.id,
-        this.friend.friendshipId ||
-          this.generateFriendshipId(currentUserUid, this.friend.id)
-      );
-      success = result.success;
-
-      if (result.success) {
-        console.log(
-          `📍 Location sharing request sent to ${this.friend.displayName} with notification`
-        );
-
-        // STEP 3: Start automatic location tracking (replaces one-time detection)
-        console.log(
-          "📍 Starting automatic location tracking for requesting user..."
-        );
-        try {
-          // Start continuous location tracking with automatic database updates
-          await campusLocationService.startLocationTracking();
-          console.log("✅ Automatic location tracking started successfully");
-        } catch (trackingError) {
-          console.warn(
-            "⚠️ Location tracking failed to start, setting unknown status",
-            trackingError
-          );
-          await dataManager.updateUserLocationStatus(currentUserUid, "unknown");
-        }
-      }
-    } else {
-      // Use bilateral privacy service to disable location sharing (no notification needed)
-      success = await friendshipPrivacyService.updateLocationVisibility(
-        currentUserUid, // User updating their own visibility
-        this.friend.id, // To this friend
-        newVisibility
-      );
-    }
-
-    if (success) {
-      // Update local location status
-      if (this.currentLocationStatus) {
-        this.currentLocationStatus.userLocationVisible = newVisibility;
-        if (this.currentLocationStatus.location?.userToFriend) {
-          this.currentLocationStatus.location.userToFriend.visible =
-            newVisibility;
-          this.currentLocationStatus.location.userToFriend.status =
-            newVisibility ? "visible" : "hidden";
-        }
-      }
-
-      // Update the location status in the friend card directly without triggering re-render
-      this.updateFriendCardLocationStatus(newVisibility);
-
-      console.log(
-        `✅ Bilateral location sharing updated for ${this.friend.displayName}`
-      );
-    } else {
-      // Revert UI on failure with animation frame
-      requestAnimationFrame(() => {
-        this.updateLocationUI(currentlyVisible);
-        this.updateFriendCardLocationStatus(currentlyVisible);
-      });
-      console.error(
-        `❌ Failed to update bilateral location sharing for ${this.friend.displayName}`
-      );
-    }
-
-    // Clear the location update flag after a short delay
-    setTimeout(() => {
-      if (window.friendsPage) {
-        window.friendsPage.isUpdatingLocation = false;
-      }
-    }, 1000); // 1 second delay to allow database changes to propagate
-  }
+  // Removed: handleLocationToggle (handled by mutual-location button)
 
   /**
    * 🔒 Handle privacy toggle (bilateral - user controls their own schedule visibility)
@@ -509,60 +330,7 @@ export class FriendOptionsMenu {
    * 🌍 Update location UI elements (bilateral location sharing system)
    * @param {boolean} myLocationVisible - Whether current user's location is visible to friend
    */
-  async updateLocationUI(myLocationVisible = null) {
-    if (!this.element) return;
-
-    // If no visibility provided, get current status
-    if (myLocationVisible === null) {
-      await this.updateLocationStatus();
-      myLocationVisible =
-        this.currentLocationStatus?.userLocationVisible ?? false;
-    }
-
-    const locationOption = this.element.querySelector(
-      ".location-toggle-option"
-    );
-    const icon = locationOption?.querySelector("i");
-    const text = locationOption?.querySelector("span");
-
-    if (locationOption && icon && text) {
-      // Use CSS transitions to prevent flickering - batch all updates
-      const updates = () => {
-        // Update icon class
-        const newIconClass = myLocationVisible
-          ? "fas fa-location-arrow"
-          : "fas fa-location-dot";
-        if (icon.className !== newIconClass) {
-          icon.className = newIconClass;
-        }
-
-        // Update text content
-        const newText = myLocationVisible ? "Hide location" : "Share location";
-        if (text.textContent !== newText) {
-          text.textContent = newText;
-        }
-
-        // Update class for styling
-        const newClassName = `menu-option location-toggle-option ${
-          myLocationVisible ? "hide-my-location" : "share-my-location"
-        }`;
-        if (locationOption.className !== newClassName) {
-          locationOption.className = newClassName;
-        }
-
-        // Update tooltip
-        const newTitle = myLocationVisible
-          ? "Hide your location from this friend"
-          : "Share your location with this friend";
-        if (locationOption.title !== newTitle) {
-          locationOption.title = newTitle;
-        }
-      };
-
-      // Apply all updates in a single animation frame to prevent layout thrashing
-      updates();
-    }
-  }
+  // Removed: updateLocationUI (menu no longer controls location)
 
   /**
    * 🎨 Update privacy UI elements (bilateral privacy system)
@@ -720,11 +488,7 @@ export class FriendOptionsMenu {
 
     // Removed: schedule privacy UI is handled by friend card action icon
 
-    // Update location status and UI if location toggle is enabled
-    if (this.options.showLocationToggle) {
-      await this.updateLocationStatus();
-      this.updateLocationUI();
-    }
+    // Removed: location toggle controlled via friend card action icon
 
     console.log(
       `🔄 Friend data updated for ${this.friend.displayName} with bilateral privacy and location sharing`

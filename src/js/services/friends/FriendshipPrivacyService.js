@@ -918,8 +918,6 @@ class FriendshipPrivacyService {
           [`locationVisibility.${userUid}`]: isVisible,
           "locationSharingMetadata.lastLocationUpdate": now,
           "locationSharingMetadata.locationUpdatedBy": userUid,
-          "locationSharingMetadata.mutualSharingEnabled": 
-            (friendshipDoc.locationVisibility?.[friendUid] === true && isVisible),
         };
 
         // Apply the atomic update

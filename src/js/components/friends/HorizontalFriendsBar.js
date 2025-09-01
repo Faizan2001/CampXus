@@ -4194,8 +4194,8 @@ export class HorizontalFriendsBar {
               if (friendship?.locationVisibility) {
                 // 🐛 FIXED: More robust friend ID lookup for real-time updates
                 const friendId = friend.friendId || friend.userId;
-                const friendSharesWithMe =
-                  friendship.locationVisibility[friendId] === true;
+                const friendSharesWithMe = friendship.locationVisibility[friendId] === true;
+                const iShareWithFriend = friendship.locationVisibility[currentUserUid] === true;
 
                 // 🔍 DEBUG: Enhanced debugging for real-time updates
                 console.log(
@@ -4211,11 +4211,13 @@ export class HorizontalFriendsBar {
 
                 bilateralStatus = {
                   friendSharesWithMe,
+                  iShareWithFriend,
                   friendshipId: friendshipId, // Use the reconstructed one
                   locationVisibility: friendship.locationVisibility,
                   lookupKey: friendId,
                 };
-                canSeeLocation = friendSharesWithMe;
+                // AND-gate: only show presence if BOTH share
+                canSeeLocation = friendSharesWithMe && iShareWithFriend;
               } else {
                 console.warn(
                   `[HorizontalFriendsBar] ⚠️ No locationVisibility found in friendship document for ${friend.displayName}`
@@ -4233,8 +4235,8 @@ export class HorizontalFriendsBar {
             );
           }
 
-          // Only enable location sharing if both global setting AND bilateral consent are true
-          const hasLocationSharing = globalLocationEnabled && canSeeLocation;
+          // Presence dot should be grey unless BOTH users share (per-friend), independent of global
+          const hasLocationSharing = canSeeLocation;
 
           console.log(
             `[HorizontalFriendsBar] Enhanced location data for ${friend.displayName}:`,

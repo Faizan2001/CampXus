@@ -25,6 +25,7 @@
 import { dataManager } from "../services/data/DataService.js";
 import { currentUser } from "../store/userStore.js";
 import { avatarManager } from "../utils/avatar/avatarManager.js";
+import { db } from "../lib/firebase/firebase-config.js";
 import { getAvatarFallback } from "../utils/avatar/avatarUtils.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { campusLocationService } from "../services/location/CampusLocationService.js";
@@ -506,6 +507,17 @@ export class NotificationsPage {
       );
 
       if (result.success) {
+        // Mark handshake complete so future toggles don't require a request
+        try {
+          const { doc, updateDoc } = await import('firebase/firestore');
+          await updateDoc(doc(db, 'friendships', friendshipId), {
+            'locationSharingMetadata.mutualSharingEnabled': true,
+            'locationSharingMetadata.lastLocationUpdate': new Date().getTime(),
+            'locationSharingMetadata.locationUpdatedBy': currentUser.uid,
+          });
+        } catch (metaErr) {
+          console.warn('⚠️ Could not set mutualSharingEnabled metadata:', metaErr);
+        }
         // 3. Request location permission and start tracking
         if (campusLocationService.getPermissionStatus() !== "granted") {
           console.log("📍 Requesting location permission...");
