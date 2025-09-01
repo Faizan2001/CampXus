@@ -31,7 +31,7 @@ export class FriendOptionsMenu {
     this.friend = friend;
     this.options = {
       showUnfriend: options.showUnfriend !== false, // Default to true
-      showPrivacyToggle: options.showPrivacyToggle !== false, // Default to true
+      showPrivacyToggle: false, // Removed: schedule privacy toggle now handled by calendar icon
       showLocationToggle: options.enableLocationSharing === true, // Default to false unless explicitly enabled
       ...options,
     };
@@ -66,8 +66,7 @@ export class FriendOptionsMenu {
     container.className = "friend-options-menu";
     container.setAttribute("data-friend-id", this.friend.id);
 
-    // Get bilateral privacy status
-    await this.updatePrivacyStatus();
+    // Skip schedule privacy fetch (handled by card icon). Only fetch if needed in future.
 
     // Get location sharing status if location toggle is enabled
     if (this.options.showLocationToggle) {
@@ -76,17 +75,7 @@ export class FriendOptionsMenu {
 
     // Determine current privacy state (user's own schedule visibility)
     const currentUserUid = currentUser.state?.user?.uid;
-    const myScheduleVisible =
-      this.currentPrivacyStatus?.mySchedule?.visible ?? true;
-
-    // Clear labeling for bilateral privacy
-    const privacyText = myScheduleVisible
-      ? "Hide My Schedule"
-      : "Show My Schedule";
-    const privacyIcon = myScheduleVisible ? "fa-eye-slash" : "fa-eye";
-    const privacyClass = myScheduleVisible
-      ? "hide-my-schedule"
-      : "show-my-schedule";
+    // Removed privacy toggle from 3-dots menu; handled by mutual schedule icon
 
     // Determine current location sharing state (user's own location visibility)
     const myLocationVisible =
@@ -116,21 +105,7 @@ export class FriendOptionsMenu {
            role="menu"
            aria-label="Friend options menu">
         <ul role="none">
-          ${
-            this.options.showPrivacyToggle
-              ? `
-            <li role="menuitem" class="menu-option privacy-toggle-option ${privacyClass}"
-                title="${
-                  myScheduleVisible
-                    ? "Hide your schedule from this friend"
-                    : "Show your schedule to this friend"
-                }">
-              <i class="fas ${privacyIcon}" aria-hidden="true"></i>
-              <span>${privacyText}</span>
-            </li>
-          `
-              : ""
-          }
+          
           
           ${
             this.options.showLocationToggle
@@ -262,19 +237,13 @@ export class FriendOptionsMenu {
     button.addEventListener("click", this.handleButtonClick);
 
     // Menu option clicks
-    const privacyOption = this.element.querySelector(".privacy-toggle-option");
+    // Removed: privacy toggle option handled by mutual icon in card actions
     const locationOption = this.element.querySelector(
       ".location-toggle-option"
     );
     const unfriendOption = this.element.querySelector(".unfriend-option");
 
-    if (privacyOption) {
-      privacyOption.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.handlePrivacyToggle();
-        this.closeDropdown();
-      });
-    }
+    
 
     if (locationOption) {
       locationOption.addEventListener("click", (e) => {
@@ -534,71 +503,7 @@ export class FriendOptionsMenu {
   /**
    * 🔒 Handle privacy toggle (bilateral - user controls their own schedule visibility)
    */
-  async handlePrivacyToggle() {
-    const currentUserUid = currentUser.state?.user?.uid;
-    if (!currentUserUid) {
-      console.error("No current user found for privacy toggle");
-      return;
-    }
-
-    const currentlyVisible =
-      this.currentPrivacyStatus?.mySchedule?.visible ?? true;
-    const newVisibility = !currentlyVisible;
-
-    console.log(
-      `🔒 Bilateral privacy toggle for ${this.friend.displayName}: ${currentlyVisible} → ${newVisibility}`
-    );
-
-    // Set flag to prevent friends list re-render during privacy update
-    if (window.friendsPage) {
-      window.friendsPage.isUpdatingPrivacy = true;
-    }
-
-    // Batch DOM updates to prevent flickering
-    requestAnimationFrame(() => {
-      this.updatePrivacyUI(newVisibility);
-    });
-
-    // Update database using bilateral privacy service
-    const success = await friendshipPrivacyService.updateScheduleVisibility(
-      currentUserUid, // User updating their own visibility
-      this.friend.id, // To this friend
-      newVisibility
-    );
-
-    if (success) {
-      // Update local privacy status
-      if (this.currentPrivacyStatus) {
-        this.currentPrivacyStatus.mySchedule.visible = newVisibility;
-        this.currentPrivacyStatus.mySchedule.status = newVisibility
-          ? "visible"
-          : "hidden";
-      }
-
-      // Update the privacy status in the friend card directly without triggering re-render
-      this.updateFriendCardPrivacyStatus(newVisibility);
-
-      console.log(
-        `✅ Bilateral privacy updated for ${this.friend.displayName}`
-      );
-    } else {
-      // Revert UI on failure with animation frame
-      requestAnimationFrame(() => {
-        this.updatePrivacyUI(currentlyVisible);
-        this.updateFriendCardPrivacyStatus(currentlyVisible);
-      });
-      console.error(
-        `❌ Failed to update bilateral privacy for ${this.friend.displayName}`
-      );
-    }
-
-    // Clear the privacy update flag after a short delay
-    setTimeout(() => {
-      if (window.friendsPage) {
-        window.friendsPage.isUpdatingPrivacy = false;
-      }
-    }, 1000); // 1 second delay to allow database changes to propagate
-  }
+  // Removed: handlePrivacyToggle (moved to mutual-schedule button in FriendsPage)
 
   /**
    * 🌍 Update location UI elements (bilateral location sharing system)
@@ -663,60 +568,7 @@ export class FriendOptionsMenu {
    * 🎨 Update privacy UI elements (bilateral privacy system)
    * @param {boolean} myScheduleVisible - Whether current user's schedule is visible to friend
    */
-  async updatePrivacyUI(myScheduleVisible = null) {
-    if (!this.element) return;
-
-    // If no visibility provided, get current status
-    if (myScheduleVisible === null) {
-      await this.updatePrivacyStatus();
-      myScheduleVisible =
-        this.currentPrivacyStatus?.mySchedule?.visible ?? true;
-    }
-
-    const privacyOption = this.element.querySelector(".privacy-toggle-option");
-    const icon = privacyOption?.querySelector("i");
-    const text = privacyOption?.querySelector("span");
-
-    if (privacyOption && icon && text) {
-      // Use CSS transitions to prevent flickering - batch all updates
-      const updates = () => {
-        // Update icon class
-        const newIconClass = myScheduleVisible
-          ? "fas fa-eye-slash"
-          : "fas fa-eye";
-        if (icon.className !== newIconClass) {
-          icon.className = newIconClass;
-        }
-
-        // Update text content
-        const newText = myScheduleVisible
-          ? "Hide My Schedule"
-          : "Show My Schedule";
-        if (text.textContent !== newText) {
-          text.textContent = newText;
-        }
-
-        // Update class for styling
-        const newClassName = `menu-option privacy-toggle-option ${
-          myScheduleVisible ? "hide-my-schedule" : "show-my-schedule"
-        }`;
-        if (privacyOption.className !== newClassName) {
-          privacyOption.className = newClassName;
-        }
-
-        // Update tooltip
-        const newTitle = myScheduleVisible
-          ? "Hide your schedule from this friend"
-          : "Show your schedule to this friend";
-        if (privacyOption.title !== newTitle) {
-          privacyOption.title = newTitle;
-        }
-      };
-
-      // Apply all updates in a single animation frame to prevent layout thrashing
-      updates();
-    }
-  }
+  // Removed: updatePrivacyUI (no privacy option in menu)
 
   /**
    * 🌍 Update location status in friend card without triggering re-render
@@ -776,53 +628,7 @@ export class FriendOptionsMenu {
    * 🎯 Update privacy status in friend card without triggering re-render
    * @param {boolean} myScheduleVisible - Whether current user's schedule is visible to friend
    */
-  updateFriendCardPrivacyStatus(myScheduleVisible) {
-    // Guard clause: Check if element still exists (menu might have been destroyed during re-render)
-    if (!this.element || !this.element.parentNode) {
-      console.log(
-        "🔄 FriendOptionsMenu element destroyed, skipping privacy status update"
-      );
-      return;
-    }
-
-    // Find the friend card that contains this menu
-    const friendCard = this.element.closest(".friend-card");
-    if (!friendCard) return;
-
-    // Find the privacy status element in the friend card
-    const privacyStatus = friendCard.querySelector(
-      ".schedule-access.bilateral-privacy"
-    );
-    if (!privacyStatus) return;
-
-    const icon = privacyStatus.querySelector("i");
-    const span = privacyStatus.querySelector("span");
-
-    if (icon && span) {
-      // Update icon class
-      icon.className = myScheduleVisible ? "fas fa-eye" : "fas fa-eye-slash";
-
-      // Update text content
-      span.textContent = myScheduleVisible
-        ? "Your schedule is visible"
-        : "Your schedule is hidden";
-
-      // Update CSS classes for styling
-      privacyStatus.classList.remove(
-        "my-schedule-visible",
-        "my-schedule-hidden"
-      );
-      privacyStatus.classList.add(
-        myScheduleVisible ? "my-schedule-visible" : "my-schedule-hidden"
-      );
-
-      // Update tooltip
-      const tooltipText = myScheduleVisible
-        ? "Your schedule: Your schedule is visible to this friend\nFriend's schedule: Friend's schedule is visible to you"
-        : "Your schedule: Your schedule is hidden from this friend\nFriend's schedule: Friend's schedule is visible to you";
-      privacyStatus.title = tooltipText;
-    }
-  }
+  // Removed: updateFriendCardPrivacyStatus (legacy one-way indicator)
 
   /**
    * 👋 Handle unfriend action
@@ -912,9 +718,7 @@ export class FriendOptionsMenu {
   async updateFriend(newFriendData) {
     this.friend = { ...this.friend, ...newFriendData };
 
-    // Update privacy status and UI with bilateral privacy
-    await this.updatePrivacyStatus();
-    this.updatePrivacyUI();
+    // Removed: schedule privacy UI is handled by friend card action icon
 
     // Update location status and UI if location toggle is enabled
     if (this.options.showLocationToggle) {

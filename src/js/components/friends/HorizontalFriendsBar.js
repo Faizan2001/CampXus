@@ -2941,10 +2941,10 @@ export class HorizontalFriendsBar {
       // Find the existing avatar element for this friend
       const existingElement = this.avatarElements.get(friendId);
       if (!existingElement) {
+        // Instance not fully ready or friend not visible; skip instead of forcing full re-render
         console.log(
-          `🔒 No existing avatar element for ${friendId}, doing full re-render`
+          `🔒 No existing avatar element for ${friendId}, skipping privacy re-render (component not ready or offscreen)`
         );
-        this.render();
         return;
       }
 

@@ -28,6 +28,7 @@ import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyS
 import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
 import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
 import { LocationSharingToggle } from "../components/presence/LocationSharingToggle.js";
+import { db } from "../lib/firebase/firebase-config.js";
 
 class FriendsUI {
   constructor() {
@@ -67,6 +68,12 @@ class FriendsUI {
 
     // Make this instance globally accessible for privacy updates
     window.friendsPage = this;
+
+    // Debounce timers for targeted privacy UI updates
+    this.privacyUpdateTimers = new Map(); // friendId -> timeoutId
+
+    // Track last known mutual status per friend to show success once
+    this.mutualStatus = new Map(); // friendId -> boolean
   }
 
   /**
@@ -300,7 +307,12 @@ class FriendsUI {
             return;
           }
 
-          await this.displayFriendsList(friends);
+          // Avoid full refresh during an in-progress privacy toggle to keep UI snappy
+          if (this.isUpdatingPrivacy) {
+            console.log("⏭️ Skipping full friends list refresh (privacy toggle in progress)");
+          } else {
+            await this.displayFriendsList(friends);
+          }
 
           // Update search button states (hide buttons for existing friends)
           this.updateSearchResultsButtons();
@@ -983,6 +995,12 @@ class FriendsUI {
           ${this.renderScheduleAccessStatus(friend)}
         </div>
         <div class="friend-actions">
+          <button class="mutual-schedule-btn" 
+                  data-friend-id="${friend.id}"
+                  aria-label="Mutual schedule status"
+                  title="Mutual schedule status">
+            <i class="fas fa-calendar"></i>
+          </button>
           <button class="quick-access-star" 
                   data-friend-id="${friend.id}"
                   aria-label="Add to Quick Access"
@@ -1010,6 +1028,8 @@ class FriendsUI {
     // Add small delay to allow Firestore writes to propagate
     setTimeout(async () => {
       await this.updateAllFriendCardsBilateralPrivacy(friends);
+      // Set up direct friendship document listeners to ensure immediate icon updates
+      await this.setupFriendCardPrivacyListeners(friends);
     }, 500);
   }
 
@@ -1191,30 +1211,11 @@ class FriendsUI {
    * @returns {string} HTML for enhanced dual privacy indicators with location sharing
    */
   renderScheduleAccessStatus(friend) {
-    // Enhanced dual privacy status - shows both directions
-    // Initial state with placeholder that will be updated by bilateral privacy system
-
+    // Only show bilateral location sharing status in info area.
+    // Mutual schedule icon now lives in friend-actions.
     return `
       <div class="dual-privacy-container">
-        <!-- Current user's schedule visibility to friend -->
-        <div class="schedule-access bilateral-privacy my-schedule-visible privacy-user-to-friend" 
-             title="Your schedule visibility to ${
-               friend.displayName || "this friend"
-             } - will be updated by privacy system">
-          <i class="fas fa-eye"></i>
-          <span>Your schedule is visible</span>
-        </div>
-        
-        <!-- Friend's schedule visibility to current user -->
-        <div class="schedule-access bilateral-privacy friend-schedule-visible privacy-friend-to-user" 
-             title="${
-               friend.displayName || "Friend's"
-             } schedule accessibility - will be updated by privacy system">
-          <i class="fas fa-eye"></i>
-          <span>Schedule accessible</span>
-        </div>
-        
-        <!-- Bilateral location sharing status -->
+        <!-- Bilateral location sharing status (unchanged) -->
         <div class="location-sharing-status bilateral-location location-sharing-disabled" 
              data-friend-id="${friend.id || friend.uid}"
              title="Location sharing status - will be updated by location privacy system">
@@ -1764,6 +1765,96 @@ class FriendsUI {
         await this.handleQuickAccessToggle(friendId, starButton);
       }
 
+      // Mutual schedule status toggle handler (replaces menu Hide/Show My Schedule)
+      if (e.target.closest(".mutual-schedule-btn")) {
+        const btn = e.target.closest(".mutual-schedule-btn");
+        const friendCard = btn.closest('.friend-card');
+        const friendId = friendCard?.dataset.friendId;
+        const friend = this.currentFriendsData.find((f) => f.id === friendId);
+        if (!friendId || !friend) return;
+
+        // Prevent rapid clicks
+        if (btn.classList.contains('loading')) return;
+        btn.classList.add('loading');
+
+        try {
+          const userUid = currentUser.state?.user?.uid;
+          if (!userUid) throw new Error('Not signed in');
+
+          // Suppress heavy full-list re-renders during this toggle
+          this.isUpdatingPrivacy = true;
+
+          // Optimistic UI: flip to red immediately if currently green.
+          // If already red, keep red until backend confirms mutual allowed.
+          const iconEl = btn.querySelector('i');
+          if (iconEl && iconEl.classList.contains('fa-calendar-check')) {
+            iconEl.className = 'fas fa-calendar-times';
+            btn.classList.add('restricted');
+          }
+
+          // Toggle current user's schedule visibility for this friend (background)
+          const newVisible = await friendshipPrivacyService.toggleScheduleVisibility(
+            userUid,
+            friendId
+          );
+
+          // Optimistic glow for my own visibility state
+          const btnContainer = friendCard.querySelector('.mutual-schedule-btn');
+          if (btnContainer) {
+            btnContainer.classList.toggle('mine-visible', !!newVisible);
+            btnContainer.classList.toggle('mine-hidden', !newVisible);
+          }
+
+          // If I turned ON and icon is still red after a short moment, show mutual-required modal
+          if (newVisible) {
+            setTimeout(() => {
+              const mutual = this.mutualStatus.get(friendId);
+              const stillRed = btn.classList.contains('restricted');
+              if ((mutual === false || stillRed === true)) {
+                showModal({
+                  title: 'Mutual Sharing Required',
+                  content: `You made your schedule visible, but ${friend.displayName} is still hidden. Both must share to enable mutual access.`,
+                  showConfirmationButtons: true,
+                  confirmText: 'OK',
+                  cancelText: ''
+                });
+              }
+            }, 350);
+          }
+
+          // Notify user about their action
+          if (newVisible) {
+            notificationManager.showSystemNotification(
+              `Your schedule is now visible to ${friend.displayName}`,
+              'success',
+              { duration: 2500 }
+            );
+          } else {
+            notificationManager.showSystemNotification(
+              `You hid your schedule from ${friend.displayName}`,
+              'info',
+              { duration: 2500 }
+            );
+          }
+        } catch (err) {
+          console.error('❌ Failed to toggle schedule visibility:', err);
+          notificationManager.showSystemNotification(
+            'Failed to update schedule privacy',
+            'error',
+            { duration: 3500 }
+          );
+        } finally {
+          btn.classList.remove('loading');
+          // Release suppression shortly after events propagate
+          setTimeout(() => {
+            this.isUpdatingPrivacy = false;
+          }, 800);
+        }
+
+        e.stopPropagation();
+        return;
+      }
+
       // 👥 Friend avatar click handling for schedule viewing (Phase 3.2)
       if (e.target.closest(".friend-avatar")) {
         const avatarElement = e.target.closest(".friend-avatar");
@@ -1851,6 +1942,100 @@ class FriendsUI {
 
       // Optional: Update global indicators if needed in the future
       // this.updateGlobalLocationSharingIndicator(enabled);
+    }
+  }
+
+  /**
+   * 📡 Listen to friendship documents for visible cards and update the mutual icon immediately
+   */
+  async setupFriendCardPrivacyListeners(friends) {
+    try {
+      const currentUserUid = currentUser?.state?.user?.uid;
+      if (!currentUserUid) return;
+
+      const { doc, onSnapshot } = await import('firebase/firestore');
+
+      // Clean up previous observers/listeners
+      if (!this.friendshipPrivacyUnsubscribers) this.friendshipPrivacyUnsubscribers = new Map();
+      if (this.friendshipPrivacyObserver) {
+        try { this.friendshipPrivacyObserver.disconnect(); } catch (_) {}
+      }
+      // Detach all existing listeners
+      this.friendshipPrivacyUnsubscribers.forEach((unsub) => {
+        try { if (typeof unsub === 'function') unsub(); } catch (_) {}
+      });
+      this.friendshipPrivacyUnsubscribers.clear();
+
+      const attach = (friendId) => {
+        if (this.friendshipPrivacyUnsubscribers.has(friendId)) return;
+        const friendshipId = currentUserUid < friendId
+          ? `${currentUserUid}_${friendId}`
+          : `${friendId}_${currentUserUid}`;
+        const ref = doc(db, 'friendships', friendshipId);
+        const unsub = onSnapshot(ref, (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          const vis = data.scheduleVisibility || {};
+          const mutualAllowed = vis[currentUserUid] === true && vis[friendId] === true;
+          const myVisible = vis[currentUserUid] === true;
+          const card = this.elements.friendsList?.querySelector(`.friend-card[data-friend-id="${friendId}"]`);
+          if (!card) return;
+          const btn = card.querySelector('.mutual-schedule-btn');
+          const icon = btn?.querySelector('i');
+          if (btn && icon) {
+            icon.className = mutualAllowed ? 'fas fa-calendar-check' : 'fas fa-calendar-times';
+            btn.classList.toggle('restricted', !mutualAllowed);
+            btn.classList.toggle('mine-visible', !!myVisible);
+            btn.classList.toggle('mine-hidden', !myVisible);
+            this.mutualStatus.set(friendId, mutualAllowed);
+          }
+        }, (err) => {
+          console.warn('⚠️ Friendship listener error', friendshipId, err);
+        });
+        this.friendshipPrivacyUnsubscribers.set(friendId, unsub);
+      };
+
+      const detach = (friendId) => {
+        const unsub = this.friendshipPrivacyUnsubscribers.get(friendId);
+        if (unsub) {
+          try { unsub(); } catch (_) {}
+          this.friendshipPrivacyUnsubscribers.delete(friendId);
+        }
+      };
+
+      // IntersectionObserver to attach listeners only for visible cards
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            const card = entry.target;
+            const friendId = card?.dataset?.friendId;
+            if (!friendId || friendId === currentUserUid) return;
+            if (entry.isIntersecting) {
+              attach(friendId);
+            } else {
+              detach(friendId);
+            }
+          });
+        }, { root: null, threshold: 0 });
+
+        this.friendshipPrivacyObserver = observer;
+        // Observe all current friend cards
+        friends.forEach((f) => {
+          const fid = f.id || f.uid || f.friendId;
+          if (!fid || fid === currentUserUid) return;
+          const card = this.elements.friendsList?.querySelector(`.friend-card[data-friend-id="${fid}"]`);
+          if (card) observer.observe(card);
+        });
+      } else {
+        // Fallback: attach listeners for all cards
+        friends.forEach((f) => {
+          const fid = f.id || f.uid || f.friendId;
+          if (!fid || fid === currentUserUid) return;
+          attach(fid);
+        });
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to set up friend card privacy listeners:', e);
     }
   }
 
@@ -2100,53 +2285,58 @@ class FriendsUI {
     );
 
     if (friendCard && privacyStatus) {
-      // Update user-to-friend privacy indicator
-      const userToFriendElement = friendCard.querySelector(
-        ".privacy-user-to-friend"
+      // Compute mutual schedule visibility (both sides must allow)
+      const mutualAllowed = Boolean(
+        (privacyStatus.mySchedule?.visible ?? true) &&
+          (privacyStatus.friendSchedule?.visible ?? true)
       );
-      if (userToFriendElement) {
-        this.updateSinglePrivacyIndicator(
-          userToFriendElement,
-          privacyStatus.mySchedule,
-          "user",
-          friendId
-        );
-      }
 
-      // Update friend-to-user privacy indicator
-      const friendToUserElement = friendCard.querySelector(
-        ".privacy-friend-to-user"
+      // Update icon inside actions row and inline indicator (if present)
+      const indicator = friendCard.querySelector(".mutual-schedule-indicator");
+      const actionBtn = friendCard.querySelector(
+        ".mutual-schedule-btn i"
       );
-      if (friendToUserElement) {
-        this.updateSinglePrivacyIndicator(
-          friendToUserElement,
-          privacyStatus.friendSchedule,
-          "friend",
-          friendId
-        );
-      }
+      if (indicator) {
+        indicator.classList.remove("mutual-allowed", "mutual-restricted", "mutual-unknown");
+        indicator.classList.add(mutualAllowed ? "mutual-allowed" : "mutual-restricted", "privacy-changed");
 
-      // Update container tooltip with comprehensive privacy status
-      const privacyContainer = friendCard.querySelector(
-        ".dual-privacy-container"
-      );
-      if (privacyContainer) {
+        const icon = indicator.querySelector("i");
+        if (icon)
+          icon.className = mutualAllowed
+            ? "fas fa-calendar-check"
+            : "fas fa-calendar-times";
+
         const friend = this.currentFriendsData.find((f) => f.id === friendId);
         const friendName = friend?.displayName || "Friend";
+        const titleText = mutualAllowed
+          ? `Mutual: You and ${friendName} can view each other's schedules`
+          : `Restricted: Schedule sharing is not mutual`;
+        indicator.title = titleText;
+      }
 
-        privacyContainer.title =
-          `Privacy Status with ${friendName}:\n` +
-          `• Your Schedule: ${
-            privacyStatus.mySchedule?.description || "visible to them"
-          }\n` +
-          `• Their Schedule: ${
-            privacyStatus.friendSchedule?.description || "accessible to you"
-          }`;
+      if (actionBtn) {
+        actionBtn.className = mutualAllowed
+          ? "fas fa-calendar-check"
+          : "fas fa-calendar-times";
+      }
+
+      // Apply glow based on current user's own schedule visibility
+      const actionBtnContainer = friendCard.querySelector('.mutual-schedule-btn');
+      if (actionBtnContainer) {
+        const myVisible = privacyStatus.mySchedule?.visible === true;
+        actionBtnContainer.classList.toggle('mine-visible', !!myVisible);
+        actionBtnContainer.classList.toggle('mine-hidden', !myVisible);
+      }
+
+      // Toggle restricted class on the action button container
+      if (actionBtnContainer) {
+        actionBtnContainer.classList.toggle('restricted', !mutualAllowed);
       }
 
       console.log(
-        `🎨 Updated enhanced bilateral privacy indicators for ${friendId}:`,
-        privacyStatus
+        `🎨 Updated mutual schedule status for ${friendId}: ${
+          mutualAllowed ? "ALLOWED" : "RESTRICTED"
+        }`
       );
     }
   }
@@ -2159,59 +2349,7 @@ class FriendsUI {
    * @param {string} friendId - Friend ID for logging
    * @private
    */
-  updateSinglePrivacyIndicator(element, privacyState, type, friendId) {
-    if (!element || !privacyState) return;
-
-    const isVisible = privacyState.visible ?? true;
-    const description =
-      privacyState.description || (isVisible ? "visible" : "hidden");
-
-    // Update CSS classes
-    const visibilityClass =
-      type === "user"
-        ? isVisible
-          ? "my-schedule-visible"
-          : "my-schedule-hidden"
-        : isVisible
-        ? "friend-schedule-visible"
-        : "friend-schedule-hidden";
-
-    element.className = `schedule-access bilateral-privacy ${visibilityClass} privacy-${type}-to-${
-      type === "user" ? "friend" : "user"
-    }`;
-
-    // Update icon
-    const icon = element.querySelector("i");
-    if (icon) {
-      icon.className = isVisible ? "fas fa-eye" : "fas fa-lock";
-    }
-
-    // Update text with enhanced messaging
-    const textSpan = element.querySelector("span");
-    if (textSpan) {
-      if (type === "user") {
-        textSpan.textContent = isVisible
-          ? "Your schedule is visible"
-          : "You hid your schedule";
-      } else {
-        textSpan.textContent = isVisible
-          ? "Schedule accessible"
-          : "Schedule access restricted";
-      }
-    }
-
-    // Update individual tooltip
-    element.title =
-      type === "user"
-        ? `Your schedule: ${description}`
-        : `Friend's schedule: ${description}`;
-
-    console.log(
-      `🎨 Updated ${type} privacy indicator for ${friendId}: ${
-        isVisible ? "visible" : "hidden"
-      }`
-    );
-  }
+  // Legacy one-way indicators removed; using single mutual icon now
 
   /**
    * 🔐 Update all friend cards with bilateral privacy status after initial render
@@ -2261,11 +2399,23 @@ class FriendsUI {
         );
 
         if (privacyStatus) {
-          // Update the friend card with actual bilateral privacy status using enhanced method
-          this.updateFriendCardBilateralPrivacyIndicator(
-            friendId,
-            privacyStatus
+          // Update mutual schedule icon in actions + inline indicator
+          this.updateFriendCardBilateralPrivacyIndicator(friendId, privacyStatus);
+
+          // Also update action button background color class (green/red)
+          const friendCard = this.elements.friendsList.querySelector(
+            `.friend-card[data-friend-id="${friendId}"]`
           );
+          if (friendCard) {
+            const btn = friendCard.querySelector('.mutual-schedule-btn');
+            if (btn) {
+              const mutualAllowed = Boolean(
+                (privacyStatus.mySchedule?.visible ?? true) &&
+                  (privacyStatus.friendSchedule?.visible ?? true)
+              );
+              btn.classList.toggle('restricted', !mutualAllowed);
+            }
+          }
           console.log(
             `✅ Updated enhanced bilateral privacy for ${friend.displayName}`
           );
@@ -2570,15 +2720,31 @@ class FriendsUI {
         } ${scheduleVisibility ? "showed" : "hid"} their schedule`
       );
 
-      // Update bilateral privacy indicators on friend cards
-      if (this.currentFriendsData && this.currentFriendsData.length > 0) {
-        console.log("🔒 Updating friend cards after privacy change...");
-        await this.updateAllFriendCardsBilateralPrivacy(
-          this.currentFriendsData
-        );
-      } else {
-        console.log("🔒 No current friends data to update");
-      }
+      // Update only the affected friend card to avoid heavy re-render
+      const friendId = fromUserId === currentUserUid ? affectedUserId : fromUserId;
+      if (!friendId) return;
+
+      // Let the onSnapshot listener update the UI; just handle success toast here
+      const existingTimer = this.privacyUpdateTimers.get(friendId);
+      if (existingTimer) clearTimeout(existingTimer);
+      const timerId = setTimeout(() => {
+        const now = this.mutualStatus.get(friendId);
+        const prev = this._prevMutualStatus || new Map();
+        const was = prev.get(friendId);
+        if (was === false && now === true) {
+          const friendObj = this.currentFriendsData.find((f) => f.id === friendId);
+          const friendName = friendObj?.displayName || 'friend';
+          notificationManager.showSystemNotification(
+            `Mutual schedule sharing enabled with ${friendName}`,
+            'success',
+            { duration: 2000 }
+          );
+        }
+        if (!this._prevMutualStatus) this._prevMutualStatus = new Map();
+        this._prevMutualStatus.set(friendId, now);
+        this.privacyUpdateTimers.delete(friendId);
+      }, 150);
+      this.privacyUpdateTimers.set(friendId, timerId);
 
       console.log("✅ Privacy change processed successfully in FriendsPage");
     } catch (error) {

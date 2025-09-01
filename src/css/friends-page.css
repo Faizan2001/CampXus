@@ -1311,86 +1311,20 @@ body.page-friends .schedule-section {
 }
 
 /* =================================
-   ENHANCED DUAL PRIVACY CONTAINER (Phase 2.3)
+   ENHANCED PRIVACY (Mutual Icon)
 ================================= */
 
-/* Dual privacy container - holds both privacy indicators */
+/* Container reused; now holds a single mutual icon and location badge */
 .friend-card .dual-privacy-container {
   display: flex !important;
-  flex-direction: column !important;
+  flex-direction: row !important;
   gap: 4px !important;
   margin: 0.5rem 0 0 0 !important;
   width: fit-content !important;
-  align-items: flex-start !important;
-}
-
-/* Individual bilateral privacy indicators - Clean minimal styling with rounded edges */
-.friend-card .schedule-access.bilateral-privacy {
-  border-radius: 12px !important; /* Rounded edges */
-  padding: 4px 8px !important; /* Reduced padding to fit content better */
-  font-size: var(--friends-privacy-status-font-size) !important;
-  font-weight: 300 !important; /* Reverted to original font weight */
-  display: flex !important;
   align-items: center !important;
-  gap: 4px !important; /* Reduced gap between icon and text */
-  transition: var(--friends-privacy-status-transition) !important;
-  width: fit-content !important; /* Fit content exactly - icon + text + gap + padding */
-  min-width: fit-content !important; /* Minimum width to fit content */
-  max-width: fit-content !important; /* Maximum width to fit content */
-  justify-content: flex-start !important;
-  white-space: nowrap !important;
-  overflow: visible !important;
-  backdrop-filter: blur(12px) !important; /* Back to original blur */
-  -webkit-backdrop-filter: blur(12px) !important;
-  position: relative !important;
-  flex-shrink: 0 !important; /* Don't shrink in parent flex layout */
-  margin-bottom: 2px !important; /* Small gap between indicators */
 }
 
-/* Icon styling moved to enhanced section below */
-
-/* Ultra-high specificity for glassmorphism span styling */
-.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy span,
-.friend-card .schedule-access.bilateral-privacy.my-schedule-visible span,
-.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden span {
-  flex: none !important; /* Don't grow to fill space - fit content only */
-  width: auto !important; /* Auto width to fit text content */
-  overflow: visible !important; /* Allow text to show properly */
-  text-overflow: clip !important; /* No ellipsis needed since we fit content */
-  white-space: nowrap !important;
-  min-width: 0 !important;
-  font-weight: 500 !important; /* Reverted to original font weight */
-  
-  /* Remove boxed background - clean text only */
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  margin-left: 0 !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
-  transition: none !important;
-  display: inline !important;
-  line-height: 1.2 !important;
-  
-  /* Clean text styling without effects */
-  font-size: inherit !important;
-  text-shadow: none !important;
-  letter-spacing: normal !important;
-}
-
-/* Ultra-high specificity for hover states */
-.friends-scrollable-container .friend-card .schedule-access.bilateral-privacy span:hover,
-.friend-card .schedule-access.bilateral-privacy.my-schedule-visible span:hover,
-.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden span:hover {
-  /* Remove hover effects for clean text */
-  background: transparent !important;
-  transform: none !important;
-}
-
-/* Enhanced icon styling with glassmorphism */
-.friend-card .schedule-access.bilateral-privacy i {
+.friend-card .mutual-schedule-indicator i {
   flex-shrink: 0 !important;
   width: var(--friends-privacy-status-icon-size) !important;
   height: var(--friends-privacy-status-icon-size) !important;
@@ -1409,74 +1343,25 @@ body.page-friends .schedule-section {
   box-shadow: var(--friends-privacy-span-shadow) !important;
   transition: var(--friends-privacy-span-transition) !important;
 }
-
-.friend-card .schedule-access.bilateral-privacy:hover i {
+.friend-card .mutual-schedule-indicator:hover i {
   background: var(--friends-privacy-span-bg-hover) !important;
   transform: scale(1.05) !important;
 }
 
-/* =================================
-   ENHANCED PRIVACY INDICATORS
-================================= */
 
-/* Schedule hidden state - enhanced with lock icon */
-.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden i {
-  /* Lock icon styling for hidden schedules */
-  color: var(--friends-privacy-hidden-icon-color) !important;
-  background: var(--friends-privacy-hidden-icon-bg) !important;
-  border-color: var(--friends-privacy-hidden-icon-border) !important;
-  box-shadow: var(--friends-privacy-hidden-icon-shadow) !important;
-}
-
-.friend-card .schedule-access.bilateral-privacy.my-schedule-hidden:hover i {
-  background: var(--friends-privacy-hidden-icon-bg-hover) !important;
-  box-shadow: var(--friends-privacy-hidden-icon-shadow-hover) !important;
-  transform: scale(1.08) !important;
-}
-
-/* Schedule visible state - enhanced with eye icon (User's schedule) */
-.friend-card .schedule-access.bilateral-privacy.my-schedule-visible i {
-  /* Eye icon styling for visible schedules */
+/* Mutual allowed vs restricted coloring */
+.friend-card .mutual-schedule-indicator.mutual-allowed i {
   color: var(--friends-privacy-visible-icon-color) !important;
   background: var(--friends-privacy-visible-icon-bg) !important;
   border-color: var(--friends-privacy-visible-icon-border) !important;
   box-shadow: var(--friends-privacy-visible-icon-shadow) !important;
 }
 
-.friend-card .schedule-access.bilateral-privacy.my-schedule-visible:hover i {
-  background: var(--friends-privacy-visible-icon-bg-hover) !important;
-  box-shadow: var(--friends-privacy-visible-icon-shadow-hover) !important;
-  transform: scale(1.08) !important;
-}
-
-/* Friend's schedule visible state - green eye icon */
-.friend-card .schedule-access.bilateral-privacy.friend-schedule-visible i {
-  /* Eye icon styling for accessible friend schedules */
-  color: var(--friends-privacy-visible-icon-color) !important;
-  background: var(--friends-privacy-visible-icon-bg) !important;
-  border-color: var(--friends-privacy-visible-icon-border) !important;
-  box-shadow: var(--friends-privacy-visible-icon-shadow) !important;
-}
-
-.friend-card .schedule-access.bilateral-privacy.friend-schedule-visible:hover i {
-  background: var(--friends-privacy-visible-icon-bg-hover) !important;
-  box-shadow: var(--friends-privacy-visible-icon-shadow-hover) !important;
-  transform: scale(1.08) !important;
-}
-
-/* Friend's schedule hidden state - red lock icon */
-.friend-card .schedule-access.bilateral-privacy.friend-schedule-hidden i {
-  /* Lock icon styling for restricted friend schedules */
+.friend-card .mutual-schedule-indicator.mutual-restricted i {
   color: var(--friends-privacy-hidden-icon-color) !important;
   background: var(--friends-privacy-hidden-icon-bg) !important;
   border-color: var(--friends-privacy-hidden-icon-border) !important;
   box-shadow: var(--friends-privacy-hidden-icon-shadow) !important;
-}
-
-.friend-card .schedule-access.bilateral-privacy.friend-schedule-hidden:hover i {
-  background: var(--friends-privacy-hidden-icon-bg-hover) !important;
-  box-shadow: var(--friends-privacy-hidden-icon-shadow-hover) !important;
-  transform: scale(1.08) !important;
 }
 
 /* Privacy indicator pulse animation for state changes */
@@ -2733,24 +2618,6 @@ div.friend-options-menu.show div.options-dropdown,
   font-size: 0.875rem;
 }
 
-/* Privacy toggle option specific styling */
-.friend-options-menu .privacy-toggle-option.show-schedule {
-  color: #16a34a;
-}
-
-.friend-options-menu .privacy-toggle-option.show-schedule:hover {
-  background: var(--friends-options-hover-green);
-  color: #15803d;
-}
-
-.friend-options-menu .privacy-toggle-option.hide-schedule {
-  color: #dc2626;
-}
-
-.friend-options-menu .privacy-toggle-option.hide-schedule:hover {
-  background: var(--friends-options-hover-red);
-  color: #b91c1c;
-}
 
 /* Unfriend option styling */
 .friend-options-menu .unfriend-option {
@@ -2762,24 +2629,6 @@ div.friend-options-menu.show div.options-dropdown,
   color: #b91c1c;
 }
 
-/* Bilateral privacy option styling */
-.friend-options-menu .privacy-toggle-option.show-my-schedule {
-  color: #059669; /* Green for visible */
-}
-
-.friend-options-menu .privacy-toggle-option.show-my-schedule:hover {
-  background: var(--friends-options-hover-teal);
-  color: #047857;
-}
-
-.friend-options-menu .privacy-toggle-option.hide-my-schedule {
-  color: #dc2626; /* Red for hidden */
-}
-
-.friend-options-menu .privacy-toggle-option.hide-my-schedule:hover {
-  background: var(--friends-options-hover-red);
-  color: #b91c1c;
-}
 
 /* Enhanced separator line between options */
 .friend-options-menu .menu-option + .menu-option {
@@ -3012,23 +2861,6 @@ div.friend-options-menu.show div.options-dropdown,
 }
 
 /* Privacy toggle specific colors */
-.glassmorphism-dropdown-active .privacy-toggle-option.show-my-schedule {
-  color: #059669 !important;
-}
-
-.glassmorphism-dropdown-active .privacy-toggle-option.show-my-schedule:hover {
-  background: var(--friends-options-hover-teal) !important;
-  color: #047857 !important;
-}
-
-.glassmorphism-dropdown-active .privacy-toggle-option.hide-my-schedule {
-  color: #dc2626 !important;
-}
-
-.glassmorphism-dropdown-active .privacy-toggle-option.hide-my-schedule:hover {
-  background: var(--friends-options-hover-red) !important;
-  color: #b91c1c !important;
-}
 
 /* Unfriend option styling */
 .glassmorphism-dropdown-active .unfriend-option {
@@ -3070,6 +2902,117 @@ div.friend-options-menu.show div.options-dropdown,
     0 2px 8px rgba(255, 215, 0, 0.15),
     0 1px 3px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Mutual Schedule Button - Green/Red glassmorphism, same size as star */
+.mutual-schedule-btn {
+  background: linear-gradient(135deg,
+    rgba(34, 197, 94, 0.12) 0%,      /* Green */
+    rgba(16, 185, 129, 0.16) 100%    /* Teal */
+  );
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  margin-right: 4px; /* Align gap with star */
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.mutual-schedule-btn i {
+  font-size: 0.875rem;
+  color: rgba(34, 197, 94, 0.85); /* Green by default */
+  transition: all 0.3s ease;
+  z-index: 1;
+  position: relative;
+}
+
+/* Replace glow with thin border reflecting user's own sharing state */
+.mutual-schedule-btn.mine-visible {
+  border-color: #10B981 !important; /* Green border when MY scheduleVisible=true */
+}
+
+.mutual-schedule-btn.mine-hidden {
+  border-color: #EF4444 !important; /* Red border when MY scheduleVisible=false */
+}
+
+.mutual-schedule-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  border-radius: 8px 8px 0 0;
+  pointer-events: none;
+}
+
+.mutual-schedule-btn:hover {
+  transform: translateY(-1px) scale(1.05);
+  box-shadow:
+    0 4px 16px rgba(16, 185, 129, 0.25),
+    0 2px 8px rgba(16, 185, 129, 0.2),
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Restricted state (red) */
+.mutual-schedule-btn.restricted {
+  background: linear-gradient(135deg,
+    rgba(239, 68, 68, 0.12) 0%,      /* Red */
+    rgba(244, 63, 94, 0.16) 100%     /* Rose */
+  );
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow:
+    0 2px 8px rgba(239, 68, 68, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.mutual-schedule-btn.restricted i {
+  color: rgba(239, 68, 68, 0.9);
+}
+
+/* Tooltip for mutual schedule button - glassmorphism */
+.mutual-tooltip {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.55);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 5;
+}
+
+.mutual-tooltip.show {
+  opacity: 1;
 }
 
 /* Star icon styling */
