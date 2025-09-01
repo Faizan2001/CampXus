@@ -29,6 +29,8 @@ import { campusLocationService } from "../../services/location/CampusLocationSer
 export class FriendOptionsMenu {
   constructor(friend, options = {}) {
     this.friend = friend;
+    // Unique menu id to reliably track the moved dropdown in document.body
+    this.menuId = `friend-options-${friend.id || friend.uid || Math.random().toString(36).slice(2)}`;
     this.options = {
       showUnfriend: options.showUnfriend !== false, // Default to true
       showPrivacyToggle: false, // Removed: schedule privacy toggle now handled by calendar icon
@@ -65,6 +67,7 @@ export class FriendOptionsMenu {
     const container = document.createElement("div");
     container.className = "friend-options-menu";
     container.setAttribute("data-friend-id", this.friend.id);
+    container.setAttribute("data-menu-id", this.menuId);
 
     // Skip schedule privacy fetch (handled by card icon). Only fetch if needed in future.
 
@@ -237,80 +240,99 @@ export class FriendOptionsMenu {
     const button = this.element.querySelector(".options-button");
     const dropdown = this.element.querySelector(".options-dropdown");
 
-    // Calculate positioning relative to button
-    const buttonRect = button.getBoundingClientRect();
+    // Tag dropdown with stable owner id so we can find/clean it later
+    if (dropdown) dropdown.setAttribute("data-owner-id", this.menuId);
 
-    // Position dropdown below and slightly to the left of the button
-    const top = buttonRect.bottom + 8;
-    const left = buttonRect.right - 160; // Align dropdown to right edge of button (dropdown is ~150px wide)
-
-    // Ensure dropdown stays within viewport
-    const viewportWidth = window.innerWidth;
-    const adjustedLeft = Math.max(10, Math.min(left, viewportWidth - 170));
-
-    // Position dropdown near the button
-    dropdown.style.top = `${top}px`;
-    dropdown.style.left = `${adjustedLeft}px`;
-    dropdown.style.transform = "none"; // Override any transform that might affect positioning
-
-    // Move dropdown to body to avoid parent positioning issues
-    document.body.appendChild(dropdown);
-
-    // Add the show class for animation
-    this.element.classList.add("show");
-
-    // Add CSS classes for proper styling via existing CSS
-    dropdown.classList.add("glassmorphism-dropdown-active");
-
-    // Ensure proper visibility and positioning
-    dropdown.style.opacity = "1";
-    dropdown.style.visibility = "visible";
-    dropdown.style.display = "block";
-    dropdown.style.zIndex = "9999";
-    dropdown.style.position = "fixed";
-    dropdown.style.transform = "none";
-
-    // Update ARIA and state
+    // Mark expanded BEFORE measuring so button transforms settle to expanded state
     button.setAttribute("aria-expanded", "true");
-    this.isDropdownOpen = true;
 
-    // Add slight delay for smooth animation, then focus first menu item
-    setTimeout(() => {
-      const firstMenuItem = dropdown.querySelector(".menu-option");
-      if (firstMenuItem) {
-        firstMenuItem.focus();
-      }
-    }, 150);
+    // Wait for transform styles to apply, then measure on next frame to avoid jitter
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Calculate positioning relative to the (now settled) button
+        const rect = button.getBoundingClientRect();
 
-    console.log(
-      `📂 Friend options dropdown opened for ${this.friend.displayName} at (${adjustedLeft}, ${top})`
-    );
+        // Position dropdown below and slightly to the left of the button
+        const top = rect.bottom + 8;
+        const left = rect.right - 160; // Align dropdown to right edge of button (~150px width)
+
+        // Ensure dropdown stays within viewport
+        const viewportWidth = window.innerWidth;
+        const adjustedLeft = Math.max(10, Math.min(left, viewportWidth - 170));
+
+        // Move dropdown to body to avoid parent positioning issues
+        if (dropdown && dropdown.parentElement !== document.body) {
+          document.body.appendChild(dropdown);
+        }
+
+        // Add the show class for animation on the container
+        this.element.classList.add("show");
+
+        // Add CSS classes for proper styling via existing CSS
+        dropdown.classList.add("glassmorphism-dropdown-active");
+
+        // Ensure proper visibility and positioning
+        dropdown.style.top = `${top}px`;
+        dropdown.style.left = `${adjustedLeft}px`;
+        dropdown.style.opacity = "1";
+        dropdown.style.visibility = "visible";
+        dropdown.style.display = "block";
+        dropdown.style.zIndex = "9999";
+        dropdown.style.position = "fixed";
+        dropdown.style.transform = "none";
+
+        // Update state
+        this.isDropdownOpen = true;
+
+        // Focus first item after paint
+        setTimeout(() => {
+          const firstMenuItem = dropdown.querySelector(".menu-option");
+          if (firstMenuItem) firstMenuItem.focus();
+        }, 150);
+
+        console.log(
+          `📂 Friend options dropdown opened for ${this.friend.displayName} at (${adjustedLeft}, ${top})`
+        );
+      });
+    });
   }
 
   /**
    * 📁 Close the dropdown menu
    */
-  closeDropdown() {
+  closeDropdown(forceRemove = false) {
     if (!this.element) return;
 
     const button = this.element.querySelector(".options-button");
-    let dropdown = this.element.querySelector(".options-dropdown");
+    const dropdown = this.getDropdownElement();
 
-    // Check if dropdown was moved to body
-    if (!dropdown) {
-      dropdown = document.body.querySelector(".glassmorphism-dropdown-active");
-    }
-
-    // Remove show class to trigger close animation
+    // Remove show class on container
     this.element.classList.remove("show");
 
-    // Clean up dropdown styling and move back to original parent
-    if (dropdown && dropdown.parentElement === document.body) {
+    if (dropdown) {
+      // Clear active class and inline styles
       dropdown.classList.remove("glassmorphism-dropdown-active");
-      this.element.appendChild(dropdown);
+      dropdown.style.opacity = "";
+      dropdown.style.visibility = "";
+      dropdown.style.display = "";
+      dropdown.style.zIndex = "";
+      dropdown.style.position = "";
+      dropdown.style.transform = "";
+      dropdown.style.top = "";
+      dropdown.style.left = "";
+
+      // If it was moved to body, either remove or reattach
+      if (dropdown.parentElement === document.body) {
+        if (forceRemove) {
+          dropdown.remove();
+        } else {
+          // Reattach to this element so subsequent renders keep structure intact
+          this.element.appendChild(dropdown);
+        }
+      }
     }
 
-    button.setAttribute("aria-expanded", "false");
+    if (button) button.setAttribute("aria-expanded", "false");
     this.isDropdownOpen = false;
 
     console.log("📁 Friend options dropdown closed");
@@ -475,7 +497,8 @@ export class FriendOptionsMenu {
   handleWindowResize() {
     if (this.isDropdownOpen && this.element) {
       // Close dropdown on window resize/scroll to avoid positioning issues
-      this.closeDropdown();
+      // Force removal to avoid any orphaned dropdowns
+      this.closeDropdown(true);
     }
   }
 
@@ -516,19 +539,37 @@ export class FriendOptionsMenu {
    * 🌍 Close all open dropdowns (utility method)
    */
   closeAllDropdowns() {
-    const allMenus = document.querySelectorAll(".friend-options-menu");
-    allMenus.forEach((menu) => {
+    // Close any visible menus by removing their show class and resetting the owning button
+    document.querySelectorAll(".friend-options-menu.show").forEach((menu) => {
       const button = menu.querySelector(".options-button");
-
-      if (menu.classList.contains("show")) {
-        // Remove show class to trigger close animation
-        menu.classList.remove("show");
-
-        if (button) {
-          button.setAttribute("aria-expanded", "false");
-        }
-      }
+      menu.classList.remove("show");
+      if (button) button.setAttribute("aria-expanded", "false");
     });
+
+    // Also clean up any body-level active dropdowns
+    document
+      .querySelectorAll('.options-dropdown.glassmorphism-dropdown-active')
+      .forEach((dd) => {
+        dd.classList.remove('glassmorphism-dropdown-active');
+        dd.style.opacity = '';
+        dd.style.visibility = '';
+        dd.style.display = '';
+        dd.style.zIndex = '';
+        dd.style.position = '';
+        dd.style.transform = '';
+        dd.style.top = '';
+        dd.style.left = '';
+
+        // Try to reattach to owner menu if present; otherwise remove
+        const ownerId = dd.getAttribute('data-owner-id');
+        const owner = ownerId
+          ? document.querySelector(`.friend-options-menu[data-menu-id="${ownerId}"]`)
+          : null;
+        if (dd.parentElement === document.body) {
+          if (owner) owner.appendChild(dd);
+          else dd.remove();
+        }
+      });
   }
 
   /**
@@ -542,6 +583,9 @@ export class FriendOptionsMenu {
     window.removeEventListener("resize", this.handleWindowResize);
     window.removeEventListener("scroll", this.handleWindowResize);
 
+    // Ensure any moved dropdown is fully cleaned up
+    this.closeDropdown(true);
+
     // 🛡️ LEAK PREVENTION: Remove all event listeners by cloning element
     // This removes ALL event listeners including anonymous ones
     if (this.element.parentNode) {
@@ -554,6 +598,19 @@ export class FriendOptionsMenu {
 
     console.log(
       `🧹 FriendOptionsMenu destroyed for ${this.friend.displayName}`
+    );
+  }
+
+  /**
+   * 🔎 Get the dropdown element for this menu, regardless of current parent
+   */
+  getDropdownElement() {
+    // Prefer local reference first
+    let dropdown = this.element?.querySelector?.(".options-dropdown");
+    if (dropdown) return dropdown;
+    // Then look in body by owner id
+    return document.querySelector(
+      `.options-dropdown[data-owner-id="${this.menuId}"]`
     );
   }
 
