@@ -1,5 +1,10 @@
 import { defineConfig } from "vite";
 
+// Optional: configure HMR to work over ngrok HTTPS
+// Set NGROK_HOST to your tunnel host (e.g., e0434aef32ec.ngrok-free.app)
+const NGROK_HOST =
+  process.env.NGROK_HOST || process.env.NGROK_DOMAIN || null;
+
 export default defineConfig({
   // Build configuration for proper SPA deployment
   build: {
@@ -32,6 +37,9 @@ export default defineConfig({
     },
   },
 
+  //ngrok http --host-header="localhost:5173" 5173
+
+
   // Preview configuration for testing production builds locally
   preview: {
     host: true,
@@ -42,6 +50,15 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // Enable HMR over ngrok when NGROK_HOST is provided
+    // This makes hot reload work on remote devices via HTTPS (wss on 443)
+    hmr: NGROK_HOST
+      ? {
+          protocol: "wss",
+          host: NGROK_HOST,
+          clientPort: 443,
+        }
+      : undefined,
     // Note: HTTPS needed for geolocation in production
     // For development testing, we'll use HTTP and implement graceful fallbacks
   },

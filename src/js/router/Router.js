@@ -47,9 +47,8 @@ class SPARouter {
           "/src/css/profile-setup.css", // ✅ Fixed: Absolute path from root for Vite
         ],
         jsFiles: [
-          "/src/js/firebase/auth/auth-manager.js", // ✅ Fixed: Absolute path from root for Vite
-          "/src/js/core/avatars.js", // ✅ Fixed: Absolute path from root for Vite
-          "/src/js/core/profile-setup.js", // ✅ Fixed: Absolute path from root for Vite
+          // ✅ Updated: Load the current Profile Setup controller
+          "/src/js/components/forms/ProfileSetup.js",
         ],
         description: "Set up your student profile and preferences",
       },
@@ -61,8 +60,8 @@ class SPARouter {
           "/src/css/friends-page.css", // ✅ Fixed: Absolute path from root for Vite
         ],
         jsFiles: [
-          "/src/js/core/friends/friends-manager.js", // ✅ Fixed: Absolute path from root for Vite
-          "/src/js/core/friends/friends-ui.js", // ✅ Fixed: Absolute path from root for Vite
+          // ✅ Updated: Load current Friends page controller (service is imported by app.js)
+          "/src/js/pages/FriendsPage.js",
         ],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
