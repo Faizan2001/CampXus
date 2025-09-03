@@ -362,22 +362,24 @@ export class NotificationsPage {
       <div class="notification-item location-request ${readClass}" data-notification-id="${
       notification.id
     }">
-        <div class="notification-avatar">
-          <img src="${avatarManager.generateAvatarUrl(
-            notification.fromUserInfo.avatarConfig
-          )}" 
-               alt="${notification.fromUserInfo.displayName}"
-               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
-        </div>
-        
         <div class="notification-content">
-          <div class="notification-text">
-            <span class="notification-icon type-location" aria-hidden="true"><i class="fas fa-location-arrow"></i></span>
-            <strong>${notification.fromUserInfo.displayName}</strong><span class="action-verb"> wants to share location</span>
+          <div class="notification-avatar">
+            <img src="${avatarManager.generateAvatarUrl(
+              notification.fromUserInfo.avatarConfig
+            )}" 
+                 alt="${notification.fromUserInfo.displayName}"
+                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
-          <div class="notification-time">${this.formatTime(
-            notification.createdAt
-          )}</div>
+          <div class="notification-text-content">
+            <div class="notification-text">
+              <strong>${
+                notification.fromUserInfo.displayName
+              }</strong><span class="action-verb"> wants to share location</span>
+            </div>
+            <div class="notification-time">${this.formatTime(
+              notification.createdAt
+            )}</div>
+          </div>
         </div>
         
         <div class="notification-actions">
@@ -410,22 +412,24 @@ export class NotificationsPage {
       <div class="notification-item friend-request ${readClass}" data-notification-id="${
       notification.id
     }">
-        <div class="notification-avatar">
-          <img src="${avatarManager.generateAvatarUrl(
-            notification.fromUserInfo.avatarConfig
-          )}" 
-               alt="${notification.fromUserInfo.displayName}"
-               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
-        </div>
-        
         <div class="notification-content">
-          <div class="notification-text">
-            <span class="notification-icon type-friend" aria-hidden="true"><i class="fas fa-user-plus"></i></span>
-            <strong>${notification.fromUserInfo.displayName}</strong><span class="action-verb"> sent a friend request</span>
+          <div class="notification-avatar">
+            <img src="${avatarManager.generateAvatarUrl(
+              notification.fromUserInfo.avatarConfig
+            )}" 
+                 alt="${notification.fromUserInfo.displayName}"
+                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
-          <div class="notification-time">${this.formatTime(
-            notification.createdAt
-          )}</div>
+          <div class="notification-text-content">
+            <div class="notification-text">
+              <strong>${
+                notification.fromUserInfo.displayName
+              }</strong><span class="action-verb"> sent a friend request</span>
+            </div>
+            <div class="notification-time">${this.formatTime(
+              notification.createdAt
+            )}</div>
+          </div>
         </div>
         
         <div class="notification-actions">
@@ -464,7 +468,9 @@ export class NotificationsPage {
         <div class="notification-content">
           <div class="notification-text">
             <span class="notification-icon type-enabled" aria-hidden="true"><i class="fas fa-signal"></i></span>
-            <strong>${notification.fromUserInfo.displayName}</strong><span class="action-verb"> enabled location sharing</span>
+            <strong>${
+              notification.fromUserInfo.displayName
+            }</strong><span class="action-verb"> enabled location sharing</span>
           </div>
           <div class="notification-details">
             You can now see each other on the campus map
@@ -700,8 +706,10 @@ export class NotificationsPage {
 
         // 6. Dismiss the notification after successful acceptance
         if (notificationId) {
-          const el = document.querySelector(`[data-notification-id="${notificationId}"]`);
-          if (el) el.classList.add('notification-accept');
+          const el = document.querySelector(
+            `[data-notification-id="${notificationId}"]`
+          );
+          if (el) el.classList.add("notification-accept");
           setTimeout(() => this.dismissNotification(notificationId), 380);
         }
 
@@ -828,17 +836,21 @@ export class NotificationsPage {
     try {
       console.log("🗑️ Dismissing notification:", notificationId);
       // play animation if element still present
-      const el = document.querySelector(`[data-notification-id="${notificationId}"]`);
-      if (el && !el.classList.contains('notification-exit')) {
-        el.classList.add('notification-exit');
+      const el = document.querySelector(
+        `[data-notification-id="${notificationId}"]`
+      );
+      if (el && !el.classList.contains("notification-exit")) {
+        el.classList.add("notification-exit");
       }
       const result = await dataManager.dismissNotification(notificationId);
 
       if (result.success) {
         // Remove from local array immediately for responsive UI
-  this.notifications = this.notifications.filter((n) => n.id !== notificationId);
-  // delay actual DOM refresh slightly to allow animation
-  setTimeout(() => this.updateListOnly(), 210);
+        this.notifications = this.notifications.filter(
+          (n) => n.id !== notificationId
+        );
+        // delay actual DOM refresh slightly to allow animation
+        setTimeout(() => this.updateListOnly(), 210);
 
         console.log("✅ Notification dismissed successfully");
       } else {
