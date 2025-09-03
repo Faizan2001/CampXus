@@ -9,15 +9,7 @@
  * - Friend request notifications  
  * - Real-time notification updates
  * - Accept/dismiss actions for notifications
- * - Location permi      // Handle location sharing acceptance
-      document.querySelectorAll('.accept-location-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const friendshipId = btn.dataset.friendshipId;
-          const notificationId = btn.dataset.notificationId;
-          console.log("📍 Accepting location sharing for friendship:", friendshipId);
-          await this.acceptLocationSharing(friendshipId, notificationId);
-        });
-      });tegration
+ * - Location permission integration
  * 
  * Part of Phase 4.1: Campus Presence Implementation
  */
@@ -47,7 +39,9 @@ export class NotificationsPage {
     this.isInitialized = false;
     this.isActive = false;
     this.baseRendered = false; // Prevent full re-render flicker
-    this.filter = 'all'; // 'all' | 'friend' | 'location'
+  this.filter = 'all'; // 'all' | 'friend' | 'location'
+  this._listElement = null; // track current bound list element for delegation
+  this._listDelegatedHandler = null; // reference to delegated handler
 
     console.log("🔔 NotificationsPage initialized");
   }
@@ -523,14 +517,7 @@ export class NotificationsPage {
       // Use delegated events for dynamic list items to avoid re-binding per item
       this.ensureListDelegationBound();
 
-      // Handle notification dismissal
-      document.querySelectorAll(".dismiss-btn").forEach((btn) => {
-        btn.addEventListener("click", async (e) => {
-          const notificationId = e.target.dataset.notificationId;
-          console.log("🗑️ Dismissing notification:", notificationId);
-          await this.dismissNotification(notificationId);
-        });
-      });
+  // Individual button listeners not needed; handled via single delegated list handler
 
       // Handle mark all read (bind once; avoid duplicate listeners)
       if (!listOnly) {
@@ -568,10 +555,15 @@ export class NotificationsPage {
    * Bind a single delegated click handler for list actions (once)
    */
   ensureListDelegationBound() {
-    if (this._listDelegationBound) return;
     const list = document.getElementById('notificationsList');
     if (!list) return;
-    list.addEventListener('click', async (e) => {
+    // Re-bind if the element changed (after full re-render) to avoid losing handlers
+    if (this._listElement !== list) {
+      if (this._listElement && this._listDelegatedHandler) {
+        this._listElement.removeEventListener('click', this._listDelegatedHandler);
+      }
+      this._listElement = list;
+      this._listDelegatedHandler = async (e) => {
       const acceptLoc = e.target.closest('.accept-location-btn');
       if (acceptLoc) {
         const friendshipId = acceptLoc.dataset.friendshipId;
@@ -604,8 +596,9 @@ export class NotificationsPage {
         await this.dismissNotification(notificationId);
         return;
       }
-    });
-    this._listDelegationBound = true;
+      };
+      list.addEventListener('click', this._listDelegatedHandler);
+    }
   }
 
   /**
