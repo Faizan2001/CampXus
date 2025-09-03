@@ -1016,6 +1016,10 @@ export class HorizontalFriendsBar {
         "❌ DEBUG: User avatar element not found in avatarElements"
       );
       // Try to find it in DOM directly
+      if (!this.container) {
+        console.error("❌ DEBUG: Container is null, cannot query DOM");
+        return;
+      }
       const userElementDirect = this.container.querySelector(
         '[data-friend-id="user"]'
       );
@@ -1341,6 +1345,12 @@ export class HorizontalFriendsBar {
    */
   async ensureUserSelected() {
     console.log("🔍 DEBUG: ensureUserSelected() called");
+
+    // Check if container exists
+    if (!this.container) {
+      console.error("❌ DEBUG: Container is null in ensureUserSelected()");
+      return;
+    }
 
     // 🎯 NEW: Don't auto-select user in compare mode - allow empty selections
     if (this.compareMode) {

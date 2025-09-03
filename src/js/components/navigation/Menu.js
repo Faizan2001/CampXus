@@ -972,11 +972,11 @@ function setupNotificationsIndicatorListener(userId) {
 }
 
 function teardownNotificationsIndicator() {
-  if (typeof notificationsUnsub === 'function') {
+  if (notificationsUnsub && typeof notificationsUnsub === 'function') {
     try { notificationsUnsub(); } catch (_) {}
   }
   notificationsUnsub = null;
-  if (typeof friendReqUnsub === 'function') {
+  if (friendReqUnsub && typeof friendReqUnsub === 'function') {
     try { friendReqUnsub(); } catch (_) {}
   }
   friendReqUnsub = null;

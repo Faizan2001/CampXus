@@ -3293,7 +3293,6 @@ function setupEventListeners() {
     state.uiControlListeners.length
   );
   console.log("🔧 Event listeners setup triggered by signin flow or page load");
-  console.log("📍 Call stack:", new Error().stack.slice(0, 400));
 
   // ===== CRITICAL: Document-level listeners will be set up by setupFriendsBarEventListeners() =====
   // Note: schedule:change, compare:mode, compare:selection listeners are handled separately

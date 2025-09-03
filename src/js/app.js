@@ -162,7 +162,7 @@ async function initializeSPA() {
   // 🔐 Continue waiting for auth in the background (non-blocking for UI)
   if (authManager?.authReady) {
     logManager.auth.login("Auth check running in background...");
-    const authTimeoutMs = 1000; // faster fallback to keep UI responsive
+    const authTimeoutMs = 5000; // reasonable timeout for Firebase auth
     const authTimeout = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error(`Auth timeout after ${authTimeoutMs} ms`)),
