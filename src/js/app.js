@@ -96,8 +96,9 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
   if (requestedProfile) {
     applyProfile(requestedProfile);
   } else if (isLocal) {
-    // Default to a quiet console locally; opt-in verbosity via ?logs=debug or localStorage
-    applyProfile("critical");
+    // Default to location logs locally for easier 3-tier troubleshooting
+    // You can override via ?logs=... or localStorage 'campxus:logProfile'
+    applyProfile("location");
   } else {
     applyProfile("critical");
   }

@@ -217,15 +217,22 @@ class LogManager {
    * @param {string} message - Log message
    */
   shouldLog(level, category, message = "") {
-    // In production, only show critical logs unless debug mode is enabled
-    if (process.env.NODE_ENV === "production" && 
-        level > LOG_LEVELS.WARN && 
-        !PRODUCTION_CRITICAL_CATEGORIES.includes(category) &&
-        this.currentLevel > LOG_LEVELS.WARN) {
+    // Respect the current level first
+    if (level > this.currentLevel) return false;
+
+    // In production, suppress non-critical info/debug logs UNLESS the category
+    // is explicitly enabled (e.g., ?logs=location). This allows targeted
+    // debugging like the 3-tier location pipeline without opening the floodgates.
+    if (
+      process.env.NODE_ENV === "production" &&
+      level > LOG_LEVELS.WARN &&
+      !PRODUCTION_CRITICAL_CATEGORIES.includes(category) &&
+      // Allow explicitly enabled categories (like 'location') in production
+      !this.enabledCategories.has(category)
+    ) {
       return false;
     }
 
-    if (level > this.currentLevel) return false;
     if (this.enabledCategories.has("all")) return true;
     return this.enabledCategories.has(category);
   }
