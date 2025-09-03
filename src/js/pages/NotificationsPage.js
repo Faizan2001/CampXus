@@ -23,6 +23,7 @@
  */
 
 import { dataManager } from "../services/data/DataService.js";
+import { friendsManager } from "../services/friends/FriendsService.js";
 import { currentUser } from "../store/userStore.js";
 import { avatarManager } from "../utils/avatar/avatarManager.js";
 import { db } from "../lib/firebase/firebase-config.js";
@@ -41,9 +42,12 @@ import {
 export class NotificationsPage {
   constructor() {
     this.notifications = [];
+    this.friendRequests = [];
     this.unsubscribers = [];
     this.isInitialized = false;
     this.isActive = false;
+    this.baseRendered = false; // Prevent full re-render flicker
+    this.filter = 'all'; // 'all' | 'friend' | 'location'
 
     console.log("🔔 NotificationsPage initialized");
   }
@@ -59,7 +63,7 @@ export class NotificationsPage {
 
       await this.loadNotifications();
       this.setupRealtimeListeners();
-      this.render();
+      this.render(true);
 
       this.isInitialized = true;
       console.log("✅ NotificationsPage initialization complete");
@@ -117,7 +121,7 @@ export class NotificationsPage {
               notifications.length
             );
             this.notifications = notifications;
-            this.render(); // Re-render with new notifications
+            this.updateListOnly(); // List-only refresh
           }
         }
       );
@@ -127,7 +131,7 @@ export class NotificationsPage {
         REALTIME_EVENTS.USER_PROFILE,
         async (profile) => {
           console.log("👤 User profile updated, refreshing notifications...");
-          this.render(); // Just re-render with existing notifications
+          this.updateListOnly(); // Avoid full re-render to prevent flicker
         }
       );
 
@@ -136,14 +140,26 @@ export class NotificationsPage {
         REALTIME_EVENTS.FRIENDSHIPS,
         async (friendships) => {
           console.log("🤝 Friendships updated, refreshing notifications...");
-          this.render(); // Just re-render with existing notifications
+          this.updateListOnly(); // Update list without full re-render
+        }
+      );
+
+      // Listen to pending friend requests in real time and merge into list
+      const incomingRequestsUnsub = dataManager.listenToPendingFriendRequests(
+        currentUserUid,
+        (requests) => {
+          if (!this.isActive) return;
+          console.log(`📬 Incoming friend requests (realtime): ${requests.length}`);
+          this.friendRequests = requests || [];
+          this.updateListOnly();
         }
       );
 
       this.unsubscribers.push(
         notificationsUnsubscriber,
         profileUnsubscriber,
-        friendshipUnsubscriber
+        friendshipUnsubscriber,
+        incomingRequestsUnsub
       );
 
       console.log("✅ Real-time listeners set up successfully");
@@ -155,40 +171,47 @@ export class NotificationsPage {
   /**
    * Render the notifications page
    */
-  render() {
+  render(isInitial = false) {
     try {
+      const container = document.querySelector(".notifications-page");
+      if (this.baseRendered && container && !isInitial) {
+        this.updateListOnly();
+        return;
+      }
       console.log("🎨 Rendering NotificationsPage...");
 
       const template = `
         <div class="content-grid">
           <div class="notifications-page">
-            <!-- Notifications Header -->
-            <section class="glass-card notifications-header">
-              <div class="page-title-section">
+            <section class="glass-card notifications-card">
+              <div class="notifications-card-header">
                 <h1 class="page-title">
                   <i class="fas fa-bell"></i>
                   Notifications
                 </h1>
-                <p class="page-subtitle">
-                  Stay updated with friend requests, location sharing invites, and campus connections.
-                </p>
+                <div class="header-actions">
+                  <button type="button" class="mark-all-read button secondary" ${
+                    this.notifications.length === 0 ? "disabled" : ""
+                  }>
+                    <i class="fas fa-check-double"></i>
+                    Mark All Seen
+                  </button>
+                </div>
               </div>
-              <div class="header-actions">
-                <button type="button" class="mark-all-read button secondary" ${
-                  this.notifications.length === 0 ? "disabled" : ""
-                }>
-                  <i class="fas fa-check-double"></i>
-                  Mark All Read
+              <div class="notifications-filters">
+                <button class="filter-btn ${this.filter === 'all' ? 'active' : ''}" data-filter="all">
+                  <i class="fas fa-list"></i>
+                  All
+                </button>
+                <button class="filter-btn ${this.filter === 'friend' ? 'active' : ''}" data-filter="friend">
+                  <i class="fas fa-user-plus"></i>
+                  Friend Requests
+                </button>
+                <button class="filter-btn ${this.filter === 'location' ? 'active' : ''}" data-filter="location">
+                  <i class="fas fa-map-marker-alt"></i>
+                  Location Requests
                 </button>
               </div>
-            </section>
-
-            <!-- Notifications List -->
-            <section class="glass-card notifications-list">
-              <h3>
-                <i class="fas fa-inbox"></i>
-                Recent Activity
-              </h3>
               <div id="notificationsList" class="notifications-scrollable-container">
                 ${this.renderNotifications()}
               </div>
@@ -200,8 +223,9 @@ export class NotificationsPage {
       const mainContent = document.querySelector(".main-content");
       if (mainContent) {
         mainContent.innerHTML = template;
-        this.setupEventHandlers();
-        console.log("✅ NotificationsPage rendered successfully");
+      this.baseRendered = true;
+      this.setupEventHandlers();
+      console.log("✅ NotificationsPage rendered successfully");
       } else {
         console.error("❌ Main content container not found");
       }
@@ -211,11 +235,77 @@ export class NotificationsPage {
   }
 
   /**
+   * Update only notifications list and related controls to avoid flicker
+   */
+  updateListOnly() {
+    const list = document.getElementById("notificationsList");
+    if (list) {
+      const html = this.renderNotifications();
+      if (html !== this._lastListHTML) {
+        list.innerHTML = html;
+        this._lastListHTML = html;
+        // Ensure delegated list handlers are bound (no-op if already attached)
+        this.ensureListDelegationBound();
+        console.log("🔄 Notifications list updated");
+      }
+    }
+    // Update filter active state
+    document.querySelectorAll('.notifications-filters .filter-btn').forEach(btn => {
+      const f = btn.getAttribute('data-filter');
+      btn.classList.toggle('active', (
+        (f === 'all' && this.filter === 'all') ||
+        (f === 'friend' && this.filter === 'friend') ||
+        (f === 'location' && this.filter === 'location')
+      ));
+    });
+    const markAll = document.querySelector(".mark-all-read");
+    if (markAll) {
+      if (this.notifications.length === 0) markAll.setAttribute("disabled", "");
+      else markAll.removeAttribute("disabled");
+    }
+  }
+
+  /**
    * Render the list of notifications
    * @returns {string} HTML string for notifications
    */
   renderNotifications() {
-    if (this.notifications.length === 0) {
+    // Normalize + merge: notification docs + incoming friendRequests
+    const normalizedFriendRequests = (this.friendRequests || []).map((r) => ({
+      id: r.id,
+      type: 'friend_request',
+      fromUserId: r.fromUserId,
+      fromUserInfo: r.fromUserInfo,
+      createdAt: r.createdAt,
+    }));
+
+    const normalizedNotifications = (this.notifications || []).map((n) => ({
+      id: n.id,
+      type: n.type,
+      fromUserId: n.fromUserId,
+      fromUserInfo: n.fromUserInfo,
+      createdAt: n.createdAt,
+      locationRequest: n.locationRequest,
+      read: n.read,
+    }));
+
+    let merged = [...normalizedNotifications, ...normalizedFriendRequests];
+
+    // Apply filter
+    if (this.filter === 'friend') {
+      merged = merged.filter((n) => n.type === 'friend_request');
+    } else if (this.filter === 'location') {
+      merged = merged.filter((n) => n.type === 'location_share_request');
+    }
+
+    // Sort newest first
+    merged.sort((a, b) => {
+      const ta = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+      const tb = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+
+    if (merged.length === 0) {
       return `
         <div class="no-notifications">
           <div class="no-notifications-icon">🔔</div>
@@ -234,7 +324,7 @@ export class NotificationsPage {
       `;
     }
 
-    return this.notifications
+    return merged
       .map((notification) => {
         if (notification.type === "location_share_request") {
           return this.renderLocationShareRequest(notification);
@@ -307,6 +397,7 @@ export class NotificationsPage {
   renderFriendRequest(notification) {
     const isRead = notification.read || false;
     const readClass = isRead ? "notification-read" : "notification-unread";
+    const requestId = (notification.friendRequest && notification.friendRequest.requestId) || notification.id;
 
     return `
       <div class="notification-item friend-request ${readClass}" data-notification-id="${
@@ -337,13 +428,11 @@ export class NotificationsPage {
         </div>
         
         <div class="notification-actions">
-          <button class="accept-friend-btn" data-request-id="${
-            notification.friendRequest.requestId
-          }">
+          <button class="accept-friend-btn" data-request-id="${requestId}">
             Accept
           </button>
-          <button class="dismiss-btn" data-notification-id="${notification.id}">
-            Dismiss
+          <button class="reject-friend-btn" data-request-id="${requestId}">
+            Decline
           </button>
         </div>
       </div>
@@ -428,33 +517,11 @@ export class NotificationsPage {
   /**
    * Set up event handlers for notification interactions
    */
-  setupEventHandlers() {
+  setupEventHandlers(listOnly = false) {
     try {
-      console.log("🔧 Setting up notification event handlers...");
-
-      // Handle location sharing acceptance
-      document.querySelectorAll(".accept-location-btn").forEach((btn) => {
-        btn.addEventListener("click", async (e) => {
-          const friendshipId = e.target.dataset.friendshipId;
-          const notificationId = e.target.dataset.notificationId;
-          console.log(
-            "📍 Accepting location sharing for friendship:",
-            friendshipId,
-            "notification:",
-            notificationId
-          );
-          await this.acceptLocationSharing(friendshipId, notificationId);
-        });
-      });
-
-      // Handle friend request acceptance
-      document.querySelectorAll(".accept-friend-btn").forEach((btn) => {
-        btn.addEventListener("click", async (e) => {
-          const requestId = e.target.dataset.requestId;
-          console.log("👥 Accepting friend request:", requestId);
-          await this.acceptFriendRequest(requestId);
-        });
-      });
+      if (!listOnly) console.log("🔧 Setting up notification event handlers...");
+      // Use delegated events for dynamic list items to avoid re-binding per item
+      this.ensureListDelegationBound();
 
       // Handle notification dismissal
       document.querySelectorAll(".dismiss-btn").forEach((btn) => {
@@ -465,19 +532,80 @@ export class NotificationsPage {
         });
       });
 
-      // Handle mark all read
-      const markAllReadBtn = document.querySelector(".mark-all-read");
-      if (markAllReadBtn && !markAllReadBtn.disabled) {
-        markAllReadBtn.addEventListener("click", async () => {
-          console.log("📖 Marking all notifications as read");
-          await this.markAllNotificationsRead();
-        });
+      // Handle mark all read (bind once; avoid duplicate listeners)
+      if (!listOnly) {
+        const markAllReadBtn = document.querySelector(".mark-all-read");
+        if (markAllReadBtn && !markAllReadBtn.dataset.bound) {
+          markAllReadBtn.dataset.bound = "true";
+          markAllReadBtn.addEventListener("click", async () => {
+            console.log("📖 Marking all notifications as read");
+            await this.markAllNotificationsRead();
+          });
+        }
+
+        // Filter buttons (bind on header once)
+        const filters = document.querySelector('.notifications-filters');
+        if (filters && !filters.dataset.bound) {
+          filters.dataset.bound = 'true';
+          filters.addEventListener('click', (e) => {
+            const btn = e.target.closest('.filter-btn');
+            if (!btn) return;
+            const newFilter = btn.getAttribute('data-filter');
+            if (!newFilter) return;
+            this.filter = newFilter; // update filter and refresh list only
+            this.updateListOnly();
+          });
+        }
       }
 
-      console.log("✅ Event handlers set up successfully");
+      if (!listOnly) console.log("✅ Event handlers set up successfully");
     } catch (error) {
       console.error("❌ Error setting up event handlers:", error);
     }
+  }
+
+  /**
+   * Bind a single delegated click handler for list actions (once)
+   */
+  ensureListDelegationBound() {
+    if (this._listDelegationBound) return;
+    const list = document.getElementById('notificationsList');
+    if (!list) return;
+    list.addEventListener('click', async (e) => {
+      const acceptLoc = e.target.closest('.accept-location-btn');
+      if (acceptLoc) {
+        const friendshipId = acceptLoc.dataset.friendshipId;
+        const notificationId = acceptLoc.dataset.notificationId;
+        console.log('📍 Accepting location sharing for friendship:', friendshipId, 'notification:', notificationId);
+        await this.acceptLocationSharing(friendshipId, notificationId);
+        return;
+      }
+
+      const acceptFriend = e.target.closest('.accept-friend-btn');
+      if (acceptFriend) {
+        const requestId = acceptFriend.dataset.requestId;
+        console.log('✅ Accepting friend request:', requestId);
+        await this.acceptFriendRequest(requestId);
+        return;
+      }
+
+      const rejectFriend = e.target.closest('.reject-friend-btn');
+      if (rejectFriend) {
+        const requestId = rejectFriend.dataset.requestId;
+        console.log('❌ Rejecting friend request:', requestId);
+        await this.rejectFriendRequest(requestId);
+        return;
+      }
+
+      const dismiss = e.target.closest('.dismiss-btn');
+      if (dismiss) {
+        const notificationId = dismiss.dataset.notificationId;
+        console.log('🗑️ Dismissing notification:', notificationId);
+        await this.dismissNotification(notificationId);
+        return;
+      }
+    });
+    this._listDelegationBound = true;
   }
 
   /**
@@ -595,7 +723,37 @@ export class NotificationsPage {
     try {
       console.log("👥 Processing friend request acceptance...");
 
-      const result = await dataManager.acceptFriendRequest(requestId);
+      // Try to build requestData from the notification payload to use FriendsService
+      const notif = this.notifications.find(
+        (n) => n.friendRequest?.requestId === requestId
+      );
+
+      let result;
+      if (notif) {
+        // Fetch current user's profile for toUserInfo
+        const userProfile = await currentUser.waitForProfile();
+        const requestData = {
+          id: requestId,
+          fromUserId: notif.fromUserId,
+          toUserId: userProfile?.uid || currentUser.uid,
+          fromUserInfo: notif.fromUserInfo,
+          toUserInfo: {
+            displayName: userProfile?.profile?.displayName,
+            major: userProfile?.profile?.major,
+            university: userProfile?.universityInfo?.university,
+            avatarConfig: userProfile?.avatarConfig,
+          },
+        };
+        result = await friendsManager.acceptFriendRequest(requestId, requestData);
+      } else {
+        // Fallback: pull latest pending requests and try to find it
+        const pending = await friendsManager.getPendingRequests();
+        const reqData = pending.find((r) => r.id === requestId);
+        if (!reqData) {
+          throw new Error("Request not found");
+        }
+        result = await friendsManager.acceptFriendRequest(requestId, reqData);
+      }
 
       if (result.success) {
         notificationManager.showSuccessNotification("Friend request accepted!");
@@ -613,6 +771,34 @@ export class NotificationsPage {
       notificationManager.showErrorNotification(
         "Failed to accept friend request"
       );
+    }
+  }
+
+  /**
+   * Reject a friend request
+   * @param {string} requestId - The friend request ID to reject
+   */
+  async rejectFriendRequest(requestId) {
+    try {
+      console.log('❌ Processing friend request rejection...');
+      // Try to get request data from pending list
+      let reqData = (this.friendRequests || []).find((r) => r.id === requestId);
+      if (!reqData) {
+        const pending = await friendsManager.getPendingRequests();
+        reqData = pending.find((r) => r.id === requestId);
+      }
+
+      const result = await friendsManager.rejectFriendRequest(requestId, reqData || null);
+      if (result.success) {
+        notificationManager.showSuccessNotification('Friend request declined');
+        // refresh merged list
+        this.updateListOnly();
+      } else {
+        throw new Error(result.error || 'Failed to decline');
+      }
+    } catch (error) {
+      console.error('❌ Error rejecting friend request:', error);
+      notificationManager.showErrorNotification('Failed to decline friend request');
     }
   }
 

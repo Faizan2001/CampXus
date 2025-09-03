@@ -29,15 +29,16 @@ body.page-notifications .main-content {
   display: flex !important;
   flex-direction: column !important;
   overflow-x: hidden !important;
+  min-height: 100vh; /* Fill viewport height */
 }
 
 body.page-notifications .content-grid {
   display: flex !important;
   justify-content: center !important;
-  align-items: flex-start !important;
+  align-items: stretch !important;
   grid-template-columns: unset !important;
   grid-template-rows: unset !important;
-  min-height: calc(100vh - 120px) !important;
+  min-height: 100vh !important; /* Full viewport height */
   width: 100% !important;
   max-width: 100% !important;
   gap: 0 !important;
@@ -63,21 +64,24 @@ body.page-notifications .schedule-section {
 ================================= */
 
 .notifications-page {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  flex: 1;           /* take available height from content-grid */
+  min-height: 100vh; /* ensure full viewport height on page */
 }
 
 /* =================================
    GLASSMORPHISM HEADER SECTION
 ================================= */
 
+/* Legacy header retained for back-compat; main card styles below */
 .notifications-header {
   /* Enhanced glassmorphism matching friends page */
   background: rgba(255, 255, 255, 0.95);
@@ -231,6 +235,99 @@ body.page-notifications .schedule-section {
   position: relative;
   overflow: hidden;
   margin-bottom: 1.5rem;
+}
+
+/* New single-card header layout */
+.notifications-card {
+  padding: 1rem 1rem 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;      /* grow to fill page height */
+  min-height: 0; /* allow inner scroll area to size */
+}
+
+.notifications-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.notifications-card .page-title {
+  font-size: 1.25rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notifications-card .header-actions .button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Mobile-first filter buttons */
+.notifications-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.75rem 0;
+}
+
+.notifications-filters .filter-btn {
+  appearance: none;
+  border: 1px solid rgba(var(--accent-primary-rgb, 139, 92, 246), 0.35);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.9rem;
+  color: #fff;
+  background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notifications-filters .filter-btn:hover {
+  background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.95);
+}
+
+.notifications-filters .filter-btn.active {
+  color: #fff;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+.notifications-filters .filter-btn:active {
+  transform: translateY(1px);
+}
+
+/* Scrollable list with comfortable padding for mobile */
+.notifications-scrollable-container {
+  flex: 1;        /* fill remaining card height */
+  min-height: 0;  /* ensure flex children can shrink */
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .notifications-card {
+    padding: 1.25rem 1.25rem 1rem 1.25rem;
+  }
+  .notifications-card .page-title {
+    font-size: 1.5rem;
+  }
+  .notifications-filters .filter-btn {
+    font-size: 0.95rem;
+    padding: 0.4rem 0.9rem;
+  }
+  .notifications-scrollable-container {
+    padding: 0.75rem;
+  }
 }
 
 .glass-card::before {

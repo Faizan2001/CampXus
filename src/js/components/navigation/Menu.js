@@ -5,6 +5,7 @@ import { currentUser } from "../../store/userStore.js";
 import { navigateTo } from "../../app.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
+import { dataManager } from "../../services/data/DataService.js";
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
@@ -40,6 +41,9 @@ function initializeInteractiveElements() {
 
   // Initialize mobile optimizations
   initializeMobileOptimizations();
+
+  // Initialize notifications nav indicator (real-time)
+  initializeNotificationsIndicator();
   
   console.log("✅ Menu system initialized successfully");
 }
@@ -908,4 +912,79 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+// =========================
+// Notifications Nav Indicator
+// =========================
+let notificationsUnsub = null;
+let friendReqUnsub = null;
+let lastHasNotif = false;
 
+function initializeNotificationsIndicator() {
+  // Start once DOM is ready and user state is available
+  try {
+    if (currentUser && typeof currentUser.subscribe === 'function') {
+      currentUser.subscribe(() => {
+        const uid = currentUser.uid;
+        if (!uid) {
+          teardownNotificationsIndicator();
+          toggleNotificationsDot(false);
+          return;
+        }
+        setupNotificationsIndicatorListener(uid);
+      });
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to initialize notifications indicator:', e);
+  }
+}
+
+function setupNotificationsIndicatorListener(userId) {
+  try {
+    // Cleanup previous
+    teardownNotificationsIndicator();
+    // Attach new realtime listener
+    notificationsUnsub = dataManager.setupNotificationsListener(userId, (notifications) => {
+      // Show dot if there are any unseen friend/location requests
+      const hasAlertFromNotifications = notifications.some(n => {
+        const isUnseen = !n.readAt && !n.dismissedAt;
+        const isTargetType = n.type === 'friend_request' || n.type === 'location_share_request';
+        return isUnseen && isTargetType;
+      });
+      // Combine with pending friend requests from separate collection
+      const combinedHasAlert = hasAlertFromNotifications || lastHasNotif;
+      toggleNotificationsDot(combinedHasAlert);
+    });
+
+    // Also listen to pending friend requests directly
+    friendReqUnsub = dataManager.listenToPendingFriendRequests(userId, (requests) => {
+      lastHasNotif = Array.isArray(requests) && requests.length > 0;
+      // Combine with notification doc check
+      // We don't have direct access to latest notifications here, so rely on lastHasNotif flag + dot recompute
+      // Trigger recompute by reading current dot state from DOM and toggling accordingly
+      const link = document.querySelector('.nav-link[data-spa-route="notifications"]');
+      const current = link?.classList.contains('has-alert') || false;
+      const desired = current || lastHasNotif;
+      toggleNotificationsDot(desired);
+    });
+  } catch (e) {
+    console.warn('⚠️ Could not set notifications listener:', e);
+  }
+}
+
+function teardownNotificationsIndicator() {
+  if (typeof notificationsUnsub === 'function') {
+    try { notificationsUnsub(); } catch (_) {}
+  }
+  notificationsUnsub = null;
+  if (typeof friendReqUnsub === 'function') {
+    try { friendReqUnsub(); } catch (_) {}
+  }
+  friendReqUnsub = null;
+}
+
+function toggleNotificationsDot(show) {
+  const link = document.querySelector('.nav-link[data-spa-route="notifications"]');
+  if (link) {
+    link.classList.toggle('has-alert', !!show);
+  }
+}
