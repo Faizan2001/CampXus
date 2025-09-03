@@ -328,6 +328,12 @@ body.page-notifications .schedule-section {
   .notifications-scrollable-container {
     padding: 0.75rem;
   }
+  
+  /* Desktop: Better spacing and min-height */
+  .no-notifications {
+    padding: 3rem 2rem;
+    min-height: calc(100vh - 200px); /* More space for desktop layout */
+  }
 }
 
 .glass-card::before {
@@ -596,8 +602,21 @@ body.page-notifications .schedule-section {
 ================================= */
 
 .no-notifications {
+  /* MOBILE FIRST: Full height flex container for perfect centering */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   text-align: center;
-  padding: 4rem 2rem;
+  
+  /* Take full height of parent scrollable container */
+  height: 100%;
+  min-height: calc(100vh - 220px); /* Account for header, nav, and padding on mobile */
+  
+  /* Mobile-first padding - smaller on mobile */
+  padding: 2rem 1rem;
+  
+  /* Beautiful glassmorphism styling */
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -607,6 +626,12 @@ body.page-notifications .schedule-section {
     0 8px 32px rgba(0, 0, 0, 0.1),
     0 2px 8px rgba(0, 0, 0, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  
+  /* Full width of parent container */
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  
   position: relative;
   overflow: hidden;
 }
@@ -955,7 +980,8 @@ input[type="checkbox"]:checked + .toggle-switch::before {
   }
 
   .no-notifications {
-    padding: 2rem 1rem;
+    padding: 1.5rem 1rem;
+    min-height: calc(100vh - 180px); /* Reduced for mobile - less space needed for nav */
   }
 
   .no-notifications-icon {
