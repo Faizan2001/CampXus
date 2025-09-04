@@ -3157,7 +3157,12 @@ class DataManager {
   async getQuickAccessFriends(userId) {
     try {
       if (!userId) {
-        throw new Error("Invalid userId");
+        console.warn("[DataManager] getQuickAccessFriends called without userId (likely early init) – returning empty result");
+        return {
+          starredFriends: [],
+          totalStarred: 0,
+          lastUpdated: null,
+        };
       }
 
       console.log("📋 [DataManager] Getting Quick Access friends for:", userId);

@@ -10,6 +10,46 @@
 
 export class PresenceDot {
   /**
+   * Normalize various timestamp formats (Firestore Timestamp, plain object {seconds,nanoseconds}, ms/seconds number, Date, ISO string)
+   * into a valid Date instance. Returns null if it cannot be normalized.
+   * @param {*} value
+   * @returns {Date|null}
+   */
+  static normalizeTimestamp(value) {
+    if (!value) return null;
+    try {
+      // Firestore Timestamp
+      if (typeof value.toDate === 'function') {
+        const d = value.toDate();
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Plain object {seconds, nanoseconds}
+      if (typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
+        const ms = (value.seconds * 1000) + Math.floor(value.nanoseconds / 1e6);
+        const d = new Date(ms);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Number (heuristic: if < 1e12 treat as seconds, else ms)
+      if (typeof value === 'number') {
+        const ms = value < 1e12 ? value * 1000 : value; // support seconds input
+        const d = new Date(ms);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // String (ISO or parseable date)
+      if (typeof value === 'string') {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Date
+      if (value instanceof Date) {
+        return isNaN(value.getTime()) ? null : value;
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+  /**
    * Converts minutes ago to human-readable time intervals
    * Uses exact time intervals as specified in Campus Presence Implementation Plan
    *
@@ -89,17 +129,13 @@ export class PresenceDot {
     const now = Date.now();
     let lastActiveTime;
 
-    try {
-      lastActiveTime = lastActive?.toDate?.() || new Date(lastActive);
-      if (isNaN(lastActiveTime.getTime())) {
-        throw new Error("Invalid date");
-      }
-    } catch (error) {
-      console.warn("[PresenceDot] Invalid lastActive timestamp:", lastActive, error);
+    lastActiveTime = this.normalizeTimestamp(lastActive);
+    if (!lastActiveTime) {
+      console.warn("[PresenceDot] Invalid lastActive timestamp:", lastActive, new Error('normalize failed'));
       return '<div class="presence-dot grey"></div>';
     }
-
-    const minutesAgo = Math.floor((now - lastActiveTime) / (1000 * 60));
+    let minutesAgo = Math.floor((now - lastActiveTime.getTime()) / (1000 * 60));
+    if (minutesAgo < 0) minutesAgo = 0; // guard against clock skew / future timestamps
 
     // Don't show presence if >12 hours (720 minutes)
     if (minutesAgo > 12 * 60) {
@@ -173,18 +209,9 @@ export class PresenceDot {
       return "Status unknown";
     }
 
-    let lastActiveTime;
-    try {
-      lastActiveTime = lastActive?.toDate?.() || new Date(lastActive);
-      if (isNaN(lastActiveTime.getTime())) {
-        throw new Error("Invalid date");
-      }
-    } catch (error) {
-      console.warn(
-        "[PresenceDot] Invalid timestamp in tooltip:",
-        lastActive,
-        error
-      );
+    const lastActiveTime = this.normalizeTimestamp(lastActive);
+    if (!lastActiveTime) {
+      console.warn("[PresenceDot] Invalid timestamp in tooltip:", lastActive);
       return "Status unknown";
     }
 

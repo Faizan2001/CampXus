@@ -34,6 +34,8 @@ class CurrentUserManager {
     this._profile = null; // Firestore user profile
     this._profilePromise = null;
     this._resolveProfilePromise = null;
+  this._uidPromise = null;
+  this._resolveUidPromise = null;
     this._subscribers = new Set();
 
     // Phase-1: Schedule state management
@@ -209,6 +211,11 @@ class CurrentUserManager {
       this._profilePromise = new Promise((resolve) => {
         this._resolveProfilePromise = resolve;
       });
+      // Resolve any prior pending UID promise and create a fresh one
+      if (this._resolveUidPromise) {
+        this._resolveUidPromise(user.uid);
+      }
+      this._uidPromise = Promise.resolve(user.uid);
     } else {
       // If user is null (logged out), reset everything.
       this.reset();
@@ -257,6 +264,25 @@ class CurrentUserManager {
     }
     // If no user is logged in, resolve with null.
     return Promise.resolve(null);
+  }
+
+  /**
+   * Wait for UID to become available (auth established). Resolves with UID or null after timeout.
+   * @param {number} timeoutMs
+   * @returns {Promise<string|null>}
+   */
+  waitForUid(timeoutMs = 5000) {
+    if (this._uid) return Promise.resolve(this._uid);
+    if (!this._uidPromise) {
+      this._uidPromise = new Promise((resolve) => {
+        this._resolveUidPromise = resolve;
+      });
+    }
+    let timedOut = false;
+    return Promise.race([
+      this._uidPromise,
+      new Promise((resolve) => setTimeout(() => { timedOut = true; resolve(null); }, timeoutMs)),
+    ]).then((val) => (timedOut ? null : val));
   }
 
   /**

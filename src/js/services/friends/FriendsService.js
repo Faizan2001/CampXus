@@ -1594,8 +1594,9 @@ export class FriendsManager {
    */
   async getQuickAccessFriends(useCache = true) {
     const userProfile = await currentUser.waitForProfile();
-    if (!userProfile) {
-      console.error("❌ Cannot get Quick Access friends, user not logged in.");
+    const uid = currentUser.uid || (await currentUser.waitForUid());
+    if (!userProfile || !uid) {
+      console.warn("⚠️ Quick Access fetch aborted – auth/profile not ready yet");
       return [];
     }
 
@@ -1616,9 +1617,7 @@ export class FriendsManager {
       );
 
       // Get Quick Access data from database
-      const quickAccessData = await dataManager.getQuickAccessFriends(
-        currentUser.uid
-      );
+  const quickAccessData = await dataManager.getQuickAccessFriends(uid);
 
       if (!quickAccessData || !quickAccessData.starredFriends) {
         console.log("📋 No Quick Access friends found");
