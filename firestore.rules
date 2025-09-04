@@ -8,7 +8,8 @@ service cloud.firestore {
     match /handles/{handle} {
       allow read: if true; // Public lookup
       function isReserved() {
-        return handle in ['admin','system','support','root','null','undefined', 'iub'];
+        // Sync with client reservedHandles in handleUtils.js
+        return handle in ['admin','system','support','root','null','undefined','iub'];
       }
       function validHandle() {
   // 3-20 chars, starts with letter, allowed [a-z0-9_]

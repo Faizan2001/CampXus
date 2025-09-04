@@ -2339,10 +2339,8 @@ class DataManager {
 
           // Transform for UI consumption (same format as existing functions)
           const transformedRequests = requests.map((request) => ({
-            ...request,
-            // Deprecated: displayName retained temporarily for backward compatibility – mapped from handle
-            displayName: request.fromUserInfo?.handle || "Unknown User",
-            handle: request.fromUserInfo?.handle || null,
+              ...request,
+              handle: request.fromUserInfo?.handle || null,
             major: request.fromUserInfo?.major || "Unknown Major",
             university:
               request.fromUserInfo?.university || "Unknown University",
@@ -2420,10 +2418,8 @@ class DataManager {
 
           // Transform for UI consumption (same format as existing functions)
           const transformedRequests = requests.map((request) => ({
-            ...request,
-            // Deprecated: displayName retained temporarily for backward compatibility – mapped from handle
-            displayName: request.toUserInfo?.handle || "Unknown User",
-            handle: request.toUserInfo?.handle || null,
+              ...request,
+              handle: request.toUserInfo?.handle || null,
             major: request.toUserInfo?.major || "Unknown Major",
             university: request.toUserInfo?.university || "Unknown University",
           }));
@@ -2576,7 +2572,6 @@ class DataManager {
               friendId: friendId,
               friendInfo: friendInfo || {
                 // Deprecated displayName fallback – will be removed after full handle migration
-                displayName: "Unknown User",
                 handle: null,
                 major: "Unknown Major",
               },
@@ -3342,8 +3337,6 @@ class DataManager {
       const updatedFriend = {
         ...existingFriend, // Preserve starredAt, lastInteraction, etc.
         // Update cached fields with fresh data from friend's profile
-        // Deprecated: displayName mirrored from handle for backward compatibility
-        displayName: friendData.profile?.handle || existingFriend.displayName,
         handle: friendData.profile?.handle || existingFriend.handle,
         major: friendData.profile?.major || existingFriend.major,
         avatarConfig: friendData.avatarConfig || existingFriend.avatarConfig,
@@ -3374,7 +3367,6 @@ class DataManager {
         updatedFriend: updatedFriend,
         friendData: {
           handle: friendData.profile?.handle,
-          displayName: friendData.profile?.handle, // deprecated mirror
           major: friendData.profile?.major,
           avatarConfig: friendData.avatarConfig,
         },
@@ -4486,7 +4478,6 @@ if (typeof window !== "undefined") {
           console.log("👤 REAL-TIME UPDATE - Profile:", {
             userId: profile.id,
             handle: profile.profile?.handle,
-            displayName: profile.profile?.handle, // deprecated mirror
             firstName: profile.profile?.firstName,
             lastName: profile.profile?.lastName,
             major: profile.profile?.major,

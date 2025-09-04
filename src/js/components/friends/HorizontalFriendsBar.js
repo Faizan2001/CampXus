@@ -3340,7 +3340,7 @@ export class HorizontalFriendsBar {
       } else {
         console.log(
           "🔍 No significant changes detected for friend:",
-          currentFriend.handle || currentFriend.displayName
+          currentFriend.handle || 'Unknown User'
         );
       }
 
@@ -3943,7 +3943,7 @@ export class HorizontalFriendsBar {
 
       console.log(
         `🌍 Updated friend ${
-          friend.handle || friend.displayName || friend.friendId
+          friend.handle || friend.friendId || 'Unknown User'
         }'s presence data:`,
         {
           campusStatus: friend.lastKnownLocation?.campusStatus,
@@ -3956,7 +3956,7 @@ export class HorizontalFriendsBar {
 
       console.log(
         `✅ Campus presence update processed for ${
-          friend.handle || friend.displayName
+          friend.handle || 'Unknown User'
         }`
       );
     } catch (error) {
@@ -3980,7 +3980,7 @@ export class HorizontalFriendsBar {
       if (!avatarElement || !avatarElement.isConnected) {
         console.log(
           `🔄 Cached avatar element stale for ${
-            friend.handle || friend.displayName || friend.friendId
+            friend.handle || friend.friendId || 'Unknown User'
           }, finding fresh reference`
         );
 
@@ -3998,7 +3998,7 @@ export class HorizontalFriendsBar {
             this.avatarElements.set(friendId, avatarElement);
             console.log(
               `✅ Fresh avatar element found and cached for ${
-                friend.handle || friend.displayName
+                friend.handle || 'Unknown User'
               }`
             );
           }
@@ -4042,12 +4042,12 @@ export class HorizontalFriendsBar {
         // Updated presence dot for friend
       } else {
         console.warn(
-          `🌍 Failed to create new presence dot element for ${friend.displayName}`
+          `🌍 Failed to create new presence dot element for ${friend.handle || 'Unknown User'}`
         );
       }
     } catch (error) {
       console.error(
-        `❌ Error updating presence dot for ${friend.displayName}:`,
+  `❌ Error updating presence dot for ${friend.handle || 'Unknown User'}:`,
         error
       );
     }
@@ -4140,7 +4140,7 @@ export class HorizontalFriendsBar {
       friend.lastActive = new Date(timestamp);
 
       console.log(
-        `💓 Updated friend ${friend.displayName}'s activity timestamp:`,
+  `💓 Updated friend ${(friend.handle)|| 'Unknown User'}'s activity timestamp:`,
         {
           newLastActive: friend.lastActive,
           isActive,
@@ -4153,7 +4153,7 @@ export class HorizontalFriendsBar {
       this.updateFriendPresenceDot(friendIndex, friend);
 
       console.log(
-        `✅ User activity update processed for ${friend.displayName}`
+  `✅ User activity update processed for ${friend.handle || 'Unknown User'}`
       );
     } catch (error) {
       console.error("❌ Error handling user activity update:", error);
@@ -4206,7 +4206,7 @@ export class HorizontalFriendsBar {
                 : `${friendId}_${currentUserUid}`;
 
             console.log(
-              `[HorizontalFriendsBar] 🔧 Reconstructed missing friendshipId for ${friend.displayName}: ${friendshipId}`
+              `[HorizontalFriendsBar] 🔧 Reconstructed missing friendshipId for ${friend.handle || 'Unknown User'}: ${friendshipId}`
             );
           }
 
@@ -4229,7 +4229,7 @@ export class HorizontalFriendsBar {
 
                 // 🔍 DEBUG: Enhanced debugging for real-time updates
                 console.log(
-                  `[HorizontalFriendsBar] 🔍 Bilateral consent check for ${friend.displayName}:`,
+                  `[HorizontalFriendsBar] 🔍 Bilateral consent check for ${friend.handle || 'Unknown User'}:`,
                   {
                     friendId,
                     friendshipId: friendshipId, // Use the reconstructed one
@@ -4250,18 +4250,18 @@ export class HorizontalFriendsBar {
                 canSeeLocation = friendSharesWithMe && iShareWithFriend;
               } else {
                 console.warn(
-                  `[HorizontalFriendsBar] ⚠️ No locationVisibility found in friendship document for ${friend.displayName}`
+                  `[HorizontalFriendsBar] ⚠️ No locationVisibility found in friendship document for ${friend.handle || 'Unknown User'}`
                 );
               }
             } catch (bilateralError) {
               console.warn(
-                `[HorizontalFriendsBar] Error checking bilateral consent for ${friend.displayName}:`,
+                `[HorizontalFriendsBar] Error checking bilateral consent for ${friend.handle || 'Unknown User'}:`,
                 bilateralError
               );
             }
           } else {
             console.log(
-              `[HorizontalFriendsBar] 🔍 Skipping bilateral check for ${friend.displayName}: globalLocationEnabled=${globalLocationEnabled}, friendshipId=${friendshipId}`
+              `[HorizontalFriendsBar] 🔍 Skipping bilateral check for ${friend.handle || 'Unknown User'}: globalLocationEnabled=${globalLocationEnabled}, friendshipId=${friendshipId}`
             );
           }
 
@@ -4269,7 +4269,7 @@ export class HorizontalFriendsBar {
           const hasLocationSharing = canSeeLocation;
 
           console.log(
-            `[HorizontalFriendsBar] Enhanced location data for ${friend.displayName}:`,
+            `[HorizontalFriendsBar] Enhanced location data for ${friend.handle || 'Unknown User'}:`,
             {
               globalLocationEnabled,
               canSeeLocation,
@@ -4294,7 +4294,7 @@ export class HorizontalFriendsBar {
         } catch (error) {
           console.error(
             `[HorizontalFriendsBar] Error enhancing location data for ${
-              friend.displayName || "unknown"
+              friend.handle || 'unknown'
             }:`,
             error
           );
@@ -4391,7 +4391,7 @@ export class HorizontalFriendsBar {
 
     console.log(
       `🚀 PHASE 3: Handling optimistic unfriending for ${
-        friendInfo.displayName || friendId
+  friendInfo.handle || friendId
       }`
     );
 
@@ -4424,7 +4424,7 @@ export class HorizontalFriendsBar {
       }
 
       // Show user feedback
-      this.showUnfriendingFeedback(friendInfo.displayName || "Friend");
+  this.showUnfriendingFeedback(friendInfo.handle || "Friend");
     } else {
       console.log(
         `🚀 PHASE 3: Friend ${friendId} was not in starred friends list`
@@ -4441,14 +4441,14 @@ export class HorizontalFriendsBar {
 
     console.log(
       `🔄 PHASE 3: Rolling back optimistic unfriending for ${
-        friendInfo.displayName || friendId
+  friendInfo.handle || friendId
       }`
     );
 
     // Show error notification
     this.showDebouncedNotification(
       `Failed to unfriend ${
-        friendInfo.displayName || "friend"
+  friendInfo.handle || "friend"
       }. Please try again.`,
       "error",
       4000
@@ -4470,13 +4470,13 @@ export class HorizontalFriendsBar {
 
     console.log(
       `✅ PHASE 3: Optimistic unfriending confirmed for ${
-        friendInfo.displayName || friendId
+  friendInfo.handle || friendId
       }`
     );
 
     // Show success notification
     this.showDebouncedNotification(
-      `You are no longer friends with ${friendInfo.displayName || "friend"}`,
+  `You are no longer friends with ${friendInfo.handle || "friend"}`,
       "success",
       3000
     );

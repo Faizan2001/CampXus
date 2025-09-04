@@ -21,9 +21,9 @@ We are promoting a globally unique, immutable-between-weekly-changes `handle` (e
 | Length                      | 3–20                     | Final bound                                       |
 | Must start with letter      | Yes                      | Prevent numeric squat handles                     |
 | Cannot end with underscore  | Yes                      | Cleaner aesthetics                                |
-| Consecutive underscores     | Disallowed               | Readability                                       |
+| Consecutive underscores     | Allowed                  | Relaxed for simplicity & availability             |
 | Dots                        | Disallowed (v1)          | Reconsider later                                  |
-| Change frequency            | 1 per 7 days             | Client‑enforced (no Cloud Functions)              |
+| Change frequency            | 1 per 1 day              | Client‑enforced (no Cloud Functions)              |
 | Old handle reuse            | Immediate allowed        | No parking logic in MVP                           |
 | Mentions format             | `@handle`                | Future feature placeholders only                  |
 | Cloud Functions             | None                     | Pure client + Firestore transaction               |
@@ -117,7 +117,7 @@ allow update: if false; // Enforce explicit delete + create for changes
 }
 
 ```
-NOTE: Weekly limit enforced client-side; can later shift to a callable.
+NOTE: Daily limit (1 day) enforced client-side; can later shift to a callable.
 No additional composite index required for exact handle lookups.
 
 ---
