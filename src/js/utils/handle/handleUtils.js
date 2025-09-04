@@ -10,7 +10,7 @@
 // Consolidated clean implementation
 export const HANDLE_MIN_LENGTH = 3;
 export const HANDLE_MAX_LENGTH = 20;
-export const HANDLE_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const HANDLE_CHANGE_COOLDOWN_MS = 1 * 24 * 60 * 60 * 1000; // 7 days
 
 export const HANDLE_REGEX = /^([a-z])[a-z0-9_]+[a-z0-9]$/; // double underscore allowed
 

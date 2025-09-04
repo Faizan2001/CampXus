@@ -125,6 +125,9 @@ class ProfileSetup {
         } catch (_) {}
       }, 0);
     }
+
+  // Cooldown refresh interval reference
+  this.handleCooldownInterval = null;
   }
 
   /**
@@ -218,6 +221,7 @@ class ProfileSetup {
           <div class="handle-status-wrapper" style="position:relative;">
             <input type="text" id="setup-handle" maxlength="20" placeholder="choose a handle" autocomplete="off" class="form-input" />
             <span id="setup-handle-icon" aria-hidden="true" class="handle-status-icon"></span>
+            <span id="setup-handle-cooldown" class="handle-cooldown-badge" style="display:none;"></span>
           </div>
           <div id="setup-handle-feedback" class="field-hint">3–20 chars: letters, numbers, underscore. Must start with a letter.</div>`;
         nameRow.insertAdjacentElement("afterend", handleRow);
@@ -248,7 +252,7 @@ class ProfileSetup {
             iconEl.textContent = "✕";
           }
         };
-        if (!document.getElementById("handle-style-injections")) {
+    if (!document.getElementById("handle-style-injections")) {
           const styleEl = document.createElement("style");
           styleEl.id = "handle-style-injections";
           styleEl.textContent = `
@@ -262,6 +266,10 @@ class ProfileSetup {
             .handle-status-icon.checking span { width:6px; height:6px; background:var(--text-tertiary); border-radius:50%; animation:dot-bounce .9s infinite ease-in-out; }
             .handle-status-icon.checking span:nth-child(2){ animation-delay:.15s; }
             .handle-status-icon.checking span:nth-child(3){ animation-delay:.3s; }
+      .handle-cooldown-badge { position:absolute; right:12px; top:50%; transform:translateY(-50%); padding:4px 10px; font-size:12px; line-height:1; border-radius:14px; backdrop-filter:blur(8px); background:rgba(255,255,255,0.12); color:var(--text-primary,#fff); box-shadow:0 2px 6px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.08) inset; font-weight:500; letter-spacing:.25px; }
+      .handle-status-wrapper.cooldown-active .form-input { cursor:not-allowed; opacity:.85; background:linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)); }
+      .handle-status-wrapper.cooldown-active .form-input:focus { outline:none; box-shadow:0 0 0 2px rgba(255,255,255,0.15); }
+      .handle-status-wrapper.cooldown-active .handle-status-icon { display:none !important; }
             @keyframes dot-bounce { 0%,80%,100% { transform:translateY(0); opacity:.45;} 40% { transform:translateY(-6px); opacity:1;} }
             @keyframes icon-pop { 0% { transform:translateY(-50%) scale(.4); opacity:0;} 60% { transform:translateY(-50%) scale(1.15); opacity:1;} 100% { transform:translateY(-50%) scale(1); } }
             @keyframes icon-shake { 0%,100% { transform:translateY(-50%) translateX(0); } 25% { transform:translateY(-50%) translateX(-3px);} 50% { transform:translateY(-50%) translateX(3px);} 75% { transform:translateY(-50%) translateX(-2px);} }
@@ -271,6 +279,7 @@ class ProfileSetup {
           `;
           document.head.appendChild(styleEl);
         }
+    const cooldownBadge = handleRow.querySelector('#setup-handle-cooldown');
         const prefilledExistingHandle =
           this.existingProfileData?.profile?.handle ||
           this.existingProfileData?.handle ||
@@ -362,6 +371,47 @@ class ProfileSetup {
           setIconState("success");
           this.validateCurrentStep();
         }
+        // Cooldown enforcement (shared logic)
+        let cooldownInterval = null;
+        const updateCooldownUI = () => {
+          try {
+            const sysInfo = (this.existingProfileData && (this.existingProfileData.systemInfo || this.existingProfileData.profile?.systemInfo)) || currentUser?.profile?.systemInfo || currentUser?.systemInfo;
+            const lastChange = sysInfo?.lastHandleChangeAt;
+            const { allowed, remainingMs } = canChangeHandle(lastChange);
+            const wrapper = handleRow.querySelector('.handle-status-wrapper');
+            if (allowed) {
+              handleInput.disabled = false;
+              wrapper?.classList.remove('cooldown-active');
+              if (cooldownBadge) cooldownBadge.style.display = 'none';
+              if (cooldownInterval) { clearInterval(cooldownInterval); cooldownInterval = null; }
+              return;
+            }
+            handleInput.disabled = true;
+            wrapper?.classList.add('cooldown-active');
+            if (cooldownBadge) {
+              cooldownBadge.textContent = formatCooldown(remainingMs);
+              cooldownBadge.style.display = 'inline-flex';
+              cooldownBadge.title = 'Handle change locked until cooldown ends';
+            }
+            feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(remainingMs)}`;
+            feedbackEl.className = 'field-hint';
+            if (prefilledExistingHandle2) handleInput.classList.add('valid');
+            if (!cooldownInterval) {
+              cooldownInterval = setInterval(() => {
+                const res = canChangeHandle(lastChange);
+                if (res.allowed) {
+                  updateCooldownUI();
+                } else if (cooldownBadge) {
+                  cooldownBadge.textContent = formatCooldown(res.remainingMs);
+                  feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(res.remainingMs)}`;
+                }
+              }, 60000);
+              this.activeTimeouts?.add?.(cooldownInterval);
+            }
+          } catch (_) {}
+        };
+        setTimeout(updateCooldownUI, 50);
+        document.addEventListener('profile:hydrated', () => updateCooldownUI(), { once: true });
       }
       if (email) email.value = getProfileValue("email") || "";
 
@@ -416,6 +466,9 @@ class ProfileSetup {
 
       // Re-validate current step after populating
       this.validateCurrentStep();
+
+  // Ensure cooldown state reflects latest systemInfo
+  this.applyHandleCooldownState();
     };
 
     populateFields();
@@ -444,6 +497,7 @@ class ProfileSetup {
         <div class="handle-status-wrapper" style="position:relative;">
           <input type="text" id="setup-handle" maxlength="20" placeholder="choose a handle" autocomplete="off" class="form-input" />
           <span id="setup-handle-icon" aria-hidden="true" class="handle-status-icon"></span>
+          <span id="setup-handle-cooldown" class="handle-cooldown-badge" style="display:none;"></span>
         </div>
         <div id="setup-handle-feedback" class="field-hint">3–20 chars: letters, numbers, underscore. Must start with a letter.</div>`;
       nameRow.insertAdjacentElement("afterend", handleGroup);
@@ -487,6 +541,11 @@ class ProfileSetup {
           .handle-status-icon.checking span { width:6px; height:6px; background:var(--text-tertiary); border-radius:50%; animation:dot-bounce .9s infinite ease-in-out; }
           .handle-status-icon.checking span:nth-child(2){ animation-delay:.15s; }
           .handle-status-icon.checking span:nth-child(3){ animation-delay:.3s; }
+          /* Cooldown badge styles */
+          .handle-cooldown-badge { position:absolute; right:12px; top:50%; transform:translateY(-50%); padding:4px 10px; font-size:12px; line-height:1; border-radius:14px; backdrop-filter:blur(8px); background:rgba(255,255,255,0.12); color:var(--text-primary,#fff); box-shadow:0 2px 6px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.08) inset; font-weight:500; letter-spacing:.25px; }
+          .handle-status-wrapper.cooldown-active .form-input { cursor:not-allowed; opacity:.85; background:linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)); }
+          .handle-status-wrapper.cooldown-active .form-input:focus { outline:none; box-shadow:0 0 0 2px rgba(255,255,255,0.15); }
+          .handle-status-wrapper.cooldown-active .handle-status-icon { display:none !important; }
           @keyframes dot-bounce { 0%,80%,100% { transform:translateY(0); opacity:.45;} 40% { transform:translateY(-6px); opacity:1;} }
           @keyframes icon-pop { 0% { transform:translateY(-50%) scale(.4); opacity:0;} 60% { transform:translateY(-50%) scale(1.15); opacity:1;} 100% { transform:translateY(-50%) scale(1); } }
           @keyframes icon-shake { 0%,100% { transform:translateY(-50%) translateX(0); } 25% { transform:translateY(-50%) translateX(-3px);} 50% { transform:translateY(-50%) translateX(3px);} 75% { transform:translateY(-50%) translateX(-2px);} }
@@ -497,6 +556,59 @@ class ProfileSetup {
         this.existingProfileData?.profile?.handle ||
         this.existingProfileData?.handle ||
         null;
+      const cooldownBadge = handleGroup.querySelector('#setup-handle-cooldown');
+      let cooldownInterval = null;
+
+      const updateCooldownUI = () => {
+        try {
+          // Prefer systemInfo from existingProfileData then currentUser.profile
+          const sysInfo = this.existingProfileData?.systemInfo || currentUser?.profile?.systemInfo || currentUser?.systemInfo;
+          const lastChange = sysInfo?.lastHandleChangeAt;
+          const { allowed, remainingMs } = canChangeHandle(lastChange);
+          if (allowed) {
+            // Clear cooldown state if previously active
+            handleInput.disabled = false;
+            handleGroup.querySelector('.handle-status-wrapper')?.classList.remove('cooldown-active');
+            if (cooldownBadge) {
+              cooldownBadge.style.display = 'none';
+            }
+            if (cooldownInterval) { clearInterval(cooldownInterval); cooldownInterval = null; }
+            return;
+          }
+          // Still in cooldown
+            handleInput.disabled = true;
+            const wrapper = handleGroup.querySelector('.handle-status-wrapper');
+            wrapper?.classList.add('cooldown-active');
+            if (cooldownBadge) {
+              cooldownBadge.textContent = formatCooldown(remainingMs);
+              cooldownBadge.title = 'You can change handle after cooldown ends';
+              cooldownBadge.style.display = 'inline-flex';
+            }
+            // Provide feedback text
+            feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(remainingMs)}`;
+            feedbackEl.className = 'field-hint';
+            // Ensure validation passes for current handle
+            if (prefilledExistingHandle3) {
+              handleInput.classList.add('valid');
+            }
+            if (!cooldownInterval) {
+              cooldownInterval = setInterval(() => {
+                const res = canChangeHandle(lastChange);
+                if (res.allowed) {
+                  updateCooldownUI();
+                } else if (cooldownBadge) {
+                  cooldownBadge.textContent = formatCooldown(res.remainingMs);
+                  feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(res.remainingMs)}`;
+                }
+              }, 60000); // update every minute
+              this.activeTimeouts?.add?.(cooldownInterval);
+            }
+        } catch (_) {}
+      };
+
+      // Defer cooldown UI calculation slightly to allow existingProfileData hydration
+      setTimeout(updateCooldownUI, 50);
+      document.addEventListener('profile:hydrated', () => updateCooldownUI(), { once: true });
       handleInput.addEventListener("input", () => {
         clearTimeout(debounceTimer);
         const raw = handleInput.value.trim();
@@ -580,6 +692,8 @@ class ProfileSetup {
         handleInput.classList.add("valid");
         setIconState("success");
         this.validateCurrentStep();
+  // Re-run cooldown UI in case we now have lastHandleChangeAt
+  updateCooldownUI();
       }
     } catch (e) {
       console.warn("ensureHandleField failed:", e);
@@ -1080,6 +1194,23 @@ class ProfileSetup {
             !taken &&
             !isReservedHandle(v.normalized) &&
             handleFeedback?.classList.contains("success");
+
+          // Cooldown path: input disabled, feedback not marked success but value is existing handle
+          if (!handleValid && handleInput.disabled) {
+            const existingHandle =
+              this.existingProfileData?.profile?.handle ||
+              this.existingProfileData?.handle ||
+              currentUser?.profile?.profile?.handle ||
+              currentUser?.profile?.handle;
+            if (
+              existingHandle &&
+              v.valid &&
+              v.normalized === existingHandle &&
+              !isReservedHandle(v.normalized)
+            ) {
+              handleValid = true; // accept locked current handle
+            }
+          }
         }
       }
       const isStepValid =
@@ -1418,6 +1549,12 @@ class ProfileSetup {
       this.avatarConfig = avatarManager.generateDefaultAvatar(
         this.currentUser.uid
       );
+    }
+
+    // If user is currently on avatar step (1) ensure preview renders now
+    if (this.currentStep === 1) {
+      // Defer a frame to let DOM mount
+      requestAnimationFrame(() => this.updateAvatarPreview());
     }
   }
 
@@ -2445,6 +2582,11 @@ class ProfileSetup {
    * This method is called when entering the avatar step or after editing the avatar.
    */
   updateAvatarPreview() {
+    // Allow re-entrant retry calls but guard too many loops
+    const MAX_RETRIES = 3;
+    if (typeof this._avatarPreviewAttempts === 'undefined') {
+      this._avatarPreviewAttempts = 0;
+    }
     const previewContainer = document.getElementById("avatar-preview-display");
     if (!previewContainer) {
       console.warn("⚠️ Avatar preview container not found");
@@ -2544,6 +2686,13 @@ class ProfileSetup {
     // If no avatar config or avatarManager, show fallback
     if (!this.avatarConfig || !avatarManager) {
       renderInitials();
+      // Retry once shortly if avatarConfig may arrive after hydration
+      if (this._avatarPreviewAttempts < MAX_RETRIES) {
+        setTimeout(() => {
+          this._avatarPreviewAttempts++;
+          this.updateAvatarPreview();
+        }, 500);
+      }
       return;
     }
 
@@ -2586,6 +2735,11 @@ class ProfileSetup {
       didFinish = true;
       previewContainer.innerHTML = "";
       renderInitials();
+      // Network hiccup retry logic
+      if (this._avatarPreviewAttempts < MAX_RETRIES) {
+        this._avatarPreviewAttempts++;
+        setTimeout(() => this.updateAvatarPreview(), 1200);
+      }
     };
 
     // When image loads, replace spinner with image
@@ -2602,6 +2756,10 @@ class ProfileSetup {
         didFinish = true;
         previewContainer.innerHTML = "";
         renderInitials();
+        if (this._avatarPreviewAttempts < MAX_RETRIES) {
+          this._avatarPreviewAttempts++;
+          setTimeout(() => this.updateAvatarPreview(), 1500);
+        }
       }
     }, 5000);
 
@@ -2680,6 +2838,13 @@ class ProfileSetup {
       avatarPreview: document.querySelector(".avatar-preview-container"),
       form: document.querySelector(".profile-setup-form"),
     };
+
+    // Re-apply avatar preview if we land directly on step 1 after hydration
+    document.addEventListener('profile:hydrated', () => {
+      if (this.currentStep === 1) {
+        setTimeout(() => this.updateAvatarPreview(), 50);
+      }
+    }, { once: true });
   }
 }
 
@@ -2981,6 +3146,82 @@ export function validateRequiredFields(data) {
       typeof data[field] === "string" &&
       data[field].trim() !== ""
   );
+}
+
+// Fallback global (prototype) method injection if not already defined inside class body
+if (!ProfileSetup.prototype.applyHandleCooldownState) {
+  ProfileSetup.prototype.applyHandleCooldownState = function (retryCount = 0) {
+    try {
+      const handleInput = document.getElementById('setup-handle');
+      const wrapper = handleInput?.closest('.handle-status-wrapper');
+      if (!handleInput || !wrapper) {
+        if (retryCount < 10) setTimeout(() => this.applyHandleCooldownState(retryCount + 1), 150);
+        return;
+      }
+      let badge = document.getElementById('setup-handle-cooldown');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'setup-handle-cooldown';
+        badge.className = 'handle-cooldown-badge';
+        badge.style.display = 'none';
+        wrapper.appendChild(badge);
+      }
+      if (!document.getElementById('handle-style-injections')) {
+        const styleEl = document.createElement('style');
+        styleEl.id = 'handle-style-injections';
+        styleEl.textContent = `
+          .handle-cooldown-badge { position:absolute; right:12px; top:50%; transform:translateY(-50%); padding:4px 10px; font-size:12px; line-height:1; border-radius:14px; backdrop-filter:blur(8px); background:rgba(255,255,255,0.12); color:var(--text-primary,#fff); box-shadow:0 2px 6px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.08) inset; font-weight:500; letter-spacing:.25px; }
+          .handle-status-wrapper.cooldown-active .form-input { cursor:not-allowed; opacity:.85; background:linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)); }
+          .handle-status-wrapper.cooldown-active .form-input:focus { outline:none; box-shadow:0 0 0 2px rgba(255,255,255,0.15); }
+          .handle-status-wrapper.cooldown-active .handle-status-icon { display:none !important; }
+        `;
+        document.head.appendChild(styleEl);
+      }
+      const sysInfo = this.existingProfileData?.systemInfo || this.existingProfileData?.profile?.systemInfo || currentUser?.profile?.systemInfo || currentUser?.systemInfo;
+      const lastChange = sysInfo?.lastHandleChangeAt;
+      if (!lastChange) {
+        handleInput.disabled = false;
+        wrapper.classList.remove('cooldown-active');
+        if (badge) badge.style.display = 'none';
+        if (this.handleCooldownInterval) { clearInterval(this.handleCooldownInterval); this.handleCooldownInterval = null; }
+        return;
+      }
+      const { allowed, remainingMs } = canChangeHandle(lastChange);
+      const feedbackEl = document.getElementById('setup-handle-feedback');
+      if (allowed) {
+        handleInput.disabled = false;
+        wrapper.classList.remove('cooldown-active');
+        if (badge) badge.style.display = 'none';
+        if (this.handleCooldownInterval) { clearInterval(this.handleCooldownInterval); this.handleCooldownInterval = null; }
+        return;
+      }
+      handleInput.disabled = true;
+      wrapper.classList.add('cooldown-active');
+      badge.textContent = formatCooldown(remainingMs);
+      badge.style.display = 'inline-flex';
+      badge.title = 'Handle change locked until cooldown ends';
+      if (feedbackEl) {
+        feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(remainingMs)}`;
+        feedbackEl.className = 'field-hint';
+      }
+      if (!this.handleCooldownInterval) {
+        this.handleCooldownInterval = setInterval(() => {
+          const sys = this.existingProfileData?.systemInfo || this.existingProfileData?.profile?.systemInfo || currentUser?.profile?.systemInfo || currentUser?.systemInfo;
+          const lc = sys?.lastHandleChangeAt;
+          const res = canChangeHandle(lc);
+          if (res.allowed) {
+            this.applyHandleCooldownState();
+          } else {
+            badge.textContent = formatCooldown(res.remainingMs);
+            if (feedbackEl) feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(res.remainingMs)}`;
+          }
+        }, 60000);
+        this.activeTimeouts?.add?.(this.handleCooldownInterval);
+      }
+    } catch (e) {
+      if (retryCount < 5) setTimeout(() => this.applyHandleCooldownState(retryCount + 1), 300);
+    }
+  };
 }
 
 // Export the ProfileSetup class for testing
