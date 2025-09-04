@@ -140,7 +140,7 @@ class DebugHelpers {
     // Test friend request notification
     setTimeout(() => {
       window.notificationManager.showFriendRequestNotification({
-        displayName: "Debug Test User",
+        handle: "debug_test_user",
         major: "Computer Science",
         university: "Test University",
       });
@@ -266,13 +266,13 @@ class DebugHelpers {
     }
 
     const mockRequest = {
-      displayName: "Alice Johnson",
+      handle: "alice_j",
       major: "Computer Science",
       university: "Tech University",
       id: `debug_request_${Date.now()}`,
     };
 
-    console.log("🧪 Simulating friend request from:", mockRequest.displayName);
+    console.log("🧪 Simulating friend request from handle:", mockRequest.handle);
     window.notificationManager.showFriendRequestNotification(mockRequest);
   }
 
@@ -286,12 +286,12 @@ class DebugHelpers {
     }
 
     const mockFriend = {
-      displayName: "Bob Smith",
+      handle: "bob_smith",
       major: "Engineering",
       id: `debug_friend_${Date.now()}`,
     };
 
-    console.log("🧪 Simulating friend acceptance for:", mockFriend.displayName);
+    console.log("🧪 Simulating friend acceptance for handle:", mockFriend.handle);
     window.notificationManager.showFriendAcceptedNotification(mockFriend);
   }
 
@@ -492,8 +492,9 @@ class DebugHelpers {
       friends.forEach((friend, index) => {
         const hasFriendshipId = !!friend.friendshipId;
         const friendId = friend.friendId || friend.id;
+        const label = friend.handle || friend.displayName || friendId;
         
-        console.log(`${index + 1}. ${friend.displayName}:`);
+        console.log(`${index + 1}. ${label}:`);
         console.log(`   - friendId: ${friendId}`);
         console.log(`   - hasFriendshipId: ${hasFriendshipId}`);
         console.log(`   - friendshipId: ${friend.friendshipId || 'undefined'}`);
@@ -552,7 +553,8 @@ class DebugHelpers {
       }
 
       for (const friend of friends) {
-        console.log(`\n👤 Friend: ${friend.displayName}`);
+        const label = friend.handle || friend.displayName || friend.friendId || friend.userId || "unknown";
+        console.log(`\n👤 Friend: ${label}`);
         console.log(`   - friendId: ${friend.friendId || friend.userId}`);
         console.log(`   - friendshipId: ${friend.friendshipId}`);
         
@@ -572,8 +574,8 @@ class DebugHelpers {
               const iShareWithFriend = friendship.locationVisibility[currentUserId];
               
               console.log(`   📍 Location Sharing Status:`);
-              console.log(`     - ${friend.displayName} shares with me: ${friendSharesWithMe}`);
-              console.log(`     - I share with ${friend.displayName}: ${iShareWithFriend}`);
+              console.log(`     - ${label} shares with me: ${friendSharesWithMe}`);
+              console.log(`     - I share with ${label}: ${iShareWithFriend}`);
               console.log(`     - Mutual sharing: ${friendSharesWithMe && iShareWithFriend}`);
             } else {
               console.log(`   📍 No location sharing configured`);

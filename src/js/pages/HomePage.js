@@ -4877,7 +4877,7 @@ function generateAvatar(nameOrUserId) {
           (f) =>
             f.userId === nameOrUserId ||
             f.friendId === nameOrUserId ||
-            f.displayName === nameOrUserId ||
+            f.handle === nameOrUserId ||
             f.id === nameOrUserId
         );
 
@@ -4906,7 +4906,7 @@ function generateAvatar(nameOrUserId) {
         (f) =>
           f.userId === nameOrUserId ||
           f.friendId === nameOrUserId ||
-          f.displayName === nameOrUserId ||
+          f.handle === nameOrUserId ||
           f.id === nameOrUserId
       );
 
@@ -4930,7 +4930,7 @@ function generateAvatar(nameOrUserId) {
       const friend = state.horizontalFriendsBar.friends.find(
         (f) =>
           f.friendId === nameOrUserId ||
-          f.displayName === nameOrUserId ||
+          f.handle === nameOrUserId ||
           f.userId === nameOrUserId ||
           f.id === nameOrUserId
       );
@@ -6274,7 +6274,7 @@ function handleCompareSelectionChange(event) {
     userCount,
     hasUser,
     compareMode,
-    users: selectedUsersData?.map((u) => u.displayName) || [],
+  users: selectedUsersData?.map((u) => u.handle || 'unknown') || [],
     currentSelectedUserIds: Array.from(state.selectedUserIds),
     currentStateCompareMode: state.compareMode,
   });
@@ -6397,7 +6397,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
   try {
     console.log(
       "🔄 Loading schedules for comparison:",
-      selectedUsersData.map((u) => u.displayName)
+      selectedUsersData.map((u) => u.handle || 'unknown')
     );
 
     // Clear memoization and matrix caches when loading friends for comparison
@@ -6446,7 +6446,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
             // Create user data structure from converted data
             currentUserData = {
               id: user.uid,
-              name: currentUser.profile?.displayName || "You",
+              name: currentUser.profile?.handle || "You",
               timeSlots: convertedData?.timeSlots || DEFAULT_TIMESLOTS,
               schedule:
                 convertedData?.schedule ||
@@ -6522,15 +6522,11 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         true
       );
       if (cachedScheduleData) {
-        console.log(
-          `✅ [ENHANCED CACHE] Schedule already cached for ${userData.displayName}`
-        );
+  console.log(`✅ [ENHANCED CACHE] Schedule already cached for @${userData.handle}`);
 
         // Even if cached, ensure the friend is in state.users for comparison rendering
         if (!state.users[friendId]) {
-          console.log(
-            `🔄 Adding cached friend ${userData.displayName} to state.users for comparison`
-          );
+          console.log(`🔄 Adding cached friend @${userData.handle} to state.users for comparison`);
 
           // Convert cached Firestore data to HomePage format if needed
           let convertedData = cachedScheduleData;
@@ -6539,16 +6535,14 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
             typeof cachedScheduleData.schedule === "object" &&
             !Array.isArray(cachedScheduleData.schedule)
           ) {
-            console.log(
-              `🔄 Converting cached Firestore data for ${userData.displayName}`
-            );
+            console.log(`🔄 Converting cached Firestore data for @${userData.handle}`);
             convertedData =
               convertFirestoreToHomePageFormat(cachedScheduleData);
           }
 
           const friendUser = {
             id: friendId,
-            name: userData.displayName,
+            name: userData.handle,
             timeSlots: convertedData.timeSlots || DEFAULT_TIMESLOTS,
             schedule:
               convertedData.schedule ||
@@ -6566,7 +6560,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
 
           state.users[friendId] = friendUser;
           console.log(
-            `✅ [ENHANCED CACHE] Cached friend ${userData.displayName} added to state.users`,
+            `✅ [ENHANCED CACHE] Cached friend @${userData.handle} added to state.users`,
             {
               storedUnderKey: friendId,
               hasSchedule: !!friendUser.schedule,
@@ -6581,9 +6575,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
       }
 
       // No cached data found, load fresh schedule
-      console.log(
-        `📥 [FRESH LOAD] Loading schedule for ${userData.displayName}...`
-      );
+  console.log(`📥 [FRESH LOAD] Loading schedule for @${userData.handle}...`);
       // Load schedule data for friends
       const scheduleData = await dataManager.getUserSchedule(friendId);
       if (scheduleData) {
@@ -6602,16 +6594,14 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
           convertFirestoreToHomePageFormat(scheduleData);
 
         if (!convertedScheduleData) {
-          console.warn(
-            `⚠️ Failed to convert schedule data for ${userData.displayName} in comparison`
-          );
+          console.warn(`⚠️ Failed to convert schedule data for @${userData.handle} in comparison`);
           return;
         }
 
         // Add to users state for rendering with converted data
         const friendUser = {
           id: friendId,
-          name: userData.displayName,
+          name: userData.handle,
           timeSlots: convertedScheduleData.timeSlots,
           schedule: convertedScheduleData.schedule,
           slotInfo: convertedScheduleData.slotInfo,
@@ -6622,7 +6612,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
 
         state.users[friendId] = friendUser;
         console.log(
-          `✅ [FRESH DATA] Schedule loaded for ${userData.displayName}`,
+          `✅ [FRESH DATA] Schedule loaded for @${userData.handle}`,
           {
             storedUnderKey: friendId,
             friendUserData: {
@@ -6639,12 +6629,9 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         );
 
         // Set up real-time sync for this friend's schedule updates
-        FRIENDS_REALTIME_SYNC.setupRealtimeListener(
-          friendId,
-          userData.displayName
-        );
+  FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, userData.handle);
       } else {
-        console.warn(`⚠️ No schedule data found for ${userData.displayName}`);
+  console.warn(`⚠️ No schedule data found for @${userData.handle}`);
       }
     }); // End of map callback function
 

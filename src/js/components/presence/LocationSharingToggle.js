@@ -128,7 +128,10 @@ export class LocationSharingToggle {
    */
   generateFriendToggleHTML() {
     const { friendEnabled } = this.currentState;
-    const friendName = this.options.friendData?.displayName || 'this friend';
+    // Using global unique handle for identity display (displayName deprecated)
+    const friendName = this.options.friendData?.handle
+      ? `@${this.options.friendData.handle}`
+      : (this.options.friendData?.firstName || 'this friend');
 
     return `
       <div class="toggle-section friend-location-toggle">
@@ -264,7 +267,9 @@ export class LocationSharingToggle {
     }
 
     const newEnabled = !this.currentState.friendEnabled;
-    const friendName = this.options.friendData?.displayName || 'friend';
+    const friendName = this.options.friendData?.handle
+      ? `@${this.options.friendData.handle}`
+      : (this.options.friendData?.firstName || 'friend');
     
     console.log(`👥 Friend location toggle for ${friendName}: ${this.currentState.friendEnabled} → ${newEnabled}`);
 

@@ -268,10 +268,10 @@ export class FriendsManager {
       // Transform the data for UI consistency
       const transformedRequests = requests.map((request) => ({
         ...request,
-        displayName:
-          request.displayName ||
-          request.fromUserInfo?.displayName ||
-          "Unknown User",
+        handle:
+          request.handle ||
+          request.fromUserInfo?.handle ||
+          "unknown",
         major: request.major || request.fromUserInfo?.major || "Unknown Major",
         university:
           request.university ||
@@ -298,10 +298,10 @@ export class FriendsManager {
       // Transform the data for UI consistency
       const transformedRequests = requests.map((request) => ({
         ...request,
-        displayName:
-          request.displayName ||
-          request.toUserInfo?.displayName ||
-          "Unknown User",
+        handle:
+          request.handle ||
+          request.toUserInfo?.handle ||
+          "unknown",
         major: request.major || request.toUserInfo?.major || "Unknown Major",
         university:
           request.university ||
@@ -436,18 +436,18 @@ export class FriendsManager {
     try {
       if (request.status === "accepted") {
         notificationManager.showFriendAcceptedNotification({
-          displayName: request.displayName,
+          handle: request.handle,
           major: request.major,
           university: request.university,
         });
       } else if (request.status === "rejected") {
-        console.log(`${request.displayName} declined your friend request`);
+        console.log(`@${request.handle || 'unknown'} declined your friend request`);
       }
     } catch (error) {
       console.error("❌ Error showing notification:", error);
       // Fallback: Log notification that would have been shown
       console.log(
-        `📢 Notification (fallback): Friend request ${request.status} - ${request.displayName}`
+        `📢 Notification (fallback): Friend request ${request.status} - @${request.handle || 'unknown'}`
       );
     }
   }
@@ -474,7 +474,7 @@ export class FriendsManager {
     const transformedFriends = friendships.map((friendship) => ({
       id: friendship.friendId,
       friendshipId: friendship.id,
-      displayName: friendship.friendInfo?.displayName || "Unknown User",
+      handle: friendship.friendInfo?.handle || "unknown",
       major: friendship.friendInfo?.major || "Unknown Major",
       avatarConfig: friendship.friendInfo?.avatarConfig || null,
       friendsSince: friendship.createdAt,
@@ -593,7 +593,68 @@ export class FriendsManager {
   }
 
   /**
-   * 🚫 Filter out existing friends and pending requests from search results
+   * � Unified search entry point with handle fast-path.
+   * - If input matches handle regex (optionally prefixed with @) and length 2–32 => direct handle lookup across ALL universities.
+   * - Else fallback to university-scoped fuzzy search (name/major) via searchStudents.
+   * @param {string} rawTerm
+   */
+  async searchStudentsHandleAware(rawTerm) {
+    const term = (rawTerm || "").trim();
+    if (term.length < 2) return [];
+
+    // Detect potential handle (strip leading @ if present)
+    const normalized = term.startsWith("@") ? term.slice(1).toLowerCase() : term.toLowerCase();
+    const HANDLE_REGEX = /^[a-z0-9._]{2,32}$/;
+    if (HANDLE_REGEX.test(normalized)) {
+      try {
+        // Direct handle mapping lookup (global)
+        const { getDoc, doc } = await import("firebase/firestore");
+        const { db } = await import("../../lib/firebase/firebase-config.js");
+
+        // 1. Resolve handle -> userId
+        const handleRef = doc(db, "handles", normalized);
+        const snap = await getDoc(handleRef);
+        if (!snap.exists()) {
+          return [];
+        }
+        const userId = snap.data().userId;
+
+        // 2. Fetch user document directly (avoids relying on unimplemented helper)
+        const userRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) return [];
+        const userData = userSnap.data();
+
+        // ⚠️ NOTE: Current security rules only allow cross-university read if socialInfo.searchable && same university
+        // If cross-university handle lookup is required, rules must be updated separately.
+
+        // 3. Adapt to existing student object shape expected by UI
+        return [
+          {
+            id: userId,
+            profile: {
+              handle: userData.profile?.handle,
+              handle_lower: userData.profile?.handle_lower,
+              major: userData.profile?.major,
+              major_lower: userData.profile?.major_lower,
+            },
+            universityInfo: userData.universityInfo || {},
+            // Expose avatarConfig at root so avatar renderer can find it
+            avatarConfig: userData.avatarConfig || null,
+          },
+        ];
+      } catch (error) {
+        console.error("❌ Handle lookup error:", error);
+        return [];
+      }
+    }
+
+    // Fallback to existing fuzzy search (name/major) with caching
+    return this.searchStudents(term, true);
+  }
+
+  /**
+   * �🚫 Filter out existing friends and pending requests from search results
    * @param {Array} searchResults - Raw search results from database
    * @returns {Promise<Array>} Filtered results ready for display
    */
@@ -692,8 +753,8 @@ export class FriendsManager {
    * @returns {Promise<Array>} Search results (cached when possible)
    */
   async searchStudentsWithCache(searchTerm) {
-    // Use the consolidated search function with caching enabled
-    return this.searchStudents(searchTerm, true);
+  // Handle aware path (includes caching for fuzzy part internally)
+  return this.searchStudentsHandleAware(searchTerm);
   }
 
   /**
@@ -758,8 +819,8 @@ export class FriendsManager {
 
     try {
       console.log(
-        "📩 Sending friend request to:",
-        targetUserData.profile?.displayName
+        "📩 Sending friend request to handle:",
+        targetUserData.profile?.handle || targetUserData.profile?.handle_lower
       );
 
       // 2. Check if request already exists
@@ -783,18 +844,18 @@ export class FriendsManager {
       }
 
       // 3. Create the friend request object
-      const requestData = {
+    const requestData = {
         fromUserId: currentUser.uid,
         toUserId: targetUserId,
         status: "pending",
         fromUserInfo: {
-          displayName: userProfile.profile.displayName,
+      handle: userProfile.profile.handle,
           major: userProfile.profile.major,
           university: userProfile.universityInfo.university,
           avatarConfig: userProfile.avatarConfig,
         },
         toUserInfo: {
-          displayName: targetUserData.profile.displayName,
+      handle: targetUserData.profile.handle,
           major: targetUserData.profile.major,
           university: targetUserData.universityInfo.university,
           avatarConfig: targetUserData.avatarConfig,
@@ -811,7 +872,7 @@ export class FriendsManager {
         console.log("✅ Friend request sent successfully!");
         return {
           success: true,
-          message: `Friend request sent to ${targetUserData.profile.displayName}!`,
+          message: `Friend request sent to @${targetUserData.profile.handle}!`,
         };
       } else {
         return {
@@ -841,8 +902,8 @@ export class FriendsManager {
 
     try {
       console.log(
-        "📬 Getting pending requests for:",
-        userProfile.profile.displayName
+        "📬 Getting pending requests for handle:",
+        userProfile.profile.handle
       );
       const pendingRequests = await dataManager.getPendingFriendRequests(
         currentUser.uid
@@ -850,7 +911,7 @@ export class FriendsManager {
       console.log(`✅ Found ${pendingRequests.length} pending friend requests`);
       return pendingRequests.map((request) => ({
         ...request,
-        displayName: request.fromUserInfo?.displayName || "Unknown User",
+        handle: request.fromUserInfo?.handle || "unknown",
         major: request.fromUserInfo?.major || "Unknown Major",
         university: request.fromUserInfo?.university || "Unknown University",
       }));
@@ -889,7 +950,7 @@ export class FriendsManager {
     try {
       console.log(
         "✅ Accepting friend request from:",
-        requestData.fromUserInfo?.displayName
+  requestData.fromUserInfo?.handle
       );
 
       // 🎯 STEP 1: Create the friendship document first
@@ -906,7 +967,7 @@ export class FriendsManager {
 
         // Cache user info from the request (already available!)
         user1Info: {
-          displayName: requestData.fromUserInfo.displayName,
+          handle: requestData.fromUserInfo.handle,
           major: requestData.fromUserInfo.major,
           avatarConfig:
             requestData.fromUserInfo.avatarConfig ||
@@ -914,7 +975,7 @@ export class FriendsManager {
         },
 
         user2Info: {
-          displayName: requestData.toUserInfo.displayName,
+          handle: requestData.toUserInfo.handle,
           major: requestData.toUserInfo.major,
           avatarConfig:
             requestData.toUserInfo.avatarConfig ||
@@ -962,7 +1023,7 @@ export class FriendsManager {
       this.clearSearchFilterCache();
 
       console.log("🎉 Friend request accepted successfully!");
-      const friendName = requestData.fromUserInfo?.displayName || "New friend";
+  const friendName = requestData.fromUserInfo?.handle || "new_friend";
 
       return {
         success: true,
@@ -996,7 +1057,7 @@ export class FriendsManager {
     }
 
     try {
-      const senderName = requestData?.fromUserInfo?.displayName || "User";
+  const senderName = requestData?.fromUserInfo?.handle || "user";
       console.log("❌ Rejecting friend request from:", senderName);
 
       // 🎯 Delete the friend request (clean lifecycle approach)
@@ -1051,7 +1112,7 @@ export class FriendsManager {
     }
 
     try {
-      const friendName = friendInfo.displayName || "Friend";
+  const friendName = friendInfo.handle || "friend";
       console.log("💔 Unfriending user:", friendName);
 
       // 🎯 PHASE 1: Optimistic Updates - Publish optimistic unfriending event FIRST
@@ -1081,7 +1142,7 @@ export class FriendsManager {
           message: `You are no longer friends with ${friendName}`,
           unfriendedUser: {
             id: friendId,
-            displayName: friendName,
+            handle: friendName,
           },
         };
       } else {
@@ -1128,7 +1189,7 @@ export class FriendsManager {
     try {
       console.log(
         "👥 Getting friends list for:",
-        userProfile.profile.displayName
+        userProfile.profile.handle
       );
       const friendships = await dataManager.getUserFriendships(currentUser.uid);
 
@@ -1152,7 +1213,7 @@ export class FriendsManager {
           friendshipId: friendship.id,
 
           // Friend details (cached in friendship document - no extra queries!)
-          displayName: friendInfo?.displayName || "Unknown User",
+          handle: friendInfo?.handle || "unknown",
           major: friendInfo?.major || "Unknown Major",
           avatarConfig: friendInfo?.avatarConfig || null,
 
@@ -1210,9 +1271,9 @@ export class FriendsManager {
     this.publishOptimisticEvent("optimistic-unfriending", event);
 
     // Also notify via notification service for user feedback
-    if (notificationManager && friendInfo.displayName) {
+  if (notificationManager && friendInfo.handle) {
       notificationManager.showSystemNotification(
-        `Unfriending ${friendInfo.displayName}...`,
+  `Unfriending @${friendInfo.handle}...`,
         "info",
         { duration: 2000 }
       );
@@ -1256,9 +1317,9 @@ export class FriendsManager {
     this.publishOptimisticEvent("optimistic-rollback", event);
 
     // Show error notification
-    if (notificationManager && friendInfo.displayName) {
+  if (notificationManager && friendInfo.handle) {
       notificationManager.showSystemNotification(
-        `Failed to unfriend ${friendInfo.displayName}. Please try again.`,
+  `Failed to unfriend @${friendInfo.handle}. Please try again.`,
         "error",
         { duration: 4000 }
       );
@@ -1348,7 +1409,7 @@ export class FriendsManager {
     }
 
     try {
-      const friendName = friendInfo.displayName || "Friend";
+  const friendName = friendInfo.handle || "friend";
       console.log("⭐ Adding to Quick Access:", friendName);
 
       // Check if friend is already in Quick Access
@@ -1366,7 +1427,7 @@ export class FriendsManager {
       const now = new Date();
       const quickAccessEntry = {
         friendId: friendId,
-        displayName: friendInfo.displayName,
+  handle: friendInfo.handle,
         major: friendInfo.major,
         avatarConfig: friendInfo.avatarConfig,
         starredAt: now,
@@ -1377,7 +1438,7 @@ export class FriendsManager {
       if (friendInfo.friendshipId) {
         quickAccessEntry.friendshipId = friendInfo.friendshipId;
       } else {
-        console.warn(`⚠️ friendshipId not available for ${friendInfo.displayName} - location sharing may not work`);
+  console.warn(`⚠️ friendshipId not available for @${friendInfo.handle} - location sharing may not work`);
       }
 
       // Save to database via dataManager
@@ -1545,8 +1606,8 @@ export class FriendsManager {
 
     try {
       console.log(
-        "📋 Getting Quick Access friends for:",
-        userProfile.profile.displayName
+        "📋 Getting Quick Access friends for handle:",
+        userProfile.profile.handle
       );
 
       // Get Quick Access data from database
@@ -1605,8 +1666,8 @@ export class FriendsManager {
 
     try {
       console.log(
-        "🔐 Getting Quick Access friends with privacy status for:",
-        userProfile.profile.displayName
+        "🔐 Getting Quick Access friends with privacy status for handle:",
+        userProfile.profile.handle
       );
 
       // Get existing Quick Access friends (unchanged method)
@@ -1626,7 +1687,7 @@ export class FriendsManager {
             // 🌍 Campus Presence: Ensure friendshipId is available for bilateral location sharing
             let friendshipId = friend.friendshipId;
             if (!friendshipId) {
-              console.warn(`⚠️ Missing friendshipId for ${friend.displayName}, looking up...`);
+              console.warn(`⚠️ Missing friendshipId for @${friend.handle}, looking up...`);
               // Look up friendship document ID by friend IDs
               const friendships = await dataManager.getUserFriendships(currentUser.uid);
               const friendship = friendships.find(f => 
@@ -1635,11 +1696,11 @@ export class FriendsManager {
               );
               friendshipId = friendship?.id;
               if (friendshipId) {
-                console.log(`✅ Found friendshipId for ${friend.displayName}: ${friendshipId}`);
+                console.log(`✅ Found friendshipId for @${friend.handle}: ${friendshipId}`);
                 // Cache the friendshipId to prevent future lookups
                 friend.friendshipId = friendshipId;
               } else {
-                console.error(`❌ Could not find friendship document for ${friend.displayName}`);
+                console.error(`❌ Could not find friendship document for @${friend.handle}`);
               }
             }
 
@@ -1663,8 +1724,8 @@ export class FriendsManager {
                   ? "Avatar disabled - schedule is private"
                   : "Click to view schedule",
                 description: isRestricted
-                  ? `${friend.displayName} has hidden their schedule from you`
-                  : `${friend.displayName}'s schedule is visible - quick access enabled`,
+                  ? `@${friend.handle} has hidden their schedule from you`
+                  : `@${friend.handle}'s schedule is visible - quick access enabled`,
               },
             };
           } catch (error) {
@@ -1680,7 +1741,7 @@ export class FriendsManager {
               privacyStatus: {
                 avatarEnabled: false,
                 tooltip: "Avatar disabled - privacy check failed",
-                description: `Privacy status unavailable for ${friend.displayName}`,
+                description: `Privacy status unavailable for @${friend.handle}`,
               },
             };
           }
@@ -2011,7 +2072,7 @@ export class FriendsManager {
         type: "location_share_request",
         fromUserId: currentUser.uid,
         fromUserInfo: {
-          displayName: userProfile.profile.displayName,
+          handle: userProfile.profile.handle,
           avatarConfig: userProfile.avatarConfig,
           major: userProfile.profile.major
         },
@@ -2031,7 +2092,7 @@ export class FriendsManager {
       console.log("✅ Location sharing request sent successfully!");
       return {
         success: true,
-        message: `Location sharing request sent to ${userProfile.profile.displayName}!`,
+  message: `Location sharing request sent to @${userProfile.profile.handle}!`,
         friendId: friendId,
         friendshipId: friendshipId,
         requestedAt: new Date()
@@ -2251,16 +2312,16 @@ export class FriendsManager {
       const user1Id = friendshipData.user1Id;
       const user2Id = friendshipData.user2Id;
       
-      const status = {
+  const status = {
         friendshipId: friendshipId,
         users: {
           [user1Id]: {
             sharingEnabled: locationVisibility[user1Id] || false,
-            displayName: friendshipData.user1Info?.displayName || "User 1"
+    handle: friendshipData.user1Info?.handle || "user1"
           },
           [user2Id]: {
             sharingEnabled: locationVisibility[user2Id] || false,
-            displayName: friendshipData.user2Info?.displayName || "User 2"
+    handle: friendshipData.user2Info?.handle || "user2"
           }
         },
         mutualSharing: (locationVisibility[user1Id] || false) && (locationVisibility[user2Id] || false),

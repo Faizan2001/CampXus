@@ -548,7 +548,7 @@ class AuthManager {
         studentId: email.split("@")[0], // Extract from email
       },
 
-      // Personal Profile (grouped - includes email and displayName)
+  // Personal Profile (grouped - displayName deprecated, using handle)
       profile: {
         firstName: "",
         lastName: "",
@@ -556,7 +556,7 @@ class AuthManager {
         major: "",
         startingYear: "",
         email: email,
-        displayName: email.split("@")[0], // Default display name
+        handle: null, // Will be claimed post-signup
       },
 
       // Avatar Configuration (grouped - will be populated during profile setup)

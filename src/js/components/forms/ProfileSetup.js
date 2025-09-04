@@ -25,8 +25,7 @@
  * =============================================================================
  */
 
-// Import Firebase functions we need - using import map from index.html
-import { serverTimestamp } from "firebase/firestore";
+// Import Firebase functions we need - consolidated below (removed duplicate serverTimestamp import)
 
 // Import avatar management system
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
@@ -38,6 +37,8 @@ import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
 import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
+import { normalizeHandle, validateHandle, isReservedHandle, canChangeHandle, formatCooldown } from "../../utils/handle/handleUtils.js";
+import { getFirestore, doc, runTransaction, serverTimestamp, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js"; // 🎯 NEW: Schedule import functionality
 
 /**
@@ -76,6 +77,13 @@ class ProfileSetup {
     if (!navigator.onLine) {
       this.showOfflineBanner(true);
     }
+
+    // Ensure handle field is present even if no profile data yet (first load / reload)
+    setTimeout(() => {
+      if (typeof this.ensureHandleField === 'function') {
+        this.ensureHandleField();
+      }
+    }, 0);
   }
 
   /**
@@ -97,24 +105,20 @@ class ProfileSetup {
     this.dataLoadInProgress = true;
 
     try {
-      // Show loading state
-      this.showLoadingState("Loading your profile...");
+  // (Removed custom overlay) Intentionally not showing separate loader; router handles page-level loads.
 
       // Use dataManager instead of direct Firestore calls
       const data = await dataManager.getUserProfile(userId);
 
       if (data) {
-        this.existingProfileData = data;
-        this.hideLoadingState();
+  this.existingProfileData = data;
         return data;
       } else {
-        this.existingProfileData = null;
-        this.hideLoadingState();
+  this.existingProfileData = null;
         return null;
       }
     } catch (error) {
       console.error("❌ Error loading profile data:", error);
-      this.hideLoadingState();
       this.showError("Failed to load profile data. Please try again.");
       return null;
     } finally {
@@ -163,6 +167,111 @@ class ProfileSetup {
       // Populate basic info from organized structure
       if (firstName) firstName.value = getProfileValue("firstName");
       if (lastName) lastName.value = getProfileValue("lastName");
+      // Inject handle field if not present
+      const nameRow = firstName?.closest('.form-row');
+      if (nameRow && !document.getElementById('setup-handle')) {
+        const handleRow = document.createElement('div');
+        handleRow.className = 'form-group';
+        handleRow.innerHTML = `
+          <label for="setup-handle">Handle <span class="optional-note">(public @name)</span></label>
+          <div class="handle-status-wrapper" style="position:relative;">
+            <input type="text" id="setup-handle" maxlength="20" placeholder="choose a handle" autocomplete="off" class="form-input" />
+            <span id="setup-handle-icon" aria-hidden="true" class="handle-status-icon"></span>
+          </div>
+          <div id="setup-handle-feedback" class="field-hint">3–20 chars: letters, numbers, underscore. Must start with a letter.</div>`;
+        nameRow.insertAdjacentElement('afterend', handleRow);
+
+        const handleInput = handleRow.querySelector('#setup-handle');
+        const feedbackEl = handleRow.querySelector('#setup-handle-feedback');
+        let debounceTimer;
+        const iconEl = handleRow.querySelector('#setup-handle-icon');
+        const setIconState = (state) => {
+          if (!iconEl) return;
+          // Reset
+            iconEl.removeAttribute('data-state');
+            iconEl.className = 'handle-status-icon';
+            iconEl.textContent = '';
+            iconEl.innerHTML = '';
+          if (!state) return; // hidden
+          if (state === 'checking') {
+            iconEl.setAttribute('data-state','checking');
+            iconEl.classList.add('visible','checking');
+            iconEl.innerHTML = '<span></span><span></span><span></span>';
+          } else if (state === 'success') {
+            iconEl.setAttribute('data-state','success');
+            iconEl.classList.add('visible','success');
+            iconEl.textContent='✓';
+          } else if (state === 'error') {
+            iconEl.setAttribute('data-state','error');
+            iconEl.classList.add('visible','error');
+            iconEl.textContent='✕';
+          }
+        };
+        if (!document.getElementById('handle-style-injections')) {
+          const styleEl = document.createElement('style');
+          styleEl.id = 'handle-style-injections';
+          styleEl.textContent = `
+            .handle-status-wrapper { width:100%; }
+            .handle-status-wrapper .form-input { width:100%; padding-right:48px; }
+            .handle-status-icon { position:absolute; right:14px; top:50%; transform:translateY(-50%) scale(.85); opacity:0; pointer-events:none; font-size:16px; font-weight:600; transition:opacity .25s, transform .25s; display:inline-flex; align-items:center; justify-content:center; }
+            .handle-status-icon.visible { opacity:1; transform:translateY(-50%) scale(1); }
+            .handle-status-icon.success { color:#1b9e59; animation:icon-pop .3s ease; }
+            .handle-status-icon.error { color:#c53030; animation:icon-shake .4s ease; }
+            .handle-status-icon.checking { gap:4px; }
+            .handle-status-icon.checking span { width:6px; height:6px; background:var(--text-tertiary); border-radius:50%; animation:dot-bounce .9s infinite ease-in-out; }
+            .handle-status-icon.checking span:nth-child(2){ animation-delay:.15s; }
+            .handle-status-icon.checking span:nth-child(3){ animation-delay:.3s; }
+            @keyframes dot-bounce { 0%,80%,100% { transform:translateY(0); opacity:.45;} 40% { transform:translateY(-6px); opacity:1;} }
+            @keyframes icon-pop { 0% { transform:translateY(-50%) scale(.4); opacity:0;} 60% { transform:translateY(-50%) scale(1.15); opacity:1;} 100% { transform:translateY(-50%) scale(1); } }
+            @keyframes icon-shake { 0%,100% { transform:translateY(-50%) translateX(0); } 25% { transform:translateY(-50%) translateX(-3px);} 50% { transform:translateY(-50%) translateX(3px);} 75% { transform:translateY(-50%) translateX(-2px);} }
+            #setup-handle.form-input { transition:border-color .25s, box-shadow .25s; }
+            #setup-handle.form-input.invalid { border-color:#c53030 !important; box-shadow:0 0 0 1px #c53030; }
+            #setup-handle.form-input.valid { border-color:#1b9e59 !important; box-shadow:0 0 0 1px #1b9e59; }
+          `;
+          document.head.appendChild(styleEl);
+        }
+  const prefilledExistingHandle = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle || null;
+        handleInput.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          const raw = handleInput.value.trim();
+          if (!raw) { feedbackEl.textContent = 'Handle required before finishing setup.'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState(); this.validateCurrentStep(); return; }
+          const v = validateHandle(raw);
+          if (!v.valid) { feedbackEl.textContent = `Invalid: ${v.reason.replace(/_/g,' ')}`; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
+          if (isReservedHandle(v.normalized)) { feedbackEl.textContent = 'Reserved handle'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
+          // If user re-enters their current handle, treat as valid without availability lookup
+          if (prefilledExistingHandle && v.normalized === prefilledExistingHandle) {
+            feedbackEl.textContent = 'Current handle';
+            feedbackEl.className = 'field-hint success';
+            handleInput.classList.remove('invalid');
+            handleInput.classList.add('valid');
+            setIconState('success');
+            this.validateCurrentStep();
+            return;
+          }
+          feedbackEl.textContent = 'Checking availability…'; feedbackEl.className='field-hint'; setIconState('checking');
+          debounceTimer = setTimeout(async () => {
+            try {
+              const db = getFirestore();
+              const snap = await getDoc(doc(db,'handles', v.normalized));
+              if (snap.exists()) { feedbackEl.textContent = 'Already taken'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); }
+              else { feedbackEl.textContent = 'Available ✔'; feedbackEl.className='field-hint success'; handleInput.classList.remove('invalid'); handleInput.classList.add('valid'); setIconState('success'); }
+              this.validateCurrentStep();
+            } catch (e) { feedbackEl.textContent = 'Availability error'; feedbackEl.className='field-hint error'; handleInput.classList.add('invalid'); setIconState('error'); }
+          }, 400);
+        });
+        // Prefill existing handle (supports legacy root-level or nested profile.handle)
+        const prefilledExistingHandle2 = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle;
+        if (prefilledExistingHandle2) {
+          handleInput.value = prefilledExistingHandle2;
+          // Mark as valid without triggering availability check (already owned by user)
+          feedbackEl.textContent = 'Current handle';
+          feedbackEl.className = 'field-hint success';
+          handleInput.classList.remove('invalid');
+          handleInput.classList.add('valid');
+          setIconState('success');
+          this.validateCurrentStep();
+        }
+      }
       if (email) email.value = getProfileValue("email") || "";
 
       // 🆔 Always populate student ID from organized structure or email fallback
@@ -222,275 +331,113 @@ class ProfileSetup {
   }
 
   /**
+   * Ensure the handle input exists (id=setup-handle). Safe to call multiple times.
+   * This is used on initial page load when there is no existing profile document yet
+   * so populateFormFields may not be invoked.
+   */
+  ensureHandleField() {
+    try {
+      if (document.getElementById('setup-handle')) return; // already present
+      const firstName = document.getElementById('setup-first-name');
+      if (!firstName) { setTimeout(() => this.ensureHandleField(), 150); return; }
+      const nameRow = firstName.closest('.form-row');
+      if (!nameRow) return;
+      // Reuse insertion logic (single form-group variant)
+      const handleGroup = document.createElement('div');
+      handleGroup.className = 'form-group';
+      handleGroup.innerHTML = `
+        <label for="setup-handle">Handle <span class="optional-note">(public @name)</span></label>
+        <div class="handle-status-wrapper" style="position:relative;">
+          <input type="text" id="setup-handle" maxlength="20" placeholder="choose a handle" autocomplete="off" class="form-input" />
+          <span id="setup-handle-icon" aria-hidden="true" class="handle-status-icon"></span>
+        </div>
+        <div id="setup-handle-feedback" class="field-hint">3–20 chars: letters, numbers, underscore. Must start with a letter.</div>`;
+      nameRow.insertAdjacentElement('afterend', handleGroup);
+
+      const handleInput = handleGroup.querySelector('#setup-handle');
+      const feedbackEl = handleGroup.querySelector('#setup-handle-feedback');
+      let debounceTimer; const iconEl = handleGroup.querySelector('#setup-handle-icon');
+      const setIconState = (state) => {
+        if (!iconEl) return;
+        iconEl.removeAttribute('data-state'); iconEl.className='handle-status-icon'; iconEl.textContent=''; iconEl.innerHTML='';
+        if (!state) return;
+        if (state==='checking'){ iconEl.setAttribute('data-state','checking'); iconEl.classList.add('visible','checking'); iconEl.innerHTML='<span></span><span></span><span></span>'; }
+        else if (state==='success'){ iconEl.setAttribute('data-state','success'); iconEl.classList.add('visible','success'); iconEl.textContent='✓'; }
+        else if (state==='error'){ iconEl.setAttribute('data-state','error'); iconEl.classList.add('visible','error'); iconEl.textContent='✕'; }
+      };
+      if (!document.getElementById('handle-style-injections')) {
+        const styleEl = document.createElement('style');
+        styleEl.id='handle-style-injections';
+        styleEl.textContent = `
+          .handle-status-wrapper { width:100%; }
+          .handle-status-wrapper .form-input { width:100%; padding-right:48px; }
+          .handle-status-icon { position:absolute; right:14px; top:50%; transform:translateY(-50%) scale(.85); opacity:0; pointer-events:none; font-size:16px; font-weight:600; transition:opacity .25s, transform .25s; display:inline-flex; align-items:center; justify-content:center; }
+          .handle-status-icon.visible { opacity:1; transform:translateY(-50%) scale(1); }
+          .handle-status-icon.success { color:#1b9e59; animation:icon-pop .3s ease; }
+          .handle-status-icon.error { color:#c53030; animation:icon-shake .4s ease; }
+          .handle-status-icon.checking { gap:4px; }
+          .handle-status-icon.checking span { width:6px; height:6px; background:var(--text-tertiary); border-radius:50%; animation:dot-bounce .9s infinite ease-in-out; }
+          .handle-status-icon.checking span:nth-child(2){ animation-delay:.15s; }
+          .handle-status-icon.checking span:nth-child(3){ animation-delay:.3s; }
+          @keyframes dot-bounce { 0%,80%,100% { transform:translateY(0); opacity:.45;} 40% { transform:translateY(-6px); opacity:1;} }
+          @keyframes icon-pop { 0% { transform:translateY(-50%) scale(.4); opacity:0;} 60% { transform:translateY(-50%) scale(1.15); opacity:1;} 100% { transform:translateY(-50%) scale(1); } }
+          @keyframes icon-shake { 0%,100% { transform:translateY(-50%) translateX(0); } 25% { transform:translateY(-50%) translateX(-3px);} 50% { transform:translateY(-50%) translateX(3px);} 75% { transform:translateY(-50%) translateX(-2px);} }
+        `;
+        document.head.appendChild(styleEl);
+      }
+  const prefilledExistingHandle3 = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle || null;
+      handleInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const raw = handleInput.value.trim();
+        if (!raw) { feedbackEl.textContent='Handle required before finishing setup.'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState(); this.validateCurrentStep(); return; }
+        const v = validateHandle(raw);
+        if (!v.valid) { feedbackEl.textContent=`Invalid: ${v.reason.replace(/_/g,' ')}`; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
+        if (isReservedHandle(v.normalized)) { feedbackEl.textContent='Reserved handle'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
+  if (prefilledExistingHandle3 && v.normalized === prefilledExistingHandle3) {
+          feedbackEl.textContent='Current handle';
+          feedbackEl.className='field-hint success';
+          handleInput.classList.remove('invalid');
+          handleInput.classList.add('valid');
+          setIconState('success');
+          this.validateCurrentStep();
+          return;
+        }
+        feedbackEl.textContent='Checking availability…'; feedbackEl.className='field-hint'; setIconState('checking');
+        debounceTimer = setTimeout(async () => {
+          try {
+            const db = getFirestore();
+            const snap = await getDoc(doc(db,'handles', v.normalized));
+            if (snap.exists()) { feedbackEl.textContent='Already taken'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); }
+            else { feedbackEl.textContent='Available ✔'; feedbackEl.className='field-hint success'; handleInput.classList.remove('invalid'); handleInput.classList.add('valid'); setIconState('success'); }
+            this.validateCurrentStep();
+          } catch (e) { feedbackEl.textContent='Availability error'; feedbackEl.className='field-hint error'; handleInput.classList.add('invalid'); setIconState('error'); }
+        }, 400);
+      });
+      // Prefill if existing profile already has handle
+      const existingHandle = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle;
+      if (existingHandle) {
+        handleInput.value = existingHandle;
+        feedbackEl.textContent = 'Current handle';
+        feedbackEl.className = 'field-hint success';
+        handleInput.classList.add('valid');
+        setIconState('success');
+        this.validateCurrentStep();
+      }
+    } catch (e) {
+      console.warn('ensureHandleField failed:', e);
+    }
+  }
+
+  /**
    * Show loading state with custom message using SPA router's loading animation
    * @param {string} message - Loading message to display
    */
-  showLoadingState(message = "Loading...") {
-    // Create SPA-style loading overlay if it doesn't exist
-    let loadingOverlay = document.getElementById("profile-spa-loading");
-
-    if (!loadingOverlay) {
-      loadingOverlay = document.createElement("div");
-      loadingOverlay.id = "profile-spa-loading";
-      loadingOverlay.className = "spa-loading";
-      loadingOverlay.innerHTML = `
-        <div class="loading-container">
-          <div class="loading-animation">
-            <div class="loading-dots">
-              <div class="dot"></div>
-              <div class="dot"></div>
-              <div class="dot"></div>
-            </div>
-            <div class="loading-pulse"></div>
-          </div>
-          <div class="loading-text">
-            <span class="loading-message">${message}</span>
-            <span class="loading-ellipsis">...</span>
-          </div>
-        </div>
-      `;
-
-      // Apply SPA router loading styles
-      loadingOverlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        display: none;
-        z-index: 9999;
-        opacity: 0;
-        transition: opacity 0.3s ease-in-out;
-      `;
-
-      // Add SPA loading styles if not already present
-      if (!document.getElementById("profile-spa-loading-styles")) {
-        const loadingStyles = document.createElement("style");
-        loadingStyles.id = "profile-spa-loading-styles";
-        loadingStyles.textContent = `
-          .spa-loading.show {
-            opacity: 1 !important;
-          }
-
-          .spa-loading .loading-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 2.5rem 3rem;
-            border-radius: 20px;
-            box-shadow: 
-              0 20px 40px rgba(0, 0, 0, 0.1),
-              0 8px 20px rgba(0, 0, 0, 0.05),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            min-width: 200px;
-            animation: slideUpIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-          }
-
-          @media (prefers-color-scheme: dark) {
-            .spa-loading .loading-container {
-              background: rgba(40, 44, 52, 0.95);
-              border: 1px solid rgba(255, 255, 255, 0.1);
-              box-shadow: 
-                0 20px 40px rgba(0, 0, 0, 0.3),
-                0 8px 20px rgba(0, 0, 0, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            }
-          }
-
-          .spa-loading .loading-animation {
-            position: relative;
-            margin-bottom: 1.5rem;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .spa-loading .loading-dots {
-            display: flex;
-            gap: 8px;
-            position: relative;
-            z-index: 2;
-          }
-
-          .spa-loading .loading-dots .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            animation: dotBounce 1.4s infinite ease-in-out both;
-          }
-
-          .spa-loading .loading-dots .dot:nth-child(1) {
-            animation-delay: -0.32s;
-          }
-
-          .spa-loading .loading-dots .dot:nth-child(2) {
-            animation-delay: -0.16s;
-          }
-
-          .spa-loading .loading-dots .dot:nth-child(3) {
-            animation-delay: 0s;
-          }
-
-          .spa-loading .loading-pulse {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
-            transform: translate(-50%, -50%);
-            animation: pulse 2s infinite ease-in-out;
-          }
-
-          .spa-loading .loading-text {
-            color: #4a5568;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-weight: 500;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-          }
-
-          @media (prefers-color-scheme: dark) {
-            .spa-loading .loading-text {
-              color: #e2e8f0;
-            }
-          }
-
-          .spa-loading .loading-ellipsis {
-            animation: ellipsis 1.5s infinite ease-in-out;
-            display: inline-block;
-            width: 20px;
-            text-align: left;
-          }
-
-          @keyframes dotBounce {
-            0%, 80%, 100% {
-              transform: scale(0.8) translateY(0);
-              opacity: 0.7;
-            }
-            40% {
-              transform: scale(1.2) translateY(-10px);
-              opacity: 1;
-            }
-          }
-
-          @keyframes pulse {
-            0%, 100% {
-              transform: translate(-50%, -50%) scale(1);
-              opacity: 0.6;
-            }
-            50% {
-              transform: translate(-50%, -50%) scale(1.5);
-              opacity: 0.2;
-            }
-          }
-
-          @keyframes ellipsis {
-            0% { content: ''; }
-            33% { content: '.'; }
-            66% { content: '..'; }
-            100% { content: '...'; }
-          }
-
-          @keyframes slideUpIn {
-            0% {
-              transform: translate(-50%, -40%);
-              opacity: 0;
-              filter: blur(10px);
-            }
-            100% {
-              transform: translate(-50%, -50%);
-              opacity: 1;
-              filter: blur(0);
-            }
-          }
-
-          @media (max-width: 480px) {
-            .spa-loading .loading-container {
-              padding: 2rem;
-              margin: 0 1rem;
-              min-width: auto;
-              max-width: 280px;
-            }
-            
-            .spa-loading .loading-dots .dot {
-              width: 10px;
-              height: 10px;
-            }
-            
-            .spa-loading .loading-text {
-              font-size: 14px;
-            }
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .spa-loading .loading-container {
-              animation: none;
-            }
-            
-            .spa-loading .loading-dots .dot {
-              animation: dotBounceReduced 2s infinite ease-in-out both;
-            }
-            
-            .spa-loading .loading-pulse {
-              animation: none;
-              opacity: 0.3;
-            }
-            
-            @keyframes dotBounceReduced {
-              0%, 100% { opacity: 0.6; }
-              50% { opacity: 1; }
-            }
-          }
-        `;
-        document.head.appendChild(loadingStyles);
-      }
-
-      document.body.appendChild(loadingOverlay);
-    } else {
-      // Update message
-      const messageEl = loadingOverlay.querySelector(".loading-message");
-      if (messageEl) messageEl.textContent = message;
-    }
-
-    // Show the overlay with SPA router's smooth animation
-    loadingOverlay.style.display = "block";
-    // Use requestAnimationFrame for smooth animation like SPA router
-    requestAnimationFrame(() => {
-      loadingOverlay.classList.add("show");
-    });
-  }
+  showLoadingState() { /* removed: rely solely on router loader */ }
 
   /**
    * Hide loading state using SPA router's smooth animation
    */
-  hideLoadingState() {
-    const loadingOverlay = document.getElementById("profile-spa-loading");
-    if (loadingOverlay) {
-      // Use SPA router's smooth hide animation
-      loadingOverlay.classList.remove("show");
-      // Wait for fade out animation before hiding (match SPA router timing)
-      setTimeout(() => {
-        if (loadingOverlay) {
-          loadingOverlay.style.display = "none";
-        }
-      }, 300); // Match the CSS transition duration
-    }
-  }
+  hideLoadingState() { /* no-op */ }
 
   /**
    * Show error message to user
@@ -523,6 +470,26 @@ class ProfileSetup {
    */
   navigateToHome() {
     navigateTo("home");
+  }
+
+  /**
+   * Disable step animations before leaving the profile page to prevent the
+   * "pulled from both sides" visual when router replaces the DOM.
+   */
+  static disableExitAnimations() {
+    try {
+      const card = document.querySelector('.profile-setup-card');
+      if (card) {
+        card.style.animation = 'none';
+        card.style.transition = 'none';
+      }
+      document.querySelectorAll('.setup-step').forEach(el => {
+        el.style.animation = 'none';
+        el.style.transition = 'none';
+      });
+    } catch (e) {
+      console.warn('Failed to disable profile exit animations', e);
+    }
   }
 
   /**
@@ -931,8 +898,19 @@ class ProfileSetup {
       });
 
       // All validations must pass
+      let handleValid = false;
+      const handleInput = document.getElementById('setup-handle');
+      const handleFeedback = document.getElementById('setup-handle-feedback');
+      if (handleInput) {
+        const raw = handleInput.value.trim();
+        if (raw) {
+          const v = validateHandle(raw);
+          const taken = handleFeedback?.classList.contains('error') && /taken/i.test(handleFeedback.textContent || '');
+          handleValid = v.valid && !taken && !isReservedHandle(v.normalized) && handleFeedback?.classList.contains('success');
+        }
+      }
       const isStepValid =
-        hasRequiredFields && hasValidEmail && hasValidStartingYear;
+        hasRequiredFields && hasValidEmail && hasValidStartingYear && handleValid;
 
       // Always keep "Next Step →" text, just enable/disable button
       nextBtn.textContent = "Next Step →";
@@ -1399,6 +1377,19 @@ class ProfileSetup {
    */
   async saveProfile() {
     try {
+      // Collect handle from field
+      const handleInput = document.getElementById('setup-handle');
+      let claimedHandle = null;
+      if (handleInput) {
+        const raw = handleInput.value.trim();
+        const v = validateHandle(raw);
+        if (!v.valid) throw new Error('Invalid handle cannot be saved');
+        if (isReservedHandle(v.normalized)) throw new Error('Reserved handle');
+        claimedHandle = v.normalized;
+      } else {
+        throw new Error('Handle input missing');
+      }
+
       // 🎯 Create clean profile data with only essential fields (no schedule data)
       const cleanProfileData = {
         firstName: this.profileData.firstName,
@@ -1408,10 +1399,7 @@ class ProfileSetup {
         startingYear: this.profileData.startingYear,
         major: this.profileData.major,
         bio: this.profileData.bio || "",
-        displayName:
-          this.profileData.firstName ||
-          this.profileData.email?.split("@")[0] ||
-          "User",
+        handle: claimedHandle,
       };
 
       // 🎯 FIXED: Only include clean profile data to avoid Firestore nested arrays error
@@ -1436,11 +1424,69 @@ class ProfileSetup {
         profileData: this.profileData,
       });
 
-      // Save profile to Firestore (without schedule data)
-      await dataManager.saveUserProfile(
-        this.currentUser.uid,
-        profileDataForFirestore
-      );
+      // Reserve handle + save profile transactionally with cooldown + old handle release
+      const db = getFirestore();
+      const userId = this.currentUser.uid;
+      const desiredHandleRef = doc(db,'handles', cleanProfileData.handle);
+      const userRef = doc(db,'users', userId);
+      await runTransaction(db, async (tx) => {
+        const userSnap = await tx.get(userRef);
+        const isNewUser = !userSnap.exists();
+        const userData = userSnap.data() || {};
+        const previousHandle = userData?.profile?.handle;
+        const lastHandleChangeAt = userData?.systemInfo?.lastHandleChangeAt;
+
+        // If changing handle (not first claim), enforce cooldown
+        if (previousHandle && previousHandle !== claimedHandle) {
+          const cooldown = canChangeHandle(lastHandleChangeAt);
+            if (!cooldown.allowed) {
+              throw new Error(`Handle recently changed. Try again in ${formatCooldown(cooldown.remainingMs)}.`);
+            }
+        }
+
+        // If the handle is different OR user is new, attempt to create new handle doc
+        if (!previousHandle || previousHandle !== claimedHandle) {
+          const desiredHandleSnap = await tx.get(desiredHandleRef);
+          if (desiredHandleSnap.exists() && desiredHandleSnap.data().userId !== userId) {
+            throw new Error('Handle taken while saving');
+          }
+          // Create the new handle doc (rules: create-only). Avoid re-setting if already ours.
+          if (!desiredHandleSnap.exists()) {
+            tx.set(desiredHandleRef, { userId, createdAt: serverTimestamp(), lastClaimedAt: serverTimestamp() }, { merge: false });
+          }
+          // Release old handle if changing (delete old doc). Product decision: immediate release.
+          if (previousHandle && previousHandle !== claimedHandle) {
+            const oldHandleRef = doc(db,'handles', previousHandle);
+            tx.delete(oldHandleRef);
+          }
+        }
+
+        // Build systemInfo update preserving existing createdAt
+        const systemInfoUpdates = {
+          profileSetupComplete: true,
+          status: userData?.systemInfo?.status || 'offline',
+          lastUpdated: serverTimestamp(),
+        };
+        if (isNewUser) {
+          systemInfoUpdates.createdAt = serverTimestamp();
+        } else if (userData?.systemInfo?.createdAt) {
+          // Preserve createdAt by copying existing value if rules permit serverTimestamp only on new
+          systemInfoUpdates.createdAt = userData.systemInfo.createdAt;
+        }
+        if (!previousHandle || previousHandle !== claimedHandle) {
+          systemInfoUpdates.lastHandleChangeAt = serverTimestamp();
+        }
+
+        // Prepare merged user doc update
+        const userUpdate = {
+          profile: cleanProfileData,
+          universityInfo: profileDataForFirestore.universityInfo,
+          avatarConfig: profileDataForFirestore.avatarConfig,
+          systemInfo: systemInfoUpdates,
+        };
+
+        tx.set(userRef, userUpdate, { merge: true });
+      });
 
       console.log("✅ Profile saved successfully to Firestore");
 
@@ -1458,7 +1504,7 @@ class ProfileSetup {
 
       // 🔄 NEW: Sync cached user data so friends see changes immediately
       const userInfoForCache = {
-        displayName: cleanProfileData.displayName,
+        handle: claimedHandle,
         major: cleanProfileData.major,
         university: this.currentUser.email.split("@")[1].split(".")[0],
         avatarConfig: this.avatarConfig,
@@ -2633,6 +2679,13 @@ document.addEventListener("spa:page:load", (event) => {
     console.log("🚀 Initializing Profile Setup page...");
     // The core initialization logic from the old DOMContentLoaded listener
     initializeProfileSetup();
+  }
+});
+
+// Disable animations right before leaving the profile page to avoid visual pull
+document.addEventListener('spa:page:unload', (event) => {
+  if (event.detail?.route === 'profile') {
+    ProfileSetup.disableExitAnimations();
   }
 });
 

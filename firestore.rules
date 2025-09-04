@@ -2,6 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Handles Mapping (/handles) ---
+    // Provides global uniqueness for user handles
+    // NOTE: Weekly cooldown & advanced validations enforced client-side for MVP.
+    match /handles/{handle} {
+      allow read: if true; // Public for lookup & future mentions
+      allow create: if request.auth != null &&
+        !exists(/databases/$(database)/documents/handles/$(handle)) &&
+        request.resource.data.userId == request.auth.uid &&
+        handle.matches('^[a-z0-9._]{2,32}$') &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.lastClaimedAt == request.time;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if false; // Enforce delete + recreate for changes
+    }
+
     // --- User Profiles (/users) ---
     match /users/{userId} {
       allow read: if request.auth != null && (

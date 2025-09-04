@@ -355,7 +355,7 @@ class FriendsUI {
         onNewFriendRequest: (request) => {
           console.log(
             "🔔 New friend request received in UI:",
-            request.displayName
+            request.handle
           );
 
           // Show prominent notification for new friend requests
@@ -489,7 +489,7 @@ class FriendsUI {
       this.outgoingRequestsMap.set(request.toUserId, {
         id: request.id,
         status: request.status,
-        displayName: request.displayName,
+  handle: request.handle,
         createdAt: request.createdAt,
         respondedAt: request.respondedAt,
       });
@@ -778,13 +778,13 @@ class FriendsUI {
         </div>
         <div class="student-info">
           <h4 class="student-name">${
-            student.profile?.displayName || "Unknown"
+            student.profile?.handle || student.profile?.handle_lower || "Unknown"
           }</h4>
           <p class="student-major">${
-            student.profile?.major || "Unknown Major"
+            student.profile?.major || student.profile?.major_lower || "Unknown Major"
           }</p>
           <p class="student-university">${
-            student.universityInfo?.universityName || "Unknown University"
+            student.universityInfo?.universityName || student.universityInfo?.university || "Unknown University"
           }</p>
         </div>
         <div class="student-actions">
@@ -986,7 +986,7 @@ class FriendsUI {
           ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
         </div>
         <div class="friend-info">
-          <h4 class="friend-name">${friend.displayName}</h4>
+          <h4 class="friend-name">${friend.handle || 'unknown'}</h4>
           <p class="friend-major">${friend.major}</p>
           ${
             friend.mutualFriends > 0
@@ -1088,7 +1088,7 @@ class FriendsUI {
           ${this.renderAvatar(request)}
         </div>
         <div class="request-info">
-          <h4 class="request-name">${request.displayName}</h4>
+          <h4 class="request-name">@${request.handle || 'unknown'}</h4>
           <p class="request-major">${request.major}</p>
           <p class="request-university">${request.university}</p>
           <p class="request-time">
@@ -1099,13 +1099,13 @@ class FriendsUI {
         <div class="request-actions">
           <button class="btn-accept-request" data-request-id="${
             request.id
-          }" data-request-name="${request.displayName}">
+          }" data-request-name="${request.handle}">
             <i class="fas fa-check"></i>
             Accept
           </button>
           <button class="btn-reject-request" data-request-id="${
             request.id
-          }" data-request-name="${request.displayName}">
+          }" data-request-name="${request.handle}">
             <i class="fas fa-times"></i>
             Decline
           </button>
@@ -1273,7 +1273,7 @@ class FriendsUI {
   async handleSendFriendRequest(studentId, studentData) {
     try {
       console.log(
-        `📩 Sending friend request to: ${studentData.profile?.displayName}`
+  `📩 Sending friend request to: @${studentData.profile?.handle}`
       );
 
       // Show loading state on button
@@ -1295,7 +1295,7 @@ class FriendsUI {
 
         // Show success notification
         notificationManager.showSystemNotification(
-          `Friend request sent to ${studentData.profile?.displayName}`,
+          `Friend request sent to @${studentData.profile?.handle}`,
           "success",
           { duration: 3000 }
         );
@@ -1364,8 +1364,8 @@ class FriendsUI {
       }
 
       const senderName =
-        requestData.displayName ||
-        requestData.fromUserInfo?.displayName ||
+  requestData.handle ||
+  requestData.fromUserInfo?.handle ||
         "Unknown User";
 
       console.log(`✅ Accepting friend request from: ${senderName}`);
@@ -1435,8 +1435,8 @@ class FriendsUI {
       }
 
       const senderName =
-        requestData.displayName ||
-        requestData.fromUserInfo?.displayName ||
+  requestData.handle ||
+  requestData.fromUserInfo?.handle ||
         "Unknown User";
 
       console.log(`❌ Rejecting friend request from: ${senderName}`);
@@ -1567,7 +1567,7 @@ class FriendsUI {
     // Show unfriend confirmation modal
     showModal({
       title: "Unfriend Confirmation",
-      content: `Are you sure you want to unfriend <strong>${friend.displayName}</strong>?<br><br>This action cannot be undone.`,
+  content: `Are you sure you want to unfriend <strong>@${friend.handle}</strong>?<br><br>This action cannot be undone.`,
       isHtmlContent: true,
       showConfirmationButtons: true,
       confirmText: "Unfriend",
@@ -1589,7 +1589,7 @@ class FriendsUI {
    */
   async performUnfriend(friend) {
     try {
-      console.log("💔 Performing unfriend operation for:", friend.displayName);
+  console.log("💔 Performing unfriend operation for handle:", friend.handle);
 
       // Show loading state
       this.showMessage("Unfriending...", "info");
@@ -1624,7 +1624,7 @@ class FriendsUI {
    */
   renderFriendRequestButton(student) {
     const studentId = student.id;
-    const studentName = student.profile?.displayName;
+  const studentName = student.profile?.handle;
 
     // Check if there's an outgoing request to this user
     const outgoingRequest = this.outgoingRequestsMap.get(studentId);
@@ -1688,11 +1688,11 @@ class FriendsUI {
           await menu.render(container);
 
           console.log(
-            `🔗 Rendered enhanced menu with location controls for ${friend.displayName}`
+            `🔗 Rendered enhanced menu with location controls for @${friend.handle}`
           );
         } catch (error) {
           console.error(
-            `❌ Failed to render enhanced menu for ${friend.displayName}:`,
+            `❌ Failed to render enhanced menu for @${friend.handle}:`,
             error
           );
           // Fallback: render without menu
@@ -1814,7 +1814,7 @@ class FriendsUI {
               if ((mutual === false || stillRed === true)) {
                 showModal({
                   title: 'Mutual Sharing Required',
-                  content: `You made your schedule visible, but ${friend.displayName} is still hidden. Both must share to enable mutual access.`,
+                  content: `You made your schedule visible, but @${friend.handle} is still hidden. Both must share to enable mutual access.`,
                   showConfirmationButtons: true,
                   confirmText: 'OK',
                   cancelText: ''
@@ -1826,13 +1826,13 @@ class FriendsUI {
           // Notify user about their action
           if (newVisible) {
             notificationManager.showSystemNotification(
-              `Your schedule is now visible to ${friend.displayName}`,
+              `Your schedule is now visible to @${friend.handle}`,
               'success',
               { duration: 2500 }
             );
           } else {
             notificationManager.showSystemNotification(
-              `You hid your schedule from ${friend.displayName}`,
+              `You hid your schedule from @${friend.handle}`,
               'info',
               { duration: 2500 }
             );
@@ -1888,7 +1888,7 @@ class FriendsUI {
             // First-time confirmation and request
             showModal({
               title: 'Send Location Share Request',
-              content: `Send location sharing request to ${friend.displayName}? They will be notified. You only need to do this once.`,
+              content: `Send location sharing request to @${friend.handle}? They will be notified. You only need to do this once.`,
               showConfirmationButtons: true,
               confirmText: 'Send Request',
               cancelText: 'Cancel',
@@ -1899,7 +1899,7 @@ class FriendsUI {
                     // Optimistic border for my setting
                     btn.classList.add('mine-visible');
                     btn.classList.remove('mine-hidden');
-                    notificationManager.showSystemNotification(`Request sent to ${friend.displayName}`,'success',{duration:2500});
+                    notificationManager.showSystemNotification(`Request sent to @${friend.handle}`,'success',{duration:2500});
                   } else {
                     notificationManager.showSystemNotification(result?.message||'Failed to send request','error',{duration:3500});
                   }
@@ -1923,7 +1923,7 @@ class FriendsUI {
             if (state.my === true && state.friend === false) {
               showModal({
                 title: 'Mutual Location Sharing Required',
-                content: `${friend.displayName} has hidden their location. Both must share to see each other.`,
+                content: `@${friend.handle} has hidden their location. Both must share to see each other.`,
                 showConfirmationButtons: true,
                 confirmText: 'OK',
                 cancelText: ''
@@ -1944,7 +1944,7 @@ class FriendsUI {
                 if (!isMutualNow) {
                   showModal({
                     title: 'Mutual Location Sharing Required',
-                    content: `You enabled location sharing, but ${friend.displayName} is still hidden. Both must share to see each other.`,
+                    content: `You enabled location sharing, but @${friend.handle} is still hidden. Both must share to see each other.`,
                     showConfirmationButtons: true,
                     confirmText: 'OK',
                     cancelText: ''
@@ -1974,8 +1974,8 @@ class FriendsUI {
           const friend = this.currentFriendsData.find((f) => f.id === friendId);
 
           if (friend && friendId) {
-            console.log(`👥 Friend avatar clicked: ${friend.displayName}`);
-            await this.handleViewFriendSchedule(friendId, friend.displayName);
+            console.log(`👥 Friend avatar clicked: @${friend.handle}`);
+            await this.handleViewFriendSchedule(friendId, friend.handle);
           } else {
             console.warn("⚠️ Friend data not found for avatar click");
           }
@@ -1996,7 +1996,7 @@ class FriendsUI {
     const { friendId, myScheduleVisible, privacyStatus, friend } = detail;
 
     console.log(
-      `🔒 Bilateral privacy changed for ${friend.displayName}:`,
+  `🔒 Bilateral privacy changed for @${friend.handle}:`,
       privacyStatus
     );
 
@@ -2030,7 +2030,7 @@ class FriendsUI {
 
     if (type === "friend" && friendId) {
       const friend = this.currentFriendsData.find((f) => f.id === friendId);
-      const friendName = friend?.displayName || "friend";
+  const friendName = friend?.handle || "friend";
 
       // Log the change
       console.log(
@@ -2184,12 +2184,12 @@ class FriendsUI {
       starButton.disabled = true;
       starButton.style.opacity = "0.6";
 
-      console.log(`⭐ Toggling Quick Access for: ${friend.displayName}`);
+  console.log(`⭐ Toggling Quick Access for: @${friend.handle}`);
 
       // Check current status and toggle
       const isCurrentlyStarred = await friendsManager.isInQuickAccess(friendId);
       const friendInfo = {
-        displayName: friend.displayName,
+  handle: friend.handle,
         major: friend.major,
         avatarConfig: friend.avatarConfig,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
@@ -2199,11 +2199,11 @@ class FriendsUI {
       if (isCurrentlyStarred) {
         // Remove from Quick Access
         result = await friendsManager.removeFromQuickAccess(friendId);
-        console.log(`❌ Removing ${friend.displayName} from Quick Access`);
+  console.log(`❌ Removing @${friend.handle} from Quick Access`);
       } else {
         // Add to Quick Access
         result = await friendsManager.addToQuickAccess(friendId, friendInfo);
-        console.log(`⭐ Adding ${friend.displayName} to Quick Access`);
+  console.log(`⭐ Adding @${friend.handle} to Quick Access`);
       }
 
       if (result.success) {
@@ -2212,16 +2212,16 @@ class FriendsUI {
 
         // Log success instead of showing notification
         const action = isCurrentlyStarred ? "removed from" : "added to";
-        console.log(`${friend.displayName} ${action} Quick Access!`);
+  console.log(`@${friend.handle} ${action} Quick Access!`);
 
         console.log(
-          `✅ Quick Access toggle successful for ${friend.displayName}`
+          `✅ Quick Access toggle successful for @${friend.handle}`
         );
       } else {
         // Log error instead of showing notification
         console.error(result.message || "Failed to update Quick Access");
         console.error(
-          `❌ Quick Access toggle failed for ${friend.displayName}:`,
+          `❌ Quick Access toggle failed for @${friend.handle}:`,
           result.message
         );
       }
@@ -2297,7 +2297,7 @@ class FriendsUI {
           // Update the star button state
           this.updateStarButtonState(starButton, isStarred);
           console.log(
-            `⭐ Updated star state for ${friend.displayName}: ${
+            `⭐ Updated star state for @${friend.handle}: ${
               isStarred ? "starred" : "not starred"
             }`
           );
@@ -2306,7 +2306,7 @@ class FriendsUI {
         }
       } catch (error) {
         console.error(
-          `❌ Error updating star state for ${friend.displayName}:`,
+          `❌ Error updating star state for @${friend.handle}:`,
           error
         );
       }
@@ -2433,7 +2433,7 @@ class FriendsUI {
             : "fas fa-calendar-times";
 
         const friend = this.currentFriendsData.find((f) => f.id === friendId);
-        const friendName = friend?.displayName || "Friend";
+  const friendName = friend?.handle || "Friend";
         const titleText = mutualAllowed
           ? `Mutual: You and ${friendName} can view each other's schedules`
           : `Restricted: Schedule sharing is not mutual`;
@@ -2515,7 +2515,7 @@ class FriendsUI {
 
       try {
         console.log(
-          `🔐 Updating enhanced bilateral privacy for friend: ${friendId} (${friend.displayName})`
+          `🔐 Updating enhanced bilateral privacy for friend: ${friendId} (@${friend.handle})`
         );
 
         // Get bilateral privacy status for this friendship
@@ -2543,7 +2543,7 @@ class FriendsUI {
             }
           }
           console.log(
-            `✅ Updated enhanced bilateral privacy for ${friend.displayName}`
+            `✅ Updated enhanced bilateral privacy for @${friend.handle}`
           );
         } else {
           console.warn(
@@ -2561,7 +2561,7 @@ class FriendsUI {
             defaultPrivacyStatus
           );
           console.log(
-            `🔧 Applied default privacy status for ${friend.displayName}`
+            `🔧 Applied default privacy status for @${friend.handle}`
           );
         }
 
@@ -2570,7 +2570,7 @@ class FriendsUI {
 
       } catch (error) {
         console.warn(
-          `⚠️ Failed to update enhanced bilateral privacy for ${friend.displayName}:`,
+          `⚠️ Failed to update enhanced bilateral privacy for @${friend.handle}:`,
           error
         );
 
@@ -2609,12 +2609,12 @@ class FriendsUI {
         return;
       }
 
-      console.log(`📍 Updating location sharing indicator for: ${friend.displayName}`);
+  console.log(`📍 Updating location sharing indicator for: @${friend.handle}`);
 
       // Get the friendship document to check bilateral location sharing
       const friendshipId = friend.friendshipId;
       if (!friendshipId) {
-        console.warn(`⚠️ No friendship ID found for ${friend.displayName}`);
+  console.warn(`⚠️ No friendship ID found for @${friend.handle}`);
         this.updateLocationSharingVisualIndicator(friendId, false, "Friendship not found");
         return;
       }
@@ -2633,7 +2633,7 @@ class FriendsUI {
       const friendSharing = locationVisibility[friendId] === true;
       const mutualLocationSharing = currentUserSharing && friendSharing;
 
-      console.log(`📍 Location sharing status for ${friend.displayName}:`, {
+  console.log(`📍 Location sharing status for @${friend.handle}:`, {
         currentUserSharing,
         friendSharing,
         mutualLocationSharing,
@@ -2660,10 +2660,10 @@ class FriendsUI {
               : 'Location sharing disabled';
       }
 
-      console.log(`✅ Updated location sharing indicator for ${friend.displayName}`);
+  console.log(`✅ Updated location sharing indicator for @${friend.handle}`);
 
     } catch (error) {
-      console.error(`❌ Error updating location sharing indicator for ${friend.displayName}:`, error);
+  console.error(`❌ Error updating location sharing indicator for @${friend.handle}:`, error);
       this.updateLocationSharingVisualIndicator(friendId, false, "Error checking location status");
     }
   }
@@ -2818,7 +2818,7 @@ class FriendsUI {
         const was = prev.get(friendId);
         if (was === false && now === true) {
           const friendObj = this.currentFriendsData.find((f) => f.id === friendId);
-          const friendName = friendObj?.displayName || 'friend';
+          const friendName = friendObj?.handle || 'friend';
           notificationManager.showSystemNotification(
             `Mutual schedule sharing enabled with ${friendName}`,
             'success',

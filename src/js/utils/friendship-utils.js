@@ -64,13 +64,14 @@ export function createEnhancedFriendshipDocument(
     mutualFriends: 0,
 
     // Cached user info (from existing structure)
+    // NOTE: displayName deprecated in favor of global unique handle
     user1Info: {
-      displayName: user1Data.profile.displayName,
+      handle: user1Data.profile.handle,
       major: user1Data.profile.major,
       avatarConfig: user1Data.avatarConfig,
     },
     user2Info: {
-      displayName: user2Data.profile.displayName,
+      handle: user2Data.profile.handle,
       major: user2Data.profile.major,
       avatarConfig: user2Data.avatarConfig,
     },

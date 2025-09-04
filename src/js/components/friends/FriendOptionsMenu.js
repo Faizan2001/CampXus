@@ -49,10 +49,9 @@ export class FriendOptionsMenu {
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleWindowResize = this.handleWindowResize.bind(this);
 
+    const friendLabel = friend.handle ? `@${friend.handle}` : (friend.name || 'Friend');
     console.log(
-      `🔗 FriendOptionsMenu created for ${
-        friend.displayName || friend.name
-      } using bilateral privacy`
+      `🔗 FriendOptionsMenu created for ${friendLabel} using bilateral privacy`
     );
   }
 
@@ -94,9 +93,7 @@ export class FriendOptionsMenu {
     container.innerHTML = `
       <button class="options-button" 
               type="button"
-              aria-label="More options for ${
-                this.friend.displayName || this.friend.name
-              }"
+              aria-label="More options for ${this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend')}"
               aria-expanded="false"
               aria-haspopup="true">
         <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
@@ -151,13 +148,15 @@ export class FriendOptionsMenu {
           this.friend.id
         );
 
+      const friendLabel = this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend');
       console.log(
-        `📊 Privacy status updated for ${this.friend.displayName}:`,
+        `📊 Privacy status updated for ${friendLabel}:`,
         this.currentPrivacyStatus
       );
     } catch (error) {
+      const friendLabel = this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend');
       console.warn(
-        `⚠️ Could not fetch privacy status for ${this.friend.displayName}:`,
+        `⚠️ Could not fetch privacy status for ${friendLabel}:`,
         error.message
       );
       // Fallback to default privacy state
@@ -165,8 +164,9 @@ export class FriendOptionsMenu {
         mySchedule: { visible: true, status: "visible" },
         friendSchedule: { visible: true, status: "visible" },
       };
+      const friendLabelDefault = this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend');
       console.log(
-        `📊 Using default privacy status for ${this.friend.displayName}`
+        `📊 Using default privacy status for ${friendLabelDefault}`
       );
     }
   }
@@ -290,8 +290,9 @@ export class FriendOptionsMenu {
           if (firstMenuItem) firstMenuItem.focus();
         }, 150);
 
+        const friendLabel = this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend');
         console.log(
-          `📂 Friend options dropdown opened for ${this.friend.displayName} at (${adjustedLeft}, ${top})`
+          `📂 Friend options dropdown opened for ${friendLabel} at (${adjustedLeft}, ${top})`
         );
       });
     });
@@ -424,7 +425,7 @@ export class FriendOptionsMenu {
    * 👋 Handle unfriend action
    */
   handleUnfriend() {
-    console.log(`👋 Unfriend requested for ${this.friend.displayName}`);
+  console.log(`👋 Unfriend requested for ${this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend')}`);
 
     // Emit event for parent components to handle
     this.element.dispatchEvent(
@@ -432,7 +433,7 @@ export class FriendOptionsMenu {
         bubbles: true,
         detail: {
           friendId: this.friend.id,
-          friendName: this.friend.displayName || this.friend.name,
+          friendName: this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend'),
           friend: this.friend,
         },
       })
@@ -514,7 +515,7 @@ export class FriendOptionsMenu {
     // Removed: location toggle controlled via friend card action icon
 
     console.log(
-      `🔄 Friend data updated for ${this.friend.displayName} with bilateral privacy and location sharing`
+      `🔄 Friend data updated for ${this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend')} with bilateral privacy and location sharing`
     );
   }
 
@@ -597,7 +598,7 @@ export class FriendOptionsMenu {
     this.isDropdownOpen = false;
 
     console.log(
-      `🧹 FriendOptionsMenu destroyed for ${this.friend.displayName}`
+      `🧹 FriendOptionsMenu destroyed for ${this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend')}`
     );
   }
 
@@ -632,7 +633,7 @@ export class FriendOptionsMenu {
 
     parentElement.appendChild(this.element);
     console.log(
-      `🎭 FriendOptionsMenu rendered for ${this.friend.displayName} with bilateral privacy`
+      `🎭 FriendOptionsMenu rendered for ${this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend')} with bilateral privacy`
     );
   }
 }

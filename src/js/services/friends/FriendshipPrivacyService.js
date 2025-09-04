@@ -256,8 +256,8 @@ class FriendshipPrivacyService {
         // Get friend name for notification
         friendName =
           friendshipDoc.user1Id === userUid
-            ? friendshipDoc.user2Info.displayName
-            : friendshipDoc.user1Info.displayName;
+            ? (friendshipDoc.user2Info.handle || 'friend')
+            : (friendshipDoc.user1Info.handle || 'friend');
 
         // Create atomic update - only modify the current user's visibility
         const now = Date.now();
@@ -386,8 +386,8 @@ class FriendshipPrivacyService {
             if (friendshipDoc) {
               const friendName =
                 friendshipDoc.user1Id === userUid
-                  ? friendshipDoc.user2Info.displayName
-                  : friendshipDoc.user1Info.displayName;
+                  ? (friendshipDoc.user2Info.handle || 'friend')
+                  : (friendshipDoc.user1Info.handle || 'friend');
 
               realTimeManager.emitSchedulePrivacyChange(
                 userUid, // User who made the change
@@ -724,7 +724,7 @@ class FriendshipPrivacyService {
 
         // User information
         userInfo: {
-          displayName: userInfo.displayName,
+          handle: userInfo.handle,
           major: userInfo.major,
           avatarConfig: userInfo.avatarConfig,
         },
@@ -734,8 +734,8 @@ class FriendshipPrivacyService {
           status: isQuickAccessRestricted ? "restricted" : "allowed",
           avatarEnabled: !isQuickAccessRestricted,
           description: isQuickAccessRestricted
-            ? `${userInfo.displayName} has hidden their schedule from you`
-            : `${userInfo.displayName}'s schedule is visible - quick access enabled`,
+            ? `${userInfo.handle || 'friend'} has hidden their schedule from you`
+            : `${userInfo.handle || 'friend'}'s schedule is visible - quick access enabled`,
           tooltip: isQuickAccessRestricted
             ? "Avatar disabled - schedule is private"
             : "Click to view schedule",
@@ -746,8 +746,8 @@ class FriendshipPrivacyService {
           visible: isScheduleVisible,
           status: isScheduleVisible ? "visible" : "hidden",
           description: isScheduleVisible
-            ? `${userInfo.displayName}'s schedule is visible to you`
-            : `${userInfo.displayName} has hidden their schedule from you`,
+            ? `${userInfo.handle || 'friend'}'s schedule is visible to you`
+            : `${userInfo.handle || 'friend'} has hidden their schedule from you`,
         },
 
         // Metadata
@@ -909,8 +909,8 @@ class FriendshipPrivacyService {
         // Get friend name for notification
         friendName =
           friendshipDoc.user1Id === userUid
-            ? friendshipDoc.user2Info.displayName
-            : friendshipDoc.user1Info.displayName;
+            ? (friendshipDoc.user2Info.handle || 'friend')
+            : (friendshipDoc.user1Info.handle || 'friend');
 
         // Create atomic update - only modify the current user's visibility
         const now = Date.now();
@@ -1043,8 +1043,8 @@ class FriendshipPrivacyService {
             if (friendshipDoc) {
               const friendName =
                 friendshipDoc.user1Id === userUid
-                  ? friendshipDoc.user2Info.displayName
-                  : friendshipDoc.user1Info.displayName;
+                  ? (friendshipDoc.user2Info.handle || 'friend')
+                  : (friendshipDoc.user1Info.handle || 'friend');
 
               realTimeManager.emitLocationPrivacyChange(
                 userUid, // User who made the change
@@ -1156,12 +1156,12 @@ class FriendshipPrivacyService {
 
         // User information
         userInfo: {
-          displayName: userInfo.displayName,
+          handle: userInfo.handle,
           major: userInfo.major,
           avatarConfig: userInfo.avatarConfig,
         },
         friendInfo: {
-          displayName: friendInfo.displayName,
+          handle: friendInfo.handle,
           major: friendInfo.major,
           avatarConfig: friendInfo.avatarConfig,
         },
@@ -1172,15 +1172,15 @@ class FriendshipPrivacyService {
             visible: userLocationVisible,
             status: userLocationVisible ? "visible" : "hidden",
             description: userLocationVisible
-              ? `Your location is visible to ${friendInfo.displayName}`
-              : `Your location is hidden from ${friendInfo.displayName}`,
+              ? `Your location is visible to ${friendInfo.handle || 'friend'}`
+              : `Your location is hidden from ${friendInfo.handle || 'friend'}`,
           },
           friendToUser: {
             visible: friendLocationVisible,
             status: friendLocationVisible ? "visible" : "hidden",
             description: friendLocationVisible
-              ? `${friendInfo.displayName}'s location is visible to you`
-              : `${friendInfo.displayName} has hidden their location from you`,
+              ? `${friendInfo.handle || 'friend'}'s location is visible to you`
+              : `${friendInfo.handle || 'friend'} has hidden their location from you`,
           },
           mutual: {
             enabled: userLocationVisible && friendLocationVisible,

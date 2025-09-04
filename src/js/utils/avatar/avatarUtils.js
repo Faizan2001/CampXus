@@ -21,7 +21,8 @@ import { avatarManager } from "./avatarManager.js";
  */
 export function renderUserAvatar(userData, useCache = true) {
   // Extract avatar config from different data structures
-  const avatarConfig = userData?.avatarConfig || 
+  const avatarConfig = userData?.avatarConfig ||
+                      userData?.profile?.avatarConfig || // Added support for nested profile avatar
                       userData?.fromUserInfo?.avatarConfig || 
                       userData?.user1Info?.avatarConfig || 
                       userData?.user2Info?.avatarConfig ||
@@ -65,7 +66,8 @@ export function getAvatarFallback() {
  * @returns {string|null} Avatar URL or null if no avatar available
  */
 export function getAvatarUrl(userData, useCache = true) {
-  const avatarConfig = userData?.avatarConfig || 
+  const avatarConfig = userData?.avatarConfig ||
+                      userData?.profile?.avatarConfig ||
                       userData?.fromUserInfo?.avatarConfig || 
                       userData?.user1Info?.avatarConfig || 
                       userData?.user2Info?.avatarConfig ||
@@ -89,7 +91,8 @@ export function getAvatarUrl(userData, useCache = true) {
  * @returns {boolean} True if user has valid avatar config
  */
 export function hasValidAvatar(userData) {
-  const avatarConfig = userData?.avatarConfig || 
+  const avatarConfig = userData?.avatarConfig ||
+                      userData?.profile?.avatarConfig ||
                       userData?.fromUserInfo?.avatarConfig || 
                       userData?.user1Info?.avatarConfig || 
                       userData?.user2Info?.avatarConfig ||

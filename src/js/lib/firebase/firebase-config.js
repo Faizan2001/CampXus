@@ -108,6 +108,28 @@ export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// TEMPORARY: Expose Firestore helpers globally for manual console testing of handle system
+// Remove after Phase 2 once dedicated admin tooling or test harness is in place.
+if (typeof window !== 'undefined') {
+  try {
+    import('firebase/firestore').then(mod => {
+      window.__fireTest = {
+        db,
+        auth, // expose auth for console-based experiments
+        doc: mod.doc,
+        setDoc: mod.setDoc,
+        getDoc: mod.getDoc,
+        serverTimestamp: mod.serverTimestamp,
+        runTransaction: mod.runTransaction,
+        collection: mod.collection
+      };
+      console.log('%cHandle Dev Test API available as window.__fireTest', 'color:#4ade80');
+    });
+  } catch (e) {
+    console.warn('Could not expose test API', e);
+  }
+}
+
 // 🔧 FIX: Removed duplicate auth listener from firebase-config.js
 // Security logging is now handled by auth-manager.js to prevent infinite loops
 // This avoids having multiple auth state listeners that can trigger each other

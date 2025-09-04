@@ -284,7 +284,7 @@ export class HorizontalFriendsBar {
 
         const mockProfile = {
           profile: {
-            displayName: this.quickAccessFriends[friendIndex].displayName,
+            handle: this.quickAccessFriends[friendIndex].handle,
             avatarConfig: {
               hair: "updated_" + Date.now(),
               eyes: "new_color",
@@ -317,7 +317,7 @@ export class HorizontalFriendsBar {
           console.log(`  Friend ${index}:`, {
             friendId: friend.friendId,
             userId: friend.userId,
-            displayName: friend.displayName,
+            handle: friend.handle,
             hasAvatarConfig: !!friend.avatarConfig,
             isRestricted: friend.isRestricted,
             privacyStatus: friend.privacyStatus,
@@ -342,10 +342,10 @@ export class HorizontalFriendsBar {
                   friend.userId,
                   `Friend ${index} userId`
                 ),
-                displayName: this._validateString(
-                  friend.displayName,
-                  `Friend ${index} displayName`,
-                  "Unknown User"
+                handle: this._validateString(
+                  friend.handle,
+                  `Friend ${index} handle`,
+                  "unknown_handle"
                 ),
                 avatarConfig: this._validateAvatarConfig(
                   friend.avatarConfig,
@@ -558,7 +558,7 @@ export class HorizontalFriendsBar {
 
       // Debug: Log presence data summary
       const presenceSummary = quickAccessWithLocation.map((friend) => ({
-        name: friend.displayName,
+  name: friend.handle,
         hasLocationSharing: friend.hasLocationSharing,
         hasLastActive: !!friend.lastActive,
         hasLocation: !!friend.lastKnownLocation,
@@ -676,7 +676,7 @@ export class HorizontalFriendsBar {
     const userAvatarHtml = `
       <div class="friend-avatar-item" 
            data-friend-id="user" 
-           data-friend-name="${this.currentUser.displayName || "You"}"
+           data-friend-name="${this.currentUser.handle || "You"}"
            role="button"
            tabindex="0"
            aria-label="View your schedule">
@@ -714,9 +714,10 @@ export class HorizontalFriendsBar {
       // Determine if avatar should be disabled based on privacy status
       const isDisabled = friend.isRestricted || false;
       const disabledClass = isDisabled ? "disabled" : "";
+  const friendLabel = friend.handle || "unknown";
       const ariaLabel = isDisabled
-        ? `${friend.displayName}'s schedule is private - access restricted`
-        : `View ${friend.displayName}'s schedule`;
+        ? `${friendLabel}'s schedule is private - access restricted`
+        : `View ${friendLabel}'s schedule`;
       const tooltip =
         friend.privacyStatus?.tooltip ||
         (isDisabled ? "Schedule access restricted" : "Click to view schedule");
@@ -730,7 +731,7 @@ export class HorizontalFriendsBar {
       );
 
       console.log(
-        `[HorizontalFriendsBar] Rendering friend ${friend.displayName} with presence:`,
+        `[HorizontalFriendsBar] Rendering friend ${friendLabel} with presence:`,
         {
           hasLastActive: !!friend.lastActive,
           hasLocation: !!friend.lastKnownLocation,
@@ -740,10 +741,10 @@ export class HorizontalFriendsBar {
         }
       );
 
-      const friendAvatarHtml = `
+  const friendAvatarHtml = `
         <div class="friend-avatar-item ${disabledClass}" 
              data-friend-id="${friend.friendId || friend.userId}" 
-             data-friend-name="${friend.displayName}"
+     data-friend-name="${friendLabel}"
              data-privacy-restricted="${isDisabled}"
              title="${tooltip}"
              role="button"
@@ -756,7 +757,7 @@ export class HorizontalFriendsBar {
               <div class="selection-ring"></div>
             </div>
           </div>
-          <div class="avatar-label">${friend.displayName}</div>
+      <div class="avatar-label">${friendLabel}</div>
         </div>
       `;
 
@@ -920,7 +921,7 @@ export class HorizontalFriendsBar {
       const scheduleData = currentUser.scheduleData;
       console.log(`🟢🔴 User's Schedule Data (Firestore Format):`, {
         userId: currentUser?.user?.uid || "unknown",
-        displayName: currentUser?.profile?.displayName || "You",
+        handle: currentUser?.profile?.handle || "you",
         timeSlots: scheduleData.timeSlots || [],
         schedule: scheduleData.schedule || [],
         slotInfo: scheduleData.slotInfo || [],
@@ -946,7 +947,7 @@ export class HorizontalFriendsBar {
             console.log(`🟢🔴 Friend's Schedule Data (Firestore Format):`, {
               userId: friend.userId || friendId,
               friendId: friend.friendId || friendId,
-              displayName: friend.displayName || friendName || "Unknown",
+              handle: friend.handle || friendName || "unknown",
               timeSlots: friendScheduleData.timeSlots || [],
               schedule: friendScheduleData.schedule || [],
               slotInfo: friendScheduleData.slotInfo || [],
@@ -994,8 +995,8 @@ export class HorizontalFriendsBar {
     this.emitScheduleChangeEvent(friendId, friendName);
 
     // Show feedback in console
-    const displayName = friendId === "user" ? "your" : `${friendName}'s`;
-    console.log(`Viewing ${displayName} schedule`);
+  const label = friendId === "user" ? "your" : `${friendName}'s`;
+  console.log(`Viewing ${label} schedule`);
   }
 
   /**
@@ -1535,7 +1536,7 @@ export class HorizontalFriendsBar {
         const friend = this.quickAccessFriends.find(
           (f) => (f.friendId || f.userId) === id
         );
-        return friend ? friend.displayName : id;
+  return friend ? (friend.handle || id) : id;
       }),
       totalSelected: this.selectedForCompare.size,
     });
@@ -1617,7 +1618,7 @@ export class HorizontalFriendsBar {
         const friend = this.quickAccessFriends.find(
           (f) => (f.friendId || f.userId) === id
         );
-        return friend ? friend.displayName : id;
+  return friend ? (friend.handle || id) : id;
       }),
       totalSelected: this.selectedForCompare.size,
     });
@@ -1812,7 +1813,7 @@ export class HorizontalFriendsBar {
       selectedUsersData.push({
         userId: "user",
         friendId: "user",
-        displayName: this.currentUser?.displayName || "You",
+  handle: this.currentUser?.handle || "you",
         isCurrentUser: true,
         profile: this.currentUser,
       });
@@ -1825,7 +1826,7 @@ export class HorizontalFriendsBar {
         selectedUsersData.push({
           userId: friend.userId,
           friendId: friendId,
-          displayName: friend.displayName,
+          handle: friend.handle,
           isCurrentUser: false,
           profile: friend,
         });
@@ -1846,7 +1847,7 @@ export class HorizontalFriendsBar {
       "🔴 DEBUG COMPARE: Event detail - userCount:",
       eventDetail.userCount,
       "users:",
-      eventDetail.selectedUsersData.map((u) => u.displayName)
+  eventDetail.selectedUsersData.map((u) => u.handle)
     );
 
     document.dispatchEvent(
@@ -2745,10 +2746,10 @@ export class HorizontalFriendsBar {
       const currentFriend = this.quickAccessFriends[friendIndex];
 
       // Extract new data with comprehensive fallback structure
-      const newDisplayName =
-        friendProfile?.profile?.displayName ||
-        friendProfile?.displayName ||
-        currentFriend.displayName;
+      const newHandle =
+        friendProfile?.profile?.handle ||
+        friendProfile?.handle ||
+        currentFriend.handle;
 
       const newAvatarConfig =
         friendProfile?.profile?.avatarConfig ||
@@ -2760,8 +2761,7 @@ export class HorizontalFriendsBar {
       const currentLastActive = currentFriend.lastActive;
 
       // ENHANCED change detection - exclude privacy changes (handled separately)
-      const nameChanged =
-        newDisplayName && newDisplayName !== currentFriend.displayName;
+  const nameChanged = newHandle && newHandle !== currentFriend.handle;
       const avatarChanged =
         newAvatarConfig &&
         !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
@@ -2772,7 +2772,7 @@ export class HorizontalFriendsBar {
 
       if (!nameChanged && !avatarChanged && !lastActiveChanged) {
         console.log(
-          `📡 No significant profile changes for ${currentFriend.displayName}, skipping update`
+          `📡 No significant profile changes for ${currentFriend.handle || currentFriend.displayName}, skipping update`
         );
         return;
       }
@@ -2784,13 +2784,13 @@ export class HorizontalFriendsBar {
       let hasLocalUpdates = false;
 
       if (nameChanged) {
-        const validatedName = this._validateString(
-          newDisplayName,
-          `Profile update displayName for ${friendId}`,
-          currentFriend.displayName
+        const validatedHandle = this._validateString(
+          newHandle,
+          `Profile update handle for ${friendId}`,
+          currentFriend.handle
         );
-        if (validatedName && validatedName !== currentFriend.displayName) {
-          updatedFriend.displayName = validatedName;
+        if (validatedHandle && validatedHandle !== currentFriend.handle) {
+          updatedFriend.handle = validatedHandle;
           hasLocalUpdates = true;
         }
       }
@@ -2902,13 +2902,13 @@ export class HorizontalFriendsBar {
 
       if (!hasPrivacyChanged) {
         console.log(
-          `🔒 No privacy changes for ${currentFriend.displayName}, skipping`
+          `🔒 No privacy changes for ${currentFriend.handle || currentFriend.displayName}, skipping`
         );
         return;
       }
 
       console.log(
-        `🔒 CRITICAL privacy change detected for ${currentFriend.displayName}:`,
+  `🔒 CRITICAL privacy change detected for ${currentFriend.handle || currentFriend.displayName}:`,
         {
           from: currentPrivacyStatus,
           to: newPrivacyStatus,
@@ -2932,7 +2932,7 @@ export class HorizontalFriendsBar {
       this.syncPrivacyChangesImmediately([updatedFriend]);
 
       console.log(
-        `✅ IMMEDIATE privacy update completed for ${updatedFriend.displayName}`
+  `✅ IMMEDIATE privacy update completed for ${updatedFriend.handle || updatedFriend.displayName}`
       );
     } catch (error) {
       console.error(
@@ -2959,7 +2959,7 @@ export class HorizontalFriendsBar {
       }
 
       console.log(
-        `🔒 Updating privacy visuals for ${updatedFriend.displayName}`
+  `🔒 Updating privacy visuals for ${updatedFriend.handle || updatedFriend.displayName}`
       );
 
       // Update the avatar's classes and attributes based on new privacy status
@@ -2981,10 +2981,10 @@ export class HorizontalFriendsBar {
 
       // Update tooltip for the entire avatar
       existingElement.title =
-        updatedFriend.privacyStatus?.tooltip || updatedFriend.displayName;
+  updatedFriend.privacyStatus?.tooltip || updatedFriend.handle || updatedFriend.displayName;
 
       console.log(
-        `✅ Privacy visuals updated for ${updatedFriend.displayName} without full re-render`
+  `✅ Privacy visuals updated for ${updatedFriend.handle || updatedFriend.displayName} without full re-render`
       );
     } catch (error) {
       console.error(
@@ -3042,10 +3042,10 @@ export class HorizontalFriendsBar {
           friend.friendId,
           `Privacy sync userId (using friendId)`
         ),
-        displayName: this._validateString(
-          friend.displayName,
-          `Privacy sync displayName`,
-          "Unknown User"
+        handle: this._validateString(
+          friend.handle,
+          `Privacy sync handle`,
+          "unknown_user"
         ),
         avatarConfig: this._validateAvatarConfig(
           friend.avatarConfig,
@@ -3146,10 +3146,10 @@ export class HorizontalFriendsBar {
               `Friend ${index} friendId`
             ),
             userId: this._validateString(secondaryId, `Friend ${index} userId`),
-            displayName: this._validateString(
-              friend.displayName,
-              `Friend ${index} displayName`,
-              "Unknown User"
+            handle: this._validateString(
+              friend.handle,
+              `Friend ${index} handle`,
+              "unknown_user"
             ),
             avatarConfig: this._validateAvatarConfig(
               friend.avatarConfig,
@@ -3252,10 +3252,10 @@ export class HorizontalFriendsBar {
       }
 
       // ENHANCED: Check display name changes with better normalization
-      const currentName = String(currentFriend.displayName || "")
+  const currentName = String(currentFriend.handle || currentFriend.displayName || "")
         .trim()
         .toLowerCase();
-      const newName = String(newProfile.displayName || "")
+  const newName = String(newProfile.handle || newProfile.displayName || "")
         .trim()
         .toLowerCase();
       const nameChanged = currentName !== newName && newName !== "";
@@ -3336,7 +3336,7 @@ export class HorizontalFriendsBar {
       } else {
         console.log(
           "🔍 No significant changes detected for friend:",
-          currentFriend.displayName
+          currentFriend.handle || currentFriend.displayName
         );
       }
 
@@ -3440,10 +3440,10 @@ export class HorizontalFriendsBar {
                 secondaryId,
                 `Friend ${index} userId`
               ),
-              displayName: this._validateString(
-                friend.displayName,
-                `Friend ${index} displayName`,
-                "Unknown User"
+              handle: this._validateString(
+                friend.handle,
+                `Friend ${index} handle`,
+                "unknown_user"
               ),
               avatarConfig: this._validateAvatarConfig(
                 friend.avatarConfig,
@@ -3716,7 +3716,7 @@ export class HorizontalFriendsBar {
       const requiredFields = [
         "friendId",
         "userId",
-        "displayName",
+  "handle",
         "avatarConfig",
         "privacyStatus",
       ];
@@ -3934,7 +3934,7 @@ export class HorizontalFriendsBar {
       };
       friend.lastActive = new Date(timestamp);
 
-      console.log(`🌍 Updated friend ${friend.displayName}'s presence data:`, {
+  console.log(`🌍 Updated friend ${(friend.handle || friend.displayName || friend.friendId)}'s presence data:`, {
         campusStatus: friend.lastKnownLocation?.campusStatus,
         hasLocationSharing: friend.hasLocationSharing,
       });
@@ -3943,7 +3943,7 @@ export class HorizontalFriendsBar {
       this.updateFriendPresenceDot(friendIndex, friend);
 
       console.log(
-        `✅ Campus presence update processed for ${friend.displayName}`
+  `✅ Campus presence update processed for ${friend.handle || friend.displayName}`
       );
     } catch (error) {
       console.error("❌ Error handling campus presence update:", error);
@@ -3965,7 +3965,7 @@ export class HorizontalFriendsBar {
       // If cached element is missing or disconnected from DOM, find it fresh
       if (!avatarElement || !avatarElement.isConnected) {
         console.log(
-          `🔄 Cached avatar element stale for ${friend.displayName}, finding fresh reference`
+          `🔄 Cached avatar element stale for ${(friend.handle || friend.displayName || friend.friendId)}, finding fresh reference`
         );
 
         // Find the element fresh from the DOM
@@ -3981,7 +3981,7 @@ export class HorizontalFriendsBar {
             // Update the cache with the fresh reference
             this.avatarElements.set(friendId, avatarElement);
             console.log(
-              `✅ Fresh avatar element found and cached for ${friend.displayName}`
+              `✅ Fresh avatar element found and cached for ${friend.handle || friend.displayName}`
             );
           }
         }

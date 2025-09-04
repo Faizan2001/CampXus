@@ -267,7 +267,7 @@ class LocationPrivacyService {
                 visibleLocations.push({
                   friendUid: friend.uid,
                   friendInfo: {
-                    displayName: friend.displayName,
+                    handle: friend.handle,
                     major: friend.major,
                     avatarConfig: friend.avatarConfig,
                   },
@@ -588,7 +588,7 @@ class LocationPrivacyService {
               mutualLocationFriends.push({
                 friendUid: friend.uid,
                 friendInfo: {
-                  displayName: friend.displayName,
+                  handle: friend.handle,
                   major: friend.major,
                   avatarConfig: friend.avatarConfig,
                 },

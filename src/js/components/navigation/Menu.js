@@ -556,7 +556,7 @@ async function updateUserDisplayInfo(userData) {
   
   if (profileData) {
     if (nameElement)
-      nameElement.textContent = profileData.displayName || profileData.firstName || "User";
+      nameElement.textContent = (profileData.handle || profileData.firstName || "User");
     if (emailElement)
       emailElement.textContent = profileData.email || "No email";
     updateUserAvatarDisplays(userData);

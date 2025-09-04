@@ -18,7 +18,7 @@ export const USER_DOCUMENT_STRUCTURE = {
     major: "CSE",
     startingYear: "2022",
     email: "student@iub.edu.bd",
-    displayName: "John Doe"
+  handle: "john_doe"
   },
 
   // 🏫 University info (unchanged)
@@ -65,7 +65,7 @@ export const FRIEND_REQUEST_STRUCTURE = {
 
   // 👤 Cached user info for quick display (prevents extra user queries)
   fromUserInfo: {
-    displayName: "John Doe",
+  handle: "john_doe",
     major: "Computer Science",
     university: "iub",
     avatar: {
@@ -75,7 +75,7 @@ export const FRIEND_REQUEST_STRUCTURE = {
   },
 
   toUserInfo: {
-    displayName: "Jane Smith", 
+  handle: "jane_smith", 
     major: "Business Administration",
     university: "iub"
   },
@@ -97,7 +97,7 @@ export const FRIENDSHIP_STRUCTURE = {
 
   // 👥 Cached user info for quick friend list display
   user1Info: {
-    displayName: "John Doe",
+  handle: "john_doe",
     major: "CSE",
     avatar: {
       style: "miniavs", 
@@ -106,7 +106,7 @@ export const FRIENDSHIP_STRUCTURE = {
   },
 
   user2Info: {
-    displayName: "Jane Smith",
+  handle: "jane_smith",
     major: "BBA", 
     avatar: {
       style: "adventurer",

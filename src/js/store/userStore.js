@@ -155,7 +155,7 @@ class CurrentUserManager {
   getDisplayInfo() {
     if (!this.isLoggedIn()) {
       return {
-        displayName: "Guest",
+        handle: "guest",
         email: "",
         firstName: "",
         lastName: "",
@@ -169,11 +169,7 @@ class CurrentUserManager {
     const lastName = profile.lastName || "";
 
     return {
-      displayName:
-        profile.displayName ||
-        (firstName && lastName ? `${firstName} ${lastName}` : "") ||
-        this._user?.email?.split("@")[0] ||
-        "User",
+      handle: profile.handle || this._user?.email?.split("@")[0] || "user",
       email: profile.email || this._user?.email || "",
       firstName,
       lastName,

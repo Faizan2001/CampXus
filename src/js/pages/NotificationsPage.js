@@ -367,13 +367,13 @@ export class NotificationsPage {
             <img src="${avatarManager.generateAvatarUrl(
               notification.fromUserInfo.avatarConfig
             )}" 
-                 alt="${notification.fromUserInfo.displayName}"
+                 alt="@${notification.fromUserInfo.handle || 'unknown'}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
           <div class="notification-text-content">
             <div class="notification-text">
               <strong>${
-                notification.fromUserInfo.displayName
+                '@' + (notification.fromUserInfo.handle || 'unknown')
               }</strong><span class="action-verb"> wants to share location</span>
             </div>
             <div class="notification-time">${this.formatTime(
@@ -417,13 +417,13 @@ export class NotificationsPage {
             <img src="${avatarManager.generateAvatarUrl(
               notification.fromUserInfo.avatarConfig
             )}" 
-                 alt="${notification.fromUserInfo.displayName}"
+                 alt="@${notification.fromUserInfo.handle || 'unknown'}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
           <div class="notification-text-content">
             <div class="notification-text">
               <strong>${
-                notification.fromUserInfo.displayName
+                '@' + (notification.fromUserInfo.handle || 'unknown')
               }</strong><span class="action-verb"> sent a friend request</span>
             </div>
             <div class="notification-time">${this.formatTime(
@@ -461,7 +461,7 @@ export class NotificationsPage {
           <img src="${avatarManager.generateAvatarUrl(
             notification.fromUserInfo.avatarConfig
           )}" 
-               alt="${notification.fromUserInfo.displayName}"
+               alt="@${notification.fromUserInfo.handle || 'unknown'}"
                onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
         </div>
         
@@ -469,7 +469,7 @@ export class NotificationsPage {
           <div class="notification-text">
             <span class="notification-icon type-enabled" aria-hidden="true"><i class="fas fa-signal"></i></span>
             <strong>${
-              notification.fromUserInfo.displayName
+              '@' + (notification.fromUserInfo.handle || 'unknown')
             }</strong><span class="action-verb"> enabled location sharing</span>
           </div>
           <div class="notification-details">
@@ -756,7 +756,7 @@ export class NotificationsPage {
           toUserId: userProfile?.uid || currentUser.uid,
           fromUserInfo: notif.fromUserInfo,
           toUserInfo: {
-            displayName: userProfile?.profile?.displayName,
+            handle: userProfile?.profile?.handle,
             major: userProfile?.profile?.major,
             university: userProfile?.universityInfo?.university,
             avatarConfig: userProfile?.avatarConfig,

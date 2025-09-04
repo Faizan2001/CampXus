@@ -83,7 +83,7 @@ export const FIELD_PATHS = {
   MAJOR: "profile.major",
   STARTING_YEAR: "profile.startingYear",
   EMAIL: "profile.email",
-  DISPLAY_NAME: "profile.displayName",
+  // DISPLAY_NAME deprecated – handle is canonical
 
   // University fields
   UNIVERSITY: "universityInfo.university",
@@ -444,10 +444,11 @@ class DataManager {
 
         // Fields we want to search across
         const fieldsToSearch = [
-          "profile.displayName_lower",
+          // Removed displayName_lower (deprecated) – handle has dedicated exact lookup path.
           "profile.firstName_lower",
           "profile.lastName_lower",
           "profile.major_lower",
+          // NOTE: If we later reintroduce a non-unique full name, add the lowercase index here.
         ];
 
         // Limit per individual query (we'll dedupe and limit final results)
@@ -718,19 +719,7 @@ class DataManager {
 
       // --- BEGIN: Auto-generate search fields and ensure socialInfo ---
       if (profileData.profile) {
-        // 🎯 Auto-generate displayName from firstName if not set
-        if (!profileData.profile.displayName && profileData.profile.firstName) {
-          profileData.profile.displayName = profileData.profile.firstName;
-          console.log(
-            "🎯 Auto-generated displayName from firstName:",
-            profileData.profile.displayName
-          );
-        }
-
-        if (profileData.profile.displayName) {
-          profileData.profile.displayName_lower =
-            profileData.profile.displayName.toLowerCase();
-        }
+  // (Removed displayName auto-generation – handle is canonical now)
         if (profileData.profile.firstName) {
           profileData.profile.firstName_lower =
             profileData.profile.firstName.toLowerCase();
@@ -822,7 +811,7 @@ class DataManager {
   /**
    * Get just the minimal profile info (firstName, email, avatarConfig).
    * @param {string|object} userIdOrObj - UID or user object
-   * @returns {Promise<{displayName: string|null, email: string|null, avatarConfig: object|null}|null>}
+  * @returns {Promise<{handle: string|null, email: string|null, avatarConfig: object|null}|null>}
    * @example
    *   const mini = await dataManager.getUserProfileMinimal("abc123");
    */
@@ -849,15 +838,15 @@ class DataManager {
       }
       const data = userDoc.data();
       // Defensive extraction: Only pull minimal fields
-      const displayName = data?.profile?.displayName ?? null;
+  const handle = data?.profile?.handle ?? null;
       const email = data?.profile?.email ?? null;
       const avatarConfig = data?.avatarConfig ?? null;
       console.log(
-        "Returned minimal profile: " + displayName,
+        "Returned minimal profile: @" + handle,
         email,
         avatarConfig
       );
-      return { displayName, email, avatarConfig };
+      return { handle, email, avatarConfig };
     } catch (error) {
       console.error("[dataManager] Error in getUserProfileMinimal:", error);
       return null;
@@ -1380,7 +1369,7 @@ class DataManager {
       // Basic identity
       uid: userData.uid,
       email: userData.profile?.email || "",
-      displayName: userData.profile?.displayName || "",
+  handle: userData.profile?.handle || "",
 
       // Personal info
       fullName: `${userData.profile?.firstName || ""} ${
@@ -1422,8 +1411,7 @@ class DataManager {
         `${userData.profile?.firstName || ""} ${
           userData.profile?.lastName || ""
         }`.trim() ||
-        userData.profile?.displayName ||
-        "",
+        (userData.profile?.handle ? `@${userData.profile?.handle}` : ""),
       avatarConfig: userData.avatarConfig,
       isOnline: userData.systemInfo?.status === "online",
       lastActive: userData.systemInfo?.lastActive,
@@ -1501,8 +1489,8 @@ class DataManager {
         updates["profile.startingYear"] = profileData.startingYear;
       if (profileData.email !== undefined)
         updates["profile.email"] = profileData.email;
-      if (profileData.displayName !== undefined)
-        updates["profile.displayName"] = profileData.displayName;
+      if (profileData.handle !== undefined)
+        updates["profile.handle"] = profileData.handle;
 
       if (!this.isOnline) {
         this.pendingOperations.push(() =>
@@ -2315,7 +2303,9 @@ class DataManager {
           // Transform for UI consumption (same format as existing functions)
           const transformedRequests = requests.map((request) => ({
             ...request,
-            displayName: request.fromUserInfo?.displayName || "Unknown User",
+            // Deprecated: displayName retained temporarily for backward compatibility – mapped from handle
+            displayName: request.fromUserInfo?.handle || "Unknown User",
+            handle: request.fromUserInfo?.handle || null,
             major: request.fromUserInfo?.major || "Unknown Major",
             university:
               request.fromUserInfo?.university || "Unknown University",
@@ -2394,7 +2384,9 @@ class DataManager {
           // Transform for UI consumption (same format as existing functions)
           const transformedRequests = requests.map((request) => ({
             ...request,
-            displayName: request.toUserInfo?.displayName || "Unknown User",
+            // Deprecated: displayName retained temporarily for backward compatibility – mapped from handle
+            displayName: request.toUserInfo?.handle || "Unknown User",
+            handle: request.toUserInfo?.handle || null,
             major: request.toUserInfo?.major || "Unknown Major",
             university: request.toUserInfo?.university || "Unknown University",
           }));
@@ -2546,9 +2538,11 @@ class DataManager {
               ...friendship,
               friendId: friendId,
               friendInfo: friendInfo || {
-                displayName: "Unknown User",
-                major: "Unknown Major",
-              },
+                  // Deprecated displayName fallback – will be removed after full handle migration
+                  displayName: "Unknown User",
+                  handle: null,
+                  major: "Unknown Major",
+                },
             };
           });
 
@@ -2646,9 +2640,10 @@ class DataManager {
             ...friendship,
             friendId: friendId,
             friendInfo: friendInfo || {
-              displayName: "Unknown User",
-              major: "Unknown Major",
-            },
+                displayName: "Unknown User", // deprecated
+                handle: null,
+                major: "Unknown Major",
+              },
             _mobileMetadata: updateInfo,
           };
         });
@@ -2861,7 +2856,7 @@ class DataManager {
    * Example usage:
    *   const unsubscribe = dataManager.listenToUserProfile(
    *     "user123",
-   *     (profile) => console.log("Profile updated:", profile.profile?.displayName)
+  *     (profile) => console.log("Profile updated:", profile.profile?.handle)
    *   );
    *   // Later: unsubscribe(); // Stop listening
    */
@@ -2907,8 +2902,8 @@ class DataManager {
               (!cachedData ||
                 JSON.stringify(cachedData.avatarConfig) !==
                   JSON.stringify(profileData.avatarConfig) ||
-                cachedData.profile?.displayName !==
-                  profileData.profile?.displayName ||
+                cachedData.profile?.handle !==
+                  profileData.profile?.handle ||
                 cachedData.profile?.major !== profileData.profile?.major);
 
             // Update local cache with fresh data
@@ -3311,8 +3306,9 @@ class DataManager {
       const updatedFriend = {
         ...existingFriend, // Preserve starredAt, lastInteraction, etc.
         // Update cached fields with fresh data from friend's profile
-        displayName:
-          friendData.profile?.displayName || existingFriend.displayName,
+  // Deprecated: displayName mirrored from handle for backward compatibility
+  displayName: friendData.profile?.handle || existingFriend.displayName,
+  handle: friendData.profile?.handle || existingFriend.handle,
         major: friendData.profile?.major || existingFriend.major,
         avatarConfig: friendData.avatarConfig || existingFriend.avatarConfig,
         // Add update timestamp to track freshness
@@ -3334,14 +3330,15 @@ class DataManager {
       this.clearCachedData(`quick_access_${userId}`);
 
       console.log(
-        `✅ [DataManager] Successfully refreshed friend data for ${friendData.profile?.displayName}`
+        `✅ [DataManager] Successfully refreshed friend data for @${friendData.profile?.handle}`
       );
 
       return {
         success: true,
         updatedFriend: updatedFriend,
         friendData: {
-          displayName: friendData.profile?.displayName,
+          handle: friendData.profile?.handle,
+          displayName: friendData.profile?.handle, // deprecated mirror
           major: friendData.profile?.major,
           avatarConfig: friendData.avatarConfig,
         },
@@ -3402,8 +3399,8 @@ class DataManager {
           const freshData = freshDoc.data();
           return {
             ...existingFriend, // Keep starredAt, lastInteraction
-            displayName:
-              freshData.profile?.displayName || existingFriend.displayName,
+            displayName: freshData.profile?.handle || existingFriend.displayName, // deprecated mirror
+            handle: freshData.profile?.handle || existingFriend.handle,
             major: freshData.profile?.major || existingFriend.major,
             avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
           };
@@ -4446,7 +4443,8 @@ if (typeof window !== "undefined") {
         if (profile) {
           console.log("👤 REAL-TIME UPDATE - Profile:", {
             userId: profile.id,
-            displayName: profile.profile?.displayName,
+            handle: profile.profile?.handle,
+            displayName: profile.profile?.handle, // deprecated mirror
             firstName: profile.profile?.firstName,
             lastName: profile.profile?.lastName,
             major: profile.profile?.major,
@@ -4607,10 +4605,7 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
 
       // Build consistent cache object
       userInfoForCache = {
-        displayName:
-          userData.profile?.displayName ||
-          userData.profile?.firstName ||
-          "Unknown",
+        handle: userData.profile?.handle || null,
         major: userData.profile?.major || "Unknown",
         university: userData.universityInfo?.university || "unknown",
         avatarConfig: userData.avatarConfig || null,
@@ -4633,7 +4628,7 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
     outgoingRequests.forEach((doc) => {
       // Completely replace fromUserInfo (don't merge nested objects)
       batch.update(doc.ref, {
-        "fromUserInfo.displayName": userInfoForCache.displayName,
+        "fromUserInfo.handle": userInfoForCache.handle,
         "fromUserInfo.major": userInfoForCache.major,
         "fromUserInfo.university": userInfoForCache.university,
         "fromUserInfo.avatarConfig": userInfoForCache.avatarConfig,
@@ -4652,7 +4647,7 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
     incomingRequests.forEach((doc) => {
       // Completely replace toUserInfo (don't merge nested objects)
       batch.update(doc.ref, {
-        "toUserInfo.displayName": userInfoForCache.displayName,
+        "toUserInfo.handle": userInfoForCache.handle,
         "toUserInfo.major": userInfoForCache.major,
         "toUserInfo.university": userInfoForCache.university,
         "toUserInfo.avatarConfig": userInfoForCache.avatarConfig,
@@ -4674,7 +4669,7 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
       if (data.user1Id === userId) {
         // Completely replace user1Info (don't merge nested objects)
         batch.update(doc.ref, {
-          "user1Info.displayName": userInfoForCache.displayName,
+          "user1Info.handle": userInfoForCache.handle,
           "user1Info.major": userInfoForCache.major,
           "user1Info.university": userInfoForCache.university,
           "user1Info.avatarConfig": userInfoForCache.avatarConfig,
@@ -4683,7 +4678,7 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
       } else if (data.user2Id === userId) {
         // Completely replace user2Info (don't merge nested objects)
         batch.update(doc.ref, {
-          "user2Info.displayName": userInfoForCache.displayName,
+          "user2Info.handle": userInfoForCache.handle,
           "user2Info.major": userInfoForCache.major,
           "user2Info.university": userInfoForCache.university,
           "user2Info.avatarConfig": userInfoForCache.avatarConfig,
