@@ -25,6 +25,8 @@
  *
  */
 
+import { profileCache } from "../cache/profileCache.js"; // hydration cache
+
 class CurrentUserManager {
   constructor() {
     this._uid = null;
@@ -41,7 +43,16 @@ class CurrentUserManager {
     this._scheduleLastSynced = null; // When schedule was last synced to Firestore
     this._isScheduleRealTimeActive = false; // Real-time listener status
 
-    this.reset();
+    // Attempt early profile hydration (without asserting auth yet)
+    try {
+      const cached = profileCache.peek?.();
+      if (cached?.profile) {
+        this._profile = cached.profile; // do not set uid yet; auth sets it later
+        console.debug("[Hydration] userStore preloaded profile from cache");
+      }
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   /**
@@ -60,10 +71,7 @@ class CurrentUserManager {
     return this._user;
   }
 
-  /**
-   * The user's Firestore profile data.
-   * @returns {object|null}
-   */
+  /** The user's Firestore profile data. */
   get profile() {
     return this._profile;
   }
@@ -87,6 +95,17 @@ class CurrentUserManager {
   /**
    * Last schedule operation error.
    * @returns {string|null}
+        try {
+          // Opportunistic save (only if profile has canonical handle & uid set)
+          if (this._uid && profile?.profile?.handle) {
+            profileCache.save(this._uid, profile);
+          }
+        } catch (e) {
+          // Non-fatal
+          if (window?.logManager) {
+            window.logManager.dev.warn("Profile cache save failed", e);
+          }
+        }
    */
   get scheduleError() {
     return this._scheduleError;
@@ -203,6 +222,15 @@ class CurrentUserManager {
    */
   setProfile(profile) {
     this._profile = profile;
+    // Always attempt to persist snapshot (even if handle missing yet) for fast hydration
+    try {
+      if (this._uid && profile) {
+        // profileCache imported at top
+        profileCache.save(this._uid, profile);
+      }
+    } catch (e) {
+      // non-fatal
+    }
     // When the profile is set (even to null on logout), resolve the promise.
     if (this._resolveProfilePromise) {
       this._resolveProfilePromise(this._profile);
@@ -346,7 +374,7 @@ class CurrentUserManager {
   /**
    * Resets the user state upon logout.
    */
-  reset() {
+  reset(clearCache = true) {
     // Stop friends listeners before resetting user state
     if (window.friendsManager) {
       if (window.logManager)
@@ -369,6 +397,12 @@ class CurrentUserManager {
     this._scheduleError = null;
     this._scheduleLastSynced = null;
     this._isScheduleRealTimeActive = false;
+
+    if (clearCache) {
+      try {
+        profileCache.clear();
+      } catch (_) {}
+    }
 
     // Notify subscribers of the reset state
     this._notifySubscribers();

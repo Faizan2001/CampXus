@@ -4,33 +4,40 @@ Status: Expanded Implementation Spec (Full Feature Completion)
 Owner: Faizan
 Target Branch: `handle-addition`
 Scope: Full replacement of `displayName` with globally unique `handle`; enhanced search, claiming, change cadence, and UI integration.
+
 ## 1. Executive Summary
+
 We are promoting a globally unique, immutable-between-weekly-changes `handle` (e.g. `faizan`) as the single canonical public identifier for all social surfaces (friends list, requests, notifications, search). This replaces prior `displayName` fields entirely. A dedicated `/handles/{handle}` mapping collection guarantees uniqueness with an O(1) lookup path. The friends search pipeline gains an early exact-handle branch (`@handle` or plain `handle` if fully matching the regex) and falls back to existing university-scoped fuzzy search (first name, last name, major). No legacy migration needed because the system is pre-launch; mock data may be purged.
 
 ---
+
 ## 2. Core Decisions (Immutable for MVP)
-| Aspect | Decision | Notes |
-|--------|----------|-------|
-| Human friendly name | Removed | Reduces complexity; avatar + major supply context |
-| Uniqueness scope | Global | Cross-university discovery allowed via handle |
-| Allowed chars | `a–z 0–9 _` | Lowercase only (dots removed) |
-| Length | 3–20 | Final bound |
-| Must start with letter | Yes | Prevent numeric squat handles |
-| Cannot end with underscore | Yes | Cleaner aesthetics |
-| Consecutive underscores | Disallowed | Readability |
-| Dots | Disallowed (v1) | Reconsider later |
-| Change frequency | 1 per 7 days | Client‑enforced (no Cloud Functions) |
-| Old handle reuse | Immediate allowed | No parking logic in MVP |
-| Mentions format | `@handle` | Future feature placeholders only |
-| Cloud Functions | None | Pure client + Firestore transaction |
-| Short handles (3 chars min) | Allowed | 2-char removed to reduce scarcity |
-| Collection for uniqueness | Yes: `/handles/{handle}` | Doc ID ensures uniqueness |
-| Exact handle search | Yes | Bypasses university filter |
-| Prefix handle search | No (MVP) | Could add later with index or Algolia |
+
+| Aspect                      | Decision                 | Notes                                             |
+| --------------------------- | ------------------------ | ------------------------------------------------- |
+| Human friendly name         | Removed                  | Reduces complexity; avatar + major supply context |
+| Uniqueness scope            | Global                   | Cross-university discovery allowed via handle     |
+| Allowed chars               | `a–z 0–9 _`              | Lowercase only (dots removed)                     |
+| Length                      | 3–20                     | Final bound                                       |
+| Must start with letter      | Yes                      | Prevent numeric squat handles                     |
+| Cannot end with underscore  | Yes                      | Cleaner aesthetics                                |
+| Consecutive underscores     | Disallowed               | Readability                                       |
+| Dots                        | Disallowed (v1)          | Reconsider later                                  |
+| Change frequency            | 1 per 7 days             | Client‑enforced (no Cloud Functions)              |
+| Old handle reuse            | Immediate allowed        | No parking logic in MVP                           |
+| Mentions format             | `@handle`                | Future feature placeholders only                  |
+| Cloud Functions             | None                     | Pure client + Firestore transaction               |
+| Short handles (3 chars min) | Allowed                  | 2-char removed to reduce scarcity                 |
+| Collection for uniqueness   | Yes: `/handles/{handle}` | Doc ID ensures uniqueness                         |
+| Exact handle search         | Yes                      | Bypasses university filter                        |
+| Prefix handle search        | No (MVP)                 | Could add later with index or Algolia             |
 
 ---
+
 ## 3. Architecture Overview
+
 ### 3.1 Components
+
 - Handle Storage: `/handles/{handle}` – authoritative mapping `handle -> userId`.
 - User Profile: `/users/{uid}` – contains `profile.handle` and `systemInfo.lastHandleChangeAt`.
 - Search Layer: Enhanced early branch for exact handle; otherwise uses existing multi-field Firestore queries.
@@ -38,6 +45,7 @@ We are promoting a globally unique, immutable-between-weekly-changes `handle` (e
 - Validation Utilities: Client-side helper to validate, normalize, and enforce weekly cooldown.
 
 ### 3.2 Data Flow (Claim New Handle)
+
 1. User enters candidate → debounce 300ms → availability check (`getDoc(/handles/{candidate})`).
 2. If available + passes regex + cooldown: enable [Claim].
 3. On claim → Firestore transaction:
@@ -48,11 +56,15 @@ We are promoting a globally unique, immutable-between-weekly-changes `handle` (e
 4. UI globally invalidates any caches referencing old handle.
 
 ### 3.3 Data Flow (Search Exact Handle)
+
 Input normalized → pattern match → direct `getDoc(/handles/{handle})` → if found fetch `/users/{userId}` → adapt friend card shape → render single result.
 
 ---
+
 ## 4. Data Model (Final State)
+
 ### 4.1 Users (`/users/{uid}`)
+
 ```
 profile: {
   handle: "faizan",
@@ -65,9 +77,11 @@ systemInfo: {
   lastHandleChangeAt: <timestamp>
 }
 ```
+
 Removed: `displayName`, `displayName_lower` (temporary fallbacks will be purged).
 
 ### 4.2 Handle Mapping (`/handles/{handle}`)
+
 ```
 {
   userId: <uid>,
@@ -77,7 +91,9 @@ Removed: `displayName`, `displayName_lower` (temporary fallbacks will be purged)
 ```
 
 ### 4.3 Friend / Request Cached Fields
+
 Replace any `displayName` caches with `handle`:
+
 ```
 fromUserInfo: { handle, major, university, avatarConfig }
 toUserInfo:   { handle, major, university, avatarConfig }
@@ -87,17 +103,19 @@ user1Info / user2Info similarly
 ## 5. Firestore Security Rules (Delta Specification)
 Add *before* helper functions (ordering not strict but grouped logically):
 ```
+
 match /handles/{handle} {
-  allow read: if true;
-  allow create: if request.auth != null &&
-                !exists(/databases/$(database)/documents/handles/$(handle)) &&
-                request.resource.data.userId == request.auth.uid &&
-                handle.matches('^(?!(?:.*__))[a-z][a-z0-9_]{1,18}[a-z0-9]$') && // 3-20, start letter, no double underscore, no trailing underscore
-                request.resource.data.createdAt == request.time &&
-                request.resource.data.lastClaimedAt == request.time;
-  allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
-  allow update: if false; // Enforce explicit delete + create for changes
+allow read: if true;
+allow create: if request.auth != null &&
+!exists(/databases/$(database)/documents/handles/$(handle)) &&
+request.resource.data.userId == request.auth.uid &&
+handle.matches('^(?!(?:.\*\__))[a-z]a-z0-9_]{1,18}[a-z0-9]$') && // 3-20, start letter, no double underscore, no trailing underscore
+request.resource.data.createdAt == request.time &&
+request.resource.data.lastClaimedAt == request.time;
+allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+allow update: if false; // Enforce explicit delete + create for changes
 }
+
 ```
 NOTE: Weekly limit enforced client-side; can later shift to a callable.
 No additional composite index required for exact handle lookups.
@@ -114,25 +132,27 @@ No additional composite index required for exact handle lookups.
 
 Pseudocode (Transaction):
 ```
-  const userRef = doc(db, 'users', uid);
-  const handleRef = doc(db, 'handles', newHandle);
-  const oldHandle = currentUser.profile.handle;
-  await runTransaction(db, async tx => {
-    const snapshot = await tx.get(handleRef);
-    if (snapshot.exists()) throw new Error('taken');
-    if (oldHandle) {
-      tx.delete(doc(db, 'handles', oldHandle));
-    }
-    const now = serverTimestamp();
-    tx.set(handleRef, { userId: uid, createdAt: now, lastClaimedAt: now });
-    tx.update(userRef, {
-      'profile.handle': newHandle,
-      'profile.handle_lower': newHandle,
-      'systemInfo.lastHandleChange': now
-    });
-  });
+
+const userRef = doc(db, 'users', uid);
+const handleRef = doc(db, 'handles', newHandle);
+const oldHandle = currentUser.profile.handle;
+await runTransaction(db, async tx => {
+const snapshot = await tx.get(handleRef);
+if (snapshot.exists()) throw new Error('taken');
+if (oldHandle) {
+tx.delete(doc(db, 'handles', oldHandle));
 }
-```
+const now = serverTimestamp();
+tx.set(handleRef, { userId: uid, createdAt: now, lastClaimedAt: now });
+tx.update(userRef, {
+'profile.handle': newHandle,
+'profile.handle_lower': newHandle,
+'systemInfo.lastHandleChange': now
+});
+});
+}
+
+````
 
 ---
 ## 7. UI / UX Specification
@@ -195,7 +215,7 @@ Risk (user fiddles with dev tools): Could attempt second change earlier. Still b
 | handleUtils | canChangeHandle | boundary exactly 7d, just before, just after |
 | searchService | classify input | with @, without @, invalid patterns |
 
-### 11.2 Integration 
+### 11.2 Integration
 1. Claim new handle → verify appears on friends list.
 2. Search by `@handle` → single result.
 3. Search by partial major → still returns results (unchanged path).
@@ -302,49 +322,54 @@ Proceed with Phase 1: introduce utilities + rules update + index edit + mapping 
 ```js
 // TODO(mentions): implement @handle parsing in rich text inputs.
 // Strategy: regex /(^|\s)@([a-z0-9._]{2,32})/g → resolve via /handles/{match}.
-```
+````
 
 ---
+
 ## 21. Added / Clarified Requirements (Post-Discussion)
-| Requirement | Rationale | Status |
-|-------------|-----------|--------|
-| Handle mandatory at profile step 0 | Ensures universal identity | DONE |
-| Availability pill styling & animation | Clear UX feedback | DONE |
-| Dots removed, underscores rules tightened | Simpler regex & appearance | DONE |
-| Start letter, no trailing underscore, no double underscores | Readability & aesthetics | DONE |
-| Length 3–20 | Balance scarcity & layout | DONE |
-| Reserved handles set | Impersonation prevention | DONE (client) |
-| Cooldown timestamp `lastHandleChangeAt` | Accurate enforcement | DONE |
-| Old handle deleted in txn | Free namespace | DONE |
-| Migration/backfill script | Future safety | PENDING |
-| Rules regex alignment | Prevent bypass | PENDING |
-| Purge displayName fallbacks | Identity purity | IN PROGRESS |
-| Post-setup change UI | Usability | PENDING |
-| Mention parsing stub | Future mentions | DONE |
+
+| Requirement                                                 | Rationale                  | Status        |
+| ----------------------------------------------------------- | -------------------------- | ------------- |
+| Handle mandatory at profile step 0                          | Ensures universal identity | DONE          |
+| Availability pill styling & animation                       | Clear UX feedback          | DONE          |
+| Dots removed, underscores rules tightened                   | Simpler regex & appearance | DONE          |
+| Start letter, no trailing underscore, no double underscores | Readability & aesthetics   | DONE          |
+| Length 3–20                                                 | Balance scarcity & layout  | DONE          |
+| Reserved handles set                                        | Impersonation prevention   | DONE (client) |
+| Cooldown timestamp `lastHandleChangeAt`                     | Accurate enforcement       | DONE          |
+| Old handle deleted in txn                                   | Free namespace             | DONE          |
+| Migration/backfill script                                   | Future safety              | PENDING       |
+| Rules regex alignment                                       | Prevent bypass             | PENDING       |
+| Purge displayName fallbacks                                 | Identity purity            | IN PROGRESS   |
+| Post-setup change UI                                        | Usability                  | PENDING       |
+| Mention parsing stub                                        | Future mentions            | DONE          |
 
 ## 22. Implementation Status Matrix
-| Area | Implemented | Gap |
-|------|-------------|-----|
-| Validation regex | YES (client) | Server rules broader |
-| Uniqueness mapping | YES | - |
-| Cooldown txn enforcement | YES | Need settings UI surfacing |
-| Old handle release | YES | - |
-| Search exact path | PARTIAL (core) | Audit all entry points |
-| displayName purge | PARTIAL | Remove remaining fallbacks |
-| Reserved handles | YES (client) | Add to rules |
-| Migration | NO | Add script if legacy users appear |
-| Rules regex alignment | NO | Update rules file |
-| Post-setup change UI | NO | Implement |
-| Logging standardization | PARTIAL | Ensure all services updated |
+
+| Area                     | Implemented    | Gap                               |
+| ------------------------ | -------------- | --------------------------------- |
+| Validation regex         | YES (client)   | Server rules broader              |
+| Uniqueness mapping       | YES            | -                                 |
+| Cooldown txn enforcement | YES            | Need settings UI surfacing        |
+| Old handle release       | YES            | -                                 |
+| Search exact path        | PARTIAL (core) | Audit all entry points            |
+| displayName purge        | PARTIAL        | Remove remaining fallbacks        |
+| Reserved handles         | YES (client)   | Add to rules                      |
+| Migration                | NO             | Add script if legacy users appear |
+| Rules regex alignment    | NO             | Update rules file                 |
+| Post-setup change UI     | NO             | Implement                         |
+| Logging standardization  | PARTIAL        | Ensure all services updated       |
 
 End of comprehensive plan.
 
 ---
+
 ## 23. Fast Rehydration & Stale-While-Revalidate Strategy (Conventional Best Practice)
 
 Goal: Eliminate "flash of empty inputs" on Profile / Friends / Notifications pages after hard reload by instantly painting cached identity + lightweight friend metadata, then refreshing in background.
 
 ### 23.1 Principles
+
 1. Instant UX: Never show blank required identity fields if the user has previously loaded them.
 2. Minimal Cache: Persist only non-sensitive, frequently-needed identity & friend summary.
 3. Stale-While-Revalidate: Hydrate from local cache synchronously, mark as stale, fetch fresh, then reconcile.
@@ -352,7 +377,9 @@ Goal: Eliminate "flash of empty inputs" on Profile / Friends / Notifications pag
 5. Safe Fallback: If cache corrupt or mismatched UID → discard gracefully.
 
 ### 23.2 Cached Shape (v1)
+
 Key: `cx_profile_cache_v1_<uid>` (localStorage; can migrate to IndexedDB later)
+
 ```
 {
   version: 1,
@@ -372,6 +399,7 @@ Key: `cx_profile_cache_v1_<uid>` (localStorage; can migrate to IndexedDB later)
 ```
 
 ### 23.3 Lifecycle (Simplified)
+
 ```
 bootstrapApp() {
   const authUser = firebase.auth().currentUser;
@@ -396,56 +424,65 @@ bootstrapApp() {
 ```
 
 ### 23.4 UI States
-| State | Inputs | Indicator |
-|-------|--------|-----------|
-| Cold (no cache) | Skeleton placeholders | Subtle shimmer |
-| Hydrated (stale) | Filled from cache | Tiny spinner / dot near header |
-| Fresh | Filled & confirmed | Indicator removed |
+
+| State            | Inputs                | Indicator                      |
+| ---------------- | --------------------- | ------------------------------ |
+| Cold (no cache)  | Skeleton placeholders | Subtle shimmer                 |
+| Hydrated (stale) | Filled from cache     | Tiny spinner / dot near header |
+| Fresh            | Filled & confirmed    | Indicator removed              |
 
 ### 23.5 TTL & Invalidations
-| Scenario | Action |
-|----------|--------|
+
+| Scenario        | Action                                                    |
+| --------------- | --------------------------------------------------------- |
 | Cache age > 10m | Still use (better than empty) but force immediate refresh |
-| Logout | Remove key namespace for prior uid |
-| Handle change | Immediately update cache + broadcast (optional) |
-| Version bump | Ignore old (version mismatch) |
+| Logout          | Remove key namespace for prior uid                        |
+| Handle change   | Immediately update cache + broadcast (optional)           |
+| Version bump    | Ignore old (version mismatch)                             |
 
 ### 23.6 Multi-Tab Coherence (Optional v2)
+
 Use `BroadcastChannel('cx_profile')` to announce `{ uid, updatedAt }`; if newer timestamp received → rehydrate & optionally soft-refresh.
 
 ### 23.7 Error Handling
-| Issue | Handling |
-|-------|----------|
-| JSON parse fails | Wipe key; treat as cold start |
-| UID mismatch | Wipe key; cold start |
-| Partial fields | Fill what exists; queue full fetch |
+
+| Issue            | Handling                           |
+| ---------------- | ---------------------------------- |
+| JSON parse fails | Wipe key; treat as cold start      |
+| UID mismatch     | Wipe key; cold start               |
+| Partial fields   | Fill what exists; queue full fetch |
 
 ### 23.8 Why Not More Now?
+
 - IndexedDB unnecessary until size / perf pressure.
 - No hashing/ETag: simple timestamp diff adequate pre-scale.
 - No complex friend presence caching: presence & schedules remain live-sourced.
 
 ### 23.9 Minimal Implementation Tasks
-| Task | Effort |
-|------|--------|
-| Add `profileCache.js` (get/set/clear, validate) | ~40 LOC |
+
+| Task                                                       | Effort  |
+| ---------------------------------------------------------- | ------- |
+| Add `profileCache.js` (get/set/clear, validate)            | ~40 LOC |
 | Inject hydration before `ProfileSetup` / friends page init | ~15 LOC |
-| Add stale flag + tiny spinner CSS | ~20 LOC |
-| Hook save after successful profile fetch / handle claim | ~10 LOC |
-| Optional friendsIndex caching | ~25 LOC |
+| Add stale flag + tiny spinner CSS                          | ~20 LOC |
+| Hook save after successful profile fetch / handle claim    | ~10 LOC |
+| Optional friendsIndex caching                              | ~25 LOC |
 
 ### 23.10 Future Upgrade Path
-| Need | Upgrade |
-|------|--------|
-| Larger friend metadata | Move to IndexedDB store (object store per uid) |
-| Offline schedule preview | Add schedule digest hash + selective caching |
-| Conflict resolution | Introduce per-field version / etag |
+
+| Need                     | Upgrade                                        |
+| ------------------------ | ---------------------------------------------- |
+| Larger friend metadata   | Move to IndexedDB store (object store per uid) |
+| Offline schedule preview | Add schedule digest hash + selective caching   |
+| Conflict resolution      | Introduce per-field version / etag             |
 
 ### 23.11 Acceptance for Rehydration Feature
+
 1. Hard reload on profile page instantly shows populated handle & name (no flash empty).
 2. Network throttled (Slow 3G) still yields filled fields within 50ms of script execution.
 3. Changing handle updates cache and survives reload.
 4. Cache cleared on logout; switching accounts never leaks prior data.
 
 ---
+
 END SECTION 23

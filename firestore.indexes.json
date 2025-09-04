@@ -67,46 +67,6 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "profile.firstName",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "universityInfo.university",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "profile.major_lower",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "socialInfo.searchable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "profile.firstName",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "universityInfo.university",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "socialInfo.searchable",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "email",
           "order": "ASCENDING"
         }

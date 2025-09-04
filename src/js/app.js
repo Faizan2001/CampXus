@@ -41,6 +41,7 @@ import { locationPrivacyService } from "./services/location/LocationPrivacyServi
 
 // 🔧 Development tools
 import { logManager } from "./utils/debug/LogManager.js";
+import { profileCache } from "./cache/profileCache.js"; // 🚀 Hydration cache
 
 // 🎯 DEBUG: Log that modules are imported
 logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
@@ -80,7 +81,9 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
       case "critical":
         logManager.setLevel("warn");
         logManager.enableCategories(["error", "auth", "system", "presence"]);
-        logManager.system.config("Critical profile: warnings/errors + key categories");
+        logManager.system.config(
+          "Critical profile: warnings/errors + key categories"
+        );
         break;
       case "quiet":
       default:
@@ -119,7 +122,9 @@ async function initializeSPA() {
   const topNav = document.querySelector(".top-nav");
 
   if (!mainContent) {
-    logManager.system.error("CRITICAL: .main-content not found. Cannot initialize SPA.");
+    logManager.system.error(
+      "CRITICAL: .main-content not found. Cannot initialize SPA."
+    );
     return;
   }
 
@@ -151,12 +156,34 @@ async function initializeSPA() {
   try {
     campusLocationService.startPresencePolling(20000);
   } catch (e) {
-    console.warn("Presence polling start failed (non-critical):", e?.message || e);
+    console.warn(
+      "Presence polling start failed (non-critical):",
+      e?.message || e
+    );
   }
 
   spaRouter = new SPARouter();
 
-  // 🎯 FIXED: Manually trigger the initial page load immediately
+  // 🚀 PROFILE HYDRATION (stale-while-revalidate) BEFORE first page paint
+  try {
+    // First attempt: optimistic (before auth resolved) for instant UI fill
+    const earlyHydrated = profileCache.tryHydrate(
+      currentUser,
+      authManager?.auth,
+      { optimistic: true }
+    );
+    if (earlyHydrated) {
+      logManager.system.init("Early optimistic profile hydration applied");
+    }
+    const hydrated = profileCache.tryHydrate(currentUser, authManager?.auth);
+    if (hydrated) {
+      logManager.system.init("Profile hydrated from cache (SWR mode)");
+    }
+  } catch (e) {
+    console.warn("Profile hydration failed (non-fatal)", e);
+  }
+
+  // 🎯 FIXED: Manually trigger the initial page load after hydration attempt
   spaRouter.loadInitialPage();
 
   // 🔐 Continue waiting for auth in the background (non-blocking for UI)
@@ -170,7 +197,13 @@ async function initializeSPA() {
       )
     );
     Promise.race([authManager.authReady, authTimeout])
-      .then(() => logManager.auth.login("Authentication ready (background)!"))
+      .then(() => {
+        logManager.auth.login("Authentication ready (background)!");
+        // Re-run hydration now that true auth user is known (will noop if already set)
+        try {
+          profileCache.tryHydrate(currentUser, authManager?.auth);
+        } catch (_) {}
+      })
       .catch((error) => {
         console.warn(
           `Authentication timeout or error (background), continuing: ${error.message}`
@@ -227,7 +260,9 @@ function setupProfileCompletionFlow() {
     // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data
     const userData = event.detail.userData;
     if (userData && currentUser) {
-      logManager.auth.user("Updating currentUser store with fresh profile data...");
+      logManager.auth.user(
+        "Updating currentUser store with fresh profile data..."
+      );
 
       // Update the currentUser store with the fresh profile data
       currentUser.setProfile(userData);
@@ -395,7 +430,9 @@ async function initializeCampusPresenceInBackground() {
         })
       );
     } else {
-      logManager.location.info("Using cached data for immediate presence display");
+      logManager.location.info(
+        "Using cached data for immediate presence display"
+      );
       sessionStorage.setItem("campusPresence_priorityMode", "cached");
     }
 

@@ -437,6 +437,18 @@ class DataManager {
     ];
 
     try {
+      // Fast exact handle path (strip leading @, must match handle regex)
+      if (searchTerm) {
+        const raw = searchTerm.trim().toLowerCase();
+        const candidate = raw.startsWith("@") ? raw.slice(1) : raw;
+        // Mirror HANDLE_REGEX: start letter, a-z0-9_, 3-20, no trailing underscore
+        if (/^[a-z][a-z0-9_]{1,18}[a-z0-9]$/.test(candidate)) {
+          const fastResult = await this.lookupUserByHandle(candidate);
+          if (fastResult) return [fastResult];
+          // If exact handle not found, continue to fuzzy only if user did not prefix with @
+          if (raw.startsWith("@")) return []; // user explicitly searched a handle
+        }
+      }
       let usersMap = new Map();
 
       if (searchTerm && searchTerm.trim().length >= 2) {
@@ -520,6 +532,35 @@ class DataManager {
       console.error("❌ Error finding users by university:", error);
       this.showNotification("Could not search for students.", "error");
       return [];
+    }
+  }
+
+  /**
+   * Exact lookup by handle mapping collection
+   * @param {string} handle normalized (lowercase)
+   * @returns {Promise<Object|null>} minimal user profile
+   */
+  async lookupUserByHandle(handle) {
+    if (!handle) return null;
+    try {
+      const dbRef = doc(db, "handles", handle);
+      const snap = await getDoc(dbRef);
+      if (!snap.exists()) return null;
+      const userId = snap.data().userId;
+      const userSnap = await getDoc(doc(db, "users", userId));
+      if (!userSnap.exists()) return null;
+      const data = userSnap.data();
+      return {
+        uid: userId,
+        handle: data.profile?.handle || handle,
+        major: data.profile?.major || null,
+        avatarConfig: data.avatarConfig || null,
+        university: data.universityInfo?.university || null,
+        profile: data.profile || {},
+      };
+    } catch (e) {
+      console.warn("lookupUserByHandle failed", e);
+      return null;
     }
   }
 
@@ -719,7 +760,7 @@ class DataManager {
 
       // --- BEGIN: Auto-generate search fields and ensure socialInfo ---
       if (profileData.profile) {
-  // (Removed displayName auto-generation – handle is canonical now)
+        // (Removed displayName auto-generation – handle is canonical now)
         if (profileData.profile.firstName) {
           profileData.profile.firstName_lower =
             profileData.profile.firstName.toLowerCase();
@@ -811,7 +852,7 @@ class DataManager {
   /**
    * Get just the minimal profile info (firstName, email, avatarConfig).
    * @param {string|object} userIdOrObj - UID or user object
-  * @returns {Promise<{handle: string|null, email: string|null, avatarConfig: object|null}|null>}
+   * @returns {Promise<{handle: string|null, email: string|null, avatarConfig: object|null}|null>}
    * @example
    *   const mini = await dataManager.getUserProfileMinimal("abc123");
    */
@@ -838,14 +879,10 @@ class DataManager {
       }
       const data = userDoc.data();
       // Defensive extraction: Only pull minimal fields
-  const handle = data?.profile?.handle ?? null;
+      const handle = data?.profile?.handle ?? null;
       const email = data?.profile?.email ?? null;
       const avatarConfig = data?.avatarConfig ?? null;
-      console.log(
-        "Returned minimal profile: @" + handle,
-        email,
-        avatarConfig
-      );
+      console.log("Returned minimal profile: @" + handle, email, avatarConfig);
       return { handle, email, avatarConfig };
     } catch (error) {
       console.error("[dataManager] Error in getUserProfileMinimal:", error);
@@ -1369,7 +1406,7 @@ class DataManager {
       // Basic identity
       uid: userData.uid,
       email: userData.profile?.email || "",
-  handle: userData.profile?.handle || "",
+      handle: userData.profile?.handle || "",
 
       // Personal info
       fullName: `${userData.profile?.firstName || ""} ${
@@ -2538,11 +2575,11 @@ class DataManager {
               ...friendship,
               friendId: friendId,
               friendInfo: friendInfo || {
-                  // Deprecated displayName fallback – will be removed after full handle migration
-                  displayName: "Unknown User",
-                  handle: null,
-                  major: "Unknown Major",
-                },
+                // Deprecated displayName fallback – will be removed after full handle migration
+                displayName: "Unknown User",
+                handle: null,
+                major: "Unknown Major",
+              },
             };
           });
 
@@ -2640,10 +2677,10 @@ class DataManager {
             ...friendship,
             friendId: friendId,
             friendInfo: friendInfo || {
-                displayName: "Unknown User", // deprecated
-                handle: null,
-                major: "Unknown Major",
-              },
+              displayName: "Unknown User", // deprecated
+              handle: null,
+              major: "Unknown Major",
+            },
             _mobileMetadata: updateInfo,
           };
         });
@@ -2856,7 +2893,7 @@ class DataManager {
    * Example usage:
    *   const unsubscribe = dataManager.listenToUserProfile(
    *     "user123",
-  *     (profile) => console.log("Profile updated:", profile.profile?.handle)
+   *     (profile) => console.log("Profile updated:", profile.profile?.handle)
    *   );
    *   // Later: unsubscribe(); // Stop listening
    */
@@ -2902,8 +2939,7 @@ class DataManager {
               (!cachedData ||
                 JSON.stringify(cachedData.avatarConfig) !==
                   JSON.stringify(profileData.avatarConfig) ||
-                cachedData.profile?.handle !==
-                  profileData.profile?.handle ||
+                cachedData.profile?.handle !== profileData.profile?.handle ||
                 cachedData.profile?.major !== profileData.profile?.major);
 
             // Update local cache with fresh data
@@ -3306,9 +3342,9 @@ class DataManager {
       const updatedFriend = {
         ...existingFriend, // Preserve starredAt, lastInteraction, etc.
         // Update cached fields with fresh data from friend's profile
-  // Deprecated: displayName mirrored from handle for backward compatibility
-  displayName: friendData.profile?.handle || existingFriend.displayName,
-  handle: friendData.profile?.handle || existingFriend.handle,
+        // Deprecated: displayName mirrored from handle for backward compatibility
+        displayName: friendData.profile?.handle || existingFriend.displayName,
+        handle: friendData.profile?.handle || existingFriend.handle,
         major: friendData.profile?.major || existingFriend.major,
         avatarConfig: friendData.avatarConfig || existingFriend.avatarConfig,
         // Add update timestamp to track freshness
@@ -3399,7 +3435,8 @@ class DataManager {
           const freshData = freshDoc.data();
           return {
             ...existingFriend, // Keep starredAt, lastInteraction
-            displayName: freshData.profile?.handle || existingFriend.displayName, // deprecated mirror
+            displayName:
+              freshData.profile?.handle || existingFriend.displayName, // deprecated mirror
             handle: freshData.profile?.handle || existingFriend.handle,
             major: freshData.profile?.major || existingFriend.major,
             avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
@@ -3476,8 +3513,9 @@ class DataManager {
       await this.ensureSystemInfoExists(userId);
 
       // 🔧 NEW: Detect if this is network-based detection (TIER 1)
-      const isNetworkDetection = coordinates && coordinates.networkDetection === true;
-      
+      const isNetworkDetection =
+        coordinates && coordinates.networkDetection === true;
+
       // 🔧 VALIDATION: Handle network detection vs GPS-based detection differently
       // Check if coordinates are valid (not null) and accuracy is acceptable
       const hasValidCoordinates =
@@ -3527,7 +3565,11 @@ class DataManager {
 
       // 🔧 FIX: Properly structure coordinates for Firestore
       let coordinatesForFirestore = null;
-      if (coordinates && typeof coordinates === "object" && hasValidCoordinates) {
+      if (
+        coordinates &&
+        typeof coordinates === "object" &&
+        hasValidCoordinates
+      ) {
         coordinatesForFirestore = {
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
@@ -3611,7 +3653,7 @@ class DataManager {
 
       if (!this.isOnline) {
         this.pendingOperations.push(() => this.updateUserLastActive(userId));
-      // Activity update cached (offline)
+        // Activity update cached (offline)
         return { success: true, cached: true };
       }
 

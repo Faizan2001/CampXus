@@ -37,8 +37,22 @@ import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
 import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
-import { normalizeHandle, validateHandle, isReservedHandle, canChangeHandle, formatCooldown } from "../../utils/handle/handleUtils.js";
-import { getFirestore, doc, runTransaction, serverTimestamp, setDoc, deleteDoc, getDoc } from "firebase/firestore";
+import {
+  normalizeHandle,
+  validateHandle,
+  isReservedHandle,
+  canChangeHandle,
+  formatCooldown,
+} from "../../utils/handle/handleUtils.js";
+import {
+  getFirestore,
+  doc,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  deleteDoc,
+  getDoc,
+} from "firebase/firestore";
 import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js"; // 🎯 NEW: Schedule import functionality
 
 /**
@@ -80,10 +94,37 @@ class ProfileSetup {
 
     // Ensure handle field is present even if no profile data yet (first load / reload)
     setTimeout(() => {
-      if (typeof this.ensureHandleField === 'function') {
+      if (typeof this.ensureHandleField === "function") {
         this.ensureHandleField();
       }
     }, 0);
+
+    // Listen for hydration so we can prefill handle from cache immediately
+    document.addEventListener("profile:hydrated", (e) => {
+      // Only act if not fully initialized yet
+      if (this.isInitialized) return;
+      const cachedProfile = e.detail?.optimistic
+        ? currentUser.profile
+        : currentUser.profile;
+      if (cachedProfile) {
+        this.existingProfileData = cachedProfile;
+        // Try to populate form fields (will no-op if DOM not ready yet)
+        try {
+          this.populateFormFields(cachedProfile);
+        } catch (_) {}
+      }
+    });
+
+    // If a profile was already hydrated BEFORE this page loaded, use it now
+    if (!this.isInitialized && currentUser?.profile) {
+      this.existingProfileData = currentUser.profile;
+      // Defer to allow DOM template injection to complete
+      setTimeout(() => {
+        try {
+          this.populateFormFields(currentUser.profile);
+        } catch (_) {}
+      }, 0);
+    }
   }
 
   /**
@@ -105,16 +146,16 @@ class ProfileSetup {
     this.dataLoadInProgress = true;
 
     try {
-  // (Removed custom overlay) Intentionally not showing separate loader; router handles page-level loads.
+      // (Removed custom overlay) Intentionally not showing separate loader; router handles page-level loads.
 
       // Use dataManager instead of direct Firestore calls
       const data = await dataManager.getUserProfile(userId);
 
       if (data) {
-  this.existingProfileData = data;
+        this.existingProfileData = data;
         return data;
       } else {
-  this.existingProfileData = null;
+        this.existingProfileData = null;
         return null;
       }
     } catch (error) {
@@ -168,10 +209,10 @@ class ProfileSetup {
       if (firstName) firstName.value = getProfileValue("firstName");
       if (lastName) lastName.value = getProfileValue("lastName");
       // Inject handle field if not present
-      const nameRow = firstName?.closest('.form-row');
-      if (nameRow && !document.getElementById('setup-handle')) {
-        const handleRow = document.createElement('div');
-        handleRow.className = 'form-group';
+      const nameRow = firstName?.closest(".form-row");
+      if (nameRow && !document.getElementById("setup-handle")) {
+        const handleRow = document.createElement("div");
+        handleRow.className = "form-group";
         handleRow.innerHTML = `
           <label for="setup-handle">Handle <span class="optional-note">(public @name)</span></label>
           <div class="handle-status-wrapper" style="position:relative;">
@@ -179,37 +220,37 @@ class ProfileSetup {
             <span id="setup-handle-icon" aria-hidden="true" class="handle-status-icon"></span>
           </div>
           <div id="setup-handle-feedback" class="field-hint">3–20 chars: letters, numbers, underscore. Must start with a letter.</div>`;
-        nameRow.insertAdjacentElement('afterend', handleRow);
+        nameRow.insertAdjacentElement("afterend", handleRow);
 
-        const handleInput = handleRow.querySelector('#setup-handle');
-        const feedbackEl = handleRow.querySelector('#setup-handle-feedback');
+        const handleInput = handleRow.querySelector("#setup-handle");
+        const feedbackEl = handleRow.querySelector("#setup-handle-feedback");
         let debounceTimer;
-        const iconEl = handleRow.querySelector('#setup-handle-icon');
+        const iconEl = handleRow.querySelector("#setup-handle-icon");
         const setIconState = (state) => {
           if (!iconEl) return;
           // Reset
-            iconEl.removeAttribute('data-state');
-            iconEl.className = 'handle-status-icon';
-            iconEl.textContent = '';
-            iconEl.innerHTML = '';
+          iconEl.removeAttribute("data-state");
+          iconEl.className = "handle-status-icon";
+          iconEl.textContent = "";
+          iconEl.innerHTML = "";
           if (!state) return; // hidden
-          if (state === 'checking') {
-            iconEl.setAttribute('data-state','checking');
-            iconEl.classList.add('visible','checking');
-            iconEl.innerHTML = '<span></span><span></span><span></span>';
-          } else if (state === 'success') {
-            iconEl.setAttribute('data-state','success');
-            iconEl.classList.add('visible','success');
-            iconEl.textContent='✓';
-          } else if (state === 'error') {
-            iconEl.setAttribute('data-state','error');
-            iconEl.classList.add('visible','error');
-            iconEl.textContent='✕';
+          if (state === "checking") {
+            iconEl.setAttribute("data-state", "checking");
+            iconEl.classList.add("visible", "checking");
+            iconEl.innerHTML = "<span></span><span></span><span></span>";
+          } else if (state === "success") {
+            iconEl.setAttribute("data-state", "success");
+            iconEl.classList.add("visible", "success");
+            iconEl.textContent = "✓";
+          } else if (state === "error") {
+            iconEl.setAttribute("data-state", "error");
+            iconEl.classList.add("visible", "error");
+            iconEl.textContent = "✕";
           }
         };
-        if (!document.getElementById('handle-style-injections')) {
-          const styleEl = document.createElement('style');
-          styleEl.id = 'handle-style-injections';
+        if (!document.getElementById("handle-style-injections")) {
+          const styleEl = document.createElement("style");
+          styleEl.id = "handle-style-injections";
           styleEl.textContent = `
             .handle-status-wrapper { width:100%; }
             .handle-status-wrapper .form-input { width:100%; padding-right:48px; }
@@ -230,45 +271,95 @@ class ProfileSetup {
           `;
           document.head.appendChild(styleEl);
         }
-  const prefilledExistingHandle = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle || null;
-        handleInput.addEventListener('input', () => {
+        const prefilledExistingHandle =
+          this.existingProfileData?.profile?.handle ||
+          this.existingProfileData?.handle ||
+          null;
+        handleInput.addEventListener("input", () => {
           clearTimeout(debounceTimer);
           const raw = handleInput.value.trim();
-          if (!raw) { feedbackEl.textContent = 'Handle required before finishing setup.'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState(); this.validateCurrentStep(); return; }
-          const v = validateHandle(raw);
-          if (!v.valid) { feedbackEl.textContent = `Invalid: ${v.reason.replace(/_/g,' ')}`; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
-          if (isReservedHandle(v.normalized)) { feedbackEl.textContent = 'Reserved handle'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
-          // If user re-enters their current handle, treat as valid without availability lookup
-          if (prefilledExistingHandle && v.normalized === prefilledExistingHandle) {
-            feedbackEl.textContent = 'Current handle';
-            feedbackEl.className = 'field-hint success';
-            handleInput.classList.remove('invalid');
-            handleInput.classList.add('valid');
-            setIconState('success');
+          if (!raw) {
+            feedbackEl.textContent = "Handle required before finishing setup.";
+            feedbackEl.className = "field-hint error";
+            handleInput.classList.remove("valid");
+            handleInput.classList.add("invalid");
+            setIconState();
             this.validateCurrentStep();
             return;
           }
-          feedbackEl.textContent = 'Checking availability…'; feedbackEl.className='field-hint'; setIconState('checking');
+          const v = validateHandle(raw);
+          if (!v.valid) {
+            feedbackEl.textContent = `Invalid: ${v.reason.replace(/_/g, " ")}`;
+            feedbackEl.className = "field-hint error";
+            handleInput.classList.remove("valid");
+            handleInput.classList.add("invalid");
+            setIconState("error");
+            this.validateCurrentStep();
+            return;
+          }
+          if (isReservedHandle(v.normalized)) {
+            feedbackEl.textContent = "Reserved handle";
+            feedbackEl.className = "field-hint error";
+            handleInput.classList.remove("valid");
+            handleInput.classList.add("invalid");
+            setIconState("error");
+            this.validateCurrentStep();
+            return;
+          }
+          // If user re-enters their current handle, treat as valid without availability lookup
+          if (
+            prefilledExistingHandle &&
+            v.normalized === prefilledExistingHandle
+          ) {
+            feedbackEl.textContent = "Current handle";
+            feedbackEl.className = "field-hint success";
+            handleInput.classList.remove("invalid");
+            handleInput.classList.add("valid");
+            setIconState("success");
+            this.validateCurrentStep();
+            return;
+          }
+          feedbackEl.textContent = "Checking availability…";
+          feedbackEl.className = "field-hint";
+          setIconState("checking");
           debounceTimer = setTimeout(async () => {
             try {
               const db = getFirestore();
-              const snap = await getDoc(doc(db,'handles', v.normalized));
-              if (snap.exists()) { feedbackEl.textContent = 'Already taken'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); }
-              else { feedbackEl.textContent = 'Available ✔'; feedbackEl.className='field-hint success'; handleInput.classList.remove('invalid'); handleInput.classList.add('valid'); setIconState('success'); }
+              const snap = await getDoc(doc(db, "handles", v.normalized));
+              if (snap.exists()) {
+                feedbackEl.textContent = "Already taken";
+                feedbackEl.className = "field-hint error";
+                handleInput.classList.remove("valid");
+                handleInput.classList.add("invalid");
+                setIconState("error");
+              } else {
+                feedbackEl.textContent = "Available ✔";
+                feedbackEl.className = "field-hint success";
+                handleInput.classList.remove("invalid");
+                handleInput.classList.add("valid");
+                setIconState("success");
+              }
               this.validateCurrentStep();
-            } catch (e) { feedbackEl.textContent = 'Availability error'; feedbackEl.className='field-hint error'; handleInput.classList.add('invalid'); setIconState('error'); }
+            } catch (e) {
+              feedbackEl.textContent = "Availability error";
+              feedbackEl.className = "field-hint error";
+              handleInput.classList.add("invalid");
+              setIconState("error");
+            }
           }, 400);
         });
         // Prefill existing handle (supports legacy root-level or nested profile.handle)
-        const prefilledExistingHandle2 = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle;
+        const prefilledExistingHandle2 =
+          this.existingProfileData?.profile?.handle ||
+          this.existingProfileData?.handle;
         if (prefilledExistingHandle2) {
           handleInput.value = prefilledExistingHandle2;
           // Mark as valid without triggering availability check (already owned by user)
-          feedbackEl.textContent = 'Current handle';
-          feedbackEl.className = 'field-hint success';
-          handleInput.classList.remove('invalid');
-          handleInput.classList.add('valid');
-          setIconState('success');
+          feedbackEl.textContent = "Current handle";
+          feedbackEl.className = "field-hint success";
+          handleInput.classList.remove("invalid");
+          handleInput.classList.add("valid");
+          setIconState("success");
           this.validateCurrentStep();
         }
       }
@@ -337,14 +428,17 @@ class ProfileSetup {
    */
   ensureHandleField() {
     try {
-      if (document.getElementById('setup-handle')) return; // already present
-      const firstName = document.getElementById('setup-first-name');
-      if (!firstName) { setTimeout(() => this.ensureHandleField(), 150); return; }
-      const nameRow = firstName.closest('.form-row');
+      if (document.getElementById("setup-handle")) return; // already present
+      const firstName = document.getElementById("setup-first-name");
+      if (!firstName) {
+        setTimeout(() => this.ensureHandleField(), 150);
+        return;
+      }
+      const nameRow = firstName.closest(".form-row");
       if (!nameRow) return;
       // Reuse insertion logic (single form-group variant)
-      const handleGroup = document.createElement('div');
-      handleGroup.className = 'form-group';
+      const handleGroup = document.createElement("div");
+      handleGroup.className = "form-group";
       handleGroup.innerHTML = `
         <label for="setup-handle">Handle <span class="optional-note">(public @name)</span></label>
         <div class="handle-status-wrapper" style="position:relative;">
@@ -352,22 +446,36 @@ class ProfileSetup {
           <span id="setup-handle-icon" aria-hidden="true" class="handle-status-icon"></span>
         </div>
         <div id="setup-handle-feedback" class="field-hint">3–20 chars: letters, numbers, underscore. Must start with a letter.</div>`;
-      nameRow.insertAdjacentElement('afterend', handleGroup);
+      nameRow.insertAdjacentElement("afterend", handleGroup);
 
-      const handleInput = handleGroup.querySelector('#setup-handle');
-      const feedbackEl = handleGroup.querySelector('#setup-handle-feedback');
-      let debounceTimer; const iconEl = handleGroup.querySelector('#setup-handle-icon');
+      const handleInput = handleGroup.querySelector("#setup-handle");
+      const feedbackEl = handleGroup.querySelector("#setup-handle-feedback");
+      let debounceTimer;
+      const iconEl = handleGroup.querySelector("#setup-handle-icon");
       const setIconState = (state) => {
         if (!iconEl) return;
-        iconEl.removeAttribute('data-state'); iconEl.className='handle-status-icon'; iconEl.textContent=''; iconEl.innerHTML='';
+        iconEl.removeAttribute("data-state");
+        iconEl.className = "handle-status-icon";
+        iconEl.textContent = "";
+        iconEl.innerHTML = "";
         if (!state) return;
-        if (state==='checking'){ iconEl.setAttribute('data-state','checking'); iconEl.classList.add('visible','checking'); iconEl.innerHTML='<span></span><span></span><span></span>'; }
-        else if (state==='success'){ iconEl.setAttribute('data-state','success'); iconEl.classList.add('visible','success'); iconEl.textContent='✓'; }
-        else if (state==='error'){ iconEl.setAttribute('data-state','error'); iconEl.classList.add('visible','error'); iconEl.textContent='✕'; }
+        if (state === "checking") {
+          iconEl.setAttribute("data-state", "checking");
+          iconEl.classList.add("visible", "checking");
+          iconEl.innerHTML = "<span></span><span></span><span></span>";
+        } else if (state === "success") {
+          iconEl.setAttribute("data-state", "success");
+          iconEl.classList.add("visible", "success");
+          iconEl.textContent = "✓";
+        } else if (state === "error") {
+          iconEl.setAttribute("data-state", "error");
+          iconEl.classList.add("visible", "error");
+          iconEl.textContent = "✕";
+        }
       };
-      if (!document.getElementById('handle-style-injections')) {
-        const styleEl = document.createElement('style');
-        styleEl.id='handle-style-injections';
+      if (!document.getElementById("handle-style-injections")) {
+        const styleEl = document.createElement("style");
+        styleEl.id = "handle-style-injections";
         styleEl.textContent = `
           .handle-status-wrapper { width:100%; }
           .handle-status-wrapper .form-input { width:100%; padding-right:48px; }
@@ -385,46 +493,96 @@ class ProfileSetup {
         `;
         document.head.appendChild(styleEl);
       }
-  const prefilledExistingHandle3 = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle || null;
-      handleInput.addEventListener('input', () => {
+      const prefilledExistingHandle3 =
+        this.existingProfileData?.profile?.handle ||
+        this.existingProfileData?.handle ||
+        null;
+      handleInput.addEventListener("input", () => {
         clearTimeout(debounceTimer);
         const raw = handleInput.value.trim();
-        if (!raw) { feedbackEl.textContent='Handle required before finishing setup.'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState(); this.validateCurrentStep(); return; }
-        const v = validateHandle(raw);
-        if (!v.valid) { feedbackEl.textContent=`Invalid: ${v.reason.replace(/_/g,' ')}`; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
-        if (isReservedHandle(v.normalized)) { feedbackEl.textContent='Reserved handle'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); this.validateCurrentStep(); return; }
-  if (prefilledExistingHandle3 && v.normalized === prefilledExistingHandle3) {
-          feedbackEl.textContent='Current handle';
-          feedbackEl.className='field-hint success';
-          handleInput.classList.remove('invalid');
-          handleInput.classList.add('valid');
-          setIconState('success');
+        if (!raw) {
+          feedbackEl.textContent = "Handle required before finishing setup.";
+          feedbackEl.className = "field-hint error";
+          handleInput.classList.remove("valid");
+          handleInput.classList.add("invalid");
+          setIconState();
           this.validateCurrentStep();
           return;
         }
-        feedbackEl.textContent='Checking availability…'; feedbackEl.className='field-hint'; setIconState('checking');
+        const v = validateHandle(raw);
+        if (!v.valid) {
+          feedbackEl.textContent = `Invalid: ${v.reason.replace(/_/g, " ")}`;
+          feedbackEl.className = "field-hint error";
+          handleInput.classList.remove("valid");
+          handleInput.classList.add("invalid");
+          setIconState("error");
+          this.validateCurrentStep();
+          return;
+        }
+        if (isReservedHandle(v.normalized)) {
+          feedbackEl.textContent = "Reserved handle";
+          feedbackEl.className = "field-hint error";
+          handleInput.classList.remove("valid");
+          handleInput.classList.add("invalid");
+          setIconState("error");
+          this.validateCurrentStep();
+          return;
+        }
+        if (
+          prefilledExistingHandle3 &&
+          v.normalized === prefilledExistingHandle3
+        ) {
+          feedbackEl.textContent = "Current handle";
+          feedbackEl.className = "field-hint success";
+          handleInput.classList.remove("invalid");
+          handleInput.classList.add("valid");
+          setIconState("success");
+          this.validateCurrentStep();
+          return;
+        }
+        feedbackEl.textContent = "Checking availability…";
+        feedbackEl.className = "field-hint";
+        setIconState("checking");
         debounceTimer = setTimeout(async () => {
           try {
             const db = getFirestore();
-            const snap = await getDoc(doc(db,'handles', v.normalized));
-            if (snap.exists()) { feedbackEl.textContent='Already taken'; feedbackEl.className='field-hint error'; handleInput.classList.remove('valid'); handleInput.classList.add('invalid'); setIconState('error'); }
-            else { feedbackEl.textContent='Available ✔'; feedbackEl.className='field-hint success'; handleInput.classList.remove('invalid'); handleInput.classList.add('valid'); setIconState('success'); }
+            const snap = await getDoc(doc(db, "handles", v.normalized));
+            if (snap.exists()) {
+              feedbackEl.textContent = "Already taken";
+              feedbackEl.className = "field-hint error";
+              handleInput.classList.remove("valid");
+              handleInput.classList.add("invalid");
+              setIconState("error");
+            } else {
+              feedbackEl.textContent = "Available ✔";
+              feedbackEl.className = "field-hint success";
+              handleInput.classList.remove("invalid");
+              handleInput.classList.add("valid");
+              setIconState("success");
+            }
             this.validateCurrentStep();
-          } catch (e) { feedbackEl.textContent='Availability error'; feedbackEl.className='field-hint error'; handleInput.classList.add('invalid'); setIconState('error'); }
+          } catch (e) {
+            feedbackEl.textContent = "Availability error";
+            feedbackEl.className = "field-hint error";
+            handleInput.classList.add("invalid");
+            setIconState("error");
+          }
         }, 400);
       });
       // Prefill if existing profile already has handle
-      const existingHandle = this.existingProfileData?.profile?.handle || this.existingProfileData?.handle;
+      const existingHandle =
+        this.existingProfileData?.profile?.handle ||
+        this.existingProfileData?.handle;
       if (existingHandle) {
         handleInput.value = existingHandle;
-        feedbackEl.textContent = 'Current handle';
-        feedbackEl.className = 'field-hint success';
-        handleInput.classList.add('valid');
-        setIconState('success');
+        feedbackEl.textContent = "Current handle";
+        feedbackEl.className = "field-hint success";
+        handleInput.classList.add("valid");
+        setIconState("success");
         this.validateCurrentStep();
       }
     } catch (e) {
-      console.warn('ensureHandleField failed:', e);
+      console.warn("ensureHandleField failed:", e);
     }
   }
 
@@ -432,12 +590,16 @@ class ProfileSetup {
    * Show loading state with custom message using SPA router's loading animation
    * @param {string} message - Loading message to display
    */
-  showLoadingState() { /* removed: rely solely on router loader */ }
+  showLoadingState() {
+    /* removed: rely solely on router loader */
+  }
 
   /**
    * Hide loading state using SPA router's smooth animation
    */
-  hideLoadingState() { /* no-op */ }
+  hideLoadingState() {
+    /* no-op */
+  }
 
   /**
    * Show error message to user
@@ -478,17 +640,17 @@ class ProfileSetup {
    */
   static disableExitAnimations() {
     try {
-      const card = document.querySelector('.profile-setup-card');
+      const card = document.querySelector(".profile-setup-card");
       if (card) {
-        card.style.animation = 'none';
-        card.style.transition = 'none';
+        card.style.animation = "none";
+        card.style.transition = "none";
       }
-      document.querySelectorAll('.setup-step').forEach(el => {
-        el.style.animation = 'none';
-        el.style.transition = 'none';
+      document.querySelectorAll(".setup-step").forEach((el) => {
+        el.style.animation = "none";
+        el.style.transition = "none";
       });
     } catch (e) {
-      console.warn('Failed to disable profile exit animations', e);
+      console.warn("Failed to disable profile exit animations", e);
     }
   }
 
@@ -675,23 +837,28 @@ class ProfileSetup {
       return;
     }
 
-    if (!this.currentUser) {
-      // Try one more time to get user from auth manager
-      if (authManager) {
-        const user = authManager.getCurrentUser();
-        if (user) {
-          this.currentUser = user;
-        } else {
-          // Update placeholders to show no user found
-          emailInput.placeholder = "Please sign in first";
-          studentIdInput.placeholder = "Please sign in first";
-          return;
-        }
-      } else {
-        emailInput.placeholder = "Please sign in first";
-        studentIdInput.placeholder = "Please sign in first";
-        return;
+    // Prefer already assigned auth user
+    if (!this.currentUser && authManager) {
+      const authUser = authManager.getCurrentUser();
+      if (authUser) this.currentUser = authUser;
+    }
+    // If still no auth user, attempt cached profile fallback (hydrated before auth)
+    if (!this.currentUser && window.currentUser && window.currentUser.profile) {
+      const cachedEmail = window.currentUser.profile?.profile?.email;
+      if (cachedEmail) {
+        emailInput.value = cachedEmail;
+        const parts = cachedEmail.split("@");
+        if (parts.length > 0) studentIdInput.value = parts[0];
+        emailInput.placeholder = "Cached email";
+        studentIdInput.placeholder = "Cached ID";
+        this.styleReadonlyFields();
+        return; // done for now; real auth will overwrite later
       }
+    }
+    if (!this.currentUser) {
+      emailInput.placeholder = "Please sign in first";
+      studentIdInput.placeholder = "Please sign in first";
+      return;
     }
 
     // Check if this is a development email
@@ -899,18 +1066,27 @@ class ProfileSetup {
 
       // All validations must pass
       let handleValid = false;
-      const handleInput = document.getElementById('setup-handle');
-      const handleFeedback = document.getElementById('setup-handle-feedback');
+      const handleInput = document.getElementById("setup-handle");
+      const handleFeedback = document.getElementById("setup-handle-feedback");
       if (handleInput) {
         const raw = handleInput.value.trim();
         if (raw) {
           const v = validateHandle(raw);
-          const taken = handleFeedback?.classList.contains('error') && /taken/i.test(handleFeedback.textContent || '');
-          handleValid = v.valid && !taken && !isReservedHandle(v.normalized) && handleFeedback?.classList.contains('success');
+          const taken =
+            handleFeedback?.classList.contains("error") &&
+            /taken/i.test(handleFeedback.textContent || "");
+          handleValid =
+            v.valid &&
+            !taken &&
+            !isReservedHandle(v.normalized) &&
+            handleFeedback?.classList.contains("success");
         }
       }
       const isStepValid =
-        hasRequiredFields && hasValidEmail && hasValidStartingYear && handleValid;
+        hasRequiredFields &&
+        hasValidEmail &&
+        hasValidStartingYear &&
+        handleValid;
 
       // Always keep "Next Step →" text, just enable/disable button
       nextBtn.textContent = "Next Step →";
@@ -1378,16 +1554,16 @@ class ProfileSetup {
   async saveProfile() {
     try {
       // Collect handle from field
-      const handleInput = document.getElementById('setup-handle');
+      const handleInput = document.getElementById("setup-handle");
       let claimedHandle = null;
       if (handleInput) {
         const raw = handleInput.value.trim();
         const v = validateHandle(raw);
-        if (!v.valid) throw new Error('Invalid handle cannot be saved');
-        if (isReservedHandle(v.normalized)) throw new Error('Reserved handle');
+        if (!v.valid) throw new Error("Invalid handle cannot be saved");
+        if (isReservedHandle(v.normalized)) throw new Error("Reserved handle");
         claimedHandle = v.normalized;
       } else {
-        throw new Error('Handle input missing');
+        throw new Error("Handle input missing");
       }
 
       // 🎯 Create clean profile data with only essential fields (no schedule data)
@@ -1401,6 +1577,16 @@ class ProfileSetup {
         bio: this.profileData.bio || "",
         handle: claimedHandle,
       };
+      // Derive lowercase search fields
+      cleanProfileData.firstName_lower = (
+        cleanProfileData.firstName || ""
+      ).toLowerCase();
+      cleanProfileData.lastName_lower = (
+        cleanProfileData.lastName || ""
+      ).toLowerCase();
+      cleanProfileData.major_lower = (
+        cleanProfileData.major || ""
+      ).toLowerCase();
 
       // 🎯 FIXED: Only include clean profile data to avoid Firestore nested arrays error
       const profileDataForFirestore = {
@@ -1427,8 +1613,8 @@ class ProfileSetup {
       // Reserve handle + save profile transactionally with cooldown + old handle release
       const db = getFirestore();
       const userId = this.currentUser.uid;
-      const desiredHandleRef = doc(db,'handles', cleanProfileData.handle);
-      const userRef = doc(db,'users', userId);
+      const desiredHandleRef = doc(db, "handles", cleanProfileData.handle);
+      const userRef = doc(db, "users", userId);
       await runTransaction(db, async (tx) => {
         const userSnap = await tx.get(userRef);
         const isNewUser = !userSnap.exists();
@@ -1439,24 +1625,39 @@ class ProfileSetup {
         // If changing handle (not first claim), enforce cooldown
         if (previousHandle && previousHandle !== claimedHandle) {
           const cooldown = canChangeHandle(lastHandleChangeAt);
-            if (!cooldown.allowed) {
-              throw new Error(`Handle recently changed. Try again in ${formatCooldown(cooldown.remainingMs)}.`);
-            }
+          if (!cooldown.allowed) {
+            throw new Error(
+              `Handle recently changed. Try again in ${formatCooldown(
+                cooldown.remainingMs
+              )}.`
+            );
+          }
         }
 
         // If the handle is different OR user is new, attempt to create new handle doc
         if (!previousHandle || previousHandle !== claimedHandle) {
           const desiredHandleSnap = await tx.get(desiredHandleRef);
-          if (desiredHandleSnap.exists() && desiredHandleSnap.data().userId !== userId) {
-            throw new Error('Handle taken while saving');
+          if (
+            desiredHandleSnap.exists() &&
+            desiredHandleSnap.data().userId !== userId
+          ) {
+            throw new Error("Handle taken while saving");
           }
           // Create the new handle doc (rules: create-only). Avoid re-setting if already ours.
           if (!desiredHandleSnap.exists()) {
-            tx.set(desiredHandleRef, { userId, createdAt: serverTimestamp(), lastClaimedAt: serverTimestamp() }, { merge: false });
+            tx.set(
+              desiredHandleRef,
+              {
+                userId,
+                createdAt: serverTimestamp(),
+                lastClaimedAt: serverTimestamp(),
+              },
+              { merge: false }
+            );
           }
           // Release old handle if changing (delete old doc). Product decision: immediate release.
           if (previousHandle && previousHandle !== claimedHandle) {
-            const oldHandleRef = doc(db,'handles', previousHandle);
+            const oldHandleRef = doc(db, "handles", previousHandle);
             tx.delete(oldHandleRef);
           }
         }
@@ -1464,7 +1665,7 @@ class ProfileSetup {
         // Build systemInfo update preserving existing createdAt
         const systemInfoUpdates = {
           profileSetupComplete: true,
-          status: userData?.systemInfo?.status || 'offline',
+          status: userData?.systemInfo?.status || "offline",
           lastUpdated: serverTimestamp(),
         };
         if (isNewUser) {
@@ -2683,8 +2884,8 @@ document.addEventListener("spa:page:load", (event) => {
 });
 
 // Disable animations right before leaving the profile page to avoid visual pull
-document.addEventListener('spa:page:unload', (event) => {
-  if (event.detail?.route === 'profile') {
+document.addEventListener("spa:page:unload", (event) => {
+  if (event.detail?.route === "profile") {
     ProfileSetup.disableExitAnimations();
   }
 });
