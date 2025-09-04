@@ -604,8 +604,13 @@ export class FriendsManager {
 
     // Detect potential handle (strip leading @ if present)
     const normalized = term.startsWith("@") ? term.slice(1).toLowerCase() : term.toLowerCase();
-    const HANDLE_REGEX = /^[a-z0-9._]{2,32}$/;
-    if (HANDLE_REGEX.test(normalized)) {
+    // Use canonical handle pattern: start with letter, a-z0-9_ only, 3-20 chars, cannot end with _
+    // Reuse validation from handleUtils (dynamic import to avoid circular deps in some bundlers)
+    let isHandleCandidate = false;
+    if (/^[a-z][a-z0-9_]{2,19}$/.test(normalized) && !normalized.endsWith('_')) {
+      isHandleCandidate = true;
+    }
+    if (isHandleCandidate) {
       try {
         // Direct handle mapping lookup (global)
         const { getDoc, doc } = await import("firebase/firestore");
@@ -628,7 +633,7 @@ export class FriendsManager {
         // ⚠️ NOTE: Current security rules only allow cross-university read if socialInfo.searchable && same university
         // If cross-university handle lookup is required, rules must be updated separately.
 
-        // 3. Adapt to existing student object shape expected by UI
+  // 3. Adapt to existing student object shape expected by UI
         return [
           {
             id: userId,
