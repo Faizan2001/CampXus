@@ -34,8 +34,8 @@ class CurrentUserManager {
     this._profile = null; // Firestore user profile
     this._profilePromise = null;
     this._resolveProfilePromise = null;
-  this._uidPromise = null;
-  this._resolveUidPromise = null;
+    this._uidPromise = null;
+    this._resolveUidPromise = null;
     this._subscribers = new Set();
 
     // Phase-1: Schedule state management
@@ -281,7 +281,12 @@ class CurrentUserManager {
     let timedOut = false;
     return Promise.race([
       this._uidPromise,
-      new Promise((resolve) => setTimeout(() => { timedOut = true; resolve(null); }, timeoutMs)),
+      new Promise((resolve) =>
+        setTimeout(() => {
+          timedOut = true;
+          resolve(null);
+        }, timeoutMs)
+      ),
     ]).then((val) => (timedOut ? null : val));
   }
 

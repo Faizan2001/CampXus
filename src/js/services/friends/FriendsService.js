@@ -268,10 +268,7 @@ export class FriendsManager {
       // Transform the data for UI consistency
       const transformedRequests = requests.map((request) => ({
         ...request,
-        handle:
-          request.handle ||
-          request.fromUserInfo?.handle ||
-          "unknown",
+        handle: request.handle || request.fromUserInfo?.handle || "unknown",
         major: request.major || request.fromUserInfo?.major || "Unknown Major",
         university:
           request.university ||
@@ -298,10 +295,7 @@ export class FriendsManager {
       // Transform the data for UI consistency
       const transformedRequests = requests.map((request) => ({
         ...request,
-        handle:
-          request.handle ||
-          request.toUserInfo?.handle ||
-          "unknown",
+        handle: request.handle || request.toUserInfo?.handle || "unknown",
         major: request.major || request.toUserInfo?.major || "Unknown Major",
         university:
           request.university ||
@@ -441,13 +435,17 @@ export class FriendsManager {
           university: request.university,
         });
       } else if (request.status === "rejected") {
-        console.log(`@${request.handle || 'unknown'} declined your friend request`);
+        console.log(
+          `@${request.handle || "unknown"} declined your friend request`
+        );
       }
     } catch (error) {
       console.error("❌ Error showing notification:", error);
       // Fallback: Log notification that would have been shown
       console.log(
-        `📢 Notification (fallback): Friend request ${request.status} - @${request.handle || 'unknown'}`
+        `📢 Notification (fallback): Friend request ${request.status} - @${
+          request.handle || "unknown"
+        }`
       );
     }
   }
@@ -603,11 +601,16 @@ export class FriendsManager {
     if (term.length < 2) return [];
 
     // Detect potential handle (strip leading @ if present)
-    const normalized = term.startsWith("@") ? term.slice(1).toLowerCase() : term.toLowerCase();
+    const normalized = term.startsWith("@")
+      ? term.slice(1).toLowerCase()
+      : term.toLowerCase();
     // Use canonical handle pattern: start with letter, a-z0-9_ only, 3-20 chars, cannot end with _
     // Reuse validation from handleUtils (dynamic import to avoid circular deps in some bundlers)
     let isHandleCandidate = false;
-    if (/^[a-z][a-z0-9_]{2,19}$/.test(normalized) && !normalized.endsWith('_')) {
+    if (
+      /^[a-z][a-z0-9_]{2,19}$/.test(normalized) &&
+      !normalized.endsWith("_")
+    ) {
       isHandleCandidate = true;
     }
     if (isHandleCandidate) {
@@ -633,7 +636,7 @@ export class FriendsManager {
         // ⚠️ NOTE: Current security rules only allow cross-university read if socialInfo.searchable && same university
         // If cross-university handle lookup is required, rules must be updated separately.
 
-  // 3. Adapt to existing student object shape expected by UI
+        // 3. Adapt to existing student object shape expected by UI
         return [
           {
             id: userId,
@@ -758,8 +761,8 @@ export class FriendsManager {
    * @returns {Promise<Array>} Search results (cached when possible)
    */
   async searchStudentsWithCache(searchTerm) {
-  // Handle aware path (includes caching for fuzzy part internally)
-  return this.searchStudentsHandleAware(searchTerm);
+    // Handle aware path (includes caching for fuzzy part internally)
+    return this.searchStudentsHandleAware(searchTerm);
   }
 
   /**
@@ -849,18 +852,18 @@ export class FriendsManager {
       }
 
       // 3. Create the friend request object
-    const requestData = {
+      const requestData = {
         fromUserId: currentUser.uid,
         toUserId: targetUserId,
         status: "pending",
         fromUserInfo: {
-      handle: userProfile.profile.handle,
+          handle: userProfile.profile.handle,
           major: userProfile.profile.major,
           university: userProfile.universityInfo.university,
           avatarConfig: userProfile.avatarConfig,
         },
         toUserInfo: {
-      handle: targetUserData.profile.handle,
+          handle: targetUserData.profile.handle,
           major: targetUserData.profile.major,
           university: targetUserData.universityInfo.university,
           avatarConfig: targetUserData.avatarConfig,
@@ -955,7 +958,7 @@ export class FriendsManager {
     try {
       console.log(
         "✅ Accepting friend request from:",
-  requestData.fromUserInfo?.handle
+        requestData.fromUserInfo?.handle
       );
 
       // 🎯 STEP 1: Create the friendship document first
@@ -1028,7 +1031,7 @@ export class FriendsManager {
       this.clearSearchFilterCache();
 
       console.log("🎉 Friend request accepted successfully!");
-  const friendName = requestData.fromUserInfo?.handle || "new_friend";
+      const friendName = requestData.fromUserInfo?.handle || "new_friend";
 
       return {
         success: true,
@@ -1062,7 +1065,7 @@ export class FriendsManager {
     }
 
     try {
-  const senderName = requestData?.fromUserInfo?.handle || "user";
+      const senderName = requestData?.fromUserInfo?.handle || "user";
       console.log("❌ Rejecting friend request from:", senderName);
 
       // 🎯 Delete the friend request (clean lifecycle approach)
@@ -1117,7 +1120,7 @@ export class FriendsManager {
     }
 
     try {
-  const friendName = friendInfo.handle || "friend";
+      const friendName = friendInfo.handle || "friend";
       console.log("💔 Unfriending user:", friendName);
 
       // 🎯 PHASE 1: Optimistic Updates - Publish optimistic unfriending event FIRST
@@ -1192,10 +1195,7 @@ export class FriendsManager {
     }
 
     try {
-      console.log(
-        "👥 Getting friends list for:",
-        userProfile.profile.handle
-      );
+      console.log("👥 Getting friends list for:", userProfile.profile.handle);
       const friendships = await dataManager.getUserFriendships(currentUser.uid);
 
       if (!friendships.length) {
@@ -1276,9 +1276,9 @@ export class FriendsManager {
     this.publishOptimisticEvent("optimistic-unfriending", event);
 
     // Also notify via notification service for user feedback
-  if (notificationManager && friendInfo.handle) {
+    if (notificationManager && friendInfo.handle) {
       notificationManager.showSystemNotification(
-  `Unfriending @${friendInfo.handle}...`,
+        `Unfriending @${friendInfo.handle}...`,
         "info",
         { duration: 2000 }
       );
@@ -1322,9 +1322,9 @@ export class FriendsManager {
     this.publishOptimisticEvent("optimistic-rollback", event);
 
     // Show error notification
-  if (notificationManager && friendInfo.handle) {
+    if (notificationManager && friendInfo.handle) {
       notificationManager.showSystemNotification(
-  `Failed to unfriend @${friendInfo.handle}. Please try again.`,
+        `Failed to unfriend @${friendInfo.handle}. Please try again.`,
         "error",
         { duration: 4000 }
       );
@@ -1414,7 +1414,7 @@ export class FriendsManager {
     }
 
     try {
-  const friendName = friendInfo.handle || "friend";
+      const friendName = friendInfo.handle || "friend";
       console.log("⭐ Adding to Quick Access:", friendName);
 
       // Check if friend is already in Quick Access
@@ -1432,7 +1432,7 @@ export class FriendsManager {
       const now = new Date();
       const quickAccessEntry = {
         friendId: friendId,
-  handle: friendInfo.handle,
+        handle: friendInfo.handle,
         major: friendInfo.major,
         avatarConfig: friendInfo.avatarConfig,
         starredAt: now,
@@ -1443,7 +1443,9 @@ export class FriendsManager {
       if (friendInfo.friendshipId) {
         quickAccessEntry.friendshipId = friendInfo.friendshipId;
       } else {
-  console.warn(`⚠️ friendshipId not available for @${friendInfo.handle} - location sharing may not work`);
+        console.warn(
+          `⚠️ friendshipId not available for @${friendInfo.handle} - location sharing may not work`
+        );
       }
 
       // Save to database via dataManager
@@ -1596,7 +1598,9 @@ export class FriendsManager {
     const userProfile = await currentUser.waitForProfile();
     const uid = currentUser.uid || (await currentUser.waitForUid());
     if (!userProfile || !uid) {
-      console.warn("⚠️ Quick Access fetch aborted – auth/profile not ready yet");
+      console.warn(
+        "⚠️ Quick Access fetch aborted – auth/profile not ready yet"
+      );
       return [];
     }
 
@@ -1617,7 +1621,7 @@ export class FriendsManager {
       );
 
       // Get Quick Access data from database
-  const quickAccessData = await dataManager.getQuickAccessFriends(uid);
+      const quickAccessData = await dataManager.getQuickAccessFriends(uid);
 
       if (!quickAccessData || !quickAccessData.starredFriends) {
         console.log("📋 No Quick Access friends found");
@@ -1691,20 +1695,31 @@ export class FriendsManager {
             // 🌍 Campus Presence: Ensure friendshipId is available for bilateral location sharing
             let friendshipId = friend.friendshipId;
             if (!friendshipId) {
-              console.warn(`⚠️ Missing friendshipId for @${friend.handle}, looking up...`);
+              console.warn(
+                `⚠️ Missing friendshipId for @${friend.handle}, looking up...`
+              );
               // Look up friendship document ID by friend IDs
-              const friendships = await dataManager.getUserFriendships(currentUser.uid);
-              const friendship = friendships.find(f => 
-                (f.user1Id === currentUser.uid && f.user2Id === friend.friendId) ||
-                (f.user2Id === currentUser.uid && f.user1Id === friend.friendId)
+              const friendships = await dataManager.getUserFriendships(
+                currentUser.uid
+              );
+              const friendship = friendships.find(
+                (f) =>
+                  (f.user1Id === currentUser.uid &&
+                    f.user2Id === friend.friendId) ||
+                  (f.user2Id === currentUser.uid &&
+                    f.user1Id === friend.friendId)
               );
               friendshipId = friendship?.id;
               if (friendshipId) {
-                console.log(`✅ Found friendshipId for @${friend.handle}: ${friendshipId}`);
+                console.log(
+                  `✅ Found friendshipId for @${friend.handle}: ${friendshipId}`
+                );
                 // Cache the friendshipId to prevent future lookups
                 friend.friendshipId = friendshipId;
               } else {
-                console.error(`❌ Could not find friendship document for @${friend.handle}`);
+                console.error(
+                  `❌ Could not find friendship document for @${friend.handle}`
+                );
               }
             }
 
@@ -2044,7 +2059,9 @@ export class FriendsManager {
     }
 
     if (!friendId || !friendshipId) {
-      console.error("❌ Missing friend ID or friendship ID for location sharing");
+      console.error(
+        "❌ Missing friend ID or friendship ID for location sharing"
+      );
       return { success: false, message: "Invalid friend data" };
     }
 
@@ -2060,14 +2077,17 @@ export class FriendsManager {
 
       // 1. Enable location sharing from current user's side
       const result = await dataManager.updateBilateralLocationSharing(
-        friendshipId, 
-        currentUser.uid, 
+        friendshipId,
+        currentUser.uid,
         true
       );
 
       if (!result.success) {
         console.error("❌ Failed to enable location sharing:", result.error);
-        return { success: false, message: "Failed to enable location sharing." };
+        return {
+          success: false,
+          message: "Failed to enable location sharing.",
+        };
       }
 
       // 2. Create notification for the friend
@@ -2078,17 +2098,17 @@ export class FriendsManager {
         fromUserInfo: {
           handle: userProfile.profile.handle,
           avatarConfig: userProfile.avatarConfig,
-          major: userProfile.profile.major
+          major: userProfile.profile.major,
         },
         locationRequest: {
           friendshipId: friendshipId,
           currentStatus: "pending_both",
-          requestedAt: new Date()
+          requestedAt: new Date(),
         },
         status: "pending",
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        actionButtons: ["accept", "dismiss"]
+        actionButtons: ["accept", "dismiss"],
       };
 
       await dataManager.createNotification(notificationData);
@@ -2096,14 +2116,17 @@ export class FriendsManager {
       console.log("✅ Location sharing request sent successfully!");
       return {
         success: true,
-  message: `Location sharing request sent to @${userProfile.profile.handle}!`,
+        message: `Location sharing request sent to @${userProfile.profile.handle}!`,
         friendId: friendId,
         friendshipId: friendshipId,
-        requestedAt: new Date()
+        requestedAt: new Date(),
       };
     } catch (error) {
       console.error("❌ Error requesting location sharing:", error);
-      return { success: false, message: "Something went wrong. Please try again." };
+      return {
+        success: false,
+        message: "Something went wrong. Please try again.",
+      };
     }
   }
 
@@ -2116,12 +2139,14 @@ export class FriendsManager {
   async getFriendsListWithLocation(includeLocationData = false) {
     try {
       console.log("👥📍 Getting friends list with location context...");
-      
+
       // Get the standard friends list first
       const friendsList = await this.getFriendsList();
 
       if (!includeLocationData || friendsList.length === 0) {
-        console.log("👥 Returning standard friends list (no location data requested)");
+        console.log(
+          "👥 Returning standard friends list (no location data requested)"
+        );
         return friendsList;
       }
 
@@ -2130,9 +2155,11 @@ export class FriendsManager {
         friendsList.map(async (friend) => {
           try {
             // Check mutual location sharing status
-            const hasMutualSharing = await this.checkMutualLocationSharing(friend.friendshipId);
+            const hasMutualSharing = await this.checkMutualLocationSharing(
+              friend.friendshipId
+            );
             const canSeeLocation = await this.canSeeLocation(friend.id);
-            
+
             return {
               ...friend,
               // Location sharing context
@@ -2143,11 +2170,14 @@ export class FriendsManager {
                 mutual: hasMutualSharing,
                 canView: canSeeLocation,
                 status: hasMutualSharing ? "active" : "inactive",
-                lastUpdated: new Date() // Placeholder - will be real data in Phase 4
-              }
+                lastUpdated: new Date(), // Placeholder - will be real data in Phase 4
+              },
             };
           } catch (error) {
-            console.error(`❌ Error adding location context for friend ${friend.id}:`, error);
+            console.error(
+              `❌ Error adding location context for friend ${friend.id}:`,
+              error
+            );
             // Return friend without location data on error
             return {
               ...friend,
@@ -2158,14 +2188,16 @@ export class FriendsManager {
                 mutual: false,
                 canView: false,
                 status: "unknown",
-                lastUpdated: null
-              }
+                lastUpdated: null,
+              },
             };
           }
         })
       );
 
-      console.log(`✅ Enhanced ${friendsWithLocation.length} friends with location context`);
+      console.log(
+        `✅ Enhanced ${friendsWithLocation.length} friends with location context`
+      );
       return friendsWithLocation;
     } catch (error) {
       console.error("❌ Error getting friends list with location:", error);
@@ -2187,11 +2219,14 @@ export class FriendsManager {
     }
 
     try {
-      console.log("🔍 Checking mutual location sharing for friendship:", friendshipId);
+      console.log(
+        "🔍 Checking mutual location sharing for friendship:",
+        friendshipId
+      );
 
       // Query friendship document for location visibility settings
       const friendshipData = await dataManager.getFriendshipById(friendshipId);
-      
+
       if (!friendshipData) {
         console.error("❌ Friendship document not found:", friendshipId);
         return false;
@@ -2203,7 +2238,7 @@ export class FriendsManager {
       const user2Sharing = locationVisibility[friendshipData.user2Id] || false;
 
       const hasMutualSharing = user1Sharing && user2Sharing;
-      
+
       console.log(
         `✅ Mutual location sharing check: ${friendshipId} = ${
           hasMutualSharing ? "ENABLED" : "DISABLED"
@@ -2226,7 +2261,9 @@ export class FriendsManager {
   async canSeeLocation(friendId) {
     const userProfile = await currentUser.waitForProfile();
     if (!userProfile || !friendId) {
-      console.error("❌ Cannot check location visibility: missing user or friend data");
+      console.error(
+        "❌ Cannot check location visibility: missing user or friend data"
+      );
       return false;
     }
 
@@ -2235,12 +2272,14 @@ export class FriendsManager {
 
       // Get friendship data between current user and friend
       const friendshipData = await dataManager.getFriendshipBetweenUsers(
-        currentUser.uid, 
+        currentUser.uid,
         friendId
       );
 
       if (!friendshipData) {
-        console.error(`❌ No friendship found between ${currentUser.uid} and ${friendId}`);
+        console.error(
+          `❌ No friendship found between ${currentUser.uid} and ${friendId}`
+        );
         return false;
       }
 
@@ -2256,7 +2295,10 @@ export class FriendsManager {
 
       return friendLocationVisible;
     } catch (error) {
-      console.error(`❌ Error checking location visibility for ${friendId}:`, error);
+      console.error(
+        `❌ Error checking location visibility for ${friendId}:`,
+        error
+      );
       return false;
     }
   }
@@ -2277,12 +2319,12 @@ export class FriendsManager {
     // - Real-time location data
     // - Campus proximity
     // - Online status
-    
+
     // Placeholder logic for Phase 3
     if (friend.hasLocationSharing) {
       return "campus"; // Friend has location sharing enabled
     }
-    
+
     if (friend.isOnline) {
       return "online"; // Friend is online but no location
     }
@@ -2303,10 +2345,13 @@ export class FriendsManager {
     }
 
     try {
-      console.log("📍 Getting location sharing status for friendship:", friendshipId);
+      console.log(
+        "📍 Getting location sharing status for friendship:",
+        friendshipId
+      );
 
       const friendshipData = await dataManager.getFriendshipById(friendshipId);
-      
+
       if (!friendshipData) {
         console.error("❌ Friendship document not found:", friendshipId);
         return null;
@@ -2315,22 +2360,25 @@ export class FriendsManager {
       const locationVisibility = friendshipData.locationVisibility || {};
       const user1Id = friendshipData.user1Id;
       const user2Id = friendshipData.user2Id;
-      
-  const status = {
+
+      const status = {
         friendshipId: friendshipId,
         users: {
           [user1Id]: {
             sharingEnabled: locationVisibility[user1Id] || false,
-    handle: friendshipData.user1Info?.handle || "user1"
+            handle: friendshipData.user1Info?.handle || "user1",
           },
           [user2Id]: {
             sharingEnabled: locationVisibility[user2Id] || false,
-    handle: friendshipData.user2Info?.handle || "user2"
-          }
+            handle: friendshipData.user2Info?.handle || "user2",
+          },
         },
-        mutualSharing: (locationVisibility[user1Id] || false) && (locationVisibility[user2Id] || false),
-        lastUpdated: friendshipData.locationSharingMetadata?.lastUpdated || null,
-        updatedBy: friendshipData.locationSharingMetadata?.updatedBy || null
+        mutualSharing:
+          (locationVisibility[user1Id] || false) &&
+          (locationVisibility[user2Id] || false),
+        lastUpdated:
+          friendshipData.locationSharingMetadata?.lastUpdated || null,
+        updatedBy: friendshipData.locationSharingMetadata?.updatedBy || null,
       };
 
       console.log("✅ Location sharing status retrieved:", status);
@@ -2351,7 +2399,10 @@ export class FriendsManager {
   async toggleLocationSharing(friendshipId, enabled) {
     const userProfile = await currentUser.waitForProfile();
     if (!userProfile) {
-      return { success: false, message: "Please log in to manage location sharing." };
+      return {
+        success: false,
+        message: "Please log in to manage location sharing.",
+      };
     }
 
     if (!friendshipId) {
@@ -2360,7 +2411,12 @@ export class FriendsManager {
     }
 
     try {
-      console.log(`🔄 ${enabled ? "Enabling" : "Disabling"} location sharing for friendship:`, friendshipId);
+      console.log(
+        `🔄 ${
+          enabled ? "Enabling" : "Disabling"
+        } location sharing for friendship:`,
+        friendshipId
+      );
 
       // Update location sharing status
       const result = await dataManager.updateBilateralLocationSharing(
@@ -2370,30 +2426,32 @@ export class FriendsManager {
       );
 
       if (result.success) {
-        console.log(`✅ Successfully ${enabled ? "enabled" : "disabled"} location sharing`);
-        
+        console.log(
+          `✅ Successfully ${enabled ? "enabled" : "disabled"} location sharing`
+        );
+
         // 🌍 Handle location tracking based on toggle
         this.handleLocationTrackingToggle(enabled);
-        
+
         return {
           success: true,
           message: `Location sharing ${enabled ? "enabled" : "disabled"}`,
           friendshipId: friendshipId,
           enabled: enabled,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
       } else {
         console.error("❌ Failed to update location sharing:", result.error);
         return {
           success: false,
-          message: "Failed to update location sharing. Please try again."
+          message: "Failed to update location sharing. Please try again.",
         };
       }
     } catch (error) {
       console.error("❌ Error toggling location sharing:", error);
       return {
         success: false,
-        message: "Something went wrong. Please try again."
+        message: "Something went wrong. Please try again.",
       };
     }
   }
@@ -2405,31 +2463,42 @@ export class FriendsManager {
   async handleLocationTrackingToggle(enabled) {
     try {
       // Dynamically import campus location service to avoid circular dependencies
-      const { campusLocationService } = await import('../location/CampusLocationService.js');
-      
+      const { campusLocationService } = await import(
+        "../location/CampusLocationService.js"
+      );
+
       if (enabled) {
         // Location sharing was enabled - check if tracking should start
-        console.log('🌍 Location sharing enabled - checking if automatic tracking should start...');
+        console.log(
+          "🌍 Location sharing enabled - checking if automatic tracking should start..."
+        );
         setTimeout(() => {
           campusLocationService.autoStartLocationTracking();
         }, 500);
       } else {
         // Location sharing was disabled - check if tracking should stop
-        console.log('🌍 Location sharing disabled - checking if tracking should stop...');
-        
+        console.log(
+          "🌍 Location sharing disabled - checking if tracking should stop..."
+        );
+
         // Small delay to ensure database changes are reflected
         setTimeout(async () => {
-          const hasLocationSharingFriends = await campusLocationService.checkForLocationSharingFriends();
+          const hasLocationSharingFriends =
+            await campusLocationService.checkForLocationSharingFriends();
           if (!hasLocationSharingFriends) {
-            console.log('🌍 No more location sharing friends - stopping location tracking');
+            console.log(
+              "🌍 No more location sharing friends - stopping location tracking"
+            );
             campusLocationService.stopLocationTracking();
           } else {
-            console.log('🌍 Still have location sharing friends - continuing tracking');
+            console.log(
+              "🌍 Still have location sharing friends - continuing tracking"
+            );
           }
         }, 500);
       }
     } catch (error) {
-      console.error('🌍 Error handling location tracking toggle:', error);
+      console.error("🌍 Error handling location tracking toggle:", error);
     }
   }
 }

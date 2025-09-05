@@ -2339,8 +2339,8 @@ class DataManager {
 
           // Transform for UI consumption (same format as existing functions)
           const transformedRequests = requests.map((request) => ({
-              ...request,
-              handle: request.fromUserInfo?.handle || null,
+            ...request,
+            handle: request.fromUserInfo?.handle || null,
             major: request.fromUserInfo?.major || "Unknown Major",
             university:
               request.fromUserInfo?.university || "Unknown University",
@@ -2418,8 +2418,8 @@ class DataManager {
 
           // Transform for UI consumption (same format as existing functions)
           const transformedRequests = requests.map((request) => ({
-              ...request,
-              handle: request.toUserInfo?.handle || null,
+            ...request,
+            handle: request.toUserInfo?.handle || null,
             major: request.toUserInfo?.major || "Unknown Major",
             university: request.toUserInfo?.university || "Unknown University",
           }));
@@ -3157,7 +3157,9 @@ class DataManager {
   async getQuickAccessFriends(userId) {
     try {
       if (!userId) {
-        console.warn("[DataManager] getQuickAccessFriends called without userId (likely early init) – returning empty result");
+        console.warn(
+          "[DataManager] getQuickAccessFriends called without userId (likely early init) – returning empty result"
+        );
         return {
           starredFriends: [],
           totalStarred: 0,
