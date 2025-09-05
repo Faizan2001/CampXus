@@ -701,6 +701,57 @@ class DataManager {
   }
 
   /**
+   * 🆔 Exact lookup by student ID within a university
+   * - Triggers only for inputs with at least 6 digits (caller enforces gate)
+   * - Matches exact `universityInfo.studentId`
+   * @param {string} universityId
+   * @param {string} studentIdString - numeric string (no spaces)
+   * @param {number} maxResults
+   * @returns {Promise<Array>} at most one user in array
+   */
+  async findUserByStudentIdExact(
+    universityId,
+    studentIdString,
+    maxResults = 1
+  ) {
+    if (!universityId || !studentIdString) {
+      console.error(
+        "❌ University ID and student ID are required for exact ID lookup."
+      );
+      return [];
+    }
+
+    try {
+      const usersRef = collection(db, "users");
+      const cleanId = String(studentIdString).trim();
+      // Guard: only digits; any non-digit makes it invalid
+      if (!/^\d{6,}$/.test(cleanId)) {
+        return [];
+      }
+
+      const q = query(
+        usersRef,
+        where("universityInfo.university", "==", universityId),
+        where("universityInfo.studentId", "==", cleanId),
+        where("socialInfo.searchable", "==", true),
+        limit(maxResults)
+      );
+
+      const snap = await getDocs(q);
+      const results = [];
+      snap.forEach((docSnap) => {
+        results.push({ id: docSnap.id, ...docSnap.data() });
+      });
+
+      return results;
+    } catch (error) {
+      console.error("❌ Error in exact student ID lookup:", error);
+      this.showNotification("Could not search by student ID.", "error");
+      return [];
+    }
+  }
+
+  /**
    * Get a user's full profile data
    * @param {string} userId The user's ID
    * @returns {Promise<Object|null>} User profile or null if not found
@@ -2569,9 +2620,8 @@ class DataManager {
 
             return {
               ...friendship,
-              friendId: friendId,
+              friendId,
               friendInfo: friendInfo || {
-                // Deprecated displayName fallback – will be removed after full handle migration
                 handle: null,
                 major: "Unknown Major",
               },
@@ -2672,7 +2722,6 @@ class DataManager {
             ...friendship,
             friendId: friendId,
             friendInfo: friendInfo || {
-              displayName: "Unknown User", // deprecated
               handle: null,
               major: "Unknown Major",
             },
@@ -3019,8 +3068,8 @@ class DataManager {
       }
 
       console.log(
-        "⭐ [DataManager] Adding to Quick Access:",
-        quickAccessEntry.displayName
+        "⭐ [DataManager] Adding to Quick Access (handle):",
+        quickAccessEntry.handle
       );
 
       // First, get current user data to check if quickAccessData exists
@@ -3434,8 +3483,6 @@ class DataManager {
           const freshData = freshDoc.data();
           return {
             ...existingFriend, // Keep starredAt, lastInteraction
-            displayName:
-              freshData.profile?.handle || existingFriend.displayName, // deprecated mirror
             handle: freshData.profile?.handle || existingFriend.handle,
             major: freshData.profile?.major || existingFriend.major,
             avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
@@ -4421,7 +4468,7 @@ if (typeof window !== "undefined") {
             count: requests.length,
             requests: requests.map((r) => ({
               id: r.id,
-              from: r.displayName || r.fromUserInfo?.displayName,
+              from: r.handle || r.fromUserInfo?.handle,
               major: r.major || r.fromUserInfo?.major,
               university: r.university || r.fromUserInfo?.university,
               createdAt: r.createdAt,
@@ -4455,7 +4502,7 @@ if (typeof window !== "undefined") {
             friends: friendships.map((f) => ({
               id: f.id,
               friendId: f.friendId,
-              friendName: f.friendInfo?.displayName || "Unknown",
+              friendName: f.friendInfo?.handle || "Unknown",
               friendMajor: f.friendInfo?.major || "Unknown",
               createdAt: f.createdAt,
             })),

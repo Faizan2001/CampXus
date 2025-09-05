@@ -632,12 +632,39 @@ export class FriendsManager {
         const userSnap = await getDoc(userRef);
         if (!userSnap.exists()) return [];
         const userData = userSnap.data();
+        // Respect user's discoverability preference
+        if (!userData?.socialInfo?.searchable) {
+          return [];
+        }
+
+        // Enforce same-university restriction for handle results
+        // This avoids cross-campus discovery and keeps results scoped
+        // to the viewer's university only.
+        // Ensure viewer profile is available (adds robustness during early page loads)
+        const viewerProfile = await currentUser.waitForProfileWithTimeout?.(5000)
+          .catch(() => null) || (await currentUser.waitForProfile());
+        const viewerUniversityId = viewerProfile?.universityInfo?.university;
+        const viewerUniversityName = viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
+        const targetUniversityId = userData?.universityInfo?.university;
+        const targetUniversityName = userData?.universityInfo?.universityName?.toLowerCase?.();
+
+        // Enforce same-university by ID; fall back to name compare if IDs missing
+        const sameUniversityById =
+          viewerUniversityId && targetUniversityId && viewerUniversityId === targetUniversityId;
+        const sameUniversityByName =
+          viewerUniversityName && targetUniversityName && viewerUniversityName === targetUniversityName;
+
+        if (!(sameUniversityById || sameUniversityByName)) {
+          // Not the same university → do not return result
+          return [];
+        }
 
         // ⚠️ NOTE: Current security rules only allow cross-university read if socialInfo.searchable && same university
         // If cross-university handle lookup is required, rules must be updated separately.
 
         // 3. Adapt to existing student object shape expected by UI
-        return [
+        // Adapt to expected UI shape and apply standard filtering
+        const candidate = [
           {
             id: userId,
             profile: {
@@ -647,18 +674,38 @@ export class FriendsManager {
               major_lower: userData.profile?.major_lower,
             },
             universityInfo: userData.universityInfo || {},
-            // Expose avatarConfig at root so avatar renderer can find it
             avatarConfig: userData.avatarConfig || null,
           },
         ];
+        return await this.filterSearchResults(candidate);
       } catch (error) {
         console.error("❌ Handle lookup error:", error);
         return [];
       }
     }
 
-    // Fallback to existing fuzzy search (name/major) with caching
-    return this.searchStudents(term, true);
+    // Student ID exact match: only digits, at least 6
+    // Note: DataService query is already restricted to the viewer's university.
+    if (/^\d{6,}$/.test(term)) {
+      try {
+        const userProfile = await currentUser.waitForProfile();
+        if (!userProfile) return [];
+        const results = await dataManager.findUserByStudentIdExact(
+          userProfile.universityInfo.university,
+          term,
+          1
+        );
+
+        // Adapt shape if needed (already includes profile/universityInfo)
+        return await this.filterSearchResults(results);
+      } catch (error) {
+        console.error("❌ Student ID lookup error:", error);
+        return [];
+      }
+    }
+
+    // No other search modes allowed (disable fuzzy suggestions)
+    return [];
   }
 
   /**

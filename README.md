@@ -7,13 +7,13 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 ### Social Connections & Student Discovery
 
 **Friends System:**
-- Find classmates by name, major, or student ID within your university
+- Find classmates by exact handle (e.g., `@alice`) or exact student ID (6+ digits), restricted to your university
 - Send, receive, accept, or decline friend requests with instant notifications
 - Real-time updates for friend activities and connection status
 - University-only access ensures you connect only with verified students
 
 **Smart Social Features:**
-- Advanced filtering that excludes existing friends and pending requests
+- Privacy-aware filtering excludes yourself, existing friends, and incoming requests from search results
 - Visual indicators for pending, accepted, and sent friend requests
 - Memory-efficient real-time listeners with automatic cleanup
 - **Advanced Privacy Management**: Bilateral privacy controls with individual schedule visibility settings per friendship
@@ -328,9 +328,9 @@ CampXus operates as a modern Single Page Application (SPA) with real-time Fireba
 ### Real-time Social System
 
 **Friend Discovery:**
-- Search for classmates by name, major, or student ID within your university
-- Smart filtering excludes existing friends and pending requests
-- Real-time search results with instant availability updates
+- Search by exact handle (e.g., `@alice`) or exact student ID (6+ digits), same-university only
+- Privacy-aware filtering excludes yourself, existing friends, and incoming requests
+- No fuzzy suggestions (name/major) to reduce noise and prevent accidental adds
 
 **Connection Management:**
 - Send friend requests with immediate delivery notifications
@@ -462,3 +462,7 @@ If you encounter any issues or have questions, please:
 ---
 
 Let's make university life more connected and organized for students everywhere!
+#### Friends Search Behavior
+- Handle: exact match with or without `@` (case-insensitive), scoped to your university, only if the user is searchable.
+- Student ID: exact match on `universityInfo.studentId` for your university; input must be numeric with at least 6 digits.
+- No fuzzy suggestions: name/major or partial matches are intentionally disabled to prevent noisy results.

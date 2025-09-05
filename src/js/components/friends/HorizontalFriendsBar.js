@@ -125,6 +125,10 @@ export class HorizontalFriendsBar {
     this.friendLoading = new Map(); // friendId -> boolean
     this.initialFreshComplete = false;
 
+    // 🧠 Session-scoped fallback for user's presence dot
+    // Persists last known red/green status and lastActive across re-renders
+    this._userPresenceFallback = null; // { lastActiveMs, campusStatus, hasLocationSharing, savedAtMs }
+
     logManager.ui.init(
       `HorizontalFriendsBar created for container: ${containerId}`
     );
@@ -662,11 +666,14 @@ export class HorizontalFriendsBar {
     const userProfile = currentUser.profile;
     const systemInfo = userProfile?.systemInfo || {};
 
+    // Use effective presence data (fallback to last known good state when partial data arrives)
+    const effective = this._getEffectiveUserPresence(systemInfo);
+
     // Create presence dot for user's own avatar with fresh data priority
     const userPresenceDot = PresenceDot.createWithFreshDataPriority(
-      systemInfo.lastActive,
-      systemInfo.lastKnownLocation,
-      systemInfo.locationSharingEnabled || false,
+      effective.lastActive,
+      effective.lastKnownLocation,
+      effective.hasLocationSharing,
       this.loadingState.user || false
     );
 
@@ -4425,7 +4432,9 @@ export class HorizontalFriendsBar {
 
     if (newLength < previousLength) {
       console.log(
-        `🚀 PHASE 3: Removed ${friendInfo.displayName} from UI immediately (${previousLength} → ${newLength})`
+        `🚀 PHASE 3: Removed @${
+          friendInfo.handle || "unknown"
+        } from UI immediately (${previousLength} → ${newLength})`
       );
 
       // Update UI immediately
@@ -4971,11 +4980,17 @@ export class HorizontalFriendsBar {
     // Find existing presence dot
     const existingDot = this.userAvatarElement.querySelector(".presence-dot");
 
+    // Compute effective presence with session fallback
+    const effective = this._getEffectiveUserPresence(
+      systemInfo,
+      /*saveFallback*/ true
+    );
+
     // Create new presence dot
     const newPresenceDot = PresenceDot.createWithFreshDataPriority(
-      systemInfo.lastActive,
-      systemInfo.lastKnownLocation,
-      systemInfo.locationSharingEnabled || false,
+      effective.lastActive,
+      effective.lastKnownLocation,
+      effective.hasLocationSharing,
       this.loadingState.user || false
     );
 
@@ -5041,11 +5056,12 @@ export class HorizontalFriendsBar {
         if (dot.parentNode) dot.parentNode.removeChild(dot);
       });
 
-      // Create new presence dot
+      // Create new presence dot using effective presence
+      const effective = this._getEffectiveUserPresence(systemInfo);
       const newPresenceDot = PresenceDot.createWithFreshDataPriority(
-        systemInfo.lastActive,
-        systemInfo.lastKnownLocation,
-        systemInfo.locationSharingEnabled || false,
+        effective.lastActive,
+        effective.lastKnownLocation,
+        effective.hasLocationSharing,
         this.loadingState.user || false
       );
 
@@ -5070,6 +5086,161 @@ export class HorizontalFriendsBar {
    * 🚀 ENTERPRISE FIX: Smart location update animation with debouncing and campus status tracking
    * Only triggers animation on meaningful location changes (campus status transitions)
    */
+
+  /**
+   * Build effective presence for the current user using live systemInfo,
+   * falling back to last known red/green status within 12 hours.
+   * Optionally saves improved data back to a session-scoped cache.
+   * @param {Object} systemInfo
+   * @param {boolean} saveFallback
+   * @returns {{lastActive: any, lastKnownLocation: {campusStatus?: string}|null, hasLocationSharing: boolean}}
+   */
+  _getEffectiveUserPresence(systemInfo = {}, saveFallback = false) {
+    try {
+      const normalize = (v) => {
+        try {
+          return PresenceDot.normalizeTimestamp(v);
+        } catch {
+          return null;
+        }
+      };
+
+      // Load fallback from session once if not loaded
+      if (!this._userPresenceFallback) {
+        this._userPresenceFallback = this._loadUserPresenceFallback();
+      }
+
+      // Determine sharing flag
+      let hasLocationSharing =
+        typeof systemInfo.locationSharingEnabled === "boolean"
+          ? systemInfo.locationSharingEnabled
+          : this._userPresenceFallback?.hasLocationSharing ?? false;
+
+      // If sharing disabled explicitly, clear cache and return grey state
+      if (systemInfo.locationSharingEnabled === false) {
+        this._clearUserPresenceFallback();
+        return {
+          lastActive: null,
+          lastKnownLocation: null,
+          hasLocationSharing: false,
+        };
+      }
+
+      // Determine lastActive using live data first, then fallback
+      let lastActive = systemInfo.lastActive || null;
+      if (!lastActive && this._userPresenceFallback?.lastActiveMs) {
+        lastActive = this._userPresenceFallback.lastActiveMs; // number OK; PresenceDot supports numbers
+      }
+
+      // Determine campus status using live data first, then fallback
+      let campusStatus = systemInfo.lastKnownLocation?.campusStatus;
+      if (!campusStatus || campusStatus === "unknown") {
+        campusStatus = this._userPresenceFallback?.campusStatus;
+      }
+
+      // Expiry: if lastActive is older than 12h, treat as no presence
+      if (lastActive) {
+        const lastActiveDate = normalize(lastActive);
+        if (!lastActiveDate) {
+          lastActive = null;
+        } else {
+          const minutesAgo = Math.floor(
+            (Date.now() - lastActiveDate.getTime()) / (1000 * 60)
+          );
+          if (minutesAgo > 12 * 60) {
+            lastActive = null;
+          }
+        }
+      }
+
+      // If no valid lastActive or no valid campusStatus, we cannot colorize
+      const hasValidStatus =
+        campusStatus === "on_campus" || campusStatus === "off_campus";
+      const lastKnownLocation = hasValidStatus ? { campusStatus } : null;
+
+      // Optionally persist improved data back to session cache
+      if (
+        saveFallback &&
+        hasLocationSharing === true &&
+        lastActive &&
+        hasValidStatus
+      ) {
+        const lastActiveDate = normalize(lastActive);
+        if (lastActiveDate) {
+          this._saveUserPresenceFallback({
+            lastActiveMs: lastActiveDate.getTime(),
+            campusStatus,
+            hasLocationSharing: true,
+          });
+        }
+      }
+
+      return {
+        lastActive,
+        lastKnownLocation,
+        hasLocationSharing: !!hasLocationSharing,
+      };
+    } catch (e) {
+      // On any unexpected error, fall back to safe grey state
+      return {
+        lastActive: null,
+        lastKnownLocation: null,
+        hasLocationSharing: false,
+      };
+    }
+  }
+
+  _loadUserPresenceFallback() {
+    try {
+      const raw = sessionStorage.getItem("campusPresence_userDotFallback");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed) return null;
+      // Basic shape validation
+      if (
+        typeof parsed.lastActiveMs === "number" &&
+        (parsed.campusStatus === "on_campus" ||
+          parsed.campusStatus === "off_campus") &&
+        typeof parsed.hasLocationSharing === "boolean"
+      ) {
+        // Enforce TTL on load
+        const ageMin = Math.floor(
+          (Date.now() - parsed.lastActiveMs) / (1000 * 60)
+        );
+        if (ageMin <= 12 * 60 && parsed.hasLocationSharing) {
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  _saveUserPresenceFallback({
+    lastActiveMs,
+    campusStatus,
+    hasLocationSharing,
+  }) {
+    try {
+      this._userPresenceFallback = {
+        lastActiveMs,
+        campusStatus,
+        hasLocationSharing,
+        savedAtMs: Date.now(),
+      };
+      sessionStorage.setItem(
+        "campusPresence_userDotFallback",
+        JSON.stringify(this._userPresenceFallback)
+      );
+    } catch (_) {}
+  }
+
+  _clearUserPresenceFallback() {
+    try {
+      this._userPresenceFallback = null;
+      sessionStorage.removeItem("campusPresence_userDotFallback");
+    } catch (_) {}
+  }
+
   triggerLocationUpdateAnimation(locationUpdate = null) {
     if (!this.userAvatarElement) return;
 

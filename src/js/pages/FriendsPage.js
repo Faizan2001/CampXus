@@ -668,18 +668,28 @@ class FriendsUI {
     }
 
     // Debounce search to avoid too many requests
+    // Strict input gate: only trigger when input is
+    // - a valid handle (with or without @), or
+    // - a numeric student ID with 6+ digits.
+    // This keeps results exact and prevents fuzzy suggestions.
     this.searchTimeout = setTimeout(() => {
-      if (searchTerm.length >= 2) {
+      const isHandleCandidate = (() => {
+        const t = searchTerm.startsWith("@")
+          ? searchTerm.slice(1).toLowerCase()
+          : searchTerm.toLowerCase();
+        return /^[a-z][a-z0-9_]{2,19}$/.test(t) && !t.endsWith("_");
+      })();
+      const isIdCandidate = /^\d{6,}$/.test(searchTerm);
+
+      if (isHandleCandidate || isIdCandidate) {
         console.log(`🔍 Performing search for: "${searchTerm}"`);
         this.performSearch(searchTerm);
       } else if (searchTerm.length === 0) {
-        // Only clear when completely empty, not for 1-character searches
+        // Only clear when completely empty
         console.log("🧹 Search term empty, clearing results");
         this.clearSearchResults();
       } else {
-        console.log(
-          "🔍 Search term too short (1 character), keeping existing results"
-        );
+        console.log("🔍 Input not a handle or 6+ digit ID yet");
       }
     }, 300); // Wait 300ms after user stops typing
   }
@@ -690,9 +700,18 @@ class FriendsUI {
   async handleSearch() {
     const searchTerm = this.elements.searchInput?.value.trim();
 
-    if (!searchTerm || searchTerm.length < 2) {
+    const isHandleCandidate = (() => {
+      if (!searchTerm) return false;
+      const t = searchTerm.startsWith("@")
+        ? searchTerm.slice(1).toLowerCase()
+        : searchTerm.toLowerCase();
+      return /^[a-z][a-z0-9_]{2,19}$/.test(t) && !t.endsWith("_");
+    })();
+    const isIdCandidate = !!searchTerm && /^\d{6,}$/.test(searchTerm);
+
+    if (!isHandleCandidate && !isIdCandidate) {
       this.showMessage(
-        "Please enter at least 2 characters to search",
+        "Enter a handle (e.g., @alice) or a 6+ digit student ID",
         "warning"
       );
       return;
