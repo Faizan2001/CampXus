@@ -487,8 +487,16 @@ export class LocationSharingToggle {
         console.log('🌍 Global location sharing enabled - checking if automatic tracking should start...');
         setTimeout(async () => {
           try {
-            // Start 3-tier presence polling (it executes one poll immediately)
-            await campusLocationService.startPresencePolling(20000);
+            // Prefer the LocationScheduler orchestration if available
+            try {
+              const { locationScheduler } = await import('../../services/location/LocationScheduler.js');
+              locationScheduler.start();
+              // Kick an immediate refresh according to current route
+              locationScheduler.manualRefresh();
+            } catch (e) {
+              // Fallback: start presence polling if scheduler not available
+              await campusLocationService.startPresencePolling(20000);
+            }
           } catch (e) {
             console.warn('⚠️ Failed to start presence polling after enabling:', e?.message || e);
           }

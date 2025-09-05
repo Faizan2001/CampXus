@@ -37,6 +37,7 @@ import "./pages/NotificationsPage.js"; // 🔔 Campus Presence: Notifications sy
 
 // 🌍 Campus Presence Services
 import { campusLocationService } from "./services/location/CampusLocationService.js";
+import { locationScheduler } from "./services/location/LocationScheduler.js";
 import { locationPrivacyService } from "./services/location/LocationPrivacyService.js";
 
 // 🔧 Development tools
@@ -152,14 +153,11 @@ async function initializeSPA() {
   // Start background initialization without blocking app startup
   initializeCampusPresenceInBackground();
 
-  // Ensure presence polling runs every 20s across the app lifespan
+  // Delegate presence scheduling strategy to LocationScheduler
   try {
-    campusLocationService.startPresencePolling(20000);
+    locationScheduler.start();
   } catch (e) {
-    console.warn(
-      "Presence polling start failed (non-critical):",
-      e?.message || e
-    );
+    console.warn("LocationScheduler start failed (non-critical):", e?.message || e);
   }
 
   spaRouter = new SPARouter();
