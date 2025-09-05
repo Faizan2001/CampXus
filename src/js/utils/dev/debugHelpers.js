@@ -8,9 +8,6 @@
 class DebugHelpers {
   constructor() {
     this.isDebugMode = false;
-    console.log(
-      "🔧 Debug helpers loaded. Type 'debug.help()' for available commands."
-    );
   }
 
   /**

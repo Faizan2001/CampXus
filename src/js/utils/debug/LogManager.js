@@ -20,7 +20,6 @@ const LOG_EMOJIS = {
   // Location System
   LOC_NETWORK: "🌐", // Network/IP detection (Tier 1)
   LOC_GPS: "📍", // GPS/Browser location (Tier 2)
-  LOC_GOOGLE: "🛰️", // Google API (Tier 3)
   LOC_SUCCESS: "✅", // Location success
   LOC_FAIL: "❌", // Location failures
   LOC_WARN: "⚠️", // Location warnings
@@ -164,13 +163,13 @@ class LogManager {
       "External database update received:",
 
       // Location service noise
-      "3-TIER location request",
+      "location request",
       "Trying IP info service",
       "GPS success:",
       "Browser GPS request",
       "TIER 1:",
       "TIER 2:",
-      "TIER 3:",
+      
       "IP detected successfully",
       "Activity heartbeat",
       "Health check passed",
@@ -289,14 +288,6 @@ class LogManager {
         "location",
         LOG_EMOJIS.LOC_GPS,
         `TIER 2: ${message}`,
-        data
-      ),
-    tier3: (message, data) =>
-      this.log(
-        LOG_LEVELS.INFO,
-        "location",
-        LOG_EMOJIS.LOC_GOOGLE,
-        `TIER 3: ${message}`,
         data
       ),
     success: (message, data) =>

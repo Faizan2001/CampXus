@@ -15,15 +15,15 @@ import { getCampusConfig } from "./UniversityCampusConfig.js";
 
 export class NetworkDetectionService {
   constructor() {
-    // Using ipinfo.io as the primary, reliable source for IP and organization data.
+    // Use IPinfo Lite for tier-1 detection via ASN domain (as_domain)
     this.ipServiceEndpoints = [
       {
-        url: "https://ipinfo.io?token=d951df9d159d4d",
-        name: "ipinfo.io",
-        orgField: "org", // The organization name is in the 'org' field for this endpoint
+        url: "https://api.ipinfo.io/lite/me?token=d951df9d159d4d",
+        name: "ipinfo-lite",
         ipField: "ip",
-        ispField: "org", // Use org as a substitute for ISP
-        asField: "asn",
+        asnField: "asn",
+        asNameField: "as_name",
+        asDomainField: "as_domain",
       },
     ];
 
@@ -32,7 +32,7 @@ export class NetworkDetectionService {
     this.rateLimitDelay = 1500; // Small delay between requests to respect rate limits
 
     logManager.location.info(
-      "NetworkDetectionService initialized for organization-based detection",
+      "NetworkDetectionService initialized (IPinfo Lite as_domain matching)",
       {
         primaryEndpoint: this.ipServiceEndpoints[0].name,
         fallbackEndpoints: this.ipServiceEndpoints.slice(1).map((e) => e.name),
@@ -50,18 +50,19 @@ export class NetworkDetectionService {
 
     try {
       logManager.location.tier1(
-        `Starting IP Organization detection for ${university.toUpperCase()}`
+        `Starting IPinfo Lite detection for ${university.toUpperCase()}`
       );
 
       // Step 1: Get the campus configuration which contains the network info
       const campusConfig = getCampusConfig(university);
-      if (!campusConfig?.networkInfo?.organization) {
+      if (!campusConfig?.networkInfo) {
         throw new Error(
-          `No networkInfo.organization configured for university: ${university}`
+          `No networkInfo configured for university: ${university}`
         );
       }
 
-      const expectedOrg = campusConfig.networkInfo.organization;
+      const expectedAsDomain = campusConfig.networkInfo.asDomain;
+      const expectedOrg = campusConfig.networkInfo.organization; // legacy fallback
       const alternativeNames = campusConfig.networkInfo.alternativeNames || [];
 
       // Step 2: Get user's public IP information including organization
@@ -70,15 +71,15 @@ export class NetworkDetectionService {
         throw new Error("Unable to detect IP information");
       }
 
-      const userOrg = userIpInfo.organization;
       const userIP = userIpInfo.ip;
-      const userISP = userIpInfo.isp;
-      const userAS = userIpInfo.as;
+      const userASN = userIpInfo.asn;
+      const userAsName = userIpInfo.as_name;
+      const userAsDomain = userIpInfo.as_domain;
 
-      // 🔍 CHECK: Do we have organization data for campus detection?
-      if (!userOrg || userIpInfo.ipOnly) {
+      // 🔍 CHECK: Do we have as_domain for campus detection?
+      if (!userAsDomain) {
         logManager.location.warn(
-          `⚠️ No organization data available from ${userIpInfo.service} - cannot perform campus detection`
+          `⚠️ No as_domain available from ${userIpInfo.service} - cannot perform campus detection`
         );
         logManager.location.info(
           `📍 IP detected: ${userIP} via ${userIpInfo.service}`
@@ -86,64 +87,57 @@ export class NetworkDetectionService {
 
         return {
           success: false,
-          method: "ip_organization_detection",
+          method: "ipinfo_lite_as_domain",
           tier: 1,
-          error: "Organization data not available - fallback to GPS detection",
-          userIP: userIP,
+          error: "as_domain not available - fallback to GPS detection",
+          userIP,
           userOrganization: null,
-          userISP: userISP,
-          userAS: userAS,
+          as_domain: null,
+          as_name: userAsName || null,
+          asn: userASN || null,
           responseTime: Date.now() - startTime,
           timestamp: Date.now(),
-          fallbackReason: "no_organization_data",
+          fallbackReason: "no_as_domain",
           gracefulFallback: true,
         };
       }
 
-      logManager.location.info("User network info detected", {
+      logManager.location.info("User network info detected (IPinfo Lite)", {
         ip: userIP,
-        organization: userOrg,
-        isp: userISP,
-        as: userAS,
-        expectedOrganization: expectedOrg,
+        asn: userASN,
+        as_name: userAsName,
+        as_domain: userAsDomain,
+        expectedAsDomain,
       });
 
-      // Step 3: Check if the user's organization matches the university
-      const isOnCampus = this.checkOrganizationMatch(
-        userOrg,
-        expectedOrg,
-        alternativeNames
-      );
+      // Step 3: Check if AS domain matches the university domain
+      const isOnCampus = this.checkAsDomainMatch(userAsDomain, expectedAsDomain) ||
+        // Fallback to legacy organization matching if needed
+        this.checkOrganizationMatch(userAsName, expectedOrg, alternativeNames);
       const responseTime = Date.now() - startTime;
 
       const result = {
         success: true,
-        method: "ip_organization_detection",
+        method: "ipinfo_lite_as_domain",
         tier: 1,
         campusStatus: isOnCampus ? "on_campus" : "off_campus",
-        confidence: isOnCampus ? "high" : "high", // Organization detection is always high confidence
-        userIP: userIP,
-        userOrganization: userOrg,
-        userISP: userISP,
-        userAS: userAS,
-        expectedOrganization: expectedOrg,
+        confidence: "high",
+        userIP,
+        // Keep userOrganization for compatibility with existing consumers
+        userOrganization: userAsDomain,
+        as_domain: userAsDomain,
+        as_name: userAsName,
+        asn: userASN,
+        expectedAsDomain,
         university: university,
         responseTime: responseTime,
         timestamp: Date.now(),
-        matchReason: isOnCampus
-          ? this.getMatchReason(userOrg, expectedOrg, alternativeNames)
-          : "no_match",
+        matchReason: isOnCampus ? "as_domain_match" : "no_match",
       };
 
       logManager.dev.info(
-        `NetworkDetectionService: TIER 1 result in ${responseTime}ms: ${result.campusStatus.toUpperCase()} via organization detection`,
-        {
-          userOrg,
-          expectedOrg,
-          matchReason: result.matchReason,
-          confidence: result.confidence,
-          responseTime,
-        }
+        `NetworkDetectionService: TIER 1 result in ${responseTime}ms: ${result.campusStatus.toUpperCase()} via IPinfo Lite`,
+        { result }
       );
 
       return result;
@@ -156,7 +150,7 @@ export class NetworkDetectionService {
 
       return {
         success: false,
-        method: "ip_organization_detection",
+        method: "ipinfo_lite_as_domain",
         tier: 1,
         error: error.message,
         responseTime: responseTime,
@@ -167,8 +161,8 @@ export class NetworkDetectionService {
   }
 
   /**
-   * 🌐 Get user's public IP information including organization data
-   * @returns {Promise<Object>} User's IP info including organization, IP, ISP, etc.
+   * 🌐 Get user's public IP information (IPinfo Lite)
+   * @returns {Promise<Object>} User's IP info including AS fields
    */
   async getUserIPInfo() {
     for (let i = 0; i < this.ipServiceEndpoints.length; i++) {
@@ -214,60 +208,28 @@ export class NetworkDetectionService {
           throw new Error(`API error: ${data.message || "Unknown error"}`);
         }
 
-        // Extract the required fields based on the endpoint
-        const organization = data[endpoint.orgField];
+        // Extract fields for IPinfo Lite
         const ip = data[endpoint.ipField];
-        const isp = data[endpoint.ispField] || data.isp || data.ISP;
-        const as = data[endpoint.asField] || data.as || data.AS;
+        const asn = data[endpoint.asnField];
+        const as_name = data[endpoint.asNameField];
+        const as_domain = data[endpoint.asDomainField];
 
-        // For endpoints that only provide IP (no organization data)
-        if (endpoint.ipOnly) {
-          if (!ip) {
-            throw new Error(`Missing IP field from ${endpoint.name}`);
-          }
-
-          const result = {
-            organization: null,
-            ip,
-            isp: "Unknown",
-            as: "Unknown",
-            service: endpoint.name,
-            ipOnly: true,
-            rawData: data,
-          };
-
-          logManager.location.info(
-            `IP-only service ${endpoint.name} provided IP: ${ip}`
-          );
-          return result;
-        }
-
-        // For full organization detection endpoints
-        if (!organization || !ip) {
-          throw new Error(
-            `Missing required fields from ${
-              endpoint.name
-            }: org=${!!organization}, ip=${!!ip}`
-          );
+        if (!ip) {
+          throw new Error(`Missing IP field from ${endpoint.name}`);
         }
 
         const result = {
-          organization,
           ip,
-          isp: isp || "Unknown",
-          as: as || "Unknown",
+          asn: asn || null,
+          as_name: as_name || null,
+          as_domain: as_domain || null,
           service: endpoint.name,
           rawData: data,
         };
 
         logManager.location.success(
-          `Full IP info detected successfully via ${endpoint.name}`,
-          {
-            ip,
-            organization,
-            isp,
-            service: endpoint.name,
-          }
+          `IPinfo Lite data fetched via ${endpoint.name}`,
+          { ip, asn, as_name, as_domain }
         );
 
         return result;
@@ -284,6 +246,18 @@ export class NetworkDetectionService {
         // Otherwise, try the next endpoint
         continue;
       }
+    }
+  }
+
+  /**
+   * 🎯 Match AS domain to expected campus domain
+   */
+  checkAsDomainMatch(userAsDomain, expectedAsDomain) {
+    if (!userAsDomain || !expectedAsDomain) return false;
+    try {
+      return userAsDomain.toLowerCase() === expectedAsDomain.toLowerCase();
+    } catch (_) {
+      return false;
     }
   }
 
@@ -385,15 +359,14 @@ export class NetworkDetectionService {
    */
   getServiceInfo() {
     return {
-      serviceType: "ip_organization_detection",
+      serviceType: "ipinfo_lite_as_domain",
       tier: 1,
       cost: "FREE",
-      rateLimit: "45 requests/minute",
-      method: "Organization name matching",
+      rateLimit: "Unlimited (IPinfo Lite)",
+      method: "AS domain equality (as_domain)",
       endpoints: this.ipServiceEndpoints.map((e) => ({
         name: e.name,
         url: e.url,
-        orgField: e.orgField,
         ipField: e.ipField,
       })),
       timeout: this.requestTimeout,

@@ -1,14 +1,12 @@
 /**
  * LocationIntegration.js
  *
- * Integration layer that connects the enhanced GoogleGeolocationProvider
- * and LocationOrchestrator with the existing CampXus location system.
+ * Integration layer for location orchestration debug helpers
  * 
  * This file provides backward-compatible interfaces while leveraging
  * the new cost optimization and API call reduction features.
  */
 
-import { googleGeolocationProvider } from './GoogleGeolocationProvider.js';
 import { campusLocationService } from './CampusLocationService.js';
 
 /**
@@ -21,8 +19,7 @@ export class LocationIntegration {
       orchestratorUsage: 0,
       fallbackUsage: 0,
       errorRate: 0,
-      averageResponseTime: 0,
-      costOptimizationSavings: 0
+      averageResponseTime: 0
     };
 
     this.monitoringEnabled = true;
@@ -31,7 +28,6 @@ export class LocationIntegration {
     if (typeof logManager !== "undefined") {
       logManager.dev.info("🔗 LocationIntegration initialized", {
         orchestratorEnabled: true,
-        googleProviderEnhanced: true,
         monitoringEnabled: this.monitoringEnabled
       });
     }
@@ -97,10 +93,7 @@ export class LocationIntegration {
       if (result && !result.error) {
         this.integrationStats.orchestratorUsage++;
         
-        // Calculate potential cost savings
-        if (result.tier < 3) {
-          this.integrationStats.costOptimizationSavings += 0.005; // $0.005 saved per non-Google result
-        }
+        // Optional: track integration usage only
 
         if (typeof logManager !== "undefined") {
           logManager.location.success("✅ LocationIntegration: Optimized location obtained", {
@@ -121,24 +114,24 @@ export class LocationIntegration {
       }
 
     } catch (error) {
-      // Fallback to enhanced Google provider directly
+      // Fallback to browser geolocation directly
       if (typeof logManager !== "undefined") {
-        logManager.location.warn("⚠️ LocationIntegration: Falling back to enhanced Google provider", {
+        logManager.location.warn("⚠️ LocationIntegration: Falling back to browser geolocation", {
           error: error.message,
           context
         });
       }
 
       try {
-        const fallbackResult = await googleGeolocationProvider.getCurrentLocation({
-          ...options,
-          userId: userId
-        });
+        const fallbackResult = await campusLocationService.getBrowserLocationWithTimeout(
+          !!options.highAccuracy,
+          options.timeout || 10000
+        );
         this.integrationStats.fallbackUsage++;
 
         if (typeof logManager !== "undefined") {
           logManager.location.success("✅ LocationIntegration: Fallback successful", {
-            source: "google_fallback",
+            source: "browser_fallback",
             responseTime: `${Date.now() - startTime}ms`,
             context,
             userId: userId || 'unknown'
@@ -191,8 +184,7 @@ export class LocationIntegration {
       ...options,
       userId: userId,
       highAccuracy: true,
-      maximumAge: 30 * 1000, // 30 seconds max age for high accuracy
-      forceGoogleAPI: options.forceGoogleAPI || false
+      maximumAge: 30 * 1000 // 30 seconds max age for high accuracy
     }, "user_high_accuracy_request");
   }
 
@@ -285,7 +277,6 @@ export class LocationIntegration {
   getIntegrationStats(userId = null) {
     const currentUserId = userId || this.getCurrentUserId();
     const orchestratorStats = locationOrchestrator.getStats(currentUserId);
-    const googleProviderStats = googleGeolocationProvider.getStats(currentUserId);
 
     const stats = {
       integration: {
@@ -296,9 +287,7 @@ export class LocationIntegration {
         currentUserId: currentUserId || 'unknown'
       },
       orchestrator: orchestratorStats,
-      googleProvider: googleProviderStats,
       summary: {
-        totalCostSavings: this.integrationStats.costOptimizationSavings + (orchestratorStats.quota?.costSavings || 0),
         preferredTierUsage: {
           tier1: orchestratorStats.performance?.tier1Success || 0,
           tier2: orchestratorStats.performance?.tier2Success || 0,
@@ -310,10 +299,7 @@ export class LocationIntegration {
 
     // Add per-user quota information if available
     if (currentUserId) {
-      stats.userQuota = {
-        googleApiQuota: googleGeolocationProvider.getUserQuotaStatus(currentUserId),
-        orchestratorQuota: orchestratorStats.user || null
-      };
+      stats.userQuota = { orchestratorQuota: orchestratorStats.user || null };
     }
 
     return stats;
@@ -327,8 +313,7 @@ export class LocationIntegration {
     const stats = this.integrationStats;
     if (stats.totalRequests === 0) return '100%';
     
-    const nonGoogleUsage = stats.orchestratorUsage - (locationOrchestrator.getStats().performance?.tier3Success || 0);
-    const effectiveness = (nonGoogleUsage / stats.totalRequests) * 100;
+    const effectiveness = (stats.orchestratorUsage / Math.max(1, stats.totalRequests)) * 100;
     
     return Math.max(0, Math.min(100, effectiveness)).toFixed(1) + '%';
   }
@@ -342,8 +327,7 @@ export class LocationIntegration {
       orchestratorUsage: 0,
       fallbackUsage: 0,
       errorRate: 0,
-      averageResponseTime: 0,
-      costOptimizationSavings: 0
+      averageResponseTime: 0
     };
     
     this.lastStatsReset = Date.now();
@@ -383,7 +367,6 @@ export class LocationIntegration {
       { name: 'orchestrator_basic', fn: () => this.getOptimizedLocation({ userId: testUserId }, 'integration_test') },
       { name: 'campus_optimized', fn: () => this.getCampusOptimizedLocation('test_university', { userId: testUserId }) },
       { name: 'high_accuracy', fn: () => this.getHighAccuracyLocation({ timeout: 5000, userId: testUserId }) },
-      { name: 'google_provider_direct', fn: () => googleGeolocationProvider.getCurrentLocation({ timeout: 5000, userId: testUserId }) }
     ];
 
     for (const test of tests) {
@@ -457,20 +440,18 @@ if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
         return null;
       }
       return {
-        googleProvider: googleGeolocationProvider.getUserQuotaStatus(uid),
         orchestrator: locationOrchestrator.getStats(uid).user || null
       };
     },
     help: () => {
       console.log(`
-🔗 LocationIntegration Debug Commands (Per-User Quota System):
-- locationIntegrationDebug.getStats(userId?) - Get comprehensive integration stats
-- locationIntegrationDebug.getUserStats(userId?) - Get stats for specific user
-- locationIntegrationDebug.runTest(userId?) - Run integration test suite for user
+🔗 LocationIntegration Debug Commands:
+- locationIntegrationDebug.getStats(userId?) - Get integration stats
+- locationIntegrationDebug.getUserStats(userId?) - Stats for specific user
+- locationIntegrationDebug.runTest(userId?) - Run integration test suite
 - locationIntegrationDebug.resetStats() - Reset statistics
 - locationIntegrationDebug.testCampusLocation('university', userId?) - Test campus detection
 - locationIntegrationDebug.testHighAccuracy(userId?) - Test high accuracy location
-- locationIntegrationDebug.getUserQuotaStatus(userId?) - Get user quota status across all providers
 
 💡 Note: If userId is not provided, current user will be used when available.
       `);
@@ -487,7 +468,6 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
         return {
           integration: locationIntegration ? locationIntegration.getIntegrationStats(uid) : { error: 'LocationIntegration not available' },
           orchestrator: typeof locationOrchestrator !== 'undefined' ? locationOrchestrator.getStats(uid) : { error: 'LocationOrchestrator not available' },
-          googleProvider: typeof googleGeolocationProvider !== 'undefined' ? googleGeolocationProvider.getStats(uid) : { error: 'GoogleGeolocationProvider not available' },
           userId: uid || 'unknown'
         };
       } catch (error) {
@@ -504,8 +484,7 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
     },
     getAllUsersStats: () => ({
       integration: locationIntegration.getIntegrationStats(),
-      orchestrator: locationOrchestrator.getStats(),
-      googleProvider: googleGeolocationProvider.getStats()
+      orchestrator: locationOrchestrator.getStats()
     }),
     testAllSystems: async (userId = null) => {
       try {
@@ -516,12 +495,11 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
         const uid = userId || locationIntegration.getCurrentUserId();
       console.log(`🧪 Testing all location systems for user: ${uid || 'unknown'}...`);
       
-      const results = {
-        userId: uid || 'unknown',
-        integration: await locationIntegration.runIntegrationTest(uid),
-        orchestratorStats: locationOrchestrator.getStats(uid),
-        googleProviderTest: await googleGeolocationProvider.testConnection({ userId: uid })
-      };
+        const results = {
+          userId: uid || 'unknown',
+          integration: await locationIntegration.runIntegrationTest(uid),
+        orchestratorStats: locationOrchestrator.getStats(uid)
+        };
       
       console.log("📊 Complete system test results:", results);
       return results;
@@ -529,21 +507,6 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
         console.error('❌ Error testing location systems:', error.message);
         return { error: `Test failed: ${error.message}` };
       }
-    },
-    estimateCostSavings: (userId = null) => {
-      const uid = userId || locationIntegration.getCurrentUserId();
-      const stats = locationIntegration.getIntegrationStats(uid);
-      const dailySavings = stats.summary?.totalCostSavings || 0;
-      const monthlySavings = dailySavings * 30;
-      const yearlySavings = dailySavings * 365;
-      
-      const userContext = uid ? ` for user ${uid}` : ' (aggregate)';
-      console.log(`💰 Estimated cost savings${userContext}:
-- Today: ${dailySavings.toFixed(3)}
-- Monthly: ${monthlySavings.toFixed(2)}
-- Yearly: ${yearlySavings.toFixed(2)}`);
-      
-      return { userId: uid, dailySavings, monthlySavings, yearlySavings };
     },
     getQuotaStatusForUser: (userId = null) => {
       const uid = userId || locationIntegration.getCurrentUserId();
@@ -554,9 +517,7 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
       
       const quotaStatus = {
         userId: uid,
-        googleProvider: googleGeolocationProvider.getUserQuotaStatus(uid),
-        orchestrator: locationOrchestrator.getStats(uid).user || null,
-        canUseGoogleAPI: locationOrchestrator.shouldUseGoogleAPI({ userId: uid })
+        orchestrator: locationOrchestrator.getStats(uid).user || null
       };
       
       console.log(`📊 Quota status for user ${uid}:`, quotaStatus);
@@ -564,7 +525,7 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
     },
     help: () => {
       console.log(`
-🌍 CampXus Location System Debug Commands (Per-User Quota System):
+🌍 CampXus Location System Debug Commands:
 
 📊 Statistics & Monitoring:
 - locationSystemDebug.getFullStats(userId?) - Complete system statistics
@@ -577,7 +538,6 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
 - locationSystemDebug.testAllSystems(userId?) - Comprehensive system test
 
 📍 Individual Component Testing:
-- googleGeoDebug.* - Google Provider commands (per-user quota)
 - locationOrchestratorDebug.* - Orchestrator commands (per-user quota)
 - locationIntegrationDebug.* - Integration commands (per-user quota)
 
@@ -585,11 +545,10 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
   locationSystemDebug.testAllSystems() // Test for current user
   locationSystemDebug.getQuotaStatusForUser() // Check current user's quota
 
-💡 Note: Each user gets 5 Google API requests per day. Tier 1 (IP) and Tier 2 (GPS) remain unlimited.
+ 
       `);
     }
   };
   
-  console.log("🌍 CampXus Enhanced Location System loaded! (Per-User Quota: 5 Google API requests/day/user)");
-  console.log("Type locationSystemDebug.help() for available commands");
+  // Location system debug helpers available via window.locationSystemDebug
 }

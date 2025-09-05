@@ -12,8 +12,6 @@ import {
   getCampusConfig,
 } from "./UniversityCampusConfig.js";
 
-// Import Google API provider for strategic use cases
-import { googleGeolocationProvider } from "./GoogleGeolocationProvider.js";
 
 // Import Tier 1 network detection service (FREE)
 import { networkDetectionService } from "./NetworkDetectionService.js";
@@ -164,8 +162,11 @@ export class CampusLocationService {
       );
 
       let result = await this.getCurrentLocation(false, "presence_poller");
-      // Ensure coordinates are available every poll; if tier1 (network-only) returned, fetch browser coords
-      if (result && (!result.coords || result.coords.latitude == null || result.coords.longitude == null)) {
+      // If Tier 1 confirmed ON_CAMPUS, do not trigger browser GPS (battery saver)
+      const tier1OnCampus =
+        result && result.tier === 1 && result.campusStatus === "on_campus";
+      // Only enrich with browser GPS when Tier 1 didn't positively confirm on-campus
+      if (result && !tier1OnCampus && (!result.coords || result.coords.latitude == null || result.coords.longitude == null)) {
         try {
           const browserPos = await this.getBrowserLocationWithTimeout(false, 10000);
           if (browserPos?.coords) {
@@ -258,7 +259,6 @@ export class CampusLocationService {
    * 📍 PHASE 2 ENHANCEMENT: Requests a single fresh GPS location without debouncing
    */
   async requestSingleLocationUpdate() {
-    console.log("🚀 IMMEDIATE LOCATION: Starting network-first 3-tier system for instant updates...");
     
     try {
       // Guard: require enabled global sharing and signed-in user
@@ -304,7 +304,6 @@ export class CampusLocationService {
       logManager.location.warn("3-tier system failed for immediate update", error);
       
       // 🚨 FALLBACK: Only use raw GPS if 3-tier system completely fails
-      console.log("🚨 FALLBACK: Using raw GPS as last resort...");
       
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -420,53 +419,24 @@ export class CampusLocationService {
     this.boundaryDetectionQueue = [];
     this.isBoundaryDetectionThrottled = false;
 
-    // 💰 COST OPTIMIZATION: Strategic Google API usage control
-    // Reasonable limits for 2000+ university users while controlling costs
-    this.maxGoogleCallsPerUser = 5; // Max Google API calls per user per day (REDUCED from 10 - cost optimization)
-    this.maxDailyGoogleCalls = 1500; // Max total Google API calls per day (caps cost at ~$7.50/day)
-    this.googleApiCooldown = 3 * 60 * 1000; // 3 minutes between Google API calls per user (reduced for better UX)
-
-    // User tracking for rate limiting
-    this.userApiUsage = new Map(); // Track per-user API usage
-    this.dailyApiUsage = this.loadDailyUsage(); // Track total daily usage
+    //
 
     // Presence polling (explicit interval regardless of page)
     this.presencePollingIntervalId = null;
     this.presencePollingIntervalMs = 20000;
     this._isPresencePollRunning = false;
 
-    // 🎯 STRATEGIC GOOGLE API TRIGGERS: Only use paid API for these critical scenarios
-    // This prevents unnecessary costs while ensuring accuracy when it matters most
-    this.googleApiTriggers = [
-      "first_visit", // New user's first location request (optimal accuracy for campus detection)
-      // 🚫 REMOVED: 'manual_reload' and 'reload' - now using 3-tier system instead
-      "high_accuracy_request", // App explicitly requests high accuracy (critical operations)
-      "campus_boundary_detection", // Detecting if user is on/off campus (precision matters)
-      "browser_api_failure", // Browser API failed completely - Google API as rescue fallback
-    ];
-
-    // 🌐 THREE-TIER COST-OPTIMIZED FALLBACK SYSTEM:
-    // TIER 1: Browser API (FREE, best accuracy ~5-50m)
-    // TIER 2: Google API (PAID $0.005, high accuracy ~5-50m) - STRATEGIC USE ONLY
-    // Note: IP Geolocation tier removed to fix CSP violations
+    // Two-tier system in use: Tier 1 IPinfo Lite, Tier 2 Browser GPS
 
     // Caching for cost optimization
     this.locationCache = new Map();
     this.cacheExpiry = 15 * 60 * 1000; // 15 minutes cache
 
-    logManager.location.info("Service initialized with cost optimization", {
+    logManager.location.info("Service initialized", {
       geolocationSupported: this.isLocationSupported,
       isMobile: this.isMobile,
       isAppVisible: this.isAppVisible,
       isOnline: this.isOnline,
-      costLimits: {
-        maxGoogleCallsPerUser: this.maxGoogleCallsPerUser,
-        maxDailyGoogleCalls: this.maxDailyGoogleCalls,
-        currentDailyUsage: this.dailyApiUsage,
-        estimatedMaxDailyCost: `${(this.maxDailyGoogleCalls * 0.005).toFixed(
-          2
-        )}`,
-      },
       timestamp: new Date().toISOString(),
     });
 
@@ -703,44 +673,16 @@ export class CampusLocationService {
   }
 
   /**
-   * 💰 COST-OPTIMIZED LOCATION SERVICE
-   *
-   * Three-tier fallback system designed for 2000+ university users:
-   *
-   * TIER 1: Browser API (FREE) - Try first, 8s timeout for fast failover
-   * TIER 2: IP Geolocation (FREE) - City-level accuracy, sufficient for most campus detection
-   * TIER 3: Google API (PAID) - Strategic use only for critical scenarios
-   *
-   * Google API Rate Limits:
-   * - 10 calls per user per day (allows active campus use)
-   * - 1500 total calls per day (max cost: $7.50/day = $225/month)
-   * - 3-minute cooldown between user calls
-   *
-   * Strategic Triggers for Google API:
-   * - first_visit: New user needs optimal accuracy for campus detection
-   * - manual_reload: User explicitly refreshed, wants fresh data
-   * - high_accuracy_request: App requires precision for critical operations
-   * - campus_boundary_detection: Precise on/off campus determination needed
-   * - browser_api_failure: Browser API failed, Google API as rescue fallback
-   *
-   * @param {boolean} highAccuracy - Whether to use high accuracy mode (default: false for battery efficiency)
-   * @param {string} trigger - What triggered this request (for strategic API usage)
-   * @param {string} userId - User ID for rate limiting (optional)
-   * @returns {Promise<GeolocationPosition|null>} Current position or null if failed
-   */
-  /**
-   * 🎯 NEW 3-TIER COST-OPTIMIZED GEOLOCATION SYSTEM
-   *
-   * TIER 1: Network/IP Detection (FREE) - Instant campus detection via university IP ranges
-   * TIER 2: Browser GPS (FREE) - 3 attempts with 12s timeout, write only if ≤2100m accuracy (2000m + 5% tolerance)
-   * TIER 3: Google API (PAID) - Last resort only, 5 calls/day per user limit
+   * Two-tier geolocation system
+   * - Tier 1: IPinfo Lite as_domain detection (instant campus on/off)
+   * - Tier 2: Browser GPS with retries and accuracy gate
    */
   async getCurrentLocation(
     highAccuracy = false,
     trigger = "unknown",
     userId = null
   ) {
-    // Delegated to LocationTierService (extracted 3-tier pipeline)
+    // Delegated to LocationTierService (two-tier pipeline)
     if (!this.isLocationSupported) {
       logManager.system.error("Geolocation not supported");
       return null;
@@ -849,7 +791,7 @@ export class CampusLocationService {
       return {
         onCampus: true,
         confidence: 0.95, // High confidence for network detection
-        source: recentTier1Result.method || "ip_organization_detection",
+        source: recentTier1Result.method || "ipinfo_lite_as_domain",
         timestamp: Date.now(),
         university: university,
         bypassedBoundaryDetection: true,
@@ -1000,7 +942,7 @@ export class CampusLocationService {
 
       // 🎯 CRITICAL FIX: Handle TIER 1 network detection results
       // If TIER 1 detected ON_CAMPUS via network, trust that result even with null coordinates
-      if (position.source === "ip_organization_detection" && position.campusStatus === "on_campus") {
+      if ((position.source === "ipinfo_lite_as_domain" || position.source === "ip_organization_detection") && position.campusStatus === "on_campus") {
         if (typeof logManager !== "undefined") {
           logManager.dev.info(
             "🏢 [CampusLocationService] TIER 1 network detection confirmed ON_CAMPUS - trusting network result",
@@ -2659,13 +2601,7 @@ export class CampusLocationService {
                 : "❌ Shows RED dot - check coordinates",
             });
 
-            // Generate Google Maps URL for visual verification
-            const mapsUrl = `https://www.google.com/maps?q=${userLat},${userLng}&z=18`;
-            logManager.dev.info("Visual Check", {
-              googleMapsUrl: mapsUrl,
-              instructions:
-                "Open this URL to verify your actual GPS location matches expected location",
-            });
+            // Visual verification URL removed
           })
           .catch((error) => {
             logManager.dev.error(
@@ -3328,7 +3264,7 @@ export class CampusLocationService {
 
     // 🎯 CRITICAL FIX: Handle TIER 1 network detection results with null coordinates
     // For network detection (TIER 1), null coordinates are expected and valid!
-    const isNetworkDetection = source === "ip_organization_detection" || tier === 1;
+    const isNetworkDetection = (source === "ipinfo_lite_as_domain" || source === "ip_organization_detection") || tier === 1;
     const hasValidCoordinates = position.coords && this.isValidCoordinates(position);
     
     if (!isNetworkDetection && !hasValidCoordinates) {
@@ -3550,9 +3486,7 @@ export class CampusLocationService {
                 networkDetection: true
               }
             );
-            console.log(
-              "[CampusLocationService] 📡 Campus presence change event emitted"
-            );
+            // Campus presence change event emitted
           } catch (realtimeError) {
             console.warn(
               "[CampusLocationService] ⚠️ Failed to emit presence change event:",
@@ -4747,9 +4681,7 @@ export class CampusLocationService {
       this.checkGPSHealth();
     }, 10 * 60 * 1000);
 
-    console.log(
-      "[CampusLocationService] ✅ GPS health monitoring started (10-minute intervals)"
-    );
+    // GPS health monitoring started (10-minute intervals)
   }
 
   /**
@@ -4766,21 +4698,13 @@ export class CampusLocationService {
       console.warn(
         "[CampusLocationService] 🏥 GPS health check failed - no updates for 15+ minutes"
       );
-      console.log(
-        "[CampusLocationService] 🔄 Triggering GPS reset due to health check failure"
-      );
+      // Trigger GPS reset due to health check failure
       this.scheduleGPSReset();
       return;
     }
 
     // Log health status
-    console.log("[CampusLocationService] 🏥 GPS health check passed:", {
-      lastUpdate: timeSinceLastUpdate
-        ? Math.round(timeSinceLastUpdate / 1000) + "s ago"
-        : "never",
-      isTracking: this.trackingWatchId !== null,
-      poorReadings: this.poorGPSReadings || 0,
-    });
+    // GPS health check passed
   }
 
   // 💰 COST OPTIMIZATION METHODS
@@ -4807,9 +4731,7 @@ export class CampusLocationService {
         trigger = "first_visit";
         priorityMode = "fresh_data_priority";
         localStorage.setItem("campusLocationService_visited", "true");
-        console.log(
-          "🎯 First visit detected - Fresh data priority mode for presence dots"
-        );
+        // First visit: fresh data priority mode
       } else if (isReload) {
         trigger = "manual_reload";
         priorityMode = "fresh_data_priority";
@@ -4825,9 +4747,7 @@ export class CampusLocationService {
       } else {
         trigger = "app_init";
         priorityMode = "standard";
-        console.log(
-          "🎯 Normal app initialization - using cost-optimized approach"
-        );
+        // Normal app initialization
       }
 
       // Clear reload flag
@@ -4858,22 +4778,12 @@ export class CampusLocationService {
       const position = await this.getCurrentLocation(false, trigger);
 
       if (position) {
-        console.log(`✅ Initial location acquired via ${trigger}:`, {
-          provider: position.source,
-          accuracy: Math.round(position.coords.accuracy),
-          cost: position.costOptimization?.cost || 0,
-          priorityMode,
-        });
+        // Initial location acquired
 
         // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
         const presenceResult = await this.detectCampusPresence("iub", position);
 
-        console.log("🎯 Initialization presence detection completed:", {
-          campusStatus: presenceResult?.onCampus ? "on_campus" : "off_campus",
-          confidence: presenceResult?.confidence,
-          source: presenceResult?.source,
-          recursiveCallAvoided: true
-        });
+        // Initialization presence detection completed
 
         // For fresh data priority, emit fresh data ready event
         if (priorityMode === "fresh_data_priority") {
@@ -5013,9 +4923,7 @@ export class CampusLocationService {
    * Forces fresh location API calls by clearing existing cache
    */
   invalidateLocationCache() {
-    console.log(
-      "🗑️ [CampusLocationService] Invalidating location cache for fresh data request"
-    );
+    // Invalidate cache for fresh data request
 
     // Clear browser location cache by setting maximumAge to 0
     this.freshLocationOptions = {
@@ -5029,143 +4937,12 @@ export class CampusLocationService {
       this.lastLocationCache = null;
     }
 
-    // Clear Google API cache if it exists
-    if (this.googleProvider?.clearCache) {
-      this.googleProvider.clearCache();
-    }
+    //
 
     logManager.dev.debug("✅ Location cache invalidated successfully");
   }
 
-  /**
-   * Determine if Google API should be used for this request
-   */
-  shouldUseGoogleAPI(trigger, userId, highAccuracy) {
-    // Always use for strategic triggers
-    if (this.googleApiTriggers.includes(trigger)) {
-      console.log(
-        `🎯 Strategic trigger detected: ${trigger} - Google API authorized`
-      );
-      return true;
-    }
-
-    // Use for high accuracy requests if user hasn't exceeded limits
-    if (highAccuracy && userId) {
-      const userUsage = this.getUserApiUsage(userId);
-      if (userUsage.googleCalls < this.maxGoogleCallsPerUser) {
-        logManager.dev.debug(
-          "🎯 High accuracy request - Google API authorized"
-        );
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Get Google Geolocation API location (Tier 3 - Paid)
-   */
-  async getGoogleLocation(highAccuracy = false) {
-    try {
-      const result = await googleGeolocationProvider.getCurrentLocation({
-        highAccuracy,
-        timeout: 10000,
-        requestId: `campus-${Date.now()}`,
-      });
-
-      if (result && result.coords) {
-        return {
-          coords: result.coords,
-          timestamp: result.timestamp || Date.now(),
-          source: "google",
-          provider: "google_geolocation_api",
-        };
-      }
-
-      throw new Error("Invalid response from Google Geolocation API");
-    } catch (error) {
-      console.error(
-        "[CampusLocationService] Google Geolocation API error:",
-        error
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Check if Google API can be used (rate limiting)
-   */
-  canUseGoogleAPI(userId) {
-    // Check daily limit
-    if (this.dailyApiUsage >= this.maxDailyGoogleCalls) {
-      console.log(
-        `🚫 Daily Google API limit reached: ${this.dailyApiUsage}/${this.maxDailyGoogleCalls}`
-      );
-      return false;
-    }
-
-    if (!userId) return true; // Allow for anonymous users (with daily limit)
-
-    const userUsage = this.getUserApiUsage(userId);
-
-    // Check user daily limit
-    if (userUsage.googleCalls >= this.maxGoogleCallsPerUser) {
-      console.log(
-        `🚫 User Google API limit reached: ${userUsage.googleCalls}/${this.maxGoogleCallsPerUser}`
-      );
-      return false;
-    }
-
-    // Check cooldown period
-    const timeSinceLastCall = Date.now() - (userUsage.lastGoogleCall || 0);
-    if (timeSinceLastCall < this.googleApiCooldown) {
-      const waitTime = this.googleApiCooldown - timeSinceLastCall;
-      console.log(
-        `⏱️ Google API cooldown: ${Math.round(waitTime / 1000)}s remaining`
-      );
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Track Google API usage for cost control
-   */
-  trackGoogleApiUsage(userId) {
-    // Update daily usage
-    this.dailyApiUsage++;
-    this.saveDailyUsage();
-
-    if (userId) {
-      // Update user usage
-      const userUsage = this.getUserApiUsage(userId);
-      userUsage.googleCalls++;
-      userUsage.lastGoogleCall = Date.now();
-
-      console.log(`📊 Google API usage tracked:`, {
-        user: userId.substring(0, 8) + "...",
-        userCalls: userUsage.googleCalls,
-        dailyTotal: this.dailyApiUsage,
-        cost: "$" + (this.dailyApiUsage * 0.005).toFixed(3),
-      });
-    }
-  }
-
-  /**
-   * Get user API usage statistics
-   */
-  getUserApiUsage(userId) {
-    if (!this.userApiUsage.has(userId)) {
-      this.userApiUsage.set(userId, {
-        googleCalls: 0,
-        lastGoogleCall: null,
-        firstCall: Date.now(),
-      });
-    }
-    return this.userApiUsage.get(userId);
-  }
+  //
 
   /**
    * Get fallback location from cache
@@ -5202,120 +4979,11 @@ export class CampusLocationService {
     return {
       coords: location.coords,
       timestamp: location.timestamp,
-
-      // Cost optimization metadata
-      costOptimization: {
-        tier: tier,
-        cost: cost,
-        provider: location.provider || location.source,
-        accuracy: location.coords.accuracy,
-        source: location.source,
-        dailyApiUsage: this.dailyApiUsage,
-        estimatedDailyCost: this.dailyApiUsage * 0.005,
-      },
-
-      // Standard fields
       source: location.source,
-      provider: "cost_optimized",
+      provider: location.provider || location.source,
     };
   }
 
-  /**
-   * Load daily usage from localStorage
-   */
-  loadDailyUsage() {
-    try {
-      const stored = localStorage.getItem("daily_google_api_usage");
-      if (stored) {
-        const data = JSON.parse(stored);
-        const today = new Date().toDateString();
-
-        if (data.date === today) {
-          return data.usage || 0;
-        }
-      }
-    } catch (error) {
-      logManager.location.warn("Failed to load daily API usage:", error);
-    }
-    return 0;
-  }
-
-  /**
-   * Save daily usage to localStorage
-   */
-  saveDailyUsage() {
-    try {
-      const data = {
-        date: new Date().toDateString(),
-        usage: this.dailyApiUsage,
-      };
-      localStorage.setItem("daily_google_api_usage", JSON.stringify(data));
-    } catch (error) {
-      logManager.location.warn("Failed to save daily API usage:", error);
-    }
-  }
-
-  /**
-   * Get comprehensive cost optimization statistics
-   * 💰 Use this to monitor API usage and costs
-   */
-  getCostStats() {
-    const estimatedDailyCost = this.dailyApiUsage * 0.005;
-    const estimatedMonthlyCost = estimatedDailyCost * 30;
-    const maxDailyCost = this.maxDailyGoogleCalls * 0.005;
-    const maxMonthlyCost = maxDailyCost * 30;
-
-    return {
-      // Current usage
-      dailyApiUsage: this.dailyApiUsage,
-      estimatedDailyCost: "$" + estimatedDailyCost.toFixed(3),
-      estimatedMonthlyCost: "$" + estimatedMonthlyCost.toFixed(2),
-
-      // Limits and budget
-      maxDailyLimit: this.maxDailyGoogleCalls,
-      maxUserLimit: this.maxGoogleCallsPerUser,
-      remainingDailyBudget: this.maxDailyGoogleCalls - this.dailyApiUsage,
-      maxDailyCost: "$" + maxDailyCost.toFixed(2),
-      maxMonthlyCost: "$" + maxMonthlyCost.toFixed(2),
-
-      // User statistics
-      activeUsers: this.userApiUsage.size,
-      averageCallsPerUser:
-        this.userApiUsage.size > 0
-          ? (
-              Array.from(this.userApiUsage.values()).reduce(
-                (sum, user) => sum + user.googleCalls,
-                0
-              ) / this.userApiUsage.size
-            ).toFixed(1)
-          : 0,
-
-      // Usage percentage
-      dailyUsagePercent:
-        ((this.dailyApiUsage / this.maxDailyGoogleCalls) * 100).toFixed(1) +
-        "%",
-
-      // Rate limiting info
-      cooldownMinutes: this.googleApiCooldown / (60 * 1000),
-    };
-  }
-
-  /**
-   * Reset daily usage for testing or new day
-   * 🔧 Admin/testing function to reset API usage counters
-   */
-  resetDailyUsage() {
-    this.dailyApiUsage = 0;
-    this.userApiUsage.clear();
-    this.saveDailyUsage();
-    logManager.dev.debug("🔄 Daily API usage reset - all limits cleared");
-
-    return {
-      message: "Daily usage reset successfully",
-      dailyUsage: this.dailyApiUsage,
-      activeUsers: this.userApiUsage.size,
-    };
-  }
 }
 
 // Export singleton instance
@@ -5324,10 +4992,4 @@ export const campusLocationService = new CampusLocationService();
 // 🛠️ DEBUGGING: Make campusLocationService globally available for console access and cost monitoring
 if (typeof window !== "undefined") {
   window.campusLocationService = campusLocationService;
-  console.log(
-    "🛠️ CampusLocationService available globally as window.campusLocationService for debugging"
-  );
-  console.log(
-    "💰 Cost monitoring: Use campusLocationService.getCostStats() to check API usage and costs"
-  );
 }

@@ -111,8 +111,10 @@ const campuses = {
     // NEW and IMPROVED: Network information for IP-based campus detection
     // Uses organization name detection instead of fragile IP ranges
     networkInfo: {
-      organization: "Independent Univeristy, Bangladesh", // From ip-api.com 'org' field
-      asname: "INDEPENDENT-AS-AP", // From ip-api.com 'asname' field (fallback)
+      organization: "Independent Univeristy, Bangladesh", // Legacy org match (kept for fallback)
+      asname: "INDEPENDENT-AS-AP", // Legacy ASN name (kept for fallback)
+      // New: authoritative AS domain for IPinfo Lite tier-1 detection
+      asDomain: "iub.edu.bd",
       // Alternative organization names to check (for variations in spelling/formatting)
       alternativeNames: [
         "Independent University, Bangladesh",

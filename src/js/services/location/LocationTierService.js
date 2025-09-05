@@ -1,15 +1,14 @@
 /**
  * LocationTierService.js
  *
- * Extracted 3-tier location acquisition pipeline.
+ * Extracted 2-tier location acquisition pipeline.
  *
  * TIER 1: Network/IP detection (FREE)
  * TIER 2: Browser GPS (FREE) — up to 3 attempts, 12s timeout, <= 2100m accuracy
- * TIER 3: Google API (PAID) — per-user quota (5/day)
+ * (Tier 3 removed)
  */
 
 import { networkDetectionService } from "./NetworkDetectionService.js";
-import { googleGeolocationProvider } from "./GoogleGeolocationProvider.js";
 import { logManager } from "../../utils/debug/LogManager.js";
 
 class LocationTierService {
@@ -50,7 +49,7 @@ class LocationTierService {
               speed: null,
             },
             timestamp: Date.now(),
-            source: "ip_organization_detection",
+            source: "ipinfo_lite_as_domain",
             tier: 1,
             cost: 0,
             campusStatus: "on_campus",
@@ -99,24 +98,8 @@ class LocationTierService {
       }
     }
 
-    // Tier 3: Google Geolocation API (PAID)
-    try {
-      logManager.location.tier3("Google Geolocation Provider starting (PAID)");
-      const gloc = await googleGeolocationProvider.getCurrentLocation({ timeout: 5000, userId });
-      if (gloc?.coords) {
-        const responseTime = Date.now() - startTime;
-        const result = this.formatPositionResponse(gloc, "google_provider", 0.005);
-        result.tier = 3;
-        result.responseTime = responseTime;
-        result.shouldWriteToDatabase = true;
-        return result;
-      }
-    } catch (e) {
-      logManager.location.fail(`TIER 3 failed: ${e?.message || e}`);
-    }
-
     // All tiers failed
-    logManager.location.warn("All 3 tiers failed to provide location");
+    logManager.location.warn("All tiers failed to provide location");
     return null;
   }
 
@@ -159,4 +142,3 @@ class LocationTierService {
 }
 
 export const locationTierService = new LocationTierService();
-

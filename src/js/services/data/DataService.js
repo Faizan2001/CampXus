@@ -3633,7 +3633,7 @@ class DataManager {
         networkInfo = {
           networkDetection: true,
           ipOrganization: coordinates.ipOrganization || "Unknown",
-          detectionMethod: "ip_organization_detection",
+          detectionMethod: "ipinfo_lite_as_domain",
           timestamp: coordinates.timestamp
             ? new Date(coordinates.timestamp).toISOString()
             : new Date().toISOString(),

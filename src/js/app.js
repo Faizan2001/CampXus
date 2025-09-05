@@ -224,7 +224,7 @@ async function initializeSPA() {
   // Listen for SPA navigation events
   setupSPAEventListeners();
 
-  // 💰 COST OPTIMIZATION: Detect manual reloads for strategic Google API usage
+  // Detect manual reloads (used by initialization logic)
   window.addEventListener("beforeunload", () => {
     // Mark that a manual reload is happening
     if (

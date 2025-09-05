@@ -54,8 +54,7 @@ class PerformanceDebugger {
     this.performanceScore = 100;
     this.alerts = [];
 
-    if (process.env.NODE_ENV === "development")
-      console.log("🔧 PerformanceDebugger initialized");
+    // Dev-only initializer; no console noise by default
   }
 
   // =========================
@@ -67,8 +66,7 @@ class PerformanceDebugger {
    */
   startListenerMonitoring() {
     this.isMonitoring = true;
-    if (process.env.NODE_ENV === "development")
-      console.log("🎛️ Starting listener performance monitoring...");
+    // Starting listener performance monitoring (dev)
 
     // Monitor RealTimeManager
     if (window.realTimeManager) {
@@ -92,7 +90,7 @@ class PerformanceDebugger {
     if (this.reportInterval) {
       clearInterval(this.reportInterval);
     }
-    console.log("🛑 Stopped listener performance monitoring");
+    // Stopped listener performance monitoring
   }
 
   monitorRealTimeManager() {
@@ -677,17 +675,5 @@ if (typeof window !== "undefined") {
   window.checkMemoryLeaks = () => performanceDebugger.detectMemoryLeaks();
   window.getPerformanceScore = () => performanceDebugger.performanceScore;
 
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      "%c🔧 Performance Debugger Commands Available:",
-      "color: #8b5cf6; font-weight: bold; font-size: 14px;"
-    );
-    console.log(
-      "  startPerformanceMonitoring() | stopPerformanceMonitoring() | analyzePerformance() | debugQuickAccess()"
-    );
-    console.log(
-      "%c💡 Pro Tip: Monitor memory and listeners when testing.",
-      "color: #22c55e; font-style: italic;"
-    );
-  }
+  // Dev command helpers are available via window.* without printing banners
 }
