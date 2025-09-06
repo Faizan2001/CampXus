@@ -432,6 +432,13 @@ export class CampusLocationService {
     this.locationCache = new Map();
     this.cacheExpiry = 15 * 60 * 1000; // 15 minutes cache
 
+    // 🎯 STATUS ARBITRATION: Protect high-confidence GPS on-campus from being
+    // downgraded by low-confidence network off-campus when tab is hidden.
+    this.lastAuthoritativeCampusStatus = null; // 'on_campus' | 'off_campus' | 'unknown'
+    this.lastAuthoritativeSource = null; // 'gps' | 'network' | null
+    this.lastAuthoritativeTimestamp = 0; // ms
+    this.authoritativeHoldMs = 15 * 60 * 1000; // 15 minutes hold window (align with cache)
+
     logManager.location.info("Service initialized", {
       geolocationSupported: this.isLocationSupported,
       isMobile: this.isMobile,
@@ -3376,12 +3383,27 @@ export class CampusLocationService {
 
         // 🚀 PERFORMANCE FIX: Pass position data to avoid recursive getCurrentLocation calls
         const campusPresenceResult = await this.detectCampusPresence("iub", position);
-        const finalCampusStatus =
+        let finalCampusStatus =
           campusPresenceResult?.onCampus !== undefined
             ? campusPresenceResult.onCampus
               ? "on_campus"
               : "off_campus"
             : "unknown";
+
+        // 🎯 ARBITRATION: Do not downgrade from recent GPS on_campus to
+        // network off_campus when the app is hidden or GPS is paused.
+        const nowTs = Date.now();
+        const isRecentAuthoritativeOnCampus =
+          this.lastAuthoritativeCampusStatus === "on_campus" &&
+          this.lastAuthoritativeSource === "gps" &&
+          nowTs - this.lastAuthoritativeTimestamp < this.authoritativeHoldMs;
+
+        if (isNetworkDetection && finalCampusStatus === "off_campus" && isRecentAuthoritativeOnCampus) {
+          logManager.location.info(
+            "[CampusLocationService] 🛡️ Arbitration: Preventing downgrade to off_campus based on network; keeping recent GPS on_campus"
+          );
+          finalCampusStatus = "on_campus";
+        }
 
         // SMART UPDATE: Writing to database (details omitted for console noise)
 
@@ -3428,6 +3450,12 @@ export class CampusLocationService {
               tier: tier,
               batteryOptimized: batteryOptimized
             });
+
+            // Record authoritative GPS-based status (used to protect against
+            // later low-confidence network downgrades when tab is hidden)
+            this.lastAuthoritativeCampusStatus = finalCampusStatus;
+            this.lastAuthoritativeSource = "gps";
+            this.lastAuthoritativeTimestamp = nowTs;
           }
 
           // 🟣 Trigger animation for database write

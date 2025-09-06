@@ -57,6 +57,15 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 - Multi-step profile setup with guided avatar customization
 - Privacy controls for managing searchability and social visibility
 
+### Campus Presence & Location Sharing
+
+- Tiered detection: fast Tier 1 network/IP detection and Tier 2 browser GPS with accuracy gating.
+- Adaptive LocationScheduler orchestrates timing to balance speed vs battery:
+  - Home: Tier 1 immediately; if off-campus, GPS burst at 0s/20s/40s; adaptive 20→30→45→90s intervals; slow to 60–90s when stably off-campus; reset to 20s on focus/network change.
+  - Other pages: Tier 1 every 90–120s; GPS only on focus, login, or manual refresh.
+  - Hidden tab: GPS paused; Tier 1 continues at 90–120s for coarse updates.
+- Writes go through DataService so friends see your dot update quickly via RealtimeService.
+
 ## Tech Stack
 
 **Single Page Application** with real-time Firebase integration:
@@ -281,10 +290,11 @@ CampXus/
 
 4. **Development Commands:**
    ```bash
-   npm run dev:config    # Generate browser-compatible config
-   npm run dev:check     # Validate your setup
-   npm run dev:serve     # Start development server
-   npm test              # Run test suites
+   npm run dev:config    # Generate window.ENV config (auto-used by app)
+   npm run dev:check     # Verify local Firebase/dev setup
+   npm run dev           # Start Vite dev server with host binding
+   npm run preview       # Serve production build locally
+   npm test              # Run Jest (jsdom) tests
    ```
 
 ## Available Scripts
@@ -351,6 +361,18 @@ CampXus operates as a modern Single Page Application (SPA) with real-time Fireba
 - Coordinate study sessions based on mutual availability
 - Share schedule updates with connected classmates
 
+### Campus Presence Orchestration
+
+- LocationScheduler (`src/js/services/location/LocationScheduler.js`): Governs Tier 1 vs GPS timing by route, tab visibility, focus, and network changes. Feeds results into `CampusLocationService.processFreshLocation`.
+- LocationTierService (`src/js/services/location/LocationTierService.js`): Tier 1 network/IP detection; Tier 2 browser GPS with timeout and accuracy threshold.
+- CampusLocationService (`src/js/services/location/CampusLocationService.js`): Debounced database writes via `dataManager.updateUserLocationStatus`; emits realtime updates through `RealtimeService`.
+- RealtimeService (`src/js/services/realtime/RealtimeService.js`): Broadcasts presence changes; HorizontalFriendsBar listens and updates presence dots.
+
+Behavior by context:
+- Home: Tier 1 immediately; off-campus triggers GPS burst at 0/20/40s; adaptive 20→30→45→90s; slow to 60–90s when stable off-campus; reset to 20s on focus/network.
+- Other pages: Tier 1 every 90–120s; GPS only on focus, login, or manual refresh.
+- Hidden tab: GPS paused; Tier 1 continues at 90–120s.
+
 ## Security & Environment Setup
 
 ### Important Security Guidelines
@@ -396,6 +418,13 @@ We welcome contributions from developers who want to help improve the university
 - **University Integration:** Add support for new universities and institutional features
 - **Mobile Experience:** Improve mobile UI/UX and touch interactions
 - **Accessibility:** Enhance keyboard navigation and screen reader support
+
+### Key Files (Location System)
+
+- `src/js/services/location/LocationScheduler.js`: Adaptive scheduler (route/visibility/focus aware)
+- `src/js/services/location/LocationTierService.js`: Tier 1 network + Tier 2 GPS
+- `src/js/services/location/CampusLocationService.js`: Debounced writes + realtime events
+- `src/js/services/realtime/RealtimeService.js`: Central event bus for presence/notifications
 
 ## Roadmap
 

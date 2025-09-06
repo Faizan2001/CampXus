@@ -78,6 +78,12 @@ This file contains CSS styles for the Campus Presence feature including:
 
 /* Subtle pulse animation for online status */
 .presence-dot.green {
+  /* No default pulse for friends; user pulse added below */
+  animation: none;
+}
+
+/* Only the current user's green dot pulses */
+.friend-avatar-item[data-friend-id="user"] .presence-dot.green {
   animation: onlinePulse 3s ease-in-out infinite;
 }
 
@@ -302,6 +308,13 @@ This file contains CSS styles for the Campus Presence feature including:
   100% { transform: rotate(360deg); }
 }
 
+/* Subtle pulse for in-place updates to reduce perceived flicker */
+@keyframes fresh-data-pulse {
+  0%   { transform: scale(0.98); filter: brightness(0.98); }
+  50%  { transform: scale(1.02); filter: brightness(1.06); }
+  100% { transform: scale(1.0);  filter: brightness(1.0); }
+}
+
 /* ===== MODERN SPINNER OVERLAY RING ===== */
 .presence-dot.spinner-overlay {
   position: absolute !important;
@@ -413,4 +426,3 @@ This file contains CSS styles for the Campus Presence feature including:
     box-shadow: 0 2px 6px rgba(255, 165, 0, 0.4);
   }
 }
-

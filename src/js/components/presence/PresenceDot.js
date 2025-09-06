@@ -158,7 +158,9 @@ export class PresenceDot {
     }
 
     // NEW LOGIC: Show solid dot (no text) for active users within 2 minutes
-    if (minutesAgo < 2) {
+    // Also force solid during fresh-data loading to prevent brief timer flicker
+    const forceSolid = options.forceSolid === true;
+    if (minutesAgo < 2 || forceSolid) {
       // Only log when actually creating for active user (throttled by LogManager)
       if (window.logManager) window.logManager.presenceDotUpdate('user', `active ${campusStatus}`);
 
@@ -348,8 +350,9 @@ export class PresenceDot {
 
     // Build normal dot and add spinner overlay class if needed
     const extraClass = addOverlay ? 'spinner-overlay' : '';
+    const forceSolid = addOverlay; // While loading fresh data, suppress timer flicker
     const sharingFlag = hasLocationSharing === true;
-    return this.create(lastActive, lastKnownLocation, sharingFlag, { extraClass });
+    return this.create(lastActive, lastKnownLocation, sharingFlag, { extraClass, forceSolid });
   }
 
   /**

@@ -2711,6 +2711,37 @@ export class HorizontalFriendsBar {
    * FIXED: Prevents infinite loops with proper change detection and re-entrancy protection
    */
   async handleStarredFriendProfileUpdate(friendId, friendProfile) {
+    // ⚡ Presence-first fast path: if this update contains presence info,
+    // bypass profile circuit breakers and update the dot immediately.
+    const presenceInfo = friendProfile?.systemInfo?.lastKnownLocation;
+    const presenceLastActive = friendProfile?.systemInfo?.lastActive;
+    if (presenceInfo || presenceLastActive) {
+      try {
+        const friendIndex = this.quickAccessFriends.findIndex(
+          (f) => f.friendId === friendId || f.userId === friendId
+        );
+        if (friendIndex !== -1) {
+          const current = this.quickAccessFriends[friendIndex];
+          const updated = { ...current };
+          if (presenceInfo) updated.lastKnownLocation = presenceInfo;
+          if (presenceLastActive) updated.lastActive = presenceLastActive;
+
+          // Save and update dot immediately (no full re-render)
+          this.quickAccessFriends[friendIndex] = updated;
+          this.updateFriendPresenceDot(friendIndex, updated);
+          logManager.presence?.debug?.(
+            `⚡ Presence fast-path applied for ${friendId}`
+          );
+          return; // Presence handled; skip profile processing
+        }
+      } catch (e) {
+        console.warn(
+          `⚠️ Presence fast-path failed for ${friendId}, falling back to profile path:`,
+          e
+        );
+      }
+    }
+
     // ENHANCED CIRCUIT BREAKER: Only block PROFILE updates, not privacy updates
     const profileUpdateKey = `profile_updating_${friendId}`;
     if (this[profileUpdateKey]) {
@@ -4024,36 +4055,18 @@ export class HorizontalFriendsBar {
         return;
       }
 
-      // Generate new presence dot HTML
-      const newPresenceDot = PresenceDot.createWithFreshDataPriority(
+      // Smooth in-place update to avoid flicker
+      PresenceDot.updateWithFreshData(
+        existingPresenceDot,
         friend.lastActive,
         friend.lastKnownLocation,
-        friend.hasLocationSharing,
-        this.friendLoading.get(friendId) || false
+        friend.hasLocationSharing
       );
 
-      // Create a temporary container to parse the HTML
-      const tempContainer = document.createElement("div");
-      tempContainer.innerHTML = newPresenceDot;
-      const newPresenceDotElement =
-        tempContainer.querySelector(".presence-dot");
-
-      if (newPresenceDotElement) {
-        // Replace the old presence dot with the new one
-        existingPresenceDot.replaceWith(newPresenceDotElement);
-
-        // Stop spinner for this friend after fresh data applied
-        this.friendLoading.set(friendId, false);
-        newPresenceDotElement.classList.remove("spinner-overlay");
-        newPresenceDotElement.title = "";
-        // Updated presence dot for friend
-      } else {
-        console.warn(
-          `🌍 Failed to create new presence dot element for ${
-            friend.handle || "Unknown User"
-          }`
-        );
-      }
+      // Stop spinner for this friend after fresh data applied
+      this.friendLoading.set(friendId, false);
+      existingPresenceDot.classList.remove("spinner-overlay");
+      existingPresenceDot.title = "";
     } catch (error) {
       console.error(
         `❌ Error updating presence dot for ${
@@ -4995,26 +5008,17 @@ export class HorizontalFriendsBar {
     );
 
     if (existingDot && document.contains(existingDot)) {
-      // 🔄 SAFE REPLACEMENT: Use insertAdjacentHTML instead of outerHTML
       try {
-        // Create temporary container
-        const tempContainer = document.createElement("div");
-        tempContainer.innerHTML = newPresenceDot;
-        const newDot = tempContainer.firstElementChild;
-
-        if (newDot && existingDot.parentNode) {
-          existingDot.parentNode.replaceChild(newDot, existingDot);
-
-          // Add fade-in animation
-          newDot.style.opacity = "0";
-          requestAnimationFrame(() => {
-            newDot.style.transition = "opacity 0.3s ease";
-            newDot.style.opacity = "1";
-          });
-        }
+        // Smooth in-place update to avoid flicker
+        PresenceDot.updateWithFreshData(
+          existingDot,
+          effective.lastActive,
+          effective.lastKnownLocation,
+          effective.hasLocationSharing
+        );
       } catch (error) {
         console.warn(
-          "[HorizontalFriendsBar] Safe presence dot replacement failed:",
+          "[HorizontalFriendsBar] Presence dot in-place update failed:",
           error
         );
         // Fallback: force recreate entire dot structure
