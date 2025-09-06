@@ -331,7 +331,56 @@ Modern authentication modal that matches the CampXus design language with:
   font-size: 0.9rem;
   font-weight: 500;
   backdrop-filter: blur(10px);
+  transition: opacity 0.3s var(--animation-smooth, ease), 
+              transform 0.3s var(--animation-smooth, ease);
 }
+
+/* Forgot Password Section - Modern Link Design */
+.forgot-password-section {
+  text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.forgot-password-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s var(--animation-smooth, ease);
+  position: relative;
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  backdrop-filter: blur(5px);
+}
+
+.forgot-password-link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 1px;
+  background: var(--accent-primary);
+  transition: all 0.3s var(--animation-smooth, ease);
+  transform: translateX(-50%);
+}
+
+.forgot-password-link:hover {
+  color: var(--accent-secondary);
+  background: var(--glass-bg-hover, rgba(255, 255, 255, 0.1));
+  transform: translateY(-1px);
+}
+
+.forgot-password-link:hover::after {
+  width: 80%;
+}
+
+.forgot-password-link:active {
+  transform: translateY(0);
+}
+
 /* Submit Buttons - Sophisticated Gradient Design */
 .auth-button {
   width: 100%;

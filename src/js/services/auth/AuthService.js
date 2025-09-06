@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendEmailVerification,
+  sendPasswordResetEmail,
   onAuthStateChanged,
 } from "firebase/auth";
 import { serverTimestamp } from "firebase/firestore";
@@ -175,6 +176,10 @@ class AuthManager {
                 </div>
                 <span class="button-text">Sign In to CampXus</span>
               </button>
+              
+              <div class="forgot-password-section">
+                <a href="#" id="forgot-password-link" class="forgot-password-link">Forgot Password?</a>
+              </div>
             </form>
 
             <!-- Sign Up Form -->
@@ -283,6 +288,17 @@ class AuthManager {
         });
       } else {
         console.warn("⚠️ AuthService: #signup-form not found during setup");
+      }
+
+      // Forgot password link
+      const forgotPasswordLink = document.getElementById("forgot-password-link");
+      if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          this.handleForgotPassword();
+        });
+      } else {
+        console.warn("⚠️ AuthService: #forgot-password-link not found during setup");
       }
 
       // Real-time email validation for signup
@@ -530,6 +546,69 @@ class AuthManager {
       this.signupInProgress = false;
       this.isSigningUp = false;
       setLoadingState(button, false); // Use external function
+    }
+  }
+
+  /**
+   * Handle forgot password functionality
+   */
+  async handleForgotPassword() {
+    const emailEl = document.getElementById("signin-email");
+    
+    if (!emailEl) {
+      console.error("❌ AuthService: Email input not found for forgot password");
+      return;
+    }
+    
+    const email = emailEl.value.trim();
+    
+    // Validate email exists and is university email
+    if (!email) {
+      showFieldError(
+        emailEl,
+        "Please enter your university email address first 📧"
+      );
+      return;
+    }
+    
+    const emailValidation = validateUniversityEmail(email);
+    if (!emailValidation) {
+      showFieldError(
+        emailEl,
+        getFriendlyEmailError(email)
+      );
+      return;
+    }
+    
+    try {
+      // Clear any existing errors
+      clearFieldError(emailEl);
+      
+      // Send password reset email
+      await sendPasswordResetEmail(auth, email);
+      
+      // Show success message
+      showFormSuccess(
+        "signin-form",
+        `🔑 Password reset email sent to ${email}. Check your inbox!`
+      );
+      
+      console.log(`📧 Password reset email sent to: ${email}`);
+      
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      
+      // Handle specific Firebase error cases
+      let errorMessage;
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "No account found with this email address 🔍";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many password reset attempts. Please try again later ⏰";
+      } else {
+        errorMessage = "Failed to send password reset email. Please try again 🛠️";
+      }
+      
+      showFormError("signin-form", errorMessage);
     }
   }
 
@@ -1161,6 +1240,19 @@ function showFormSuccess(formId, message) {
       .insertBefore(successDiv, document.getElementById(formId).firstChild);
   }
   successDiv.textContent = message;
+  
+  // Auto-dismiss success message after 5 seconds
+  setTimeout(() => {
+    if (successDiv && successDiv.parentNode) {
+      successDiv.style.opacity = '0';
+      successDiv.style.transform = 'translateY(-10px)';
+      setTimeout(() => {
+        if (successDiv && successDiv.parentNode) {
+          successDiv.remove();
+        }
+      }, 300); // Wait for fade animation
+    }
+  }, 5000);
 }
 
 /**
