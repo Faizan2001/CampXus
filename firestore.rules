@@ -1,6 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // === Auth & Dev Helpers ===
+    function isVerified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function devCreationEnabled() {
+      // Toggle stored on document: admin/config
+      return exists(/databases/$(database)/documents/admin/config) &&
+             get(/databases/$(database)/documents/admin/config).data.devAccountCreationEnabled == true;
+    }
+
+    // Dev email must be <anything>.dev@iub.edu.bd (case-insensitive)
+    function isDevEmail() {
+      return request.auth != null &&
+             request.auth.token.email.matches('^[^@]+\\.[dD][eE][vV]@[iI][uU][bB]\\.[eE][dD][uU]\\.[bB][dD]$');
+    }
 
     // --- Handles Mapping (/handles) ---
     // Provides global uniqueness for user handles
@@ -34,8 +50,14 @@ service cloud.firestore {
         (resource.data.socialInfo.searchable == true && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.universityInfo.university == resource.data.universityInfo.university) ||
         canViewFriendSchedule(request.auth.uid, userId)
       );
-      allow create: if request.auth.uid == userId;
-      allow update, delete: if request.auth.uid == userId;
+      // Create profile: allow verified users, OR dev emails only while toggle is enabled
+      allow create: if request.auth.uid == userId && (
+        isVerified() || (devCreationEnabled() && isDevEmail())
+      );
+      // Update/delete: allow for verified users or dev emails (existing dev accounts continue to work)
+      allow update, delete: if request.auth.uid == userId && (
+        isVerified() || isDevEmail()
+      );
     }
     
     // --- Friendships (/friendships) ---
@@ -54,15 +76,21 @@ service cloud.firestore {
       // Delete requires document to exist, so keep existing check
       allow delete: if request.auth != null && request.auth.uid in resource.data.users;
       
-      allow create: if request.auth != null && request.auth.uid in request.resource.data.users;
-      allow update: if request.auth != null && request.auth.uid in resource.data.users && 
+      // Create/update require verified OR dev email
+      allow create: if request.auth != null &&
+        request.auth.uid in request.resource.data.users &&
+        (isVerified() || isDevEmail());
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.users &&
+        (isVerified() || isDevEmail()) &&
         (validateBilateralPrivacyUpdate(request, resource) || validateCachedInfoUpdate(request, resource));
     }
 
     // --- Friend Requests (/friendRequests) ---
     match /friendRequests/{requestId} {
       allow read, delete: if request.auth != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
-      allow create: if request.auth != null;
+      // Create friend request requires verified OR dev email
+      allow create: if request.auth != null && (isVerified() || isDevEmail());
       allow update: if request.auth != null && 
         ((resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid) || 
          validateFriendRequestCachedInfoUpdate(request, resource));
@@ -82,13 +110,15 @@ service cloud.firestore {
         resource.data.fromUserId == request.auth.uid
       );
       
-      // Users can create notifications they are sending (FROM them)
+      // Users can create notifications they are sending (FROM them) if verified OR dev email
       allow create: if request.auth != null && 
-        request.resource.data.fromUserId == request.auth.uid;
+        request.resource.data.fromUserId == request.auth.uid &&
+        (isVerified() || isDevEmail());
       
-      // Users can update/delete notifications sent TO them (mark as read, dismiss)
+      // Users can update/delete notifications sent TO them (mark as read, dismiss) if verified OR dev email
       allow update, delete: if request.auth != null && 
-        resource.data.userId == request.auth.uid;
+        resource.data.userId == request.auth.uid &&
+        (isVerified() || isDevEmail());
     }
 
     // --- GDPR & Consent Collections ---

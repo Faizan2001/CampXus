@@ -56,6 +56,7 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 - Firebase Authentication with secure sign-up/sign-in and email verification
 - Multi-step profile setup with guided avatar customization
 - Privacy controls for managing searchability and social visibility
+ - Dev accounts toggle: see ".md files/Dev-Accounts-Guide.md" for creating `*.dev@iub.edu.bd` accounts with a Firestore toggle
 
 ### Campus Presence & Location Sharing
 

@@ -332,8 +332,12 @@ class AuthManager {
    * @returns {boolean} - True if development email
    */
   isDevelopmentEmail(email) {
-    const devPatterns = ["dev", "test", "fake", "demo"];
-    return devPatterns.some((pattern) => email.toLowerCase().includes(pattern));
+    if (!email) return false;
+    const e = String(email).trim();
+    // Must be <anything>.dev@iub.edu.bd (case-insensitive)
+    // Examples: john.dev@iub.edu.bd, a.b.dev@iub.edu.bd
+    const re = /^[^@]+\.dev@iub\.edu\.bd$/i;
+    return re.test(e);
   }
 
   /**
@@ -391,10 +395,7 @@ class AuthManager {
         return; // Stop execution.
       }
       
-      // Passed verification gate: now set central user state so subscribers can react safely
-      currentUser.setUser(user);
-
-      // 2. If we reach here, the user is allowed. Now, ensure their profile exists.
+      // 2. If we reach here, the user is allowed. Now, ensure their profile exists BEFORE updating store
       console.log(`✅ User ${email} authenticated. Checking for Firestore profile...`);
       let profile = await dataManager.getUserProfile(user.uid);
 
@@ -405,12 +406,18 @@ class AuthManager {
           console.log("✅ Firestore profile created successfully during sign-in.");
         } catch (profileError) {
           console.error("❌ Failed to create Firestore profile during sign in:", profileError);
-          showFormError("signin-form", "Couldn't create your profile. Please try again.");
-          await signOut(auth); // Sign out if profile creation fails.
-          return;
+          if (isDev && !isVerified) {
+            await this.handleDevCreationDisabled();
+          } else {
+            showFormError("signin-form", "Couldn't create your profile. Please try again.");
+            await signOut(auth);
+          }
+          return; // Do not set user state
         }
       }
 
+      // Only after profile is available do we update the central store
+      currentUser.setUser(user);
       // *** Immediately set the profile so UI subscribers in menu.js fire ***
       currentUser.setProfile(profile);
 
@@ -627,7 +634,20 @@ class AuthManager {
           return;
         }
 
-        // 1. Set the user in our central state manager only after passing checks
+        // 1. If this is an unverified dev email and profile doesn't exist (toggle OFF blocks create), sign out
+        try {
+          const isDevUnverified = this.isDevelopmentEmail(user.email) && !user.emailVerified;
+          if (isDevUnverified) {
+            const existingProfile = await dataManager.getUserProfile(user.uid);
+            if (!existingProfile) {
+              await this.handleDevCreationDisabled();
+              this.resolveAuthReady();
+              return;
+            }
+          }
+        } catch (_) { /* non-fatal */ }
+
+        // 2. Set the user in our central state manager only after passing checks
         currentUser.setUser(user);
 
         // 3. Fetch the user's profile from Firestore
@@ -714,6 +734,30 @@ class AuthManager {
             "warning"
           );
         }
+      }
+    }
+    this.showAuthModal();
+  }
+
+  /**
+   * Handle case where a dev email signs in while dev creation is disabled
+   * We sign out and show a compact warning.
+   */
+  async handleDevCreationDisabled() {
+    try {
+      await signOut(auth);
+    } catch (_) {}
+    try {
+      notificationManager.showWarningNotification(
+        "Dev account creation is disabled. Try again later.",
+        { duration: 6000 }
+      );
+    } catch (_) {
+      if (typeof dataManager !== 'undefined' && dataManager.showNotification) {
+        dataManager.showNotification(
+          "Dev account creation is disabled. Try again later.",
+          "warning"
+        );
       }
     }
     this.showAuthModal();

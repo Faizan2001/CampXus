@@ -799,13 +799,15 @@ class ProfileSetup {
   }
 
   /**
-   * Check if email is a development/test email
+   * Check if email is a development email.
+   * Must match <anything>.dev@iub.edu.bd (case-insensitive)
    * @param {string} email - Email to check
    * @returns {boolean} True if it's a development email
    */
   isDevelopmentEmail(email) {
-    const devPatterns = ["dev", "test", "fake", "demo"];
-    return devPatterns.some((pattern) => email.toLowerCase().includes(pattern));
+    if (!email) return false;
+    const re = /^[^@]+\.dev@iub\.edu\.bd$/i;
+    return re.test(String(email).trim());
   }
 
   /**
