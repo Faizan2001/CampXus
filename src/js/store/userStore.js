@@ -399,7 +399,8 @@ class CurrentUserManager {
    * @returns {string} Display name in format "Me"
    */
   getScheduleDisplayName() {
-    return "Me";
+    // Keep display name consistent with UI components (HorizontalFriendsBar, day view)
+    return "You";
   }
 
   /**

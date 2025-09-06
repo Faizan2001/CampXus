@@ -236,7 +236,7 @@ export class ScheduleStorageService {
       users: {
         [userId]: {
           id: userId === currentUser.uid ? studentId : userId,
-          name: userId === currentUser.uid ? "Me" : "Friend",
+          name: userId === currentUser.uid ? "You" : "Friend",
           schedule: this._convertMapToScheduleArray(firestoreData.schedule),
           slotInfo: this._convertMapToSlotInfoArray(firestoreData.slotInfo),
           timeSlots:

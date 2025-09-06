@@ -78,7 +78,9 @@ export function getAvatarUrl(userData, useCache = true) {
   }
 
   try {
-    return avatarManager.generateAvatarUrl(avatarConfig, useCache);
+    // When useCache is true, do NOT bust cache (avoid adding timestamp),
+    // so avatars remain stable across re-renders.
+    return avatarManager.generateAvatarUrl(avatarConfig, !useCache);
   } catch (error) {
     console.error("❌ Error generating avatar URL:", error);
     return null;

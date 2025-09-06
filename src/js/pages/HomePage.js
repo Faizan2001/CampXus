@@ -58,6 +58,7 @@ let state = {
   // Real-time update control
   isLocalUpdate: false, // Prevents double UI updates during local changes
   pendingTransactions: new Map(), // Track pending saves to prevent overwrites
+  lastScheduleSignature: null, // Prevent unnecessary UI updates when schedule unchanged
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
@@ -95,10 +96,12 @@ export function _resetStateForTesting() {
     // Real-time update control
     isLocalUpdate: false, // Prevents double UI updates during local changes
     pendingTransactions: new Map(), // Track pending saves to prevent overwrites
+    lastScheduleSignature: null,
 
     // Real-time update control
     isLocalUpdate: false,
     pendingTransactions: new Map(),
+    lastScheduleSignature: null,
   };
 }
 
@@ -1574,6 +1577,17 @@ async function loadState(retryAttempt = 0) {
       // Update userStore with schedule data
       currentUser.setScheduleData(scheduleData);
 
+      // Initialize schedule signature to avoid first no-op realtime re-render
+      try {
+        state.lastScheduleSignature = JSON.stringify({
+          schedule: scheduleData?.schedule || null,
+          pinnedSlots: scheduleData?.pinnedSlots || null,
+          timeBasedPins: scheduleData?.timeBasedPins || null,
+        });
+      } catch (_) {
+        // Non-fatal; signature remains null
+      }
+
       // Set up real-time sync through ScheduleStorageService
       setupScheduleRealTimeSync(user.uid);
 
@@ -1674,6 +1688,25 @@ function setupScheduleRealTimeSync(userId) {
           currentUser.setScheduleData(updatedScheduleData);
           currentUser.setScheduleLastSynced(new Date());
           return;
+        }
+
+        // If the data hasn't changed, skip re-render to prevent flicker
+        try {
+          const newSignature = JSON.stringify({
+            schedule: updatedScheduleData?.schedule || null,
+            pinnedSlots: updatedScheduleData?.pinnedSlots || null,
+            timeBasedPins: updatedScheduleData?.timeBasedPins || null,
+          });
+          if (state.lastScheduleSignature === newSignature) {
+            // Still update userStore timestamps for consistency, but avoid UI work
+            currentUser.setScheduleData(updatedScheduleData);
+            currentUser.setScheduleLastSynced(new Date());
+            console.log("⏭️ [Phase-1] Skipping UI update - schedule unchanged");
+            return;
+          }
+          state.lastScheduleSignature = newSignature;
+        } catch (e) {
+          // Non-fatal; proceed with update
         }
 
         // Convert updated data to HomePage format
@@ -4982,6 +5015,7 @@ function generateAvatar(nameOrUserId) {
   // Strategy 4: For current user, check currentUser store directly
   if (
     nameOrUserId === "You" ||
+    nameOrUserId === "Me" ||
     nameOrUserId === authManager.getCurrentUser()?.uid
   ) {
     console.log(`🔍 [DEBUG] Current user check:`, {

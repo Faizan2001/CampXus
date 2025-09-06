@@ -918,6 +918,7 @@ document.head.appendChild(style);
 let notificationsUnsub = null;
 let friendReqUnsub = null;
 let lastHasNotif = false;
+let activeNotifUid = null; // Prevent re-initializing listeners on unrelated user state updates
 
 function initializeNotificationsIndicator() {
   // Start once DOM is ready and user state is available
@@ -925,6 +926,14 @@ function initializeNotificationsIndicator() {
     if (currentUser && typeof currentUser.subscribe === 'function') {
       currentUser.subscribe(() => {
         const uid = currentUser.uid;
+        // Only (re)setup listeners when UID changes (login/logout),
+        // not on every schedule/profile state update to avoid duplicates.
+        if (uid === activeNotifUid) {
+          return;
+        }
+
+        // Update active UID and (re)initialize listeners
+        activeNotifUid = uid || null;
         if (!uid) {
           teardownNotificationsIndicator();
           toggleNotificationsDot(false);
