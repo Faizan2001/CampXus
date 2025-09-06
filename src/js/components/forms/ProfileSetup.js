@@ -861,10 +861,7 @@ class ProfileSetup {
     // Cache DOM elements for performance
     this.cacheDOMElements();
 
-    // Add debug info to page for development
-    if (import.meta.env.DEV) {
-      this.addDebugInfo();
-    }
+    
 
     // 🎯 LOAD EXISTING PROFILE DATA: Check for existing profile data first
     if (this.currentUser && this.currentUser.uid) {
@@ -2456,65 +2453,6 @@ class ProfileSetup {
     }
   }
 
-  /**
-   * Add debug information for development users
-   */
-  addDebugInfo() {
-    if (!this.currentUser) return;
-
-    const isDev = this.isDevelopmentEmail(this.currentUser.email);
-    const debugDiv = document.createElement("div");
-    debugDiv.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: ${isDev ? "#4ade80" : "#3b82f6"};
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      z-index: 1000;
-      font-family: monospace;
-    `;
-    debugDiv.textContent = `🔧 ${isDev ? "DEV" : "PROD"}: ${
-      this.currentUser.email
-    }`;
-    document.body.appendChild(debugDiv);
-
-    // Remove after 5 seconds
-    setTimeout(() => debugDiv.remove(), 5000);
-  }
-
-  /**
-   * Add test button for development debugging
-   */
-  addTestButton() {
-    const testButton = document.createElement("button");
-    testButton.textContent = "🧪 Test Step Display";
-    testButton.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #ff6b6b;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 14px;
-      cursor: pointer;
-      z-index: 2000;
-      font-family: monospace;
-    `;
-
-    testButton.addEventListener("click", () => {
-      this.updateStepDisplay();
-    });
-
-    document.body.appendChild(testButton);
-
-    // Remove after 30 seconds to keep things clean
-    setTimeout(() => testButton.remove(), 30000);
-  }
 
   // handlePrivacyChange method removed - privacy controls moved to Friends page
 
