@@ -13,6 +13,7 @@ import {
   getFriendlyEmailError,
 } from "./UniversityValidator.js";
 import { dataManager } from "../data/DataService.js";
+import { notificationManager } from "../realtime/NotificationService.js";
 import { currentUser } from "../../store/userStore.js";
 
 /**
@@ -379,11 +380,6 @@ class AuthManager {
       );
       const user = userCredential.user;
 
-      // 🎯 THE FINAL FIX: Set the user in our central state manager immediately.
-      // This was the missing piece. Without this, `currentUser.isLoggedIn()` would
-      // return false, causing the profile page to fail.
-      currentUser.setUser(user);
-
       // 1. Determine if user is allowed to proceed.
       const isDev = this.isDevelopmentEmail(email);
       const isVerified = user.emailVerified;
@@ -395,6 +391,9 @@ class AuthManager {
         return; // Stop execution.
       }
       
+      // Passed verification gate: now set central user state so subscribers can react safely
+      currentUser.setUser(user);
+
       // 2. If we reach here, the user is allowed. Now, ensure their profile exists.
       console.log(`✅ User ${email} authenticated. Checking for Firestore profile...`);
       let profile = await dataManager.getUserProfile(user.uid);
@@ -617,18 +616,19 @@ class AuthManager {
         // --- User is signed in ---
         console.log("🔒 Auth state changed: User is logged in.", user.uid);
 
-        // 1. Set the user in our central state manager
-        currentUser.setUser(user);
-
-        // 2. Check if the user's email is verified
+        // 0. Security check BEFORE mutating app state
         if (!this.isUserAllowed(user)) {
-          console.warn("🚫 User not allowed, handling unverified user.");
+          console.warn("🚫 User not allowed (unverified or restricted). Signing out and blocking state updates.");
           await this.handleUnverifiedUser();
-          currentUser.setProfile(null); // Ensure profile is null for unverified users
+          // Ensure no logged-in state leaks to subscribers
+          currentUser.reset();
           this.notifyAuthStateChange(null);
-          this.resolveAuthReady(); // Auth state is known, even if not fully logged in
+          this.resolveAuthReady();
           return;
         }
+
+        // 1. Set the user in our central state manager only after passing checks
+        currentUser.setUser(user);
 
         // 3. Fetch the user's profile from Firestore
         try {
@@ -700,12 +700,21 @@ class AuthManager {
   async handleUnverifiedUser() {
     await signOut(auth);
     // Only show notification if last action was signIn
-    if (this.lastAuthAction === 'signIn' && typeof dataManager !== 'undefined' && dataManager.showNotification) {
-      dataManager.showNotification(
-        "Please verify your email address before signing in. Check your inbox for a verification link.",
-        "warning",
-        { duration: 6000 }
-      );
+    if (this.lastAuthAction === 'signIn') {
+      try {
+        notificationManager.showWarningNotification(
+          "Verify your email to sign in. Check your inbox for the link.",
+          { duration: 6000 }
+        );
+      } catch (e) {
+        // Fallback to DataService if NotificationService fails for any reason
+        if (typeof dataManager !== 'undefined' && dataManager.showNotification) {
+          dataManager.showNotification(
+            "Verify your email to sign in. Check your inbox for the link.",
+            "warning"
+          );
+        }
+      }
     }
     this.showAuthModal();
   }

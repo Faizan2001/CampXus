@@ -73,6 +73,7 @@ import { auth } from "../../lib/firebase/firebase-config.js";
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
 import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 import { logManager } from "../../utils/debug/LogManager.js";
+import { notificationManager } from "../realtime/NotificationService.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {
@@ -379,18 +380,20 @@ class DataManager {
   // =========================
 
   /**
-   * Show a notification toast
+   * Show a notification toast via NotificationService
    * @param {string} message The message to display
-   * @param {string} type "success" | "error" | "warning" | "info"
-   * @param {object} options Toastify options
+   * @param {"success"|"error"|"warning"|"info"} type Notification type
+   * @param {object} options Additional options (e.g., { duration })
    * @private
    */
-  showNotification(message, type = "info", _options = {}) {
-    // Simple console logging for development - clean and clear
-    console.log(`[${type.toUpperCase()}] ${message}`);
-
-    // TODO: Add proper visual notifications later (Toastify or custom modal)
-    // For now, prevents console errors while maintaining functionality
+  showNotification(message, type = "info", options = {}) {
+    try {
+      // Route all toasts through the centralized NotificationService
+      notificationManager.showSystemNotification(message, type, options);
+    } catch (e) {
+      // Fallback to console to avoid breaking flows
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
   }
 
   /**
@@ -1336,45 +1339,13 @@ class DataManager {
    * @param {string} type - 'error' | 'success' | 'info' | 'warning'
    * @private
    */
-  showNotification(message, type = "info") {
-    const notification = document.createElement("div");
-    notification.className = `data-manager-notification ${type}`;
-    notification.setAttribute("role", "alert");
-    notification.setAttribute("aria-live", "polite");
-
-    // Apply consistent styling
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
-      max-width: 400px;
-      padding: 1rem 1.5rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      transform: translateX(450px);
-      transition: transform 0.3s ease-in-out;
-      ${this.getNotificationStyles(type)}
-    `;
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    // Animate in
-    requestAnimationFrame(() => {
-      notification.style.transform = "translateX(0)";
-    });
-
-    // Auto-remove after delay
-    setTimeout(
-      () => {
-        notification.style.transform = "translateX(450px)";
-        setTimeout(() => notification.remove(), 300);
-      },
-      type === "error" ? 5000 : 3000
-    );
+  showNotification(message, type = "info", options = {}) {
+    // Delegate to the centralized NotificationService to avoid duplicate UI systems
+    try {
+      notificationManager.showSystemNotification(message, type, options);
+    } catch (e) {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
   }
 
   /**

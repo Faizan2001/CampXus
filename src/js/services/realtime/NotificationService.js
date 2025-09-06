@@ -164,7 +164,9 @@ class NotificationManager {
       message,
       timestamp: Date.now(),
       priority: this.getSystemPriority(type),
-      duration
+      duration,
+      // Preserve the original system severity to pick icons for the header
+      severity: type
     };
 
     this.showNotification(notification);
@@ -218,20 +220,24 @@ class NotificationManager {
       notificationEl.classList.add("notification-clickable");
     }
 
+    const headerIconClass = this.getHeaderIconClass(notification);
+    const headerIconColor = this.getHeaderIconColor
+      ? this.getHeaderIconColor(notification)
+      : '#6b7280';
     notificationEl.innerHTML = `
       <div class="notification-content">
-        <div class="notification-icon">
-          ${this.getNotificationIcon(notification.type)}
-        </div>
         <div class="notification-text">
-          <div class="notification-title">${notification.title}</div>
+          <div class="notification-title">
+            ${headerIconClass ? `<i class="${headerIconClass}" style="color:${headerIconColor};margin-right:8px;" aria-hidden="true"></i>` : ""}
+            <span>${notification.title}</span>
+          </div>
           <div class="notification-message">${notification.message}</div>
           <div class="notification-timestamp">${this.formatTimestamp(
             notification.timestamp
           )}</div>
         </div>
-        <button class="notification-close" title="Close notification">
-          <i class="fas fa-times"></i>
+        <button class="notification-close" title="Close notification" aria-label="Close notification">
+          <i class="fas fa-times" aria-hidden="true"></i>
         </button>
       </div>
     `;
@@ -496,16 +502,62 @@ class NotificationManager {
    * @param {string} type - Notification type
    * @returns {string} Icon HTML
    */
-  getNotificationIcon(type) {
-    const icons = {
-      friend_request: "👋",
-      friend_accepted: "🎉",
-      privacy_restriction: "🔒",
-      system: "🔔",
-      default: "🔔",
-    };
+  getNotificationIcon(_type) {
+    // UI icons removed per requirements (no emojis in rendered notifications)
+    return "";
+  }
 
-    return icons[type] || icons.default;
+  /**
+   * 🖼️ Get header icon CSS class (Font Awesome) for a notification
+   * No emojis; only icon classes. Returns empty string if none.
+   * @param {Object} notification
+   * @returns {string}
+   */
+  getHeaderIconClass(notification) {
+    // System notifications use severity to determine icon
+    if (notification.type === 'system') {
+      const severity = notification.severity || 'info';
+      const bySeverity = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+      };
+      return bySeverity[severity] || 'fas fa-info-circle';
+    }
+
+    // Domain-specific notifications
+    const byType = {
+      friend_request: 'fas fa-user-plus',
+      friend_accepted: 'fas fa-user-check',
+      privacy_restriction: 'fas fa-lock'
+    };
+    return byType[notification.type] || '';
+  }
+
+  /**
+   * 🎨 Get a semantic color for the header icon based on severity/type
+   * @param {Object} notification
+   * @returns {string} CSS color value (hex)
+   */
+  getHeaderIconColor(notification) {
+    if (notification.type === 'system') {
+      const severity = notification.severity || 'info';
+      const colorBySeverity = {
+        success: '#16a34a', // green-600
+        error:   '#dc2626', // red-600
+        warning: '#f59e0b', // amber-500
+        info:    '#2563eb'  // blue-600
+      };
+      return colorBySeverity[severity] || '#2563eb';
+    }
+
+    const colorByType = {
+      friend_request:      '#3b82f6', // blue-500
+      friend_accepted:     '#16a34a', // green-600
+      privacy_restriction: '#6b7280'  // gray-500
+    };
+    return colorByType[notification.type] || '#6b7280';
   }
 
   /**
