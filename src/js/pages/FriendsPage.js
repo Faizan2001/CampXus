@@ -133,7 +133,6 @@ class FriendsUI {
 
       // Container elements
       friendsList: document.getElementById("friendsList"),
-      friendRequests: document.getElementById("friendRequests"),
 
       // Future: Add more elements as we build them
     };
@@ -643,9 +642,6 @@ class FriendsUI {
 
       // Load friends list
       await this.refreshFriendsList();
-
-      // Load pending requests
-      await this.refreshFriendRequests();
     } catch (error) {
       console.error("❌ Error loading initial data:", error);
     } finally {

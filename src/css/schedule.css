@@ -40,7 +40,7 @@ This file contains all styles related to the schedule display:
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   flex-shrink: 0; /* Prevent header from shrinking */
 }
 
