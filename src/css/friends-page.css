@@ -23,8 +23,8 @@ body.page-friends .main-content {
 
 body.page-friends .content-grid {
   display: flex !important;
-  justify-content: center !important; /* Center horizontally */
-  align-items: flex-start !important; /* Align to top for scrollable content */
+  justify-content: flex-start !important; /* Start at top (main axis in column) */
+  align-items: flex-start !important; /* Left-align on cross axis */
   grid-template-columns: unset !important; /* Reset grid columns */
   grid-template-rows: unset !important; /* Reset grid rows */
   min-height: calc(100vh - 120px) !important; /* Full viewport minus nav */
