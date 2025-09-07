@@ -151,6 +151,7 @@ class AuthManager {
                   id="signin-email" 
                   class="form-input"
                   placeholder="yourID@university.edu.bd"
+                  autocomplete="username"
                   required
                 />
                 <div class="form-error"></div>
@@ -163,6 +164,7 @@ class AuthManager {
                   id="signin-password" 
                   class="form-input"
                   placeholder="Enter your password"
+                  autocomplete="current-password"
                   required
                 />
                 <div class="form-error"></div>
@@ -196,6 +198,7 @@ class AuthManager {
                   id="signup-email" 
                   class="form-input"
                   placeholder="yourID@university.edu.bd"
+                  autocomplete="username"
                   required
                 />
                 <div class="form-error"></div>
@@ -208,6 +211,7 @@ class AuthManager {
                   id="signup-password" 
                   class="form-input"
                   placeholder="Choose a strong password"
+                  autocomplete="new-password"
                   minlength="6"
                   required
                 />
@@ -221,6 +225,7 @@ class AuthManager {
                   id="signup-confirm-password" 
                   class="form-input"
                   placeholder="Re-enter your password"
+                  autocomplete="new-password"
                   required
                 />
                 <div class="form-error"></div>

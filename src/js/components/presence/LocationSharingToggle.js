@@ -537,5 +537,4 @@ export class LocationSharingToggle {
 // Development helper for testing
 if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
   window.LocationSharingToggle = LocationSharingToggle;
-  console.log('[LocationSharingToggle] Component loaded and available globally for testing');
 }

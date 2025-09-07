@@ -446,8 +446,4 @@ export const currentUser = new CurrentUserManager();
 // Only expose globally for development/debugging
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.currentUser = currentUser;
-  if (window.logManager)
-    window.logManager.dev.info(
-      "CurrentUser available globally as window.currentUser for debugging"
-    );
 }

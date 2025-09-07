@@ -36,7 +36,9 @@ class SPARouter {
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsFiles: [], // ✅ FIXED: Remove script.js - it's now imported in spa-init.js
+        jsImporters: [
+          () => import("/src/js/pages/HomePage.js"),
+        ], // Lazy-load Home page controller (dev and prod)
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
@@ -46,9 +48,8 @@ class SPARouter {
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
           "/src/css/profile-setup.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsFiles: [
-          // ✅ Updated: Load the current Profile Setup controller
-          "/src/js/components/forms/ProfileSetup.js",
+        jsImporters: [
+          () => import("/src/js/components/forms/ProfileSetup.js"),
         ],
         description: "Set up your student profile and preferences",
       },
@@ -59,9 +60,8 @@ class SPARouter {
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
           "/src/css/friends-page.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsFiles: [
-          // ✅ Updated: Load current Friends page controller (service is imported by app.js)
-          "/src/js/pages/FriendsPage.js",
+        jsImporters: [
+          () => import("/src/js/pages/FriendsPage.js"),
         ],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
@@ -73,8 +73,8 @@ class SPARouter {
           "/src/css/styles.css",
           "/src/css/notifications.css",
         ],
-        jsFiles: [
-          "/src/js/pages/NotificationsPage.js",
+        jsImporters: [
+          () => import("/src/js/pages/NotificationsPage.js"),
         ],
         description: "View your campus social notifications and location sharing requests",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
@@ -640,8 +640,8 @@ class SPARouter {
         window.scrollTo(0, 0);
       } catch {}
 
-      // Load and execute JavaScript files
-      await this.loadJS(routeData.jsFiles);
+      // Load and execute page controller code lazily
+      await this.loadRouteCode(routeData);
 
       // Update current page BEFORE navigation states to ensure consistency
       this.currentPage = route;
@@ -766,52 +766,45 @@ class SPARouter {
   }
 
   /**
-   * Load JavaScript files dynamically
-   * 🎯 Learning: Each page can have its own functionality
-   * 🏗️ Production Fix: Skip JS loading in production since Vite bundles all JS
+   * Load page controller code lazily using dynamic imports (dev and prod)
+   * Prefers `jsImporters` (functions returning import Promises) for bundling.
+   * Falls back to `jsFiles` (paths) in dev via script tag injection.
    */
-  async loadJS(jsFiles) {
-    if (!jsFiles || jsFiles.length === 0) {
+  async loadRouteCode(routeData) {
+    const importers = routeData.jsImporters || [];
+    if (importers.length > 0) {
+      // Use dynamic imports so Vite can code-split in production
+      for (const importer of importers) {
+        try {
+          await importer();
+        } catch (e) {
+          console.error("❌ Failed to load route module via importer", e);
+          throw e;
+        }
+      }
       return;
     }
 
-    // 🏗️ PRODUCTION FIX: Use Vite's native production detection + preview mode detection
-    // Skip dynamic JS loading in real builds (after `vite build` / `vite preview`)
+    // Fallback to legacy jsFiles via script tag (dev only)
+    const jsFiles = routeData.jsFiles || [];
+    if (jsFiles.length === 0) return;
+
     const isBuiltMode =
-      import.meta.env.PROD ||
+      (import.meta.env && import.meta.env.PROD) ||
       (window.location.port && parseInt(window.location.port) >= 4173);
-
     if (isBuiltMode) {
-      console.log(
-        "🏗️ Production/preview mode detected - skipping dynamic JS loading (JS is bundled by Vite)"
-      );
+      // In builds we expect modules to be bundled; no script-tag loading.
       return;
     }
-
-    // 🔧 Development mode: Load JS dynamically for development
-    console.log(
-      `  -> Loading ${jsFiles.length} JS file(s) for /${this.currentPage}`
-    );
 
     for (const jsFile of jsFiles) {
-      // Check if a script with this src already exists in the document
-      if (document.querySelector(`script[src="${jsFile}"]`)) {
-        continue;
-      }
-
+      if (document.querySelector(`script[src="${jsFile}"]`)) continue;
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
-        script.type = "module"; // Use ES6 modules for modern JS
+        script.type = "module";
         script.src = jsFile;
-        script.onload = () => {
-          resolve();
-        };
-        script.onerror = (error) => {
-          console.error(`  -> ❌ Failed to load JS file: ${jsFile}`, error);
-          // We reject here to stop the page load process if a critical script fails
-          reject(new Error(`Failed to load script: ${jsFile}`));
-        };
-        // Append to head to ensure it's processed before the body is fully rendered
+        script.onload = () => resolve();
+        script.onerror = (err) => reject(err);
         document.head.appendChild(script);
       });
     }

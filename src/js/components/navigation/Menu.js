@@ -7,6 +7,17 @@ import { authManager } from "../../services/auth/AuthService.js";
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
 import { dataManager } from "../../services/data/DataService.js";
 
+// Lightweight local debug gate for chatty logs
+const __LOG_PROFILE__ = (typeof localStorage !== 'undefined' ? (localStorage.getItem('meetchuthere:logProfile') || '') : '').toLowerCase();
+const __DBG__ = __LOG_PROFILE__ === 'debug' || __LOG_PROFILE__ === 'all' || __LOG_PROFILE__ === 'info';
+const dbg = (...args) => { if (__DBG__) { try { console.log(...args); } catch (_) {} } };
+
+// Predeclare module-scoped vars used by notifications indicator before any init runs
+let notificationsUnsub = null;
+let friendReqUnsub = null;
+let lastHasNotif = false;
+let activeNotifUid = null; // Prevent re-initializing listeners on unrelated user state updates
+
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
 initializeMenuSystem();
@@ -25,7 +36,7 @@ function initializeMenuSystem() {
 }
 
 function initializeInteractiveElements() {
-  console.log("🎛️ Initializing menu system...");
+  dbg("🎛️ Initializing menu system...");
   
   // Initialize dark mode toggle
   initializeDarkModeToggle();
@@ -45,24 +56,24 @@ function initializeInteractiveElements() {
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
   
-  console.log("✅ Menu system initialized successfully");
+  dbg("✅ Menu system initialized successfully");
 }
 
 function applyTheme() {
   const savedTheme = localStorage.getItem("theme");
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  console.log("🎨 Applying theme...", { savedTheme, prefersDark });
+  dbg("🎨 Applying theme...", { savedTheme, prefersDark });
 
   // Apply theme: saved preference > system preference > default (dark)
   const shouldUseDark = savedTheme === "dark" || (!savedTheme && prefersDark);
 
   if (shouldUseDark) {
     document.body.classList.add("dark-mode");
-    console.log("🌙 Applied dark mode theme");
+    dbg("🌙 Applied dark mode theme");
   } else {
     document.body.classList.remove("dark-mode");
-    console.log("☀️ Applied light mode theme");
+    dbg("☀️ Applied light mode theme");
   }
 
   updateToggleIcon();
@@ -71,7 +82,7 @@ function applyTheme() {
 function initializeDarkModeToggle() {
   const darkModeToggle = document.getElementById("darkModeToggle");
 
-  console.log("🌙 Initializing dark mode toggle...", { found: !!darkModeToggle });
+  dbg("🌙 Initializing dark mode toggle...", { found: !!darkModeToggle });
 
   if (darkModeToggle) {
     // Update button text/icon based on current theme
@@ -86,7 +97,7 @@ function initializeDarkModeToggle() {
     // Add tooltip
     darkModeToggle.setAttribute("title", "Toggle dark/light mode");
     
-    console.log("✅ Dark mode toggle initialized successfully");
+    dbg("✅ Dark mode toggle initialized successfully");
   } else {
     console.warn("⚠️ Dark mode toggle button not found in DOM");
   }
@@ -194,7 +205,7 @@ function initializeNavigation() {
  * Handles user authentication state, dropdown interactions, and sign out functionality
  */
 function initializeUserMenu() {
-  console.log("🔧 Initializing user menu...");
+  dbg("🔧 Initializing user menu...");
   
   const userMenuTrigger = document.getElementById("userMenuTrigger");
   const userDropdown = document.getElementById("userDropdown");
@@ -202,7 +213,7 @@ function initializeUserMenu() {
   const loginBtn = document.getElementById("login-btn");
   const signOutBtn = document.getElementById("signOutBtn");
 
-  console.log("🔍 Menu elements found:", {
+  dbg("🔍 Menu elements found:", {
     userMenuTrigger: !!userMenuTrigger,
     userDropdown: !!userDropdown,
     userMenu: !!userMenu,
@@ -256,7 +267,7 @@ function initializeUserMenu() {
   // Subscribe to the central currentUser store for all auth-related UI updates.
   // This is the new, single source of truth for the menu's auth state.
   if (currentUser && typeof currentUser.subscribe === 'function') {
-    console.log("📡 Subscribing to currentUser store for auth state changes...");
+    dbg("📡 Subscribing to currentUser store for auth state changes...");
     currentUser.subscribe(handleAuthStateChange);
   } else {
     console.error("❌ currentUser store not available or invalid!");
@@ -268,7 +279,7 @@ function initializeUserMenu() {
   // Set up avatar change listeners for immediate avatar refresh
   setupAvatarChangeListeners();
   
-  console.log("✅ User menu initialization complete");
+  dbg("✅ User menu initialization complete");
 }
 
 /**
@@ -367,9 +378,7 @@ function setupDropdownItemsCloseHandler() {
   // Find all clickable items in the dropdown
   const dropdownItems = userDropdown.querySelectorAll(".dropdown-item");
 
-  console.log(
-    `🎯 Setting up close handlers for ${dropdownItems.length} dropdown items`
-  );
+  dbg(`🎯 Setting up close handlers for ${dropdownItems.length} dropdown items`);
 
   dropdownItems.forEach((item, index) => {
     // Get the item type for logging
@@ -377,9 +386,7 @@ function setupDropdownItemsCloseHandler() {
     const isButton = item.tagName.toLowerCase() === "button";
     const isLink = item.tagName.toLowerCase() === "a";
 
-    console.log(
-      `📋 Setting up handler for: "${itemText}" (${item.tagName.toLowerCase()})`
-    );
+    dbg(`📋 Setting up handler for: "${itemText}" (${item.tagName.toLowerCase()})`);
 
     // Add click event listener to close dropdown
     item.addEventListener("click", (event) => {
@@ -421,7 +428,7 @@ function setupDropdownItemsCloseHandler() {
     });
   });
 
-  console.log("✅ Dropdown close handlers setup completed");
+  dbg("✅ Dropdown close handlers setup completed");
 }
 
 /**
@@ -511,7 +518,7 @@ function handleAuthStateChange({ isLoggedIn, profile }) {
     return;
   }
   
-  console.log("🔄 Menu auth state change:", currentState);
+  dbg("🔄 Menu auth state change:", currentState);
   handleAuthStateChange.previousState = currentState;
   
   const userMenu = document.getElementById("userMenu");
@@ -524,13 +531,13 @@ function handleAuthStateChange({ isLoggedIn, profile }) {
 
   if (isLoggedIn && profile) {
     // User is logged in and has a profile, show the user menu
-    console.log("👤 Showing user menu, hiding login button");
+    dbg("👤 Showing user menu, hiding login button");
     loginBtn.style.display = "none";
     userMenu.style.display = "flex";
     updateUserDisplayInfo(profile);
   } else {
     // User is logged out or profile is not yet available
-    console.log("🔒 Showing login button, hiding user menu");
+    dbg("🔒 Showing login button, hiding user menu");
     loginBtn.style.display = "flex";
     userMenu.style.display = "none";
     clearUserDisplayInfo();
@@ -641,13 +648,11 @@ function clearUserDisplayInfo(options = {}) {
   
   // 🛡️ CRITICAL SAFEGUARD: Don't clear if we just completed profile setup
   if (window.preventUserDataClearing) {
-    console.log(
-      "🛡️ Prevented clearing user data - profile completion in progress"
-    );
+    dbg("🛡️ Prevented clearing user data - profile completion in progress");
     return;
   }
 
-  console.log("🧹 clearUserDisplayInfo called", {
+  dbg("🧹 clearUserDisplayInfo called", {
     stack: new Error().stack?.split("\n").slice(1, 4).join("\n"),
     timestamp: new Date().toISOString(),
     preventFlag: preventFlag || window.preventUserDataClearing,
@@ -658,12 +663,12 @@ function clearUserDisplayInfo(options = {}) {
   const userDropdownEmail = document.getElementById("userDropdownEmail");
 
   if (userDropdownName) {
-    console.log("🧹 Clearing user name:", userDropdownName.textContent);
+    dbg("🧹 Clearing user name:", userDropdownName.textContent);
     userDropdownName.textContent = "";
   }
 
   if (userDropdownEmail) {
-    console.log("🧹 Clearing user email:", userDropdownEmail.textContent);
+    dbg("🧹 Clearing user email:", userDropdownEmail.textContent);
     userDropdownEmail.textContent = "";
   }
 
@@ -679,7 +684,7 @@ function clearUserDisplayInfo(options = {}) {
     userMenuTrigger.setAttribute("title", "User menu");
   }
 
-  console.log("🧹 Cleared all user display information");
+  dbg("🧹 Cleared all user display information");
 }
 
 /**
@@ -687,13 +692,11 @@ function clearUserDisplayInfo(options = {}) {
  * 🎯 LEARNING: Listen for when the user completes profile setup to refresh data immediately
  */
 function setupProfileCompletionListeners() {
-  console.log("🎧 Setting up profile completion listeners...");
+  dbg("🎧 Setting up profile completion listeners...");
 
   // Listen for profile setup completion
   document.addEventListener("profile:setup:complete", (event) => {
-    console.log(
-      "🎉 Profile setup completed, refreshing user data immediately..."
-    );
+    dbg("🎉 Profile setup completed, refreshing user data immediately...");
 
     const userData = event.detail.userData;
     if (userData) {
@@ -739,7 +742,7 @@ function setupProfileCompletionListeners() {
  * 🎯 FIXES: Stale avatar data in menu when user changes avatar in ProfileSetup
  */
 function setupAvatarChangeListeners() {
-  console.log("🎧 Setting up avatar change listeners...");
+  dbg("🎧 Setting up avatar change listeners...");
 
   // Listen for avatar changes from ProfileSetup
   document.addEventListener("avatar:changed", (event) => {
@@ -783,7 +786,7 @@ function setupAvatarChangeListeners() {
     });
   }
 
-  console.log("✅ Avatar change listeners set up successfully");
+  dbg("✅ Avatar change listeners set up successfully");
 }
 
 /**
@@ -917,10 +920,7 @@ document.head.appendChild(style);
 // =========================
 // Notifications Nav Indicator
 // =========================
-let notificationsUnsub = null;
-let friendReqUnsub = null;
-let lastHasNotif = false;
-let activeNotifUid = null; // Prevent re-initializing listeners on unrelated user state updates
+// (vars predeclared at top to avoid TDZ errors)
 
 function initializeNotificationsIndicator() {
   // Start once DOM is ready and user state is available

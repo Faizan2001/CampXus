@@ -26,19 +26,11 @@ import "/src/css/styles.css";
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
-import "./pages/HomePage.js"; // 🎯 CRITICAL: Schedule page functionality
-import "./services/friends/FriendsService.js";
-import "./pages/FriendsPage.js";
-import "./services/realtime/RealtimeService.js"; // 🎯 NEW: Real-time event coordination system
-import "./utils/dev/debugHelpers.js"; // 🎯 NEW: Debug tools and console helpers
-import "./components/forms/ProfileSetup.js";
-import "./utils/avatar/avatarManager.js";
-import "./pages/NotificationsPage.js"; // 🔔 Campus Presence: Notifications system
+// Lazy-load page modules via Router routes. Remove heavy upfront imports to speed first paint.
+// Home/Friends/Notifications/Profile controllers are now loaded by Router when needed.
 
 // 🌍 Campus Presence Services
-import { campusLocationService } from "./services/location/CampusLocationService.js";
-import { locationScheduler } from "./services/location/LocationScheduler.js";
-import { locationPrivacyService } from "./services/location/LocationPrivacyService.js";
+// Campus Presence services will be loaded lazily after auth to avoid slowing initial load
 
 // 🔧 Development tools
 import { logManager } from "./utils/debug/LogManager.js";
@@ -63,6 +55,8 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
         logManager.setLevel("debug");
         logManager.enableCategories(["all"]);
         logManager.dev.info("Debug profile: all logs enabled");
+        // Lazy-load debug helpers when verbose profiles are enabled
+        import("./utils/dev/debugHelpers.js").catch(() => {});
         break;
       case "info":
         logManager.setLevel("info");
@@ -100,9 +94,8 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
   if (requestedProfile) {
     applyProfile(requestedProfile);
   } else if (isLocal) {
-    // Default to location logs locally for easier 3-tier troubleshooting
-    // You can override via ?logs=... or localStorage 'meetchuthere:logProfile'
-    applyProfile("location");
+    // Default to critical logs locally to keep startup fast; override via ?logs=... or localStorage
+    applyProfile("critical");
   } else {
     applyProfile("critical");
   }
@@ -110,6 +103,8 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
 
 // 🎯 NEW: Create module-level variables instead of window globals
 let spaRouter = null;
+// Ensure this is defined before any lazy starter calls to avoid TDZ
+let __presenceStarted = false;
 
 /**
  * Initialize the SPA when DOM is ready
@@ -148,17 +143,9 @@ async function initializeSPA() {
   logManager.system.init("Modal system initialized successfully!");
 
   // 🌍 Initialize Campus Presence services in background (NON-BLOCKING)
-  logManager.system.init("Starting Campus Presence services in background...");
-
-  // Start background initialization without blocking app startup
-  initializeCampusPresenceInBackground();
-
-  // Delegate presence scheduling strategy to LocationScheduler
-  try {
-    locationScheduler.start();
-  } catch (e) {
-    console.warn("LocationScheduler start failed (non-critical):", e?.message || e);
-  }
+  // Defer Campus Presence services until auth is ready and user is logged in
+  // This avoids network calls and logs when user is logged out.
+  logManager.system.init("Deferring Campus Presence services until after login");
 
   spaRouter = new SPARouter();
 
@@ -201,6 +188,8 @@ async function initializeSPA() {
         try {
           profileCache.tryHydrate(currentUser, authManager?.auth);
         } catch (_) {}
+        // If user is logged in, start Campus Presence services lazily now
+        tryStartCampusPresenceAfterLogin();
       })
       .catch((error) => {
         console.warn(
@@ -219,17 +208,20 @@ async function initializeSPA() {
   // actually drive menu refresh and navigation.
   setupProfileCompletionFlow();
 
+  // Also subscribe to currentUser to start presence services on first login event
+  tryStartCampusPresenceAfterLogin(true);
+
   // Listen for SPA navigation events
   setupSPAEventListeners();
 
   // Detect manual reloads (used by initialization logic)
   window.addEventListener("beforeunload", () => {
     // Mark that a manual reload is happening
-    if (
-      typeof campusLocationService?.constructor?.markManualReload === "function"
-    ) {
-      campusLocationService.constructor.markManualReload();
-    }
+    try {
+      if (typeof window !== 'undefined' && window.campusLocationService?.constructor?.markManualReload) {
+        window.campusLocationService.constructor.markManualReload();
+      }
+    } catch (_) {}
   });
 
   logManager.system.init("SPA Initialization completed");
@@ -287,6 +279,43 @@ function setupProfileCompletionFlow() {
       }
     }, 500); // Reduced to 0.5 second delay
   });
+}
+
+function tryStartCampusPresenceAfterLogin(subscribe = false) {
+  const startIfNeeded = async () => {
+    if (__presenceStarted) return;
+    const isLoggedIn = !!(currentUser?.uid || authManager?.auth?.currentUser);
+    if (!isLoggedIn) return;
+    __presenceStarted = true;
+    logManager.location.info("Starting Campus Presence services after login...");
+    try {
+      await initializeCampusPresenceInBackground();
+      // Start scheduler lazily
+      try {
+        const { locationScheduler } = await import("./services/location/LocationScheduler.js");
+        locationScheduler.start?.();
+      } catch (e) {
+        console.warn("LocationScheduler start failed (non-critical):", e?.message || e);
+      }
+    } catch (e) {
+      console.warn("Campus Presence lazy init failed:", e?.message || e);
+    }
+  };
+
+  // Immediate attempt
+  startIfNeeded();
+
+  // Optional subscription to auth changes
+  if (subscribe && typeof currentUser?.subscribe === "function") {
+    let armed = true;
+    currentUser.subscribe(() => {
+      if (!armed) return;
+      if (currentUser?.uid) {
+        armed = false; // run once
+        startIfNeeded();
+      }
+    });
+  }
 }
 
 /**
@@ -436,6 +465,9 @@ async function initializeCampusPresenceInBackground() {
 
     // Initialize location services with enhanced background processing
     const initializationPromise = (async () => {
+      const { campusLocationService } = await import("./services/location/CampusLocationService.js");
+      const { locationPrivacyService } = await import("./services/location/LocationPrivacyService.js");
+
       if (typeof campusLocationService.handleInitialization === "function") {
         await campusLocationService.handleInitialization();
       } else if (typeof campusLocationService.initialize === "function") {
@@ -516,6 +548,7 @@ async function fetchFreshLocationForPresence() {
   console.log("🎯 Priority: Fetching fresh location data for presence dots...");
 
   try {
+    const { campusLocationService } = await import("./services/location/CampusLocationService.js");
     // Use immediate location fetch for presence priority
     if (
       typeof campusLocationService.requestSingleLocationUpdate === "function"
@@ -557,8 +590,6 @@ async function fetchFreshLocationForPresence() {
  * 🌍 Learning: Expose services for console debugging and external access
  */
 export {
-  campusLocationService,
-  locationPrivacyService,
   initializeCampusPresenceInBackground,
   fetchFreshLocationForPresence,
 };

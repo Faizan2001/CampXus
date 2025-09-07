@@ -418,7 +418,5 @@ if (typeof window !== "undefined") {
   };
 
   // Expose a single centralized debug message
-  logManager.dev.info(
-    "🏢 Organization-based NetworkDetection debug helpers available: window.debugNetworkDetection"
-  );
+  // Quiet by default; helpers remain available on window.debugNetworkDetection
 }

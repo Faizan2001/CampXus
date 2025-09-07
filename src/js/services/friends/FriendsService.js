@@ -2582,7 +2582,4 @@ export const friendsManager = new FriendsManager();
 // Only expose globally for development/debugging (like dataManager)
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.friendsManager = friendsManager;
-  console.log(
-    "🛠️ FriendsManager available globally as window.friendsManager for debugging"
-  );
 }

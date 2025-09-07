@@ -400,5 +400,4 @@ export class PresenceDot {
 // Development helper for testing
 if (typeof window !== "undefined" && window.location.hostname === "localhost") {
   window.PresenceDot = PresenceDot;
-  if (window.logManager) window.logManager.dev.info('PresenceDot: Component loaded and available globally for testing');
 }

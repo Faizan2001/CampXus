@@ -22,10 +22,8 @@ import { dataManager } from "../services/data/DataService.js";
 import { scheduleStorageService } from "../services/schedule/ScheduleStorageService.js";
 import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
-import { HorizontalFriendsBar } from "../components/friends/HorizontalFriendsBar.js";
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { logManager } from "../utils/debug/LogManager.js";
-import { locationIntegration } from "../services/location/LocationIntegration.js"; // Enable location debug commands
 
 /* ================================
    APPLICATION STATE
@@ -3522,21 +3520,10 @@ function setupEventListeners() {
   }
 
   // ===== SCHEDULE TABLE (event delegation) =====
-  console.log("🔧 Setting up schedule table listeners...");
-  console.log("📍 DOM_ELEMENTS.scheduleTable:", DOM_ELEMENTS.scheduleTable);
-  console.log(
-    "📍 DOM_ELEMENTS.dayViewContainer:",
-    DOM_ELEMENTS.dayViewContainer
-  );
-  console.log("📍 DOM_ELEMENTS.scheduleWrapper:", DOM_ELEMENTS.scheduleWrapper);
+  try { logManager?.dev?.debug?.("Setting up schedule table listeners"); } catch (_) {}
 
   if (DOM_ELEMENTS.scheduleTable) {
-    console.log("✅ Adding listeners to schedule table...");
-    console.log(
-      "🚨 DEBUG: handleScheduleTableClick function exists:",
-      typeof handleScheduleTableClick
-    );
-    // Debug logs removed; keep listeners
+    try { logManager?.dev?.debug?.("Adding listeners to schedule table; handler=", typeof handleScheduleTableClick); } catch (_) {}
 
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
@@ -5861,7 +5848,8 @@ async function initializeHorizontalFriendsBar() {
     }
 
     console.log("🚀 Creating new HorizontalFriendsBar instance...");
-    // Create and initialize the HorizontalFriendsBar component
+    // Dynamically import and initialize the HorizontalFriendsBar component (avoids loading on logged-out)
+    const { HorizontalFriendsBar } = await import("../components/friends/HorizontalFriendsBar.js");
     state.horizontalFriendsBar = new HorizontalFriendsBar(
       "horizontal-friends-container"
     );
@@ -6979,9 +6967,13 @@ document.addEventListener("spa:page:load", async (event) => {
       console.error("❌ Error reinitializing ViewModeManager:", error);
     }
 
-    // Initialize Phase-3: Horizontal Friends Bar
-    console.log("⭐ Initializing Horizontal Friends Bar...");
-    initializeHorizontalFriendsBar();
+    // Initialize Phase-3: Horizontal Friends Bar (only when logged in)
+    if (currentUser?.uid) {
+      console.log("⭐ Initializing Horizontal Friends Bar...");
+      initializeHorizontalFriendsBar();
+    } else {
+      console.log("⭐ Skipping Horizontal Friends Bar (user not logged in)");
+    }
 
     // Clean up old cache entries and start maintenance
     console.log("🧹 Cleaning up expired friend schedule cache...");

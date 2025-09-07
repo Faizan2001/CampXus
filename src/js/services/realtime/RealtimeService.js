@@ -1028,12 +1028,6 @@ export const realTimeManager = new RealTimeManager();
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.realTimeManager = realTimeManager;
   window.REALTIME_EVENTS = REALTIME_EVENTS;
-
-  console.log("🎛️ RealTimeManager available globally for debugging");
-  console.log("💡 Usage:");
-  console.log('   realTimeManager.startListening("user-id")');
-  console.log('   realTimeManager.on("friendRequests", callback)');
-  console.log("   realTimeManager.getStatus()");
 }
 
 // --- END OF FILE ---
