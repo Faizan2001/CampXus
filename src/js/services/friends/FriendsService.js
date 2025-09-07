@@ -1176,6 +1176,21 @@ export class FriendsManager {
       );
       this.publishOptimisticUnfriending(friendId, friendInfo);
 
+      // ⭐ Ensure Quick Access no longer contains this friend for the current user
+      // Capture whether they were starred to optionally restore on rollback
+      let wasStarred = false;
+      try {
+        wasStarred = await this.isInQuickAccess(friendId);
+        if (wasStarred) {
+          const qaResult = await this.removeFromQuickAccess(friendId);
+          if (!qaResult.success) {
+            console.warn("⚠️ Failed to remove from Quick Access during unfriend (will proceed):", qaResult.message);
+          }
+        }
+      } catch (qaErr) {
+        console.warn("⚠️ Quick Access cleanup failed during unfriend (non-fatal):", qaErr?.message || qaErr);
+      }
+
       // Delete the friendship document
       const result = await dataManager.deleteFriendship(friendshipId);
 
@@ -1222,6 +1237,17 @@ export class FriendsManager {
         "🔄 Rolling back optimistic unfriending due to unexpected error"
       );
       this.rollbackOptimisticUnfriending(friendId, friendInfo);
+
+      // If we removed from Quick Access earlier and unfriend failed, best-effort restore star
+      try {
+        const stillFriends = true; // Unfriend failed implies still friends
+        if (stillFriends) {
+          const isStarredNow = await this.isInQuickAccess(friendId);
+          if (!isStarredNow && friendInfo && friendInfo.handle) {
+            await this.addToQuickAccess(friendId, friendInfo);
+          }
+        }
+      } catch (_) { /* non-fatal */ }
 
       return {
         success: false,

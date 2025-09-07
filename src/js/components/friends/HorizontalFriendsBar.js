@@ -68,6 +68,8 @@ export class HorizontalFriendsBar {
     // State management
     this.currentUser = null;
     this.quickAccessFriends = [];
+    // Guard against stale re-adds after optimistic removals
+    this.optimisticRemovals = new Map(); // friendId -> timestamp
     this.selectedFriendId = null; // null = user's own schedule selected
     this.isLoading = false;
 
@@ -3795,7 +3797,7 @@ export class HorizontalFriendsBar {
       const { quickAccessFriends = [] } = quickAccessData;
 
       // Validate incoming data to prevent undefined values
-      const validatedFriends = quickAccessFriends.filter((friend) => {
+      let validatedFriends = quickAccessFriends.filter((friend) => {
         if (!friend || typeof friend !== "object") {
           console.warn(
             "⚠️ Real-time update: Filtered out invalid friend object:",
@@ -3815,6 +3817,33 @@ export class HorizontalFriendsBar {
 
         return true;
       });
+
+      // 🚀 Robustness: Ignore stale re-adds for recently unfriended friends
+      try {
+        const now = Date.now();
+        const TTL_MS = 15000; // 15s guard window
+        validatedFriends = validatedFriends.filter((f) => {
+          const id = f.friendId || f.userId;
+          const ts = this.optimisticRemovals.get(id);
+          const shouldIgnore = ts && now - ts < TTL_MS;
+          if (shouldIgnore) {
+            console.log(
+              `⏭️ Ignoring stale re-add for recently unfriended ${id} (within ${TTL_MS}ms)`
+            );
+          }
+          return !shouldIgnore;
+        });
+
+        // Clean up guards that are now confirmed removed (no longer in list)
+        for (const [id, ts] of this.optimisticRemovals.entries()) {
+          const stillIn = validatedFriends.some(
+            (f) => (f.friendId || f.userId) === id
+          );
+          if (!stillIn && now - ts >= 0) {
+            this.optimisticRemovals.delete(id);
+          }
+        }
+      } catch (_) {}
 
       console
         .log
@@ -3850,9 +3879,20 @@ export class HorizontalFriendsBar {
           // Only fetch fresh data when the friend list actually changed
           const quickAccessWithPrivacy =
             await friendsManager.getQuickAccessFriendsWithPrivacy(false);
-          const friendsWithLocation = await this.enhanceFriendsWithLocationData(
+          let friendsWithLocation = await this.enhanceFriendsWithLocationData(
             quickAccessWithPrivacy
           );
+
+          // Apply the same guard to enhanced list (defense-in-depth)
+          try {
+            const now2 = Date.now();
+            const TTL_MS2 = 15000;
+            friendsWithLocation = friendsWithLocation.filter((f) => {
+              const id = f.friendId || f.userId;
+              const ts = this.optimisticRemovals.get(id);
+              return !(ts && now2 - ts < TTL_MS2);
+            });
+          } catch (_) {}
 
           // Update internal state with location-enhanced data
           this.quickAccessFriends = friendsWithLocation;
@@ -4505,7 +4545,8 @@ export class HorizontalFriendsBar {
       3000
     );
 
-    // The real-time listeners will handle the final cleanup automatically
+    // Keep a short-lived guard to ignore any late/stale re-add events
+    try { this.optimisticRemovals.set(friendId, Date.now()); } catch (_) {}
   }
 
   /**
@@ -5596,4 +5637,8 @@ export function getUserPresenceStatus() {
  */
 export function isHorizontalFriendsBarActive() {
   return globalHorizontalFriendsBarInstance?.isInitialized || false;
+    // Record optimistic removal timestamp
+    try { this.optimisticRemovals.set(friendId, Date.now()); } catch (_) {}
+    // Clear optimistic guard so the friend can reappear
+    this.optimisticRemovals.delete(friendId);
 }
