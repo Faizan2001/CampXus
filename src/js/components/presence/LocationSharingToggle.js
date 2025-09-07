@@ -241,6 +241,21 @@ export class LocationSharingToggle {
 
         // 🌍 Handle location tracking based on global toggle
         this.handleLocationTrackingForGlobalToggle(newEnabled);
+
+        // 🟡 Immediate UI feedback: refresh user's presence dot to grey when disabled
+        try {
+          const { getHorizontalFriendsBarInstance } = await import('../../components/friends/HorizontalFriendsBar.js');
+          const bar = getHorizontalFriendsBarInstance && getHorizontalFriendsBarInstance();
+          if (bar && typeof bar.updateUserPresenceDot === 'function') {
+            bar.updateUserPresenceDot({
+              locationSharingEnabled: newEnabled,
+              lastKnownLocation: null,
+              lastActive: null,
+            });
+          }
+        } catch (e) {
+          // Non-fatal: UI will update on Firestore realtime listener
+        }
       } else {
         throw new Error('Failed to update global location preferences');
       }

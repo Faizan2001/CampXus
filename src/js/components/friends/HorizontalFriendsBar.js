@@ -4902,7 +4902,10 @@ export class HorizontalFriendsBar {
               "[HorizontalFriendsBar] User location update detected via campus presence:",
               data
             );
-            this.handleUserLocationUpdate({ systemInfo: data.locationData });
+            // Pass the full presence payload so the handler can
+            // interpret it as a campus presence event (not a profile update)
+            // Expected shape: { userId, campusStatus, locationData, timestamp, ... }
+            this.handleUserLocationUpdate(data);
           }
         }
       );
