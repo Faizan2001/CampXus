@@ -769,6 +769,17 @@ class AuthManager {
       } else {
         // --- User is signed out ---
         console.log("🔒 Auth state changed: User is logged out.");
+        try {
+          const prevUid = currentUser?.uid;
+          this.clearLocalCachesOnLogout(prevUid);
+          // Best-effort: stop schedule realtime/pending operations
+          try {
+            const { scheduleStorageService } = await import("../schedule/ScheduleStorageService.js");
+            if (scheduleStorageService?.cleanup) {
+              scheduleStorageService.cleanup();
+            }
+          } catch (_) {}
+        } catch (_) {}
         currentUser.reset();
         this.notifyAuthStateChange(null);
       }
@@ -776,6 +787,31 @@ class AuthManager {
       // Signal that the initial auth check is complete.
       this.resolveAuthReady();
     });
+  }
+
+  /**
+   * Remove localStorage entries that should not persist across logout
+   * @param {string|null} prevUid
+   */
+  clearLocalCachesOnLogout(prevUid) {
+    try {
+      if (prevUid) {
+        try { localStorage.removeItem(`schedule_${prevUid}`); } catch (_) {}
+      }
+      const keysToRemove = [
+        "campusLocationService_visited",
+        "campusLocation_lastActive",
+        "campusLocation_authTime",
+        "campusPresence_lastFreshData",
+        "meetchuthere_last_location",
+        "meetchuthere_compare_tooltip_seen",
+      ];
+      keysToRemove.forEach((k) => {
+        try { localStorage.removeItem(k); } catch (_) {}
+      });
+    } catch (e) {
+      console.warn("⚠️ Failed clearing local caches on logout:", e);
+    }
   }
 
   /**

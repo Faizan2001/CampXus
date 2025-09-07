@@ -1515,8 +1515,7 @@ export class HorizontalFriendsBar {
     // Update UI to show compare mode
     this.updateCompareUI();
 
-    // Show tooltip for first-time users
-    this.showCompareTooltip();
+    // (removed) First-time tooltip was unused and stored in localStorage
 
     // Emit event for other components
     this.emitCompareModeEvent(true);
@@ -1770,22 +1769,7 @@ export class HorizontalFriendsBar {
     }
   }
 
-  /**
-   * Show compare mode tooltip for first-time users
-   */
-  showCompareTooltip() {
-    // Only show if user hasn't seen it before
-    const hasSeenTooltip = localStorage.getItem("meetchuthere_compare_tooltip_seen");
-    if (hasSeenTooltip) return;
-
-    // Mark as seen
-    localStorage.setItem("meetchuthere_compare_tooltip_seen", "true");
-
-    // Show tooltip in console
-    console.log(
-      "💭 Select friends to compare schedules. Tap [⚖️] again to exit compare mode."
-    );
-  }
+  // (removed) compare tooltip method and localStorage tracking
 
   /**
    * Emit compare mode change event

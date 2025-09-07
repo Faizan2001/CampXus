@@ -447,6 +447,8 @@ async function handleSignOut() {
       if (userMenu) userMenu.style.display = "none";
 
       // Redirect to home/schedule page after sign out using SPA router
+      // Set a one-time flag to skip lastActive update during this navigation
+      try { sessionStorage.setItem('skipLastActiveOnce', 'true'); } catch (_) {}
       navigateTo("home");
       
     } else {

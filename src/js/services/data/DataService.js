@@ -1047,6 +1047,10 @@ class DataManager {
    */
   async updateUserLastActive(userId) {
     try {
+      // Skip silently if no authenticated user (e.g., just logged out)
+      if (!auth.currentUser) {
+        return { success: false, error: "not_authenticated" };
+      }
       if (!userId || typeof userId !== "string")
         throw new Error("Invalid userId");
 
@@ -1297,6 +1301,13 @@ class DataManager {
           }
         },
         (error) => {
+          // Suppress noise on logout/permission changes
+          if (error.code === "permission-denied" || !auth.currentUser) {
+            console.info(
+              "ℹ️ Schedule listener ended due to auth change (ignored)"
+            );
+            return;
+          }
           console.error("Error in schedule listener:", error);
           this.showError("Lost connection to schedule updates");
         }
@@ -2372,14 +2383,14 @@ class DataManager {
           callback(transformedRequests);
         },
         (error) => {
-          console.error("❌ Error in friend requests listener:", error);
-          // Don't call callback on permission errors to avoid false notifications
-          if (error.code === "permission-denied") {
-            console.warn(
-              "⚠️ Friend requests listener: Permission denied (likely due to auth state change)"
+          // Suppress noisy errors during logout/auth changes
+          if (error.code === "permission-denied" || !auth.currentUser) {
+            console.info(
+              "ℹ️ Friend requests listener ended due to auth change (ignored)"
             );
             return; // Skip callback to prevent false deletion detection
           }
+          console.error("❌ Error in friend requests listener:", error);
           callback([]); // Only fallback to empty array for non-permission errors
         }
       );
@@ -2450,18 +2461,17 @@ class DataManager {
           callback(transformedRequests);
         },
         (error) => {
+          if (error.code === "permission-denied" || !auth.currentUser) {
+            console.info(
+              "ℹ️ Outgoing requests listener ended due to auth change (ignored)"
+            );
+            return;
+          }
           console.error(
             "❌ Error in outgoing friend requests listener:",
             error
           );
-          // Don't call callback on permission errors to avoid false notifications
-          if (error.code === "permission-denied") {
-            console.warn(
-              "⚠️ Outgoing friend requests listener: Permission denied (likely due to auth state change)"
-            );
-            return; // Skip callback to prevent false deletion detection
-          }
-          callback([]); // Only fallback to empty array for non-permission errors
+          callback([]);
         }
       );
 
@@ -2603,15 +2613,14 @@ class DataManager {
           callback(transformedFriendships);
         },
         (error) => {
-          console.error("❌ Error in friendships listener:", error);
-          // Don't call callback on permission errors to avoid false notifications
-          if (error.code === "permission-denied") {
-            console.warn(
-              "⚠️ Friendships listener: Permission denied (likely due to auth state change)"
+          if (error.code === "permission-denied" || !auth.currentUser) {
+            console.info(
+              "ℹ️ Friendships listener ended due to auth change (ignored)"
             );
-            return; // Skip callback to prevent false deletion detection
+            return;
           }
-          callback([]); // Only fallback to empty array for non-permission errors
+          console.error("❌ Error in friendships listener:", error);
+          callback([]);
         }
       );
 
@@ -2998,15 +3007,14 @@ class DataManager {
           }
         },
         (error) => {
-          console.error("❌ Error in user profile listener:", error);
-          // Don't call callback on permission errors to avoid false notifications
-          if (error.code === "permission-denied") {
-            console.warn(
-              "⚠️ User profile listener: Permission denied (likely due to auth state change)"
+          if (error.code === "permission-denied" || !auth.currentUser) {
+            console.info(
+              "ℹ️ User profile listener ended due to auth change (ignored)"
             );
-            return; // Skip callback to prevent false deletion detection
+            return;
           }
-          callback(null); // Only fallback to null for non-permission errors
+          console.error("❌ Error in user profile listener:", error);
+          callback(null);
         }
       );
 
@@ -3679,6 +3687,10 @@ class DataManager {
       // Updated last active timestamp
       return { success: true };
     } catch (error) {
+      if (error.code === "permission-denied" || !auth.currentUser) {
+        console.info("ℹ️ Skipping lastActive update after auth change (ignored)");
+        return { success: false, error: "permission_denied" };
+      }
       console.error(`❌ [DataManager] Error updating user last active:`, error);
       return { success: false, error: error.message };
     }

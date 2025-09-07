@@ -5565,7 +5565,12 @@ function showUserInfo(user) {
       "click",
       () => {
         console.log("🚪 Logout button clicked");
-        authManager.signOut();
+        if (authManager?.handleSignOut) {
+          authManager.handleSignOut();
+        } else if (authManager?.signOut) {
+          // Backward compatibility if a signOut alias exists
+          authManager.signOut();
+        }
       }
     );
   } else {
@@ -5749,6 +5754,44 @@ function setupAuthenticationCallbacks() {
     console.error("❌ Sign-in failed:", data.error.message);
     // The auth modal will handle showing the error to the user
   });
+
+  // Also react to auth state changes to handle logout UI reset
+  try {
+    authManager.onAuthStateChanged(async (user) => {
+      if (!user) {
+        // User logged out while on home page: clear in-memory schedule and UI
+        console.log("🧼 [HomePage] Auth logout detected – clearing schedule state/UI");
+
+        // Stop realtime schedule listener if active
+        if (window.scheduleRealtimeUnsubscribe) {
+          try { window.scheduleRealtimeUnsubscribe(); } catch (_) {}
+          window.scheduleRealtimeUnsubscribe = null;
+        }
+
+        // Cleanup UI listeners and friends bar
+        try { await cleanupScheduleEventListeners(); } catch (_) {}
+        try { await cleanupUIControlListeners(); } catch (_) {}
+        try { cleanupHorizontalFriendsBar(); } catch (_) {}
+
+        // Clear state
+        state.activeUserId = null;
+        state.users = {};
+        state.selectedUserIds.clear();
+        state.compareMode = false;
+        state.pinModeActive = false;
+        state.currentViewingFriendId = null;
+        state.friendsScheduleData.clear();
+        state.friendsScheduleCache.clear();
+        memoCache.clear();
+        matrixCache.clear();
+
+        // Re-render to blank/disabled state if we're on home
+        updateUI();
+      }
+    });
+  } catch (_) {
+    // non-fatal
+  }
 }
 
 /* ================================

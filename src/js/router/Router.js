@@ -493,7 +493,12 @@ class SPARouter {
     // Navigating to route
 
     // 🚀 IMMEDIATE PRESENCE UPDATE: Update lastActive on SPA navigation to key pages
-    if (currentUser.isLoggedIn() && (route === 'home' || route === 'friends')) {
+    // Allow a one-time skip (e.g., immediately after logout) via session flag
+    const skipLastActiveOnce = sessionStorage.getItem('skipLastActiveOnce') === 'true';
+    if (skipLastActiveOnce) {
+      sessionStorage.removeItem('skipLastActiveOnce');
+    }
+    if (!skipLastActiveOnce && currentUser.isLoggedIn() && (route === 'home' || route === 'friends')) {
       try {
         // Import DataService dynamically to avoid circular dependencies
         const { dataManager } = await import("../services/data/DataService.js");
