@@ -39,7 +39,7 @@ describe('Schedule Import System', () => {
         expect(result).toBeTruthy();
         expect(result.courseCode).toBe('CSE110');
         expect(result.courseName).toBe('Introduction to Programming');
-        expect(result.credits).toBe(3);
+        expect(result.section).toBe(3);
         expect(result.room).toBe('C1001');
         expect(result.dayCode).toBe('MW');
         expect(result.days).toEqual(['monday', 'wednesday']);
@@ -103,7 +103,7 @@ describe('Schedule Import System', () => {
         expect(result).toBeTruthy();
         expect(result.courseCode).toBe('CMN205');
         expect(result.courseName).toBe('Introduction to Interactive Media');
-        expect(result.credits).toBe(2);
+        expect(result.section).toBe(2);
         expect(result.room).toBe('C2002');
         expect(result.dayCode).toBe('ST');
         expect(result.days).toEqual(['sunday', 'tuesday']);
@@ -233,7 +233,7 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         const course = {
           courseCode: 'CSE110',
           courseName: 'Introduction to Programming',
-          credits: 3,
+          section: 3,
           room: 'C1001',
           dayCode: 'MW',
           days: ['monday', 'wednesday'],
@@ -253,14 +253,13 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         const incompleteCourse = {
           courseCode: 'CSE110',
           // Missing courseName, days, startTime, endTime
-          credits: 3,
+          section: 3,
           room: 'C1001'
         };
 
         const result = validator.validateCourse(incompleteCourse, 0);
 
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Missing or empty field: courseName');
         expect(result.errors).toContain('Missing or empty field: days');
         expect(result.errors).toContain('Missing or empty field: startTime');
         expect(result.errors).toContain('Missing or empty field: endTime');

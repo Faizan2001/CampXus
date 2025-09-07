@@ -1755,10 +1755,19 @@ class ProfileSetup {
       ).toLowerCase();
 
       // 🎯 FIXED: Only include clean profile data to avoid Firestore nested arrays error
+      // Determine email and UID safely (prefer form email, then auth user)
+      const authFallbackUser = this.currentUser || authManager.getCurrentUser() || currentUser.user || null;
+      const effectiveEmail = (cleanProfileData.email || authFallbackUser?.email || "").trim();
+      if (!effectiveEmail) {
+        throw new Error("No email available. Please sign in and fill your email.");
+      }
+      const domainPart = effectiveEmail.includes("@") ? effectiveEmail.split("@")[1] : "";
+      const universityKey = domainPart ? domainPart.split(".")[0] : "";
+
       const profileDataForFirestore = {
         profile: cleanProfileData,
         universityInfo: {
-          university: this.currentUser.email.split("@")[1].split(".")[0],
+          university: universityKey || "unknown",
           universityName: "Independent University, Bangladesh",
           studentId: this.profileData.studentId,
         },
@@ -1771,14 +1780,15 @@ class ProfileSetup {
         },
       };
 
-      console.log("💾 Saving profile to Firestore...", {
-        userId: this.currentUser.uid,
-        profileData: this.profileData,
-      });
+      const userId = this.currentUser?.uid || currentUser?.uid || authFallbackUser?.uid || null;
+      if (!userId) {
+        throw new Error("No authenticated user. Please sign in again.");
+      }
+
+      console.log("💾 Saving profile to Firestore...", { userId, profileData: this.profileData });
 
       // Reserve handle + save profile transactionally with cooldown + old handle release
       const db = getFirestore();
-      const userId = this.currentUser.uid;
       const desiredHandleRef = doc(db, "handles", cleanProfileData.handle);
       const userRef = doc(db, "users", userId);
       await runTransaction(db, async (tx) => {
@@ -1873,12 +1883,12 @@ class ProfileSetup {
       const userInfoForCache = {
         handle: claimedHandle,
         major: cleanProfileData.major,
-        university: this.currentUser.email.split("@")[1].split(".")[0],
+        university: universityKey || "unknown",
         avatarConfig: this.avatarConfig,
       };
 
       // Update cache in background (don't wait for it)
-      syncUserDataCache(this.currentUser.uid, userInfoForCache)
+      syncUserDataCache(userId, userInfoForCache)
         .then(() => console.log("✅ Friends will see your updated info!"))
         .catch((err) =>
           console.log("⚠️ Cache update failed, but profile saved:", err)
@@ -1934,7 +1944,8 @@ class ProfileSetup {
         return;
       }
 
-      const userId = this.currentUser.uid;
+      const userId = this.currentUser?.uid || currentUser?.uid || authManager.getCurrentUser()?.uid;
+      if (!userId) throw new Error("No authenticated user. Please sign in again.");
 
       console.log("📅 Saving imported schedule to Firestore:", {
         userId,
@@ -2381,7 +2392,7 @@ class ProfileSetup {
       <div class="course-card">
         <div class="course-header">
           <span class="course-code">${course.courseCode}</span>
-          <span class="course-credits">${course.credits} cr</span>
+          ${course.section ? `<span class="course-section">Sec ${course.section}</span>` : ""}
         </div>
         <h4 class="course-name">${course.courseName}</h4>
         <div class="course-details">

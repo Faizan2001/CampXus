@@ -27,7 +27,6 @@ export class ScheduleValidator {
   constructor() {
     this.requiredFields = [
       "courseCode",
-      "courseName",
       "days",
       "startTime",
       "endTime",
@@ -102,11 +101,11 @@ export class ScheduleValidator {
 
     // Validate course code format - be more lenient for OCR data
     if (course.courseCode) {
-      // First try strict format
-      if (!/^[A-Z]{2,4}\d{3}$/.test(course.courseCode)) {
+      // First try strict format (allow optional trailing 'L' for lab courses)
+      if (!/^[A-Z]{2,4}\d{3,4}L?$/.test(course.courseCode)) {
         // For OCR data, be more flexible and try to auto-correct
         const correctedCode = this.correctCourseCode(course.courseCode);
-        if (correctedCode && /^[A-Z]{2,4}\d{3}$/.test(correctedCode)) {
+        if (correctedCode && /^[A-Z]{2,4}\d{3,4}L?$/.test(correctedCode)) {
           correctedData.courseCode = correctedCode;
           warnings.push(
             `Course code auto-corrected from "${course.courseCode}" to "${correctedCode}"`
@@ -114,7 +113,7 @@ export class ScheduleValidator {
         } else {
           errors.push("Invalid course code format (expected: ABC123)");
           suggestions.push(
-            "Course codes should be 2-4 letters followed by 3 digits"
+            "Course codes should be 2-4 letters followed by 3-4 digits, optionally ending with 'L' for labs"
           );
         }
       }

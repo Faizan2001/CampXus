@@ -143,27 +143,27 @@ export const SCHEDULE_PARSING_PATTERNS = {
   // Main pattern: "CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
   // Updated to handle OCR truncated text like "Introduction to Inte..."
   MAIN_PATTERN:
-    /^([A-Z]{2,4}\d{3})\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s*(.*)$/,
+    /^([A-Z]{2,4}\d{3,4}L?)\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+(?:([A-Z]{1,2}\d{3,4}L?|GPLab|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s*(.*)$/,
 
   // OCR-friendly pattern that's more flexible with spacing and truncated text
   OCR_PATTERN:
-    /^([A-Z]{2,4}\d{3})\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})\s*(.*)$/,
+    /^([A-Z]{2,4}\d{3,4}L?)\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+(?:([A-Z]{1,2}\d{3,4}L?|GPLab|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))\s+([A-Z]{1,5}):(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})\s*(.*)$/,
 
   // Mobile-responsive pattern for cut-off end times: "CMN205 ... ST:14:40-" or "CMN205 ... ST:14-"
   MOBILE_CUTOFF_PATTERN:
-    /^([A-Z]{2,4}\d{3})\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2}:?\d{0,2})-?(CUTOFF|$)\s*(.*)$/,
+    /^([A-Z]{2,4}\d{3,4}L?)\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+(?:([A-Z]{1,2}\d{3,4}L?|GPLab|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))\s+([A-Z]{1,5}):(\d{1,2}:?\d{0,2})-?(CUTOFF|$)\s*(.*)$/,
 
   // Pattern for partial times with inference: "CMN205 ... ST:14" (just hour visible)
   PARTIAL_TIME_PATTERN:
-    /^([A-Z]{2,4}\d{3})\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)\s+([A-Z]{1,5}):(\d{1,2})\s*(.*)$/,
+    /^([A-Z]{2,4}\d{3,4}L?)\s+(.+?(?:\.\.\.)?\s*)\s+(\d+)\s+(?:([A-Z]{1,2}\d{3,4}L?|GPLab|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))\s+([A-Z]{1,5}):(\d{1,2})\s*(.*)$/,
 
   // Alternative pattern for multiline or different formats
   MULTILINE_PATTERN:
-    /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+(GPLab|[A-Z]{1,2}\d{3,4})\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s+(.+)$/,
+    /^([A-Z]{2,4}\d{3,4}L?)\s+(.+?)\s+(\d+)\s+((?:GPLab|[A-Z]{1,2}\d{3,4}L?|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))\s+([A-Z]{1,5}):(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s+(.+)$/,
 
   // Enhanced OCR patterns for heavily corrupted text from image recognition
   OCR_FLEXIBLE_PATTERN:
-    /^([A-Za-z0-9]{3,7})\s+(.+?)\s+(\d+)\s+([A-Z]{1,3}\d{2,4}|GPLab)\s*([A-Z]{1,5})[:\s]*([A0-9]{1,2}[:\s;][A0-9]{1,2}[-:\s][A0-9]{1,2}[:\s;]?[A0-9]{0,2})\s*(.*)$/,
+    /^([A-Za-z0-9]{3,8})\s+(.+?)\s+(\d+)\s+((?:[A-Z]{1,3}\d{2,4}L?|GPLab|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))\s*([A-Z]{1,5})[:\s]*([A0-9]{1,2}[:\s;][A0-9]{1,2}[-:\s][A0-9]{1,2}[:\s;]?[A0-9]{0,2})\s*(.*)$/,
 
   // Pattern for malformed times like "T:A8:3021:30" or "ST16:20-17:50"
   OCR_BROKEN_TIME_PATTERN:
@@ -171,7 +171,7 @@ export const SCHEDULE_PARSING_PATTERNS = {
 
   // Course info pattern (for when course info and schedule are on separate lines)
   COURSE_INFO_PATTERN:
-    /^([A-Z]{2,4}\d{3})\s+(.+?)\s+(\d+)\s+([A-Z]{1,2}\d{3,4}|GPLab)$/,
+    /^([A-Z]{2,4}\d{3,4}L?)\s+(.+?)\s+(\d+)\s+((?:[A-Z]{1,2}\d{3,4}L?|GPLab|[A-Z]{1,4}Lab\d*|[A-Z]{2,5}LAB\d*))$/,
 
   // Schedule line pattern (for when schedule is on separate line)
   SCHEDULE_LINE_PATTERN:

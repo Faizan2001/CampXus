@@ -2388,7 +2388,7 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.9rem;
 }
 
-.course-credits {
+.course-section {
   background: var(--surface-active);
   color: var(--text-secondary);
   padding: 0.2rem 0.5rem;
@@ -2396,6 +2396,8 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.8rem;
   font-weight: 500;
 }
+
+
 
 .course-name {
   margin: 0 0 var(--space-sm) 0;

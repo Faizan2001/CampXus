@@ -245,7 +245,7 @@ export class UniversityParser {
       return null;
     }
 
-    const [, courseCode, courseName, credits, room] = courseMatch;
+    const [, courseCode, courseName, sectionNum, room] = courseMatch;
     const [, dayCode, startTime, endTime, extra] = scheduleMatch;
 
     // 🧠 Smart OCR correction for time errors
@@ -264,14 +264,15 @@ export class UniversityParser {
     return {
       courseCode: courseCode.trim(),
       courseName: courseName.trim(),
-      credits: parseInt(credits) || 0,
+      section: parseInt(sectionNum) || 0,
       room: room.trim(),
       dayCode: dayCode.trim(),
       days: days,
       startTime: correctedStart,
       endTime: correctedEnd,
       timeSlotIndex: timeSlotIndex,
-      section: extra ? extra.split(/\s+/)[0] : "",
+      // Extra on schedule line is attendance/grade; do not use for section
+      sectionDetail: extra || "",
       originalLine: `${courseLine}\n${scheduleLine}`,
       originalTimes: changed ? `${startTime}-${endTime}` : null, // Track original if corrected
       confidence: "high",
@@ -292,6 +293,12 @@ export class UniversityParser {
     let patternUsed = "MAIN_PATTERN";
 
     if (!match) {
+      // New: sequence-based parsing that follows Code, Name, Sec, Room, Time, Attendance, Grade
+      const seq = this.parseSequenceLine(cleanLine);
+      if (seq) {
+        return seq;
+      }
+
       // Try mobile cut-off pattern (high priority for mobile responsiveness)
       match = cleanLine.match(this.patterns.MOBILE_CUTOFF_PATTERN);
       patternUsed = "MOBILE_CUTOFF_PATTERN";
@@ -357,7 +364,7 @@ export class UniversityParser {
       ,
       courseCode,
       courseName,
-      credits,
+      sectionNum,
       room,
       dayCode,
       startTime,
@@ -396,18 +403,109 @@ export class UniversityParser {
     return {
       courseCode: courseCode.trim(),
       courseName: courseName.trim(),
-      credits: parseInt(credits) || 0,
+      section: parseInt(sectionNum) || 0,
       room: room.trim(),
       dayCode: dayCode.trim(),
       days: days,
       startTime: correctedStart,
       endTime: correctedEnd,
       timeSlotIndex: timeSlotIndex,
-      section: extra ? extra.split(/\s+/)[0] : "",
+      sectionDetail: extra || "",
       originalLine: line,
       originalTimes: changed ? `${startTime}-${endTime}` : null, // Track original if corrected
       confidence: match ? "high" : "medium",
     };
+  }
+
+  /**
+   * Parse a single line using positional sequence (Code, Name, Sec, Room, Time, Attendance, Grade)
+   * This is resilient to changing room naming schemes.
+   */
+  parseSequenceLine(line) {
+    try {
+      const raw = line.trim();
+      if (!raw) return null;
+
+      // Skip headers or meta lines
+      const headerKeywords = [
+        /^code\b/i,
+        /^semester/i,
+        /^year\b/i,
+        /^summer\b/i,
+        /^attendance\*/i,
+        /^grade\b/i,
+      ];
+      if (headerKeywords.some((re) => re.test(raw))) return null;
+
+      // Course code at the start
+      const codeMatch = raw.match(/^([A-Z]{2,4}\d{3,4}L?)\b/);
+      if (!codeMatch) return null;
+      const courseCode = this.correctCourseCode(codeMatch[1]);
+
+      // Remove leading code
+      let rest = raw.slice(codeMatch[0].length).trim();
+
+      // Detect trailing grade (Z, W, or A-F with +/-)
+      const gradeMatch = rest.match(/\b(Z|W|[A-F](?:[+-])?)\s*$/i);
+      if (gradeMatch) {
+        rest = rest.slice(0, gradeMatch.index).trim();
+      }
+
+      // Detect attendance near end "n / m" or "n/m"
+      const attendanceMatch = rest.match(/(\d+)\s*\/\s*(\d+)\s*$/);
+      if (attendanceMatch) {
+        rest = rest.slice(0, attendanceMatch.index).trim();
+      }
+
+      // Detect time: DAY(:)?HH:MM-HH:MM (allow missing colon after day)
+      const timeRegex = /(MWF|MW|TR|ST|AR|S|M|T|W|A|F|R)\s*:?(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/i;
+      const timeMatch = rest.match(timeRegex);
+      if (!timeMatch) return null; // Not a sequence line without time
+
+      const dayCode = timeMatch[1].toUpperCase();
+      const startTimeRaw = timeMatch[2];
+      const endTimeRaw = timeMatch[3];
+
+      // Room is the token immediately before the time
+      const beforeTime = rest.slice(0, timeMatch.index).trim();
+      const tokensBeforeTime = beforeTime.split(/\s+/);
+      if (tokensBeforeTime.length < 2) return null; // Need at least section and room
+
+      const room = tokensBeforeTime[tokensBeforeTime.length - 1];
+      const sectionToken = tokensBeforeTime[tokensBeforeTime.length - 2];
+      const section = parseInt(sectionToken, 10) || 0;
+
+      // Course name is whatever remains between code and section token
+      const nameTokens = tokensBeforeTime.slice(0, tokensBeforeTime.length - 2);
+      const courseName = nameTokens.join(" ").trim();
+
+      // Correct times
+      const { correctedStart, correctedEnd, changed } = correctOcrTimeSlot(
+        startTimeRaw,
+        endTimeRaw,
+        this.validTimePoints
+      );
+
+      // Days array
+      const days = this.dayCodes[dayCode] || [];
+
+      return {
+        courseCode: courseCode,
+        courseName: courseName,
+        section,
+        room,
+        dayCode,
+        days,
+        startTime: correctedStart,
+        endTime: correctedEnd,
+        timeSlotIndex: this.findTimeSlotIndex(correctedStart, correctedEnd),
+        originalLine: line,
+        originalTimes: changed ? `${startTimeRaw}-${endTimeRaw}` : null,
+        confidence: "sequence",
+      };
+    } catch (e) {
+      return null;
+    }
   }
 
   /**
@@ -421,7 +519,7 @@ export class UniversityParser {
       ,
       courseCode,
       courseName,
-      credits,
+      sectionNum,
       room,
       dayCode,
       partialTime,
@@ -452,14 +550,14 @@ export class UniversityParser {
     return {
       courseCode: courseCode.trim(),
       courseName: courseName.trim(),
-      credits: parseInt(credits) || 0,
+      section: parseInt(sectionNum) || 0,
       room: room.trim(),
       dayCode: dayCode.trim(),
       days: days,
       startTime: inferredSlot.start,
       endTime: inferredSlot.end,
       timeSlotIndex: inferredSlot.slot,
-      section: extra ? extra.split(/\s+/)[0] : "",
+      sectionDetail: extra || "",
       originalLine: originalLine,
       originalTimes: null, // No original end time available
       confidence: "high", // High confidence due to inference system
@@ -475,7 +573,7 @@ export class UniversityParser {
    * @returns {Object|null} Parsed course object or null
    */
   parsePartialTimeMatch(match, originalLine) {
-    const [, courseCode, courseName, credits, room, dayCode, hourOnly, extra] =
+    const [, courseCode, courseName, sectionNum, room, dayCode, hourOnly, extra] =
       match;
 
     console.log(`📱 Parsing partial time line: "${originalLine}"`);
@@ -498,14 +596,14 @@ export class UniversityParser {
     return {
       courseCode: courseCode.trim(),
       courseName: courseName.trim(),
-      credits: parseInt(credits) || 0,
+      section: parseInt(sectionNum) || 0,
       room: room.trim(),
       dayCode: dayCode.trim(),
       days: days,
       startTime: inferredSlot.start,
       endTime: inferredSlot.end,
       timeSlotIndex: inferredSlot.slot,
-      section: extra ? extra.split(/\s+/)[0] : "",
+      sectionDetail: extra || "",
       originalLine: originalLine,
       originalTimes: null, // No original full time available
       confidence: "high", // High confidence due to inference system
@@ -521,7 +619,7 @@ export class UniversityParser {
    * @returns {Object|null} Parsed course object or null
    */
   parseFlexibleOcrMatch(match, originalLine) {
-    const [, courseCode, courseName, credits, room, dayCode, timeInfo, extra] =
+    const [, courseCode, courseName, sectionNum, room, dayCode, timeInfo, extra] =
       match;
 
     // Extract time information from the corrupted time string
@@ -552,14 +650,14 @@ export class UniversityParser {
     return {
       courseCode: correctedCourseCode,
       courseName: courseName.trim(),
-      credits: parseInt(credits) || 0,
+      section: parseInt(sectionNum) || 0,
       room: room.trim(),
       dayCode: dayCode.trim(),
       days: days,
       startTime: correctedStart,
       endTime: correctedEnd,
       timeSlotIndex: timeSlotIndex,
-      section: extra ? extra.split(/\s+/)[0] : "",
+      sectionDetail: extra || "",
       originalLine: originalLine,
       originalTimes: changed ? `${startTime}-${endTime}` : null,
       confidence: "medium",
@@ -573,7 +671,7 @@ export class UniversityParser {
    * @returns {Object|null} Parsed course object or null
    */
   parseBrokenTimeMatch(match, originalLine) {
-    const [, courseCode, courseName, credits, room, dayCode, timeRest] = match;
+    const [, courseCode, courseName, sectionNum, room, dayCode, timeRest] = match;
 
     // Try to extract time from the rest of the string
     const timeResult = this.extractTimeFromCorruptedString(timeRest);
@@ -603,14 +701,14 @@ export class UniversityParser {
     return {
       courseCode: correctedCourseCode,
       courseName: courseName.trim(),
-      credits: parseInt(credits) || 0,
+      section: parseInt(sectionNum) || 0,
       room: room.trim(),
       dayCode: dayCode.trim(),
       days: days,
       startTime: correctedStart,
       endTime: correctedEnd,
       timeSlotIndex: timeSlotIndex,
-      section: "",
+      sectionDetail: "",
       originalLine: originalLine,
       originalTimes: changed ? `${startTime}-${endTime}` : null,
       confidence: "low",
@@ -635,7 +733,7 @@ export class UniversityParser {
       currentIndex
     );
     if (extracted) {
-      const { courseCode, room, timeInfo, courseName, credits } = extracted;
+      const { courseCode, room, timeInfo, courseName, section, dayCode } = extracted;
 
       // Try to get complete time using inference
       const timeResult = this.extractTimeFromCorruptedString(timeInfo);
@@ -644,22 +742,24 @@ export class UniversityParser {
           `✅ Extracted critical elements: ${courseCode} | Room: ${room} | Time: ${timeResult.startTime}-${timeResult.endTime}`
         );
 
+        // Resolve day code: prefer detected day code from text; fallback to inference
+        const resolvedDayCode = (dayCode && this.dayCodes[dayCode])
+          ? dayCode
+          : this.inferDayCodeFromTime(timeResult.startTime) || "ST";
+
         return {
           courseCode: this.correctCourseCode(courseCode),
           courseName: courseName || "", // Use extracted name or leave empty
-          credits: credits || 0, // Use extracted credits or 0 if not found
+          section: section || 0, // Use extracted section or 0 if not found
           room: room.trim(),
-          dayCode: this.inferDayCodeFromTime(timeResult.startTime) || "ST",
-          days: this.dayCodes[
-            this.inferDayCodeFromTime(timeResult.startTime) || "ST"
-          ] || ["Sunday", "Tuesday"],
+          dayCode: resolvedDayCode,
+          days: this.dayCodes[resolvedDayCode] || ["Sunday", "Tuesday"],
           startTime: timeResult.startTime,
           endTime: timeResult.endTime,
           timeSlotIndex: this.findTimeSlotIndex(
             timeResult.startTime,
             timeResult.endTime
           ),
-          section: "",
           originalLine: line,
           confidence: "smart-extracted",
           extractedElements: { courseCode, room, timeInfo },
@@ -686,8 +786,11 @@ export class UniversityParser {
     );
     console.log(`🔍 Combined context: "${combinedText}"`);
 
-    // Extract course code with corruption handling
-    const courseCodeMatches = combinedText.match(/([A-Z]{2,4}[A-Z]*\d{2,4})/g);
+    // Extract course code with corruption handling (prefer current line; preserve optional trailing 'L' for labs)
+    let courseCodeMatches = line.match(/([A-Z]{2,4}\d{2,4}L?)/g);
+    if (!courseCodeMatches || courseCodeMatches.length === 0) {
+      courseCodeMatches = combinedText.match(/([A-Z]{2,4}\d{2,4}L?)/g);
+    }
     if (!courseCodeMatches || courseCodeMatches.length === 0) {
       console.log("❌ No course code found in combined text");
       return null;
@@ -703,29 +806,31 @@ export class UniversityParser {
 
     // Extract room numbers - look for patterns that are clearly rooms, not course codes
     const roomPatterns = [
-      /\b([A-Z]{1,3}\d{3,4})\b/g, // C2002, BC6012, etc.
-      /\b(GPLab|Lab\d*)\b/gi, // GPLab, Lab1, etc.
-      /\b([A-Z]{2,3}[A-Z]*\d{2,4})\b/g, // More flexible room patterns
+      /\b([A-Z]{1,3}\d{3,4}L?)\b/g, // C2002, BC6012, MK7005L, etc.
+      /\b([A-Z]{2,5}LAB\d*)\b/gi, // CENLAB, CENLAB2
+      /\b([A-Z]{2,4}Lab\d*)\b/g, // CSCLab2, etc.
+      /\b(GPLab)\b/gi,
     ];
 
     let room = null;
-    for (const pattern of roomPatterns) {
-      const roomMatches = [...combinedText.matchAll(pattern)];
-      for (const match of roomMatches) {
-        const candidate = match[1];
-        // Skip if it looks like a course code (has letters followed by 3 digits)
-        if (
-          candidate !== courseCode &&
-          candidate !== originalCourseCode &&
-          !candidate.match(/^[A-Z]{2,4}\d{3}$/)
-        ) {
-          room = candidate;
-          console.log(`🏢 Room candidate: ${candidate}`);
-          break;
-        } else {
-          console.log(
-            `🚫 Skipping room candidate ${candidate} (matches course code pattern)`
-          );
+    // Prefer room detection from the current line; fallback to combined context
+    const roomSearchTexts = [line, combinedText];
+    for (const searchText of roomSearchTexts) {
+      for (const pattern of roomPatterns) {
+        const roomMatches = [...searchText.matchAll(pattern)].map((m) => m[1]);
+        if (roomMatches.length) {
+          const scored = roomMatches
+            .filter((c) => c !== courseCode && c !== originalCourseCode)
+            .map((c) => ({
+              value: c,
+              score: /lab/i.test(c) ? 3 : /\dL$/i.test(c) ? 2 : 1,
+            }))
+            .sort((a, b) => b.score - a.score);
+          if (scored.length) {
+            room = scored[0].value;
+            console.log(`🏢 Room candidate: ${room} (score=${scored[0].score})`);
+            break;
+          }
         }
       }
       if (room) break;
@@ -735,7 +840,7 @@ export class UniversityParser {
     if (!room || room === courseCode) {
       // Look for room-like patterns after the course code
       const afterCourseMatch = combinedText.match(
-        new RegExp(`${courseCode}.*?([A-Z]{1,4}\\d{2,4}|GPLab)`, "i")
+        new RegExp(`${courseCode}.*?((?:[A-Z]{1,4}\\d{2,4}L?|GPLab|[A-Z]{1,4}Lab\\d*|[A-Z]{2,5}LAB\\d*))`, "i")
       );
       if (afterCourseMatch && afterCourseMatch[1] !== courseCode) {
         room = afterCourseMatch[1];
@@ -773,22 +878,37 @@ export class UniversityParser {
     let timeInfo = null;
     let timeContext = "";
 
-    for (const pattern of timePatterns) {
-      const timeMatch = combinedText.match(pattern);
-      if (timeMatch) {
-        timeInfo = timeMatch[1];
-        // Capture surrounding context for better processing
-        const matchIndex = combinedText.indexOf(timeMatch[0]);
-        timeContext = combinedText.substring(
-          Math.max(0, matchIndex - 20),
-          matchIndex + timeMatch[0].length + 20
-        );
-        console.log(
-          `⏰ Found time pattern: "${timeMatch[0]}" → extracted: "${timeInfo}"`
-        );
-        console.log(`📍 Time context: "${timeContext}"`);
-        break;
+    // Prefer extracting time from the current line first, then fallback to combined context
+    const timeSearchTexts = [line, combinedText];
+    let detectedDayCode = null;
+    for (const searchText of timeSearchTexts) {
+      for (const pattern of timePatterns) {
+        const timeMatch = searchText.match(pattern);
+        if (timeMatch) {
+          timeInfo = timeMatch[1];
+          // Capture surrounding context for better processing
+          const matchIndex = searchText.indexOf(timeMatch[0]);
+          timeContext = searchText.substring(
+            Math.max(0, matchIndex - 20),
+            matchIndex + timeMatch[0].length + 20
+          );
+          // Try to detect a day code near the time (supports optional colon)
+          const dcWindow = searchText.substring(
+            Math.max(0, matchIndex - 6),
+            matchIndex + 1
+          );
+          const dcMatch = dcWindow.match(/\b(MWF|MW|TR|ST|AR|S|M|T|W|A|F|R)\s*:?[\s]*$/i);
+          if (dcMatch) {
+            detectedDayCode = dcMatch[1].toUpperCase();
+          }
+          console.log(
+            `⏰ Found time pattern: "${timeMatch[0]}" → extracted: "${timeInfo}"`
+          );
+          console.log(`📍 Time context: "${timeContext}"`);
+          break;
+        }
       }
+      if (timeInfo) break;
     }
 
     // Special handling for very compact times like "ST:44" which might be "ST:14:44"
@@ -841,14 +961,14 @@ export class UniversityParser {
       return null;
     }
 
-    // Try to extract course name and credits (optional, as these can be truncated)
-    const nameCreditsPattern = new RegExp(
+    // Try to extract course name and section (optional, as this may be truncated)
+    const nameSectionPattern = new RegExp(
       `${courseCode}\\s+([^\\d]*?)\\s*(\\d+)?\\s*${room || "\\w+"}`,
       "i"
     );
-    const nameCreditsMatch = combinedText.match(nameCreditsPattern);
-    const courseName = nameCreditsMatch ? nameCreditsMatch[1].trim() : null;
-    const credits = nameCreditsMatch ? parseInt(nameCreditsMatch[2]) : null;
+    const nameSectionMatch = combinedText.match(nameSectionPattern);
+    const courseName = nameSectionMatch ? nameSectionMatch[1].trim() : null;
+    const section = nameSectionMatch ? parseInt(nameSectionMatch[2]) : null;
 
     console.log(
       `🎯 Final extraction - Code: ${courseCode}, Room: ${
@@ -875,7 +995,8 @@ export class UniversityParser {
       room: room || "ROOM", // Use default if no room found
       timeInfo,
       courseName,
-      credits,
+      section,
+      dayCode: detectedDayCode || null,
     };
   }
 
@@ -971,17 +1092,17 @@ export class UniversityParser {
 
         // Look for course patterns in the search line
         const coursePatterns = [
-          /([A-Z]{2,4}\d{2,4})\s+(.+?)\s+(\d+)/, // Standard: "CSC311 Computer Organiz... 3"
-          /([A-Z]{2,4}\d{2,4})\s+(.+)/, // Partial: "CSC311 Computer Organiz..."
-          /([A-Z]{2,4}\d{2,4})/, // Just code: "CSC311"
+          /([A-Z]{2,4}\d{2,4}L?)\s+(.+?)\s+(\d+)/, // Standard: code name section
+          /([A-Z]{2,4}\d{2,4}L?)\s+(.+)/, // Partial: code name
+          /([A-Z]{2,4}\d{2,4}L?)/, // Just code
         ];
 
         for (const pattern of coursePatterns) {
           const courseMatch = searchLine.match(pattern);
           if (courseMatch) {
-            const [, courseCode, courseName = "", credits = "0"] = courseMatch;
+            const [, courseCode, courseName = "", sectionNum = "0"] = courseMatch;
             console.log(
-              `📚 Found course in line ${searchIndex}: Code="${courseCode}", Name="${courseName}", Credits="${credits}"`
+              `📚 Found course in line ${searchIndex}: Code="${courseCode}", Name="${courseName}", Section="${sectionNum}"`
             );
 
             // Try to infer complete time from fragment
@@ -995,7 +1116,7 @@ export class UniversityParser {
               return {
                 courseCode: this.correctCourseCode(courseCode),
                 courseName: courseName.trim(),
-                credits: parseInt(credits) || 0,
+                section: parseInt(sectionNum) || 0,
                 room: correctedRoom,
                 dayCode: "ST",
                 days: this.dayCodes["ST"] || ["Sunday", "Tuesday"],
@@ -1017,7 +1138,7 @@ export class UniversityParser {
     }
 
     // Pattern 2: Line that looks like just a course code fragment
-    const codeOnlyMatch = line.match(/^([A-Z]{2,4}\d{2,4})(\s+.*)?$/);
+    const codeOnlyMatch = line.match(/^([A-Z]{2,4}\d{2,4}L?)(\s+.*)?$/);
     if (codeOnlyMatch) {
       const [, courseCode, rest] = codeOnlyMatch;
       console.log(`📚 Found course code fragment: "${courseCode}"`);
@@ -1053,7 +1174,7 @@ export class UniversityParser {
             return {
               courseCode: this.correctCourseCode(courseCode),
               courseName: rest ? rest.trim() : "",
-              credits: 0,
+              section: parseInt(sectionNum) || 0,
               room: correctedRoom,
               dayCode: "ST",
               days: this.dayCodes["ST"] || ["Sunday", "Tuesday"],
@@ -1063,7 +1184,7 @@ export class UniversityParser {
                 timeResult.startTime,
                 timeResult.endTime
               ),
-              section: "",
+              sectionDetail: "",
               originalLine: `${line} | ${nextLine}`,
               confidence: "mobile-reconstructed",
               fragmentedParts: [line, nextLine],
@@ -1360,7 +1481,15 @@ export class UniversityParser {
    * @returns {string} Corrected course code
    */
   correctCourseCode(courseCode) {
-    let corrected = courseCode
+    const raw = (courseCode || "").trim();
+    const hasLabSuffix = /L$/i.test(raw);
+    let working = raw;
+    // Strip lab suffix during normalization; we'll restore it at the end
+    if (hasLabSuffix) {
+      working = working.replace(/L$/i, "");
+    }
+
+    let corrected = working
       // Fix extra characters that get inserted
       .replace(/^C?MIN(\d{3})$/i, "CMN$1") // CMIN205 → CMN205
       .replace(/^CSC?I(\d{3})$/i, "CSC$1") // CSCI311 → CSC311
@@ -1403,6 +1532,11 @@ export class UniversityParser {
       console.log(
         `⚠️ Incomplete course code detected: ${courseCode} → ${corrected}`
       );
+    }
+
+    // Restore lab suffix if present originally
+    if (hasLabSuffix && !/L$/.test(corrected)) {
+      corrected = `${corrected}L`;
     }
 
     console.log(`🔧 Course code correction: ${courseCode} → ${corrected}`);
