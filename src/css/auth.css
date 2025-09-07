@@ -1,10 +1,10 @@
 /* 
 =============================================================================
-                     CAMPXUS AUTHENTICATION MODAL STYLES
+                     MEETCHUTHERE AUTHENTICATION MODAL STYLES
                       Glassmorphism Design with Theme Support
 =============================================================================
 
-Modern authentication modal that matches the CampXus design language with:
+Modern authentication modal that matches the MeetchuThere design language with:
 - Glassmorphism effects and backdrop filtering
 - CSS variable integration for consistent theming
 - Dark/light mode support using app's color system
@@ -76,7 +76,7 @@ Modern authentication modal that matches the CampXus design language with:
   );
 }
 
-/* Header with Modern CampXus Branding */
+/* Header with Modern MeetchuThere Branding */
 .auth-header {
   background: var(--auth-header-gradient);
   color: var(--auth-button-text);

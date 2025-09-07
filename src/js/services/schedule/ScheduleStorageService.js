@@ -119,16 +119,23 @@ export class ScheduleStorageService {
    */
   async saveUserSchedule(userId, scheduleData) {
     try {
-      // 1. Instant localStorage update for immediate UI response
-      this.cacheScheduleData(userId, scheduleData);
+      // 1. Prepare payload with preserved metadata and cache for immediate UI response
+      const previous = currentUser?.scheduleData || this.getCachedScheduleData(userId);
+      const existingMetadata = previous?.metadata || null;
+      const scheduleForSave = existingMetadata
+        ? { ...scheduleData, metadata: existingMetadata }
+        : scheduleData;
+
+      this.cacheScheduleData(userId, scheduleForSave);
       console.log("💾 Schedule saved to localStorage cache");
 
       // 2. Background Firestore sync
       if (this.isOnline) {
         try {
+
           await this.dataManager.saveUserSchedule(
             userId,
-            scheduleData,
+            scheduleForSave,
             currentUser.uid
           );
           console.log("☁️ Schedule synced to Firestore");
@@ -293,47 +300,53 @@ export class ScheduleStorageService {
   }
 
   _convertMapToScheduleArray(scheduleMap) {
-    if (!scheduleMap || typeof scheduleMap !== "object")
-      return Array(7)
-        .fill(null)
-        .map(() => Array(7).fill(false));
-    const scheduleArray = [];
-    for (let i = 0; i < 7; i++) {
-      scheduleArray[i] = [];
-      if (scheduleMap[i]) {
-        for (let j = 0; j < 7; j++) {
-          scheduleArray[i][j] = scheduleMap[i][j] || false;
-        }
-      } else {
-        for (let j = 0; j < 7; j++) {
-          scheduleArray[i][j] = false;
-        }
+    if (!scheduleMap || typeof scheduleMap !== "object") {
+      return Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => false));
+    }
+    // Determine number of slots by scanning provided map (fallback to 7)
+    let numSlots = 0;
+    for (let day = 0; day < 7; day++) {
+      const dayMap = scheduleMap[day];
+      if (dayMap && typeof dayMap === "object") {
+        const indices = Object.keys(dayMap).map((k) => parseInt(k, 10)).filter((n) => !isNaN(n));
+        if (indices.length > 0) numSlots = Math.max(numSlots, Math.max(...indices) + 1);
       }
     }
+    if (numSlots <= 0) numSlots = 7;
+
+    const scheduleArray = Array.from({ length: 7 }, (_, i) =>
+      Array.from({ length: numSlots }, (_, j) => Boolean(scheduleMap?.[i]?.[j] || false))
+    );
     return scheduleArray;
   }
 
   _convertMapToSlotInfoArray(slotInfoMap) {
-    if (!slotInfoMap || typeof slotInfoMap !== "object")
-      return Array(7)
-        .fill(null)
-        .map(() => Array(7).fill({ courseCode: "", classroomNumber: "" }));
-    const slotInfoArray = [];
-    for (let i = 0; i < 7; i++) {
-      slotInfoArray[i] = [];
-      if (slotInfoMap[i]) {
-        for (let j = 0; j < 7; j++) {
-          slotInfoArray[i][j] = slotInfoMap[i][j] || {
-            courseCode: "",
-            classroomNumber: "",
-          };
-        }
-      } else {
-        for (let j = 0; j < 7; j++) {
-          slotInfoArray[i][j] = { courseCode: "", classroomNumber: "" };
-        }
+    // Build a 7xN matrix with unique objects to avoid shared references
+    if (!slotInfoMap || typeof slotInfoMap !== "object") {
+      return Array.from({ length: 7 }, () =>
+        Array.from({ length: 7 }, () => ({ courseCode: "", classroomNumber: "" }))
+      );
+    }
+
+    // Determine number of slots by scanning provided map (fallback to 7)
+    let numSlots = 0;
+    for (let day = 0; day < 7; day++) {
+      const dayMap = slotInfoMap[day];
+      if (dayMap && typeof dayMap === "object") {
+        const indices = Object.keys(dayMap).map((k) => parseInt(k, 10)).filter((n) => !isNaN(n));
+        if (indices.length > 0) numSlots = Math.max(numSlots, Math.max(...indices) + 1);
       }
     }
+    if (numSlots <= 0) numSlots = 7;
+
+    const slotInfoArray = Array.from({ length: 7 }, (_, i) =>
+      Array.from({ length: numSlots }, (_, j) => {
+        const entry = slotInfoMap?.[i]?.[j];
+        return entry && typeof entry === "object"
+          ? { courseCode: entry.courseCode || "", classroomNumber: entry.classroomNumber || "" }
+          : { courseCode: "", classroomNumber: "" };
+      })
+    );
     return slotInfoArray;
   }
 

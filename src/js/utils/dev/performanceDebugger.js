@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- *                        CAMPXUS PERFORMANCE DEBUGGER
+ *                        MEETCHUTHERE PERFORMANCE DEBUGGER
  * =============================================================================
  *
  * Advanced debugging tools for identifying performance bottlenecks, memory leaks,

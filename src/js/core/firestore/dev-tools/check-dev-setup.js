@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function checkEnvironmentSetup() {
-  console.log("🔍 Checking CampXus development environment...\n");
+  console.log("🔍 Checking MeetchuThere development environment...\n");
 
   const checks = [];
 

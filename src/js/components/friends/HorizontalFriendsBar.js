@@ -1775,11 +1775,11 @@ export class HorizontalFriendsBar {
    */
   showCompareTooltip() {
     // Only show if user hasn't seen it before
-    const hasSeenTooltip = localStorage.getItem("campxus_compare_tooltip_seen");
+    const hasSeenTooltip = localStorage.getItem("meetchuthere_compare_tooltip_seen");
     if (hasSeenTooltip) return;
 
     // Mark as seen
-    localStorage.setItem("campxus_compare_tooltip_seen", "true");
+    localStorage.setItem("meetchuthere_compare_tooltip_seen", "true");
 
     // Show tooltip in console
     console.log(

@@ -219,7 +219,7 @@ This file contains CSS styles for the Campus Presence feature including:
 
 /* ===== INTEGRATION WITH EXISTING AVATAR STYLES ===== */
 
-/* Ensure presence dots work with CampXus avatar system */
+/* Ensure presence dots work with MeetchuThere avatar system */
 .user-avatar,
 .avatar-placeholder {
   position: relative;

@@ -59,6 +59,7 @@ let state = {
   isLocalUpdate: false, // Prevents double UI updates during local changes
   pendingTransactions: new Map(), // Track pending saves to prevent overwrites
   lastScheduleSignature: null, // Prevent unnecessary UI updates when schedule unchanged
+  lastAppliedScheduleVersion: null, // Track applied schedule version to avoid stale overwrites
 };
 
 // --- State Accessors/Mutators (for testing or specific needs) ---
@@ -97,11 +98,7 @@ export function _resetStateForTesting() {
     isLocalUpdate: false, // Prevents double UI updates during local changes
     pendingTransactions: new Map(), // Track pending saves to prevent overwrites
     lastScheduleSignature: null,
-
-    // Real-time update control
-    isLocalUpdate: false,
-    pendingTransactions: new Map(),
-    lastScheduleSignature: null,
+    lastAppliedScheduleVersion: null,
   };
 }
 
@@ -935,8 +932,23 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
   logManager.ui.init(`Time slot "${newSlotLabel}" added for ${user.name}`);
 
-  saveStateToStorage();
+  // Transactional debounced save for structural change
+  const txId = `timeslot_add_${state.activeUserId}_${Date.now()}`;
+  state.pendingTransactions.set(txId, {
+    type: "timeslot_add",
+    userId: state.activeUserId,
+    label: newSlotLabel,
+    timestamp: Date.now(),
+  });
+  state.isLocalUpdate = true;
   updateUI();
+  debouncedSaveStateToStorage(false, txId)
+    .then(() => {
+      state.isLocalUpdate = false;
+    })
+    .catch(() => {
+      state.isLocalUpdate = false;
+    });
   showModal({
     content: `New time slot "${newSlotLabel}" added for ${user.name}.`,
     title: "Time Slot Added",
@@ -1169,13 +1181,15 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   state.isLocalUpdate = true;
   updateUI();
 
-  // Use debounced save to prevent excessive database writes
-  debouncedSaveStateToStorage(transactionId);
-
-  // Re-enable real-time updates after reasonable delay
-  setTimeout(() => {
-    state.isLocalUpdate = false;
-  }, 200); // Reduced from 500ms since we fixed duplicate handlers
+  // Use debounced save to prevent excessive database writes (pass transactionId correctly)
+  debouncedSaveStateToStorage(false, transactionId)
+    .then(() => {
+      state.isLocalUpdate = false;
+    })
+    .catch(() => {
+      // Even if save fails, release the guard to avoid UI lock
+      state.isLocalUpdate = false;
+    });
 }
 
 /**
@@ -1208,8 +1222,8 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
         <label for="editCourseCodeInput">Course Code:</label>
         <input type="text" id="editCourseCodeInput" class="modal-input" 
                value="${existingInfo.courseCode}" 
-               placeholder="e.g., CS101, MATH202"
-               maxlength="20">
+               placeholder="Up to 8 chars (A-Z, 0-9, space, -, _, /)"
+               maxlength="8">
       </div>
       <div class="form-group">
         <label for="editClassroomInput">Classroom:</label>
@@ -1221,9 +1235,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
       </div>
       <div id="edit-slot-info-error" class="modal-error-message" style="display: none;"></div>
       <div class="modal-actions-row">
-        <button id="delete-slot-btn" class="modal-button delete">
-          Delete Slot
-        </button>
+        <button class="modal-button delete" data-role="delete-slot">Delete Slot</button>
       </div>
     </div>
   `;
@@ -1243,11 +1255,11 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
         const courseCode = courseCodeInput.value.trim().toUpperCase();
         const classroomNumber = classroomInput.value.trim();
 
-        if (courseCode && !/^[A-Z0-9\s]{1,20}$/i.test(courseCode)) {
+        if (courseCode && !/^[A-Z0-9\s\-_\/]{1,8}$/i.test(courseCode)) {
           const errorDiv = document.getElementById("edit-slot-info-error");
           if (errorDiv) {
             errorDiv.textContent =
-              "Course code should only contain letters, numbers, and spaces (max 20 characters)";
+              "Allowed: letters, numbers, spaces, -, _, / (max 8)";
             errorDiv.style.display = "block";
           }
           return false;
@@ -1267,23 +1279,37 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
         user.slotInfo[dayIndex][timeIndex] = { courseCode, classroomNumber };
 
+        // Transactional debounced save to avoid realtime overwrite
+        const txId = `slot_edit_${state.activeUserId}_${dayIndex}_${timeIndex}_${Date.now()}`;
+        state.pendingTransactions.set(txId, {
+          type: "slot_info_edit",
+          userId: state.activeUserId,
+          dayIndex,
+          timeIndex,
+          timestamp: Date.now(),
+        });
+
         state.isLocalUpdate = true;
         updateUI();
-        debouncedSaveStateToStorage();
-
-        setTimeout(() => {
-          state.isLocalUpdate = false;
-        }, 150);
+        debouncedSaveStateToStorage(false, txId)
+          .then(() => {
+            state.isLocalUpdate = false;
+          })
+          .catch(() => {
+            state.isLocalUpdate = false;
+          });
         return true;
       }
       return false;
     },
   });
 
-  // Add event listener for the new delete button
-  const deleteBtn = document.getElementById("delete-slot-btn");
-  if (deleteBtn) {
-    addTrackedEventListener(deleteBtn, "click", () => {
+  // Delegate delete click to the modal content area using a stable listener
+  try {
+    const onContentClick = (ev) => {
+      const btn = ev.target.closest('[data-role="delete-slot"]');
+      if (!btn) return;
+
       showModal({
         title: "Delete Slot",
         content: `Are you sure you want to delete this slot and mark it as free?\n\nDay: ${dayName}\nTime: ${timeSlot.label}`,
@@ -1320,17 +1346,40 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
             activeUser.pinnedSlots[dayIndex][timeIndex] = false;
           }
 
+          const txId = `slot_delete_${state.activeUserId}_${dayIndex}_${timeIndex}_${Date.now()}`;
+          state.pendingTransactions.set(txId, {
+            type: "slot_delete",
+            userId: state.activeUserId,
+            dayIndex,
+            timeIndex,
+            timestamp: Date.now(),
+          });
+
           state.isLocalUpdate = true;
           updateUI();
-          debouncedSaveStateToStorage();
-
-          setTimeout(() => {
-            state.isLocalUpdate = false;
-          }, 150);
-          return true; // Close the confirmation modal
+          debouncedSaveStateToStorage(false, txId)
+            .then(() => {
+              state.isLocalUpdate = false;
+            })
+            .catch(() => {
+              state.isLocalUpdate = false;
+            });
+          return true;
         },
       });
-    });
+    };
+
+    // Ensure only one handler is attached at a time
+    const contentEl = DOM_ELEMENTS.modalMessage;
+    if (contentEl) {
+      if (contentEl.__deleteSlotHandler) {
+        try { contentEl.removeEventListener('click', contentEl.__deleteSlotHandler); } catch(_) {}
+      }
+      contentEl.__deleteSlotHandler = onContentClick;
+      contentEl.addEventListener('click', onContentClick);
+    }
+  } catch (e) {
+    console.warn('Failed to attach modal delete handler', e);
   }
 }
 
@@ -1380,8 +1429,8 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
         <label for="courseCodeInput">Course Code:</label>
         <input type="text" id="courseCodeInput" class="modal-input" 
                value="${existingInfo.courseCode}" 
-               placeholder="e.g., CS101, MATH202"
-               maxlength="20">
+               placeholder="Up to 8 chars (A-Z, 0-9, space, -, _, /)"
+               maxlength="8">
       </div>
       <div class="form-group">
         <label for="classroomInput">Classroom:</label>
@@ -1411,11 +1460,11 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
         const classroomNumber = classroomInput.value.trim();
 
         // Validate course code format if provided
-        if (courseCode && !/^[A-Z0-9\s]{1,20}$/i.test(courseCode)) {
+        if (courseCode && !/^[A-Z0-9\s\-_\/]{1,8}$/i.test(courseCode)) {
           const errorDiv = document.getElementById("slot-info-error");
           if (errorDiv) {
             errorDiv.textContent =
-              "Course code should only contain letters, numbers, and spaces (max 20 characters)";
+              "Allowed: letters, numbers, spaces, -, _, / (max 8)";
             errorDiv.style.display = "block";
           }
           return false; // Prevent modal close
@@ -1464,8 +1513,25 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
           );
         }
 
-        saveStateToStorage();
+        // Transactional debounced save to avoid realtime overwrite
+        const txId = `slot_busy_${state.activeUserId}_${dayIndex}_${timeIndex}_${Date.now()}`;
+        state.pendingTransactions.set(txId, {
+          type: "slot_mark_busy",
+          userId: state.activeUserId,
+          dayIndex,
+          timeIndex,
+          timestamp: Date.now(),
+        });
+
+        state.isLocalUpdate = true;
         updateUI();
+        debouncedSaveStateToStorage(false, txId)
+          .then(() => {
+            state.isLocalUpdate = false;
+          })
+          .catch(() => {
+            state.isLocalUpdate = false;
+          });
         return true; // Allow modal to close
       }
       return false;
@@ -1583,7 +1649,13 @@ async function loadState(retryAttempt = 0) {
           schedule: scheduleData?.schedule || null,
           pinnedSlots: scheduleData?.pinnedSlots || null,
           timeBasedPins: scheduleData?.timeBasedPins || null,
+          slotInfo: scheduleData?.slotInfo || null,
         });
+        // Track last applied version for robust realtime gating
+        state.lastAppliedScheduleVersion =
+          typeof scheduleData?.metadata?.version === "number"
+            ? scheduleData.metadata.version
+            : null;
       } catch (_) {
         // Non-fatal; signature remains null
       }
@@ -1665,6 +1737,39 @@ function setupScheduleRealTimeSync(userId) {
           "📡 [Phase-1] Real-time schedule update received via ScheduleStorageService"
         );
 
+        // Prepare signature and version for smart gating
+        const incomingVersion =
+          typeof updatedScheduleData?.metadata?.version === "number"
+            ? updatedScheduleData.metadata.version
+            : null;
+        let incomingSignature = null;
+        try {
+          incomingSignature = JSON.stringify({
+            schedule: updatedScheduleData?.schedule || null,
+            pinnedSlots: updatedScheduleData?.pinnedSlots || null,
+            timeBasedPins: updatedScheduleData?.timeBasedPins || null,
+            slotInfo: updatedScheduleData?.slotInfo || null,
+          });
+        } catch (_) {}
+
+        // Ignore clearly stale versions ONLY if content is unchanged
+        if (
+          incomingVersion !== null &&
+          typeof state.lastAppliedScheduleVersion === "number" &&
+          incomingVersion < state.lastAppliedScheduleVersion &&
+          incomingSignature &&
+          state.lastScheduleSignature &&
+          incomingSignature === state.lastScheduleSignature
+        ) {
+          console.log(
+            `⏭️ [Phase-1] Skipping outdated realtime schedule (v${incomingVersion} < v${state.lastAppliedScheduleVersion}) with identical content`
+          );
+          // Still refresh store timestamps for consistency
+          currentUser.setScheduleData(updatedScheduleData);
+          currentUser.setScheduleLastSynced(new Date());
+          return;
+        }
+
         // Skip UI update if this is a local change to prevent double rendering
         if (state.isLocalUpdate) {
           console.log(
@@ -1692,11 +1797,14 @@ function setupScheduleRealTimeSync(userId) {
 
         // If the data hasn't changed, skip re-render to prevent flicker
         try {
-          const newSignature = JSON.stringify({
-            schedule: updatedScheduleData?.schedule || null,
-            pinnedSlots: updatedScheduleData?.pinnedSlots || null,
-            timeBasedPins: updatedScheduleData?.timeBasedPins || null,
-          });
+          const newSignature =
+            incomingSignature ||
+            JSON.stringify({
+              schedule: updatedScheduleData?.schedule || null,
+              pinnedSlots: updatedScheduleData?.pinnedSlots || null,
+              timeBasedPins: updatedScheduleData?.timeBasedPins || null,
+              slotInfo: updatedScheduleData?.slotInfo || null,
+            });
           if (state.lastScheduleSignature === newSignature) {
             // Still update userStore timestamps for consistency, but avoid UI work
             currentUser.setScheduleData(updatedScheduleData);
@@ -1722,11 +1830,30 @@ function setupScheduleRealTimeSync(userId) {
         currentUser.setScheduleData(updatedScheduleData);
         currentUser.setScheduleLastSynced(new Date());
 
+        // Record applied version to gate future stale payloads
+        if (incomingVersion !== null) {
+          state.lastAppliedScheduleVersion = incomingVersion;
+        }
+
         // 🛡️ SAFETY CHECK: Only update UI if we're still on the home page
         const currentRoute = window.location.hash.replace('#', '') || 'home';
         if (currentRoute === 'home') {
-          // Re-render UI
-          updateUI();
+          // Re-render UI with a light throttle to reduce churn
+          if (!setupScheduleRealTimeSync._lastUiUpdateAt) {
+            setupScheduleRealTimeSync._lastUiUpdateAt = 0;
+          }
+          const now = Date.now();
+          if (now - setupScheduleRealTimeSync._lastUiUpdateAt >= 100) {
+            setupScheduleRealTimeSync._lastUiUpdateAt = now;
+            updateUI();
+          } else {
+            // Schedule a trailing update
+            clearTimeout(setupScheduleRealTimeSync._pendingUiTimer);
+            setupScheduleRealTimeSync._pendingUiTimer = setTimeout(() => {
+              setupScheduleRealTimeSync._lastUiUpdateAt = Date.now();
+              updateUI();
+            }, 100);
+          }
           console.log("✅ [Phase-1] UI updated with real-time changes");
         } else {
           console.log("⏭️ [Phase-1] Skipping UI update - not on home page");
@@ -1799,8 +1926,7 @@ async function saveStateToStorage(transactionId = null, transactionIds = []) {
           );
         }
 
-        // Update userStore with successful save
-        currentUser.setScheduleData(scheduleData);
+        // Update only last synced timestamp; let realtime update refresh scheduleData
         currentUser.setScheduleLastSynced(new Date());
         currentUser.clearScheduleError();
 
@@ -2080,9 +2206,23 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   // Migrate pins to preserve pin intentions when schedule structure changes
   migratePinsToTimeBased(activeUserObject);
 
-  saveStateToStorage();
-  // Use setTimeout to make this async and prevent race conditions
-  setTimeout(() => renderScheduleGrid(), 0);
+  // Transactional debounced save for structural time slot edit
+  const txId = `timeslot_edit_${state.activeUserId}_${slotIndex}_${Date.now()}`;
+  state.pendingTransactions.set(txId, {
+    type: "timeslot_edit_structure",
+    userId: state.activeUserId,
+    slotIndex,
+    timestamp: Date.now(),
+  });
+  state.isLocalUpdate = true;
+  updateUI();
+  debouncedSaveStateToStorage(false, txId)
+    .then(() => {
+      state.isLocalUpdate = false;
+    })
+    .catch(() => {
+      state.isLocalUpdate = false;
+    });
   return true;
 }
 
@@ -2118,9 +2258,23 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
     activeUserObject.slotInfo.forEach((day) => day.splice(slotIndex, 1));
   }
 
-  // Persist changes and update UI
-  saveStateToStorage();
+  // Persist changes with transactional debounced save
+  const txId = `timeslot_delete_${state.activeUserId}_${slotIndex}_${Date.now()}`;
+  state.pendingTransactions.set(txId, {
+    type: "timeslot_delete",
+    userId: state.activeUserId,
+    slotIndex,
+    timestamp: Date.now(),
+  });
+  state.isLocalUpdate = true;
   updateUI();
+  debouncedSaveStateToStorage(false, txId)
+    .then(() => {
+      state.isLocalUpdate = false;
+    })
+    .catch(() => {
+      state.isLocalUpdate = false;
+    });
 
   showModal({
     title: "Time Slot Deleted",
@@ -2634,6 +2788,8 @@ async function _renderScheduleGridInternal() {
             dayCell.classList.add(fallbackColor);
           }
         }
+
+        // Grid retains visual color state; textual content handled elsewhere
       }
 
       // Pin Rendering Logic for Active User
@@ -3387,11 +3543,6 @@ function setupEventListeners() {
       "click",
       handleScheduleTableClick
     );
-
-    // 🚨 EMERGENCY FIX: Add direct event listener as backup
-    DOM_ELEMENTS.scheduleTable.addEventListener("click", (e) => {
-      handleScheduleTableClick(e);
-    });
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
       "mouseover",
@@ -3454,8 +3605,9 @@ function handleScheduleTableClick(e) {
   // Compact handler without verbose debug logs
 
   // Time slot header clicks (for editing time slots)
-  if (e.target.classList.contains("editable-timeslot-header")) {
-    const slotIndex = parseInt(e.target.dataset.slotIndex, 10);
+  const headerEl = e.target.closest(".editable-timeslot-header");
+  if (headerEl) {
+    const slotIndex = parseInt(headerEl.dataset.slotIndex, 10);
     if (!isNaN(slotIndex)) {
       handleTimeSlotHeaderClick(e);
     }
@@ -3463,8 +3615,8 @@ function handleScheduleTableClick(e) {
   }
 
   // Pin container clicks (for pin tooltips)
-  if (e.target.closest(".pin-container")) {
-    const pinContainer = e.target.closest(".pin-container");
+  const pinContainer = e.target.closest(".pin-container");
+  if (pinContainer) {
     const pinData = {
       userNames: JSON.parse(pinContainer.dataset.pinnedByUsers || "[]"),
       userIds: JSON.parse(pinContainer.dataset.pinnedUserIds || "[]"),
@@ -3487,10 +3639,11 @@ function handleScheduleTableClick(e) {
     return;
   }
 
-  // Schedule slot clicks
-  if (e.target.classList.contains("slot")) {
-    const day = parseInt(e.target.dataset.day, 10);
-    const time = parseInt(e.target.dataset.time, 10);
+  // Schedule slot clicks (use closest to support clicks on children)
+  const slotEl = e.target.closest(".slot");
+  if (slotEl) {
+    const day = parseInt(slotEl.dataset.day, 10);
+    const time = parseInt(slotEl.dataset.time, 10);
 
     if (!isNaN(day) && !isNaN(time)) {
       if (state.pinModeActive && !state.compareMode) {
@@ -3553,24 +3706,19 @@ function handleDayViewClick(e) {
     return;
   }
 
-  // 🎯 CORE FIX: Handle both day-time-slot (day view) and slot (grid view) elements
-  if (
-    e.target.classList.contains("day-time-slot") ||
-    e.target.classList.contains("slot")
-  ) {
+  // 🎯 CORE FIX: Use closest to capture clicks on child elements within a slot
+  const clickedSlotEl = e.target.closest(".day-time-slot, .slot");
+  if (clickedSlotEl) {
     console.log("🎯 Day view schedule slot clicked!", {
-      isDayTimeSlot: e.target.classList.contains("day-time-slot"),
-      isSlot: e.target.classList.contains("slot"),
-      hasDataTime: !!e.target.dataset.time,
-      hasDataTimeIndex: !!e.target.dataset.timeIndex,
+      isDayTimeSlot: clickedSlotEl.classList.contains("day-time-slot"),
+      isSlot: clickedSlotEl.classList.contains("slot"),
+      hasDataTime: !!clickedSlotEl.dataset.time,
+      hasDataTimeIndex: !!clickedSlotEl.dataset.timeIndex,
     });
 
-    const day = parseInt(e.target.dataset.day, 10);
+    const day = parseInt(clickedSlotEl.dataset.day, 10);
     // 🔧 Handle both data-time (grid view) and data-time-index (day view)
-    const time = parseInt(
-      e.target.dataset.time || e.target.dataset.timeIndex,
-      10
-    );
+    const time = parseInt(clickedSlotEl.dataset.time || clickedSlotEl.dataset.timeIndex, 10);
 
     // Coordinates extracted
 
@@ -4607,16 +4755,17 @@ function createNormalSlotContent(
   return `
     <div class="slot-time">${timeSlot.label}</div>
     <div class="slot-content">
-      ${
-        isBusy && slotInfo
-          ? `
-        <div class="slot-course-code">${slotInfo.courseCode || "Busy"}</div>
-        <div class="slot-classroom">${slotInfo.classroomNumber || ""}</div>
-      `
-          : `
-        <div class="slot-free-text">Free</div>
-      `
-      }
+      ${(() => {
+        if (!isBusy) return '<div class="slot-free-text">Free</div>';
+        const code = (slotInfo?.courseCode || '').trim();
+        const room = (slotInfo?.classroomNumber || '').trim();
+        const primary = code || room || 'Busy';
+        const secondary = code && room ? room : '';
+        return `
+          <div class="slot-course-code">${primary}</div>
+          <div class="slot-classroom">${secondary}</div>
+        `;
+      })()}
       ${pinIndicator}
     </div>
   `;
@@ -6723,7 +6872,7 @@ document.addEventListener("spa:page:load", async (event) => {
 
   if (route === "home") {
     // Only initialize the schedule app when the home page is loaded.
-    console.log("🚀 Starting CampXus Schedule App (via SPA event)...");
+  console.log("🚀 Starting MeetchuThere Schedule App (via SPA event)...");
 
     // 🔄 CRITICAL FIX: Reset initialization flags when DOM gets replaced
     // This fixes the issue where event listeners stop working after signin
@@ -6816,7 +6965,7 @@ document.addEventListener("spa:page:load", async (event) => {
     // Set up authentication callbacks (only once)
     setupAuthenticationCallbacks();
 
-    console.log("✅ CampXus Schedule App loaded successfully!");
+  console.log("✅ MeetchuThere Schedule App loaded successfully!");
 
     // 🧪 DEBUG: Add test helper for day navigation buttons
     if (typeof window !== "undefined") {

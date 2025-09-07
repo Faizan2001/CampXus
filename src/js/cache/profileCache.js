@@ -6,7 +6,7 @@
  * fresh data in the background (stale‑while‑revalidate).
  *
  * Data Model (localStorage):
- *   key: campxus:profileCache:v1
+ *   key: meetchuthere:profileCache:v1
  *   value: {
  *     version: 1,
  *     uid: string,
@@ -27,7 +27,7 @@
 
 import { logManager } from "../utils/debug/LogManager.js";
 
-const CACHE_KEY = "campxus:profileCache:v1";
+const CACHE_KEY = "meetchuthere:profileCache:v1";
 const VERSION = 1;
 const SOFT_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const HARD_TTL_MS = 72 * 60 * 60 * 1000; // 72 hours

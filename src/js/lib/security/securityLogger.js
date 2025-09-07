@@ -55,11 +55,11 @@ export class SecurityLogger {
   }
 
   getSessionId() {
-    let sessionId = sessionStorage.getItem("campxus_session_id");
+    let sessionId = sessionStorage.getItem("meetchuthere_session_id");
     if (!sessionId) {
       sessionId =
         "sess_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
-      sessionStorage.setItem("campxus_session_id", sessionId);
+      sessionStorage.setItem("meetchuthere_session_id", sessionId);
     }
     return sessionId;
   }
@@ -69,7 +69,7 @@ export class SecurityLogger {
     // Will be implemented with Cloud Functions in later phases
     if (logEntry.level === "security" || logEntry.level === "error") {
       // Store in localStorage for now, send to server later
-      const alertKey = "campxus_security_alerts";
+      const alertKey = "meetchuthere_security_alerts";
       const alerts = JSON.parse(localStorage.getItem(alertKey) || "[]");
       alerts.push(logEntry);
       localStorage.setItem(alertKey, JSON.stringify(alerts.slice(-100)));

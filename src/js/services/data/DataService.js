@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- *                        CAMPXUS DATA MANAGER
+ *                        MEETCHUTHERE DATA MANAGER
  * =============================================================================
  *
  * Centralized data management system for all user and schedule data.

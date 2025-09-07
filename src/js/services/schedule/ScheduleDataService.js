@@ -96,7 +96,10 @@ export class ScheduleDataService {
               : { courseCode: "", classroomNumber: "" };
         }
       } else {
-        dayArray.fill({ courseCode: "", classroomNumber: "" }, 0, numSlots);
+        // Create a fresh object per slot to avoid shared references
+        for (let slot = 0; slot < numSlots; slot++) {
+          dayArray[slot] = { courseCode: "", classroomNumber: "" };
+        }
       }
 
       matrix[day] = dayArray;

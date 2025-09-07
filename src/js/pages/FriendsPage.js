@@ -1,5 +1,5 @@
 /**
- * 🎨 CampXus Friends UI Controller
+ * 🎨 MeetchuThere Friends UI Controller
  *
  * This module handles all the user interface interactions for the friends page:
  * - Renders search results

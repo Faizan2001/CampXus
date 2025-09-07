@@ -1,5 +1,5 @@
 /**
- * CampXus SPA Router - Simple Single Page Application Router
+ * MeetchuThere SPA Router - Simple Single Page Application Router
  *
  * 🎯 Learning Concept: A router decides which content to show based on the URL
  * Think of it as a traffic controller for your web app!
@@ -31,7 +31,7 @@ class SPARouter {
     // 📚 Learning: These are the "routes" - like a map of your app's pages
     this.routes = {
       home: {
-        title: "Schedule - CampXus",
+        title: "Schedule - MeetchuThere",
         template: "/templates/home.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
@@ -40,7 +40,7 @@ class SPARouter {
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
-        title: "Profile Setup - CampXus",
+        title: "Profile Setup - MeetchuThere",
         template: "/templates/profile.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
@@ -53,7 +53,7 @@ class SPARouter {
         description: "Set up your student profile and preferences",
       },
       friends: {
-        title: "Friends - CampXus",
+        title: "Friends - MeetchuThere",
         template: "/templates/friends.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
@@ -67,7 +67,7 @@ class SPARouter {
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       notifications: {
-        title: "Notifications - CampXus",
+        title: "Notifications - MeetchuThere",
         template: "/templates/notifications.html",
         cssFiles: [
           "/src/css/styles.css",
@@ -80,7 +80,7 @@ class SPARouter {
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       about: {
-        title: "About - CampXus",
+        title: "About - MeetchuThere",
         template: "/templates/about.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
         cssFiles: [],
         jsFiles: [],

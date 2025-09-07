@@ -7,7 +7,7 @@
  *
  * Phase 1.2 - Campus Presence Implementation Plan
  *
- * @author CampXus Development Team
+ * @author MeetchuThere Development Team
  * @version 1.0.0
  */
 

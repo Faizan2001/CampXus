@@ -1901,7 +1901,7 @@ export class CampusLocationService {
    */
   getCachedLocation() {
     try {
-      const cached = localStorage.getItem("campxus_last_location");
+      const cached = localStorage.getItem("meetchuthere_last_location");
       if (!cached) return null;
 
       const locationData = JSON.parse(cached);
@@ -1914,7 +1914,7 @@ export class CampusLocationService {
         console.log(
           "[CampusLocationService] 🗑️ Cached location expired, removing"
         );
-        localStorage.removeItem("campxus_last_location");
+        localStorage.removeItem("meetchuthere_last_location");
         return null;
       }
 
@@ -2135,7 +2135,7 @@ export class CampusLocationService {
         timestamp: Date.now(),
       };
 
-      localStorage.setItem("campxus_last_location", JSON.stringify(cacheData));
+      localStorage.setItem("meetchuthere_last_location", JSON.stringify(cacheData));
 
       logManager.location.info("💾 Cached location:", {
         campusStatus: locationData.campusStatus,

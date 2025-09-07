@@ -1,5 +1,5 @@
 /**
- * 🔔 CampXus Notifications Page
+ * 🔔 MeetchuThere Notifications Page
  *
  * This module handles the notifications page for location sharing requests
  * and other notification types in the Campus Presence system.

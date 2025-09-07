@@ -1,5 +1,5 @@
 /**
- * 🔧 Debug Helpers for CampXus Friends System
+ * 🔧 Debug Helpers for MeetchuThere Friends System
  *
  * This module provides console tools and debugging utilities for the friends system.
  * Access these tools via the browser console for testing and debugging.
@@ -14,7 +14,7 @@ class DebugHelpers {
    * 📚 Show available debug commands
    */
   help() {
-    console.group("🔧 CampXus Debug Helper Commands");
+    console.group("🔧 MeetchuThere Debug Helper Commands");
     console.log("📱 System Status:");
     console.log("  - debug.status() - Show system status");
     console.log("  - debug.toggleDebug() - Toggle debug mode");
@@ -76,7 +76,7 @@ class DebugHelpers {
    * 📊 Show system status
    */
   status() {
-    console.group("📊 CampXus System Status");
+    console.group("📊 MeetchuThere System Status");
 
     // Check if main systems are available
     const systems = {
@@ -128,10 +128,10 @@ class DebugHelpers {
     if (this.isDebugMode) {
       console.log("📊 Verbose logging enabled");
       // Enable more detailed logging
-      localStorage.setItem("campxus_debug", "true");
+      localStorage.setItem("meetchuthere_debug", "true");
     } else {
       console.log("📊 Verbose logging disabled");
-      localStorage.removeItem("campxus_debug");
+      localStorage.removeItem("meetchuthere_debug");
     }
   }
 
@@ -348,7 +348,7 @@ class DebugHelpers {
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `campxus-debug-${Date.now()}.json`;
+    link.download = `meetchuthere-debug-${Date.now()}.json`;
     link.click();
 
     URL.revokeObjectURL(url);
@@ -906,7 +906,7 @@ if (typeof window !== "undefined") {
 }
 
 // Check if debug mode should be enabled from localStorage
-if (localStorage.getItem("campxus_debug") === "true") {
+if (localStorage.getItem("meetchuthere_debug") === "true") {
   debugHelpers.toggleDebug();
 }
 

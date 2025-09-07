@@ -1,5 +1,5 @@
 /**
- * CampXus SPA Initialization
+ * MeetchuThere SPA Initialization
  *
  * 🎯 Learning: This file initializes our Single Page Application
  * It's like the "conductor" that makes sure everything starts up correctly!
@@ -53,7 +53,7 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
   const params = new URLSearchParams(window.location.search);
-  const storedProfile = localStorage.getItem("campxus:logProfile");
+  const storedProfile = localStorage.getItem("meetchuthere:logProfile");
   const requestedProfile = params.get("logs") || storedProfile;
 
   const applyProfile = (profile) => {
@@ -101,7 +101,7 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
     applyProfile(requestedProfile);
   } else if (isLocal) {
     // Default to location logs locally for easier 3-tier troubleshooting
-    // You can override via ?logs=... or localStorage 'campxus:logProfile'
+    // You can override via ?logs=... or localStorage 'meetchuthere:logProfile'
     applyProfile("location");
   } else {
     applyProfile("critical");
@@ -116,7 +116,7 @@ let spaRouter = null;
  * 🎯 Learning: We wait for the DOM to load before setting up our app
  */
 async function initializeSPA() {
-  logManager.system.init("CampXus SPA Initialization");
+  logManager.system.init("MeetchuThere SPA Initialization");
 
   // Double-check that essential DOM elements exist
   const mainContent = document.querySelector(".main-content");
@@ -318,14 +318,14 @@ function setupSPAEventListeners() {
  */
 function updatePageTitle(route) {
   const titles = {
-    home: "Schedule - CampXus",
-    profile: "Profile Setup - CampXus",
-    friends: "Friends - CampXus",
-    notifications: "Notifications - CampXus",
-    about: "About - CampXus",
+    home: "Schedule - MeetchuThere",
+    profile: "Profile Setup - MeetchuThere",
+    friends: "Friends - MeetchuThere",
+    notifications: "Notifications - MeetchuThere",
+    about: "About - MeetchuThere",
   };
 
-  const title = titles[route] || "CampXus";
+  const title = titles[route] || "MeetchuThere";
   document.title = title;
 }
 

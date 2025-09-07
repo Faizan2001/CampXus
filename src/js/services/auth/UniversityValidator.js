@@ -1,4 +1,4 @@
-// Simple university email validation for CampXus
+// Simple university email validation for MeetchuThere
 const SUPPORTED_UNIVERSITIES = {
   iub: {
     name: "Independent University, Bangladesh",

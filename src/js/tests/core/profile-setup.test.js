@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- *                     PROFILE SETUP TESTS - CAMPXUS
+ *                     PROFILE SETUP TESTS - MEETCHUTHERE
  *                    REAL INTEGRATION TESTING SUITE 
  * =============================================================================
  * 

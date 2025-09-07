@@ -478,7 +478,7 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
       expect(result.stats.successRate).toBe('100.0');
     });
 
-    test('should convert to CampXus 7x7 format correctly', async () => {
+    test('should convert to MeetchuThere 7x7 format correctly', async () => {
       const scheduleText = 'CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A';
       const result = await service.processScheduleText(scheduleText);
 

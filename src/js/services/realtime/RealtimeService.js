@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- *                        CAMPXUS REAL-TIME MANAGER
+ *                        MEETCHUTHERE REAL-TIME MANAGER
  * =============================================================================
  *
  * Centralized real-time event coordination system for all live data updates.
@@ -106,7 +106,7 @@ class RealTimeManager {
 
     // Debug mode flag: only verbose if explicitly requested via log profile
     const profile = (typeof window !== 'undefined' && window.localStorage)
-      ? (window.localStorage.getItem('campxus:logProfile') || '').toLowerCase()
+      ? (window.localStorage.getItem('meetchuthere:logProfile') || '').toLowerCase()
       : '';
     this.debugMode = (process.env.NODE_ENV === "development") && (profile === 'debug' || profile === 'all');
 

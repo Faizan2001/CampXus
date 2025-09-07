@@ -1,7 +1,7 @@
 // Privacy and GDPR compliance manager
 export class PrivacyManager {
   constructor() {
-    this.consentKey = "campxus_privacy_consent";
+    this.consentKey = "meetchuthere_privacy_consent";
     this.consentVersion = "1.0";
     this.init();
   }
@@ -29,7 +29,7 @@ export class PrivacyManager {
     banner.innerHTML = `
       <div class="privacy-consent-content">
         <p>We use cookies and collect data to provide you with the best experience. 
-           By using CampXus, you agree to our 
+           By using MeetchuThere, you agree to our 
            <a href="/pages/privacy.html" target="_blank">Privacy Policy</a>.</p>
         <div class="privacy-consent-actions">
           <button class="btn btn-secondary" onclick="privacyManager.acceptEssential()">

@@ -525,7 +525,7 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
     },
     help: () => {
       console.log(`
-🌍 CampXus Location System Debug Commands:
+🌍 MeetchuThere Location System Debug Commands:
 
 📊 Statistics & Monitoring:
 - locationSystemDebug.getFullStats(userId?) - Complete system statistics

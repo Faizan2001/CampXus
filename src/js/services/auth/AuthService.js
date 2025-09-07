@@ -111,7 +111,7 @@ class AuthManager {
    * Initialize the authentication system
    */
   async initialize() {
-    console.log("🔥 Initializing CampXus Authentication...");
+    console.log("🔥 Initializing MeetchuThere Authentication...");
 
     // Set up authentication state listener
     this.setupAuthStateListener();
@@ -132,7 +132,7 @@ class AuthManager {
           <button class="auth-close" id="auth-close-btn">&times;</button>
           
           <div class="auth-header">
-            <div class="auth-logo">🎓 CampXus</div>
+            <div class="auth-logo">🎓 MeetchuThere</div>
             <div class="auth-subtitle">Join your university community</div>
           </div>
 
@@ -174,7 +174,7 @@ class AuthManager {
                   <div class="dot"></div>
                   <div class="dot"></div>
                 </div>
-                <span class="button-text">Sign In to CampXus</span>
+                <span class="button-text">Sign In to MeetchuThere</span>
               </button>
               
               <div class="forgot-password-section">
@@ -232,7 +232,7 @@ class AuthManager {
                   <div class="dot"></div>
                   <div class="dot"></div>
                 </div>
-                <span class="button-text">Create CampXus Account</span>
+                <span class="button-text">Create MeetchuThere Account</span>
               </button>
             </form>
           </div>

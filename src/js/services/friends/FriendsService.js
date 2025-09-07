@@ -1,5 +1,5 @@
 /**
- * 🎯 CampXus Friends Manager
+ * 🎯 MeetchuThere Friends Manager
  *
  * This module handles all the core friends functionality including:
  * - Search for students at the same university

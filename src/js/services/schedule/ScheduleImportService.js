@@ -11,7 +11,7 @@
  * Features:
  * - Text parsing orchestration
  * - Data validation coordination
- * - CampXus format conversion
+ * - MeetchuThere format conversion
  * - Seamless ProfileSetup.js integration
  *
  * =============================================================================
@@ -62,8 +62,8 @@ export class ScheduleImportService {
       const validationResult = this.validator.validateSchedule(parsedCourses);
       console.log("✅ Validation result:", validationResult);
 
-      // Step 3: Convert to CampXus format
-      const scheduleData = this.convertToCampXusFormat(
+      // Step 3: Convert to MeetchuThere format
+      const scheduleData = this.convertToMeetchuThereFormat(
         validationResult.validatedCourses
       );
 
@@ -101,11 +101,11 @@ export class ScheduleImportService {
   }
 
   /**
-   * Convert parsed courses to CampXus schedule format (7x7 matrices)
+   * Convert parsed courses to MeetchuThere schedule format (7x7 matrices)
    * @param {Array} validatedCourses - Array of validated course objects
-   * @returns {Object} CampXus-compatible schedule data
+   * @returns {Object} MeetchuThere-compatible schedule data
    */
-  convertToCampXusFormat(validatedCourses) {
+  convertToMeetchuThereFormat(validatedCourses) {
     // Initialize 7x7 matrices (7 days, 7 time slots)
     const schedule = Array(7)
       .fill(null)

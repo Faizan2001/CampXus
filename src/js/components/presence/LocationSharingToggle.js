@@ -24,7 +24,7 @@
  *
  * Part of the Campus Presence System (Phase 3.1)
  * 
- * @author CampXus Development Team
+ * @author MeetchuThere Development Team
  * @version 1.0.0
  */
 
