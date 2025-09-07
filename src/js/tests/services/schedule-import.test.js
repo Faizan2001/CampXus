@@ -57,7 +57,7 @@ describe('Schedule Import System', () => {
         expect(result.endTime).toBe('09:30');   // Should correct 9:3 → 09:30
       });
 
-      test('should parse evening time slots', () => {
+      test('should parse evening time slots (dynamic)', () => {
         const line = 'CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B';
         const result = parser.parseCourseLine(line);
 
@@ -66,7 +66,7 @@ describe('Schedule Import System', () => {
         expect(result.days).toEqual(['sunday', 'tuesday']);
         expect(result.startTime).toBe('18:30');
         expect(result.endTime).toBe('21:30');
-        expect(result.timeSlotIndex).toBe(6); // 7th time slot (evening)
+        expect(result.timeSlotIndex).toBe(-1); // dynamic slot beyond defaults
       });
 
       test('should handle unknown day codes gracefully', () => {
@@ -165,7 +165,7 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         
         // Third course (single-line)
         expect(courses[2].courseCode).toBe('CSE470');
-        expect(courses[2].timeSlotIndex).toBe(6); // Evening slot
+        expect(courses[2].timeSlotIndex).toBe(-1); // Dynamic evening slot beyond defaults
       });
 
       test('should handle empty and invalid lines gracefully', () => {

@@ -20,6 +20,9 @@
 import { UniversityParser } from "./UniversityParser.js";
 import { ScheduleValidator } from "./ScheduleValidator.js";
 import { OcrService } from "./OcrService.js";
+import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
+import { parseTime, minutesToTimeString } from "../../utils/time/timeUtils.js";
+import { currentUser } from "../../store/userStore.js";
 
 /**
  * Main service class for schedule import functionality
@@ -106,19 +109,91 @@ export class ScheduleImportService {
    * @returns {Object} MeetchuThere-compatible schedule data
    */
   convertToMeetchuThereFormat(validatedCourses) {
-    // Initialize 7x7 matrices (7 days, 7 time slots)
-    const schedule = Array(7)
-      .fill(null)
-      .map(() => Array(7).fill(false));
-    const slotInfo = Array(7)
-      .fill(null)
-      .map(() =>
-        Array(7)
-          .fill(null)
-          .map(() => ({ courseCode: "", classroomNumber: "" }))
-      );
+    // Build dynamic time slots based on university defaults
+    const email = (currentUser?.user?.email || "").toLowerCase();
+    const uni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+    const isIub = email.endsWith("@iub.edu.bd") || uni === "iub";
 
-    // Map day names to indices
+    // Start with IUB defaults or empty for others
+    const baseSlots = isIub ? [...DEFAULT_TIMESLOTS] : [];
+    const lastDefaultEnd = isIub
+      ? DEFAULT_TIMESLOTS[DEFAULT_TIMESLOTS.length - 1].end // "17:50"
+      : null;
+
+    const slotKey = (s, e) => `${s}-${e}`;
+    const seen = new Map();
+    baseSlots.forEach((s, idx) => seen.set(slotKey(s.start, s.end), idx));
+
+    // Collect evening ranges to normalize beyond the last default end (IUB only)
+    const eveningRanges = [];
+    const extraCandidates = [];
+    for (const c of validatedCourses) {
+      if (!c.startTime || !c.endTime) continue;
+      const key = slotKey(c.startTime, c.endTime);
+      if (seen.has(key)) continue;
+      if (isIub) {
+        const afterDefault = parseTime(c.startTime) > parseTime(lastDefaultEnd);
+        if (afterDefault) {
+          eveningRanges.push({ start: c.startTime, end: c.endTime });
+        }
+      } else {
+        // For non-IUB, collect everything for append (no daytime defaults)
+        extraCandidates.push({ start: c.startTime, end: c.endTime });
+      }
+      seen.set(key, -1);
+    }
+
+    // Build normalized evening slots for IUB by splitting on unique boundaries
+    let normalizedEveningSlots = [];
+    if (isIub && eveningRanges.length > 0) {
+      const boundaries = new Set();
+      for (const r of eveningRanges) {
+        boundaries.add(parseTime(r.start));
+        boundaries.add(parseTime(r.end));
+      }
+      const sorted = Array.from(boundaries).sort((a, b) => a - b);
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const s = minutesToTimeString(sorted[i]);
+        const e = minutesToTimeString(sorted[i + 1]);
+        // Only include segments that are strictly after lastDefaultEnd
+        if (parseTime(s) > parseTime(lastDefaultEnd)) {
+          normalizedEveningSlots.push({ start: s, end: e, label: `${s}-${e}` });
+        }
+      }
+    }
+
+    // For non-IUB, append unique detected slots (sorted), no boundary splitting yet
+    if (!isIub && extraCandidates.length > 0) {
+      const extrasSet = new Set();
+      const uniqueExtras = [];
+      for (const s of extraCandidates) {
+        const k = slotKey(s.start, s.end);
+        if (!extrasSet.has(k)) {
+          extrasSet.add(k);
+          uniqueExtras.push(s);
+        }
+      }
+      uniqueExtras.sort((a, b) => parseTime(a.start) - parseTime(b.start));
+      normalizedEveningSlots = uniqueExtras.map((s) => ({
+        start: s.start,
+        end: s.end,
+        label: `${s.start}-${s.end}`,
+      }));
+    }
+
+    const dynamicTimeSlots = [
+      ...baseSlots.map((s) => ({ ...s })),
+      ...normalizedEveningSlots,
+    ];
+
+    // Build schedule matrices using dynamic time slot count
+    const slotsLen = dynamicTimeSlots.length;
+    const schedule = Array.from({ length: 7 }, () => Array(slotsLen).fill(false));
+    const slotInfo = Array.from({ length: 7 }, () =>
+      Array.from({ length: slotsLen }, () => ({ courseCode: "", classroomNumber: "" }))
+    );
+
+    // Day index map
     const dayIndexMap = {
       sunday: 0,
       monday: 1,
@@ -129,28 +204,79 @@ export class ScheduleImportService {
       saturday: 6,
     };
 
-    // Populate matrices from courses
-    validatedCourses.forEach((course) => {
-      if (course.timeSlotIndex >= 0 && course.days.length > 0) {
-        course.days.forEach((dayName) => {
-          const dayIndex = dayIndexMap[dayName.toLowerCase()];
-          if (dayIndex !== undefined && dayIndex >= 0) {
-            // Mark slot as busy
-            schedule[dayIndex][course.timeSlotIndex] = true;
+    // Helper: find slot index by exact start/end match (for base slots)
+    const findDynamicSlotIndex = (start, end) =>
+      dynamicTimeSlots.findIndex((s) => s.start === start && s.end === end);
 
-            // Add course information
-            slotInfo[dayIndex][course.timeSlotIndex] = {
-              courseCode: course.courseCode,
-              classroomNumber: course.room || "",
-            };
+    // Populate schedule using dynamic slots
+    const eveningStartIndex = baseSlots.length; // where normalized evening slots begin for IUB
+    for (const course of validatedCourses) {
+      if (!course.days || course.days.length === 0) continue;
+      const startMin = parseTime(course.startTime);
+      const endMin = parseTime(course.endTime);
+
+      const mapByOverlap = () => {
+        for (let idx = eveningStartIndex; idx < dynamicTimeSlots.length; idx++) {
+          const s = parseTime(dynamicTimeSlots[idx].start);
+          const e = parseTime(dynamicTimeSlots[idx].end);
+          // Overlap if course start < slot end AND course end > slot start
+          if (startMin < e && endMin > s) {
+            for (const dayName of course.days) {
+              const dayIndex = dayIndexMap[dayName.toLowerCase()];
+              if (dayIndex === undefined) continue;
+              schedule[dayIndex][idx] = true;
+              slotInfo[dayIndex][idx] = {
+                courseCode: course.courseCode,
+                classroomNumber: course.room || "",
+              };
+            }
           }
-        });
+        }
+      };
+
+      if (isIub) {
+        // For IUB, map daytime by exact match; evenings by overlap
+        const withinDay = startMin <= parseTime(lastDefaultEnd);
+        if (withinDay) {
+          const idx = findDynamicSlotIndex(course.startTime, course.endTime);
+          if (idx !== -1) {
+            for (const dayName of course.days) {
+              const dayIndex = dayIndexMap[dayName.toLowerCase()];
+              if (dayIndex === undefined) continue;
+              schedule[dayIndex][idx] = true;
+              slotInfo[dayIndex][idx] = {
+                courseCode: course.courseCode,
+                classroomNumber: course.room || "",
+              };
+            }
+          }
+        } else {
+          mapByOverlap();
+        }
+      } else {
+        // Non-IUB: map everything by overlap (since slots are fully dynamic)
+        for (let idx = 0; idx < dynamicTimeSlots.length; idx++) {
+          const s = parseTime(dynamicTimeSlots[idx].start);
+          const e = parseTime(dynamicTimeSlots[idx].end);
+          if (startMin < e && endMin > s) {
+            for (const dayName of course.days) {
+              const dayIndex = dayIndexMap[dayName.toLowerCase()];
+              if (dayIndex === undefined) continue;
+              schedule[dayIndex][idx] = true;
+              slotInfo[dayIndex][idx] = {
+                courseCode: course.courseCode,
+                classroomNumber: course.room || "",
+              };
+            }
+          }
+        }
       }
-    });
+    }
 
     return {
       schedule,
       slotInfo,
+      timeSlots: dynamicTimeSlots,
       courses: validatedCourses,
       importedAt: new Date().toISOString(),
     };

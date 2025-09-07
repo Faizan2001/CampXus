@@ -556,7 +556,7 @@ export class UniversityParser {
       days: days,
       startTime: inferredSlot.start,
       endTime: inferredSlot.end,
-      timeSlotIndex: inferredSlot.slot,
+      timeSlotIndex: this.findTimeSlotIndex(inferredSlot.start, inferredSlot.end),
       sectionDetail: extra || "",
       originalLine: originalLine,
       originalTimes: null, // No original end time available
@@ -602,7 +602,7 @@ export class UniversityParser {
       days: days,
       startTime: inferredSlot.start,
       endTime: inferredSlot.end,
-      timeSlotIndex: inferredSlot.slot,
+      timeSlotIndex: this.findTimeSlotIndex(inferredSlot.start, inferredSlot.end),
       sectionDetail: extra || "",
       originalLine: originalLine,
       originalTimes: null, // No original full time available

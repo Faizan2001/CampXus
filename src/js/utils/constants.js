@@ -5,7 +5,6 @@ export const DEFAULT_TIMESLOTS = [
   { start: "13:00", end: "14:30", label: "13:00-14:30" },
   { start: "14:40", end: "16:10", label: "14:40-16:10" },
   { start: "16:20", end: "17:50", label: "16:20-17:50" },
-  { start: "18:30", end: "21:30", label: "18:30-21:30" }, // Evening classes
 ];
 
 // Time slot inference map for mobile-responsive OCR (handles partial/cut-off times)

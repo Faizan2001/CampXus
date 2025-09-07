@@ -160,11 +160,7 @@ export class ScheduleValidator {
       warnings.push("Course name truncated to 50 characters");
     }
 
-    // Validate credits
-    if (course.credits && (course.credits < 0 || course.credits > 6)) {
-      warnings.push(`Unusual credit count: ${course.credits}`);
-      suggestions.push("Credit counts are typically 1-6");
-    }
+    // No numeric credits validation (numeric field remapped to section)
 
     // Validate room format
     if (course.room && course.room.length > 20) {

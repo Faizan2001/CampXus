@@ -30,11 +30,13 @@ export class ScheduleDataService {
     }
 
     try {
-      const numSlots =
-        firestoreData.timeSlots?.length || DEFAULT_TIMESLOTS.length;
+      const timeSlots = Array.isArray(firestoreData.timeSlots)
+        ? firestoreData.timeSlots
+        : [];
+      const numSlots = timeSlots.length;
 
       return {
-        timeSlots: firestoreData.timeSlots || DEFAULT_TIMESLOTS,
+        timeSlots,
         schedule: this.convertScheduleMatrix(firestoreData.schedule, numSlots),
         slotInfo: this.convertSlotInfoMatrix(firestoreData.slotInfo, numSlots),
         pinnedSlots: this.convertPinnedSlotsMatrix(
@@ -139,9 +141,9 @@ export class ScheduleDataService {
   }
 
   createEmptySchedule() {
-    const numSlots = DEFAULT_TIMESLOTS.length;
+    const numSlots = 0;
     return {
-      timeSlots: DEFAULT_TIMESLOTS,
+      timeSlots: [],
       schedule: this.createWeeklyMatrix(numSlots, false),
       slotInfo: this.createWeeklyMatrix(numSlots, () => ({
         courseCode: "",

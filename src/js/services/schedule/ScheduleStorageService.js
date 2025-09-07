@@ -100,6 +100,48 @@ export class ScheduleStorageService {
         }
       }
 
+      // Initialize default timeSlots for IUB users (first load) when none exist
+      try {
+        const selfUser = currentUser.user;
+        const isCurrent = selfUser && userId === selfUser.uid;
+        const email = (selfUser?.email || "").toLowerCase();
+        const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+        const isIub = email.endsWith("@iub.edu.bd") || profileUni === "iub";
+
+        if (isCurrent && isIub) {
+          const hasNoTimeSlots = !scheduleData || !Array.isArray(scheduleData.timeSlots) || scheduleData.timeSlots.length === 0;
+          if (hasNoTimeSlots) {
+            console.log("🧭 Initializing IUB default time slots for current user");
+            const defaultSlots = DEFAULT_TIMESLOTS;
+            const slotsLen = defaultSlots.length;
+            // Always create fresh matrices sized to default slots
+            const buildMatrix = (fillObj = false) =>
+              Array.from({ length: 7 }, () =>
+                Array.from({ length: slotsLen }, () =>
+                  fillObj ? { courseCode: "", classroomNumber: "" } : false
+                )
+              );
+
+            const updated = {
+              schedule: buildMatrix(false),
+              slotInfo: buildMatrix(true),
+              pinnedSlots: buildMatrix(false),
+              timeBasedPins:
+                scheduleData?.timeBasedPins || { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+              timeSlots: defaultSlots,
+              metadata: scheduleData?.metadata || {},
+            };
+
+            // Persist to Firestore and cache
+            await this.saveUserSchedule(userId, updated);
+            this.cacheScheduleData(userId, updated);
+            scheduleData = updated;
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ Failed to initialize default time slots:", e);
+      }
+
       return scheduleData;
     } catch (error) {
       console.error("❌ Failed to load schedule:", error);
@@ -239,17 +281,37 @@ export class ScheduleStorageService {
     const user = currentUser.user;
     const studentId = user?.email?.split("@")[0] || "Unknown";
 
+    const email = (user?.email || "").toLowerCase();
+    const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+    const isCurrent = user && userId === user.uid;
+    const isIub = isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
+
+    const providedLen =
+      firestoreData.timeSlots && firestoreData.timeSlots.length > 0
+        ? firestoreData.timeSlots.length
+        : isIub
+        ? DEFAULT_TIMESLOTS.length
+        : 0;
+
     return {
       users: {
         [userId]: {
           id: userId === currentUser.uid ? studentId : userId,
           name: userId === currentUser.uid ? "You" : "Friend",
-          schedule: this._convertMapToScheduleArray(firestoreData.schedule),
-          slotInfo: this._convertMapToSlotInfoArray(firestoreData.slotInfo),
+          schedule: this._convertMapToScheduleArray(
+            firestoreData.schedule,
+            providedLen
+          ),
+          slotInfo: this._convertMapToSlotInfoArray(
+            firestoreData.slotInfo,
+            providedLen
+          ),
           timeSlots:
             firestoreData.timeSlots && firestoreData.timeSlots.length > 0
               ? firestoreData.timeSlots
-              : DEFAULT_TIMESLOTS,
+              : isIub
+              ? DEFAULT_TIMESLOTS
+              : [],
           pinnedSlots: this._convertMapToScheduleArray(
             firestoreData.pinnedSlots
           ),
@@ -299,11 +361,12 @@ export class ScheduleStorageService {
     return null;
   }
 
-  _convertMapToScheduleArray(scheduleMap) {
+  _convertMapToScheduleArray(scheduleMap, desiredSlotsLen = null) {
     if (!scheduleMap || typeof scheduleMap !== "object") {
-      return Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => false));
+      const len = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
+      return Array.from({ length: 7 }, () => Array.from({ length: len }, () => false));
     }
-    // Determine number of slots by scanning provided map (fallback to 7)
+    // Determine number of slots by scanning provided map (fallback to provided len or 0)
     let numSlots = 0;
     for (let day = 0; day < 7; day++) {
       const dayMap = scheduleMap[day];
@@ -312,7 +375,7 @@ export class ScheduleStorageService {
         if (indices.length > 0) numSlots = Math.max(numSlots, Math.max(...indices) + 1);
       }
     }
-    if (numSlots <= 0) numSlots = 7;
+    if (numSlots <= 0) numSlots = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
 
     const scheduleArray = Array.from({ length: 7 }, (_, i) =>
       Array.from({ length: numSlots }, (_, j) => Boolean(scheduleMap?.[i]?.[j] || false))
@@ -320,15 +383,16 @@ export class ScheduleStorageService {
     return scheduleArray;
   }
 
-  _convertMapToSlotInfoArray(slotInfoMap) {
+  _convertMapToSlotInfoArray(slotInfoMap, desiredSlotsLen = null) {
     // Build a 7xN matrix with unique objects to avoid shared references
     if (!slotInfoMap || typeof slotInfoMap !== "object") {
+      const len = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
       return Array.from({ length: 7 }, () =>
-        Array.from({ length: 7 }, () => ({ courseCode: "", classroomNumber: "" }))
+        Array.from({ length: len }, () => ({ courseCode: "", classroomNumber: "" }))
       );
     }
 
-    // Determine number of slots by scanning provided map (fallback to 7)
+    // Determine number of slots by scanning provided map (fallback to provided len or 0)
     let numSlots = 0;
     for (let day = 0; day < 7; day++) {
       const dayMap = slotInfoMap[day];
@@ -337,7 +401,7 @@ export class ScheduleStorageService {
         if (indices.length > 0) numSlots = Math.max(numSlots, Math.max(...indices) + 1);
       }
     }
-    if (numSlots <= 0) numSlots = 7;
+    if (numSlots <= 0) numSlots = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
 
     const slotInfoArray = Array.from({ length: 7 }, (_, i) =>
       Array.from({ length: numSlots }, (_, j) => {

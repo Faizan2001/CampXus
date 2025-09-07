@@ -1,468 +1,103 @@
 {
-  "friendRequests": {
-    "Qs1m1nI3MrD0wa6YC7LT": {
-      "fromUserId": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-      "toUserId": "II92EQeTCVckgbh1ai3aD9RZMi93",
-      "status": "pending",
-      "fromUserInfo": {
-        "displayName": "Serena",
-        "major": "CMN",
-        "university": "iub",
-        "avatarConfig": {
-          "options": {
-            "eyes": "side",
-            "skinColor": "ae5d29",
-            "top": "straight02",
-            "clothing": "shirtVNeck",
-            "accessories": "wayfarers",
-            "backgroundColor": "ffdfbf",
-            "backgroundType": "solid"
-          },
-          "seed": "5lm8cvpclwt",
-          "style": "avataaars"
-        }
-      },
-      "toUserInfo": {
-        "displayName": "Samiya",
-        "major": "Nursing",
-        "university": "iub",
-        "avatarConfig": {
-          "style": "adventurer",
-          "seed": "cv782rykp3",
-          "options": {
-            "eyes": "variant01",
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "glasses": "variant02",
-            "eyebrows": "variant03",
-            "hairColor": "afafaf",
-            "hair": "long12",
-            "backgroundType": "gradientLinear",
-            "mouth": "variant04"
-          }
-        }
-      },
-      "respondedAt": null,
-      "createdAt": {
-        "_seconds": 1756944622,
-        "_nanoseconds": 113000000
-      }
-    },
-    "vDs9pqNFZ677bsMBglgE": {
-      "fromUserId": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-      "toUserId": "4pIHkvLgAKR9Jts3KGD00T71KK73",
-      "status": "pending",
-      "fromUserInfo": {
-        "displayName": "Serena",
-        "major": "CMN",
-        "university": "iub",
-        "avatarConfig": {
-          "options": {
-            "backgroundType": "solid",
-            "top": "straight02",
-            "clothing": "shirtVNeck",
-            "eyes": "side",
-            "skinColor": "ae5d29",
-            "accessories": "wayfarers",
-            "backgroundColor": "ffdfbf"
-          },
-          "seed": "5lm8cvpclwt",
-          "style": "avataaars"
-        }
-      },
-      "toUserInfo": {
-        "displayName": "Salman",
-        "major": "CSE",
-        "university": "iub",
-        "avatarConfig": {
-          "options": {},
-          "style": "bottts-neutral",
-          "seed": "qo6du4x4clf"
-        }
-      },
-      "respondedAt": null,
-      "createdAt": {
-        "_seconds": 1756939118,
-        "_nanoseconds": 335000000
-      }
+  "admin": {
+    "config": {
+      "devAccountCreationEnabled": true
     }
   },
   "friendships": {
-    "4pIHkvLgAKR9Jts3KGD00T71KK73_DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": {
+    "giD6K9jzpeZZkIyVxvKYX2pjIrY2_lEAjAE99fvcqEMyjamrn7gsxCZX2": {
       "users": [
-        "4pIHkvLgAKR9Jts3KGD00T71KK73",
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1"
+        "lEAjAE99fvcqEMyjamrn7gsxCZX2",
+        "giD6K9jzpeZZkIyVxvKYX2pjIrY2"
       ],
-      "user1Id": "4pIHkvLgAKR9Jts3KGD00T71KK73",
-      "user2Id": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-      "mutualFriends": 0,
-      "createdAt": {
-        "_seconds": 1754564254,
-        "_nanoseconds": 791000000
-      },
-      "lastInteraction": {
-        "_seconds": 1754564254,
-        "_nanoseconds": 791000000
-      },
-      "user2Info": {
-        "displayName": "Faizan",
-        "major": "CSC",
-        "university": "iub",
-        "avatarConfig": {
-          "style": "miniavs",
-          "seed": "ux9s23e9bc",
-          "options": {
-            "hair": "classic01",
-            "backgroundColor": "d1d4f9",
-            "backgroundType": "solid"
-          }
-        }
-      },
-      "user1Info": {
-        "displayName": "Salman",
-        "major": "CSE",
-        "avatarConfig": {
-          "style": "bottts-neutral",
-          "options": {},
-          "seed": "qo6du4x4clf"
-        },
-        "university": "iub"
-      },
-      "privacyMetadata": {
-        "privacyUpdatedBy": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-        "lastPrivacyUpdate": 1756753380557,
-        "privacyVersion": 9
-      },
-      "scheduleVisibility": {
-        "4pIHkvLgAKR9Jts3KGD00T71KK73": true,
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true
-      }
-    },
-    "9hS582mJQQNugXgtvHsOq8UAngC3_DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": {
-      "users": [
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-        "9hS582mJQQNugXgtvHsOq8UAngC3"
-      ],
-      "user1Id": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-      "user2Id": "9hS582mJQQNugXgtvHsOq8UAngC3",
+      "user1Id": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
+      "user2Id": "giD6K9jzpeZZkIyVxvKYX2pjIrY2",
       "mutualFriends": 0,
       "scheduleVisibility": {
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true,
-        "9hS582mJQQNugXgtvHsOq8UAngC3": true
+        "lEAjAE99fvcqEMyjamrn7gsxCZX2": true,
+        "giD6K9jzpeZZkIyVxvKYX2pjIrY2": true
       },
       "privacyMetadata": {
         "lastPrivacyUpdate": {
-          "_seconds": 1755837858,
-          "_nanoseconds": 824000000
+          "_seconds": 1757262686,
+          "_nanoseconds": 322000000
         },
         "privacyUpdatedBy": null,
         "privacyVersion": 1
       },
       "createdAt": {
-        "_seconds": 1755837858,
-        "_nanoseconds": 906000000
+        "_seconds": 1757262686,
+        "_nanoseconds": 437000000
       },
       "lastInteraction": {
-        "_seconds": 1755837858,
-        "_nanoseconds": 906000000
+        "_seconds": 1757262686,
+        "_nanoseconds": 437000000
       },
       "user1Info": {
-        "displayName": "Faizan",
-        "major": "CSC",
-        "avatarConfig": {
-          "seed": "ux9s23e9bc",
-          "style": "miniavs",
-          "options": {
-            "hair": "classic01",
-            "backgroundType": "solid",
-            "backgroundColor": "d1d4f9"
-          }
-        },
-        "university": "iub"
-      },
-      "locationVisibility": {
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true,
-        "9hS582mJQQNugXgtvHsOq8UAngC3": true
-      },
-      "locationSharingMetadata": {
-        "mutualSharingEnabled": false,
-        "locationUpdatedBy": "9hS582mJQQNugXgtvHsOq8UAngC3",
-        "lastLocationUpdate": {
-          "_seconds": 1755940300,
-          "_nanoseconds": 103000000
-        }
-      },
-      "user2Info": {
-        "displayName": "Syed",
-        "major": "CSC",
-        "avatarConfig": {
-          "seed": "1x32h4b1m6i",
-          "style": "avataaars",
-          "options": {
-            "accessories": "kurt",
-            "clothing": "shirtCrewNeck",
-            "backgroundType": "solid",
-            "eyes": "side",
-            "top": "straight02",
-            "backgroundColor": "ffdeb5",
-            "skinColor": "d08b5b"
-          }
-        },
-        "university": "iub"
-      }
-    },
-    "9hS582mJQQNugXgtvHsOq8UAngC3_II92EQeTCVckgbh1ai3aD9RZMi93": {
-      "users": [
-        "9hS582mJQQNugXgtvHsOq8UAngC3",
-        "II92EQeTCVckgbh1ai3aD9RZMi93"
-      ],
-      "user1Id": "9hS582mJQQNugXgtvHsOq8UAngC3",
-      "user2Id": "II92EQeTCVckgbh1ai3aD9RZMi93",
-      "mutualFriends": 0,
-      "createdAt": {
-        "_seconds": 1755780298,
-        "_nanoseconds": 763000000
-      },
-      "lastInteraction": {
-        "_seconds": 1755780298,
-        "_nanoseconds": 763000000
-      },
-      "user2Info": {
-        "displayName": "Samiya",
-        "major": "Nursing",
-        "avatarConfig": {
-          "seed": "cv782rykp3",
-          "options": {
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "glasses": "variant02",
-            "eyes": "variant01",
-            "mouth": "variant04",
-            "hairColor": "afafaf",
-            "eyebrows": "variant03",
-            "backgroundType": "gradientLinear",
-            "hair": "long12"
-          },
-          "style": "adventurer"
-        },
-        "university": "iub"
-      },
-      "user1Info": {
-        "displayName": "Syed",
-        "major": "CSC",
-        "avatarConfig": {
-          "options": {
-            "skinColor": "d08b5b",
-            "backgroundColor": "ffdeb5",
-            "top": "straight02",
-            "accessories": "kurt",
-            "clothing": "shirtCrewNeck",
-            "backgroundType": "solid",
-            "eyes": "side"
-          },
-          "style": "avataaars",
-          "seed": "1x32h4b1m6i"
-        },
-        "university": "iub"
-      },
-      "locationVisibility": {
-        "9hS582mJQQNugXgtvHsOq8UAngC3": true,
-        "II92EQeTCVckgbh1ai3aD9RZMi93": true
-      },
-      "locationSharingMetadata": {
-        "locationUpdatedBy": "II92EQeTCVckgbh1ai3aD9RZMi93",
-        "lastLocationUpdate": {
-          "_seconds": 1756238222,
-          "_nanoseconds": 875000000
-        }
-      },
-      "privacyMetadata": {
-        "privacyUpdatedBy": "II92EQeTCVckgbh1ai3aD9RZMi93",
-        "lastPrivacyUpdate": 1756755379503,
-        "privacyVersion": 13
-      },
-      "scheduleVisibility": {
-        "9hS582mJQQNugXgtvHsOq8UAngC3": true,
-        "II92EQeTCVckgbh1ai3aD9RZMi93": true
-      }
-    },
-    "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1_II92EQeTCVckgbh1ai3aD9RZMi93": {
-      "users": [
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-        "II92EQeTCVckgbh1ai3aD9RZMi93"
-      ],
-      "user1Id": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-      "user2Id": "II92EQeTCVckgbh1ai3aD9RZMi93",
-      "mutualFriends": 0,
-      "user1Info": {
-        "displayName": "Faizan",
-        "major": "CSC",
-        "avatarConfig": {
-          "options": {
-            "backgroundColor": "d1d4f9",
-            "hair": "classic01",
-            "backgroundType": "solid"
-          },
-          "style": "miniavs",
-          "seed": "ux9s23e9bc"
-        }
-      },
-      "user2Info": {
-        "displayName": "Samiya",
+        "handle": "samiya",
         "major": "Nursing",
         "avatarConfig": {
           "style": "adventurer",
-          "seed": "cv782rykp3",
+          "seed": "y78n4xi6axg",
           "options": {
-            "hairColor": "afafaf",
-            "glasses": "variant02",
+            "hair": "long05",
+            "glasses": "variant01",
             "backgroundType": "gradientLinear",
-            "eyes": "variant01",
-            "mouth": "variant04",
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "hair": "long12",
-            "eyebrows": "variant03"
+            "backgroundColor": "c0aede,ffd93d",
+            "mouth": "variant05",
+            "eyes": "variant02",
+            "hairColor": "562306",
+            "eyebrows": "variant04"
           }
-        }
-      },
-      "scheduleVisibility": {
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true,
-        "II92EQeTCVckgbh1ai3aD9RZMi93": true
-      },
-      "privacyMetadata": {
-        "lastPrivacyUpdate": {
-          "_seconds": 1756944623,
-          "_nanoseconds": 356000000
         },
-        "privacyUpdatedBy": null,
-        "privacyVersion": 1
-      },
-      "createdAt": {
-        "_seconds": 1756944623,
-        "_nanoseconds": 436000000
-      },
-      "lastInteraction": {
-        "_seconds": 1756944623,
-        "_nanoseconds": 436000000
-      },
-      "locationVisibility": {
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true
-      },
-      "locationSharingMetadata": {
-        "locationUpdatedBy": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-        "lastLocationUpdate": {
-          "_seconds": 1756944634,
-          "_nanoseconds": 724000000
-        }
-      }
-    },
-    "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1_mGbjIl8t4BTmt8lmNkGx2bIoM8a2": {
-      "users": [
-        "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1"
-      ],
-      "user1Id": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-      "user2Id": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-      "mutualFriends": 0,
-      "createdAt": {
-        "_seconds": 1755362560,
-        "_nanoseconds": 525000000
-      },
-      "lastInteraction": {
-        "_seconds": 1755362560,
-        "_nanoseconds": 525000000
+        "university": "iub"
       },
       "user2Info": {
-        "displayName": "Faizan",
+        "handle": "faizan",
         "major": "CSC",
         "avatarConfig": {
-          "seed": "ux9s23e9bc",
+          "seed": "bc39jojk0pn",
+          "style": "notionists",
           "options": {
-            "hair": "classic01",
-            "backgroundColor": "d1d4f9",
-            "backgroundType": "solid"
-          },
-          "style": "miniavs"
-        },
-        "university": "iub"
-      },
-      "user1Info": {
-        "displayName": "Serena",
-        "major": "CMN",
-        "avatarConfig": {
-          "seed": "5lm8cvpclwt",
-          "options": {
-            "backgroundType": "solid",
-            "clothing": "shirtVNeck",
-            "accessories": "wayfarers",
-            "backgroundColor": "ffdfbf",
-            "top": "straight02",
-            "skinColor": "ae5d29",
-            "eyes": "side"
-          },
-          "style": "avataaars"
+            "backgroundType": "gradientLinear",
+            "body": "variant01",
+            "backgroundColor": "ffdfbf,a7ffc4"
+          }
         },
         "university": "iub"
       },
       "locationVisibility": {
-        "mGbjIl8t4BTmt8lmNkGx2bIoM8a2": true,
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true
+        "giD6K9jzpeZZkIyVxvKYX2pjIrY2": true,
+        "lEAjAE99fvcqEMyjamrn7gsxCZX2": true
       },
       "locationSharingMetadata": {
-        "mutualSharingEnabled": false,
-        "locationUpdatedBy": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-        "lastLocationUpdate": {
-          "_seconds": 1755509236,
-          "_nanoseconds": 982000000
-        }
-      },
-      "privacyMetadata": {
-        "privacyUpdatedBy": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-        "lastPrivacyUpdate": 1755607662455,
-        "privacyVersion": 5
-      },
-      "scheduleVisibility": {
-        "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": true,
-        "mGbjIl8t4BTmt8lmNkGx2bIoM8a2": true
+        "locationUpdatedBy": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
+        "mutualSharingEnabled": true,
+        "lastLocationUpdate": 1757275578679
       }
     }
   },
-  "notifications": {
-    "Y764kN1ecGuChoVTJOGU": {
-      "userId": "II92EQeTCVckgbh1ai3aD9RZMi93",
-      "type": "location_share_request",
-      "fromUserId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-      "fromUserInfo": {
-        "displayName": "Faizan",
-        "avatarConfig": {
-          "style": "miniavs",
-          "seed": "ux9s23e9bc",
-          "options": {
-            "hair": "classic01",
-            "backgroundColor": "d1d4f9",
-            "backgroundType": "solid"
-          }
-        },
-        "major": "CSC"
-      },
-      "locationRequest": {
-        "friendshipId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1_II92EQeTCVckgbh1ai3aD9RZMi93",
-        "currentStatus": "pending_both",
-        "requestedAt": {
-          "_seconds": 1756944634,
-          "_nanoseconds": 790000000
-        }
-      },
-      "status": "pending",
-      "expiresAt": {
-        "_seconds": 1757549434,
-        "_nanoseconds": 790000000
-      },
-      "actionButtons": [
-        "accept",
-        "dismiss"
-      ],
+  "handles": {
+    "faizan": {
+      "userId": "giD6K9jzpeZZkIyVxvKYX2pjIrY2",
       "createdAt": {
-        "_seconds": 1756944634,
-        "_nanoseconds": 867000000
+        "_seconds": 1757259299,
+        "_nanoseconds": 127000000
+      },
+      "lastClaimedAt": {
+        "_seconds": 1757259299,
+        "_nanoseconds": 127000000
+      }
+    },
+    "samiya": {
+      "userId": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
+      "createdAt": {
+        "_seconds": 1757255134,
+        "_nanoseconds": 303000000
+      },
+      "lastClaimedAt": {
+        "_seconds": 1757255134,
+        "_nanoseconds": 303000000
       }
     }
   },
@@ -475,38 +110,43 @@
     }
   },
   "users": {
-    "4pIHkvLgAKR9Jts3KGD00T71KK73": {
-      "uid": "4pIHkvLgAKR9Jts3KGD00T71KK73",
+    "giD6K9jzpeZZkIyVxvKYX2pjIrY2": {
+      "uid": "giD6K9jzpeZZkIyVxvKYX2pjIrY2",
       "universityInfo": {
         "university": "iub",
         "universityName": "Independent University, Bangladesh",
-        "studentId": "salman.dev"
+        "studentId": "123.dev"
       },
       "socialInfo": {
         "friendsCount": 0,
         "pendingRequestsCount": 0,
         "privacy": "university",
         "searchable": true,
-        "lastFriendActivity": null
+        "lastFriendActivity": null,
+        "locationPrivacyLevel": "friends_only",
+        "defaultLocationSharing": false
       },
       "avatarConfig": {
-        "style": "bottts-neutral",
-        "seed": "qo6du4x4clf",
-        "options": {}
+        "seed": "bc39jojk0pn",
+        "options": {
+          "backgroundColor": "ffdfbf,a7ffc4",
+          "body": "variant01",
+          "backgroundType": "gradientLinear"
+        },
+        "style": "notionists"
       },
       "profile": {
-        "firstName": "Salman",
-        "lastName": "Hossain",
-        "email": "salman.dev@iub.edu.bd",
-        "studentId": "salman.dev",
-        "startingYear": "2019",
-        "major": "CSE",
         "bio": "",
-        "displayName": "Salman",
-        "displayName_lower": "salman",
-        "firstName_lower": "salman",
-        "lastName_lower": "hossain",
-        "major_lower": "cse"
+        "email": "123.dev@iub.edu.bd",
+        "studentId": "123.dev",
+        "firstName": "Faizan",
+        "lastName": "Syed",
+        "startingYear": "2022",
+        "major": "CSC",
+        "lastName_lower": "syed",
+        "handle": "faizan",
+        "firstName_lower": "faizan",
+        "major_lower": "csc"
       },
       "scheduleData": {
         "schedule": {
@@ -517,12 +157,12 @@
             "3": false,
             "4": false,
             "5": false,
-            "6": false
+            "6": true
           },
           "1": {
-            "0": false,
+            "0": true,
             "1": false,
-            "2": false,
+            "2": true,
             "3": false,
             "4": true,
             "5": false,
@@ -538,9 +178,9 @@
             "6": false
           },
           "3": {
-            "0": false,
+            "0": true,
             "1": false,
-            "2": false,
+            "2": true,
             "3": false,
             "4": true,
             "5": false,
@@ -551,8 +191,8 @@
             "1": false,
             "2": false,
             "3": false,
-            "4": true,
-            "5": true,
+            "4": false,
+            "5": false,
             "6": false
           },
           "5": {
@@ -569,8 +209,8 @@
             "1": false,
             "2": false,
             "3": false,
-            "4": true,
-            "5": true,
+            "4": false,
+            "5": false,
             "6": false
           }
         },
@@ -601,30 +241,30 @@
               "classroomNumber": ""
             },
             "6": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "courseCode": "CSC301",
+              "classroomNumber": "BC5012"
             }
           },
           "1": {
             "0": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "courseCode": "MAT203",
+              "classroomNumber": "BC5002"
             },
             "1": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "2": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "courseCode": "MAT301",
+              "classroomNumber": "BC6013"
             },
             "3": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "4": {
-              "courseCode": "CSE216",
-              "classroomNumber": "BC6012"
+              "courseCode": "PHL101",
+              "classroomNumber": "BC7015"
             },
             "5": {
               "courseCode": "",
@@ -667,24 +307,24 @@
           },
           "3": {
             "0": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "courseCode": "MAT203",
+              "classroomNumber": "BC5002"
             },
             "1": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "2": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "courseCode": "MAT301",
+              "classroomNumber": "BC6013"
             },
             "3": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "4": {
-              "courseCode": "CSE216",
-              "classroomNumber": "BC6012"
+              "courseCode": "PHL101",
+              "classroomNumber": "BC7015"
             },
             "5": {
               "courseCode": "",
@@ -713,12 +353,12 @@
               "classroomNumber": ""
             },
             "4": {
-              "courseCode": "CSE317",
-              "classroomNumber": "BC6007"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
-              "courseCode": "CSE309",
-              "classroomNumber": "GPLab"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
               "courseCode": "",
@@ -773,12 +413,12 @@
               "classroomNumber": ""
             },
             "4": {
-              "courseCode": "CSE317",
-              "classroomNumber": "BC6007"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
-              "courseCode": "CSE309",
-              "classroomNumber": "GPLab"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
               "courseCode": "",
@@ -800,26 +440,26 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
-            "_seconds": 1754564192,
-            "_nanoseconds": 815000000
+            "_seconds": 1757262298,
+            "_nanoseconds": 61000000
           },
-          "lastModifiedBy": "4pIHkvLgAKR9Jts3KGD00T71KK73",
+          "lastModifiedBy": "giD6K9jzpeZZkIyVxvKYX2pjIrY2",
           "createdAt": {
-            "_seconds": 1754564192,
-            "_nanoseconds": 815000000
+            "nanoseconds": 418000000,
+            "seconds": 1757259492
           },
-          "version": 1,
+          "version": 8,
           "importSource": "profile_setup",
           "freeBusySummary": [
-            0,
             1,
+            3,
             0,
-            1,
-            2,
+            3,
             0,
-            2
+            0,
+            0
           ],
-          "totalClasses": 6,
+          "totalClasses": 7,
           "isEmpty": false,
           "hasConflicts": false
         }
@@ -827,73 +467,89 @@
       "quickAccessData": {
         "totalStarred": 1,
         "lastUpdated": {
-          "_seconds": 1755773594,
-          "_nanoseconds": 949000000
+          "_seconds": 1757275611,
+          "_nanoseconds": 602000000
         },
         "starredFriends": [
           {
-            "friendId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-            "userId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-            "displayName": "Faizan",
+            "friendId": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
+            "userId": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
+            "handle": "samiya",
             "avatarConfig": {
-              "seed": "ux9s23e9bc",
+              "style": "adventurer",
               "options": {
-                "backgroundColor": "d1d4f9",
-                "hair": "classic01",
-                "backgroundType": "solid"
+                "eyebrows": "variant04",
+                "backgroundColor": "c0aede,ffd93d",
+                "eyes": "variant02",
+                "hair": "long05",
+                "backgroundType": "gradientLinear",
+                "mouth": "variant05",
+                "glasses": "variant01",
+                "hairColor": "562306"
               },
-              "style": "miniavs"
+              "seed": "y78n4xi6axg"
             },
-            "isRestricted": true,
+            "isRestricted": false,
             "privacyStatus": {
-              "avatarEnabled": false,
-              "tooltip": "Schedule access restricted",
-              "description": "This user has hidden their schedule from you",
-              "lastUpdated": "2025-08-21T10:53:14.903Z",
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule",
+              "description": "Schedule is visible - quick access enabled",
+              "lastUpdated": "2025-09-07T20:06:51.364Z",
               "source": "friendship_document_change"
             }
           }
         ],
         "lastPrivacyUpdate": {
-          "_seconds": 1755773594,
-          "_nanoseconds": 949000000
+          "_seconds": 1757275611,
+          "_nanoseconds": 602000000
         }
       },
       "systemInfo": {
-        "profileSetupComplete": true,
         "createdAt": {
-          "_seconds": 1754564192,
-          "_nanoseconds": 495000000
+          "_seconds": 1757256799,
+          "_nanoseconds": 980000000
         },
         "status": "online",
-        "lastUpdated": {
-          "_seconds": 1755773626,
-          "_nanoseconds": 999000000
+        "lastHandleChangeAt": {
+          "_seconds": 1757259299,
+          "_nanoseconds": 127000000
         },
-        "lastActive": {
-          "_seconds": 1755785679,
-          "_nanoseconds": 154000000
+        "profileSetupComplete": true,
+        "locationSharingEnabled": true,
+        "lastUpdated": {
+          "_seconds": 1757275596,
+          "_nanoseconds": 377000000
         },
         "lastKnownLocation": {
-          "campusStatus": "on_campus",
+          "campusStatus": "off_campus",
           "coordinates": null,
+          "networkInfo": {
+            "networkDetection": true,
+            "ipOrganization": "Unknown",
+            "detectionMethod": "ipinfo_lite_as_domain",
+            "timestamp": "2025-09-07T20:08:05.158Z"
+          },
           "lastUpdated": {
-            "_seconds": 1755785679,
-            "_nanoseconds": 154000000
+            "_seconds": 1757275686,
+            "_nanoseconds": 912000000
           },
           "detectedAt": {
-            "_seconds": 1755785679,
-            "_nanoseconds": 154000000
+            "_seconds": 1757275686,
+            "_nanoseconds": 912000000
           }
+        },
+        "lastActive": {
+          "_seconds": 1757275930,
+          "_nanoseconds": 312000000
         }
       }
     },
-    "9hS582mJQQNugXgtvHsOq8UAngC3": {
-      "uid": "9hS582mJQQNugXgtvHsOq8UAngC3",
+    "lEAjAE99fvcqEMyjamrn7gsxCZX2": {
+      "uid": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
       "universityInfo": {
         "university": "iub",
         "universityName": "Independent University, Bangladesh",
-        "studentId": "test3"
+        "studentId": "321.dev"
       },
       "socialInfo": {
         "friendsCount": 0,
@@ -905,31 +561,31 @@
         "defaultLocationSharing": false
       },
       "avatarConfig": {
-        "style": "avataaars",
-        "seed": "1x32h4b1m6i",
+        "seed": "y78n4xi6axg",
         "options": {
-          "accessories": "kurt",
-          "clothing": "shirtCrewNeck",
-          "eyes": "side",
-          "skinColor": "d08b5b",
-          "top": "straight02",
-          "backgroundColor": "ffdeb5",
-          "backgroundType": "solid"
-        }
+          "glasses": "variant01",
+          "backgroundColor": "c0aede,ffd93d",
+          "hair": "long05",
+          "mouth": "variant05",
+          "eyebrows": "variant04",
+          "hairColor": "562306",
+          "eyes": "variant02",
+          "backgroundType": "gradientLinear"
+        },
+        "style": "adventurer"
       },
       "profile": {
-        "firstName": "Syed",
-        "lastName": "Faizan",
-        "email": "test3@iub.edu.bd",
-        "studentId": "test3",
-        "startingYear": "2021",
-        "major": "CSC",
         "bio": "",
-        "displayName": "Syed",
-        "displayName_lower": "syed",
-        "firstName_lower": "syed",
-        "lastName_lower": "faizan",
-        "major_lower": "csc"
+        "email": "321.dev@iub.edu.bd",
+        "studentId": "321.dev",
+        "firstName": "Samiya",
+        "lastName": "Rahman",
+        "startingYear": "2022",
+        "major": "Nursing",
+        "lastName_lower": "rahman",
+        "handle": "samiya",
+        "firstName_lower": "samiya",
+        "major_lower": "nursing"
       },
       "scheduleData": {
         "schedule": {
@@ -938,8 +594,8 @@
             "1": false,
             "2": false,
             "3": false,
-            "4": true,
-            "5": true,
+            "4": false,
+            "5": false,
             "6": false
           },
           "1": {
@@ -956,9 +612,9 @@
             "1": false,
             "2": false,
             "3": false,
-            "4": true,
-            "5": true,
-            "6": true
+            "4": false,
+            "5": false,
+            "6": false
           },
           "3": {
             "0": false,
@@ -971,11 +627,11 @@
           },
           "4": {
             "0": false,
-            "1": false,
+            "1": true,
             "2": false,
             "3": false,
             "4": false,
-            "5": true,
+            "5": false,
             "6": false
           },
           "5": {
@@ -993,7 +649,7 @@
             "2": false,
             "3": false,
             "4": false,
-            "5": true,
+            "5": false,
             "6": false
           }
         },
@@ -1012,16 +668,16 @@
               "classroomNumber": ""
             },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
-              "classroomNumber": "C2002",
-              "courseCode": "CMN205"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
-              "classroomNumber": "BC6012",
-              "courseCode": "CSC311"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
               "courseCode": "",
@@ -1030,62 +686,62 @@
           },
           "1": {
             "0": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "1": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "2": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "5": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             }
           },
           "2": {
             "0": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "1": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "2": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
-              "courseCode": "CMN205",
-              "classroomNumber": "C2002"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
-              "classroomNumber": "BC6012",
-              "courseCode": "CSC311"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
-              "classroomNumber": "BC6007",
-              "courseCode": "CSC425"
+              "courseCode": "",
+              "classroomNumber": ""
             }
           },
           "3": {
@@ -1094,28 +750,28 @@
               "classroomNumber": ""
             },
             "1": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "2": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "6": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             }
           },
           "4": {
@@ -1124,28 +780,28 @@
               "classroomNumber": ""
             },
             "1": {
+              "courseCode": "CMN",
+              "classroomNumber": "BC2000"
+            },
+            "2": {
               "courseCode": "",
               "classroomNumber": ""
             },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "5": {
-              "courseCode": "CSC455",
-              "classroomNumber": "GPLab"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             }
           },
           "5": {
@@ -1158,24 +814,24 @@
               "classroomNumber": ""
             },
             "2": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "3": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "4": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "6": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             }
           },
           "6": {
@@ -1196,54 +852,54 @@
               "classroomNumber": ""
             },
             "4": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
-              "courseCode": "CSC455",
-              "classroomNumber": "GPLab"
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             }
           }
         },
         "timeSlots": [
           {
-            "label": "08:00-09:30",
+            "start": "08:00",
             "end": "09:30",
-            "start": "08:00"
+            "label": "08:00-09:30"
           },
           {
-            "label": "09:40-11:10",
             "start": "09:40",
-            "end": "11:10"
+            "end": "11:10",
+            "label": "09:40-11:10"
           },
           {
+            "start": "11:20",
             "end": "12:50",
-            "label": "11:20-12:50",
-            "start": "11:20"
+            "label": "11:20-12:50"
           },
           {
             "start": "13:00",
-            "label": "13:00-14:30",
-            "end": "14:30"
+            "end": "14:30",
+            "label": "13:00-14:30"
           },
           {
+            "start": "14:40",
             "end": "16:10",
-            "label": "14:40-16:10",
-            "start": "14:40"
+            "label": "14:40-16:10"
           },
           {
-            "label": "16:20-17:50",
+            "start": "16:20",
             "end": "17:50",
-            "start": "16:20"
+            "label": "16:20-17:50"
           },
           {
-            "label": "18:30-21:30",
             "start": "18:30",
-            "end": "21:30"
+            "end": "21:30",
+            "label": "18:30-21:30"
           }
         ],
         "pinnedSlots": {
@@ -1287,8 +943,8 @@
             "0": false,
             "1": false,
             "2": false,
-            "3": true,
-            "4": true,
+            "3": false,
+            "4": false,
             "5": false,
             "6": false
           },
@@ -1316,1135 +972,6 @@
           "1": [],
           "2": [],
           "3": [],
-          "4": [
-            {
-              "label": "13:00-14:30",
-              "pinned": true,
-              "end": "14:30",
-              "start": "13:00"
-            },
-            {
-              "start": "14:40",
-              "end": "16:10",
-              "label": "14:40-16:10",
-              "pinned": true
-            }
-          ],
-          "5": [],
-          "6": []
-        },
-        "metadata": {
-          "schemaVersion": 1,
-          "lastModified": {
-            "_seconds": 1755780206,
-            "_nanoseconds": 881000000
-          },
-          "lastModifiedBy": "9hS582mJQQNugXgtvHsOq8UAngC3",
-          "createdAt": {
-            "_seconds": 1755780206,
-            "_nanoseconds": 881000000
-          },
-          "version": 1,
-          "importSource": "manual",
-          "freeBusySummary": [
-            2,
-            0,
-            3,
-            0,
-            1,
-            0,
-            1
-          ],
-          "totalClasses": 7,
-          "isEmpty": false,
-          "hasConflicts": false
-        }
-      },
-      "quickAccessData": {
-        "totalStarred": 2,
-        "lastUpdated": {
-          "_seconds": 1756935441,
-          "_nanoseconds": 433000000
-        },
-        "starredFriends": [
-          {
-            "friendId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-            "userId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-            "displayName": "Faizan",
-            "avatarConfig": {
-              "seed": "ux9s23e9bc",
-              "style": "miniavs",
-              "options": {
-                "hair": "classic01",
-                "backgroundColor": "d1d4f9",
-                "backgroundType": "solid"
-              }
-            },
-            "isRestricted": false,
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "description": "Schedule is visible - quick access enabled",
-              "lastUpdated": "2025-09-03T21:37:23.223Z",
-              "source": "friendship_document_change"
-            }
-          },
-          {
-            "friendId": "II92EQeTCVckgbh1ai3aD9RZMi93",
-            "userId": "II92EQeTCVckgbh1ai3aD9RZMi93",
-            "displayName": "Samiya",
-            "avatarConfig": {
-              "options": {
-                "backgroundColor": "ffdfbf,d1d4f9",
-                "glasses": "variant02",
-                "hair": "long12",
-                "hairColor": "afafaf",
-                "mouth": "variant04",
-                "eyes": "variant01",
-                "eyebrows": "variant03",
-                "backgroundType": "gradientLinear"
-              },
-              "seed": "cv782rykp3",
-              "style": "adventurer"
-            },
-            "isRestricted": false,
-            "privacyStatus": {
-              "description": "Samiya's schedule is visible - quick access enabled",
-              "tooltip": "Click to view schedule",
-              "avatarEnabled": true
-            }
-          }
-        ],
-        "lastPrivacyUpdate": {
-          "_seconds": 1756935441,
-          "_nanoseconds": 433000000
-        }
-      },
-      "systemInfo": {
-        "profileSetupComplete": true,
-        "createdAt": {
-          "_seconds": 1755780147,
-          "_nanoseconds": 736000000
-        },
-        "status": "online",
-        "locationSharingEnabled": true,
-        "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.821424,
-            "longitude": 90.439634,
-            "accuracy": 2014.3180153748792,
-            "timestamp": "2025-08-26T21:40:40.160Z"
-          },
-          "lastUpdated": {
-            "_seconds": 1756244440,
-            "_nanoseconds": 855000000
-          },
-          "detectedAt": {
-            "_seconds": 1756244440,
-            "_nanoseconds": 855000000
-          }
-        },
-        "lastUpdated": {
-          "_seconds": 1756935441,
-          "_nanoseconds": 569000000
-        },
-        "lastActive": {
-          "_seconds": 1756935441,
-          "_nanoseconds": 569000000
-        }
-      }
-    },
-    "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1": {
-      "uid": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-      "universityInfo": {
-        "university": "iub",
-        "universityName": "Independent University, Bangladesh",
-        "studentId": "321.dev"
-      },
-      "socialInfo": {
-        "friendsCount": 0,
-        "pendingRequestsCount": 0,
-        "privacy": "university",
-        "searchable": true,
-        "lastFriendActivity": null
-      },
-      "profile": {
-        "firstName": "Faizan",
-        "lastName": "Syed",
-        "email": "321.dev@iub.edu.bd",
-        "studentId": "321.dev",
-        "startingYear": "2022",
-        "major": "CSC",
-        "bio": "",
-        "displayName": "Faizan",
-        "displayName_lower": "faizan",
-        "firstName_lower": "faizan",
-        "lastName_lower": "syed",
-        "major_lower": "csc"
-      },
-      "avatarConfig": {
-        "style": "miniavs",
-        "seed": "ux9s23e9bc",
-        "options": {
-          "hair": "classic01",
-          "backgroundColor": "d1d4f9",
-          "backgroundType": "solid"
-        }
-      },
-      "scheduleData": {
-        "schedule": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": true,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": true,
-            "6": true
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          }
-        },
-        "slotInfo": {
-          "0": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "courseCode": "CMN205",
-              "classroomNumber": "C2002"
-            },
-            "5": {
-              "courseCode": "CSC311",
-              "classroomNumber": "BC6012"
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "1": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "2": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "C2002",
-              "courseCode": "CMN205"
-            },
-            "5": {
-              "classroomNumber": "BC6012",
-              "courseCode": "CSC311"
-            },
-            "6": {
-              "classroomNumber": "BC6007",
-              "courseCode": "CSC425"
-            }
-          },
-          "3": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "4": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "CSC455",
-              "classroomNumber": "GPLab"
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "5": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "6": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "GPLab",
-              "courseCode": "CSC455"
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          }
-        },
-        "timeSlots": [
-          {
-            "end": "09:30",
-            "label": "08:00-09:30",
-            "start": "08:00"
-          },
-          {
-            "end": "11:10",
-            "label": "09:40-11:10",
-            "start": "09:40"
-          },
-          {
-            "end": "12:50",
-            "start": "11:20",
-            "label": "11:20-12:50"
-          },
-          {
-            "label": "13:00-14:30",
-            "start": "13:00",
-            "end": "14:30"
-          },
-          {
-            "label": "14:40-16:10",
-            "end": "16:10",
-            "start": "14:40"
-          },
-          {
-            "start": "16:20",
-            "end": "17:50",
-            "label": "16:20-17:50"
-          },
-          {
-            "end": "21:30",
-            "start": "18:30",
-            "label": "18:30-21:30"
-          }
-        ],
-        "pinnedSlots": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          }
-        },
-        "timeBasedPins": {
-          "0": [
-            {
-              "label": "09:40-11:10",
-              "start": "09:40",
-              "pinned": false,
-              "end": "11:10"
-            }
-          ],
-          "1": [
-            {
-              "end": "12:50",
-              "label": "11:20-12:50",
-              "pinned": false,
-              "start": "11:20"
-            }
-          ],
-          "2": [
-            {
-              "label": "11:20-12:50",
-              "pinned": false,
-              "end": "12:50",
-              "start": "11:20"
-            },
-            {
-              "end": "11:10",
-              "label": "09:40-11:10",
-              "start": "09:40",
-              "pinned": false
-            }
-          ],
-          "3": [
-            {
-              "label": "11:20-12:50",
-              "end": "12:50",
-              "pinned": false,
-              "start": "11:20"
-            }
-          ],
-          "4": [
-            {
-              "start": "09:40",
-              "pinned": false,
-              "label": "09:40-11:10",
-              "end": "11:10"
-            }
-          ],
-          "5": [],
-          "6": []
-        },
-        "metadata": {
-          "schemaVersion": 1,
-          "lastModified": {
-            "_seconds": 1755872143,
-            "_nanoseconds": 243000000
-          },
-          "lastModifiedBy": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-          "createdAt": {
-            "_seconds": 1755872143,
-            "_nanoseconds": 243000000
-          },
-          "version": 1,
-          "importSource": "manual",
-          "freeBusySummary": [
-            2,
-            0,
-            3,
-            0,
-            1,
-            0,
-            1
-          ],
-          "totalClasses": 7,
-          "isEmpty": false,
-          "hasConflicts": false
-        }
-      },
-      "quickAccessData": {
-        "totalStarred": 1,
-        "lastUpdated": {
-          "_seconds": 1756944630,
-          "_nanoseconds": 659000000
-        },
-        "starredFriends": [
-          {
-            "friendId": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-            "userId": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-            "displayName": "Serena",
-            "avatarConfig": {
-              "options": {
-                "clothing": "shirtVNeck",
-                "eyes": "side",
-                "top": "straight02",
-                "accessories": "wayfarers",
-                "backgroundColor": "ffdfbf",
-                "skinColor": "ae5d29",
-                "backgroundType": "solid"
-              },
-              "seed": "5lm8cvpclwt",
-              "style": "avataaars"
-            },
-            "isRestricted": false,
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "description": "Schedule is visible - quick access enabled",
-              "lastUpdated": "2025-09-04T00:10:30.587Z",
-              "source": "friendship_document_change"
-            }
-          }
-        ],
-        "lastPrivacyUpdate": {
-          "_seconds": 1756944630,
-          "_nanoseconds": 659000000
-        }
-      },
-      "systemInfo": {
-        "profileSetupComplete": true,
-        "createdAt": {
-          "_seconds": 1755193818,
-          "_nanoseconds": 939000000
-        },
-        "status": "online",
-        "locationSharingEnabled": true,
-        "lastUpdated": {
-          "_seconds": 1756942963,
-          "_nanoseconds": 748000000
-        },
-        "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.8183904,
-            "longitude": 90.4280175,
-            "accuracy": 13.453,
-            "timestamp": "2025-09-04T00:10:32.066Z"
-          },
-          "lastUpdated": {
-            "_seconds": 1756944633,
-            "_nanoseconds": 144000000
-          },
-          "detectedAt": {
-            "_seconds": 1756944633,
-            "_nanoseconds": 144000000
-          }
-        },
-        "lastActive": {
-          "_seconds": 1756944641,
-          "_nanoseconds": 690000000
-        }
-      }
-    },
-    "II92EQeTCVckgbh1ai3aD9RZMi93": {
-      "uid": "II92EQeTCVckgbh1ai3aD9RZMi93",
-      "universityInfo": {
-        "university": "iub",
-        "universityName": "Independent University, Bangladesh",
-        "studentId": "123.dev"
-      },
-      "avatarConfig": {
-        "style": "adventurer",
-        "seed": "cv782rykp3",
-        "options": {
-          "eyes": "variant01",
-          "eyebrows": "variant03",
-          "mouth": "variant04",
-          "glasses": "variant02",
-          "hair": "long12",
-          "hairColor": "afafaf",
-          "backgroundColor": "ffdfbf,d1d4f9",
-          "backgroundType": "gradientLinear"
-        }
-      },
-      "socialInfo": {
-        "friendsCount": 0,
-        "pendingRequestsCount": 0,
-        "privacy": "university",
-        "searchable": true,
-        "lastFriendActivity": null,
-        "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
-      },
-      "scheduleData": {
-        "schedule": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": true,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": true,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          }
-        },
-        "slotInfo": {
-          "0": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "1": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "2": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "3": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "4": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "5": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "6": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          }
-        },
-        "timeSlots": [
-          {
-            "end": "09:30",
-            "label": "08:00-09:30",
-            "start": "08:00"
-          },
-          {
-            "start": "09:40",
-            "end": "11:10",
-            "label": "09:40-11:10"
-          },
-          {
-            "start": "11:20",
-            "label": "11:20-12:50",
-            "end": "12:50"
-          },
-          {
-            "start": "13:00",
-            "end": "14:30",
-            "label": "13:00-14:30"
-          },
-          {
-            "end": "16:10",
-            "start": "14:40",
-            "label": "14:40-16:10"
-          },
-          {
-            "label": "16:20-17:50",
-            "start": "16:20",
-            "end": "17:50"
-          },
-          {
-            "end": "21:30",
-            "start": "18:30",
-            "label": "18:30-21:30"
-          }
-        ],
-        "pinnedSlots": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          }
-        },
-        "timeBasedPins": {
-          "0": [],
-          "1": [],
-          "2": [
-            {
-              "label": "08:00-09:30",
-              "end": "09:30",
-              "pinned": false,
-              "start": "08:00"
-            }
-          ],
-          "3": [],
           "4": [],
           "5": [],
           "6": []
@@ -2452,683 +979,67 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
-            "_seconds": 1756910036,
-            "_nanoseconds": 903000000
+            "_seconds": 1757275632,
+            "_nanoseconds": 262000000
           },
-          "lastModifiedBy": "II92EQeTCVckgbh1ai3aD9RZMi93",
+          "lastModifiedBy": "lEAjAE99fvcqEMyjamrn7gsxCZX2",
           "createdAt": {
-            "_seconds": 1756910036,
-            "_nanoseconds": 903000000
+            "_seconds": 1757275632,
+            "_nanoseconds": 262000000
           },
           "version": 1,
           "importSource": "manual",
           "freeBusySummary": [
             0,
-            1,
-            0,
-            1,
             0,
             0,
-            0
-          ],
-          "totalClasses": 2,
-          "isEmpty": false,
-          "hasConflicts": false
-        }
-      },
-      "profile": {
-        "firstName": "Samiya",
-        "lastName": "Rahman",
-        "email": "123.dev@iub.edu.bd",
-        "studentId": "123.dev",
-        "startingYear": "2023",
-        "major": "Nursing",
-        "bio": "I smash the developer\nDev: xD",
-        "displayName": "Samiya",
-        "displayName_lower": "samiya",
-        "firstName_lower": "samiya",
-        "lastName_lower": "rahman",
-        "major_lower": "nursing"
-      },
-      "quickAccessData": {
-        "totalStarred": 1,
-        "starredFriends": [
-          {
-            "friendId": "9hS582mJQQNugXgtvHsOq8UAngC3",
-            "userId": "9hS582mJQQNugXgtvHsOq8UAngC3",
-            "displayName": "Syed",
-            "avatarConfig": {
-              "seed": "1x32h4b1m6i",
-              "style": "avataaars",
-              "options": {
-                "skinColor": "d08b5b",
-                "eyes": "side",
-                "clothing": "shirtCrewNeck",
-                "top": "straight02",
-                "accessories": "kurt",
-                "backgroundColor": "ffdeb5",
-                "backgroundType": "solid"
-              }
-            },
-            "isRestricted": false,
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "description": "Schedule is visible - quick access enabled",
-              "lastUpdated": "2025-09-03T23:42:56.647Z",
-              "source": "friendship_document_change"
-            }
-          }
-        ],
-        "lastPrivacyUpdate": {
-          "_seconds": 1756942976,
-          "_nanoseconds": 729000000
-        },
-        "lastUpdated": {
-          "_seconds": 1756944615,
-          "_nanoseconds": 141000000
-        }
-      },
-      "systemInfo": {
-        "profileSetupComplete": true,
-        "createdAt": {
-          "_seconds": 1756910186,
-          "_nanoseconds": 403000000
-        },
-        "status": "online",
-        "locationSharingEnabled": true,
-        "lastUpdated": {
-          "_seconds": 1756943779,
-          "_nanoseconds": 101000000
-        },
-        "lastActive": {
-          "_seconds": 1756944674,
-          "_nanoseconds": 201000000
-        },
-        "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.8207235,
-            "longitude": 90.440813,
-            "accuracy": 1979.3985352648801,
-            "timestamp": "2025-09-04T00:11:13.128Z"
-          },
-          "lastUpdated": {
-            "_seconds": 1756944674,
-            "_nanoseconds": 201000000
-          },
-          "detectedAt": {
-            "_seconds": 1756944674,
-            "_nanoseconds": 201000000
-          }
-        }
-      }
-    },
-    "mGbjIl8t4BTmt8lmNkGx2bIoM8a2": {
-      "uid": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-      "universityInfo": {
-        "university": "iub",
-        "universityName": "Independent University, Bangladesh",
-        "studentId": "test2"
-      },
-      "socialInfo": {
-        "friendsCount": 0,
-        "pendingRequestsCount": 0,
-        "privacy": "university",
-        "searchable": true,
-        "lastFriendActivity": null
-      },
-      "profile": {
-        "firstName": "Serena",
-        "lastName": "Williams",
-        "email": "test2@iub.edu.bd",
-        "studentId": "test2",
-        "startingYear": "2020",
-        "major": "CMN",
-        "bio": "",
-        "displayName": "Serena",
-        "displayName_lower": "serena",
-        "firstName_lower": "serena",
-        "lastName_lower": "williams",
-        "major_lower": "cmn"
-      },
-      "avatarConfig": {
-        "style": "avataaars",
-        "seed": "5lm8cvpclwt",
-        "options": {
-          "top": "straight02",
-          "accessories": "wayfarers",
-          "clothing": "shirtVNeck",
-          "backgroundColor": "ffdfbf",
-          "skinColor": "ae5d29",
-          "eyes": "side",
-          "backgroundType": "solid"
-        }
-      },
-      "scheduleData": {
-        "schedule": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": true,
-            "4": false,
-            "5": true,
-            "6": false
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          }
-        },
-        "slotInfo": {
-          "0": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "1": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": "W"
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "2": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "O",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "3": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "R",
-              "classroomNumber": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "4": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "K",
-              "classroomNumber": ""
-            },
-            "6": {
-              "classroomNumber": "",
-              "courseCode": ""
-            }
-          },
-          "5": {
-            "0": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "6": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          }
-        },
-        "timeSlots": [
-          {
-            "start": "08:00",
-            "end": "09:30",
-            "label": "08:00-09:30"
-          },
-          {
-            "label": "09:40-11:10",
-            "end": "11:10",
-            "start": "09:40"
-          },
-          {
-            "label": "11:20-12:50",
-            "end": "12:50",
-            "start": "11:20"
-          },
-          {
-            "start": "13:00",
-            "end": "14:30",
-            "label": "13:00-14:30"
-          },
-          {
-            "end": "16:10",
-            "start": "14:40",
-            "label": "14:40-16:10"
-          },
-          {
-            "end": "17:50",
-            "start": "16:20",
-            "label": "16:20-17:50"
-          },
-          {
-            "end": "21:30",
-            "label": "18:30-21:30",
-            "start": "18:30"
-          }
-        ],
-        "pinnedSlots": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": false,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": true,
-            "3": false,
-            "4": true,
-            "5": false,
-            "6": false
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": false,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": false,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": true,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          }
-        },
-        "timeBasedPins": {
-          "0": [],
-          "1": [
-            {
-              "pinned": true,
-              "label": "14:40-16:10",
-              "start": "14:40",
-              "end": "16:10"
-            }
-          ],
-          "2": [
-            {
-              "pinned": true,
-              "label": "14:40-16:10",
-              "start": "14:40",
-              "end": "16:10"
-            },
-            {
-              "pinned": true,
-              "label": "11:20-12:50",
-              "start": "11:20",
-              "end": "12:50"
-            }
-          ],
-          "3": [
-            {
-              "start": "14:40",
-              "end": "16:10",
-              "pinned": true,
-              "label": "14:40-16:10"
-            }
-          ],
-          "4": [
-            {
-              "pinned": true,
-              "end": "16:10",
-              "label": "14:40-16:10",
-              "start": "14:40"
-            }
-          ],
-          "5": [],
-          "6": [
-            {
-              "start": "08:00",
-              "end": "09:30",
-              "label": "08:00-09:30",
-              "pinned": true
-            }
-          ]
-        },
-        "metadata": {
-          "schemaVersion": 1,
-          "lastModified": {
-            "_seconds": 1755940725,
-            "_nanoseconds": 33000000
-          },
-          "lastModifiedBy": "mGbjIl8t4BTmt8lmNkGx2bIoM8a2",
-          "createdAt": {
-            "_seconds": 1755940725,
-            "_nanoseconds": 33000000
-          },
-          "version": 1,
-          "importSource": "manual",
-          "freeBusySummary": [
             0,
-            1,
-            2,
-            1,
             1,
             0,
             0
           ],
-          "totalClasses": 5,
+          "totalClasses": 1,
           "isEmpty": false,
           "hasConflicts": false
         }
       },
       "systemInfo": {
-        "profileSetupComplete": true,
         "createdAt": {
-          "_seconds": 1755233673,
-          "_nanoseconds": 230000000
+          "_seconds": 1757255011,
+          "_nanoseconds": 357000000
         },
-        "locationSharingEnabled": true,
+        "lastHandleChangeAt": {
+          "_seconds": 1757255134,
+          "_nanoseconds": 303000000
+        },
+        "profileSetupComplete": true,
         "status": "online",
+        "locationSharingEnabled": true,
         "lastUpdated": {
-          "_seconds": 1756944580,
-          "_nanoseconds": 799000000
+          "_seconds": 1757275632,
+          "_nanoseconds": 346000000
         },
         "lastActive": {
-          "_seconds": 1756944677,
-          "_nanoseconds": 841000000
+          "_seconds": 1757275936,
+          "_nanoseconds": 204000000
         },
         "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.8184943,
-            "longitude": 90.4279723,
-            "accuracy": 100,
-            "timestamp": "2025-09-04T00:11:18.984Z"
+          "campusStatus": "on_campus",
+          "coordinates": null,
+          "networkInfo": {
+            "networkDetection": true,
+            "ipOrganization": "Unknown",
+            "detectionMethod": "ipinfo_lite_as_domain",
+            "timestamp": "2025-09-07T20:12:14.139Z"
           },
           "lastUpdated": {
-            "_seconds": 1756944677,
-            "_nanoseconds": 841000000
+            "_seconds": 1757275936,
+            "_nanoseconds": 204000000
           },
           "detectedAt": {
-            "_seconds": 1756944677,
-            "_nanoseconds": 841000000
+            "_seconds": 1757275936,
+            "_nanoseconds": 204000000
           }
-        }
-      },
-      "quickAccessData": {
-        "totalStarred": 1,
-        "lastUpdated": {
-          "_seconds": 1756944677,
-          "_nanoseconds": 971000000
-        },
-        "starredFriends": [
-          {
-            "friendId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-            "userId": "DaSKmdNf1kMFsJYc4M5pKYFYQ2s1",
-            "displayName": "Faizan",
-            "avatarConfig": {
-              "options": {
-                "hair": "classic01",
-                "backgroundColor": "d1d4f9",
-                "backgroundType": "solid"
-              },
-              "style": "miniavs",
-              "seed": "ux9s23e9bc"
-            },
-            "isRestricted": false,
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "description": "Schedule is visible - quick access enabled",
-              "lastUpdated": "2025-09-04T00:11:20.002Z",
-              "source": "friendship_document_change"
-            }
-          }
-        ],
-        "lastPrivacyUpdate": {
-          "_seconds": 1756944677,
-          "_nanoseconds": 971000000
         }
       }
     }

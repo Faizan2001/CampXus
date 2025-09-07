@@ -41,6 +41,7 @@ let state = {
   currentViewingFriendId: null, // ID of friend whose schedule is currently being viewed
   friendsScheduleData: new Map(), // Cache for friends' schedule data
   friendsScheduleCache: new Map(), // Enhanced cache with metadata: {data, timestamp, isStale}
+  isFriendsBarInitializing: false, // Prevent duplicate/overlapping init
 
   // Mobile Schedule Redesign State
   viewMode: "day", // 'day' or 'grid' - default to day view for mobile-first
@@ -78,6 +79,7 @@ export function _resetStateForTesting() {
     // Phase-3: Horizontal Friends Bar
     horizontalFriendsBar: null,
     currentViewingFriendId: null,
+    isFriendsBarInitializing: false,
     friendsScheduleData: new Map(),
     friendsScheduleCache: new Map(), // Enhanced cache with metadata: {data, timestamp, isStale}
 
@@ -972,16 +974,20 @@ export function handleAddNewTimeSlotClick() {
   }
   const user = state.users[state.activeUserId];
   if (!user.timeSlots || user.timeSlots.length === 0) {
-    // If user has no time slots (e.g. old data before migration fully initialized them or they were all deleted)
-    // We should initialize them from DEFAULT_TIMESLOTS before adding a new one.
-    // This ensures the schedule matrix is compatible.
-    // This scenario should be less common with the migration in loadState.
-    user.timeSlots = JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS));
+    // If a user somehow has no time slots:
+    // - IUB: initialize with defaults
+    // - Others: keep empty and build matrices of length 0
+    const authUser = authManager.getCurrentUser();
+    const email = (authUser?.email || '').toLowerCase();
+    const uni = (currentUser?.profile?.universityInfo?.university || '').toLowerCase();
+    const isIub = email.endsWith('@iub.edu.bd') || uni === 'iub';
+
+    user.timeSlots = isIub ? JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)) : [];
     user.schedule = createWeeklyMatrix(user.timeSlots.length, false);
     user.pinnedSlots = createWeeklyMatrix(user.timeSlots.length, false);
 
     console.warn(
-      `User ${user.id} had no timeSlots. Initialized with defaults before adding new custom slot.`
+      `User ${user.id} had no timeSlots. Initialized with ${isIub ? 'IUB defaults' : 'empty'} before adding new custom slot.`
     );
   }
 
@@ -1704,13 +1710,22 @@ async function loadState(retryAttempt = 0) {
  * @returns {Object} Empty HomePage user object
  */
 function createEmptyUser(userId) {
+  const authUser = authManager.getCurrentUser();
+  const email = (authUser?.email || "").toLowerCase();
+  const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+  const isCurrent = authUser && userId === authUser.uid;
+  const isIub = isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
+
+  const baseTimeSlots = isIub ? DEFAULT_TIMESLOTS : [];
+  const slotsLen = baseTimeSlots.length;
+
   return {
     id: userId === currentUser.uid ? currentUser.getStudentId() : userId,
     name: currentUser.getScheduleDisplayName(), // "ME"
-    timeSlots: DEFAULT_TIMESLOTS,
-    schedule: createWeeklyMatrix(7, false),
-    slotInfo: createSlotInfoMatrix(7),
-    pinnedSlots: createWeeklyMatrix(7, false),
+    timeSlots: baseTimeSlots,
+    schedule: createWeeklyMatrix(slotsLen, false),
+    slotInfo: createSlotInfoMatrix(slotsLen),
+    pinnedSlots: createWeeklyMatrix(slotsLen, false),
     timeBasedPins: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
   };
 }
@@ -2484,15 +2499,15 @@ async function _renderScheduleGridInternal() {
     return;
   }
 
-  let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+  let currentTimeSlotsToRender = [];
   let allowEditingHeaders = false;
   let usedUnifiedSchedule = false; // Track if unified schedule was used
   let unifiedScheduleInstance = null; // Store the unified schedule instance
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     const user = state.users[state.activeUserId];
-    if (user && user.timeSlots && user.timeSlots.length > 0) {
-      currentTimeSlotsToRender = user.timeSlots;
+    if (user && Array.isArray(user.timeSlots)) {
+      currentTimeSlotsToRender = user.timeSlots; // even if empty => render no columns
       // 🔒 Disable header editing when viewing friend's schedule
       allowEditingHeaders = !state.currentViewingFriendId;
     }
@@ -2538,7 +2553,7 @@ async function _renderScheduleGridInternal() {
               : largest
           );
           currentTimeSlotsToRender =
-            largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
+            largestSchedule.timeSlots || [];
           usedUnifiedSchedule = false; // Don't use unified logic for comparison
           unifiedScheduleInstance = null;
         }
@@ -2555,19 +2570,18 @@ async function _renderScheduleGridInternal() {
         );
       } else {
         console.log("📊 Using homogeneous schedule comparison");
-        currentTimeSlotsToRender =
-          selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
+        currentTimeSlotsToRender = selectedUsers[0].timeSlots || [];
       }
     } else {
-      currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+      currentTimeSlotsToRender = [];
     }
     allowEditingHeaders = false;
   } else if (state.compareMode && state.selectedUserIds.size === 0) {
     // ✅ COMPARE MODE: No users selected - show clean empty grid
-    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    currentTimeSlotsToRender = [];
     allowEditingHeaders = false;
   } else {
-    currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+    currentTimeSlotsToRender = [];
     allowEditingHeaders = false;
   }
 
@@ -4473,15 +4487,15 @@ async function renderDayView() {
   container.innerHTML = "";
 
   // ✅ UNIFIED SCHEDULE LOGIC: Use same calculation as grid view
-  let currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+  let currentTimeSlotsToRender = [];
   let usedUnifiedSchedule = false;
   let unifiedScheduleInstance = null;
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     // Normal mode: use active user's time slots
     const user = state.users[state.activeUserId];
-    if (user && user.timeSlots && user.timeSlots.length > 0) {
-      currentTimeSlotsToRender = user.timeSlots;
+    if (user && Array.isArray(user.timeSlots)) {
+      currentTimeSlotsToRender = user.timeSlots; // allow empty to render no columns
     }
   } else if (state.compareMode && state.selectedUserIds.size > 0) {
     // ✅ COMPARE MODE: Use unified schedule calculation (same as grid view)
@@ -4525,7 +4539,7 @@ async function renderDayView() {
               : largest
           );
           currentTimeSlotsToRender =
-            largestSchedule.timeSlots || DEFAULT_TIMESLOTS;
+            largestSchedule.timeSlots || [];
           usedUnifiedSchedule = false;
           unifiedScheduleInstance = null;
         }
@@ -4542,11 +4556,10 @@ async function renderDayView() {
         );
       } else {
         console.log("📊 Day view: Using homogeneous schedule comparison");
-        currentTimeSlotsToRender =
-          selectedUsers[0].timeSlots || DEFAULT_TIMESLOTS;
+        currentTimeSlotsToRender = selectedUsers[0].timeSlots || [];
       }
     } else {
-      currentTimeSlotsToRender = DEFAULT_TIMESLOTS;
+      currentTimeSlotsToRender = [];
     }
   }
 
@@ -4555,7 +4568,6 @@ async function renderDayView() {
     selectedUsersCount: state.selectedUserIds.size,
     timeSlotCount: currentTimeSlotsToRender.length,
     usedUnifiedSchedule: usedUnifiedSchedule,
-    usingDefaultSlots: currentTimeSlotsToRender === DEFAULT_TIMESLOTS,
   });
 
   // Generate time slots for the selected day
@@ -5774,6 +5786,30 @@ function setupAuthenticationCallbacks() {
 
         // Re-render to blank/disabled state if we're on home
         updateUI();
+      } else {
+        // User logged in (or auth restored on refresh): ensure friends bar exists on Home
+        try {
+          const currentRoute = window.location.hash.replace('#', '') || 'home';
+          const needsInit = !state.horizontalFriendsBar;
+          if (currentRoute === 'home' && needsInit) {
+            const containerEl = document.getElementById('horizontal-friends-container');
+            if (containerEl) {
+              console.log('⭐ Auth ready on Home – initializing Horizontal Friends Bar (auth state)');
+              initializeHorizontalFriendsBar();
+            } else {
+              // If DOM not ready yet, initialize when SPA loads home template
+              const onSpaLoad = (evt) => {
+                if (evt.detail?.route === 'home') {
+                  document.removeEventListener('spa:page:load', onSpaLoad);
+                  initializeHorizontalFriendsBar();
+                }
+              };
+              document.addEventListener('spa:page:load', onSpaLoad);
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to initialize friends bar on auth state change:', e);
+        }
       }
     });
   } catch (_) {
@@ -5790,6 +5826,11 @@ function setupAuthenticationCallbacks() {
  */
 async function initializeHorizontalFriendsBar() {
   try {
+    if (state.isFriendsBarInitializing) {
+      console.log("⏳ Friends bar init already in progress; skipping duplicate call");
+      return;
+    }
+    state.isFriendsBarInitializing = true;
     console.log("🔍 DEBUG INIT: initializeHorizontalFriendsBar called");
     const containerEl = document.getElementById("horizontal-friends-container");
     if (!containerEl) {
@@ -5862,6 +5903,8 @@ async function initializeHorizontalFriendsBar() {
     console.log("✅ Horizontal Friends Bar initialized successfully");
   } catch (error) {
     console.error("❌ Failed to initialize Horizontal Friends Bar:", error);
+  } finally {
+    state.isFriendsBarInitializing = false;
   }
 }
 
@@ -6290,7 +6333,7 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
       Array.isArray(firestoreScheduleData.timeSlots) &&
       firestoreScheduleData.timeSlots.length > 0
         ? firestoreScheduleData.timeSlots
-        : DEFAULT_TIMESLOTS;
+        : [];
 
     const numSlots = timeSlots.length;
 
@@ -6352,7 +6395,7 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
     console.error("❌ DEBUG: Error converting Firestore data:", error);
 
     // Return optimized fallback structure
-    const fallbackTimeSlots = DEFAULT_TIMESLOTS;
+    const fallbackTimeSlots = [];
     const numSlots = fallbackTimeSlots.length;
     return {
       timeSlots: fallbackTimeSlots,
@@ -6661,20 +6704,20 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
             currentUserData = {
               id: user.uid,
               name: currentUser.profile?.handle || "You",
-              timeSlots: convertedData?.timeSlots || DEFAULT_TIMESLOTS,
+              timeSlots: convertedData?.timeSlots || [],
               schedule:
                 convertedData?.schedule ||
                 createWeeklyMatrix(
-                  convertedData?.timeSlots?.length || 7,
+                  convertedData?.timeSlots?.length || 0,
                   false
                 ),
               slotInfo:
                 convertedData?.slotInfo ||
-                createSlotInfoMatrix(convertedData?.timeSlots?.length || 7),
+                createSlotInfoMatrix(convertedData?.timeSlots?.length || 0),
               pinnedSlots:
                 convertedData?.pinnedSlots ||
                 createWeeklyMatrix(
-                  convertedData?.timeSlots?.length || 7,
+                  convertedData?.timeSlots?.length || 0,
                   false
                 ),
               timeBasedPins: convertedData?.timeBasedPins || {
@@ -6754,22 +6797,24 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
               convertFirestoreToHomePageFormat(cachedScheduleData);
           }
 
+          const friendSlots = Array.isArray(convertedData.timeSlots)
+            ? convertedData.timeSlots
+            : [];
+          const friendLen = friendSlots.length;
           const friendUser = {
             id: friendId,
             name: userData.handle,
-            timeSlots: convertedData.timeSlots || DEFAULT_TIMESLOTS,
+            timeSlots: friendSlots,
             schedule:
-              convertedData.schedule ||
-              createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+              convertedData.schedule || createWeeklyMatrix(friendLen, false),
             slotInfo:
               convertedData.slotInfo ||
-              createWeeklyMatrix(DEFAULT_TIMESLOTS.length, () => ({
+              createWeeklyMatrix(friendLen, () => ({
                 courseCode: "",
                 classroomNumber: "",
               })),
             pinnedSlots:
-              convertedData.pinnedSlots ||
-              createWeeklyMatrix(DEFAULT_TIMESLOTS.length, false),
+              convertedData.pinnedSlots || createWeeklyMatrix(friendLen, false),
           };
 
           state.users[friendId] = friendUser;

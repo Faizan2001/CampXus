@@ -2,6 +2,16 @@
 
 A comprehensive Firebase-powered social scheduling platform built specifically for university students. CampXus combines intelligent schedule management with advanced social features, privacy-aware friend systems, and real-time collaboration tools to create a seamless campus networking experience.
 
+## TL;DR (Simple Overview)
+
+- Your time slots come from Firestore and render the schedule in both Day and Grid views.
+- IUB users (email ends with `@iub.edu.bd`): get 6 default slots on first login (08:00–17:50). They are saved automatically.
+- Imports map classes into those 6 slots; classes after 17:50 create new rows (e.g., 18:30–20:00) and are saved.
+- Editing slot times updates Firestore. Next login shows your custom ranges.
+- Non‑IUB users: no defaults — imports/edits create your time slots.
+- Comparison works for same or different slot sets (unified timeline).
+- Adding new universities: see `.md files/University-TimeSlots-Guide.md`.
+
 ## Features
 
 ### Social Connections & Student Discovery
@@ -38,6 +48,21 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 - **Smart Privacy Indicators**: Dynamic lock icons and disabled states with real-time updates showing schedule access restrictions
 - **Read-Only Friend Viewing**: Secure one-tap access to friend schedules with proper privacy enforcement and restricted editing modes
 - **Mobile-Responsive Design**: Optimized viewport handling and responsive layout improvements for all device sizes
+
+### University Time Slots (New)
+
+The app now renders per-user time slots from Firestore as the single source of truth, with university-aware defaults:
+
+- IUB defaults for first-time users (email ends with `@iub.edu.bd`):
+  - 08:00–09:30, 09:40–11:10, 11:20–12:50, 13:00–14:30, 14:40–16:10, 16:20–17:50
+  - These 6 slots are initialized and saved to Firestore on first load if the user has no timeSlots.
+- Imports for IUB users map classes into these slots when within 08:00–17:50.
+  - If a class begins after 17:50, a new row is appended (e.g., 18:30–20:00, 18:30–21:30, 19:00–23:00), saved to Firestore, and used thereafter.
+- Non‑IUB users have no defaults by design; imports or manual edits create their timeSlots which are then persisted as their defaults.
+- Editing time slots updates the user’s Firestore timeSlots; subsequent visits always render from Firestore.
+- Comparison mode continues to work across different users:
+  - Same slot sets → normal comparison.
+  - Different slot sets → unified timeline comparison (automatically merges time boundaries).
 
 ### Modern User Experience
 
@@ -477,9 +502,6 @@ We welcome contributions from developers who want to help improve the university
 - **Expansion Ready:** Easy configuration system for adding new universities
 - **Scalable Architecture:** Designed to support multiple institutions simultaneously
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
