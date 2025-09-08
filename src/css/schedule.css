@@ -40,7 +40,8 @@ This file contains all styles related to the schedule display:
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem; /* compressed vertical space */
+  padding-block: 0.25rem; /* reduce header vertical padding */
   flex-shrink: 0; /* Prevent header from shrinking */
 }
 
@@ -49,6 +50,7 @@ This file contains all styles related to the schedule display:
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 1.05rem; /* slightly tighter */
 }
 
 /* Schedule owner indicator */

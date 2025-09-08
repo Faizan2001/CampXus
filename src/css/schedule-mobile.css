@@ -355,9 +355,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   background: rgba(255, 255, 255, 0.02); /* Subtle background */
   border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 255, 255, 0.05); /* Subtle border */
-  min-height: calc(
-    4.25rem + var(--space-sm) * 2
-  ); /* Responsive height: button height + padding */
+  /* Removed fixed min-height so container shrinks to pill height */
 }
 
 .day-selector-container::-webkit-scrollbar {
@@ -375,43 +373,42 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 .day-selector {
   display: flex;
-  gap: var(--space-sm); /* Consistent gap between day buttons */
+  gap: 0.625rem; /* 10px gap within 8-12px target */
   justify-content: space-evenly;
   padding: 0 var(--space-md); /* Horizontal padding inside container */
   min-width: max-content; /* Allow content to determine width for scrolling */
 }
 
 .day-btn {
-  flex: 0 0 auto; /* Don't flex, maintain fixed width for scrolling */
-  min-width: clamp(3.5rem, 15vw, 3.75rem); /* Responsive width: 56px to 60px */
-  width: clamp(3.5rem, 15vw, 3.75rem); /* Responsive width */
-  height: clamp(3.5rem, 16vw, 4.25rem); /* Responsive height: 56px to 68px */
-  border: none;
-  background: var(--day-inactive-bg);
+  flex: 0 0 auto;
+  width: 3rem; /* fixed pill width for consistency */
+  min-width: 3rem;
+  height: 2.625rem; /* 42px within 40-44px target */
+  border: 1px solid var(--day-selector-border);
+  background: rgba(255,255,255,0.05);
   color: var(--day-inactive-text);
-  border-radius: var(
-    --radius-lg
-  ); /* Larger border radius for more prominent appearance */
+  border-radius: 14px; /* ~28px diameter for a pill-like feel but not full */
   cursor: pointer;
-  transition: all var(--day-transition-duration) var(--view-transition-easing);
+  transition: background .25s ease, color .25s ease, transform .25s ease, border-color .25s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(2px, 1vw, 4px); /* Responsive gap between abbreviation and date */
+  gap: 2px;
   font-weight: 500;
   position: relative;
   backdrop-filter: blur(10px);
-  border: 1px solid var(--day-selector-border);
-  box-shadow: var(--shadow-sm); /* Add subtle shadow for depth */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+  opacity: 0.65; /* lower contrast when inactive */
 }
 
 .day-btn.active {
-  background: var(--day-active-bg);
-  color: var(--day-active-text);
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: var(--shadow-accent-light);
+  background: var(--accent-primary);
+  color: #fff;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
   border-color: var(--accent-primary);
+  opacity: 1;
 }
 
 .day-btn.today::before {
@@ -427,8 +424,9 @@ This file contains all styles for the mobile-friendly schedule redesign:
 }
 
 .day-btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.05);
-  transform: translateY(-1px);
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-2px);
+  opacity: .85;
 }
 
 .day-abbreviation {
@@ -526,21 +524,19 @@ This file contains all styles for the mobile-friendly schedule redesign:
 .day-time-slot {
   display: flex;
   align-items: center;
-  min-height: clamp(2.5rem, 8vw, 3rem); /* Much smaller height */
+  min-height: 3.25rem; /* slightly taller for clarity */
   background: var(--day-slot-bg);
-  border: 1px solid var(--day-slot-border);
-  border-radius: 8px; /* Smaller radius for compact look */
-  padding: clamp(0.5rem, 2vw, 0.75rem); /* Drastically reduced padding */
+  border: 1px solid rgba(255,255,255,0.12); /* lighter tonal border */
+  border-radius: 14px; /* consistent 12-16 range */
+  padding: 0.75rem 1rem; /* 12px vertical / 16px horizontal target */
   cursor: pointer;
-  transition: all 0.2s var(--view-transition-easing);
-  backdrop-filter: blur(15px);
+  transition: background .25s ease, border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  backdrop-filter: blur(18px);
   position: relative;
   overflow: hidden;
-  margin-bottom: 0.375rem; /* Fixed small margin - no responsive bloat */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  margin-bottom: 0.5rem; /* 8px gap approximation (0.5rem at base 16px) */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.28); /* subtle elevation */
   flex-shrink: 0;
-  /* Enhanced touch behavior */
   touch-action: manipulation;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -556,41 +552,34 @@ This file contains all styles for the mobile-friendly schedule redesign:
 .day-time-slot.busy {
   background: var(--day-slot-busy-bg);
   color: var(--day-slot-busy-text);
-  border-color: var(--accent-primary);
+  border-color: rgba(255,255,255,0.18);
 }
 
 .day-time-slot.free {
-  background: var(--day-slot-free-bg);
-  border-color: var(--day-slot-free-border);
-  border-style: dashed;
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.14);
+  border-style: solid;
+  opacity: 0.7; /* visually recede */
 }
 
-/* ✅ REMOVED: Duplicate pin indicator - using JavaScript-based pins instead 
-.day-time-slot.pinned::after {
-  content: "📍";
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: 1rem;
-  opacity: 0.8;
-} */
+
 
 /* Time slot content layout - COMPACT */
 .slot-time {
-  min-width: clamp(4rem, 18vw, 5rem); /* Smaller width for compact design */
-  font-size: clamp(0.75rem, 1.8vw, 0.825rem); /* Slightly smaller font */
-  font-weight: 600; /* Still bold but not as heavy */
+  min-width: 4.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.3px;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.375rem 0.5rem; /* Much smaller fixed padding */
-  border-radius: 6px; /* Smaller radius for compact look */
+  letter-spacing: 0.4px;
+  background: rgba(255,255,255,0.09);
+  padding: 0.35rem 0.5rem; /* tighter vertical */
+  border-radius: 12px; /* chip radius */
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transition: all 0.2s ease;
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  transition: background .25s ease, color .25s ease, border-color .25s ease;
+  align-self: flex-start; /* align chips left across cards */
 }
 
 .day-time-slot.busy .slot-time {
@@ -611,25 +600,58 @@ This file contains all styles for the mobile-friendly schedule redesign:
 }
 
 .slot-course-code {
-  font-size: clamp(0.875rem, 2.5vw, 0.95rem); /* Compact font size */
-  font-weight: 600; /* Slightly lighter for compact design */
-  letter-spacing: 0.3px;
-  line-height: 1.1; /* Tighter line height */
+  font-size: 1rem; /* 16px equivalent */
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  line-height: 1.15;
 }
 
 .slot-classroom {
-  font-size: clamp(0.7rem, 1.8vw, 0.775rem); /* Smaller font for compact */
-  opacity: 0.8;
+  font-size: 0.75rem; /* 12px */
+  opacity: 0.7;
   font-weight: 500;
   color: var(--text-secondary);
 }
 
 .slot-free-text {
-  font-size: clamp(0.8rem, 2vw, 0.875rem); /* Compact free text */
+  font-size: 0.8rem;
   color: var(--text-secondary);
   font-style: italic;
   font-weight: 500;
+  opacity: 0.75;
 }
+
+
+
+/* Ellipsis schedule controls toggle button */
+.schedule-controls-ellipsis {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  border-radius: 10px;
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: background .25s ease, transform .25s ease, border-color .25s ease;
+}
+
+.schedule-controls-ellipsis .ellipsis-dots { transform: translateY(-2px); letter-spacing: 1px; }
+
+.schedule-controls-ellipsis:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+.schedule-controls-ellipsis:active { transform: translateY(0); }
+.schedule-controls-ellipsis[aria-expanded="true"] { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+
+/* Dark contrast adjustments for purple busy cards */
+.day-time-slot.busy .slot-course-code { color: #fff; }
+.day-time-slot.busy .slot-classroom { color: rgba(255,255,255,0.7); }
+
+/* Slightly darker container background separation */
+.schedule-section { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); }
 
 /* ===== COMPARE MODE AVATAR CONTAINERS ===== */
 .day-time-slot.compare-mode {

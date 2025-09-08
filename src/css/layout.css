@@ -45,6 +45,16 @@ This file contains all layout-related styles for the MeetchuThere app:
   box-shadow: 0 4px 20px var(--shadow);
 }
 
+/* Compact mobile nav height */
+@media (max-width: 600px) {
+  .top-nav {
+    padding: 0.5rem 0.85rem; /* reduce vertical padding */
+    backdrop-filter: blur(18px);
+  }
+  .logo span { font-size: 1.25rem; padding-bottom: 4px; }
+  .nav-link { padding: 0.5rem 0.85rem; }
+}
+
 /* Navigation sections - Left (logo + links), Right (controls) */
 .nav-left,
 .nav-right {
