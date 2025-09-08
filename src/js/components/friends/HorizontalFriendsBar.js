@@ -191,9 +191,9 @@ export class HorizontalFriendsBar {
         logManager.dev.debug("User selection called after DOM ready");
       }, 50);
 
-  // Dev-only helper functions removed from global scope
+      // Dev-only helper functions removed from global scope
 
-  // Removed numerous window.* debug helpers to prevent production access
+      // Removed numerous window.* debug helpers to prevent production access
 
       // Store global instance for external access
       globalHorizontalFriendsBarInstance = this;
@@ -2083,23 +2083,19 @@ export class HorizontalFriendsBar {
       if (systemInfo?.locationSharingEnabled) {
         const userDot = this.userAvatarElement.querySelector(".presence-dot");
         if (userDot) {
-          // Import PresenceDot dynamically to avoid circular imports
-          import("../../components/presence/PresenceDot.js")
-            .then(({ PresenceDot }) => {
-              PresenceDot.updateWithFreshData(
-                userDot,
-                systemInfo.lastActive,
-                systemInfo.lastKnownLocation,
-                systemInfo.locationSharingEnabled
-              );
-              // Ensure spinner is cleared after update
-              userDot.classList.remove("spinner-overlay");
-              userDot.title = "";
-            })
-            .catch((error) => {
-              console.error("Failed to load PresenceDot:", error);
-              this.hidePresenceDotsLoading();
-            });
+          try {
+            PresenceDot.updateWithFreshData(
+              userDot,
+              systemInfo.lastActive,
+              systemInfo.lastKnownLocation,
+              systemInfo.locationSharingEnabled
+            );
+            userDot.classList.remove("spinner-overlay");
+            userDot.title = "";
+          } catch (error) {
+            console.error("Failed to update PresenceDot:", error);
+            this.hidePresenceDotsLoading();
+          }
         }
       }
     }
@@ -2112,20 +2108,18 @@ export class HorizontalFriendsBar {
         if (avatarElement) {
           const friendDot = avatarElement.querySelector(".presence-dot");
           if (friendDot) {
-            import("../../components/presence/PresenceDot.js")
-              .then(({ PresenceDot }) => {
-                PresenceDot.updateWithFreshData(
-                  friendDot,
-                  friend.lastActive,
-                  friend.lastKnownLocation,
-                  friend.hasLocationSharing
-                );
-                friendDot.classList.remove("spinner-overlay");
-                friendDot.title = "";
-              })
-              .catch((error) => {
-                console.error("Failed to load PresenceDot for friend:", error);
-              });
+            try {
+              PresenceDot.updateWithFreshData(
+                friendDot,
+                friend.lastActive,
+                friend.lastKnownLocation,
+                friend.hasLocationSharing
+              );
+              friendDot.classList.remove("spinner-overlay");
+              friendDot.title = "";
+            } catch (error) {
+              console.error("Failed to update PresenceDot for friend:", error);
+            }
           }
         }
       }
@@ -3230,7 +3224,7 @@ export class HorizontalFriendsBar {
       if (this.isSyncing || window.horizontalFriendsBar_updating) return;
 
       this.isSyncing = true;
-  // Removed global flag horizontalFriendsBar_updating
+      // Removed global flag horizontalFriendsBar_updating
 
       try {
         const currentUserProfile = await currentUser.waitForProfile();
@@ -4349,7 +4343,9 @@ export class HorizontalFriendsBar {
     );
 
     // Keep a short-lived guard to ignore any late/stale re-add events
-    try { this.optimisticRemovals.set(friendId, Date.now()); } catch (_) {}
+    try {
+      this.optimisticRemovals.set(friendId, Date.now());
+    } catch (_) {}
   }
 
   /**
@@ -4509,7 +4505,7 @@ export class HorizontalFriendsBar {
 
     // Clear global circuit breaker flags
     if (typeof window !== "undefined") {
-  // Removed global flags horizontalFriendsBar_updating & profile_updates_in_progress
+      // Removed global flags horizontalFriendsBar_updating & profile_updates_in_progress
     }
 
     // Clear all real-time listeners (privacy changes, profile updates)
@@ -5442,8 +5438,10 @@ export function getUserPresenceStatus() {
  */
 export function isHorizontalFriendsBarActive() {
   return globalHorizontalFriendsBarInstance?.isInitialized || false;
-    // Record optimistic removal timestamp
-    try { this.optimisticRemovals.set(friendId, Date.now()); } catch (_) {}
-    // Clear optimistic guard so the friend can reappear
-    this.optimisticRemovals.delete(friendId);
+  // Record optimistic removal timestamp
+  try {
+    this.optimisticRemovals.set(friendId, Date.now());
+  } catch (_) {}
+  // Clear optimistic guard so the friend can reappear
+  this.optimisticRemovals.delete(friendId);
 }

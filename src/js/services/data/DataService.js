@@ -73,6 +73,7 @@ import { auth } from "../../lib/firebase/firebase-config.js";
 import { avatarManager } from "../../utils/avatar/avatarManager.js";
 import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 import { logManager } from "../../utils/debug/LogManager.js";
+import { currentUser } from "../../store/userStore.js";
 import { notificationManager } from "../realtime/NotificationService.js";
 
 // Common field paths for queries
@@ -1981,7 +1982,7 @@ class DataManager {
       );
 
       // Get current user (the one who initiated unfriend)
-      const { currentUser } = await import("../../store/userStore.js");
+      // currentUser statically imported
       const currentUserId = currentUser?.uid;
 
       if (currentUserId) {
@@ -3688,7 +3689,9 @@ class DataManager {
       return { success: true };
     } catch (error) {
       if (error.code === "permission-denied" || !auth.currentUser) {
-        console.info("ℹ️ Skipping lastActive update after auth change (ignored)");
+        console.info(
+          "ℹ️ Skipping lastActive update after auth change (ignored)"
+        );
         return { success: false, error: "permission_denied" };
       }
       console.error(`❌ [DataManager] Error updating user last active:`, error);
@@ -3752,7 +3755,7 @@ class DataManager {
 
       // Update current user store if applicable
       try {
-        const { currentUser } = await import("../../store/userStore.js");
+        // currentUser statically imported
         if (currentUser?.uid === userId && currentUser?.profile) {
           const merged = {
             ...currentUser.profile,

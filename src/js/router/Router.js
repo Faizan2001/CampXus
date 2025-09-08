@@ -14,6 +14,7 @@
 import { authManager } from "../services/auth/AuthService.js"; // 🎯 NEW: Import authManager for authentication checks
 import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import currentUser for better auth state checking
 import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
+import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 
 /**
@@ -37,9 +38,7 @@ class SPARouter {
         cssFiles: [
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsImporters: [
-          () => import("/src/js/pages/HomePage.js"),
-        ], // Lazy-load Home page controller (dev and prod)
+        jsImporters: [() => import("/src/js/pages/HomePage.js")], // Lazy-load Home page controller (dev and prod)
         description: "Manage your weekly schedule and compare with friends",
       },
       profile: {
@@ -49,9 +48,7 @@ class SPARouter {
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
           "/src/css/profile-setup.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsImporters: [
-          () => import("/src/js/components/forms/ProfileSetup.js"),
-        ],
+        jsImporters: [() => import("/src/js/components/forms/ProfileSetup.js")],
         description: "Set up your student profile and preferences",
       },
       friends: {
@@ -61,23 +58,17 @@ class SPARouter {
           "/src/css/styles.css", // ✅ Fixed: Absolute path from root for Vite
           "/src/css/friends-page.css", // ✅ Fixed: Absolute path from root for Vite
         ],
-        jsImporters: [
-          () => import("/src/js/pages/FriendsPage.js"),
-        ],
+        jsImporters: [() => import("/src/js/pages/FriendsPage.js")],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       notifications: {
         title: "Notifications - MeetchuThere",
         template: "/templates/notifications.html",
-        cssFiles: [
-          "/src/css/styles.css",
-          "/src/css/notifications.css",
-        ],
-        jsImporters: [
-          () => import("/src/js/pages/NotificationsPage.js"),
-        ],
-        description: "View your campus social notifications and location sharing requests",
+        cssFiles: ["/src/css/styles.css", "/src/css/notifications.css"],
+        jsImporters: [() => import("/src/js/pages/NotificationsPage.js")],
+        description:
+          "View your campus social notifications and location sharing requests",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
       },
       about: {
@@ -495,18 +486,24 @@ class SPARouter {
 
     // 🚀 IMMEDIATE PRESENCE UPDATE: Update lastActive on SPA navigation to key pages
     // Allow a one-time skip (e.g., immediately after logout) via session flag
-    const skipLastActiveOnce = sessionStorage.getItem('skipLastActiveOnce') === 'true';
+    const skipLastActiveOnce =
+      sessionStorage.getItem("skipLastActiveOnce") === "true";
     if (skipLastActiveOnce) {
-      sessionStorage.removeItem('skipLastActiveOnce');
+      sessionStorage.removeItem("skipLastActiveOnce");
     }
-    if (!skipLastActiveOnce && currentUser.isLoggedIn() && (route === 'home' || route === 'friends')) {
+    if (
+      !skipLastActiveOnce &&
+      currentUser.isLoggedIn() &&
+      (route === "home" || route === "friends")
+    ) {
       try {
-        // Import DataService dynamically to avoid circular dependencies
-        const { dataManager } = await import("../services/data/DataService.js");
         await dataManager.updateUserLastActive(currentUser.user.uid);
         console.log(`⚡ Immediate lastActive update on navigation to ${route}`);
       } catch (lastActiveError) {
-        console.warn(`⚠️ Failed to update lastActive on ${route} navigation (non-critical):`, lastActiveError);
+        console.warn(
+          `⚠️ Failed to update lastActive on ${route} navigation (non-critical):`,
+          lastActiveError
+        );
       }
     }
 
@@ -737,7 +734,7 @@ class SPARouter {
       ? templatePath
       : "/" + templatePath;
 
-    console.log(`📄 Loading template: ${url}`);
+    if (logManager?.dev) logManager.dev.debug(`Loading template: ${url}`);
 
     const response = await fetch(url, { signal });
     if (!response.ok) {
@@ -841,7 +838,8 @@ class SPARouter {
     // Add current page class
     document.body.classList.add(`page-${route}`);
 
-    console.log(`🎨 Updated body class to: page-${route}`);
+    if (logManager?.dev)
+      logManager.dev.debug(`Updated body class to: page-${route}`);
   }
 
   /**

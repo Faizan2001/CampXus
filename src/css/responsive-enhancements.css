@@ -59,9 +59,7 @@ body {
 
 /* ===== CONTAINER QUERIES FOR COMPONENT RESPONSIVENESS ===== */
 @supports (container-type: inline-size) {
-  .schedule-container,
-  
-{
+  .schedule-container {
     container-type: inline-size;
   }
 
@@ -107,7 +105,6 @@ small,
 
 /* Dark red delete button styling */
 .delete-btn,
-
 button[data-delete-user-id] {
   background: var(--button-off-red) !important;
   border-color: var(--button-off-red) !important;
@@ -119,7 +116,6 @@ button[data-delete-user-id] {
 }
 
 .delete-btn:hover,
-
 button[data-delete-user-id]:hover {
   background: var(--button-off-red-hover) !important;
   border-color: var(--button-off-red-hover) !important;
@@ -326,7 +322,6 @@ body:not(.dark-mode) .pin-mode-button.pin-mode-active {
 
 /* GPU acceleration for smooth animations */
 .schedule-grid,
-
 .glass-card,
 button {
   transform: translateZ(0);
@@ -334,8 +329,6 @@ button {
 }
 
 /* Content visibility for better rendering performance */
-.schedule-section,
-
 
 /* ===== PRINT STYLES OPTIMIZATION ===== */
 
@@ -380,33 +373,6 @@ button {
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
-
-/* Focus within containers */
-.schedule-grid:focus-within,
-
-
-/* ===== MODERN COLOR SPACE SUPPORT ===== */
-
-@supports (color: color(display-p3 1 0 0)) {
-  :root {
-    --accent-primary-p3: color(display-p3 0.545 0.361 0.965);
-    --success-p3: color(display-p3 0.063 0.725 0.506);
-    --warning-p3: color(display-p3 0.961 0.62 0.043);
-  }
-
-  .btn-primary {
-    background: var(--accent-primary-p3, var(--accent-primary));
-  }
-
-  .status-success {
-    color: var(--success-p3, var(--success));
-  }
-
-  .status-warning {
-    color: var(--warning-p3, var(--warning));
-  }
-}
-
 /* ===== ENHANCED MOTION PREFERENCES ===== */
 
 @media (prefers-reduced-motion: reduce) {

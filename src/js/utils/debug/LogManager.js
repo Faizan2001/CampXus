@@ -53,7 +53,7 @@ const LOG_EMOJIS = {
   DEV_DEBUG: "🔧", // Debug information
   DEV_TEST: "🧪", // Testing
   DEV_INFO: "💡", // Information/tips
-  
+
   // Campus Presence
   PRESENCE_INIT: "🌍", // Campus presence initialization
   PRESENCE_UPDATE: "🔄", // Presence updates
@@ -74,12 +74,7 @@ const LOG_LEVELS = {
 /**
  * Categories that should be logged even in production
  */
-const PRODUCTION_CRITICAL_CATEGORIES = [
-  "error",
-  "auth",
-  "system",
-  "presence"
-];
+const PRODUCTION_CRITICAL_CATEGORIES = ["error", "auth", "system", "presence"];
 
 class LogManager {
   constructor() {
@@ -100,7 +95,7 @@ class LogManager {
     // More aggressive throttle periods (in milliseconds)
     this.defaultThrottlePeriods = {
       "profile-update": 15000, // Profile updates every 15s max (was 5s)
-      "ui-render": 5000, // UI renders every 5s max (was 1s)  
+      "ui-render": 5000, // UI renders every 5s max (was 1s)
       "listener-setup": 10000, // Listener setups every 10s max (was 3s)
       "real-time-update": 8000, // Real-time updates every 8s max (was 2s)
       "location-attempt": 3000, // Location attempts every 3s max (was 1s)
@@ -108,7 +103,7 @@ class LogManager {
       "friend-profile-change": 15000, // Friend profile changes every 15s max (was 3s)
       "view-mode-update": 30000, // View mode changes every 30s max
       "schedule-update": 10000, // Schedule updates every 10s max
-      "cleanup": 60000, // Cleanup operations every 60s max
+      cleanup: 60000, // Cleanup operations every 60s max
       "debug-validation": 30000, // Debug validation every 30s max
     };
 
@@ -117,7 +112,7 @@ class LogManager {
       // Presence/Location related noise
       "Profile changed for:",
       "PresenceDot: Creating presence dot",
-      "PresenceDot: Time calculation", 
+      "PresenceDot: Time calculation",
       "PresenceDot: User inactive for 2+ minutes - showing timer dot",
       "PresenceDot: User active within 2 minutes - showing solid dot",
       "User presence dot updated safely",
@@ -132,14 +127,14 @@ class LogManager {
       // HorizontalFriendsBar noise
       "CIRCUIT BREAKER: Ignoring database update during sync operations",
       "DEBUG: Validated",
-      "DEBUG: Real-time update validated", 
+      "DEBUG: Real-time update validated",
       "Quick Access friend list unchanged, skipping expensive operations",
       "Processing real-time Quick Access update",
       "External database update received",
       "Friend list unchanged, updating presence dots only",
       "IMMEDIATE: Privacy changes synced to database",
       "External starred friends update detected",
-      
+
       // UI/ViewMode repetitive updates
       "Day button - active:",
       "Grid button - active:",
@@ -151,7 +146,7 @@ class LogManager {
       "UI updated with real-time changes",
       "Cleaning up 0 schedule content event listeners",
       "Successfully cleaned up all schedule content event listeners",
-      
+
       // Real-time update spam
       "Real-time schedule update received",
       "Broadcasting",
@@ -169,7 +164,7 @@ class LogManager {
       "Browser GPS request",
       "TIER 1:",
       "TIER 2:",
-      
+
       "IP detected successfully",
       "Activity heartbeat",
       "Health check passed",
@@ -210,10 +205,19 @@ class LogManager {
    */
   _isDevEnv() {
     try {
-  // Vite exposes import.meta.env.DEV during development builds
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) return true;
+      // Vite exposes import.meta.env.DEV during development builds
+      if (
+        typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        import.meta.env.DEV
+      )
+        return true;
     } catch {}
-    return (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+    return (
+      typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"
+    );
   }
 
   /**
@@ -222,17 +226,25 @@ class LogManager {
    *  - localStorage flag: verboseLogs = 'true'
    */
   _isForcedVerbose() {
-  // SECURITY: Disallow forcing verbose in production entirely
-  if (!this._isDevEnv()) return false;
+    // SECURITY: Disallow forcing verbose in production entirely
+    if (!this._isDevEnv()) return false;
     try {
-      const qs = typeof window !== 'undefined' ? window.location.search : '';
+      const qs = typeof window !== "undefined" ? window.location.search : "";
       const params = new URLSearchParams(qs);
-      if (["1", "true", "all"].some(v => (
-        params.get("debug") === v ||
-        params.get("logs") === v ||
-        params.get("verbose") === v
-      ))) return true;
-      if (typeof window !== 'undefined' && window.localStorage.getItem('verboseLogs') === 'true') return true;
+      if (
+        ["1", "true", "all"].some(
+          (v) =>
+            params.get("debug") === v ||
+            params.get("logs") === v ||
+            params.get("verbose") === v
+        )
+      )
+        return true;
+      if (
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("verboseLogs") === "true"
+      )
+        return true;
     } catch {}
     return false;
   }
@@ -256,7 +268,7 @@ class LogManager {
     }
 
     // Expose simple runtime toggles ONLY in development
-    if (typeof window !== 'undefined' && isDev) {
+    if (typeof window !== "undefined" && isDev) {
       window.enableVerboseLogs = () => this.enableVerboseLogs();
       window.disableVerboseLogs = () => this.disableVerboseLogs();
     }
@@ -270,18 +282,25 @@ class LogManager {
     if (!this._originalConsole) {
       this._originalConsole = {
         log: console.log.bind(console),
-        info: console.info ? console.info.bind(console) : console.log.bind(console),
-        debug: console.debug ? console.debug.bind(console) : console.log.bind(console),
+        info: console.info
+          ? console.info.bind(console)
+          : console.log.bind(console),
+        debug: console.debug
+          ? console.debug.bind(console)
+          : console.log.bind(console),
       };
     }
     const counter = this._suppressedCount;
-    const noop = (type) => function () { counter[type]++; };
-    console.log = noop('log');
-    console.info = noop('info');
-    console.debug = noop('debug');
+    const noop = (type) =>
+      function () {
+        counter[type]++;
+      };
+    console.log = noop("log");
+    console.info = noop("info");
+    console.debug = noop("debug");
     this._suppressionActive = true;
     // Lower internal LogManager level automatically when suppressed
-    this.setLevel('warn');
+    this.setLevel("warn");
   }
 
   /**
@@ -298,21 +317,34 @@ class LogManager {
   /** User-friendly API to enable verbose logs at runtime */
   enableVerboseLogs() {
     this.restoreVerboseConsole();
-    this.setLevel('debug');
-    this.enableCategories(['all']);
-    try { window.localStorage.setItem('verboseLogs', 'true'); } catch {}
-    console.log('🔓 Verbose logs ENABLED (restored console methods)');
-    if (this._suppressedCount.log + this._suppressedCount.info + this._suppressedCount.debug > 0) {
-      console.log(`ℹ️ Suppressed earlier: log=${this._suppressedCount.log}, info=${this._suppressedCount.info}, debug=${this._suppressedCount.debug}`);
+    this.setLevel("debug");
+    this.enableCategories(["all"]);
+    try {
+      window.localStorage.setItem("verboseLogs", "true");
+    } catch {}
+    console.log("🔓 Verbose logs ENABLED (restored console methods)");
+    if (
+      this._suppressedCount.log +
+        this._suppressedCount.info +
+        this._suppressedCount.debug >
+      0
+    ) {
+      console.log(
+        `ℹ️ Suppressed earlier: log=${this._suppressedCount.log}, info=${this._suppressedCount.info}, debug=${this._suppressedCount.debug}`
+      );
     }
   }
 
   /** User-friendly API to disable verbose logs at runtime */
   disableVerboseLogs() {
     this.suppressVerboseConsole();
-    try { window.localStorage.setItem('verboseLogs', 'false'); } catch {}
+    try {
+      window.localStorage.setItem("verboseLogs", "false");
+    } catch {}
     if (this._originalConsole) {
-      this._originalConsole.log('🔒 Verbose logs DISABLED (console.log/info/debug silenced)');
+      this._originalConsole.log(
+        "🔒 Verbose logs DISABLED (console.log/info/debug silenced)"
+      );
     }
   }
 
@@ -550,13 +582,37 @@ class LogManager {
    */
   presence = {
     init: (message, data) =>
-      this.log(LOG_LEVELS.INFO, "presence", LOG_EMOJIS.PRESENCE_INIT, message, data),
+      this.log(
+        LOG_LEVELS.INFO,
+        "presence",
+        LOG_EMOJIS.PRESENCE_INIT,
+        message,
+        data
+      ),
     update: (message, data) =>
-      this.log(LOG_LEVELS.INFO, "presence", LOG_EMOJIS.PRESENCE_UPDATE, message, data),
+      this.log(
+        LOG_LEVELS.INFO,
+        "presence",
+        LOG_EMOJIS.PRESENCE_UPDATE,
+        message,
+        data
+      ),
     error: (message, data) =>
-      this.log(LOG_LEVELS.ERROR, "presence", LOG_EMOJIS.PRESENCE_ERROR, message, data),
+      this.log(
+        LOG_LEVELS.ERROR,
+        "presence",
+        LOG_EMOJIS.PRESENCE_ERROR,
+        message,
+        data
+      ),
     info: (message, data) =>
-      this.log(LOG_LEVELS.INFO, "presence", LOG_EMOJIS.PRESENCE_INIT, message, data),
+      this.log(
+        LOG_LEVELS.INFO,
+        "presence",
+        LOG_EMOJIS.PRESENCE_INIT,
+        message,
+        data
+      ),
   };
 
   /**
@@ -681,7 +737,7 @@ class LogManager {
    */
   group(groupName, logFunction) {
     if (!this.shouldLog(LOG_LEVELS.INFO, "dev")) return;
-    
+
     console.group(`📋 ${groupName}`);
     try {
       logFunction();
@@ -697,7 +753,7 @@ class LogManager {
    */
   groupCollapsed(groupName, logFunction) {
     if (!this.shouldLog(LOG_LEVELS.DEBUG, "dev")) return;
-    
+
     console.groupCollapsed(`📋 ${groupName}`);
     try {
       logFunction();
@@ -713,7 +769,7 @@ class LogManager {
    */
   summary(operation, stats) {
     if (!this.shouldLog(LOG_LEVELS.INFO, "dev")) return;
-    
+
     this.group(`${operation} Summary`, () => {
       Object.entries(stats).forEach(([key, value]) => {
         console.log(`  ${key}: ${value}`);
@@ -731,7 +787,7 @@ class LogManager {
    */
   perfStart(markerName) {
     if (!this.shouldLog(LOG_LEVELS.DEBUG, "performance")) return;
-    
+
     const startTime = performance.now();
     this.performanceMarkers.set(markerName, startTime);
     this.log(
@@ -749,7 +805,7 @@ class LogManager {
    */
   perfEnd(markerName, description = "") {
     if (!this.shouldLog(LOG_LEVELS.DEBUG, "performance")) return;
-    
+
     const startTime = this.performanceMarkers.get(markerName);
     if (!startTime) {
       this.log(
@@ -763,23 +819,20 @@ class LogManager {
 
     const endTime = performance.now();
     const duration = endTime - startTime;
-    
+
     this.performanceMarkers.delete(markerName);
-    
-    const message = description 
-      ? `⏱️ ${description} took ${duration.toFixed(2)}ms` 
+
+    const message = description
+      ? `⏱️ ${description} took ${duration.toFixed(2)}ms`
       : `⏱️ ${markerName} took ${duration.toFixed(2)}ms`;
-      
+
     // Use different log levels based on duration
     const level = duration > 100 ? LOG_LEVELS.WARN : LOG_LEVELS.DEBUG;
-    
-    this.log(
-      level,
-      "performance",
-      LOG_EMOJIS.SYS_PERF,
-      message,
-      { duration: `${duration.toFixed(2)}ms`, marker: markerName }
-    );
+
+    this.log(level, "performance", LOG_EMOJIS.SYS_PERF, message, {
+      duration: `${duration.toFixed(2)}ms`,
+      marker: markerName,
+    });
   }
 
   /**
@@ -790,17 +843,15 @@ class LogManager {
    */
   perfMetric(metricName, value, unit = "") {
     if (!this.shouldLog(LOG_LEVELS.DEBUG, "performance")) return;
-    
+
     const message = `📊 ${metricName}: ${value}${unit}`;
     const level = value > 100 ? LOG_LEVELS.WARN : LOG_LEVELS.DEBUG;
-    
-    this.log(
-      level,
-      "performance",
-      LOG_EMOJIS.SYS_PERF,
-      message,
-      { metric: metricName, value, unit }
-    );
+
+    this.log(level, "performance", LOG_EMOJIS.SYS_PERF, message, {
+      metric: metricName,
+      value,
+      unit,
+    });
   }
 
   /**
@@ -882,7 +933,7 @@ class LogManager {
   // Group location tier operations
   locationTierGroup(tier, operations) {
     if (!this.shouldLog(LOG_LEVELS.INFO, "location")) return;
-    
+
     this.groupCollapsed(`🌍 Location Tier ${tier} Operations`, () => {
       operations.forEach((op) => {
         console.log(`  ${op.emoji} ${op.message}`, op.data || "");
@@ -892,8 +943,9 @@ class LogManager {
 
   // Group real-time updates
   realtimeGroup(type, updates) {
-    if (!this.shouldLog(LOG_LEVELS.DEBUG, "network") || updates.length === 0) return;
-    
+    if (!this.shouldLog(LOG_LEVELS.DEBUG, "network") || updates.length === 0)
+      return;
+
     if (updates.length > 3) {
       this.groupCollapsed(
         `📡 ${type} Real-time Updates (${updates.length})`,
@@ -922,8 +974,12 @@ class LogManager {
 
   // Batch similar operations
   batchOperations(operationType, operations) {
-    if (!this.shouldLog(LOG_LEVELS.DEBUG, "database") || operations.length === 0) return;
-    
+    if (
+      !this.shouldLog(LOG_LEVELS.DEBUG, "database") ||
+      operations.length === 0
+    )
+      return;
+
     if (operations.length > 5) {
       this.groupCollapsed(
         `🔄 ${operationType} Operations (${operations.length})`,
@@ -949,7 +1005,10 @@ class LogManager {
 export const logManager = new LogManager();
 
 // Expose to window ONLY in development
-if (typeof window !== "undefined" && (import.meta?.env?.DEV || process.env.NODE_ENV === 'development')) {
+if (
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV || process.env.NODE_ENV === "development")
+) {
   window.logManager = logManager; // Dev only
 
   // Add convenient console commands (dev only)

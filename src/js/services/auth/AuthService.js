@@ -16,6 +16,7 @@ import {
 import { dataManager } from "../data/DataService.js";
 import { notificationManager } from "../realtime/NotificationService.js";
 import { currentUser } from "../../store/userStore.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 
 /**
  * Custom error class for authentication vs other types of errors
@@ -111,7 +112,7 @@ class AuthManager {
    * Initialize the authentication system
    */
   async initialize() {
-    console.log("🔥 Initializing MeetchuThere Authentication...");
+    if (logManager?.dev) logManager.dev.debug("Initializing authentication...");
 
     // Set up authentication state listener
     this.setupAuthStateListener();
@@ -119,7 +120,7 @@ class AuthManager {
     // Create the authentication modal
     this.createAuthModal();
 
-    console.log("✅ Authentication system ready!");
+    if (logManager?.dev) logManager.dev.debug("Authentication system ready");
   }
 
   /**
@@ -271,7 +272,9 @@ class AuthManager {
           });
         });
       } else {
-        console.warn("⚠️ AuthService: .auth-tab elements not found during setup");
+        console.warn(
+          "⚠️ AuthService: .auth-tab elements not found during setup"
+        );
       }
 
       // Form submissions - with existence checks
@@ -296,14 +299,18 @@ class AuthManager {
       }
 
       // Forgot password link
-      const forgotPasswordLink = document.getElementById("forgot-password-link");
+      const forgotPasswordLink = document.getElementById(
+        "forgot-password-link"
+      );
       if (forgotPasswordLink) {
         forgotPasswordLink.addEventListener("click", (e) => {
           e.preventDefault();
           this.handleForgotPassword();
         });
       } else {
-        console.warn("⚠️ AuthService: #forgot-password-link not found during setup");
+        console.warn(
+          "⚠️ AuthService: #forgot-password-link not found during setup"
+        );
       }
 
       // Real-time email validation for signup
@@ -325,10 +332,15 @@ class AuthManager {
           });
         });
       } else {
-        console.warn("⚠️ AuthService: .form-input elements not found during setup");
+        console.warn(
+          "⚠️ AuthService: .form-input elements not found during setup"
+        );
       }
     } catch (error) {
-      console.error("❌ AuthService: Error setting up modal event listeners:", error);
+      console.error(
+        "❌ AuthService: Error setting up modal event listeners:",
+        error
+      );
     }
 
     // Close modal when clicking outside
@@ -365,7 +377,7 @@ class AuthManager {
    * Handle sign in form submission
    */
   async handleSignIn() {
-    this.lastAuthAction = 'signIn';
+    this.lastAuthAction = "signIn";
     // 🛡️ Prevent multiple rapid submissions
     if (this.signinInProgress) {
       console.log("🔄 Sign in already in progress, ignoring duplicate request");
@@ -376,12 +388,12 @@ class AuthManager {
     const emailEl = document.getElementById("signin-email");
     const passwordEl = document.getElementById("signin-password");
     const button = document.getElementById("signin-button");
-    
+
     if (!emailEl || !passwordEl || !button) {
       console.error("❌ AuthService: Required sign-in form elements not found");
       return;
     }
-    
+
     const email = emailEl.value.trim();
     const password = passwordEl.value;
 
@@ -415,22 +427,34 @@ class AuthManager {
         await this.handleUnverifiedUser();
         return; // Stop execution.
       }
-      
+
       // 2. If we reach here, the user is allowed. Now, ensure their profile exists BEFORE updating store
-      console.log(`✅ User ${email} authenticated. Checking for Firestore profile...`);
+      console.log(
+        `✅ User ${email} authenticated. Checking for Firestore profile...`
+      );
       let profile = await dataManager.getUserProfile(user.uid);
 
       if (!profile) {
-        console.log(`First valid login for ${email}. Creating Firestore profile...`);
+        console.log(
+          `First valid login for ${email}. Creating Firestore profile...`
+        );
         try {
           profile = await this.createUserProfile(user, email);
-          console.log("✅ Firestore profile created successfully during sign-in.");
+          console.log(
+            "✅ Firestore profile created successfully during sign-in."
+          );
         } catch (profileError) {
-          console.error("❌ Failed to create Firestore profile during sign in:", profileError);
+          console.error(
+            "❌ Failed to create Firestore profile during sign in:",
+            profileError
+          );
           if (isDev && !isVerified) {
             await this.handleDevCreationDisabled();
           } else {
-            showFormError("signin-form", "Couldn't create your profile. Please try again.");
+            showFormError(
+              "signin-form",
+              "Couldn't create your profile. Please try again."
+            );
             await signOut(auth);
           }
           return; // Do not set user state
@@ -447,7 +471,10 @@ class AuthManager {
         await dataManager.updateUserLastActive(user.uid);
         console.log("⚡ Immediate lastActive update on login successful");
       } catch (lastActiveError) {
-        console.warn("⚠️ Failed to update lastActive on login (non-critical):", lastActiveError);
+        console.warn(
+          "⚠️ Failed to update lastActive on login (non-critical):",
+          lastActiveError
+        );
       }
 
       // 3. Success! Hide modal and trigger success event.
@@ -471,7 +498,7 @@ class AuthManager {
    * Handle sign up form submission
    */
   async handleSignUp() {
-    this.lastAuthAction = 'signUp';
+    this.lastAuthAction = "signUp";
     // 🛡️ Prevent multiple rapid submissions
     if (this.signupInProgress) {
       console.log("🔄 Sign up already in progress, ignoring duplicate request");
@@ -481,14 +508,16 @@ class AuthManager {
     // 🎯 PHANTOM ERROR FIX: Check if elements exist before accessing
     const emailEl = document.getElementById("signup-email");
     const passwordEl = document.getElementById("signup-password");
-    const confirmPasswordEl = document.getElementById("signup-confirm-password");
+    const confirmPasswordEl = document.getElementById(
+      "signup-confirm-password"
+    );
     const button = document.getElementById("signup-button");
-    
+
     if (!emailEl || !passwordEl || !confirmPasswordEl || !button) {
       console.error("❌ AuthService: Required sign-up form elements not found");
       return;
     }
-    
+
     const email = emailEl.value.trim();
     const password = passwordEl.value;
     const confirmPassword = confirmPasswordEl.value;
@@ -559,14 +588,16 @@ class AuthManager {
    */
   async handleForgotPassword() {
     const emailEl = document.getElementById("signin-email");
-    
+
     if (!emailEl) {
-      console.error("❌ AuthService: Email input not found for forgot password");
+      console.error(
+        "❌ AuthService: Email input not found for forgot password"
+      );
       return;
     }
-    
+
     const email = emailEl.value.trim();
-    
+
     // Validate email exists and is university email
     if (!email) {
       showFieldError(
@@ -575,44 +606,42 @@ class AuthManager {
       );
       return;
     }
-    
+
     const emailValidation = validateUniversityEmail(email);
     if (!emailValidation) {
-      showFieldError(
-        emailEl,
-        getFriendlyEmailError(email)
-      );
+      showFieldError(emailEl, getFriendlyEmailError(email));
       return;
     }
-    
+
     try {
       // Clear any existing errors
       clearFieldError(emailEl);
-      
+
       // Send password reset email
       await sendPasswordResetEmail(auth, email);
-      
+
       // Show success message
       showFormSuccess(
         "signin-form",
         `🔑 Password reset email sent to ${email}. Check your inbox!`
       );
-      
+
       console.log(`📧 Password reset email sent to: ${email}`);
-      
     } catch (error) {
       console.error("Forgot password error:", error);
-      
+
       // Handle specific Firebase error cases
       let errorMessage;
       if (error.code === "auth/user-not-found") {
         errorMessage = "No account found with this email address 🔍";
       } else if (error.code === "auth/too-many-requests") {
-        errorMessage = "Too many password reset attempts. Please try again later ⏰";
+        errorMessage =
+          "Too many password reset attempts. Please try again later ⏰";
       } else {
-        errorMessage = "Failed to send password reset email. Please try again 🛠️";
+        errorMessage =
+          "Failed to send password reset email. Please try again 🛠️";
       }
-      
+
       showFormError("signin-form", errorMessage);
     }
   }
@@ -638,7 +667,7 @@ class AuthManager {
         studentId: email.split("@")[0], // Extract from email
       },
 
-  // Personal Profile (grouped - displayName deprecated, using handle)
+      // Personal Profile (grouped - displayName deprecated, using handle)
       profile: {
         firstName: "",
         lastName: "",
@@ -673,7 +702,7 @@ class AuthManager {
       console.log("🔑 User UID:", user.uid);
       console.log("📧 User email:", user.email);
       console.log("✅ User emailVerified:", user.emailVerified);
-      
+
       const result = await dataManager.saveUserProfile(user.uid, userProfile);
       if (!result.success) {
         throw new Error(result.error || "Unknown error saving profile");
@@ -681,7 +710,7 @@ class AuthManager {
       console.log(
         "👤 User profile created in Firestore with organized structure matching profile-setup.js"
       );
-      
+
       // *** Return the profile so handleSignIn can call currentUser.setProfile(...) immediately
       return userProfile;
     } catch (error) {
@@ -709,7 +738,9 @@ class AuthManager {
 
         // 0. Security check BEFORE mutating app state
         if (!this.isUserAllowed(user)) {
-          console.warn("🚫 User not allowed (unverified or restricted). Signing out and blocking state updates.");
+          console.warn(
+            "🚫 User not allowed (unverified or restricted). Signing out and blocking state updates."
+          );
           await this.handleUnverifiedUser();
           // Ensure no logged-in state leaks to subscribers
           currentUser.reset();
@@ -720,7 +751,8 @@ class AuthManager {
 
         // 1. If this is an unverified dev email and profile doesn't exist (toggle OFF blocks create), sign out
         try {
-          const isDevUnverified = this.isDevelopmentEmail(user.email) && !user.emailVerified;
+          const isDevUnverified =
+            this.isDevelopmentEmail(user.email) && !user.emailVerified;
           if (isDevUnverified) {
             const existingProfile = await dataManager.getUserProfile(user.uid);
             if (!existingProfile) {
@@ -729,7 +761,9 @@ class AuthManager {
               return;
             }
           }
-        } catch (_) { /* non-fatal */ }
+        } catch (_) {
+          /* non-fatal */
+        }
 
         // 2. Set the user in our central state manager only after passing checks
         currentUser.setUser(user);
@@ -745,7 +779,7 @@ class AuthManager {
             currentUser.setProfile(userProfile);
             // For backward compatibility, you might still notify listeners with the user object
             this.notifyAuthStateChange(user);
-            
+
             // 🌍 Auto-start location tracking if conditions are met
             this.initializeLocationTracking();
           } else {
@@ -779,7 +813,9 @@ class AuthManager {
           this.clearLocalCachesOnLogout(prevUid);
           // Best-effort: stop schedule realtime/pending operations
           try {
-            const { scheduleStorageService } = await import("../schedule/ScheduleStorageService.js");
+            const { scheduleStorageService } = await import(
+              "../schedule/ScheduleStorageService.js"
+            );
             if (scheduleStorageService?.cleanup) {
               scheduleStorageService.cleanup();
             }
@@ -801,7 +837,9 @@ class AuthManager {
   clearLocalCachesOnLogout(prevUid) {
     try {
       if (prevUid) {
-        try { localStorage.removeItem(`schedule_${prevUid}`); } catch (_) {}
+        try {
+          localStorage.removeItem(`schedule_${prevUid}`);
+        } catch (_) {}
       }
       const keysToRemove = [
         "campusLocationService_visited",
@@ -812,7 +850,9 @@ class AuthManager {
         "meetchuthere_compare_tooltip_seen",
       ];
       keysToRemove.forEach((k) => {
-        try { localStorage.removeItem(k); } catch (_) {}
+        try {
+          localStorage.removeItem(k);
+        } catch (_) {}
       });
     } catch (e) {
       console.warn("⚠️ Failed clearing local caches on logout:", e);
@@ -840,7 +880,7 @@ class AuthManager {
   async handleUnverifiedUser() {
     await signOut(auth);
     // Only show notification if last action was signIn
-    if (this.lastAuthAction === 'signIn') {
+    if (this.lastAuthAction === "signIn") {
       try {
         notificationManager.showWarningNotification(
           "Verify your email to sign in. Check your inbox for the link.",
@@ -848,7 +888,10 @@ class AuthManager {
         );
       } catch (e) {
         // Fallback to DataService if NotificationService fails for any reason
-        if (typeof dataManager !== 'undefined' && dataManager.showNotification) {
+        if (
+          typeof dataManager !== "undefined" &&
+          dataManager.showNotification
+        ) {
           dataManager.showNotification(
             "Verify your email to sign in. Check your inbox for the link.",
             "warning"
@@ -873,7 +916,7 @@ class AuthManager {
         { duration: 6000 }
       );
     } catch (_) {
-      if (typeof dataManager !== 'undefined' && dataManager.showNotification) {
+      if (typeof dataManager !== "undefined" && dataManager.showNotification) {
         dataManager.showNotification(
           "Dev account creation is disabled. Try again later.",
           "warning"
@@ -889,18 +932,22 @@ class AuthManager {
    */
   async initializeLocationTracking() {
     try {
-      console.log('🌍 [AuthService] Initializing location tracking...');
-      
+      console.log("🌍 [AuthService] Initializing location tracking...");
+
       // Dynamically import campus location service to avoid circular dependencies
-      const { campusLocationService } = await import('../location/CampusLocationService.js');
-      
+      const { campusLocationService } = await import(
+        "../location/CampusLocationService.js"
+      );
+
       // Use a small delay to ensure all auth processes are complete
       setTimeout(() => {
         campusLocationService.autoStartLocationTracking();
       }, 1000);
-      
     } catch (error) {
-      console.error('🌍 [AuthService] Error initializing location tracking:', error);
+      console.error(
+        "🌍 [AuthService] Error initializing location tracking:",
+        error
+      );
     }
   }
 
@@ -1006,7 +1053,7 @@ class AuthManager {
       console.log("🚫 User already logged in, not showing auth modal");
       return;
     }
-    
+
     if (!this.authModal) this.createAuthModal();
     if (this.authModal) {
       this.authModal.style.display = "flex";
@@ -1040,12 +1087,14 @@ class AuthManager {
           tab.classList.remove("active");
         });
       }
-      
+
       const targetTab = document.querySelector(`[data-tab="${tabName}"]`);
       if (targetTab) {
         targetTab.classList.add("active");
       } else {
-        console.warn(`⚠️ AuthService: Tab button [data-tab="${tabName}"] not found`);
+        console.warn(
+          `⚠️ AuthService: Tab button [data-tab="${tabName}"] not found`
+        );
       }
 
       // Update forms
@@ -1055,7 +1104,7 @@ class AuthManager {
           form.classList.remove("active");
         });
       }
-      
+
       const targetForm = document.getElementById(`${tabName}-form`);
       if (targetForm) {
         targetForm.classList.add("active");
@@ -1066,7 +1115,10 @@ class AuthManager {
       // Clear any errors
       clearAllErrors(); // Use external function
     } catch (error) {
-      console.error(`❌ AuthService: Error switching to tab "${tabName}":`, error);
+      console.error(
+        `❌ AuthService: Error switching to tab "${tabName}":`,
+        error
+      );
     }
   }
 
@@ -1080,7 +1132,9 @@ class AuthManager {
     const universityDomain = document.getElementById("university-domain");
 
     if (!universityInfo || !universityName || !universityDomain) {
-      console.warn("⚠️ AuthService: University info elements not found for email validation");
+      console.warn(
+        "⚠️ AuthService: University info elements not found for email validation"
+      );
       return;
     }
 
@@ -1281,12 +1335,12 @@ function showFormSuccess(formId, message) {
       .insertBefore(successDiv, document.getElementById(formId).firstChild);
   }
   successDiv.textContent = message;
-  
+
   // Auto-dismiss success message after 5 seconds
   setTimeout(() => {
     if (successDiv && successDiv.parentNode) {
-      successDiv.style.opacity = '0';
-      successDiv.style.transform = 'translateY(-10px)';
+      successDiv.style.opacity = "0";
+      successDiv.style.transform = "translateY(-10px)";
       setTimeout(() => {
         if (successDiv && successDiv.parentNode) {
           successDiv.remove();
@@ -1340,7 +1394,7 @@ export const authManager = authManagerInstance;
 
 // 🔥 CRITICAL: Initialize the auth manager immediately when module loads
 // This ensures the auth state listener is set up as soon as possible
-authManagerInstance.initialize().catch(error => {
+authManagerInstance.initialize().catch((error) => {
   console.error("❌ Failed to initialize AuthManager:", error);
 });
 

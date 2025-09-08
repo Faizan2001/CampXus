@@ -59,9 +59,7 @@ try {
   app = initializeApp(firebaseConfig);
   // Prefer structured logging via logManager when available
   if (typeof window !== "undefined" && window.logManager) {
-    window.logManager.system.init("Firebase initialized successfully");
-  } else {
-    console.log("Firebase initialized successfully");
+    window.logManager.dev.debug("Firebase initialized successfully");
   }
 } catch (error) {
   console.error("Firebase initialization error:", error);
@@ -76,12 +74,8 @@ try {
     persistence: [browserLocalPersistence, indexedDBLocalPersistence],
   });
   if (typeof window !== "undefined" && window.logManager) {
-    window.logManager.auth.user(
+    window.logManager.dev.debug(
       "Firebase Auth initialized with optimized persistence (localStorage priority)"
-    );
-  } else {
-    console.log(
-      "✅ Firebase Auth initialized with optimized persistence (localStorage priority)"
     );
   }
 } catch (error) {
@@ -100,11 +94,9 @@ try {
   const { getAuth } = await import("firebase/auth");
   auth = getAuth(app);
   if (typeof window !== "undefined" && window.logManager) {
-    window.logManager.auth.user(
+    window.logManager.dev.debug(
       "Firebase Auth initialized with default persistence"
     );
-  } else {
-    console.log("✅ Firebase Auth initialized with default persistence");
   }
 }
 
@@ -118,11 +110,7 @@ let analytics;
 try {
   analytics = getAnalytics(app);
   if (typeof window !== "undefined" && window.logManager) {
-    window.logManager.system.init(
-      "Firebase Analytics initialized successfully"
-    );
-  } else {
-    console.log("📊 Firebase Analytics initialized successfully");
+    window.logManager.dev.debug("Firebase Analytics initialized successfully");
   }
 } catch (error) {
   console.warn("⚠️ Firebase Analytics initialization failed:", error.message);

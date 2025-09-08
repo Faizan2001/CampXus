@@ -19,24 +19,28 @@ export class PresenceDot {
     if (!value) return null;
     try {
       // Firestore Timestamp
-      if (typeof value.toDate === 'function') {
+      if (typeof value.toDate === "function") {
         const d = value.toDate();
         return isNaN(d.getTime()) ? null : d;
       }
       // Plain object {seconds, nanoseconds}
-      if (typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
-        const ms = (value.seconds * 1000) + Math.floor(value.nanoseconds / 1e6);
+      if (
+        typeof value === "object" &&
+        "seconds" in value &&
+        "nanoseconds" in value
+      ) {
+        const ms = value.seconds * 1000 + Math.floor(value.nanoseconds / 1e6);
         const d = new Date(ms);
         return isNaN(d.getTime()) ? null : d;
       }
       // Number (heuristic: if < 1e12 treat as seconds, else ms)
-      if (typeof value === 'number') {
+      if (typeof value === "number") {
         const ms = value < 1e12 ? value * 1000 : value; // support seconds input
         const d = new Date(ms);
         return isNaN(d.getTime()) ? null : d;
       }
       // String (ISO or parseable date)
-      if (typeof value === 'string') {
+      if (typeof value === "string") {
         const d = new Date(value);
         return isNaN(d.getTime()) ? null : d;
       }
@@ -67,12 +71,12 @@ export class PresenceDot {
     if (minutesAgo < 1) return "1m";
     if (minutesAgo < 2) return "2m";
     if (minutesAgo < 3) return "3m";
-    if (minutesAgo < 4) return "4m";  // 🛠️ FIX: Added missing "4m" case
+    if (minutesAgo < 4) return "4m"; // 🛠️ FIX: Added missing "4m" case
     if (minutesAgo < 5) return "5m";
     if (minutesAgo < 6) return "6m";
     if (minutesAgo < 7) return "7m";
     if (minutesAgo < 8) return "8m";
-    if (minutesAgo < 9) return "9m";  // 🛠️ FIX: Added missing "9m" case
+    if (minutesAgo < 9) return "9m"; // 🛠️ FIX: Added missing "9m" case
     if (minutesAgo < 10) return "10m";
     if (minutesAgo < 15) return "15m";
     if (minutesAgo < 20) return "20m";
@@ -109,7 +113,12 @@ export class PresenceDot {
    * @param {boolean} options.forceFreshData - Whether this requires fresh data (show loading until fresh)
    * @returns {string} HTML string for presence dot element
    */
-  static create(lastActive, lastKnownLocation, hasLocationSharing = false, options = {}) {
+  static create(
+    lastActive,
+    lastKnownLocation,
+    hasLocationSharing = false,
+    options = {}
+  ) {
     // Legacy inline loading removed: overlay ring is applied via CSS class instead
 
     // Input validation and early returns for grey dots
@@ -131,7 +140,11 @@ export class PresenceDot {
 
     lastActiveTime = this.normalizeTimestamp(lastActive);
     if (!lastActiveTime) {
-      console.warn("[PresenceDot] Invalid lastActive timestamp:", lastActive, new Error('normalize failed'));
+      console.warn(
+        "[PresenceDot] Invalid lastActive timestamp:",
+        lastActive,
+        new Error("normalize failed")
+      );
       return '<div class="presence-dot grey"></div>';
     }
     let minutesAgo = Math.floor((now - lastActiveTime.getTime()) / (1000 * 60));
@@ -162,9 +175,10 @@ export class PresenceDot {
     const forceSolid = options.forceSolid === true;
     if (minutesAgo < 2 || forceSolid) {
       // Only log when actually creating for active user (throttled by LogManager)
-      if (window.logManager) window.logManager.presenceDotUpdate('user', `active ${campusStatus}`);
+      if (window.logManager)
+        window.logManager.presenceDotUpdate("user", `active ${campusStatus}`);
 
-      const extraClass = options.extraClass ? ` ${options.extraClass}` : '';
+      const extraClass = options.extraClass ? ` ${options.extraClass}` : "";
       return `
         <div class="presence-dot ${dotClass}${extraClass}" 
              title="${this.getTooltip(lastActive, lastKnownLocation)}">
@@ -175,7 +189,7 @@ export class PresenceDot {
     // EXISTING LOGIC: Show timer text for inactive users (2+ minutes)
     const timeText = this.getTimeText(minutesAgo);
 
-    const extraClass = options.extraClass ? ` ${options.extraClass}` : '';
+    const extraClass = options.extraClass ? ` ${options.extraClass}` : "";
     const presenceDot = `
       <div class="presence-dot ${dotClass}${extraClass}" 
            title="${this.getTooltip(lastActive, lastKnownLocation)}">
@@ -190,7 +204,7 @@ export class PresenceDot {
 
   /**
    * Updates an existing presence dot element with fresh location data
-   * 
+   *
    * @param {HTMLElement} dotElement - The presence dot element to update
    * @param {Date|Object|null} lastActive - Fresh last activity timestamp
    * @param {Object|null} lastKnownLocation - Fresh location data
@@ -336,12 +350,22 @@ export class PresenceDot {
    * @param {boolean} waitingForFreshData - Whether to show loading state for fresh data
    * @returns {string} HTML string for presence dot element
    */
-  static createWithFreshDataPriority(lastActive, lastKnownLocation, hasLocationSharing = undefined, waitingForFreshData = false) {
+  static createWithFreshDataPriority(
+    lastActive,
+    lastKnownLocation,
+    hasLocationSharing = undefined,
+    waitingForFreshData = false
+  ) {
     const sharingUnknown = typeof hasLocationSharing !== "boolean";
-    const forceFreshData = sessionStorage.getItem("campusPresence_forceFreshData") === "true";
+    const forceFreshData =
+      sessionStorage.getItem("campusPresence_forceFreshData") === "true";
     const priorityMode = sessionStorage.getItem("campusPresence_priorityMode");
 
-    const addOverlay = waitingForFreshData || forceFreshData || priorityMode === "fresh_data" || sharingUnknown;
+    const addOverlay =
+      waitingForFreshData ||
+      forceFreshData ||
+      priorityMode === "fresh_data" ||
+      sharingUnknown;
 
     // If explicitly disabled, show grey (no overlay)
     if (hasLocationSharing === false) {
@@ -349,10 +373,13 @@ export class PresenceDot {
     }
 
     // Build normal dot and add spinner overlay class if needed
-    const extraClass = addOverlay ? 'spinner-overlay' : '';
+    const extraClass = addOverlay ? "spinner-overlay" : "";
     const forceSolid = addOverlay; // While loading fresh data, suppress timer flicker
     const sharingFlag = hasLocationSharing === true;
-    return this.create(lastActive, lastKnownLocation, sharingFlag, { extraClass, forceSolid });
+    return this.create(lastActive, lastKnownLocation, sharingFlag, {
+      extraClass,
+      forceSolid,
+    });
   }
 
   /**
@@ -364,17 +391,26 @@ export class PresenceDot {
    * @param {Object|null} lastKnownLocation - Location data with campusStatus
    * @param {boolean} hasLocationSharing - Whether user has location sharing enabled
    */
-  static updateWithFreshData(dotElement, lastActive, lastKnownLocation, hasLocationSharing = false) {
+  static updateWithFreshData(
+    dotElement,
+    lastActive,
+    lastKnownLocation,
+    hasLocationSharing = false
+  ) {
     if (!dotElement) {
       console.warn("[PresenceDot] Cannot update: dot element not found");
       return;
     }
 
     // Create the new presence dot HTML
-    const newDotHtml = this.create(lastActive, lastKnownLocation, hasLocationSharing);
-    
+    const newDotHtml = this.create(
+      lastActive,
+      lastKnownLocation,
+      hasLocationSharing
+    );
+
     // Parse the new HTML to get attributes
-    const tempDiv = document.createElement('div');
+    const tempDiv = document.createElement("div");
     tempDiv.innerHTML = newDotHtml;
     const newDot = tempDiv.firstElementChild;
 
@@ -382,16 +418,16 @@ export class PresenceDot {
       // Update the existing element's classes and content
       dotElement.className = newDot.className;
       dotElement.innerHTML = newDot.innerHTML;
-      dotElement.title = newDot.title || '';
-      
+      dotElement.title = newDot.title || "";
+
       // Add a subtle animation to indicate fresh data
-      dotElement.style.animation = 'fresh-data-pulse 0.5s ease-out';
+      dotElement.style.animation = "fresh-data-pulse 0.5s ease-out";
       setTimeout(() => {
         if (dotElement) {
-          dotElement.style.animation = '';
+          dotElement.style.animation = "";
         }
       }, 500);
-      
+
       // Dot updated successfully
     }
   }

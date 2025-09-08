@@ -67,7 +67,7 @@ class FriendsUI {
     // 📍 Campus Presence - Location sharing toggle instance
     this.globalLocationToggle = null;
 
-  // Removed global exposure (window.friendsPage) for security/privacy
+    // Removed global exposure (window.friendsPage) for security/privacy
 
     // Debounce timers for targeted privacy UI updates
     this.privacyUpdateTimers = new Map(); // friendId -> timeoutId

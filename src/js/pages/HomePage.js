@@ -23,7 +23,6 @@ import { scheduleStorageService } from "../services/schedule/ScheduleStorageServ
 import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
-import { logManager } from "../utils/debug/LogManager.js";
 import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 
@@ -1777,7 +1776,7 @@ function setupScheduleRealTimeSync(userId) {
   // Clean up existing listener if any
   if (window.scheduleRealtimeUnsubscribe) {
     window.scheduleRealtimeUnsubscribe();
-  // Removed global scheduleRealtimeUnsubscribe exposure
+    // Removed global scheduleRealtimeUnsubscribe exposure
   }
 
   // Set up new real-time sync through ScheduleStorageService
@@ -2460,9 +2459,15 @@ function addUIControlListener(element, eventType, handler, options = null) {
   });
 
   if (existingListeners.length > 0) {
-    console.warn(
-      `🚨 DUPLICATE PREVENTION: Found ${existingListeners.length} existing ${eventType} listeners for ${elementKey} by identifier match`
-    );
+    if (existingListeners.length > 2) {
+      console.warn(
+        `🚨 DUPLICATE PREVENTION: Found ${existingListeners.length} existing ${eventType} listeners for ${elementKey} (escalated)`
+      );
+    } else if (logManager?.dev) {
+      logManager.dev.debug(
+        `Duplicate listener cleanup: ${existingListeners.length} ${eventType} for ${elementKey}`
+      );
+    }
 
     // Remove ALL existing listeners matching this identifier + eventType
     existingListeners.forEach((existing) => {
@@ -7073,7 +7078,7 @@ document.addEventListener("spa:page:load", async (event) => {
 
     console.log("✅ MeetchuThere Schedule App loaded successfully!");
 
-  // Removed global testDayNavigation helper (was debug only)
+    // Removed global testDayNavigation helper (was debug only)
   }
 });
 
@@ -7092,7 +7097,7 @@ document.addEventListener("spa:page:unload", (event) => {
     if (window.scheduleRealtimeUnsubscribe) {
       console.log("🧹 Cleaning up schedule real-time listener...");
       window.scheduleRealtimeUnsubscribe();
-  // realtimeUnsubscribe cleared
+      // realtimeUnsubscribe cleared
     }
 
     // 🧹 MEMORY LEAK FIX: Clean up all tracked event listeners

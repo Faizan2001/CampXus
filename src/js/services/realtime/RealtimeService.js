@@ -47,6 +47,7 @@
  */
 
 import { dataManager } from "../data/DataService.js";
+import { currentUser } from "../../store/userStore.js";
 
 /**
  * Debounce utility to prevent excessive updates on low-end devices
@@ -105,10 +106,15 @@ class RealTimeManager {
     this.currentUserId = null;
 
     // Debug mode flag: only verbose if explicitly requested via log profile
-    const profile = (typeof window !== 'undefined' && window.localStorage)
-      ? (window.localStorage.getItem('meetchuthere:logProfile') || '').toLowerCase()
-      : '';
-    this.debugMode = (process.env.NODE_ENV === "development") && (profile === 'debug' || profile === 'all');
+    const profile =
+      typeof window !== "undefined" && window.localStorage
+        ? (
+            window.localStorage.getItem("meetchuthere:logProfile") || ""
+          ).toLowerCase()
+        : "";
+    this.debugMode =
+      process.env.NODE_ENV === "development" &&
+      (profile === "debug" || profile === "all");
 
     // Debounced emitters to reduce CPU usage on low-end devices (300ms delay)
     this.debouncedEmit = debounce(this.emit.bind(this), 300);
@@ -219,7 +225,7 @@ class RealTimeManager {
 
     // Wait for proper authentication before setting up listeners
     try {
-      const { currentUser } = await import("../../store/userStore.js");
+      // currentUser statically imported
 
       // Wait for user to be fully authenticated with timeout
       await currentUser.waitForProfileWithTimeout(5000);
@@ -646,7 +652,7 @@ class RealTimeManager {
   /**
    * 🌍 Emit location privacy change event (Campus Presence)
    * @param {string} fromUserId - User who made the change
-   * @param {string} affectedUserId - User affected by the change  
+   * @param {string} affectedUserId - User affected by the change
    * @param {boolean} locationVisibility - New location visibility status
    * @param {string} [friendName] - Optional friend name for enhanced payload
    */
@@ -686,7 +692,9 @@ class RealTimeManager {
       !this.isListening ||
       !this.subscribers.has(REALTIME_EVENTS.LOCATION_PRIVACY_CHANGED)
     ) {
-      this.log(`⏭️ Skipping location privacy change event - no active listeners`);
+      this.log(
+        `⏭️ Skipping location privacy change event - no active listeners`
+      );
       return;
     }
 
@@ -722,14 +730,17 @@ class RealTimeManager {
    */
   emitCampusPresenceChange(userId, campusStatus, locationData = null) {
     // Input validation
-    if (!userId || typeof userId !== 'string') {
-      console.error('❌ emitCampusPresenceChange: userId is required:', userId);
+    if (!userId || typeof userId !== "string") {
+      console.error("❌ emitCampusPresenceChange: userId is required:", userId);
       return;
     }
 
-    const validStatuses = ['on_campus', 'off_campus', 'unknown'];
+    const validStatuses = ["on_campus", "off_campus", "unknown"];
     if (!validStatuses.includes(campusStatus)) {
-      console.error('❌ emitCampusPresenceChange: Invalid campus status:', campusStatus);
+      console.error(
+        "❌ emitCampusPresenceChange: Invalid campus status:",
+        campusStatus
+      );
       return;
     }
 
@@ -738,7 +749,9 @@ class RealTimeManager {
       !this.isListening ||
       !this.subscribers.has(REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED)
     ) {
-      this.log(`⏭️ Skipping campus presence change event - no active listeners`);
+      this.log(
+        `⏭️ Skipping campus presence change event - no active listeners`
+      );
       return;
     }
 
@@ -748,11 +761,14 @@ class RealTimeManager {
         campusStatus,
         locationData,
         timestamp: Date.now(),
-        type: 'campus_presence_change',
+        type: "campus_presence_change",
         // Enhanced payload for UI components
-        isOnCampus: campusStatus === 'on_campus',
+        isOnCampus: campusStatus === "on_campus",
         presenceText: this.getCampusPresenceText(campusStatus),
-        description: `Campus status updated to: ${campusStatus.replace('_', ' ')}`
+        description: `Campus status updated to: ${campusStatus.replace(
+          "_",
+          " "
+        )}`,
       };
 
       this.log(
@@ -760,7 +776,7 @@ class RealTimeManager {
       );
       this.emit(REALTIME_EVENTS.CAMPUS_PRESENCE_CHANGED, eventPayload);
     } catch (error) {
-      console.error('❌ Error emitting campus presence change event:', error);
+      console.error("❌ Error emitting campus presence change event:", error);
     }
   }
 
@@ -771,13 +787,13 @@ class RealTimeManager {
    */
   getCampusPresenceText(campusStatus) {
     switch (campusStatus) {
-      case 'on_campus':
-        return 'On Campus';
-      case 'off_campus':
-        return 'Off Campus';
-      case 'unknown':
+      case "on_campus":
+        return "On Campus";
+      case "off_campus":
+        return "Off Campus";
+      case "unknown":
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -788,13 +804,16 @@ class RealTimeManager {
    */
   emitUserActivityChange(userId, isActive) {
     // Input validation
-    if (!userId || typeof userId !== 'string') {
-      console.error('❌ emitUserActivityChange: userId is required:', userId);
+    if (!userId || typeof userId !== "string") {
+      console.error("❌ emitUserActivityChange: userId is required:", userId);
       return;
     }
 
-    if (typeof isActive !== 'boolean') {
-      console.error('❌ emitUserActivityChange: isActive must be boolean:', isActive);
+    if (typeof isActive !== "boolean") {
+      console.error(
+        "❌ emitUserActivityChange: isActive must be boolean:",
+        isActive
+      );
       return;
     }
 
@@ -812,21 +831,23 @@ class RealTimeManager {
         userId,
         isActive,
         timestamp: Date.now(),
-        type: 'user_activity_change',
+        type: "user_activity_change",
         // Enhanced payload for UI components
-        activityText: isActive ? 'Active' : 'Inactive',
-        description: `User is now ${isActive ? 'active' : 'inactive'}`
+        activityText: isActive ? "Active" : "Inactive",
+        description: `User is now ${isActive ? "active" : "inactive"}`,
       };
 
       // Only log in development to reduce console spam in production
       if (this.debugMode) {
         this.log(
-          `💓 Emitting user activity change: ${userId} → ${isActive ? 'active' : 'inactive'}`
+          `💓 Emitting user activity change: ${userId} → ${
+            isActive ? "active" : "inactive"
+          }`
         );
       }
       this.emit(REALTIME_EVENTS.USER_ACTIVITY_CHANGED, eventPayload);
     } catch (error) {
-      console.error('❌ Error emitting user activity change event:', error);
+      console.error("❌ Error emitting user activity change event:", error);
     }
   }
 
