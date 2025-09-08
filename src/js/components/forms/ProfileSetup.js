@@ -1885,12 +1885,12 @@ class ProfileSetup {
 
       console.log("✅ Profile saved successfully to Firestore");
 
-      // 📊 Track user registration in analytics
+      // 📊 Track user registration in analytics (moved outside transaction scope)
       AnalyticsService.trackUserRegistration(
-        userUpdate.universityInfo?.university,
-        userUpdate.profile?.major
+        profileDataForFirestore.universityInfo?.university,
+        cleanProfileData.major
       );
-      AnalyticsService.setUserProperties(userUpdate);
+      AnalyticsService.setUserProperties(profileDataForFirestore);
 
       // 🎯 Phase-1: Save schedule to Firestore using ScheduleStorageService
       if (

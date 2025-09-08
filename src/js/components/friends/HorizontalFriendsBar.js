@@ -1993,41 +1993,28 @@ export class HorizontalFriendsBar {
       this.loadingState.user = true;
     });
 
-    // 🎯 NEW: Listen for campus presence errors
+    // 🎯 NEW: Listen for campus presence errors (treat as warnings)
     document.addEventListener("campus-presence:error", (event) => {
-      console.error(
-        "❌ [HorizontalFriendsBar] Campus presence error:",
-        event.detail.error
-      );
+      const sev = event?.detail?.severity || "warning";
+      if (sev === "warning") {
+        if (logManager?.dev) {
+          logManager.dev.debug(
+            "[HorizontalFriendsBar] Campus presence warning:",
+            event.detail.error
+          );
+        }
+      } else {
+        console.warn(
+          "⚠️ [HorizontalFriendsBar] Campus presence error:",
+          event.detail.error
+        );
+      }
       this.loadingState.user = false;
       this.hidePresenceDotsLoading();
     });
 
     this._freshDataListenersSetup = true;
-    // LEGACY: Keep existing event listeners for backward compatibility
-    document.addEventListener("campus-presence:data-loading", (event) => {
-      if (this.initialFreshComplete) return;
-      logManager.dev.debug("Legacy data loading event");
-      this.loadingState.user = true;
-      this.showPresenceDotsLoading("legacy");
-    });
-
-    document.addEventListener("campus-presence:fresh-data-ready", (event) => {
-      if (this.initialFreshComplete) return;
-      logManager.location.info("Legacy fresh data received:", event.detail);
-      this.loadingState.user = false;
-      this.updatePresenceDotsWithFreshData(event.detail.locationData);
-    });
-
-    document.addEventListener("campus-presence:data-error", (event) => {
-      if (this.initialFreshComplete) return;
-      console.error(
-        "❌ [HorizontalFriendsBar] Legacy data error:",
-        event.detail.error
-      );
-      this.loadingState.user = false;
-      this.hidePresenceDotsLoading();
-    });
+  // Remove legacy campus-presence:data-* listeners to avoid duplicate logs
 
     console.log("✅ Enhanced fresh data event listeners set up successfully");
   }

@@ -598,10 +598,10 @@ async function initializeCampusPresenceInBackground() {
     sessionStorage.removeItem("campusPresence_forceFreshData");
     sessionStorage.removeItem("campusPresence_priorityMode");
 
-    // Emit error event for component handling
+    // Emit warning-style event for component handling
     document.dispatchEvent(
       new CustomEvent("campus-presence:error", {
-        detail: { error: error.message, timestamp: Date.now() },
+        detail: { error: error.message, severity: "warning", timestamp: Date.now() },
       })
     );
 

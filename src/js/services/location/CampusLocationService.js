@@ -219,9 +219,14 @@ export class CampusLocationService {
         })
       );
     } catch (err) {
+      // Non-fatal: emit warning-style error for UI to show soft message
       document.dispatchEvent(
         new CustomEvent("campus-presence:error", {
-          detail: { error: err?.message || String(err), timestamp: Date.now() },
+          detail: {
+            error: err?.message || String(err),
+            severity: "warning",
+            timestamp: Date.now(),
+          },
         })
       );
     } finally {
@@ -4947,15 +4952,6 @@ export class CampusLocationService {
         },
       })
     );
-    document.dispatchEvent(
-      new CustomEvent("campus-presence:data-loading", {
-        detail: {
-          source: "CampusLocationService",
-          timestamp: Date.now(),
-          priority: "fresh_data",
-        },
-      })
-    );
   }
 
   /**
@@ -4972,21 +4968,6 @@ export class CampusLocationService {
           freshDataLoaded: true,
           source: "CampusLocationService",
           timestamp: Date.now(),
-        },
-      })
-    );
-    document.dispatchEvent(
-      new CustomEvent("campus-presence:fresh-data-ready", {
-        detail: {
-          source: "CampusLocationService",
-          timestamp: Date.now(),
-          locationData: {
-            coords: position.coords,
-            accuracy: position.coords.accuracy,
-            provider: position.source || position.provider,
-            campusStatus: presenceResult?.onCampus,
-          },
-          presenceData: presenceResult,
         },
       })
     );
@@ -5011,22 +4992,21 @@ export class CampusLocationService {
    * 🚀 FRESH DATA PRIORITY: Emit presence data error event
    */
   emitPresenceDataError(errorMessage) {
-    console.error(
-      "📡 [CampusLocationService] Emitting presence data error event:",
-      errorMessage
-    );
+    // Treat transient location acquisition issues as warnings (e.g., no GPS)
+    if (logManager?.location) {
+      logManager.location.warn(
+        "📡 Presence data warning:",
+        errorMessage
+      );
+    } else {
+      console.warn(
+        "📡 [CampusLocationService] Presence data warning:",
+        errorMessage
+      );
+    }
     // New event for modern components
     document.dispatchEvent(
       new CustomEvent("campus-presence:error", {
-        detail: {
-          source: "CampusLocationService",
-          timestamp: Date.now(),
-          error: errorMessage,
-        },
-      })
-    );
-    document.dispatchEvent(
-      new CustomEvent("campus-presence:data-error", {
         detail: {
           source: "CampusLocationService",
           timestamp: Date.now(),

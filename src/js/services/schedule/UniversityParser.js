@@ -24,6 +24,7 @@ import {
   inferTimeSlotFromPartial,
 } from "../../utils/constants.js";
 import { correctOcrTimeSlot } from "../../utils/time/timeUtils.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 
 /**
  * University-specific text parser
@@ -41,10 +42,12 @@ export class UniversityParser {
       ...new Set(this.timeSlots.flatMap((slot) => [slot.start, slot.end])),
     ];
 
-    console.log(
-      "🎯 University Parser initialized with valid time points:",
-      this.validTimePoints
-    );
+    if (logManager?.dev) {
+      logManager.dev.debug(
+        "UniversityParser initialized",
+        { validTimePoints: this.validTimePoints }
+      );
+    }
   }
 
   /**
@@ -54,17 +57,20 @@ export class UniversityParser {
    */
   parseScheduleText(text) {
     if (!text || typeof text !== "string") {
-      console.warn("⚠️ UniversityParser received invalid input:", {
-        text: text,
-        type: typeof text,
-        length: text ? text.length : "N/A",
-      });
+      if (logManager?.dev) {
+        logManager.dev.debug("UniversityParser: invalid input", {
+          type: typeof text,
+          length: text ? text.length : "N/A",
+        });
+      }
       return []; // Return empty array instead of throwing error
     }
 
     // Check if text is effectively empty (just whitespace)
     if (text.trim().length === 0) {
-      console.warn("⚠️ UniversityParser received empty text after trimming");
+      if (logManager?.dev) {
+        logManager.dev.debug("UniversityParser: empty text after trimming");
+      }
       return []; // Return empty array for empty text
     }
 
@@ -73,7 +79,11 @@ export class UniversityParser {
     const lines = preprocessedText.split("\n").filter((line) => line.trim());
     const courses = [];
 
-    console.log(`📝 UniversityParser processing ${lines.length} lines...`);
+    if (logManager?.dev) {
+      logManager.dev.debug(
+        `UniversityParser processing ${lines.length} lines`
+      );
+    }
 
     // Track processed lines to avoid double-processing fragmented courses
     const processedLines = new Set();
@@ -100,17 +110,23 @@ export class UniversityParser {
             courses.push(course);
             seenCourses.add(courseKey);
             processedLines.add(i);
-            console.log(
-              `✅ Course parsed: ${course.courseCode} at ${course.startTime}-${
-                course.endTime
-              } (slot ${course.timeSlotIndex}, pattern: ${
-                course.confidence || "STANDARD"
-              })`
-            );
+            if (logManager?.dev) {
+              logManager.dev.debug("Course parsed", {
+                course: course.courseCode,
+                start: course.startTime,
+                end: course.endTime,
+                slot: course.timeSlotIndex,
+                pattern: course.confidence || "STANDARD",
+              });
+            }
           } else {
-            console.log(
-              `⚠️ Duplicate course skipped: ${course.courseCode} at ${course.startTime}-${course.endTime}`
-            );
+            if (logManager?.dev) {
+              logManager.dev.debug("Duplicate course skipped", {
+                course: course.courseCode,
+                start: course.startTime,
+                end: course.endTime,
+              });
+            }
             processedLines.add(i);
           }
           continue;
@@ -128,13 +144,19 @@ export class UniversityParser {
               processedLines.add(i);
               processedLines.add(i + 1);
               i++; // Skip the next line since we used it
-              console.log(
-                `✅ Multiline course parsed: ${multilineCourse.courseCode} at ${multilineCourse.startTime}-${multilineCourse.endTime}`
-              );
+              if (logManager?.dev) {
+                logManager.dev.debug("Multiline course parsed", {
+                  course: multilineCourse.courseCode,
+                  start: multilineCourse.startTime,
+                  end: multilineCourse.endTime,
+                });
+              }
             } else {
-              console.log(
-                `⚠️ Duplicate multiline course skipped: ${multilineCourse.courseCode}`
-              );
+              if (logManager?.dev) {
+                logManager.dev.debug("Duplicate multiline course skipped", {
+                  course: multilineCourse.courseCode,
+                });
+              }
               processedLines.add(i);
               processedLines.add(i + 1);
               i++;
@@ -173,26 +195,40 @@ export class UniversityParser {
               });
             }
 
-            console.log(
-              `✅ Smart extraction successful: ${smartExtracted.courseCode} | ${smartExtracted.room} | ${smartExtracted.startTime}-${smartExtracted.endTime}`
-            );
+            if (logManager?.dev) {
+              logManager.dev.debug("Smart extraction successful", {
+                course: smartExtracted.courseCode,
+                room: smartExtracted.room,
+                start: smartExtracted.startTime,
+                end: smartExtracted.endTime,
+              });
+            }
           } else {
-            console.log(
-              `⚠️ Duplicate smart extracted course skipped: ${smartExtracted.courseCode}`
-            );
+            if (logManager?.dev) {
+              logManager.dev.debug("Duplicate smart extracted course skipped", {
+                course: smartExtracted.courseCode,
+              });
+            }
             processedLines.add(i);
           }
           continue;
         }
       } catch (error) {
-        console.warn(`Failed to parse line ${i + 1}: "${line}"`, error);
+        if (logManager?.dev) {
+          logManager.dev.debug(`Failed to parse line ${i + 1}`, {
+            line,
+            error: error?.message || String(error),
+          });
+        }
         // Continue processing other lines
       }
     }
 
-    console.log(
-      `📝 UniversityParser successfully parsed ${courses.length} courses`
-    );
+    if (logManager?.dev) {
+      logManager.dev.debug(
+        `UniversityParser parsed ${courses.length} courses`
+      );
+    }
     return courses;
   }
 
@@ -350,12 +386,13 @@ export class UniversityParser {
 
     if (!match) {
       // Only log warnings for non-empty lines to reduce test noise
-      if (cleanLine.trim().length > 0) {
-        console.warn("Could not parse line:", line);
-        console.warn("📋 Trying to match against:", cleanLine);
-        console.warn(
-          "🔍 Patterns tried: MAIN_PATTERN, MOBILE_CUTOFF_PATTERN, PARTIAL_TIME_PATTERN, OCR_PATTERN, MULTILINE_PATTERN, OCR_FLEXIBLE_PATTERN, OCR_BROKEN_TIME_PATTERN"
-        );
+      if (cleanLine.trim().length > 0 && logManager?.dev) {
+        logManager.dev.debug("UniversityParser: no match for line", {
+          lineOriginal: line,
+          lineNormalized: cleanLine,
+          patternsTried:
+            "MAIN_PATTERN, MOBILE_CUTOFF_PATTERN, PARTIAL_TIME_PATTERN, OCR_PATTERN, MULTILINE_PATTERN, OCR_FLEXIBLE_PATTERN, OCR_BROKEN_TIME_PATTERN",
+        });
       }
       return null;
     }
@@ -383,18 +420,23 @@ export class UniversityParser {
     const timeSlotIndex = this.findTimeSlotIndex(correctedStart, correctedEnd);
 
     // Debug logging for parsing issues
-    if (timeSlotIndex === -1) {
-      console.warn(
-        `⚠️ No time slot match found for ${correctedStart}-${correctedEnd} (pattern: ${patternUsed})`
-      );
-      console.warn(
-        "Available time slots:",
-        this.timeSlots.map((s) => `${s.start}-${s.end}`)
-      );
-    } else {
-      console.log(
-        `✅ Course parsed: ${courseCode} at ${correctedStart}-${correctedEnd} (slot ${timeSlotIndex}, pattern: ${patternUsed})`
-      );
+    if (logManager?.dev) {
+      if (timeSlotIndex === -1) {
+        logManager.dev.debug("No time slot match", {
+          start: correctedStart,
+          end: correctedEnd,
+          pattern: patternUsed,
+          availableSlots: this.timeSlots.map((s) => `${s.start}-${s.end}`),
+        });
+      } else {
+        logManager.dev.debug("Course parsed", {
+          course: courseCode,
+          start: correctedStart,
+          end: correctedEnd,
+          slot: timeSlotIndex,
+          pattern: patternUsed,
+        });
+      }
     }
 
     // Get days from day code
@@ -527,22 +569,27 @@ export class UniversityParser {
       extra,
     ] = match;
 
-    console.log(`📱 Parsing mobile cut-off line: "${originalLine}"`);
-    console.log(`📱 Partial time detected: "${partialTime}"`);
+    if (logManager?.dev) {
+      logManager.dev.debug(`📱 Parsing mobile cut-off line: "${originalLine}"`);
+      logManager.dev.debug(`📱 Partial time detected: "${partialTime}"`);
+    }
 
     // Use time slot inference to get complete time slot
     const inferredSlot = inferTimeSlotFromPartial(partialTime);
     if (!inferredSlot) {
-      console.warn(
-        "❌ Could not infer time slot from partial time:",
-        partialTime
-      );
+      if (logManager?.dev)
+        logManager.dev.debug(
+          "❌ Could not infer time slot from partial time:",
+          partialTime
+        );
       return null;
     }
 
-    console.log(
-      `✅ Inferred complete time slot: ${partialTime} → ${inferredSlot.start}-${inferredSlot.end}`
-    );
+    if (logManager?.dev) {
+      logManager.dev.debug(
+        `✅ Inferred complete time slot: ${partialTime} → ${inferredSlot.start}-${inferredSlot.end}`
+      );
+    }
 
     // Get days from day code
     const days = this.dayCodes[dayCode.trim()] || [];
@@ -576,19 +623,24 @@ export class UniversityParser {
     const [, courseCode, courseName, sectionNum, room, dayCode, hourOnly, extra] =
       match;
 
-    console.log(`📱 Parsing partial time line: "${originalLine}"`);
-    console.log(`📱 Hour only detected: "${hourOnly}"`);
+    if (logManager?.dev) {
+      logManager.dev.debug(`📱 Parsing partial time line: "${originalLine}"`);
+      logManager.dev.debug(`📱 Hour only detected: "${hourOnly}"`);
+    }
 
     // Use time slot inference to get complete time slot from just the hour
     const inferredSlot = inferTimeSlotFromPartial(hourOnly);
     if (!inferredSlot) {
-      console.warn("❌ Could not infer time slot from hour:", hourOnly);
+      if (logManager?.dev)
+        logManager.dev.debug("❌ Could not infer time slot from hour:", hourOnly);
       return null;
     }
 
-    console.log(
-      `✅ Inferred complete time slot from hour: ${hourOnly} → ${inferredSlot.start}-${inferredSlot.end}`
-    );
+    if (logManager?.dev) {
+      logManager.dev.debug(
+        `✅ Inferred complete time slot from hour: ${hourOnly} → ${inferredSlot.start}-${inferredSlot.end}`
+      );
+    }
 
     // Get days from day code
     const days = this.dayCodes[dayCode.trim()] || [];
