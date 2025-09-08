@@ -126,4 +126,4 @@ export class PrivacyManager {
 
 // Initialize privacy manager
 export const privacyManager = new PrivacyManager();
-window.privacyManager = privacyManager; // Make globally available
+// Removed global window.privacyManager exposure (import where required)

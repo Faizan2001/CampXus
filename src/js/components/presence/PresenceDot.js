@@ -397,7 +397,4 @@ export class PresenceDot {
   }
 }
 
-// Development helper for testing
-if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-  window.PresenceDot = PresenceDot;
-}
+// Removed global window.PresenceDot exposure (import directly if needed)

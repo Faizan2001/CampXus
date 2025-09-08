@@ -628,7 +628,4 @@ export class LocationSharingToggle {
   }
 }
 
-// Development helper for testing
-if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-  window.LocationSharingToggle = LocationSharingToggle;
-}
+// Removed global window.LocationSharingToggle exposure (import directly where needed)

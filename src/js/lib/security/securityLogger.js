@@ -134,4 +134,4 @@ export class SecurityLogger {
 
 // Initialize security logger
 export const securityLogger = new SecurityLogger();
-window.securityLogger = securityLogger; // Make globally available for debugging
+// Removed global window.securityLogger exposure (import directly where needed)

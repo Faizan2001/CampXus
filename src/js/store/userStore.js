@@ -445,5 +445,5 @@ export const currentUser = new CurrentUserManager();
 
 // Only expose globally for development/debugging
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  window.currentUser = currentUser;
+  // Removed global window.currentUser exposure (import where needed)
 }

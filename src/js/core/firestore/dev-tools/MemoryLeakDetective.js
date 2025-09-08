@@ -1136,8 +1136,10 @@ if (import.meta.env?.DEV || window.location.hostname === 'localhost') {
   const detective = new MemoryLeakDetective();
   
   // 🎯 Expose globally for console access IMMEDIATELY
-  window.MemoryLeakDetective = MemoryLeakDetective;
-  window.detective = detective;
+  // Removed global MemoryLeakDetective & detective exposures (import directly for debugging if needed)
+  
+  // window.MemoryLeakDetective = MemoryLeakDetective;
+  // window.detective = detective;
   
   console.log("🔧 Detective instance created and exposed globally");
   console.log("📍 Available commands: window.detective.report(), window.detective.testListeners(), etc.");

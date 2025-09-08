@@ -191,206 +191,9 @@ export class HorizontalFriendsBar {
         logManager.dev.debug("User selection called after DOM ready");
       }, 50);
 
-      // Add global debug function for testing selection rings
-      window.testSelectionRings = () => {
-        logManager.dev.test("Testing selection rings");
-        this.avatarElements.forEach((element, friendId) => {
-          const ring = element.querySelector(".selection-ring");
-          logManager.dev.debug(`Ring for ${friendId}`, {
-            hasSelected: element.classList.contains("selected"),
-            ringOpacity: ring ? getComputedStyle(ring).opacity : "N/A",
-          });
-        });
-      };
+  // Dev-only helper functions removed from global scope
 
-      logManager.dev.debug("Added window.testSelectionRings() for debugging");
-
-      // Add test function to window for debugging avatar comparison
-      window.testAvatarComparison = () => {
-        logManager.dev.test("Testing avatar comparison logic");
-
-        const testCases = [
-          {
-            name: "Same objects",
-            current: { hair: "short", eyes: "blue" },
-            new: { hair: "short", eyes: "blue" },
-            expected: false,
-          },
-          {
-            name: "Different objects",
-            current: { hair: "short", eyes: "blue" },
-            new: { hair: "long", eyes: "blue" },
-            expected: true,
-          },
-          {
-            name: "Current null, new object",
-            current: null,
-            new: { hair: "short", eyes: "blue" },
-            expected: true,
-          },
-          {
-            name: "Current undefined, new object",
-            current: undefined,
-            new: { hair: "short", eyes: "blue" },
-            expected: true,
-          },
-          {
-            name: "Both null",
-            current: null,
-            new: null,
-            expected: false,
-          },
-          {
-            name: "Circular reference test",
-            current: { hair: "short" },
-            new: (() => {
-              const obj = { hair: "long" };
-              obj.self = obj;
-              return obj;
-            })(),
-            expected: true,
-          },
-        ];
-
-        testCases.forEach((test) => {
-          let avatarChanged = false;
-          if (test.new) {
-            if (!test.current) {
-              avatarChanged = true;
-            } else {
-              try {
-                const currentStr = JSON.stringify(test.current);
-                const newStr = JSON.stringify(test.new);
-                avatarChanged = currentStr !== newStr;
-              } catch (error) {
-                console.warn("JSON comparison failed, assuming changed");
-                avatarChanged = true;
-              }
-            }
-          }
-
-          const passed = avatarChanged === test.expected;
-          console.log(
-            `${passed ? "✅" : "❌"} ${test.name}: ${avatarChanged} (expected ${
-              test.expected
-            })`
-          );
-        });
-      };
-
-      // Add function to simulate a profile update
-      window.simulateProfileUpdate = (friendId) => {
-        const friendIndex = this.quickAccessFriends.findIndex(
-          (f) => f.friendId === friendId
-        );
-        if (friendIndex === -1) {
-          console.error(`Friend ${friendId} not found in quick access`);
-          return;
-        }
-
-        const mockProfile = {
-          profile: {
-            handle: this.quickAccessFriends[friendIndex].handle,
-            avatarConfig: {
-              hair: "updated_" + Date.now(),
-              eyes: "new_color",
-            },
-          },
-        };
-
-        console.log("🧪 Simulating profile update:", mockProfile);
-        this.handleStarredFriendProfileUpdate(friendId, mockProfile);
-      };
-
-      console.log(
-        "🔍 Added window.testAvatarComparison() and window.simulateProfileUpdate() for debugging"
-      );
-
-      // Add comprehensive debug method for Firebase validation issues
-      window.debugHorizontalFriendsBar = () => {
-        console.group("🔍 HorizontalFriendsBar Debug Report");
-
-        console.log("📊 Current State:", {
-          friendsCount: this.quickAccessFriends?.length || 0,
-          selectedFriendId: this.selectedFriendId,
-          isLoading: this.isLoading,
-          isSyncing: this.isSyncing,
-          compareMode: this.compareMode,
-        });
-
-        console.log("👥 Friends Data:");
-        this.quickAccessFriends?.forEach((friend, index) => {
-          console.log(`  Friend ${index}:`, {
-            friendId: friend.friendId,
-            userId: friend.userId,
-            handle: friend.handle,
-            hasAvatarConfig: !!friend.avatarConfig,
-            isRestricted: friend.isRestricted,
-            privacyStatus: friend.privacyStatus,
-            undefinedFields: Object.entries(friend)
-              .filter(([k, v]) => v === undefined)
-              .map(([k]) => k),
-          });
-        });
-
-        console.log("🔥 Firebase Validation:");
-        const validationResults =
-          this.quickAccessFriends?.map((friend, index) => {
-            return {
-              index,
-              isValid: this._validateFirebaseData([friend]),
-              validatedData: {
-                friendId: this._validateString(
-                  friend.friendId,
-                  `Friend ${index} friendId`
-                ),
-                userId: this._validateString(
-                  friend.userId,
-                  `Friend ${index} userId`
-                ),
-                handle: this._validateString(
-                  friend.handle,
-                  `Friend ${index} handle`,
-                  "unknown_handle"
-                ),
-                avatarConfig: this._validateAvatarConfig(
-                  friend.avatarConfig,
-                  `Friend ${index} avatarConfig`
-                ),
-                isRestricted: Boolean(friend.isRestricted),
-                privacyStatus: this._validateString(
-                  friend.privacyStatus,
-                  `Friend ${index} privacyStatus`,
-                  "unknown"
-                ),
-              },
-            };
-          }) || [];
-
-        console.table(validationResults);
-
-        console.groupEnd();
-
-        return {
-          friends: this.quickAccessFriends,
-          validationResults,
-          allValid: validationResults.every((r) => r.isValid),
-        };
-      };
-
-      console.log(
-        "🔍 Added window.debugHorizontalFriendsBar() for comprehensive debugging"
-      );
-
-      // Add global function for testing location animation
-      window.testLocationAnimation = () => {
-        console.log("🗺 Testing location update animation...");
-        this.notifyLocationUpdated();
-      };
-
-      console.log(
-        "🗺 Added window.testLocationAnimation() for testing location updates"
-      );
+  // Removed numerous window.* debug helpers to prevent production access
 
       // Store global instance for external access
       globalHorizontalFriendsBarInstance = this;
@@ -3427,7 +3230,7 @@ export class HorizontalFriendsBar {
       if (this.isSyncing || window.horizontalFriendsBar_updating) return;
 
       this.isSyncing = true;
-      window.horizontalFriendsBar_updating = true;
+  // Removed global flag horizontalFriendsBar_updating
 
       try {
         const currentUserProfile = await currentUser.waitForProfile();
@@ -3530,7 +3333,7 @@ export class HorizontalFriendsBar {
         // FIXED: Immediate release of global lock to prevent blocking legitimate operations
         // Reduced from 2000ms to 100ms to allow proper operation flow
         setTimeout(() => {
-          window.horizontalFriendsBar_updating = false;
+          // Removed global flag horizontalFriendsBar_updating
         }, 100);
       }
     }, 1000); // 1 second for urgent syncs
@@ -4706,8 +4509,7 @@ export class HorizontalFriendsBar {
 
     // Clear global circuit breaker flags
     if (typeof window !== "undefined") {
-      window.horizontalFriendsBar_updating = false;
-      window.profile_updates_in_progress = false;
+  // Removed global flags horizontalFriendsBar_updating & profile_updates_in_progress
     }
 
     // Clear all real-time listeners (privacy changes, profile updates)

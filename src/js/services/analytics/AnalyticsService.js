@@ -334,7 +334,4 @@ if (typeof window !== "undefined") {
 
 console.log("📊 AnalyticsService loaded successfully");
 
-// Make debug function available globally for console use
-if (typeof window !== "undefined") {
-  window.enableAnalyticsDebugMode = enableDebugMode;
-}
+// Removed global window.enableAnalyticsDebugMode exposure; call enableDebugMode() via import when needed

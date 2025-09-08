@@ -1777,11 +1777,11 @@ function setupScheduleRealTimeSync(userId) {
   // Clean up existing listener if any
   if (window.scheduleRealtimeUnsubscribe) {
     window.scheduleRealtimeUnsubscribe();
-    window.scheduleRealtimeUnsubscribe = null;
+  // Removed global scheduleRealtimeUnsubscribe exposure
   }
 
   // Set up new real-time sync through ScheduleStorageService
-  window.scheduleRealtimeUnsubscribe = scheduleStorageService.setupRealtimeSync(
+  const realtimeUnsubscribe = scheduleStorageService.setupRealtimeSync(
     userId,
     (updatedScheduleData) => {
       if (updatedScheduleData && state.users[userId]) {
@@ -5745,7 +5745,7 @@ function setupAuthenticationCallbacks() {
           try {
             window.scheduleRealtimeUnsubscribe();
           } catch (_) {}
-          window.scheduleRealtimeUnsubscribe = null;
+          // realtimeUnsubscribe cleared
         }
 
         // Cleanup UI listeners and friends bar
@@ -7073,35 +7073,7 @@ document.addEventListener("spa:page:load", async (event) => {
 
     console.log("✅ MeetchuThere Schedule App loaded successfully!");
 
-    // 🧪 DEBUG: Add test helper for day navigation buttons
-    if (typeof window !== "undefined") {
-      window.testDayNavigation = () => {
-        console.log("🧪 Testing day navigation buttons...");
-        const results = {};
-
-        for (let i = 0; i < 7; i++) {
-          const dayBtn = DOM_ELEMENTS[`dayBtn${i}`];
-          if (dayBtn) {
-            console.log(`📍 Day ${i} button found:`, dayBtn);
-            results[`dayBtn${i}`] = "found";
-
-            // Test clicking it
-            dayBtn.click();
-            console.log(`✅ Day ${i} button clicked`);
-          } else {
-            console.log(`❌ Day ${i} button not found`);
-            results[`dayBtn${i}`] = "missing";
-          }
-        }
-
-        return {
-          results,
-          eventListenersCount: state.uiControlListeners.length,
-          mobileInitialized: state.mobileScheduleInitialized,
-          eventListenersSetup: state.eventListenersSetup,
-        };
-      };
-    }
+  // Removed global testDayNavigation helper (was debug only)
   }
 });
 
@@ -7120,7 +7092,7 @@ document.addEventListener("spa:page:unload", (event) => {
     if (window.scheduleRealtimeUnsubscribe) {
       console.log("🧹 Cleaning up schedule real-time listener...");
       window.scheduleRealtimeUnsubscribe();
-      window.scheduleRealtimeUnsubscribe = null;
+  // realtimeUnsubscribe cleared
     }
 
     // 🧹 MEMORY LEAK FIX: Clean up all tracked event listeners

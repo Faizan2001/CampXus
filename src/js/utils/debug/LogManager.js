@@ -191,6 +191,129 @@ class LogManager {
       "ViewModeManager",
       "UniversityCampusConfig",
     ]);
+
+    // --- Global console suppression controls ---
+    this._originalConsole = null; // Will store original console methods
+    this._suppressionActive = false; // Whether verbose suppression is active
+    this._initializedEnvControl = false; // Guard so we only init once
+    this._suppressedCount = { log: 0, info: 0, debug: 0 };
+
+    // Auto-initialize when constructed (safe no-op on server)
+    if (typeof window !== "undefined") {
+      // Defer initialization to end of current tick to allow env vars to be injected
+      setTimeout(() => this.initializeEnvironmentLogging(), 0);
+    }
+  }
+
+  /**
+   * Determine if we are in development mode using multiple fallbacks (Vite + NODE_ENV)
+   */
+  _isDevEnv() {
+    try {
+  // Vite exposes import.meta.env.DEV during development builds
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) return true;
+    } catch {}
+    return (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+  }
+
+  /**
+   * Check if user explicitly forced verbose logging in production via:
+   *  - URL query param: ?debug=1 OR ?logs=all OR ?verbose=1
+   *  - localStorage flag: verboseLogs = 'true'
+   */
+  _isForcedVerbose() {
+  // SECURITY: Disallow forcing verbose in production entirely
+  if (!this._isDevEnv()) return false;
+    try {
+      const qs = typeof window !== 'undefined' ? window.location.search : '';
+      const params = new URLSearchParams(qs);
+      if (["1", "true", "all"].some(v => (
+        params.get("debug") === v ||
+        params.get("logs") === v ||
+        params.get("verbose") === v
+      ))) return true;
+      if (typeof window !== 'undefined' && window.localStorage.getItem('verboseLogs') === 'true') return true;
+    } catch {}
+    return false;
+  }
+
+  /**
+   * Initialize environment-based logging suppression.
+   * In production: silence console.log/info/debug unless forced.
+   * Errors & warnings ALWAYS pass through.
+   */
+  initializeEnvironmentLogging() {
+    if (this._initializedEnvControl) return; // Only run once
+    this._initializedEnvControl = true;
+
+    const isDev = this._isDevEnv();
+    const forced = this._isForcedVerbose();
+
+    if (!isDev && !forced) {
+      this.suppressVerboseConsole();
+    } else {
+      this.restoreVerboseConsole();
+    }
+
+    // Expose simple runtime toggles ONLY in development
+    if (typeof window !== 'undefined' && isDev) {
+      window.enableVerboseLogs = () => this.enableVerboseLogs();
+      window.disableVerboseLogs = () => this.disableVerboseLogs();
+    }
+  }
+
+  /**
+   * Replace console.log/info/debug with no-ops (counting suppressed calls)
+   */
+  suppressVerboseConsole() {
+    if (this._suppressionActive) return;
+    if (!this._originalConsole) {
+      this._originalConsole = {
+        log: console.log.bind(console),
+        info: console.info ? console.info.bind(console) : console.log.bind(console),
+        debug: console.debug ? console.debug.bind(console) : console.log.bind(console),
+      };
+    }
+    const counter = this._suppressedCount;
+    const noop = (type) => function () { counter[type]++; };
+    console.log = noop('log');
+    console.info = noop('info');
+    console.debug = noop('debug');
+    this._suppressionActive = true;
+    // Lower internal LogManager level automatically when suppressed
+    this.setLevel('warn');
+  }
+
+  /**
+   * Restore original console methods
+   */
+  restoreVerboseConsole() {
+    if (!this._originalConsole) return; // Nothing to restore yet
+    console.log = this._originalConsole.log;
+    console.info = this._originalConsole.info;
+    console.debug = this._originalConsole.debug;
+    this._suppressionActive = false;
+  }
+
+  /** User-friendly API to enable verbose logs at runtime */
+  enableVerboseLogs() {
+    this.restoreVerboseConsole();
+    this.setLevel('debug');
+    this.enableCategories(['all']);
+    try { window.localStorage.setItem('verboseLogs', 'true'); } catch {}
+    console.log('🔓 Verbose logs ENABLED (restored console methods)');
+    if (this._suppressedCount.log + this._suppressedCount.info + this._suppressedCount.debug > 0) {
+      console.log(`ℹ️ Suppressed earlier: log=${this._suppressedCount.log}, info=${this._suppressedCount.info}, debug=${this._suppressedCount.debug}`);
+    }
+  }
+
+  /** User-friendly API to disable verbose logs at runtime */
+  disableVerboseLogs() {
+    this.suppressVerboseConsole();
+    try { window.localStorage.setItem('verboseLogs', 'false'); } catch {}
+    if (this._originalConsole) {
+      this._originalConsole.log('🔒 Verbose logs DISABLED (console.log/info/debug silenced)');
+    }
   }
 
   /**
@@ -825,11 +948,11 @@ class LogManager {
 // Create singleton instance
 export const logManager = new LogManager();
 
-// Expose to window for console debugging
-if (typeof window !== "undefined") {
-  window.logManager = logManager;
+// Expose to window ONLY in development
+if (typeof window !== "undefined" && (import.meta?.env?.DEV || process.env.NODE_ENV === 'development')) {
+  window.logManager = logManager; // Dev only
 
-  // Add convenient console commands
+  // Add convenient console commands (dev only)
   window.debugLogs = {
     // Show all log types
     all: () => {
@@ -880,18 +1003,28 @@ if (typeof window !== "undefined") {
       console.log("🚨 Critical logs only (errors, auth, system, presence)");
     },
 
+    // Enable raw console output + full internal logs
+    verboseOn: () => {
+      logManager.enableVerboseLogs();
+    },
+
+    // Disable raw console output (suppress) keeping errors & warnings
+    verboseOff: () => {
+      logManager.disableVerboseLogs();
+    },
+
     // Show help
     help: () => {
       console.log(
         `🔧 Debug Log Controls: 
-        debugLogs.all() | debugLogs.location() | debugLogs.database() | 
-        debugLogs.presence() | debugLogs.perf() | debugLogs.quiet() | 
-        debugLogs.critical() | debugLogs.help()`
+        debugLogs.all() | debugLogs.location() | debugLogs.database() |
+        debugLogs.presence() | debugLogs.perf() | debugLogs.quiet() |
+        debugLogs.critical() | debugLogs.verboseOn() | debugLogs.verboseOff() | debugLogs.help()`
       );
     },
   };
 
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === "development" || import.meta?.env?.DEV) {
     console.log("💡 Use debugLogs.help() to see logging controls");
   }
 }
