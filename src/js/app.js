@@ -145,7 +145,9 @@ async function initializeSPA() {
   // 🌍 Initialize Campus Presence services in background (NON-BLOCKING)
   // Defer Campus Presence services until auth is ready and user is logged in
   // This avoids network calls and logs when user is logged out.
-  logManager.system.init("Deferring Campus Presence services until after login");
+  logManager.system.init(
+    "Deferring Campus Presence services until after login"
+  );
 
   spaRouter = new SPARouter();
 
@@ -218,7 +220,10 @@ async function initializeSPA() {
   window.addEventListener("beforeunload", () => {
     // Mark that a manual reload is happening
     try {
-      if (typeof window !== 'undefined' && window.campusLocationService?.constructor?.markManualReload) {
+      if (
+        typeof window !== "undefined" &&
+        window.campusLocationService?.constructor?.markManualReload
+      ) {
         window.campusLocationService.constructor.markManualReload();
       }
     } catch (_) {}
@@ -226,7 +231,6 @@ async function initializeSPA() {
 
   logManager.system.init("SPA Initialization completed");
 }
-
 
 // Initialize when DOM is ready, or immediately if already ready
 if (document.readyState === "loading") {
@@ -286,17 +290,34 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
   const startIfNeeded = async () => {
     if (__presenceStarted) return;
     const isLoggedIn = !!(currentUser?.uid || authManager?.auth?.currentUser);
-    if (!isLoggedIn) return;
+    const sharingEnabled =
+      currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+    if (!isLoggedIn) return; // auth not ready
+    if (!sharingEnabled) {
+      if (logManager?.dev) {
+        logManager.dev.debug(
+          "Campus Presence start deferred: global location sharing disabled"
+        );
+      }
+      return;
+    }
     __presenceStarted = true;
-    logManager.location.info("Starting Campus Presence services after login...");
+    logManager.location.info(
+      "Starting Campus Presence services after login..."
+    );
     try {
       await initializeCampusPresenceInBackground();
       // Start scheduler lazily
       try {
-        const { locationScheduler } = await import("./services/location/LocationScheduler.js");
+        const { locationScheduler } = await import(
+          "./services/location/LocationScheduler.js"
+        );
         locationScheduler.start?.();
       } catch (e) {
-        console.warn("LocationScheduler start failed (non-critical):", e?.message || e);
+        console.warn(
+          "LocationScheduler start failed (non-critical):",
+          e?.message || e
+        );
       }
     } catch (e) {
       console.warn("Campus Presence lazy init failed:", e?.message || e);
@@ -318,6 +339,49 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
     });
   }
 }
+
+// 🔐 NEW: Listen for global location sharing being enabled to start presence lazily
+document.addEventListener(
+  "location-sharing-changed",
+  (e) => {
+    try {
+      const detail = e.detail;
+      if (!detail) return;
+      if (detail.type === "global" && detail.enabled === true) {
+        if (logManager?.dev) {
+          logManager.dev.debug(
+            "Global location sharing enabled via toggle – starting Campus Presence services"
+          );
+        }
+        // Re-attempt start (will no-op if already started)
+        tryStartCampusPresenceAfterLogin(false);
+        // Proactively request an immediate location update once services load
+        (async () => {
+          try {
+            const { campusLocationService } = await import(
+              "./services/location/CampusLocationService.js"
+            );
+            if (
+              campusLocationService?.requestSingleLocationUpdate &&
+              typeof campusLocationService.requestSingleLocationUpdate ===
+                "function"
+            ) {
+              campusLocationService.requestSingleLocationUpdate();
+            }
+          } catch (_) {}
+        })();
+      } else if (detail.type === "global" && detail.enabled === false) {
+        // Optional: could log that presence will halt (actual stopping handled by toggle component)
+        if (logManager?.dev) {
+          logManager.dev.debug(
+            "Global location sharing disabled – presence tracking should stop (handled by toggle)"
+          );
+        }
+      }
+    } catch (_) {}
+  },
+  { passive: true }
+);
 
 /**
  * Set up SPA-specific event listeners
@@ -466,8 +530,12 @@ async function initializeCampusPresenceInBackground() {
 
     // Initialize location services with enhanced background processing
     const initializationPromise = (async () => {
-      const { campusLocationService } = await import("./services/location/CampusLocationService.js");
-      const { locationPrivacyService } = await import("./services/location/LocationPrivacyService.js");
+      const { campusLocationService } = await import(
+        "./services/location/CampusLocationService.js"
+      );
+      const { locationPrivacyService } = await import(
+        "./services/location/LocationPrivacyService.js"
+      );
 
       if (typeof campusLocationService.handleInitialization === "function") {
         await campusLocationService.handleInitialization();
@@ -549,7 +617,9 @@ async function fetchFreshLocationForPresence() {
   console.log("🎯 Priority: Fetching fresh location data for presence dots...");
 
   try {
-    const { campusLocationService } = await import("./services/location/CampusLocationService.js");
+    const { campusLocationService } = await import(
+      "./services/location/CampusLocationService.js"
+    );
     // Use immediate location fetch for presence priority
     if (
       typeof campusLocationService.requestSingleLocationUpdate === "function"
@@ -590,7 +660,4 @@ async function fetchFreshLocationForPresence() {
  * Export Campus Presence services for debugging and testing
  * 🌍 Learning: Expose services for console debugging and external access
  */
-export {
-  initializeCampusPresenceInBackground,
-  fetchFreshLocationForPresence,
-};
+export { initializeCampusPresenceInBackground, fetchFreshLocationForPresence };

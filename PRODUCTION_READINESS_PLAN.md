@@ -8,9 +8,7 @@ This plan turns the current JAMstack SPA (Vite + Firebase) into a production-rea
 
 ## 0) Launch Week Priorities (Order)
 
-1) Firestore privacy (blocker)
-   - Restrict schedule/location to friends only. Best: split to `/schedules` + `/presence` (Appendix A). If not possible now, temporarily restrict `/users` reads to self/friends and set `socialInfo.searchable=false` by default.
-   - Deploy rules + indexes and test with two non‑friend accounts.
+
 
 2) CSP + headers (blocker)
    - Remove `unsafe-eval` from production CSP in `index.html`. Keep only Firebase, gstatic, ipinfo in `connect-src`.
@@ -22,16 +20,8 @@ This plan turns the current JAMstack SPA (Vite + Firebase) into a production-rea
 
 4) Keys/quotas (blocker)
    - Restrict Google key by HTTP referrers; set daily quota alerts (Firebase + Google Cloud budgets).
-   - Decide ipinfo token: remove (free limits), or accept exposure and lower call frequency (throttle in code), or proxy later via Cloudflare Worker.
+   
 
-5) Presence cost control (high priority)
-   - Set polling to 60–90s (keep instant on login/tab return). Keep listeners page‑scoped (your code mostly does this).
-
-6) Privacy policy (high priority)
-   - Add `public/templates/privacy.html`; link from the consent banner.
-
-7) Minimal monitoring (high priority)
-   - Enable Cloudflare Web Analytics for traffic; set Firebase usage alerts; add simple user count and “online now” views (see Monitoring & Quick How‑Tos).
 
 8) Quick hygiene (nice‑to‑have if time)
    - Sanitize user‑rendered text (bio/displayName) with `textContent` or DOMPurify.

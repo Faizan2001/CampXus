@@ -25,6 +25,8 @@ import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
+// Logging
+import { logManager } from "../utils/debug/LogManager.js"; // ✅ Restored import to fix ReferenceError
 
 /* ================================
    APPLICATION STATE
