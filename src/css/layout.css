@@ -19,7 +19,9 @@ This file contains all layout-related styles for the MeetchuThere app:
 /* ===== MAIN APP CONTAINER ===== */
 /* Root container that holds the entire application structure */
 .app-container {
-  min-height: 100vh; /* Full viewport height */
+  /* Use dynamic viewport height to avoid iOS address bar causing jumps */
+  min-height: 100dvh; /* Full viewport height (modern browsers) */
+  min-height: -webkit-fill-available; /* iOS Safari fallback */
   display: flex;
   flex-direction: column; /* Stack navigation above main content */
 }
@@ -328,7 +330,10 @@ This file contains all layout-related styles for the MeetchuThere app:
   /* Beautiful purple gradient background */
   background: var(--main-content-bg);
   position: relative;
-  min-height: calc(100vh - 80px); /* Fill remaining viewport height */
+  /* Fallback for older browsers */
+  min-height: calc(100vh - 80px);
+  /* Prefer dvh to avoid iOS Safari URL bar collapsing the viewport */
+  min-height: calc(100dvh - 80px); /* Fill remaining viewport height */
 }
 
 /* Add subtle overlay pattern for extra visual depth */
@@ -533,7 +538,10 @@ This file contains all layout-related styles for the MeetchuThere app:
     height: fit-content; /* Scale with content */
     max-height: calc(
       100vh - 4rem
-    ); /* Maximize height utilization on wide screens */
+    ); /* Fallback */
+    max-height: calc(
+      100dvh - 4rem
+    ); /* Prefer dvh for iOS URL bar */
   }
 
   /* Larger cards for wide screens */
@@ -555,7 +563,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Better schedule height utilization on wide screens */
   .schedule-wrapper {
-    max-height: calc(100vh - 10rem); /* Optimized for wide screens */
+  max-height: calc(100vh - 10rem); /* Fallback */
+  max-height: calc(100dvh - 10rem); /* Optimized for wide screens (iOS safe) */
     min-height: 600px; /* Larger minimum height for wide screens */
   }
 }
@@ -699,7 +708,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Optimize schedule height for standard desktop */
   .schedule-wrapper {
-    max-height: calc(100vh - 12rem); /* Desktop-optimized height */
+  max-height: calc(100vh - 12rem); /* Fallback */
+  max-height: calc(100dvh - 12rem); /* Desktop-optimized height */
     min-height: 500px; /* Adequate minimum height for desktop */
   }
 }

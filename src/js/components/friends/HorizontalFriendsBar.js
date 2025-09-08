@@ -2014,7 +2014,7 @@ export class HorizontalFriendsBar {
     });
 
     this._freshDataListenersSetup = true;
-  // Remove legacy campus-presence:data-* listeners to avoid duplicate logs
+    // Remove legacy campus-presence:data-* listeners to avoid duplicate logs
 
     console.log("✅ Enhanced fresh data event listeners set up successfully");
   }

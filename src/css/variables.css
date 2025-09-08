@@ -27,6 +27,8 @@ design system for the MeetchuThere application. It includes:
 /* Root font-size for consistent rem calculations across all environments */
 html {
   font-size: 16px; /* Explicit base font-size prevents browser differences */
+  /* iOS Safari: make fill-available sizing work for children */
+  height: -webkit-fill-available;
 }
 
 /* Body foundation with typography and theme transitions */
@@ -37,11 +39,14 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   overflow-x: hidden;
-  min-height: 100vh;
+  /* Prefer modern viewport units to avoid iOS URL bar jumps */
+  min-height: 100dvh;
   font-feature-settings: "liga" 1, "kern" 1;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent iOS Safari from auto-resizing text which breaks layout */
+  -webkit-text-size-adjust: 100%;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 

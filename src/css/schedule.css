@@ -26,7 +26,10 @@ This file contains all styles related to the schedule display:
   height: fit-content; /* Allow glass card to scale with content */
   max-height: calc(
     100vh - 8rem
-  ); /* Reasonable max height to prevent excessive growth */
+  ); /* Fallback */
+  max-height: calc(
+    100dvh - 8rem
+  ); /* Prefer dvh on iOS */
   overflow: hidden; /* Ensure content stays within bounds */
 }
 
@@ -160,6 +163,7 @@ This file contains all styles related to the schedule display:
   flex: 1; /* Take remaining space after header */
   min-height: 250px; /* Reduced minimum for better mobile scaling */
   max-height: calc(100vh - 300px); /* ✅ FIXED: Constrain height to prevent overflow */
+  max-height: calc(100dvh - 300px); /* Prefer dvh on modern browsers */
   padding: 0.5rem; /* Add consistent padding for gap management */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 

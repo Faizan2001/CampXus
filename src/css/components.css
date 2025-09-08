@@ -199,10 +199,6 @@ This file contains all UI component styles for the MeetchuThere app:
     0 0 0 2px rgba(106, 90, 205, 0.2);
 }
 
-.notification-medium {
-  /* Default styling - no additional properties needed */
-}
-
 .notification-low {
   opacity: 0.9;
   border-width: 1px;
@@ -663,8 +659,8 @@ This file contains all UI component styles for the MeetchuThere app:
   width: 100%;
   padding: 1rem;
   padding-left: 3rem;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
   font-size: 0.95rem;
@@ -682,7 +678,7 @@ This file contains all UI component styles for the MeetchuThere app:
 .input-wrapper input:focus,
 .input-wrapper textarea:focus {
   outline: none;
-  border-color: var(--accent-primary);
+  border-color: var(--input-focus-border);
   box-shadow: 0 0 0 3px var(--input-focus-shadow);
   background: var(--glass-hover);
 }

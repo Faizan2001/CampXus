@@ -4994,10 +4994,7 @@ export class CampusLocationService {
   emitPresenceDataError(errorMessage) {
     // Treat transient location acquisition issues as warnings (e.g., no GPS)
     if (logManager?.location) {
-      logManager.location.warn(
-        "📡 Presence data warning:",
-        errorMessage
-      );
+      logManager.location.warn("📡 Presence data warning:", errorMessage);
     } else {
       console.warn(
         "📡 [CampusLocationService] Presence data warning:",

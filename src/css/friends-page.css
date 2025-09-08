@@ -27,7 +27,8 @@ body.page-friends .content-grid {
   align-items: flex-start !important; /* Left-align on cross axis */
   grid-template-columns: unset !important; /* Reset grid columns */
   grid-template-rows: unset !important; /* Reset grid rows */
-  min-height: calc(100vh - 120px) !important; /* Full viewport minus nav */
+  min-height: calc(100vh - 120px) !important; /* Fallback */
+  min-height: calc(100dvh - 120px) !important; /* Full viewport minus nav */
   width: 100% !important; /* Full container width */
   max-width: 100% !important; /* Prevent overflow */
   gap: 0 !important; /* Remove grid gap */
@@ -125,7 +126,7 @@ body.page-friends .schedule-section {
 
 .friends-search .search-input:focus {
   outline: none;
-  border-color: var(--accent-primary);
+  border-color: var(--input-focus-border);
   box-shadow: 0 0 0 3px var(--friends-purple-shadow-light);
 }
 

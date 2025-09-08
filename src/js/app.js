@@ -601,7 +601,11 @@ async function initializeCampusPresenceInBackground() {
     // Emit warning-style event for component handling
     document.dispatchEvent(
       new CustomEvent("campus-presence:error", {
-        detail: { error: error.message, severity: "warning", timestamp: Date.now() },
+        detail: {
+          error: error.message,
+          severity: "warning",
+          timestamp: Date.now(),
+        },
       })
     );
 
