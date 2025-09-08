@@ -197,15 +197,13 @@ class SPARouter {
         animation: slideUpIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
 
-      @media (prefers-color-scheme: dark) {
-        .spa-loading .loading-container {
-          background: rgba(40, 44, 52, 0.95);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 
-            0 20px 40px rgba(0, 0, 0, 0.3),
-            0 8px 20px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
+      body.dark-mode .spa-loading .loading-container {
+        background: rgba(40, 44, 52, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 
+          0 20px 40px rgba(0, 0, 0, 0.3),
+          0 8px 20px rgba(0, 0, 0, 0.2),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
 
       .spa-loading .loading-animation {
@@ -267,10 +265,8 @@ class SPARouter {
         gap: 2px;
       }
 
-      @media (prefers-color-scheme: dark) {
-        .spa-loading .loading-text {
-          color: #e2e8f0;
-        }
+      body.dark-mode .spa-loading .loading-text {
+        color: #e2e8f0;
       }
 
       .spa-loading .loading-ellipsis {

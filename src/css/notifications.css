@@ -224,9 +224,10 @@ body.page-notifications .schedule-section {
 
 /* =================================
    GLASS CARD NOTIFICATION SECTIONS
+   (Scoped to notifications page to avoid global overrides)
 ================================= */
 
-.glass-card {
+.notifications-card {
   /* Enhanced glassmorphism matching friends page exactly */
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
@@ -342,7 +343,7 @@ body.page-notifications .schedule-section {
   }
 }
 
-.glass-card::before {
+.notifications-card::before {
   content: "";
   position: absolute;
   top: 0;
@@ -358,7 +359,7 @@ body.page-notifications .schedule-section {
   pointer-events: none;
 }
 
-.glass-card h3 {
+.notifications-card h3 {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -368,7 +369,7 @@ body.page-notifications .schedule-section {
   gap: 0.5rem;
 }
 
-.glass-card h3 i {
+.notifications-card h3 i {
   color: var(--primary-color, #667eea);
   opacity: 0.8;
 }
@@ -502,7 +503,9 @@ body.page-notifications .schedule-section {
   color: #6d28d9;
 }
 
-.notification-item:not(.location-request):not(.friend-request) .notification-text strong {
+.notification-item:not(.location-request):not(.friend-request)
+  .notification-text
+  strong {
   color: var(--primary-color, #667eea);
 }
 
@@ -640,7 +643,7 @@ body.page-notifications .schedule-section {
     border-radius: 16px;
     gap: 0.8rem;
   }
-  
+
   /* Enhanced mobile layout for location requests */
   .notification-item.location-request,
   .notification-item.friend-request {
@@ -648,7 +651,7 @@ body.page-notifications .schedule-section {
     align-items: stretch;
     padding: 0.8rem 1rem 0.75rem 1rem;
   }
-  
+
   /* Keep avatar and content on same line */
   .notification-item.location-request .notification-content,
   .notification-item.friend-request .notification-content {
@@ -657,27 +660,26 @@ body.page-notifications .schedule-section {
     gap: 0.75rem;
     margin-bottom: 0.75rem;
   }
-  
+
   .notification-item.location-request .notification-avatar,
   .notification-item.friend-request .notification-avatar {
     flex-shrink: 0;
     margin-bottom: 0;
   }
-  
+
   .notification-item.location-request .notification-text-content,
   .notification-item.friend-request .notification-text-content {
     flex: 1;
     min-width: 0;
   }
-  
-  
+
   .notification-actions {
     flex-direction: column;
     gap: 0.6rem;
     width: 100%;
     margin-top: 0.5rem;
   }
-  
+
   .notification-actions button {
     width: 100%;
     padding: 0.8rem 1.2rem;
@@ -686,20 +688,19 @@ body.page-notifications .schedule-section {
     min-height: 44px; /* Better touch targets */
     border-radius: 12px;
   }
-  
-  
+
   /* Mobile text improvements */
   .notification-text {
     font-size: 0.9rem;
     line-height: 1.3;
     margin-bottom: 0.3rem;
   }
-  
+
   .notification-time {
     font-size: 0.7rem;
     opacity: 0.7;
   }
-  
+
   /* Mobile content spacing */
   .notification-content {
     width: 100%;
@@ -713,14 +714,14 @@ body.page-notifications .schedule-section {
   .notification-item.friend-request {
     padding: 0.9rem 1rem 0.8rem 1rem;
   }
-  
+
   .notification-actions {
     flex-direction: row;
     gap: 0.8rem;
     width: auto;
     justify-content: flex-end;
   }
-  
+
   .notification-actions button {
     flex: 1;
     max-width: 140px;
@@ -768,7 +769,6 @@ body.page-notifications .schedule-section {
 .notification-item.location-request .notification-avatar {
   position: relative;
 }
-
 
 .notification-item.location-request .notification-text {
   color: #d84315;
@@ -828,7 +828,6 @@ body.page-notifications .schedule-section {
 .notification-item.friend-request .notification-avatar {
   position: relative;
 }
-
 
 .notification-item.friend-request .notification-text {
   color: #6d28d9;
@@ -1466,36 +1465,34 @@ input[type="checkbox"]:checked + .toggle-switch::before {
 }
 
 /* =================================
-   DARK MODE SUPPORT
+   DARK MODE SUPPORT (Scoped to notifications page and app dark-mode)
 ================================= */
 
-@media (prefers-color-scheme: dark) {
-  .notifications-header,
-  .glass-card,
-  .notification-item,
-  .no-notifications,
-  .notification-categories,
-  .notification-settings {
-    background: rgba(40, 44, 52, 0.95);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+body.dark-mode.page-notifications .notifications-header,
+body.dark-mode.page-notifications .notifications-card,
+body.dark-mode.page-notifications .notification-item,
+body.dark-mode.page-notifications .no-notifications,
+body.dark-mode.page-notifications .notification-categories,
+body.dark-mode.page-notifications .notification-settings {
+  background: rgba(40, 44, 52, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
 
-  .notification-item:hover {
-    background: rgba(40, 44, 52, 0.98);
-    border-color: rgba(255, 255, 255, 0.15);
-  }
+body.dark-mode.page-notifications .notification-item:hover {
+  background: rgba(40, 44, 52, 0.98);
+  border-color: rgba(255, 255, 255, 0.15);
+}
 
-  .filter-btn {
-    background: rgba(102, 126, 234, 0.15);
-    border-color: rgba(102, 126, 234, 0.25);
-  }
+body.dark-mode.page-notifications .filter-btn {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.25);
+}
 
-  .filter-btn:hover {
-    background: rgba(102, 126, 234, 0.2);
-  }
+body.dark-mode.page-notifications .filter-btn:hover {
+  background: rgba(102, 126, 234, 0.2);
+}
 
-  .toggle-switch {
-    background: rgba(75, 85, 99, 0.8);
-    border-color: rgba(75, 85, 99, 0.9);
-  }
+body.dark-mode.page-notifications .toggle-switch {
+  background: rgba(75, 85, 99, 0.8);
+  border-color: rgba(75, 85, 99, 0.9);
 }

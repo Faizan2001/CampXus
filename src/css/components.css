@@ -229,20 +229,18 @@ This file contains all UI component styles for the MeetchuThere app:
   }
 }
 
-/* Dark mode enhancements */
-@media (prefers-color-scheme: dark) {
-  .notification {
-    background: rgba(26, 32, 44, 0.85);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+/* Dark mode enhancements (app-controlled) */
+body.dark-mode .notification {
+  background: rgba(26, 32, 44, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
+}
 
-  .notification::before {
-    opacity: 0.8;
-  }
+body.dark-mode .notification::before {
+  opacity: 0.8;
+}
 
-  .notification-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
+body.dark-mode .notification-close:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Reduced motion accessibility */
@@ -280,17 +278,16 @@ This file contains all UI component styles for the MeetchuThere app:
   /* Premium Border System with Gradient */
   border: 1px solid;
   border-image: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.2),
-    rgba(255, 255, 255, 0.08)
-  ) 1;
+      135deg,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.08)
+    )
+    1;
   border-radius: 16px; /* Consistent premium radius */
   padding: clamp(1.25rem, 4vw, 1.75rem); /* Optimized padding */
 
   /* Premium Multi-layer Shadow System */
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08),
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 
@@ -349,11 +346,12 @@ This file contains all UI component styles for the MeetchuThere app:
 }
 
 @keyframes pulse {
-  0%, 100% { 
+  0%,
+  100% {
     transform: scale(1) rotate(0deg);
     opacity: 0.6;
   }
-  50% { 
+  50% {
     transform: scale(1.05) rotate(180deg);
     opacity: 0.8;
   }
@@ -384,6 +382,39 @@ This file contains all UI component styles for the MeetchuThere app:
   background: var(--glass-active);
   /* ❌ Removed transform to prevent unwanted card movement */
   transition-duration: 0.1s;
+}
+
+/* Keep dark-mode base glass style even on hover/active (no visual change) */
+body.dark-mode .glass-card:hover,
+body.dark-mode .glass-card:active {
+  /* Match base .glass-card aesthetics */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  border: 1px solid;
+  border-image: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.08)
+    )
+    1;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* On touch/mobile devices, disable hover/active visual changes entirely */
+@media (hover: none) {
+  .glass-card:hover,
+  .glass-card:active {
+    background: initial; /* fall back to base */
+    border-color: initial;
+    box-shadow: initial;
+    transform: none;
+  }
 }
 
 /* Optional: Interactive glass cards that CAN move (use .glass-card.interactive) */
@@ -595,13 +626,6 @@ This file contains all UI component styles for the MeetchuThere app:
 
 /* Delete button within user items */
 
-
-
-
-
-
-
-
 /* Button disabled states */
 .primary-btn:disabled,
 .secondary-btn:disabled {
@@ -696,40 +720,19 @@ textarea {
   line-height: 1.5;
 }
 
-
 /* ===== USER MANAGEMENT & SELECTION ===== */
 
 /* Users list container */
 
-
 /* Custom scrollbar styling */
-
-
-
-
-
-
-
 
 /* User item base styling */
 
-
-
-
 /* Enhanced user selection states */
-
-
-
-
-
 
 /* Selected user state - Border highlight */
 
-
-
-
 /* Combination of active and selected */
-
 
 /* User item content layout */
 .user-info {
@@ -758,7 +761,6 @@ textarea {
 
 /* ===== MODERN LOGICAL PROPERTIES ===== */
 
-
 .button-group {
   gap: var(--space-md);
 }
@@ -775,6 +777,7 @@ textarea {
   align-items: center;
   gap: 1rem;
   padding: 0.75rem;
+  /* Base light-mode design remains variable-driven; see dark-mode override below */
   background: var(--glass-bg);
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
   -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
@@ -783,6 +786,27 @@ textarea {
   box-shadow: var(--glass-outer-glow), 0 4px 16px var(--glass-shadow);
   position: relative;
   overflow: hidden;
+}
+
+/* Dark mode: match glass-card base aesthetic for consistency */
+body.dark-mode .horizontal-friends-bar {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid; /* Use gradient border like glass cards */
+  border-image: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.08)
+    )
+    1;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* User avatar container - fixed on the left */
@@ -833,7 +857,7 @@ textarea {
   transition: all 0.3s var(--animation-smooth, ease);
   position: relative;
   overflow: hidden;
-  
+
   /* Default "off" state - Dark Red */
   background: var(--button-off-red) !important;
   border-color: var(--button-off-red) !important;
@@ -886,13 +910,13 @@ textarea {
     gap: 0.75rem;
     padding: 0.5rem;
   }
-  
+
   .round-compare-btn {
     width: 44px;
     height: 44px;
     font-size: 14px;
   }
-  
+
   .friends-avatars-list {
     gap: 0.5rem;
   }
@@ -903,7 +927,7 @@ textarea {
     gap: 0.5rem;
     padding: 0.4rem;
   }
-  
+
   .round-compare-btn {
     width: 40px;
     height: 40px;

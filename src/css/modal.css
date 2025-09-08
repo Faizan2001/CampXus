@@ -148,9 +148,9 @@
   }
   .modal-button,
   .modal-close-btn {
-    width: auto;           /* do not stretch to full width */
-    min-width: 120px;      /* readable tap target */
-    height: 44px;          /* comfortable touch height */
+    width: auto; /* do not stretch to full width */
+    min-width: 120px; /* readable tap target */
+    height: 44px; /* comfortable touch height */
   }
   /* If glass-card variant is used, ensure same sizing */
   .modal-content.glass-card {
@@ -374,7 +374,6 @@
   gap: 1rem;
 }
 
-
 /* Fix for glass-card input-wrapper styling */
 .glass-card .input-wrapper {
   position: relative;
@@ -486,7 +485,9 @@
 
 /* Tablet adjustments */
 @media (max-width: 768px) {
-  .modal-overlay { padding: 0 16px; }
+  .modal-overlay {
+    padding: 0 16px;
+  }
   .modal-content,
   .modal-content.glass-card {
     width: 92%;

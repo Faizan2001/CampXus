@@ -196,17 +196,15 @@ This file contains CSS styles for the Campus Presence feature including:
   }
 }
 
-/* ===== DARK MODE SUPPORT ===== */
+/* ===== DARK MODE SUPPORT (app-controlled) ===== */
 
-@media (prefers-color-scheme: dark) {
-  .presence-dot {
-    border-color: #2a2d38; /* Use app's dark surface color */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  }
-  
-  .presence-dot:hover {
-    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-  }
+body.dark-mode .presence-dot {
+  border-color: #2a2d38; /* Use app's dark surface color */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+body.dark-mode .presence-dot:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
 
 /* ===== PRESENCE DOT FOCUS STATES ===== */

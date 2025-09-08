@@ -24,13 +24,26 @@ This file contains all styles related to the schedule display:
   display: flex;
   flex-direction: column;
   height: fit-content; /* Allow glass card to scale with content */
-  max-height: calc(
-    100vh - 8rem
-  ); /* Fallback */
-  max-height: calc(
-    100dvh - 8rem
-  ); /* Prefer dvh on iOS */
+  max-height: calc(100vh - 8rem); /* Fallback */
+  max-height: calc(100dvh - 8rem); /* Prefer dvh on iOS */
   overflow: hidden; /* Ensure content stays within bounds */
+}
+
+/* Dark mode: give schedule section the same glass base aesthetic */
+body.dark-mode .schedule-section {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+}
+
+/* Disable hover visual changes for glass areas on mobile/touch */
+@media (hover: none) {
+  .glass-card:hover,
+  .glass-card:active {
+    background: inherit;
+    border-color: inherit;
+    box-shadow: inherit;
+  }
 }
 
 .schedule-section h3 {
@@ -150,7 +163,6 @@ This file contains all styles related to the schedule display:
     0 8px 20px var(--focus-glow-shadow), 0 4px 8px var(--focus-general-shadow);
 }
 
-
 /* ===== SCHEDULE WRAPPER & TABLE LAYOUT ===== */
 .schedule-wrapper {
   border-radius: var(--radius-xl);
@@ -162,7 +174,9 @@ This file contains all styles related to the schedule display:
   position: relative; /* For sticky positioning context */
   flex: 1; /* Take remaining space after header */
   min-height: 250px; /* Reduced minimum for better mobile scaling */
-  max-height: calc(100vh - 300px); /* ✅ FIXED: Constrain height to prevent overflow */
+  max-height: calc(
+    100vh - 300px
+  ); /* ✅ FIXED: Constrain height to prevent overflow */
   max-height: calc(100dvh - 300px); /* Prefer dvh on modern browsers */
   padding: 0.5rem; /* Add consistent padding for gap management */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
@@ -245,7 +259,7 @@ This file contains all styles related to the schedule display:
   margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
   border-collapse: separate !important; /* Consistent with base table styling. */
   border-spacing: 0 !important; /* Consistent with base table styling. */
-  
+
   /* ✅ FIXED: Additional constraints for comparison mode with many slots */
   max-height: 70vh; /* Prevent table from exceeding viewport */
   overflow-y: auto; /* Allow vertical scrolling for excessive rows */
@@ -472,7 +486,6 @@ This file contains all styles related to the schedule display:
     font-size: 1rem !important;
   }
 
-
   .many-slots-note {
     font-size: 0.7rem !important;
     padding: 0.4rem 0.6rem !important;
@@ -483,7 +496,6 @@ This file contains all styles related to the schedule display:
 
 /* Mobile responsive styles */
 @media (max-width: 768px) {
-
   /* Mobile-specific adjustments for proper containment */
   .schedule-section {
     max-height: 75vh; /* Container-relative sizing */
@@ -518,7 +530,6 @@ This file contains all styles related to the schedule display:
     margin-right: 0.5rem;
     min-width: 0; /* Allow text to truncate if needed */
   }
-
 
   /* Force notification to appear on its own line below */
   .many-slots-note {
@@ -1070,7 +1081,6 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   cursor: not-allowed !important;
 }
 
-
 /* 
 --- IMPROVED SCROLLBAR STYLING ---
 Custom scrollbar for horizontal schedule scrolling
@@ -1437,7 +1447,7 @@ body:not(.dark-mode) #slotTooltip {
   min-height: 44px;
   padding: 0.75rem 1.25rem;
   gap: 0.5rem;
-  
+
   /* Visual Styling - Matches existing color scheme */
   background: linear-gradient(
     135deg,
@@ -1448,24 +1458,24 @@ body:not(.dark-mode) #slotTooltip {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  
+
   /* Typography */
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
-  
+
   /* Interactive Effects */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  
+
   /* Enhanced Shadows */
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
-  
+
   /* Accessibility */
   outline: none;
-  
+
   /* Mobile Touch Optimization */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1482,7 +1492,7 @@ body:not(.dark-mode) #slotTooltip {
 #addNewTimeSlotBtn:hover {
   transform: translateY(-1px) scale(1.01);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 6px rgba(0, 0, 0, 0.1);
-  
+
   background: linear-gradient(
     135deg,
     var(--accent-secondary),

@@ -53,8 +53,13 @@ This file contains all layout-related styles for the MeetchuThere app:
     padding: 0.5rem 0.85rem; /* reduce vertical padding */
     backdrop-filter: blur(18px);
   }
-  .logo span { font-size: 1.25rem; padding-bottom: 4px; }
-  .nav-link { padding: 0.5rem 0.85rem; }
+  .logo span {
+    font-size: 1.25rem;
+    padding-bottom: 4px;
+  }
+  .nav-link {
+    padding: 0.5rem 0.85rem;
+  }
 }
 
 /* Navigation sections - Left (logo + links), Right (controls) */
@@ -168,7 +173,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 
 /* Small dot indicator for notifications */
 .nav-link.has-alert::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 10px;
   right: 12px;
@@ -176,7 +181,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   height: 8px;
   border-radius: 50%;
   background: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
 .nav-link::before {
@@ -486,10 +491,6 @@ This file contains all layout-related styles for the MeetchuThere app:
     order: 1; /* Schedule column first */
   }
 
-
-
-
-
   /* Make glass cards use full width */
   .glass-card {
     width: 100% !important;
@@ -536,12 +537,8 @@ This file contains all layout-related styles for the MeetchuThere app:
   .schedule-section {
     order: unset !important;
     height: fit-content; /* Scale with content */
-    max-height: calc(
-      100vh - 4rem
-    ); /* Fallback */
-    max-height: calc(
-      100dvh - 4rem
-    ); /* Prefer dvh for iOS URL bar */
+    max-height: calc(100vh - 4rem); /* Fallback */
+    max-height: calc(100dvh - 4rem); /* Prefer dvh for iOS URL bar */
   }
 
   /* Larger cards for wide screens */
@@ -563,8 +560,10 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Better schedule height utilization on wide screens */
   .schedule-wrapper {
-  max-height: calc(100vh - 10rem); /* Fallback */
-  max-height: calc(100dvh - 10rem); /* Optimized for wide screens (iOS safe) */
+    max-height: calc(100vh - 10rem); /* Fallback */
+    max-height: calc(
+      100dvh - 10rem
+    ); /* Optimized for wide screens (iOS safe) */
     min-height: 600px; /* Larger minimum height for wide screens */
   }
 }
@@ -600,9 +599,6 @@ This file contains all layout-related styles for the MeetchuThere app:
   .schedule-column {
     order: 1; /* Schedule column first */
   }
-
-
-
 
   /* Make glass cards use full width */
   .glass-card {
@@ -708,8 +704,8 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   /* Optimize schedule height for standard desktop */
   .schedule-wrapper {
-  max-height: calc(100vh - 12rem); /* Fallback */
-  max-height: calc(100dvh - 12rem); /* Desktop-optimized height */
+    max-height: calc(100vh - 12rem); /* Fallback */
+    max-height: calc(100dvh - 12rem); /* Desktop-optimized height */
     min-height: 500px; /* Adequate minimum height for desktop */
   }
 }
