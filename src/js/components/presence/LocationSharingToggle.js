@@ -1,6 +1,6 @@
 /**
  * LocationSharingToggle Component - Campus Presence Location Controls
- * 
+ *
  * 🎓 BEGINNER EXPLANATION:
  * This component provides user-friendly controls for location sharing preferences.
  * It's a reusable UI component that can be embedded in FriendsPage, FriendOptionsMenu,
@@ -23,7 +23,7 @@
  * - Privacy-focused: integrates with bilateral privacy system
  *
  * Part of the Campus Presence System (Phase 3.1)
- * 
+ *
  * @author MeetchuThere Development Team
  * @version 1.0.0
  */
@@ -31,11 +31,12 @@
 import { locationPrivacyService } from "../../services/location/LocationPrivacyService.js";
 import { currentUser } from "../../store/userStore.js";
 import { notificationManager } from "../../services/realtime/NotificationService.js";
+import { AnalyticsService } from "../../services/analytics/AnalyticsService.js";
 
 export class LocationSharingToggle {
   /**
    * Initialize the LocationSharingToggle component
-   * 
+   *
    * @param {Object} options - Component configuration options
    * @param {string} options.mode - 'global' | 'friend' - determines the toggle mode
    * @param {string} options.friendId - Required if mode is 'friend' - friend's user ID
@@ -46,18 +47,18 @@ export class LocationSharingToggle {
    */
   constructor(options = {}) {
     // Validate required options
-    if (options.mode === 'friend' && !options.friendId) {
+    if (options.mode === "friend" && !options.friendId) {
       throw new Error('friendId is required when mode is "friend"');
     }
 
     this.options = {
-      mode: 'global', // 'global' | 'friend'
+      mode: "global", // 'global' | 'friend'
       friendId: null,
       friendData: null,
       showPermissionHelper: true,
       showStatus: true,
-      containerClass: '',
-      ...options
+      containerClass: "",
+      ...options,
     };
 
     // Component state
@@ -65,14 +66,17 @@ export class LocationSharingToggle {
     this.isLoading = false;
     this.currentState = {
       globalEnabled: false,
-      friendEnabled: false
+      friendEnabled: false,
     };
 
     // Bind methods to preserve context
     this.handleGlobalToggle = this.handleGlobalToggle.bind(this);
     this.handleFriendToggle = this.handleFriendToggle.bind(this);
 
-    console.log(`🎯 LocationSharingToggle created in ${this.options.mode} mode`, this.options);
+    console.log(
+      `🎯 LocationSharingToggle created in ${this.options.mode} mode`,
+      this.options
+    );
   }
 
   /**
@@ -80,9 +84,10 @@ export class LocationSharingToggle {
    */
   async createElement() {
     const container = document.createElement("div");
-    container.className = `location-sharing-toggle ${this.options.containerClass}`.trim();
+    container.className =
+      `location-sharing-toggle ${this.options.containerClass}`.trim();
     container.setAttribute("data-mode", this.options.mode);
-    
+
     if (this.options.friendId) {
       container.setAttribute("data-friend-id", this.options.friendId);
     }
@@ -91,7 +96,7 @@ export class LocationSharingToggle {
     await this.updateCurrentState();
 
     // Generate HTML based on mode
-    if (this.options.mode === 'global') {
+    if (this.options.mode === "global") {
       container.innerHTML = this.generateGlobalToggleHTML();
     } else {
       container.innerHTML = this.generateFriendToggleHTML();
@@ -109,13 +114,15 @@ export class LocationSharingToggle {
     const { globalEnabled } = this.currentState;
 
     return `
-      <button class="location-toggle-switch ${globalEnabled ? 'enabled' : 'disabled'}"
+      <button class="location-toggle-switch ${
+        globalEnabled ? "enabled" : "disabled"
+      }"
               type="button"
               role="switch"
               aria-checked="${globalEnabled}"
               aria-label="Toggle campus presence sharing with friends"
               data-action="toggle-global"
-              ${this.isLoading ? 'disabled' : ''}>
+              ${this.isLoading ? "disabled" : ""}>
         <span class="location-toggle-text location-toggle-off">OFF</span>
         <span class="location-toggle-text location-toggle-on">ON</span>
         <span class="location-toggle-slider"></span>
@@ -131,7 +138,7 @@ export class LocationSharingToggle {
     // Using global unique handle for identity display (displayName deprecated)
     const friendName = this.options.friendData?.handle
       ? `@${this.options.friendData.handle}`
-      : (this.options.friendData?.firstName || 'this friend');
+      : this.options.friendData?.firstName || "this friend";
 
     return `
       <div class="toggle-section friend-location-toggle">
@@ -149,26 +156,32 @@ export class LocationSharingToggle {
               <span class="label-description">Allow ${friendName} to see when you're on campus</span>
             </label>
             <div class="toggle-switch-wrapper">
-              <button class="toggle-switch ${friendEnabled ? 'enabled' : 'disabled'}"
+              <button class="toggle-switch ${
+                friendEnabled ? "enabled" : "disabled"
+              }"
                       type="button"
                       role="switch"
                       aria-checked="${friendEnabled}"
                       aria-label="Toggle location sharing with ${friendName}"
                       data-action="toggle-friend"
-                      ${this.isLoading ? 'disabled' : ''}>
+                      ${this.isLoading ? "disabled" : ""}>
                 <span class="toggle-slider"></span>
-                <span class="toggle-text">${friendEnabled ? 'ON' : 'OFF'}</span>
+                <span class="toggle-text">${friendEnabled ? "ON" : "OFF"}</span>
               </button>
             </div>
           </div>
         </div>
 
-        ${this.isLoading ? `
+        ${
+          this.isLoading
+            ? `
           <div class="loading-overlay">
             <div class="loading-spinner"></div>
             <span class="loading-text">Updating sharing settings...</span>
           </div>
-        ` : ''}
+        `
+            : ""
+        }
       </div>
     `;
   }
@@ -180,21 +193,25 @@ export class LocationSharingToggle {
     if (!this.element) return;
 
     // Global toggle handler
-    const globalToggle = this.element.querySelector('[data-action="toggle-global"]');
+    const globalToggle = this.element.querySelector(
+      '[data-action="toggle-global"]'
+    );
     if (globalToggle) {
-      globalToggle.addEventListener('click', this.handleGlobalToggle);
+      globalToggle.addEventListener("click", this.handleGlobalToggle);
     }
 
     // Friend toggle handler
-    const friendToggle = this.element.querySelector('[data-action="toggle-friend"]');
+    const friendToggle = this.element.querySelector(
+      '[data-action="toggle-friend"]'
+    );
     if (friendToggle) {
-      friendToggle.addEventListener('click', this.handleFriendToggle);
+      friendToggle.addEventListener("click", this.handleFriendToggle);
     }
 
     // Keyboard navigation
-    this.element.addEventListener('keydown', this.handleKeyDown.bind(this));
+    this.element.addEventListener("keydown", this.handleKeyDown.bind(this));
 
-    console.log('🎯 Event handlers attached to LocationSharingToggle');
+    console.log("🎯 Event handlers attached to LocationSharingToggle");
   }
 
   /**
@@ -206,13 +223,18 @@ export class LocationSharingToggle {
 
     const currentUserUid = currentUser.state?.user?.uid;
     if (!currentUserUid) {
-      console.error('No current user found for global toggle');
-      notificationManager.show('Please sign in to change location settings', 'error');
+      console.error("No current user found for global toggle");
+      notificationManager.show(
+        "Please sign in to change location settings",
+        "error"
+      );
       return;
     }
 
     const newEnabled = !this.currentState.globalEnabled;
-    console.log(`🌍 Global location toggle: ${this.currentState.globalEnabled} → ${newEnabled}`);
+    console.log(
+      `🌍 Global location toggle: ${this.currentState.globalEnabled} → ${newEnabled}`
+    );
 
     this.setLoading(true);
 
@@ -223,30 +245,41 @@ export class LocationSharingToggle {
         {
           enabled: newEnabled,
           shareWithFriends: newEnabled,
-          updateTimestamp: new Date()
+          updateTimestamp: new Date(),
         }
       );
 
       if (success) {
         this.currentState.globalEnabled = newEnabled;
         this.updateToggleState();
-        
+
         notificationManager.show(
-          `Location sharing ${newEnabled ? 'enabled' : 'disabled'}`,
-          'success'
+          `Location sharing ${newEnabled ? "enabled" : "disabled"}`,
+          "success"
         );
 
         // Emit event for parent components
-        this.emitStateChangeEvent('global', newEnabled);
+        this.emitStateChangeEvent("global", newEnabled);
 
         // 🌍 Handle location tracking based on global toggle
         this.handleLocationTrackingForGlobalToggle(newEnabled);
 
-        // 🟡 Immediate UI feedback: refresh user's presence dot to grey when disabled
+        // � Analytics: global location sharing toggle
         try {
-          const { getHorizontalFriendsBarInstance } = await import('../../components/friends/HorizontalFriendsBar.js');
-          const bar = getHorizontalFriendsBarInstance && getHorizontalFriendsBarInstance();
-          if (bar && typeof bar.updateUserPresenceDot === 'function') {
+          AnalyticsService.trackLocationSharingToggle("global", newEnabled, {
+            scope: "global",
+          });
+        } catch {}
+
+        // �🟡 Immediate UI feedback: refresh user's presence dot to grey when disabled
+        try {
+          const { getHorizontalFriendsBarInstance } = await import(
+            "../../components/friends/HorizontalFriendsBar.js"
+          );
+          const bar =
+            getHorizontalFriendsBarInstance &&
+            getHorizontalFriendsBarInstance();
+          if (bar && typeof bar.updateUserPresenceDot === "function") {
             bar.updateUserPresenceDot({
               locationSharingEnabled: newEnabled,
               lastKnownLocation: null,
@@ -257,11 +290,11 @@ export class LocationSharingToggle {
           // Non-fatal: UI will update on Firestore realtime listener
         }
       } else {
-        throw new Error('Failed to update global location preferences');
+        throw new Error("Failed to update global location preferences");
       }
     } catch (error) {
-      console.error('Error updating global location sharing:', error);
-      notificationManager.show('Failed to update location settings', 'error');
+      console.error("Error updating global location sharing:", error);
+      notificationManager.show("Failed to update location settings", "error");
     }
 
     this.setLoading(false);
@@ -276,23 +309,28 @@ export class LocationSharingToggle {
 
     const currentUserUid = currentUser.state?.user?.uid;
     if (!currentUserUid) {
-      console.error('No current user found for friend toggle');
-      notificationManager.show('Please sign in to change location settings', 'error');
+      console.error("No current user found for friend toggle");
+      notificationManager.show(
+        "Please sign in to change location settings",
+        "error"
+      );
       return;
     }
 
     const newEnabled = !this.currentState.friendEnabled;
     const friendName = this.options.friendData?.handle
       ? `@${this.options.friendData.handle}`
-      : (this.options.friendData?.firstName || 'friend');
-    
-    console.log(`👥 Friend location toggle for ${friendName}: ${this.currentState.friendEnabled} → ${newEnabled}`);
+      : this.options.friendData?.firstName || "friend";
+
+    console.log(
+      `👥 Friend location toggle for ${friendName}: ${this.currentState.friendEnabled} → ${newEnabled}`
+    );
 
     this.setLoading(true);
 
     try {
       let success;
-      
+
       if (newEnabled) {
         success = await locationPrivacyService.enableLocationSharingWith(
           currentUserUid,
@@ -308,25 +346,37 @@ export class LocationSharingToggle {
       if (success) {
         this.currentState.friendEnabled = newEnabled;
         this.updateToggleState();
-        
+
         notificationManager.show(
-          `Location sharing with ${friendName} ${newEnabled ? 'enabled' : 'disabled'}`,
-          'success'
+          `Location sharing with ${friendName} ${
+            newEnabled ? "enabled" : "disabled"
+          }`,
+          "success"
         );
 
         // Emit event for parent components
-        this.emitStateChangeEvent('friend', newEnabled, this.options.friendId);
+        this.emitStateChangeEvent("friend", newEnabled, this.options.friendId);
+
+        // 📊 Analytics: friend-specific location sharing toggle
+        try {
+          AnalyticsService.trackLocationSharingToggle("friend", newEnabled, {
+            friend_id: this.options.friendId,
+            friend_handle: this.options.friendData?.handle || "unknown",
+          });
+        } catch {}
       } else {
-        throw new Error('Failed to update friend location preferences');
+        throw new Error("Failed to update friend location preferences");
       }
     } catch (error) {
-      console.error('Error updating friend location sharing:', error);
-      notificationManager.show(`Failed to update location sharing with ${friendName}`, 'error');
+      console.error("Error updating friend location sharing:", error);
+      notificationManager.show(
+        `Failed to update location sharing with ${friendName}`,
+        "error"
+      );
     }
 
     this.setLoading(false);
   }
-
 
   /**
    * 📊 Update current state from services
@@ -334,19 +384,22 @@ export class LocationSharingToggle {
   async updateCurrentState() {
     const currentUserUid = currentUser.state?.user?.uid;
     if (!currentUserUid) {
-      console.warn('No current user for state update');
+      console.warn("No current user for state update");
       return;
     }
 
     try {
       // Get global preferences
-      if (this.options.mode === 'global') {
-        const globalPrefs = await locationPrivacyService.getGlobalLocationPreferences(currentUserUid);
+      if (this.options.mode === "global") {
+        const globalPrefs =
+          await locationPrivacyService.getGlobalLocationPreferences(
+            currentUserUid
+          );
         this.currentState.globalEnabled = globalPrefs?.enabled ?? false;
       }
 
       // Get friend-specific preferences
-      if (this.options.mode === 'friend' && this.options.friendId) {
+      if (this.options.mode === "friend" && this.options.friendId) {
         const canAccess = await locationPrivacyService.canAccessLocation(
           this.options.friendId,
           currentUserUid
@@ -354,9 +407,9 @@ export class LocationSharingToggle {
         this.currentState.friendEnabled = canAccess;
       }
 
-      console.log('📊 Current state updated:', this.currentState);
+      console.log("📊 Current state updated:", this.currentState);
     } catch (error) {
-      console.error('Error updating current state:', error);
+      console.error("Error updating current state:", error);
     }
   }
 
@@ -368,40 +421,44 @@ export class LocationSharingToggle {
 
     // Support both global (new class) and friend (legacy class) toggles
     const toggle = this.element.querySelector(
-      this.options.mode === 'global' ? '.location-toggle-switch' : '.toggle-switch'
+      this.options.mode === "global"
+        ? ".location-toggle-switch"
+        : ".toggle-switch"
     );
     if (toggle) {
-      const enabled = this.options.mode === 'global'
-        ? this.currentState.globalEnabled
-        : this.currentState.friendEnabled;
+      const enabled =
+        this.options.mode === "global"
+          ? this.currentState.globalEnabled
+          : this.currentState.friendEnabled;
 
-      if (toggle.classList.contains('location-toggle-switch')) {
-        toggle.className = `location-toggle-switch ${enabled ? 'enabled' : 'disabled'}`;
-      } else if (toggle.classList.contains('toggle-switch')) {
-        toggle.className = `toggle-switch ${enabled ? 'enabled' : 'disabled'}`;
+      if (toggle.classList.contains("location-toggle-switch")) {
+        toggle.className = `location-toggle-switch ${
+          enabled ? "enabled" : "disabled"
+        }`;
+      } else if (toggle.classList.contains("toggle-switch")) {
+        toggle.className = `toggle-switch ${enabled ? "enabled" : "disabled"}`;
       }
-      toggle.setAttribute('aria-checked', enabled);
+      toggle.setAttribute("aria-checked", enabled);
     }
   }
-
 
   /**
    * ⏳ Set loading state
    */
   setLoading(loading) {
     this.isLoading = loading;
-    
+
     if (!this.element) return;
 
     // Update loading overlay
-    const overlay = this.element.querySelector('.loading-overlay');
+    const overlay = this.element.querySelector(".loading-overlay");
     if (overlay) {
-      overlay.style.display = loading ? 'flex' : 'none';
+      overlay.style.display = loading ? "flex" : "none";
     }
 
     // Disable/enable buttons
-    const buttons = this.element.querySelectorAll('button');
-    buttons.forEach(button => {
+    const buttons = this.element.querySelectorAll("button");
+    buttons.forEach((button) => {
       button.disabled = loading;
     });
   }
@@ -416,17 +473,17 @@ export class LocationSharingToggle {
       type, // 'global' | 'friend'
       enabled,
       friendId,
-      component: this
+      component: this,
     };
 
     this.element.dispatchEvent(
-      new CustomEvent('location-sharing-changed', {
+      new CustomEvent("location-sharing-changed", {
         bubbles: true,
-        detail: eventData
+        detail: eventData,
       })
     );
 
-    console.log('📡 Location sharing change event emitted:', eventData);
+    console.log("📡 Location sharing change event emitted:", eventData);
   }
 
   /**
@@ -434,8 +491,10 @@ export class LocationSharingToggle {
    */
   handleKeyDown(e) {
     // Handle Enter and Space for toggle buttons (support both class names and ARIA role)
-    const isSwitch = e.target.matches('.location-toggle-switch, .toggle-switch, [role="switch"]');
-    if ((e.key === 'Enter' || e.key === ' ') && isSwitch) {
+    const isSwitch = e.target.matches(
+      '.location-toggle-switch, .toggle-switch, [role="switch"]'
+    );
+    if ((e.key === "Enter" || e.key === " ") && isSwitch) {
       e.preventDefault();
       e.target.click();
     }
@@ -446,18 +505,18 @@ export class LocationSharingToggle {
    */
   async updateOptions(newOptions) {
     this.options = { ...this.options, ...newOptions };
-    
+
     // Re-render if element exists
     if (this.element) {
       await this.updateCurrentState();
-      
+
       // Update HTML content
-      if (this.options.mode === 'global') {
+      if (this.options.mode === "global") {
         this.element.innerHTML = this.generateGlobalToggleHTML();
       } else {
         this.element.innerHTML = this.generateFriendToggleHTML();
       }
-      
+
       this.setupEventHandlers();
     }
   }
@@ -467,7 +526,9 @@ export class LocationSharingToggle {
    */
   async render(parentElement) {
     if (!parentElement) {
-      console.error('❌ Parent element is required to render LocationSharingToggle');
+      console.error(
+        "❌ Parent element is required to render LocationSharingToggle"
+      );
       return;
     }
 
@@ -476,7 +537,9 @@ export class LocationSharingToggle {
     }
 
     parentElement.appendChild(this.element);
-    console.log(`🎭 LocationSharingToggle rendered in ${this.options.mode} mode`);
+    console.log(
+      `🎭 LocationSharingToggle rendered in ${this.options.mode} mode`
+    );
   }
 
   /**
@@ -485,7 +548,7 @@ export class LocationSharingToggle {
   async refresh() {
     await this.updateCurrentState();
     this.updateToggleState();
-    console.log('🔄 LocationSharingToggle refreshed');
+    console.log("🔄 LocationSharingToggle refreshed");
   }
 
   /**
@@ -495,16 +558,22 @@ export class LocationSharingToggle {
   async handleLocationTrackingForGlobalToggle(enabled) {
     try {
       // Dynamically import campus location service to avoid circular dependencies
-      const { campusLocationService } = await import('../../services/location/CampusLocationService.js');
-      
+      const { campusLocationService } = await import(
+        "../../services/location/CampusLocationService.js"
+      );
+
       if (enabled) {
         // Global location sharing was enabled - start tracking if conditions are met
-        console.log('🌍 Global location sharing enabled - checking if automatic tracking should start...');
+        console.log(
+          "🌍 Global location sharing enabled - checking if automatic tracking should start..."
+        );
         setTimeout(async () => {
           try {
             // Prefer the LocationScheduler orchestration if available
             try {
-              const { locationScheduler } = await import('../../services/location/LocationScheduler.js');
+              const { locationScheduler } = await import(
+                "../../services/location/LocationScheduler.js"
+              );
               locationScheduler.start();
               // Kick an immediate refresh according to current route
               locationScheduler.manualRefresh();
@@ -513,20 +582,28 @@ export class LocationSharingToggle {
               await campusLocationService.startPresencePolling(20000);
             }
           } catch (e) {
-            console.warn('⚠️ Failed to start presence polling after enabling:', e?.message || e);
+            console.warn(
+              "⚠️ Failed to start presence polling after enabling:",
+              e?.message || e
+            );
           }
         }, 150);
       } else {
         // Global location sharing was disabled - stop tracking immediately
-        console.log('🌍 Global location sharing disabled - stopping location tracking');
+        console.log(
+          "🌍 Global location sharing disabled - stopping location tracking"
+        );
         campusLocationService.stopLocationTracking();
         // Stop background polling
-        if (typeof campusLocationService.stopPresencePolling === 'function') {
+        if (typeof campusLocationService.stopPresencePolling === "function") {
           campusLocationService.stopPresencePolling();
         }
       }
     } catch (error) {
-      console.error('🌍 Error handling location tracking for global toggle:', error);
+      console.error(
+        "🌍 Error handling location tracking for global toggle:",
+        error
+      );
     }
   }
 
@@ -545,11 +622,13 @@ export class LocationSharingToggle {
     this.element = null;
     this.isLoading = false;
 
-    console.log(`🧹 LocationSharingToggle destroyed (${this.options.mode} mode)`);
+    console.log(
+      `🧹 LocationSharingToggle destroyed (${this.options.mode} mode)`
+    );
   }
 }
 
 // Development helper for testing
-if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+if (typeof window !== "undefined" && window.location.hostname === "localhost") {
   window.LocationSharingToggle = LocationSharingToggle;
 }

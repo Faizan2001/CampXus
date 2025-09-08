@@ -14,6 +14,7 @@
 import { authManager } from "../services/auth/AuthService.js"; // 🎯 NEW: Import authManager for authentication checks
 import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import currentUser for better auth state checking
 import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
+import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 
 /**
  * Helper function to detect if fetched content is a full HTML document
@@ -645,6 +646,9 @@ class SPARouter {
 
       // Update current page BEFORE navigation states to ensure consistency
       this.currentPage = route;
+
+      // 📊 Track page view in analytics
+      AnalyticsService.trackPageView(route, window.location.hash);
 
       // Update navigation active states
       this.updateNavigationStates(route);

@@ -25,6 +25,7 @@ import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { logManager } from "../utils/debug/LogManager.js";
 import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
+import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 
 /* ================================
    APPLICATION STATE
@@ -933,6 +934,14 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
 
   logManager.ui.init(`Time slot "${newSlotLabel}" added for ${user.name}`);
 
+  // 📊 Analytics: schedule slot added
+  try {
+    AnalyticsService.trackScheduleEdit("add_slot", {
+      slot_label: newSlotLabel,
+      total_slots: user.timeSlots.length,
+    });
+  } catch {}
+
   // Transactional debounced save for structural change
   const txId = `timeslot_add_${state.activeUserId}_${Date.now()}`;
   state.pendingTransactions.set(txId, {
@@ -979,16 +988,20 @@ export function handleAddNewTimeSlotClick() {
     // - IUB: initialize with defaults
     // - Others: keep empty and build matrices of length 0
     const authUser = authManager.getCurrentUser();
-    const email = (authUser?.email || '').toLowerCase();
-    const uni = (currentUser?.profile?.universityInfo?.university || '').toLowerCase();
-    const isIub = email.endsWith('@iub.edu.bd') || uni === 'iub';
+    const email = (authUser?.email || "").toLowerCase();
+    const uni = (
+      currentUser?.profile?.universityInfo?.university || ""
+    ).toLowerCase();
+    const isIub = email.endsWith("@iub.edu.bd") || uni === "iub";
 
     user.timeSlots = isIub ? JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)) : [];
     user.schedule = createWeeklyMatrix(user.timeSlots.length, false);
     user.pinnedSlots = createWeeklyMatrix(user.timeSlots.length, false);
 
     console.warn(
-      `User ${user.id} had no timeSlots. Initialized with ${isIub ? 'IUB defaults' : 'empty'} before adding new custom slot.`
+      `User ${user.id} had no timeSlots. Initialized with ${
+        isIub ? "IUB defaults" : "empty"
+      } before adding new custom slot.`
     );
   }
 
@@ -1048,7 +1061,6 @@ export function handleAddNewTimeSlotClick() {
 }
 
 function handleTogglePinMode() {
-
   const previousState = state.pinModeActive;
 
   if (
@@ -1165,7 +1177,6 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const timeSlot = activeUserObject.timeSlots[slotIndex];
-
 
   // Create transaction ID for this pin operation
   const transactionId = `pin_${
@@ -1284,8 +1295,19 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
         user.slotInfo[dayIndex][timeIndex] = { courseCode, classroomNumber };
 
+        // 📊 Analytics: schedule slot edited (info updated)
+        try {
+          AnalyticsService.trackScheduleEdit("edit_slot", {
+            day_index: dayIndex,
+            time_index: timeIndex,
+            course_code: courseCode || "none",
+          });
+        } catch {}
+
         // Transactional debounced save to avoid realtime overwrite
-        const txId = `slot_edit_${state.activeUserId}_${dayIndex}_${timeIndex}_${Date.now()}`;
+        const txId = `slot_edit_${
+          state.activeUserId
+        }_${dayIndex}_${timeIndex}_${Date.now()}`;
         state.pendingTransactions.set(txId, {
           type: "slot_info_edit",
           userId: state.activeUserId,
@@ -1351,7 +1373,9 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
             activeUser.pinnedSlots[dayIndex][timeIndex] = false;
           }
 
-          const txId = `slot_delete_${state.activeUserId}_${dayIndex}_${timeIndex}_${Date.now()}`;
+          const txId = `slot_delete_${
+            state.activeUserId
+          }_${dayIndex}_${timeIndex}_${Date.now()}`;
           state.pendingTransactions.set(txId, {
             type: "slot_delete",
             userId: state.activeUserId,
@@ -1369,6 +1393,13 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
             .catch(() => {
               state.isLocalUpdate = false;
             });
+          // 📊 Analytics: schedule slot deleted
+          try {
+            AnalyticsService.trackScheduleEdit("delete_slot", {
+              day_index: dayIndex,
+              time_index: timeIndex,
+            });
+          } catch {}
           return true;
         },
       });
@@ -1378,13 +1409,15 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
     const contentEl = DOM_ELEMENTS.modalMessage;
     if (contentEl) {
       if (contentEl.__deleteSlotHandler) {
-        try { contentEl.removeEventListener('click', contentEl.__deleteSlotHandler); } catch(_) {}
+        try {
+          contentEl.removeEventListener("click", contentEl.__deleteSlotHandler);
+        } catch (_) {}
       }
       contentEl.__deleteSlotHandler = onContentClick;
-      contentEl.addEventListener('click', onContentClick);
+      contentEl.addEventListener("click", onContentClick);
     }
   } catch (e) {
-    console.warn('Failed to attach modal delete handler', e);
+    console.warn("Failed to attach modal delete handler", e);
   }
 }
 
@@ -1519,7 +1552,9 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
         }
 
         // Transactional debounced save to avoid realtime overwrite
-        const txId = `slot_busy_${state.activeUserId}_${dayIndex}_${timeIndex}_${Date.now()}`;
+        const txId = `slot_busy_${
+          state.activeUserId
+        }_${dayIndex}_${timeIndex}_${Date.now()}`;
         state.pendingTransactions.set(txId, {
           type: "slot_mark_busy",
           userId: state.activeUserId,
@@ -1713,9 +1748,12 @@ async function loadState(retryAttempt = 0) {
 function createEmptyUser(userId) {
   const authUser = authManager.getCurrentUser();
   const email = (authUser?.email || "").toLowerCase();
-  const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+  const profileUni = (
+    currentUser?.profile?.universityInfo?.university || ""
+  ).toLowerCase();
   const isCurrent = authUser && userId === authUser.uid;
-  const isIub = isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
+  const isIub =
+    isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
 
   const baseTimeSlots = isIub ? DEFAULT_TIMESLOTS : [];
   const slotsLen = baseTimeSlots.length;
@@ -1850,8 +1888,8 @@ function setupScheduleRealTimeSync(userId) {
         }
 
         // 🛡️ SAFETY CHECK: Only update UI if we're still on the home page
-        const currentRoute = window.location.hash.replace('#', '') || 'home';
-        if (currentRoute === 'home') {
+        const currentRoute = window.location.hash.replace("#", "") || "home";
+        if (currentRoute === "home") {
           // Re-render UI with a light throttle to reduce churn
           if (!setupScheduleRealTimeSync._lastUiUpdateAt) {
             setupScheduleRealTimeSync._lastUiUpdateAt = 0;
@@ -2273,7 +2311,9 @@ export function processTimeSlotDelete(slotIndex, activeUserObject) {
   }
 
   // Persist changes with transactional debounced save
-  const txId = `timeslot_delete_${state.activeUserId}_${slotIndex}_${Date.now()}`;
+  const txId = `timeslot_delete_${
+    state.activeUserId
+  }_${slotIndex}_${Date.now()}`;
   state.pendingTransactions.set(txId, {
     type: "timeslot_delete",
     userId: state.activeUserId,
@@ -2450,7 +2490,6 @@ function addUIControlListener(element, eventType, handler, options = null) {
     options,
     elementKey,
   });
-
 }
 
 /* ================================
@@ -2553,8 +2592,7 @@ async function _renderScheduleGridInternal() {
               ? user
               : largest
           );
-          currentTimeSlotsToRender =
-            largestSchedule.timeSlots || [];
+          currentTimeSlotsToRender = largestSchedule.timeSlots || [];
           usedUnifiedSchedule = false; // Don't use unified logic for comparison
           unifiedScheduleInstance = null;
         }
@@ -3029,8 +3067,8 @@ function getPinModeButtonDynamicState(
 
 async function updateUI() {
   // 🛡️ SAFETY CHECK: Don't attempt UI updates if not on home page
-  const currentRoute = window.location.hash.replace('#', '') || 'home';
-  if (currentRoute !== 'home') {
+  const currentRoute = window.location.hash.replace("#", "") || "home";
+  if (currentRoute !== "home") {
     console.log("⏭️ [updateUI] Skipping UI update - not on home page");
     return;
   }
@@ -3181,7 +3219,9 @@ function handleToggleCompareMode() {
   state.compareMode = !state.compareMode;
 
   // Smart logging - only log compare mode changes every 1 second
-  logManager.uiRender("🔄 Toggle compare mode:", {
+  logManager.uiRender(
+    "🔄 Toggle compare mode:",
+    {
       from: previousCompareMode,
       to: state.compareMode,
       previousActiveUser,
@@ -3218,7 +3258,7 @@ function handleToggleCompareMode() {
 
   // Smart logging for mode completion - only every 2 seconds
   logManager.uiRender("✅ Compare mode toggle completed:", {
-    newState: state.compareMode
+    newState: state.compareMode,
   });
 }
 
@@ -3535,10 +3575,17 @@ function setupEventListeners() {
   }
 
   // ===== SCHEDULE TABLE (event delegation) =====
-  try { logManager?.dev?.debug?.("Setting up schedule table listeners"); } catch (_) {}
+  try {
+    logManager?.dev?.debug?.("Setting up schedule table listeners");
+  } catch (_) {}
 
   if (DOM_ELEMENTS.scheduleTable) {
-    try { logManager?.dev?.debug?.("Adding listeners to schedule table; handler=", typeof handleScheduleTableClick); } catch (_) {}
+    try {
+      logManager?.dev?.debug?.(
+        "Adding listeners to schedule table; handler=",
+        typeof handleScheduleTableClick
+      );
+    } catch (_) {}
 
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
@@ -3720,7 +3767,10 @@ function handleDayViewClick(e) {
 
     const day = parseInt(clickedSlotEl.dataset.day, 10);
     // 🔧 Handle both data-time (grid view) and data-time-index (day view)
-    const time = parseInt(clickedSlotEl.dataset.time || clickedSlotEl.dataset.timeIndex, 10);
+    const time = parseInt(
+      clickedSlotEl.dataset.time || clickedSlotEl.dataset.timeIndex,
+      10
+    );
 
     // Coordinates extracted
 
@@ -3941,7 +3991,10 @@ async function setupViewModeToggle() {
       renderScheduleForCurrentView();
     });
   } catch (error) {
-    console.error("❌ Failed to initialize ViewModeManager (no legacy fallback):", error);
+    console.error(
+      "❌ Failed to initialize ViewModeManager (no legacy fallback):",
+      error
+    );
   }
 }
 
@@ -4275,8 +4328,8 @@ function waitForDOMReady(maxRetries = 10, initialDelay = 50) {
  */
 async function safeUIUpdate(updateFunction, functionName = "UI update") {
   // 🛡️ SAFETY CHECK: Don't attempt UI updates if not on home page
-  const currentRoute = window.location.hash.replace('#', '') || 'home';
-  if (currentRoute !== 'home') {
+  const currentRoute = window.location.hash.replace("#", "") || "home";
+  if (currentRoute !== "home") {
     console.log(`⏭️ [${functionName}] Skipping - not on home page`);
     return;
   }
@@ -4310,7 +4363,9 @@ function updateViewModeButtons() {
     dayViewBtn.classList.toggle("active", shouldBeActive);
     logManager.ui.render(`Day button - active: ${shouldBeActive}`);
   } else {
-    logManager.ui.warn("Day view button not found - skipping update (normal when not on home page)");
+    logManager.ui.warn(
+      "Day view button not found - skipping update (normal when not on home page)"
+    );
   }
 
   if (gridViewBtn) {
@@ -4318,7 +4373,9 @@ function updateViewModeButtons() {
     gridViewBtn.classList.toggle("active", shouldBeActive);
     logManager.ui.render(`Grid button - active: ${shouldBeActive}`);
   } else {
-    logManager.ui.warn("Grid view button not found - skipping update (normal when not on home page)");
+    logManager.ui.warn(
+      "Grid view button not found - skipping update (normal when not on home page)"
+    );
   }
 }
 
@@ -4392,7 +4449,9 @@ async function renderDayView() {
 
   const container = DOM_ELEMENTS.dayViewContainer;
   if (!container) {
-    console.log("ℹ️ Day view container not found - skipping render (normal when not on home page)");
+    console.log(
+      "ℹ️ Day view container not found - skipping render (normal when not on home page)"
+    );
     return;
   }
 
@@ -4457,8 +4516,7 @@ async function renderDayView() {
               ? user
               : largest
           );
-          currentTimeSlotsToRender =
-            largestSchedule.timeSlots || [];
+          currentTimeSlotsToRender = largestSchedule.timeSlots || [];
           usedUnifiedSchedule = false;
           unifiedScheduleInstance = null;
         }
@@ -4675,10 +4733,10 @@ function createNormalSlotContent(
     <div class="slot-content">
       ${(() => {
         if (!isBusy) return '<div class="slot-free-text">Free</div>';
-        const code = (slotInfo?.courseCode || '').trim();
-        const room = (slotInfo?.classroomNumber || '').trim();
-        const primary = code || room || 'Busy';
-        const secondary = code && room ? room : '';
+        const code = (slotInfo?.courseCode || "").trim();
+        const room = (slotInfo?.classroomNumber || "").trim();
+        const primary = code || room || "Busy";
+        const secondary = code && room ? room : "";
         return `
           <div class="slot-course-code">${primary}</div>
           <div class="slot-classroom">${secondary}</div>
@@ -5678,18 +5736,28 @@ function setupAuthenticationCallbacks() {
     authManager.onAuthStateChanged(async (user) => {
       if (!user) {
         // User logged out while on home page: clear in-memory schedule and UI
-        console.log("🧼 [HomePage] Auth logout detected – clearing schedule state/UI");
+        console.log(
+          "🧼 [HomePage] Auth logout detected – clearing schedule state/UI"
+        );
 
         // Stop realtime schedule listener if active
         if (window.scheduleRealtimeUnsubscribe) {
-          try { window.scheduleRealtimeUnsubscribe(); } catch (_) {}
+          try {
+            window.scheduleRealtimeUnsubscribe();
+          } catch (_) {}
           window.scheduleRealtimeUnsubscribe = null;
         }
 
         // Cleanup UI listeners and friends bar
-        try { await cleanupScheduleEventListeners(); } catch (_) {}
-        try { await cleanupUIControlListeners(); } catch (_) {}
-        try { cleanupHorizontalFriendsBar(); } catch (_) {}
+        try {
+          await cleanupScheduleEventListeners();
+        } catch (_) {}
+        try {
+          await cleanupUIControlListeners();
+        } catch (_) {}
+        try {
+          cleanupHorizontalFriendsBar();
+        } catch (_) {}
 
         // Clear state
         state.activeUserId = null;
@@ -5708,26 +5776,33 @@ function setupAuthenticationCallbacks() {
       } else {
         // User logged in (or auth restored on refresh): ensure friends bar exists on Home
         try {
-          const currentRoute = window.location.hash.replace('#', '') || 'home';
+          const currentRoute = window.location.hash.replace("#", "") || "home";
           const needsInit = !state.horizontalFriendsBar;
-          if (currentRoute === 'home' && needsInit) {
-            const containerEl = document.getElementById('horizontal-friends-container');
+          if (currentRoute === "home" && needsInit) {
+            const containerEl = document.getElementById(
+              "horizontal-friends-container"
+            );
             if (containerEl) {
-              console.log('⭐ Auth ready on Home – initializing Horizontal Friends Bar (auth state)');
+              console.log(
+                "⭐ Auth ready on Home – initializing Horizontal Friends Bar (auth state)"
+              );
               initializeHorizontalFriendsBar();
             } else {
               // If DOM not ready yet, initialize when SPA loads home template
               const onSpaLoad = (evt) => {
-                if (evt.detail?.route === 'home') {
-                  document.removeEventListener('spa:page:load', onSpaLoad);
+                if (evt.detail?.route === "home") {
+                  document.removeEventListener("spa:page:load", onSpaLoad);
                   initializeHorizontalFriendsBar();
                 }
               };
-              document.addEventListener('spa:page:load', onSpaLoad);
+              document.addEventListener("spa:page:load", onSpaLoad);
             }
           }
         } catch (e) {
-          console.warn('⚠️ Failed to initialize friends bar on auth state change:', e);
+          console.warn(
+            "⚠️ Failed to initialize friends bar on auth state change:",
+            e
+          );
         }
       }
     });
@@ -5746,7 +5821,9 @@ function setupAuthenticationCallbacks() {
 async function initializeHorizontalFriendsBar() {
   try {
     if (state.isFriendsBarInitializing) {
-      console.log("⏳ Friends bar init already in progress; skipping duplicate call");
+      console.log(
+        "⏳ Friends bar init already in progress; skipping duplicate call"
+      );
       return;
     }
     state.isFriendsBarInitializing = true;
@@ -5809,7 +5886,9 @@ async function initializeHorizontalFriendsBar() {
 
     console.log("🚀 Creating new HorizontalFriendsBar instance...");
     // Dynamically import and initialize the HorizontalFriendsBar component (avoids loading on logged-out)
-    const { HorizontalFriendsBar } = await import("../components/friends/HorizontalFriendsBar.js");
+    const { HorizontalFriendsBar } = await import(
+      "../components/friends/HorizontalFriendsBar.js"
+    );
     state.horizontalFriendsBar = new HorizontalFriendsBar(
       "horizontal-friends-container"
     );
@@ -6450,7 +6529,7 @@ function handleCompareSelectionChange(event) {
     userCount,
     hasUser,
     compareMode,
-  users: selectedUsersData?.map((u) => u.handle || 'unknown') || [],
+    users: selectedUsersData?.map((u) => u.handle || "unknown") || [],
     currentSelectedUserIds: Array.from(state.selectedUserIds),
     currentStateCompareMode: state.compareMode,
   });
@@ -6573,7 +6652,7 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
   try {
     console.log(
       "🔄 Loading schedules for comparison:",
-      selectedUsersData.map((u) => u.handle || 'unknown')
+      selectedUsersData.map((u) => u.handle || "unknown")
     );
 
     // Clear memoization and matrix caches when loading friends for comparison
@@ -6698,11 +6777,15 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         true
       );
       if (cachedScheduleData) {
-  console.log(`✅ [ENHANCED CACHE] Schedule already cached for @${userData.handle}`);
+        console.log(
+          `✅ [ENHANCED CACHE] Schedule already cached for @${userData.handle}`
+        );
 
         // Even if cached, ensure the friend is in state.users for comparison rendering
         if (!state.users[friendId]) {
-          console.log(`🔄 Adding cached friend @${userData.handle} to state.users for comparison`);
+          console.log(
+            `🔄 Adding cached friend @${userData.handle} to state.users for comparison`
+          );
 
           // Convert cached Firestore data to HomePage format if needed
           let convertedData = cachedScheduleData;
@@ -6711,7 +6794,9 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
             typeof cachedScheduleData.schedule === "object" &&
             !Array.isArray(cachedScheduleData.schedule)
           ) {
-            console.log(`🔄 Converting cached Firestore data for @${userData.handle}`);
+            console.log(
+              `🔄 Converting cached Firestore data for @${userData.handle}`
+            );
             convertedData =
               convertFirestoreToHomePageFormat(cachedScheduleData);
           }
@@ -6753,7 +6838,9 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
       }
 
       // No cached data found, load fresh schedule
-  console.log(`📥 [FRESH LOAD] Loading schedule for @${userData.handle}...`);
+      console.log(
+        `📥 [FRESH LOAD] Loading schedule for @${userData.handle}...`
+      );
       // Load schedule data for friends
       const scheduleData = await dataManager.getUserSchedule(friendId);
       if (scheduleData) {
@@ -6772,7 +6859,9 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
           convertFirestoreToHomePageFormat(scheduleData);
 
         if (!convertedScheduleData) {
-          console.warn(`⚠️ Failed to convert schedule data for @${userData.handle} in comparison`);
+          console.warn(
+            `⚠️ Failed to convert schedule data for @${userData.handle} in comparison`
+          );
           return;
         }
 
@@ -6789,27 +6878,24 @@ async function loadSelectedFriendsForComparison(selectedUsersData) {
         };
 
         state.users[friendId] = friendUser;
-        console.log(
-          `✅ [FRESH DATA] Schedule loaded for @${userData.handle}`,
-          {
-            storedUnderKey: friendId,
-            friendUserData: {
-              id: friendUser.id,
-              name: friendUser.name,
-              hasSchedule: !!friendUser.schedule,
-              timeSlots: friendUser.timeSlots?.length || 0,
-              scheduleType: Array.isArray(friendUser.schedule)
-                ? "array"
-                : "object",
-            },
-            currentStateUsersKeys: Object.keys(state.users),
-          }
-        );
+        console.log(`✅ [FRESH DATA] Schedule loaded for @${userData.handle}`, {
+          storedUnderKey: friendId,
+          friendUserData: {
+            id: friendUser.id,
+            name: friendUser.name,
+            hasSchedule: !!friendUser.schedule,
+            timeSlots: friendUser.timeSlots?.length || 0,
+            scheduleType: Array.isArray(friendUser.schedule)
+              ? "array"
+              : "object",
+          },
+          currentStateUsersKeys: Object.keys(state.users),
+        });
 
         // Set up real-time sync for this friend's schedule updates
-  FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, userData.handle);
+        FRIENDS_REALTIME_SYNC.setupRealtimeListener(friendId, userData.handle);
       } else {
-  console.warn(`⚠️ No schedule data found for @${userData.handle}`);
+        console.warn(`⚠️ No schedule data found for @${userData.handle}`);
       }
     }); // End of map callback function
 
@@ -6867,7 +6953,7 @@ document.addEventListener("spa:page:load", async (event) => {
 
   if (route === "home") {
     // Only initialize the schedule app when the home page is loaded.
-  console.log("🚀 Starting MeetchuThere Schedule App (via SPA event)...");
+    console.log("🚀 Starting MeetchuThere Schedule App (via SPA event)...");
 
     // 🔄 CRITICAL FIX: Reset initialization flags when DOM gets replaced
     // This fixes the issue where event listeners stop working after signin
@@ -6903,13 +6989,17 @@ document.addEventListener("spa:page:load", async (event) => {
     }
 
     // Auto-disable pin mode when dropdown closes
-    document.addEventListener('scheduleControls:closed', () => {
-      if (state.pinModeActive) {
-        state.pinModeActive = false;
-        updateUI();
-        console.log('📌 Pin mode auto-disabled on dropdown close');
-      }
-    }, { once: false });
+    document.addEventListener(
+      "scheduleControls:closed",
+      () => {
+        if (state.pinModeActive) {
+          state.pinModeActive = false;
+          updateUI();
+          console.log("📌 Pin mode auto-disabled on dropdown close");
+        }
+      },
+      { once: false }
+    );
 
     // Create tooltip if it doesn't exist
     if (!DOM_ELEMENTS.slotTooltip) {
@@ -6981,7 +7071,7 @@ document.addEventListener("spa:page:load", async (event) => {
     // Set up authentication callbacks (only once)
     setupAuthenticationCallbacks();
 
-  console.log("✅ MeetchuThere Schedule App loaded successfully!");
+    console.log("✅ MeetchuThere Schedule App loaded successfully!");
 
     // 🧪 DEBUG: Add test helper for day navigation buttons
     if (typeof window !== "undefined") {

@@ -53,6 +53,10 @@
           {
             "key": "Referrer-Policy",
             "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebase.com https://*.firebaseapp.com https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net https://www.googletagmanager.com https://www.google-analytics.com blob:"
           }
         ]
       }

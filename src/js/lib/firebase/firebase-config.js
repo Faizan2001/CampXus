@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAnalytics } from "firebase/analytics";
 
 // Browser-compatible configuration loading
 // Load Firebase config from environment variables with security validation
@@ -43,6 +44,10 @@ function loadFirebaseConfig() {
     storageBucket: window.ENV.FIREBASE_STORAGE_BUCKET,
     messagingSenderId: window.ENV.FIREBASE_MESSAGING_SENDER_ID,
     appId: window.ENV.FIREBASE_APP_ID,
+    // Optional but helps analytics initialize faster & provides fallback
+    ...(window.ENV.FIREBASE_MEASUREMENT_ID
+      ? { measurementId: window.ENV.FIREBASE_MEASUREMENT_ID }
+      : {}),
   };
 }
 
@@ -108,11 +113,28 @@ export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// Initialize Analytics
+let analytics;
+try {
+  analytics = getAnalytics(app);
+  if (typeof window !== "undefined" && window.logManager) {
+    window.logManager.system.init(
+      "Firebase Analytics initialized successfully"
+    );
+  } else {
+    console.log("📊 Firebase Analytics initialized successfully");
+  }
+} catch (error) {
+  console.warn("⚠️ Firebase Analytics initialization failed:", error.message);
+  // Analytics is optional, so we don't throw an error
+}
+export { analytics };
+
 // TEMPORARY: Expose Firestore helpers globally for manual console testing of handle system
 // Remove after Phase 2 once dedicated admin tooling or test harness is in place.
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   try {
-    import('firebase/firestore').then(mod => {
+    import("firebase/firestore").then((mod) => {
       window.__fireTest = {
         db,
         auth, // expose auth for console-based experiments
@@ -121,12 +143,15 @@ if (typeof window !== 'undefined') {
         getDoc: mod.getDoc,
         serverTimestamp: mod.serverTimestamp,
         runTransaction: mod.runTransaction,
-        collection: mod.collection
+        collection: mod.collection,
       };
-      console.log('%cHandle Dev Test API available as window.__fireTest', 'color:#4ade80');
+      console.log(
+        "%cHandle Dev Test API available as window.__fireTest",
+        "color:#4ade80"
+      );
     });
   } catch (e) {
-    console.warn('Could not expose test API', e);
+    console.warn("Could not expose test API", e);
   }
 }
 

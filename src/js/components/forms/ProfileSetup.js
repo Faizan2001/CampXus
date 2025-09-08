@@ -35,6 +35,7 @@ import { dataManager } from "../../services/data/DataService.js";
 import { scheduleStorageService } from "../../services/schedule/ScheduleStorageService.js";
 import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
+import { AnalyticsService } from "../../services/analytics/AnalyticsService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
 import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
 import {
@@ -860,8 +861,6 @@ class ProfileSetup {
 
     // Cache DOM elements for performance
     this.cacheDOMElements();
-
-    
 
     // 🎯 LOAD EXISTING PROFILE DATA: Check for existing profile data first
     if (this.currentUser && this.currentUser.uid) {
@@ -1756,12 +1755,24 @@ class ProfileSetup {
 
       // 🎯 FIXED: Only include clean profile data to avoid Firestore nested arrays error
       // Determine email and UID safely (prefer form email, then auth user)
-      const authFallbackUser = this.currentUser || authManager.getCurrentUser() || currentUser.user || null;
-      const effectiveEmail = (cleanProfileData.email || authFallbackUser?.email || "").trim();
+      const authFallbackUser =
+        this.currentUser ||
+        authManager.getCurrentUser() ||
+        currentUser.user ||
+        null;
+      const effectiveEmail = (
+        cleanProfileData.email ||
+        authFallbackUser?.email ||
+        ""
+      ).trim();
       if (!effectiveEmail) {
-        throw new Error("No email available. Please sign in and fill your email.");
+        throw new Error(
+          "No email available. Please sign in and fill your email."
+        );
       }
-      const domainPart = effectiveEmail.includes("@") ? effectiveEmail.split("@")[1] : "";
+      const domainPart = effectiveEmail.includes("@")
+        ? effectiveEmail.split("@")[1]
+        : "";
       const universityKey = domainPart ? domainPart.split(".")[0] : "";
 
       const profileDataForFirestore = {
@@ -1780,12 +1791,19 @@ class ProfileSetup {
         },
       };
 
-      const userId = this.currentUser?.uid || currentUser?.uid || authFallbackUser?.uid || null;
+      const userId =
+        this.currentUser?.uid ||
+        currentUser?.uid ||
+        authFallbackUser?.uid ||
+        null;
       if (!userId) {
         throw new Error("No authenticated user. Please sign in again.");
       }
 
-      console.log("💾 Saving profile to Firestore...", { userId, profileData: this.profileData });
+      console.log("💾 Saving profile to Firestore...", {
+        userId,
+        profileData: this.profileData,
+      });
 
       // Reserve handle + save profile transactionally with cooldown + old handle release
       const db = getFirestore();
@@ -1867,6 +1885,13 @@ class ProfileSetup {
 
       console.log("✅ Profile saved successfully to Firestore");
 
+      // 📊 Track user registration in analytics
+      AnalyticsService.trackUserRegistration(
+        userUpdate.universityInfo?.university,
+        userUpdate.profile?.major
+      );
+      AnalyticsService.setUserProperties(userUpdate);
+
       // 🎯 Phase-1: Save schedule to Firestore using ScheduleStorageService
       if (
         this.scheduleData &&
@@ -1944,8 +1969,12 @@ class ProfileSetup {
         return;
       }
 
-      const userId = this.currentUser?.uid || currentUser?.uid || authManager.getCurrentUser()?.uid;
-      if (!userId) throw new Error("No authenticated user. Please sign in again.");
+      const userId =
+        this.currentUser?.uid ||
+        currentUser?.uid ||
+        authManager.getCurrentUser()?.uid;
+      if (!userId)
+        throw new Error("No authenticated user. Please sign in again.");
 
       console.log("📅 Saving imported schedule to Firestore:", {
         userId,
@@ -1977,6 +2006,23 @@ class ProfileSetup {
         console.log(
           "✅ Schedule saved successfully with dual storage strategy"
         );
+
+        // 📊 Track schedule upload in analytics
+        try {
+          // Pull university from currentUser store (safer than stale userUpdate)
+          const uniKey = (
+            currentUser?.profile?.universityInfo?.university ||
+            currentUser?.universityInfo?.university ||
+            this.profileData?.universityInfo?.university ||
+            "unknown"
+          )
+            .toString()
+            .toLowerCase();
+          const method = this.scheduleData.importMethod || "profile_setup";
+          AnalyticsService.trackScheduleUpload(uniKey, method);
+        } catch (e) {
+          console.warn("📊 Schedule upload analytics failed (non-blocking)", e);
+        }
 
         // Update currentUser store with schedule data
         currentUser.setScheduleData(scheduleDataWithMetadata);
@@ -2392,7 +2438,11 @@ class ProfileSetup {
       <div class="course-card">
         <div class="course-header">
           <span class="course-code">${course.courseCode}</span>
-          ${course.section ? `<span class="course-section">Sec ${course.section}</span>` : ""}
+          ${
+            course.section
+              ? `<span class="course-section">Sec ${course.section}</span>`
+              : ""
+          }
         </div>
         <h4 class="course-name">${course.courseName}</h4>
         <div class="course-details">
@@ -2463,7 +2513,6 @@ class ProfileSetup {
       );
     }
   }
-
 
   // handlePrivacyChange method removed - privacy controls moved to Friends page
 
