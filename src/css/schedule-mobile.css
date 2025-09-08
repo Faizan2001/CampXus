@@ -78,7 +78,6 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 .schedule-controls-toggle .icon-state.icon-open { opacity: 0; transform: scale(.4) translateY(6px) rotate(-15deg); }
 
-/* Legacy font-awesome rotation kept for backward compatibility if present */
 .schedule-controls-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
 
 .schedule-controls-toggle:hover {
@@ -150,24 +149,33 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 /* Unified control button styling */
 .control-btn {
-  padding: 0.5rem 0.75rem;
+  /* Dynamic sizing via CSS custom properties */
+  --_btn-height: var(--schedule-btn-height, 36px);
+  --_btn-h-pad: 0.75rem;
+  --_btn-v-pad: 0.5rem;
+  padding: var(--_btn-v-pad) var(--_btn-h-pad);
+  height: var(--_btn-height);
+  min-height: var(--_btn-height);
+  line-height: 1; /* ensure vertical centering */
+  /* Visual */
   border: none;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 500;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  /* Layout */
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  height: 36px; /* Fixed height for consistency */
-  min-height: 36px; /* Ensure minimum height maintained */
   white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
+  flex: 0 0 auto;
+  /* Interaction */
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -228,18 +236,84 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
   /* Stack controls vertically on very small screens */
   @media (max-width: 26em) {
-    .schedule-controls-bar {
-      flex-direction: column;
-      gap: 0.75rem;
-      max-height: 300px;
+    /* Maintain single horizontal row with horizontal scroll instead of wrapping */
+    .schedule-controls-bar.expanded {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 0.5rem;
+      max-height: 140px; /* ample for one row */
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
-    
+
+    .schedule-controls-bar.expanded::-webkit-scrollbar { height: 4px; }
+    .schedule-controls-bar.expanded::-webkit-scrollbar-track { background: transparent; }
+    .schedule-controls-bar.expanded::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+
+    /* Preserve zero-height collapse with stronger specificity */
+    .schedule-controls-bar:not(.expanded) {
+      max-height: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      border-width: 0 !important; /* eliminate thin residual line/gap */
+    }
+
+    /* Allow groups to size to content and stay in one line */
     .view-mode-toggle,
     .schedule-actions-group {
-      width: 100%;
-      justify-content: center;
+      flex: 0 0 auto;
+      width: auto;
     }
+
+    /* Ensure actions never wrap; enable slight compression */
+    .schedule-actions-group { flex-wrap: nowrap !important; }
+    .schedule-actions-group .control-btn,
+    .view-mode-toggle .control-btn { flex: 0 0 auto; }
+
+  /* Compress button padding & text for ultra-narrow screens */
+  /* Maintain full 44px touch height; only compress horizontal padding */
+  .schedule-controls-bar.expanded { --schedule-btn-height: 44px; }
+  .schedule-controls-bar.expanded .control-btn { padding: 0.5rem 0.55rem; }
+  .schedule-controls-bar.expanded .control-btn .btn-text-mobile { font-size: 0.7rem; }
   }
+}
+
+/* Extra tiny devices: allow slight reduction while staying near 44px target */
+@media (max-width: 20.625em) { /* 330px */
+  /* Keep 44px; only slightly reduce horizontal padding & font size */
+  .schedule-controls-bar.expanded { --schedule-btn-height: 44px; }
+  .schedule-controls-bar.expanded .control-btn { --_btn-h-pad: 0.5rem; font-size: 0.7rem; }
+}
+
+/* Reduce horizontal padding of Add Row button from 20px (1.25rem) to 16px (1rem) */
+.schedule-controls-bar #addNewTimeSlotBtn.control-btn,
+.schedule-controls-bar .control-btn.add-slot-btn {
+  --_btn-h-pad: 1rem; /* 16px */
+  padding: var(--_btn-v-pad) var(--_btn-h-pad) !important;
+}
+
+/* === PIN BUTTON HEIGHT NORMALIZATION (NARROW + GENERAL) === */
+/* Ensure the pin button never renders visually shorter due to icon-only content */
+.schedule-controls-bar .control-btn,
+.schedule-controls-bar .control-btn.pin-btn,
+.schedule-controls-bar .control-btn.add-slot-btn {
+  box-sizing: border-box;
+  align-items: center;
+  display: inline-flex;
+}
+
+.schedule-controls-bar .control-btn.pin-btn {
+  padding: var(--_btn-v-pad) var(--_btn-h-pad) !important;
+  height: var(--_btn-height) !important;
+  min-height: var(--_btn-height) !important;
+  line-height: 1 !important;
+}
+
+/* On ultra narrow widths while compressed keep visual parity */
+@media (max-width: 26em) {
+  .schedule-controls-bar.expanded .control-btn.pin-btn { height: var(--_btn-height) !important; }
 }
 
 /* Mobile text optimization */
@@ -256,20 +330,15 @@ This file contains all styles for the mobile-friendly schedule redesign:
   .control-btn.pin-btn .btn-text-mobile {
     display: none;
   }
-  
-  .control-btn {
-    padding: 0.5rem 0.625rem; /* Slightly less padding on mobile */
-    min-height: 44px; /* WCAG AA minimum touch target for mobile */
-    height: 44px; /* Proper touch target height */
-  }
+  /* Mobile touch target: 44px */
+  .schedule-controls-bar { --schedule-btn-height: 44px; }
+  .control-btn { --_btn-h-pad: 0.625rem; }
 }
 
 /* Desktop button height consistency */
 @media (min-width: 48em) {
-  .control-btn {
-    height: 40px; /* Larger height for desktop */
-    padding: 0.625rem 1rem;
-  }
+  .schedule-controls-bar { --schedule-btn-height: 40px; }
+  .control-btn { --_btn-h-pad: 1rem; padding: 0.625rem var(--_btn-h-pad); }
 }
 
 /* Active state for view mode buttons */
@@ -314,10 +383,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
   transform: rotate(90deg) scale(1.1);
 }
 
-/* Pin button styling */
-.control-btn.pin-btn {
-  height: 36px; /* Ensure consistent height with other buttons */
-}
+/* Pin button inherits variable-based sizing */
+.control-btn.pin-btn { height: var(--_btn-height); min-height: var(--_btn-height); }
 
 .control-btn.pin-btn:disabled {
   opacity: 0.5;
@@ -331,14 +398,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Desktop button height consistency - ensure pin button matches */
-@media (min-width: 48em) {
-  .control-btn.pin-btn {
-    height: 40px; /* Larger height for desktop to match other buttons */
-  }
-}
+/* Desktop pin sizing managed by variable above */
 
-/* Old view-mode-btn styling removed - now using unified .control-btn */
 
 /* ===== DAY SELECTOR BAR ===== */
 .day-selector-container {
@@ -387,7 +448,9 @@ This file contains all styles for the mobile-friendly schedule redesign:
   border: 1px solid var(--day-selector-border);
   background: rgba(255,255,255,0.05);
   color: var(--day-inactive-text);
-  border-radius: 14px; /* ~28px diameter for a pill-like feel but not full */
+  /* More rectangular w/ rounded edges (reduced radius) */
+  --day-btn-radius: 10px;
+  border-radius: var(--day-btn-radius);
   cursor: pointer;
   transition: background .25s ease, color .25s ease, transform .25s ease, border-color .25s ease;
   display: flex;
@@ -409,6 +472,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
   border-color: var(--accent-primary);
   opacity: 1;
+  border-radius: var(--day-btn-radius); /* maintain same shape in active state */
 }
 
 .day-btn.today::before {
@@ -579,7 +643,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
   backdrop-filter: blur(22px);
   box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
   transition: background .25s ease, color .25s ease, border-color .25s ease;
-  align-self: flex-start; /* align chips left across cards */
+  /* Center vertically within day-time-slot */
+  align-self: center;
 }
 
 .day-time-slot.busy .slot-time {
