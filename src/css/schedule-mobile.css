@@ -18,61 +18,327 @@ This file contains all styles for the mobile-friendly schedule redesign:
 ====================================================================================
 */
 
-/* ===== VIEW MODE TOGGLE BUTTONS ===== */
-.schedule-view-controls {
+/* ===== SCHEDULE HEADER WITH MOBILE DROPDOWN TOGGLE ===== */
+.schedule-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-md);
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  flex-shrink: 0; /* Prevent compression by flexbox parent */
+  justify-content: space-between;
 }
 
-.view-mode-toggle {
-  display: flex;
-  background: var(--view-toggle-bg);
-  border: 1px solid var(--view-toggle-border);
-  border-radius: var(--radius-lg);
-  padding: clamp(2px, 0.5vw, 4px); /* Responsive padding */
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-sm);
-}
-
-.view-mode-btn {
-  padding: clamp(6px, 2vw, 8px) clamp(12px, 4vw, 16px); /* Responsive padding */
+.schedule-controls-toggle {
+  display: none; /* Hidden on desktop */
+  width: 44px; /* WCAG AA minimum touch target */
+  height: 44px; /* WCAG AA minimum touch target */
+  min-width: 44px; /* Ensure minimum even with CSS compression */
+  min-height: 44px; /* Ensure minimum even with CSS compression */
   border: none;
-  background: transparent;
-  color: var(--view-toggle-inactive-text);
-  font-size: clamp(0.75rem, 2.2vw, 0.875rem); /* Responsive font size */
-  font-weight: 500;
-  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all var(--view-transition-duration) var(--view-transition-easing);
-  min-width: clamp(4rem, 20vw, 5rem); /* Responsive button width */
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
+  /* Ensure proper centering for accessibility */
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(4px, 1.5vw, 6px); /* Responsive gap */
 }
 
-.view-mode-btn.active {
-  background: var(--view-toggle-active-bg);
-  color: var(--view-toggle-active-text);
-  box-shadow: var(--shadow-sm);
+.schedule-controls-toggle .toggle-icon-wrapper {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schedule-controls-toggle .icon-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  transform: scale(.7) translateY(4px) rotate(-8deg);
+  transition: opacity .35s cubic-bezier(.4,0,.2,1), transform .5s cubic-bezier(.68,-0.55,.265,1.55);
+  pointer-events: none;
+}
+
+.schedule-controls-toggle .icon-state.icon-closed { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
+
+.schedule-controls-toggle[aria-expanded="true"] .icon-state.icon-closed { opacity: 0; transform: scale(.4) translateY(-6px) rotate(20deg); }
+.schedule-controls-toggle[aria-expanded="true"] .icon-state.icon-open { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
+
+.schedule-controls-toggle .icon-state.icon-open { opacity: 0; transform: scale(.4) translateY(6px) rotate(-15deg); }
+
+/* Legacy font-awesome rotation kept for backward compatibility if present */
+.schedule-controls-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+
+.schedule-controls-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--accent-primary);
+  border-color: rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
   transform: translateY(-1px);
 }
 
-.view-mode-btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+.schedule-controls-toggle:active {
+  transform: translateY(0) scale(0.98);
 }
 
-.view-mode-btn i {
-  font-size: 0.8rem;
+.schedule-controls-toggle[aria-expanded="true"] {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.35);
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.25);
 }
+
+/* Ensure closed state returns to base shadow (no lingering glow) */
+.schedule-controls-toggle[aria-expanded="false"] {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Focus styles for keyboard navigation */
+.schedule-controls-toggle:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4), 0 0 0 4px rgba(102, 126, 234, 0.2);
+}
+
+/* ===== UNIFIED SCHEDULE CONTROLS BAR ===== */
+.schedule-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  gap: 1rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top;
+}
+
+/* Control button groups */
+.view-mode-toggle,
+.schedule-actions-group {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.view-mode-toggle {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.25rem;
+  backdrop-filter: blur(15px);
+}
+
+/* .schedule-actions-group intentionally has no special container background */
+
+/* Unified control button styling */
+.control-btn {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 36px; /* Fixed height for consistency */
+  min-height: 36px; /* Ensure minimum height maintained */
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.control-btn i {
+  font-size: 0.875rem;
+  transition: transform 0.2s ease;
+}
+
+/* Responsive text handling */
+.control-btn .btn-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.control-btn .btn-text-mobile {
+  display: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* ===== MOBILE DROPDOWN CONTROLS ===== */
+@media (max-width: 48em) {
+  /* Show dropdown toggle on mobile */
+  .schedule-controls-toggle {
+    display: flex !important; /* Override the display: none from base styles */
+  }
+
+  /* Initially hide controls bar on mobile */
+  .schedule-controls-bar {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    padding: 0 0.75rem;
+    transform: scaleY(0);
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Show controls when dropdown is expanded */
+  .schedule-controls-bar.expanded {
+    max-height: 200px;
+    opacity: 1;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    transform: scaleY(1);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Smooth animation for dropdown */
+  .schedule-controls-bar {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease,
+                transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Stack controls vertically on very small screens */
+  @media (max-width: 26em) {
+    .schedule-controls-bar {
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 300px;
+    }
+    
+    .view-mode-toggle,
+    .schedule-actions-group {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* Mobile text optimization */
+@media (max-width: 48em) {
+  .control-btn .btn-text {
+    display: none;
+  }
+  
+  .control-btn .btn-text-mobile {
+    display: block;
+  }
+  
+  /* Pin button has no mobile text - just icon */
+  .control-btn.pin-btn .btn-text-mobile {
+    display: none;
+  }
+  
+  .control-btn {
+    padding: 0.5rem 0.625rem; /* Slightly less padding on mobile */
+    min-height: 44px; /* WCAG AA minimum touch target for mobile */
+    height: 44px; /* Proper touch target height */
+  }
+}
+
+/* Desktop button height consistency */
+@media (min-width: 48em) {
+  .control-btn {
+    height: 40px; /* Larger height for desktop */
+    padding: 0.625rem 1rem;
+  }
+}
+
+/* Active state for view mode buttons */
+.control-btn.view-mode-btn.active {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Hover states */
+.control-btn:hover:not(.active):not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.control-btn:active {
+  transform: translateY(0);
+}
+
+/* Specific button styling */
+.control-btn.add-slot-btn {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.25);
+}
+
+.control-btn.add-slot-btn:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+  transform: translateY(-2px);
+}
+
+.control-btn.add-slot-btn i {
+  transform: none;
+}
+
+.control-btn.add-slot-btn:hover i {
+  transform: rotate(90deg) scale(1.1);
+}
+
+/* Pin button styling */
+.control-btn.pin-btn {
+  height: 36px; /* Ensure consistent height with other buttons */
+}
+
+.control-btn.pin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.control-btn.pin-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Desktop button height consistency - ensure pin button matches */
+@media (min-width: 48em) {
+  .control-btn.pin-btn {
+    height: 40px; /* Larger height for desktop to match other buttons */
+  }
+}
+
+/* Old view-mode-btn styling removed - now using unified .control-btn */
 
 /* ===== DAY SELECTOR BAR ===== */
 .day-selector-container {
@@ -216,30 +482,24 @@ This file contains all styles for the mobile-friendly schedule redesign:
 .day-view-container {
   display: flex;
   flex-direction: column;
-  gap: clamp(var(--space-xs), 2vw, var(--space-sm)); /* Responsive gap */
-  /* Use available height within the schedule-day-view container */
-  flex: 1; /* Take all available space in flex parent */
-  min-height: 0; /* Allow flexbox to shrink properly */
+  gap: 0.25rem; /* Ultra-compact fixed gap */
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden; /* Prevent horizontal overflow */
-  /* Firefox scrollbar styling */
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--accent-primary) transparent;
-  /* Remove all padding - let parent glass card handle spacing */
   padding: 0;
-  margin: 0; /* Remove margins to fit within parent */
-  background: transparent; /* Let parent glass card handle background */
-  border-radius: 0; /* Remove border radius to fit seamlessly */
-  border: none; /* Remove border to fit within parent card */
-  /* Enhanced mobile scrolling */
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  overscroll-behavior: contain; /* Prevent bounce scroll from affecting parent */
-  /* Ensure container stays within bounds */
+  overscroll-behavior: contain;
   position: relative;
   contain: layout style;
-  /* Touch optimization */
-  touch-action: pan-y; /* Allow vertical panning only */
+  touch-action: pan-y;
 }
 
 /* Custom scrollbar for day view */
@@ -262,41 +522,28 @@ This file contains all styles for the mobile-friendly schedule redesign:
   background: var(--accent-secondary); /* Slightly different purple on hover */
 }
 
-/* ===== DAY VIEW TIME SLOTS ===== */
+/* ===== DAY VIEW TIME SLOTS - ULTRA COMPACT ===== */
 .day-time-slot {
   display: flex;
   align-items: center;
-  min-height: clamp(
-    3.5rem,
-    15vh,
-    var(--day-slot-height)
-  ); /* Responsive height */
+  min-height: clamp(2.5rem, 8vw, 3rem); /* Much smaller height */
   background: var(--day-slot-bg);
   border: 1px solid var(--day-slot-border);
-  border-radius: var(--radius-lg);
-  padding: clamp(
-    var(--space-sm),
-    3vw,
-    var(--space-md)
-  ); /* Reduced padding to respect glass card */
+  border-radius: 8px; /* Smaller radius for compact look */
+  padding: clamp(0.5rem, 2vw, 0.75rem); /* Drastically reduced padding */
   cursor: pointer;
   transition: all 0.2s var(--view-transition-easing);
   backdrop-filter: blur(15px);
   position: relative;
   overflow: hidden;
-  margin-bottom: clamp(
-    var(--space-xs),
-    2vw,
-    var(--space-sm)
-  ); /* Responsive margin */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08),
+  margin-bottom: 0.375rem; /* Fixed small margin - no responsive bloat */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  /* Ensure slots don't shrink and maintain minimum spacing */
   flex-shrink: 0;
   /* Enhanced touch behavior */
-  touch-action: manipulation; /* Optimize for touch interactions */
-  -webkit-touch-callout: none; /* Disable iOS callout menu */
-  -webkit-user-select: none; /* Prevent text selection */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -328,21 +575,21 @@ This file contains all styles for the mobile-friendly schedule redesign:
   opacity: 0.8;
 } */
 
-/* Time slot content layout */
+/* Time slot content layout - COMPACT */
 .slot-time {
-  min-width: clamp(5rem, 20vw, 6.25rem); /* Responsive width: 80px to 100px */
-  font-size: clamp(0.8rem, 2vw, 0.9rem); /* Responsive font size */
-  font-weight: 700; /* Bolder for time hierarchy */
-  color: var(--text-primary); /* More prominent color */
-  letter-spacing: 0.5px;
-  background: rgba(255, 255, 255, 0.08); /* Enhanced glassmorphism background */
-  padding: clamp(6px, 2vw, 10px) clamp(10px, 3vw, 14px); /* Responsive padding */
-  border-radius: var(--radius-md); /* Slightly larger radius */
+  min-width: clamp(4rem, 18vw, 5rem); /* Smaller width for compact design */
+  font-size: clamp(0.75rem, 1.8vw, 0.825rem); /* Slightly smaller font */
+  font-weight: 600; /* Still bold but not as heavy */
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.375rem 0.5rem; /* Much smaller fixed padding */
+  border-radius: 6px; /* Smaller radius for compact look */
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.15); /* More visible border */
-  backdrop-filter: blur(20px); /* Enhanced blur effect */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1); /* Inner highlight */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
 }
 
@@ -356,29 +603,29 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 .slot-content {
   flex: 1;
-  margin-left: var(--space-lg); /* Increased spacing from time */
+  margin-left: 0.75rem; /* Compact spacing from time */
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Increased gap for better hierarchy */
-  justify-content: center; /* Center content vertically */
+  gap: 2px; /* Minimal gap for ultra-compact design */
+  justify-content: center;
 }
 
 .slot-course-code {
-  font-size: clamp(1rem, 3vw, 1.1rem); /* Responsive font size */
-  font-weight: 700; /* Bold course code */
-  letter-spacing: 0.5px;
-  line-height: 1.2;
+  font-size: clamp(0.875rem, 2.5vw, 0.95rem); /* Compact font size */
+  font-weight: 600; /* Slightly lighter for compact design */
+  letter-spacing: 0.3px;
+  line-height: 1.1; /* Tighter line height */
 }
 
 .slot-classroom {
-  font-size: clamp(0.75rem, 2vw, 0.85rem); /* Responsive font size */
+  font-size: clamp(0.7rem, 1.8vw, 0.775rem); /* Smaller font for compact */
   opacity: 0.8;
-  font-weight: 500; /* Slightly bolder */
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
 .slot-free-text {
-  font-size: clamp(0.875rem, 2.5vw, 0.95rem); /* Responsive font size */
+  font-size: clamp(0.8rem, 2vw, 0.875rem); /* Compact free text */
   color: var(--text-secondary);
   font-style: italic;
   font-weight: 500;
@@ -620,6 +867,35 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 /* Base Mobile Styles (320px+) - Default above */
 
+/* Ultra-compact for very small mobile (up to 400px) */
+@media (max-width: 25em) {
+  .day-time-slot {
+    min-height: 2.25rem; /* Ultra-compact for tiny screens */
+    padding: 0.4rem 0.6rem; /* Minimal padding */
+    margin-bottom: 0.25rem;
+  }
+  
+  .slot-time {
+    padding: 0.25rem 0.375rem; /* Even smaller time container */
+    min-width: 3.5rem;
+    font-size: 0.7rem;
+  }
+  
+  .slot-content {
+    margin-left: 0.5rem;
+    gap: 1px; /* Ultra-minimal gap */
+  }
+  
+  .slot-course-code {
+    font-size: 0.8rem;
+    line-height: 1.05;
+  }
+  
+  .slot-classroom {
+    font-size: 0.65rem;
+  }
+}
+
 /* Small Mobile Landscape / Large Mobile Portrait (480px+) */
 @media (min-width: 30em) {
   .schedule-view-controls {
@@ -632,8 +908,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
   }
 
   .day-time-slot {
-    min-height: 4rem;
-    padding: var(--space-md); /* Consistent padding within glass card */
+    min-height: 2.75rem; /* Keep compact for mobile landscape */
+    padding: 0.625rem 0.75rem; /* Slightly larger but still compact */
   }
 }
 
@@ -852,7 +1128,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
 /* Focus visible for keyboard navigation */
 .day-btn:focus-visible,
 .view-mode-btn:focus-visible,
-.day-time-slot:focus-visible {
+.day-time-slot:focus-visible,
+.control-btn:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(124, 77, 255, 0.2);

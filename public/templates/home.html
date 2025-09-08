@@ -6,15 +6,15 @@
   By separating it into a template, we can load it dynamically in our SPA!
 -->
 
-<!-- Horizontal Friends Bar - Instagram-style at page top -->
-<section class="horizontal-friends-section">
-  <div id="horizontal-friends-container" class="horizontal-friends-wrapper">
-    <!-- HorizontalFriendsBar component will be initialized here -->
-  </div>
-</section>
-
 <!-- Single Column Layout -->
 <div class="content-grid">
+  <!-- Horizontal Friends Bar - Instagram-style at page top -->
+  <section class="horizontal-friends-section">
+    <div id="horizontal-friends-container" class="horizontal-friends-wrapper">
+      <!-- HorizontalFriendsBar component will be initialized here -->
+    </div>
+  </section>
+  
   <!-- Schedule Column (Centered) -->
   <div class="schedule-column">
     <section class="glass-card schedule-section">
@@ -31,29 +31,61 @@
             <span class="owner-name"></span>
           </span>
         </h3>
-        <div class="schedule-header-actions">
+        <!-- Mobile Controls Toggle -->
+        <button 
+          id="scheduleControlsToggle" 
+          class="schedule-controls-toggle" 
+          title="Schedule Options"
+          aria-label="Toggle schedule controls"
+          aria-expanded="false"
+        >
+          <span class="toggle-icon-wrapper" aria-hidden="true">
+            <!-- Closed state icon (chevron down) -->
+            <svg class="icon-state icon-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+            <!-- Open state icon (chevron up) -->
+            <svg class="icon-state icon-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+          </span>
+        </button>
+      </div>
+
+      <!-- Unified Schedule Controls -->
+      <div class="schedule-controls-bar" id="scheduleControlsBar">
+        <div class="view-mode-toggle">
+          <button class="control-btn view-mode-btn active" id="dayViewBtn" data-view="day">
+            <i class="fas fa-list"></i>
+            <span class="btn-text">Day View</span>
+            <span class="btn-text-mobile">Day</span>
+          </button>
+          <button class="control-btn view-mode-btn" id="gridViewBtn" data-view="grid">
+            <i class="fas fa-th"></i>
+            <span class="btn-text">Grid View</span>
+            <span class="btn-text-mobile">Grid</span>
+          </button>
+        </div>
+        
+        <div class="schedule-actions-group">
+          <button
+            id="addNewTimeSlotBtn"
+            class="control-btn add-slot-btn"
+            title="Add new time slot"
+          >
+            <i class="fas fa-plus"></i>
+            <span class="btn-text">Add Slot</span>
+            <span class="btn-text-mobile">Row</span>
+          </button>
+          
           <button
             id="togglePinModeBtn"
-            class="pin-btn"
+            class="control-btn pin-btn"
             title="Toggle Pin Mode"
             disabled
           >
             <i class="fas fa-thumbtack"></i>
-            <span class="pin-btn-text">Pin</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- New Mobile-First View Controls -->
-      <div class="schedule-view-controls">
-        <div class="view-mode-toggle">
-          <button class="view-mode-btn active" id="dayViewBtn" data-view="day">
-            <i class="fas fa-list"></i>
-            Day View
-          </button>
-          <button class="view-mode-btn" id="gridViewBtn" data-view="grid">
-            <i class="fas fa-th"></i>
-            Grid View
+            <span class="btn-text">Pin</span>
           </button>
         </div>
       </div>
@@ -113,16 +145,6 @@
                 <th class="day-header" data-day="4">T</th>
                 <th class="day-header" data-day="5">F</th>
                 <th class="day-header" data-day="6">S</th>
-                <th id="addTimeSlotHeaderCell">
-                  <button
-                    type="button"
-                    id="addNewTimeSlotBtn"
-                    class="add-timeslot-btn"
-                    title="Add new time slot"
-                  >
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -131,6 +153,8 @@
           </table>
         </div>
       </div>
+
+      <!-- Add New Row Button moved to controls bar above -->
     </section>
   </div>
 </div>

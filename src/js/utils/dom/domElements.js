@@ -22,7 +22,6 @@ export const DOM_ELEMENTS = {
 
   // Dynamic Time Slots
   addNewTimeSlotBtn: null,
-  addTimeSlotHeaderCell: null, // Reference to the th cell containing the "+" button
 
   // Mobile Schedule Redesign Elements
   dayViewBtn: null,
@@ -32,6 +31,10 @@ export const DOM_ELEMENTS = {
   scheduleDayView: null,
   scheduleGridView: null,
   dayViewContainer: null,
+  
+  // Mobile Dropdown Controls
+  scheduleControlsToggle: null,
+  scheduleControlsBar: null,
   // Day buttons (0-6 for Sunday-Saturday)
   dayBtn0: null,
   dayBtn1: null,
@@ -73,9 +76,6 @@ export function initializeDomElements() {
 
   // Dynamic Time Slots
   DOM_ELEMENTS.addNewTimeSlotBtn = document.getElementById("addNewTimeSlotBtn");
-  DOM_ELEMENTS.addTimeSlotHeaderCell = document.getElementById(
-    "addTimeSlotHeaderCell"
-  );
 
   // Mobile Schedule Redesign Elements
   DOM_ELEMENTS.dayViewBtn = document.getElementById("dayViewBtn");
@@ -87,6 +87,10 @@ export function initializeDomElements() {
   DOM_ELEMENTS.scheduleDayView = document.getElementById("scheduleDayView");
   DOM_ELEMENTS.scheduleGridView = document.getElementById("scheduleGridView");
   DOM_ELEMENTS.dayViewContainer = document.getElementById("dayViewContainer");
+  
+  // Mobile Dropdown Controls
+  DOM_ELEMENTS.scheduleControlsToggle = document.getElementById("scheduleControlsToggle");
+  DOM_ELEMENTS.scheduleControlsBar = document.getElementById("scheduleControlsBar");
 
   // Day buttons (0-6 for Sunday-Saturday)
   DOM_ELEMENTS.dayBtn0 = document.getElementById("dayBtn0");
@@ -132,6 +136,8 @@ export function validateCriticalElementsForRoute(route) {
       "gridViewBtn",
       "scheduleDayView",
       "scheduleGridView",
+      "scheduleControlsToggle",
+      "scheduleControlsBar",
     ];
 
     const missingCritical = criticalElements.filter(
@@ -187,6 +193,10 @@ export function reinitializeViewModeElements() {
   DOM_ELEMENTS.daySelectorContainer = document.getElementById("daySelectorContainer");
   DOM_ELEMENTS.daySelector = document.getElementById("daySelector");
   DOM_ELEMENTS.dayViewContainer = document.getElementById("dayViewContainer");
+  
+  // Re-fetch mobile dropdown controls
+  DOM_ELEMENTS.scheduleControlsToggle = document.getElementById("scheduleControlsToggle");
+  DOM_ELEMENTS.scheduleControlsBar = document.getElementById("scheduleControlsBar");
   
   console.log("📍 View mode elements re-initialized:", {
     dayViewBtn: !!DOM_ELEMENTS.dayViewBtn,

@@ -343,7 +343,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 .content-grid {
   display: flex;
   flex-direction: column; /* Mobile-first: single column */
-  gap: clamp(1rem, 3vw, 1.5rem); /* Responsive gap */
+  gap: 0.75rem; /* Compact fixed gap between friends bar and schedule */
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
@@ -459,7 +459,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   .content-grid {
     display: flex !important;
     flex-direction: column !important;
-    gap: clamp(1rem, 3vw, 1.5rem) !important;
+    gap: 0.75rem !important; /* Fixed compact gap */
     width: 100% !important;
     max-width: 100% !important;
   }
@@ -508,7 +508,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 
   .content-grid {
     max-width: 1400px !important; /* Wider max-width for ultra-wide screens */
-    gap: 2rem !important; /* Increased gap */
+    gap: 0.75rem !important; /* Consistent compact gap */
   }
 
   /* Single column layout for ultra-wide */
@@ -568,7 +568,7 @@ This file contains all layout-related styles for the MeetchuThere app:
   .content-grid {
     display: flex !important;
     flex-direction: column !important; /* Now uses normal column order for new layout */
-    gap: 1.5rem !important;
+    gap: 0.75rem !important; /* Fixed compact gap */
     width: 100% !important;
   }
 
@@ -653,7 +653,7 @@ This file contains all layout-related styles for the MeetchuThere app:
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    gap: 1.5rem !important;
+    gap: 0.75rem !important; /* Fixed compact gap */
     width: 100% !important;
     max-width: 1200px !important;
     margin: 0 auto !important;

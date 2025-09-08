@@ -272,37 +272,48 @@ This file contains all UI component styles for the MeetchuThere app:
 /* ===== GLASS CARD COMPONENT ===== */
 /* ===== ENHANCED GLASSMORPHISM CARD SYSTEM ===== */
 .glass-card {
-  /* Core Glass Structure with Enhanced Variables */
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  -webkit-backdrop-filter: var(--glass-backdrop-blur)
-    var(--glass-backdrop-saturate);
+  /* Enhanced Glass Structure with Premium Look */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 
-  /* Enhanced Border System */
-  border: 1px solid var(--glass-border);
-  border-radius: clamp(1rem, 3vw, 1.5rem); /* Responsive border radius */
-  padding: clamp(1rem, 4vw, 2rem); /* Responsive padding */
+  /* Premium Border System with Gradient */
+  border: 1px solid;
+  border-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.08)
+  ) 1;
+  border-radius: 16px; /* Consistent premium radius */
+  padding: clamp(1.25rem, 4vw, 1.75rem); /* Optimized padding */
 
-  /* Advanced Multi-layer Shadow System */
-  box-shadow: var(--glass-outer-glow), var(--glass-inner-glow),
-    0 8px 32px var(--glass-shadow), inset 0 0 0 1px var(--glass-highlight-faint);
+  /* Premium Multi-layer Shadow System */
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 
-  /* Enhanced Transitions */
-  transition: var(--glass-transition);
+  /* Smooth Transitions */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 
   /* Responsive width constraints */
   width: 100%;
   max-width: 100%;
-  min-width: 0; /* Allow content to shrink */
-  box-sizing: border-box; /* Include padding and border in width */
+  min-width: 0;
+  box-sizing: border-box;
 
   /* Improved isolation for layering */
   isolation: isolate;
 }
 
-/* Enhanced Top Highlight */
+/* Premium Top Highlight */
 .glass-card::before {
   content: "";
   position: absolute;
@@ -313,38 +324,43 @@ This file contains all UI component styles for the MeetchuThere app:
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--glass-highlight) 20%,
-    var(--glass-highlight-strong) 50%,
-    var(--glass-highlight) 80%,
+    rgba(255, 255, 255, 0.3) 20%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.3) 80%,
     transparent 100%
   );
   z-index: 1;
 }
 
-/* Enhanced Rotating Ambient Light */
+/* Subtle Ambient Glow */
 .glass-card::after {
   content: "";
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    var(--glass-highlight-faint) 45deg,
-    rgba(139, 92, 246, 0.08) 90deg,
-    transparent 135deg,
-    var(--glass-highlight-faint) 180deg,
-    rgba(168, 85, 247, 0.06) 225deg,
-    transparent 270deg,
-    var(--glass-highlight-faint) 315deg,
-    transparent 360deg
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  background: radial-gradient(
+    circle at center,
+    rgba(102, 126, 234, 0.04) 0%,
+    rgba(139, 92, 246, 0.02) 50%,
+    transparent 70%
   );
-  animation: rotate 20s linear infinite;
+  animation: pulse 8s ease-in-out infinite;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1) rotate(0deg);
+    opacity: 0.6;
+  }
+  50% { 
+    transform: scale(1.05) rotate(180deg);
+    opacity: 0.8;
+  }
 }
 
 @keyframes rotate {

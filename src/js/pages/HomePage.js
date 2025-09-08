@@ -24,6 +24,7 @@ import { currentUser } from "../store/userStore.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { logManager } from "../utils/debug/LogManager.js";
+import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
 
 /* ================================
    APPLICATION STATE
@@ -3751,7 +3752,7 @@ function handleScheduleWrapperFeedback(e) {
   if (
     DOM_ELEMENTS.scheduleWrapper.classList.contains("schedule-disabled") &&
     !e.target.closest("button") &&
-    !e.target.closest(".add-timeslot-btn") &&
+    !e.target.closest(".add-row-btn") &&
     !e.target.closest(".slot")
   ) {
     const totalUserCount = Object.keys(state.users).length;
@@ -3940,96 +3941,8 @@ async function setupViewModeToggle() {
       renderScheduleForCurrentView();
     });
   } catch (error) {
-    console.error("❌ Failed to initialize ViewModeManager:", error);
-
-    // Fallback to legacy method
-    console.log("🔄 Falling back to legacy view mode setup");
-    setupViewModeToggleSafe();
+    console.error("❌ Failed to initialize ViewModeManager (no legacy fallback):", error);
   }
-}
-
-/**
- * Safe view mode setup with fallback re-initialization
- */
-function setupViewModeToggleSafe() {
-  let retryCount = 0;
-  const maxRetries = 3;
-
-  function attemptSetup() {
-    console.log(
-      `🔄 Attempting view mode setup (attempt ${retryCount + 1}/${maxRetries})`
-    );
-
-    // Re-initialize DOM elements to ensure they're current
-    reinitializeViewModeElements();
-
-    const dayViewBtn = DOM_ELEMENTS.dayViewBtn;
-    const gridViewBtn = DOM_ELEMENTS.gridViewBtn;
-
-    console.log("📍 View mode button validation:", {
-      dayViewBtn: !!dayViewBtn,
-      gridViewBtn: !!gridViewBtn,
-      dayViewBtnId: dayViewBtn?.id,
-      gridViewBtnId: gridViewBtn?.id,
-      retryCount,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Check if both critical buttons are available
-    if (!dayViewBtn || !gridViewBtn) {
-      retryCount++;
-      if (retryCount < maxRetries) {
-        console.warn(
-          `⚠️ View mode buttons not ready - retrying in 100ms (attempt ${retryCount}/${maxRetries})`
-        );
-        setTimeout(attemptSetup, 100);
-        return;
-      } else {
-        console.error(
-          "❌ Failed to initialize view mode buttons after maximum retries"
-        );
-        console.log("🔍 Final DOM state:", {
-          availableElements: Array.from(
-            document.querySelectorAll('[id*="View"]')
-          ).map((el) => el.id),
-          templateLoaded: !!document.getElementById("scheduleTable"),
-          homeTemplatePresent: !!document.querySelector(".schedule-section"),
-        });
-        return;
-      }
-    }
-
-    // Both buttons are available - set up event listeners
-    console.log("✅ Both view mode buttons found - setting up listeners");
-
-    if (dayViewBtn) {
-      addUIControlListener(dayViewBtn, "click", () => {
-        console.log("🎯 Day view button clicked - triggering view mode change");
-        handleViewModeChange("day");
-      });
-      console.log("✅ Day view button listener added");
-    }
-
-    if (gridViewBtn) {
-      addUIControlListener(gridViewBtn, "click", () => {
-        console.log(
-          "🎯 Grid view button clicked - triggering view mode change"
-        );
-        handleViewModeChange("grid");
-      });
-      console.log("✅ Grid view button listener added");
-    }
-
-    console.log(
-      "📱 View mode toggle listeners successfully set up with safe method"
-    );
-
-    // Set initial state
-    updateViewModeButtons();
-    updateViewContainers();
-  }
-
-  attemptSetup();
 }
 
 /**
@@ -4448,6 +4361,12 @@ function updateViewContainers() {
     );
   }
 }
+
+/**
+ * Setup mobile dropdown controls for schedule controls bar
+ */
+// Simplified mobile controls toggle (replaces previous over-engineered version)
+// (initScheduleControlsToggle removed - delegated version lives in app.js)
 
 /**
  * Render schedule for current view mode
@@ -6974,6 +6893,23 @@ document.addEventListener("spa:page:load", async (event) => {
     // Initialize DOM elements for the home page (first pass)
     console.log("📋 Initializing DOM elements...");
     initializeDomElements();
+
+    // Initialize schedule controls mobile toggle (idempotent)
+    try {
+      initScheduleControlsToggle();
+      console.log("✅ Schedule controls toggle initialized");
+    } catch (e) {
+      console.warn("⚠️ Failed to init schedule controls toggle (non-fatal)", e);
+    }
+
+    // Auto-disable pin mode when dropdown closes
+    document.addEventListener('scheduleControls:closed', () => {
+      if (state.pinModeActive) {
+        state.pinModeActive = false;
+        updateUI();
+        console.log('📌 Pin mode auto-disabled on dropdown close');
+      }
+    }, { once: false });
 
     // Create tooltip if it doesn't exist
     if (!DOM_ELEMENTS.slotTooltip) {

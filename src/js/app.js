@@ -227,6 +227,7 @@ async function initializeSPA() {
   logManager.system.init("SPA Initialization completed");
 }
 
+
 // Initialize when DOM is ready, or immediately if already ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeSPA);

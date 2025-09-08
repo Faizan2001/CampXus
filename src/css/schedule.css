@@ -1008,11 +1008,7 @@ table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   display: none !important;
 }
 
-.schedule-disabled .add-timeslot-btn,
-.schedule-disabled #addNewTimeSlotBtn {
-  pointer-events: none !important;
-  opacity: 0.3 !important;
-}
+/* Old disabled schedule rules moved to .add-row-btn */
 
 /* ===== PIN MODE STYLING ===== */
 /* Enhanced styling for pin mode interactions */
@@ -1403,48 +1399,84 @@ body:not(.dark-mode) #slotTooltip {
 
 /* ===== ADD TIME SLOT BUTTON STYLING ===== */
 /* Modern, accessible styling for the add time slot button in the schedule header */
-.add-timeslot-btn,
-#addNewTimeSlotBtn {
-  /* Layout & Positioning */
+/* Old circular button rules removed - now using .add-row-btn */
+
+/* Old hover rules removed */
+
+/* Old active rules removed */
+
+/* Old focus rules removed */
+
+/* Old icon styling rules removed */
+
+/* Old disabled state rules removed */
+
+/* ===== SCHEDULE ACTIONS & NEW ROW BUTTON ===== */
+
+/* Schedule Actions Container */
+.schedule-actions {
   display: flex;
+  justify-content: flex-end;
+  padding: 1rem 0 0.5rem 0;
+  margin-top: 1rem;
+}
+
+/* New Horizontal Add Row Button - Mobile First */
+.add-row-btn,
+#addNewTimeSlotBtn {
+  /* Mobile-First Touch Target (minimum 44px) */
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  margin: 0 auto;
-
-  /* Visual Styling */
+  min-height: 44px;
+  padding: 0.75rem 1.25rem;
+  gap: 0.5rem;
+  
+  /* Visual Styling - Matches existing color scheme */
   background: linear-gradient(
     135deg,
     var(--accent-primary),
     var(--accent-secondary)
   );
   color: white;
-  border: 2px solid transparent;
-  border-radius: 50%; /* Circular button */
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-
+  
+  /* Typography */
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  
   /* Interactive Effects */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-
+  
   /* Enhanced Shadows */
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
-
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+  
   /* Accessibility */
   outline: none;
+  
+  /* Mobile Touch Optimization */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.add-timeslot-btn:hover,
-#addNewTimeSlotBtn:hover {
-  /* Hover Effects */
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
-  border-color: rgba(255, 255, 255, 0.2);
+.add-row-btn span,
+#addNewTimeSlotBtn span {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
 
-  /* Background Enhancement */
+/* Hover Effects */
+.add-row-btn:hover,
+#addNewTimeSlotBtn:hover {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 6px rgba(0, 0, 0, 0.1);
+  
   background: linear-gradient(
     135deg,
     var(--accent-secondary),
@@ -1452,39 +1484,25 @@ body:not(.dark-mode) #slotTooltip {
   );
 }
 
-.add-timeslot-btn:active,
+/* Active State */
+.add-row-btn:active,
 #addNewTimeSlotBtn:active {
-  /* Active State */
-  transform: translateY(-1px) scale(1.02);
+  transform: translateY(-1px) scale(1.01);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
   transition-duration: 0.1s;
 }
 
-.add-timeslot-btn:focus-visible,
+/* Focus Accessibility */
+.add-row-btn:focus-visible,
 #addNewTimeSlotBtn:focus-visible {
-  /* Focus Accessibility */
   outline: 2px solid var(--accent-primary);
   outline-offset: 3px;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
     0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.add-timeslot-btn i,
-#addNewTimeSlotBtn i {
-  /* Icon Styling */
-  font-size: 18px;
-  line-height: 1;
-  transition: transform 0.3s ease;
-}
-
-.add-timeslot-btn:hover i,
-#addNewTimeSlotBtn:hover i {
-  /* Icon Hover Effect */
-  transform: rotate(90deg) scale(1.1);
-}
-
 /* Disabled State */
-.add-timeslot-btn:disabled,
+.add-row-btn:disabled,
 #addNewTimeSlotBtn:disabled {
   background: var(--text-tertiary);
   color: var(--text-secondary);
@@ -1492,7 +1510,13 @@ body:not(.dark-mode) #slotTooltip {
   transform: none;
   box-shadow: none;
   opacity: 0.6;
-  border-color: transparent;
+}
+
+/* Disabled interaction */
+.schedule-disabled .add-row-btn,
+.schedule-disabled #addNewTimeSlotBtn {
+  pointer-events: none !important;
+  opacity: 0.3 !important;
 }
 
 /* ===== KEYFRAME ANIMATIONS ===== */
@@ -1725,7 +1749,7 @@ body:not(.dark-mode) #slotTooltip {
 /* ===== PAGE LAYOUT STRUCTURE ===== */
 .horizontal-friends-section {
   width: 100%;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0; /* Removed 24px margin for tighter spacing */
   position: relative;
   z-index: 10;
 }
