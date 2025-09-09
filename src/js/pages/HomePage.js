@@ -6641,6 +6641,15 @@ function cleanupDeselectedFriends(previousSelectedIds, currentSelectedIds) {
   );
 
   deselected.forEach((friendId) => {
+    // 🚫 Never remove the current user's data from state.users during compare cleanup
+    const currentUid = authManager.getCurrentUser()?.uid;
+    if (friendId && currentUid && friendId === currentUid) {
+      console.log(
+        "🛡️ [CLEANUP] Skipping removal of current user's state entry during compare deselection"
+      );
+      return;
+    }
+
     // Remove from state.users if not actively viewing
     if (state.users[friendId] && state.currentViewingFriendId !== friendId) {
       delete state.users[friendId];

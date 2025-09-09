@@ -1364,6 +1364,26 @@ export class HorizontalFriendsBar {
     // Emit event for other components
     this.emitCompareModeEvent(false);
 
+    // ✅ Reuse existing schedule-change flow: when exiting compare mode,
+    // automatically select and render the user's schedule to match the purple ring
+    setTimeout(() => {
+      try {
+        // Ensure the visual selection shows the user as selected
+        this.updateVisualSelection("user");
+        this.updateSelectionStatus("You");
+        console.log(
+          "🔴 DEBUG COMPARE: Emitting schedule:change for user after compare mode deactivated"
+        );
+        // Tell HomePage to switch to the user's schedule
+        this.emitScheduleChangeEvent("user", "You", false);
+      } catch (e) {
+        console.warn(
+          "⚠️ Failed to emit schedule:change for user after compare exit",
+          e
+        );
+      }
+    }, 0);
+
     this.showDebouncedNotification("Compare mode deactivated", "info", 1500);
   }
 
