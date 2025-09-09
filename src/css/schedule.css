@@ -1811,6 +1811,20 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 /* ===== SCHEDULE COLUMN ===== */
+/* Dark mode: ensure any busy day-view slot variants use accent-primary */
+body.dark-mode .slot.busy,
+body.dark-mode .day-time-slot.busy {
+  background: var(--accent-primary) !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .slot.busy .course-code,
+body.dark-mode .slot.busy .classroom-number,
+body.dark-mode .day-time-slot.busy .slot-course-code,
+body.dark-mode .day-time-slot.busy .slot-classroom,
+body.dark-mode .day-time-slot.busy .slot-time {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
 .schedule-column {
   width: 100%;
   min-width: 0; /* Prevents overflow on mobile */
@@ -1826,11 +1840,12 @@ body:not(.dark-mode) #slotTooltip {
   width: 100%;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl); /* Use consistent radius variable */
+  border-radius: var(--glass-radius); /* Unified glass radius */
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
   -webkit-backdrop-filter: var(--glass-backdrop-blur)
     var(--glass-backdrop-saturate);
-  box-shadow: var(--glass-outer-glow), var(--shadow-md);
+  /* Use unified lift shadow to match glass cards */
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow), var(--glass-inner-glow);
   transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Specific transitions without transform */
@@ -1843,7 +1858,7 @@ body:not(.dark-mode) #slotTooltip {
   min-height: fit-content; /* Minimal height to fit avatar items naturally */
   z-index: 1; /* Ensure glass card appears above other elements */
   /* Add glass card depth shadow */
-  box-shadow: var(--glass-outer-glow), var(--shadow-xl), var(--glass-inner-glow);
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow), var(--glass-inner-glow);
 }
 
 /* ===== FRIENDS BAR SPECIFIC TOP HIGHLIGHT ===== */
@@ -1863,7 +1878,7 @@ body:not(.dark-mode) #slotTooltip {
     transparent 100%
   );
   z-index: 1;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0; /* Match main border-radius */
+  border-radius: var(--glass-radius) var(--glass-radius) 0 0; /* Match main border-radius */
   pointer-events: none;
 }
 
@@ -1891,12 +1906,19 @@ body:not(.dark-mode) #slotTooltip {
   pointer-events: none;
   z-index: -1;
   opacity: 0.7;
-  border-radius: var(--radius-xl); /* Match main border-radius */
+  border-radius: var(--glass-radius); /* Match main border-radius */
+}
+
+/* In dark mode, neutralize the ambient conic animation for zero-motion parity */
+body.dark-mode .schedule-section .horizontal-friends-bar::after {
+  animation: none !important;
+  opacity: 0 !important;
 }
 
 /* ===== FRIENDS BAR SPECIFIC HOVER STATE ===== */
-.schedule-section .horizontal-friends-bar:hover,
-.horizontal-friends-bar:hover {
+/* Hover visual lift only in light mode */
+body:not(.dark-mode) .schedule-section .horizontal-friends-bar:hover,
+body:not(.dark-mode) .horizontal-friends-bar:hover {
   background: var(--glass-hover) !important;
   border-color: var(--glass-hover-border) !important;
   box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
@@ -1907,8 +1929,9 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 /* ===== FRIENDS BAR ACTIVE/PRESSED STATE ===== */
-.schedule-section .horizontal-friends-bar:active,
-.horizontal-friends-bar:active {
+/* Active state visual change only in light mode */
+body:not(.dark-mode) .schedule-section .horizontal-friends-bar:active,
+body:not(.dark-mode) .horizontal-friends-bar:active {
   background: var(--glass-active) !important;
   /* NO MOVEMENT - consistent with schedule glass card behavior */
   transition-duration: 0.1s !important; /* Quick transition for responsive feel */
@@ -2549,27 +2572,9 @@ body:not(.dark-mode) #slotTooltip {
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
   .horizontal-friends-bar {
-    padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Reduced top padding */
-    margin: 0;
-    border-radius: var(--radius-xl) !important; /* Consistent border radius */
-    /* Ensure glass styling consistency on mobile */
-    background: var(--glass-bg) !important;
-    border: 1px solid var(--glass-border) !important;
-    backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate) !important;
-    -webkit-backdrop-filter: var(--glass-backdrop-blur)
-      var(--glass-backdrop-saturate) !important;
-    box-shadow: var(--glass-outer-glow), var(--shadow-xl),
-      var(--glass-inner-glow) !important;
-  }
-
-  /* Ensure hover effects work on mobile */
-  .horizontal-friends-bar:hover {
-    background: var(--glass-hover) !important;
-    border-color: var(--glass-hover-border) !important;
-    box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
-      0 0 0 1px var(--glass-hover-highlight),
-      0 20px 60px var(--glass-shadow-strong),
-      inset 0 0 0 1px var(--glass-hover-highlight) !important;
+  padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Compact spacing for mobile */
+  margin: 0;
+  border-radius: var(--glass-radius); /* Unified glass radius */
   }
 
   .friends-avatars-list {
@@ -2602,26 +2607,8 @@ body:not(.dark-mode) #slotTooltip {
 
 @media (max-width: 480px) {
   .horizontal-friends-bar {
-    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Reduced top padding */
-    /* Ensure glass styling consistency on small mobile */
-    border-radius: var(--radius-xl) !important; /* Consistent border radius */
-    background: var(--glass-bg) !important;
-    border: 1px solid var(--glass-border) !important;
-    backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate) !important;
-    -webkit-backdrop-filter: var(--glass-backdrop-blur)
-      var(--glass-backdrop-saturate) !important;
-    box-shadow: var(--glass-outer-glow), var(--shadow-xl),
-      var(--glass-inner-glow) !important;
-  }
-
-  /* Ensure hover effects work on small mobile */
-  .horizontal-friends-bar:hover {
-    background: var(--glass-hover) !important;
-    border-color: var(--glass-hover-border) !important;
-    box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
-      0 0 0 1px var(--glass-hover-highlight),
-      0 20px 60px var(--glass-shadow-strong),
-      inset 0 0 0 1px var(--glass-hover-highlight) !important;
+  padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Compact spacing for small mobile */
+  border-radius: var(--glass-radius); /* Unified glass radius */
   }
 
   .friends-avatars-list {

@@ -266,33 +266,24 @@ body.dark-mode .notification-close:hover {
 /* ===== GLASS CARD COMPONENT ===== */
 /* ===== ENHANCED GLASSMORPHISM CARD SYSTEM ===== */
 .glass-card {
-  /* Enhanced Glass Structure with Premium Look */
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  /* Unified Glass Structure — driven by variables */
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur)
+    var(--glass-backdrop-saturate);
 
-  /* Premium Border System with Gradient */
-  border: 1px solid;
-  border-image: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.2),
-      rgba(255, 255, 255, 0.08)
-    )
-    1;
-  border-radius: 16px; /* Consistent premium radius */
-  padding: clamp(1.25rem, 4vw, 1.75rem); /* Optimized padding */
+  /* Border system (no gradient border-image to avoid conflicts across pages) */
+  border: 1px solid var(--glass-border);
+  border-image: none;
+  border-radius: var(--glass-radius); /* Unified premium radius */
+  padding: clamp(1.25rem, 4vw, 1.75rem);
 
-  /* Premium Multi-layer Shadow System */
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  /* Shadow system via tokens */
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow),
+    var(--glass-inner-glow);
 
   /* Smooth Transitions */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--glass-transition);
   position: relative;
   overflow: hidden;
 
@@ -372,9 +363,8 @@ body.dark-mode .notification-close:hover {
   border-color: var(--glass-hover-border);
   /* ❌ Removed transform to prevent unwanted card movement */
 
-  box-shadow: var(--glass-hover-glow), 0 0 0 1px var(--glass-hover-highlight),
-    var(--glass-inner-glow), 0 20px 60px var(--glass-shadow-strong),
-    inset 0 0 0 1px var(--glass-hover-highlight);
+  box-shadow: var(--glass-hover-glow), var(--glass-lift-shadow),
+    0 0 0 1px var(--glass-hover-highlight), var(--glass-inner-glow);
 }
 
 /* Active/Pressed State - FIXED: No more movement */
@@ -384,32 +374,59 @@ body.dark-mode .notification-close:hover {
   transition-duration: 0.1s;
 }
 
-/* Keep dark-mode base glass style even on hover/active (no visual change) */
+/* Dark mode: unified schedule-style for all glass cards */
+body.dark-mode .glass-card {
+  background: var(--glass-dark-bg) !important;
+  border: 1px solid var(--glass-dark-border) !important;
+  border-radius: var(--glass-radius) !important;
+  border-image: none !important;
+  box-shadow: var(--glass-dark-shadow), var(--glass-lift-shadow) !important;
+}
+
+/* Dark mode hover/active remain the same */
 body.dark-mode .glass-card:hover,
 body.dark-mode .glass-card:active {
-  /* Match base .glass-card aesthetics */
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  border: 1px solid;
-  border-image: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.2),
-      rgba(255, 255, 255, 0.08)
-    )
-    1;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  background: var(--glass-dark-hover-bg) !important;
+  border: 1px solid var(--glass-dark-hover-border) !important;
+  box-shadow: var(--glass-dark-hover-shadow), var(--glass-lift-shadow) !important;
+}
+
+/* Unify dark-mode glass look with weekly schedule card for targeted areas */
+/* Schedule card reference (in schedule.css):
+   body.dark-mode .schedule-section {
+     background: rgba(0, 0, 0, 0.25);
+     border: 1px solid rgba(255, 255, 255, 0.06);
+     border-radius: 16px;
+   }
+*/
+/* Notifications main card parity (not all are .glass-card) */
+body.dark-mode .notifications-card {
+  background: var(--glass-dark-bg) !important;
+  border: 1px solid var(--glass-dark-border) !important;
+  border-radius: var(--glass-radius) !important;
+  border-image: none !important;
+  box-shadow: var(--glass-dark-shadow), var(--glass-lift-shadow) !important;
+}
+
+/* Keep the same look on hover/active for these targets */
+body.dark-mode .notifications-card:hover,
+body.dark-mode .notifications-card:active {
+  background: var(--glass-dark-hover-bg) !important;
+  border: 1px solid var(--glass-dark-hover-border) !important;
+  box-shadow: var(--glass-dark-hover-shadow), var(--glass-lift-shadow) !important;
 }
 
 /* On touch/mobile devices, disable hover/active visual changes entirely */
 @media (hover: none) {
   .glass-card:hover,
   .glass-card:active {
+    background: initial; /* fall back to base */
+    border-color: initial;
+    box-shadow: initial;
+    transform: none;
+  }
+  .horizontal-friends-bar:hover,
+  .horizontal-friends-bar:active {
     background: initial; /* fall back to base */
     border-color: initial;
     box-shadow: initial;
@@ -477,7 +494,8 @@ body.dark-mode .glass-card:active {
 .glass-card.glass-strong {
   background: var(--glass-bg-strong);
   border-color: var(--glass-border-strong);
-  box-shadow: 0 12px 48px var(--glass-shadow-strong), var(--glass-inner-glow),
+  box-shadow: var(--glass-lift-shadow),
+    0 12px 48px var(--glass-shadow-strong), var(--glass-inner-glow),
     inset 0 0 0 1px var(--glass-highlight);
 }
 
@@ -783,30 +801,37 @@ textarea {
   -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  box-shadow: var(--glass-outer-glow), 0 4px 16px var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow);
   position: relative;
   overflow: hidden;
 }
 
 /* Dark mode: match glass-card base aesthetic for consistency */
 body.dark-mode .horizontal-friends-bar {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid; /* Use gradient border like glass cards */
-  border-image: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.2),
-      rgba(255, 255, 255, 0.08)
-    )
-    1;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  background: var(--glass-dark-bg);
+  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  border: 1px solid var(--glass-dark-border);
+  border-radius: var(--glass-radius);
+  border-image: none;
+  box-shadow: var(--glass-dark-shadow), var(--glass-lift-shadow);
+}
+
+/* Dark mode: keep hover/active visuals identical to base (no animation) */
+body.dark-mode .horizontal-friends-bar:hover,
+body.dark-mode .horizontal-friends-bar:active {
+  background: var(--glass-dark-hover-bg) !important;
+  border: 1px solid var(--glass-dark-hover-border) !important;
+  box-shadow: var(--glass-dark-hover-shadow) !important;
+}
+
+/* Also override when nested inside schedule-section */
+body.dark-mode .schedule-section .horizontal-friends-bar:hover,
+body.dark-mode .schedule-section .horizontal-friends-bar:active {
+  background: var(--glass-dark-hover-bg) !important;
+  border: 1px solid var(--glass-dark-hover-border) !important;
+  box-shadow: var(--glass-dark-hover-shadow) !important;
 }
 
 /* User avatar container - fixed on the left */

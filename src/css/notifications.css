@@ -227,29 +227,20 @@ body.page-notifications .schedule-section {
    (Scoped to notifications page to avoid global overrides)
 ================================= */
 
+/* Visuals come from .glass-card; keep only layout-specific tweaks */
 .notifications-card {
-  /* Enhanced glassmorphism matching friends page exactly */
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 1rem 1rem 0.75rem 1rem;
   position: relative;
   overflow: hidden;
   margin-bottom: 1.5rem;
-}
-
-/* New single-card header layout */
-.notifications-card {
-  padding: 1rem 1rem 0.75rem 1rem;
   display: flex;
   flex-direction: column;
   flex: 1; /* grow to fill page height */
   min-height: 0; /* allow inner scroll area to size */
 }
+
+/* New single-card header layout */
+/* (Already handled above) */
 
 .notifications-card-header {
   display: flex;
@@ -1469,7 +1460,6 @@ input[type="checkbox"]:checked + .toggle-switch::before {
 ================================= */
 
 body.dark-mode.page-notifications .notifications-header,
-body.dark-mode.page-notifications .notifications-card,
 body.dark-mode.page-notifications .notification-item,
 body.dark-mode.page-notifications .no-notifications,
 body.dark-mode.page-notifications .notification-categories,
@@ -1477,6 +1467,9 @@ body.dark-mode.page-notifications .notification-settings {
   background: rgba(40, 44, 52, 0.95);
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Unify the main notifications card with the weekly schedule glass look */
+/* Note: .notifications-card dark styles unified in components.css via variables */
 
 body.dark-mode.page-notifications .notification-item:hover {
   background: rgba(40, 44, 52, 0.98);

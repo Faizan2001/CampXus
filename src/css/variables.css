@@ -92,6 +92,8 @@ body:not(.dark-mode) {
 
   /* Enhanced Glassmorphism System */
   /* Glass Card Variables */
+  --glass-radius: 16px; /* Unified glass radius */
+  --glass-lift-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); /* Subtle elevation */
   --glass-bg: rgba(245, 239, 255, 0.75);
   --glass-bg-strong: rgba(245, 239, 255, 0.9);
   --glass-border: rgba(162, 148, 249, 0.15);
@@ -109,6 +111,21 @@ body:not(.dark-mode) {
   --glass-hover-glow: 0 12px 40px rgba(162, 148, 249, 0.15);
   --glass-hover-border: rgba(162, 148, 249, 0.3);
   --glass-hover-highlight: rgba(245, 239, 255, 0.9);
+
+  /* Global Spacing Scale (available in all themes) */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Global Border Radius Scale (available in all themes) */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
 
   /* Glass Card Hover & Interactive States */
   --glass-hover: rgba(245, 239, 255, 0.9);
@@ -390,6 +407,18 @@ body.dark-mode {
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-hover: rgba(42, 45, 56, 0.9);
 
+    /* Unified dark glass card (schedule-style) variables */
+    --glass-dark-bg: rgba(0, 0, 0, 0.25);
+    --glass-dark-border: rgba(255, 255, 255, 0.06);
+    --glass-dark-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    /* Hover/active stay visually consistent in dark mode */
+    --glass-dark-hover-bg: var(--glass-dark-bg);
+    --glass-dark-hover-border: var(--glass-dark-border);
+    --glass-dark-hover-shadow: var(--glass-dark-shadow);
+
     /* Typography Color Scale */
     --text-primary: #f0f2f5;
     --text-secondary: #a8acb8;
@@ -422,6 +451,8 @@ body.dark-mode {
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
     --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.6);
     --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
+  /* Slight lift for glass cards */
+  --glass-lift-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 
     /* Border System & Utility Colors */
     --border: rgba(255, 255, 255, 0.12);
@@ -453,6 +484,21 @@ body.dark-mode {
     /* Navigation System */
     --nav-item-hover: var(--surface-hover);
     --nav-item-active: var(--accent-primary);
+    --nav-link-highlight: rgba(255, 255, 255, 0.1);
+    --nav-link-color: var(--text-secondary);
+    --nav-link-hover-color: var(--accent-primary);
+    --nav-link-hover-bg: var(--surface-hover);
+
+    /* User Dropdown System - Dark Mode */
+    --user-dropdown-bg: rgba(21, 24, 32, 0.95);
+    --user-dropdown-border: rgba(255, 255, 255, 0.1);
+    --user-dropdown-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    --user-dropdown-backdrop: blur(20px);
+
+    /* Defensive CSS rules to prevent cascade failures */
+    --nav-link-fallback-color: #a8acb8; /* Fallback if --text-secondary fails */
+    --nav-link-fallback-hover-color: #8b5cf6; /* Fallback if --accent-primary fails */
+    --dropdown-fallback-bg: rgba(21, 24, 32, 0.9); /* Fallback background */
 
     /* Modal System */
     --modal-bg: var(--depth-surface);
@@ -480,20 +526,7 @@ body.dark-mode {
     --animation-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --animation-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    /* Spacing Scale */
-    --space-xs: 0.25rem;
-    --space-sm: 0.5rem;
-    --space-md: 1rem;
-    --space-lg: 1.5rem;
-    --space-xl: 2rem;
-    --space-2xl: 3rem;
-
-    /* Border Radius Scale */
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --radius-2xl: 1.5rem;
+  /* Spacing & Radius defined globally in :root */
 
     /* Component-Specific Variables */
     /* Tooltip System */
@@ -604,6 +637,21 @@ body:not(.dark-mode) {
   /* Navigation System */
   --nav-item-hover: rgba(162, 148, 249, 0.1);
   --nav-item-active: var(--accent-primary);
+  --nav-link-highlight: rgba(162, 148, 249, 0.15);
+  --nav-link-color: var(--text-secondary);
+  --nav-link-hover-color: var(--accent-primary);
+  --nav-link-hover-bg: var(--surface-hover);
+
+  /* User Dropdown System - Light Mode */
+  --user-dropdown-bg: rgba(245, 239, 255, 0.95);
+  --user-dropdown-border: rgba(162, 148, 249, 0.2);
+  --user-dropdown-shadow: 0 8px 25px rgba(162, 148, 249, 0.15);
+  --user-dropdown-backdrop: blur(20px);
+
+  /* Defensive CSS rules to prevent cascade failures */
+  --nav-link-fallback-color: #475569; /* Fallback if --text-secondary fails */
+  --nav-link-fallback-hover-color: #A294F9; /* Fallback if --accent-primary fails */
+  --dropdown-fallback-bg: rgba(245, 239, 255, 0.9); /* Fallback background */
 
   /* Modal System */
   --modal-bg: rgba(245, 239, 255, 0.9);

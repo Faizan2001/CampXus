@@ -717,6 +717,13 @@ This file contains all styles for the mobile-friendly schedule redesign:
   border-color: rgba(255, 255, 255, 0.18);
 }
 
+/* Dark mode: busy slots use accent-primary consistently (mobile and desktop) */
+body.dark-mode .day-time-slot.busy {
+  background: var(--accent-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-primary) !important;
+}
+
 .day-time-slot.free {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.14);

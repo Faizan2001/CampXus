@@ -16,11 +16,14 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   overflow: visible !important;
   padding: 0.5rem !important; /* Minimal padding for touch target */
-  width: auto !important; /* Let content determine width */
-  height: auto !important; /* Let content determine height */
-  min-width: 2.5rem !important; /* Ensure minimum touch target */
-  min-height: 2.5rem !important; /* Ensure minimum touch target */
+  /* Ensure 44x44px minimum touch target */
+  min-width: 2.75rem !important; /* 44px */
+  min-height: 2.75rem !important; /* 44px */
   border-radius: 0.5rem !important; /* Subtle rounded corners */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
 }
 
 .theme-toggle::before {
