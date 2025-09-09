@@ -821,32 +821,89 @@ export class UnifiedSchedule {
       return;
     }
 
-    // Collect all unique time boundaries from all users
+    // SMART MERGE: Collect only boundaries where availability can change.
+    // Use busy interval boundaries across all users (all days) + global edges.
     const timePoints = new Set();
 
+    let globalEarliest = Infinity;
+    let globalLatest = -Infinity;
+
     for (const user of this.users.values()) {
+      // Track global edges from each user's full day intervals (timeSlots)
       for (const interval of user.intervals) {
-        timePoints.add(interval.startMinutes);
-        timePoints.add(interval.endMinutes);
+        if (interval.startMinutes < globalEarliest)
+          globalEarliest = interval.startMinutes;
+        if (interval.endMinutes > globalLatest)
+          globalLatest = interval.endMinutes;
       }
+
+      // Only add boundaries for busy intervals (where state flips)
+      if (user.busyIntervals && user.busyIntervals.length) {
+        for (const busy of user.busyIntervals) {
+          timePoints.add(busy.startMinutes);
+          timePoints.add(busy.endMinutes);
+        }
+      }
+    }
+
+    // Always include global edges so the whole comparison span is covered
+    if (
+      isFinite(globalEarliest) &&
+      isFinite(globalLatest) &&
+      globalEarliest < globalLatest
+    ) {
+      timePoints.add(globalEarliest);
+      timePoints.add(globalLatest);
     }
 
     // Convert to sorted array
     const sortedTimePoints = Array.from(timePoints).sort((a, b) => a - b);
 
-    // Create intervals from consecutive time points
-    this.allTimeIntervals = [];
-    for (let i = 0; i < sortedTimePoints.length - 1; i++) {
-      const start = sortedTimePoints[i];
-      const end = sortedTimePoints[i + 1];
+    // Fallback: If there were no busy intervals at all, choose the coarsest user's schedule
+    // to avoid over-fragmentation when everyone is free.
+    if (sortedTimePoints.length < 2) {
+      let coarsestUser = null;
+      for (const [_, user] of this.users) {
+        if (
+          !coarsestUser ||
+          (user.timeSlots?.length || 0) < (coarsestUser.timeSlots?.length || 0)
+        ) {
+          coarsestUser = user;
+        }
+      }
 
-      // Create a TimeInterval for this segment
-      const interval = new TimeInterval(
-        start,
-        end,
-        `${minutesToTimeString(start)}-${minutesToTimeString(end)}`
-      );
-      this.allTimeIntervals.push(interval);
+      const points = new Set();
+      if (coarsestUser && Array.isArray(coarsestUser.intervals)) {
+        for (const interval of coarsestUser.intervals) {
+          points.add(interval.startMinutes);
+          points.add(interval.endMinutes);
+        }
+      }
+      const fallbackSorted = Array.from(points).sort((a, b) => a - b);
+      this.allTimeIntervals = [];
+      for (let i = 0; i < fallbackSorted.length - 1; i++) {
+        const start = fallbackSorted[i];
+        const end = fallbackSorted[i + 1];
+        const interval = new TimeInterval(
+          start,
+          end,
+          `${minutesToTimeString(start)}-${minutesToTimeString(end)}`
+        );
+        this.allTimeIntervals.push(interval);
+      }
+    } else {
+      // Create intervals from consecutive time points (minimal set where state can change)
+      this.allTimeIntervals = [];
+      for (let i = 0; i < sortedTimePoints.length - 1; i++) {
+        const start = sortedTimePoints[i];
+        const end = sortedTimePoints[i + 1];
+        const interval = new TimeInterval(
+          start,
+          end,
+          `${minutesToTimeString(start)}-${minutesToTimeString(end)}`
+        );
+        this.allTimeIntervals.push(interval);
+      }
     }
 
     // Convert back to time slot format
@@ -1041,16 +1098,12 @@ export class UnifiedSchedule {
     }
 
     if (status.unavailable.length > 0) {
-      // Improved messaging: Instead of "No slot", show that users are busy during this period
+      // 3-state model: treat unavailable as available for decisioning but annotate in tooltip
       const unavailableUsers = status.unavailable.map((u) => u.name);
       if (unavailableUsers.length === 1) {
-        messages.push(
-          `Busy: ${unavailableUsers[0]} (no slot during this time)`
-        );
+        messages.push(`Available (no slot): ${unavailableUsers[0]}`);
       } else {
-        messages.push(
-          `Busy: ${unavailableUsers.join(", ")} (no slots during this time)`
-        );
+        messages.push(`Available (no slot): ${unavailableUsers.join(", ")}`);
       }
     }
 
@@ -1250,16 +1303,20 @@ export function correctOcrTimeSlot(startTime, endTime, validTimePoints) {
   const changed = correctedStart !== startTime || correctedEnd !== endTime;
 
   if (changed) {
-    console.log(`🔧 OCR Time Correction: ${startTime}-${endTime} → ${correctedStart}-${correctedEnd}`);
+    console.log(
+      `🔧 OCR Time Correction: ${startTime}-${endTime} → ${correctedStart}-${correctedEnd}`
+    );
   } else {
-    console.log(`📝 Time correction check: ${startTime}-${endTime} (no change needed)`);
+    console.log(
+      `📝 Time correction check: ${startTime}-${endTime} (no change needed)`
+    );
   }
 
-  return { 
-    correctedStart, 
-    correctedEnd, 
+  return {
+    correctedStart,
+    correctedEnd,
     changed,
     originalStart: startTime,
-    originalEnd: endTime
+    originalEnd: endTime,
   };
 }

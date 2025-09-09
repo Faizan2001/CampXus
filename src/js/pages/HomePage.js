@@ -450,7 +450,12 @@ export function determineSlotStatus(dayIndex, timeIndex, currentState) {
  * @param {Object} currentState - Current application state
  * @returns {string} Formatted tooltip message
  */
-export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
+export function generateTooltipMessage(
+  dayIndex,
+  timeIndex,
+  currentState,
+  options = {}
+) {
   const { users, selectedUserIds, compareMode } = currentState;
   if (selectedUserIds.size === 0) return "";
 
@@ -475,7 +480,15 @@ export function generateTooltipMessage(dayIndex, timeIndex, currentState) {
 
   let result;
 
-  if (shouldUseUnifiedSchedule(selectedUsers)) {
+  // Decide whether to use unified schedule based on options or structure
+  const useUnified =
+    options.forceUnified === true
+      ? true
+      : options.forceHomogeneous === true
+      ? false
+      : shouldUseUnifiedSchedule(selectedUsers);
+
+  if (useUnified) {
     // Use UnifiedSchedule for heterogeneous tooltip generation
     const unifiedSchedule = createUnifiedSchedule(selectedUsers);
 
@@ -2550,6 +2563,7 @@ async function _renderScheduleGridInternal() {
   let allowEditingHeaders = false;
   let usedUnifiedSchedule = false; // Track if unified schedule was used
   let unifiedScheduleInstance = null; // Store the unified schedule instance
+  let unifiedDisplayedIndices = null; // Optional mapping from visible row index -> unified slot index
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     const user = state.users[state.activeUserId];
@@ -2584,7 +2598,14 @@ async function _renderScheduleGridInternal() {
           "🔄 Creating unified schedule for heterogeneous time slots"
         );
         unifiedScheduleInstance = createUnifiedSchedule(selectedUsers);
-        currentTimeSlotsToRender = unifiedScheduleInstance.unifiedTimeSlots;
+        // Compute minimal displayed indices across the whole week: drop rows where all users are unavailable for all days
+        unifiedDisplayedIndices = computeDisplayedUnifiedIndices(
+          unifiedScheduleInstance,
+          null // across week
+        );
+        currentTimeSlotsToRender = unifiedDisplayedIndices.map(
+          (idx) => unifiedScheduleInstance.unifiedTimeSlots[idx]
+        );
         usedUnifiedSchedule = true;
 
         // ✅ FIXED: Add constraint to prevent overflow - limit excessive granular slots
@@ -2602,6 +2623,7 @@ async function _renderScheduleGridInternal() {
           currentTimeSlotsToRender = largestSchedule.timeSlots || [];
           usedUnifiedSchedule = false; // Don't use unified logic for comparison
           unifiedScheduleInstance = null;
+          unifiedDisplayedIndices = null;
         }
 
         console.log(
@@ -2702,9 +2724,12 @@ async function _renderScheduleGridInternal() {
         if (currentSelectedUsers.length > 0) {
           if (usedUnifiedSchedule && unifiedScheduleInstance) {
             // Use UnifiedSchedule class for granular comparison
+            const unifiedIndex = unifiedDisplayedIndices
+              ? unifiedDisplayedIndices[timeIndex]
+              : timeIndex;
             const slotStatus = unifiedScheduleInstance.getSlotStatus(
               dayIndex,
-              timeIndex
+              unifiedIndex
             );
             // ✅ FIXED: Map UnifiedSchedule status to expected format
             busyUsers = slotStatus.busy || [];
@@ -2714,10 +2739,12 @@ async function _renderScheduleGridInternal() {
 
             // Add granular time information to the cell for enhanced debugging
             dayCell.dataset.unifiedSlot = "true";
+            dayCell.dataset.unifiedIndex = String(unifiedIndex);
             dayCell.dataset.originalTimeSlot = JSON.stringify({
               start: timeSlot.start,
               end: timeSlot.end,
               label: timeSlot.label,
+              unifiedIndex,
             });
           } else {
             // Fallback to direct comparison for homogeneous schedules
@@ -2763,25 +2790,21 @@ async function _renderScheduleGridInternal() {
           if (busyUsers.length === 0) {
             // All users free - use beautiful glass green style
             dayCell.classList.add("slot-free");
-            dayCell.title = `All available: ${currentSelectedUsers
-              .map((u) => u.name || u.id)
-              .join(", ")}`;
+            // Remove native title to avoid duplicate tooltip; custom tooltip handles messaging
+            dayCell.removeAttribute("title");
           } else if (busyUsers.length === currentSelectedUsers.length) {
             // All users busy - use beautiful glass red style
             dayCell.classList.add("slot-conflict");
-            dayCell.title = `All busy: ${busyUsers
-              .map((u) => u.name || u.id)
-              .join(", ")}`;
+            dayCell.removeAttribute("title");
           } else {
             // Some users busy - use beautiful glass orange style
             dayCell.classList.add("slot-partial");
-            const busyNames = busyUsers.map((u) => u.name || u.id).join(", ");
-            const freeNames = freeUsers.map((u) => u.name || u.id).join(", ");
-            dayCell.title = `Mixed: Free (${freeNames}) | Busy (${busyNames})`;
+            // Avoid setting browser title; rely on unified custom tooltip
+            dayCell.removeAttribute("title");
           }
         } else {
           // No users - clean empty state
-          dayCell.title = "No users selected for comparison";
+          dayCell.removeAttribute("title");
         }
 
         dayCell.dataset.busyUsers = busyUsers.map((u) => u.id).join(",");
@@ -2800,8 +2823,8 @@ async function _renderScheduleGridInternal() {
           dayCell.classList.remove(`color-${i}`);
         }
 
-        dayCell.title =
-          "Compare mode active - Select friends to compare schedules";
+        // Avoid browser-native title; custom tooltip and inline messaging handle this
+        dayCell.removeAttribute("title");
 
         // Clear any previous data attributes
         dayCell.dataset.busyUsers = "";
@@ -3361,7 +3384,15 @@ function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
     return;
   }
 
-  const message = generateTooltipMessage(dayIndex, timeIndex, state);
+  // If the slot carries a unifiedIndex mapping (from unifiedDisplayedIndices), use it for tooltip status
+  const unifiedIndexAttr = slotElement.dataset.unifiedIndex;
+  const effectiveTimeIndex = unifiedIndexAttr
+    ? parseInt(unifiedIndexAttr, 10)
+    : timeIndex;
+
+  const message = generateTooltipMessage(dayIndex, effectiveTimeIndex, state, {
+    forceUnified: !!unifiedIndexAttr,
+  });
 
   if (!message) {
     handleHideSlotTooltip();
@@ -3719,11 +3750,13 @@ function handleScheduleTableClick(e) {
 }
 
 function handleScheduleTableMouseOver(e) {
-  if (state.compareMode && e.target.classList.contains("slot")) {
-    const day = parseInt(e.target.dataset.day, 10);
-    const time = parseInt(e.target.dataset.time, 10);
+  if (!state.compareMode) return;
+  const slotEl = e.target.closest && e.target.closest(".slot");
+  if (slotEl) {
+    const day = parseInt(slotEl.dataset.day, 10);
+    const time = parseInt(slotEl.dataset.time, 10);
     if (!isNaN(day) && !isNaN(time)) {
-      handleShowSlotTooltip(e.target, day, time);
+      handleShowSlotTooltip(slotEl, day, time);
     }
   }
 }
@@ -4475,6 +4508,7 @@ async function renderDayView() {
   let currentTimeSlotsToRender = [];
   let usedUnifiedSchedule = false;
   let unifiedScheduleInstance = null;
+  let unifiedDisplayedIndices = null;
 
   if (state.activeUserId && state.users[state.activeUserId]) {
     // Normal mode: use active user's time slots
@@ -4508,7 +4542,14 @@ async function renderDayView() {
           "🔄 Day view: Creating unified schedule for heterogeneous time slots"
         );
         unifiedScheduleInstance = createUnifiedSchedule(selectedUsers);
-        currentTimeSlotsToRender = unifiedScheduleInstance.unifiedTimeSlots;
+        // Filter to minimal indices for the specific day to avoid empty rows
+        unifiedDisplayedIndices = computeDisplayedUnifiedIndices(
+          unifiedScheduleInstance,
+          state.selectedDay // per-day filtering for day view
+        );
+        currentTimeSlotsToRender = unifiedDisplayedIndices.map(
+          (idx) => unifiedScheduleInstance.unifiedTimeSlots[idx]
+        );
         usedUnifiedSchedule = true;
 
         // ✅ Apply same constraint as grid view to prevent overflow
@@ -4526,6 +4567,7 @@ async function renderDayView() {
           currentTimeSlotsToRender = largestSchedule.timeSlots || [];
           usedUnifiedSchedule = false;
           unifiedScheduleInstance = null;
+          unifiedDisplayedIndices = null;
         }
 
         console.log(
@@ -4562,6 +4604,7 @@ async function renderDayView() {
     const slotElement = createDayViewTimeSlot(timeSlot, timeIndex, activeUser, {
       usedUnifiedSchedule,
       unifiedScheduleInstance,
+      unifiedDisplayedIndices,
     });
     container.appendChild(slotElement);
   });
@@ -4581,21 +4624,17 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
   slotDiv.className = "day-time-slot";
   slotDiv.dataset.timeIndex = timeIndex;
   slotDiv.dataset.day = state.selectedDay;
+  // If using unified schedule, store the effective unified index for tooltip mapping
+  if (unifiedOptions?.usedUnifiedSchedule) {
+    const effectiveIndex = unifiedOptions.unifiedDisplayedIndices
+      ? unifiedOptions.unifiedDisplayedIndices[timeIndex]
+      : timeIndex;
+    slotDiv.dataset.unifiedIndex = String(effectiveIndex);
+  }
 
   // Handle compare mode vs normal mode
   if (state.compareMode && state.selectedUserIds.size > 0) {
     slotDiv.classList.add("compare-mode");
-
-    console.log(
-      `🎭 Day view compare mode - slot ${timeIndex} on ${getDayName(
-        state.selectedDay
-      )}:`,
-      {
-        selectedUserIds: Array.from(state.selectedUserIds),
-        selectedUsersCount: state.selectedUserIds.size,
-        usedUnifiedSchedule: unifiedOptions.usedUnifiedSchedule,
-      }
-    );
 
     // ✅ UNIFIED SCHEDULE LOGIC: Use same logic as grid view
     const currentSelectedUsers = Array.from(state.selectedUserIds)
@@ -4603,7 +4642,8 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       .filter((user) => user && user.timeSlots);
 
     let busyUsers = [],
-      freeUsers = [];
+      freeUsers = [],
+      unavailableUsers = [];
     let comparisonStatus = {};
 
     if (currentSelectedUsers.length > 0) {
@@ -4612,16 +4652,16 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
         unifiedOptions.unifiedScheduleInstance
       ) {
         // ✅ FIXED: Use UnifiedSchedule class for accurate comparison
+        const effectiveIndex = unifiedOptions.unifiedDisplayedIndices
+          ? unifiedOptions.unifiedDisplayedIndices[timeIndex]
+          : timeIndex;
         const slotStatus = unifiedOptions.unifiedScheduleInstance.getSlotStatus(
           state.selectedDay,
-          timeIndex
+          effectiveIndex
         );
         busyUsers = slotStatus.busy || [];
         freeUsers = slotStatus.available || [];
-
-        console.log(
-          `📊 Day view unified - slot [${state.selectedDay}][${timeIndex}] (${timeSlot.label}): ${busyUsers.length} busy, ${freeUsers.length} free out of ${currentSelectedUsers.length} total`
-        );
+        unavailableUsers = slotStatus.unavailable || [];
       } else {
         // Fallback to direct comparison for homogeneous schedules
         busyUsers = currentSelectedUsers.filter((user) => {
@@ -4630,14 +4670,11 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
         freeUsers = currentSelectedUsers.filter(
           (user) => !busyUsers.includes(user)
         );
-
-        console.log(
-          `📊 Day view direct - slot [${state.selectedDay}][${timeIndex}]: ${busyUsers.length} busy, ${freeUsers.length} free`
-        );
       }
 
-      // Apply day view specific class names for glass styling
-      if (busyUsers.length === 0) {
+  // Apply day view specific class names for glass styling (3-state)
+  // Treat unavailable as free for state determination (simpler UX)
+  if (busyUsers.length === 0) {
         // All users free - use day view glass styling
         comparisonStatus = {
           cssClass: "all-free",
@@ -4652,11 +4689,12 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
           tooltip: `All ${currentSelectedUsers.length} users are busy`,
         };
       } else {
-        // Mixed availability - use day view glass styling
+        // Partial: at least one busy, not all busy
+        const availableCount = freeUsers.length + (unavailableUsers.length || 0);
         comparisonStatus = {
           cssClass: "mixed-availability",
           text: "Partial",
-          tooltip: `${freeUsers.length} available, ${busyUsers.length} busy`,
+          tooltip: `${availableCount} available, ${busyUsers.length} busy`,
         };
       }
     } else {
@@ -4667,27 +4705,14 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
       };
     }
 
+    // Apply day view glass styling classes (only once)
     slotDiv.classList.add(comparisonStatus.cssClass);
-
-    console.log(`🎨 Day view comparison status for slot ${timeIndex}:`, {
-      cssClass: comparisonStatus.cssClass,
-      text: comparisonStatus.text,
-      tooltip: comparisonStatus.tooltip,
-      busyCount: busyUsers.length,
-      freeCount: freeUsers.length,
-      totalUsers: currentSelectedUsers.length,
-    });
-
-    // Apply day view glass styling classes
-    slotDiv.classList.add(comparisonStatus.cssClass);
-    console.log(
-      `🎨 Day view applying ${comparisonStatus.cssClass} glass styling to slot ${timeIndex}`
-    );
 
     slotDiv.innerHTML = createDayViewCompareSlotContent(
       timeSlot,
       timeIndex,
-      comparisonStatus
+      comparisonStatus,
+      unifiedOptions
     );
   } else if (state.compareMode && state.selectedUserIds.size === 0) {
     slotDiv.classList.add("compare-mode");
@@ -4717,6 +4742,45 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
   slotDiv.dataset.time = timeIndex;
 
   return slotDiv;
+}
+
+/**
+ * Compute a minimal list of unified slot indices to display.
+ * - If dayIndex is null: keep slots where at least one day has any available or busy user.
+ * - If dayIndex is number: keep slots where on that day at least one user is available or busy.
+ */
+function computeDisplayedUnifiedIndices(
+  unifiedScheduleInstance,
+  dayIndex = null
+) {
+  const indices = [];
+  const total = unifiedScheduleInstance.unifiedTimeSlots.length;
+  for (let i = 0; i < total; i++) {
+    if (dayIndex == null) {
+      // Check across the week
+      let keep = false;
+      for (let d = 0; d < 7; d++) {
+        const st = unifiedScheduleInstance.getSlotStatus(d, i);
+        if (
+          (st.available && st.available.length) ||
+          (st.busy && st.busy.length)
+        ) {
+          keep = true;
+          break;
+        }
+      }
+      if (keep) indices.push(i);
+    } else {
+      const st = unifiedScheduleInstance.getSlotStatus(dayIndex, i);
+      if (
+        (st.available && st.available.length) ||
+        (st.busy && st.busy.length)
+      ) {
+        indices.push(i);
+      }
+    }
+  }
+  return indices;
 }
 
 /**
@@ -4770,7 +4834,7 @@ function createCompareSlotContent(timeSlot, timeIndex) {
   return `
     <div class="slot-time">${timeSlot.label}</div>
     <div class="slot-content">
-      <div class="slot-comparison-status ${comparisonStatus.cssClass}" title="${comparisonStatus.tooltip}">
+  <div class="slot-comparison-status ${comparisonStatus.cssClass}">
         <div class="comparison-indicator">
           <i class="${comparisonStatus.icon}"></i>
           <span class="comparison-text">${comparisonStatus.text}</span>
@@ -4789,12 +4853,19 @@ function createCompareSlotContent(timeSlot, timeIndex) {
 function createDayViewCompareSlotContent(
   timeSlot,
   timeIndex,
-  comparisonStatus
+  comparisonStatus,
+  unifiedOptions = {}
 ) {
   // Generate avatars using the same logic but for day view
   const avatarContent = generateAvatarsForCompareSlot(
     state.selectedDay,
-    timeIndex
+    timeIndex,
+    {
+      usedUnifiedSchedule: !!unifiedOptions.usedUnifiedSchedule,
+      unifiedScheduleInstance: unifiedOptions.unifiedScheduleInstance || null,
+      unifiedDisplayedIndices: unifiedOptions.unifiedDisplayedIndices || null,
+      comparisonStatus,
+    }
   );
 
   // Map comparison status to appropriate icon for day view
@@ -4812,7 +4883,7 @@ function createDayViewCompareSlotContent(
   return `
     <div class="slot-time">${timeSlot.label}</div>
     <div class="slot-content">
-      <div class="slot-comparison-status ${comparisonStatus.cssClass}" title="${comparisonStatus.tooltip}">
+  <div class="slot-comparison-status ${comparisonStatus.cssClass}">
         <div class="comparison-indicator">
           <i class="${icon}"></i>
           <span class="comparison-text">${comparisonStatus.text}</span>
@@ -4857,7 +4928,7 @@ function getSlotComparisonStatus(dayIndex, timeIndex) {
     };
   }
 
-  // Count busy vs free users
+  // Count busy vs free users (3-state model; unavailable treated as free)
   const busyUsers = selectedUsers.filter((user) => {
     if (
       user.schedule &&
@@ -4915,7 +4986,7 @@ function getSlotComparisonStatus(dayIndex, timeIndex) {
 /**
  * Generate avatars for compare mode slot - only show users who are free
  */
-function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
+function generateAvatarsForCompareSlot(dayIndex, timeIndex, options = {}) {
   if (!state.compareMode || state.selectedUserIds.size === 0) {
     console.log(
       `⚠️ Avatar generation called but compare mode disabled or no users selected:`,
@@ -4927,42 +4998,65 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
     return '<span class="empty-slot-message">Select friends to compare</span>';
   }
 
-  console.log(`🎭 Generating avatars for day ${dayIndex}, time ${timeIndex}:`, {
-    selectedUserIds: Array.from(state.selectedUserIds),
-    compareMode: state.compareMode,
-  });
+  // Reduce noisy logs in frequent avatar renders
 
   const selectedUsers = Array.from(state.selectedUserIds)
     .map((id) => state.users[id])
     .filter((user) => user);
 
-  console.log(`👥 Selected users found:`, {
-    requestedIds: Array.from(state.selectedUserIds),
-    foundUsers: selectedUsers.map((u) => ({ id: u.id, name: u.name || u.id })),
-    missingCount: state.selectedUserIds.size - selectedUsers.length,
-  });
+  // Light summary for debugging could be re-enabled via logManager if needed
 
   if (selectedUsers.length === 0) {
-    console.log(`❌ No valid users found for avatar generation`);
     return '<span class="empty-slot-message">No users selected</span>';
   }
 
-  // Show ALL selected users, but differentiate between free and busy
-  const usersWithStatus = selectedUsers.map((user) => {
-    const isBusy = user.schedule?.[dayIndex]?.[timeIndex] || false;
-    console.log(
-      `📊 User ${user.name || user.id} at [${dayIndex}][${timeIndex}]: ${
-        isBusy ? "BUSY" : "FREE"
-      }`,
-      {
-        hasSchedule: !!user.schedule,
-        hasDaySchedule: !!user.schedule?.[dayIndex],
-        hasTimeSlot: user.schedule?.[dayIndex]?.[timeIndex] !== undefined,
-        slotValue: user.schedule?.[dayIndex]?.[timeIndex],
-      }
+  // Determine busy/free using unified logic when available for consistency with status/tooltip
+  let usersWithStatus = [];
+  try {
+    // If status says all free, force all avatars to green regardless of per-user data
+    if (options?.comparisonStatus?.cssClass === "all-free") {
+      usersWithStatus = selectedUsers.map((user) => ({
+        ...user,
+        isBusy: false,
+      }));
+    } else if (
+      options?.usedUnifiedSchedule &&
+      options?.unifiedScheduleInstance
+    ) {
+      const effectiveIndex = options.unifiedDisplayedIndices
+        ? options.unifiedDisplayedIndices[timeIndex]
+        : timeIndex;
+      const slotStatus = options.unifiedScheduleInstance.getSlotStatus(
+        dayIndex,
+        effectiveIndex
+      );
+      const busyIds = new Set((slotStatus.busy || []).map((u) => u.userId));
+      const unavailableIds = new Set(
+        (slotStatus.unavailable || []).map((u) => u.userId)
+      );
+      usersWithStatus = selectedUsers.map((user) => ({
+        ...user,
+        // Busy only if explicitly in busy list. Users marked unavailable get a distinct state.
+        isBusy: busyIds.has(user.id),
+        isUnavailable: unavailableIds.has(user.id),
+      }));
+    } else {
+      // Homogeneous schedules fallback
+      usersWithStatus = selectedUsers.map((user) => {
+        const isBusy = user.schedule?.[dayIndex]?.[timeIndex] || false;
+        return { ...user, isBusy, isUnavailable: false };
+      });
+    }
+  } catch (e) {
+    console.warn(
+      "⚠️ Error computing avatar statuses with unified options, falling back:",
+      e
     );
-    return { ...user, isBusy };
-  });
+    usersWithStatus = selectedUsers.map((user) => {
+      const isBusy = user.schedule?.[dayIndex]?.[timeIndex] || false;
+      return { ...user, isBusy, isUnavailable: false };
+    });
+  }
 
   console.log(
     `📋 All selected users with status at [${dayIndex}][${timeIndex}]:`,
@@ -4982,22 +5076,19 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex) {
 
   usersWithStatus.slice(0, maxVisible).forEach((user, index) => {
     const avatarUrl = generateAvatar(user.name || user.id);
+    // Treat unavailable as free for ring purposes to avoid dimmed avatars in partial states
     const statusClass = user.isBusy ? "busy" : "free";
     const statusTitle = user.isBusy ? "Busy" : "Available";
 
-    console.log(
-      `🎨 Creating avatar ${index + 1}/${Math.min(
-        usersWithStatus.length,
-        maxVisible
-      )} for ${user.name || user.id}: ${statusTitle}`,
-      avatarUrl
-    );
+    // Avoid verbose per-avatar logs to reduce console noise
 
     avatarsHTML += `
       <div class="friend-avatar ${statusClass}" data-friend-id="${
       user.id
-    }" title="${user.name || user.id} - ${statusTitle}">
-        <img src="${avatarUrl}" alt="${user.name || user.id}" />
+    }" aria-label="${user.name || user.id} - ${statusTitle}">
+  <img src="${avatarUrl}" alt="${
+      user.name || user.id
+    }" loading="lazy" decoding="async" />
         <div class="avatar-label">${user.name || user.id}</div>
       </div>
     `;

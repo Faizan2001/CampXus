@@ -641,18 +641,26 @@ export class FriendsManager {
         // This avoids cross-campus discovery and keeps results scoped
         // to the viewer's university only.
         // Ensure viewer profile is available (adds robustness during early page loads)
-        const viewerProfile = await currentUser.waitForProfileWithTimeout?.(5000)
-          .catch(() => null) || (await currentUser.waitForProfile());
+        const viewerProfile =
+          (await currentUser
+            .waitForProfileWithTimeout?.(5000)
+            .catch(() => null)) || (await currentUser.waitForProfile());
         const viewerUniversityId = viewerProfile?.universityInfo?.university;
-        const viewerUniversityName = viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
+        const viewerUniversityName =
+          viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
         const targetUniversityId = userData?.universityInfo?.university;
-        const targetUniversityName = userData?.universityInfo?.universityName?.toLowerCase?.();
+        const targetUniversityName =
+          userData?.universityInfo?.universityName?.toLowerCase?.();
 
         // Enforce same-university by ID; fall back to name compare if IDs missing
         const sameUniversityById =
-          viewerUniversityId && targetUniversityId && viewerUniversityId === targetUniversityId;
+          viewerUniversityId &&
+          targetUniversityId &&
+          viewerUniversityId === targetUniversityId;
         const sameUniversityByName =
-          viewerUniversityName && targetUniversityName && viewerUniversityName === targetUniversityName;
+          viewerUniversityName &&
+          targetUniversityName &&
+          viewerUniversityName === targetUniversityName;
 
         if (!(sameUniversityById || sameUniversityByName)) {
           // Not the same university → do not return result
@@ -873,10 +881,11 @@ export class FriendsManager {
     }
 
     try {
-      console.log(
-        "📩 Sending friend request to handle:",
-        targetUserData.profile?.handle || targetUserData.profile?.handle_lower
-      );
+      const targetProfile = targetUserData?.profile || {};
+      const targetUniversityInfo = targetUserData?.universityInfo || {};
+      const targetHandle =
+        targetProfile.handle || targetProfile.handle_lower || "unknown";
+      console.log("📩 Sending friend request to handle:", targetHandle);
 
       // 2. Check if request already exists
       const existingRequest = await dataManager.checkExistingFriendRequest(
@@ -910,10 +919,14 @@ export class FriendsManager {
           avatarConfig: userProfile.avatarConfig,
         },
         toUserInfo: {
-          handle: targetUserData.profile.handle,
-          major: targetUserData.profile.major,
-          university: targetUserData.universityInfo.university,
-          avatarConfig: targetUserData.avatarConfig,
+          handle:
+            targetProfile.handle || targetProfile.handle_lower || targetUserId,
+          major: targetProfile.major || targetProfile.major_lower || "",
+          university:
+            targetUniversityInfo.university ||
+            targetUniversityInfo.universityName ||
+            "",
+          avatarConfig: targetUserData?.avatarConfig,
         },
       };
 
@@ -927,7 +940,7 @@ export class FriendsManager {
         console.log("✅ Friend request sent successfully!");
         return {
           success: true,
-          message: `Friend request sent to @${targetUserData.profile.handle}!`,
+          message: `Friend request sent to @${requestData.toUserInfo.handle}!`,
         };
       } else {
         return {
@@ -1184,11 +1197,17 @@ export class FriendsManager {
         if (wasStarred) {
           const qaResult = await this.removeFromQuickAccess(friendId);
           if (!qaResult.success) {
-            console.warn("⚠️ Failed to remove from Quick Access during unfriend (will proceed):", qaResult.message);
+            console.warn(
+              "⚠️ Failed to remove from Quick Access during unfriend (will proceed):",
+              qaResult.message
+            );
           }
         }
       } catch (qaErr) {
-        console.warn("⚠️ Quick Access cleanup failed during unfriend (non-fatal):", qaErr?.message || qaErr);
+        console.warn(
+          "⚠️ Quick Access cleanup failed during unfriend (non-fatal):",
+          qaErr?.message || qaErr
+        );
       }
 
       // Delete the friendship document
@@ -1247,7 +1266,9 @@ export class FriendsManager {
             await this.addToQuickAccess(friendId, friendInfo);
           }
         }
-      } catch (_) { /* non-fatal */ }
+      } catch (_) {
+        /* non-fatal */
+      }
 
       return {
         success: false,

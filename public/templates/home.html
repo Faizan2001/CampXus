@@ -14,7 +14,7 @@
       <!-- HorizontalFriendsBar component will be initialized here -->
     </div>
   </section>
-  
+
   <!-- Schedule Column (Centered) -->
   <div class="schedule-column">
     <section class="glass-card schedule-section">
@@ -32,20 +32,40 @@
           </span>
         </h3>
         <!-- Mobile Controls Toggle -->
-        <button 
-          id="scheduleControlsToggle" 
-          class="schedule-controls-toggle" 
+        <button
+          id="scheduleControlsToggle"
+          class="schedule-controls-toggle"
           title="Schedule Options"
           aria-label="Toggle schedule controls"
           aria-expanded="false"
         >
           <span class="toggle-icon-wrapper" aria-hidden="true">
             <!-- Closed state icon (chevron down) -->
-            <svg class="icon-state icon-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              class="icon-state icon-closed"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
             <!-- Open state icon (chevron up) -->
-            <svg class="icon-state icon-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              class="icon-state icon-open"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <polyline points="18 15 12 9 6 15"></polyline>
             </svg>
           </span>
@@ -55,18 +75,26 @@
       <!-- Unified Schedule Controls -->
       <div class="schedule-controls-bar" id="scheduleControlsBar">
         <div class="view-mode-toggle">
-          <button class="control-btn view-mode-btn active" id="dayViewBtn" data-view="day">
+          <button
+            class="control-btn view-mode-btn active"
+            id="dayViewBtn"
+            data-view="day"
+          >
             <i class="fas fa-list"></i>
             <span class="btn-text">Day View</span>
             <span class="btn-text-mobile">Day</span>
           </button>
-          <button class="control-btn view-mode-btn" id="gridViewBtn" data-view="grid">
+          <button
+            class="control-btn view-mode-btn"
+            id="gridViewBtn"
+            data-view="grid"
+          >
             <i class="fas fa-th"></i>
             <span class="btn-text">Grid View</span>
             <span class="btn-text-mobile">Grid</span>
           </button>
         </div>
-        
+
         <div class="schedule-actions-group">
           <button
             id="addNewTimeSlotBtn"
@@ -77,7 +105,7 @@
             <span class="btn-text">Add Slot</span>
             <span class="btn-text-mobile">Row</span>
           </button>
-          
+
           <button
             id="togglePinModeBtn"
             class="control-btn pin-btn"
@@ -138,13 +166,13 @@
             <thead>
               <tr>
                 <th class="time-header">Time</th>
-                <th class="day-header" data-day="0">S</th>
+                <th class="day-header" data-day="0">Su</th>
                 <th class="day-header" data-day="1">M</th>
-                <th class="day-header" data-day="2">T</th>
+                <th class="day-header" data-day="2">Tu</th>
                 <th class="day-header" data-day="3">W</th>
-                <th class="day-header" data-day="4">T</th>
+                <th class="day-header" data-day="4">Th</th>
                 <th class="day-header" data-day="5">F</th>
-                <th class="day-header" data-day="6">S</th>
+                <th class="day-header" data-day="6">Sa</th>
               </tr>
             </thead>
             <tbody>

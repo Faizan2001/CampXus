@@ -90,6 +90,11 @@ body.dark-mode .schedule-section {
   opacity: 0.9;
 }
 
+/* Hide owner indicator in compare mode */
+body.compare-mode-active .schedule-owner-indicator {
+  display: none !important;
+}
+
 @keyframes fadeInScale {
   from {
     opacity: 0;
@@ -338,6 +343,65 @@ body.dark-mode .schedule-section {
   vertical-align: middle !important;
   text-align: center !important;
   position: relative !important;
+}
+
+/* ===== GRID VIEW: FULL-WIDTH AND EQUAL DAY COLUMNS ===== */
+/* Scope to grid view only to avoid affecting day view */
+.schedule-section .schedule-grid-view {
+  --time-col-width: 96px; /* first column (time labels) width */
+}
+
+.schedule-section .schedule-grid-view table.schedule-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+/* Ensure header/body use the same first-column width */
+.schedule-section .schedule-grid-view table.schedule-table th:first-child,
+.schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
+  width: var(--time-col-width) !important;
+  min-width: var(--time-col-width) !important;
+  max-width: var(--time-col-width) !important;
+  box-sizing: border-box !important;
+}
+
+/* Distribute remaining space equally across 7 day columns */
+.schedule-section .schedule-grid-view table.schedule-table th:not(:first-child),
+.schedule-section .schedule-grid-view table.schedule-table td.slot {
+  width: calc((100% - var(--time-col-width)) / 7) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+/* Override any legacy last-child narrow rule inside grid view */
+.schedule-section .schedule-grid-view table.schedule-table th:last-child {
+  width: calc((100% - var(--time-col-width)) / 7) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* Neutralize many-slots fixed widths within grid view so columns still fill container */
+.schedule-section
+  .schedule-grid-view
+  table.schedule-table.many-slots
+  th:not(:first-child):not(:last-child),
+.schedule-section
+  .schedule-grid-view
+  table.schedule-table.many-slots
+  td:not(:first-child):not(:last-child) {
+  width: calc((100% - var(--time-col-width)) / 7) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* Move vertical scrolling to wrapper to keep header/body widths aligned */
+.schedule-section .schedule-grid-view .schedule-wrapper {
+  overflow-y: auto !important;
+}
+.schedule-section .schedule-grid-view table.schedule-table.many-slots {
+  max-height: none !important;
+  overflow-y: visible !important;
 }
 
 /* ===== MANY SLOTS NOTIFICATION ===== */
@@ -1845,7 +1909,8 @@ body.dark-mode .day-time-slot.busy .slot-time {
   -webkit-backdrop-filter: var(--glass-backdrop-blur)
     var(--glass-backdrop-saturate);
   /* Use unified lift shadow to match glass cards */
-  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow), var(--glass-inner-glow);
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow),
+    var(--glass-inner-glow);
   transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Specific transitions without transform */
@@ -1858,7 +1923,8 @@ body.dark-mode .day-time-slot.busy .slot-time {
   min-height: fit-content; /* Minimal height to fit avatar items naturally */
   z-index: 1; /* Ensure glass card appears above other elements */
   /* Add glass card depth shadow */
-  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow), var(--glass-inner-glow);
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow),
+    var(--glass-inner-glow);
 }
 
 /* ===== FRIENDS BAR SPECIFIC TOP HIGHLIGHT ===== */
@@ -2572,9 +2638,9 @@ body:not(.dark-mode) .horizontal-friends-bar:active {
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
   .horizontal-friends-bar {
-  padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Compact spacing for mobile */
-  margin: 0;
-  border-radius: var(--glass-radius); /* Unified glass radius */
+    padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Compact spacing for mobile */
+    margin: 0;
+    border-radius: var(--glass-radius); /* Unified glass radius */
   }
 
   .friends-avatars-list {
@@ -2607,8 +2673,8 @@ body:not(.dark-mode) .horizontal-friends-bar:active {
 
 @media (max-width: 480px) {
   .horizontal-friends-bar {
-  padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Compact spacing for small mobile */
-  border-radius: var(--glass-radius); /* Unified glass radius */
+    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Compact spacing for small mobile */
+    border-radius: var(--glass-radius); /* Unified glass radius */
   }
 
   .friends-avatars-list {

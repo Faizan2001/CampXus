@@ -1292,14 +1292,17 @@ class FriendsUI {
    */
   async handleSendFriendRequest(studentId, studentData) {
     try {
-      console.log(
-        `📩 Sending friend request to: @${studentData.profile?.handle}`
-      );
+      const buttonSel = `[data-student-id="${studentId}"].btn-send-request`;
+      const buttonEl = document.querySelector(buttonSel);
+      const targetHandle =
+        studentData?.profile?.handle ||
+        buttonEl?.dataset.studentName ||
+        "unknown";
+
+      console.log(`📩 Sending friend request to: @${targetHandle}`);
 
       // Show loading state on button
-      const button = document.querySelector(
-        `[data-student-id="${studentId}"].btn-send-request`
-      );
+      const button = buttonEl;
       if (button) {
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
@@ -1315,7 +1318,7 @@ class FriendsUI {
 
         // Show success notification
         notificationManager.showSystemNotification(
-          `Friend request sent to @${studentData.profile?.handle}`,
+          `Friend request sent to @${targetHandle}`,
           "success",
           { duration: 3000 }
         );
@@ -1338,7 +1341,7 @@ class FriendsUI {
         // 📊 Analytics: friend request sent
         try {
           AnalyticsService.trackFriendRequest("sent", {
-            target_handle: studentData?.profile?.handle || "unknown",
+            target_handle: targetHandle,
           });
         } catch {}
       } else {

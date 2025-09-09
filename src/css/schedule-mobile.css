@@ -850,15 +850,25 @@ body.dark-mode .day-time-slot.busy {
   box-shadow: var(--shadow-sm);
 }
 
+/* Compare mode layout in day view: stack status over avatars and center */
+.day-time-slot.compare-mode {
+  /* Make avatars fit better in the compact day slot */
+  --avatar-size: clamp(24px, 4vw, 32px);
+  --avatar-border-width: 2px;
+  --avatar-spacing: 6px;
+}
+
 .day-time-slot.compare-mode .slot-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .slot-comparison-status {
-  min-width: 120px;
+  min-width: unset;
   flex-shrink: 0;
+  text-align: center;
 }
 
 .slot-comparison-status.all-free {
@@ -884,6 +894,7 @@ body.dark-mode .day-time-slot.busy {
   font-size: 0.9rem;
 }
 
+/* Default avatar row container (non-compare or fallback) */
 .slot-avatar-container {
   flex: 1;
   display: flex;
@@ -893,7 +904,65 @@ body.dark-mode .day-time-slot.busy {
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  justify-content: flex-end; /* Align avatars to the right */
+  justify-content: flex-end;
+}
+
+/* Day-view compare mode pill container with glassmorphism */
+.day-time-slot.compare-mode .slot-avatar-container {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 90%;
+  justify-content: center;
+  align-self: center;
+  margin-inline: auto;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  /* +4px vertical padding for better breathing room */
+  padding: calc(var(--space-xs) + 2px) var(--space-sm);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.06)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 9999px; /* pill */
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow-y: hidden; /* constrain vertical overflow */
+  animation: pill-enter 120ms ease-out;
+  transition: background 160ms ease, border-color 160ms ease,
+    box-shadow 160ms ease;
+  will-change: transform, opacity;
+}
+
+/* Subtle tinted variants by status */
+.day-time-slot.compare-mode.all-free .slot-avatar-container {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.1),
+    rgba(34, 197, 94, 0.06)
+  );
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.day-time-slot.compare-mode.all-busy .slot-avatar-container {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 38, 38, 0.1),
+    rgba(220, 38, 38, 0.06)
+  );
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.day-time-slot.compare-mode.mixed-availability .slot-avatar-container {
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.1),
+    rgba(249, 115, 22, 0.06)
+  );
+  border-color: rgba(249, 115, 22, 0.25);
 }
 
 .slot-avatar-container::-webkit-scrollbar {
@@ -908,7 +977,9 @@ body.dark-mode .day-time-slot.busy {
   border: var(--avatar-border-width) solid var(--accent-primary);
   position: relative;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease,
+    border-color 140ms ease, filter 140ms ease;
+  animation: avatar-fade-in 140ms ease-out;
 }
 
 .friend-avatar img {
@@ -953,9 +1024,25 @@ body.dark-mode .day-time-slot.busy {
   filter: grayscale(30%);
 }
 
+/* Unavailable state (no matching slot in unified schedule) */
+.friend-avatar.unavailable {
+  border-color: var(--text-disabled);
+  box-shadow: 0 0 6px rgba(107, 114, 128, 0.25);
+  opacity: 0.45;
+}
+
+.friend-avatar.unavailable img {
+  filter: grayscale(80%) contrast(0.85);
+}
+
 .friend-avatar:hover .avatar-label {
   opacity: 1;
   color: var(--text-primary); /* Brighten on hover */
+}
+
+/* Hide labels inside day-view compare to keep height compact */
+.day-time-slot.compare-mode .friend-avatar .avatar-label {
+  display: none;
 }
 
 .avatar-overflow {
@@ -982,6 +1069,29 @@ body.dark-mode .day-time-slot.busy {
 }
 
 /* Beautiful glass styling for day view comparison slots */
+
+/* Animations */
+@keyframes avatar-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pill-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .day-time-slot.compare-mode.all-free {
   background: linear-gradient(
     135deg,

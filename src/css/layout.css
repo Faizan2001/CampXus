@@ -51,7 +51,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 /* Compact mobile nav height */
 @media (max-width: 600px) {
   .top-nav {
-  padding: 0.5rem 0.75rem; /* reduced and consistent */
+    padding: 0.5rem 0.75rem; /* reduced and consistent */
     backdrop-filter: blur(18px);
   }
   .logo span {
@@ -228,7 +228,10 @@ body:not(.dark-mode) .nav-link {
 .light-mode .nav-link:hover,
 body:not(.dark-mode) .nav-link:hover {
   background: var(--nav-link-hover-bg);
-  color: var(--nav-link-hover-color, var(--nav-link-fallback-hover-color, #A294F9));
+  color: var(
+    --nav-link-hover-color,
+    var(--nav-link-fallback-hover-color, #a294f9)
+  );
 }
 
 /* ===== ENHANCED NAVIGATION BUTTONS ===== */
@@ -600,6 +603,13 @@ body:not(.dark-mode) .nav-link:hover {
   }
 }
 
+/* Force horizontal time header in grid view (all breakpoints) */
+.schedule-grid-view .schedule-table .time-header {
+  writing-mode: initial !important;
+  text-orientation: initial !important;
+  white-space: normal !important;
+}
+
 /* ===== ADDITIONAL MOBILE RESPONSIVE ENHANCEMENTS ===== */
 /* Single column layout when screen gets too narrow */
 @media (max-width: 900px) {
@@ -843,7 +853,10 @@ body:not(.dark-mode) .nav-link:hover {
 /* Fix: Light mode dropdowns explicitly use light surfaces and borders */
 .light-mode .user-dropdown,
 body:not(.dark-mode) .user-dropdown {
-  background: var(--user-dropdown-bg, var(--dropdown-fallback-bg, rgba(245, 239, 255, 0.9)));
+  background: var(
+    --user-dropdown-bg,
+    var(--dropdown-fallback-bg, rgba(245, 239, 255, 0.9))
+  );
   border-color: var(--user-dropdown-border);
 }
 
@@ -1005,15 +1018,15 @@ body:not(.dark-mode) .user-dropdown {
 /* ===== RESPONSIVE NAVIGATION ===== */
 @media (max-width: 768px) {
   .top-nav {
-  padding: 0.5rem 0.75rem; /* compact and consistent on mobile */
+    padding: 0.5rem 0.75rem; /* compact and consistent on mobile */
     gap: var(--space-md);
   }
 
   .nav-left {
-  gap: var(--space-md);
-  flex: 1; /* Take available space */
-  display: flex;
-  align-items: center;
+    gap: var(--space-md);
+    flex: 1; /* Take available space */
+    display: flex;
+    align-items: center;
   }
 
   .nav-right {
@@ -1023,13 +1036,13 @@ body:not(.dark-mode) .user-dropdown {
   }
 
   .nav-links {
-  /* Center icons between logo (left) and user menu (right) */
-  margin-left: 0;
-  /* Slightly reduce desktop nav link padding for tighter top-nav */
-  .nav-link {
-    padding: 0.5rem 0.75rem;
-  }
-  justify-content: center;
+    /* Center icons between logo (left) and user menu (right) */
+    margin-left: 0;
+    /* Slightly reduce desktop nav link padding for tighter top-nav */
+    .nav-link {
+      padding: 0.5rem 0.75rem;
+    }
+    justify-content: center;
   }
 
   /* Hide nav text on mobile, keep icons */
@@ -1038,19 +1051,19 @@ body:not(.dark-mode) .user-dropdown {
   }
 
   .nav-link {
-  /* Ensure 44x44 touch targets */
-  padding: 0.25rem;
-  min-width: 44px;
-  min-height: 44px;
-  justify-content: center;
+    /* Ensure 44x44 touch targets */
+    padding: 0.25rem;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
 
   /* Enhanced nav-links centering on mobile */
   .nav-links {
     /* Center navigation icons between logo and user menu trigger */
-  justify-content: center;
+    justify-content: center;
     flex: 1;
-  gap: var(--space-sm, 0.5rem); /* Tighter gap on mobile */
+    gap: var(--space-sm, 0.5rem); /* Tighter gap on mobile */
   }
 
   .nav-link {
@@ -1065,10 +1078,10 @@ body:not(.dark-mode) .user-dropdown {
 
   /* Enhanced dark mode button for mobile */
   .theme-toggle {
-  width: auto !important;
-  height: auto !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
     padding: 0.5rem !important;
     display: flex !important;
     align-items: center !important;
@@ -1111,10 +1124,10 @@ body:not(.dark-mode) .user-dropdown {
 
   /* Ensure user menu trigger matches other nav buttons on mobile */
   .user-menu-trigger {
-  width: auto !important;
-  height: auto !important;
-  min-width: 44px !important; /* 44x44 touch target */
-  min-height: 44px !important; /* 44x44 touch target */
+    width: auto !important;
+    height: auto !important;
+    min-width: 44px !important; /* 44x44 touch target */
+    min-height: 44px !important; /* 44x44 touch target */
     padding: 0.5rem !important;
     display: flex !important;
     align-items: center !important;
