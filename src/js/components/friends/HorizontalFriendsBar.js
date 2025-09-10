@@ -117,6 +117,9 @@ export class HorizontalFriendsBar {
     // Debouncing timeout for Quick Access updates
     this.quickAccessUpdateTimeout = null;
 
+    // Idempotency: track last privacy sync state to avoid redundant writes that trigger loops
+    this.lastPrivacySyncHash = null;
+
     // 🚀 ENTERPRISE FIX: Campus status tracking for smart animations
     this.lastKnownCampusStatus = null; // Track previous campus status for change detection
     this.lastLocationAnimationTime = 0; // Debounce animation timing
@@ -1712,10 +1715,23 @@ export class HorizontalFriendsBar {
           if (quickAccessData?.starredFriends) {
             // ENHANCED: Only update if data actually changed (prevent unnecessary renders)
             const newFriendsData = quickAccessData.starredFriends;
-            const hasActualChanges = !this.deepEqual(
-              this.quickAccessFriends,
-              newFriendsData
-            );
+            // ✅ STABLE COMPARISON: Ignore volatile fields (lastActive, lastKnownLocation, systemInfo updates)
+            const stableMap = (arr) =>
+              (arr || []).map((f) => ({
+                id: f.friendId || f.userId,
+                handle: f.handle,
+                order: f.order || 0,
+              }));
+            const currentStable = stableMap(this.quickAccessFriends);
+            const nextStable = stableMap(newFriendsData);
+            const serialize = (arr) =>
+              arr
+                .slice()
+                .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+                .map((o) => `${o.id}|${o.handle}|${o.order}`)
+                .join(";");
+            const hasActualChanges =
+              serialize(currentStable) !== serialize(nextStable);
 
             if (hasActualChanges) {
               console.log(
@@ -2300,6 +2316,10 @@ export class HorizontalFriendsBar {
    * Set up profile listeners for each starred friend to detect avatar/name changes
    */
   async setupStarredFriendProfileListeners() {
+    if (this._profileListenersInitialized) {
+      console.log("📡 Profile listeners already initialized (dedup guard)");
+      return;
+    }
     if (!this.quickAccessFriends?.length) {
       console.log("📡 No starred friends to set up profile listeners for");
       return;
@@ -2350,6 +2370,7 @@ export class HorizontalFriendsBar {
     console.log(
       `✅ Set up ${this.friendProfileUnsubscribers.length} friend profile listeners`
     );
+    this._profileListenersInitialized = true;
   }
 
   /**
@@ -2357,6 +2378,10 @@ export class HorizontalFriendsBar {
    * This ensures immediate privacy change detection per requirement R3.1
    */
   async setupFriendshipPrivacyListeners() {
+    if (this._privacyListenersInitialized) {
+      console.log("🔒 Privacy listeners already initialized (dedup guard)");
+      return;
+    }
     if (!this.quickAccessFriends || this.quickAccessFriends.length === 0) {
       console.log("🔒 No starred friends, skipping privacy listeners setup");
       return;
@@ -2442,6 +2467,7 @@ export class HorizontalFriendsBar {
     console.log(
       `✅ Set up ${this.privacyUnsubscribers.length} privacy listeners for friendship documents`
     );
+    this._privacyListenersInitialized = true;
   }
 
   /**
@@ -2891,16 +2917,27 @@ export class HorizontalFriendsBar {
         },
       }));
 
-      // OPTIMIZATION: Use merge instead of update to reduce profile change triggers
-      const userDocRef = doc(db, "users", currentUserProfile.uid);
-      await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": cleanFriendsData,
-        "quickAccessData.lastUpdated": serverTimestamp(),
-        // Add flag to identify this as a privacy-only update
-        "quickAccessData.lastPrivacyUpdate": serverTimestamp(),
-      });
-
-      console.log("✅ IMMEDIATE: Privacy changes synced to database");
+      // Idempotency check: compute lightweight hash and skip write if unchanged
+      const newHash = this._computePrivacyHash(cleanFriendsData);
+      if (newHash === this.lastPrivacySyncHash) {
+        console.log(
+          "🔒 Privacy data unchanged since last sync – skipping Firestore write"
+        );
+      } else {
+        const userDocRef = doc(db, "users", currentUserProfile.uid);
+        await updateDoc(userDocRef, {
+          "quickAccessData.starredFriends": cleanFriendsData,
+          "quickAccessData.lastUpdated": serverTimestamp(),
+          // Add flag to identify this as a privacy-only update
+          "quickAccessData.lastPrivacyUpdate": serverTimestamp(),
+        });
+        this.lastPrivacySyncHash = newHash;
+        console.log(
+          "✅ IMMEDIATE: Privacy changes synced to database (hash=",
+          newHash,
+          ")"
+        );
+      }
     } catch (error) {
       console.error("❌ Failed to sync privacy changes immediately:", error);
     } finally {
@@ -2908,6 +2945,28 @@ export class HorizontalFriendsBar {
       setTimeout(() => {
         this.isPrivacySyncing = false;
       }, 1000);
+    }
+  }
+
+  /**
+   * Compute a stable hash for current privacy data (friendId + visibility core fields only)
+   * Reduces chances of serverTimestamp / non-deterministic fields causing false inequality.
+   */
+  _computePrivacyHash(cleanFriendsData) {
+    try {
+      const minimal = cleanFriendsData.map((f) => ({
+        id: f.friendId || f.userId,
+        r: !!f.isRestricted,
+        v: f.privacyStatus ? !!f.privacyStatus.avatarEnabled : false,
+      }));
+      return btoa(unescape(encodeURIComponent(JSON.stringify(minimal))));
+    } catch (e) {
+      // Fallback: JSON string directly
+      try {
+        return JSON.stringify(cleanFriendsData.length);
+      } catch {
+        return Date.now().toString();
+      }
     }
   }
 
@@ -4025,6 +4084,10 @@ export class HorizontalFriendsBar {
       return [];
     }
 
+    if (!this._missingLocationVisibilityLogged) {
+      this._missingLocationVisibilityLogged = new Set();
+    }
+
     console.log(
       `[HorizontalFriendsBar] Enhancing ${friends.length} friends with location data...`
     );
@@ -4109,11 +4172,18 @@ export class HorizontalFriendsBar {
                 // AND-gate: only show presence if BOTH share
                 canSeeLocation = friendSharesWithMe && iShareWithFriend;
               } else {
-                console.warn(
-                  `[HorizontalFriendsBar] ⚠️ No locationVisibility found in friendship document for ${
-                    friend.handle || "Unknown User"
-                  }`
-                );
+                const warnKey =
+                  friendshipId +
+                  "::" +
+                  (friend.handle || friend.friendId || friend.userId);
+                if (!this._missingLocationVisibilityLogged.has(warnKey)) {
+                  console.warn(
+                    `[HorizontalFriendsBar] ⚠️ No locationVisibility found in friendship document for ${
+                      friend.handle || "Unknown User"
+                    }`
+                  );
+                  this._missingLocationVisibilityLogged.add(warnKey);
+                }
               }
             } catch (bilateralError) {
               console.warn(

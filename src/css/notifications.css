@@ -242,7 +242,9 @@ body.page-notifications .schedule-section {
 /* Mobile viewport fitting: constrain overall card height and scroll inner list */
 @media (max-width: 768px) {
   .notifications-card {
-    max-height: calc(100dvh - var(--nav-height, 56px) - 1rem); /* account for nav + small margin */
+    max-height: calc(
+      100dvh - var(--nav-height, 56px) - 1rem
+    ); /* account for nav + small margin */
     margin-bottom: 0.75rem;
   }
   .notifications-scrollable-container {

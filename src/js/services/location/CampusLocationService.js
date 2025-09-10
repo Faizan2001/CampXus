@@ -412,6 +412,9 @@ export class CampusLocationService {
     this.lastActivityDetected = null;
     this.activityHeartbeatInterval = null;
     this.isUpdatingActivity = false; // Prevent concurrent activity updates
+    // 🔒 PRESENCE OPTIMIZATION: Throttle lastActive writes & respect global toggle
+    this.lastLastActiveWrite = 0; // epoch ms of last successful updateUserLastActive
+    this.minLastActiveWriteInterval = 120000; // 2 minutes minimum between writes when idle/active
 
     // 🚀 ADAPTIVE HEARTBEAT SYSTEM - Smart cost optimization
     this.activeHeartbeatInterval = 15000; // 15s when user is actively clicking/scrolling
@@ -457,6 +460,10 @@ export class CampusLocationService {
     this.presencePollingIntervalId = null;
     this.presencePollingIntervalMs = 20000;
     this._isPresencePollRunning = false;
+
+    // 🚦 NAVIGATION DEBOUNCE to avoid rapid duplicate presence updates on quick SPA route switches
+    this.lastNavigationPresenceUpdateTime = 0;
+    this.minNavigationPresenceInterval = 5000; // ms
 
     // Two-tier system in use: Tier 1 IPinfo Lite, Tier 2 Browser GPS
 
@@ -1702,6 +1709,16 @@ export class CampusLocationService {
       const locationRelevantPages = ["home", "friends"];
 
       if (locationRelevantPages.includes(route)) {
+        const now = Date.now();
+        if (
+          now - this.lastNavigationPresenceUpdateTime <
+          this.minNavigationPresenceInterval
+        ) {
+          logManager.location.info(
+            "⏱️ Skipping navigation presence update (debounced)"
+          );
+          return;
+        }
         logManager.location.info(
           `🎯 Navigation to ${route} - triggering immediate location update`
         );
@@ -1712,6 +1729,7 @@ export class CampusLocationService {
 
         // Trigger immediate presence update with navigation context
         const success = await this.immediatePresenceUpdate("spa_navigation");
+        if (success) this.lastNavigationPresenceUpdateTime = now;
 
         if (success) {
           logManager.location.success(
@@ -3974,6 +3992,19 @@ export class CampusLocationService {
     // Start adaptive activity heartbeat
 
     this.activityHeartbeatInterval = setInterval(async () => {
+      // ✅ HARD GUARD: Stop heartbeat entirely if global location sharing is disabled
+      try {
+        const sharingEnabled =
+          currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+        if (!sharingEnabled) {
+          // If disabled mid-session, stop further intervals & prevent writes
+          this.stopActivityHeartbeat();
+          return;
+        }
+      } catch (_) {
+        // best-effort guard
+      }
+
       if (this.isUserCurrentlyActive) {
         try {
           if (this.isUpdatingActivity) {
@@ -3987,12 +4018,22 @@ export class CampusLocationService {
           }
 
           this.isUpdatingActivity = true;
-
           // currentUser statically imported
 
           if (currentUser?.uid) {
-            // Updating user last active (heartbeat)
-            await dataManager.updateUserLastActive(currentUser.uid);
+            // ⏱️ THROTTLE: Only write if minimum interval passed OR we haven't written yet this state
+            const now = Date.now();
+            const elapsed = now - this.lastLastActiveWrite;
+            if (elapsed >= this.minLastActiveWriteInterval) {
+              const writeResult = await dataManager.updateUserLastActive(
+                currentUser.uid
+              );
+              if (writeResult?.success) {
+                this.lastLastActiveWrite = now;
+              }
+            } else {
+              // Skip write silently (optimization)
+            }
 
             // Emit activity change event for real-time updates
             try {

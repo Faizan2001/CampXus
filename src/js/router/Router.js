@@ -847,21 +847,27 @@ class SPARouter {
     // not the logo or dropdown items that also have data-spa-route attributes.
 
     // 1. Clear existing active classes only from top-level nav links & any stray elements
-    document.querySelectorAll('.nav-link.active').forEach((el) => el.classList.remove('active'));
+    document
+      .querySelectorAll(".nav-link.active")
+      .forEach((el) => el.classList.remove("active"));
     // Also remove from logo if previously applied (legacy behavior)
-    const brand = document.querySelector('.logo [data-spa-route].active');
-    if (brand) brand.classList.remove('active');
+    const brand = document.querySelector(".logo [data-spa-route].active");
+    if (brand) brand.classList.remove("active");
 
     // 2. Find matching nav links for the active route
-    const matchingNavLinks = document.querySelectorAll(`.nav-link[data-spa-route="${activeRoute}"]`);
+    const matchingNavLinks = document.querySelectorAll(
+      `.nav-link[data-spa-route="${activeRoute}"]`
+    );
     if (matchingNavLinks.length > 0) {
-      matchingNavLinks.forEach((el) => el.classList.add('active'));
+      matchingNavLinks.forEach((el) => el.classList.add("active"));
       return;
     }
 
     // 3. Fallback: if no .nav-link found (e.g., future minimal route), apply to first element with the route
-    const fallback = document.querySelector(`[data-spa-route="${activeRoute}"]`);
-    if (fallback) fallback.classList.add('active');
+    const fallback = document.querySelector(
+      `[data-spa-route="${activeRoute}"]`
+    );
+    if (fallback) fallback.classList.add("active");
   }
 
   /**

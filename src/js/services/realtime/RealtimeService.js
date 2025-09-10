@@ -120,6 +120,35 @@ class RealTimeManager {
     this.debouncedEmit = debounce(this.emit.bind(this), 300);
 
     this.log("🎛️ RealTimeManager initialized");
+
+    // Route-aware schedule listener management (pause schedule listener off home to reduce background churn)
+    if (typeof document !== "undefined" && !window.__realtimeRouteHooked) {
+      window.__realtimeRouteHooked = true;
+      document.addEventListener("spa:page:load", (e) => {
+        try {
+          const route = e?.detail?.route;
+          if (route && route !== "home") {
+            const sched = this.activeListeners.get("userSchedule");
+            if (sched) {
+              try {
+                sched();
+              } catch (_) {}
+              this.activeListeners.delete("userSchedule");
+              this.log("⏸️ Paused user schedule listener (off home page)");
+            }
+          } else if (
+            route === "home" &&
+            this.isListening &&
+            this.currentUserId
+          ) {
+            if (!this.activeListeners.get("userSchedule")) {
+              this.setupUserScheduleListener(this.currentUserId);
+              this.log("▶️ Resumed user schedule listener (home page)");
+            }
+          }
+        } catch (_) {}
+      });
+    }
   }
 
   // =========================
@@ -463,6 +492,7 @@ class RealTimeManager {
    */
   setupQuickAccessListener(userId) {
     const listenerId = "quickAccess";
+    if (!this._quickAccessSignatures) this._quickAccessSignatures = new Map();
 
     try {
       const unsubscribe = dataManager.listenToUserProfile(
@@ -471,18 +501,31 @@ class RealTimeManager {
           if (userProfile && userProfile.quickAccessData) {
             const quickAccessFriends =
               userProfile.quickAccessData.starredFriends || [];
+            // Build structural signature (ordered ids)
+            const sig = quickAccessFriends
+              .map((f) => f.friendId || f.userId)
+              .filter(Boolean)
+              .sort()
+              .join("|");
+            const lastSig = this._quickAccessSignatures.get(userId);
+            const changed = sig !== lastSig;
             this.log(
-              `⭐ Quick Access update: ${quickAccessFriends.length} starred friends`
+              `⭐ Quick Access update: ${quickAccessFriends.length} starred friends (structuralChange=${changed})`
             );
-
-            // Emit events for different components to react
-            this.emit(REALTIME_EVENTS.QUICK_ACCESS_FRIENDS, quickAccessFriends);
-            this.emit(REALTIME_EVENTS.QUICK_ACCESS_UPDATED, {
-              userId: userId,
-              quickAccessFriends: quickAccessFriends,
-              count: quickAccessFriends.length,
-              timestamp: Date.now(),
-            });
+            // Always emit raw friends list (lightweight) only if structure changed to reduce UI churn
+            if (changed) {
+              this._quickAccessSignatures.set(userId, sig);
+              this.emit(
+                REALTIME_EVENTS.QUICK_ACCESS_FRIENDS,
+                quickAccessFriends
+              );
+              this.emit(REALTIME_EVENTS.QUICK_ACCESS_UPDATED, {
+                userId,
+                quickAccessFriends,
+                count: quickAccessFriends.length,
+                timestamp: Date.now(),
+              });
+            }
           }
         }
       );

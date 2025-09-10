@@ -178,10 +178,14 @@ export function showModal({
     if (!showConfirmationButtons) {
       const msgLen = (modalDomElements.modalMessage.textContent || "").length;
       if (msgLen < 140) {
-        modalDomElements.modalTitle.parentElement?.classList?.add("modal-compact");
+        modalDomElements.modalTitle.parentElement?.classList?.add(
+          "modal-compact"
+        );
       }
     } else {
-      modalDomElements.modalTitle.parentElement?.classList?.remove("modal-compact");
+      modalDomElements.modalTitle.parentElement?.classList?.remove(
+        "modal-compact"
+      );
     }
   } catch (_) {}
 
@@ -244,5 +248,3 @@ function hideModal() {
 // =============================================================================
 //                           GLOBAL EXPORTS
 // =============================================================================
-
-

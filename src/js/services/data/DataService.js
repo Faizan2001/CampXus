@@ -153,6 +153,12 @@ class DataManager {
     this.removeLegacyOfflineBanners(); // Clean up any existing banners first
     this.setupNetworkListeners();
     this.setupCacheCleanup();
+
+    // ⚡ OPTIMIZATION: Track which userIds have confirmed systemInfo object to avoid repeated reads
+    this._systemInfoEnsured = new Set();
+    // ⚡ FRIENDSHIP DOC CACHE (reduces repeated reads during presence refresh bursts)
+    this._friendshipCache = new Map(); // key -> {data, expiry}
+    this._friendshipCacheTTL = 60000; // 60s
   }
 
   // =========================
@@ -3671,7 +3677,9 @@ class DataManager {
       const userRef = doc(db, "users", userId);
 
       // First, ensure systemInfo parent object exists
-      await this.ensureSystemInfoExists(userId);
+      if (!this._systemInfoEnsured.has(userId)) {
+        await this.ensureSystemInfoExists(userId);
+      }
 
       const updates = {
         "systemInfo.lastActive": serverTimestamp(),
@@ -3787,6 +3795,9 @@ class DataManager {
    */
   async ensureSystemInfoExists(userId) {
     try {
+      if (this._systemInfoEnsured && this._systemInfoEnsured.has(userId)) {
+        return true; // Already verified
+      }
       const userRef = doc(db, "users", userId);
       const userDoc = await getDoc(userRef);
 
@@ -3841,6 +3852,11 @@ class DataManager {
         console.error("❌ [DataManager] Invalid friendship ID:", friendshipId);
         return null;
       }
+      // ⏱️ CACHE CHECK
+      const cached = this._friendshipCache.get(friendshipId);
+      if (cached && Date.now() < cached.expiry) {
+        return cached.data;
+      }
 
       console.log(
         `📋 [DataManager] Fetching friendship document: ${friendshipId}`
@@ -3856,10 +3872,13 @@ class DataManager {
         return null;
       }
 
-      const friendshipData = {
-        id: friendshipDoc.id,
-        ...friendshipDoc.data(),
-      };
+      const friendshipData = { id: friendshipDoc.id, ...friendshipDoc.data() };
+
+      // Store in cache
+      this._friendshipCache.set(friendshipId, {
+        data: friendshipData,
+        expiry: Date.now() + this._friendshipCacheTTL,
+      });
 
       console.log(
         `✅ [DataManager] Successfully fetched friendship document: ${friendshipId}`

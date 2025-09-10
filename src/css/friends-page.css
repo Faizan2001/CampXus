@@ -73,7 +73,7 @@ body.page-friends .schedule-section {
 /* Mobile-optimized spacing */
 @media (max-width: 768px) {
   .friends-container {
-  padding: 0.5rem 0.4rem;
+    padding: 0.5rem 0.4rem;
     gap: 0.75rem; /* Reduced from 1.5rem for mobile */
   }
 
@@ -1824,29 +1824,29 @@ body.page-friends
 ================================= */
 
 body.dark-mode.page-friends .request-card {
-    background: var(--friends-dark-card-bg);
-    border-color: var(--friends-dark-warning-border);
-  }
+  background: var(--friends-dark-card-bg);
+  border-color: var(--friends-dark-warning-border);
+}
 
 body.dark-mode.page-friends .friends-search .search-input {
-    background: var(--friends-dark-input-bg);
-    border-color: var(--friends-dark-input-border);
-    color: var(--friends-dark-text-primary);
-  }
+  background: var(--friends-dark-input-bg);
+  border-color: var(--friends-dark-input-border);
+  color: var(--friends-dark-text-primary);
+}
 
 body.dark-mode.page-friends .friends-search .search-input::placeholder {
-    color: var(--friends-dark-text-secondary);
-  }
+  color: var(--friends-dark-text-secondary);
+}
 
 /* Dark mode support for disabled avatars */
 body.dark-mode.page-friends .user-avatar.disabled,
 body.dark-mode.page-friends .avatar-placeholder.disabled,
 body.dark-mode.page-friends .friend-avatar-item.disabled .user-avatar,
 body.dark-mode.page-friends .friend-avatar-item.disabled .avatar-placeholder {
-    background: var(--friends-avatar-disabled-bg-dark) !important;
-    border-color: var(--friends-avatar-disabled-border-dark) !important;
-    box-shadow: var(--friends-avatar-disabled-shadow-dark) !important;
-  }
+  background: var(--friends-avatar-disabled-bg-dark) !important;
+  border-color: var(--friends-avatar-disabled-border-dark) !important;
+  box-shadow: var(--friends-avatar-disabled-shadow-dark) !important;
+}
 
 body.dark-mode.page-friends .user-avatar.disabled .avatar-fallback,
 body.dark-mode.page-friends .avatar-placeholder.disabled .avatar-fallback,
@@ -1854,18 +1854,20 @@ body.dark-mode.page-friends .user-avatar.disabled i.fas,
 body.dark-mode.page-friends .avatar-placeholder.disabled i.fas,
 body.dark-mode.page-friends .friend-avatar-item.disabled .avatar-fallback,
 body.dark-mode.page-friends .friend-avatar-item.disabled i.fas {
-    color: var(--friends-avatar-disabled-text-dark) !important;
-  }
+  color: var(--friends-avatar-disabled-text-dark) !important;
+}
 
 body.dark-mode.page-friends .friend-avatar-item.disabled .friend-name {
-    color: var(--friends-avatar-disabled-text-dark) !important;
-  }
+  color: var(--friends-avatar-disabled-text-dark) !important;
+}
 
 /* Dark mode support for privacy tooltips */
-body.dark-mode.page-friends .friend-card .schedule-access.bilateral-privacy::after {
-    background: var(--friends-privacy-tooltip-bg-dark);
-    color: var(--friends-privacy-tooltip-color-dark);
-  }
+body.dark-mode.page-friends
+  .friend-card
+  .schedule-access.bilateral-privacy::after {
+  background: var(--friends-privacy-tooltip-bg-dark);
+  color: var(--friends-privacy-tooltip-color-dark);
+}
 
 /* =================================
    LOCATION TOGGLE
@@ -2358,24 +2360,24 @@ body.dark-mode.page-friends .friend-card .schedule-access.bilateral-privacy::aft
 
 /* Dark mode support for schedule access indicators */
 body.dark-mode.page-friends .schedule-access.can-see {
-    background: var(--friends-schedule-can-see-bg);
-    border-color: var(--friends-schedule-can-see-border);
-  }
+  background: var(--friends-schedule-can-see-bg);
+  border-color: var(--friends-schedule-can-see-border);
+}
 
 body.dark-mode.page-friends .schedule-access.cannot-see {
-    background: var(--friends-schedule-cannot-see-bg);
-    border-color: var(--friends-schedule-cannot-see-border);
-  }
+  background: var(--friends-schedule-cannot-see-bg);
+  border-color: var(--friends-schedule-cannot-see-border);
+}
 
 body.dark-mode.page-friends .btn-view-schedule {
-    background: var(--friends-btn-view-schedule-bg);
-    border-color: var(--friends-btn-view-schedule-border);
-  }
+  background: var(--friends-btn-view-schedule-bg);
+  border-color: var(--friends-btn-view-schedule-border);
+}
 
 body.dark-mode.page-friends .btn-view-schedule:hover {
-    background: var(--friends-btn-view-schedule-hover-bg);
-    border-color: var(--friends-btn-view-schedule-hover-border);
-  }
+  background: var(--friends-btn-view-schedule-hover-bg);
+  border-color: var(--friends-btn-view-schedule-hover-border);
+}
 
 /* =================================
    FRIEND OPTIONS MENU
@@ -2772,40 +2774,44 @@ div.friend-options-menu.show div.options-dropdown,
 
 body.dark-mode.page-friends .friend-options-menu.show .options-dropdown,
 body.dark-mode.page-friends div.friend-options-menu.show div.options-dropdown,
-body.dark-mode.page-friends .friend-card div.friend-options-menu.show div.options-dropdown,
-body.dark-mode.page-friends [class*="friend-options-menu"].show [class*="options-dropdown"] {
-    background: var(--friends-options-dark-dropdown-bg) !important;
-    border-color: var(--friends-options-dark-border) !important;
-    box-shadow: 0 20px 60px var(--friends-options-dark-shadow-heavy),
-      0 8px 24px var(--friends-options-dark-shadow-medium),
-      0 4px 12px var(--friends-options-dark-shadow-light),
-      inset 0 1px 0 var(--friends-options-dark-highlight-medium),
-      inset 0 -1px 0 var(--friends-white-highlight-faint) !important;
-  }
+body.dark-mode.page-friends
+  .friend-card
+  div.friend-options-menu.show
+  div.options-dropdown,
+body.dark-mode.page-friends
+  [class*="friend-options-menu"].show
+  [class*="options-dropdown"] {
+  background: var(--friends-options-dark-dropdown-bg) !important;
+  border-color: var(--friends-options-dark-border) !important;
+  box-shadow: 0 20px 60px var(--friends-options-dark-shadow-heavy),
+    0 8px 24px var(--friends-options-dark-shadow-medium),
+    0 4px 12px var(--friends-options-dark-shadow-light),
+    inset 0 1px 0 var(--friends-options-dark-highlight-medium),
+    inset 0 -1px 0 var(--friends-white-highlight-faint) !important;
+}
 
 body.dark-mode.page-friends .friend-options-menu .options-dropdown::before {
-    background: linear-gradient(
-      90deg,
-      var(--friends-options-dark-highlight-strong) 0%,
-      var(--friends-options-dark-highlight-medium) 50%,
-      var(--friends-options-dark-highlight-strong) 100%
-    );
-  }
+  background: linear-gradient(
+    90deg,
+    var(--friends-options-dark-highlight-strong) 0%,
+    var(--friends-options-dark-highlight-medium) 50%,
+    var(--friends-options-dark-highlight-strong) 100%
+  );
+}
 
 body.dark-mode.page-friends .friend-options-menu .options-button {
-    background: var(--friends-options-dark-button-bg);
-    border-color: var(--friends-options-dark-button-border);
-  }
+  background: var(--friends-options-dark-button-bg);
+  border-color: var(--friends-options-dark-button-border);
+}
 body.dark-mode.page-friends .friend-options-menu .options-button:hover {
-    background: var(--friends-options-dark-button-hover);
-    border-color: var(--friends-options-dark-button-border-hover);
-  }
+  background: var(--friends-options-dark-button-hover);
+  border-color: var(--friends-options-dark-button-border-hover);
+}
 body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
-    border-top-color: var(--friends-options-dark-highlight-medium);
-    margin-top: 2px;
-    padding-top: 10px;
-  }
-
+  border-top-color: var(--friends-options-dark-highlight-medium);
+  margin-top: 2px;
+  padding-top: 10px;
+}
 
 /* Privacy toggle layout removed - individual privacy controls in friend card menus */
 

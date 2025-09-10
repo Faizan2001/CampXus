@@ -187,7 +187,9 @@ body.compare-mode-active .schedule-owner-indicator {
   position: relative; /* For sticky positioning context */
   flex: 1; /* Take remaining space after header */
   min-height: 250px; /* Reduced minimum for better mobile scaling */
-  max-height: calc(100vh - 300px); /* ✅ FIXED: Constrain height to prevent overflow */
+  max-height: calc(
+    100vh - 300px
+  ); /* ✅ FIXED: Constrain height to prevent overflow */
   max-height: calc(100dvh - 300px); /* Prefer dvh on modern browsers */
   padding: 0.5rem; /* Add consistent padding for gap management */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
@@ -201,7 +203,8 @@ body:not(.dark-mode) .schedule-wrapper,
 body.light-mode .schedule-wrapper {
   background: var(--glass-bg) !important;
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur)
+    var(--glass-backdrop-saturate);
 }
 
 /*
@@ -383,14 +386,18 @@ body.light-mode .schedule-wrapper {
   position: sticky !important; /* keep visible when horizontal scroll (many slots) */
   left: 0 !important;
   z-index: 2 !important;
-  background: var(--depth-elevated, rgba(20,20,28,0.85)) !important;
+  background: var(--depth-elevated, rgba(20, 20, 28, 0.85)) !important;
   backdrop-filter: blur(12px) !important;
-  border: 2px solid rgba(255,255,255,0.08) !important;
-  border-right: 2px solid rgba(255,255,255,0.15) !important;
+  border: 2px solid rgba(255, 255, 255, 0.08) !important;
+  border-right: 2px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 6px !important;
   padding: 0.35rem 0.25rem !important;
   font-weight: 600 !important;
-  font-size: clamp(0.58rem, 0.55rem + 0.4vw, 0.75rem) !important; /* fluid small */
+  font-size: clamp(
+    0.58rem,
+    0.55rem + 0.4vw,
+    0.75rem
+  ) !important; /* fluid small */
   line-height: 1.15 !important;
   letter-spacing: 0.25px !important;
   color: var(--text-secondary) !important;
@@ -404,14 +411,21 @@ body.light-mode .schedule-wrapper {
 }
 
 /* Dark mode accent line */
-.dark-mode .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
-  border-color: rgba(255,255,255,0.06) !important;
-  border-right-color: rgba(255,255,255,0.18) !important;
+.dark-mode
+  .schedule-section
+  .schedule-grid-view
+  table.schedule-table
+  td.time-slot-label {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  border-right-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 /* Mobile refinements */
 @media (max-width: 480px) {
-  .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
+  .schedule-section
+    .schedule-grid-view
+    table.schedule-table
+    td.time-slot-label {
     font-size: clamp(0.55rem, 0.5rem + 0.9vw, 0.7rem) !important;
     padding: 0.4rem 0.25rem !important;
   }
@@ -427,27 +441,37 @@ body.light-mode .schedule-wrapper {
 }
 
 /* Base row height variable (grid context) */
-.schedule-section .schedule-grid-view { --slot-row-height: 4rem; }
+.schedule-section .schedule-grid-view {
+  --slot-row-height: 4rem;
+}
 
 /* Medium screens: slightly taller for touch */
 @media (max-width: 900px) {
-  .schedule-section .schedule-grid-view { --slot-row-height: 4.25rem; }
+  .schedule-section .schedule-grid-view {
+    --slot-row-height: 4.25rem;
+  }
 }
 
 /* Small screens: a bit more height to improve tap accuracy */
 @media (max-width: 600px) {
-  .schedule-section .schedule-grid-view { --slot-row-height: 4.35rem; }
+  .schedule-section .schedule-grid-view {
+    --slot-row-height: 4.35rem;
+  }
 }
 
 /* Extra small phones: maximize tap comfort */
 @media (max-width: 480px) {
-  .schedule-section .schedule-grid-view { --slot-row-height: 4.5rem; }
+  .schedule-section .schedule-grid-view {
+    --slot-row-height: 4.5rem;
+  }
 }
 
 /* === MOBILE CONTENT-DRIVEN GRID (<=480px) === */
 @media (max-width: 480px) {
   /* Narrower time column but still one-line labels */
-  .schedule-section .schedule-grid-view { --time-col-width: 78px; }
+  .schedule-section .schedule-grid-view {
+    --time-col-width: 78px;
+  }
 
   /* Allow table to auto-size columns based on content instead of forced equal distribution */
   .schedule-section .schedule-grid-view table.schedule-table {
@@ -462,7 +486,10 @@ body.light-mode .schedule-wrapper {
   }
 
   /* Day headers & slot columns: remove fixed width, use min-width so content (course code + room) drives width */
-  .schedule-section .schedule-grid-view table.schedule-table th:not(:first-child),
+  .schedule-section
+    .schedule-grid-view
+    table.schedule-table
+    th:not(:first-child),
   .schedule-section .schedule-grid-view table.schedule-table td.slot {
     width: auto !important;
     min-width: 56px !important; /* minimum readable / touch-friendly width */
@@ -470,7 +497,10 @@ body.light-mode .schedule-wrapper {
   }
 
   /* Day label (header cells except first) baseline styling sync with slot height */
-  .schedule-section .schedule-grid-view table.schedule-table th:not(:first-child) {
+  .schedule-section
+    .schedule-grid-view
+    table.schedule-table
+    th:not(:first-child) {
     min-height: var(--slot-row-height, 3rem) !important;
     line-height: 1.1 !important;
     font-size: clamp(0.65rem, 0.6rem + 0.7vw, 0.8rem) !important;
@@ -478,7 +508,10 @@ body.light-mode .schedule-wrapper {
   }
 
   /* Time slot labels: ensure at least 44px touch height, allow reduced height if variable lowered */
-  .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
+  .schedule-section
+    .schedule-grid-view
+    table.schedule-table
+    td.time-slot-label {
     min-height: 2.75rem !important; /* 44px minimum */
     height: var(--slot-row-height, 3.25rem) !important;
     font-size: clamp(0.55rem, 0.5rem + 1vw, 0.7rem) !important;
@@ -486,7 +519,9 @@ body.light-mode .schedule-wrapper {
   }
 
   /* Adjust unified responsive row height to a slightly more compact value while retaining 44px min */
-  .schedule-section .schedule-grid-view { --slot-row-height: 3.25rem; }
+  .schedule-section .schedule-grid-view {
+    --slot-row-height: 3.25rem;
+  }
 
   /* Slot cells: enforce min touch height and allow content width */
   .schedule-section .schedule-grid-view table.schedule-table td.slot {
@@ -2030,7 +2065,7 @@ body:not(.dark-mode) .slot.busy .classroom-number,
 body:not(.dark-mode) .day-time-slot.busy .slot-course-code,
 body:not(.dark-mode) .day-time-slot.busy .slot-classroom,
 body:not(.dark-mode) .day-time-slot.busy .slot-time {
-  color: rgba(255,255,255,0.95) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
 }
 .schedule-column {
   width: 100%;

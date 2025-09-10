@@ -356,7 +356,10 @@ function normalizeUserScheduleMatrices(user) {
       if (!Array.isArray(matrix[d])) {
         matrix[d] = Array.from({ length: expectedSlots }, () => fillerValue);
       } else if (matrix[d].length !== expectedSlots) {
-        const resized = Array.from({ length: expectedSlots }, () => fillerValue);
+        const resized = Array.from(
+          { length: expectedSlots },
+          () => fillerValue
+        );
         for (let i = 0; i < Math.min(matrix[d].length, expectedSlots); i++) {
           if (matrix[d][i] !== undefined) resized[i] = matrix[d][i];
         }
@@ -1150,7 +1153,9 @@ const PIN_CLICK_DEBOUNCE = 50; // 50ms debounce (reduced from 200ms)
 function handlePinSlotClick(dayIndex, slotIndex, event) {
   // Pre-normalize active user's schedule & pinned structure to expected lengths
   if (state.activeUserId && state.users[state.activeUserId]) {
-    try { normalizeUserScheduleMatrices(state.users[state.activeUserId]); } catch(_) {}
+    try {
+      normalizeUserScheduleMatrices(state.users[state.activeUserId]);
+    } catch (_) {}
   }
   if (event) {
     event.stopPropagation();
@@ -1204,30 +1209,53 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
         activeUserObject && activeUserObject.id,
         { dayIndex, slotIndex },
         {
-          scheduleDay: activeUserObject && activeUserObject.schedule && activeUserObject.schedule[dayIndex],
-          pinnedDay: activeUserObject && activeUserObject.pinnedSlots && activeUserObject.pinnedSlots[dayIndex],
-          scheduleLengths: activeUserObject && activeUserObject.schedule && activeUserObject.schedule.map(d=>d&&d.length),
-          pinnedLengths: activeUserObject && activeUserObject.pinnedSlots && activeUserObject.pinnedSlots.map(d=>d&&d.length),
-          timeSlotsLength: activeUserObject && activeUserObject.timeSlots && activeUserObject.timeSlots.length,
+          scheduleDay:
+            activeUserObject &&
+            activeUserObject.schedule &&
+            activeUserObject.schedule[dayIndex],
+          pinnedDay:
+            activeUserObject &&
+            activeUserObject.pinnedSlots &&
+            activeUserObject.pinnedSlots[dayIndex],
+          scheduleLengths:
+            activeUserObject &&
+            activeUserObject.schedule &&
+            activeUserObject.schedule.map((d) => d && d.length),
+          pinnedLengths:
+            activeUserObject &&
+            activeUserObject.pinnedSlots &&
+            activeUserObject.pinnedSlots.map((d) => d && d.length),
+          timeSlotsLength:
+            activeUserObject &&
+            activeUserObject.timeSlots &&
+            activeUserObject.timeSlots.length,
         }
       );
       // Lightweight normalization attempt: ensure day arrays exist and lengths align with timeSlots length
-      if (activeUserObject && activeUserObject.timeSlots && Array.isArray(activeUserObject.timeSlots)) {
+      if (
+        activeUserObject &&
+        activeUserObject.timeSlots &&
+        Array.isArray(activeUserObject.timeSlots)
+      ) {
         const expectedLen = activeUserObject.timeSlots.length;
         const ensureDay = (arrRef, label) => {
           if (!Array.isArray(arrRef[dayIndex])) {
             arrRef[dayIndex] = new Array(expectedLen).fill(false);
           } else if (arrRef[dayIndex].length !== expectedLen) {
             const resized = new Array(expectedLen).fill(false);
-            for (let i=0;i<Math.min(expectedLen, arrRef[dayIndex].length);i++) {
+            for (
+              let i = 0;
+              i < Math.min(expectedLen, arrRef[dayIndex].length);
+              i++
+            ) {
               resized[i] = arrRef[dayIndex][i];
             }
             arrRef[dayIndex] = resized;
           }
         };
         if (activeUserObject.schedule && activeUserObject.pinnedSlots) {
-          ensureDay(activeUserObject.schedule, 'schedule');
-          ensureDay(activeUserObject.pinnedSlots, 'pinned');
+          ensureDay(activeUserObject.schedule, "schedule");
+          ensureDay(activeUserObject.pinnedSlots, "pinned");
           // Retry guard once after normalization
           if (
             activeUserObject.schedule[dayIndex] !== undefined &&
@@ -1235,14 +1263,18 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
             activeUserObject.pinnedSlots[dayIndex] !== undefined &&
             activeUserObject.pinnedSlots[dayIndex][slotIndex] !== undefined
           ) {
-            console.info('Pin slot normalization repaired structures, retrying.');
+            console.info(
+              "Pin slot normalization repaired structures, retrying."
+            );
           } else {
-            console.warn('Normalization could not repair pin structures at indices.');
+            console.warn(
+              "Normalization could not repair pin structures at indices."
+            );
           }
         }
       }
-    } catch(e) {
-      console.warn('Pin integrity diagnostic failed', e);
+    } catch (e) {
+      console.warn("Pin integrity diagnostic failed", e);
     }
     showModal({
       title: "Error",
@@ -3001,8 +3033,12 @@ async function _renderScheduleGridInternal() {
         }
       }
 
-  // Pin Rendering Logic for Compare Mode (grid view only)
-  if (state.viewMode === 'grid' && state.compareMode && state.selectedUserIds.size > 0) {
+      // Pin Rendering Logic for Compare Mode (grid view only)
+      if (
+        state.viewMode === "grid" &&
+        state.compareMode &&
+        state.selectedUserIds.size > 0
+      ) {
         // Smart logging: Only log pin rendering for first few slots
         if (dayIndex === 0 && timeIndex === 0) {
           console.log(`📌 Grid pin rendering for compare mode started`);
@@ -3780,7 +3816,9 @@ function handleScheduleTableClick(e) {
   }
 
   // Pin container clicks (for pin tooltips) - supports legacy .pin-container and new .pin-square-container
-  const pinContainer = e.target.closest(".pin-container, .pin-square-container");
+  const pinContainer = e.target.closest(
+    ".pin-container, .pin-square-container"
+  );
   if (pinContainer) {
     const pinData = {
       userNames: JSON.parse(pinContainer.dataset.pinnedByUsers || "[]"),
@@ -6102,8 +6140,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       console.warn(
         `⚠️ DEBUG: Failed to convert schedule data for ${friendName}`
       );
-  showFriendScheduleNotice(friendName, "no-schedule");
-  return;
+      showFriendScheduleNotice(friendName, "no-schedule");
+      return;
     }
 
     console.log(`🔄 DEBUG: Converted schedule data:`, convertedScheduleData);
@@ -6117,8 +6155,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       console.error(
         `❌ DEBUG: Invalid converted data structure for ${friendName}`
       );
-  showFriendScheduleNotice(friendName, "error");
-  return;
+      showFriendScheduleNotice(friendName, "error");
+      return;
     }
 
     // Update state to reflect viewing friend's schedule
@@ -6137,8 +6175,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
         createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
     };
 
-  // Normalize friend matrices to ensure integrity
-  normalizeUserScheduleMatrices(friendUser);
+    // Normalize friend matrices to ensure integrity
+    normalizeUserScheduleMatrices(friendUser);
 
     console.log(`🔧 DEBUG: Created friend user object:`, friendUser);
 
@@ -6149,8 +6187,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       !friendUser.timeSlots.length
     ) {
       console.error(`❌ DEBUG: Invalid friend user object for ${friendName}`);
-  showFriendScheduleNotice(friendName, "no-schedule");
-  return;
+      showFriendScheduleNotice(friendName, "no-schedule");
+      return;
     }
 
     // Add friend to users state temporarily for rendering
@@ -6182,7 +6220,7 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       `❌ DEBUG: Error displaying friend schedule for ${friendName}:`,
       error
     );
-  showFriendScheduleNotice(friendName, "error");
+    showFriendScheduleNotice(friendName, "error");
   }
 }
 
@@ -7221,35 +7259,39 @@ export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
 function initializeScheduleScrollIndicator() {
   try {
     // Create scroll indicator element
-    const scheduleSection = document.querySelector('.schedule-section');
+    const scheduleSection = document.querySelector(".schedule-section");
     if (!scheduleSection) {
-      console.warn('Schedule section not found, skipping scroll indicator');
+      console.warn("Schedule section not found, skipping scroll indicator");
       return;
     }
 
     // Remove existing indicator if present
-    const existingIndicator = scheduleSection.querySelector('.schedule-scroll-indicator');
+    const existingIndicator = scheduleSection.querySelector(
+      ".schedule-scroll-indicator"
+    );
     if (existingIndicator) {
       existingIndicator.remove();
     }
 
     // Create new indicator
-    const indicator = document.createElement('div');
-    indicator.className = 'schedule-scroll-indicator';
-    indicator.setAttribute('aria-hidden', 'true');
+    const indicator = document.createElement("div");
+    indicator.className = "schedule-scroll-indicator";
+    indicator.setAttribute("aria-hidden", "true");
     scheduleSection.appendChild(indicator);
 
     // Only Day View container
-    const dayViewContainer = document.querySelector('.schedule-day-view #dayViewContainer');
+    const dayViewContainer = document.querySelector(
+      ".schedule-day-view #dayViewContainer"
+    );
     if (!dayViewContainer) {
-      console.warn('Day view container not found, indicator disabled');
+      console.warn("Day view container not found, indicator disabled");
       return;
     }
 
     let scrollTimeout;
     const fastHideOnScroll = () => {
       // Hide immediately on scroll start
-      indicator.classList.add('hidden');
+      indicator.classList.add("hidden");
       clearTimeout(scrollTimeout);
       // After scrolling settles, re-evaluate visibility
       scrollTimeout = setTimeout(() => {
@@ -7258,24 +7300,35 @@ function initializeScheduleScrollIndicator() {
     };
 
     // Attach listener
-    dayViewContainer.addEventListener('scroll', fastHideOnScroll, { passive: true });
+    dayViewContainer.addEventListener("scroll", fastHideOnScroll, {
+      passive: true,
+    });
 
     // Hook into view mode buttons to refresh indicator only for Day View
-    const dayBtn = document.getElementById('dayViewBtn');
-    const gridBtn = document.getElementById('gridViewBtn');
-    const recheckAfterToggle = () => setTimeout(() => updateScrollIndicatorVisibility(dayViewContainer, indicator), 30);
-    if (dayBtn) dayBtn.addEventListener('click', recheckAfterToggle);
-    if (gridBtn) gridBtn.addEventListener('click', () => indicator.classList.add('hidden'));
+    const dayBtn = document.getElementById("dayViewBtn");
+    const gridBtn = document.getElementById("gridViewBtn");
+    const recheckAfterToggle = () =>
+      setTimeout(
+        () => updateScrollIndicatorVisibility(dayViewContainer, indicator),
+        30
+      );
+    if (dayBtn) dayBtn.addEventListener("click", recheckAfterToggle);
+    if (gridBtn)
+      gridBtn.addEventListener("click", () =>
+        indicator.classList.add("hidden")
+      );
 
     // Initial visibility check
     updateScrollIndicatorVisibility(dayViewContainer, indicator);
 
     // Respond to resize
-    window.addEventListener('resize', () => updateScrollIndicatorVisibility(dayViewContainer, indicator));
+    window.addEventListener("resize", () =>
+      updateScrollIndicatorVisibility(dayViewContainer, indicator)
+    );
 
-    console.log('✅ Schedule scroll indicator initialized (day view only)');
+    console.log("✅ Schedule scroll indicator initialized (day view only)");
   } catch (error) {
-    console.error('❌ Error initializing schedule scroll indicator:', error);
+    console.error("❌ Error initializing schedule scroll indicator:", error);
   }
 }
 
@@ -7286,7 +7339,7 @@ function updateScrollIndicatorVisibility(wrapper, indicator) {
   if (!wrapper || !indicator) return;
   // If container not visible (display:none), hide indicator
   if (wrapper.offsetParent === null || wrapper.clientHeight === 0) {
-    indicator.classList.add('hidden');
+    indicator.classList.add("hidden");
     return;
   }
 
@@ -7295,11 +7348,12 @@ function updateScrollIndicatorVisibility(wrapper, indicator) {
   const scrollPercentage = scrollTop / maxScrollable;
 
   const hasOverflow = scrollHeight > clientHeight + 4; // small threshold
-  const isAtBottom = scrollTop + clientHeight >= scrollHeight - 2 || scrollPercentage > 0.97;
+  const isAtBottom =
+    scrollTop + clientHeight >= scrollHeight - 2 || scrollPercentage > 0.97;
 
   if (!hasOverflow || isAtBottom) {
-    indicator.classList.add('hidden');
+    indicator.classList.add("hidden");
   } else {
-    indicator.classList.remove('hidden');
+    indicator.classList.remove("hidden");
   }
 }

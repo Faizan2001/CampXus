@@ -71,8 +71,12 @@ This file contains all layout-related styles for the MeetchuThere app:
     gap: 0.5rem;
     height: var(--nav-height);
   }
-  .nav-left { gap: 0.5rem; }
-  .nav-right { gap: 0.4rem; }
+  .nav-left {
+    gap: 0.5rem;
+  }
+  .nav-right {
+    gap: 0.4rem;
+  }
   .logo {
     padding: 0.25rem 0.5rem; /* ensure 8px-ish inset from edge */
     min-height: 44px; /* touch target */
@@ -92,17 +96,32 @@ This file contains all layout-related styles for the MeetchuThere app:
 }
 
 /* Navigation sections: brand (left), links (center), user/actions (right) */
-.nav-left, .nav-center, .nav-right {
+.nav-left,
+.nav-center,
+.nav-right {
   display: flex;
   align-items: center;
   min-width: 0;
 }
 
-.nav-left { flex: 0 0 auto; }
-.nav-center { flex: 1 1 auto; justify-content: center; min-width: 0; }
-.nav-right { flex: 0 0 auto; gap: clamp(0.5rem, 2vw, 1rem); }
+.nav-left {
+  flex: 0 0 auto;
+}
+.nav-center {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+}
+.nav-right {
+  flex: 0 0 auto;
+  gap: clamp(0.5rem, 2vw, 1rem);
+}
 
-.nav-links { display: flex; align-items: center; gap: var(--space-md, 1rem); }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md, 1rem);
+}
 
 /* ===== LOGO COMPONENT ===== */
 /* Brand identity with icon and text */
@@ -238,18 +257,20 @@ body:not(.dark-mode) .nav-link {
 }
 /* Active nav state: compact purple selection indicator */
 .nav-link.active,
-.nav-link[aria-current='page'] {
+.nav-link[aria-current="page"] {
   margin: 3px 4px 3px 4px;
-  background: var(--nav-link-hover-bg, rgba(139,92,246,0.12));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.15);
+  background: var(--nav-link-hover-bg, rgba(139, 92, 246, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.15);
   color: var(--nav-link-hover-color, var(--accent-primary));
 }
 
 /* Preserve hover elevation while active */
 .nav-link.active:hover,
-.nav-link[aria-current='page']:hover {
+.nav-link[aria-current="page"]:hover {
   transform: translateY(-2px);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 3px 8px rgba(0,0,0,0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 3px 8px rgba(0, 0, 0, 0.2);
 }
 /* Light mode hover safety to ensure styles apply */
 .light-mode .nav-link:hover,
@@ -430,15 +451,36 @@ body:not(.dark-mode) .nav-link:hover {
 }
 
 /* Home page: confine scroll to schedule wrapper only */
-body.page-home { overflow: hidden; }
-body.page-home .main-content { overflow: hidden; padding: 0.5rem 0.4rem !important; }
-body.page-home .content-grid { overflow: hidden; }
-body.page-home .schedule-section { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
-body.page-home .schedule-wrapper { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: auto; }
-body.page-home .horizontal-friends-bar { flex-shrink: 0; }
+body.page-home {
+  overflow: hidden;
+}
+body.page-home .main-content {
+  overflow: hidden;
+  padding: 0.5rem 0.4rem !important;
+}
+body.page-home .content-grid {
+  overflow: hidden;
+}
+body.page-home .schedule-section {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+body.page-home .schedule-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+body.page-home .horizontal-friends-bar {
+  flex-shrink: 0;
+}
 
 /* Safe-area awareness for iOS bottom gesture bar inside schedule scroll area */
-body.page-home .schedule-wrapper { padding-bottom: max(env(safe-area-inset-bottom), 3.5rem); }
+body.page-home .schedule-wrapper {
+  padding-bottom: max(env(safe-area-inset-bottom), 3.5rem);
+}
 
 /* ===== SCHEDULE SCROLL INDICATOR ARROW ===== */
 .schedule-section {
@@ -461,14 +503,14 @@ body.page-home .schedule-wrapper { padding-bottom: max(env(safe-area-inset-botto
 
 .schedule-scroll-indicator::before,
 .schedule-scroll-indicator::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 4px;
   width: 12px;
   height: 2px; /* line thickness */
   background: var(--text-secondary);
   border-radius: 2px;
-  filter: drop-shadow(0 0 2px rgba(0,0,0,0.12));
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.12));
 }
 .schedule-scroll-indicator::before {
   left: 2px;
@@ -500,8 +542,15 @@ body:not(.dark-mode) .schedule-scroll-indicator::after {
 
 /* Subtle pulse animation */
 @keyframes subtle-pulse {
-  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
-  50% { opacity: 0.9; transform: translateX(-50%) scale(1.05); }
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(-50%) scale(1.05);
+  }
 }
 
 .schedule-scroll-indicator:not(.hidden) {
@@ -509,8 +558,12 @@ body:not(.dark-mode) .schedule-scroll-indicator::after {
 }
 
 /* Only show indicator in Day View */
-.schedule-scroll-indicator { display: none; }
-.schedule-day-view.active ~ .schedule-scroll-indicator { display: block; }
+.schedule-scroll-indicator {
+  display: none;
+}
+.schedule-day-view.active ~ .schedule-scroll-indicator {
+  display: block;
+}
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
@@ -523,28 +576,63 @@ body:not(.dark-mode) .schedule-scroll-indicator::after {
 
 /* Mobile Navigation Responsiveness */
 @media (max-width: 768px) {
-  .top-nav { padding: 0.55rem clamp(0.75rem,3vw,1.25rem); }
-  .nav-center { flex: 1; }
-  .nav-links { gap: clamp(0.5rem,2.5vw,0.85rem); }
-  .logo span { font-size: 1.35rem; }
-  .nav-button { width: clamp(2rem,6vw,2.5rem); height: clamp(2rem,6vw,2.5rem); font-size: clamp(0.8rem,2.5vw,0.9rem); }
+  .top-nav {
+    padding: 0.55rem clamp(0.75rem, 3vw, 1.25rem);
+  }
+  .nav-center {
+    flex: 1;
+  }
+  .nav-links {
+    gap: clamp(0.5rem, 2.5vw, 0.85rem);
+  }
+  .logo span {
+    font-size: 1.35rem;
+  }
+  .nav-button {
+    width: clamp(2rem, 6vw, 2.5rem);
+    height: clamp(2rem, 6vw, 2.5rem);
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  }
   /* Remove all inter-item and internal gaps below 768px as requested */
-  .nav-left, .nav-center, .nav-right, .nav-links { gap: 0 !important; }
-  .nav-link { gap: 0 !important; }
+  .nav-left,
+  .nav-center,
+  .nav-right,
+  .nav-links {
+    gap: 0 !important;
+  }
+  .nav-link {
+    gap: 0 !important;
+  }
 }
 
 /* Ultra small: hide text labels, show icons only to save space */
 @media (max-width: 480px) {
-  .nav-links .nav-text { display: none; }
-  .nav-links { gap: 0 !important; }
-  .nav-left, .nav-center, .nav-right { gap: 0 !important; }
-  .nav-link { gap: 0 !important; }
-  .nav-links .nav-link { padding: 0.5rem 0.65rem; }
-  .logo span { font-size: 1.15rem !important; }
+  .nav-links .nav-text {
+    display: none;
+  }
+  .nav-links {
+    gap: 0 !important;
+  }
+  .nav-left,
+  .nav-center,
+  .nav-right {
+    gap: 0 !important;
+  }
+  .nav-link {
+    gap: 0 !important;
+  }
+  .nav-links .nav-link {
+    padding: 0.5rem 0.65rem;
+  }
+  .logo span {
+    font-size: 1.15rem !important;
+  }
 }
 
 @media (max-width: 360px) {
-  .logo span { font-size: 1.05rem !important; }
+  .logo span {
+    font-size: 1.05rem !important;
+  }
 }
 
 /* Removed legacy ultra-responsive padding block (replaced by unified spec) */
@@ -1285,7 +1373,9 @@ body:not(.dark-mode) .user-dropdown {
 
 /* ===== ULTRA-COMPACT SCREENS (iPhone 4 & smaller - 320px) ===== */
 @media (max-width: 325px) {
-  .top-nav { padding: 0.4rem 0.55rem; }
+  .top-nav {
+    padding: 0.4rem 0.55rem;
+  }
 
   .nav-left {
     gap: 0.5rem; /* Reduce gap around logo */
