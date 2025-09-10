@@ -1379,15 +1379,30 @@ input[type="checkbox"]:checked + .toggle-switch::before {
 }
 
 @media (max-width: 480px) {
-
-  body.page-notifications .glass-card .notifications-card {
-
-    padding: 0.5rem;
+  body.page-notifications .notiifications-card {
+    height: 70vw;
+    min-height: 40vw;
+    max-height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+    padding-bottom: 20px;
   }
 
-
+  
   .notifications-page {
     padding: 0.5rem;
+    min-height: 50vw !important; /* override earlier 100vh/dvh */
+    max-height: calc(100dvh - var(--mobile-bottom-nav-height, 60px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Allow inner scroll area (list) to scroll if content exceeds 50vw height */
+  .notifications-page .notifications-scrollable-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .notifications-header {
@@ -1509,4 +1524,34 @@ body.dark-mode.page-notifications .filter-btn:hover {
 body.dark-mode.page-notifications .toggle-switch {
   background: rgba(75, 85, 99, 0.8);
   border-color: rgba(75, 85, 99, 0.9);
+}
+
+/* =============================================================
+   OVERRIDE: LIMIT CONTENT GRID HEIGHT TO 60vh ON NOTIFICATIONS
+   Ensures the main notifications content starts immediately
+   under the nav and occupies ~60% of the viewport height.
+   (Further scrolling handled inside scrollable containers.)
+============================================================= */
+body.page-notifications .content-grid {
+  min-height: 60vh !important;
+  height: 60vh !important;
+  max-height: 90vh !important;
+}
+
+/* Allow the primary notifications card to flex within 60vh */
+body.page-notifications .notifications-card {
+  height: 70vw;
+    min-height: 40vw;
+    max-height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+    padding-bottom: 20px;
+}
+body.page-notifications
+  .notifications-card
+  .notifications-scrollable-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
