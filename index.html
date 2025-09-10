@@ -218,6 +218,124 @@
       </div>
     </div>
 
+    <!-- Mobile Bottom Navigation -->
+    <nav
+      class="mobile-bottom-nav"
+      role="navigation"
+      aria-label="Primary mobile"
+    >
+      <a
+        data-spa-route="home"
+        href="#home"
+        class="mobile-nav-item"
+        aria-label="Schedule"
+        aria-current="false"
+      >
+        <i class="fas fa-calendar-week"></i>
+        <span class="mobile-nav-label">Schedule</span>
+      </a>
+      <a
+        data-spa-route="friends"
+        href="#friends"
+        class="mobile-nav-item"
+        aria-label="Friends"
+        aria-current="false"
+      >
+        <i class="fas fa-users"></i>
+        <span class="mobile-nav-label">Friends</span>
+      </a>
+      <a
+        data-spa-route="notifications"
+        href="#notifications"
+        class="mobile-nav-item"
+        aria-label="Notifications"
+        aria-current="false"
+      >
+        <i class="fas fa-bell"></i>
+        <span class="mobile-nav-label">Notifications</span>
+        <span
+          class="mobile-nav-badge"
+          aria-label="Unread notifications"
+          aria-live="polite"
+        ></span>
+      </a>
+      <button
+        class="mobile-nav-item mobile-profile-trigger"
+        id="mobileProfileTrigger"
+        aria-label="User menu"
+        aria-expanded="false"
+        type="button"
+      >
+        <div class="mobile-user-avatar" id="mobileUserAvatar">
+          <i class="fas fa-user-circle"></i>
+        </div>
+      </button>
+    </nav>
+
+    <!-- Mobile Profile Sheet & Scrim (for bottom sheet menu) -->
+    <div id="mobileProfileScrim" class="mobile-profile-scrim" hidden></div>
+    <aside
+      id="mobileProfileSheet"
+      class="mobile-profile-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mobileProfileTitle"
+      hidden
+    >
+      <div class="mobile-sheet-grabber" aria-hidden="true"></div>
+      <header class="mobile-sheet-header">
+        <div class="mobile-sheet-avatar" id="mobileSheetAvatar">
+          <i class="fas fa-user-circle"></i>
+        </div>
+        <div class="mobile-sheet-user-info">
+          <h3 id="mobileProfileTitle">User</h3>
+          <p id="mobileProfileEmail" class="mobile-sheet-email"></p>
+        </div>
+      </header>
+      <nav
+        class="mobile-sheet-menu"
+        role="menu"
+        aria-labelledby="mobileProfileTitle"
+      >
+        <a
+          role="menuitem"
+          data-spa-route="profile"
+          href="#profile"
+          class="mobile-sheet-row"
+          id="mobileSheetProfileLink"
+        >
+          <i class="fas fa-user-edit"></i><span>My Profile</span>
+        </a>
+        <a
+          role="menuitem"
+          data-spa-route="about"
+          href="#about"
+          class="mobile-sheet-row"
+          id="mobileSheetAboutLink"
+        >
+          <i class="fas fa-info-circle"></i><span>About Developer</span>
+        </a>
+        <button
+          role="menuitem"
+          type="button"
+          class="mobile-sheet-row"
+          id="mobileSheetDarkModeToggle"
+          aria-pressed="false"
+        >
+          <i class="fas fa-moon"></i
+          ><span id="mobileSheetDarkModeText">Dark Mode</span>
+        </button>
+        <button
+          role="menuitem"
+          type="button"
+          class="mobile-sheet-row danger"
+          id="mobileSheetSignOutBtn"
+        >
+          <i class="fas fa-sign-out-alt"></i><span>Sign Out</span>
+        </button>
+      </nav>
+    </aside>
+
     <script type="module" src="/src/js/app.js"></script>
   </body>
 </html>

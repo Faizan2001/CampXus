@@ -654,6 +654,9 @@ class SPARouter {
       // Dispatch custom event for other parts of the app
       this.dispatchNavigationEvent(route);
 
+      // Dispatch route changed event for mobile navigation
+      this.dispatchRouteChangedEvent(route);
+
       // 🎯 NEW: Announce that the page content is loaded and ready for initialization
       this.dispatchPageLoadEvent(route);
 
@@ -1000,6 +1003,16 @@ Stack: ${error?.stack || "No stack trace available"}
    */
   dispatchNavigationEvent(route) {
     const event = new CustomEvent("spa:navigation", {
+      detail: { route, router: this },
+    });
+    document.dispatchEvent(event);
+  }
+
+  /**
+   * Dispatch route changed event for mobile navigation active states
+   */
+  dispatchRouteChangedEvent(route) {
+    const event = new CustomEvent("spa:route:changed", {
       detail: { route, router: this },
     });
     document.dispatchEvent(event);

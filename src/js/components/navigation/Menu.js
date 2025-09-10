@@ -8,9 +8,22 @@ import { avatarManager } from "../../utils/avatar/avatarManager.js";
 import { dataManager } from "../../services/data/DataService.js";
 
 // Lightweight local debug gate for chatty logs
-const __LOG_PROFILE__ = (typeof localStorage !== 'undefined' ? (localStorage.getItem('meetchuthere:logProfile') || '') : '').toLowerCase();
-const __DBG__ = __LOG_PROFILE__ === 'debug' || __LOG_PROFILE__ === 'all' || __LOG_PROFILE__ === 'info';
-const dbg = (...args) => { if (__DBG__) { try { console.log(...args); } catch (_) {} } };
+const __LOG_PROFILE__ = (
+  typeof localStorage !== "undefined"
+    ? localStorage.getItem("meetchuthere:logProfile") || ""
+    : ""
+).toLowerCase();
+const __DBG__ =
+  __LOG_PROFILE__ === "debug" ||
+  __LOG_PROFILE__ === "all" ||
+  __LOG_PROFILE__ === "info";
+const dbg = (...args) => {
+  if (__DBG__) {
+    try {
+      console.log(...args);
+    } catch (_) {}
+  }
+};
 
 // Predeclare module-scoped vars used by notifications indicator before any init runs
 let notificationsUnsub = null;
@@ -27,8 +40,11 @@ function initializeMenuSystem() {
   applyTheme();
 
   // Wait for DOM to be ready, then initialize interactive elements
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeInteractiveElements);
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      initializeInteractiveElements
+    );
   } else {
     // DOM is already ready
     initializeInteractiveElements();
@@ -37,7 +53,7 @@ function initializeMenuSystem() {
 
 function initializeInteractiveElements() {
   dbg("🎛️ Initializing menu system...");
-  
+
   // Initialize dark mode toggle
   initializeDarkModeToggle();
 
@@ -55,7 +71,7 @@ function initializeInteractiveElements() {
 
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
-  
+
   dbg("✅ Menu system initialized successfully");
 }
 
@@ -96,7 +112,7 @@ function initializeDarkModeToggle() {
 
     // Add tooltip
     darkModeToggle.setAttribute("title", "Toggle dark/light mode");
-    
+
     dbg("✅ Dark mode toggle initialized successfully");
   } else {
     console.warn("⚠️ Dark mode toggle button not found in DOM");
@@ -206,7 +222,7 @@ function initializeNavigation() {
  */
 function initializeUserMenu() {
   dbg("🔧 Initializing user menu...");
-  
+
   const userMenuTrigger = document.getElementById("userMenuTrigger");
   const userDropdown = document.getElementById("userDropdown");
   const userMenu = document.getElementById("userMenu");
@@ -218,7 +234,7 @@ function initializeUserMenu() {
     userDropdown: !!userDropdown,
     userMenu: !!userMenu,
     loginBtn: !!loginBtn,
-    signOutBtn: !!signOutBtn
+    signOutBtn: !!signOutBtn,
   });
 
   if (!userMenuTrigger || !userDropdown) {
@@ -266,7 +282,7 @@ function initializeUserMenu() {
 
   // Subscribe to the central currentUser store for all auth-related UI updates.
   // This is the new, single source of truth for the menu's auth state.
-  if (currentUser && typeof currentUser.subscribe === 'function') {
+  if (currentUser && typeof currentUser.subscribe === "function") {
     dbg("📡 Subscribing to currentUser store for auth state changes...");
     currentUser.subscribe(handleAuthStateChange);
   } else {
@@ -278,7 +294,7 @@ function initializeUserMenu() {
 
   // Set up avatar change listeners for immediate avatar refresh
   setupAvatarChangeListeners();
-  
+
   dbg("✅ User menu initialization complete");
 }
 
@@ -378,7 +394,9 @@ function setupDropdownItemsCloseHandler() {
   // Find all clickable items in the dropdown
   const dropdownItems = userDropdown.querySelectorAll(".dropdown-item");
 
-  dbg(`🎯 Setting up close handlers for ${dropdownItems.length} dropdown items`);
+  dbg(
+    `🎯 Setting up close handlers for ${dropdownItems.length} dropdown items`
+  );
 
   dropdownItems.forEach((item, index) => {
     // Get the item type for logging
@@ -386,7 +404,9 @@ function setupDropdownItemsCloseHandler() {
     const isButton = item.tagName.toLowerCase() === "button";
     const isLink = item.tagName.toLowerCase() === "a";
 
-    dbg(`📋 Setting up handler for: "${itemText}" (${item.tagName.toLowerCase()})`);
+    dbg(
+      `📋 Setting up handler for: "${itemText}" (${item.tagName.toLowerCase()})`
+    );
 
     // Add click event listener to close dropdown
     item.addEventListener("click", (event) => {
@@ -444,7 +464,10 @@ async function handleSignOut() {
       await authManager.handleSignOut();
       console.log("Successfully signed out");
       // Force clear user display info to guarantee UI reset
-      if (window.userMenuUtils && typeof window.userMenuUtils.clearUserDisplayInfo === 'function') {
+      if (
+        window.userMenuUtils &&
+        typeof window.userMenuUtils.clearUserDisplayInfo === "function"
+      ) {
         window.userMenuUtils.clearUserDisplayInfo();
       }
       // Also force visibility update for login button and user menu
@@ -455,9 +478,10 @@ async function handleSignOut() {
 
       // Redirect to home/schedule page after sign out using SPA router
       // Set a one-time flag to skip lastActive update during this navigation
-      try { sessionStorage.setItem('skipLastActiveOnce', 'true'); } catch (_) {}
+      try {
+        sessionStorage.setItem("skipLastActiveOnce", "true");
+      } catch (_) {}
       navigateTo("home");
-      
     } else {
       console.error("AuthManager not available.");
     }
@@ -506,26 +530,34 @@ function handleLogin() {
 function handleAuthStateChange({ isLoggedIn, profile }) {
   // Track previous state to prevent redundant updates (using static variable pattern)
   if (!handleAuthStateChange.previousState) {
-    handleAuthStateChange.previousState = { isLoggedIn: null, hasProfile: null };
+    handleAuthStateChange.previousState = {
+      isLoggedIn: null,
+      hasProfile: null,
+    };
   }
-  
+
   const currentState = { isLoggedIn, hasProfile: !!profile };
   const previousState = handleAuthStateChange.previousState;
-  
+
   // Skip update if state hasn't changed (performance optimization)
-  if (previousState.isLoggedIn === currentState.isLoggedIn && 
-      previousState.hasProfile === currentState.hasProfile) {
+  if (
+    previousState.isLoggedIn === currentState.isLoggedIn &&
+    previousState.hasProfile === currentState.hasProfile
+  ) {
     return;
   }
-  
+
   dbg("🔄 Menu auth state change:", currentState);
   handleAuthStateChange.previousState = currentState;
-  
+
   const userMenu = document.getElementById("userMenu");
   const loginBtn = document.getElementById("login-btn");
 
   if (!userMenu || !loginBtn) {
-    console.warn("⚠️ Menu elements not found:", { userMenu: !!userMenu, loginBtn: !!loginBtn });
+    console.warn("⚠️ Menu elements not found:", {
+      userMenu: !!userMenu,
+      loginBtn: !!loginBtn,
+    });
     return;
   }
 
@@ -562,10 +594,11 @@ async function updateUserDisplayInfo(userData) {
 
   // Handle both profile object directly and userData.profile structure
   const profileData = userData?.profile || userData;
-  
+
   if (profileData) {
     if (nameElement)
-      nameElement.textContent = (profileData.handle || profileData.firstName || "User");
+      nameElement.textContent =
+        profileData.handle || profileData.firstName || "User";
     if (emailElement)
       emailElement.textContent = profileData.email || "No email";
     updateUserAvatarDisplays(userData);
@@ -586,35 +619,45 @@ let cachedAvatarHtml = null;
 function updateUserAvatarDisplays(userData) {
   const avatarTrigger = document.getElementById("userAvatarTrigger");
   const avatarLarge = document.getElementById("userAvatarLarge");
-  
+
   // Handle both direct profile data and nested userData structure
-  const avatarConfig = userData?.avatarConfig || userData?.profile?.avatarConfig;
+  const avatarConfig =
+    userData?.avatarConfig || userData?.profile?.avatarConfig;
   const hasAvatarConfig = !!avatarConfig;
-  
+
   // Skip rendering if avatar config hasn't changed (performance optimization)
-  if (cachedAvatarConfig && avatarConfig && 
-      JSON.stringify(cachedAvatarConfig) === JSON.stringify(avatarConfig) &&
-      cachedAvatarHtml) {
+  if (
+    cachedAvatarConfig &&
+    avatarConfig &&
+    JSON.stringify(cachedAvatarConfig) === JSON.stringify(avatarConfig) &&
+    cachedAvatarHtml
+  ) {
     return;
   }
 
   // 🎯 FIX: Check for avatarManager and the correct function `generateAvatarUrl`
-  if (hasAvatarConfig && avatarManager && typeof avatarManager.generateAvatarUrl === 'function') {
+  if (
+    hasAvatarConfig &&
+    avatarManager &&
+    typeof avatarManager.generateAvatarUrl === "function"
+  ) {
     try {
       const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
       const avatarHtml = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
 
       if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
       if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
-      
+
       // Cache the rendered avatar for performance
       cachedAvatarConfig = avatarConfig;
       cachedAvatarHtml = avatarHtml;
-      
-      console.log("🎨 Custom avatar rendered successfully.");
 
+      console.log("🎨 Custom avatar rendered successfully.");
     } catch (error) {
-      console.error("❌ Error generating avatar URL, falling back to default.", error);
+      console.error(
+        "❌ Error generating avatar URL, falling back to default.",
+        error
+      );
       displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
       cachedAvatarConfig = null;
       cachedAvatarHtml = null;
@@ -645,7 +688,7 @@ function displayDefaultAvatarIcons(triggerElement, largeElement) {
 function clearUserDisplayInfo(options = {}) {
   // Handle the preventFlag parameter
   const { preventFlag } = options;
-  
+
   // 🛡️ CRITICAL SAFEGUARD: Don't clear if we just completed profile setup
   if (window.preventUserDataClearing) {
     dbg("🛡️ Prevented clearing user data - profile completion in progress");
@@ -746,15 +789,17 @@ function setupAvatarChangeListeners() {
 
   // Listen for avatar changes from ProfileSetup
   document.addEventListener("avatar:changed", (event) => {
-    console.log("🎨 Avatar changed event received, clearing cache and refreshing...");
-    
+    console.log(
+      "🎨 Avatar changed event received, clearing cache and refreshing..."
+    );
+
     // Clear avatar cache to force refresh
     cachedAvatarConfig = null;
     cachedAvatarHtml = null;
-    
+
     // Get updated user data from the event or currentUser
     const updatedUserData = event.detail?.userData || currentUser?.profile;
-    
+
     if (updatedUserData) {
       // Force immediate avatar update
       updateUserAvatarDisplays(updatedUserData);
@@ -767,20 +812,25 @@ function setupAvatarChangeListeners() {
   // Also listen for currentUser store changes and force avatar refresh
   // This ensures we catch any avatar updates regardless of how they occur
   let lastAvatarConfigString = null;
-  
-  if (currentUser && typeof currentUser.subscribe === 'function') {
+
+  if (currentUser && typeof currentUser.subscribe === "function") {
     currentUser.subscribe(({ profile }) => {
       if (profile?.avatarConfig) {
         const currentAvatarConfigString = JSON.stringify(profile.avatarConfig);
-        
+
         // If avatar config actually changed, clear cache and refresh
-        if (lastAvatarConfigString && lastAvatarConfigString !== currentAvatarConfigString) {
-          console.log("🎨 Avatar config change detected in currentUser store, refreshing...");
+        if (
+          lastAvatarConfigString &&
+          lastAvatarConfigString !== currentAvatarConfigString
+        ) {
+          console.log(
+            "🎨 Avatar config change detected in currentUser store, refreshing..."
+          );
           cachedAvatarConfig = null;
           cachedAvatarHtml = null;
           updateUserAvatarDisplays(profile);
         }
-        
+
         lastAvatarConfigString = currentAvatarConfigString;
       }
     });
@@ -796,14 +846,14 @@ function setupAvatarChangeListeners() {
  */
 export function forceAvatarRefresh(userData = null) {
   console.log("🔄 Force refreshing avatar cache and displays...");
-  
+
   // Clear the cache
   cachedAvatarConfig = null;
   cachedAvatarHtml = null;
-  
+
   // Get user data from parameter or currentUser store
   const userDataToUse = userData || currentUser?.profile;
-  
+
   if (userDataToUse) {
     updateUserAvatarDisplays(userDataToUse);
     console.log("✅ Avatar force refresh completed");
@@ -900,6 +950,326 @@ function initializeMobileOptimizations() {
       setTimeout(updateViewport, 100);
     });
   }
+
+  // Initialize mobile bottom navigation
+  initializeMobileBottomNav();
+}
+
+/**
+ * Initialize mobile bottom navigation functionality
+ */
+function initializeMobileBottomNav() {
+  if (window.__mobileNavInitialized) {
+    return; // Prevent duplicate initialization
+  }
+  const mobileProfileTrigger = document.getElementById("mobileProfileTrigger");
+  const mobileUserAvatar = document.getElementById("mobileUserAvatar");
+  const sheet = document.getElementById("mobileProfileSheet");
+  const scrim = document.getElementById("mobileProfileScrim");
+  const sheetDarkToggle = document.getElementById("mobileSheetDarkModeToggle");
+  const sheetSignOut = document.getElementById("mobileSheetSignOutBtn");
+  const sheetAvatar = document.getElementById("mobileSheetAvatar");
+  const sheetTitle = document.getElementById("mobileProfileTitle");
+  const sheetEmail = document.getElementById("mobileProfileEmail");
+
+  if (!mobileProfileTrigger) {
+    dbg("📱 Mobile profile trigger not found, skipping mobile nav setup");
+    return;
+  }
+
+  dbg("📱 Setting up mobile bottom navigation...");
+
+  // Bottom sheet helpers (mobile)
+  function openMobileSheet() {
+    if (!sheet || !scrim) return;
+    sheet.hidden = false;
+    scrim.hidden = false;
+    requestAnimationFrame(() => {
+      sheet.setAttribute("data-open", "");
+      scrim.setAttribute("data-open", "");
+      mobileProfileTrigger.setAttribute("aria-expanded", "true");
+      trapSheetFocus(sheet);
+    });
+  }
+  function closeMobileSheet() {
+    if (!sheet || !scrim) return;
+    sheet.removeAttribute("data-open");
+    scrim.removeAttribute("data-open");
+    mobileProfileTrigger.setAttribute("aria-expanded", "false");
+    const done = () => {
+      sheet.hidden = true;
+      scrim.hidden = true;
+      sheet.removeEventListener("transitionend", done);
+    };
+    sheet.addEventListener("transitionend", done);
+  }
+  function toggleMobileSheet() {
+    sheet && (sheet.hidden ? openMobileSheet() : closeMobileSheet());
+  }
+  function trapSheetFocus(root) {
+    const focusables = root.querySelectorAll(
+      'a,button,[tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    first.focus();
+    root.onkeydown = (e) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+  }
+  // Swipe to dismiss
+  let startY = null;
+  if (sheet) {
+    sheet.addEventListener("pointerdown", (e) => {
+      startY = e.clientY;
+    });
+    sheet.addEventListener("pointerup", (e) => {
+      if (startY !== null && e.clientY - startY > 60) closeMobileSheet();
+      startY = null;
+    });
+  }
+  if (scrim) scrim.addEventListener("click", closeMobileSheet);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sheet && !sheet.hidden) closeMobileSheet();
+  });
+  // Trigger click
+  mobileProfileTrigger.addEventListener("click", (e) => {
+    if (window.innerWidth <= 768) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMobileSheet();
+    } else {
+      // desktop fallback to existing dropdown
+      const userDropdown = document.getElementById("userDropdown");
+      if (userDropdown && !userDropdown.classList.contains("active"))
+        openUserDropdown();
+      else closeUserDropdown();
+    }
+  });
+  // Dark mode toggle inside sheet
+  if (sheetDarkToggle) {
+    sheetDarkToggle.addEventListener("click", () => {
+      toggleDarkMode();
+      updateMobileSheetThemeState();
+    });
+  }
+  if (sheetSignOut) {
+    sheetSignOut.addEventListener("click", () => {
+      handleSignOut();
+      closeMobileSheet();
+    });
+  }
+  // Populate sheet user info
+  if (currentUser && typeof currentUser.subscribe === "function") {
+    currentUser.subscribe(({ isLoggedIn, profile }) => {
+      if (isLoggedIn && profile) {
+        if (sheetTitle)
+          sheetTitle.textContent =
+            profile.displayName || profile.firstName || "Profile";
+        if (sheetEmail) sheetEmail.textContent = profile.email || "";
+        if (sheetAvatar && avatarManager && profile.avatarConfig) {
+          try {
+            const url = avatarManager.generateAvatarUrl(profile.avatarConfig);
+            sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
+          } catch {
+            sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+          }
+        }
+      }
+    });
+  }
+
+  // Sync mobile user avatar with main navigation
+  if (currentUser && typeof currentUser.subscribe === "function") {
+    currentUser.subscribe(({ isLoggedIn, profile }) => {
+      if (isLoggedIn && profile && mobileUserAvatar) {
+        updateMobileUserAvatar(profile);
+      }
+    });
+  }
+
+  // Active state + notification badge
+  setupMobileNavActiveStates();
+  setupMobileNotificationBadge();
+
+  dbg("✅ Mobile bottom navigation initialized");
+}
+
+function updateMobileSheetThemeState() {
+  const sheetDarkToggle = document.getElementById("mobileSheetDarkModeToggle");
+  const labelEl = document.getElementById("mobileSheetDarkModeText");
+  if (!sheetDarkToggle || !labelEl) return;
+  const isDark = document.body.classList.contains("dark-mode");
+  sheetDarkToggle.setAttribute("aria-pressed", String(isDark));
+  labelEl.textContent = isDark ? "Light Mode" : "Dark Mode";
+  const icon = sheetDarkToggle.querySelector("i");
+  if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+
+// Listen to global theme changes to keep sheet button in sync
+window.addEventListener("themeChanged", updateMobileSheetThemeState);
+document.addEventListener("DOMContentLoaded", updateMobileSheetThemeState);
+
+/**
+ * Update mobile user avatar to match main navigation
+ */
+function updateMobileUserAvatar(userData) {
+  const mobileUserAvatar = document.getElementById("mobileUserAvatar");
+  if (!mobileUserAvatar) return;
+
+  const avatarConfig =
+    userData?.avatarConfig || userData?.profile?.avatarConfig;
+
+  if (
+    avatarConfig &&
+    avatarManager &&
+    typeof avatarManager.generateAvatarUrl === "function"
+  ) {
+    try {
+      const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
+      mobileUserAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" style="width: 24px; height: 24px; border-radius: 50%;">`;
+    } catch (error) {
+      mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+    }
+  } else {
+    mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+  }
+}
+
+/**
+ * Set up mobile navigation active state tracking
+ * Updates active states when pages change
+ */
+function setupMobileNavActiveStates() {
+  // Update mobile nav active states on page change
+  function updateMobileNavActiveStates(currentRoute) {
+    const mobileNavItems = document.querySelectorAll(
+      ".mobile-nav-item[data-spa-route]"
+    );
+
+    mobileNavItems.forEach((item) => {
+      const route = item.getAttribute("data-spa-route");
+      if (route === currentRoute) {
+        item.classList.add("active");
+        item.setAttribute("data-current", "true");
+      } else {
+        item.classList.remove("active");
+        item.removeAttribute("data-current");
+      }
+    });
+  }
+
+  // Listen for SPA navigation events
+  document.addEventListener("spa:route:changed", (event) => {
+    const currentRoute = event.detail?.route || "home";
+    updateMobileNavActiveStates(currentRoute);
+    // Update aria-current attributes
+    updateAriaCurrent(currentRoute);
+    // Close dropdown on navigation
+    const trigger = document.getElementById("mobileProfileTrigger");
+    if (trigger) {
+      trigger.classList.remove("active");
+      trigger.setAttribute("aria-expanded", "false");
+    }
+    const userDropdown = document.getElementById("userDropdown");
+    if (userDropdown && userDropdown.classList.contains("active")) {
+      closeUserDropdown();
+    }
+    const sheet = document.getElementById("mobileProfileSheet");
+    if (sheet && !sheet.hidden) {
+      // instantly hide without animation to avoid flicker during navigation
+      sheet.removeAttribute("data-open");
+      sheet.hidden = true;
+      const scrim = document.getElementById("mobileProfileScrim");
+      if (scrim) {
+        scrim.removeAttribute("data-open");
+        scrim.hidden = true;
+      }
+    }
+  });
+
+  // Also listen for hash changes as fallback
+  window.addEventListener("hashchange", () => {
+    const hash = window.location.hash.slice(1);
+    const route = hash || "home";
+    updateMobileNavActiveStates(route);
+  });
+
+  // Set initial active state based on current page
+  const initialRoute = window.location.hash.slice(1) || "home";
+  updateMobileNavActiveStates(initialRoute);
+  updateAriaCurrent(initialRoute);
+
+  dbg("📱 Mobile nav active states tracking initialized");
+}
+
+// Helper to update aria-current
+function updateAriaCurrent(route) {
+  const items = document.querySelectorAll(
+    ".mobile-bottom-nav .mobile-nav-item[data-spa-route]"
+  );
+  items.forEach((item) => {
+    const r = item.getAttribute("data-spa-route");
+    item.setAttribute("aria-current", r === route ? "page" : "false");
+  });
+}
+
+/**
+ * Set up mobile notification badge functionality
+ */
+function setupMobileNotificationBadge() {
+  // Example: Show badge when there are notifications
+  // This can be connected to your real notification system
+
+  // For demo purposes, show/hide badge based on notification data
+  function updateNotificationBadge(count = 0) {
+    const badge = document.querySelector(".mobile-nav-badge");
+    if (!badge) return;
+
+    if (count > 0) {
+      badge.textContent = count > 99 ? "99+" : count.toString();
+      badge.style.display = "block";
+      // Trigger badge animation
+      badge.style.animation = "none";
+      requestAnimationFrame(() => {
+        badge.style.animation = "badgePop 0.32s ease-out";
+      });
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  // Add haptic feedback for navigation taps (if supported)
+  function addHapticFeedback() {
+    const navItems = document.querySelectorAll(
+      ".mobile-nav-item[data-spa-route]"
+    );
+
+    navItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        // Subtle haptic feedback on supported devices
+        if (navigator.vibrate) {
+          navigator.vibrate(10);
+        }
+      });
+    });
+  }
+
+  // Initialize
+  addHapticFeedback();
+
+  // Expose updateNotificationBadge globally for other parts of the app
+  window.updateMobileNotificationBadge = updateNotificationBadge;
+
+  dbg("📱 Mobile notification badge system initialized");
 }
 
 // Add CSS class for touch feedback
@@ -925,7 +1295,7 @@ document.head.appendChild(style);
 function initializeNotificationsIndicator() {
   // Start once DOM is ready and user state is available
   try {
-    if (currentUser && typeof currentUser.subscribe === 'function') {
+    if (currentUser && typeof currentUser.subscribe === "function") {
       currentUser.subscribe(() => {
         const uid = currentUser.uid;
         // Only (re)setup listeners when UID changes (login/logout),
@@ -945,7 +1315,7 @@ function initializeNotificationsIndicator() {
       });
     }
   } catch (e) {
-    console.warn('⚠️ Failed to initialize notifications indicator:', e);
+    console.warn("⚠️ Failed to initialize notifications indicator:", e);
   }
 }
 
@@ -954,48 +1324,63 @@ function setupNotificationsIndicatorListener(userId) {
     // Cleanup previous
     teardownNotificationsIndicator();
     // Attach new realtime listener
-    notificationsUnsub = dataManager.setupNotificationsListener(userId, (notifications) => {
-      // Show dot if there are any unseen friend/location requests
-      const hasAlertFromNotifications = notifications.some(n => {
-        const isUnseen = !n.readAt && !n.dismissedAt;
-        const isTargetType = n.type === 'friend_request' || n.type === 'location_share_request';
-        return isUnseen && isTargetType;
-      });
-      // Combine with pending friend requests from separate collection
-      const combinedHasAlert = hasAlertFromNotifications || lastHasNotif;
-      toggleNotificationsDot(combinedHasAlert);
-    });
+    notificationsUnsub = dataManager.setupNotificationsListener(
+      userId,
+      (notifications) => {
+        // Show dot if there are any unseen friend/location requests
+        const hasAlertFromNotifications = notifications.some((n) => {
+          const isUnseen = !n.readAt && !n.dismissedAt;
+          const isTargetType =
+            n.type === "friend_request" || n.type === "location_share_request";
+          return isUnseen && isTargetType;
+        });
+        // Combine with pending friend requests from separate collection
+        const combinedHasAlert = hasAlertFromNotifications || lastHasNotif;
+        toggleNotificationsDot(combinedHasAlert);
+      }
+    );
 
     // Also listen to pending friend requests directly
-    friendReqUnsub = dataManager.listenToPendingFriendRequests(userId, (requests) => {
-      lastHasNotif = Array.isArray(requests) && requests.length > 0;
-      // Combine with notification doc check
-      // We don't have direct access to latest notifications here, so rely on lastHasNotif flag + dot recompute
-      // Trigger recompute by reading current dot state from DOM and toggling accordingly
-      const link = document.querySelector('.nav-link[data-spa-route="notifications"]');
-      const current = link?.classList.contains('has-alert') || false;
-      const desired = current || lastHasNotif;
-      toggleNotificationsDot(desired);
-    });
+    friendReqUnsub = dataManager.listenToPendingFriendRequests(
+      userId,
+      (requests) => {
+        lastHasNotif = Array.isArray(requests) && requests.length > 0;
+        // Combine with notification doc check
+        // We don't have direct access to latest notifications here, so rely on lastHasNotif flag + dot recompute
+        // Trigger recompute by reading current dot state from DOM and toggling accordingly
+        const link = document.querySelector(
+          '.nav-link[data-spa-route="notifications"]'
+        );
+        const current = link?.classList.contains("has-alert") || false;
+        const desired = current || lastHasNotif;
+        toggleNotificationsDot(desired);
+      }
+    );
   } catch (e) {
-    console.warn('⚠️ Could not set notifications listener:', e);
+    console.warn("⚠️ Could not set notifications listener:", e);
   }
 }
 
 function teardownNotificationsIndicator() {
-  if (notificationsUnsub && typeof notificationsUnsub === 'function') {
-    try { notificationsUnsub(); } catch (_) {}
+  if (notificationsUnsub && typeof notificationsUnsub === "function") {
+    try {
+      notificationsUnsub();
+    } catch (_) {}
   }
   notificationsUnsub = null;
-  if (friendReqUnsub && typeof friendReqUnsub === 'function') {
-    try { friendReqUnsub(); } catch (_) {}
+  if (friendReqUnsub && typeof friendReqUnsub === "function") {
+    try {
+      friendReqUnsub();
+    } catch (_) {}
   }
   friendReqUnsub = null;
 }
 
 function toggleNotificationsDot(show) {
-  const link = document.querySelector('.nav-link[data-spa-route="notifications"]');
+  const link = document.querySelector(
+    '.nav-link[data-spa-route="notifications"]'
+  );
   if (link) {
-    link.classList.toggle('has-alert', !!show);
+    link.classList.toggle("has-alert", !!show);
   }
 }

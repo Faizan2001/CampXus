@@ -2023,7 +2023,8 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 /* ===== CONTENT GRID RESPONSIVE ===== */
-.content-grid {
+/* Restrict schedule-specific content grid tweaks to the Home page */
+body.page-home .content-grid {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -2031,7 +2032,7 @@ body:not(.dark-mode) #slotTooltip {
 }
 
 @media (min-width: 769px) {
-  .content-grid {
+  body.page-home .content-grid {
     display: grid;
     grid-template-columns: 300px 1fr;
     gap: 2rem;

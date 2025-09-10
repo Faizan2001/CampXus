@@ -1379,6 +1379,13 @@ input[type="checkbox"]:checked + .toggle-switch::before {
 }
 
 @media (max-width: 480px) {
+
+  body.page-notifications .glass-card .notifications-card {
+
+    padding: 0.5rem;
+  }
+
+
   .notifications-page {
     padding: 0.5rem;
   }

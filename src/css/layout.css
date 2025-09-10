@@ -1,101 +1,55 @@
 /* 
 =============================================================================
-                          LAYOUT & NAVIGATION COMPONENTS
+                          LAYOUT & NAVIGATION COMPONENTS (CLEAN)
 =============================================================================
 
-This file contains all layout-related styles for the MeetchuThere app:
-
-- Main App Container & Structure
-- Top Navigation Bar & Logo
-- Navigation Links & Buttons  
-- Responsive Grid Systems
-- Mobile Navigation Rules
-- Desktop Two-Column Layout
-- Responsive Breakpoints & Ordering
-
+- Variables & App Container
+- Top Navigation / Logo / Links & Buttons
+- Main Content & Content Grid
+- Schedule (scroll indicator)
+- User Menu / Dropdown / Avatar
+- Login Button
+- Mobile Bottom Navigation (Pill-lift) + Mobile Profile Sheet
+- Keyframes
+- Media Queries (ordered: 325, 360, 480, 550, 600, 650–899, ≤768, ≤900, ≥900, ≥1600)
 =============================================================================
 */
 
-/* ===== MAIN APP CONTAINER ===== */
-/* Root container that holds the entire application structure */
-.app-container {
-  /* Use dynamic viewport height to avoid iOS address bar causing jumps */
-  min-height: 100dvh; /* Full viewport height (modern browsers) */
-  height: 100dvh; /* Lock height so internal sections manage their own scroll */
-  min-height: -webkit-fill-available; /* iOS Safari fallback */
-  display: flex;
-  flex-direction: column; /* Stack navigation above main content */
+/* ===== VARIABLES ===== */
+:root {
+  --nav-height: 64px; /* desktop default */
+  --mobile-bottom-nav-height: 60px; /* exposed for reservations */
 }
 
-/* ===== TOP NAVIGATION BAR ===== */
-/* Sticky navigation with glassmorphism effect and backdrop blur */
+/* ===== APP CONTAINER ===== */
+.app-container {
+  min-height: 100dvh;
+  height: 100dvh;
+  min-height: -webkit-fill-available; /* iOS fallback */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== TOP NAVIGATION ===== */
 .top-nav {
-  --nav-height: 64px; /* base height approximation including padding */
   position: sticky;
   top: 0;
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.1rem clamp(0.75rem, 2vw, 1rem); /* slimmer top/bottom as requested */
+  padding: 0.1rem clamp(0.75rem, 2vw, 1rem);
   width: 100%;
   min-width: 0;
+  box-sizing: border-box;
+  gap: 1rem;
   background: var(--nav-bg);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px var(--shadow);
-  box-sizing: border-box;
-  gap: 1rem;
 }
 
-/* Compact mobile nav height */
-@media (max-width: 600px) {
-  .top-nav {
-    padding: 0.45rem 0.75rem; /* reduced and consistent */
-    backdrop-filter: blur(18px);
-  }
-  .logo span {
-    font-size: 1.25rem;
-    padding-bottom: 4px;
-  }
-  .nav-link {
-    padding: 0.5rem 0.85rem;
-  }
-}
-
-/* Unified Mobile Nav Spec (<480px) */
-@media (max-width: 480px) {
-  .top-nav {
-    --nav-height: 56px; /* ensure toolbar meets platform convention */
-    padding: 0.45rem 0.75rem; /* ~7px vertical, 12px horizontal */
-    gap: 0.5rem;
-    height: var(--nav-height);
-  }
-  .nav-left {
-    gap: 0.5rem;
-  }
-  .nav-right {
-    gap: 0.4rem;
-  }
-  .logo {
-    padding: 0.25rem 0.5rem; /* ensure 8px-ish inset from edge */
-    min-height: 44px; /* touch target */
-  }
-  .logo span {
-    font-size: 1.2rem !important;
-    padding-bottom: 2px; /* reduce underline offset so fits inside 56px */
-  }
-  .nav-link,
-  .user-menu-trigger,
-  .theme-toggle,
-  .nav-button {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    padding: 0.4rem !important;
-  }
-}
-
-/* Navigation sections: brand (left), links (center), user/actions (right) */
+/* nav sections */
 .nav-left,
 .nav-center,
 .nav-right {
@@ -103,7 +57,6 @@ This file contains all layout-related styles for the MeetchuThere app:
   align-items: center;
   min-width: 0;
 }
-
 .nav-left {
   flex: 0 0 auto;
 }
@@ -117,86 +70,71 @@ This file contains all layout-related styles for the MeetchuThere app:
   gap: clamp(0.5rem, 2vw, 1rem);
 }
 
+/* inline links group */
 .nav-links {
   display: flex;
   align-items: center;
   gap: var(--space-md, 1rem);
 }
 
-/* ===== LOGO COMPONENT ===== */
-/* Brand identity with icon and text */
+/* ===== LOGO ===== */
 .logo {
   display: flex;
   align-items: center;
   gap: var(--space-sm, 0.5rem);
-  font-size: clamp(1.3rem, 3vw, 1.7rem); /* Fluid logo sizing */
+  font-size: clamp(1.3rem, 3vw, 1.7rem);
   font-weight: 700;
   color: var(--text-primary);
   text-decoration: none;
   position: relative;
 }
-
+.logo i {
+  display: none;
+  font-size: 1.5rem;
+}
 .logo span {
   font-size: 1.5rem;
   font-weight: 850;
+  font-style: italic;
   color: transparent;
   background: linear-gradient(135deg, #4f46e5, #8b5cf6, #d946ef);
   background-clip: text;
-  font-style: italic;
   -webkit-background-clip: text;
   position: relative;
   padding-bottom: 8px;
   display: inline-block;
 }
-
 .logo span::after {
   content: "";
   position: absolute;
-  left: 15%; /* Centered positioning for 70% width underline */
-  bottom: -2px; /* Slightly below text for better visual separation */
+  left: 15%;
+  bottom: -2px;
   height: 3px;
-  width: 70%; /* 70% width centered under the text */
+  width: 70%;
   background: linear-gradient(135deg, #8b5cf6, #d946ef);
   transform: scaleX(0);
-  transform-origin: left; /* Grow from left to right following the wipe */
+  transform-origin: left;
   animation: draw-underline 1.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-  border-radius: 2px; /* Slightly rounded underline */
+  border-radius: 2px;
 }
-
 .logo span::before {
   content: "";
   position: absolute;
-  /* This shorthand sets top, right, bottom, and left to 0 */
   inset: 0;
-
-  /* Sits above the gradient background */
   z-index: 1;
-
-  /* Use CSS variable that matches the nav background dynamically - make it more opaque */
   background: var(--nav-bg);
-  opacity: 1; /* Ensure full opacity for better coverage */
-
-  /* Animation starts from the right, wiping left */
+  opacity: 1;
   transform-origin: right;
-
-  /* Synchronized timing with underline animation */
   animation: wipe-reveal 1.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
-/* Hide the calendar icon for cleaner modern look */
-.logo i {
-  display: none;
-  font-size: 1.5rem;
-}
-
-/* ===== NAVIGATION LINKS ===== */
+/* ===== NAV LINKS & BUTTONS ===== */
 .nav-link {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-sm, 0.5rem);
-  /* Ensure 44x44px minimum touch target */
-  min-width: 2.75rem; /* 44px */
+  min-width: 2.75rem;
   min-height: 2.75rem; /* 44px */
   padding: var(--space-sm, 0.5rem) var(--space-md, 1rem);
   border-radius: var(--radius-lg);
@@ -209,14 +147,10 @@ This file contains all layout-related styles for the MeetchuThere app:
   overflow: hidden;
   box-sizing: border-box;
 }
-
-/* Ensure light mode explicitly sets nav link colors (prevent cascade gaps) */
 .light-mode .nav-link,
 body:not(.dark-mode) .nav-link {
   color: var(--nav-link-color, var(--nav-link-fallback-color, #475569));
 }
-
-/* Small dot indicator for notifications */
 .nav-link.has-alert::after {
   content: "";
   position: absolute;
@@ -228,7 +162,6 @@ body:not(.dark-mode) .nav-link {
   background: var(--accent-primary);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
-
 .nav-link::before {
   content: "";
   position: absolute;
@@ -244,35 +177,29 @@ body:not(.dark-mode) .nav-link {
   );
   transition: left 0.5s ease;
 }
-
 .nav-link:hover::before {
   left: 100%;
 }
-
 .nav-link:hover {
   background: var(--nav-link-hover-bg);
   color: var(--nav-link-hover-color);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
-/* Active nav state: compact purple selection indicator */
 .nav-link.active,
 .nav-link[aria-current="page"] {
-  margin: 3px 4px 3px 4px;
+  margin: 3px 4px;
   background: var(--nav-link-hover-bg, rgba(139, 92, 246, 0.12));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15),
     0 2px 6px rgba(0, 0, 0, 0.15);
   color: var(--nav-link-hover-color, var(--accent-primary));
 }
-
-/* Preserve hover elevation while active */
 .nav-link.active:hover,
 .nav-link[aria-current="page"]:hover {
   transform: translateY(-2px);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18),
     0 3px 8px rgba(0, 0, 0, 0.2);
 }
-/* Light mode hover safety to ensure styles apply */
 .light-mode .nav-link:hover,
 body:not(.dark-mode) .nav-link:hover {
   background: var(--nav-link-hover-bg);
@@ -282,29 +209,25 @@ body:not(.dark-mode) .nav-link:hover {
   );
 }
 
-/* ===== ENHANCED NAVIGATION BUTTONS ===== */
+/* icon-only utility button */
 .nav-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: auto !important;
-  height: auto !important;
   min-width: 2.5rem;
   min-height: 2.5rem;
-  border: none !important; /* Force remove any inherited borders */
-  border-radius: 0.5rem; /* Subtle rounded corners */
-  background: transparent !important; /* Clean, no background by default */
+  padding: 0.5rem !important;
+  border: none !important;
+  border-radius: 0.5rem;
+  background: transparent !important;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s var(--animation-spring);
   font-size: 1.1rem;
+  transition: all 0.3s var(--animation-spring);
   position: relative;
   overflow: hidden;
-  padding: 0.5rem !important; /* Minimal padding for touch target */
-  /* Ensure consistent box-sizing */
   box-sizing: border-box;
 }
-
 .nav-button::before {
   content: "";
   position: absolute;
@@ -312,128 +235,59 @@ body:not(.dark-mode) .nav-link:hover {
   left: 50%;
   width: 0;
   height: 0;
+  border-radius: 50%;
   background: radial-gradient(
     circle,
     var(--accent-primary) 30%,
     transparent 70%
   );
-  transition: all 0.4s ease;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
   opacity: 0;
+  transition: all 0.4s ease;
 }
-
 .nav-button:hover::before {
   width: 120%;
   height: 120%;
   opacity: 0.1;
 }
-
 .nav-button:hover {
   background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
   color: var(--accent-primary);
   transform: scale(1.1);
-  box-shadow: none !important; /* Remove shadow for cleaner look */
-  border: none !important; /* Ensure no borders appear on hover */
+  box-shadow: none !important;
 }
-
 .nav-button:focus {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
-/* Mobile-specific timed illumination system */
-@media (max-width: 768px) {
-  /* Icon scaling on hover for better visual feedback */
-  .nav-button i {
-    transition: all 0.3s var(--animation-smooth);
-  }
-
-  .nav-button:hover i {
-    transform: scale(1.1);
-  }
-
-  /* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
-  /* These .main-content and .content-grid rules will be moved from here */
-
-  .schedule-column {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0; /* Allow content to shrink */
-  }
-
-  /* Ensure all cards take full width and respect container bounds */
-  .schedule-column .glass-card {
-    width: 100%;
-    max-width: 100%;
-    margin-bottom: 0; /* Remove individual card margins if parent has gap */
-    box-sizing: border-box;
-  }
-}
-
-/* ===== LOGO ANIMATION KEYFRAMES ===== */
-
-/* Synchronized wipe animation that reveals text smoothly */
-@keyframes wipe-reveal {
-  0% {
-    transform: scaleX(1);
-  }
-  100% {
-    transform: scaleX(0);
-  }
-}
-
-/* Synchronized underline animation that grows with the text reveal */
-@keyframes draw-underline {
-  0% {
-    transform: scaleX(0);
-  }
-  100% {
-    transform: scaleX(1);
-  }
-}
-
-/* ===== MAIN CONTENT & RESPONSIVE GRID SYSTEM ===== */
-/* These rules are moved here to become base styles */
+/* ===== MAIN CONTENT & GRID ===== */
 .main-content {
-  padding: clamp(0.75rem, 3vw, 1.5rem); /* Responsive padding */
+  padding: clamp(0.75rem, 3vw, 1.5rem);
   width: 100%;
-  max-width: 100vw; /* Never exceed viewport width */
+  max-width: 100vw;
   margin: 0 auto;
-  box-sizing: border-box; /* Include padding in width calculation */
-  overflow-x: hidden; /* Prevent horizontal scroll */
-  display: flex; /* Enable vertical distribution */
+  box-sizing: border-box;
+  overflow-x: hidden;
+  display: flex;
   flex-direction: column;
-  flex: 1 1 auto; /* Fill remaining space under nav */
-
+  flex: 1 1 auto;
   background: var(--main-content-bg);
   position: relative;
-  height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-  max-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--nav-height, 64px) - env(safe-area-inset-bottom));
+  max-height: calc(
+    100dvh - var(--nav-height, 64px) - env(safe-area-inset-bottom)
+  );
   padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
 }
-
-/* Adjust main content height when ultra compact nav is active */
-@media (max-width: 480px) {
-  .main-content {
-    min-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-  }
-}
-
-/* Add subtle overlay pattern for extra visual depth */
 .main-content::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: var(--main-content-overlay);
   pointer-events: none;
   z-index: 0;
 }
-
-/* Ensure content appears above the overlay */
 .main-content > * {
   position: relative;
   z-index: 1;
@@ -441,73 +295,77 @@ body:not(.dark-mode) .nav-link:hover {
 
 .content-grid {
   display: flex;
-  flex-direction: column; /* Mobile-first: single column */
-  gap: 0.75rem; /* Compact fixed gap between friends bar and schedule */
+  flex-direction: column;
+  gap: 0.5rem;
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  flex: 1 1 auto; /* Allow internal sections (friends bar + schedule) to stretch */
-  min-height: 0; /* Enable children with overflow to scroll */
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
-/* Home page: confine scroll to schedule wrapper only */
+/* home-page scroll rules */
 body.page-home {
   overflow: hidden;
 }
 body.page-home .main-content {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0.5rem 0.4rem !important;
 }
 body.page-home .content-grid {
   overflow: hidden;
 }
+.content-grid > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 body.page-home .schedule-section {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
-body.page-home .schedule-wrapper {
+body.page-home .schedule-wrapper,
+body.page-home .schedule-day-view .day-view-container {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: auto;
 }
 body.page-home .horizontal-friends-bar {
   flex-shrink: 0;
 }
-
-/* Safe-area awareness for iOS bottom gesture bar inside schedule scroll area */
 body.page-home .schedule-wrapper {
-  padding-bottom: max(env(safe-area-inset-bottom), 3.5rem);
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
 }
 
-/* ===== SCHEDULE SCROLL INDICATOR ARROW ===== */
+/* ===== SCHEDULE SCROLL INDICATOR ===== */
 .schedule-section {
-  position: relative; /* Enable absolute positioning for scroll indicator */
+  position: relative;
 }
-
 .schedule-scroll-indicator {
-  position: fixed; /* center relative to screen */
-  bottom: calc(1rem + 4px); /* 4px higher */
+  position: fixed;
+  bottom: calc(1rem + 4px);
   left: 50%;
   transform: translateX(-50%);
-  width: 24px; /* container for chevron */
+  width: 24px;
   height: 14px;
-  transition: opacity 0.15s ease-out, transform 0.15s ease-out; /* faster fade */
-  z-index: 1000; /* above page content */
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+  z-index: 1000;
   pointer-events: none;
   opacity: 0.9;
   background: transparent;
 }
-
 .schedule-scroll-indicator::before,
 .schedule-scroll-indicator::after {
   content: "";
   position: absolute;
   top: 4px;
   width: 12px;
-  height: 2px; /* line thickness */
+  height: 2px;
   background: var(--text-secondary);
   border-radius: 2px;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.12));
@@ -520,419 +378,23 @@ body.page-home .schedule-wrapper {
   right: 2px;
   transform: rotate(-45deg);
 }
-
-/* Dark mode styling */
-body.dark-mode .schedule-scroll-indicator::before,
-body.dark-mode .schedule-scroll-indicator::after {
-  background: var(--text-secondary);
-}
-
-/* Light mode styling */
-body:not(.dark-mode) .schedule-scroll-indicator::before,
-body:not(.dark-mode) .schedule-scroll-indicator::after {
-  background: rgba(139, 92, 246, 0.85);
-}
-
-/* Hide when scrolled to bottom */
-.schedule-scroll-indicator.hidden {
-  opacity: 0;
-  transform: translateX(-50%) translateY(10px);
-  pointer-events: none;
-}
-
-/* Subtle pulse animation */
-@keyframes subtle-pulse {
-  0%,
-  100% {
-    opacity: 0.7;
-    transform: translateX(-50%) scale(1);
-  }
-  50% {
-    opacity: 0.9;
-    transform: translateX(-50%) scale(1.05);
-  }
-}
-
-.schedule-scroll-indicator:not(.hidden) {
-  animation: subtle-pulse 3s ease-in-out infinite;
-}
-
-/* Only show indicator in Day View */
-.schedule-scroll-indicator {
-  display: none;
-}
 .schedule-day-view.active ~ .schedule-scroll-indicator {
   display: block;
 }
 
-/* Respect reduced motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  .schedule-scroll-indicator:not(.hidden) {
-    animation: none;
-  }
-}
-
-/* ===== RESPONSIVE DESIGN RULES ===== */
-
-/* Mobile Navigation Responsiveness */
-@media (max-width: 768px) {
-  .top-nav {
-    padding: 0.55rem clamp(0.75rem, 3vw, 1.25rem);
-  }
-  .nav-center {
-    flex: 1;
-  }
-  .nav-links {
-    gap: clamp(0.5rem, 2.5vw, 0.85rem);
-  }
-  .logo span {
-    font-size: 1.35rem;
-  }
-  .nav-button {
-    width: clamp(2rem, 6vw, 2.5rem);
-    height: clamp(2rem, 6vw, 2.5rem);
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-  }
-  /* Remove all inter-item and internal gaps below 768px as requested */
-  .nav-left,
-  .nav-center,
-  .nav-right,
-  .nav-links {
-    gap: 0 !important;
-  }
-  .nav-link {
-    gap: 0 !important;
-  }
-}
-
-/* Ultra small: hide text labels, show icons only to save space */
-@media (max-width: 480px) {
-  .nav-links .nav-text {
-    display: none;
-  }
-  .nav-links {
-    gap: 0 !important;
-  }
-  .nav-left,
-  .nav-center,
-  .nav-right {
-    gap: 0 !important;
-  }
-  .nav-link {
-    gap: 0 !important;
-  }
-  .nav-links .nav-link {
-    padding: 0.5rem 0.65rem;
-  }
-  .logo span {
-    font-size: 1.15rem !important;
-  }
-}
-
-@media (max-width: 360px) {
-  .logo span {
-    font-size: 1.05rem !important;
-  }
-}
-
-/* Removed legacy ultra-responsive padding block (replaced by unified spec) */
-
-/* Larger Mobile / Small Tablet (e.g., > 550px) */
-@media (min-width: 550px) {
-  .main-content {
-    padding: clamp(1rem, 4vw, 1.5rem); /* More responsive padding */
-  }
-}
-
-/* ===== INTERMEDIATE TABLET LAYOUT (650px - 899px) ===== */
-/* Smooth transition between mobile and desktop */
-@media (min-width: 650px) and (max-width: 899px) {
-  .main-content {
-    padding: clamp(1.25rem, 4vw, 2rem);
-    max-width: 100vw;
-  }
-
-  .content-grid {
-    gap: clamp(1.25rem, 3vw, 2rem);
-  }
-
-  .glass-card {
-    padding: clamp(1.25rem, 4vw, 1.75rem);
-  }
-}
-
-/* Removed nav-condensed variant (structural center alignment replaces it) */
-
-/* ===== MOBILE LAYOUT ORDERING (up to 900px) ===== */
-/* Single column layout with proper mobile ordering */
-@media (max-width: 900px) {
-  .content-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.75rem !important; /* Fixed compact gap */
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .schedule-column {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important; /* Allow content to shrink */
-    order: 1; /* Schedule column first */
-  }
-
-  /* Make glass cards use full width */
-  .glass-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Better button grouping for mobile */
-  .button-group {
-    flex-direction: column !important;
-  }
-
-  .button-group button {
-    width: 100% !important;
-    margin-right: 0 !important;
-    margin-bottom: 0.75rem !important;
-  }
-
-  .button-group button:last-child {
-    margin-bottom: 0 !important;
-  }
-}
-
-/* ===== ULTRA-WIDE DESKTOP OPTIMIZATIONS (1600px+) ===== */
-@media (min-width: 1600px) {
-  .main-content {
-    padding: 2.5rem 3rem; /* More generous padding */
-    max-width: 1800px; /* Constrain maximum width */
-    margin: 0 auto; /* Center the content */
-  }
-
-  .content-grid {
-    max-width: 1400px !important; /* Wider max-width for ultra-wide screens */
-    gap: 0.75rem !important; /* Consistent compact gap */
-  }
-
-  /* Single column layout for ultra-wide */
-  .schedule-column {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  /* Reset section positioning for ultra-wide */
-  .schedule-section {
-    order: unset !important;
-    height: fit-content; /* Scale with content */
-    max-height: calc(100vh - 4rem); /* Fallback */
-    max-height: calc(100dvh - 4rem); /* Prefer dvh for iOS URL bar */
-  }
-
-  /* Larger cards for wide screens */
-  .glass-card {
-    padding: 2rem;
-  }
-
-  /* Enhanced schedule table for wide screens */
-  .schedule-table th,
-  .schedule-table td {
-    padding: 0.75rem;
-    font-size: 1rem;
-    min-height: 4.5rem;
-  }
-
-  .schedule-table .slot {
-    min-height: 4.5rem;
-  }
-
-  /* Better schedule height utilization on wide screens */
-  .schedule-wrapper {
-    max-height: calc(100vh - 10rem); /* Fallback */
-    max-height: calc(
-      100dvh - 10rem
-    ); /* Optimized for wide screens (iOS safe) */
-    min-height: 600px; /* Larger minimum height for wide screens */
-  }
-}
-
-/* Optional: For extreme compactness on very small screens, use vertical headers */
-@media (max-width: 479px) {
-  .schedule-table .day-label,
-  .schedule-table .time-header {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    white-space: nowrap;
-    font-size: 0.6rem; /* Adjust if needed with vertical text */
-    padding: 0.2rem 0.1rem; /* Adjust padding for vertical */
-  }
-}
-
-/* Force horizontal time header in grid view (all breakpoints) */
-.schedule-grid-view .schedule-table .time-header {
-  writing-mode: initial !important;
-  text-orientation: initial !important;
-  white-space: normal !important;
-}
-
-/* ===== ADDITIONAL MOBILE RESPONSIVE ENHANCEMENTS ===== */
-/* Single column layout when screen gets too narrow */
-@media (max-width: 900px) {
-  .content-grid {
-    display: flex !important;
-    flex-direction: column !important; /* Now uses normal column order for new layout */
-    gap: 0.75rem !important; /* Fixed compact gap */
-    width: 100% !important;
-  }
-
-  .schedule-column {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  /* Single column layout - schedule only */
-  .schedule-column {
-    order: 1; /* Schedule column first */
-  }
-
-  /* Make glass cards use full width */
-  .glass-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Better button grouping for mobile */
-  .button-group {
-    flex-direction: column !important;
-  }
-
-  .button-group button {
-    width: 100% !important;
-    margin-right: 0 !important;
-    margin-bottom: 0.75rem !important;
-  }
-
-  .button-group button:last-child {
-    margin-bottom: 0 !important;
-  }
-}
-
-/* Small mobile enhancements for better visibility */
-@media (max-width: 480px) {
-  /* Make slots more compact for better visibility */
-  .slot {
-    height: 2.25rem !important;
-    min-height: 2.25rem !important;
-  }
-
-  /* Adjust schedule wrapper scrolling */
-  .schedule-wrapper {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 5px !important;
-  }
-
-  /* Improve small mobile scale */
-  .schedule-table {
-    min-width: 550px !important; /* Smaller minimum to show more columns */
-    font-size: 0.65rem !important;
-  }
-
-  /* Adjust spacing for main content */
-  main.main-content {
-    padding: 0.75rem !important;
-  }
-}
-
-/* ===== STANDARD DESKTOP LAYOUT (900px - 1599px) ===== */
-@media (min-width: 900px) {
-  .top-nav {
-    /* Add this new ruleset */
-    width: 100%; /* Explicitly set full width for this breakpoint */
-    box-sizing: border-box; /* Ensures padding and border are included in the 100% width */
-  }
-
-  /* Slightly reduced desktop nav-link padding for consistency */
-  .nav-link {
-    padding: var(--space-sm) var(--space-md);
-  }
-
-  .main-content {
-    padding: 2rem; /* Restore desktop padding */
-    max-width: none; /* Remove width constraint for full width */
-    width: 100%;
-  }
-
-  .content-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 0.75rem !important; /* Fixed compact gap */
-    width: 100% !important;
-    max-width: 1200px !important;
-    margin: 0 auto !important;
-  }
-
-  /* Single column layout */
-  .schedule-column {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  /* Reset any individual section positioning */
-  .schedule-section {
-    order: unset !important;
-  }
-
-  /* Restore standard schedule sizes */
-  .schedule-table th,
-  .schedule-table td {
-    padding: 0.5rem;
-    font-size: 0.9rem;
-    min-height: 3.5rem; /* Standard slot height */
-  }
-  .schedule-table .slot {
-    min-height: 3.5rem;
-  }
-  .schedule-table .day-label,
-  .schedule-table .time-header {
-    font-size: 0.85rem; /* Standard header font size */
-    writing-mode: initial; /* Ensure text is horizontal */
-    text-orientation: initial;
-  }
-
-  /* Optimize schedule height for standard desktop */
-  .schedule-wrapper {
-    max-height: calc(100vh - 12rem); /* Fallback */
-    max-height: calc(100dvh - 12rem); /* Desktop-optimized height */
-    min-height: 500px; /* Adequate minimum height for desktop */
-  }
-}
-
-/* ===== RESPONSIVE NAVIGATION TEXT ===== */
-.nav-text {
-  display: inline; /* Show text by default */
-}
-
-/* ===== USER MENU SYSTEM ===== */
+/* ===== USER MENU (trigger + dropdown) ===== */
 .user-menu {
   position: relative;
   display: flex;
   align-items: center;
 }
-
-/* Simplified user menu trigger - clean icon-only design */
 .user-menu-trigger {
-  /* Clean, borderless design */
-  /* Ensure 44x44px minimum touch target */
-  min-width: 2.75rem; /* 44px */
-  min-height: 2.75rem; /* 44px */
-  border: none !important; /* Force remove any inherited borders */
-  border-radius: 0.5rem; /* Subtle rounded corners */
-  background: transparent !important; /* No background by default */
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.5rem !important;
+  border: none !important;
+  border-radius: 0.5rem;
+  background: transparent !important;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s var(--animation-smooth);
@@ -941,38 +403,30 @@ body:not(.dark-mode) .schedule-scroll-indicator::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem !important; /* Minimal padding for touch target */
-  /* Ensure consistent box-sizing */
   box-sizing: border-box;
 }
-
 .user-menu-trigger:hover {
   background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
   color: var(--accent-primary);
   transform: scale(1.1);
-  box-shadow: none !important; /* Remove shadow for cleaner look */
+  box-shadow: none !important;
 }
-
 .user-menu-trigger:focus {
   outline: none;
   background: var(--surface-hover);
   box-shadow: var(--focus-ring);
 }
-
-/* User avatar icon with enhanced styling */
 .user-menu-trigger i {
-  font-size: 1.4rem; /* Slightly larger for better visibility */
-  transition: all 0.3s var(--animation-smooth);
+  font-size: 1.4rem;
   color: inherit;
+  transition: all 0.3s var(--animation-smooth);
 }
-
 .user-menu-trigger:hover i {
   transform: scale(1.1);
   color: var(--accent-primary);
 }
-
-/* Subtle ripple effect for user menu trigger */
 .user-menu-trigger::before {
+  /* ripple */
   content: "";
   position: absolute;
   top: 50%;
@@ -984,24 +438,24 @@ body:not(.dark-mode) .schedule-scroll-indicator::after {
     var(--accent-primary) 30%,
     transparent 70%
   );
-  transition: all 0.4s ease;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   opacity: 0;
+  transition: all 0.4s ease;
 }
-
 .user-menu-trigger:hover::before {
   width: 120%;
   height: 120%;
   opacity: 0.1;
 }
 
-/* ===== USER DROPDOWN MENU ===== */
+/* dropdown */
 .user-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   width: 280px;
+  max-height: calc(100vh - 100px);
   background: var(--user-dropdown-bg);
   border: 1px solid var(--user-dropdown-border);
   border-radius: var(--radius-lg);
@@ -1012,12 +466,8 @@ body:not(.dark-mode) .schedule-scroll-indicator::after {
   visibility: hidden;
   transform: translateY(-10px);
   transition: all 0.3s var(--animation-spring);
-  /* Prevent dropdown from being cut off */
-  max-height: calc(100vh - 100px);
   overflow-y: auto;
 }
-
-/* Fix: Light mode dropdowns explicitly use light surfaces and borders */
 .light-mode .user-dropdown,
 body:not(.dark-mode) .user-dropdown {
   background: var(
@@ -1026,7 +476,6 @@ body:not(.dark-mode) .user-dropdown {
   );
   border-color: var(--user-dropdown-border);
 }
-
 .user-dropdown.active {
   opacity: 1;
   visibility: visible;
@@ -1042,26 +491,22 @@ body:not(.dark-mode) .user-dropdown {
   background: var(--surface-hover);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
-
 .user-avatar-large {
   font-size: 2.5rem;
   color: var(--accent-primary);
   flex-shrink: 0;
 }
-
 .user-details {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
-
 .user-details .user-name {
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
   max-width: 180px;
 }
-
 .user-email {
   font-size: 0.875rem;
   color: var(--text-secondary);
@@ -1074,7 +519,6 @@ body:not(.dark-mode) .user-dropdown {
 .dropdown-menu {
   padding: var(--space-sm);
 }
-
 .dropdown-item {
   display: flex;
   align-items: center;
@@ -1092,13 +536,11 @@ body:not(.dark-mode) .user-dropdown {
   transition: all 0.3s var(--animation-smooth);
   text-align: left;
 }
-
 .dropdown-item:hover {
   background: var(--surface-hover);
   color: var(--accent-primary);
   transform: translateX(4px);
 }
-
 .dropdown-item i {
   font-size: 1rem;
   width: 20px;
@@ -1106,22 +548,18 @@ body:not(.dark-mode) .user-dropdown {
   color: var(--text-secondary);
   transition: color 0.3s var(--animation-smooth);
 }
-
 .dropdown-item:hover i {
   color: var(--accent-primary);
 }
-
-/* Sign out button specific styling */
 .dropdown-item#signOutBtn:hover {
   background: var(--signout-hover-bg);
   color: var(--error-red);
 }
-
 .dropdown-item#signOutBtn:hover i {
   color: var(--error-red);
 }
 
-/* ===== LOGIN BUTTON STYLING ===== */
+/* ===== LOGIN BUTTON ===== */
 .login-btn {
   white-space: nowrap;
   font-weight: 600;
@@ -1142,28 +580,23 @@ body:not(.dark-mode) .user-dropdown {
     var(--accent-primary),
     var(--accent-secondary)
   );
-  color: white;
+  color: #fff;
   box-shadow: var(--shadow-accent-light);
   text-decoration: none;
 }
-
 .login-btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-accent-strong);
-  color: white;
+  color: #fff;
 }
-
 .login-btn:active {
   transform: translateY(0);
   box-shadow: var(--shadow-accent-light);
 }
-
 .login-btn:focus {
   outline: none;
   box-shadow: var(--shadow-accent-strong), var(--focus-ring);
 }
-
-/* Add ripple effect for login button */
 .login-btn::before {
   content: "";
   position: absolute;
@@ -1176,575 +609,13 @@ body:not(.dark-mode) .user-dropdown {
   transform: translate(-50%, -50%);
   transition: width 0.3s ease, height 0.3s ease;
 }
-
 .login-btn:active::before {
   width: 300px;
   height: 300px;
 }
 
-/* ===== RESPONSIVE NAVIGATION ===== */
-@media (max-width: 768px) {
-  .top-nav {
-    padding: 0.5rem 0.75rem; /* compact and consistent on mobile */
-    gap: var(--space-md);
-  }
-
-  .nav-left {
-    gap: var(--space-md);
-    flex: 1; /* Take available space */
-    display: flex;
-    align-items: center;
-  }
-
-  .nav-right {
-    gap: var(--space-sm); /* Reduce gap between elements on mobile */
-    flex-shrink: 0; /* Prevent shrinking */
-    align-items: center;
-  }
-
-  .nav-links {
-    /* Center icons between logo (left) and user menu (right) */
-    margin-left: 0;
-    /* Slightly reduce desktop nav link padding for tighter top-nav */
-    .nav-link {
-      padding: 0.5rem 0.75rem;
-    }
-    justify-content: center;
-  }
-
-  /* Hide nav text on mobile, keep icons */
-  .nav-text {
-    display: none;
-  }
-
-  .nav-link {
-    /* Ensure 44x44 touch targets */
-    padding: 0.25rem;
-    min-width: 44px;
-    min-height: 44px;
-    justify-content: center;
-  }
-
-  /* Enhanced nav-links centering on mobile */
-  .nav-links {
-    /* Center navigation icons between logo and user menu trigger */
-    justify-content: center;
-    flex: 1;
-    gap: var(--space-sm, 0.5rem); /* Tighter gap on mobile */
-  }
-
-  .nav-link {
-    /* Ensure 44x44px touch targets on mobile */
-    min-width: 2.75rem; /* 44px */
-    min-height: 2.75rem; /* 44px */
-    padding: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Enhanced dark mode button for mobile */
-  .theme-toggle {
-    width: auto !important;
-    height: auto !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    padding: 0.5rem !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-shrink: 0;
-    transition: all 0.3s var(--animation-spring);
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0.5rem !important;
-  }
-
-  .theme-toggle i {
-    font-size: 1rem !important;
-    transition: all 0.3s var(--animation-smooth);
-  }
-
-  .theme-toggle:hover {
-    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
-    color: var(--accent-primary);
-    transform: scale(1.1);
-    box-shadow: none !important;
-  }
-
-  .theme-toggle:hover i {
-    transform: scale(1.1);
-  }
-
-  /* Login button mobile optimization */
-  .login-btn {
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* Compact user menu on mobile */
-  .user-menu {
-    flex-shrink: 0;
-  }
-
-  /* Ensure user menu trigger matches other nav buttons on mobile */
-  .user-menu-trigger {
-    width: auto !important;
-    height: auto !important;
-    min-width: 44px !important; /* 44x44 touch target */
-    min-height: 44px !important; /* 44x44 touch target */
-    padding: 0.5rem !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: all 0.3s var(--animation-spring);
-    overflow: hidden;
-    position: relative;
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0.5rem !important;
-  }
-
-  .user-menu-trigger i {
-    font-size: 1.1rem !important;
-    transition: all 0.3s var(--animation-smooth);
-  }
-
-  .user-menu-trigger:hover {
-    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
-    color: var(--accent-primary);
-    transform: scale(1.1);
-    box-shadow: none !important;
-  }
-
-  .user-menu-trigger:hover i {
-    transform: scale(1.1);
-  }
-
-  /* Add ripple effect for user menu trigger */
-  .user-menu-trigger::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: radial-gradient(
-      circle,
-      var(--accent-primary) 30%,
-      transparent 70%
-    );
-    transition: all 0.4s ease;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    opacity: 0;
-  }
-
-  .user-menu-trigger:hover::before {
-    width: 120%;
-    height: 120%;
-    opacity: 0.1;
-  }
-
-  /* Enhanced dropdown positioning for mobile */
-  .user-dropdown {
-    width: 280px;
-    right: 0;
-    max-width: calc(100vw - 2rem);
-    /* Ensure dropdown doesn't overflow viewport */
-  }
-
-  .dropdown-header {
-    padding: var(--space-md);
-  }
-
-  /* Improve touch targets in dropdown */
-  .dropdown-item {
-    padding: var(--space-md) var(--space-lg);
-    min-height: 48px; /* WCAG AA minimum touch target */
-    display: flex;
-    align-items: center;
-  }
-}
-
-/* Legacy duplicate mobile nav block removed */
-
-/* ===== ULTRA-COMPACT SCREENS (iPhone 4 & smaller - 320px) ===== */
-@media (max-width: 325px) {
-  .top-nav {
-    padding: 0.4rem 0.55rem;
-  }
-
-  .nav-left {
-    gap: 0.5rem; /* Reduce gap around logo */
-    min-width: 0; /* Allow shrinking if needed */
-  }
-
-  .nav-right {
-    gap: 0.25rem !important; /* Minimal gap between buttons */
-    flex-shrink: 0; /* Prevent shrinking of controls */
-    align-items: center;
-  }
-
-  .logo span {
-    font-size: 1rem !important; /* Ultra-compact but maintains proportions */
-    font-weight: 850; /* Keep consistent weight */
-    font-style: italic; /* Keep consistent style */
-  }
-
-  .logo span::after {
-    left: 15%; /* Maintain consistent centered underline positioning */
-    bottom: -2px;
-    width: 70%;
-  }
-
-  /* Ultra-compact theme toggle */
-  .theme-toggle {
-    width: auto !important;
-    height: auto !important;
-    min-width: 2rem !important;
-    min-height: 2rem !important;
-    padding: 0.3rem !important;
-    flex-shrink: 0; /* Don't allow shrinking */
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0.4rem !important;
-  }
-
-  .theme-toggle i {
-    font-size: 0.75rem !important;
-  }
-
-  .theme-toggle:hover {
-    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
-    transform: scale(1.1);
-    box-shadow: none !important;
-  }
-
-  /* Ultra-compact login button with shorter text */
-  .login-btn {
-    padding: 0.5rem 0.625rem !important;
-    font-size: 0.7rem !important;
-    white-space: nowrap !important;
-    flex-shrink: 0; /* Don't allow shrinking */
-    position: relative;
-    text-indent: -9999px; /* Hide original text */
-    max-width: 4.5rem; /* Limit width to fit */
-    overflow: hidden;
-  }
-
-  /* Show shorter text for ultra-compact screens */
-  .login-btn::before {
-    content: "🎓 Join";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    text-indent: 0;
-    color: white;
-    font-weight: 600;
-    font-size: 0.7rem;
-  }
-
-  /* User dropdown - full width on very small screens */
-  .user-dropdown {
-    width: calc(100vw - 1.5rem);
-    right: -0.75rem;
-    left: 0.75rem;
-    /* Use viewport positioning for better mobile experience */
-  }
-
-  /* Larger touch targets for very small screens */
-  .dropdown-item {
-    padding: 1rem var(--space-lg);
-    min-height: 52px;
-    font-size: 0.9rem;
-  }
-
-  .dropdown-item i {
-    font-size: 1.1rem;
-    width: 24px;
-  }
-
-  /* Ensure avatar is touch-friendly but maintains desktop behavior */
-  .user-menu-trigger {
-    min-height: 44px; /* WCAG AA minimum */
-    min-width: 44px;
-    width: 2.25rem !important;
-    height: 2.25rem !important;
-  }
-
-  .user-menu-trigger:hover {
-    transform: scale(1.05);
-  }
-}
-
-/* ===== MOBILE DROPDOWN POSITIONING ENHANCEMENTS ===== */
-@media (max-width: 768px) {
-  /* Smart dropdown positioning to prevent overflow */
-  .user-dropdown {
-    /* Use dynamic positioning based on available space */
-    position: fixed;
-    top: auto;
-    bottom: auto;
-    /* JavaScript will handle dynamic positioning */
-  }
-
-  /* Ensure dropdown is always accessible on mobile */
-  .user-dropdown.position-above {
-    bottom: calc(100vh - var(--dropdown-trigger-bottom, 60px));
-    top: auto;
-    transform: translateY(10px);
-  }
-
-  .user-dropdown.position-above.active {
-    transform: translateY(0);
-  }
-
-  .user-dropdown.position-below {
-    top: calc(var(--dropdown-trigger-bottom, 60px));
-    bottom: auto;
-    transform: translateY(-10px);
-  }
-
-  .user-dropdown.position-below.active {
-    transform: translateY(0);
-  }
-
-  /* Add backdrop for mobile dropdown */
-  .user-dropdown.active::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--dark-overlay-light);
-    z-index: -1;
-    backdrop-filter: blur(2px);
-  }
-}
-
-/* ===== ENHANCED MOBILE DROPDOWN POSITIONING ===== */
-@media (max-width: 768px) {
-  /* Dynamic positioning support for smart mobile dropdown */
-  .user-dropdown.position-above {
-    transform: translateY(10px);
-    animation: slideUpIn 0.3s var(--animation-spring) forwards;
-  }
-
-  .user-dropdown.position-below {
-    transform: translateY(-10px);
-    animation: slideDownIn 0.3s var(--animation-spring) forwards;
-  }
-
-  .user-dropdown.position-above.active {
-    transform: translateY(0);
-  }
-
-  .user-dropdown.position-below.active {
-    transform: translateY(0);
-  }
-
-  /* Animations for smart positioning */
-  @keyframes slideUpIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes slideDownIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Add slide-out animations for smooth closing */
-  @keyframes slideUpOut {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-  }
-
-  @keyframes slideDownOut {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-  }
-
-  /* Apply close animations */
-  .user-dropdown.position-above:not(.active) {
-    animation: slideUpOut 0.3s var(--animation-spring) forwards;
-  }
-
-  .user-dropdown.position-below:not(.active) {
-    animation: slideDownOut 0.3s var(--animation-spring) forwards;
-  }
-
-  /* Improved backdrop blur for mobile with proper fade-out */
-  .user-dropdown.active::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--dark-overlay-subtle);
-    z-index: -1;
-    backdrop-filter: blur(3px);
-    animation: fadeIn 0.3s ease forwards;
-  }
-
-  /* Add fade-out animation for smooth backdrop disappearance */
-  .user-dropdown:not(.active)::before {
-    animation: fadeOut 0.3s ease forwards;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes fadeOut {
-    from {
-      opacity: 1;
-    }
-    to {
-      opacity: 0;
-    }
-  }
-}
-
-/* ===== IMPROVED TOUCH INTERACTION FEEDBACK ===== */
-@media (max-width: 768px) {
-  .dropdown-item {
-    /* Enhanced touch feedback */
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .dropdown-item:active {
-    transform: scale(0.98);
-    background: var(--surface-hover);
-  }
-
-  /* Ripple effect for touch */
-  .dropdown-item::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: rgba(var(--accent-primary-rgb, 102, 126, 234), 0.2);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transition: width 0.3s ease, height 0.3s ease;
-    pointer-events: none;
-  }
-
-  .dropdown-item:active::after {
-    width: 200%;
-    height: 200%;
-  }
-}
-
-/* ===== CUSTOM USER AVATAR SYSTEM ===== */
-
-/* Container for user avatar in navigation trigger */
-.user-avatar-trigger {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s var(--animation-smooth);
-
-  /* Purple gradient border */
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary),
-    var(--accent-tertiary)
-  );
-  padding: 2px; /* Creates border effect */
-}
-
-/* Inner avatar content */
-.user-avatar-trigger .avatar-content {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--depth-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-/* Avatar image styling */
-.user-avatar-trigger img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-/* Default icon styling when no custom avatar */
-.user-avatar-trigger i {
-  font-size: 1.4rem;
-  color: var(--text-secondary);
-  transition: all 0.3s var(--animation-smooth);
-}
-
-/* Hover effects for avatar trigger */
-.user-menu-trigger:hover .user-avatar-trigger {
-  transform: scale(1.1);
-  box-shadow: var(--glow-accent-medium);
-  background: linear-gradient(
-    135deg,
-    var(--accent-secondary),
-    var(--accent-tertiary),
-    var(--accent-primary)
-  );
-}
-
-.user-menu-trigger:hover .user-avatar-trigger i {
-  color: var(--accent-primary);
-  transform: scale(1.1);
-}
-
-/* Large avatar in dropdown header */
+/* ===== AVATAR SYSTEM ===== */
+.user-avatar-trigger,
 .user-avatar-large {
   width: 3rem;
   height: 3rem;
@@ -1754,8 +625,6 @@ body:not(.dark-mode) .user-dropdown {
   justify-content: center;
   position: relative;
   overflow: hidden;
-
-  /* Purple gradient border for large avatar too */
   background: linear-gradient(
     135deg,
     var(--accent-primary),
@@ -1764,7 +633,7 @@ body:not(.dark-mode) .user-dropdown {
   );
   padding: 2px;
 }
-
+.user-avatar-trigger .avatar-content,
 .user-avatar-large .avatar-content {
   width: 100%;
   height: 100%;
@@ -1775,22 +644,38 @@ body:not(.dark-mode) .user-dropdown {
   justify-content: center;
   overflow: hidden;
 }
-
+.user-avatar-trigger img,
 .user-avatar-large img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
 }
-
+.user-avatar-trigger i {
+  font-size: 1.4rem;
+  color: var(--text-secondary);
+  transition: all 0.3s var(--animation-smooth);
+}
+.user-menu-trigger:hover .user-avatar-trigger {
+  transform: scale(1.1);
+  box-shadow: var(--glow-accent-medium);
+  background: linear-gradient(
+    135deg,
+    var(--accent-secondary),
+    var(--accent-tertiary),
+    var(--accent-primary)
+  );
+}
+.user-menu-trigger:hover .user-avatar-trigger i {
+  color: var(--accent-primary);
+  transform: scale(1.1);
+}
 .user-avatar-large i {
   font-size: 2rem;
   color: var(--accent-primary);
 }
 
-/* ===== DARK MODE TOGGLE IN DROPDOWN ===== */
-
-/* Style dark mode toggle as dropdown item */
+/* ===== DARK MODE TOGGLE ITEM ===== */
 #darkModeToggle.dropdown-item {
   background: transparent;
   border: none;
@@ -1807,13 +692,11 @@ body:not(.dark-mode) .user-dropdown {
   gap: var(--space-md);
   color: var(--text-secondary);
 }
-
 #darkModeToggle.dropdown-item:hover {
   background: var(--surface-hover);
   color: var(--accent-primary);
   transform: translateX(4px);
 }
-
 #darkModeToggle.dropdown-item i {
   font-size: 1rem;
   width: 20px;
@@ -1821,50 +704,876 @@ body:not(.dark-mode) .user-dropdown {
   color: var(--text-secondary);
   transition: color 0.3s var(--animation-smooth);
 }
-
 #darkModeToggle.dropdown-item:hover i {
   color: var(--accent-primary);
 }
-
-/* Dynamic icon and text based on theme */
 .dark-mode #darkModeToggle.dropdown-item i {
-  color: var(--warning-gold); /* Warm sun color */
+  color: var(--warning-gold);
 }
-
 .light-mode #darkModeToggle.dropdown-item i {
   color: var(--text-secondary);
 }
-/* ===== RESPONSIVE AVATAR ADJUSTMENTS ===== */
 
-@media (max-width: 768px) {
-  .user-avatar-trigger {
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 1.5px;
+/* ===== MOBILE BOTTOM NAV (PILL-LIFT) ===== */
+.mobile-bottom-nav {
+  --bn-h: var(--mobile-bottom-nav-height, 60px);
+  --pad-x: 12px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-items: center;
+  align-items: center;
+  gap: 0;
+  padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
+  padding-top: 6px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  height: calc(var(--bn-h) + env(safe-area-inset-bottom, 0px));
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.3s var(--animation-smooth),
+    backdrop-filter 0.3s var(--animation-smooth);
+}
+.mobile-nav-item {
+  position: relative;
+  width: 100%;
+  max-width: 110px;
+  height: 100%;
+  padding: 4px 0 2px;
+  display: grid;
+  grid-template-rows: 24px auto;
+  place-items: center;
+  color: #bdbacb;
+  text-decoration: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.mobile-nav-item i {
+  font-size: 22px;
+  line-height: 22px;
+  transition: transform 0.18s ease;
+}
+.mobile-nav-label {
+  font-size: 11px;
+  opacity: 0.85;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.mobile-nav-item.active,
+.mobile-nav-item[data-current="true"] {
+  color: var(--accent-primary) !important;
+  transform: translateY(-2px);
+}
+.mobile-nav-item.active::before,
+.mobile-nav-item[data-current="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--accent-primary-rgb, 139, 92, 246), 0.17) 0%,
+    rgba(var(--accent-primary-rgb, 139, 92, 246), 0.08) 100%
+  );
+  z-index: -1;
+}
+.mobile-nav-item.active i,
+.mobile-nav-item[data-current="true"] i {
+  transform: scale(1.08);
+}
+.mobile-nav-item.active .mobile-nav-label,
+.mobile-nav-item[data-current="true"] .mobile-nav-label {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+.mobile-nav-item:active {
+  transform: translateY(-1px) scale(0.98);
+}
+.mobile-nav-item:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* badge */
+.mobile-nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 10px;
+  background: #ff4d4d;
+  color: #fff;
+  font: 600 10px/16px system-ui;
+  text-align: center;
+  animation: badgePop 0.32s ease-out both;
+  display: none;
+}
+
+/* profile trigger + avatar in bottom nav */
+.mobile-profile-trigger {
+  position: relative;
+}
+.mobile-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s ease;
+}
+.mobile-profile-trigger.active .mobile-user-avatar {
+  transform: scale(1.1);
+}
+.mobile-profile-trigger i {
+  color: inherit;
+}
+.mobile-profile-trigger.active i {
+  color: var(--accent-primary);
+}
+
+/* ===== MOBILE PROFILE SHEET (used when tapping bottom avatar) ===== */
+.mobile-profile-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  z-index: 1099;
+}
+.mobile-profile-scrim[data-open] {
+  opacity: 1;
+}
+.mobile-profile-scrim[hidden],
+.mobile-profile-sheet[hidden] {
+  display: none !important;
+}
+
+.mobile-profile-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  background: var(--panel, rgba(15, 14, 20, 0.95));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  padding: 12px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  gap: 10px;
+  max-height: min(80vh, 560px);
+  overflow: auto;
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  will-change: transform;
+}
+.mobile-profile-sheet[data-open] {
+  transform: translateY(0);
+  opacity: 1;
+}
+.mobile-sheet-grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  margin: 4px auto 8px;
+  background: #ffffff1a;
+}
+.mobile-sheet-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 6px;
+}
+.mobile-sheet-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+.mobile-sheet-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.mobile-sheet-header h3 {
+  color: var(--text-primary);
+  font: 600 15px/1.2 system-ui;
+  margin: 0;
+}
+.mobile-sheet-email {
+  color: var(--text-secondary);
+  font: 500 12px/1.2 system-ui;
+  margin: 2px 0 0;
+}
+.mobile-sheet-menu {
+  display: grid;
+  gap: 6px;
+}
+.mobile-sheet-row {
+  height: 52px;
+  border-radius: 14px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+  background: #ffffff06;
+  border: 1px solid #ffffff10;
+  transition: transform 0.14s ease, background 0.14s ease,
+    border-color 0.14s ease;
+  font-size: 14px;
+}
+.mobile-sheet-row i {
+  font-size: 18px;
+}
+.mobile-sheet-row:active {
+  transform: scale(0.98);
+  background: #ffffff0c;
+  border-color: #ffffff18;
+}
+.mobile-sheet-row.danger {
+  color: #ffd6d6;
+  border-color: #ff6b6b33;
+}
+body:not(.dark-mode) .mobile-profile-sheet {
+  background: rgba(255, 255, 255, 0.92);
+  border-top: 1px solid var(--border);
+}
+body:not(.dark-mode) .mobile-sheet-row {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+body:not(.dark-mode) .mobile-sheet-row:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+body:not(.dark-mode) .mobile-sheet-row.danger {
+  color: #b80000;
+  border-color: #ff868633;
+}
+
+/* ===== KEYFRAMES ===== */
+@keyframes wipe-reveal {
+  0% {
+    transform: scaleX(1);
   }
-
-  .user-avatar-trigger i {
-    font-size: 1.2rem;
+  100% {
+    transform: scaleX(0);
   }
-
-  .user-avatar-large {
-    width: 2.75rem;
-    height: 2.75rem;
+}
+@keyframes draw-underline {
+  0% {
+    transform: scaleX(0);
   }
-
-  .user-avatar-large i {
-    font-size: 1.8rem;
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes badgePop {
+  0% {
+    transform: scale(0.6);
+  }
+  70% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
+/* =========================================================================
+   MEDIA QUERIES (SMALLEST → LARGEST)
+   ========================================================================= */
+
+/* ===== ULTRA-COMPACT ≤325px ===== */
+@media (max-width: 325px) {
+  .top-nav {
+    padding: 0.4rem 0.55rem;
+  }
+  .nav-right {
+    gap: 0.25rem !important;
+    flex-shrink: 0;
+    align-items: center;
+  }
+  .nav-left {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .logo span {
+    font-size: 1rem !important;
+    font-weight: 850;
+    font-style: italic;
+  }
+  .logo span::after {
+    left: 15%;
+    bottom: -2px;
+    width: 70%;
+  }
+  .theme-toggle {
+    min-width: 2rem !important;
+    min-height: 2rem !important;
+    padding: 0.3rem !important;
+    border-radius: 0.4rem !important;
+  }
+  .theme-toggle i {
+    font-size: 0.75rem !important;
+  }
+  .login-btn {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap !important;
+    max-width: 4.5rem;
+    text-indent: -9999px;
+    position: relative;
+    overflow: hidden;
+  }
+  .login-btn::before {
+    content: "🎓 Join";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-indent: 0;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.7rem;
+  }
+  .user-dropdown {
+    width: calc(100vw - 1.5rem);
+    right: -0.75rem;
+    left: 0.75rem;
+  }
+  .dropdown-item {
+    padding: 1rem var(--space-lg);
+    min-height: 52px;
+    font-size: 0.9rem;
+  }
+  .dropdown-item i {
+    font-size: 1.1rem;
+    width: 24px;
+  }
+  .user-menu-trigger {
+    min-width: 44px;
+    min-height: 44px;
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+}
+
+/* ===== COMPACT ≤360px ===== */
+@media (max-width: 360px) {
+  .logo span {
+    font-size: 1.05rem !important;
+  }
+}
+
+/* ===== MOBILE ≤480px ===== */
 @media (max-width: 480px) {
-  .user-avatar-trigger {
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 1px;
+  :root {
+    --nav-height: 56px;
   }
 
-  .user-avatar-trigger i {
-    font-size: 1.1rem;
+  .top-nav {
+    padding: 0.45rem 0.75rem;
+    gap: 0.5rem;
+    height: var(--nav-height);
+  }
+  .nav-left {
+    gap: 0.5rem;
+  }
+  .nav-right {
+    gap: 0.4rem;
+  }
+  .logo {
+    padding: 0.25rem 0.5rem;
+    min-height: 44px;
+  }
+  .logo span {
+    font-size: 1.2rem !important;
+    padding-bottom: 2px;
+  }
+  .nav-link,
+  .user-menu-trigger,
+  .theme-toggle,
+  .nav-button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0.4rem !important;
+  }
+  .nav-links .nav-text {
+    display: none;
+  }
+
+  /* tight schedule table for very small screens */
+  .slot {
+    height: 2.25rem !important;
+    min-height: 2.25rem !important;
+  }
+  .schedule-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 5px !important;
+  }
+  .schedule-table {
+    min-width: 550px !important;
+    font-size: 0.65rem !important;
+  }
+  main.main-content {
+    padding: 0.75rem !important;
+  }
+
+  /* Reserve bottom-nav space precisely on narrow phones */
+  .main-content {
+    min-height: calc(
+      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    height: calc(
+      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    max-height: calc(
+      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    padding-bottom: calc(
+      var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px)
+    ) !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-home .main-content {
+    height: calc(
+      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+    min-height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+    max-height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+    padding-bottom: 8px; 
+  }
+  .content-grid {
+    min-height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    max-height: calc(
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-home .content-grid {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+  }
+
+  /* optional vertical headers */
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
+    font-size: 0.6rem;
+    padding: 0.2rem 0.1rem;
+  }
+  .schedule-grid-view .schedule-table .time-header {
+    writing-mode: initial !important;
+    text-orientation: initial !important;
+    white-space: normal !important;
+  }
+
+  body.page-home .schedule-column {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: calc(
+      100dvh - var(--nav-height, 56px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)) !important;
+    order: 1;
+  }
+
+  body.page-home .schedule-column .glass-card {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: calc(
+      100dvh - var(--nav-height, 56px) - var(--mobile-bottom-nav-height, 60px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+
+  }
+}
+
+/* ===== SMALL-UP (≥550px) ===== */
+@media (min-width: 550px) {
+  .main-content {
+    padding: clamp(1rem, 4vw, 1.5rem);
+  }
+}
+
+/* ===== MOBILE COMPACT TOP-NAV ≤600px ===== */
+@media (max-width: 600px) {
+  .top-nav {
+    padding: 0.45rem 0.75rem;
+    backdrop-filter: blur(18px);
+  }
+  .logo span {
+    font-size: 1.25rem;
+    padding-bottom: 4px;
+  }
+  .nav-link {
+    padding: 0.5rem 0.85rem;
+  }
+}
+
+/* ===== INTERMEDIATE TABLET (650px–899px) ===== */
+@media (min-width: 650px) and (max-width: 899px) {
+  .main-content {
+    padding: clamp(1.25rem, 4vw, 2rem);
+    max-width: 100vw;
+  }
+  .content-grid {
+    gap: 0.5rem;
+  }
+  .glass-card {
+    padding: clamp(1.25rem, 4vw, 1.75rem);
+  }
+}
+
+/* ===== MOBILE / GENERAL ≤768px ===== */
+@media (max-width: 768px) {
+  .top-nav {
+    padding: 0.55rem clamp(0.75rem, 3vw, 1.25rem);
+  }
+  .nav-center {
+    flex: 1;
+  }
+  .nav-links {
+    gap: clamp(0.5rem, 2.5vw, 0.85rem);
+    justify-content: center;
+    flex: 1;
+  }
+  .nav-text {
+    display: none;
+  }
+  .nav-link {
+    padding: 0.25rem;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .nav-left,
+  .nav-center,
+  .nav-right,
+  .nav-links,
+  .nav-link {
+    gap: 0 !important;
+  }
+
+  /* mobile buttons */
+  .theme-toggle,
+  .user-menu-trigger {
+    width: auto !important;
+    height: auto !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    transition: all 0.3s var(--animation-spring);
+  }
+  .theme-toggle i {
+    font-size: 1rem !important;
+    transition: all 0.3s var(--animation-smooth);
+  }
+  .theme-toggle:hover,
+  .user-menu-trigger:hover {
+    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
+    color: var(--accent-primary);
+    transform: scale(1.1);
+    box-shadow: none !important;
+  }
+  .theme-toggle:hover i,
+  .user-menu-trigger:hover i {
+    transform: scale(1.1);
+  }
+
+  /* dropdown sizing on mobile */
+  .user-dropdown {
+    width: 280px;
+    right: 0;
+    max-width: calc(100vw - 2rem);
+  }
+  .dropdown-header {
+    padding: var(--space-md);
+  }
+  .dropdown-item {
+    padding: var(--space-md) var(--space-lg);
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* bottom nav on */
+  .mobile-bottom-nav {
+    display: grid;
+  }
+  .nav-center .nav-links {
+    display: none !important;
+  } /* hide top links */
+
+  /* general mobile reservation for non-home pages */
+  .main-content {
+    min-height: calc(100dvh - var(--nav-height, 64px));
+    height: auto;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: calc(
+      var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) +
+        16px
+    ) !important;
+  }
+
+  /* sheet-as-dropdown option on mobile */
+  .user-dropdown.mobile-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(16px);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+  .user-dropdown.mobile-sheet.active {
+    transform: translateY(0);
+  }
+  .user-dropdown.mobile-sheet .dropdown-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* bottom-nav profile tweaks */
+  .mobile-profile-trigger {
+    grid-template-rows: 24px;
+    padding-top: 10px;
+  }
+  .mobile-profile-trigger .mobile-nav-label {
+    display: none;
+  }
+  .mobile-user-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .mobile-user-avatar img.user-avatar-img {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50%;
+  }
+  .mobile-profile-trigger .mobile-user-avatar {
+    transform: translateX(1px);
+  }
+
+  /* quick touch feedback */
+  .mobile-nav-item:not(.active):active,
+  .mobile-nav-item.active:active {
+    transform: translateY(-1px) scale(0.96);
+  }
+
+  /* hide desktop user menu when bottom-nav is present */
+  .top-nav .user-menu {
+    display: none !important;
+  }
+}
+
+/* ===== MOBILE LAYOUT ORDERING ≤900px ===== */
+@media (max-width: 900px) {
+  .content-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .schedule-column {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    order: 1;
+  }
+  .glass-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .button-group {
+    flex-direction: column !important;
+  }
+  .button-group button {
+    width: 100% !important;
+    margin-right: 0 !important;
+    margin-bottom: 0.75rem !important;
+  }
+  .button-group button:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* ===== STANDARD DESKTOP  ≥900px ===== */
+@media (min-width: 900px) {
+  .top-nav {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .nav-link {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .main-content {
+    padding: 2rem;
+    max-width: none;
+    width: 100%;
+  }
+  .main-content > .content-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .schedule-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .schedule-section {
+    order: unset !important;
+  }
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    min-height: 3.5rem;
+  }
+  .schedule-table .slot {
+    min-height: 3.5rem;
+  }
+  .schedule-table .day-label,
+  .schedule-table .time-header {
+    font-size: 0.85rem;
+    writing-mode: initial;
+    text-orientation: initial;
+  }
+
+  .schedule-wrapper {
+    max-height: calc(100vh - 12rem);
+    max-height: calc(100dvh - 12rem);
+    min-height: 500px;
+  }
+}
+
+/* ===== ULTRA-WIDE ≥1600px ===== */
+@media (min-width: 1600px) {
+  .main-content {
+    padding: 2.5rem 3rem;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+  .content-grid {
+    max-width: 1400px !important;
+    gap: 0.5rem !important;
+  }
+  .schedule-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .schedule-section {
+    order: unset !important;
+    height: fit-content;
+    max-height: calc(100dvh - 4rem);
+  }
+  .glass-card {
+    padding: 2rem;
+  }
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.75rem;
+    font-size: 1rem;
+    min-height: 4.5rem;
+  }
+  .schedule-table .slot {
+    min-height: 4.5rem;
+  }
+  .schedule-wrapper {
+    max-height: calc(100vh - 10rem);
+    max-height: calc(100dvh - 10rem);
+    min-height: 600px;
+  }
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-item,
+  .mobile-bottom-nav,
+  .mobile-profile-dropdown,
+  .mobile-dropdown-item,
+  .mobile-user-avatar,
+  .mobile-profile-sheet,
+  .mobile-profile-scrim,
+  .mobile-sheet-row,
+  .sheet,
+  .scrim,
+  .row {
+    transition: none !important;
+    animation: none !important;
   }
 }
