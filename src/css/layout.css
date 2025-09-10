@@ -21,6 +21,7 @@ This file contains all layout-related styles for the MeetchuThere app:
 .app-container {
   /* Use dynamic viewport height to avoid iOS address bar causing jumps */
   min-height: 100dvh; /* Full viewport height (modern browsers) */
+  height: 100dvh; /* Lock height so internal sections manage their own scroll */
   min-height: -webkit-fill-available; /* iOS Safari fallback */
   display: flex;
   flex-direction: column; /* Stack navigation above main content */
@@ -29,29 +30,28 @@ This file contains all layout-related styles for the MeetchuThere app:
 /* ===== TOP NAVIGATION BAR ===== */
 /* Sticky navigation with glassmorphism effect and backdrop blur */
 .top-nav {
-  /* Positioning & Layout */
-  position: sticky; /* Stays at top while scrolling */
+  --nav-height: 64px; /* base height approximation including padding */
+  position: sticky;
   top: 0;
-  z-index: 1000; /* Above all other content */
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* Reduced top nav padding for slimmer appearance */
-  padding: 0.5rem clamp(0.75rem, 2vw, 1rem); /* Responsive horizontal padding */
-  width: 100%; /* Ensure full width coverage */
-  min-width: 0; /* Allow flex children to shrink properly */
-
-  /* Glassmorphism Styling */
+  padding: 0.1rem clamp(0.75rem, 2vw, 1rem); /* slimmer top/bottom as requested */
+  width: 100%;
+  min-width: 0;
   background: var(--nav-bg);
-  backdrop-filter: blur(20px); /* Creates glassmorphism effect */
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px var(--shadow);
+  box-sizing: border-box;
+  gap: 1rem;
 }
 
 /* Compact mobile nav height */
 @media (max-width: 600px) {
   .top-nav {
-    padding: 0.5rem 0.75rem; /* reduced and consistent */
+    padding: 0.45rem 0.75rem; /* reduced and consistent */
     backdrop-filter: blur(18px);
   }
   .logo span {
@@ -63,34 +63,46 @@ This file contains all layout-related styles for the MeetchuThere app:
   }
 }
 
-/* Navigation sections - Left (logo + links), Right (controls) */
-.nav-left,
-.nav-right {
+/* Unified Mobile Nav Spec (<480px) */
+@media (max-width: 480px) {
+  .top-nav {
+    --nav-height: 56px; /* ensure toolbar meets platform convention */
+    padding: 0.45rem 0.75rem; /* ~7px vertical, 12px horizontal */
+    gap: 0.5rem;
+    height: var(--nav-height);
+  }
+  .nav-left { gap: 0.5rem; }
+  .nav-right { gap: 0.4rem; }
+  .logo {
+    padding: 0.25rem 0.5rem; /* ensure 8px-ish inset from edge */
+    min-height: 44px; /* touch target */
+  }
+  .logo span {
+    font-size: 1.2rem !important;
+    padding-bottom: 2px; /* reduce underline offset so fits inside 56px */
+  }
+  .nav-link,
+  .user-menu-trigger,
+  .theme-toggle,
+  .nav-button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0.4rem !important;
+  }
+}
+
+/* Navigation sections: brand (left), links (center), user/actions (right) */
+.nav-left, .nav-center, .nav-right {
   display: flex;
   align-items: center;
-  gap: clamp(0.75rem, 2.5vw, 1.5rem); /* Responsive gap */
-  min-width: 0; /* Allow content to shrink */
+  min-width: 0;
 }
 
-.nav-left {
-  flex: 1; /* Take up available space */
-  min-width: 0; /* Ensure proper text truncation */
-  max-width: calc(100% - 160px); /* Reserve space for nav-right */
-}
+.nav-left { flex: 0 0 auto; }
+.nav-center { flex: 1 1 auto; justify-content: center; min-width: 0; }
+.nav-right { flex: 0 0 auto; gap: clamp(0.5rem, 2vw, 1rem); }
 
-.nav-right {
-  flex-shrink: 0; /* Prevent shrinking on mobile */
-  gap: clamp(0.5rem, 2vw, 1rem); /* Smaller gap for mobile */
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md, 1rem);
-  /* Center between logo and user menu instead of excessive left margin */
-  flex: 1;
-  justify-content: center;
-}
+.nav-links { display: flex; align-items: center; gap: var(--space-md, 1rem); }
 
 /* ===== LOGO COMPONENT ===== */
 /* Brand identity with icon and text */
@@ -224,6 +236,21 @@ body:not(.dark-mode) .nav-link {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
+/* Active nav state: compact purple selection indicator */
+.nav-link.active,
+.nav-link[aria-current='page'] {
+  margin: 3px 4px 3px 4px;
+  background: var(--nav-link-hover-bg, rgba(139,92,246,0.12));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.15);
+  color: var(--nav-link-hover-color, var(--accent-primary));
+}
+
+/* Preserve hover elevation while active */
+.nav-link.active:hover,
+.nav-link[aria-current='page']:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 3px 8px rgba(0,0,0,0.2);
+}
 /* Light mode hover safety to ensure styles apply */
 .light-mode .nav-link:hover,
 body:not(.dark-mode) .nav-link:hover {
@@ -354,14 +381,22 @@ body:not(.dark-mode) .nav-link:hover {
   margin: 0 auto;
   box-sizing: border-box; /* Include padding in width calculation */
   overflow-x: hidden; /* Prevent horizontal scroll */
+  display: flex; /* Enable vertical distribution */
+  flex-direction: column;
+  flex: 1 1 auto; /* Fill remaining space under nav */
 
-  /* Beautiful purple gradient background */
   background: var(--main-content-bg);
   position: relative;
-  /* Fallback for older browsers */
-  min-height: calc(100vh - 80px);
-  /* Prefer dvh to avoid iOS Safari URL bar collapsing the viewport */
-  min-height: calc(100dvh - 80px); /* Fill remaining viewport height */
+  height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* Adjust main content height when ultra compact nav is active */
+@media (max-width: 480px) {
+  .main-content {
+    min-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  }
 }
 
 /* Add subtle overlay pattern for extra visual depth */
@@ -390,87 +425,129 @@ body:not(.dark-mode) .nav-link:hover {
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
+  flex: 1 1 auto; /* Allow internal sections (friends bar + schedule) to stretch */
+  min-height: 0; /* Enable children with overflow to scroll */
+}
+
+/* Home page: confine scroll to schedule wrapper only */
+body.page-home { overflow: hidden; }
+body.page-home .main-content { overflow: hidden; padding: 0.5rem 0.4rem !important; }
+body.page-home .content-grid { overflow: hidden; }
+body.page-home .schedule-section { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+body.page-home .schedule-wrapper { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: auto; }
+body.page-home .horizontal-friends-bar { flex-shrink: 0; }
+
+/* Safe-area awareness for iOS bottom gesture bar inside schedule scroll area */
+body.page-home .schedule-wrapper { padding-bottom: max(env(safe-area-inset-bottom), 3.5rem); }
+
+/* ===== SCHEDULE SCROLL INDICATOR ARROW ===== */
+.schedule-section {
+  position: relative; /* Enable absolute positioning for scroll indicator */
+}
+
+.schedule-scroll-indicator {
+  position: fixed; /* center relative to screen */
+  bottom: calc(1rem + 4px); /* 4px higher */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px; /* container for chevron */
+  height: 14px;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out; /* faster fade */
+  z-index: 1000; /* above page content */
+  pointer-events: none;
+  opacity: 0.9;
+  background: transparent;
+}
+
+.schedule-scroll-indicator::before,
+.schedule-scroll-indicator::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  width: 12px;
+  height: 2px; /* line thickness */
+  background: var(--text-secondary);
+  border-radius: 2px;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.12));
+}
+.schedule-scroll-indicator::before {
+  left: 2px;
+  transform: rotate(45deg);
+}
+.schedule-scroll-indicator::after {
+  right: 2px;
+  transform: rotate(-45deg);
+}
+
+/* Dark mode styling */
+body.dark-mode .schedule-scroll-indicator::before,
+body.dark-mode .schedule-scroll-indicator::after {
+  background: var(--text-secondary);
+}
+
+/* Light mode styling */
+body:not(.dark-mode) .schedule-scroll-indicator::before,
+body:not(.dark-mode) .schedule-scroll-indicator::after {
+  background: rgba(139, 92, 246, 0.85);
+}
+
+/* Hide when scrolled to bottom */
+.schedule-scroll-indicator.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+  pointer-events: none;
+}
+
+/* Subtle pulse animation */
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.9; transform: translateX(-50%) scale(1.05); }
+}
+
+.schedule-scroll-indicator:not(.hidden) {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+/* Only show indicator in Day View */
+.schedule-scroll-indicator { display: none; }
+.schedule-day-view.active ~ .schedule-scroll-indicator { display: block; }
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .schedule-scroll-indicator:not(.hidden) {
+    animation: none;
+  }
 }
 
 /* ===== RESPONSIVE DESIGN RULES ===== */
 
 /* Mobile Navigation Responsiveness */
 @media (max-width: 768px) {
-  .top-nav {
-    padding: 0.75rem clamp(0.75rem, 3vw, 1.5rem); /* Consistent responsive padding */
-    flex-wrap: nowrap; /* Prevent wrapping to maintain layout */
-  }
-
-  .nav-center {
-    display: none; /* Hide center navigation links on mobile */
-  }
-
-  .nav-left {
-    max-width: calc(100% - 120px); /* Reserve space for nav-right on mobile */
-  }
-
-  .nav-right {
-    gap: clamp(0.5rem, 1.5vw, 0.75rem); /* Tighter gap on mobile */
-  }
-
-  .logo span {
-    font-size: 1.3rem; /* Proportionally scaled from base 1.5rem */
-    font-weight: 850;
-    font-style: italic;
-  }
-
-  .logo span::after {
-    left: 15%; /* Maintain consistent centered underline positioning */
-    bottom: -2px;
-    width: 70%;
-  }
-
-  .nav-button {
-    width: clamp(2rem, 6vw, 2.5rem);
-    height: clamp(2rem, 6vw, 2.5rem);
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-  }
+  .top-nav { padding: 0.55rem clamp(0.75rem,3vw,1.25rem); }
+  .nav-center { flex: 1; }
+  .nav-links { gap: clamp(0.5rem,2.5vw,0.85rem); }
+  .logo span { font-size: 1.35rem; }
+  .nav-button { width: clamp(2rem,6vw,2.5rem); height: clamp(2rem,6vw,2.5rem); font-size: clamp(0.8rem,2.5vw,0.9rem); }
+  /* Remove all inter-item and internal gaps below 768px as requested */
+  .nav-left, .nav-center, .nav-right, .nav-links { gap: 0 !important; }
+  .nav-link { gap: 0 !important; }
 }
 
+/* Ultra small: hide text labels, show icons only to save space */
 @media (max-width: 480px) {
-  .top-nav {
-    padding: 0.5rem clamp(0.5rem, 2.5vw, 1rem); /* Ultra-responsive padding */
-  }
-
-  .nav-left {
-    max-width: calc(
-      100% - 100px
-    ); /* More space for nav-right on small screens */
-  }
-
-  .nav-right {
-    gap: 0.375rem; /* Minimal gap for very small screens */
-  }
-
-  .logo span {
-    font-size: 1.1rem; /* Smaller but proportional to base 1.5rem */
-    font-weight: 850;
-    font-style: italic;
-  }
-
-  .logo span::after {
-    left: 15%; /* Maintain consistent centered underline positioning */
-    bottom: -2px;
-    width: 70%;
-  }
-
-  .nav-button {
-    width: clamp(1.75rem, 5.5vw, 2.25rem);
-    height: clamp(1.75rem, 5.5vw, 2.25rem);
-    font-size: clamp(0.7rem, 2.2vw, 0.85rem);
-    padding: 0.25rem; /* Ensure minimum touch target */
-  }
-
-  /* Adjust spacing for main content on very small screens */
-  .main-content {
-    padding: 0.75rem !important;
-  }
+  .nav-links .nav-text { display: none; }
+  .nav-links { gap: 0 !important; }
+  .nav-left, .nav-center, .nav-right { gap: 0 !important; }
+  .nav-link { gap: 0 !important; }
+  .nav-links .nav-link { padding: 0.5rem 0.65rem; }
+  .logo span { font-size: 1.15rem !important; }
 }
+
+@media (max-width: 360px) {
+  .logo span { font-size: 1.05rem !important; }
+}
+
+/* Removed legacy ultra-responsive padding block (replaced by unified spec) */
 
 /* Larger Mobile / Small Tablet (e.g., > 550px) */
 @media (min-width: 550px) {
@@ -495,6 +572,8 @@ body:not(.dark-mode) .nav-link:hover {
     padding: clamp(1.25rem, 4vw, 1.75rem);
   }
 }
+
+/* Removed nav-condensed variant (structural center alignment replaces it) */
 
 /* ===== MOBILE LAYOUT ORDERING (up to 900px) ===== */
 /* Single column layout with proper mobile ordering */
@@ -1202,47 +1281,11 @@ body:not(.dark-mode) .user-dropdown {
   }
 }
 
-@media (max-width: 480px) {
-  .top-nav {
-    padding: 0.75rem;
-  }
-
-  .nav-right {
-    gap: 0.5rem; /* Even smaller gap on very small screens */
-  }
-
-  /* Dark mode button - ensure it stays visible and functional but maintain desktop behavior */
-  .theme-toggle {
-    width: auto !important;
-    height: auto !important;
-    min-width: 2.25rem !important;
-    min-height: 2.25rem !important;
-    padding: 0.4rem !important;
-    transform-origin: center;
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0.5rem !important;
-  }
-
-  .theme-toggle:hover {
-    transform: scale(1.1);
-    background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.1) !important;
-    box-shadow: none !important;
-  }
-
-  /* Login button - make more compact but still readable */
-  .login-btn {
-    padding: 0.625rem 0.875rem;
-    font-size: 0.8rem;
-  }
-}
+/* Legacy duplicate mobile nav block removed */
 
 /* ===== ULTRA-COMPACT SCREENS (iPhone 4 & smaller - 320px) ===== */
 @media (max-width: 325px) {
-  .top-nav {
-    padding: 0.5rem 0.625rem; /* Minimal padding for max space */
-    flex-wrap: nowrap !important; /* Prevent wrapping */
-  }
+  .top-nav { padding: 0.4rem 0.55rem; }
 
   .nav-left {
     gap: 0.5rem; /* Reduce gap around logo */
@@ -1701,7 +1744,6 @@ body:not(.dark-mode) .user-dropdown {
 .light-mode #darkModeToggle.dropdown-item i {
   color: var(--text-secondary);
 }
-
 /* ===== RESPONSIVE AVATAR ADJUSTMENTS ===== */
 
 @media (max-width: 768px) {

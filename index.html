@@ -67,15 +67,14 @@
     <div class="app-container">
       <!-- Top Navigation Bar -->
       <nav class="top-nav">
-        <div class="nav-left">
+        <div class="nav-left nav-brand">
           <div class="logo">
-            <!-- 🎯 Learning: Make logo clickable to go home in SPA -->
-            <span data-spa-route="home" style="cursor: pointer"
-              >MeetchuThere</span
-            >
+            <span data-spa-route="home" style="cursor: pointer">MeetchuThere</span>
           </div>
+        </div>
+
+        <div class="nav-center">
           <div class="nav-links">
-            <!-- 🎯 Learning: Convert to SPA navigation using data-spa-route -->
             <a data-spa-route="home" class="nav-link" href="#home">
               <i class="fas fa-calendar-week"></i>
               <span class="nav-text">Schedule</span>
@@ -84,11 +83,7 @@
               <i class="fas fa-users"></i>
               <span class="nav-text">Friends</span>
             </a>
-            <a
-              data-spa-route="notifications"
-              class="nav-link"
-              href="#notifications"
-            >
+            <a data-spa-route="notifications" class="nav-link" href="#notifications">
               <i class="fas fa-bell"></i>
               <span class="nav-text">Notifications</span>
             </a>

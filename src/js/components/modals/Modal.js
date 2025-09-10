@@ -148,33 +148,42 @@ export function showModal({
   }
 
   if (showConfirmationButtons) {
+    // Standard confirm/cancel layout
     modalDomElements.modalActionButtons.style.display = "flex";
     modalDomElements.modalConfirmBtn.textContent = confirmText;
     modalDomElements.modalCancelBtn.textContent = cancelText;
-    
-    // Hide cancel button if cancelText is empty
-    if (cancelText === "" || cancelText === null || cancelText === undefined) {
+    modalDomElements.modalConfirmBtn.classList.remove("single-ok");
+    if (cancelText === "" || cancelText == null) {
       modalDomElements.modalCancelBtn.style.display = "none";
-      // Style the confirm button as a success/ok button when it's the only button
       modalDomElements.modalConfirmBtn.classList.add("success-btn");
-      modalDomElements.modalConfirmBtn.classList.remove("delete-btn");
     } else {
       modalDomElements.modalCancelBtn.style.display = "inline-block";
-      // Reset to default styling when both buttons are shown
       modalDomElements.modalConfirmBtn.classList.remove("success-btn");
     }
-    
-    modalDomElements.modalCloseBtn.style.display = "none"; // Hide 'OK' (X) button
+    modalDomElements.modalCloseBtn.style.display = "none"; // hide top X entirely in this design
   } else {
-    modalDomElements.modalActionButtons.style.display = "none";
-    modalDomElements.modalConfirmBtn.textContent = "OK"; // Or keep its default
-    modalDomElements.modalCloseBtn.style.display = "inline-block"; // Show 'OK' (X) button
-    // Reset confirm button styling for regular modals
-    modalDomElements.modalConfirmBtn.classList.remove("success-btn", "delete-btn");
+    // Single OK pattern: reuse confirm button at bottom, hide cancel & top X
+    modalDomElements.modalActionButtons.style.display = "flex";
+    modalDomElements.modalConfirmBtn.textContent = "Ok";
+    modalDomElements.modalConfirmBtn.classList.add("single-ok", "success-btn");
+    modalDomElements.modalCancelBtn.style.display = "none";
+    modalDomElements.modalCloseBtn.style.display = "none";
   }
 
   // Ensure the modal is displayed and active, even if a previous modal was still hiding
   modalDomElements.appModal.style.display = "flex";
+
+  // Add compact class for mobile friendly width if only single ok button and short text
+  try {
+    if (!showConfirmationButtons) {
+      const msgLen = (modalDomElements.modalMessage.textContent || "").length;
+      if (msgLen < 140) {
+        modalDomElements.modalTitle.parentElement?.classList?.add("modal-compact");
+      }
+    } else {
+      modalDomElements.modalTitle.parentElement?.classList?.remove("modal-compact");
+    }
+  } catch (_) {}
 
   // If the modal already has the active class, remove it first to trigger a fresh transition
   if (modalDomElements.appModal.classList.contains("active")) {

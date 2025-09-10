@@ -339,6 +339,40 @@ const memoCache = {
 };
 
 /**
+ * Normalize a user's schedule-related matrices so each has 7 day arrays and each
+ * day array length matches timeSlots length. Fills gaps with defaults.
+ */
+function normalizeUserScheduleMatrices(user) {
+  if (!user || !Array.isArray(user.timeSlots)) return;
+  const expectedSlots = user.timeSlots.length;
+  const normalizeMatrix = (matrix, fillerValue) => {
+    if (!Array.isArray(matrix)) {
+      matrix = Array.from({ length: 7 }, () =>
+        Array.from({ length: expectedSlots }, () => fillerValue)
+      );
+      return matrix;
+    }
+    for (let d = 0; d < 7; d++) {
+      if (!Array.isArray(matrix[d])) {
+        matrix[d] = Array.from({ length: expectedSlots }, () => fillerValue);
+      } else if (matrix[d].length !== expectedSlots) {
+        const resized = Array.from({ length: expectedSlots }, () => fillerValue);
+        for (let i = 0; i < Math.min(matrix[d].length, expectedSlots); i++) {
+          if (matrix[d][i] !== undefined) resized[i] = matrix[d][i];
+        }
+        matrix[d] = resized;
+      }
+    }
+    return matrix;
+  };
+  user.schedule = normalizeMatrix(user.schedule, false);
+  user.pinnedSlots = normalizeMatrix(user.pinnedSlots, false);
+  if (user.slotInfo) {
+    user.slotInfo = normalizeMatrix(user.slotInfo, null);
+  }
+}
+
+/**
  * Determines the visual status/CSS class for a time slot based on current state
  * Handles both individual user mode and compare mode with unified schedules
  * @param {number} dayIndex - Day index (0-6)
@@ -1114,6 +1148,10 @@ let lastPinClickTime = 0;
 const PIN_CLICK_DEBOUNCE = 50; // 50ms debounce (reduced from 200ms)
 
 function handlePinSlotClick(dayIndex, slotIndex, event) {
+  // Pre-normalize active user's schedule & pinned structure to expected lengths
+  if (state.activeUserId && state.users[state.activeUserId]) {
+    try { normalizeUserScheduleMatrices(state.users[state.activeUserId]); } catch(_) {}
+  }
   if (event) {
     event.stopPropagation();
   }
@@ -1160,12 +1198,52 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
     activeUserObject.pinnedSlots[dayIndex] === undefined ||
     activeUserObject.pinnedSlots[dayIndex][slotIndex] === undefined
   ) {
-    console.error(
-      "Data integrity issue in handlePinSlotClick for user:",
-      activeUserObject.id,
-      dayIndex,
-      slotIndex
-    );
+    try {
+      console.error(
+        "Data integrity issue in handlePinSlotClick for user:",
+        activeUserObject && activeUserObject.id,
+        { dayIndex, slotIndex },
+        {
+          scheduleDay: activeUserObject && activeUserObject.schedule && activeUserObject.schedule[dayIndex],
+          pinnedDay: activeUserObject && activeUserObject.pinnedSlots && activeUserObject.pinnedSlots[dayIndex],
+          scheduleLengths: activeUserObject && activeUserObject.schedule && activeUserObject.schedule.map(d=>d&&d.length),
+          pinnedLengths: activeUserObject && activeUserObject.pinnedSlots && activeUserObject.pinnedSlots.map(d=>d&&d.length),
+          timeSlotsLength: activeUserObject && activeUserObject.timeSlots && activeUserObject.timeSlots.length,
+        }
+      );
+      // Lightweight normalization attempt: ensure day arrays exist and lengths align with timeSlots length
+      if (activeUserObject && activeUserObject.timeSlots && Array.isArray(activeUserObject.timeSlots)) {
+        const expectedLen = activeUserObject.timeSlots.length;
+        const ensureDay = (arrRef, label) => {
+          if (!Array.isArray(arrRef[dayIndex])) {
+            arrRef[dayIndex] = new Array(expectedLen).fill(false);
+          } else if (arrRef[dayIndex].length !== expectedLen) {
+            const resized = new Array(expectedLen).fill(false);
+            for (let i=0;i<Math.min(expectedLen, arrRef[dayIndex].length);i++) {
+              resized[i] = arrRef[dayIndex][i];
+            }
+            arrRef[dayIndex] = resized;
+          }
+        };
+        if (activeUserObject.schedule && activeUserObject.pinnedSlots) {
+          ensureDay(activeUserObject.schedule, 'schedule');
+          ensureDay(activeUserObject.pinnedSlots, 'pinned');
+          // Retry guard once after normalization
+          if (
+            activeUserObject.schedule[dayIndex] !== undefined &&
+            activeUserObject.schedule[dayIndex][slotIndex] !== undefined &&
+            activeUserObject.pinnedSlots[dayIndex] !== undefined &&
+            activeUserObject.pinnedSlots[dayIndex][slotIndex] !== undefined
+          ) {
+            console.info('Pin slot normalization repaired structures, retrying.');
+          } else {
+            console.warn('Normalization could not repair pin structures at indices.');
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('Pin integrity diagnostic failed', e);
+    }
     showModal({
       title: "Error",
       content: "Could not process pin action due to data error.",
@@ -2923,8 +3001,8 @@ async function _renderScheduleGridInternal() {
         }
       }
 
-      // Pin Rendering Logic for Compare Mode
-      if (state.compareMode && state.selectedUserIds.size > 0) {
+  // Pin Rendering Logic for Compare Mode (grid view only)
+  if (state.viewMode === 'grid' && state.compareMode && state.selectedUserIds.size > 0) {
         // Smart logging: Only log pin rendering for first few slots
         if (dayIndex === 0 && timeIndex === 0) {
           console.log(`📌 Grid pin rendering for compare mode started`);
@@ -3701,8 +3779,8 @@ function handleScheduleTableClick(e) {
     return;
   }
 
-  // Pin container clicks (for pin tooltips)
-  const pinContainer = e.target.closest(".pin-container");
+  // Pin container clicks (for pin tooltips) - supports legacy .pin-container and new .pin-square-container
+  const pinContainer = e.target.closest(".pin-container, .pin-square-container");
   if (pinContainer) {
     const pinData = {
       userNames: JSON.parse(pinContainer.dataset.pinnedByUsers || "[]"),
@@ -4672,9 +4750,9 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
         );
       }
 
-  // Apply day view specific class names for glass styling (3-state)
-  // Treat unavailable as free for state determination (simpler UX)
-  if (busyUsers.length === 0) {
+      // Apply day view specific class names for glass styling (3-state)
+      // Treat unavailable as free for state determination (simpler UX)
+      if (busyUsers.length === 0) {
         // All users free - use day view glass styling
         comparisonStatus = {
           cssClass: "all-free",
@@ -4690,7 +4768,8 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
         };
       } else {
         // Partial: at least one busy, not all busy
-        const availableCount = freeUsers.length + (unavailableUsers.length || 0);
+        const availableCount =
+          freeUsers.length + (unavailableUsers.length || 0);
         comparisonStatus = {
           cssClass: "mixed-availability",
           text: "Partial",
@@ -5599,183 +5678,10 @@ function updateMobileCompareMode() {
 // This was the root cause of pin flickering and rapid click issues
 // The main initialization happens in the event listener at line ~5825
 
-/**
- * Show UI for unauthenticated users
- */
-function showUnauthenticatedUI() {
-  console.log("🔓 Showing unauthenticated UI");
-
-  // Show login button
-  const loginBtn = document.getElementById("login-btn");
-  if (loginBtn) {
-    console.log("👁️ Showing login button");
-    loginBtn.style.display = "block";
-  } else {
-    console.warn("Login button not found when trying to show it");
-  }
-
-  // Hide user info
-  hideUserInfo();
-
-  // Disable advanced features
-  disableScheduleFeatures();
-}
-
-/**
- * Display user information in header
- */
-function showUserInfo(user) {
-  console.log("👤 Showing user info for:", user.email);
-
-  // Add to navigation (instead of header)
-  const navRight = document.querySelector(".nav-right");
-  if (navRight) {
-    console.log("✅ Adding user info to navigation");
-    navRight.appendChild(userInfo);
-
-    // Add logout functionality
-    addTrackedEventListener(
-      document.getElementById("logout-btn"),
-      "click",
-      () => {
-        console.log("🚪 Logout button clicked");
-        if (authManager?.handleSignOut) {
-          authManager.handleSignOut();
-        } else if (authManager?.signOut) {
-          // Backward compatibility if a signOut alias exists
-          authManager.signOut();
-        }
-      }
-    );
-  } else {
-    console.error(
-      "❌ Navigation right section not found, cannot add user info"
-    );
-  }
-}
-
-/**
- * Hide user information
- */
-function hideUserInfo() {
-  const userInfo = document.getElementById("user-info");
-  if (userInfo) userInfo.remove();
-}
-
-/**
- * Enable features that require authentication
- */
-function enableScheduleFeatures() {
-  console.log("🎉 Enabling cloud sync, sharing, and advanced features!");
-
-  // Enable cloud save/load buttons
-  const cloudButtons = document.querySelectorAll(".cloud-feature");
-  cloudButtons.forEach((btn) => {
-    btn.disabled = false;
-    btn.title = "Cloud features enabled!";
-  });
-}
-
-/**
- * Disable features that require authentication
- */
-function disableScheduleFeatures() {
-  console.log("📱 Running in local mode - advanced features disabled");
-
-  // Disable cloud features but keep basic scheduling
-  const cloudButtons = document.querySelectorAll(".cloud-feature");
-  cloudButtons.forEach((btn) => {
-    btn.disabled = true;
-    btn.title = "Sign in to use cloud features";
-  });
-}
-
-/* ================================
-   PROFILE COMPLETION CHECK (Legacy)
-================================== */
-
-/**
- * Legacy profile completion check - now handled by authentication callbacks
- * This function remains for backwards compatibility but is no longer the primary method
- */
-function checkProfileCompletion() {
-  console.log(
-    "💡 Note: Profile completion is now handled by authentication callbacks"
-  );
-  // The actual profile check is now done in setupAuthenticationCallbacks()
-}
-
-/* ================================
-   AUTHENTICATION CALLBACK SETUP
-================================== */
-
-/**
- * Preselect the user's avatar when navigating to home page
- * This ensures the user's own schedule is always visible by default
- * 🎯 ENHANCED: Better timing and error handling for initial load
- *
- * NOTE: Currently unused - user preselection is handled by HorizontalFriendsBar.forceUserSelection()
- * Kept for potential future use in edge cases or fallback scenarios.
- */
-async function preselectUserAvatar() {
-  console.log("👤 preselectUserAvatar() called");
-
-  const currentUser = authManager.getCurrentUser();
-
-  if (!currentUser?.uid) {
-    console.log(
-      "⚠️ No authenticated user found - skipping avatar preselection"
-    );
-    return;
-  }
-
-  // Only preselect if not already in compare mode
-  if (state.compareMode) {
-    console.log("⚠️ Compare mode active - skipping avatar preselection");
-    return;
-  }
-
-  // Set active user in HomePage state
-  console.log(
-    `👤 Preselecting user avatar in HomePage state: ${currentUser.uid}`,
-    {
-      currentActiveUserId: state.activeUserId,
-      compareMode: state.compareMode,
-      selectedUserIds: Array.from(state.selectedUserIds),
-    }
-  );
-
-  state.activeUserId = currentUser.uid;
-  state.selectedUserIds.clear(); // Clear any friend selections
-
-  // If horizontal friends bar exists, ensure user is selected there too
-  if (state.horizontalFriendsBar && state.horizontalFriendsBar.selectUser) {
-    console.log("👤 Preselecting user avatar in horizontal friends bar");
-    try {
-      // Check if horizontal friends bar is in compare mode
-      if (state.horizontalFriendsBar.compareMode) {
-        console.log(
-          "🔍 HorizontalFriendsBar is in compare mode - not forcing user selection"
-        );
-      } else {
-        await state.horizontalFriendsBar.selectUser();
-      }
-    } catch (error) {
-      console.warn(
-        "⚠️ Failed to preselect user in horizontal friends bar:",
-        error
-      );
-    }
-  } else {
-    console.log(
-      "⚠️ HorizontalFriendsBar not available yet - will be selected during bar initialization"
-    );
-  }
-
-  // Save state and update UI
-  saveStateToStorage();
-  updateUI();
-}
+// (Removed legacy unused authentication UI helpers: showUnauthenticatedUI, showUserInfo, hideUserInfo,
+// enableScheduleFeatures, disableScheduleFeatures, checkProfileCompletion, preselectUserAvatar)
+// All authentication state handling now occurs within setupAuthenticationCallbacks() and the
+// HorizontalFriendsBar component.
 
 /**
  * Sets up authentication callbacks for profile completion checks
@@ -6106,7 +6012,12 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-    await loadFriendSchedule(friendId, friendName);
+    // Directly use new cached loader then display
+    const friendScheduleData = await loadFriendScheduleWithCache(
+      friendId,
+      friendName
+    );
+    await displayFriendSchedule(friendScheduleData, friendName, friendId);
   }
 
   // Update UI to reflect the change
@@ -6119,121 +6030,7 @@ async function handleFriendScheduleChange(event) {
   );
 }
 
-/**
- * Load and display a friend's schedule
- */
-async function loadFriendSchedule(friendId, friendName) {
-  try {
-    console.log(`📊 Loading schedule for friend: ${friendName} (${friendId})`);
-
-    // Validate input parameters
-    if (!friendId || !friendName) {
-      console.error(
-        `❌ DEBUG: Invalid parameters - friendId: ${friendId}, friendName: ${friendName}`
-      );
-      showScheduleLoadError(friendName || "Unknown Friend");
-      return;
-    }
-
-    // Check cache first
-    if (state.friendsScheduleData.has(friendId)) {
-      console.log("📋 Using cached schedule data");
-      const cachedData = state.friendsScheduleData.get(friendId);
-
-      // Validate cached data
-      if (cachedData && typeof cachedData === "object") {
-        displayFriendSchedule(cachedData, friendName, friendId);
-        return;
-      } else {
-        console.warn("⚠️ DEBUG: Cached data is invalid, removing from cache");
-        state.friendsScheduleData.delete(friendId);
-      }
-    }
-
-    // Load schedule from Firestore
-    const friendScheduleData = await dataManager.getUserSchedule(friendId);
-
-    console.log(
-      `🔍 DEBUG: Friend schedule data structure:`,
-      friendScheduleData
-    );
-
-    // Validate the returned data
-    if (!friendScheduleData || typeof friendScheduleData !== "object") {
-      console.log(`⚠️ ${friendName} has no schedule data`);
-      showNoScheduleMessage(friendName);
-      return;
-    }
-
-    // Check if schedule exists and has valid structure
-    if (
-      !friendScheduleData.schedule ||
-      typeof friendScheduleData.schedule !== "object"
-    ) {
-      console.log(`⚠️ ${friendName} has no schedule matrix data`);
-      showNoScheduleMessage(friendName);
-      return;
-    }
-
-    console.log(
-      `📅 DEBUG: Friend schedule matrix:`,
-      friendScheduleData.schedule
-    );
-    console.log(`📝 DEBUG: Friend slot info:`, friendScheduleData.slotInfo);
-    console.log(`⏰ DEBUG: Friend time slots:`, friendScheduleData.timeSlots);
-
-    // Validate schedule matrix structure
-    let hasScheduleData = false;
-    if (typeof friendScheduleData.schedule === "object") {
-      for (let day = 0; day < 7; day++) {
-        const dayData = friendScheduleData.schedule[day.toString()];
-        if (dayData && typeof dayData === "object") {
-          for (const slot in dayData) {
-            if (dayData[slot] === true || dayData[slot] === "true") {
-              hasScheduleData = true;
-              break;
-            }
-          }
-          if (hasScheduleData) break;
-        }
-      }
-    }
-
-    if (!hasScheduleData) {
-      console.log(`⚠️ ${friendName} has empty schedule (no scheduled classes)`);
-      showNoScheduleMessage(friendName);
-      return;
-    }
-
-    // Cache the valid schedule data
-    state.friendsScheduleData.set(friendId, friendScheduleData);
-
-    // Clear memoization and matrix caches since we have new friend schedule data
-    memoCache.clear();
-    matrixCache.clear();
-    console.log(
-      "🧹 Cleared memoization and matrix caches after caching new friend schedule data"
-    );
-
-    // Display the friend's schedule
-    displayFriendSchedule(friendScheduleData, friendName, friendId);
-
-    console.log(`✅ Successfully loaded ${friendName}'s schedule`);
-  } catch (error) {
-    console.error(`❌ Failed to load ${friendName}'s schedule:`, error);
-
-    // Provide specific error messages based on error type
-    if (error.message && error.message.includes("permission")) {
-      console.error(`❌ Permission denied accessing ${friendName}'s schedule`);
-      showScheduleLoadError(friendName, "Permission denied");
-    } else if (error.message && error.message.includes("network")) {
-      console.error(`❌ Network error loading ${friendName}'s schedule`);
-      showScheduleLoadError(friendName, "Network error");
-    } else {
-      showScheduleLoadError(friendName);
-    }
-  }
-}
+// Legacy loadFriendSchedule removed; callers updated to use loadFriendScheduleWithCache + displayFriendSchedule
 
 /**
  * Display a friend's schedule in the schedule grid
@@ -6291,7 +6088,7 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
     );
     scheduleData = await loadFriendScheduleWithCache(friendId, friendName);
     if (!scheduleData) {
-      showNoScheduleMessage(friendName);
+      showFriendScheduleNotice(friendName, "no-schedule");
       return;
     }
   }
@@ -6305,8 +6102,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       console.warn(
         `⚠️ DEBUG: Failed to convert schedule data for ${friendName}`
       );
-      showNoScheduleMessage(friendName);
-      return;
+  showFriendScheduleNotice(friendName, "no-schedule");
+  return;
     }
 
     console.log(`🔄 DEBUG: Converted schedule data:`, convertedScheduleData);
@@ -6320,8 +6117,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       console.error(
         `❌ DEBUG: Invalid converted data structure for ${friendName}`
       );
-      showScheduleLoadError(friendName);
-      return;
+  showFriendScheduleNotice(friendName, "error");
+  return;
     }
 
     // Update state to reflect viewing friend's schedule
@@ -6340,6 +6137,9 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
         createWeeklyMatrix(convertedScheduleData.timeSlots.length, false),
     };
 
+  // Normalize friend matrices to ensure integrity
+  normalizeUserScheduleMatrices(friendUser);
+
     console.log(`🔧 DEBUG: Created friend user object:`, friendUser);
 
     // Validate friend user object
@@ -6349,8 +6149,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       !friendUser.timeSlots.length
     ) {
       console.error(`❌ DEBUG: Invalid friend user object for ${friendName}`);
-      showNoScheduleMessage(friendName);
-      return;
+  showFriendScheduleNotice(friendName, "no-schedule");
+  return;
     }
 
     // Add friend to users state temporarily for rendering
@@ -6382,7 +6182,7 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       `❌ DEBUG: Error displaying friend schedule for ${friendName}:`,
       error
     );
-    showScheduleLoadError(friendName);
+  showFriendScheduleNotice(friendName, "error");
   }
 }
 
@@ -6508,40 +6308,31 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
 /**
  * Show message when friend has no schedule
  */
-function showNoScheduleMessage(friendName) {
-  // Clear the schedule grid and show message
+function showFriendScheduleNotice(friendName, type, detail) {
+  updateScheduleOwnerIndicator(null, false);
   state.activeUserId = null;
   state.currentViewingFriendId = null;
-
-  // Hide schedule owner indicator
-  updateScheduleOwnerIndicator(null, false);
-
-  console.log(`No schedule was set by ${friendName}`);
-}
-
-/**
- * Show error message when schedule loading fails
- */
-function showScheduleLoadError(friendName, errorType = null) {
-  // Hide schedule owner indicator on error
-  updateScheduleOwnerIndicator(null, false);
-
-  let errorMessage;
-  switch (errorType) {
-    case "Permission denied":
-      errorMessage = `Permission denied: Cannot access ${friendName}'s schedule`;
+  const base = friendName || "Friend";
+  let msg;
+  switch (type) {
+    case "permission":
+      msg = `Permission denied for ${base}`;
       break;
-    case "Network error":
-      errorMessage = `Network error: Could not load ${friendName}'s schedule`;
+    case "network":
+      msg = `Network error loading ${base}`;
       break;
-    case "Invalid data":
-      errorMessage = `Data error: ${friendName}'s schedule data is corrupted`;
+    case "invalid":
+      msg = `Invalid schedule data for ${base}`;
       break;
+    case "error":
+      msg = `Failed to load ${base}'s schedule`;
+      break;
+    case "no-schedule":
     default:
-      errorMessage = `Failed to load ${friendName}'s schedule`;
+      msg = `${base} has no schedule set`;
   }
-
-  console.error(errorMessage);
+  if (detail) msg += ` (${detail})`;
+  console.log(msg);
 }
 
 /**
@@ -7153,6 +6944,10 @@ document.addEventListener("spa:page:load", async (event) => {
       console.log("⭐ Skipping Horizontal Friends Bar (user not logged in)");
     }
 
+    // Initialize schedule scroll indicator
+    console.log("📍 Initializing schedule scroll indicator...");
+    initializeScheduleScrollIndicator();
+
     // Clean up old cache entries and start maintenance
     console.log("🧹 Cleaning up expired friend schedule cache...");
     FRIENDS_SCHEDULE_CACHE.cleanup();
@@ -7413,5 +7208,98 @@ export function updateTimeBasedPin(user, dayIndex, slotIndex, isPinned) {
     if (existingPinIndex >= 0) {
       user.timeBasedPins[dayIndex][existingPinIndex].pinned = false;
     }
+  }
+}
+
+/* ================================
+   SCHEDULE SCROLL INDICATOR
+================================== */
+
+/**
+ * Initialize the schedule scroll indicator
+ */
+function initializeScheduleScrollIndicator() {
+  try {
+    // Create scroll indicator element
+    const scheduleSection = document.querySelector('.schedule-section');
+    if (!scheduleSection) {
+      console.warn('Schedule section not found, skipping scroll indicator');
+      return;
+    }
+
+    // Remove existing indicator if present
+    const existingIndicator = scheduleSection.querySelector('.schedule-scroll-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
+
+    // Create new indicator
+    const indicator = document.createElement('div');
+    indicator.className = 'schedule-scroll-indicator';
+    indicator.setAttribute('aria-hidden', 'true');
+    scheduleSection.appendChild(indicator);
+
+    // Only Day View container
+    const dayViewContainer = document.querySelector('.schedule-day-view #dayViewContainer');
+    if (!dayViewContainer) {
+      console.warn('Day view container not found, indicator disabled');
+      return;
+    }
+
+    let scrollTimeout;
+    const fastHideOnScroll = () => {
+      // Hide immediately on scroll start
+      indicator.classList.add('hidden');
+      clearTimeout(scrollTimeout);
+      // After scrolling settles, re-evaluate visibility
+      scrollTimeout = setTimeout(() => {
+        updateScrollIndicatorVisibility(dayViewContainer, indicator);
+      }, 120);
+    };
+
+    // Attach listener
+    dayViewContainer.addEventListener('scroll', fastHideOnScroll, { passive: true });
+
+    // Hook into view mode buttons to refresh indicator only for Day View
+    const dayBtn = document.getElementById('dayViewBtn');
+    const gridBtn = document.getElementById('gridViewBtn');
+    const recheckAfterToggle = () => setTimeout(() => updateScrollIndicatorVisibility(dayViewContainer, indicator), 30);
+    if (dayBtn) dayBtn.addEventListener('click', recheckAfterToggle);
+    if (gridBtn) gridBtn.addEventListener('click', () => indicator.classList.add('hidden'));
+
+    // Initial visibility check
+    updateScrollIndicatorVisibility(dayViewContainer, indicator);
+
+    // Respond to resize
+    window.addEventListener('resize', () => updateScrollIndicatorVisibility(dayViewContainer, indicator));
+
+    console.log('✅ Schedule scroll indicator initialized (day view only)');
+  } catch (error) {
+    console.error('❌ Error initializing schedule scroll indicator:', error);
+  }
+}
+
+/**
+ * Update scroll indicator visibility based on scroll position
+ */
+function updateScrollIndicatorVisibility(wrapper, indicator) {
+  if (!wrapper || !indicator) return;
+  // If container not visible (display:none), hide indicator
+  if (wrapper.offsetParent === null || wrapper.clientHeight === 0) {
+    indicator.classList.add('hidden');
+    return;
+  }
+
+  const { scrollTop, scrollHeight, clientHeight } = wrapper;
+  const maxScrollable = Math.max(1, scrollHeight - clientHeight); // avoid divide-by-zero
+  const scrollPercentage = scrollTop / maxScrollable;
+
+  const hasOverflow = scrollHeight > clientHeight + 4; // small threshold
+  const isAtBottom = scrollTop + clientHeight >= scrollHeight - 2 || scrollPercentage > 0.97;
+
+  if (!hasOverflow || isAtBottom) {
+    indicator.classList.add('hidden');
+  } else {
+    indicator.classList.remove('hidden');
   }
 }

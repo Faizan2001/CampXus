@@ -68,7 +68,7 @@ body.page-notifications .schedule-section {
 .notifications-page {
   max-width: 100%;
   margin: 0;
-  padding: 1rem;
+  padding: 0.5rem 0.4rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -237,6 +237,18 @@ body.page-notifications .schedule-section {
   flex-direction: column;
   flex: 1; /* grow to fill page height */
   min-height: 0; /* allow inner scroll area to size */
+}
+
+/* Mobile viewport fitting: constrain overall card height and scroll inner list */
+@media (max-width: 768px) {
+  .notifications-card {
+    max-height: calc(100dvh - var(--nav-height, 56px) - 1rem); /* account for nav + small margin */
+    margin-bottom: 0.75rem;
+  }
+  .notifications-scrollable-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* New single-card header layout */
