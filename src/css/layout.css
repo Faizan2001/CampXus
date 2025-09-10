@@ -19,6 +19,8 @@
 :root {
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
+  --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) - env(safe-area-inset-bottom));
 }
 
 /* ===== APP CONTAINER ===== */
@@ -274,11 +276,18 @@ body:not(.dark-mode) .nav-link:hover {
   flex: 1 1 auto;
   background: var(--main-content-bg);
   position: relative;
-  height: calc(100dvh - var(--nav-height, 64px) - env(safe-area-inset-bottom));
-  max-height: calc(
-    100dvh - var(--nav-height, 64px) - env(safe-area-inset-bottom)
-  );
+  /* Dynamic height that adapts to bottom nav visibility */
+  height: var(--main-content-available-height);
+  max-height: var(--main-content-available-height);
+  min-height: var(--main-content-available-height);
   padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* When bottom navigation is visible - use reduced height */
+body.has-bottom-nav .main-content {
+  height: var(--main-content-available-height-with-bottom-nav);
+  max-height: var(--main-content-available-height-with-bottom-nav);
+  min-height: var(--main-content-available-height-with-bottom-nav);
 }
 .main-content::before {
   content: "";
@@ -304,42 +313,14 @@ body:not(.dark-mode) .nav-link:hover {
   min-height: 0;
   box-sizing: border-box;
   overflow-x: hidden;
+  /* Ensure content grid fills available space */
+  height: 100%;
 }
 
-/* home-page scroll rules */
-body.page-home {
-  overflow: hidden;
-}
-body.page-home .main-content {
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 0.5rem 0.4rem !important;
-}
-body.page-home .content-grid {
-  overflow: hidden;
-}
+/* General page-specific overrides - moved home-specific styles to schedule.css */
 .content-grid > * {
   max-width: 100%;
   box-sizing: border-box;
-}
-
-body.page-home .schedule-section {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-body.page-home .schedule-wrapper,
-body.page-home .schedule-day-view .day-view-container {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-body.page-home .horizontal-friends-bar {
-  flex-shrink: 0;
-}
-body.page-home .schedule-wrapper {
-  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
 }
 
 /* ===== SCHEDULE SCROLL INDICATOR ===== */
@@ -1091,6 +1072,8 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (max-width: 480px) {
   :root {
     --nav-height: 56px;
+    --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+    --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) - env(safe-area-inset-bottom));
   }
 
   .top-nav {
@@ -1142,63 +1125,26 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     padding: 0.75rem !important;
   }
 
-  /* Reserve bottom-nav space precisely on narrow phones */
+  /* Mobile: always assume bottom nav is present due to display: grid in mobile-bottom-nav */
   .main-content {
-    min-height: calc(
-      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    );
-    height: calc(
-      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    );
-    max-height: calc(
-      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    );
-    padding-bottom: calc(
-      var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px)
-    ) !important;
+    /* Use dynamic height variables that account for bottom nav */
+    height: var(--main-content-available-height-with-bottom-nav);
+    max-height: var(--main-content-available-height-with-bottom-nav);
+    min-height: var(--main-content-available-height-with-bottom-nav);
+    padding-bottom: 8px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
-  body.page-home .main-content {
-    height: calc(
-      100dvh - var(--nav-height, 79px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    ) !important;
-    min-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    ) !important;
-    max-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    ) !important;
-    padding-bottom: 8px; 
-  }
+
   .content-grid {
-    min-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    );
-    height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    );
-    max-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    );
+    /* Content grid fills available main-content space */
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-  body.page-home .content-grid {
-    height: auto !important;
-    min-height: auto !important;
-    max-height: none !important;
   }
 
   /* optional vertical headers */
@@ -1216,27 +1162,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     white-space: normal !important;
   }
 
-  body.page-home .schedule-column {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: calc(
-      100dvh - var(--nav-height, 56px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)) !important;
-    order: 1;
-  }
-
-  body.page-home .schedule-column .glass-card {
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: calc(
-      100dvh - var(--nav-height, 56px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    ) !important;
-
-  }
+  /* Removed home-page specific styles - moved to schedule.css */
 }
 
 /* ===== SMALL-UP (≥550px) ===== */
@@ -1361,18 +1287,15 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     display: none !important;
   } /* hide top links */
 
-  /* general mobile reservation for non-home pages */
+  /* Mobile bottom nav present - adjust main content for all pages */
   .main-content {
-    min-height: calc(100dvh - var(--nav-height, 64px));
-    height: auto;
-    max-height: none;
+    height: var(--main-content-available-height-with-bottom-nav);
+    max-height: var(--main-content-available-height-with-bottom-nav);
+    min-height: var(--main-content-available-height-with-bottom-nav);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding-bottom: calc(
-      var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) +
-        16px
-    ) !important;
+    padding-bottom: 16px;
   }
 
   /* sheet-as-dropdown option on mobile */
@@ -1465,6 +1388,8 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   .button-group button:last-child {
     margin-bottom: 0 !important;
   }
+
+
 }
 
 /* ===== STANDARD DESKTOP  ≥900px ===== */
@@ -1519,6 +1444,10 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     max-height: calc(100dvh - 12rem);
     min-height: 500px;
   }
+
+  /* Removed home-page specific styles - moved to schedule.css */
+
+  
 }
 
 /* ===== ULTRA-WIDE ≥1600px ===== */
@@ -1538,7 +1467,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .schedule-section {
     order: unset !important;
-    height: fit-content;
+    height: 100%;
     max-height: calc(100dvh - 4rem);
   }
   .glass-card {

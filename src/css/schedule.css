@@ -1,22 +1,18 @@
-/* Cleaned legacy compact overrides at top (see unified mobile grid section below). */
-/*
+/* 
 ====================================================================================
                               SCHEDULE COMPONENT STYLES
                         Schedule Grid, Time Slots, and Interactions
 ====================================================================================
 
-🎯 COMPONENT SCOPE:
-This file contains all styles related to the schedule display:
-
-📋 INCLUDED STYLES:
-- Schedule wrapper and container
-- Schedule table layout and columns
-- Time slots and cells
-- Schedule headers and controls
-- Many-slots mode optimizations
-- Cross-browser compatibility fixes
-- Mobile schedule responsiveness
-
+Scope:
+- Schedule container, header, wrapper
+- Table/grid, slots, labels
+- Many-slots mode
+- Slot info display
+- Pin mode & indicators
+- Tooltips, actions
+- Friends bar
+- Responsive (media queries grouped by breakpoint)
 ====================================================================================
 */
 
@@ -24,27 +20,26 @@ This file contains all styles related to the schedule display:
 .schedule-section {
   display: flex;
   flex-direction: column;
-  height: fit-content; /* Allow glass card to scale with content */
-  max-height: calc(100vh - 8rem); /* Fallback */
-  max-height: calc(100dvh - 8rem); /* Prefer dvh on iOS */
-  overflow: hidden; /* Ensure content stays within bounds */
-  border-radius: 16px; /* unify radius always */
-  background: transparent; /* prevent unintended override of glass wrapper in light mode */
+  overflow: hidden;
+  border-radius: 16px;
+  background: transparent;
+  /* Ensure schedule section respects parent boundaries */
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
 }
 
-/* Dark mode container subtle tint (wrapper inside still uses glass) */
+/* Theme variants */
 body.dark-mode .schedule-section {
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
-
-/* Ensure light mode explicitly clears any border/background remnants */
 body:not(.dark-mode) .schedule-section {
   border: none;
   background: transparent;
 }
 
-/* Disable hover visual changes for glass areas on mobile/touch */
+/* Disable hover visuals on touch-only devices */
 @media (hover: none) {
   .glass-card:hover,
   .glass-card:active {
@@ -55,7 +50,7 @@ body:not(.dark-mode) .schedule-section {
 }
 
 .schedule-section h3 {
-  flex-shrink: 0; /* Prevent header from shrinking */
+  flex-shrink: 0;
   margin-bottom: 1rem;
 }
 
@@ -64,20 +59,18 @@ body:not(.dark-mode) .schedule-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem; /* compressed vertical space */
-  padding-block: 0.25rem; /* reduce header vertical padding */
-  flex-shrink: 0; /* Prevent header from shrinking */
+  margin-bottom: 0.25rem;
+  padding-block: 0.25rem;
+  flex-shrink: 0;
 }
-
 .schedule-header h3 {
-  margin-bottom: 0; /* Remove margin since parent has margin-bottom */
+  margin-bottom: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.05rem; /* slightly tighter */
+  font-size: 1.05rem;
 }
 
-/* Schedule owner indicator */
 .schedule-owner-indicator {
   margin-left: 0.5rem;
   padding: 0.25rem 0.75rem;
@@ -92,36 +85,17 @@ body:not(.dark-mode) .schedule-section {
   box-shadow: var(--shadow-sm);
   animation: fadeInScale 0.3s var(--animation-smooth);
 }
-
-.schedule-owner-indicator i {
-  font-size: 0.75rem;
-  opacity: 0.9;
-}
-
-/* Hide owner indicator in compare mode */
-body.compare-mode-active .schedule-owner-indicator {
-  display: none !important;
-}
+.schedule-owner-indicator i { font-size: 0.75rem; opacity: 0.9; }
+body.compare-mode-active .schedule-owner-indicator { display: none !important; }
 
 @keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-/* Schedule header actions container */
-.schedule-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.schedule-header-actions { display: flex; align-items: center; gap: 12px; }
 
-/* Pin button in schedule header */
+/* Pin button */
 .pin-btn {
   padding: 8px 12px;
   border: none;
@@ -136,185 +110,130 @@ body.compare-mode-active .schedule-owner-indicator {
   min-width: 40px;
   height: 36px;
   justify-content: center;
-
-  /* Default disabled state */
   background: var(--pin-btn-disabled-bg);
   color: var(--pin-btn-disabled-color);
   box-shadow: 0 2px 8px var(--pin-btn-disabled-shadow);
 }
-
-.pin-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* Pin button enabled state (red - ready to pin) */
+.pin-btn:disabled { cursor: not-allowed; opacity: 0.6; }
 .pin-btn:not(:disabled) {
   background: var(--button-off-red);
   color: white;
   box-shadow: 0 4px 12px var(--pin-btn-enabled-shadow);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .pin-btn:not(:disabled):hover {
   background: var(--button-off-red-hover);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px var(--pin-btn-hover-shadow);
 }
-
-.pin-btn:not(:disabled):active {
-  transform: translateY(0px);
-  transition: all 0.1s ease;
-}
-
+.pin-btn:not(:disabled):active { transform: translateY(0); transition: all 0.1s ease; }
 .pin-btn:focus-visible,
 #addNewTimeSlotBtn:focus-visible {
-  /* Focus Accessibility */
   outline: 2px solid var(--accent-primary);
   outline-offset: 3px;
   box-shadow: 0 0 0 3px var(--focus-outline-shadow),
-    0 8px 20px var(--focus-glow-shadow), 0 4px 8px var(--focus-general-shadow);
+              0 8px 20px var(--focus-glow-shadow),
+              0 4px 8px var(--focus-general-shadow);
 }
 
-/* ===== SCHEDULE WRAPPER & TABLE LAYOUT ===== */
+/* ===== WRAPPER & TABLE ===== */
 .schedule-wrapper {
   border-radius: var(--radius-xl);
-  overflow-x: auto; /* Enable horizontal scrolling */
-  overflow-y: auto; /* Allow vertical scrolling when needed */
-  background: var(--depth-surface); /* fallback */
-  box-shadow: var(--shadow-xl); /* Deep shadow for elevation */
+  overflow-x: auto;
+  overflow-y: auto;
+  background: var(--depth-surface);
+  box-shadow: var(--shadow-xl);
   border: 1px solid var(--border);
-  position: relative; /* For sticky positioning context */
-  flex: 1; /* Take remaining space after header */
-  min-height: 250px; /* Reduced minimum for better mobile scaling */
-  max-height: calc(
-    100vh - 300px
-  ); /* ✅ FIXED: Constrain height to prevent overflow */
-  max-height: calc(100dvh - 300px); /* Prefer dvh on modern browsers */
-  padding: 0.5rem; /* Add consistent padding for gap management */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-  width: 100%; /* Ensure wrapper takes full available width of its parent. */
-  box-sizing: border-box; /* Include padding and border in the element's total width and height. */
-  margin-inline: 0; /* Ensure no horizontal margins are pushing the element. */
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Remove fixed max-height - let parent container control height */
+  height: 100%;
+  max-height: 100%;
+  padding: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
+  margin-inline: 0;
 }
 
-/* Light mode schedule glass background override */
+/* Light mode glass override */
 body:not(.dark-mode) .schedule-wrapper,
 body.light-mode .schedule-wrapper {
   background: var(--glass-bg) !important;
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  -webkit-backdrop-filter: var(--glass-backdrop-blur)
-    var(--glass-backdrop-saturate);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
 }
 
-/*
-  Schedule Table Base Styles:
-  - 'table-layout: fixed': Ensures columns maintain consistent widths based on
-    the first row or <col> elements, preventing content from unexpectedly
-    stretching or shrinking columns. This is key for a predictable layout.
-  - 'width: 100%': Makes the table attempt to fill the width of its container
-    ('.schedule-wrapper').
-  - 'min-width': This is crucial for responsive behavior with wide tables.
-    When the '.schedule-wrapper' becomes narrower than this 'min-width' value,
-    the table itself stops shrinking and instead overflows horizontally.
-    The 'overflow-x: auto' on '.schedule-wrapper' then provides a scrollbar.
-    This base 'min-width' is adjusted in media queries for smaller screen sizes
-    to optimize viewing.
-  - 'border-collapse: separate' and 'border-spacing: 0': Used here likely to
-    control borders on individual cells/slots more precisely, especially with
-    your custom slot borders.
-*/
+/* Table base */
 .schedule-table {
-  table-layout: fixed !important; /* Ensures consistent column widths; see block comment above for details. */
-  border-spacing: 0 !important; /* Used with border-collapse: separate to control cell spacing. */
-  border-collapse: separate !important; /* Allows individual borders on cells/slots, not collapsing them. */
-  width: 100% !important; /* Table width will be determined by its content, up to the container width. */
-  margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
-  min-width: 600px; /* Base minimum width. If container is narrower, table scrolls horizontally. Adjusted in media queries. */
-  max-width: none; /* Allows table to expand beyond min-width if content requires and container allows. */
+  table-layout: fixed !important;
+  border-spacing: 0 !important;
+  border-collapse: separate !important;
+  width: 100% !important;
+  margin-inline: auto !important;
+  min-width: 600px;
+  max-width: none;
 }
 
-/* Ensure proper column sizing for time and day labels */
+/* Column sizing */
 .schedule-table th:first-child,
 .schedule-table .day-label {
-  width: 90px !important; /* Slightly reduced for better mobile fit */
+  width: 90px !important;
   min-width: 90px !important;
   max-width: 90px !important;
 }
-
 .schedule-table th:not(:first-child):not(:last-child) {
-  width: auto !important; /* Let columns distribute naturally */
-  min-width: 80px !important; /* Reduced minimum for better mobile support */
-  flex: 1; /* Equal distribution of available space */
+  width: auto !important;
+  min-width: 80px !important;
+  flex: 1;
 }
-
 .schedule-table th:last-child {
-  width: 50px !important; /* Slightly reduced for mobile */
+  width: 50px !important;
   min-width: 50px !important;
   max-width: 50px !important;
 }
 
-/* ===== MANY SLOTS MODE OPTIMIZATION ===== */
-/*
-  When the .schedule-table has the .many-slots class, these rules apply
-  to optimize the layout for a large number of time slots.
-  The main strategy is to give day/time columns a fixed, narrower width
-  to prevent the table from becoming excessively wide.
-*/
-
-/* Consistent, fixed-width scaling for day/time header and data cells in many-slots mode. */
+/* ===== MANY-SLOTS MODE (base) ===== */
 .schedule-table.many-slots th:not(:first-child):not(:last-child),
 .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-  width: 75px !important; /* Fixed width for these columns. */
-  min-width: 75px !important; /* Enforce the fixed width. */
-  max-width: 75px !important; /* Enforce the fixed width. */
-  box-sizing: border-box !important; /* Ensures padding/border are within the 75px. */
-  flex: none !important; /* Prevents flex-grow/shrink if table display were flex. */
+  width: 75px !important;
+  min-width: 75px !important;
+  max-width: 75px !important;
+  box-sizing: border-box !important;
+  flex: none !important;
 }
-
-/* Table-level adjustments for many-slots mode. */
 .schedule-table.many-slots {
-  table-layout: fixed !important; /* Crucial for respecting the fixed column widths above. */
-  width: auto !important; /* Allows the table to size based on its content (the fixed-width columns), potentially triggering horizontal scroll. */
-  margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
-  border-collapse: separate !important; /* Consistent with base table styling. */
-  border-spacing: 0 !important; /* Consistent with base table styling. */
-
-  /* ✅ FIXED: Additional constraints for comparison mode with many slots */
-  max-height: 70vh; /* Prevent table from exceeding viewport */
-  overflow-y: auto; /* Allow vertical scrolling for excessive rows */
+  table-layout: fixed !important;
+  width: auto !important;
+  margin-inline: auto !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
-/* Fix slot appearance and spacing - Enhanced visible borders */
+/* ===== SLOTS, LABELS, CELLS ===== */
 .slot {
-  /* Unified responsive row height via CSS variable */
   height: var(--slot-row-height, 4rem);
   min-height: var(--slot-row-height, 4rem);
-  border: 2px solid rgba(192, 192, 192, 0.9) !important; /* Thicker, more opaque silver border */
+  border: 2px solid rgba(192, 192, 192, 0.9) !important;
   border-radius: 4px !important;
-  margin: 0 !important; /* Remove margins to prevent border doubling */
-  margin-right: -1px !important; /* Overlap right border with next slot */
-  margin-bottom: -1px !important; /* Overlap bottom border with slot below */
+  margin: 0 !important;
+  margin-right: -1px !important;
+  margin-bottom: -1px !important;
   background: var(--depth-surface) !important;
   transition: all 0.2s ease !important;
   position: relative !important;
   cursor: pointer !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15) !important; /* Enhanced inner highlight */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
 }
-
 .slot:hover {
   background: var(--accent-tertiary) !important;
-  border-color: rgba(
-    192,
-    192,
-    192,
-    1
-  ) !important; /* Fully opaque silver on hover */
-  z-index: 10 !important; /* Ensure hover state appears above adjacent slots */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important; /* Add shadow on hover */
+  border-color: rgba(192, 192, 192, 1) !important;
+  z-index: 10 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Fix day labels */
 .day-label {
   background: var(--depth-elevated) !important;
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
@@ -335,7 +254,6 @@ body.light-mode .schedule-wrapper {
   min-height: 3.5rem !important;
 }
 
-/* Fix table headers for consistency with day labels */
 .schedule-table th {
   background: var(--depth-elevated) !important;
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
@@ -351,28 +269,20 @@ body.light-mode .schedule-wrapper {
   z-index: 4 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
-
-/* Fix table cells */
 .schedule-table td {
   border: none !important;
-  padding: 1px !important; /* Minimal padding to accommodate overlapping borders */
+  padding: 1px !important;
   vertical-align: middle !important;
   text-align: center !important;
   position: relative !important;
 }
 
-/* ===== GRID VIEW: FULL-WIDTH AND EQUAL DAY COLUMNS ===== */
-/* Scope to grid view only to avoid affecting day view */
-.schedule-section .schedule-grid-view {
-  --time-col-width: 96px; /* first column (time labels) width */
-}
-
+/* ===== GRID VIEW ===== */
+.schedule-section .schedule-grid-view { --time-col-width: 96px; }
 .schedule-section .schedule-grid-view table.schedule-table {
   width: 100% !important;
   table-layout: fixed !important;
 }
-
-/* Ensure header/body use the same first-column width */
 .schedule-section .schedule-grid-view table.schedule-table th:first-child,
 .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
   width: var(--time-col-width) !important;
@@ -380,10 +290,8 @@ body.light-mode .schedule-wrapper {
   max-width: var(--time-col-width) !important;
   box-sizing: border-box !important;
 }
-
-/* Enhanced time slot label styling (left column) */
 .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
-  position: sticky !important; /* keep visible when horizontal scroll (many slots) */
+  position: sticky !important;
   left: 0 !important;
   z-index: 2 !important;
   background: var(--depth-elevated, rgba(20, 20, 28, 0.85)) !important;
@@ -393,11 +301,7 @@ body.light-mode .schedule-wrapper {
   border-radius: 6px !important;
   padding: 0.35rem 0.25rem !important;
   font-weight: 600 !important;
-  font-size: clamp(
-    0.58rem,
-    0.55rem + 0.4vw,
-    0.75rem
-  ) !important; /* fluid small */
+  font-size: clamp(0.58rem, 0.55rem + 0.4vw, 0.75rem) !important;
   line-height: 1.15 !important;
   letter-spacing: 0.25px !important;
   color: var(--text-secondary) !important;
@@ -409,29 +313,10 @@ body.light-mode .schedule-wrapper {
   overflow: hidden !important;
   white-space: nowrap !important;
 }
-
-/* Dark mode accent line */
-.dark-mode
-  .schedule-section
-  .schedule-grid-view
-  table.schedule-table
-  td.time-slot-label {
+.dark-mode .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
   border-color: rgba(255, 255, 255, 0.06) !important;
   border-right-color: rgba(255, 255, 255, 0.18) !important;
 }
-
-/* Mobile refinements */
-@media (max-width: 480px) {
-  .schedule-section
-    .schedule-grid-view
-    table.schedule-table
-    td.time-slot-label {
-    font-size: clamp(0.55rem, 0.5rem + 0.9vw, 0.7rem) !important;
-    padding: 0.4rem 0.25rem !important;
-  }
-}
-
-/* Distribute remaining space equally across 7 day columns */
 .schedule-section .schedule-grid-view table.schedule-table th:not(:first-child),
 .schedule-section .schedule-grid-view table.schedule-table td.slot {
   width: calc((100% - var(--time-col-width)) / 7) !important;
@@ -439,144 +324,31 @@ body.light-mode .schedule-wrapper {
   max-width: none !important;
   box-sizing: border-box !important;
 }
-
-/* Base row height variable (grid context) */
-.schedule-section .schedule-grid-view {
-  --slot-row-height: 4rem;
+.schedule-section .schedule-grid-view { --slot-row-height: 4rem; }
+.schedule-section .schedule-grid-view .schedule-wrapper { overflow-y: auto !important; }
+.schedule-section .schedule-grid-view table.schedule-table.many-slots {
+  max-height: none !important;
+  overflow-y: visible !important;
 }
-
-/* Medium screens: slightly taller for touch */
-@media (max-width: 900px) {
-  .schedule-section .schedule-grid-view {
-    --slot-row-height: 4.25rem;
-  }
-}
-
-/* Small screens: a bit more height to improve tap accuracy */
-@media (max-width: 600px) {
-  .schedule-section .schedule-grid-view {
-    --slot-row-height: 4.35rem;
-  }
-}
-
-/* Extra small phones: maximize tap comfort */
-@media (max-width: 480px) {
-  .schedule-section .schedule-grid-view {
-    --slot-row-height: 4.5rem;
-  }
-}
-
-/* === MOBILE CONTENT-DRIVEN GRID (<=480px) === */
-@media (max-width: 480px) {
-  /* Narrower time column but still one-line labels */
-  .schedule-section .schedule-grid-view {
-    --time-col-width: 78px;
-  }
-
-  /* Allow table to auto-size columns based on content instead of forced equal distribution */
-  .schedule-section .schedule-grid-view table.schedule-table {
-    table-layout: auto !important;
-    width: auto !important; /* shrink-to-fit; wrapper will scroll if overflow */
-  }
-
-  /* Wrapper horizontal scroll for content-driven widths */
-  .schedule-section .schedule-grid-view .schedule-wrapper {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Day headers & slot columns: remove fixed width, use min-width so content (course code + room) drives width */
-  .schedule-section
-    .schedule-grid-view
-    table.schedule-table
-    th:not(:first-child),
-  .schedule-section .schedule-grid-view table.schedule-table td.slot {
-    width: auto !important;
-    min-width: 56px !important; /* minimum readable / touch-friendly width */
-    max-width: 140px !important; /* avoid excessively wide columns */
-  }
-
-  /* Day label (header cells except first) baseline styling sync with slot height */
-  .schedule-section
-    .schedule-grid-view
-    table.schedule-table
-    th:not(:first-child) {
-    min-height: var(--slot-row-height, 3rem) !important;
-    line-height: 1.1 !important;
-    font-size: clamp(0.65rem, 0.6rem + 0.7vw, 0.8rem) !important;
-    padding: 0.45rem 0.25rem !important;
-  }
-
-  /* Time slot labels: ensure at least 44px touch height, allow reduced height if variable lowered */
-  .schedule-section
-    .schedule-grid-view
-    table.schedule-table
-    td.time-slot-label {
-    min-height: 2.75rem !important; /* 44px minimum */
-    height: var(--slot-row-height, 3.25rem) !important;
-    font-size: clamp(0.55rem, 0.5rem + 1vw, 0.7rem) !important;
-    padding: 0.35rem 0.25rem !important;
-  }
-
-  /* Adjust unified responsive row height to a slightly more compact value while retaining 44px min */
-  .schedule-section .schedule-grid-view {
-    --slot-row-height: 3.25rem;
-  }
-
-  /* Slot cells: enforce min touch height and allow content width */
-  .schedule-section .schedule-grid-view table.schedule-table td.slot {
-    min-height: 2.75rem !important; /* 44px */
-    height: var(--slot-row-height) !important;
-  }
-}
-
-/* Apply responsive padding & right space for pin square (all breakpoints) */
+/* padding for pin square on all breakpoints */
 .schedule-section .schedule-grid-view table.schedule-table td.slot {
-  padding-right: 0.65rem !important; /* space so pin stack doesn't overlap content */
+  padding-right: 0.65rem !important;
 }
 .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
   height: var(--slot-row-height, 4rem) !important;
   min-height: var(--slot-row-height, 4rem) !important;
 }
-
-/* Override any legacy last-child narrow rule inside grid view */
-.schedule-section .schedule-grid-view table.schedule-table th:last-child {
+/* Neutralize many-slots fixed widths within grid view */
+.schedule-section .schedule-grid-view table.schedule-table.many-slots th:not(:first-child):not(:last-child),
+.schedule-section .schedule-grid-view table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   width: calc((100% - var(--time-col-width)) / 7) !important;
   min-width: 0 !important;
   max-width: none !important;
 }
 
-/* Neutralize many-slots fixed widths within grid view so columns still fill container */
-.schedule-section
-  .schedule-grid-view
-  table.schedule-table.many-slots
-  th:not(:first-child):not(:last-child),
-.schedule-section
-  .schedule-grid-view
-  table.schedule-table.many-slots
-  td:not(:first-child):not(:last-child) {
-  width: calc((100% - var(--time-col-width)) / 7) !important;
-  min-width: 0 !important;
-  max-width: none !important;
-}
-
-/* Move vertical scrolling to wrapper to keep header/body widths aligned */
-.schedule-section .schedule-grid-view .schedule-wrapper {
-  overflow-y: auto !important;
-}
-.schedule-section .schedule-grid-view table.schedule-table.many-slots {
-  max-height: none !important;
-  overflow-y: visible !important;
-}
-
-/* ===== MANY SLOTS NOTIFICATION ===== */
-/* Notification message for users when many time slots are present */
+/* ===== MANY SLOTS NOTE ===== */
 .many-slots-note {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   color: white !important;
   padding: 0.75rem 1rem;
   border-radius: var(--radius-lg);
@@ -589,283 +361,46 @@ body.light-mode .schedule-wrapper {
   gap: 0.5rem;
   animation: slideInFromTop 0.3s var(--animation-smooth);
 }
-
-.many-slots-note i {
-  font-size: 1rem;
-  opacity: 0.9;
-}
-
+.many-slots-note i { font-size: 1rem; opacity: 0.9; }
 @keyframes slideInFromTop {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Mobile responsive styles for notification */
-@media (max-width: 768px) {
-  .many-slots-note {
-    font-size: 0.8rem;
-    padding: 0.6rem 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  /* Make slots more compact for better visibility on small screens */
-  .slot {
-    height: 2.25rem !important;
-    min-height: 2.25rem !important;
-  }
-
-  /* Adjust schedule wrapper scrolling for small mobile */
-  .schedule-wrapper {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 0.25rem !important; /* Reduced padding for more space */
-    min-height: 200px !important;
-    max-height: 60vh !important; /* Reduced for small screens */
-  }
-
-  /* Improve small mobile scale */
-  .schedule-table {
-    min-width: 450px !important; /* Smaller minimum to show more columns */
-    font-size: 0.65rem !important;
-  }
-
-  .many-slots-note {
-    font-size: 0.75rem;
-    padding: 0.5rem 0.7rem;
-    margin: 0.25rem 0;
-  }
-
-  /* Compact column widths for small screens */
-  .schedule-table th:first-child,
-  .schedule-table .day-label {
-    width: 70px !important;
-    min-width: 70px !important;
-    max-width: 70px !important;
-  }
-
-  .schedule-table.many-slots th:not(:first-child):not(:last-child),
-  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 80px !important;
-  }
-
-  .schedule-table th:last-child {
-    width: 40px !important;
-    min-width: 40px !important;
-    max-width: 40px !important;
-  }
-}
-
-/* ===== ULTRA-COMPACT SCREENS (iPhone 4 and similar) ===== */
-@media (max-width: 325px) {
-  .schedule-wrapper {
-    padding: 0.125rem !important; /* Minimal padding */
-    min-height: 180px !important;
-    max-height: 55vh !important;
-  }
-
-  .schedule-table {
-    min-width: 320px !important; /* Fit within iPhone 4 width */
-    font-size: 0.6rem !important;
-  }
-
-  /* Ultra-compact column sizes */
-  .schedule-table th:first-child,
-  .schedule-table .day-label {
-    width: 60px !important;
-    min-width: 60px !important;
-    max-width: 60px !important;
-    font-size: 0.55rem !important;
-  }
-
-  .schedule-table.many-slots th:not(:first-child):not(:last-child),
-  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 70px !important;
-    min-width: 70px !important;
-    max-width: 70px !important;
-  }
-
-  .schedule-table th:last-child {
-    width: 35px !important;
-    min-width: 35px !important;
-    max-width: 35px !important;
-  }
-
-  /* Extra compact slots */
-  .slot {
-    height: 2rem !important;
-    min-height: 2rem !important;
-    font-size: 0.55rem !important;
-  }
-
-  /* Compact schedule header for ultra-small screens */
-  .schedule-header {
-    margin-bottom: 0.5rem !important;
-  }
-
-  .schedule-header h3 {
-    font-size: 1rem !important;
-  }
-
-  .many-slots-note {
-    font-size: 0.7rem !important;
-    padding: 0.4rem 0.6rem !important;
-  }
-}
-
-/* ===== RESPONSIVE SCHEDULE DESIGN ===== */
-
-/* Mobile responsive styles */
-@media (max-width: 768px) {
-  /* Mobile-specific adjustments for proper containment */
-  .schedule-section {
-    max-height: 75vh; /* Container-relative sizing */
-  }
-
-  .schedule-wrapper {
-    min-height: 220px; /* Smaller minimum on mobile */
-    max-height: 65vh; /* Container-relative sizing */
-  }
-
-  /* Simplified many-slots mode for tablets */
-  .schedule-table.many-slots th:not(:first-child):not(:last-child),
-  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 70px !important;
-    min-width: 70px !important;
-    max-width: 70px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .schedule-header {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    justify-content: space-between;
-  }
-
-  /* Keep h3 and button on the same line */
-  .schedule-header h3 {
-    flex: 1;
-    margin-right: 0.5rem;
-    min-width: 0; /* Allow text to truncate if needed */
-  }
-
-  /* Force notification to appear on its own line below */
-  .many-slots-note {
-    flex-basis: 100%;
-    order: 3;
-    margin-top: 0.5rem;
-    margin-bottom: 0;
-  }
-
-  .schedule-section {
-    max-height: calc(100vh - 12rem); /* Account for smaller mobile screens */
-  }
-
-  .schedule-wrapper {
-    min-height: 200px; /* Even smaller minimum on very small screens */
-    max-height: calc(100vh - 16rem);
-  }
-
-  /* Extra small screens - even more specific for problematic browsers */
-  table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 90px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important;
-  }
-
-  table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 90px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-    display: table-cell !important;
-  }
-
-  table.schedule-table.many-slots .slot {
-    width: 80px !important;
-    min-width: 80px !important;
-    max-width: 90px !important;
-    box-sizing: border-box !important;
-    flex: none !important;
-  }
-}
-
-/* ===== SLOT INFORMATION DISPLAY STYLING ===== */
-/* Styling for course code and classroom information display within schedule slots */
-
-/* Container for slot information - centered and responsive */
+/* ===== SLOT INFO DISPLAY ===== */
 .slot-info-display {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  padding: 2px;
-  gap: 1px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  padding: 2px; gap: 1px;
   font-size: clamp(0.5rem, 2vw, 0.7rem);
-  line-height: 1.1;
-  text-align: center;
+  line-height: 1.1; text-align: center;
   pointer-events: none;
 }
-
-/* Course code styling - prominent, bold text */
 .course-code {
   color: var(--text-primary);
-  font-weight: 800; /* Extra bold for prominence */
+  font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  font-size: clamp(
-    0.8rem,
-    2.8vw,
-    1.2rem
-  ); /* Significantly larger than classroom number */
+  font-size: clamp(0.8rem, 2.8vw, 1.2rem);
   line-height: 1.1;
   text-align: center;
   max-width: 95%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); /* Stronger shadow for visibility */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   margin-bottom: 1px;
   transition: all 0.2s ease;
 }
-
-/* Classroom number styling - smaller text underneath with rounded background */
 .classroom-number {
   color: var(--text-primary);
   font-weight: 600;
   padding: 2px 6px;
-  font-size: clamp(
-    0.5rem,
-    1.8vw,
-    0.9rem
-  ); /* Smaller than course code for better hierarchy */
-  text-align: center;
-  line-height: 1.2;
-  max-width: 95%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: clamp(0.5rem, 1.8vw, 0.9rem);
+  text-align: center; line-height: 1.2;
+  max-width: 95%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   background: rgba(255, 255, 255, 0.15);
   border-radius: 8px;
@@ -874,2031 +409,859 @@ body.light-mode .schedule-wrapper {
   margin-top: 2px;
   transition: all 0.2s ease;
 }
-
-/* Adjust layout when both course code and classroom number are present */
 .slot-info-display:has(.course-code) .classroom-number {
-  margin-top: 3px; /* Proper spacing between course code and classroom number */
-  font-size: clamp(
-    0.4rem,
-    1.5vw,
-    0.7rem
-  ); /* Even smaller when course code present to maintain hierarchy */
+  margin-top: 3px;
+  font-size: clamp(0.4rem, 1.5vw, 0.7rem);
 }
 
-/* Dark mode adjustments */
-.dark-mode .course-code {
-  color: var(--text-primary);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* Enhanced shadow for dark mode */
-}
-
+/* Theme text adjustments for info display */
+.dark-mode .course-code { color: var(--text-primary); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
 .dark-mode .classroom-number {
   color: var(--text-primary);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  background: rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.15);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.25);
+  border-color: rgba(255,255,255,0.15);
 }
-
-/* Light mode adjustments - white text for better contrast */
 .light-mode .course-code,
 body:not(.dark-mode) .course-code {
   color: white !important;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* Dark shadow for white text */
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
-
 .light-mode .classroom-number,
 body:not(.dark-mode) .classroom-number {
   color: white !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); /* Dark shadow for white text */
-  background: rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.15);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.25);
+  border-color: rgba(255,255,255,0.15);
 }
 
-/* Mobile responsive adjustments */
-@media (max-width: 768px) {
-  .slot-info-display {
-    padding: 1px;
-    gap: 1px;
-  }
-
-  .course-code {
-    font-size: clamp(
-      0.7rem,
-      2.5vw,
-      1rem
-    ); /* Larger than classroom number on mobile */
-    font-weight: 700; /* Still bold on mobile */
-  }
-
-  .classroom-number {
-    font-size: clamp(
-      0.45rem,
-      1.6vw,
-      0.7rem
-    ); /* Smaller than course code to maintain hierarchy */
-    margin-top: 2px;
-    padding: 2px 5px;
-  }
-
-  .slot-info-display:has(.course-code) .classroom-number {
-    margin-top: 1px; /* Reduced spacing on very small screens */
-    font-size: clamp(
-      0.4rem,
-      1.4vw,
-      0.6rem
-    ); /* Even smaller when both elements present */
-  }
-}
-
-/* Extra small screens */
-@media (max-width: 480px) {
-  .course-code {
-    font-size: clamp(
-      0.6rem,
-      2vw,
-      0.8rem
-    ); /* Larger than classroom number even on small screens */
-    padding: 1px 2px; /* Slightly more padding for touch targets */
-  }
-
-  .classroom-number {
-    font-size: clamp(
-      0.4rem,
-      1.5vw,
-      0.6rem
-    ); /* Smaller than course code to maintain hierarchy */
-    padding: 1px 4px;
-  }
-
-  .slot-info-display:has(.course-code) .classroom-number {
-    font-size: clamp(
-      0.35rem,
-      1.3vw,
-      0.5rem
-    ); /* Even smaller when both elements present */
-  }
-}
-
-/* ===== SLOT HOVER EFFECTS ===== */
-
-/* Hover effects for better interactivity */
+/* ===== SLOT HOVER INFO EFFECTS ===== */
 .slot:hover .course-code {
   background: rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.4);
   transform: scale(1.05);
 }
-
 .slot:hover .classroom-number {
   opacity: 1;
-  transform: scale(1.05);
   transform: scale(1.02);
   transition: all 0.2s ease;
   background: rgba(255, 255, 255, 0.25);
   border-color: rgba(255, 255, 255, 0.3);
 }
-
 .dark-mode .slot:hover .course-code {
   background: rgba(0, 0, 0, 0.4);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Ensure proper text contrast in different slot states */
+/* Slot state text/appearance */
 .slot.busy .course-code,
 .slot.selected .course-code {
-  color: rgba(255, 255, 255, 0.95);
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255,255,255,0.95);
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.4);
 }
-
 .slot.busy .classroom-number,
 .slot.selected .classroom-number {
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.3);
 }
-
-/* Free slot information styling */
 .slot.free .course-code,
-.slot.free .classroom-number {
-  display: none; /* Hide information for free slots */
-}
+.slot.free .classroom-number { display: none; }
 
-/* Theme-specific border enhancements for better visibility */
-/* Light mode: darker, more visible borders */
+/* Theme-specific slot borders */
 .light-mode .slot,
 body:not(.dark-mode) .slot {
-  border: 1px solid rgba(100, 116, 139, 0.5) !important; /* Darker slate border for light mode */
-  margin: 0 !important; /* Remove margins to prevent border doubling */
-  margin-right: -1px !important; /* Overlap right border with next slot */
-  margin-bottom: -1px !important; /* Overlap bottom border with slot below */
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.3) !important; /* Enhanced inner border */
+  border: 1px solid rgba(100,116,139,0.5) !important;
+  margin: 0 !important;
+  margin-right: -1px !important;
+  margin-bottom: -1px !important;
+  box-shadow: inset 0 0 0 1px rgba(148,163,184,0.3) !important;
 }
-
 .light-mode .slot:hover,
 body:not(.dark-mode) .slot:hover {
-  border-color: rgba(
-    100,
-    116,
-    139,
-    1
-  ) !important; /* Fully opaque slate border on hover */
-  z-index: 10 !important; /* Ensure hover state appears above adjacent slots */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
-    inset 0 0 0 1px rgba(148, 163, 184, 0.5) !important;
+  border-color: rgba(100,116,139,1) !important;
+  z-index: 10 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1),
+              inset 0 0 0 1px rgba(148,163,184,0.5) !important;
 }
-
-/* Dark mode: enhanced silver borders */
 .dark-mode .slot {
-  border: 1px solid rgba(203, 213, 225, 0.8) !important; /* Lighter silver for dark mode */
-  margin: 0 !important; /* Remove margins to prevent border doubling */
-  margin-right: -1px !important; /* Overlap right border with next slot */
-  margin-bottom: -1px !important; /* Overlap bottom border with slot below */
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important; /* Enhanced inner highlight */
+  border: 1px solid rgba(203,213,225,0.8) !important;
+  margin: 0 !important;
+  margin-right: -1px !important;
+  margin-bottom: -1px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2) !important;
 }
-
 .dark-mode .slot:hover {
-  border-color: rgba(
-    203,
-    213,
-    225,
-    1
-  ) !important; /* Fully opaque lighter silver on hover */
-  z-index: 10 !important; /* Ensure hover state appears above adjacent slots */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(203,213,225,1) !important;
+  z-index: 10 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2),
+              inset 0 0 0 1px rgba(255,255,255,0.3) !important;
 }
 
-/* ===== EDITABLE TIMESLOT HEADER STYLES ===== */
-/* Interactive schedule header functionality */
-.editable-timeslot-header {
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
+/* ===== EDITABLE TIME HEADER ===== */
+.editable-timeslot-header { cursor: pointer !important; transition: all 0.2s ease !important; }
 .editable-timeslot-header:hover {
   background: var(--depth-floating) !important;
   color: var(--accent-primary) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
 }
 
-/* ===== TIME HEADER STYLES ===== */
-/* Enhanced styling for time headers in schedule */
+/* ===== TIME HEADER ===== */
 .time-header {
   font-size: 0.85rem !important;
   font-weight: 600 !important;
   color: var(--text-primary) !important;
   text-align: center !important;
   background: var(--depth-elevated) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(255,255,255,0.25) !important;
   border-radius: 4px !important;
   margin: 2px !important;
   padding: 0.75rem 0.5rem !important;
   position: sticky !important;
   top: 0 !important;
   z-index: 4 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
 }
 
-/* ===== ENHANCED CROSS-BROWSER COMPATIBILITY FOR MANY SLOTS ===== */
-/*
-  This section contains overrides and browser-specific rules to ensure
-  the .many-slots mode renders consistently, especially on mobile browsers
-  like Chrome, which can sometimes have quirks with table cell widths.
-  The `!important` flags are used more heavily here due to the need
-  to override base styles or other media query styles for specific browser behaviors.
-*/
-
-/* General override for .many-slots table layout to ensure consistency. */
-/* Using 'width: max-content' can help if 'width: auto' doesn't yield expected results in some browsers. */
+/* ===== MANY-SLOTS: CROSS-BROWSER ADJUSTMENTS ===== */
 .schedule-table.many-slots {
-  table-layout: fixed !important; /* Reinforce fixed layout. */
-  width: max-content !important; /* Table width will be the sum of its column widths. */
-  margin-inline: auto !important; /* Centers the table horizontally if its width is less than the container. */
-  border-collapse: separate !important; /* Maintain consistency. */
-  border-spacing: 0 !important; /* Maintain consistency. */
+  table-layout: fixed !important;
+  width: max-content !important; /* Chrome/Safari consistency */
+  margin-inline: auto !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
 }
-
-/*
-  Enhanced specificity (using `table.schedule-table.many-slots`) for day/time headers.
-  These widths (90px min, 150px max) seem to be an alternative attempt or
-  a specific fix for a scenario different from the general 75px fixed width.
-  It's important to test which set of widths is ultimately desired for .many-slots.
-*/
-table.schedule-table.many-slots th:not(:first-child):not(:last-child) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 150px !important; /* Allows some flexibility if 90px is too small. */
-  box-sizing: border-box !important;
-  flex: none !important; /* Crucial for preventing flex behavior from interfering with fixed widths. */
-}
-
-/* Enhanced specificity for day/time data cells, mirroring the header overrides above. */
+table.schedule-table.many-slots th:not(:first-child):not(:last-child),
 table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
   width: 90px !important;
   min-width: 90px !important;
   max-width: 150px !important;
   box-sizing: border-box !important;
-  flex: none !important; /* Disable flex to ensure fixed width */
+  flex: none !important;
 }
-
-/*
-  WebKit-specific fixes (targets Safari, Chrome, and other WebKit-based browsers).
-  The `@supports (-webkit-touch-callout: none)` is a common way to target WebKit.
-  This ensures box-sizing and flex properties are applied correctly in these browsers.
-*/
 @supports (-webkit-touch-callout: none) {
   table.schedule-table.many-slots th:not(:first-child):not(:last-child),
   table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
     box-sizing: border-box !important;
-    -webkit-box-sizing: border-box !important; /* Explicitly for WebKit. */
+    -webkit-box-sizing: border-box !important;
     flex: none !important;
-    -webkit-flex: none !important; /* Explicitly for WebKit. */
+    -webkit-flex: none !important;
   }
 }
-
-/*
-  Chrome-specific CSS targeting.
-  This media query is a common hack to apply styles only to Google Chrome.
-  It seems to revert to the 75px fixed width for Chrome in .many-slots mode.
-  This suggests the 90px/150px rules above might be for other browsers or a fallback,
-  while Chrome gets the stricter 75px.
-*/
 @media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
   table.schedule-table.many-slots th:not(:first-child):not(:last-child),
   table.schedule-table.many-slots td:not(:first-child):not(:last-child) {
-    width: 75px !important; /* Reverting to the 75px fixed width specifically for Chrome. */
+    width: 75px !important;
     min-width: 75px !important;
-    flex-basis: 75px !important; /* Explicit flex-basis for Chrome. */
-    flex-grow: 0 !important; /* Ensure no growing. */
-    flex-shrink: 0 !important; /* Ensure no shrinking. */
+    flex-basis: 75px !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
   }
 }
 
 /* ===== SLOT STATE CLASSES ===== */
-/* Visual styling for different slot states based on schedule comparison */
-
 .slot-selected {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  ) !important;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
   color: white !important;
-  border-color: rgba(192, 192, 192, 0.9) !important;
+  border-color: rgba(192,192,192,0.9) !important;
 }
-
 .slot-free {
-  background: linear-gradient(
-    135deg,
-    var(--success),
-    var(--success-secondary)
-  ) !important;
+  background: linear-gradient(135deg, var(--success), var(--success-secondary)) !important;
   color: white !important;
-  border-color: rgba(192, 192, 192, 0.9) !important;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--success) !important;
+  border-color: rgba(192,192,192,0.9) !important;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2), 0 0 0 1px var(--success) !important;
 }
-
 .slot-conflict {
   background: linear-gradient(135deg, var(--error), #e53e3e) !important;
   color: white !important;
-  border-color: rgba(192, 192, 192, 0.9) !important;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--error) !important;
+  border-color: rgba(192,192,192,0.9) !important;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2), 0 0 0 1px var(--error) !important;
 }
-
 .slot-partial {
   background: linear-gradient(135deg, var(--warning), #d69e2e) !important;
   color: white !important;
-  border-color: rgba(192, 192, 192, 0.9) !important;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--warning) !important;
+  border-color: rgba(192,192,192,0.9) !important;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2), 0 0 0 1px var(--warning) !important;
 }
 
-/* ===== SCHEDULE DISABLED STATE ===== */
-/* Visual styling for when no active user is selected */
-
+/* ===== DISABLED STATE ===== */
 .schedule-disabled {
   filter: grayscale(100%) brightness(0.7) !important;
   opacity: 0.5 !important;
   transition: all 0.3s ease !important;
   position: relative !important;
 }
-
-/* Apply overlay to the table itself so it scrolls with content */
 .schedule-disabled .schedule-table::before {
   content: "";
   position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
+  top: 0 !important; left: 0 !important;
+  width: 100% !important; height: 100% !important;
   background: var(--glass-bg) !important;
   backdrop-filter: blur(2px) !important;
   z-index: 5 !important;
   border-radius: var(--radius-xl) !important;
   pointer-events: none !important;
 }
-
-/* Ensure the table has relative positioning for the overlay */
-.schedule-disabled .schedule-table {
-  position: relative !important;
-}
-
-.schedule-disabled .slot {
-  cursor: not-allowed !important;
-  filter: brightness(0.8) !important;
-  pointer-events: none !important;
-}
-
+.schedule-disabled .schedule-table { position: relative !important; }
+.schedule-disabled .slot { cursor: not-allowed !important; filter: brightness(0.8) !important; pointer-events: none !important; }
 .schedule-disabled .pin-indicator,
-.schedule-disabled .pin-square-container {
-  display: none !important;
-}
+.schedule-disabled .pin-square-container { display: none !important; }
 
-/* Old disabled schedule rules moved to .add-row-btn */
-
-/* ===== PIN MODE STYLING ===== */
-/* Enhanced styling for pin mode interactions */
-
+/* ===== PIN MODE ===== */
 .pin-mode-active
-  .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(
-    .slot-partial
-  ) {
+  .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(.slot-partial) {
   border: 1px solid silver !important;
-  background: linear-gradient(
-    135deg,
-    var(--depth-surface) 0%,
-    rgba(139, 92, 246, 0.1) 100%
-  ) !important;
+  background: linear-gradient(135deg, var(--depth-surface) 0%, rgba(139, 92, 246, 0.1) 100%) !important;
 }
-
 .pin-mode-active
-  .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(
-    .slot-partial
-  ):not(.slot-selected):hover {
+  .slot:not(.slot-selected):not(.slot-free):not(.slot-conflict):not(.slot-partial):hover {
   border-color: var(--accent-secondary) !important;
-  background: linear-gradient(
-    135deg,
-    var(--depth-elevated) 0%,
-    rgba(168, 85, 247, 0.15) 100%
-  ) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  background: linear-gradient(135deg, var(--depth-elevated) 0%, rgba(168, 85, 247, 0.15) 100%) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
 }
-
-/* Enhanced border for selected slots in pin mode */
 .pin-mode-active .slot.slot-selected,
 .pin-mode-active .slot.slot-free,
 .pin-mode-active .slot.slot-conflict,
-.pin-mode-active .slot.slot-partial {
-  border-width: 3px !important;
-}
-
-/* Show 🚫 icon for busy slots (slot-selected) in pin mode */
+.pin-mode-active .slot.slot-partial { border-width: 3px !important; }
 .pin-mode-active .slot.slot-selected::before {
   content: "🚫";
   position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
+  top: 50% !important; left: 50% !important;
   transform: translate(-50%, -50%) !important;
   font-size: 20px !important;
   opacity: 0.7 !important;
   pointer-events: none !important;
   z-index: 1 !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
 }
+.pin-mode-active .slot.slot-selected { cursor: not-allowed !important; }
 
-.pin-mode-active .slot.slot-selected {
-  cursor: not-allowed !important;
-}
+/* ===== SCROLLBARS / SCROLL BEHAVIOR ===== */
+.schedule-wrapper::-webkit-scrollbar { height: 8px !important; }
+.schedule-wrapper::-webkit-scrollbar-track { background: var(--depth-surface) !important; border-radius: 4px !important; }
+.schedule-wrapper::-webkit-scrollbar-thumb { background: var(--border) !important; border-radius: 4px !important; transition: background 0.3s ease !important; }
+.schedule-wrapper::-webkit-scrollbar-thumb:hover { background: var(--accent-primary) !important; }
 
-/* 
---- IMPROVED SCROLLBAR STYLING ---
-Custom scrollbar for horizontal schedule scrolling
-*/
-.schedule-wrapper::-webkit-scrollbar {
-  height: 8px !important;
-}
-
-.schedule-wrapper::-webkit-scrollbar-track {
-  background: var(--depth-surface) !important;
-  border-radius: 4px !important;
-}
-
-.schedule-wrapper::-webkit-scrollbar-thumb {
-  background: var(--border) !important;
-  border-radius: 4px !important;
-  transition: background 0.3s ease !important;
-}
-
-.schedule-wrapper::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary) !important;
-}
-
-/* Enhanced scroll behavior for many slots */
 .schedule-wrapper {
-  /* Smooth scrolling for better UX */
   scroll-behavior: smooth !important;
-  /* Better scrolling on touch devices */
   -webkit-overflow-scrolling: touch !important;
-  /* Hint for better scrolling performance */
   will-change: scroll-position;
 }
 
-/* ===== PIN INDICATOR STYLES ===== */
-/* Visual indicators for pinned slots and pin mode interactions */
+/* ===== PIN INDICATORS ===== */
 .pin-indicator {
   position: absolute !important;
-  top: 4px !important;
-  right: 4px !important;
-  font-size: 16px !important;
-  line-height: 1 !important;
-  cursor: pointer !important;
-  z-index: 10 !important;
-  opacity: 0.9 !important;
-  transition: all 0.2s ease !important;
-  pointer-events: auto !important;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) !important;
+  top: 4px !important; right: 4px !important;
+  font-size: 16px !important; line-height: 1 !important;
+  cursor: pointer !important; z-index: 10 !important; opacity: 0.9 !important;
+  transition: all 0.2s ease !important; pointer-events: auto !important;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)) !important;
 }
+.pin-indicator:hover { opacity: 1 !important; transform: scale(1.1) !important; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) !important; }
 
-.pin-indicator:hover {
-  opacity: 1 !important;
-  transform: scale(1.1) !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)) !important;
-}
-
-/* PIN SQUARE CONTAINER STYLES */
-/* Square background for pin indicators in compare mode positioned to the right */
 .pin-square-container {
   position: absolute !important;
-  top: 50% !important;
-  right: 2px !important; /* tighter to edge for better content space */
+  top: 50% !important; right: 2px !important;
   transform: translateY(-50%) !important;
-  width: 30px !important;
-  height: 78% !important; /* slightly smaller to avoid touching top/bottom borders */
+  width: 30px !important; height: 78% !important;
   background: var(--glass-bg) !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: 6px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-  z-index: 10 !important;
-  opacity: 0.9 !important;
+  display: flex !important; flex-direction: column !important;
+  align-items: center !important; justify-content: center !important;
+  cursor: pointer !important; z-index: 10 !important; opacity: 0.9 !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  pointer-events: auto !important;
-  backdrop-filter: blur(8px) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: auto !important; backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
 }
-
 .pin-square-container:hover {
   opacity: 1 !important;
   transform: translateY(-50%) scale(1.1) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
   border-color: var(--accent-primary) !important;
   background: var(--glass-bg-hover, var(--glass-bg)) !important;
 }
-
-.pin-square-container:active {
-  transform: translateY(-50%) scale(1.05) !important;
-  transition: all 0.1s ease !important;
-}
-
-.pin-square-container .pin-icon {
-  font-size: 14px !important;
-  line-height: 1 !important;
-  color: var(--accent-primary) !important;
-  margin-bottom: 1px !important;
-}
-
+.pin-square-container:active { transform: translateY(-50%) scale(1.05) !important; transition: all 0.1s ease !important; }
+.pin-square-container .pin-icon { font-size: 14px !important; line-height: 1 !important; color: var(--accent-primary) !important; margin-bottom: 1px !important; }
 .pin-square-container .pin-count-number {
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  color: var(--text-primary) !important;
-  line-height: 1 !important;
-  margin-top: 5px !important;
-  color: white !important;
-  border-radius: 10% !important;
-  width: 16px !important;
-  height: 16px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border: 1px solid white !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  font-size: 10px !important; font-weight: 700 !important;
+  line-height: 1 !important; margin-top: 5px !important;
+  color: white !important; /* keep only the effective color */
+  border-radius: 10% !important; width: 16px !important; height: 16px !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  border: 1px solid white !important; box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
 }
 
-/* COMPARE MODE PIN INDICATOR STYLES (Legacy - keeping for compatibility) */
-/* Visual indicators for pinned slots in compare mode with multiple users */
-.can-pin-indicator {
-  position: absolute !important;
-  top: 50% !important;
-  right: 50% !important;
-  transform: translate(50%, -50%) !important;
-  font-size: 18px !important;
-  line-height: 1 !important;
-  cursor: pointer !important;
-  z-index: 10 !important;
-  opacity: 0.6 !important;
-  transition: all 0.2s ease !important;
-  pointer-events: auto !important;
-  color: var(--accent-primary) !important;
-  font-weight: bold !important;
-}
-
-.can-pin-indicator:hover {
-  opacity: 1 !important;
-  transform: translate(50%, -50%) scale(1.2) !important;
-  color: var(--accent-secondary) !important;
-}
-
-/* ===== SLOT TOOLTIP STYLES ===== */
-/* Enhanced slot tooltip styling */
-#slotTooltip {
-  position: absolute;
-  background: var(--depth-floating, rgba(0, 0, 0, 0.9));
-  color: var(--text-primary, white);
-  padding: 8px 12px;
-  border-radius: var(--radius-md, 6px);
-  font-size: 0.875rem;
-  line-height: 1.4;
-  white-space: pre-line;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-  backdrop-filter: blur(10px);
-  z-index: 9999;
-  pointer-events: none;
-  max-width: 250px;
-  word-wrap: break-word;
-  display: none;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  transform: translateX(-50%) scale(0.8);
-}
-
-/* Light mode tooltip */
-.light-mode #slotTooltip,
-body:not(.dark-mode) #slotTooltip {
-  background: var(--surface, rgba(255, 255, 255, 0.95)) !important;
-  color: var(--text-primary, #1a1a1a) !important;
-  border-color: var(--border, rgba(0, 0, 0, 0.1)) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Ensure tooltip is visible when shown */
-#slotTooltip[style*="display: block"] {
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Visible state for tooltip - higher specificity */
-#slotTooltip.visible {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  transform: translateX(-50%) scale(1) !important;
-  transition: opacity 0.2s ease, transform 0.2s ease !important;
-}
-
-/* Hidden state for tooltip */
-#slotTooltip:not(.visible) {
-  opacity: 0;
-  transform: translateX(-50%) scale(0.8);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* ===== COMPARE PIN INDICATOR STYLES ===== */
+/* Compare-mode pin indicator (legacy kept for compat; later hidden) */
 .compare-pin-indicator {
-  position: absolute !important;
-  top: 4px !important;
-  right: 4px !important;
-  font-size: 16px !important;
-  line-height: 1 !important;
-  cursor: pointer !important;
-  z-index: 10 !important;
-  opacity: 0.9 !important;
+  position: absolute !important; top: 4px !important; right: 4px !important;
+  font-size: 16px !important; line-height: 1 !important;
+  cursor: pointer !important; z-index: 10 !important; opacity: 0.9 !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   pointer-events: auto !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15)) !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 2px !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-radius: 6px !important;
-  padding: 2px 4px !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  backdrop-filter: blur(4px) !important;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15)) !important;
+  display: inline-flex !important; align-items: center !important; gap: 2px !important;
+  background: rgba(255,255,255,0.9) !important; border-radius: 6px !important;
+  padding: 2px 4px !important; border: 1px solid rgba(0,0,0,0.1) !important; backdrop-filter: blur(4px) !important;
 }
-
 .compare-pin-indicator:hover {
-  opacity: 1 !important;
-  transform: scale(1.15) !important;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25)) !important;
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: var(--accent-primary) !important;
+  opacity: 1 !important; transform: scale(1.15) !important;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25)) !important;
+  background: rgba(255,255,255,0.95) !important; border-color: var(--accent-primary) !important;
 }
-
-.compare-pin-indicator:active {
-  transform: scale(1.05) !important;
-  transition: all 0.1s ease !important;
-}
-
+.compare-pin-indicator:active { transform: scale(1.05) !important; transition: all 0.1s ease !important; }
 .compare-pin-indicator .pin-count {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  ) !important;
-  color: white !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  border-radius: 50% !important;
-  width: 18px !important;
-  height: 18px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  margin-left: 3px !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
-  border: 2px solid white !important;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  color: white !important; font-size: 10px !important; font-weight: 700 !important;
+  border-radius: 50% !important; width: 18px !important; height: 18px !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  margin-left: 3px !important; box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important; border: 2px solid white !important;
   animation: pulseCount 2s infinite !important;
 }
 
-/* ===== PIN TOOLTIP STYLES ===== */
-/* Detailed tooltip for showing which users have pinned a slot */
+/* Pin tooltip */
 .pin-tooltip {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 12px !important;
-  padding: 16px !important;
-  min-width: 160px !important;
-  max-width: 280px !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-  animation: tooltipFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  z-index: 1001 !important;
+  background: var(--glass-bg) !important; backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--glass-border) !important; border-radius: 12px !important;
+  padding: 16px !important; min-width: 160px !important; max-width: 280px !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.1),
+              inset 0 1px 0 rgba(255,255,255,0.2) !important;
+  animation: tooltipFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; z-index: 1001 !important;
 }
-
-.pin-tooltip-content {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 12px !important;
-}
-
+.pin-tooltip-content { display: flex !important; flex-direction: column !important; gap: 12px !important; }
 .pin-tooltip-header {
-  font-weight: 600 !important;
-  color: var(--text-primary) !important;
-  font-size: 14px !important;
-  border-bottom: 1px solid var(--glass-border) !important;
-  padding-bottom: 8px !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
+  font-weight: 600 !important; color: var(--text-primary) !important; font-size: 14px !important;
+  border-bottom: 1px solid var(--glass-border) !important; padding-bottom: 8px !important;
+  display: flex !important; align-items: center !important; gap: 8px !important;
 }
-
-.pin-tooltip-header::before {
-  font-size: 16px !important;
-}
-
-.pin-tooltip-users {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  max-height: 200px !important;
-  overflow-y: auto !important;
-}
-
+.pin-tooltip-header::before { font-size: 16px !important; }
+.pin-tooltip-users { display: flex !important; flex-direction: column !important; gap: 8px !important; max-height: 200px !important; overflow-y: auto !important; }
 .pin-tooltip-user {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  padding: 8px 12px !important;
-  font-size: 13px !important;
-  color: var(--text-secondary) !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important; align-items: center !important; gap: 12px !important;
+  padding: 8px 12px !important; font-size: 13px !important; color: var(--text-secondary) !important;
+  background: rgba(255,255,255,0.1) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important;
   transition: all 0.2s ease !important;
 }
-
-.pin-tooltip-user:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  transform: translateX(2px) !important;
-}
-
+.pin-tooltip-user:hover { background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.2) !important; transform: translateX(2px) !important; }
 .pin-tooltip-user-color {
-  width: 14px !important;
-  height: 14px !important;
-  border-radius: 50% !important;
-  border: 2px solid white !important;
-  flex-shrink: 0 !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  width: 14px !important; height: 14px !important; border-radius: 50% !important;
+  border: 2px solid white !important; flex-shrink: 0 !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;
 }
+.pin-tooltip-user span { font-weight: 500 !important; color: var(--text-primary) !important; }
 
-.pin-tooltip-user span {
-  font-weight: 500 !important;
-  color: var(--text-primary) !important;
+/* Tooltip for slots (hover details) */
+#slotTooltip {
+  position: absolute;
+  background: var(--depth-floating, rgba(0,0,0,0.9));
+  color: var(--text-primary, white);
+  padding: 8px 12px; border-radius: var(--radius-md, 6px);
+  font-size: 0.875rem; line-height: 1.4; white-space: pre-line;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1px solid var(--border, rgba(255,255,255,0.1));
+  backdrop-filter: blur(10px); z-index: 9999; pointer-events: none;
+  max-width: 250px; word-wrap: break-word; display: none; visibility: hidden; opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease; transform: translateX(-50%) scale(0.8);
 }
-
-/* ===== ADD TIME SLOT BUTTON STYLING ===== */
-/* Modern, accessible styling for the add time slot button in the schedule header */
-/* Old circular button rules removed - now using .add-row-btn */
-
-/* Old hover rules removed */
-
-/* Old active rules removed */
-
-/* Old focus rules removed */
-
-/* Old icon styling rules removed */
-
-/* Old disabled state rules removed */
-
-/* ===== SCHEDULE ACTIONS & NEW ROW BUTTON ===== */
-
-/* Schedule Actions Container */
-.schedule-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 1rem 0 0.5rem 0;
-  margin-top: 1rem;
+.light-mode #slotTooltip,
+body:not(.dark-mode) #slotTooltip {
+  background: var(--surface, rgba(255,255,255,0.95)) !important;
+  color: var(--text-primary, #1a1a1a) !important;
+  border-color: var(--border, rgba(0,0,0,0.1)) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
 }
+#slotTooltip[style*="display: block"] { visibility: visible !important; opacity: 1 !important; }
+#slotTooltip.visible {
+  display: block !important; visibility: visible !important; opacity: 1 !important;
+  transform: translateX(-50%) scale(1) !important; transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+#slotTooltip:not(.visible) { opacity: 0; transform: translateX(-50%) scale(0.8); transition: opacity 0.2s ease, transform 0.2s ease; }
 
-/* New Horizontal Add Row Button - Mobile First */
+/* ===== ACTIONS & ADD ROW ===== */
+.schedule-actions { display: flex; justify-content: flex-end; padding: 1rem 0 0.5rem; margin-top: 1rem; }
 .add-row-btn,
 #addNewTimeSlotBtn {
-  /* Mobile-First Touch Target (minimum 44px) */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0.75rem 1.25rem;
-  gap: 0.5rem;
-
-  /* Visual Styling - Matches existing color scheme */
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-
-  /* Typography */
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.2;
-  white-space: nowrap;
-
-  /* Interactive Effects */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  /* Enhanced Shadows */
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
-
-  /* Accessibility */
-  outline: none;
-
-  /* Mobile Touch Optimization */
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0.75rem 1.25rem; gap: 0.5rem;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white; border: none; border-radius: 6px; cursor: pointer;
+  font-size: 0.875rem; font-weight: 500; line-height: 1.2; white-space: nowrap;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(102,126,234,0.2), 0 1px 3px rgba(0,0,0,0.1);
+  outline: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-
-.add-row-btn span,
-#addNewTimeSlotBtn span {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-/* Hover Effects */
-.add-row-btn:hover,
-#addNewTimeSlotBtn:hover {
+.add-row-btn span, #addNewTimeSlotBtn span { font-size: 0.875rem; font-weight: 500; }
+.add-row-btn:hover, #addNewTimeSlotBtn:hover {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 6px rgba(0, 0, 0, 0.1);
-
-  background: linear-gradient(
-    135deg,
-    var(--accent-secondary),
-    var(--accent-primary)
-  );
+  box-shadow: 0 4px 12px rgba(102,126,234,0.3), 0 2px 6px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
 }
-
-/* Active State */
-.add-row-btn:active,
-#addNewTimeSlotBtn:active {
+.add-row-btn:active, #addNewTimeSlotBtn:active {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.3), 0 2px 4px rgba(0,0,0,0.1);
   transition-duration: 0.1s;
 }
-
-/* Focus Accessibility */
-.add-row-btn:focus-visible,
-#addNewTimeSlotBtn:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2),
-    0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15);
+.add-row-btn:focus-visible, #addNewTimeSlotBtn:focus-visible {
+  outline: 2px solid var(--accent-primary); outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.2), 0 8px 20px rgba(102,126,234,0.4), 0 4px 8px rgba(0,0,0,0.15);
 }
-
-/* Disabled State */
-.add-row-btn:disabled,
-#addNewTimeSlotBtn:disabled {
-  background: var(--text-tertiary);
-  color: var(--text-secondary);
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-  opacity: 0.6;
+.add-row-btn:disabled, #addNewTimeSlotBtn:disabled {
+  background: var(--text-tertiary); color: var(--text-secondary);
+  cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6;
 }
-
-/* Disabled interaction */
 .schedule-disabled .add-row-btn,
-.schedule-disabled #addNewTimeSlotBtn {
-  pointer-events: none !important;
-  opacity: 0.3 !important;
+.schedule-disabled #addNewTimeSlotBtn { pointer-events: none !important; opacity: 0.3 !important; }
+
+/* ===== KEYFRAMES ===== */
+@keyframes tooltipFadeIn { from { opacity: 0; transform: translateY(-8px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes pulseCount { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+/* ====================================================================================
+                           HOME PAGE SPECIFIC STYLES
+==================================================================================== */
+
+/* Home page layout and overflow control */
+body.page-home {
+  overflow: hidden;
 }
 
-/* ===== KEYFRAME ANIMATIONS ===== */
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+body.page-home .main-content {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.5rem 0.4rem !important;
 }
 
-@keyframes pulseCount {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
+body.page-home .content-grid {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ===== MOBILE RESPONSIVE ENHANCEMENTS ===== */
-/* Mobile responsiveness for pin indicators */
-@media (max-width: 768px) {
-  .pin-square-container {
-    width: 28px !important;
-    height: 74% !important; /* a bit shorter on mobile for visual balance */
-    top: 50% !important;
-    right: 2px !important;
-    transform: translateY(-50%) !important;
-  }
-
-  .pin-square-container .pin-icon {
-    font-size: 12px !important;
-  }
-
-  .pin-square-container:hover {
-    transform: translateY(-50%) scale(1.1) !important;
-  }
-
-  .pin-square-container:active {
-    transform: translateY(-50%) scale(1.05) !important;
-  }
-
-  .pin-square-container .pin-count-number {
-    width: 14px !important;
-    height: 14px !important;
-    margin-top: 5px !important;
-    font-size: 9px !important;
-    color: white !important;
-    border-radius: 10% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border: 1px solid white !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-  }
-
-  .compare-pin-indicator {
-    font-size: 14px !important;
-    padding: 1px 3px !important;
-    top: 2px !important;
-    right: 2px !important;
-  }
-
-  .compare-pin-indicator .pin-count {
-    width: 16px !important;
-    height: 16px !important;
-    font-size: 9px !important;
-    margin-left: 2px !important;
-  }
-
-  .pin-tooltip {
-    padding: 12px !important;
-    min-width: 140px !important;
-    max-width: 220px !important;
-    border-radius: 10px !important;
-  }
-
-  .pin-tooltip-header {
-    font-size: 13px !important;
-    padding-bottom: 6px !important;
-  }
-
-  .pin-tooltip-user {
-    padding: 6px 8px !important;
-    gap: 8px !important;
-    font-size: 12px !important;
-  }
-
-  .pin-tooltip-user-color {
-    width: 12px !important;
-    height: 12px !important;
-  }
-
-  /* Mobile course/classroom styling */
-  .course-code {
-    font-size: clamp(
-      0.7rem,
-      2.5vw,
-      1rem
-    ); /* Larger than classroom number on mobile */
-    font-weight: 700; /* Still bold on mobile */
-  }
-
-  .classroom-number {
-    font-size: clamp(
-      0.45rem,
-      1.6vw,
-      0.7rem
-    ); /* Smaller than course code to maintain hierarchy */
-    margin-top: 2px;
-    padding: 2px 5px;
-  }
-
-  .slot-info-display:has(.course-code) .classroom-number {
-    margin-top: 1px; /* Reduced spacing on very small screens */
-    font-size: clamp(
-      0.4rem,
-      1.4vw,
-      0.6rem
-    ); /* Even smaller when both elements present */
-  }
+body.page-home .schedule-column {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 480px) {
-  .pin-square-container {
-    width: 26px !important;
-    height: 80% !important;
-    top: 50% !important;
-    right: 1px !important;
-    transform: translateY(-50%) !important;
-  }
+body.page-home .schedule-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
 
-  .pin-square-container .pin-icon {
-    font-size: 11px !important;
-  }
+body.page-home .schedule-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Ensure schedule wrapper respects parent height */
+  height: 100%;
+  max-height: 100%;
+}
 
-  .pin-square-container:hover {
-    transform: translateY(-50%) scale(1.1) !important;
-  }
+body.page-home .schedule-day-view .day-view-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+}
 
-  .pin-square-container:active {
-    transform: translateY(-50%) scale(1.05) !important;
-  }
+body.page-home .horizontal-friends-section {
+  flex-shrink: 0;
+}
 
-  .pin-square-container .pin-count-number {
-    width: 10px !important;
-    height: 10px !important;
-    margin-top: 5px !important;
-    font-size: 8px !important;
-    color: white !important;
-    border-radius: 10% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border: 1px solid white !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-  }
+/* Schedule controls and header should also be flex-shrink: 0 to prevent overflow */
+body.page-home .schedule-header,
+body.page-home .schedule-controls-bar,
+body.page-home .day-selector-container {
+  flex-shrink: 0;
+}
 
-  .compare-pin-indicator {
-    font-size: 12px !important;
-    padding: 1px 2px !important;
-  }
-
-  .compare-pin-indicator .pin-count {
-    width: 14px !important;
-    height: 14px !important;
-    font-size: 8px !important;
-    margin-left: 1px !important;
-  }
-
-  .pin-tooltip {
-    padding: 10px !important;
-    min-width: 120px !important;
-    max-width: 200px !important;
-  }
-
-  .pin-tooltip-header {
-    font-size: 12px !important;
-  }
-
-  .pin-tooltip-user {
-    padding: 4px 6px !important;
-    gap: 6px !important;
-    font-size: 11px !important;
-  }
-
-  .pin-tooltip-user-color {
-    width: 10px !important;
-    height: 10px !important;
-  }
-
-  /* Extra small course/classroom styling */
-  .course-code {
-    font-size: clamp(
-      0.6rem,
-      2vw,
-      0.8rem
-    ); /* Larger than classroom number even on small screens */
-    padding: 1px 2px; /* Slightly more padding for touch targets */
-  }
-
-  .classroom-number {
-    font-size: clamp(
-      0.4rem,
-      1.5vw,
-      0.6rem
-    ); /* Smaller than course code to maintain hierarchy */
-    padding: 1px 4px;
-  }
-
-  .slot-info-display:has(.course-code) .classroom-number {
-    font-size: clamp(
-      0.35rem,
-      1.3vw,
-      0.5rem
-    ); /* Even smaller when both elements present */
-  }
+/* Day view and grid view containers should fill remaining space */
+body.page-home .schedule-day-view,
+body.page-home .schedule-grid-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ====================================================================================
                            RESPONSIVE LAYOUT STRUCTURE
-                     Mobile-First Design with Desktop Enhancements
 ==================================================================================== */
 
-/* ===== PAGE LAYOUT STRUCTURE ===== */
-.horizontal-friends-section {
-  width: 100%;
-  margin-bottom: 0; /* Removed 24px margin for tighter spacing */
-  position: relative;
-  z-index: 10;
-}
+.horizontal-friends-section { width: 100%; margin-bottom: 0; position: relative; z-index: 10; }
+.horizontal-friends-wrapper { width: 100%; }
 
-.horizontal-friends-wrapper {
-  width: 100%;
-}
-
-/* ===== RESPONSIVE VISIBILITY ===== */
-.mobile-only {
-  display: block;
-}
-
-.desktop-only {
-  display: none;
-}
-
+/* Visibility helpers */
+.mobile-only { display: block; }
+.desktop-only { display: none; }
 @media (min-width: 769px) {
-  .mobile-only {
-    display: none;
-  }
-
-  .desktop-only {
-    display: block;
-  }
+  .mobile-only { display: none; }
+  .desktop-only { display: block; }
 }
 
-/* ===== CONTENT GRID RESPONSIVE ===== */
-/* Restrict schedule-specific content grid tweaks to the Home page */
+/* Home page grid */
 body.page-home .content-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 100%;
+  display: flex; flex-direction: column; gap: 1.5rem; width: 100%;
 }
-
 @media (min-width: 769px) {
   body.page-home .content-grid {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 2rem;
-    align-items: start;
+    display: grid; grid-template-columns: 300px 1fr;
+    gap: 2rem; align-items: start;
   }
 }
 
-/* ===== SCHEDULE COLUMN ===== */
-/* Dark mode: ensure any busy day-view slot variants use accent-primary */
+/* Busy slot color parity in day view */
 body.dark-mode .slot.busy,
-body.dark-mode .day-time-slot.busy {
-  background: var(--accent-primary) !important;
-  color: #ffffff !important;
-}
-
+body.dark-mode .day-time-slot.busy { background: var(--accent-primary) !important; color: #ffffff !important; }
 body.dark-mode .slot.busy .course-code,
 body.dark-mode .slot.busy .classroom-number,
 body.dark-mode .day-time-slot.busy .slot-course-code,
 body.dark-mode .day-time-slot.busy .slot-classroom,
-body.dark-mode .day-time-slot.busy .slot-time {
-  color: rgba(255, 255, 255, 0.95) !important;
-}
-/* Light mode busy slots share accent styling */
+body.dark-mode .day-time-slot.busy .slot-time { color: rgba(255,255,255,0.95) !important; }
 body:not(.dark-mode) .slot.busy,
-body:not(.dark-mode) .day-time-slot.busy {
-  background: var(--accent-primary) !important;
-  color: #fff !important;
-}
+body:not(.dark-mode) .day-time-slot.busy { background: var(--accent-primary) !important; color: #fff !important; }
 body:not(.dark-mode) .slot.busy .course-code,
 body:not(.dark-mode) .slot.busy .classroom-number,
 body:not(.dark-mode) .day-time-slot.busy .slot-course-code,
 body:not(.dark-mode) .day-time-slot.busy .slot-classroom,
-body:not(.dark-mode) .day-time-slot.busy .slot-time {
-  color: rgba(255, 255, 255, 0.95) !important;
-}
-.schedule-column {
-  width: 100%;
-  min-width: 0; /* Prevents overflow on mobile */
-}
+body:not(.dark-mode) .day-time-slot.busy .slot-time { color: rgba(255,255,255,0.95) !important; }
+
+.schedule-column { width: 100%; min-width: 0; }
 
 /* ====================================================================================
-                            HORIZONTAL FRIENDS BAR STYLES
-                          Instagram-style Quick Access Friends
+                            HORIZONTAL FRIENDS BAR
 ==================================================================================== */
-
-/* ===== MAIN CONTAINER ===== */
 .horizontal-friends-bar {
   width: 100%;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius); /* Unified glass radius */
+  border-radius: var(--glass-radius);
   backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  -webkit-backdrop-filter: var(--glass-backdrop-blur)
-    var(--glass-backdrop-saturate);
-  /* Use unified lift shadow to match glass cards */
-  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow),
-    var(--glass-inner-glow);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow), var(--glass-inner-glow);
   transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Specific transitions without transform */
-  position: relative;
-  overflow: visible; /* Allow rings to extend outside */
-  display: flex;
-  align-items: center; /* Center the avatar items vertically */
-  gap: 0.75rem;
-  padding: 0.75rem 1rem; /* Consistent padding for glass card */
-  min-height: fit-content; /* Minimal height to fit avatar items naturally */
-  z-index: 1; /* Ensure glass card appears above other elements */
-  /* Add glass card depth shadow */
-  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow),
-    var(--glass-inner-glow);
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative; overflow: visible; display: flex; align-items: center;
+  gap: 0.75rem; padding: 0.75rem 1rem; min-height: fit-content; z-index: 1;
 }
 
-/* ===== FRIENDS BAR SPECIFIC TOP HIGHLIGHT ===== */
+/* Decorative lines and conic animation */
 .schedule-section .horizontal-friends-bar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--glass-highlight) 20%,
-    var(--glass-highlight-strong) 50%,
-    var(--glass-highlight) 80%,
-    transparent 100%
-  );
-  z-index: 1;
-  border-radius: var(--glass-radius) var(--glass-radius) 0 0; /* Match main border-radius */
-  pointer-events: none;
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--glass-highlight) 20%, var(--glass-highlight-strong) 50%, var(--glass-highlight) 80%, transparent 100%);
+  z-index: 1; border-radius: var(--glass-radius) var(--glass-radius) 0 0; pointer-events: none;
 }
-
-/* ===== FRIENDS BAR SPECIFIC ROTATING EFFECT ===== */
 .schedule-section .horizontal-friends-bar::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    var(--glass-highlight-faint) 45deg,
-    rgba(139, 92, 246, 0.08) 90deg,
-    transparent 135deg,
-    var(--glass-highlight-faint) 180deg,
-    rgba(168, 85, 247, 0.06) 225deg,
-    transparent 270deg,
-    var(--glass-highlight-faint) 315deg,
-    transparent 360deg
-  );
-  animation: friendsBarRotate 20s linear infinite;
-  pointer-events: none;
-  z-index: -1;
-  opacity: 0.7;
-  border-radius: var(--glass-radius); /* Match main border-radius */
+  content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, var(--glass-highlight-faint) 45deg, rgba(139,92,246,0.08) 90deg, transparent 135deg,
+                              var(--glass-highlight-faint) 180deg, rgba(168,85,247,0.06) 225deg, transparent 270deg, var(--glass-highlight-faint) 315deg, transparent 360deg);
+  animation: friendsBarRotate 20s linear infinite; pointer-events: none; z-index: -1; opacity: 0.7; border-radius: var(--glass-radius);
 }
-
-/* In dark mode, neutralize the ambient conic animation for zero-motion parity */
-body.dark-mode .schedule-section .horizontal-friends-bar::after {
-  animation: none !important;
-  opacity: 0 !important;
-}
-
-/* ===== FRIENDS BAR SPECIFIC HOVER STATE ===== */
-/* Hover visual lift only in light mode */
-body:not(.dark-mode) .schedule-section .horizontal-friends-bar:hover,
-body:not(.dark-mode) .horizontal-friends-bar:hover {
-  background: var(--glass-hover) !important;
-  border-color: var(--glass-hover-border) !important;
-  box-shadow: var(--glass-hover-glow), var(--glass-inner-glow),
-    0 0 0 1px var(--glass-hover-highlight),
-    0 20px 60px var(--glass-shadow-strong),
-    inset 0 0 0 1px var(--glass-hover-highlight) !important;
-  /* NO MOVEMENT - consistent with schedule glass card behavior */
-}
-
-/* ===== FRIENDS BAR ACTIVE/PRESSED STATE ===== */
-/* Active state visual change only in light mode */
-body:not(.dark-mode) .schedule-section .horizontal-friends-bar:active,
-body:not(.dark-mode) .horizontal-friends-bar:active {
-  background: var(--glass-active) !important;
-  /* NO MOVEMENT - consistent with schedule glass card behavior */
-  transition-duration: 0.1s !important; /* Quick transition for responsive feel */
-}
-
-/* Rotating animation for the glass effect */
-@keyframes friendsBarRotate {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* ===== MOTION PREFERENCES SUPPORT - FRIENDS BAR SPECIFIC ===== */
+body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: none !important; opacity: 0 !important; }
+@keyframes friendsBarRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .schedule-section .horizontal-friends-bar::after {
-    animation: none !important;
-  }
-
-  .schedule-section .horizontal-friends-bar,
-  .schedule-section .horizontal-friends-bar * {
-    transition: none !important;
-  }
+  .schedule-section .horizontal-friends-bar::after { animation: none !important; }
+  .schedule-section .horizontal-friends-bar, .schedule-section .horizontal-friends-bar * { transition: none !important; }
 }
 
-.horizontal-friends-bar > * {
-  position: relative;
-  z-index: 1;
+.horizontal-friends-bar > * { position: relative; z-index: 1; }
+.friends-bar-header { display: none; }
+.friends-bar-title { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.friends-bar-title i { color: var(--primary); font-size: 1.1rem; }
+
+.friends-bar-actions { display: flex; gap: 0.5rem; }
+.btn-refresh-friends, .btn-compare {
+  background: var(--surface-light); border: 1px solid var(--border-light); border-radius: var(--border-radius);
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s ease; color: var(--text-secondary);
 }
+.btn-refresh-friends:hover, .btn-compare:hover { background: var(--surface-hover); border-color: var(--primary-glass); color: var(--primary); }
+.btn-refresh-friends:hover { transform: rotate(90deg); }
+.btn-refresh-friends:active { transform: rotate(90deg) scale(0.95); }
+.btn-compare:active { transform: scale(0.95); }
+.btn-compare.active { background: var(--primary); border-color: var(--primary); color: white; box-shadow: 0 2px 8px var(--primary-shadow); }
+.btn-compare.active:hover { background: var(--primary-dark); transform: scale(1.05); }
 
-/* ===== HEADER ===== */
-.friends-bar-header {
-  display: none; /* Hide header for Instagram-style compact design */
-}
-
-.friends-bar-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.friends-bar-title i {
-  color: var(--primary);
-  font-size: 1.1rem;
-}
-
-.friends-bar-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-refresh-friends,
-.btn-compare {
-  background: var(--surface-light);
-  border: 1px solid var(--border-light);
-  border-radius: var(--border-radius);
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--text-secondary);
-}
-
-.btn-refresh-friends:hover,
-.btn-compare:hover {
-  background: var(--surface-hover);
-  border-color: var(--primary-glass);
-  color: var(--primary);
-}
-
-.btn-refresh-friends:hover {
-  transform: rotate(90deg);
-}
-
-.btn-refresh-friends:active {
-  transform: rotate(90deg) scale(0.95);
-}
-
-.btn-compare:active {
-  transform: scale(0.95);
-}
-
-/* Compare button active state (when compare mode is on) */
-.btn-compare.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-  box-shadow: 0 2px 8px var(--primary-shadow);
-}
-
-.btn-compare.active:hover {
-  background: var(--primary-dark);
-  transform: scale(1.05);
-}
-
-/* ===== USER AVATAR CONTAINER ===== */
-/* ===== HORIZONTAL FRIENDS BAR LAYOUT ===== */
-/* Layout properties are now integrated into the main .horizontal-friends-bar rule above */
-
-/* ===== COMPLETE ISOLATION: Override ALL conflicting avatar styles ===== */
-/* This section completely isolates horizontal friends bar from other CSS */
-
-/* Force container dimensions and override all conflicts */
+/* Avatar overrides inside friends bar */
 .horizontal-friends-bar .avatar-container {
-  width: 48px !important;
-  height: 48px !important;
-  border-radius: 50% !important;
-  overflow: visible !important; /* Allow ring to extend outside */
-  flex-shrink: 0 !important;
-  aspect-ratio: 1 / 1 !important;
-  position: relative !important;
+  width: 48px !important; height: 48px !important; border-radius: 50% !important;
+  overflow: visible !important; flex-shrink: 0 !important; aspect-ratio: 1 / 1 !important; position: relative !important;
 }
-
 .horizontal-friends-bar .avatar-image {
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 50% !important;
-  overflow: visible !important; /* Allow ring to extend outside */
-  aspect-ratio: 1 / 1 !important;
-  position: relative !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  width: 100% !important; height: 100% !important; border-radius: 50% !important;
+  overflow: visible !important; aspect-ratio: 1 / 1 !important; position: relative !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
 }
-
-/* Override ALL .user-avatar and .avatar-placeholder styles from friends-page.css */
 .horizontal-friends-bar .user-avatar,
 .horizontal-friends-bar .avatar-placeholder {
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 24px !important;
-  position: relative !important;
-  overflow: hidden !important;
-  background: transparent !important;
-  border: none !important;
-  backdrop-filter: none !important;
+  width: 100% !important; height: 100% !important; border-radius: 50% !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  font-size: 24px !important; position: relative !important; overflow: hidden !important; background: transparent !important; border: none !important; backdrop-filter: none !important;
 }
-
-/* Override pseudo-elements that create background overlays */
 .horizontal-friends-bar .user-avatar::before,
-.horizontal-friends-bar .avatar-placeholder::before {
-  display: none !important;
-}
-
-/* Override ALL image styles */
+.horizontal-friends-bar .avatar-placeholder::before { display: none !important; }
 .horizontal-friends-bar .user-avatar-img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  border-radius: 50% !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  z-index: 1 !important;
-  border: none !important;
+  width: 100% !important; height: 100% !important; object-fit: cover !important; border-radius: 50% !important;
+  position: absolute !important; top: 0 !important; left: 0 !important; z-index: 1 !important; border: none !important;
 }
+.horizontal-friends-bar .user-avatar i { font-size: 24px !important; color: var(--text-secondary) !important; position: relative !important; z-index: 1 !important; }
 
-/* Override icon styles */
-.horizontal-friends-bar .user-avatar i {
-  font-size: 24px !important;
-  color: var(--text-secondary) !important;
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-/* ===== USER AVATAR CONTAINER (FIXED - NOT SCROLLABLE) ===== */
 .user-avatar-container {
-  flex-shrink: 0;
-  position: relative;
-  z-index: 2;
-  min-height: fit-content; /* Minimal height to fit avatar */
-  display: flex;
-  align-items: center; /* Center the avatar vertically */
-  overflow: visible; /* Allow ring to extend outside */
-  /* Match friends list vertical padding for consistent ring spacing */
-  padding: 0.3rem 0.5rem 0.25rem 0.5rem;
+  flex-shrink: 0; position: relative; z-index: 2; min-height: fit-content; display: flex; align-items: center;
+  overflow: visible; padding: 0.3rem 0.5rem 0.25rem;
 }
-
-/* ===== FRIENDS SCROLL CONTAINER (SCROLLABLE) ===== */
 .friends-scroll-container {
-  flex: 1;
-  position: relative;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 0;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
+  flex: 1; position: relative; overflow-x: auto; overflow-y: hidden; padding: 0;
+  scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
 }
-
-.friends-scroll-container::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
-}
-
+.friends-scroll-container::-webkit-scrollbar { display: none; }
 .friends-avatars-list {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center; /* Center the avatars vertically */
-  padding: 0.3rem 1rem 0.25rem 0.5rem; /* Reduced top padding for rings, minimal bottom */
-  min-height: fit-content; /* Minimal height to fit avatars */
-  width: fit-content;
+  display: flex; gap: 0.75rem; align-items: center;
+  padding: 0.3rem 1rem 0.25rem 0.5rem; min-height: fit-content; width: fit-content;
 }
 
-/* ===== AVATAR ITEMS ===== */
 .friend-avatar-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 64px;
-  max-width: 64px;
-  cursor: pointer;
-  transition: all 0.2s ease-out;
-  position: relative; /* CRITICAL: for absolute positioned selection-ring */
-  padding: 0.3rem 0.25rem 0 0.25rem; /* Reduced top padding for rings, no bottom padding */
-  margin: 0; /* Remove margin since container padding handles spacing */
-  border-radius: var(--border-radius);
-  outline: none;
-  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  min-width: 64px; max-width: 64px; cursor: pointer; transition: all 0.2s ease-out;
+  position: relative; padding: 0.3rem 0.25rem 0; margin: 0; border-radius: var(--border-radius);
+  outline: none; flex-shrink: 0;
 }
+.friend-avatar-item:hover { transform: translateY(-1px); }
+.friend-avatar-item:focus { box-shadow: 0 0 0 2px var(--primary-glass); }
+.friend-avatar-item:active { transform: translateY(0); }
 
-.friend-avatar-item:hover {
-  transform: translateY(-1px);
-}
-
-.friend-avatar-item:focus {
-  box-shadow: 0 0 0 2px var(--primary-glass);
-}
-
-.friend-avatar-item:active {
-  transform: translateY(0);
-}
-
-/* ===== AVATAR CONTAINER ===== */
-.avatar-container {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: visible; /* Allow ring to extend outside */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  aspect-ratio: 1 / 1;
-}
-
+.avatar-container { position: relative; width: 48px; height: 48px; border-radius: 50%; overflow: visible; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; aspect-ratio: 1/1; }
 .avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  overflow: visible; /* Allow ring to extend outside */
-  background: var(--surface-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--border-light);
-  transition: border 0.3s ease; /* Only transition border, not transforms */
-  aspect-ratio: 1 / 1;
-  flex-shrink: 0;
-  position: relative;
-  transform: none !important; /* Never allow transforms on avatar images */
+  width: 100%; height: 100%; border-radius: 50%; overflow: visible; background: var(--surface-light);
+  display: flex; align-items: center; justify-content: center; border: 2px solid var(--border-light);
+  transition: border 0.3s ease; aspect-ratio: 1/1; flex-shrink: 0; position: relative; transform: none !important;
 }
-
-.avatar-image img,
-.avatar-image .user-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  aspect-ratio: 1 / 1;
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1; /* Below the selection ring */
+.avatar-image img, .avatar-image .user-avatar-img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 50%; aspect-ratio: 1/1; display: block; position: absolute; top: 0; left: 0; z-index: 1;
 }
+.avatar-image i { font-size: 24px; color: var(--text-secondary); position: relative; }
 
-.avatar-image i {
-  font-size: 24px;
-  color: var(--text-secondary);
-  position: relative;
-}
-
-/* ===== SELECTION RING - POSITIONED AROUND user-avatar-img ===== */
-/* Default purple selection ring for normal mode (when not in compare mode) */
+/* Selection ring */
 .selection-ring {
-  position: absolute;
-  /* Position exactly around the img.user-avatar-img element */
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  /* Use box-shadow outline instead of transform/border to avoid distortion */
-  border: none;
-  border-radius: 50%;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-  opacity: 0;
-  z-index: 2; /* Above the user-avatar-img */
-  box-shadow: none;
-  display: block;
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  border: none; border-radius: 50%; transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none; opacity: 0; z-index: 2; box-shadow: none; display: block;
 }
+.friend-avatar-item.selected .selection-ring { opacity: 1 !important; box-shadow: 0 0 0 3px #9333ea !important; z-index: 2 !important; }
+.friend-avatar-item.selected .avatar-image { border: 2px solid var(--border-light) !important; transform: none !important; box-shadow: none !important; }
+.friend-avatar-item:hover:not(.selected) .selection-ring { opacity: 0.5; }
 
-/* Normal mode selection (purple rings) */
-.friend-avatar-item.selected .selection-ring {
-  opacity: 1 !important;
-  /* 3px ring using outline shadow; no transform to keep perfect circle */
-  box-shadow: 0 0 0 3px #9333ea !important;
-  z-index: 2 !important; /* Above the user-avatar-img */
-}
-
-.friend-avatar-item.selected .avatar-image {
-  /* NO border or glow on avatar - only the ring should show selection */
-  border: 2px solid var(--border-light) !important; /* Keep normal border */
-  transform: none !important; /* Never resize avatars */
-  /* Keep normal shadow */
-  box-shadow: none !important;
-}
-
-.friend-avatar-item:hover:not(.selected) .selection-ring {
-  opacity: 0.5; /* Slightly more visible on hover */
-}
-
-/* ===== AVATAR LABELS ===== */
 .avatar-label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-align: center;
-  max-width: 64px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 0.2s ease;
-  line-height: 1.2;
+  font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); text-align: center;
+  max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.2s ease; line-height: 1.2;
 }
+.friend-avatar-item.selected .avatar-label { color: var(--primary); font-weight: 600; }
+.friend-avatar-item:hover .avatar-label { color: var(--text-primary); }
 
-.friend-avatar-item.selected .avatar-label {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.friend-avatar-item:hover .avatar-label {
-  color: var(--text-primary);
-}
-
-/* ===== USER AVATAR SPECIAL STYLING ===== */
-.friend-avatar-item.user-avatar {
-  z-index: 2;
-}
-
+.friend-avatar-item.user-avatar { z-index: 2; }
 .friend-avatar-item.user-avatar .avatar-image {
-  /* NO special styling for user avatar by default - only when selected */
-  border: 2px solid var(--border-light) !important; /* Normal border like other avatars */
-  transform: none !important; /* Never resize user avatar */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important; /* Normal shadow */
+  border: 2px solid var(--border-light) !important; transform: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
 }
+.friend-avatar-item.user-avatar.selected .selection-ring { opacity: 1 !important; box-shadow: 0 0 0 3px #9333ea !important; z-index: 2 !important; }
+.friend-avatar-item.user-avatar .avatar-label { color: var(--primary) !important; font-weight: 600 !important; }
 
-.friend-avatar-item.user-avatar.selected .selection-ring {
-  opacity: 1 !important;
-  box-shadow: 0 0 0 3px #9333ea !important;
-  z-index: 2 !important; /* Above the user-avatar-img like others */
-}
+/* Scroll indicator */
+.scroll-indicator { position: absolute; bottom: 0; left: 1rem; right: 1rem; height: 2px; background: var(--border-light); border-radius: 1px; opacity: 0; transition: opacity 0.3s ease; }
+.horizontal-friends-bar.has-scroll .scroll-indicator,
+.horizontal-friends-bar.scrolling .scroll-indicator { opacity: 1; }
+.scroll-indicator-track { width: 100%; height: 100%; position: relative; border-radius: 1px; overflow: hidden; }
+.scroll-indicator-thumb { position: absolute; top: 0; left: 0; height: 100%; width: 30%; background: var(--primary); border-radius: 1px; transition: left 0.2s ease; }
 
-.friend-avatar-item.user-avatar .avatar-label {
-  color: var(--primary) !important;
-  font-weight: 600 !important;
-}
+/* Status / loading / error */
+.friends-bar-status { display: flex; justify-content: center; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-light); position: relative; z-index: 1; }
+.current-selection { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background: var(--surface-light); padding: 0.4rem 0.8rem; border-radius: var(--border-radius); border: 1px solid var(--border-light); transition: all 0.2s ease; }
+.friends-loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; color: var(--text-secondary); }
+.loading-spinner { width: 32px; height: 32px; border: 3px solid var(--border-light); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.friends-empty-state { display: none; }
+.error-content { color: var(--text-secondary); }
+.error-icon { font-size: 2rem; margin-bottom: 1rem; }
+.error-content h4 { margin: 0 0 0.5rem 0; color: var(--text-primary); }
+.error-content p { margin: 0 0 1.5rem 0; font-size: 0.9rem; }
+.btn-retry { background: var(--primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: var(--border-radius); cursor: pointer; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-retry:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-retry:active { transform: translateY(0); }
 
-/* ===== SCROLL INDICATOR ===== */
-.scroll-indicator {
-  position: absolute;
-  bottom: 0;
-  left: 1rem;
-  right: 1rem;
-  height: 2px;
-  background: var(--border-light);
-  border-radius: 1px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
+.horizontal-friends-bar.compare-mode { border-color: var(--primary-glass); box-shadow: 0 4px 16px var(--primary-shadow); }
+.friend-avatar-item.compare-mode-available { animation: gentle-wiggle 0.3s ease-in-out infinite alternate; }
+.friend-avatar-item.compare-mode-available.compare-selected { animation: none !important; }
+.friend-avatar-item.compare-selected .avatar-container { transform: scale(1); border: 2px solid var(--primary); box-shadow: 0 4px 12px var(--primary-shadow); }
+.compare-checkmark { position: absolute; top: -2px; right: -2px; width: 20px; height: 20px; background: var(--primary); border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; z-index: 3; animation: checkmark-appear 0.3s cubic-bezier(0.68,-0.55,0.265,1.55); }
+@keyframes gentle-wiggle { 0% { transform: rotate(-1deg); } 100% { transform: rotate(1deg); } }
+@keyframes checkmark-appear { 0% { transform: scale(0) rotate(180deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
 
-.horizontal-friends-bar.has-scroll .scroll-indicator {
-  opacity: 1;
-}
-
-.horizontal-friends-bar.scrolling .scroll-indicator {
-  opacity: 1;
-}
-
-.scroll-indicator-track {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.scroll-indicator-thumb {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 30%;
-  background: var(--primary);
-  border-radius: 1px;
-  transition: left 0.2s ease;
-}
-
-/* ===== STATUS BAR ===== */
-.friends-bar-status {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-light);
-  position: relative;
-  z-index: 1;
-}
-
-.current-selection {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: var(--surface-light);
-  padding: 0.4rem 0.8rem;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-light);
-  transition: all 0.2s ease;
-}
-
-/* ===== LOADING STATE ===== */
-.friends-loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  color: var(--text-secondary);
-}
-
-.loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--border-light);
-  border-top: 3px solid var(--primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* ===== EMPTY STATE ===== */
-.friends-empty-state {
-  display: none; /* Hide empty state - not needed for Instagram-style design */
-}
-
-.empty-icon {
-  font-size: 2rem;
-  margin-bottom: 0.8rem;
-  opacity: 0.7;
-}
-
-.empty-text p {
-  margin: 0 0 0.4rem 0;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.empty-text small {
-  font-size: 0.8rem;
-  opacity: 0.8;
-  line-height: 1.4;
-}
-
-/* ===== ERROR STATE ===== */
-.horizontal-friends-bar.error-state {
-  padding: 2rem;
-  text-align: center;
-}
-
-.error-content {
-  color: var(--text-secondary);
-}
-
-.error-icon {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-}
-
-.error-content h4 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary);
-}
-
-.error-content p {
-  margin: 0 0 1.5rem 0;
-  font-size: 0.9rem;
-}
-
-.btn-retry {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-retry:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-}
-
-.btn-retry:active {
-  transform: translateY(0);
-}
-
-/* ===== COMPARE MODE STYLING ===== */
-.horizontal-friends-bar.compare-mode {
-  border-color: var(--primary-glass);
-  box-shadow: 0 4px 16px var(--primary-shadow);
-}
-
-.friend-avatar-item.compare-mode-available {
-  animation: gentle-wiggle 0.3s ease-in-out infinite alternate;
-}
-
-/* Stop wiggling for selected avatars in compare mode */
-.friend-avatar-item.compare-mode-available.compare-selected {
-  animation: none !important;
-}
-
-.friend-avatar-item.compare-selected .avatar-container {
-  transform: scale(1); /* No scaling to prevent shrinking */
-  border: 2px solid var(--primary);
-  box-shadow: 0 4px 12px var(--primary-shadow);
-}
-
-.compare-checkmark {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 20px;
-  height: 20px;
-  background: var(--primary);
-  border: 2px solid white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: white;
-  z-index: 3;
-  animation: checkmark-appear 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes gentle-wiggle {
-  0% {
-    transform: rotate(-1deg);
-  }
-  100% {
-    transform: rotate(1deg);
-  }
-}
-
-@keyframes checkmark-appear {
-  0% {
-    transform: scale(0) rotate(180deg);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-}
-
-/* ===== COMPARE MODE RED SELECTION RINGS ===== */
-/* Red selection ring for avatars selected for comparison during compare mode */
+/* Compare mode red rings */
 .selection-ring.compare-selected-ring {
-  border-color: #ef4444 !important; /* Red color for comparison mode */
-  border-width: 3px !important;
-  box-shadow: 0 0 0 1px #ef4444, 0 0 12px #ef4444,
-    0 0 24px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(239, 68, 68, 0.2) !important;
-  animation: red-comparison-pulse 2s ease-in-out infinite;
-  z-index: 3 !important;
-  opacity: 1 !important;
-  transform: scale(1.12) !important;
+  border-color: #ef4444 !important; border-width: 3px !important;
+  box-shadow: 0 0 0 1px #ef4444, 0 0 12px #ef4444, 0 0 24px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(239, 68, 68, 0.2) !important;
+  animation: red-comparison-pulse 2s ease-in-out infinite; z-index: 3 !important; opacity: 1 !important; transform: scale(1.12) !important;
 }
-
-/* Animated red glow pulse effect for comparison selection */
 @keyframes red-comparison-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 1px #ef4444, 0 0 12px #ef4444,
-      0 0 24px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(239, 68, 68, 0.2);
-    transform: scale(1.12);
-  }
-  50% {
-    box-shadow: 0 0 0 2px #ef4444, 0 0 16px #ef4444,
-      0 0 32px rgba(239, 68, 68, 0.4), inset 0 0 12px rgba(239, 68, 68, 0.3);
-    transform: scale(1.15);
-  }
+  0%,100% { box-shadow: 0 0 0 1px #ef4444, 0 0 12px #ef4444, 0 0 24px rgba(239,68,68,0.3), inset 0 0 8px rgba(239,68,68,0.2); transform: scale(1.12); }
+  50% { box-shadow: 0 0 0 2px #ef4444, 0 0 16px #ef4444, 0 0 32px rgba(239,68,68,0.4), inset 0 0 12px rgba(239,68,68,0.3); transform: scale(1.15); }
 }
+/* Hide old checkmark in favor of glow rings */
+.compare-checkmark { display: none !important; }
 
-/* Remove old checkmark styling - now using purple glow rings */
-.compare-checkmark {
-  display: none !important;
-}
+/* Hide status elements for IG-style compact design */
+.friends-bar-status { display: none; }
 
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 768px) {
-  .horizontal-friends-bar {
-    padding: 0.4rem 0.8rem 0.2rem 0.8rem; /* Compact spacing for mobile */
-    margin: 0;
-    border-radius: var(--glass-radius); /* Unified glass radius */
-  }
-
-  .friends-avatars-list {
-    gap: 0.6rem;
-    padding: 0.25rem 0.8rem 0.2rem 0.4rem; /* Reduced top padding */
-  }
-
-  .friend-avatar-item {
-    min-width: 44px;
-    padding: 0.25rem 0.2rem 0 0.2rem; /* Reduced top padding */
-  }
-
-  .user-avatar-container {
-    padding: 0.25rem 0.2rem 0 0; /* Reduced top padding */
-  }
-
-  .avatar-container {
-    width: 44px;
-    height: 44px;
-  }
-
-  /* Selection ring scales with avatar-image automatically */
-
-  .avatar-label {
-    font-size: 0.65rem;
-    max-width: 44px;
-    margin-top: 0.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .horizontal-friends-bar {
-    padding: 0.35rem 0.6rem 0.15rem 0.6rem; /* Compact spacing for small mobile */
-    border-radius: var(--glass-radius); /* Unified glass radius */
-  }
-
-  .friends-avatars-list {
-    gap: 0.5rem;
-    padding: 0.2rem 0.6rem 0.15rem 0.3rem; /* Reduced top padding */
-  }
-
-  .friend-avatar-item {
-    min-width: 40px;
-    padding: 0.2rem 0.15rem 0 0.15rem; /* Reduced top padding */
-  }
-
-  .user-avatar-container {
-    padding: 0.2rem 0.15rem 0 0; /* Reduced top padding */
-  }
-
-  .avatar-container {
-    width: 40px;
-    height: 40px;
-  }
-
-  /* Selection ring scales with avatar-image automatically */
-
-  .avatar-label {
-    font-size: 0.6rem;
-    max-width: 40px;
-    margin-top: 0.2rem;
-  }
-}
-
-/* Hide status elements for Instagram-style compact design */
-.friends-bar-status {
-  display: none;
-}
-
-/* ===== GLASS ORANGE THEME FOR MIXED AVAILABILITY ===== */
+/* Glass orange theme */
 .glass-orange {
-  background: linear-gradient(
-    135deg,
-    rgba(251, 146, 60, 0.15),
-    rgba(249, 115, 22, 0.1)
-  ) !important;
+  background: linear-gradient(135deg, rgba(251,146,60,0.15), rgba(249,115,22,0.1)) !important;
   backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(251, 146, 60, 0.3) !important;
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(251,146,60,0.3) !important;
+  box-shadow: 0 4px 12px rgba(251,146,60,0.1), inset 0 1px 0 rgba(255,255,255,0.1) !important;
   color: var(--text-primary) !important;
+}
+
+/* ====================================================================================
+                              MEDIA QUERIES (grouped)
+==================================================================================== */
+
+/* <= 900px */
+@media (max-width: 900px) {
+  .schedule-section .schedule-grid-view { --slot-row-height: 4.25rem; }
+}
+
+/* <= 768px */
+@media (max-width: 768px) {
+  .many-slots-note { font-size: 0.8rem; padding: 0.6rem 0.8rem; }
+
+  /* Many-slots widths on tablets */
+  .schedule-table.many-slots th:not(:first-child):not(:last-child),
+  .schedule-table.many-slots td:not(:first-child):not(:last-child) {
+    width: 70px !important; min-width: 70px !important; max-width: 70px !important;
+  }
+
+  /* Slot info sizing on mobile */
+  .slot-info-display { padding: 1px; gap: 1px; }
+  .course-code { font-size: clamp(0.7rem, 2.5vw, 1rem); font-weight: 700; }
+  .classroom-number { font-size: clamp(0.45rem, 1.6vw, 0.7rem); margin-top: 2px; padding: 2px 5px; }
+  .slot-info-display:has(.course-code) .classroom-number { margin-top: 1px; font-size: clamp(0.4rem, 1.4vw, 0.6rem); }
+
+  /* Pin square/tooltip sizing */
+  .pin-square-container { width: 28px !important; height: 74% !important; top: 50% !important; right: 2px !important; transform: translateY(-50%) !important; }
+  .pin-square-container .pin-icon { font-size: 12px !important; }
+  .pin-square-container:active { transform: translateY(-50%) scale(1.05) !important; }
+  .pin-square-container .pin-count-number { width: 14px !important; height: 14px !important; margin-top: 5px !important; font-size: 9px !important; }
+  .compare-pin-indicator { font-size: 14px !important; padding: 1px 3px !important; top: 2px !important; right: 2px !important; }
+  .compare-pin-indicator .pin-count { width: 16px !important; height: 16px !important; font-size: 9px !important; margin-left: 2px !important; }
+  .pin-tooltip { padding: 12px !important; min-width: 140px !important; max-width: 220px !important; border-radius: 10px !important; }
+  .pin-tooltip-header { font-size: 13px !important; padding-bottom: 6px !important; }
+  .pin-tooltip-user { padding: 6px 8px !important; gap: 8px !important; font-size: 12px !important; }
+  .pin-tooltip-user-color { width: 12px !important; height: 12px !important; }
+
+  /* Friends bar sizing */
+  .horizontal-friends-bar { padding: 0.4rem 0.8rem 0.2rem; margin: 0; border-radius: var(--glass-radius); }
+  .friends-avatars-list { gap: 0.6rem; padding: 0.25rem 0.8rem 0.2rem 0.4rem; }
+  .friend-avatar-item { min-width: 44px; padding: 0.25rem 0.2rem 0; }
+  .user-avatar-container { padding: 0.25rem 0.2rem 0 0; }
+  .avatar-container { width: 44px; height: 44px; }
+  .avatar-label { font-size: 0.65rem; max-width: 44px; margin-top: 0.25rem; }
+}
+
+/* <= 600px */
+@media (max-width: 600px) {
+  .schedule-section .schedule-grid-view { --slot-row-height: 4.35rem; }
+}
+
+/* <= 480px */
+@media (max-width: 480px) {
+  /* Grid: narrower time column & content-driven columns */
+  .schedule-section .schedule-grid-view { --time-col-width: 78px; --slot-row-height: 3.25rem; }
+  .schedule-section .schedule-grid-view table.schedule-table { table-layout: auto !important; width: auto !important; }
+  .schedule-section .schedule-grid-view .schedule-wrapper { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .schedule-section .schedule-grid-view table.schedule-table th:not(:first-child),
+  .schedule-section .schedule-grid-view table.schedule-table td.slot {
+    width: auto !important; min-width: 56px !important; max-width: 140px !important;
+  }
+  .schedule-section .schedule-grid-view table.schedule-table th:not(:first-child) {
+    min-height: var(--slot-row-height, 3rem) !important; line-height: 1.1 !important;
+    font-size: clamp(0.65rem, 0.6rem + 0.7vw, 0.8rem) !important; padding: 0.45rem 0.25rem !important;
+  }
+  .schedule-section .schedule-grid-view table.schedule-table td.time-slot-label {
+    min-height: 2.75rem !important; height: var(--slot-row-height, 3.25rem) !important;
+    font-size: clamp(0.55rem, 0.5rem + 1vw, 0.7rem) !important; padding: 0.35rem 0.25rem !important;
+  }
+  .schedule-section .schedule-grid-view table.schedule-table td.slot {
+    min-height: 2.75rem !important; height: var(--slot-row-height) !important;
+  }
+
+  /* Header layout + container heights */
+  .schedule-header { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.5rem; justify-content: space-between; }
+  .schedule-header h3 { flex: 1; margin-right: 0.5rem; min-width: 0; }
+  .many-slots-note { flex-basis: 100%; order: 3; margin-top: 0.5rem; margin-bottom: 0; }
+  
+  /* Remove fixed heights - let parent containers control sizing */
+  .schedule-section { height: 100%; max-height: 100%; }
+  .schedule-wrapper { min-height: 0; height: 100%; max-height: 100%; }
+  
+  /* Home page mobile adjustments */
+  body.page-home .schedule-section,
+  body.page-home .schedule-wrapper {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  /* Generic compact table */
+  .slot { height: 2.25rem !important; min-height: 2.25rem !important; }
+  .schedule-wrapper { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; padding: 0.25rem !important; }
+  .schedule-table { min-width: 450px !important; font-size: 0.65rem !important; }
+  .many-slots-note { font-size: 0.75rem; padding: 0.5rem 0.7rem; margin: 0.25rem 0; }
+
+  /* Compact base columns */
+  .schedule-table th:first-child,
+  .schedule-table .day-label { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
+  .schedule-table.many-slots th:not(:first-child):not(:last-child),
+  .schedule-table.many-slots td:not(:first-child):not(:last-child) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
+  .schedule-table th:last-child { width: 40px !important; min-width: 40px !important; max-width: 40px !important; }
+
+  /* Extra small course/classroom text */
+  .course-code { font-size: clamp(0.6rem, 2vw, 0.8rem); padding: 1px 2px; }
+  .classroom-number { font-size: clamp(0.4rem, 1.5vw, 0.6rem); padding: 1px 4px; }
+  .slot-info-display:has(.course-code) .classroom-number { font-size: clamp(0.35rem, 1.3vw, 0.5rem); }
+
+  /* Pin indicator sizing */
+  .pin-square-container { width: 26px !important; height: 80% !important; top: 50% !important; right: 1px !important; transform: translateY(-50%) !important; }
+  .pin-square-container .pin-icon { font-size: 11px !important; }
+  .pin-square-container .pin-count-number { width: 10px !important; height: 10px !important; margin-top: 5px !important; font-size: 8px !important; }
+  .compare-pin-indicator { font-size: 12px !important; padding: 1px 2px !important; }
+  .compare-pin-indicator .pin-count { width: 14px !important; height: 14px !important; font-size: 8px !important; margin-left: 1px !important; }
+  .pin-tooltip { padding: 10px !important; min-width: 120px !important; max-width: 200px !important; }
+  .pin-tooltip-header { font-size: 12px !important; }
+  .pin-tooltip-user { padding: 4px 6px !important; gap: 6px !important; font-size: 11px !important; }
+  .pin-tooltip-user-color { width: 10px !important; height: 10px !important; }
+
+  /* Friends bar */
+  .horizontal-friends-bar { padding: 0.35rem 0.6rem 0.15rem; border-radius: var(--glass-radius); }
+  .friends-avatars-list { gap: 0.5rem; padding: 0.2rem 0.6rem 0.15rem 0.3rem; }
+  .friend-avatar-item { min-width: 40px; padding: 0.2rem 0.15rem 0; }
+  .user-avatar-container { padding: 0.2rem 0.15rem 0 0; }
+  .avatar-container { width: 40px; height: 40px; }
+  .avatar-label { font-size: 0.6rem; max-width: 40px; margin-top: 0.2rem; }
+}
+
+/* <= 325px */
+@media (max-width: 325px) {
+  .schedule-wrapper { padding: 0.125rem !important; }
+  .schedule-table { min-width: 320px !important; font-size: 0.6rem !important; }
+  .schedule-table th:first-child, .schedule-table .day-label { width: 60px !important; min-width: 60px !important; max-width: 60px !important; font-size: 0.55rem !important; }
+  .schedule-table.many-slots th:not(:first-child):not(:last-child),
+  .schedule-table.many-slots td:not(:first-child):not(:last-child) { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
+  .schedule-table th:last-child { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
+  .slot { height: 2rem !important; min-height: 2rem !important; font-size: 0.55rem !important; }
+  .schedule-header { margin-bottom: 0.5rem !important; }
+  .schedule-header h3 { font-size: 1rem !important; }
+  .many-slots-note { font-size: 0.7rem !important; padding: 0.4rem 0.6rem !important; }
 }
