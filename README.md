@@ -17,12 +17,14 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 ### Social Connections & Student Discovery
 
 **Friends System:**
+
 - Find classmates by exact handle (e.g., `@alice`) or exact student ID (6+ digits), restricted to your university
 - Send, receive, accept, or decline friend requests with instant notifications
 - Real-time updates for friend activities and connection status
 - University-only access ensures you connect only with verified students
 
 **Smart Social Features:**
+
 - Privacy-aware filtering excludes yourself, existing friends, and incoming requests from search results
 - Visual indicators for pending, accepted, and sent friend requests
 - Memory-efficient real-time listeners with automatic cleanup
@@ -34,6 +36,7 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 ### Advanced Schedule Management
 
 **Enhanced Schedule Storage:**
+
 - Dual storage strategy: Firestore primary + localStorage cache for instant UI response
 - Cross-device real-time sync: Schedule updates appear instantly across all devices
 - Offline capability: Queue changes when offline, automatically sync when reconnected
@@ -41,6 +44,7 @@ A comprehensive Firebase-powered social scheduling platform built specifically f
 - Schema versioning for future-proof data structure with migration support
 
 **Interactive Scheduling:**
+
 - Dynamic time slots: Create, edit, and manage custom time periods with validation
 - Pin mode: Focus editing on specific users with visual lock indicators
 - Real-time comparison: Multi-user schedule overlap detection with color-coded conflicts
@@ -67,6 +71,7 @@ The app now renders per-user time slots from Firestore as the single source of t
 ### Modern User Experience
 
 **Design:**
+
 - Modern glassmorphism design with backdrop blur effects
 - Custom avatar system with multiple styles and customization options
 - Real-time notifications for friend activities and system updates
@@ -77,11 +82,12 @@ The app now renders per-user time slots from Firestore as the single source of t
 - **Mobile-First Responsive Design**: Enhanced viewport management, touch interactions, and responsive layout optimization across all device categories
 
 **Authentication & Security:**
+
 - University email validation for exclusive student access
 - Firebase Authentication with secure sign-up/sign-in and email verification
 - Multi-step profile setup with guided avatar customization
 - Privacy controls for managing searchability and social visibility
- - Dev accounts toggle: see ".md files/Dev-Accounts-Guide.md" for creating `*.dev@iub.edu.bd` accounts with a Firestore toggle
+- Dev accounts toggle: see ".md files/Dev-Accounts-Guide.md" for creating `*.dev@iub.edu.bd` accounts with a Firestore toggle
 
 ### Campus Presence & Location Sharing
 
@@ -110,16 +116,19 @@ The app now renders per-user time slots from Firestore as the single source of t
 ### Frontend Architecture
 
 **Vanilla JavaScript (ES6+ Modules):**
+
 - Clean, dependency-free codebase with modern JavaScript patterns
 - Component-based architecture with proper lifecycle management
 - Memory-efficient real-time event system with automatic cleanup
 
 **SPA Router System:**
+
 - Custom-built router for instant navigation without page reloads
 - Dynamic template loading with proper state management
 - Browser history integration and URL management
 
 **Modular CSS Architecture:**
+
 - Design system with CSS custom properties and theme management
 - Glassmorphism components with advanced backdrop blur effects
 - Mobile-first responsive design
@@ -128,12 +137,14 @@ The app now renders per-user time slots from Firestore as the single source of t
 ### Development & Testing
 
 **Development Stack:**
+
 - Vite build system for optimized production bundles
 - Jest testing framework with ESM support and proper mocking
 - Firebase emulator integration for local development
 - Security audit tools and vulnerability scanning
 
 **Performance Optimizations:**
+
 - Smart caching for search results and social data
 - Lazy loading and code splitting for optimal performance
 - Resource cleanup and memory management for real-time features
@@ -290,17 +301,20 @@ CampXus/
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/your-username/CampXus.git
    cd CampXus
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Firebase Setup:**
+
    - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
    - Enable Authentication (Email/Password) and Firestore Database
    - Copy your config to `.env.local`:
@@ -314,14 +328,20 @@ CampXus/
    FIREBASE_APP_ID=your_app_id
    ```
 
+# Optional: only if you need higher IPinfo quota for network detection
+
+IPINFO_TOKEN=your_ipinfo_token
+
+````
+
 4. **Development Commands:**
-   ```bash
-   npm run dev:config    # Generate window.ENV config (auto-used by app)
-   npm run dev:check     # Verify local Firebase/dev setup
-   npm run dev           # Start Vite dev server with host binding
-   npm run preview       # Serve production build locally
-   npm test              # Run Jest (jsdom) tests
-   ```
+```bash
+npm run dev:config    # Generate window.ENV config (auto-used by app)
+npm run dev:check     # Verify local Firebase/dev setup
+npm run dev           # Start Vite dev server with host binding
+npm run preview       # Serve production build locally
+npm test              # Run Jest (jsdom) tests
+````
 
 ## Available Scripts
 
@@ -364,11 +384,13 @@ CampXus operates as a modern Single Page Application (SPA) with real-time Fireba
 ### Real-time Social System
 
 **Friend Discovery:**
+
 - Search by exact handle (e.g., `@alice`) or exact student ID (6+ digits), same-university only
 - Privacy-aware filtering excludes yourself, existing friends, and incoming requests
 - No fuzzy suggestions (name/major) to reduce noise and prevent accidental adds
 
 **Connection Management:**
+
 - Send friend requests with immediate delivery notifications
 - Receive instant alerts for incoming requests and responses
 - Track request status with visual indicators and live updates
@@ -377,12 +399,14 @@ CampXus operates as a modern Single Page Application (SPA) with real-time Fireba
 ### Schedule Coordination
 
 **Interactive Scheduling:**
+
 - Dynamic weekly grid with drag-and-drop time slot management
 - Pin mode for focused editing on specific user schedules
 - Real-time availability comparison with color-coded conflict detection
 - Smart data persistence combining local storage with cloud synchronization
 
 **Social Integration:**
+
 - View friend schedules and find optimal meeting times
 - Coordinate study sessions based on mutual availability
 - Share schedule updates with connected classmates
@@ -395,6 +419,7 @@ CampXus operates as a modern Single Page Application (SPA) with real-time Fireba
 - RealtimeService (`src/js/services/realtime/RealtimeService.js`): Broadcasts presence changes; HorizontalFriendsBar listens and updates presence dots.
 
 Behavior by context:
+
 - Home: Tier 1 immediately; off-campus triggers GPS burst at 0/20/40s; adaptive 20→30→45→90s; slow to 60–90s when stable off-campus; reset to 20s on focus/network.
 - Other pages: Tier 1 every 90–120s; GPS only on focus, login, or manual refresh.
 - Hidden tab: GPS paused; Tier 1 continues at 90–120s.
@@ -479,18 +504,21 @@ We welcome contributions from developers who want to help improve the university
 ### Future Enhancements
 
 **Immediate Roadmap:**
+
 - **Enhanced Mobile Experience** with progressive web app (PWA) capabilities and native app-like interactions
 - **AI-Powered Schedule Intelligence** with smart meeting suggestions based on friend availability and privacy preferences
 - **Advanced Group Features** with multi-user study session coordination and shared scheduling spaces
 - **Enhanced Privacy Granularity** with time-slot level permissions and custom privacy rules
 
 **Medium-Term Goals:**
+
 - **Mutual Friends Discovery** and intelligent social suggestions (foundation ready with bilateral privacy system)
 - **Cross-University Networking** with privacy-first inter-institutional collaboration features
 - **Advanced Notification System** with user-customizable preferences, email integration, and push notifications
 - **Calendar Integration** with ICS export functionality and privacy-aware external calendar sharing
 
 **Long-Term Vision:**
+
 - **Social Collaboration Platform** with shared study spaces, group project coordination, and academic networking
 - **Custom Theme Creation Tools** with advanced personalization options and accessibility enhancements
 - **Enterprise University Integration** with LMS connections, course schedule automation, and institutional analytics
@@ -501,7 +529,6 @@ We welcome contributions from developers who want to help improve the university
 - **Currently Supporting:** Independent University, Bangladesh (IUB)
 - **Expansion Ready:** Easy configuration system for adding new universities
 - **Scalable Architecture:** Designed to support multiple institutions simultaneously
-
 
 ## Support
 
@@ -514,7 +541,9 @@ If you encounter any issues or have questions, please:
 ---
 
 Let's make university life more connected and organized for students everywhere!
+
 #### Friends Search Behavior
+
 - Handle: exact match with or without `@` (case-insensitive), scoped to your university, only if the user is searchable.
 - Student ID: exact match on `universityInfo.studentId` for your university; input must be numeric with at least 6 digits.
 - No fuzzy suggestions: name/major or partial matches are intentionally disabled to prevent noisy results.

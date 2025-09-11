@@ -1412,12 +1412,30 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   
 }
 
+/* ===== FULL-BLEED MAIN WITH CONSTRAINED INNER CONTENT ===== */
+/* Use .main-inner inside .main-content when you want the background/full width to span
+   the viewport but keep actual content centered and readable. */
+.main-inner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-inline: clamp(1rem, 2vw, 2rem);
+  box-sizing: border-box;
+}
+
+/* Ensure glass cards never exceed their natural readable width unless explicitly overridden */
+.glass-card {
+  max-width: 100%;
+}
+
 /* ===== ULTRA-WIDE ≥1600px ===== */
 @media (min-width: 1600px) {
   .main-content {
     padding: 2.5rem 3rem;
-    max-width: 1800px;
-    margin: 0 auto;
+  /* Full-bleed background on ultra-wide screens */
+  max-width: none;
+  width: 100%;
+  margin: 0;
   }
   .content-grid {
     max-width: 1400px !important;

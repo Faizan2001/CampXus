@@ -5,9 +5,9 @@
 ====================================================================================
 
 This file adds modern responsive features without modifying existing styles.css
-✅ Preserves all existing styling and functionality
-✅ Adds cutting-edge responsive features for better UX
-✅ Uses modern CSS features for improved performance
+- Preserves all existing styling and functionality
+- Adds cutting-edge responsive features for better UX
+- Uses modern CSS features for improved performance
 
 ENHANCEMENTS INCLUDED:
 - Dynamic viewport units for better mobile support
@@ -365,14 +365,7 @@ button {
   }
 }
 
-/* ===== ENHANCED FOCUS MANAGEMENT ===== */
 
-/* Better focus indicators for keyboard navigation */
-:focus-visible {
-  outline: 3px solid var(--accent-primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
 /* ===== ENHANCED MOTION PREFERENCES ===== */
 
 @media (prefers-reduced-motion: reduce) {

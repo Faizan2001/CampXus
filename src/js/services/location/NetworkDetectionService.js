@@ -16,9 +16,16 @@ import { getCampusConfig } from "./UniversityCampusConfig.js";
 export class NetworkDetectionService {
   constructor() {
     // Use IPinfo Lite for tier-1 detection via ASN domain (as_domain)
+    // SECURITY: Removed hard‑coded token. If you have a token, inject it as window.ENV.IPINFO_TOKEN.
+    // Public token exposure lets others exhaust quota; prefer no token or proxy via a Worker.
+    const ipinfoToken =
+      typeof window !== "undefined" && window.ENV && window.ENV.IPINFO_TOKEN
+        ? `?token=${window.ENV.IPINFO_TOKEN}`
+        : ""; // token is optional for lite endpoint
+
     this.ipServiceEndpoints = [
       {
-        url: "https://api.ipinfo.io/lite/me?token=d951df9d159d4d",
+        url: `https://api.ipinfo.io/lite/me${ipinfoToken}`,
         name: "ipinfo-lite",
         ipField: "ip",
         asnField: "asn",
@@ -111,7 +118,8 @@ export class NetworkDetectionService {
       });
 
       // Step 3: Check if AS domain matches the university domain
-      const isOnCampus = this.checkAsDomainMatch(userAsDomain, expectedAsDomain) ||
+      const isOnCampus =
+        this.checkAsDomainMatch(userAsDomain, expectedAsDomain) ||
         // Fallback to legacy organization matching if needed
         this.checkOrganizationMatch(userAsName, expectedOrg, alternativeNames);
       const responseTime = Date.now() - startTime;
