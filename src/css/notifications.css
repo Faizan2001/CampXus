@@ -1,36 +1,18 @@
 /**
  * 🔔 MeetchuThere Notifications Page Styles
- * 
- * Complete glassmorphism styling that perfectly matches the friends page design.
- * Features advanced backdrop blur, beautiful animations, and full mobile responsiveness.
- * 
- * Design System:
- * - Same glassmorphism patterns as friends page
- * - Consistent color palette and typography
- * - Enhanced hover states and transitions
- * - Beautiful notification cards with presence indicators
- * - Mobile-first responsive design
- * 
- * Part of the Campus Presence System
- * 
+ * Glassmorphism, mobile-first, and consistent with Friends page.
  * =============================================================================
  */
 
-/* =================================
-   MAIN LAYOUT & CONTAINER OVERRIDES
-================================= */
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 1) LAYOUT & PAGE OVERRIDES                                               │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* Override main content layout for notifications page */
+/* Use unified main-content sizing system - apply consistent padding like home page */
 body.page-notifications .main-content {
-  padding: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow-x: hidden !important;
-  min-height: 100vh; /* Fallback */
-  min-height: 100dvh; /* Fill viewport height with iOS-safe dvh */
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.5rem 0.4rem !important; /* Same as home page: 8px top/bottom, 6.4px left/right */
 }
 
 body.page-notifications .content-grid {
@@ -39,12 +21,12 @@ body.page-notifications .content-grid {
   align-items: stretch !important;
   grid-template-columns: unset !important;
   grid-template-rows: unset !important;
-  min-height: 100vh !important; /* Fallback */
-  min-height: 100dvh !important; /* Full viewport height */
+  /* Remove hardcoded heights - use unified system */
+  height: 100%;
+  overflow: hidden;
   width: 100% !important;
   max-width: 100% !important;
   gap: 0 !important;
-  overflow-x: hidden !important;
 }
 
 /* Hide default dashboard columns on notifications page */
@@ -53,7 +35,7 @@ body.page-notifications .schedule-column {
   display: none !important;
 }
 
-/* Reset any grid positioning for notification elements */
+/* Reset grid positioning for schedule elements on this page */
 body.page-notifications .schedule-section {
   grid-column: unset !important;
   grid-row: unset !important;
@@ -61,55 +43,54 @@ body.page-notifications .schedule-section {
   display: none !important;
 }
 
-/* =================================
-   MAIN NOTIFICATIONS CONTAINER
-================================= */
-
+/* Page container */
 .notifications-page {
   max-width: 100%;
   margin: 0;
-  padding: 0.5rem 0.4rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0;
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
-  flex: 1; /* take available height from content-grid */
-  min-height: 100vh; /* Fallback */
-  min-height: 100dvh; /* ensure full viewport height on page */
+  /* Use flexible sizing - fill available content-grid space */
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
 }
 
-/* =================================
-   GLASSMORPHISM HEADER SECTION
-================================= */
 
-/* Legacy header retained for back-compat; main card styles below */
-.notifications-header {
-  /* Enhanced glassmorphism matching friends page */
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 2) GLASS CONTAINERS & TOP-LINE HIGHLIGHT                                 │
+   │    (shared glassmorphism + hairline gradient)                            │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notifications-header,
+.no-notifications,
+.notification-categories,
+.notification-settings {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05),
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
   position: relative;
   overflow: hidden;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
 }
 
-/* Glass card inner highlight */
-.notifications-header::before {
+.notifications-header::before,
+.notifications-card::before,
+.no-notifications::before,
+.notification-categories::before,
+.notification-settings::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   height: 1px;
   background: linear-gradient(
     90deg,
@@ -120,9 +101,20 @@ body.page-notifications .schedule-section {
   pointer-events: none;
 }
 
-.notifications-header .page-title-section {
-  flex: 1;
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 3) PAGE HEADER                                                            │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notifications-header {
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
 }
+
+.notifications-header .page-title-section { flex: 1; }
 
 .notifications-header .page-title {
   font-size: 2rem;
@@ -152,18 +144,15 @@ body.page-notifications .schedule-section {
   align-items: center;
 }
 
-/* =================================
-   MARK ALL READ BUTTON
-================================= */
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 4) PRIMARY ACTIONS (buttons)                                              │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
 .mark-all-read {
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(
-    135deg,
-    var(--primary-color, #667eea) 0%,
-    #5a6cf0 100%
-  );
-  color: white;
+  background: linear-gradient(135deg, var(--primary-color, #667eea) 0%, #5a6cf0 100%);
+  color: #fff;
   border: none;
   border-radius: 12px;
   font-weight: 500;
@@ -177,44 +166,30 @@ body.page-notifications .schedule-section {
 
 .mark-all-read::before {
   content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  position: absolute; top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
   transition: left 0.5s ease;
 }
 
 .mark-all-read:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4),
-    0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(0,0,0,0.15);
 }
-
-.mark-all-read:hover::before {
-  left: 100%;
-}
+.mark-all-read:hover::before { left: 100%; }
 
 .mark-all-read:disabled {
-  background: rgba(156, 163, 175, 0.8);
+  background: rgba(156,163,175,0.8);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
+.mark-all-read:disabled::before { display: none; }
 
-.mark-all-read:disabled::before {
-  display: none;
-}
 
-/* =================================
-   NOTIFICATIONS LIST CONTAINER
-================================= */
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 5) NOTIFICATIONS CARD & LIST                                              │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
 .notifications-list {
   display: flex;
@@ -222,39 +197,20 @@ body.page-notifications .schedule-section {
   gap: 1rem;
 }
 
-/* =================================
-   GLASS CARD NOTIFICATION SECTIONS
-   (Scoped to notifications page to avoid global overrides)
-================================= */
-
-/* Visuals come from .glass-card; keep only layout-specific tweaks */
+/* Layout shell for the card (glass visuals come from shared styles or .glass-card) */
 .notifications-card {
   padding: 1rem 1rem 0.75rem 1rem;
   position: relative;
   overflow: hidden;
-  margin-bottom: 1.5rem;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  flex: 1; /* grow to fill page height */
-  min-height: 0; /* allow inner scroll area to size */
+  /* Fill all available notifications-page space */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
 }
-
-/* Mobile viewport fitting: constrain overall card height and scroll inner list */
-@media (max-width: 768px) {
-  .notifications-card {
-    max-height: calc(
-      100dvh - var(--nav-height, 56px) - 1rem
-    ); /* account for nav + small margin */
-    margin-bottom: 0.75rem;
-  }
-  .notifications-scrollable-container {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* New single-card header layout */
-/* (Already handled above) */
 
 .notifications-card-header {
   display: flex;
@@ -262,6 +218,7 @@ body.page-notifications .schedule-section {
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
+  flex-shrink: 0; /* keep header visible */
 }
 
 .notifications-card .page-title {
@@ -277,13 +234,13 @@ body.page-notifications .schedule-section {
   font-size: 0.9rem;
 }
 
-/* Mobile-first filter buttons */
+/* Inline filter chips inside the card */
 .notifications-filters {
   display: flex;
   gap: 0.5rem;
   margin: 0.25rem 0 0.75rem 0;
+  flex-shrink: 0;
 }
-
 .notifications-filters .filter-btn {
   appearance: none;
   border: 1px solid rgba(var(--accent-primary-rgb, 139, 92, 246), 0.35);
@@ -294,74 +251,29 @@ body.page-notifications .schedule-section {
   background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
-
 .notifications-filters .filter-btn:hover {
   background: rgba(var(--accent-primary-rgb, 139, 92, 246), 0.95);
 }
-
 .notifications-filters .filter-btn.active {
   color: #fff;
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
 }
+.notifications-filters .filter-btn:active { transform: translateY(1px); }
 
-.notifications-filters .filter-btn:active {
-  transform: translateY(1px);
-}
-
-/* Scrollable list with comfortable padding for mobile */
+/* Scroll area inside the card */
 .notifications-scrollable-container {
-  flex: 1; /* fill remaining card height */
-  min-height: 0; /* ensure flex children can shrink */
+  flex: 1;           /* fill remaining card height */
+  min-height: 0;
   overflow-y: auto;
   padding: 0.5rem;
-}
-
-@media (min-width: 768px) {
-  .notifications-card {
-    padding: 1.25rem 1.25rem 1rem 1.25rem;
-  }
-  .notifications-card .page-title {
-    font-size: 1.5rem;
-  }
-  .notifications-filters .filter-btn {
-    font-size: 0.95rem;
-    padding: 0.4rem 0.9rem;
-  }
-  .notifications-scrollable-container {
-    padding: 0.75rem;
-  }
-
-  /* Desktop: Better spacing and min-height */
-  .no-notifications {
-    padding: 3rem 2rem;
-    min-height: calc(100vh - 200px); /* More space for desktop layout */
-  }
-}
-
-.notifications-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.6) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
 }
 
 .notifications-card h3 {
@@ -373,47 +285,40 @@ body.page-notifications .schedule-section {
   align-items: center;
   gap: 0.5rem;
 }
-
 .notifications-card h3 i {
   color: var(--primary-color, #667eea);
   opacity: 0.8;
 }
 
-/* =================================
-   NOTIFICATION ITEMS
-================================= */
 
-/* Slim glass notification card */
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 6) NOTIFICATION ITEMS (base + states)                                     │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
 .notification-item {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
   backdrop-filter: blur(14px) saturate(150%);
   -webkit-backdrop-filter: blur(14px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 13px;
   padding: 0.7rem 0.9rem 0.55rem 0.9rem;
-  box-shadow: 0 3px 14px -3px rgba(0, 0, 0, 0.45),
-    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  box-shadow:
+    0 3px 14px -3px rgba(0,0,0,0.45),
+    0 1px 0 rgba(255,255,255,0.05) inset;
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
-  transition: background 0.3s, transform 0.25s;
   cursor: pointer;
   margin-bottom: 0.55rem;
   line-height: 1.2;
   overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* (merged duplicate) */
 }
 
 .notification-item::before {
   content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: absolute; top: 0; left: 0; right: 0;
   height: 1px;
   background: linear-gradient(
     90deg,
@@ -424,57 +329,49 @@ body.page-notifications .schedule-section {
   pointer-events: none;
 }
 
+.notification-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 85% 15%, rgba(255,255,255,0.06), transparent 50%);
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
 .notification-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.12),
+    0 4px 16px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  border-color: rgba(255,255,255,0.35);
 }
 
-.notification-item:last-child {
-  margin-bottom: 0;
-}
+.notification-item:last-child { margin-bottom: 0; }
 
-/* Unread notification indicator */
 .notification-item.notification-unread {
   border-left: 4px solid var(--primary-color, #667eea);
   background: rgba(102, 126, 234, 0.05);
 }
+.notification-item.notification-read { opacity: 0.85; }
 
-.notification-item.notification-read {
-  opacity: 0.85;
-}
 
-/* =================================
-   NOTIFICATION AVATARS
-================================= */
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 7) AVATAR, CONTENT TEXT, META                                             │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-.notification-avatar {
-  position: relative;
-  flex-shrink: 0;
-}
-
+.notification-avatar { position: relative; flex-shrink: 0; }
 .notification-avatar img {
-  width: 48px;
-  height: 48px;
+  width: 48px; height: 48px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 2px solid rgba(255,255,255,0.8);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   transition: transform 0.3s ease;
 }
+.notification-item:hover .notification-avatar img { transform: scale(1.05); }
 
-.notification-item:hover .notification-avatar img {
-  transform: scale(1.05);
-}
-
-/* =================================
-   NOTIFICATION CONTENT
-================================= */
-
-.notification-content {
-  flex: 1;
-  min-width: 0;
-}
+.notification-content { flex: 1; min-width: 0; }
 
 .notification-text {
   font-weight: 500;
@@ -488,29 +385,12 @@ body.page-notifications .schedule-section {
   gap: 4px;
 }
 
-/* Enhanced action verb styling */
-.notification-text .action-verb {
-  font-weight: 500;
-  opacity: 0.8;
-  margin-left: 2px;
-}
+.notification-text .action-verb { font-weight: 500; opacity: 0.8; margin-left: 2px; }
+.notification-text strong { font-weight: 600; }
 
-/* Enhanced strong text colors by notification type */
-.notification-text strong {
-  font-weight: 600;
-}
-
-.notification-item.location-request .notification-text strong {
-  color: #d84315;
-}
-
-.notification-item.friend-request .notification-text strong {
-  color: #6d28d9;
-}
-
-.notification-item:not(.location-request):not(.friend-request)
-  .notification-text
-  strong {
+.notification-item.location-request .notification-text strong { color: #d84315; }
+.notification-item.friend-request   .notification-text strong { color: #6d28d9; }
+.notification-item:not(.location-request):not(.friend-request) .notification-text strong {
   color: var(--primary-color, #667eea);
 }
 
@@ -532,9 +412,10 @@ body.page-notifications .schedule-section {
   letter-spacing: 0.25px;
 }
 
-/* =================================
-   NOTIFICATION ACTIONS
-================================= */
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 8) INLINE ACTIONS (Accept / Dismiss)                                      │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
 .notification-actions {
   display: flex;
@@ -563,55 +444,41 @@ body.page-notifications .schedule-section {
   align-items: center;
   justify-content: center;
 }
-.notification-actions button:active {
-  transform: scale(0.96);
-}
+.notification-actions button:active { transform: scale(0.96); }
 
 .notification-actions button::before {
   content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  position: absolute; top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
   transition: left 0.5s ease;
 }
-
-.notification-actions button:hover::before {
-  left: 100%;
-}
+.notification-actions button:hover::before { left: 100%; }
 
 .accept-location-btn,
 .accept-friend-btn {
   background: linear-gradient(135deg, #10c964, #059d3e);
   color: #fff;
-  box-shadow: 0 2px 8px -2px rgba(5, 157, 62, 0.45);
+  box-shadow: 0 2px 8px -2px rgba(5,157,62,0.45);
 }
-
 .accept-location-btn:hover,
 .accept-friend-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px -3px rgba(5, 157, 62, 0.5);
+  box-shadow: 0 4px 14px -3px rgba(5,157,62,0.5);
 }
 
 .dismiss-btn {
   background: linear-gradient(135deg, #ff525f 0%, #d82836 100%);
   color: #fff;
-  box-shadow: 0 2px 8px -2px rgba(216, 40, 54, 0.45);
+  box-shadow: 0 2px 8px -2px rgba(216,40,54,0.45);
 }
-
 .dismiss-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px -3px rgba(216, 40, 54, 0.5);
+  box-shadow: 0 4px 14px -3px rgba(216,40,54,0.5);
 }
 
-/* Compact variant specifically for actionable requests */
+
+/* Compact variants for actionable requests */
 .notification-item.location-request,
 .notification-item.friend-request {
   align-items: flex-start;
@@ -619,29 +486,491 @@ body.page-notifications .schedule-section {
   gap: 0.55rem;
 }
 .notification-item.location-request .notification-avatar img,
-.notification-item.friend-request .notification-avatar img {
-  width: 40px;
-  height: 40px;
-  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
+.notification-item.friend-request   .notification-avatar img {
+  width: 40px; height: 40px;
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.4);
 }
 .notification-item.location-request .notification-text strong,
-.notification-item.friend-request .notification-text strong {
+.notification-item.friend-request   .notification-text strong { font-weight: 600; }
+.notification-item.location-request .notification-text,
+.notification-item.friend-request   .notification-text { font-size: 0.85rem; }
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 9) TYPE-SPECIFIC CARDS                                                    │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+/* 🌍 Location Request */
+.notification-item.location-request {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 107, 53, 0.15),
+    rgba(255, 87, 34, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  border: 1px solid rgba(255, 107, 53, 0.25);
+  box-shadow:
+    0 4px 20px -5px rgba(255,107,53,0.3),
+    0 1px 0 rgba(255,255,255,0.1) inset,
+    0 0 0 1px rgba(255,107,53,0.1) inset;
+}
+.notification-item.location-request::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(255,107,53,0.12), transparent 60%);
+  border-radius: 13px;
+  pointer-events: none;
+}
+.notification-item.location-request .notification-avatar { position: relative; }
+.notification-item.location-request .notification-text { color: #d84315; font-weight: 600; }
+.notification-item.location-request .notification-text .notification-icon {
+  background: rgba(255, 107, 53, 0.15);
+  color: #ff5722;
+  box-shadow: 0 0 0 1px rgba(255,107,53,0.2), 0 2px 6px -1px rgba(255,87,34,0.3);
+}
+.notification-item.location-request .accept-location-btn {
+  background: linear-gradient(135deg, #ff6b35, #ff5722);
+  box-shadow: 0 3px 12px -2px rgba(255,87,34,0.4),
+              0 1px 0 rgba(255,255,255,0.2) inset;
+  border: 1px solid rgba(255,107,53,0.3);
+}
+.notification-item.location-request .accept-location-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px -3px rgba(255,87,34,0.5);
+}
+
+/* 👥 Friend Request */
+.notification-item.friend-request {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15),
+    rgba(102, 126, 234, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  box-shadow:
+    0 4px 20px -5px rgba(139, 92, 246, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 0 1px rgba(139, 92, 246, 0.1) inset;
+}
+.notification-item.friend-request::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 80% 20%, rgba(139,92,246,0.12), transparent 60%);
+  border-radius: 13px;
+  pointer-events: none;
+}
+.notification-item.friend-request .notification-avatar { position: relative; }
+.notification-item.friend-request .notification-text { color: #6d28d9; font-weight: 600; }
+.notification-item.friend-request .notification-text .notification-icon {
+  background: rgba(139,92,246,0.15);
+  color: #8b5cf6;
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.2), 0 2px 6px -1px rgba(139,92,246,0.3);
+}
+.notification-item.friend-request .accept-friend-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 3px 12px -2px rgba(139,92,246,0.4),
+              0 1px 0 rgba(255,255,255,0.2) inset;
+  border: 1px solid rgba(139,92,246,0.3);
+}
+.notification-item.friend-request .accept-friend-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px -3px rgba(139,92,246,0.5);
+}
+.notification-item.friend-request .reject-friend-btn {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: #fff;
+  box-shadow: 0 3px 12px -2px rgba(75,85,99,0.4);
+}
+.notification-item.friend-request .reject-friend-btn:hover {
+  background: linear-gradient(135deg, #4b5563, #374151);
+  transform: translateY(-2px);
+}
+
+/* 🟢 Location Enabled */
+.notification-item.location-enabled {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.12),
+    rgba(5, 150, 105, 0.06),
+    rgba(255, 255, 255, 0.04)
+  );
+  border: 1px solid rgba(16,185,129,0.2);
+}
+.notification-item.location-enabled::before {
+  content: "";
+  position: absolute; top: 6px; bottom: 6px; left: 6px;
+  width: 5px; border-radius: 6px;
+  background: linear-gradient(180deg, #10b981, rgba(16,185,129,0.45));
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 4px 10px -2px rgba(16,185,129,0.4);
+}
+
+/* 🔔 Generic */
+.notification-item.generic { position: relative; }
+.notification-item.generic::before {
+  content: "";
+  position: absolute; top: 6px; bottom: 6px; left: 6px;
+  width: 5px; border-radius: 6px;
+  background: linear-gradient(180deg, #8b5cf6, rgba(139,92,246,0.45));
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 4px 10px -2px rgba(0,0,0,0.4);
+}
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 10) HOVER VARIANTS                                                        │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notification-item.location-request:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 107, 53, 0.2),
+    rgba(255, 87, 34, 0.12),
+    rgba(255, 255, 255, 0.08)
+  );
+  border-color: rgba(255, 107, 53, 0.4);
+  box-shadow:
+    0 8px 32px -8px rgba(255,107,53,0.4),
+    0 1px 0 rgba(255,255,255,0.15) inset;
+}
+.notification-item.location-request:hover::after { opacity: 0.8; }
+
+.notification-item.friend-request:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.2),
+    rgba(102, 126, 234, 0.12),
+    rgba(255, 255, 255, 0.08)
+  );
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow:
+    0 8px 32px -8px rgba(139,92,246,0.3),
+    0 1px 0 rgba(255,255,255,0.15) inset;
+}
+.notification-item.friend-request:hover::after { opacity: 0.8; }
+
+.notification-item:not(.location-request):not(.friend-request):hover {
+  background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
+}
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 11) ACCEPT/DISMISS ANIMATIONS                                             │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notification-exit   { animation: notifDismiss 0.26s ease forwards; }
+.notification-accept { animation: notifAccept 0.42s ease forwards; }
+
+@keyframes notifDismiss {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.92) translateY(-6px); filter: blur(2px); }
+}
+@keyframes notifAccept {
+  0%   { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(10,194,85,0); }
+  35%  { box-shadow: 0 0 0 6px rgba(10,194,85,0.35); }
+  60%  { transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(0.9) translateY(-4px); box-shadow: 0 0 0 14px rgba(10,194,85,0); }
+}
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 12) EMPTY STATE                                                           │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.no-notifications {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+
+  /* Fill available scrollable container space */
+  height: 100%;
+  min-height: 0;
+
+  padding: 2rem 1rem;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.no-notifications-icon   { font-size: 4rem; margin-bottom: 1rem; opacity: 0.6; filter: grayscale(50%); }
+.no-notifications-text   { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.5rem 0; }
+.no-notifications-subtitle { font-size: 1rem; color: var(--text-secondary); opacity: 0.8; margin: 0; line-height: 1.5; }
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 13) CATEGORIES PANEL                                                      │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notification-categories { padding: 1.5rem; }
+
+.category-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--text-secondary);
+  border-radius: 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 500;
+}
+.filter-btn:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.3);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.filter-btn.active {
+  background: var(--primary-color, #667eea);
+  color: #fff;
+  border-color: var(--primary-color, #667eea);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+}
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 14) SETTINGS PANEL                                                        │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notification-settings { padding: 1.5rem; }
+
+.settings-content { display: flex; flex-direction: column; gap: 1rem; }
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.setting-item:last-child { border-bottom: none; }
+
+.setting-info { flex: 1; }
+
+.setting-label {
   font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin: 0 0 0.25rem 0;
+}
+.setting-description {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.4;
 }
 
-/* Single-line condensed message wording */
-.notification-item.location-request .notification-text {
-  font-size: 0.85rem;
+.setting-control { position: relative; }
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  background: rgba(156,163,175,0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(156,163,175,0.4);
 }
-.notification-item.friend-request .notification-text {
-  font-size: 0.85rem;
+.toggle-switch::before {
+  content: "";
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* =================================
-   ENHANCED MOBILE RESPONSIVENESS
-================================= */
+input[type="checkbox"] { display: none; }
+input[type="checkbox"]:checked + .toggle-switch {
+  background: var(--primary-color, #667eea);
+  border-color: var(--primary-color, #667eea);
+}
+input[type="checkbox"]:checked + .toggle-switch::before { transform: translateX(20px); }
 
-/* Mobile-first enhancements for enhanced cards */
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 15) LOADING                                                               │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.notifications-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+.loading-spinner {
+  width: 24px; height: 24px;
+  border: 2px solid rgba(102,126,234,0.2);
+  border-top: 2px solid var(--primary-color, #667eea);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { 0% {transform:rotate(0)} 100% {transform:rotate(360deg)} }
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 16) ACCESSIBILITY & HIGH CONTRAST                                         │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+/* Focus styles for keyboard navigation */
+.notification-item:focus,
+.notification-actions button:focus,
+.mark-all-read:focus,
+.filter-btn:focus {
+  outline: 2px solid var(--primary-color, #667eea);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .notification-item,
+  .notification-actions button,
+  .mark-all-read,
+  .notification-avatar img,
+  .filter-btn { transition: none; }
+
+  .notification-item:hover,
+  .notification-actions button:hover,
+  .mark-all-read:hover,
+  .filter-btn:hover { transform: none; }
+
+  .loading-spinner { animation: none; }
+}
+
+/* High contrast */
+@media (prefers-contrast: high) {
+  .notification-item { border: 2px solid var(--text-primary); }
+  .notification-text,
+  .notification-details,
+  .notification-time { color: var(--text-primary); }
+}
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 17) DARK MODE (scoped to notifications page)                              │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+body.dark-mode.page-notifications .notifications-header,
+body.dark-mode.page-notifications .notification-item,
+body.dark-mode.page-notifications .no-notifications,
+body.dark-mode.page-notifications .notification-categories,
+body.dark-mode.page-notifications .notification-settings {
+  background: rgba(40, 44, 52, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Unify with weekly schedule glass look via variables in components.css */
+body.dark-mode.page-notifications .notification-item:hover {
+  background: rgba(40, 44, 52, 0.98);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode.page-notifications .filter-btn {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.25);
+}
+body.dark-mode.page-notifications .filter-btn:hover {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+body.dark-mode.page-notifications .toggle-switch {
+  background: rgba(75,85,99,0.8);
+  border-color: rgba(75,85,99,0.9);
+}
+
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 18) MEDIA QUERIES (collected)                                             │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+/* A) ≤ 768px – use flexible layout */
+@media (max-width: 768px) {
+  .notifications-card {
+    /* Remove hardcoded height - use flexible sizing */
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    margin: 0;
+  }
+  .notifications-scrollable-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* B) ≥ 768px – desktop spacing & sizing */
+@media (min-width: 768px) {
+  .notifications-card { padding: 1.25rem 1.25rem 1rem 1.25rem; }
+  .notifications-card .page-title { font-size: 1.5rem; }
+  .notifications-filters .filter-btn { font-size: 0.95rem; padding: 0.4rem 0.9rem; }
+  .notifications-scrollable-container { padding: 0.75rem; }
+
+  .no-notifications {
+    padding: 3rem 2rem;
+    /* Use flexible sizing - fill available scrollable container space */
+    min-height: 0;
+    height: 100%;
+  }
+}
+
+/* C) ≤ 768px – general mobile adjustments */
+@media (max-width: 768px) {
+  
+
+  .notifications-header {
+    padding: 1.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .notifications-header .page-title { font-size: 1.75rem; }
+  .notifications-header .header-actions { width: 100%; justify-content: flex-end; }
+
+  .notification-item {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .notification-avatar { align-self: flex-start; }
+  .notification-content { width: 100%; }
+
+  .notification-actions { width: 100%; justify-content: flex-end; }
+  .notification-actions button { flex: 1; max-width: 120px; }
+
+  .category-filters { gap: 0.375rem; }
+  .filter-btn { padding: 0.375rem 0.75rem; font-size: 0.8rem; }
+
+  .setting-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .setting-control { align-self: flex-end; }
+}
+
+/* D) ≤ 520px – compact actionable requests */
 @media (max-width: 520px) {
   .notification-item {
     padding: 0.75rem 0.8rem 0.7rem 0.8rem;
@@ -649,7 +978,6 @@ body.page-notifications .schedule-section {
     gap: 0.8rem;
   }
 
-  /* Enhanced mobile layout for location requests */
   .notification-item.location-request,
   .notification-item.friend-request {
     flex-direction: column;
@@ -657,9 +985,8 @@ body.page-notifications .schedule-section {
     padding: 0.8rem 1rem 0.75rem 1rem;
   }
 
-  /* Keep avatar and content on same line */
   .notification-item.location-request .notification-content,
-  .notification-item.friend-request .notification-content {
+  .notification-item.friend-request   .notification-content {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
@@ -667,15 +994,14 @@ body.page-notifications .schedule-section {
   }
 
   .notification-item.location-request .notification-avatar,
-  .notification-item.friend-request .notification-avatar {
+  .notification-item.friend-request   .notification-avatar {
     flex-shrink: 0;
     margin-bottom: 0;
   }
 
   .notification-item.location-request .notification-text-content,
-  .notification-item.friend-request .notification-text-content {
-    flex: 1;
-    min-width: 0;
+  .notification-item.friend-request   .notification-text-content {
+    flex: 1; min-width: 0;
   }
 
   .notification-actions {
@@ -684,36 +1010,21 @@ body.page-notifications .schedule-section {
     width: 100%;
     margin-top: 0.5rem;
   }
-
   .notification-actions button {
     width: 100%;
     padding: 0.8rem 1.2rem;
     font-size: 0.85rem;
     font-weight: 600;
-    min-height: 44px; /* Better touch targets */
+    min-height: 44px; /* touch targets */
     border-radius: 12px;
   }
 
-  /* Mobile text improvements */
-  .notification-text {
-    font-size: 0.9rem;
-    line-height: 1.3;
-    margin-bottom: 0.3rem;
-  }
-
-  .notification-time {
-    font-size: 0.7rem;
-    opacity: 0.7;
-  }
-
-  /* Mobile content spacing */
-  .notification-content {
-    width: 100%;
-    padding-right: 0;
-  }
+  .notification-text { font-size: 0.9rem; line-height: 1.3; margin-bottom: 0.3rem; }
+  .notification-time { font-size: 0.7rem; opacity: 0.7; }
+  .notification-content { width: 100%; padding-right: 0; }
 }
 
-/* Enhanced tablet and desktop styles */
+/* E) ≥ 521px – actions inline */
 @media (min-width: 521px) {
   .notification-item.location-request,
   .notification-item.friend-request {
@@ -736,822 +1047,46 @@ body.page-notifications .schedule-section {
   }
 }
 
-/* =================================
-   ENHANCED NOTIFICATION TYPE CARDS
-================================= */
-
-/* 🌍 LOCATION REQUEST CARDS - Enhanced Map Theme */
-.notification-item.location-request {
-  position: relative;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 107, 53, 0.15),
-    rgba(255, 87, 34, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  border: 1px solid rgba(255, 107, 53, 0.25);
-  box-shadow: 0 4px 20px -5px rgba(255, 107, 53, 0.3),
-    0 1px 0 rgba(255, 255, 255, 0.1) inset,
-    0 0 0 1px rgba(255, 107, 53, 0.1) inset;
-}
-
-.notification-item.location-request::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-    circle at 20% 30%,
-    rgba(255, 107, 53, 0.12),
-    transparent 60%
-  );
-  border-radius: 13px;
-  pointer-events: none;
-}
-
-.notification-item.location-request .notification-avatar {
-  position: relative;
-}
-
-.notification-item.location-request .notification-text {
-  color: #d84315;
-  font-weight: 600;
-}
-
-.notification-item.location-request .notification-text .notification-icon {
-  background: rgba(255, 107, 53, 0.15);
-  color: #ff5722;
-  box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.2),
-    0 2px 6px -1px rgba(255, 87, 34, 0.3);
-}
-
-.notification-item.location-request .accept-location-btn {
-  background: linear-gradient(135deg, #ff6b35, #ff5722);
-  box-shadow: 0 3px 12px -2px rgba(255, 87, 34, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
-  border: 1px solid rgba(255, 107, 53, 0.3);
-}
-
-.notification-item.location-request .accept-location-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px -3px rgba(255, 87, 34, 0.5);
-}
-
-/* 👥 FRIEND REQUEST CARDS - Enhanced Social Theme */
-.notification-item.friend-request {
-  position: relative;
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.15),
-    rgba(102, 126, 234, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  box-shadow: 0 4px 20px -5px rgba(139, 92, 246, 0.25),
-    0 1px 0 rgba(255, 255, 255, 0.1) inset,
-    0 0 0 1px rgba(139, 92, 246, 0.1) inset;
-}
-
-.notification-item.friend-request::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-    circle at 80% 20%,
-    rgba(139, 92, 246, 0.12),
-    transparent 60%
-  );
-  border-radius: 13px;
-  pointer-events: none;
-}
-
-.notification-item.friend-request .notification-avatar {
-  position: relative;
-}
-
-.notification-item.friend-request .notification-text {
-  color: #6d28d9;
-  font-weight: 600;
-}
-
-.notification-item.friend-request .notification-text .notification-icon {
-  background: rgba(139, 92, 246, 0.15);
-  color: #8b5cf6;
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2),
-    0 2px 6px -1px rgba(139, 92, 246, 0.3);
-}
-
-.notification-item.friend-request .accept-friend-btn {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  box-shadow: 0 3px 12px -2px rgba(139, 92, 246, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-.notification-item.friend-request .accept-friend-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px -3px rgba(139, 92, 246, 0.5);
-}
-
-.notification-item.friend-request .reject-friend-btn {
-  background: linear-gradient(135deg, #6b7280, #4b5563);
-  color: white;
-  box-shadow: 0 3px 12px -2px rgba(75, 85, 99, 0.4);
-}
-
-.notification-item.friend-request .reject-friend-btn:hover {
-  background: linear-gradient(135deg, #4b5563, #374151);
-  transform: translateY(-2px);
-}
-
-/* 🟢 LOCATION ENABLED NOTIFICATIONS */
-.notification-item.location-enabled {
-  position: relative;
-  background: linear-gradient(
-    135deg,
-    rgba(16, 185, 129, 0.12),
-    rgba(5, 150, 105, 0.06),
-    rgba(255, 255, 255, 0.04)
-  );
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.notification-item.location-enabled::before {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 6px;
-  width: 5px;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #10b981, rgba(16, 185, 129, 0.45));
-  backdrop-filter: blur(8px) saturate(180%);
-  -webkit-backdrop-filter: blur(8px) saturate(180%);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18),
-    0 4px 10px -2px rgba(16, 185, 129, 0.4);
-}
-
-/* 🔔 GENERIC NOTIFICATIONS */
-.notification-item.generic {
-  position: relative;
-}
-
-.notification-item.generic::before {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 6px;
-  width: 5px;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #8b5cf6, rgba(139, 92, 246, 0.45));
-  backdrop-filter: blur(8px) saturate(180%);
-  -webkit-backdrop-filter: blur(8px) saturate(180%);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18),
-    0 4px 10px -2px rgba(0, 0, 0, 0.4);
-}
-/* =================================
-   ENHANCED HOVER EFFECTS
-================================= */
-
-.notification-item {
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.notification-item::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    circle at 85% 15%,
-    rgba(255, 255, 255, 0.06),
-    transparent 50%
-  );
-  opacity: 0.4;
-  transition: opacity 0.3s ease;
-}
-
-/* Enhanced hover states for location requests */
-.notification-item.location-request:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 107, 53, 0.2),
-    rgba(255, 87, 34, 0.12),
-    rgba(255, 255, 255, 0.08)
-  );
-  border-color: rgba(255, 107, 53, 0.4);
-  box-shadow: 0 8px 32px -8px rgba(255, 107, 53, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.15) inset;
-}
-
-.notification-item.location-request:hover::after {
-  opacity: 0.8;
-}
-
-/* Enhanced hover states for friend requests */
-.notification-item.friend-request:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.2),
-    rgba(102, 126, 234, 0.12),
-    rgba(255, 255, 255, 0.08)
-  );
-  border-color: rgba(139, 92, 246, 0.4);
-  box-shadow: 0 8px 32px -8px rgba(139, 92, 246, 0.3),
-    0 1px 0 rgba(255, 255, 255, 0.15) inset;
-}
-
-.notification-item.friend-request:hover::after {
-  opacity: 0.8;
-}
-
-/* Standard hover for other notification types */
-.notification-item:not(.location-request):not(.friend-request):hover {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.14),
-    rgba(255, 255, 255, 0.08)
-  );
-}
-
-/* Accept / Dismiss animations */
-.notification-exit {
-  animation: notifDismiss 0.26s ease forwards;
-}
-.notification-accept {
-  animation: notifAccept 0.42s ease forwards;
-}
-@keyframes notifDismiss {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.92) translateY(-6px);
-    filter: blur(2px);
-  }
-}
-@keyframes notifAccept {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(10, 194, 85, 0);
-  }
-  35% {
-    box-shadow: 0 0 0 6px rgba(10, 194, 85, 0.35);
-  }
-  60% {
-    transform: scale(1.03);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.9) translateY(-4px);
-    box-shadow: 0 0 0 14px rgba(10, 194, 85, 0);
-  }
-}
-
-/* =================================
-   EMPTY STATE
-================================= */
-
-.no-notifications {
-  /* MOBILE FIRST: Full height flex container for perfect centering */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-
-  /* Take full height of parent scrollable container */
-  height: 100%;
-  min-height: calc(
-    100vh - 220px
-  ); /* Account for header, nav, and padding on mobile */
-
-  /* Mobile-first padding - smaller on mobile */
-  padding: 2rem 1rem;
-
-  /* Beautiful glassmorphism styling */
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-
-  /* Full width of parent container */
-  width: 100%;
-  margin: 0;
-  box-sizing: border-box;
-
-  position: relative;
-  overflow: hidden;
-}
-
-.no-notifications::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.6) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
-
-.no-notifications-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  opacity: 0.6;
-  filter: grayscale(50%);
-}
-
-.no-notifications-text {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 0.5rem 0;
-}
-
-.no-notifications-subtitle {
-  font-size: 1rem;
-  color: var(--text-secondary);
-  opacity: 0.8;
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* =================================
-   NOTIFICATION CATEGORIES SECTION
-================================= */
-
-.notification-categories {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  position: relative;
-  overflow: hidden;
-}
-
-.notification-categories::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.6) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
-
-.category-filters {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid rgba(102, 126, 234, 0.2);
-  background: rgba(102, 126, 234, 0.1);
-  color: var(--text-secondary);
-  border-radius: 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  font-weight: 500;
-}
-
-.filter-btn:hover {
-  background: rgba(102, 126, 234, 0.15);
-  border-color: rgba(102, 126, 234, 0.3);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-.filter-btn.active {
-  background: var(--primary-color, #667eea);
-  color: white;
-  border-color: var(--primary-color, #667eea);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-/* =================================
-   NOTIFICATION SETTINGS SECTION
-================================= */
-
-.notification-settings {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  position: relative;
-  overflow: hidden;
-}
-
-.notification-settings::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.6) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
-
-.settings-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.setting-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.setting-item:last-child {
-  border-bottom: none;
-}
-
-.setting-info {
-  flex: 1;
-}
-
-.setting-label {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  margin: 0 0 0.25rem 0;
-}
-
-.setting-description {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  opacity: 0.8;
-  margin: 0;
-  line-height: 1.4;
-}
-
-.setting-control {
-  position: relative;
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-  background: rgba(156, 163, 175, 0.3);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(156, 163, 175, 0.4);
-}
-
-.toggle-switch::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  background: white;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-input[type="checkbox"] {
-  display: none;
-}
-
-input[type="checkbox"]:checked + .toggle-switch {
-  background: var(--primary-color, #667eea);
-  border-color: var(--primary-color, #667eea);
-}
-
-input[type="checkbox"]:checked + .toggle-switch::before {
-  transform: translateX(20px);
-}
-
-/* =================================
-   LOADING STATES
-================================= */
-
-.notifications-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 3rem;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid rgba(102, 126, 234, 0.2);
-  border-top: 2px solid var(--primary-color, #667eea);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* =================================
-   MOBILE RESPONSIVE DESIGN
-================================= */
-
-@media (max-width: 768px) {
-  .notifications-page {
-    padding: 0.75rem;
-    gap: 1rem;
-  }
-
-  .notifications-header {
-    padding: 1.5rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .notifications-header .page-title {
-    font-size: 1.75rem;
-  }
-
-  .notifications-header .header-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .notification-item {
-    padding: 1rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .notification-avatar {
-    align-self: flex-start;
-  }
-
-  .notification-content {
-    width: 100%;
-  }
-
-  .notification-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .notification-actions button {
-    flex: 1;
-    max-width: 120px;
-  }
-
-  .category-filters {
-    gap: 0.375rem;
-  }
-
-  .filter-btn {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8rem;
-  }
-
-  .setting-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .setting-control {
-    align-self: flex-end;
-  }
-}
-
+/* F) ≤ 480px – extra-tight mobile */
 @media (max-width: 480px) {
+  /* Note: selector likely typo, kept as-is to preserve behavior */
   body.page-notifications .notiifications-card {
     height: 70vw;
     min-height: 40vw;
     max-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) - env(safe-area-inset-bottom, 0px)
     ) !important;
     padding-bottom: 20px;
   }
 
-  
   .notifications-page {
-    padding: 0.5rem;
-    min-height: 50vw !important; /* override earlier 100vh/dvh */
-    max-height: calc(100dvh - var(--mobile-bottom-nav-height, 60px));
+    padding: 0;
+    /* Use unified sizing system */
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
   }
-
-  /* Allow inner scroll area (list) to scroll if content exceeds 50vw height */
   .notifications-page .notifications-scrollable-container {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
   }
 
-  .notifications-header {
-    padding: 1rem;
-    border-radius: 16px;
-  }
+  .notifications-header { padding: 1rem; border-radius: 16px; }
+  .notifications-header .page-title { font-size: 1.5rem; }
+  .notification-item { padding: 0.75rem; border-radius: 12px; }
 
-  .notifications-header .page-title {
-    font-size: 1.5rem;
-  }
-
-  .notification-item {
-    padding: 0.75rem;
-    border-radius: 12px;
-  }
-
-  .notification-actions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .notification-actions button {
-    max-width: none;
-  }
+  .notification-actions { flex-direction: column; gap: 0.5rem; }
+  .notification-actions button { max-width: none; }
 
   .no-notifications {
     padding: 1.5rem 1rem;
-    min-height: calc(
-      100vh - 180px
-    ); /* Reduced for mobile - less space needed for nav */
+    /* Use flexible sizing - fill available scrollable container */
+    min-height: 0;
+    height: 100%;
   }
-
-  .no-notifications-icon {
-    font-size: 3rem;
-  }
-
-  .no-notifications-text {
-    font-size: 1.125rem;
-  }
-}
-
-/* =================================
-   ACCESSIBILITY ENHANCEMENTS
-================================= */
-
-@media (prefers-reduced-motion: reduce) {
-  .notification-item,
-  .notification-actions button,
-  .mark-all-read,
-  .notification-avatar img,
-  .filter-btn {
-    transition: none;
-  }
-
-  .notification-item:hover,
-  .notification-actions button:hover,
-  .mark-all-read:hover,
-  .filter-btn:hover {
-    transform: none;
-  }
-
-  .loading-spinner {
-    animation: none;
-  }
-}
-
-/* Focus styles for keyboard navigation */
-.notification-item:focus,
-.notification-actions button:focus,
-.mark-all-read:focus,
-.filter-btn:focus {
-  outline: 2px solid var(--primary-color, #667eea);
-  outline-offset: 2px;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .notification-item {
-    border: 2px solid var(--text-primary);
-  }
-
-  .notification-text,
-  .notification-details,
-  .notification-time {
-    color: var(--text-primary);
-  }
-}
-
-/* =================================
-   DARK MODE SUPPORT (Scoped to notifications page and app dark-mode)
-================================= */
-
-body.dark-mode.page-notifications .notifications-header,
-body.dark-mode.page-notifications .notification-item,
-body.dark-mode.page-notifications .no-notifications,
-body.dark-mode.page-notifications .notification-categories,
-body.dark-mode.page-notifications .notification-settings {
-  background: rgba(40, 44, 52, 0.95);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Unify the main notifications card with the weekly schedule glass look */
-/* Note: .notifications-card dark styles unified in components.css via variables */
-
-body.dark-mode.page-notifications .notification-item:hover {
-  background: rgba(40, 44, 52, 0.98);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-body.dark-mode.page-notifications .filter-btn {
-  background: rgba(102, 126, 234, 0.15);
-  border-color: rgba(102, 126, 234, 0.25);
-}
-
-body.dark-mode.page-notifications .filter-btn:hover {
-  background: rgba(102, 126, 234, 0.2);
-}
-
-body.dark-mode.page-notifications .toggle-switch {
-  background: rgba(75, 85, 99, 0.8);
-  border-color: rgba(75, 85, 99, 0.9);
-}
-
-/* =============================================================
-   OVERRIDE: LIMIT CONTENT GRID HEIGHT TO 60vh ON NOTIFICATIONS
-   Ensures the main notifications content starts immediately
-   under the nav and occupies ~60% of the viewport height.
-   (Further scrolling handled inside scrollable containers.)
-============================================================= */
-body.page-notifications .content-grid {
-  min-height: 60vh !important;
-  height: 60vh !important;
-  max-height: 90vh !important;
-}
-
-/* Allow the primary notifications card to flex within 60vh */
-body.page-notifications .notifications-card {
-  height: 70vw;
-    min-height: 40vw;
-    max-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) -
-        env(safe-area-inset-bottom, 0px)
-    ) !important;
-    padding-bottom: 20px;
-}
-body.page-notifications
-  .notifications-card
-  .notifications-scrollable-container {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  .no-notifications-icon { font-size: 3rem; }
+  .no-notifications-text { font-size: 1.125rem; }
 }

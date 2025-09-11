@@ -46,7 +46,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   position: relative;
   overflow: hidden;
   /* Ensure proper centering for accessibility */
-  display: flex;
+  /* removed duplicate: display: flex; */
   align-items: center;
   justify-content: center;
 }
@@ -175,7 +175,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   min-height: var(--_btn-height);
   line-height: 1; /* ensure vertical centering */
   /* Visual */
-  border: none;
+  /* removed overridden: border: none; */
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   font-size: 0.8rem;
@@ -476,7 +476,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
 /* Pin button inherits variable-based sizing */
 .control-btn.pin-btn {
   height: var(--_btn-height);
-  min-height: var(--_btn-height);
+  min-height: var(--_btn_height);
 }
 
 .control-btn.pin-btn:disabled {
@@ -937,7 +937,10 @@ body.dark-mode .day-time-slot.busy {
   will-change: transform, opacity;
 }
 
-/* Subtle tinted variants by status */
+.slot-avatar-container::-webkit-scrollbar {
+  display: none;
+}
+
 .day-time-slot.compare-mode.all-free .slot-avatar-container {
   background: linear-gradient(
     135deg,
@@ -963,10 +966,6 @@ body.dark-mode .day-time-slot.busy {
     rgba(249, 115, 22, 0.06)
   );
   border-color: rgba(249, 115, 22, 0.25);
-}
-
-.slot-avatar-container::-webkit-scrollbar {
-  display: none;
 }
 
 .friend-avatar {
