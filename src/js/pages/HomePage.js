@@ -2517,6 +2517,24 @@ export function processTimeRangeDelete(slotIndex, activeUserObject) {
     normalizeMatrix("pinnedSlots");
     normalizeMatrix("slotInfo");
 
+    // --- Pin Migration (preserve intent after structural change) ---
+    try {
+      migratePinsToTimeBased(activeUserObject);
+    } catch (e) {
+      console.warn("Pin migration failed after time range deletion", e);
+    }
+
+    // --- Analytics Tracking ---
+    try {
+      AnalyticsService.trackScheduleEdit("delete_timeslot", {
+        slot_label: deletedSlotLabel,
+        slot_index: slotIndex,
+        remaining_slots: activeUserObject.timeSlots.length,
+      });
+    } catch (e) {
+      // Fail silently to avoid blocking user flow
+    }
+
     // --- Transactional persistence ---
     const txId = `timeslot_delete_${
       state.activeUserId
