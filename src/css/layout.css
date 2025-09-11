@@ -19,8 +19,13 @@
 :root {
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
-  --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-  --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) - env(safe-area-inset-bottom));
+  --main-content-available-height: calc(
+    100dvh - var(--nav-height) - env(safe-area-inset-bottom)
+  );
+  --main-content-available-height-with-bottom-nav: calc(
+    100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
+      env(safe-area-inset-bottom)
+  );
 }
 
 /* ===== APP CONTAINER ===== */
@@ -110,9 +115,13 @@
   outline: none; /* Ensure no focus outline */
 }
 .logo span:focus-visible {
-  outline: 2px solid var(--accent-primary); /* Accessible focus for keyboard users */
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: none; /* Remove focus outline on inner span */
+}
+/* Remove default dotted/yellow focus ring on the logo link itself */
+.logo:focus,
+.logo:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* ===== NAV LINKS & BUTTONS ===== */
@@ -266,6 +275,13 @@ body:not(.dark-mode) .nav-link:hover {
   max-height: var(--main-content-available-height);
   min-height: var(--main-content-available-height);
   padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* Prevent default focus outline around the main content container */
+.main-content:focus,
+.main-content:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* When bottom navigation is visible - use reduced height */
@@ -1036,8 +1052,13 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (max-width: 480px) {
   :root {
     --nav-height: 56px;
-    --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-    --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) - env(safe-area-inset-bottom));
+    --main-content-available-height: calc(
+      100dvh - var(--nav-height) - env(safe-area-inset-bottom)
+    );
+    --main-content-available-height-with-bottom-nav: calc(
+      100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
+        env(safe-area-inset-bottom)
+    );
   }
 
   .top-nav {
@@ -1350,8 +1371,6 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   .button-group button:last-child {
     margin-bottom: 0 !important;
   }
-
-
 }
 
 /* ===== STANDARD DESKTOP  ≥900px ===== */
@@ -1408,8 +1427,6 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
 
   /* Removed home-page specific styles - moved to schedule.css */
-
-  
 }
 
 /* ===== FULL-BLEED MAIN WITH CONSTRAINED INNER CONTENT ===== */
@@ -1432,10 +1449,10 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (min-width: 1600px) {
   .main-content {
     padding: 2.5rem 3rem;
-  /* Full-bleed background on ultra-wide screens */
-  max-width: none;
-  width: 100%;
-  margin: 0;
+    /* Full-bleed background on ultra-wide screens */
+    max-width: none;
+    width: 100%;
+    margin: 0;
   }
   .content-grid {
     max-width: 1400px !important;

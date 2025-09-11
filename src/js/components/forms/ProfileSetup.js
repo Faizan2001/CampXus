@@ -1472,9 +1472,8 @@ class ProfileSetup {
     }
 
     if (skipBtn) {
-      // Show skip button on step 0 and 1, hide on final step
-      skipBtn.style.display =
-        this.currentStep < this.totalSteps - 1 ? "flex" : "none";
+      // Show skip button on all steps, including final step
+      skipBtn.style.display = "flex";
     }
 
     if (nextButton) {
@@ -2537,7 +2536,6 @@ class ProfileSetup {
 
     if (mode === "edit" && mainTitle) {
       mainTitle.textContent = "Update Your Profile";
-      
     }
   }
 
