@@ -97,37 +97,22 @@
 .logo span {
   font-size: 1.5rem;
   font-weight: 850;
-  font-style: italic;
+  font-style: normal; /* Changed from italic to normal */
   color: transparent;
   background: linear-gradient(135deg, #4f46e5, #8b5cf6, #d946ef);
   background-clip: text;
   -webkit-background-clip: text;
-  position: relative;
-  padding-bottom: 8px;
   display: inline-block;
+  outline: none; /* Remove dotted outline */
+  border: none; /* Remove any border */
 }
-.logo span::after {
-  content: "";
-  position: absolute;
-  left: 15%;
-  bottom: -2px;
-  height: 3px;
-  width: 70%;
-  background: linear-gradient(135deg, #8b5cf6, #d946ef);
-  transform: scaleX(0);
-  transform-origin: left;
-  animation: draw-underline 1.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-  border-radius: 2px;
+.logo span:focus {
+  outline: none; /* Ensure no focus outline */
 }
-.logo span::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: var(--nav-bg);
-  opacity: 1;
-  transform-origin: right;
-  animation: wipe-reveal 1.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+.logo span:focus-visible {
+  outline: 2px solid var(--accent-primary); /* Accessible focus for keyboard users */
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ===== NAV LINKS & BUTTONS ===== */
@@ -954,22 +939,6 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 }
 
 /* ===== KEYFRAMES ===== */
-@keyframes wipe-reveal {
-  0% {
-    transform: scaleX(1);
-  }
-  100% {
-    transform: scaleX(0);
-  }
-}
-@keyframes draw-underline {
-  0% {
-    transform: scaleX(0);
-  }
-  100% {
-    transform: scaleX(1);
-  }
-}
 @keyframes badgePop {
   0% {
     transform: scale(0.6);
@@ -1003,12 +972,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   .logo span {
     font-size: 1rem !important;
     font-weight: 850;
-    font-style: italic;
-  }
-  .logo span::after {
-    left: 15%;
-    bottom: -2px;
-    width: 70%;
+    font-style: normal;
   }
   .theme-toggle {
     min-width: 2rem !important;
@@ -1093,7 +1057,6 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .logo span {
     font-size: 1.2rem !important;
-    padding-bottom: 2px;
   }
   .nav-link,
   .user-menu-trigger,
@@ -1180,7 +1143,6 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .logo span {
     font-size: 1.25rem;
-    padding-bottom: 4px;
   }
   .nav-link {
     padding: 0.5rem 0.85rem;

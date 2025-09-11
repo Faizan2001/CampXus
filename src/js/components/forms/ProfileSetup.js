@@ -1537,7 +1537,6 @@ class ProfileSetup {
         <div class="setup-header">
           <div class="setup-title-section">
             <h1 class="setup-title">${message}</h1>
-            <p class="setup-subtitle">${subtitle}</p>
           </div>
         </div>
         <div class="setup-body" style="display: flex; align-items: center; justify-content: center; min-height: 300px;">
@@ -2535,11 +2534,10 @@ class ProfileSetup {
 
     // Update main title if in edit mode
     const mainTitle = document.querySelector(".setup-title");
-    const mainSubtitle = document.querySelector(".setup-subtitle");
 
-    if (mode === "edit" && mainTitle && mainSubtitle) {
+    if (mode === "edit" && mainTitle) {
       mainTitle.textContent = "Update Your Profile";
-      mainSubtitle.textContent = "Make changes to your profile information.";
+      
     }
   }
 

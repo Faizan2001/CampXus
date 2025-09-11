@@ -5,117 +5,162 @@
 =============================================================================
 
 📋 TABLE OF CONTENTS:
-├── 1. Layout & Page Structure
-├── 2. Header & Title Section  
-├── 3. Progress Indicator System
-├── 4. Step Content & Forms
-├── 5. Form Controls & Validation
-├── 6. Profile Picture Upload
-├── 7. Interactive Elements
-├── 8. Navigation Controls
-├── 9. Success States & Feedback
-├── 10. Responsive Design
-└── 11. Animations & Effects
-
-This file contains profile setup specific styles that extend the main app's
-design system. Uses CSS variables from variables.css, glass components
-from components.css, and animations from animations.css.
-
+├── 1) Layout & Page Structure
+├── 2) Header & Title
+├── 3) Progress Indicators
+├── 4) Step Content & Forms
+├── 5) Form Controls & Validation
+├── 6) Avatar Selection (Profile)
+├── 7) Interactive Elements
+├── 8) Navigation Controls (+ Loading)
+├── 9) Success States & Feedback
+├── 10) Avatar Editor Modal (Full)
+├── 11) Profile Loading Overlay
+├── 12) Avatar Color Swatches
+├── 13) Schedule Import Step
+├── 14) Utilities & Theme Transitions
+├── 15) Animations & Effects (keyframes)
+└── 16) Media Queries (collected)
 =============================================================================
 */
 
-/* 
-=============================================================================
-                          1. LAYOUT & PAGE STRUCTURE
-=============================================================================
-*/
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 1) LAYOUT & PAGE STRUCTURE                                               │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 🏗️ MAIN PAGE CONTAINER */
-/* Override default layout to center profile setup card in full viewport */
-
-/* Ensure main content area uses full viewport for profile page */
+/* Main content area - use unified sizing system */
 body.page-profile .main-content {
-  padding: 0.5rem 0.4rem !important; /* Requested compact padding */
+  padding: 0.5rem 0.4rem !important;
   width: 100% !important;
   max-width: 100% !important;
-  margin: 0 auto !important;
-  display: block !important; /* Avoid forcing centering flex that can trap scroll */
+  margin: 0 auto;
+  display: flex !important; /* Use flex for proper hierarchy */
+  flex-direction: column !important;
+  /* Remove hardcoded sizing - use unified system from layout.css */
 }
 
-/* Override content-grid to center the profile setup card */
+/* Grid host - use flex layout for proper scrolling */
 body.page-profile .content-grid {
-  display: block !important; /* Let content flow and scroll naturally */
-  min-height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important; /* Allow shrinking */
   width: 100% !important;
   max-width: 100% !important;
   padding: 0 !important;
   gap: 0 !important;
 }
 
-/* 🚫 HIDE UNNECESSARY COLUMNS */
-/* Hide default dashboard columns on profile page */
+/* Hide dashboard columns on profile page */
 body.page-profile .controls-column,
 body.page-profile .schedule-column {
-  display: none !important; /* Hide columns completely */
+  display: none !important;
 }
 
-/* Reset any grid positioning for profile elements */
+/* Ensure schedule bits never show here */
 body.page-profile .schedule-section {
   grid-column: unset !important;
   grid-row: unset !important;
   order: unset !important;
-  display: none !important; /* These shouldn't exist on profile page */
+  display: none !important;
 }
 
-/* 🎴 PROFILE SETUP CARD */
-/* Main container for the profile setup form */
+/* Profile setup card shell - proper flex hierarchy for scrolling */
 body.page-profile .profile-setup-card.glass-card {
   width: 100% !important;
-  max-width: 720px !important; /* Slightly narrower for better mobile scaling */
-  margin: 0 auto !important;
-  padding: clamp(1rem, 3vw, 1.5rem) !important; /* Responsive padding */
-  animation: slideUp 0.4s ease-out; /* Slightly faster */
+  max-width: 720px !important; /* Better mobile scaling */
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 1.5rem) !important;
+  animation: slideUp 0.4s ease-out;
   position: relative !important;
   box-sizing: border-box !important;
+  flex: 1 1 auto !important; /* Use available space */
+  min-height: 0 !important; /* Allow shrinking */
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto !important; /* Enable scrolling */
 }
 
-/* 📱 MOBILE LAYOUT ADJUSTMENTS */
-/* Mobile-specific layout adjustments for profile setup card */
-@media (max-width: 768px) {
-  body.page-profile .profile-setup-card.glass-card {
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 1rem !important;
-  }
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 1.5) CUSTOM SCROLLBAR STYLES                                             │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+/* Custom scrollbar for profile setup card */
+body.page-profile .profile-setup-card.glass-card::-webkit-scrollbar {
+  width: 6px; /* Thin width */
 }
 
-/* 
-=============================================================================
-                          2. HEADER & TITLE SECTION
-=============================================================================
-*/
+body.page-profile .profile-setup-card.glass-card::-webkit-scrollbar-track {
+  background: transparent; /* Transparent track */
+  border-radius: 3px;
+}
 
-/* 📝 SETUP HEADER CONTAINER */
-/* Container for the main title and subtitle */
+body.page-profile .profile-setup-card.glass-card::-webkit-scrollbar-thumb {
+  background: var(--accent-primary); /* Use accent primary color */
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+body.page-profile .profile-setup-card.glass-card::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+  opacity: 1;
+  transform: scaleX(1.2); /* Slight expand on hover */
+}
+
+/* Firefox scrollbar styling */
+body.page-profile .profile-setup-card.glass-card {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) transparent;
+}
+
+/* Custom scrollbar for setup body (inner scrollable content) */
+.setup-body::-webkit-scrollbar {
+  width: 4px; /* Even thinner for inner content */
+}
+
+.setup-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.setup-body::-webkit-scrollbar-thumb {
+  background: var(--accent-primary);
+  border-radius: 2px;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.setup-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+  opacity: 0.9;
+}
+
+/* Firefox scrollbar for setup body */
+.setup-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) transparent;
+}
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 2) HEADER & TITLE                                                        │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
 .setup-header {
-  margin-bottom: var(--space-xl);
-  padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--glass-border); /* Subtle separator */
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--glass-border);
 }
 
-/* 🎯 TITLE SECTION */
-/* Main title and subtitle container */
 .setup-title-section {
   text-align: center;
   margin-bottom: var(--space-lg);
 }
 
-/* 🎨 MAIN TITLE */
-/* Large gradient title with responsive sizing */
 .setup-title {
-  font-size: clamp(1.8rem, 4vw, 2.5rem); /* Responsive font size */
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
   font-weight: 700;
-  background: var(--gradient-title); /* Gradient text effect */
+  background: var(--gradient-title);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -123,71 +168,46 @@ body.page-profile .profile-setup-card.glass-card {
   line-height: 1.2;
 }
 
-/* 📖 SUBTITLE */
-/* Descriptive text below main title */
-.setup-subtitle {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  line-height: 1.5;
-}
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 3) PROGRESS INDICATORS                                                   │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 
-=============================================================================
-                         3. PROGRESS INDICATOR SYSTEM
-=============================================================================
-*/
-
-/* 📊 PROGRESS CONTAINER */
-/* Main container for step information and progress blocks */
 .setup-progress-container {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-lg);
-
   padding: var(--space-md) 0;
 }
 
-/* ℹ️ STEP INFORMATION TEXT */
-/* Shows current step number and total steps */
 .setup-step-info {
   font-size: 0.9rem;
   color: var(--text-secondary);
   text-align: center;
   margin-bottom: var(--space-sm);
 }
-
-/* 🎯 CURRENT STEP HIGHLIGHT */
-/* Highlights the current step number */
 .setup-step-info .current-step {
   font-weight: 600;
   color: var(--accent-primary);
 }
 
-/* 📋 PROGRESS BLOCKS CONTAINER */
-/* Container for individual step blocks */
 .setup-progress {
   display: flex;
   gap: var(--space-md);
   align-items: center;
 }
 
-/* 🔳 INDIVIDUAL STEP BLOCKS */
-/* Visual progress indicators for each step */
 .step-block {
   width: 60px;
   height: 8px;
   background: var(--surface);
-  border: 2px solid var(--glass-border); /* Visible border for clarity */
+  border: 2px solid var(--glass-border);
   border-radius: 6px;
   transition: all 0.4s var(--animation-smooth);
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-inset-subtle); /* Subtle depth */
+  box-shadow: var(--shadow-inset-subtle);
 }
-
-/* ⚡ ACTIVE STEP BLOCK */
-/* Currently active step with gradient and glow */
 .step-block.active {
   background: linear-gradient(
     135deg,
@@ -198,72 +218,50 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: 0 0 20px var(--step-block-active-shadow),
     inset 0 1px 0 var(--step-block-active-inset-shadow);
 }
-
-/* ✅ COMPLETED STEP BLOCK */
-/* Steps that have been finished */
 .step-block.completed {
   background: var(--accent-primary);
   border: 2px solid var(--accent-primary);
   box-shadow: 0 0 10px var(--step-block-completed-shadow),
     inset 0 1px 0 var(--step-block-completed-inset-shadow);
 }
-
-/* ✨ SHIMMER ANIMATION */
-/* Animated shimmer effect for active step block */
 .step-block.active::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: var(--step-block-shimmer);
   animation: shimmer 2s infinite;
 }
 
-/* 
-=============================================================================
-                           4. STEP CONTENT & FORMS
-=============================================================================
-*/
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 4) STEP CONTENT & FORMS                                                  │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 📦 SETUP BODY CONTAINER */
-/* Main container for all step content */
 .setup-body {
-  margin-bottom: var(--space-xl);
+  flex: 1 1 auto; /* Take up available space */
+  min-height: 0; /* Allow shrinking */
+  overflow-y: auto; /* Enable scrolling within body if needed */
 }
 
-/* 📄 INDIVIDUAL SETUP STEPS */
-/* Each step is hidden by default, shown when active */
 .setup-step {
   display: none;
-  animation: slideInRight 0.4s ease-out; /* Smooth step transition */
+  animation: slideInRight 0.4s ease-out;
 }
-
-/* 👁️ ACTIVE STEP DISPLAY */
-/* Shows the currently active step */
 .setup-step.active {
   display: block;
 }
 
-/* 🎯 STEP HEADER SECTION */
-/* Header area for each step with icon, title, and description */
 .step-header {
   text-align: center;
   margin-bottom: var(--space-xl);
 }
 
-/* 🎨 STEP ICON */
-/* Large animated icon for each step */
 .step-icon {
   font-size: 3rem;
   margin-bottom: var(--space-md);
   display: block;
-  animation: bounce 0.6s ease-out 0.2s both; /* Bouncy entrance */
+  animation: bounce 0.6s ease-out 0.2s both;
 }
 
-/* 📝 STEP TITLE */
-/* Title for each step */
 .step-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -271,8 +269,6 @@ body.page-profile .profile-setup-card.glass-card {
   margin-bottom: var(--space-sm);
 }
 
-/* 📖 STEP DESCRIPTION */
-/* Descriptive text explaining the step */
 .step-description {
   color: var(--text-secondary);
   line-height: 1.6;
@@ -280,28 +276,25 @@ body.page-profile .profile-setup-card.glass-card {
   margin: 0 auto;
 }
 
-/* 📋 FORM CONTENT CONTAINER */
-/* Container for form elements within each step */
+#setup-handle-feedback {
+  text-align: center;
+  font-size: 0.9em;
+}
+
 .form-content {
   max-width: 600px;
   margin: 0 auto;
 }
 
-/* 
-=============================================================================
-                        5. FORM CONTROLS & VALIDATION
-=============================================================================
-*/
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 5) FORM CONTROLS & VALIDATION                                            │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 📝 FORM GROUP CONTAINER */
-/* Container for each form field with proper spacing */
 .form-group {
   margin-bottom: var(--space-lg);
   position: relative;
 }
 
-/* 🏷️ FORM LABELS */
-/* Labels for form inputs */
 .form-label {
   display: block;
   margin-bottom: var(--space-sm);
@@ -310,8 +303,7 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.95rem;
 }
 
-/* ⭐ REQUIRED FIELD INDICATOR */
-/* Red asterisk for required fields */
+/* required markers */
 .form-label[for*="required"]::after,
 .form-input[required] + .form-label::after {
   content: " *";
@@ -319,8 +311,8 @@ body.page-profile .profile-setup-card.glass-card {
   font-weight: 600;
 }
 
-/* 🔢 CHARACTER COUNTER */
-/* Shows character count for text areas */
+/* counters */
+.char-counter,
 .char-counter-container {
   display: flex;
   justify-content: flex-end;
@@ -328,14 +320,12 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.8rem;
   color: var(--text-tertiary);
 }
-
 #bio-count {
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-/* 💡 FORM HINTS */
-/* Helpful hint text below form fields */
+/* hints */
 .form-hint {
   font-size: 0.8rem;
   color: var(--text-tertiary);
@@ -343,8 +333,7 @@ body.page-profile .profile-setup-card.glass-card {
   font-style: italic;
 }
 
-/* 📝 FORM INPUTS */
-/* Base styling for all form inputs */
+/* inputs */
 .form-input {
   width: 100%;
   padding: clamp(0.6rem, 2.5vw, 0.9rem) clamp(0.75rem, 3vw, 1.1rem);
@@ -354,11 +343,12 @@ body.page-profile .profile-setup-card.glass-card {
   color: var(--text-primary);
   font-size: clamp(0.9rem, 2.4vw, 1rem);
   transition: all 0.3s var(--animation-smooth);
-  backdrop-filter: blur(10px); /* Glass effect */
+  backdrop-filter: blur(10px);
+}
+.form-input::placeholder {
+  color: var(--text-tertiary);
 }
 
-/* 🎯 FOCUS STATE */
-/* Purple glow when input is focused */
 .form-input:focus {
   outline: none;
   border-color: var(--accent-primary) !important;
@@ -368,13 +358,7 @@ body.page-profile .profile-setup-card.glass-card {
   transform: translateY(-1px);
 }
 
-/* 💬 PLACEHOLDER TEXT */
-.form-input::placeholder {
-  color: var(--text-tertiary);
-}
-
-/* 🔒 READONLY FIELDS */
-/* Styling for non-editable fields */
+/* readonly */
 .form-input[readonly] {
   background: var(--surface) !important;
   color: var(--text-secondary) !important;
@@ -383,7 +367,6 @@ body.page-profile .profile-setup-card.glass-card {
   opacity: 0.8;
   position: relative;
 }
-
 .form-input[readonly]:focus {
   border-color: var(--glass-border) !important;
   box-shadow: none !important;
@@ -391,8 +374,7 @@ body.page-profile .profile-setup-card.glass-card {
   transform: none !important;
 }
 
-/* 🔐 ENHANCED READONLY STYLING */
-/* Special styling for auto-filled fields */
+/* enhanced readonly style */
 .readonly-field {
   background: linear-gradient(
     135deg,
@@ -402,7 +384,6 @@ body.page-profile .profile-setup-card.glass-card {
   border-style: dashed !important;
   position: relative;
 }
-
 .readonly-field::before {
   content: "🔒";
   position: absolute;
@@ -414,8 +395,7 @@ body.page-profile .profile-setup-card.glass-card {
   pointer-events: none;
 }
 
-/* 🏷️ READONLY FIELD LABELS */
-/* Special labels for auto-filled fields */
+/* labels for auto-filled */
 .form-label[for="setup-email"]::after,
 .form-label[for="setup-student-id"]::after {
   content: " (Auto-filled)";
@@ -425,27 +405,22 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.85rem;
 }
 
-/* 📐 FORM ROW LAYOUT */
-/* Two-column layout for form fields */
+/* grid rows */
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-lg);
+  gap: var(--space-sm);
 }
-
-/* Tighter gap specifically for First/Last Name row in Step 0 */
 .setup-step[data-step="0"] .form-row:first-of-type {
   gap: var(--space-md);
 }
-
 @media (max-width: 480px) {
   .setup-step[data-step="0"] .form-row:first-of-type {
     gap: var(--space-sm);
   }
 }
 
-/* 📝 BIO TEXTAREA */
-/* Special styling for biography text area */
+/* bio textarea */
 .bio-textarea {
   min-height: 100px;
   resize: vertical;
@@ -453,31 +428,12 @@ body.page-profile .profile-setup-card.glass-card {
   line-height: 1.5;
 }
 
-.char-counter,
-.char-counter-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-xs);
-  font-size: 0.8rem;
-  color: var(--text-tertiary);
-}
-
-/* 
-=============================================================================
-                           6. FORM VALIDATION FEEDBACK
-=============================================================================
-*/
-
-/* ❌ VALIDATION ERROR FEEDBACK */
-/* Visual feedback for invalid form fields */
+/* validation feedback (visual overlays) */
 .form-input[required]:invalid::after,
 .form-input[required]:placeholder-shown::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   background: linear-gradient(var(--error), var(--error)) padding-box,
@@ -493,16 +449,10 @@ body.page-profile .profile-setup-card.glass-card {
   opacity: 0.6;
   animation: pulse-error 2s infinite;
 }
-
-/* ✅ VALIDATION SUCCESS FEEDBACK */
-/* Visual feedback for valid form fields */
 .form-input[required]:valid:not(:placeholder-shown)::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   background: linear-gradient(var(--success), var(--success)) padding-box,
@@ -518,106 +468,35 @@ body.page-profile .profile-setup-card.glass-card {
   opacity: 0.6;
 }
 
-/* 
-=============================================================================
-                         7. AVATAR SELECTION SYSTEM
-=============================================================================
-*/
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 6) AVATAR SELECTION (PROFILE)                                            │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 🎨 AVATAR SELECTION SECTION */
-/* Container for avatar selection functionality */
 .avatar-selection-section {
   text-align: center;
   margin-bottom: var(--space-xl);
-  /* 🔧 FIX: Prevent glass card hover effects from breaking button interactions */
   position: relative;
-  z-index: 5; /* Ensure avatar section is above glass card effects */
+  z-index: 5;
 }
 
-/* 🔧 FIX: Override glass card hover transform for avatar selection */
+/* prevent glass-card effects from interfering */
 .glass-card:hover .avatar-selection-section {
-  /* Reset any inherited transforms that might interfere with button clicks */
   transform: none !important;
 }
 
-/* 🔧 FIX: Ensure avatar buttons remain interactive */
 .avatar-selection-section button,
 .avatar-selection-section .avatar-edit-button {
   position: relative;
-  z-index: 10; /* Above glass card pseudo-elements */
-  pointer-events: auto !important; /* Force pointer events */
-  /* Isolate from parent transforms */
+  z-index: 10;
+  pointer-events: auto !important;
   transform-style: flat;
 }
-
-/* 🔧 ADDITIONAL FIX: Prevent glass card pseudo-elements from blocking clicks */
 .glass-card .avatar-selection-section::before,
 .glass-card .avatar-selection-section::after {
   pointer-events: none !important;
 }
-
-/* 🔧 ADDITIONAL FIX: Override glass card animations in avatar section */
 .avatar-selection-section * {
-  /* Ensure all elements in avatar section have proper pointer events */
   pointer-events: auto;
-}
-
-/* 🎨 BEAUTIFUL AVATAR BUTTON EFFECTS */
-.avatar-edit-button {
-  /* Enhanced glassmorphism button styling */
-  background: var(--avatar-button-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--avatar-button-border);
-  color: var(--accent-primary);
-  font-weight: 600;
-  box-shadow: var(--avatar-button-shadow);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Shimmer effect on hover */
-.avatar-edit-button::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: var(--avatar-button-shimmer);
-  transition: left 0.6s ease;
-}
-
-.avatar-edit-button:hover::before {
-  left: 100%;
-}
-
-.avatar-edit-button:hover {
-  background: var(--avatar-button-bg-hover);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: var(--avatar-button-shadow-hover);
-  z-index: 11;
-}
-
-.avatar-edit-button:active {
-  transform: translateY(-1px) scale(0.98);
-  box-shadow: var(--avatar-button-shadow-active);
-}
-
-/* Focus state for accessibility */
-.avatar-edit-button:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
-/* 🔧 GLASS CARD OVERRIDE: Stop any parent hover effects on this section */
-.avatar-selection-section:hover .glass-card,
-.avatar-selection-section:hover .glass-card::before,
-.avatar-selection-section:hover .glass-card::after {
-  transform: none !important;
-  transition: none !important;
 }
 
 .avatar-selection-label {
@@ -628,8 +507,7 @@ body.page-profile .profile-setup-card.glass-card {
   margin-bottom: var(--space-md);
 }
 
-/* 🖼️ AVATAR PREVIEW DISPLAY */
-/* Circular container for avatar preview */
+/* avatar display */
 .avatar-display-container {
   display: flex;
   justify-content: center;
@@ -639,7 +517,7 @@ body.page-profile .profile-setup-card.glass-card {
 .avatar-preview-display {
   width: 120px;
   height: 120px;
-  border-radius: 50%; /* Perfect circle */
+  border-radius: 50%;
   background: var(--glass-bg);
   border: 3px solid var(--glass-border);
   box-shadow: 0 4px 12px var(--avatar-shadow),
@@ -655,15 +533,12 @@ body.page-profile .profile-setup-card.glass-card {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
-
-/* 🎯 FIX: Remove background and backdrop filter when image is present */
 .avatar-preview-display:has(img),
 .avatar-preview-display.has-image {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-
 .avatar-preview-display:hover {
   border-color: var(--accent-primary);
   transform: translateY(-3px) scale(1.02);
@@ -673,7 +548,7 @@ body.page-profile .profile-setup-card.glass-card {
     inset 0 1px 0 var(--avatar-hover-highlight);
 }
 
-/* 🖼️ AVATAR IMAGE STYLING */
+/* avatar images (shared) */
 .avatar-preview-display img,
 .avatar-preview-image {
   width: 100%;
@@ -681,27 +556,21 @@ body.page-profile .profile-setup-card.glass-card {
   object-fit: cover;
   border-radius: 50%;
   transition: transform 0.3s ease;
-  /* 🎯 FIX: Ensure image is fully visible */
   position: relative;
   z-index: 1;
   display: block;
-  /* 🎯 FIX: Prevent alt text from showing when image loads */
-  font-size: 0;
+  font-size: 0; /* hide alt text flashes */
   background-color: transparent;
 }
-
-/* Subtle hover effect for avatar images */
 .avatar-preview-display:hover img,
 .avatar-preview-container:hover .avatar-preview-image {
   transform: scale(1.02);
 }
-
-/* Add a subtle inner glow when image is loaded */
 .avatar-preview-display img {
   box-shadow: inset 0 0 0 1px var(--avatar-highlight);
 }
 
-/* 🎨 Avatar edit button - Base styling */
+/* avatar edit button (merged base + effects + pulse) */
 .avatar-edit-button {
   display: inline-flex;
   align-items: center;
@@ -711,20 +580,354 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: var(--radius-md);
   transition: all 0.3s var(--animation-smooth);
   cursor: pointer;
-  /* 🔧 Ensure button functionality */
   position: relative;
   z-index: 10;
   pointer-events: auto;
   transform-origin: center;
   border: none;
   outline: none;
+
+  background: var(--avatar-button-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--avatar-button-border);
+  color: var(--accent-primary);
+  font-weight: 600;
+  box-shadow: var(--avatar-button-shadow);
+  overflow: hidden;
+
+  animation: avatarButtonPulse 3s ease-in-out infinite; /* subtle pulse */
+}
+.avatar-edit-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--avatar-button-shimmer);
+  transition: left 0.6s ease;
+}
+.avatar-edit-button:hover::before {
+  left: 100%;
+}
+.avatar-edit-button:hover {
+  background: var(--avatar-button-bg-hover);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--avatar-button-shadow-hover);
+  z-index: 11;
+  animation: none; /* stop pulse on hover */
+}
+.avatar-edit-button:active {
+  transform: translateY(-1px) scale(0.98);
+  box-shadow: var(--avatar-button-shadow-active);
+}
+.avatar-edit-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
-/* =============================================================================
-                         AVATAR EDITOR MODAL STYLES
-============================================================================= */
+/* Upload button (generic) */
+.upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 14px 28px;
+  min-width: 120px;
+  min-height: 48px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  margin-bottom: var(--space-sm);
+}
 
-/* 🎨 AVATAR EDITOR - UNIFIED GLASS CONTAINER WITH FIXED HEIGHT */
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 7) INTERACTIVE ELEMENTS                                                  │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: normal;
+  transition: color 0.3s ease;
+}
+.checkbox-item:hover {
+  color: var(--text-accent);
+}
+.checkbox-item input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  position: relative;
+  transition: all 0.3s var(--animation-smooth);
+}
+.checkbox-item input[type="checkbox"]:checked + .checkmark {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+.checkbox-item input[type="checkbox"]:checked + .checkmark::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 8) NAVIGATION CONTROLS (+ Loading)                                       │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.setup-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0; /* Don't shrink navigation */
+}
+
+/* button base */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  min-width: 120px;
+  min-height: 48px; /* maintain height while loading */
+  height: auto;
+}
+.button.btn-primary {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: #fff;
+  box-shadow: var(--shadow-accent-light);
+}
+.button.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-accent-strong);
+  background: linear-gradient(
+    135deg,
+    var(--accent-secondary),
+    var(--accent-primary)
+  );
+}
+.button.secondary {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 2px 8px var(--button-secondary-shadow);
+}
+.button.secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px var(--button-secondary-hover-shadow);
+}
+.button.muted {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+  opacity: 0.8;
+}
+.button.muted:hover {
+  background: var(--surface-active);
+  color: var(--text-primary);
+  opacity: 1;
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+.setup-nav-button {
+  min-width: 140px;
+  font-weight: 600;
+}
+
+.button.disabled-state {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--surface) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--glass-border) !important;
+}
+.button.disabled-state:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.button.red-glow-pulse {
+  animation: redGlow 0.8s ease-out;
+}
+
+/* inline loading dots */
+.button .loading-dots {
+  display: none;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+.button .loading-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--button-loading-dot-bg, currentColor);
+  animation: profileDotBounce 1.4s infinite ease-in-out both;
+}
+.button .loading-dots .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.button .loading-dots .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+.button .loading-dots .dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+.button.loading {
+  color: transparent;
+  cursor: not-allowed;
+  transform: none;
+  pointer-events: none;
+}
+.button.loading .loading-dots {
+  display: flex;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.button.loading .button-text {
+  visibility: hidden;
+}
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 9) SUCCESS STATES & FEEDBACK                                             │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.success-message {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px var(--shadow);
+  animation: successPulse 0.6s ease-out;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.success-icon {
+  font-size: 4.5rem;
+  color: var(--accent-success);
+  margin-bottom: var(--space-lg);
+  animation: bounce 1s ease-out;
+  position: relative;
+  z-index: 2;
+}
+.success-message h3 {
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: var(--space-md);
+  font-size: 1.5rem;
+  font-weight: 600;
+  position: relative;
+  z-index: 2;
+}
+.success-message p {
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  position: relative;
+  z-index: 2;
+}
+.success-animation-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 0%,
+    rgba(var(--success-rgb), 0.1) 45%,
+    rgba(var(--success-rgb), 0.2) 50%,
+    rgba(var(--success-rgb), 0.1) 55%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* loading spinner for nav buttons */
+.nav-button.loading {
+  pointer-events: none;
+  position: relative;
+  color: transparent;
+}
+.nav-button.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--loading-spinner-border);
+  border-top: 2px solid var(--loading-spinner-border-top);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 10) AVATAR EDITOR MODAL (FULL)                                           │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
 .avatar-editor-container {
   height: 100%;
   display: flex;
@@ -733,7 +936,7 @@ body.page-profile .profile-setup-card.glass-card {
   background: transparent;
   position: relative;
   z-index: 1;
-  flex: 1; /* Take up all available space in modal body */
+  flex: 1;
 }
 
 .avatar-editor-content {
@@ -744,10 +947,10 @@ body.page-profile .profile-setup-card.glass-card {
   min-height: 0;
   overflow: hidden;
   background: transparent;
-  height: 100%; /* Ensure consistent height regardless of content */
+  height: 100%;
 }
 
-/* 🎨 AVATAR PREVIEW SECTION - COMPACT LAYOUT */
+/* preview side */
 .avatar-preview-section {
   padding: 1rem;
   background: transparent;
@@ -758,11 +961,10 @@ body.page-profile .profile-setup-card.glass-card {
   justify-content: flex-start;
   position: relative;
   overflow: hidden;
-  width: 300px; /* Fixed width to match grid */
+  width: 300px;
   box-sizing: border-box;
-  gap: 1rem; /* Add consistent spacing between all child elements */
+  gap: 1rem;
 }
-
 .avatar-preview-container {
   width: 120px;
   height: 120px;
@@ -775,10 +977,9 @@ body.page-profile .profile-setup-card.glass-card {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-  margin: 0; /* Remove margin to use gap from parent */
+  margin: 0;
   flex-shrink: 0;
 }
-
 .avatar-preview-container:hover {
   transform: scale(1.05);
   border-color: var(--accent-primary);
@@ -787,52 +988,22 @@ body.page-profile .profile-setup-card.glass-card {
     0 4px 12px var(--avatar-shadow-light),
     inset 0 1px 0 var(--avatar-hover-highlight);
 }
-
-.avatar-preview-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-/* 🎨 AVATAR IMAGE STYLING */
-.avatar-preview-display img,
-.avatar-preview-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  transition: transform 0.3s ease;
-}
-
-/* Subtle hover effect for avatar images */
-.avatar-preview-display:hover img,
-.avatar-preview-container:hover .avatar-preview-image {
-  transform: scale(1.02);
-}
-
-/* Add a subtle inner glow when image is loaded */
-.avatar-preview-display img {
-  box-shadow: inset 0 0 0 1px var(--avatar-highlight);
-}
-
 .avatar-preview-label {
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0; /* Remove margin to use gap from parent */
+  margin: 0;
   font-size: 0.9rem;
   text-align: center;
 }
 
-/* 🎲 PREVIEW CONTROLS - COMPACT */
+/* preview controls */
 .preview-controls {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
-  margin: 0; /* Remove margin to use gap from parent */
+  margin: 0;
 }
-
 .randomize-btn {
   width: 100%;
   padding: 0.6rem 0.8rem;
@@ -845,40 +1016,32 @@ body.page-profile .profile-setup-card.glass-card {
   gap: 0.5rem;
   font-size: 0.9rem;
 }
-
 .randomize-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--avatar-shadow);
 }
 
-/* 🎛️ AVATAR CONTROLS SECTION - FIXED HEIGHT WITH SCROLLABLE CONTENT */
+/* controls side */
 .avatar-controls-section {
   display: flex;
   flex-direction: column;
-  min-height: 0; /* Important for flexbox */
-  height: 100%; /* Ensure full height within grid */
-  overflow: hidden; /* Prevent section from expanding */
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
-
 .controls-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 1.5rem 2rem;
-  padding-right: 1rem; /* Account for scrollbar */
-  background: transparent; /* Let parent glassmorphism show through */
-  /* Add smooth scrolling */
+  padding-right: 1rem;
+  background: transparent;
   scroll-behavior: smooth;
-  /* Better scrollbar styling */
   scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
-  /* Ensure content never exceeds available space */
+  scrollbar-color: var(--accent-primary) transparent;
   max-height: 100%;
   box-sizing: border-box;
 }
-
-/* 📜 SCROLLABLE CONTENT INDICATORS */
-/* Add gradient fade effects to indicate scrollable content */
 .controls-content::before {
   content: "";
   position: sticky;
@@ -891,7 +1054,6 @@ body.page-profile .profile-setup-card.glass-card {
   pointer-events: none;
   margin-bottom: -20px;
 }
-
 .controls-content::after {
   content: "";
   position: sticky;
@@ -904,21 +1066,16 @@ body.page-profile .profile-setup-card.glass-card {
   pointer-events: none;
   margin-top: -20px;
 }
-
-/* Better scrollbar visibility on hover */
 .controls-content:hover {
-  scrollbar-color: var(--text-secondary) transparent;
+  scrollbar-color: var(--accent-primary) transparent;
 }
-
 .controls-content:hover::-webkit-scrollbar-thumb {
-  background: var(--text-secondary);
+  background: var(--accent-primary);
 }
 
-/* 🎯 CONTROL GROUPS */
 .control-group {
   margin-bottom: 2rem;
 }
-
 .control-label {
   display: flex;
   align-items: center;
@@ -928,7 +1085,6 @@ body.page-profile .profile-setup-card.glass-card {
   margin-bottom: 0.75rem;
   font-size: 1rem;
 }
-
 .control-label i {
   color: var(--accent-primary);
   font-size: 1.1rem;
@@ -950,7 +1106,6 @@ body.page-profile .profile-setup-card.glass-card {
   background-size: 1.25rem;
   padding-right: 3rem;
 }
-
 .control-select:focus {
   outline: none;
   border-color: var(--input-focus-border);
@@ -963,7 +1118,6 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.9rem;
   font-style: italic;
 }
-
 .control-divider {
   border: none;
   height: 1px;
@@ -971,11 +1125,9 @@ body.page-profile .profile-setup-card.glass-card {
   margin: 2rem 0;
 }
 
-/* 📝 CUSTOMIZATION HEADER */
 .customization-header {
   margin-bottom: 1.5rem;
 }
-
 .customization-header h4 {
   margin: 0;
   font-size: 1.1rem;
@@ -983,25 +1135,21 @@ body.page-profile .profile-setup-card.glass-card {
   color: var(--text-primary);
 }
 
-/* 🎨 AVATAR OPTIONS CONTAINER */
 .avatar-options-container {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
-
 .option-group {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-
 .option-label {
   font-weight: 600;
   color: var(--text-primary);
   font-size: 0.95rem;
 }
-
 .option-select {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -1012,13 +1160,11 @@ body.page-profile .profile-setup-card.glass-card {
   font-size: 0.95rem;
   transition: all 0.3s ease;
 }
-
 .option-select:focus {
   outline: none;
   border-color: var(--input-focus-border);
   box-shadow: 0 0 0 3px var(--control-select-focus-shadow);
 }
-
 .no-options {
   text-align: center;
   color: var(--text-secondary);
@@ -1027,606 +1173,390 @@ body.page-profile .profile-setup-card.glass-card {
   margin: 0;
 }
 
-/* 📱 MOBILE RESPONSIVE DESIGN */
-@media (max-width: 768px) {
-  /* 📱 MOBILE: STACK PREVIEW AND CONTROLS VERTICALLY */
-  .avatar-editor-content {
-    grid-template-columns: 1fr;
-    grid-template-rows: 300px 1fr; /* Fixed height for preview, flexible for controls */
-  }
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 11) PROFILE LOADING OVERLAY                                              │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-  /* 📱 MOBILE: CENTERED VERTICAL PREVIEW LAYOUT */
-  .avatar-preview-section {
-    padding: 0.1rem 0.5rem;
-    border-right: none;
-    border-bottom: 1px solid var(--glass-border);
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    background: transparent;
-    position: relative;
-    gap: 1rem; /* Consistent spacing between all elements */
-    width: auto;
-  }
-
-  .avatar-preview-container {
-    width: 140px;
-    height: 140px;
-    margin: 0; /* Remove margins, use gap from parent */
-    flex-shrink: 0;
-  }
-
-  .avatar-preview-label {
-    margin: 0; /* Remove margins, use gap from parent */
-    font-size: 1rem;
-    text-align: center !important;
-    line-height: 1.2; /* Control line height */
-  }
-
-  .preview-controls {
-    margin: 0; /* Remove margins, use gap from parent */
-    flex-direction: column !important;
-    width: auto;
-    max-width: 200px;
-    align-items: center;
-  }
-
-  .randomize-btn {
-    width: 100%;
-    margin: 0;
-  }
-
-  .randomize-btn {
-    width: auto;
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    white-space: nowrap;
-  }
-
-  /* 📱 MOBILE: SCROLLABLE CONTROLS */
-  .avatar-controls-section {
-    flex: 1;
-    min-height: 0; /* Important for mobile scrolling */
-  }
-
-  .controls-content {
-    padding: 1rem 1.5rem;
-    padding-bottom: 2rem;
-    /* Ensure scrolling works on mobile */
-    height: 100%;
-    max-height: none;
-  }
-
-  .control-group {
-    margin-bottom: 1.5rem;
-  }
-
-  .control-divider {
-    margin: 1.5rem 0;
-  }
-}
-
-/* 📱 EXTRA SMALL MOBILE */
-@media (max-width: 480px) {
-  .avatar-preview-section {
-    padding: 0.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .avatar-preview-container {
-    width: 80px;
-    height: 80px;
-    margin-right: 0;
-  }
-
-  .controls-content {
-    padding: 1rem;
-  }
-}
-
-/* Responsive design for avatar editor already included above */
-
-/* 📤 UPLOAD BUTTON */
-/* Styled button for file upload */
-.upload-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  padding: 14px 28px;
-  min-width: 120px;
-  min-height: 48px;
-  background: var(--surface);
-  color: var(--text-primary);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s var(--animation-smooth);
-  margin-bottom: var(--space-sm);
-}
-
-/* Responsive design for avatar editor already included above */
-
-/* 
-=============================================================================
-                         8. INTERACTIVE ELEMENTS
-=============================================================================
-*/
-
-/* ✅ CHECKBOX GROUP CONTAINER */
-/* Container for grouped checkboxes */
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  margin-top: var(--space-sm);
-}
-
-/* ☑️ INDIVIDUAL CHECKBOX ITEM */
-/* Container for each checkbox with label */
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  cursor: pointer;
-  color: var(--text-primary);
-  font-weight: normal;
-  transition: color 0.3s ease;
-}
-
-/* ✨ CHECKBOX HOVER EFFECT */
-.checkbox-item:hover {
-  color: var(--text-accent);
-}
-
-/* 🎯 HIDDEN CHECKBOX INPUT */
-/* Hide default checkbox appearance */
-.checkbox-item input[type="checkbox"] {
-  display: none;
-}
-
-/* 📦 CUSTOM CHECKMARK */
-/* Custom styled checkbox */
-.checkmark {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  background: var(--glass-bg);
-  position: relative;
-  transition: all 0.3s var(--animation-smooth);
-}
-
-/* ✅ CHECKED STATE */
-/* Styling for checked checkbox */
-.checkbox-item input[type="checkbox"]:checked + .checkmark {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-}
-
-/* ✓ CHECKMARK ICON */
-/* Check icon for checked state */
-.checkbox-item input[type="checkbox"]:checked + .checkmark::after {
-  content: "✓";
+.profile-loading-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-/* 
-=============================================================================
-                           9. NAVIGATION CONTROLS
-=============================================================================
-*/
-
-/* 🧭 SETUP NAVIGATION CONTAINER */
-/* Container for previous, next, and skip buttons */
-.setup-navigation {
+  inset: 0;
+  background: var(--profile-loading-overlay-bg);
+  backdrop-filter: blur(5px);
   display: flex;
-  justify-content: space-between; /* Previous left, next/skip right */
-  align-items: center;
-  padding-top: var(--space-xl);
-  padding-bottom: var(--space-md);
-  border-top: 1px solid var(--glass-border); /* Visual separator */
-}
-
-/* 🔘 BUTTON GROUP */
-/* Group for skip and next buttons */
-.setup-navigation > div[style*="display: flex"] {
-  display: flex;
-  gap: var(--space-md);
-  align-items: center;
-}
-
-/* 🎯 BASE BUTTON STYLING */
-/* Universal button styles for all navigation buttons */
-.button {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  padding: 0.875rem 1.5rem;
-  border: none;
-  border-radius: var(--radius-md);
-  font-weight: 600;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  border-radius: 1.5rem;
+}
+.profile-loading-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.profile-loading-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.profile-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface-hover);
+  border-top: 3px solid var(--accent-primary);
+  border-radius: 50%;
+  animation: profileSpin 1s linear infinite;
+  margin: 0 auto 1rem auto;
+}
+.profile-loading-message {
+  color: var(--text-secondary);
   font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* dark theme overlay */
+[data-theme="dark"] .profile-loading-overlay {
+  background: var(--profile-loading-overlay-bg-dark);
+}
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 12) AVATAR COLOR SWATCHES                                                │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.color-swatch-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+.color-swatch-btn {
+  width: 45px;
+  height: 45px;
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
   cursor: pointer;
-  transition: all 0.3s var(--animation-smooth);
+  transition: all 0.3s ease;
+  background-size: cover;
+  background-position: center;
   position: relative;
   overflow: hidden;
-  text-decoration: none;
-  min-width: 120px;
-
-  /* 🔧 Fix: Prevent height collapse during loading */
-  min-height: 48px; /* Matches padding + line-height */
-  height: auto;
+  font-size: 0;
+  line-height: 0; /* ensure no stray content shows */
+  outline-offset: 3px;
 }
-
-/* 🟣 PRIMARY BUTTON */
-/* Main action buttons (Next, Complete Setup) */
-.button.btn-primary {
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
-  color: white;
-  box-shadow: var(--shadow-accent-light);
-}
-
-.button.btn-primary:hover {
+.color-swatch-btn:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-accent-strong);
-  background: linear-gradient(
-    135deg,
-    var(--accent-secondary),
-    var(--accent-primary)
-  );
+  box-shadow: 0 4px 12px var(--color-swatch-shadow);
+  border-color: var(--text-secondary);
 }
-
-/* ⚪ SECONDARY BUTTON */
-/* Secondary actions (Previous, Skip) */
-.button.secondary {
-  background: var(--surface);
-  color: var(--text-primary);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 2px 8px var(--button-secondary-shadow);
-}
-
-.button.secondary:hover {
-  background: var(--surface-hover);
+.color-swatch-btn.active {
   border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px var(--button-secondary-hover-shadow);
+  border-width: 3px;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px var(--color-swatch-active-shadow);
 }
 
-/* 🔇 MUTED BUTTON */
-/* Less prominent actions */
-.button.muted {
-  background: var(--surface-hover);
-  color: var(--text-secondary);
-  border: 1px solid var(--glass-border);
-  opacity: 0.8;
+.gradient-swatch {
+  position: relative;
+}
+.gradient-swatch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-swatch-pattern);
+  background-size: 8px 8px;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.3;
+}
+.gradient-indicator {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  font-size: 10px;
+  color: var(--gradient-indicator-text);
+  text-shadow: 0 1px 3px var(--gradient-indicator-text-shadow);
+  pointer-events: none;
+  font-weight: bold;
+  line-height: 1;
+  z-index: 2;
+}
+.gradient-swatch:hover .gradient-indicator {
+  color: var(--gradient-indicator-text-hover);
+}
+.gradient-swatch:hover {
+  box-shadow: 0 6px 16px var(--gradient-swatch-hover-shadow);
+}
+.gradient-swatch.active {
+  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow),
+    0 4px 12px var(--color-swatch-shadow);
+}
+.dark-mode .gradient-swatch.active {
+  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow-dark),
+    0 4px 12px var(--color-swatch-shadow);
 }
 
-.button.muted:hover {
-  background: var(--surface-active);
-  color: var(--text-primary);
-  opacity: 1;
-  border-color: var(--accent-primary);
-  transform: translateY(-1px);
+.solid-swatch {
+  border-style: solid;
+  background-image: none !important;
 }
-
-/* 🎯 SETUP NAVIGATION SPECIFIC */
-/* Special styling for setup navigation buttons */
-.setup-nav-button {
-  min-width: 140px;
-  font-weight: 600;
-}
-
-/* 🚫 DISABLED BUTTON STATE */
-/* Styling for disabled buttons */
-.button.disabled-state {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: var(--surface) !important;
-  color: var(--text-secondary) !important;
-  border-color: var(--glass-border) !important;
-}
-
-.button.disabled-state:hover {
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-/* ❌ ERROR FEEDBACK ANIMATION */
-/* Red glow for clicking disabled buttons */
-.button.red-glow-pulse {
-  animation: redGlow 0.8s ease-out;
-}
-
-/* 
-=============================================================================
-                         9.5. BUTTON LOADING ANIMATION
-=============================================================================
-*/
-
-/* 🔄 LOADING DOTS ANIMATION (Similar to auth.css) */
-.button .loading-dots {
-  display: none;
-  gap: 4px;
-  align-items: center;
-  justify-content: center;
-}
-
-.button .loading-dots .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--button-loading-dot-bg, currentColor);
-  animation: profileDotBounce 1.4s infinite ease-in-out both;
-}
-
-.button .loading-dots .dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.button .loading-dots .dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-.button .loading-dots .dot:nth-child(3) {
-  animation-delay: 0s;
-}
-
-.button.loading {
-  color: transparent;
-  cursor: not-allowed;
-  transform: none;
+.solid-swatch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid var(--solid-swatch-border);
   pointer-events: none;
 }
-
-.button.loading .loading-dots {
-  display: flex;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.dark-mode .gradient-swatch::before {
+  background: var(--gradient-swatch-dark-pattern);
+}
+.dark-mode .solid-swatch::after {
+  border-color: var(--solid-swatch-dark-border);
 }
 
-.button.loading .button-text {
-  visibility: hidden;
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 13) SCHEDULE IMPORT STEP                                                 │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.import-methods {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
 }
-
-@keyframes profileDotBounce {
-  0%,
-  80%,
-  100% {
-    transform: scale(0.8) translateY(0);
-    opacity: 0.7;
-  }
-  40% {
-    transform: scale(1.2) translateY(-4px);
-    opacity: 1;
-  }
-}
-
-/* 
-=============================================================================
-                         10. SUCCESS STATES & FEEDBACK
-=============================================================================
-*/
-
-/* 🎉 SUCCESS MESSAGE CONTAINER */
-/* Container for completion success message */
-.success-message {
+.import-option {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-  margin: 0 auto;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 8px 32px var(--shadow);
-  animation: successPulse 0.6s ease-out;
+  padding: var(--space-lg);
+  transition: all 0.3s var(--animation-smooth);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+.import-option:hover {
+  background: var(--glass-hover);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px var(--shadow);
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.option-icon {
+  font-size: 1.5rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+.option-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.upload-area {
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+  background: var(--surface);
+}
+.upload-area:hover {
+  border-color: var(--accent-primary);
+  background: var(--glass-hover);
+  transform: translateY(-1px);
+}
+
+.upload-prompt {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: var(--space-sm);
 }
-
-/* ✅ SUCCESS ICON */
-/* Large success icon */
-.success-icon {
-  font-size: 4.5rem;
-  color: var(--accent-success);
-  margin-bottom: var(--space-lg);
-  animation: bounce 1s ease-out;
-  position: relative;
-  z-index: 2;
+.upload-prompt i {
+  font-size: 2rem;
+  color: var(--accent-primary);
+  margin-bottom: var(--space-sm);
 }
-
-/* 📝 SUCCESS MESSAGE HEADING */
-/* Success message title */
-.success-message h3 {
-  color: var(--text-primary);
-  text-align: center;
-  margin-bottom: var(--space-md);
-  font-size: 1.5rem;
-  font-weight: 600;
-  position: relative;
-  z-index: 2;
-}
-
-/* 📖 SUCCESS MESSAGE TEXT */
-/* Success message description */
-.success-message p {
-  color: var(--text-secondary);
+.upload-prompt p {
   margin: 0;
-  font-size: 1.1rem;
-  line-height: 1.5;
-  position: relative;
-  z-index: 2;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.upload-prompt small {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 
-/* 🎨 SUCCESS ANIMATION OVERLAY */
-.success-animation-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    45deg,
-    transparent 0%,
-    rgba(var(--success-rgb), 0.1) 45%,
-    rgba(var(--success-rgb), 0.2) 50%,
-    rgba(var(--success-rgb), 0.1) 55%,
-    transparent 100%
-  );
-  animation: shimmer 2s infinite;
-  pointer-events: none;
-  z-index: 1;
+.schedule-preview {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-top: var(--space-xl);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--glass-border);
+}
+.preview-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.stat-badge {
+  background: var(--accent-primary);
+  color: #fff;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
-/* ⚡ LOADING STATE */
-/* Loading animation for navigation buttons */
-.nav-button.loading {
-  pointer-events: none;
-  position: relative;
-  color: transparent;
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+.course-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  transition: all 0.3s var(--animation-smooth);
+}
+.course-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.course-code {
+  font-weight: 700;
+  color: var(--accent-primary);
+  font-size: 0.9rem;
+}
+.course-section {
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.course-name {
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.course-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
-.nav-button.loading::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--loading-spinner-border);
-  border-top: 2px solid var(--loading-spinner-border-top);
+.time-info,
+.location-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.days {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.time {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.room {
+  color: var(--text-secondary);
+}
+
+.import-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+.status-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--glass-bg);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--surface-hover);
+  border-top: 2px solid var(--accent-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-/* 
-=============================================================================
-                            11. RESPONSIVE DESIGN
-=============================================================================
-*/
-
-/* 📱 TABLET & SMALL DESKTOP (768px and below) */
-@media (max-width: 768px) {
-  /* 🏗️ LAYOUT ADJUSTMENTS */
-  body.page-profile .main-content {
-    padding: 0 !important;
-  }
-
-  body.page-profile .content-grid {
-    padding: var(--space-md) !important;
-    min-height: calc(100vh - 100px) !important;
-  }
-
-  body.page-profile .profile-setup-card.glass-card {
-    padding: var(--space-lg) !important;
-    margin: var(--space-sm) !important;
-    max-width: calc(100vw - 2rem) !important;
-  }
-
-  /* 📝 TYPOGRAPHY SCALING */
-  .setup-title {
-    font-size: 1.8rem;
-  }
-
-  .setup-subtitle {
-    font-size: 1rem;
-  }
-
-  /* 📊 PROGRESS INDICATOR ADJUSTMENTS */
-  .setup-progress-container {
-    flex-direction: column;
-    align-items: center; /* Center the step count text on mobile */
-    gap: var(--space-sm);
-  }
-
-  .setup-progress {
-    width: 100%;
-    margin-left: 0;
-    justify-content: center; /* Center the progress blocks on mobile */
-  }
-
-  /* 🧭 NAVIGATION LAYOUT */
-  .setup-navigation {
-    flex-direction: column-reverse; /* Stack vertically */
-    gap: var(--space-md);
-  }
-
-  .setup-navigation > div {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .setup-navigation .button {
-    flex: 1;
-    text-align: center;
-    min-width: auto;
-  }
-
-  .setup-nav-button#setup-prev-btn {
-    width: 100%;
-    text-align: center;
-  }
-
-  /* 📐 FORM LAYOUT */
-  .form-row {
-    grid-template-columns: 1fr; /* Single column on mobile */
-  }
+.status-content p {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
-/* 📱 MOBILE (480px and below) */
-@media (max-width: 480px) {
-  /* 🧭 NAVIGATION STACKING */
-  .setup-navigation > div[style*="display: flex"] {
-    flex-direction: column; /* Stack skip and next buttons */
-    gap: var(--space-sm);
-  }
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 14) UTILITIES & THEME TRANSITIONS                                        │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-  .setup-navigation > div[style*="display: flex"] > .button {
-    width: 100%; /* Full width for stacked buttons */
-  }
+.hidden {
+  display: none !important;
 }
 
-/* 📐 FORM ROW RESPONSIVE BEHAVIOR */
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr; /* Single column layout */
-  }
+/* smooth theme transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    color 0.3s ease;
 }
 
-/* 
-=============================================================================
-                          12. ANIMATIONS & EFFECTS
-=============================================================================
-*/
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 15) ANIMATIONS & EFFECTS (keyframes)                                     │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 🚀 ENTRANCE ANIMATIONS */
-
-/* Card slide up animation */
+/* entrance */
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -1637,8 +1567,6 @@ body.page-profile .profile-setup-card.glass-card {
     transform: translateY(0);
   }
 }
-
-/* Step content slide in animation */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -1650,7 +1578,7 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* Icon bounce animation */
+/* bounce */
 @keyframes bounce {
   0%,
   20%,
@@ -1671,9 +1599,7 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* 🎉 SUCCESS ANIMATIONS */
-
-/* Success message pulse animation */
+/* success */
 @keyframes successPulse {
   0% {
     transform: scale(0.95);
@@ -1688,9 +1614,7 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* 💫 LOADING & FEEDBACK ANIMATIONS */
-
-/* Progress shimmer effect */
+/* shimmer & error pulse */
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -1699,8 +1623,6 @@ body.page-profile .profile-setup-card.glass-card {
     transform: translateX(100%);
   }
 }
-
-/* Validation error pulse animation */
 @keyframes pulse-error {
   0%,
   100% {
@@ -1713,17 +1635,39 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* Button loading spinner */
+/* spinners */
 @keyframes spin {
   0% {
-    transform: rotate(0deg);
+    transform: rotate(0);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes profileSpin {
+  0% {
+    transform: rotate(0);
   }
   100% {
     transform: rotate(360deg);
   }
 }
 
-/* Error feedback red glow animation */
+/* loading dots */
+@keyframes profileDotBounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8) translateY(0);
+    opacity: 0.7;
+  }
+  40% {
+    transform: scale(1.2) translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* red glow */
 @keyframes redGlow {
   0% {
     box-shadow: 0 0 0 0 var(--red-glow-start);
@@ -1736,45 +1680,237 @@ body.page-profile .profile-setup-card.glass-card {
   }
 }
 
-/* 🎨 GLASSMORPHISM ANIMATION */
+/* glass rotation */
 @keyframes rotate {
   0% {
-    transform: rotate(0deg);
+    transform: rotate(0);
   }
   100% {
     transform: rotate(360deg);
   }
 }
 
-/* 
-=============================================================================
-                           13. THEME TRANSITIONS
-=============================================================================
-*/
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ 16) MEDIA QUERIES (collected)                                            │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
 
-/* 🎨 SMOOTH THEME TRANSITIONS */
-/* Smooth transitions for theme changes */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease,
-    color 0.3s ease;
+/* A) ≤ 768px – layout, typography, progress, nav, forms, avatar editor */
+@media (max-width: 768px) {
+  body.page-profile .main-content {
+    padding: 0.5rem 0.4rem !important; /* Keep unified padding */
+  }
+
+  body.page-profile .content-grid {
+    padding: 0 !important; /* Clean padding on mobile */
+    /* Remove hardcoded min-height - use unified system */
+  }
+
+  body.page-profile .profile-setup-card.glass-card {
+    padding: var(--space-lg) !important;
+    max-width: 100% !important; /* Full width on mobile */
+    margin: 0 !important; /* Remove auto margins */
+  }
+
+  /* typography */
+  .setup-title {
+    font-size: 1.8rem;
+  }
+
+  /* progress stack */
+  .setup-progress-container {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+  .setup-progress {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  /* navigation stack */
+  .setup-navigation {
+    flex-direction: column-reverse;
+    gap: var(--space-md);
+  }
+  .setup-navigation > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .setup-navigation .button {
+    flex: 1;
+    text-align: center;
+    min-width: auto;
+  }
+  .setup-nav-button#setup-prev-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* form rows */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* avatar editor layout */
+  .avatar-editor-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: 300px 1fr;
+  }
+  .avatar-preview-section {
+    padding: 0.1rem 0.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    background: transparent;
+    position: relative;
+    gap: 1rem;
+    width: auto;
+  }
+  .avatar-preview-container {
+    width: 140px;
+    height: 140px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .avatar-preview-label {
+    margin: 0;
+    font-size: 1rem;
+    text-align: center !important;
+    line-height: 1.2;
+  }
+  .preview-controls {
+    margin: 0;
+    flex-direction: column !important;
+    width: auto;
+    max-width: 200px;
+    align-items: center;
+  }
+  .randomize-btn {
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .avatar-controls-section {
+    flex: 1;
+    min-height: 0;
+  }
+  .controls-content {
+    padding: 1rem 1.5rem;
+    padding-bottom: 2rem;
+    height: 100%;
+    max-height: none;
+  }
+
+  .control-group {
+    margin-bottom: 1.5rem;
+  }
+  .control-divider {
+    margin: 1.5rem 0;
+  }
+
+  /* import section */
+  .import-methods {
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+  }
+  .courses-grid {
+    grid-template-columns: 1fr;
+  }
+  .option-header {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-sm);
+  }
+  .option-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+  .upload-area {
+    padding: var(--space-lg);
+  }
+  .upload-prompt i {
+    font-size: 1.5rem;
+  }
 }
 
-/* 
-=============================================================================
-                          12. AVATAR EDITOR MODAL
-=============================================================================
-*/
+/* B) ≤ 640px – (covered by ≤768 form rule; kept for clarity if needed) */
+/* Intentionally omitted as 768px block already forces single-column forms. */
 
-/* 🎨 AVATAR MODAL OVERLAY - Enhanced Glassmorphism */
+/* C) ≤ 480px – extra small adjustments */
+@media (max-width: 480px) {
+  /* stack skip/next buttons */
+  .setup-navigation > div[style*="display: flex"] {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  .setup-navigation > div[style*="display: flex"] > .button {
+    width: 100%;
+  }
+
+  /* avatar preview section tightening */
+  .avatar-preview-section {
+    padding: 0.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .avatar-preview-container {
+    width: 80px;
+    height: 80px;
+    margin-right: 0;
+  }
+  .controls-content {
+    padding: 1rem;
+  }
+
+  /* Profile setup card shell */
+  body.page-profile .profile-setup-card.glass-card {
+    margin: 0 !important;
+    max-width: 100% !important; /* Use consistent percentage-based sizing */
+    padding: 1rem !important; /* Reduce padding on very small screens */
+  }
+}
+
+/* D) ≤ 768px – avatar modal sizing */
+@media (max-width: 768px) {
+  .avatar-modal-content {
+    width: 98%;
+    height: 92vh;
+    max-height: 800px;
+    min-height: 500px;
+    border-radius: 1rem;
+  }
+  .avatar-modal-header,
+  .avatar-modal-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .avatar-modal-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .avatar-modal-button {
+    width: 100%;
+  }
+}
+
+/* ╭──────────────────────────────────────────────────────────────────────────╮
+   │ AVATAR MODAL SHELL (overlay & chrome)                                    │
+   ╰──────────────────────────────────────────────────────────────────────────╯ */
+
 .avatar-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: var(--modal-overlay-bg);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1784,13 +1920,12 @@ body.page-profile .profile-setup-card.glass-card {
   transition: all 0.3s ease;
 }
 
-/* 🎨 AVATAR MODAL CONTENT - Using Glass Card System with Fixed HEIGHT */
 .avatar-modal-content {
   max-width: 800px;
   width: 90%;
-  height: 80vh; /* Fixed height instead of max-height */
-  max-height: 700px; /* Maximum height for very large screens */
-  min-height: 500px; /* Minimum height for very small screens */
+  height: 80vh;
+  max-height: 700px;
+  min-height: 500px;
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1804,8 +1939,6 @@ body.page-profile .profile-setup-card.glass-card {
   flex-direction: column;
   position: relative;
 }
-
-/* Add the rotating glassmorphism effect like glass-card */
 .avatar-modal-content::before {
   content: "";
   position: absolute;
@@ -1820,7 +1953,6 @@ body.page-profile .profile-setup-card.glass-card {
     transparent
   );
 }
-
 .avatar-modal-content::after {
   content: "";
   position: absolute;
@@ -1847,12 +1979,10 @@ body.page-profile .profile-setup-card.glass-card {
   opacity: 1;
   visibility: visible;
 }
-
 .avatar-modal-overlay.active .avatar-modal-content {
   transform: scale(1) translateY(0);
 }
 
-/* 🎨 AVATAR MODAL HEADER - Unified Glass Effect */
 .avatar-modal-header {
   display: flex;
   align-items: center;
@@ -1863,7 +1993,6 @@ body.page-profile .profile-setup-card.glass-card {
   position: relative;
   z-index: 1;
 }
-
 .avatar-modal-title {
   font-size: 1.5rem;
   font-weight: 700;
@@ -1886,7 +2015,6 @@ body.page-profile .profile-setup-card.glass-card {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
-
 .avatar-modal-close-btn:hover {
   background: var(--error);
   color: var(--avatar-modal-close-hover-text);
@@ -1894,7 +2022,6 @@ body.page-profile .profile-setup-card.glass-card {
   box-shadow: 0 4px 12px var(--avatar-shadow);
 }
 
-/* 🎨 AVATAR MODAL BODY - Unified Glass Effect */
 .avatar-modal-body {
   flex: 1;
   overflow: hidden;
@@ -1906,7 +2033,6 @@ body.page-profile .profile-setup-card.glass-card {
   z-index: 1;
 }
 
-/* 🎨 AVATAR MODAL FOOTER - Unified Glass Effect */
 .avatar-modal-footer {
   display: flex;
   align-items: center;
@@ -1918,7 +2044,6 @@ body.page-profile .profile-setup-card.glass-card {
   position: relative;
   z-index: 1;
 }
-
 .avatar-modal-button {
   min-width: 120px;
   height: 48px;
@@ -1935,7 +2060,6 @@ body.page-profile .profile-setup-card.glass-card {
   gap: 0.5rem;
   box-sizing: border-box;
 }
-
 .avatar-modal-button.confirm {
   background: linear-gradient(
     135deg,
@@ -1945,18 +2069,15 @@ body.page-profile .profile-setup-card.glass-card {
   color: var(--modal-confirm-text);
   border-color: var(--success);
 }
-
 .avatar-modal-button.cancel {
   background: var(--surface);
   color: var(--text-primary);
   border-color: var(--border);
 }
-
 .avatar-modal-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--avatar-shadow);
 }
-
 .avatar-modal-button.confirm:hover {
   background: linear-gradient(
     135deg,
@@ -1964,552 +2085,7 @@ body.page-profile .profile-setup-card.glass-card {
     var(--success)
   );
 }
-
 .avatar-modal-button.cancel:hover {
   background: var(--surface-hover);
   border-color: var(--text-secondary);
-}
-
-/* 🎨 RESPONSIVE AVATAR MODAL - Fixed Height Adjustments */
-@media (max-width: 768px) {
-  .avatar-modal-content {
-    width: 98%;
-    height: 92vh; /* Increased height for mobile */
-    max-height: 800px; /* Higher max height for mobile */
-    min-height: 500px; /* Keep reasonable min height */
-    border-radius: 1rem;
-  }
-
-  .avatar-modal-header,
-  .avatar-modal-footer {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .avatar-modal-footer {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .avatar-modal-button {
-    width: 100%;
-  }
-}
-
-/* 
-=============================================================================
-                          14. PROFILE LOADING OVERLAY
-=============================================================================
-*/
-
-/* 🔄 PROFILE LOADING OVERLAY */
-.profile-loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--profile-loading-overlay-bg);
-  backdrop-filter: blur(5px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  border-radius: 1.5rem;
-}
-
-.profile-loading-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* 🔄 LOADING CONTENT */
-.profile-loading-content {
-  text-align: center;
-  padding: 2rem;
-}
-
-.profile-loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--surface-hover);
-  border-top: 3px solid var(--accent-primary);
-  border-radius: 50%;
-  animation: profileSpin 1s linear infinite;
-  margin: 0 auto 1rem auto;
-}
-
-.profile-loading-message {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  font-weight: 500;
-  margin: 0;
-}
-
-/* 🔄 LOADING SPINNER ANIMATION */
-@keyframes profileSpin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* Dark theme support */
-[data-theme="dark"] .profile-loading-overlay {
-  background: var(--profile-loading-overlay-bg-dark);
-}
-
-/* ==========================================================================
-   Avatar Editor - Color Swatches (Updated for Mobile-Optimized Layout)
-   ========================================================================== */
-
-/* The container for all the color swatches */
-.color-swatch-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-}
-
-/* The individual color swatch button */
-.color-swatch-btn {
-  width: 45px;
-  height: 45px;
-  border: 2px solid var(--border);
-  border-radius: 0.75rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background-size: cover;
-  background-position: center;
-  position: relative;
-  overflow: hidden;
-
-  /* --- CRITICAL FIX: Resetting conflicting styles --- */
-  /* This ensures the inline background-color from JS is always applied */
-  /* Note: We don't use !important on background-image to allow gradients */
-  font-size: 0; /* Hides any text or weird characters inside */
-  line-height: 0; /* Further ensures no content is visible */
-
-  /* This is just for a nice visual effect on hover */
-  outline-offset: 3px;
-}
-
-/* --- Hover state for interactivity --- */
-.color-swatch-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--color-swatch-shadow);
-  border-color: var(--text-secondary);
-}
-
-/* --- Active/Selected state --- */
-/* This style is applied to the currently chosen color swatch */
-.color-swatch-btn.active {
-  border-color: var(--accent-primary);
-  border-width: 3px;
-  transform: scale(1.1);
-  box-shadow: 0 0 0 3px var(--color-swatch-active-shadow);
-}
-
-/* Dark mode adjustments for gradient swatches */
-.dark-mode .gradient-swatch::before {
-  background: var(--gradient-swatch-dark-pattern);
-}
-
-.dark-mode .solid-swatch::after {
-  border-color: var(--solid-swatch-dark-border);
-}
-
-/* Enhanced hover effects for gradient swatches */
-.gradient-swatch:hover {
-  box-shadow: 0 6px 16px var(--gradient-swatch-hover-shadow);
-}
-
-.gradient-swatch.active {
-  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow),
-    0 4px 12px var(--color-swatch-shadow);
-}
-
-.dark-mode .gradient-swatch.active {
-  box-shadow: 0 0 0 3px var(--gradient-swatch-active-shadow-dark),
-    0 4px 12px var(--color-swatch-shadow);
-}
-
-/* --- Gradient Swatch Specific Styles --- */
-.gradient-swatch {
-  position: relative;
-  /* Add a subtle pattern overlay to make gradients more visible */
-}
-
-.gradient-swatch::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--gradient-swatch-pattern);
-  background-size: 8px 8px;
-  pointer-events: none;
-  border-radius: inherit;
-  opacity: 0.3;
-}
-
-.gradient-indicator {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  font-size: 10px;
-  color: var(--gradient-indicator-text);
-  text-shadow: 0 1px 3px var(--gradient-indicator-text-shadow);
-  pointer-events: none;
-  font-weight: bold;
-  line-height: 1;
-  z-index: 2;
-}
-
-.gradient-swatch:hover .gradient-indicator {
-  color: var(--gradient-indicator-text-hover);
-}
-
-/* Solid color swatches get a subtle border highlight */
-.solid-swatch {
-  border-style: solid;
-  /* Only solid swatches should reset background-image */
-  background-image: none !important;
-}
-
-.solid-swatch::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: inherit;
-  border: 1px solid var(--solid-swatch-border);
-  pointer-events: none;
-}
-
-/* 🌟 Subtle pulsing animation to draw attention */
-@keyframes avatarButtonPulse {
-  0%,
-  100% {
-    box-shadow: var(--avatar-button-pulse-start);
-  }
-  50% {
-    box-shadow: var(--avatar-button-pulse-mid);
-  }
-}
-
-.avatar-edit-button {
-  /* Add subtle pulse animation */
-  animation: avatarButtonPulse 3s ease-in-out infinite;
-}
-
-.avatar-edit-button:hover {
-  /* Stop pulsing on hover since we have other effects */
-  animation: none;
-}
-
-/* =============================================================================
-                        SCHEDULE IMPORT STEP STYLES
-   ============================================================================= */
-
-/* 📅 IMPORT METHODS CONTAINER */
-.import-methods {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-xl);
-  margin-bottom: var(--space-xl);
-}
-
-/* 📋 IMPORT OPTION STYLING */
-.import-option {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  transition: all 0.3s var(--animation-smooth);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.import-option:hover {
-  background: var(--glass-hover);
-  border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px var(--shadow);
-}
-
-/* 📝 OPTION HEADER */
-.option-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
-}
-
-.option-icon {
-  font-size: 1.5rem;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-primary);
-  color: white;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.option-header h3 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* 📤 UPLOAD AREA STYLING */
-.upload-area {
-  border: 2px dashed var(--glass-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-xl);
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s var(--animation-smooth);
-  background: var(--surface);
-}
-
-.upload-area:hover {
-  border-color: var(--accent-primary);
-  background: var(--glass-hover);
-  transform: translateY(-1px);
-}
-
-.upload-prompt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.upload-prompt i {
-  font-size: 2rem;
-  color: var(--accent-primary);
-  margin-bottom: var(--space-sm);
-}
-
-.upload-prompt p {
-  margin: 0;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.upload-prompt small {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-/* 📋 SCHEDULE PREVIEW STYLING */
-.schedule-preview {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  margin-top: var(--space-xl);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-lg);
-  padding-bottom: var(--space-md);
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.preview-header h3 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.stat-badge {
-  background: var(--accent-primary);
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* 🎴 COURSE CARDS GRID */
-.courses-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-lg);
-}
-
-.course-card {
-  background: var(--surface);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  transition: all 0.3s var(--animation-smooth);
-}
-
-.course-card:hover {
-  background: var(--surface-hover);
-  border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--shadow);
-}
-
-.course-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-sm);
-}
-
-.course-code {
-  font-weight: 700;
-  color: var(--accent-primary);
-  font-size: 0.9rem;
-}
-
-.course-section {
-  background: var(--surface-active);
-  color: var(--text-secondary);
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.course-name {
-  margin: 0 0 var(--space-sm) 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.3;
-}
-
-.course-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.time-info,
-.location-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-}
-
-.days {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.time {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.room {
-  color: var(--text-secondary);
-}
-
-/* ⏳ IMPORT STATUS STYLING */
-.import-status {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: var(--space-lg);
-  margin-top: var(--space-lg);
-}
-
-.status-content {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  background: var(--glass-bg);
-  padding: var(--space-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--surface-hover);
-  border-top: 2px solid var(--accent-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.status-content p {
-  margin: 0;
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* 🔄 SPINNER ANIMATION */
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* 🙈 HIDDEN UTILITY */
-.hidden {
-  display: none !important;
-}
-
-/* 📱 MOBILE RESPONSIVENESS FOR SCHEDULE IMPORT */
-@media (max-width: 768px) {
-  .import-methods {
-    grid-template-columns: 1fr;
-    gap: var(--space-lg);
-  }
-
-  .courses-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .option-header {
-    flex-direction: column;
-    text-align: center;
-    gap: var(--space-sm);
-  }
-
-  .option-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
-  }
-
-  .upload-area {
-    padding: var(--space-lg);
-  }
-
-  .upload-prompt i {
-    font-size: 1.5rem;
-  }
 }
