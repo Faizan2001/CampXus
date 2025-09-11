@@ -32,6 +32,15 @@ class SPARouter {
   constructor() {
     // 📚 Learning: These are the "routes" - like a map of your app's pages
     this.routes = {
+      landing: {
+        title: "MeetchuThere - Connect with Campus Friends",
+        template: "/templates/landing.html",
+        cssFiles: [
+          "/src/css/styles.css",
+        ],
+        jsImporters: [() => import("/src/js/pages/LandingPage.js")],
+        description: "Connect with your university friends and know when they're on campus",
+      },
       home: {
         title: "Schedule - MeetchuThere",
         template: "/templates/home.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
@@ -40,6 +49,7 @@ class SPARouter {
         ],
         jsImporters: [() => import("/src/js/pages/HomePage.js")], // Lazy-load Home page controller (dev and prod)
         description: "Manage your weekly schedule and compare with friends",
+        requiresAuth: true, // 🛡️ Now requires authentication
       },
       profile: {
         title: "Profile Setup - MeetchuThere",
@@ -50,6 +60,7 @@ class SPARouter {
         ],
         jsImporters: [() => import("/src/js/components/forms/ProfileSetup.js")],
         description: "Set up your student profile and preferences",
+        requiresAuth: true, // 🛡️ Requires authentication
       },
       friends: {
         title: "Friends - MeetchuThere",
@@ -80,12 +91,18 @@ class SPARouter {
       },
     };
 
-    this.currentPage = "home"; // Default page
+    this.currentPage = "landing"; // Default page now landing
     this.mainContentContainer = null; // Will hold our content area
     this.loadingIndicator = null;
     // Navigation concurrency & cancellation
     this._navId = 0;
     this._abortController = null;
+  // Auth/navigation noise control
+  this._authRedirectTimer = null;
+  this._lastAuthSnapshot = { isLoggedIn: null, route: null, ts: 0 };
+  this._pendingRoute = null;
+  this._lastNavigation = { route: null, ts: 0 };
+  this._navVisibility = { hidden: null };
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -124,6 +141,9 @@ class SPARouter {
 
     // Handle browser back/forward buttons
     this.setupBrowserNavigation();
+
+    // Set up auth state change handling
+    this.setupAuthStateHandling();
 
     // Load the initial page based on URL
     // this.loadInitialPage(); // 🎯 FIXED: We now call this from spa-init.js
@@ -422,6 +442,75 @@ class SPARouter {
   }
 
   /**
+   * Set up auth state change handling for automatic redirects
+   * 🎯 This ensures users are redirected appropriately when they log in/out
+   */
+  setupAuthStateHandling() {
+    // Subscribe to currentUser state changes
+    currentUser.subscribe((state) => {
+      const isLoggedIn = state.isLoggedIn;
+      const currentRoute = this.currentPage;
+      
+      console.log(`🔐 Router: Auth state changed - isLoggedIn: ${isLoggedIn}, currentRoute: ${currentRoute}`);
+
+      // Coalesce rapid successive auth updates (profile/user set) into a single redirect decision
+      if (this._authRedirectTimer) clearTimeout(this._authRedirectTimer);
+      this._authRedirectTimer = setTimeout(() => {
+        // Skip if nothing effectively changed very recently
+        const now = Date.now();
+        if (
+          this._lastAuthSnapshot.isLoggedIn === isLoggedIn &&
+          this._lastAuthSnapshot.route === currentRoute &&
+          now - this._lastAuthSnapshot.ts < 300
+        ) {
+          return;
+        }
+        this._lastAuthSnapshot = { isLoggedIn, route: currentRoute, ts: now };
+        this.handleAuthRedirect(isLoggedIn, currentRoute);
+      }, 100); // Small delay to ensure auth state is fully settled
+    });
+  }
+
+  /**
+   * Handle automatic redirects based on authentication state
+   * @param {boolean} isLoggedIn - Whether user is logged in
+   * @param {string} currentRoute - Current route name
+   */
+  handleAuthRedirect(isLoggedIn, currentRoute) {
+    try {
+      if (isLoggedIn) {
+        // User just logged in
+        if (currentRoute === "landing") {
+          console.log("🏠 User logged in from landing page, redirecting to home");
+          this.navigateTo("home");
+        } else {
+          // Update navigation visibility without redirecting
+          this.updateNavigationVisibility(currentRoute);
+        }
+      } else {
+        // User just logged out or is not authenticated
+        const routeConfig = this.routes[currentRoute];
+        if (routeConfig?.requiresAuth) {
+          // Check if this was an intentional logout for better UX
+          const wasIntentionalLogout = sessionStorage.getItem("intentionalLogout") === "true";
+          if (wasIntentionalLogout) {
+            sessionStorage.removeItem("intentionalLogout");
+            console.log(`👋 User intentionally logged out from ${currentRoute}, redirecting to landing`);
+          } else {
+            console.log(`🔒 User logged out from protected route (${currentRoute}), redirecting to landing`);
+          }
+          this.navigateTo("landing");
+        } else {
+          // Update navigation visibility even if not redirecting
+          this.updateNavigationVisibility(currentRoute);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error in handleAuthRedirect:", error);
+    }
+  }
+
+  /**
    * Load the initial page based on current URL
    * 🎯 Learning: When someone visits a direct link, show the right page
    */
@@ -430,7 +519,25 @@ class SPARouter {
 
     // Parse the current URL to determine which page to load
     const hash = window.location.hash.slice(1); // Remove the # symbol
-    const route = hash && this.routes[hash] ? hash : "home";
+    let route = hash && this.routes[hash] ? hash : "home";
+
+    // 🛡️ Authentication-aware routing: Check if user is logged in
+    const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
+    
+    if (!isAuthenticated) {
+      // If not authenticated, always go to landing page
+      route = "landing";
+      // Clear any auth-required hash from URL
+      if (hash && this.routes[hash]?.requiresAuth) {
+        window.history.replaceState(null, "", "#landing");
+      }
+    } else {
+      // If authenticated but trying to access landing, redirect to home
+      if (route === "landing") {
+        route = "home";
+        window.history.replaceState(null, "", "#home");
+      }
+    }
 
     // Initial page load
 
@@ -453,6 +560,18 @@ class SPARouter {
       return;
     }
 
+    // Prevent duplicate navigations to the same route within a short window or while a nav is already pending
+    const now = Date.now();
+    if (
+      (this._pendingRoute && this._pendingRoute === route) ||
+      (this._lastNavigation.route === route && now - this._lastNavigation.ts < 300)
+    ) {
+      console.log("⏭️ Duplicate navigation to same route ignored");
+      return;
+    }
+    this._pendingRoute = route;
+    this._lastNavigation = { route, ts: now };
+
     // 🛡️ Authentication Check with proper ES6 imports!
     const routeConfig = this.routes[route];
     if (routeConfig.requiresAuth) {
@@ -461,7 +580,7 @@ class SPARouter {
 
       if (!isAuthenticated) {
         console.warn(
-          `🔒 Access denied to route: ${route}. User not authenticated.`
+          `🔒 Access denied to route: ${route}. Redirecting to landing page.`
         );
         console.log("🔍 Debug auth state:", {
           hasUser: !!currentUser.user,
@@ -469,13 +588,23 @@ class SPARouter {
           userUID: currentUser.user?.uid,
         });
 
-        // Show notification using imported dataManager
+        // Show notification and redirect to landing page
         dataManager.showNotification(
-          "You must be logged in to view this page.",
-          "warning"
+          "Please sign in to access this page.",
+          "info"
         );
-        return; // Stop navigation!
+        
+        // Redirect to landing page
+        this.navigateTo("landing", updateHistory);
+        return;
       }
+    }
+
+    // 🛡️ If authenticated user tries to access landing page, redirect to home
+    if (route === "landing" && currentUser.isLoggedIn() && currentUser.user) {
+      console.log("🏠 Authenticated user accessing landing, redirecting to home");
+      this.navigateTo("home", updateHistory);
+      return;
     }
 
     // Navigating to route
@@ -526,6 +655,7 @@ class SPARouter {
       // 🎯 LEARNING: The finally block ensures the loading indicator is always hidden,
       // even if an error occurs during page load.
       this.hideLoading();
+  this._pendingRoute = null;
     }
   }
 
@@ -534,9 +664,9 @@ class SPARouter {
    * 🎯 Learning: This does the heavy lifting of swapping content
    *
    * @param {string} route - The route to load
-   * @param {boolean} updateHistory - Whether this should update history
+   * @param {boolean} _updateHistory - Whether this should update history (unused, handled by navigateTo)
    */
-  async loadPage(route, updateHistory = true) {
+  async loadPage(route, _updateHistory = true) {
     const routeData = this.routes[route];
     if (!routeData) {
       console.error(`❌ Route data not found for: ${route}`);
@@ -578,6 +708,8 @@ class SPARouter {
           "⏭️ Navigation superseded, abandoning DOM updates for",
           route
         );
+  // Clear pending flag if this navigation got superseded
+  if (this._pendingRoute === route) this._pendingRoute = null;
         return;
       }
 
@@ -646,6 +778,9 @@ class SPARouter {
       // Update navigation active states
       this.updateNavigationStates(route);
 
+      // Update navigation visibility based on route and auth state
+      this.updateNavigationVisibility(route);
+
       // Update URL hash to match current route (for direct linking and refresh)
       if (window.location.hash !== `#${route}`) {
         history.replaceState({ route }, routeData.title, `#${route}`);
@@ -664,6 +799,7 @@ class SPARouter {
     } catch (error) {
       if (error?.name === "AbortError") {
         console.log("🛑 Navigation aborted (newer route started)");
+  if (this._pendingRoute === route) this._pendingRoute = null;
         return;
       }
       console.error(`❌ Error loading page ${route}:`, error);
@@ -871,6 +1007,41 @@ class SPARouter {
       `[data-spa-route="${activeRoute}"]`
     );
     if (fallback) fallback.classList.add("active");
+  }
+
+  /**
+   * Update navigation visibility based on route and authentication state
+   * 🎯 Hide nav links when on landing page and user is not logged in
+   */
+  updateNavigationVisibility(route) {
+    const navLinks = document.querySelector(".nav-links");
+    const mobileBottomNav = document.querySelector(".mobile-bottom-nav");
+    const isLoggedIn = currentUser.isLoggedIn() && currentUser.user;
+    
+    // Hide navigation elements if user is on landing page and not logged in
+    if (route === "landing" && !isLoggedIn) {
+      if (navLinks) {
+        navLinks.style.display = "none";
+      }
+      if (mobileBottomNav) {
+        mobileBottomNav.style.display = "none";
+      }
+      if (this._navVisibility.hidden !== true) {
+        console.log("🔒 Navigation hidden - landing page, not logged in");
+        this._navVisibility.hidden = true;
+      }
+    } else {
+      if (navLinks) {
+        navLinks.style.display = "";
+      }
+      if (mobileBottomNav) {
+        mobileBottomNav.style.display = "";
+      }
+      if (this._navVisibility.hidden !== false) {
+        console.log("🔓 Navigation shown - authenticated or protected route");
+        this._navVisibility.hidden = false;
+      }
+    }
   }
 
   /**

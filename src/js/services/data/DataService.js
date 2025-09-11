@@ -2727,15 +2727,25 @@ class DataManager {
     };
 
     const handleError = (error) => {
-      console.error("📱 Mobile-resilient friendships listener error:", {
-        code: error.code,
-        message: error.message,
+      // Downgrade noise on auth transitions: permission-denied is expected when signed out
+      const isAuthMissing = !auth?.currentUser;
+      const isPermissionDenied = error?.code === "permission-denied";
+      const logMethod = isPermissionDenied || isAuthMissing ? console.info : console.error;
+      logMethod("📱 Mobile-resilient friendships listener error:", {
+        code: error?.code,
+        message: error?.message,
         connectionAttempts: reconnectionAttempts,
         isOnline: navigator.onLine,
         timestamp: new Date().toISOString(),
       });
 
       isConnected = false;
+
+      // If user is signed out, don't attempt to reconnect; let auth flow recreate on next login
+      if (isAuthMissing) {
+        callback([]);
+        return;
+      }
 
       // Handle different error types with mobile-specific strategies
       const shouldReconnect = this.shouldReconnectMobileListener(
@@ -2745,7 +2755,7 @@ class DataManager {
 
       if (shouldReconnect && reconnectionAttempts < maxReconnectionAttempts) {
         scheduleReconnection();
-      } else if (error.code !== "permission-denied") {
+      } else if (!isPermissionDenied) {
         console.warn(
           "📱 Mobile friendships listener: Max reconnection attempts reached or permanent error"
         );
@@ -3125,6 +3135,17 @@ class DataManager {
    */
   async removeFromQuickAccess(userId, friendId) {
     try {
+      // Skip if user is signed out or during intentional logout
+      const intentionalLogout =
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem("intentionalLogout") === "true";
+      if (intentionalLogout || !auth.currentUser) {
+        console.info(
+          "ℹ️ [DataManager] Skipping removeFromQuickAccess (signed out or intentional logout)"
+        );
+        return { success: true, skipped: true };
+      }
+
       if (!userId || !friendId) {
         throw new Error("Invalid userId or friendId");
       }
@@ -3191,6 +3212,19 @@ class DataManager {
    */
   async getQuickAccessFriends(userId) {
     try {
+      // Skip Firestore read if signed out or during intentional logout
+      const intentionalLogout =
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem("intentionalLogout") === "true";
+      if (intentionalLogout || !auth.currentUser) {
+        return {
+          starredFriends: [],
+          totalStarred: 0,
+          lastUpdated: null,
+          skipped: true,
+        };
+      }
+
       if (!userId) {
         console.warn(
           "[DataManager] getQuickAccessFriends called without userId (likely early init) – returning empty result"

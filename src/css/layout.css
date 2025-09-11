@@ -541,60 +541,6 @@ body:not(.dark-mode) .user-dropdown {
   color: var(--error-red);
 }
 
-/* ===== LOGIN BUTTON ===== */
-.login-btn {
-  white-space: nowrap;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  border: none;
-  border-radius: 0.75rem;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
-  color: #fff;
-  box-shadow: var(--shadow-accent-light);
-  text-decoration: none;
-}
-.login-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-accent-strong);
-  color: #fff;
-}
-.login-btn:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-accent-light);
-}
-.login-btn:focus {
-  outline: none;
-  box-shadow: var(--shadow-accent-strong), var(--focus-ring);
-}
-.login-btn::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: var(--dropdown-overlay);
-  transform: translate(-50%, -50%);
-  transition: width 0.3s ease, height 0.3s ease;
-}
-.login-btn:active::before {
-  width: 300px;
-  height: 300px;
-}
 
 /* ===== AVATAR SYSTEM ===== */
 .user-avatar-trigger,
@@ -998,26 +944,6 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .theme-toggle i {
     font-size: 0.75rem !important;
-  }
-  .login-btn {
-    padding: 0.5rem 0.625rem !important;
-    font-size: 0.7rem !important;
-    white-space: nowrap !important;
-    max-width: 4.5rem;
-    text-indent: -9999px;
-    position: relative;
-    overflow: hidden;
-  }
-  .login-btn::before {
-    content: "🎓 Join";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    text-indent: 0;
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.7rem;
   }
   .user-dropdown {
     width: calc(100vw - 1.5rem);

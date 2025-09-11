@@ -412,8 +412,17 @@ class RealTimeManager {
           // Always trigger bilateral cleanup when friendships change
           // This ensures starred friends are cleaned up even when FriendsService isn't listening
           try {
-            this.log(`🧹 Triggering bilateral cleanup for ${userId}`);
-            await this.performBilateralCleanup(userId, friendships);
+            const intentionalLogout =
+              typeof sessionStorage !== "undefined" &&
+              sessionStorage.getItem("intentionalLogout") === "true";
+            if (!intentionalLogout) {
+              this.log(`🧹 Triggering bilateral cleanup for ${userId}`);
+              await this.performBilateralCleanup(userId, friendships);
+            } else if (this.debugMode) {
+              this.log(
+                `ℹ️ Skipping bilateral cleanup (intentional logout in progress)`
+              );
+            }
           } catch (cleanupError) {
             console.error(`❌ Error in bilateral cleanup:`, cleanupError);
           }
@@ -903,8 +912,25 @@ class RealTimeManager {
    */
   async performBilateralCleanup(userId, currentFriendships) {
     try {
+      // Skip cleanup during or after logout, or if unauthenticated
+      const intentionalLogout =
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem("intentionalLogout") === "true";
+      if (intentionalLogout || !userId) {
+        this.log(
+          "ℹ️ CLEANUP: Skipping bilateral cleanup (signed out or intentional logout)"
+        );
+        return;
+      }
+
       // Get current Quick Access friends
       const quickAccessData = await dataManager.getQuickAccessFriends(userId);
+      if (quickAccessData?.skipped) {
+        this.log(
+          "ℹ️ CLEANUP: Quick Access fetch skipped due to logout; aborting cleanup"
+        );
+        return;
+      }
       if (!quickAccessData) {
         this.log(
           `⚠️ Could not get Quick Access data for cleanup (user may not have any)`

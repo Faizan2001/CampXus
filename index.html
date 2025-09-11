@@ -9,7 +9,7 @@
     />
     <meta
       name="description"
-      content="MeetchuThere - Schedule & Availability Tracker"
+      content="Connect with university friends in real-time. Share your schedule, see when classmates are on campus, and never miss a chance to meet up."
     />
   <!-- CSP is set via hosting headers to avoid duplication/conflicts. -->
     <title>MeetchuThere - Schedule & Availability Tracker</title>
@@ -26,10 +26,30 @@
     <!-- Main application styles -->
     <link rel="stylesheet" href="/src/css/styles.css" />
 
-    <meta name="theme-color" content="#fafafa" />
-
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <!-- PWA and Icon Configuration -->
+    <meta name="theme-color" content="#8B5CF6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MeetchuThere" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Manifest for PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png" />
+    
+    <!-- Android/Chrome Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
   </head>
   <body>
     <!-- App container is now visible by default again -->
@@ -66,9 +86,6 @@
         </div>
 
         <div class="nav-right">
-          <!-- Login Button (shown when not authenticated) -->
-          <button id="login-btn" class="btn btn-primary login-btn">Join</button>
-
           <!-- User Profile Menu (shown when authenticated) -->
           <div class="user-menu" id="userMenu" style="display: none">
             <button

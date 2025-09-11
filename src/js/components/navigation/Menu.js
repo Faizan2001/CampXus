@@ -25,6 +25,11 @@ const dbg = (...args) => {
   }
 };
 
+// Cache for avatar rendering to prevent redundant updates
+// Hoisted before any initialization to avoid temporal dead zone when referenced early
+let cachedAvatarConfig = null;
+let cachedAvatarHtml = null;
+
 // Predeclare module-scoped vars used by notifications indicator before any init runs
 let notificationsUnsub = null;
 let friendReqUnsub = null;
@@ -226,14 +231,12 @@ function initializeUserMenu() {
   const userMenuTrigger = document.getElementById("userMenuTrigger");
   const userDropdown = document.getElementById("userDropdown");
   const userMenu = document.getElementById("userMenu");
-  const loginBtn = document.getElementById("login-btn");
   const signOutBtn = document.getElementById("signOutBtn");
 
   dbg("🔍 Menu elements found:", {
     userMenuTrigger: !!userMenuTrigger,
     userDropdown: !!userDropdown,
     userMenu: !!userMenu,
-    loginBtn: !!loginBtn,
     signOutBtn: !!signOutBtn,
   });
 
@@ -270,11 +273,6 @@ function initializeUserMenu() {
   // Sign out button functionality
   if (signOutBtn) {
     signOutBtn.addEventListener("click", handleSignOut);
-  }
-
-  // Login button functionality
-  if (loginBtn) {
-    loginBtn.addEventListener("click", handleLogin);
   }
 
   // Add event listeners to all dropdown items to close dropdown when clicked
@@ -470,10 +468,8 @@ async function handleSignOut() {
       ) {
         window.userMenuUtils.clearUserDisplayInfo();
       }
-      // Also force visibility update for login button and user menu
-      const loginBtn = document.getElementById("login-btn");
+      // Also force visibility update for user menu
       const userMenu = document.getElementById("userMenu");
-      if (loginBtn) loginBtn.style.display = "flex";
       if (userMenu) userMenu.style.display = "none";
 
       // Redirect to home/schedule page after sign out using SPA router
@@ -491,33 +487,6 @@ async function handleSignOut() {
   }
 }
 
-/**
- * Handle login button click
- */
-function handleLogin() {
-  console.log("Login button clicked");
-
-  // Add visual feedback
-  const loginBtn = document.getElementById("login-btn");
-  if (loginBtn) {
-    loginBtn.style.transform = "scale(0.98)";
-    setTimeout(() => {
-      loginBtn.style.transform = "";
-    }, 150);
-  }
-
-  // Use Firebase auth manager to show login modal
-  if (authManager) {
-    authManager.showAuthModal();
-  } else {
-    // Fallback: Dispatch custom event for authentication system to handle
-    window.dispatchEvent(
-      new CustomEvent("loginRequested", {
-        detail: { timestamp: Date.now() },
-      })
-    );
-  }
-}
 
 /**
  * Handles changes from the currentUser store subscription.
@@ -551,26 +520,22 @@ function handleAuthStateChange({ isLoggedIn, profile }) {
   handleAuthStateChange.previousState = currentState;
 
   const userMenu = document.getElementById("userMenu");
-  const loginBtn = document.getElementById("login-btn");
 
-  if (!userMenu || !loginBtn) {
+  if (!userMenu) {
     console.warn("⚠️ Menu elements not found:", {
       userMenu: !!userMenu,
-      loginBtn: !!loginBtn,
     });
     return;
   }
 
   if (isLoggedIn && profile) {
     // User is logged in and has a profile, show the user menu
-    dbg("👤 Showing user menu, hiding login button");
-    loginBtn.style.display = "none";
+    dbg("👤 Showing user menu");
     userMenu.style.display = "flex";
     updateUserDisplayInfo(profile);
   } else {
     // User is logged out or profile is not yet available
-    dbg("🔒 Showing login button, hiding user menu");
-    loginBtn.style.display = "flex";
+    dbg("🔒 Hiding user menu");
     userMenu.style.display = "none";
     clearUserDisplayInfo();
   }
@@ -606,10 +571,6 @@ async function updateUserDisplayInfo(userData) {
     clearUserDisplayInfo({ preventFlag: "updateUserDisplayInfo" });
   }
 }
-
-// Cache for avatar rendering to prevent redundant updates
-let cachedAvatarConfig = null;
-let cachedAvatarHtml = null;
 
 /**
  * Update user avatar displays in navigation and dropdown

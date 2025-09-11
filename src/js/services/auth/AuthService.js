@@ -7,8 +7,8 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged,
 } from "firebase/auth";
-import { serverTimestamp } from "firebase/firestore";
-import { auth } from "../../lib/firebase/firebase-config.js";
+import { serverTimestamp, disableNetwork, enableNetwork } from "firebase/firestore";
+import { auth, db } from "../../lib/firebase/firebase-config.js";
 import {
   validateUniversityEmail,
   getFriendlyEmailError,
@@ -993,6 +993,21 @@ class AuthManager {
       if (window.campusLocationService) {
         console.log("🌍 Stopping location tracking before sign out...");
         window.campusLocationService.stopLocationTracking();
+      }
+
+      // Set a flag to indicate this is an intentional logout
+      // This helps the router provide smooth navigation feedback
+      sessionStorage.setItem("intentionalLogout", "true");
+
+      // Gracefully disable Firestore network just before sign-out to reduce noisy reconnects
+      try {
+        await disableNetwork(db);
+        // Auto re-enable shortly after to avoid impacting future sessions
+        setTimeout(() => {
+          enableNetwork(db).catch(() => {});
+        }, 2000);
+      } catch (_) {
+        // Non-fatal; proceed with sign-out
       }
 
       await signOut(auth);

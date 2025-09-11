@@ -1,0 +1,645 @@
+<!-- 
+   Landing Page Template - Welcome new users to MeetchuThere!
+  This template shows when users are not logged in and showcases the app features.
+  Includes animated text and responsive design for desktop and mobile.
+-->
+
+<div class="landing-container">
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <!-- Brand Logo Area -->
+      <div class="hero-brand">
+        <div class="brand-icon">
+          <!-- Animated Location Pin Icon -->
+          <svg class="location-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <h1 class="brand-name">MeetchuThere</h1>
+      </div>
+
+      <!-- Main Tagline with Animated Text -->
+      <div class="hero-tagline">
+        <h2 class="tagline-main">
+          Know when your friends are 
+          <span class="animated-text-container">
+            <span class="animated-text" id="animatedText1">on campus</span>
+            <span class="animated-text" id="animatedText2">free to meet</span>
+          </span>
+        </h2>
+      </div>
+
+      <!-- Description -->
+      <p class="hero-description">
+        Connect with your university friends in real-time. Share your schedule, see when classmates are on campus, and never miss a chance to meet up.
+      </p>
+
+      <!-- Call to Action Button -->
+      <div class="hero-cta">
+        <button id="joinButton" class="cta-button">
+          <span class="cta-text">Join MeetchuThere</span>
+          <span class="cta-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Floating Elements for Visual Interest -->
+    <div class="floating-elements">
+      <div class="floating-element element-1"></div>
+      <div class="floating-element element-2"></div>
+      <div class="floating-element element-3"></div>
+      <div class="floating-element element-4"></div>
+    </div>
+  </section>
+
+  <!-- Features Preview Section -->
+  <section class="features-section">
+    <div class="features-grid">
+      <!-- Feature 1 -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <h3>Find Friends</h3>
+        <p>Connect with classmates and discover who's on campus in real-time.</p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <h3>Share Schedules</h3>
+        <p>Share your class schedule and see when friends have free time to hang out.</p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <h3>Campus Presence</h3>
+        <p>Know exactly when your friends are on campus and available to meet.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Background Decoration -->
+  <div class="background-decoration">
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+  </div>
+</div>
+
+<style>
+/* ===== LANDING PAGE STYLES ===== */
+.landing-container {
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Hero Section */
+.hero-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-content {
+  text-align: center;
+  max-width: 800px;
+  width: 100%;
+}
+
+/* Brand Area */
+.hero-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  color: var(--accent-primary);
+  animation: brandIconFloat 3s ease-in-out infinite;
+}
+
+.location-icon {
+  filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.3));
+}
+
+.brand-name {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  margin: 0;
+  text-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+}
+
+/* Animated Tagline */
+.hero-tagline {
+  margin-bottom: 1.5rem;
+}
+
+.tagline-main {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.animated-text-container {
+  position: relative;
+  display: inline-block;
+  height: 1.2em;
+  vertical-align: top;
+  overflow: hidden;
+}
+
+.animated-text {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(100%);
+  animation: textSlideAnimation 4s ease-in-out infinite;
+}
+
+.animated-text:nth-child(2) {
+  animation-delay: 2s;
+}
+
+/* Hero Description */
+.hero-description {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  color: var(--text-secondary);
+  margin-bottom: 2.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* Call to Action Button */
+.hero-cta {
+  margin-bottom: 3rem;
+}
+
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(139, 92, 246, 0.4);
+}
+
+.cta-button:active {
+  transform: translateY(0);
+}
+
+.cta-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.cta-button:hover::before {
+  left: 100%;
+}
+
+.cta-icon {
+  display: flex;
+  align-items: center;
+  transition: transform 0.3s ease;
+}
+
+.cta-button:hover .cta-icon {
+  transform: translateX(4px);
+}
+
+/* Floating Background Elements */
+.floating-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.floating-element {
+  position: absolute;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(168, 85, 247, 0.05));
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
+  animation: float 6s ease-in-out infinite;
+}
+
+.element-1 {
+  width: 80px;
+  height: 80px;
+  top: 20%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.element-2 {
+  width: 120px;
+  height: 120px;
+  top: 60%;
+  right: 15%;
+  animation-delay: -2s;
+}
+
+.element-3 {
+  width: 60px;
+  height: 60px;
+  top: 80%;
+  left: 20%;
+  animation-delay: -4s;
+}
+
+.element-4 {
+  width: 100px;
+  height: 100px;
+  top: 10%;
+  right: 25%;
+  animation-delay: -1s;
+}
+
+/* Features Section */
+.features-section {
+  padding: 3rem 1.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(10px);
+}
+
+.features-grid {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.feature-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--glass-lift-shadow);
+  border-color: var(--glass-border-strong);
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+}
+
+.feature-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.feature-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Background Decoration */
+.background-decoration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -2;
+}
+
+.gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 40%, transparent 70%);
+  filter: blur(40px);
+  animation: orbFloat 8s ease-in-out infinite;
+}
+
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  top: -200px;
+  left: -200px;
+  animation-delay: 0s;
+}
+
+.orb-2 {
+  width: 600px;
+  height: 600px;
+  bottom: -300px;
+  right: -300px;
+  animation-delay: -4s;
+}
+
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation-delay: -2s;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes textSlideAnimation {
+  0%, 40% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  50%, 90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes brandIconFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+@keyframes orbFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-30px) scale(1.1);
+  }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Landing page specific: Override CSS variables to use full viewport since bottom nav is hidden */
+body.page-landing {
+  --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+}
+
+/* Mobile Optimizations (≤ 480px) */
+@media (max-width: 480px) {
+  /* Landing page specific: Override mobile variables too */
+  body.page-landing {
+    --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+    --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+  }
+
+  body.page-landing .main-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  .landing-container {
+    min-height: auto;
+    height: 100%;
+  }
+
+  .hero-section {
+    padding: 1.5rem 1rem;
+    min-height: auto;
+  }
+
+  .hero-brand {
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .brand-name {
+    font-size: clamp(1.75rem, 8vw, 2rem);
+  }
+
+  .tagline-main {
+    font-size: clamp(1.1rem, 6vw, 1.25rem);
+    line-height: 1.3;
+  }
+
+  .hero-description {
+    font-size: clamp(0.9rem, 4vw, 1rem);
+    margin-bottom: 2rem;
+    padding: 0 0.5rem;
+  }
+
+  .cta-button {
+    padding: 0.875rem 1.5rem;
+    font-size: clamp(0.9rem, 4vw, 1rem);
+  }
+
+  .features-section {
+    padding: 2rem 1rem 3rem; /* Extra bottom padding */
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    padding: 1.5rem;
+  }
+
+  .feature-card h3 {
+    font-size: clamp(1.1rem, 5vw, 1.25rem);
+  }
+
+  .feature-card p {
+    font-size: clamp(0.9rem, 4vw, 1rem);
+  }
+
+  /* Reduce floating elements on mobile */
+  .floating-element {
+    opacity: 0.5;
+  }
+  
+  .element-2,
+  .element-4 {
+    display: none;
+  }
+}
+
+/* Tablet Styles (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .hero-section {
+    padding: 2rem 1.5rem;
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop Styles (≥ 769px) */
+@media (min-width: 769px) {
+  .hero-section {
+    padding: 3rem 2rem;
+  }
+  
+  .hero-content {
+    max-width: 900px;
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+  }
+}
+
+/* Large Desktop (≥ 1200px) */
+@media (min-width: 1200px) {
+  .hero-section {
+    padding: 4rem 2rem;
+  }
+  
+  .features-section {
+    padding: 4rem 2rem;
+  }
+}
+
+/* Dark Mode Adjustments */
+body.dark-mode .feature-card {
+  background: var(--glass-bg-dark);
+  border-color: var(--glass-border-dark);
+}
+
+body.dark-mode .brand-icon {
+  background: var(--glass-bg-dark);
+  border-color: var(--glass-border-dark);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animated-text,
+  .floating-element,
+  .gradient-orb,
+  .brand-icon {
+    animation: none;
+  }
+  
+  .cta-button:hover {
+    transform: none;
+  }
+  
+  .feature-card:hover {
+    transform: none;
+  }
+}
+</style>

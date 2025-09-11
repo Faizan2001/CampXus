@@ -40,6 +40,7 @@ const LOG_EMOJIS = {
   UI_INIT: "🎯", // Component initialization
   UI_CLICK: "👆", // User interactions
   UI_RENDER: "🎨", // UI rendering/updates
+  UI_WARN: "⚠️", // UI warnings
   UI_ERROR: "💢", // UI errors
 
   // System & Performance
@@ -539,6 +540,8 @@ class LogManager {
       this.log(LOG_LEVELS.DEBUG, "ui", LOG_EMOJIS.UI_CLICK, message, data),
     render: (message, data) =>
       this.log(LOG_LEVELS.DEBUG, "ui", LOG_EMOJIS.UI_RENDER, message, data),
+    warn: (message, data) =>
+      this.log(LOG_LEVELS.WARN, "ui", LOG_EMOJIS.UI_WARN, message, data),
     error: (message, data) =>
       this.log(LOG_LEVELS.ERROR, "ui", LOG_EMOJIS.UI_ERROR, message, data),
   };
