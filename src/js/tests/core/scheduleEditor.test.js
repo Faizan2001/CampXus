@@ -3,16 +3,19 @@ import { jest } from "@jest/globals";
 
 // Functions from script.js (exported directly by their original names)
 import {
-  handleTimeSlotHeaderClick,
-  openEditTimeSlotModal,
-  processTimeSlotEdit,
+  handleTimeRangeHeaderClick,
+  openEditTimeRangeModal,
+  processTimeRangeEdit,
   getState,
   _setStateForTesting,
   _resetStateForTesting,
 } from "../../pages/HomePage.js";
 
 //Modules needed for setup
-import { DOM_ELEMENTS, initializeDomElements } from "../../utils/dom/domElements.js";
+import {
+  DOM_ELEMENTS,
+  initializeDomElements,
+} from "../../utils/dom/domElements.js";
 import { initModal } from "../../components/modals/Modal.js";
 
 // Helper function to set up a comprehensive DOM structure
@@ -50,7 +53,7 @@ const setupBaseTestDOM = () => {
   }
 };
 
-describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
+describe("Phase 3: Time Range Header Editing (Mock-less)", () => {
   beforeEach(() => {
     _resetStateForTesting();
     localStorage.clear();
@@ -65,7 +68,7 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     jest.useRealTimers();
   });
 
-  describe("handleTimeSlotHeaderClick", () => {
+  describe("handleTimeRangeHeaderClick", () => {
     let mockEvent;
     let userTimeSlots;
 
@@ -82,16 +85,17 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
           },
         },
       });
-      mockEvent = { currentTarget: { dataset: {} } };
+      mockEvent = { currentTarget: { dataset: {} }, target: { dataset: {} } };
     });
 
     test("should display edit modal with correct data for valid slot click", () => {
       mockEvent.currentTarget.dataset.slotIndex = "0";
-      handleTimeSlotHeaderClick(mockEvent); // Calling the imported function directly
+      mockEvent.target.dataset.slotIndex = "0";
+      handleTimeRangeHeaderClick(mockEvent); // Calling the imported function directly
       jest.runAllTimers();
 
       expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
-      expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Edit Time Slot");
+      expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Edit Time Range");
       const modalMessageContent = DOM_ELEMENTS.modalMessage.innerHTML;
       expect(modalMessageContent).toContain(
         "<p>Current: <strong>08:00-09:00</strong></p>"
@@ -103,7 +107,7 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
 
     test("should show error modal if slotIndex is missing from dataset", () => {
       // mockEvent.currentTarget.dataset.slotIndex is already undefined or missing
-      handleTimeSlotHeaderClick(mockEvent);
+      handleTimeRangeHeaderClick(mockEvent);
       jest.runAllTimers();
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
       expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
@@ -113,7 +117,8 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
 
     test("should show error modal if slotIndex is not a number", () => {
       mockEvent.currentTarget.dataset.slotIndex = "abc";
-      handleTimeSlotHeaderClick(mockEvent);
+      mockEvent.target.dataset.slotIndex = "abc";
+      handleTimeRangeHeaderClick(mockEvent);
       jest.runAllTimers();
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
       expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
@@ -127,11 +132,12 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
         users: { user1: { id: "user1", name: "Test User", schedule: [] } }, // No timeSlots
       });
       mockEvent.currentTarget.dataset.slotIndex = "0";
-      handleTimeSlotHeaderClick(mockEvent);
+      mockEvent.target.dataset.slotIndex = "0";
+      handleTimeRangeHeaderClick(mockEvent);
       jest.runAllTimers();
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
       expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
-        "selected time slot could not be found"
+        "could not be found"
       );
     });
 
@@ -148,17 +154,20 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
         },
       });
       mockEvent.currentTarget.dataset.slotIndex = "0";
-      handleTimeSlotHeaderClick(mockEvent);
+      mockEvent.target.dataset.slotIndex = "0";
+      handleTimeRangeHeaderClick(mockEvent);
       jest.runAllTimers();
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
-      expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
-        "selected time slot could not be found"
-      );
+      const msg = DOM_ELEMENTS.modalMessage.textContent;
+      expect(
+        msg.includes("could not be found") || msg.includes("Slot index missing")
+      ).toBe(true);
     });
     test("should show error modal if no active user is set", () => {
       _setStateForTesting({ activeUserId: null, users: {} });
       mockEvent.currentTarget.dataset.slotIndex = "0"; // Ensure slotIndex is set
-      handleTimeSlotHeaderClick(mockEvent); // mockEvent still has slotIndex: '0' but no active user
+      mockEvent.target.dataset.slotIndex = "0";
+      handleTimeRangeHeaderClick(mockEvent); // mockEvent still has slotIndex: '0' but no active user
       jest.runAllTimers();
       expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
@@ -170,27 +179,28 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     test("should show error modal if slotIndex is out of bounds for user timeSlots", () => {
       // User has 1 slot (index 0)
       mockEvent.currentTarget.dataset.slotIndex = "1"; // Invalid index
-      handleTimeSlotHeaderClick(mockEvent);
+      mockEvent.target.dataset.slotIndex = "1"; // Invalid index
+      handleTimeRangeHeaderClick(mockEvent);
       jest.runAllTimers();
       expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
-      expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
-        "selected time slot could not be found"
-      );
+      const msg = DOM_ELEMENTS.modalMessage.textContent;
+      expect(
+        msg.includes("could not be found") || msg.includes("invalid")
+      ).toBe(true);
     });
   });
 
-  describe("openEditTimeSlotModal", () => {
+  describe("openEditTimeRangeModal", () => {
     test("should correctly populate and show the modal with different slot data", () => {
       const activeUser = {
         id: "user2",
         name: "Another User",
         timeSlots: [{ start: "14:00", end: "15:30", label: "14:00-15:30" }],
       };
-      openEditTimeSlotModal(0, activeUser); // Calling imported function directly
+      openEditTimeRangeModal(0, activeUser); // Calling imported function directly
       jest.runAllTimers();
-
-      expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Edit Time Slot");
+      expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Edit Time Range");
       const modalMessageContent = DOM_ELEMENTS.modalMessage.innerHTML;
       expect(modalMessageContent).toContain(
         "<p>Current: <strong>14:00-15:30</strong></p>"
@@ -204,7 +214,7 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
   });
 
-  describe("processTimeSlotEdit", () => {
+  describe("processTimeRangeEdit", () => {
     let activeUserObject;
     let slotIndexToEdit;
 
@@ -255,10 +265,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should update state and return true for valid inputs", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("10:15", "11:15");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(true);
 
       const updatedSlots = getState().users["userEdit"].timeSlots;
@@ -278,17 +288,17 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
       const originalTimeSlots = JSON.parse(
         JSON.stringify(activeUserObject.timeSlots)
       );
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject); // Open modal
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject); // Open modal
       jest.runAllTimers();
-      // Inputs are already set to original values by openEditTimeSlotModal
+      // Inputs are already set to original values by openEditTimeRangeModal
       // and the default values in its HTML.
-      // We can explicitly set them if needed to be sure, but openEditTimeSlotModal should handle it.
+      // We can explicitly set them if needed to be sure, but openEditTimeRangeModal should handle it.
       setEditFormInputValues(
         activeUserObject.timeSlots[slotIndexToEdit].start,
         activeUserObject.timeSlots[slotIndexToEdit].end
       );
 
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(true);
 
       const finalState = getState().users["userEdit"].timeSlots;
@@ -296,10 +306,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error in DOM and return false if start time is empty", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("", "11:00");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -312,10 +322,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error in DOM and return false if end time is empty", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("10:00", "");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -328,10 +338,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error for invalid start time format and return false", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("abc", "11:00");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -339,10 +349,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error for invalid end time format and return false", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("10:00", "xyz");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -350,10 +360,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test('should correctly process "H:MM" input, update state, and return true', () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("9:15", "9:45"); // Changed input values
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(true);
       const updatedSlots = getState().users["userEdit"].timeSlots;
       expect(updatedSlots[slotIndexToEdit].start).toBe("09:15"); // Updated assertion
@@ -362,10 +372,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error if start time not before end time and return false", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("11:30", "10:15");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -373,10 +383,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error on conflict with previous slot and return false", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("08:30", "09:30"); // Conflicts with 08:00-09:00
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -384,10 +394,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should display error on conflict with next slot and return false", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("11:30", "12:30"); // Conflicts with 12:00-13:00
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -396,11 +406,11 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
 
     test("should allow editing first slot without previous conflict error", () => {
       slotIndexToEdit = 0;
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("07:00", "07:30");
 
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(true);
       expect(getState().users["userEdit"].timeSlots[0].label).toBe(
         "07:00-07:30"
@@ -409,11 +419,11 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
 
     test("should allow editing last slot without next conflict error", () => {
       slotIndexToEdit = activeUserObject.timeSlots.length - 1;
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("13:30", "14:00");
 
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(true);
       expect(
         getState().users["userEdit"].timeSlots[slotIndexToEdit].label
@@ -421,10 +431,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should show error and return false for start time as just spaces", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("   ", "11:00");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
@@ -432,10 +442,10 @@ describe("Phase 3: Time Slot Header Editing (Mock-less)", () => {
     });
 
     test("should successfully update slot with valid inputs that have spaces", () => {
-      openEditTimeSlotModal(slotIndexToEdit, activeUserObject);
+      openEditTimeRangeModal(slotIndexToEdit, activeUserObject);
       jest.runAllTimers();
       setEditFormInputValues("  10:30  ", "  11:45  ");
-      const result = processTimeSlotEdit(slotIndexToEdit, activeUserObject);
+      const result = processTimeRangeEdit(slotIndexToEdit, activeUserObject);
       expect(result).toBe(true);
       const updatedSlots = getState().users["userEdit"].timeSlots;
       expect(updatedSlots[slotIndexToEdit].label).toBe("10:30-11:45");

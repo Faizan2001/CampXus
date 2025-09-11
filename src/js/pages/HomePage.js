@@ -63,7 +63,6 @@ let state = {
   lastScheduleSignature: null, // Prevent unnecessary UI updates when schedule unchanged
   lastAppliedScheduleVersion: null, // Track applied schedule version to avoid stale overwrites
 };
-
 // --- State Accessors/Mutators (for testing or specific needs) ---
 export function getState() {
   return state;
@@ -2129,12 +2128,12 @@ async function saveStateToStorage(transactionId = null, transactionIds = []) {
 /* ================================
    UI RENDERING FUNCTIONS
 ================================== */
-// --- START: Phase 3 - Editable Time Slot Header Functions ---
+// --- START: Phase 3 - Editable Time Range Header Functions ---
 /**
- * Handles click events on time slot headers for editing.
+ * Handles click events on time range headers for editing.
  * @param {Event} event - The click event.
  */
-export function handleTimeSlotHeaderClick(event) {
+export function handleTimeRangeHeaderClick(event) {
   // Use event.target since this is called from event delegation
   const slotIndexString = event.target.dataset.slotIndex;
   if (slotIndexString === undefined) {
@@ -2145,7 +2144,7 @@ export function handleTimeSlotHeaderClick(event) {
     });
     showModal({
       content:
-        "Could not determine which time slot to edit. Slot index missing.",
+        "Could not determine which time range to edit. Range index missing.",
       title: "Error",
     });
     return;
@@ -2155,7 +2154,7 @@ export function handleTimeSlotHeaderClick(event) {
   if (isNaN(slotIndex)) {
     console.error("Slot index is not a number:", slotIndexString);
     showModal({
-      content: "Invalid slot index provided. Must be a number.",
+      content: "Invalid time range index provided. Must be a number.",
       title: "Error",
     });
     return;
@@ -2168,13 +2167,13 @@ export function handleTimeSlotHeaderClick(event) {
   ) {
     if (state.currentViewingFriendId) {
       console.log(
-        "🔒 Cannot edit time slot headers in friend's schedule - read-only mode"
+        "🔒 Cannot edit time range headers in friend's schedule - read-only mode"
       );
       return;
     }
     // This case should ideally not be reached if headers are only made clickable for active users,
     // but it's a good safeguard.
-    console.error("handleTimeSlotHeaderClick called with no active user.");
+    console.error("handleTimeRangeHeaderClick called with no active user.");
     showModal({
       content:
         "No active user selected. Please select a user to edit their schedule.",
@@ -2194,22 +2193,22 @@ export function handleTimeSlotHeaderClick(event) {
     );
     showModal({
       content:
-        "Error: The selected time slot could not be found or is invalid.",
+        "Error: The selected time range could not be found or is invalid.",
       title: "Error",
     });
     return;
   }
 
   // If all checks pass, open the modal for editing
-  openEditTimeSlotModal(slotIndex, activeUserObject);
+  openEditTimeRangeModal(slotIndex, activeUserObject);
 }
 
 /**
- * Opens a modal to edit a specific time slot.
- * @param {number} slotIndex - The index of the time slot to edit.
+ * Opens a modal to edit a specific time range (structural schedule row).
+ * @param {number} slotIndex - The index of the time range to edit.
  * @param {object} activeUserObject - The active user object.
  */
-export function openEditTimeSlotModal(slotIndex, activeUserObject) {
+export function openEditTimeRangeModal(slotIndex, activeUserObject) {
   const currentTimeSlot = activeUserObject.timeSlots[slotIndex];
 
   // Since we store times in "HH:MM" format, pre-filling is direct.
@@ -2239,40 +2238,54 @@ export function openEditTimeSlotModal(slotIndex, activeUserObject) {
 
   showModal({
     content: modalContentHTML,
-    title: "Edit Time Slot",
+    title: "Edit Time Range",
     isHtmlContent: true,
     showConfirmationButtons: true,
     confirmText: "Save Changes",
     cancelText: "Delete",
     onConfirm: () => {
-      return processTimeSlotEdit(slotIndex, activeUserObject);
+      return processTimeRangeEdit(slotIndex, activeUserObject);
     },
     onCancel: () => {
-      // This will now be the "Delete" action
-      showModal({
-        title: "Delete Time Slot",
-        content: `Are you sure you want to delete the time slot: <strong>${currentTimeSlot.label}</strong>? This will remove it for this user and shift remaining slots. This action cannot be undone.`,
-        isHtmlContent: true,
-        showConfirmationButtons: true,
-        confirmText: "Confirm Delete",
-        cancelText: "Cancel",
-        onConfirm: () => {
-          processTimeSlotDelete(slotIndex, activeUserObject);
-          return true; // Close the confirmation modal
-        },
-      });
-      return true; // Close the edit modal
+      // Treat cancel button as Delete trigger. We must wait for the original modal's hide animation
+      // to finish (hideModal clears callbacks after ~300ms) BEFORE showing the confirmation modal.
+      console.log(
+        "[TimeRange] Delete (cancel) clicked - scheduling confirmation modal",
+        {
+          slotIndex,
+          label: currentTimeSlot.label,
+        }
+      );
+      setTimeout(() => {
+        showModal({
+          title: "Delete Time Range",
+          content: `Are you sure you want to delete the time range: <strong>${currentTimeSlot.label}</strong>? This will remove it for this user and shift remaining ranges. This action cannot be undone.`,
+          isHtmlContent: true,
+          showConfirmationButtons: true,
+          confirmText: "Confirm Delete",
+          cancelText: "Cancel",
+          onConfirm: () => {
+            console.log("[TimeRange] Confirm delete clicked", {
+              slotIndex,
+              label: currentTimeSlot.label,
+            });
+            processTimeRangeDelete(slotIndex, activeUserObject);
+            return true; // Close confirmation modal
+          },
+        });
+      }, 310); // Slightly > hideModal 300ms timeout to avoid callback wipe
+      return true; // Close the edit modal immediately
     },
   });
 }
 
 /**
- * Processes the editing of a time slot after modal submission.
- * @param {number} slotIndex - The index of the time slot being edited.
+ * Processes the editing of a time range after modal submission.
+ * @param {number} slotIndex - The index of the time range being edited.
  * @param {object} activeUserObject - The active user object.
  * @returns {boolean} True if successful (modal should close), false if validation fails.
  */
-export function processTimeSlotEdit(slotIndex, activeUserObject) {
+export function processTimeRangeEdit(slotIndex, activeUserObject) {
   const newStartTimeInput = document.getElementById("edit-slot-start-time");
   const newEndTimeInput = document.getElementById("edit-slot-end-time");
   const errorMessageElement = document.getElementById(
@@ -2280,7 +2293,7 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   );
 
   if (!newStartTimeInput || !newEndTimeInput || !errorMessageElement) {
-    console.error("Modal elements for editing time slot not found.");
+    console.error("Modal elements for editing time range not found.");
 
     return true; // Allow modal to close, but log the error
   }
@@ -2295,7 +2308,7 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
 
   if (!activeUserObject || !Array.isArray(activeUserObject.timeSlots)) {
     console.error(
-      "Invalid activeUserObject or missing timeSlots in processTimeSlotEdit."
+      "Invalid activeUserObject or missing timeSlots in processTimeRangeEdit."
     );
     errorMessageElement.textContent =
       "An error occurred. User data might be corrupted.";
@@ -2352,7 +2365,7 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
     const prevSlot = userTimeSlots[slotIndex - 1];
     // Ensure prevSlot and its 'end' property are valid before comparison
     if (prevSlot && prevSlot.end && !isTimeBefore(prevSlot.end, newStartTime)) {
-      errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous slot's end (${prevSlot.end}).`;
+      errorMessageElement.textContent = `Conflict: New start (${newStartTime}) must be after previous range's end (${prevSlot.end}).`;
       newStartTimeInput.classList.add("input-error");
       errorMessageElement.style.display = "block";
       return false;
@@ -2367,7 +2380,7 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
       nextSlot.start &&
       !isTimeBefore(newEndTime, nextSlot.start)
     ) {
-      errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next slot's start (${nextSlot.start}).`;
+      errorMessageElement.textContent = `Conflict: New end (${newEndTime}) must be before next range's start (${nextSlot.start}).`;
       newEndTimeInput.classList.add("input-error");
       errorMessageElement.style.display = "block";
       return false;
@@ -2382,7 +2395,7 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
   // Migrate pins to preserve pin intentions when schedule structure changes
   migratePinsToTimeBased(activeUserObject);
 
-  // Transactional debounced save for structural time slot edit
+  // Transactional debounced save for structural time range edit
   const txId = `timeslot_edit_${state.activeUserId}_${slotIndex}_${Date.now()}`;
   state.pendingTransactions.set(txId, {
     type: "timeslot_edit_structure",
@@ -2403,64 +2416,143 @@ export function processTimeSlotEdit(slotIndex, activeUserObject) {
 }
 
 /**
- * Processes the deletion of a time slot.
- * @param {number} slotIndex - The index of the time slot to delete.
+ * Processes the deletion of a time range.
+ * @param {number} slotIndex - The index of the time range to delete.
  * @param {object} activeUserObject - The active user object.
  */
-export function processTimeSlotDelete(slotIndex, activeUserObject) {
-  if (
-    !activeUserObject ||
-    !activeUserObject.timeSlots ||
-    slotIndex < 0 ||
-    slotIndex >= activeUserObject.timeSlots.length
-  ) {
-    console.error("Invalid data for time slot deletion.");
+export function processTimeRangeDelete(slotIndex, activeUserObject) {
+  console.log("[TimeRange] processTimeRangeDelete invoked", {
+    slotIndex,
+    hasUser: !!activeUserObject,
+    timeSlotCount: activeUserObject?.timeSlots?.length,
+  });
+  try {
+    // --- Basic validation ---
+    if (
+      !activeUserObject ||
+      !Array.isArray(activeUserObject.timeSlots) ||
+      slotIndex < 0 ||
+      slotIndex >= activeUserObject.timeSlots.length
+    ) {
+      console.error("Invalid data for time range deletion.", {
+        slotIndex,
+        hasUser: !!activeUserObject,
+        timeSlots: activeUserObject?.timeSlots?.length,
+      });
+      showModal({
+        title: "Error",
+        content: "Could not delete time range due to an error.",
+      });
+      return;
+    }
+
+    const deletedSlotLabel = activeUserObject.timeSlots[slotIndex].label;
+
+    // --- Structural delete (single source of truth) ---
+    activeUserObject.timeSlots.splice(slotIndex, 1);
+
+    // --- Defensive removal across parallel matrices ---
+    if (Array.isArray(activeUserObject.schedule)) {
+      activeUserObject.schedule.forEach((day, dayIdx) => {
+        if (Array.isArray(day) && slotIndex < day.length) {
+          day.splice(slotIndex, 1);
+        } else if (!Array.isArray(day)) {
+          console.warn("Skipping schedule day splice – not an array", {
+            dayIdx,
+            value: day,
+          });
+        }
+      });
+    }
+
+    if (Array.isArray(activeUserObject.pinnedSlots)) {
+      activeUserObject.pinnedSlots.forEach((day, dayIdx) => {
+        if (Array.isArray(day) && slotIndex < day.length) {
+          day.splice(slotIndex, 1);
+        } else if (!Array.isArray(day)) {
+          console.warn("Skipping pinnedSlots day splice – not an array", {
+            dayIdx,
+            value: day,
+          });
+        }
+      });
+    }
+
+    if (Array.isArray(activeUserObject.slotInfo)) {
+      activeUserObject.slotInfo.forEach((day, dayIdx) => {
+        if (Array.isArray(day) && slotIndex < day.length) {
+          day.splice(slotIndex, 1);
+        } else if (!Array.isArray(day)) {
+          console.warn("Skipping slotInfo day splice – not an array", {
+            dayIdx,
+            value: day,
+          });
+        }
+      });
+    }
+
+    // --- Normalization: ensure all parallel arrays now have the same column count ---
+    const expectedCols = activeUserObject.timeSlots.length;
+    const normalizeMatrix = (matrixName) => {
+      const matrix = activeUserObject[matrixName];
+      if (!Array.isArray(matrix)) return;
+      matrix.forEach((day, i) => {
+        if (Array.isArray(day) && day.length !== expectedCols) {
+          // Trim or pad with sensible defaults (false / null)
+          if (day.length > expectedCols) {
+            day.length = expectedCols; // truncate extra
+          } else {
+            while (day.length < expectedCols) {
+              // Choose appropriate filler based on matrix
+              if (matrixName === "schedule") day.push(false);
+              else if (matrixName === "pinnedSlots") day.push(false);
+              else if (matrixName === "slotInfo")
+                day.push({ courseCode: null, classroom: null });
+            }
+          }
+        }
+      });
+    };
+    normalizeMatrix("schedule");
+    normalizeMatrix("pinnedSlots");
+    normalizeMatrix("slotInfo");
+
+    // --- Transactional persistence ---
+    const txId = `timeslot_delete_${
+      state.activeUserId
+    }_${slotIndex}_${Date.now()}`;
+    state.pendingTransactions.set(txId, {
+      type: "timeslot_delete",
+      userId: state.activeUserId,
+      slotIndex,
+      timestamp: Date.now(),
+    });
+    state.isLocalUpdate = true;
+    updateUI();
+    debouncedSaveStateToStorage(false, txId)
+      .then(() => {
+        state.isLocalUpdate = false;
+      })
+      .catch(() => {
+        state.isLocalUpdate = false;
+      });
+
+    showModal({
+      title: "Time Range Deleted",
+      content: `The time range "${deletedSlotLabel}" has been deleted.`,
+    });
+  } catch (err) {
+    console.error("Failed to delete time range", err);
     showModal({
       title: "Error",
-      content: "Could not delete time slot due to an error.",
+      content: "An unexpected error occurred while deleting the time range.",
     });
-    return;
   }
-
-  const deletedSlotLabel = activeUserObject.timeSlots[slotIndex].label;
-
-  // Remove the time slot
-  activeUserObject.timeSlots.splice(slotIndex, 1);
-
-  // Remove the corresponding column from schedule, pinnedSlots, and slotInfo
-  activeUserObject.schedule.forEach((day) => day.splice(slotIndex, 1));
-  activeUserObject.pinnedSlots.forEach((day) => day.splice(slotIndex, 1));
-  if (activeUserObject.slotInfo) {
-    activeUserObject.slotInfo.forEach((day) => day.splice(slotIndex, 1));
-  }
-
-  // Persist changes with transactional debounced save
-  const txId = `timeslot_delete_${
-    state.activeUserId
-  }_${slotIndex}_${Date.now()}`;
-  state.pendingTransactions.set(txId, {
-    type: "timeslot_delete",
-    userId: state.activeUserId,
-    slotIndex,
-    timestamp: Date.now(),
-  });
-  state.isLocalUpdate = true;
-  updateUI();
-  debouncedSaveStateToStorage(false, txId)
-    .then(() => {
-      state.isLocalUpdate = false;
-    })
-    .catch(() => {
-      state.isLocalUpdate = false;
-    });
-
-  showModal({
-    title: "Time Slot Deleted",
-    content: `The time slot "${deletedSlotLabel}" has been successfully deleted.`,
-  });
 }
 
-// --- END: Phase 3 - Editable Time Slot Header Functions ---
+// Backward compatibility alias (old name). TODO: update tests/imports then remove.
+
+// --- END: Phase 3 - Editable Time Range Header Functions ---
 
 /* ================================
    MEMORY LEAK PREVENTION FUNCTIONS
@@ -3805,12 +3897,22 @@ function setupEventListeners() {
 function handleScheduleTableClick(e) {
   // Compact handler without verbose debug logs
 
+  if (e.target) {
+    console.log("[ScheduleTable] Click detected", {
+      targetTag: e.target.tagName,
+      classes: e.target.className,
+    });
+  }
+
   // Time slot header clicks (for editing time slots)
   const headerEl = e.target.closest(".editable-timeslot-header");
   if (headerEl) {
+    console.log("[ScheduleTable] Time slot header click", {
+      dataset: headerEl.dataset,
+    });
     const slotIndex = parseInt(headerEl.dataset.slotIndex, 10);
     if (!isNaN(slotIndex)) {
-      handleTimeSlotHeaderClick(e);
+      handleTimeRangeHeaderClick(e);
     }
     return;
   }
