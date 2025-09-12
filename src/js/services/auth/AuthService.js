@@ -7,7 +7,11 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged,
 } from "firebase/auth";
-import { serverTimestamp, disableNetwork, enableNetwork } from "firebase/firestore";
+import {
+  serverTimestamp,
+  disableNetwork,
+  enableNetwork,
+} from "firebase/firestore";
 import { auth, db } from "../../lib/firebase/firebase-config.js";
 import {
   validateUniversityEmail,

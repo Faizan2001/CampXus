@@ -33,18 +33,13 @@
 
       <!-- Description -->
       <p class="hero-description">
-        Connect with your university friends in real-time. Share your schedule, see when classmates are on campus, and never miss a chance to meet up.
+       See who’s around, know who’s free, connect now.
       </p>
 
       <!-- Call to Action Button -->
       <div class="hero-cta">
         <button id="joinButton" class="cta-button">
           <span class="cta-text">Join MeetchuThere</span>
-          <span class="cta-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </span>
         </button>
       </div>
     </div>
@@ -71,7 +66,7 @@
           </svg>
         </div>
         <h3>Find Friends</h3>
-        <p>Connect with classmates and discover who's on campus in real-time.</p>
+        <p>Reserve your unique handle, add your friends to connect with them easily.</p>
       </div>
 
       <!-- Feature 2 -->
@@ -85,7 +80,7 @@
           </svg>
         </div>
         <h3>Share Schedules</h3>
-        <p>Share your class schedule and see when friends have free time to hang out.</p>
+        <p>Share your class schedule and compare availability with friends.</p>
       </div>
 
       <!-- Feature 3 -->
@@ -195,6 +190,9 @@
   height: 1.2em;
   vertical-align: top;
   overflow: hidden;
+  text-align: left;
+  /* Ensure container has minimum width */
+  min-width: 6.5em;
 }
 
 .animated-text {
@@ -202,18 +200,13 @@
   left: 0;
   top: 0;
   width: 100%;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
   font-weight: 700;
+  /* Use solid color instead of gradient for reliability */
+  color: var(--accent-primary);
+  /* Remove CSS animation - let JavaScript handle this */
   opacity: 0;
   transform: translateY(100%);
-  animation: textSlideAnimation 4s ease-in-out infinite;
-}
-
-.animated-text:nth-child(2) {
-  animation-delay: 2s;
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Hero Description */
@@ -272,16 +265,6 @@
 
 .cta-button:hover::before {
   left: 100%;
-}
-
-.cta-icon {
-  display: flex;
-  align-items: center;
-  transition: transform 0.3s ease;
-}
-
-.cta-button:hover .cta-icon {
-  transform: translateX(4px);
 }
 
 /* Floating Background Elements */
@@ -438,21 +421,6 @@
 }
 
 /* ===== ANIMATIONS ===== */
-@keyframes textSlideAnimation {
-  0%, 40% {
-    opacity: 0;
-    transform: translateY(100%);
-  }
-  50%, 90% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-100%);
-  }
-}
-
 @keyframes brandIconFloat {
   0%, 100% {
     transform: translateY(0);
@@ -574,6 +542,18 @@ body.page-landing {
   .element-4 {
     display: none;
   }
+
+  .animated-text-container {
+    position: relative;
+    display: inline-block;
+    height: 1.2em;
+    vertical-align: top;
+    overflow: hidden;
+    text-align: center;
+    /* Ensure container has minimum width */
+    min-width: 6.5em;
+}
+
 }
 
 /* Tablet Styles (481px - 768px) */

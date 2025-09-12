@@ -12,6 +12,7 @@
  */
 
 import { friendsManager } from "../services/friends/FriendsService.js";
+import { escapeHTML } from "../utils/security/sanitize.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { showModal } from "../components/modals/Modal.js";
 import {
@@ -791,21 +792,21 @@ class FriendsUI {
           ${this.renderAvatar(student)}
         </div>
         <div class="student-info">
-          <h4 class="student-name">${
+          <h4 class="student-name">${escapeHTML(
             student.profile?.handle ||
-            student.profile?.handle_lower ||
-            "Unknown"
-          }</h4>
-          <p class="student-major">${
+              student.profile?.handle_lower ||
+              "Unknown"
+          )}</h4>
+          <p class="student-major">${escapeHTML(
             student.profile?.major ||
-            student.profile?.major_lower ||
-            "Unknown Major"
-          }</p>
-          <p class="student-university">${
+              student.profile?.major_lower ||
+              "Unknown Major"
+          )}</p>
+          <p class="student-university">${escapeHTML(
             student.universityInfo?.universityName ||
-            student.universityInfo?.university ||
-            "Unknown University"
-          }</p>
+              student.universityInfo?.university ||
+              "Unknown University"
+          )}</p>
         </div>
         <div class="student-actions">
           ${this.renderFriendRequestButton(student)}
@@ -1006,8 +1007,8 @@ class FriendsUI {
           ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
         </div>
         <div class="friend-info">
-          <h4 class="friend-name">${friend.handle || "unknown"}</h4>
-          <p class="friend-major">${friend.major}</p>
+          <h4 class="friend-name">${escapeHTML(friend.handle || "unknown")}</h4>
+          <p class="friend-major">${escapeHTML(friend.major)}</p>
           ${
             friend.mutualFriends > 0
               ? `
@@ -1100,7 +1101,7 @@ class FriendsUI {
 
     console.log("📬 Displaying friend requests:", requests);
 
-    const requestsHTML = requests
+  const requestsHTML = requests
       .map(
         (request) => `
       <div class="friend-request-card" data-request-id="${request.id}">
@@ -1108,9 +1109,9 @@ class FriendsUI {
           ${this.renderAvatar(request)}
         </div>
         <div class="request-info">
-          <h4 class="request-name">@${request.handle || "unknown"}</h4>
-          <p class="request-major">${request.major}</p>
-          <p class="request-university">${request.university}</p>
+      <h4 class="request-name">@${escapeHTML(request.handle || "unknown")}</h4>
+      <p class="request-major">${escapeHTML(request.major)}</p>
+      <p class="request-university">${escapeHTML(request.university)}</p>
           <p class="request-time">
             <i class="fas fa-clock"></i>
             ${this.formatTimeAgo(request.createdAt)}
@@ -1119,13 +1120,13 @@ class FriendsUI {
         <div class="request-actions">
           <button class="btn-accept-request" data-request-id="${
             request.id
-          }" data-request-name="${request.handle}">
+      }" data-request-name="${escapeHTML(request.handle)}">
             <i class="fas fa-check"></i>
             Accept
           </button>
           <button class="btn-reject-request" data-request-id="${
             request.id
-          }" data-request-name="${request.handle}">
+      }" data-request-name="${escapeHTML(request.handle)}">
             <i class="fas fa-times"></i>
             Decline
           </button>
@@ -1618,7 +1619,7 @@ class FriendsUI {
     // Show unfriend confirmation modal
     showModal({
       title: "Unfriend Confirmation",
-      content: `Are you sure you want to unfriend <strong>@${friend.handle}</strong>?<br><br>This action cannot be undone.`,
+      content: `Are you sure you want to unfriend <strong>@${escapeHTML(friend.handle)}</strong>?<br><br>This action cannot be undone.`,
       isHtmlContent: true,
       showConfirmationButtons: true,
       confirmText: "Unfriend",

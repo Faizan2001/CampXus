@@ -170,8 +170,13 @@ async function initializeSPA() {
     console.warn("Profile hydration failed (non-fatal)", e);
   }
 
-  // 🎯 FIXED: Manually trigger the initial page load after hydration attempt
-  spaRouter.loadInitialPage();
+  // 🎯 Use smart initial load to avoid flashing landing on refresh
+  try {
+    await spaRouter.loadInitialPageSmart(authManager?.authReady, 1500);
+  } catch (e) {
+    // Fallback to legacy initial load if anything goes wrong
+    spaRouter.loadInitialPage();
+  }
 
   // 🔐 Continue waiting for auth in the background (non-blocking for UI)
   if (authManager?.authReady) {

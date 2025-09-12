@@ -35,11 +35,10 @@ class SPARouter {
       landing: {
         title: "MeetchuThere - Connect with Campus Friends",
         template: "/templates/landing.html",
-        cssFiles: [
-          "/src/css/styles.css",
-        ],
+        cssFiles: ["/src/css/styles.css"],
         jsImporters: [() => import("/src/js/pages/LandingPage.js")],
-        description: "Connect with your university friends and know when they're on campus",
+        description:
+          "Connect with your university friends and know when they're on campus",
       },
       home: {
         title: "Schedule - MeetchuThere",
@@ -97,12 +96,14 @@ class SPARouter {
     // Navigation concurrency & cancellation
     this._navId = 0;
     this._abortController = null;
-  // Auth/navigation noise control
-  this._authRedirectTimer = null;
-  this._lastAuthSnapshot = { isLoggedIn: null, route: null, ts: 0 };
-  this._pendingRoute = null;
-  this._lastNavigation = { route: null, ts: 0 };
-  this._navVisibility = { hidden: null };
+    // Auth/navigation noise control
+    this._authRedirectTimer = null;
+    this._lastAuthSnapshot = { isLoggedIn: null, route: null, ts: 0 };
+    this._pendingRoute = null;
+    this._lastNavigation = { route: null, ts: 0 };
+    this._navVisibility = { hidden: null };
+  // During first page load we may suppress auth-driven redirects
+  this._suppressAuthRedirects = false;
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -424,6 +425,33 @@ class SPARouter {
       }
 
       // Navigating via browser
+      // Harden: if target requires auth and Firebase auth state isn't ready yet, gate with loader
+      const requiresAuth = this.routes[route]?.requiresAuth === true;
+      const hasFirebaseUser = !!(authManager?.auth?.currentUser);
+      if (requiresAuth && !hasFirebaseUser) {
+        // Defer handling to smart loader flow to avoid content flash
+        this._suppressAuthRedirects = true;
+        this.showLoading();
+        Promise.resolve()
+          .then(async () => {
+            if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+              await Promise.race([
+                authManager.authReady.catch(() => {}),
+                new Promise((r) => setTimeout(r, 1500)),
+              ]);
+            } else {
+              await new Promise((r) => setTimeout(r, 250));
+            }
+            const authed = !!(authManager?.auth?.currentUser);
+            await this.loadPage(authed ? route : "landing", false);
+          })
+          .finally(() => {
+            this._suppressAuthRedirects = false;
+            this.hideLoading();
+          });
+        return;
+      }
+
       this.loadPage(route, false); // Don't update history again
     });
 
@@ -435,8 +463,32 @@ class SPARouter {
 
       // Only navigate if it's different from current page
       if (route !== this.currentPage) {
-        // Hash navigation
-        this.loadPage(route, false);
+        // Hash navigation with auth hardening
+        const requiresAuth = this.routes[route]?.requiresAuth === true;
+        const hasFirebaseUser = !!(authManager?.auth?.currentUser);
+        if (requiresAuth && !hasFirebaseUser) {
+          this._suppressAuthRedirects = true;
+          this.showLoading();
+          Promise.resolve()
+            .then(async () => {
+              if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+                await Promise.race([
+                  authManager.authReady.catch(() => {}),
+                  new Promise((r) => setTimeout(r, 1500)),
+                ]);
+              } else {
+                await new Promise((r) => setTimeout(r, 250));
+              }
+              const authed = !!(authManager?.auth?.currentUser);
+              await this.loadPage(authed ? route : "landing", false);
+            })
+            .finally(() => {
+              this._suppressAuthRedirects = false;
+              this.hideLoading();
+            });
+        } else {
+          this.loadPage(route, false);
+        }
       }
     });
   }
@@ -450,12 +502,18 @@ class SPARouter {
     currentUser.subscribe((state) => {
       const isLoggedIn = state.isLoggedIn;
       const currentRoute = this.currentPage;
-      
-      console.log(`🔐 Router: Auth state changed - isLoggedIn: ${isLoggedIn}, currentRoute: ${currentRoute}`);
+
+      console.log(
+        `🔐 Router: Auth state changed - isLoggedIn: ${isLoggedIn}, currentRoute: ${currentRoute}`
+      );
 
       // Coalesce rapid successive auth updates (profile/user set) into a single redirect decision
       if (this._authRedirectTimer) clearTimeout(this._authRedirectTimer);
       this._authRedirectTimer = setTimeout(() => {
+        // Optionally suppress redirects during initial smart load
+        if (this._suppressAuthRedirects) {
+          return;
+        }
         // Skip if nothing effectively changed very recently
         const now = Date.now();
         if (
@@ -481,7 +539,9 @@ class SPARouter {
       if (isLoggedIn) {
         // User just logged in
         if (currentRoute === "landing") {
-          console.log("🏠 User logged in from landing page, redirecting to home");
+          console.log(
+            "🏠 User logged in from landing page, redirecting to home"
+          );
           this.navigateTo("home");
         } else {
           // Update navigation visibility without redirecting
@@ -492,12 +552,17 @@ class SPARouter {
         const routeConfig = this.routes[currentRoute];
         if (routeConfig?.requiresAuth) {
           // Check if this was an intentional logout for better UX
-          const wasIntentionalLogout = sessionStorage.getItem("intentionalLogout") === "true";
+          const wasIntentionalLogout =
+            sessionStorage.getItem("intentionalLogout") === "true";
           if (wasIntentionalLogout) {
             sessionStorage.removeItem("intentionalLogout");
-            console.log(`👋 User intentionally logged out from ${currentRoute}, redirecting to landing`);
+            console.log(
+              `👋 User intentionally logged out from ${currentRoute}, redirecting to landing`
+            );
           } else {
-            console.log(`🔒 User logged out from protected route (${currentRoute}), redirecting to landing`);
+            console.log(
+              `🔒 User logged out from protected route (${currentRoute}), redirecting to landing`
+            );
           }
           this.navigateTo("landing");
         } else {
@@ -517,17 +582,16 @@ class SPARouter {
   loadInitialPage() {
     // loadInitialPage called
 
-    // Parse the current URL to determine which page to load
+  // Parse the current URL to determine which page to load
     const hash = window.location.hash.slice(1); // Remove the # symbol
     let route = hash && this.routes[hash] ? hash : "home";
 
     // 🛡️ Authentication-aware routing: Check if user is logged in
     const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
-    
+
     if (!isAuthenticated) {
-      // If not authenticated, always go to landing page
+      // Default conservative behavior (kept for legacy direct calls): go to landing
       route = "landing";
-      // Clear any auth-required hash from URL
       if (hash && this.routes[hash]?.requiresAuth) {
         window.history.replaceState(null, "", "#landing");
       }
@@ -544,6 +608,104 @@ class SPARouter {
     // Load the determined route without updating history (since we're loading from URL)
     // Navigating for initial load
     this.navigateTo(route, false);
+  }
+
+  /**
+   * Smart initial load that avoids flashing the landing page on refresh.
+   * If the requested route requires auth and auth isn’t resolved yet,
+   * show the SPA loader and wait briefly for auth before deciding.
+   * @param {Promise<void>} authReadyPromise - Promise that resolves when auth state is known
+   * @param {number} timeoutMs - Max time to wait for auth before falling back
+   */
+  async loadInitialPageSmart(authReadyPromise, timeoutMs = 1500) {
+    // Determine desired route from hash (or default to home)
+    const hash = window.location.hash.slice(1);
+    const desiredRoute = hash && this.routes[hash] ? hash : "home";
+    const desiredConfig = this.routes[desiredRoute];
+
+  // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
+  const firebaseUser = authManager?.auth?.currentUser;
+  const alreadyAuthed = !!firebaseUser;
+    if (desiredRoute === "landing") {
+      // If we already know user is authenticated, go straight to home
+      if (alreadyAuthed) {
+        return this.navigateTo("home", false);
+      }
+
+      // Otherwise, wait briefly for auth to resolve before deciding, showing the loader meanwhile
+      this._suppressAuthRedirects = true;
+      this.showLoading();
+      try {
+        if (authReadyPromise && typeof authReadyPromise.then === "function") {
+          await Promise.race([
+            authReadyPromise.catch(() => {}),
+            new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+          ]);
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+
+        const isAuthedNow = !!(authManager?.auth?.currentUser);
+        const target = isAuthedNow ? "home" : "landing";
+        await this.navigateTo(target, true);
+      } finally {
+        this._suppressAuthRedirects = false;
+        this.hideLoading();
+      }
+      return;
+    }
+
+    // If route doesn’t require auth or user already known/logged in, proceed immediately
+    if (!desiredConfig?.requiresAuth || !!(authManager?.auth?.currentUser)) {
+      return this.navigateTo(desiredRoute, false);
+    }
+
+    // Route requires auth but Firebase auth user is not yet known — avoid flashing landing and wait briefly
+    this._suppressAuthRedirects = true;
+    this.showLoading();
+    try {
+      if (authReadyPromise && typeof authReadyPromise.then === "function") {
+        await Promise.race([
+          authReadyPromise.catch(() => {}),
+          new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+        ]);
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      const isAuthedNow = !!(authManager?.auth?.currentUser);
+      const target = isAuthedNow ? desiredRoute : "landing";
+      await this.navigateTo(target, true);
+    } finally {
+      this._suppressAuthRedirects = false;
+      this.hideLoading();
+    }
+    return;
+
+    // Route requires auth but user not known yet — avoid flashing landing
+    // Show loader and temporarily suppress auth-driven redirects
+    this._suppressAuthRedirects = true;
+    this.showLoading();
+
+    try {
+      // Wait for authReady or timeout
+      if (authReadyPromise && typeof authReadyPromise.then === "function") {
+        await Promise.race([
+          authReadyPromise.catch(() => {}),
+          new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+        ]);
+      } else {
+        // No auth promise provided; still wait a tiny moment to allow onAuthStateChanged to fire
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      const isAuthedNow = currentUser.isLoggedIn() && currentUser.user;
+      const target = isAuthedNow ? desiredRoute : "landing";
+      await this.navigateTo(target, true);
+    } finally {
+      this._suppressAuthRedirects = false;
+      this.hideLoading();
+    }
   }
 
   /**
@@ -564,7 +726,8 @@ class SPARouter {
     const now = Date.now();
     if (
       (this._pendingRoute && this._pendingRoute === route) ||
-      (this._lastNavigation.route === route && now - this._lastNavigation.ts < 300)
+      (this._lastNavigation.route === route &&
+        now - this._lastNavigation.ts < 300)
     ) {
       console.log("⏭️ Duplicate navigation to same route ignored");
       return;
@@ -575,26 +738,21 @@ class SPARouter {
     // 🛡️ Authentication Check with proper ES6 imports!
     const routeConfig = this.routes[route];
     if (routeConfig.requiresAuth) {
-      // 🎯 FIXED: Use imported authManager and currentUser instead of window globals
-      const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
+      // Use Firebase auth currentUser as the source of truth (avoid optimistic store hydration)
+      const isAuthenticated = !!(authManager?.auth?.currentUser);
 
       if (!isAuthenticated) {
         console.warn(
           `🔒 Access denied to route: ${route}. Redirecting to landing page.`
         );
         console.log("🔍 Debug auth state:", {
-          hasUser: !!currentUser.user,
-          isLoggedIn: currentUser.isLoggedIn(),
-          userUID: currentUser.user?.uid,
+          hasFirebaseUser: !!(authManager?.auth?.currentUser),
+          hasUserStore: !!currentUser.user,
+          isLoggedInStore: currentUser.isLoggedIn(),
+          userUIDStore: currentUser.user?.uid,
         });
 
-        // Show notification and redirect to landing page
-        dataManager.showNotification(
-          "Please sign in to access this page.",
-          "info"
-        );
-        
-        // Redirect to landing page
+  // Redirect to landing page (suppress extra toasts)
         this.navigateTo("landing", updateHistory);
         return;
       }
@@ -602,7 +760,9 @@ class SPARouter {
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
     if (route === "landing" && currentUser.isLoggedIn() && currentUser.user) {
-      console.log("🏠 Authenticated user accessing landing, redirecting to home");
+      console.log(
+        "🏠 Authenticated user accessing landing, redirecting to home"
+      );
       this.navigateTo("home", updateHistory);
       return;
     }
@@ -655,7 +815,7 @@ class SPARouter {
       // 🎯 LEARNING: The finally block ensures the loading indicator is always hidden,
       // even if an error occurs during page load.
       this.hideLoading();
-  this._pendingRoute = null;
+      this._pendingRoute = null;
     }
   }
 
@@ -708,8 +868,8 @@ class SPARouter {
           "⏭️ Navigation superseded, abandoning DOM updates for",
           route
         );
-  // Clear pending flag if this navigation got superseded
-  if (this._pendingRoute === route) this._pendingRoute = null;
+        // Clear pending flag if this navigation got superseded
+        if (this._pendingRoute === route) this._pendingRoute = null;
         return;
       }
 
@@ -799,7 +959,7 @@ class SPARouter {
     } catch (error) {
       if (error?.name === "AbortError") {
         console.log("🛑 Navigation aborted (newer route started)");
-  if (this._pendingRoute === route) this._pendingRoute = null;
+        if (this._pendingRoute === route) this._pendingRoute = null;
         return;
       }
       console.error(`❌ Error loading page ${route}:`, error);
@@ -1017,7 +1177,7 @@ class SPARouter {
     const navLinks = document.querySelector(".nav-links");
     const mobileBottomNav = document.querySelector(".mobile-bottom-nav");
     const isLoggedIn = currentUser.isLoggedIn() && currentUser.user;
-    
+
     // Hide navigation elements if user is on landing page and not logged in
     if (route === "landing" && !isLoggedIn) {
       if (navLinks) {

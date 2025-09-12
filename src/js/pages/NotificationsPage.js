@@ -18,6 +18,7 @@ import { dataManager } from "../services/data/DataService.js";
 import { friendsManager } from "../services/friends/FriendsService.js";
 import { currentUser } from "../store/userStore.js";
 import { avatarManager } from "../utils/avatar/avatarManager.js";
+import { escapeHTML } from "../utils/security/sanitize.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { getAvatarFallback } from "../utils/avatar/avatarUtils.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
@@ -367,14 +368,13 @@ export class NotificationsPage {
             <img src="${avatarManager.generateAvatarUrl(
               notification.fromUserInfo.avatarConfig
             )}" 
-                 alt="@${notification.fromUserInfo.handle || 'unknown'}"
+                 alt="@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
           <div class="notification-text-content">
             <div class="notification-text">
-              <strong>${
-                '@' + (notification.fromUserInfo.handle || 'unknown')
-              }</strong><span class="action-verb"> wants to share location</span>
+              <strong>@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}
+              </strong><span class="action-verb"> wants to share location</span>
             </div>
             <div class="notification-time">${this.formatTime(
               notification.createdAt
@@ -417,7 +417,7 @@ export class NotificationsPage {
             <img src="${avatarManager.generateAvatarUrl(
               notification.fromUserInfo.avatarConfig
             )}" 
-                 alt="@${notification.fromUserInfo.handle || 'unknown'}"
+                 alt="@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
           <div class="notification-text-content">
@@ -458,19 +458,19 @@ export class NotificationsPage {
       notification.id
     }">
         <div class="notification-avatar">
-          <img src="${avatarManager.generateAvatarUrl(
+      <img src="${avatarManager.generateAvatarUrl(
             notification.fromUserInfo.avatarConfig
           )}" 
-               alt="@${notification.fromUserInfo.handle || 'unknown'}"
+        alt="@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}"
                onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
         </div>
         
         <div class="notification-content">
           <div class="notification-text">
             <span class="notification-icon type-enabled" aria-hidden="true"><i class="fas fa-signal"></i></span>
-            <strong>${
-              '@' + (notification.fromUserInfo.handle || 'unknown')
-            }</strong><span class="action-verb"> enabled location sharing</span>
+              <strong>@${escapeHTML(
+                notification.fromUserInfo.handle || "unknown"
+              )}</strong><span class="action-verb"> sent you a friend request</span>
           </div>
           <div class="notification-details">
             You can now see each other on the campus map
@@ -498,14 +498,14 @@ export class NotificationsPage {
     const isRead = notification.read || false;
     const readClass = isRead ? "notification-read" : "notification-unread";
 
-    return `
+  return `
       <div class="notification-item generic ${readClass}" data-notification-id="${
       notification.id
     }">
         <div class="notification-content">
           <div class="notification-text">
             <span class="notification-icon type-generic" aria-hidden="true"><i class="fas fa-bell"></i></span>
-            ${notification.message || "Notification"}
+      ${escapeHTML(notification.message || "Notification")}
           </div>
           <div class="notification-time">${this.formatTime(
             notification.createdAt

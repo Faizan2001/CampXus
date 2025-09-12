@@ -20,6 +20,7 @@ class LandingPage {
   constructor() {
     this.joinButton = null;
     this.animationInterval = null;
+  this.boundHandleJoinClick = this.handleJoinClick.bind(this);
     
     logManager.ui.init("LandingPage: Initializing landing page controller");
     
@@ -50,7 +51,7 @@ class LandingPage {
     this.joinButton = document.getElementById("joinButton");
     
     if (this.joinButton) {
-      this.joinButton.addEventListener("click", this.handleJoinClick.bind(this));
+  this.joinButton.addEventListener("click", this.boundHandleJoinClick);
       logManager.ui.init("LandingPage: Join button event listener attached");
     } else {
       logManager.ui.error("LandingPage: Join button not found in DOM");
@@ -66,14 +67,7 @@ class LandingPage {
     try {
       // Add loading state to button
       const originalText = this.joinButton.innerHTML;
-      this.joinButton.innerHTML = `
-        <span class="cta-text">Opening...</span>
-        <span class="cta-icon">
-          <svg class="animate-spin" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-          </svg>
-        </span>
-      `;
+      this.joinButton.innerHTML = `<span class="cta-text">Opening...</span>`;
       this.joinButton.disabled = true;
 
       logManager.ui.click("LandingPage: Join button clicked - opening authentication");
@@ -101,14 +95,7 @@ class LandingPage {
       // Restore button state after a short delay
       setTimeout(() => {
         if (this.joinButton) {
-          this.joinButton.innerHTML = `
-            <span class="cta-text">Join MeetchuThere</span>
-            <span class="cta-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </span>
-          `;
+          this.joinButton.innerHTML = `<span class="cta-text">Join MeetchuThere</span>`;
           this.joinButton.disabled = false;
         }
       }, 1000);
@@ -122,16 +109,76 @@ class LandingPage {
     const animatedText1 = document.getElementById("animatedText1");
     const animatedText2 = document.getElementById("animatedText2");
     
+    logManager.ui.init("🔍 LandingPage: startTextAnimation called");
+    logManager.ui.init(`🔍 LandingPage: animatedText1 found: ${!!animatedText1}`);
+    logManager.ui.init(`🔍 LandingPage: animatedText2 found: ${!!animatedText2}`);
+    
     if (!animatedText1 || !animatedText2) {
       logManager.ui.warn("⚠️ LandingPage: Animated text elements not found");
       return;
     }
 
-    // Set initial states
-    animatedText1.style.opacity = "1";
-    animatedText1.style.transform = "translateY(0)";
+    // Respect reduced motion preferences: show first text only, no animation
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      animatedText1.style.opacity = "1";
+      animatedText1.style.transform = "translateY(0)";
+      animatedText2.style.opacity = "0";
+      animatedText2.style.transform = "translateY(100%)";
+      logManager.ui.init("🎬 LandingPage: Reduced-motion active; static text displayed");
+      return;
+    }
 
-    logManager.ui.init("🎬 LandingPage: Text animation started");
+    // CSS transition is now handled in template, just control the animation
+    logManager.ui.init("🎬 LandingPage: Setting up animation states");
+
+    // Animation helpers for smooth slide-up transitions
+    const slideInFromBottom = (el) => {
+      // Start hidden below, then slide up to visible position
+      el.style.opacity = "1";
+      el.style.transform = "translateY(0)";
+    };
+    const slideOutToTop = (el) => {
+      // Slide up and fade out
+      el.style.opacity = "0";
+      el.style.transform = "translateY(-100%)";
+    };
+    const hideBelow = (el) => {
+      // Position below viewport, ready to slide up
+      el.style.opacity = "0";
+      el.style.transform = "translateY(100%)";
+    };
+
+    // Initial state: first text slides in from bottom, second waits below
+    slideInFromBottom(animatedText1);
+    hideBelow(animatedText2);
+    
+    logManager.ui.init("🎬 LandingPage: Initial slide-up animation set");
+
+    // Create smooth slide-up replacement animation every 2.5s
+    let showingFirst = true;
+    if (this.animationInterval) clearInterval(this.animationInterval);
+    
+    this.animationInterval = setInterval(() => {
+      if (showingFirst) {
+        // Current text slides up and out, new text slides up from bottom
+        slideOutToTop(animatedText1);
+        setTimeout(() => {
+          hideBelow(animatedText1); // Reset position for next cycle
+          slideInFromBottom(animatedText2);
+        }, 200); // Wait for slide-out to start
+      } else {
+        // Same pattern: current out, new in from bottom
+        slideOutToTop(animatedText2);
+        setTimeout(() => {
+          hideBelow(animatedText2); // Reset position for next cycle
+          slideInFromBottom(animatedText1);
+        }, 200);
+      }
+      showingFirst = !showingFirst;
+    }, 2500);
+
+    logManager.ui.init("🎬 LandingPage: Text animation started (JS-driven)");
   }
 
   /**
@@ -207,7 +254,7 @@ class LandingPage {
     
     // Remove event listeners
     if (this.joinButton) {
-      this.joinButton.removeEventListener("click", this.handleJoinClick);
+  this.joinButton.removeEventListener("click", this.boundHandleJoinClick);
     }
 
     logManager.ui.init("🧹 LandingPage: Cleanup completed");

@@ -487,7 +487,6 @@ async function handleSignOut() {
   }
 }
 
-
 /**
  * Handles changes from the currentUser store subscription.
  * This is the new central point for updating the menu's UI based on auth state.
