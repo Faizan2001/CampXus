@@ -51,6 +51,10 @@ class AuthManager {
     this.authStateListeners = [];
     this.isSigningUp = false;
     this.isSigningIn = false;
+  // Expose Firebase Auth instance for external consumers (e.g., Router)
+  // Router checks authManager.auth.currentUser to gate protected routes.
+  // Previously this was undefined, causing false negatives and redirect loops.
+  this.auth = auth;
     // A promise that resolves when the initial auth state is known
     this.authReady = new Promise((resolve) => {
       this.resolveAuthReady = resolve;

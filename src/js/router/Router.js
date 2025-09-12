@@ -739,7 +739,18 @@ class SPARouter {
     const routeConfig = this.routes[route];
     if (routeConfig.requiresAuth) {
       // Use Firebase auth currentUser as the source of truth (avoid optimistic store hydration)
-      const isAuthenticated = !!(authManager?.auth?.currentUser);
+      let isAuthenticated = !!(authManager?.auth?.currentUser);
+
+      // Stabilization: if store says logged in but Firebase isn't ready yet, wait briefly
+      if (!isAuthenticated && currentUser.isLoggedIn() && authManager?.authReady) {
+        try {
+          await Promise.race([
+            authManager.authReady.catch(() => {}),
+            new Promise((r) => setTimeout(r, 1000)),
+          ]);
+        } catch (_) {}
+        isAuthenticated = !!(authManager?.auth?.currentUser);
+      }
 
       if (!isAuthenticated) {
         console.warn(
@@ -759,12 +770,36 @@ class SPARouter {
     }
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
-    if (route === "landing" && currentUser.isLoggedIn() && currentUser.user) {
-      console.log(
-        "🏠 Authenticated user accessing landing, redirecting to home"
-      );
-      this.navigateTo("home", updateHistory);
-      return;
+    if (route === "landing") {
+      const hasFirebaseUser = !!(authManager?.auth?.currentUser);
+      const intentionalLogout =
+        sessionStorage.getItem("intentionalLogout") === "true";
+
+      if (hasFirebaseUser) {
+        console.log(
+          "🏠 Authenticated user accessing landing, redirecting to home"
+        );
+        this.navigateTo("home", updateHistory);
+        return;
+      }
+
+      // Stabilization: if store says logged in but Firebase user isn't ready yet,
+      // wait briefly for authReady before deciding. Do not bounce if it's an intentional logout.
+      if (!intentionalLogout && currentUser.isLoggedIn() && authManager?.authReady) {
+        try {
+          await Promise.race([
+            authManager.authReady.catch(() => {}),
+            new Promise((r) => setTimeout(r, 1000)),
+          ]);
+        } catch (_) {}
+        if (authManager?.auth?.currentUser) {
+          console.log(
+            "🏠 Authenticated user accessing landing (post-wait), redirecting to home"
+          );
+          this.navigateTo("home", updateHistory);
+          return;
+        }
+      }
     }
 
     // Navigating to route
