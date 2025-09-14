@@ -104,6 +104,8 @@ class SPARouter {
     this._navVisibility = { hidden: null };
   // During first page load we may suppress auth-driven redirects
   this._suppressAuthRedirects = false;
+    // Prevent re-entrant profile gate redirects
+    this._profileGateInProgress = false;
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -765,7 +767,19 @@ class SPARouter {
 
   // Redirect to landing page (suppress extra toasts)
         this.navigateTo("landing", updateHistory);
+        if (this._pendingRoute === route) this._pendingRoute = null;
         return;
+      }
+
+      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
+      // If navigating to any protected route other than 'profile', verify setup completion.
+      // This covers first-login flow and direct hash navigation.
+      if (route !== "profile") {
+        const redirected = await this._ensureProfileCompletionGate(updateHistory);
+        if (redirected) {
+          if (this._pendingRoute === route) this._pendingRoute = null;
+          return; // navigation has been redirected to profile setup
+        }
       }
     }
 
@@ -851,6 +865,73 @@ class SPARouter {
       // even if an error occurs during page load.
       this.hideLoading();
       this._pendingRoute = null;
+    }
+  }
+
+  /**
+   * Ensure the authenticated user has completed profile setup before proceeding to protected routes.
+   * Redirects to 'profile' when `systemInfo.profileSetupComplete` is false or missing.
+   * Returns true if a redirect occurred.
+   *
+   * This gate is tolerant to first-login races by first checking the store,
+   * then awaiting hydration briefly, and finally fetching from Firestore.
+   */
+  async _ensureProfileCompletionGate(updateHistory = true) {
+    if (this._profileGateInProgress) return false;
+    const firebaseUser = authManager?.auth?.currentUser;
+    if (!firebaseUser) return false;
+
+    this._profileGateInProgress = true;
+    try {
+      // Fast path: check hydrated store
+      let isComplete = !!(
+        currentUser?.profile?.systemInfo?.profileSetupComplete === true
+      );
+
+      // Wait briefly for hydration if not complete yet
+      if (!isComplete) {
+        try {
+          if (
+            typeof currentUser?.waitForProfileWithTimeout === "function"
+          ) {
+            await currentUser.waitForProfileWithTimeout(1500).catch(() => {});
+          } else {
+            await new Promise((r) => setTimeout(r, 300));
+          }
+        } catch (_) {}
+        isComplete = !!(
+          currentUser?.profile?.systemInfo?.profileSetupComplete === true
+        );
+      }
+
+      // Last resort: fetch from Firestore directly
+      if (!isComplete) {
+        try {
+          const profileDoc = await dataManager.getUserProfile(
+            firebaseUser.uid
+          );
+          if (profileDoc) {
+            isComplete = !!(
+              profileDoc?.systemInfo?.profileSetupComplete === true
+            );
+            // Opportunistically hydrate store for consistency
+            if (!currentUser?.profile) {
+              try {
+                currentUser.setProfile(profileDoc);
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (!isComplete) {
+        // Redirect to profile setup
+        await this.navigateTo("profile", updateHistory);
+        return true;
+      }
+      return false;
+    } finally {
+      this._profileGateInProgress = false;
     }
   }
 
