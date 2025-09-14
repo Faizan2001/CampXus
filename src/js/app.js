@@ -235,6 +235,18 @@ async function initializeSPA() {
   });
 
   logManager.system.init("SPA Initialization completed");
+
+  // Sync browser UI theme color with nav background for seamless header
+  try {
+    syncMetaThemeColorToNav();
+    // Keep it in sync when theme toggles
+    window.addEventListener("themeChanged", () => {
+      syncMetaThemeColorToNav();
+    });
+  } catch (_) {}
+
+  // Register service worker (PWA install + offline shell)
+  tryRegisterServiceWorker();
 }
 
 // Initialize when DOM is ready, or immediately if already ready
@@ -670,3 +682,44 @@ async function fetchFreshLocationForPresence() {
  * 🌍 Learning: Expose services for console debugging and external access
  */
 export { initializeCampusPresenceInBackground, fetchFreshLocationForPresence };
+
+/**
+ * Update the <meta name="theme-color"> to match the top nav background
+ * so browser UI blends seamlessly with the header on mobile/desktop.
+ */
+function syncMetaThemeColorToNav() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  const nav = document.querySelector('.top-nav');
+  if (!nav) return;
+  const cs = getComputedStyle(nav);
+  const bg = cs.backgroundColor || 'rgb(21, 24, 32)';
+  // Convert rgba to opaque rgb for theme-color (browsers ignore alpha)
+  const rgba = bg.match(/rgba?\(([^)]+)\)/i);
+  if (rgba) {
+    const parts = rgba[1].split(',').map((s) => s.trim());
+    const r = parseInt(parts[0], 10) || 21;
+    const g = parseInt(parts[1], 10) || 24;
+    const b = parseInt(parts[2], 10) || 32;
+    const hex = `#${[r, g, b]
+      .map((n) => n.toString(16).padStart(2, '0'))
+      .join('')}`;
+    meta.setAttribute('content', hex);
+  }
+}
+
+/**
+ * Register a minimal service worker to enable installability and basic offline.
+ * Only runs on HTTPS or localhost.
+ */
+function tryRegisterServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  // Only register in production builds (vite sets import.meta.env.PROD)
+  if (!(import.meta.env && import.meta.env.PROD)) return;
+  const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+  if (!isSecure) return;
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then(() => logManager.system.init('Service worker registered'))
+    .catch((e) => console.warn('SW registration failed (non-fatal):', e));
+}
