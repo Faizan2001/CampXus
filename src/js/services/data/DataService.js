@@ -4054,6 +4054,50 @@ class DataManager {
   }
 
   /**
+   * Check if there is an existing pending outgoing location share request
+   * from a sender to a recipient (friend) for a specific friendship.
+   * This prevents duplicate spammy notifications.
+   * @param {string} fromUserId - Sender UID (current user)
+   * @param {string} toUserId - Recipient UID (friend)
+   * @param {string} friendshipId - Friendship document ID
+   * @returns {Promise<boolean>} true if a pending request exists
+   */
+  async hasPendingOutgoingLocationShareRequest(fromUserId, toUserId, friendshipId) {
+    try {
+      if (!fromUserId || !toUserId || !friendshipId) return false;
+
+      const notificationsRef = collection(db, "notifications");
+      // Build a query that current user is allowed to read by rules: fromUserId == auth.uid
+      const q = query(
+        notificationsRef,
+        where("fromUserId", "==", fromUserId),
+        where("type", "==", "location_share_request"),
+        where("status", "==", "pending")
+      );
+
+      const snapshot = await getDocs(q);
+      const now = Date.now();
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        // Ensure it targets the intended friend and friendship
+        if (data.userId !== toUserId) continue;
+        if (data.expiresAt && data.expiresAt.toDate && data.expiresAt.toDate().getTime() < now) {
+          continue; // treat expired as non-pending
+        }
+        const req = data.locationRequest || {};
+        if (req.friendshipId === friendshipId) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.warn("⚠️ [DataManager] hasPendingOutgoingLocationShareRequest failed:", error);
+      // Fail-open to avoid blocking legitimate requests on transient errors
+      return false;
+    }
+  }
+
+  /**
    * 📖 Get all notifications for a specific user
    *
    * Retrieves notifications ordered by creation date (newest first)

@@ -2169,6 +2169,23 @@ export class FriendsManager {
     try {
       console.log("📍 Requesting location sharing with friend:", friendId);
 
+      // 🚧 Prevent duplicate pending requests (spam guard)
+      try {
+        const hasPending = await dataManager.hasPendingOutgoingLocationShareRequest(
+          currentUser.uid,
+          friendId,
+          friendshipId
+        );
+        if (hasPending) {
+          return {
+            success: false,
+            message: "Location request already sent and pending.",
+          };
+        }
+      } catch (_) {
+        // Non-fatal; continue
+      }
+
       // 1. Enable location sharing from current user's side
       const result = await dataManager.updateBilateralLocationSharing(
         friendshipId,

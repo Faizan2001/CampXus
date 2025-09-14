@@ -81,6 +81,11 @@ class FriendsUI {
 
     // Track latest per-friend location visibility (my vs friend) from snapshots
     this.locationVisibilityState = new Map(); // friendId -> { my: boolean, friend: boolean }
+
+    // Track outgoing pending location requests I have sent (from me -> friend)
+    this.outgoingLocationRequestsMap = new Map(); // friendId -> boolean
+    // Track last applied pending-UI state to avoid flicker
+    this._pendingLocationUi = new Map(); // friendId -> boolean
   }
 
   /**
@@ -114,6 +119,9 @@ class FriendsUI {
 
       // 📍 Initialize Campus Presence features
       await this.initializeCampusPresence();
+
+      // 📬 Listen to outgoing location-share requests (pending) to drive UI state
+      await this.setupOutgoingLocationRequestsListener();
 
       console.log(
         "🎨 Friends UI initialized successfully with real-time updates, privacy controls, and campus presence"
@@ -219,6 +227,61 @@ class FriendsUI {
     // Mark listeners as set up to prevent duplicates
     this.listenersSetup = true;
     console.log("🎯 Event listeners set up successfully (optimized)");
+  }
+
+  /**
+   * 📬 Listen for my outgoing pending location-share requests so we remove pending when friend dismisses
+   */
+  async setupOutgoingLocationRequestsListener() {
+    try {
+      const myUid = currentUser?.state?.user?.uid;
+      if (!myUid) return;
+
+      const { collection, query, where, onSnapshot } = await import(
+        "firebase/firestore"
+      );
+
+      const q = query(
+        collection(db, "notifications"),
+        where("fromUserId", "==", myUid),
+        where("type", "==", "location_share_request"),
+        where("status", "==", "pending")
+      );
+
+      if (this._outgoingLocReqUnsub) {
+        try {
+          this._outgoingLocReqUnsub();
+        } catch (_) {}
+      }
+      this._outgoingLocReqUnsub = onSnapshot(
+        q,
+        (snap) => {
+          // Rebuild map from snapshot
+          this.outgoingLocationRequestsMap.clear();
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            const recipientId = data.userId; // friend id
+            if (recipientId) this.outgoingLocationRequestsMap.set(recipientId, true);
+          });
+
+          // Update visible cards without full re-render
+          try {
+            (this.currentFriendsData || []).forEach((friend) => {
+              const vis = this.locationVisibilityState.get(friend.id) || {
+                my: false,
+                friend: false,
+              };
+              const hasPending = this.outgoingLocationRequestsMap.get(friend.id) === true;
+              const shouldShowPending = !!vis.my && !vis.friend && hasPending;
+              this._applyPendingUiIfChanged(friend.id, friend.handle, shouldShowPending);
+            });
+          } catch (_) {}
+        },
+        (err) => console.warn("⚠️ Outgoing location-requests listener error", err)
+      );
+    } catch (e) {
+      console.warn("⚠️ Failed to set up outgoing location-requests listener:", e);
+    }
   }
 
   /**
@@ -1954,51 +2017,60 @@ class FriendsUI {
               true;
           }
 
-          if (!mutualMeta) {
-            // First-time confirmation and request
-            showModal({
-              title: "Send Location Share Request",
-              content: `Send location sharing request to @${friend.handle}? They will be notified. You only need to do this once.`,
-              showConfirmationButtons: true,
-              confirmText: "Send Request",
-              cancelText: "Cancel",
-              onConfirm: async () => {
-                try {
-                  const result = await friendsManager.requestLocationSharing(
-                    friendId,
-                    friendshipId
-                  );
-                  if (result?.success) {
-                    // Optimistic border for my setting
-                    btn.classList.add("mine-visible");
-                    btn.classList.remove("mine-hidden");
-                    notificationManager.showSystemNotification(
-                      `Request sent to @${friend.handle}`,
-                      "success",
-                      { duration: 2500 }
-                    );
-                  } else {
-                    notificationManager.showSystemNotification(
-                      result?.message || "Failed to send request",
-                      "error",
-                      { duration: 3500 }
-                    );
-                  }
-                } catch (reqErr) {
-                  console.error(
-                    "❌ Failed to send location share request:",
-                    reqErr
-                  );
-                  notificationManager.showSystemNotification(
-                    "Failed to send request",
-                    "error",
-                    { duration: 3500 }
-                  );
-                }
-                return true;
-              },
-            });
-          } else {
+      if (!mutualMeta) {
+        // First-time confirmation and request
+        showModal({
+          title: "Send Location Share Request",
+          content: `Send location sharing request to @${friend.handle}? They will be notified. You only need to do this once.`,
+          showConfirmationButtons: true,
+          confirmText: "Send Request",
+          cancelText: "Cancel",
+          onConfirm: async () => {
+            // Instant UI: set to pending immediately, revert on failure
+            const revertUi = () => {
+              this._setLocationRequestPendingUI(friendId, friend.handle, false);
+              btn.classList.remove("mine-visible");
+              btn.classList.add("mine-hidden");
+            };
+            // Apply optimistic UI now
+            this._setLocationRequestPendingUI(friendId, friend.handle, true);
+            btn.classList.add("mine-visible");
+            btn.classList.remove("mine-hidden");
+            try {
+              const result = await friendsManager.requestLocationSharing(
+                friendId,
+                friendshipId
+              );
+              if (result?.success) {
+                notificationManager.showSystemNotification(
+                  `Request sent to @${friend.handle}`,
+                  "success",
+                  { duration: 2500 }
+                );
+              } else {
+                revertUi();
+                notificationManager.showSystemNotification(
+                  result?.message || "Failed to send request",
+                  "error",
+                  { duration: 3500 }
+                );
+              }
+            } catch (reqErr) {
+              console.error(
+                "❌ Failed to send location share request:",
+                reqErr
+              );
+              revertUi();
+              notificationManager.showSystemNotification(
+                "Failed to send request",
+                "error",
+                { duration: 3500 }
+              );
+            }
+            return true;
+          },
+        });
+      } else {
             // Post-handshake: decide based on precise per-user visibility
             let state = this.locationVisibilityState.get(friendId);
             if (!state) {
@@ -2025,14 +2097,25 @@ class FriendsUI {
               return;
             }
 
-            // Otherwise: toggle my location sharing
-            const newEnabled =
-              await friendshipPrivacyService.toggleLocationVisibility(
+            // Otherwise: toggle my location sharing (optimistic UI)
+            const wasEnabled = !!state?.my;
+            const targetEnabled = !wasEnabled;
+            btn.classList.toggle("mine-visible", targetEnabled);
+            btn.classList.toggle("mine-hidden", !targetEnabled);
+
+            let newEnabled = targetEnabled;
+            try {
+              newEnabled = await friendshipPrivacyService.toggleLocationVisibility(
                 userUid,
                 friendId
               );
-            btn.classList.toggle("mine-visible", !!newEnabled);
-            btn.classList.toggle("mine-hidden", !newEnabled);
+            } catch (toggleErr) {
+              // Revert on failure
+              btn.classList.toggle("mine-visible", wasEnabled);
+              btn.classList.toggle("mine-hidden", !wasEnabled);
+              throw toggleErr;
+            }
+
             if (newEnabled) {
               setTimeout(() => {
                 // Check latest mutual state from snapshot cache; avoid false modal if snapshot just landed
@@ -2050,17 +2133,17 @@ class FriendsUI {
                 }
               }, 400);
             }
-          }
-        } catch (err) {
-          console.error("❌ Failed to toggle/request location sharing:", err);
-          notificationManager.showSystemNotification(
-            "Failed to update location sharing",
-            "error",
-            { duration: 3500 }
-          );
-        } finally {
-          btn.classList.remove("loading");
-        }
+      }
+    } catch (err) {
+      console.error("❌ Failed to toggle/request location sharing:", err);
+      notificationManager.showSystemNotification(
+        "Failed to update location sharing",
+        "error",
+        { duration: 3500 }
+      );
+    } finally {
+      btn.classList.remove("loading");
+    }
 
         e.stopPropagation();
         return;
@@ -2220,13 +2303,20 @@ class FriendsUI {
               loc[currentUserUid] === true && loc[friendId] === true;
             const myLoc = loc[currentUserUid] === true;
             const friendLoc = loc[friendId] === true;
-            const locBtn = card.querySelector(".mutual-location-btn");
-            const locIcon = locBtn?.querySelector("i");
-            if (locBtn && locIcon) {
-              locIcon.className = "fas fa-map-marker-alt";
-              locBtn.classList.toggle("restricted", !mutualLoc);
-              locBtn.classList.toggle("mine-visible", !!myLoc);
-              locBtn.classList.toggle("mine-hidden", !myLoc);
+            // Pending UI based on outgoing notifications + visibility
+            const friendObj = this.currentFriendsData.find((f) => f.id === friendId);
+            const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
+            const shouldShowPending = !!myLoc && !friendLoc && hasPending;
+            this._applyPendingUiIfChanged(friendId, friendObj?.handle, shouldShowPending);
+            if (!shouldShowPending) {
+              const locBtn = card.querySelector(".mutual-location-btn");
+              const locIcon = locBtn?.querySelector("i");
+              if (locBtn && locIcon) {
+                locIcon.className = "fas fa-map-marker-alt";
+                locBtn.classList.toggle("restricted", !mutualLoc);
+                locBtn.classList.toggle("mine-visible", !!myLoc);
+                locBtn.classList.toggle("mine-hidden", !myLoc);
+              }
             }
             const handshake =
               data.locationSharingMetadata?.mutualSharingEnabled === true;
@@ -2786,26 +2876,41 @@ class FriendsUI {
         locationVisibility,
       });
 
+      // Update last-known visibility state for this friend
+      this.locationVisibilityState.set(friendId, {
+        my: !!currentUserSharing,
+        friend: !!friendSharing,
+      });
+
+      // Determine pending from outgoing notifications + visibility
+      const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
+      const shouldShowPending = currentUserSharing && !friendSharing && hasPending;
+
       // Update the action button (mutual-location-btn)
       const friendCard = this.elements.friendsList.querySelector(
         `.friend-card[data-friend-id="${friendId}"]`
       );
-      const btn = friendCard?.querySelector(".mutual-location-btn");
-      const icon = btn?.querySelector("i");
-      if (btn && icon) {
-        icon.className = mutualLocationSharing
-          ? "fas fa-map-marker-alt"
-          : "fas fa-map-marker-alt";
-        btn.classList.toggle("restricted", !mutualLocationSharing);
-        btn.classList.toggle("mine-visible", !!currentUserSharing);
-        btn.classList.toggle("mine-hidden", !currentUserSharing);
-        btn.title = mutualLocationSharing
-          ? "Mutual: You and this friend share location"
-          : currentUserSharing && !friendSharing
-          ? "You share location, they don't"
-          : !currentUserSharing && friendSharing
-          ? "They share location, you don't"
-          : "Location sharing disabled";
+
+      // Apply pending UI if needed (idempotent)
+      this._applyPendingUiIfChanged(friendId, friend.handle, shouldShowPending);
+
+      // If not pending, ensure normal button reflects latest classes
+      if (!shouldShowPending && friendCard) {
+        const btn = friendCard.querySelector(".mutual-location-btn");
+        const icon = btn?.querySelector("i");
+        if (btn && icon) {
+          icon.className = "fas fa-map-marker-alt";
+          btn.classList.toggle("restricted", !mutualLocationSharing);
+          btn.classList.toggle("mine-visible", !!currentUserSharing);
+          btn.classList.toggle("mine-hidden", !currentUserSharing);
+          btn.title = mutualLocationSharing
+            ? "Mutual: You and this friend share location"
+            : currentUserSharing && !friendSharing
+            ? "You share location, they don't"
+            : !currentUserSharing && friendSharing
+            ? "They share location, you don't"
+            : "Location sharing disabled";
+        }
       }
 
       console.log(
@@ -2822,6 +2927,79 @@ class FriendsUI {
         "Error checking location status"
       );
     }
+  }
+
+  /**
+   * Replace/restore the mutual-location button with a pending clock button (disabled) while awaiting response
+   */
+  _setLocationRequestPendingUI(friendId, friendHandle, isPending) {
+    const friendCard = this.elements.friendsList?.querySelector(
+      `.friend-card[data-friend-id="${friendId}"]`
+    );
+    if (!friendCard) return;
+    const actions = friendCard.querySelector(".friend-actions");
+    if (!actions) return;
+
+    const existingPending = actions.querySelector(
+      `.btn-pending-request[data-student-id="${friendId}"]`
+    );
+    const locationBtn = actions.querySelector(".mutual-location-btn");
+
+    if (isPending) {
+      // Already pending – nothing to do
+      if (existingPending) return;
+
+      // Create pending clock button and replace the location button
+      const pendingBtn = document.createElement("button");
+      pendingBtn.className = "btn-pending-request";
+      pendingBtn.setAttribute("data-student-id", friendId);
+      pendingBtn.setAttribute(
+        "data-student-name",
+        friendHandle || "friend"
+      );
+      pendingBtn.setAttribute("disabled", "");
+      pendingBtn.setAttribute("title", "Friend request pending");
+      pendingBtn.innerHTML = '<i class="fas fa-clock"></i>';
+
+      if (locationBtn) {
+        actions.replaceChild(pendingBtn, locationBtn);
+      } else {
+        // Insert at first position if location button missing
+        actions.insertBefore(pendingBtn, actions.firstChild);
+      }
+    } else {
+      // Remove pending and ensure location button exists with correct classes (no green flash)
+      if (existingPending) {
+        const newLocBtn = document.createElement("button");
+        newLocBtn.className = "mutual-location-btn";
+        newLocBtn.setAttribute("data-friend-id", friendId);
+        newLocBtn.setAttribute("aria-label", "Mutual location status");
+        newLocBtn.setAttribute("title", "Mutual location status");
+        newLocBtn.innerHTML = '<i class="fas fa-map-marker-alt"></i>';
+
+        // Apply state-aware classes immediately
+        const vis = this.locationVisibilityState.get(friendId) || {
+          my: false,
+          friend: false,
+        };
+        const mutual = vis.my === true && vis.friend === true;
+        if (!mutual) newLocBtn.classList.add("restricted");
+        if (vis.my) newLocBtn.classList.add("mine-visible");
+        if (!vis.my) newLocBtn.classList.add("mine-hidden");
+
+        actions.replaceChild(newLocBtn, existingPending);
+      }
+    }
+  }
+
+  /**
+   * Idempotent wrapper to apply pending UI only when state changes (prevents flicker)
+   */
+  _applyPendingUiIfChanged(friendId, friendHandle, shouldShowPending) {
+    const prev = this._pendingLocationUi.get(friendId) === true;
+    if (prev === !!shouldShowPending) return; // no change → no DOM churn
+    this._pendingLocationUi.set(friendId, !!shouldShowPending);
+    this._setLocationRequestPendingUI(friendId, friendHandle, !!shouldShowPending);
   }
 
   /**
@@ -3065,6 +3243,13 @@ class FriendsUI {
       }
       if (this.outgoingRequestsMap) {
         this.outgoingRequestsMap.clear();
+      }
+      // Clean up outgoing location-requests listener
+      if (this._outgoingLocReqUnsub) {
+        try {
+          this._outgoingLocReqUnsub();
+        } catch (_) {}
+        this._outgoingLocReqUnsub = null;
       }
 
       // Clear friend data arrays

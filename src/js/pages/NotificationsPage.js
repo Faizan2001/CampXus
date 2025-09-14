@@ -631,18 +631,26 @@ export class NotificationsPage {
   async acceptLocationSharing(friendshipId, notificationId) {
     try {
       console.log("📍 Processing location sharing acceptance...");
-
-      // 1. FIRST: Enable global location sharing for current user
-      console.log("🔧 Enabling global location sharing for current user...");
-      const globalResult = await dataManager.updateLocationSharingPreference(
-        currentUser.uid,
-        true
-      );
-      if (!globalResult.success) {
-        throw new Error("Failed to enable global location sharing");
+      // ⚡ Immediate UI: optimistically remove notification before background work
+      if (notificationId) {
+        const el = document.querySelector(
+          `[data-notification-id="${notificationId}"]`
+        );
+        if (el) el.classList.add("notification-accept");
+        // Fire-and-forget removal so UI feels instant
+        setTimeout(() => this.dismissNotification(notificationId), 200);
       }
 
-      // 2. Enable bilateral location sharing in friendship document
+      // Run background operations in sequence; UI already updated
+      // 1) Enable global sharing
+      try {
+        console.log("🔧 Enabling global location sharing for current user...");
+        await dataManager.updateLocationSharingPreference(currentUser.uid, true);
+      } catch (e) {
+        console.warn("⚠️ Failed to enable global sharing (continuing)", e);
+      }
+
+      // 2) Enable bilateral location sharing in friendship document
       const result = await dataManager.updateBilateralLocationSharing(
         friendshipId,
         currentUser.uid,
@@ -664,23 +672,18 @@ export class NotificationsPage {
             metaErr
           );
         }
-        // 3. Request location permission and start tracking
-        if (campusLocationService.getPermissionStatus() !== "granted") {
-          console.log("📍 Requesting location permission...");
-          try {
+        // 3) Request permission and start tracking (background friendly)
+        try {
+          if (campusLocationService.getPermissionStatus() !== "granted") {
+            console.log("📍 Requesting location permission...");
             await campusLocationService.requestLocationPermission();
-          } catch (permError) {
-            console.warn(
-              "⚠️ Location permission denied, but continuing with location sharing enabled"
-            );
-            // Continue even if permission denied - user can still enable sharing
           }
+          await this.startLocationTracking();
+        } catch (permErr) {
+          console.warn("⚠️ Tracking start failed (non-critical)", permErr);
         }
 
-        // 4. Start location tracking if permission granted
-        await this.startLocationTracking();
-
-        // 5. Update user's location status immediately with current detection
+        // 4) Update user's location status (best-effort)
         console.log("🏫 Attempting initial campus detection...");
         try {
           const campusDetectionResult =
@@ -703,23 +706,11 @@ export class NotificationsPage {
             "unknown"
           );
         }
-
-        // 6. Dismiss the notification after successful acceptance
-        if (notificationId) {
-          const el = document.querySelector(
-            `[data-notification-id="${notificationId}"]`
-          );
-          if (el) el.classList.add("notification-accept");
-          setTimeout(() => this.dismissNotification(notificationId), 380);
-        }
-
         notificationManager.showSuccessNotification(
           "Location sharing enabled!"
         );
 
-        // 7. Refresh notifications to update UI
-        await this.loadNotifications();
-        this.render();
+        // No full reload needed; UI already updated
 
         console.log("✅ Location sharing accepted successfully");
       } else {
