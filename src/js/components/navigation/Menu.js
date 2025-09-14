@@ -33,8 +33,10 @@ let cachedAvatarHtml = null;
 // Predeclare module-scoped vars used by notifications indicator before any init runs
 let notificationsUnsub = null;
 let friendReqUnsub = null;
-let lastHasNotif = false;
 let activeNotifUid = null; // Prevent re-initializing listeners on unrelated user state updates
+// Unified indicator state (avoid reading DOM which caused stale badges)
+let _notifDocsHasAlert = false; // any unseen notifications of target types
+let _pendingFriendHasAlert = false; // any pending friend requests
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
@@ -1288,15 +1290,13 @@ function setupNotificationsIndicatorListener(userId) {
       userId,
       (notifications) => {
         // Show dot if there are any unseen friend/location requests
-        const hasAlertFromNotifications = notifications.some((n) => {
+        _notifDocsHasAlert = notifications.some((n) => {
           const isUnseen = !n.readAt && !n.dismissedAt;
           const isTargetType =
             n.type === "friend_request" || n.type === "location_share_request";
           return isUnseen && isTargetType;
         });
-        // Combine with pending friend requests from separate collection
-        const combinedHasAlert = hasAlertFromNotifications || lastHasNotif;
-        toggleNotificationsDot(combinedHasAlert);
+        recomputeNotificationsDot();
       }
     );
 
@@ -1304,16 +1304,9 @@ function setupNotificationsIndicatorListener(userId) {
     friendReqUnsub = dataManager.listenToPendingFriendRequests(
       userId,
       (requests) => {
-        lastHasNotif = Array.isArray(requests) && requests.length > 0;
-        // Combine with notification doc check
-        // We don't have direct access to latest notifications here, so rely on lastHasNotif flag + dot recompute
-        // Trigger recompute by reading current dot state from DOM and toggling accordingly
-        const link = document.querySelector(
-          '.nav-link[data-spa-route="notifications"]'
-        );
-        const current = link?.classList.contains("has-alert") || false;
-        const desired = current || lastHasNotif;
-        toggleNotificationsDot(desired);
+        _pendingFriendHasAlert =
+          Array.isArray(requests) && requests.length > 0;
+        recomputeNotificationsDot();
       }
     );
   } catch (e) {
@@ -1343,4 +1336,17 @@ function toggleNotificationsDot(show) {
   if (link) {
     link.classList.toggle("has-alert", !!show);
   }
+  // Update mobile badge (same behavior and style on both form-factors)
+  const mobileBadge = document.querySelector(
+    '.mobile-bottom-nav .mobile-nav-item[data-spa-route="notifications"] .mobile-nav-badge'
+  );
+  if (mobileBadge) {
+    mobileBadge.style.display = show ? "block" : "none";
+    // For dot style, we don't show numbers; clear any text if present
+    if (!show) mobileBadge.textContent = "";
+  }
+}
+
+function recomputeNotificationsDot() {
+  toggleNotificationsDot(_notifDocsHasAlert || _pendingFriendHasAlert);
 }
