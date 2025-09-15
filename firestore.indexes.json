@@ -4,72 +4,9 @@
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "universityInfo.university",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "socialInfo.searchable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "profile.firstName_lower",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "universityInfo.university",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "socialInfo.searchable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "profile.lastName_lower",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "universityInfo.university",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "socialInfo.searchable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "profile.major_lower",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "universityInfo.university",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "socialInfo.searchable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "email",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "universityInfo.university", "order": "ASCENDING" },
+        { "fieldPath": "socialInfo.searchable", "order": "ASCENDING" },
+        { "fieldPath": "universityInfo.studentId", "order": "ASCENDING" }
       ]
     },
     {

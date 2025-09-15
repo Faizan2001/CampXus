@@ -727,16 +727,16 @@ class FriendsUI {
     }
 
     // Debounce search to avoid too many requests
-    // Strict input gate: only trigger when input is
-    // - a valid handle (with or without @), or
-    // - a numeric student ID with 6+ digits.
-    // This keeps results exact and prevents fuzzy suggestions.
+    // Trigger when input is:
+    // - a handle prefix (3+ chars, optional @), or
+    // - a numeric student ID with 6+ digits (exact lookup)
     this.searchTimeout = setTimeout(() => {
       const isHandleCandidate = (() => {
         const t = searchTerm.startsWith("@")
           ? searchTerm.slice(1).toLowerCase()
           : searchTerm.toLowerCase();
-        return /^[a-z][a-z0-9_]{2,19}$/.test(t) && !t.endsWith("_");
+        // Allow prefix: start with a letter, then letters/digits/underscore, length >= 3
+        return /^[a-z][a-z0-9_]{2,}$/.test(t);
       })();
       const isIdCandidate = /^\d{6,}$/.test(searchTerm);
 
@@ -750,7 +750,7 @@ class FriendsUI {
       } else {
         console.log("🔍 Input not a handle or 6+ digit ID yet");
       }
-    }, 300); // Wait 300ms after user stops typing
+    }, 250); // Wait 250ms after user stops typing
   }
 
   /**
@@ -764,7 +764,7 @@ class FriendsUI {
       const t = searchTerm.startsWith("@")
         ? searchTerm.slice(1).toLowerCase()
         : searchTerm.toLowerCase();
-      return /^[a-z][a-z0-9_]{2,19}$/.test(t) && !t.endsWith("_");
+      return /^[a-z][a-z0-9_]{2,}$/.test(t);
     })();
     const isIdCandidate = !!searchTerm && /^\d{6,}$/.test(searchTerm);
 
@@ -784,14 +784,21 @@ class FriendsUI {
    */
   async performSearch(searchTerm) {
     try {
+      // Track request sequence to avoid race conditions
+      this._searchSeq = (this._searchSeq || 0) + 1;
+      const seq = this._searchSeq;
       // Show search loading state
       this.showSearchLoading();
 
       // Search using friends manager
       const results = await friendsManager.searchStudentsWithCache(searchTerm);
 
-      // Display results
-      this.displaySearchResults(results);
+      // Display results only if this is the latest request
+      if (seq === this._searchSeq) {
+        this.displaySearchResults(results);
+      } else {
+        console.log("⏭️ Discarding stale search results");
+      }
     } catch (error) {
       console.error("❌ Search error:", error);
       this.showMessage(
@@ -902,25 +909,31 @@ class FriendsUI {
     // Add smooth dropdown animation
     resultsContainer.classList.add("show");
 
-    // Use event delegation - single listener on container, no memory leaks
-    resultsContainer.addEventListener("click", (e) => {
-      if (e.target.closest(".btn-send-request")) {
-        const button = e.target.closest(".btn-send-request");
-        const studentId = button.dataset.studentId;
-
-        // Prevent multiple clicks while processing
-        if (button.disabled) return;
-
-        this.handleSendFriendRequest(
-          studentId,
-          results.find((s) => s.id === studentId)
-        );
-      }
-
-      if (e.target.closest(".btn-clear-search")) {
-        this.clearSearchResults();
-      }
-    });
+    // Use event delegation - single listener on container, prevent duplicates
+    if (!this.boundHandlers) this.boundHandlers = {};
+    if (!this.boundHandlers.searchResultsClick) {
+      this.boundHandlers.searchResultsClick = (e) => {
+        if (e.target.closest(".btn-send-request")) {
+          const button = e.target.closest(".btn-send-request");
+          const studentId = button.dataset.studentId;
+          if (button.disabled) return;
+          this.handleSendFriendRequest(
+            studentId,
+            (results || []).find((s) => s.id === studentId)
+          );
+        }
+        if (e.target.closest(".btn-clear-search")) {
+          this.clearSearchResults();
+        }
+      };
+    }
+    if (!this._searchResultsListenerAttached) {
+      resultsContainer.addEventListener(
+        "click",
+        this.boundHandlers.searchResultsClick
+      );
+      this._searchResultsListenerAttached = true;
+    }
 
     // Update button states and filter friends from search results
     // Use setTimeout to ensure DOM is fully rendered before updating
@@ -950,6 +963,16 @@ class FriendsUI {
 
     const resultsContainer = document.getElementById("searchResults");
     if (resultsContainer) {
+      // Remove delegated listener to avoid duplicate handlers on next render
+      if (this._searchResultsListenerAttached && this.boundHandlers?.searchResultsClick) {
+        try {
+          resultsContainer.removeEventListener(
+            "click",
+            this.boundHandlers.searchResultsClick
+          );
+        } catch (_) {}
+        this._searchResultsListenerAttached = false;
+      }
       // Remove show class for smooth animation
       resultsContainer.classList.remove("show");
 
@@ -3279,6 +3302,22 @@ class FriendsUI {
         this.removeEventListeners();
       } catch (error) {
         console.warn("⚠️ Error removing event listeners:", error);
+      }
+
+      // Remove search results delegated listener if attached
+      const resultsContainer = document.getElementById("searchResults");
+      if (
+        resultsContainer &&
+        this._searchResultsListenerAttached &&
+        this.boundHandlers?.searchResultsClick
+      ) {
+        try {
+          resultsContainer.removeEventListener(
+            "click",
+            this.boundHandlers.searchResultsClick
+          );
+        } catch (_) {}
+        this._searchResultsListenerAttached = false;
       }
 
       // Reset listener setup flag so they can be set up again if needed

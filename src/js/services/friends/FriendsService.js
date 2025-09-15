@@ -532,127 +532,88 @@ export class FriendsManager {
   }
 
   /**
-   * 🔍 Search for students at the same university (with optional caching)
-   * @param {string} searchTerm - Name or major to search for
-   * @param {boolean} useCache - Whether to use caching (default: false)
-   * @returns {Promise<Array>} Array of matching students
-   */
-  async searchStudents(searchTerm, useCache = false) {
-    // 1. Get the current user's profile, waiting for it if necessary.
-    const userProfile = await currentUser.waitForProfile();
-    if (!userProfile) {
-      console.error(
-        "❌ User profile not loaded or user not logged in. Cannot search."
-      );
-      return [];
-    }
-
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      return []; // Don't search for very short terms
-    }
-
-    const cleanTerm = searchTerm.trim().toLowerCase();
-
-    // If caching is requested, try cache first
-    if (useCache) {
-      const cacheKey = `search_${cleanTerm}_${userProfile.universityInfo.university}`;
-      const cachedResults = this.getCached(cacheKey);
-      if (cachedResults) {
-        console.log("📦 Using cached search results");
-        return cachedResults;
-      }
-    }
-
-    try {
-      // 2. Fetch users directly using the optimized search function
-      const students = await dataManager.findUsersByUniversity(
-        userProfile.universityInfo.university,
-        searchTerm,
-        10 // Limit to 10 results for fast display
-      );
-
-      // 3. Use our smart filtering to exclude friends and pending requests
-      const filteredStudents = await this.filterSearchResults(students);
-
-      // Cache results if caching was requested and we got results
-      if (useCache && filteredStudents.length > 0) {
-        const cacheKey = `search_${cleanTerm}_${userProfile.universityInfo.university}`;
-        this.setCached(cacheKey, filteredStudents);
-      }
-
-      console.log(
-        `✅ Found ${filteredStudents.length} students matching "${searchTerm}"`
-      );
-      return filteredStudents;
-    } catch (error) {
-      console.error("❌ Error searching students:", error);
-      return [];
-    }
-  }
-
-  /**
-   * � Unified search entry point with handle fast-path.
-   * - If input matches handle regex (optionally prefixed with @) and length 2–32 => direct handle lookup across ALL universities.
-   * - Else fallback to university-scoped fuzzy search (name/major) via searchStudents.
-   * @param {string} rawTerm
+   * 🔎 Unified search: handle prefix (top 3) or exact student ID.
+   * - Handle: prefix match on `handles` collection by documentId, limit 3.
+   * - ID: exact match on users.universityInfo.studentId within viewer's university.
    */
   async searchStudentsHandleAware(rawTerm) {
     const term = (rawTerm || "").trim();
-    if (term.length < 2) return [];
+    if (term.length < 1) return [];
 
-    // Detect potential handle (strip leading @ if present)
+    const viewerProfile =
+      (await currentUser
+        .waitForProfileWithTimeout?.(5000)
+        .catch(() => null)) || (await currentUser.waitForProfile());
+    if (!viewerProfile) return [];
+
+    // Student ID exact (6+ digits)
+    if (/^\d{6,}$/.test(term)) {
+      try {
+        const results = await dataManager.findUserByStudentIdExact(
+          viewerProfile.universityInfo.university,
+          term,
+          1
+        );
+        return await this.filterSearchResults(results);
+      } catch (error) {
+        console.error("❌ Student ID lookup error:", error);
+        return [];
+      }
+    }
+
+    // Handle prefix (3+ chars, optional @)
     const normalized = term.startsWith("@")
       ? term.slice(1).toLowerCase()
       : term.toLowerCase();
-    // Use canonical handle pattern: start with letter, a-z0-9_ only, 3-20 chars, cannot end with _
-    // Reuse validation from handleUtils (dynamic import to avoid circular deps in some bundlers)
-    let isHandleCandidate = false;
-    if (
-      /^[a-z][a-z0-9_]{2,19}$/.test(normalized) &&
-      !normalized.endsWith("_")
-    ) {
-      isHandleCandidate = true;
+    if (!/^[a-z][a-z0-9_]{2,}$/.test(normalized)) {
+      return [];
     }
-    if (isHandleCandidate) {
-      try {
-        // Direct handle mapping lookup (global)
-        const { getDoc, doc } = await import("firebase/firestore");
-        const { db } = await import("../../lib/firebase/firebase-config.js");
 
-        // 1. Resolve handle -> userId
-        const handleRef = doc(db, "handles", normalized);
-        const snap = await getDoc(handleRef);
-        if (!snap.exists()) {
-          return [];
-        }
-        const userId = snap.data().userId;
+    try {
+      const {
+        getDocs,
+        collection,
+        query,
+        orderBy,
+        startAt,
+        endAt,
+        limit,
+        doc,
+        getDoc,
+        documentId,
+      } = await import("firebase/firestore");
+      const { db } = await import("../../lib/firebase/firebase-config.js");
 
-        // 2. Fetch user document directly (avoids relying on unimplemented helper)
+      // Prefix query on documentId (handle string)
+      const handlesRef = collection(db, "handles");
+      const q = query(
+        handlesRef,
+        orderBy(documentId()),
+        startAt(normalized),
+        endAt(normalized + "\uf8ff"),
+        limit(3)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) return [];
+
+      const viewerUniversityId = viewerProfile?.universityInfo?.university;
+      const viewerUniversityName =
+        viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
+
+      const candidates = [];
+      for (const d of snap.docs) {
+        const userId = d.data()?.userId;
+        if (!userId) continue;
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) return [];
+        if (!userSnap.exists()) continue;
         const userData = userSnap.data();
-        // Respect user's discoverability preference
-        if (!userData?.socialInfo?.searchable) {
-          return [];
-        }
+        if (!userData?.socialInfo?.searchable) continue;
 
-        // Enforce same-university restriction for handle results
-        // This avoids cross-campus discovery and keeps results scoped
-        // to the viewer's university only.
-        // Ensure viewer profile is available (adds robustness during early page loads)
-        const viewerProfile =
-          (await currentUser
-            .waitForProfileWithTimeout?.(5000)
-            .catch(() => null)) || (await currentUser.waitForProfile());
-        const viewerUniversityId = viewerProfile?.universityInfo?.university;
-        const viewerUniversityName =
-          viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
+        // Enforce same university until cross-university is supported
         const targetUniversityId = userData?.universityInfo?.university;
         const targetUniversityName =
           userData?.universityInfo?.universityName?.toLowerCase?.();
-
-        // Enforce same-university by ID; fall back to name compare if IDs missing
         const sameUniversityById =
           viewerUniversityId &&
           targetUniversityId &&
@@ -661,59 +622,38 @@ export class FriendsManager {
           viewerUniversityName &&
           targetUniversityName &&
           viewerUniversityName === targetUniversityName;
+        if (!(sameUniversityById || sameUniversityByName)) continue;
 
-        if (!(sameUniversityById || sameUniversityByName)) {
-          // Not the same university → do not return result
-          return [];
-        }
-
-        // ⚠️ NOTE: Current security rules only allow cross-university read if socialInfo.searchable && same university
-        // If cross-university handle lookup is required, rules must be updated separately.
-
-        // 3. Adapt to existing student object shape expected by UI
-        // Adapt to expected UI shape and apply standard filtering
-        const candidate = [
-          {
-            id: userId,
-            profile: {
-              handle: userData.profile?.handle,
-              handle_lower: userData.profile?.handle_lower,
-              major: userData.profile?.major,
-              major_lower: userData.profile?.major_lower,
-            },
-            universityInfo: userData.universityInfo || {},
-            avatarConfig: userData.avatarConfig || null,
+        candidates.push({
+          id: userId,
+          profile: {
+            handle: userData.profile?.handle,
+            handle_lower: userData.profile?.handle_lower,
+            major: userData.profile?.major,
+            major_lower: userData.profile?.major_lower,
           },
-        ];
-        return await this.filterSearchResults(candidate);
-      } catch (error) {
-        console.error("❌ Handle lookup error:", error);
-        return [];
+          universityInfo: userData.universityInfo || {},
+          avatarConfig: userData.avatarConfig || null,
+        });
       }
+
+      // Prefer exact match first, then lexicographic
+      candidates.sort((a, b) => {
+        const aExact = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() === normalized;
+        const bExact = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() === normalized;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        const ah = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase();
+        const bh = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase();
+        return ah.localeCompare(bh);
+      });
+
+      // Filter out existing friends and incoming pending requests
+      return await this.filterSearchResults(candidates);
+    } catch (error) {
+      console.error("❌ Handle prefix search error:", error);
+      return [];
     }
-
-    // Student ID exact match: only digits, at least 6
-    // Note: DataService query is already restricted to the viewer's university.
-    if (/^\d{6,}$/.test(term)) {
-      try {
-        const userProfile = await currentUser.waitForProfile();
-        if (!userProfile) return [];
-        const results = await dataManager.findUserByStudentIdExact(
-          userProfile.universityInfo.university,
-          term,
-          1
-        );
-
-        // Adapt shape if needed (already includes profile/universityInfo)
-        return await this.filterSearchResults(results);
-      } catch (error) {
-        console.error("❌ Student ID lookup error:", error);
-        return [];
-      }
-    }
-
-    // No other search modes allowed (disable fuzzy suggestions)
-    return [];
   }
 
   /**
@@ -778,78 +718,13 @@ export class FriendsManager {
   }
 
   /**
-   * 🎓 Search students by major (find your classmates!)
-   * @param {string} major - Major to search for (e.g., "Computer Science")
-   * @returns {Promise<Array>} Students in that major
-   */
-  async searchByMajor(major) {
-    const userProfile = await currentUser.waitForProfile();
-    if (!userProfile || !major) {
-      return [];
-    }
-
-    try {
-      console.log(`🎓 Searching for ${major} students...`);
-
-      // Use the data manager to find users by major
-      // The major_lower field was created in Phase 1A for fast searching
-      const students = await dataManager.findUsersByMajor(
-        userProfile.universityInfo.university,
-        major,
-        15 // Slightly higher limit for major search
-      );
-
-      // Apply smart filtering
-      const filteredStudents = await this.filterSearchResults(students);
-
-      console.log(`✅ Found ${filteredStudents.length} ${major} students`);
-      return filteredStudents;
-    } catch (error) {
-      console.error("❌ Error searching by major:", error);
-      return [];
-    }
-  }
-
-  /**
    * 🔍 Search students with caching (convenience method)
    * @param {string} searchTerm - Search term
    * @returns {Promise<Array>} Search results (cached when possible)
    */
   async searchStudentsWithCache(searchTerm) {
-    // Handle aware path (includes caching for fuzzy part internally)
+    // Handle-aware path; caching for other modes removed as we only support handle/ID
     return this.searchStudentsHandleAware(searchTerm);
-  }
-
-  /**
-   * 🎓 Search by major with caching (convenience method)
-   * @param {string} major - Major to search for
-   * @returns {Promise<Array>} Search results (cached when possible)
-   */
-  async searchByMajorWithCache(major) {
-    // Use the existing searchByMajor with caching logic
-    const userProfile = await currentUser.waitForProfile();
-    if (!userProfile || !major) {
-      return [];
-    }
-
-    const cacheKey = `major_${major.toLowerCase()}_${
-      userProfile.universityInfo.university
-    }`;
-
-    // Try cache first
-    const cachedResults = this.getCached(cacheKey);
-    if (cachedResults) {
-      console.log("📦 Using cached major search results");
-      return cachedResults;
-    }
-
-    // Perform search and cache results
-    const results = await this.searchByMajor(major);
-    if (results.length > 0) {
-      this.setCached(cacheKey, results);
-    }
-
-    return results;
   }
 
   /**
