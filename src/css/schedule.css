@@ -1216,7 +1216,28 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 
   /* Generic compact table */
   .slot { height: 2.25rem !important; min-height: 2.25rem !important; }
-  .schedule-wrapper { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; padding: 0.25rem !important; }
+.schedule-wrapper {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 0.25rem 0.25rem 0.25rem 0.25rem !important; /* extra bottom gap so scrollbar doesn't touch content */
+  scrollbar-width: thin; /* Firefox small */
+  scrollbar-color: rgba(139, 92, 246, 0.6) transparent; /* thumb color */
+}
+
+/* Modern minimal horizontal scrollbar for weekly schedule */
+.schedule-wrapper::-webkit-scrollbar {
+  height: 6px; /* very small */
+}
+.schedule-wrapper::-webkit-scrollbar-track {
+  background: transparent; /* no track */
+}
+.schedule-wrapper::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.75), rgba(168, 85, 247, 0.75));
+  border-radius: 999px;
+}
+.schedule-wrapper::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.95), rgba(168, 85, 247, 0.95));
+}
   .schedule-table { min-width: 450px !important; font-size: 0.65rem !important; }
   .many-slots-note { font-size: 0.75rem; padding: 0.5rem 0.7rem; margin: 0.25rem 0; }
 

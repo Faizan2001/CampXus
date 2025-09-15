@@ -646,8 +646,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-primary) transparent;
+  scrollbar-width: none; /* Firefox: hide */
   padding: 0;
   margin: 0;
   background: transparent;
@@ -661,25 +660,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
   touch-action: pan-y;
 }
 
-/* Custom scrollbar for day view */
-.day-view-container::-webkit-scrollbar {
-  width: 4px; /* Minimal width */
-}
-
-.day-view-container::-webkit-scrollbar-track {
-  background: transparent; /* Minimal track */
-  border-radius: 2px;
-}
-
-.day-view-container::-webkit-scrollbar-thumb {
-  background: var(--accent-primary); /* Purple color */
-  border-radius: 2px;
-  /* Add hover effect for better UX */
-}
-
-.day-view-container::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary); /* Slightly different purple on hover */
-}
+/* Hide native scrollbar in WebKit while preserving scroll */
+.day-view-container::-webkit-scrollbar { width: 0px; height: 0px; }
 
 /* ===== DAY VIEW TIME SLOTS - ULTRA COMPACT ===== */
 .day-time-slot {

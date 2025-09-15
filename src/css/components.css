@@ -297,6 +297,13 @@ body.dark-mode .notification-close:hover {
   isolation: isolate;
 }
 
+/* Compact glass-card padding on very small mobile screens */
+@media (max-width: 480px) {
+  .glass-card {
+    padding: 14px 10px !important;
+  }
+}
+
 /* Premium Top Highlight */
 .glass-card::before {
   content: "";
