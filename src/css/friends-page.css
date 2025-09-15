@@ -299,6 +299,7 @@ body.page-friends .schedule-section {
 }
 .student-info {
   flex: 1;
+  min-width: 0; /* allow ellipsis in flex children */
 }
 .student-name {
   margin: 0 0 var(--space-xs) 0;
@@ -2273,13 +2274,28 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     grid-template-columns: 1fr;
   }
   .student-card {
-    flex-direction: column;
-    text-align: center;
+    /* Keep a single row layout on mobile */
+    flex-direction: row;
+    text-align: left;
     gap: var(--space-sm);
   }
+  .student-info {
+    min-width: 0;
+  }
+  .student-name,
+  .student-major,
+  .student-university {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .student-actions {
-    width: 100%;
-    justify-content: center;
+    /* Place the Add button on the right, vertically centered */
+    width: auto;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
   }
 
   /* Schedule tokens */

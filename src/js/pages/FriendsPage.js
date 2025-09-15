@@ -623,7 +623,7 @@ class FriendsUI {
         console.log(`📋 Setting button to send request state for ${studentId}`);
         button.className = "btn-send-request";
         button.innerHTML =
-          '<i class="fas fa-user-plus"></i> Send Friend Request';
+          '<i class="fas fa-user-plus"></i> Add';
         button.disabled = false;
       }
     });
@@ -846,36 +846,42 @@ class FriendsUI {
       return;
     }
 
-    // Display search results with Send Friend Request buttons
+    // Display search results with compact mobile-friendly meta line
     const resultsHTML = filteredResults
       .map(
-        (student) => `
+        (student) => {
+          const handle =
+            student.profile?.handle || student.profile?.handle_lower || "Unknown";
+          const major =
+            student.profile?.major ||
+            student.profile?.major_lower ||
+            "Unknown Major";
+          const uniName =
+            student.universityInfo?.universityName ||
+            student.universityInfo?.university ||
+            "";
+          const isIub = this.isIubUniversity(student.universityInfo);
+          const majorLine = isIub ? `${major} · IUB` : major;
+          const universityLine = isIub
+            ? ""
+            : escapeHTML(uniName || "Unknown University");
+
+          return `
       <div class="student-card" data-student-id="${student.id}">
         <div class="student-avatar">
           ${this.renderAvatar(student)}
         </div>
         <div class="student-info">
-          <h4 class="student-name">${escapeHTML(
-            student.profile?.handle ||
-              student.profile?.handle_lower ||
-              "Unknown"
-          )}</h4>
-          <p class="student-major">${escapeHTML(
-            student.profile?.major ||
-              student.profile?.major_lower ||
-              "Unknown Major"
-          )}</p>
-          <p class="student-university">${escapeHTML(
-            student.universityInfo?.universityName ||
-              student.universityInfo?.university ||
-              "Unknown University"
-          )}</p>
+          <h4 class="student-name">${escapeHTML(handle)}</h4>
+          <p class="student-major">${escapeHTML(majorLine)}</p>
+          ${universityLine ? `<p class="student-university">${universityLine}</p>` : ""}
         </div>
         <div class="student-actions">
           ${this.renderFriendRequestButton(student)}
         </div>
       </div>
-    `
+    `;
+        }
       )
       .join("");
 
@@ -922,6 +928,18 @@ class FriendsUI {
       this.updateSearchResultsButtons();
       this.filterSearchResultsForAcceptedRequests();
     }, 0);
+  }
+
+  /**
+   * 🏫 Determine if a university is IUB
+   * @param {Object} universityInfo
+   * @returns {boolean}
+   */
+  isIubUniversity(universityInfo) {
+    if (!universityInfo) return false;
+    const id = (universityInfo.university || "").toLowerCase();
+    const name = (universityInfo.universityName || "").toLowerCase();
+    return id === "iub" || name === "independent university, bangladesh";
   }
 
   /**
@@ -1418,7 +1436,7 @@ class FriendsUI {
         if (button) {
           button.disabled = false;
           button.innerHTML =
-            '<i class="fas fa-user-plus"></i> Send Friend Request';
+            '<i class="fas fa-user-plus"></i> Add';
         }
       }
     } catch (error) {
@@ -1436,7 +1454,7 @@ class FriendsUI {
       if (button) {
         button.className = "btn-send-request";
         button.innerHTML =
-          '<i class="fas fa-user-plus"></i> Send Friend Request';
+          '<i class="fas fa-user-plus"></i> Add';
         button.disabled = false;
       }
     }
@@ -1767,7 +1785,7 @@ class FriendsUI {
     return `
       <button class="btn-send-request" data-student-id="${studentId}" data-student-name="${studentName}">
         <i class="fas fa-user-plus"></i>
-        Send Friend Request
+        Add
       </button>
     `;
   }
