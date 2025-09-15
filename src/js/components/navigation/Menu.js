@@ -839,12 +839,7 @@ function initializeMobileOptimizations() {
       if (userDropdown && userDropdown.classList.contains("active")) {
         closeUserDropdown();
       }
-
-      // Force reflow for better mobile experience
-      document.body.style.height = "100vh";
-      requestAnimationFrame(() => {
-        document.body.style.height = "";
-      });
+      // Avoid forcing body height to 100vh (causes iOS zoom/glitches)
     }, 250);
   });
 
@@ -897,7 +892,7 @@ function initializeMobileOptimizations() {
     }
   });
 
-  // iOS Safari viewport fix
+  // iOS Safari viewport fix: expose --vh variable without intrusive layout changes
   if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
     const updateViewport = () => {
       document.documentElement.style.setProperty(
@@ -905,11 +900,10 @@ function initializeMobileOptimizations() {
         `${window.innerHeight * 0.01}px`
       );
     };
-
     updateViewport();
     window.addEventListener("resize", updateViewport);
     window.addEventListener("orientationchange", () => {
-      setTimeout(updateViewport, 100);
+      setTimeout(updateViewport, 120);
     });
   }
 

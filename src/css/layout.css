@@ -30,8 +30,9 @@
 
 /* ===== APP CONTAINER ===== */
 .app-container {
+  /* Let content define height; avoid forcing fixed viewport height on iOS */
   min-height: 100dvh;
-  height: 100dvh;
+  height: auto;
   min-height: -webkit-fill-available; /* iOS fallback */
   display: flex;
   flex-direction: column;
@@ -260,7 +261,8 @@ body:not(.dark-mode) .nav-link:hover {
 .main-content {
   padding: clamp(0.75rem, 3vw, 1.5rem);
   width: 100%;
-  max-width: 100vw;
+  /* Avoid 100vw which can include scrollbar on iOS */
+  max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
   overflow-x: hidden;
