@@ -129,6 +129,48 @@ class ProfileSetup {
 
     // Cooldown refresh interval reference
     this.handleCooldownInterval = null;
+
+    // Predefined majors list (code → name)
+    this.MAJORS = [
+      // SBE
+      { code: "ACN", name: "Accounting" },
+      { code: "BUS", name: "Business (BBA Core)" },
+      { code: "ECN", name: "Economics" },
+      { code: "FIN", name: "Finance" },
+      { code: "HRM", name: "Human Resource Management" },
+      { code: "INB", name: "International Business" },
+      { code: "MGT", name: "Management" },
+      { code: "MIS", name: "Management Information Systems" },
+      { code: "MKT", name: "Marketing" },
+      // SETS/SECS
+      { code: "CSC", name: "Computer Science" },
+      { code: "CSE", name: "Computer Science & Engineering" },
+      { code: "EEE", name: "Electrical & Electronic Engineering" },
+      { code: "CIS", name: "Computing / Information Systems" },
+      { code: "MAT", name: "Mathematics" },
+      { code: "PHY", name: "Physics" },
+      { code: "CHE", name: "Chemistry" },
+      // SELS
+      { code: "BIO", name: "Biology" },
+      { code: "ENV", name: "Environmental Science" },
+      { code: "MCB", name: "Microbiology" },
+      { code: "BCB", name: "Biochemistry & Biotechnology" },
+      // SLASS
+      { code: "ANT", name: "Anthropology" },
+      { code: "CMN", name: "Media & Communication" },
+      { code: "ENG", name: "English" },
+      { code: "ELT", name: "English Language Teaching" },
+      { code: "GSG", name: "Global Studies & Governance" },
+      { code: "HST", name: "History" },
+      { code: "SOC", name: "Sociology" },
+      { code: "JPN", name: "Japanese" },
+      { code: "AAT", name: "Art & Aesthetics" },
+      { code: "BLA", name: "Bangla Literature & Art" },
+      { code: "BPH", name: "Bangladesh Political History" },
+      { code: "NCH", name: "National Culture & Heritage" },
+      { code: "PHA", name: "Pharmacy" },
+      { code: "LAW", name: "Law" },
+    ];
   }
 
   /**
@@ -896,6 +938,9 @@ class ProfileSetup {
 
     this.updateStepDisplay();
     this.setupEventListeners(); // Re-add event listeners
+    // Initialize typeahead for Major selection
+    this.initMajorTypeahead();
+    this.initStartingYearDropdown();
     this.initializeAvatarSystem();
   }
 
@@ -953,6 +998,8 @@ class ProfileSetup {
 
     // Re-setup event listeners (in case they were lost)
     this.setupEventListeners();
+    this.initMajorTypeahead();
+    this.initStartingYearDropdown();
 
     // Update display and validation
     this.updateStepDisplay();
@@ -1050,7 +1097,8 @@ class ProfileSetup {
       ).value;
       this.profileData.major = document
         .getElementById("setup-major")
-        .value.trim();
+        .value.trim()
+        .toUpperCase();
     } else if (this.currentStep === 1) {
       this.profileData.bio = document.getElementById("setup-bio").value.trim();
       // Avatar configuration is handled by this.avatarConfig
@@ -1193,7 +1241,8 @@ class ProfileSetup {
         document.getElementById("setup-last-name")?.value.trim() || "";
       const startingYear =
         document.getElementById("setup-starting-year")?.value || "";
-      const major = document.getElementById("setup-major")?.value.trim() || "";
+      const majorRaw = document.getElementById("setup-major")?.value.trim() || "";
+      const major = majorRaw.toUpperCase();
       const email = document.getElementById("setup-email")?.value.trim() || "";
 
       // Use our utility functions for validation!
@@ -1241,11 +1290,13 @@ class ProfileSetup {
           }
         }
       }
+      const isMajorValid = this.isValidMajorCode(major);
       const isStepValid =
         hasRequiredFields &&
         hasValidEmail &&
         hasValidStartingYear &&
-        handleValid;
+        handleValid &&
+        isMajorValid;
 
       // Always keep "Next Step →" text, just enable/disable button
       nextBtn.textContent = "Next Step →";
@@ -1376,6 +1427,11 @@ class ProfileSetup {
 
     if (!major.trim()) {
       this.showFieldError("setup-major", "Major is required");
+    } else if (!this.isValidMajorCode(major.toUpperCase())) {
+      this.showFieldError(
+        "setup-major",
+        "Please select a valid major code from the list"
+      );
     }
   }
 
@@ -2142,6 +2198,215 @@ class ProfileSetup {
     // Privacy controls have been moved to Friends page for better UX
 
     this.setupFormValidation();
+  }
+
+  /**
+   * Initialize a lightweight, mobile-friendly typeahead for the Major field
+   * - Shows up to 5 matches as the user types
+   * - Selection is restricted to predefined options
+   * - Saves only the 3-letter code (e.g., CSC)
+   */
+  initMajorTypeahead() {
+    const input = document.getElementById("setup-major");
+    if (!input) return;
+
+    // Avoid duplicate initialization
+    if (input.getAttribute("data-typeahead-init") === "true") return;
+    input.setAttribute("data-typeahead-init", "true");
+
+    // Ensure a wrapper around the input (so dropdown anchors to the input, not the whole form-group)
+    let wrapper = input.parentElement;
+    if (!wrapper.classList.contains('typeahead-wrapper')) {
+      const newWrapper = document.createElement('div');
+      newWrapper.className = 'typeahead-wrapper';
+      newWrapper.style.position = 'relative';
+      newWrapper.style.width = '100%';
+      // Insert wrapper and move input inside
+      wrapper.insertBefore(newWrapper, input);
+      newWrapper.appendChild(input);
+      wrapper = newWrapper;
+    }
+
+    // Container for suggestions anchored to wrapper
+    let list = wrapper.querySelector('#major-suggestions');
+    if (!list) {
+      list = document.createElement("div");
+      list.id = "major-suggestions";
+      list.className = "typeahead-list";
+      wrapper.appendChild(list);
+    }
+
+    const setPlacement = () => {
+      // Decide whether to open upwards based on viewport space
+      const rect = input.getBoundingClientRect();
+      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const spaceBelow = viewportH - rect.bottom;
+      const spaceAbove = rect.top;
+      const needUp = spaceBelow < 180 && spaceAbove > spaceBelow; // threshold
+      list.classList.toggle('open-up', needUp);
+    };
+
+    const render = (items) => {
+      list.innerHTML = "";
+      items.slice(0, 5).forEach((m) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "typeahead-item";
+        row.setAttribute("role", "option");
+        row.innerHTML = `<span class="typeahead-code">${m.code}</span><span class="typeahead-name">${m.name}</span>`;
+        row.addEventListener("click", () => {
+          input.value = m.code; // Save only 3-letter code
+          input.dataset.selected = m.code;
+          list.classList.remove("open");
+          this.validateCurrentStep();
+        });
+        list.appendChild(row);
+      });
+      if (items.length) {
+        list.classList.add("open");
+        // compute placement after DOM paints
+        requestAnimationFrame(setPlacement);
+      } else {
+        list.classList.remove("open");
+      }
+    };
+
+    const filter = (q) => {
+      const s = q.trim().toLowerCase();
+      if (!s) return [];
+      return this.MAJORS.filter(
+        (m) =>
+          m.code.toLowerCase().includes(s) || m.name.toLowerCase().includes(s)
+      );
+    };
+
+    // Input events
+    input.addEventListener("input", () => {
+      const val = input.value;
+      const matches = filter(val);
+      render(matches);
+    });
+    input.addEventListener("focus", () => {
+      const val = input.value;
+      const matches = filter(val);
+      render(matches);
+    });
+    // Close on outside click
+    document.addEventListener("click", (e) => {
+      if (!list.contains(e.target) && e.target !== input) {
+        list.classList.remove("open");
+        list.classList.remove("open-up");
+      }
+    });
+
+    // Keyboard selection
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        // If typed code exactly matches a valid code, accept
+        const code = input.value.trim().toUpperCase();
+        if (this.isValidMajorCode(code)) {
+          input.value = code;
+          input.dataset.selected = code;
+          list.classList.remove("open");
+          list.classList.remove("open-up");
+          this.validateCurrentStep();
+        }
+      }
+    });
+  }
+
+  /** Ensure a given code is one of the predefined majors */
+  isValidMajorCode(code) {
+    return this.MAJORS.some((m) => m.code === code);
+  }
+
+  /**
+   * Create a custom-styled dropdown for Starting Year for consistent iOS/Android look
+   */
+  initStartingYearDropdown() {
+    const select = document.getElementById("setup-starting-year");
+    if (!select) return;
+    if (select.getAttribute("data-customized") === "true") return;
+    select.setAttribute("data-customized", "true");
+
+    // Build wrapper
+    const wrapper = document.createElement("div");
+    wrapper.className = "custom-select";
+    select.parentElement.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+
+    // Hide native caret differences and add display
+    select.classList.add("custom-select-native");
+    const display = document.createElement("button");
+    display.type = "button";
+    display.className = "custom-select-display form-input";
+    display.setAttribute("aria-haspopup", "listbox");
+    display.setAttribute("aria-expanded", "false");
+    display.textContent = select.value || "Select year";
+    wrapper.appendChild(display);
+
+    // Dropdown list
+    const list = document.createElement("div");
+    list.className = "select-dropdown";
+    list.setAttribute("role", "listbox");
+    wrapper.appendChild(list);
+
+    const renderYears = () => {
+      list.innerHTML = "";
+      [...select.options]
+        .filter((o) => o.value)
+        .forEach((opt) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "select-item";
+          item.setAttribute("role", "option");
+          item.textContent = opt.textContent;
+          if (opt.value === select.value) item.classList.add("selected");
+          item.addEventListener("click", () => {
+            select.value = opt.value;
+            display.textContent = opt.textContent;
+            list.classList.remove("open");
+            display.setAttribute("aria-expanded", "false");
+            // Trigger native change for validation
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            this.validateCurrentStep();
+          });
+          list.appendChild(item);
+        });
+    };
+
+    renderYears();
+
+    const setPlacement = () => {
+      const rect = display.getBoundingClientRect();
+      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const spaceBelow = viewportH - rect.bottom;
+      const spaceAbove = rect.top;
+      const needUp = spaceBelow < 180 && spaceAbove > spaceBelow;
+      list.classList.toggle('open-up', needUp);
+    };
+
+    const toggle = () => {
+      const isOpen = list.classList.toggle("open");
+      display.setAttribute("aria-expanded", String(isOpen));
+      if (isOpen) requestAnimationFrame(setPlacement);
+      else list.classList.remove('open-up');
+    };
+
+    display.addEventListener("click", toggle);
+    document.addEventListener("click", (e) => {
+      if (!wrapper.contains(e.target)) {
+        list.classList.remove("open");
+        list.classList.remove("open-up");
+        display.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Keep in sync if template preselects a value
+    select.addEventListener("change", () => {
+      display.textContent = select.options[select.selectedIndex]?.text || "Select year";
+      renderYears();
+    });
   }
 
   /**

@@ -346,6 +346,109 @@ body.page-profile .profile-setup-card.glass-card {
   transition: all 0.3s var(--animation-smooth);
   backdrop-filter: blur(10px);
 }
+
+/* ===== Custom Dropdowns & Typeahead (light/dark aware, animated) ===== */
+.typeahead-wrapper { position: relative; width: 100%; }
+.typeahead-list,
+.select-dropdown {
+  position: absolute;
+  top: 100%; /* stick to input edge */
+  left: 0;
+  width: 100%;
+  background: var(--depth-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transition: all 0.18s var(--animation-smooth);
+  z-index: 999999; /* float above form fields */
+  will-change: transform, opacity, max-height;
+  -webkit-overflow-scrolling: touch;
+  transform-origin: top center;
+}
+.typeahead-list.open,
+.select-dropdown.open {
+  max-height: 260px;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  overflow-y: auto;
+}
+
+/* Flip up when there's not enough space below */
+.typeahead-list.open-up,
+.select-dropdown.open-up {
+  top: auto;
+  bottom: 100%; /* stick to input edge when opening upward */
+  transform-origin: bottom center;
+}
+
+.typeahead-item,
+.select-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  -webkit-appearance: none;
+}
+.typeahead-item:hover,
+.select-item:hover,
+.typeahead-item:focus-visible,
+.select-item:focus-visible {
+  outline: none;
+  background: var(--surface);
+}
+.typeahead-code {
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.typeahead-name {
+  color: var(--text-secondary);
+  font-size: 0.92em;
+}
+.select-item.selected {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* Custom select wrapper to keep native <select> for form value but show unified UI */
+.custom-select {
+  position: relative;
+}
+.custom-select .custom-select-native {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none; /* keep value but ignore native UI */
+}
+.custom-select-display {
+  display: block;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  padding-right: 2.2rem; /* room for chevron */
+}
+.custom-select-display::after {
+  content: "\f078"; /* FontAwesome chevron-down */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
 .form-input::placeholder {
   color: var(--text-tertiary);
 }
