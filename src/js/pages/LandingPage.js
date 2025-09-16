@@ -20,10 +20,13 @@ class LandingPage {
   constructor() {
     this.joinButton = null;
     this.animationInterval = null;
-  this.boundHandleJoinClick = this.handleJoinClick.bind(this);
-    
+    this.presenceInterval = null;
+    this.presenceElements = null;
+    this.presenceStateIndex = 0;
+    this.boundHandleJoinClick = this.handleJoinClick.bind(this);
+
     logManager.ui.init("LandingPage: Initializing landing page controller");
-    
+
     // Initialize the landing page when DOM is ready
     this.init();
   }
@@ -37,10 +40,12 @@ class LandingPage {
     
     // Start text animation
     this.startTextAnimation();
-    
+
     // Add any additional landing page interactions
     this.setupInteractions();
-    
+
+    this.initPresenceDemo();
+
     logManager.ui.init("LandingPage: Initialization complete");
   }
 
@@ -49,9 +54,9 @@ class LandingPage {
    */
   setupJoinButton() {
     this.joinButton = document.getElementById("joinButton");
-    
+
     if (this.joinButton) {
-  this.joinButton.addEventListener("click", this.boundHandleJoinClick);
+      this.joinButton.addEventListener("click", this.boundHandleJoinClick);
       logManager.ui.init("LandingPage: Join button event listener attached");
     } else {
       logManager.ui.error("LandingPage: Join button not found in DOM");
@@ -251,13 +256,173 @@ class LandingPage {
       clearInterval(this.animationInterval);
       this.animationInterval = null;
     }
-    
+
+    this.teardownPresenceDemo();
+
     // Remove event listeners
     if (this.joinButton) {
-  this.joinButton.removeEventListener("click", this.boundHandleJoinClick);
+      this.joinButton.removeEventListener("click", this.boundHandleJoinClick);
     }
 
     logManager.ui.init("🧹 LandingPage: Cleanup completed");
+  }
+
+  initPresenceDemo() {
+    const container = document.querySelector(".landing-avatar-demo");
+    const avatarImg = document.getElementById("demo-avatar-img");
+    const presenceDot = document.getElementById("demo-presence-dot");
+    const presenceText = document.getElementById("demo-presence-text");
+
+    if (!container || !avatarImg || !presenceDot || !presenceText) {
+      logManager.ui.warn("LandingPage: Presence demo elements missing");
+      return;
+    }
+
+    if (container.dataset.demoInitialized === "1") {
+      return;
+    }
+
+    container.dataset.demoInitialized = "1";
+
+    this.loadRandomAvatar(avatarImg);
+
+    const prefersReducedMotion =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    this.presenceElements = { container, avatarImg, presenceDot, presenceText };
+    this.presenceStateIndex = 0;
+
+    const states = [
+      { cls: "grey", label: "Not sharing" },
+      { cls: "red", label: "Off campus" },
+      { cls: "green", label: "On campus" },
+    ];
+
+    const applyState = () => {
+      const state = states[this.presenceStateIndex];
+      if (!state) return;
+
+      presenceDot.className = `presence-dot ${state.cls}`;
+      presenceDot.setAttribute(
+        "aria-label",
+        `Presence status: ${state.label}`
+      );
+
+      presenceText.textContent = state.label;
+      presenceText.setAttribute("data-state", state.cls);
+      presenceText.classList.remove("swap");
+      void presenceText.offsetWidth;
+      presenceText.classList.add("swap");
+
+      container.setAttribute("data-presence", state.cls);
+
+      this.presenceStateIndex =
+        (this.presenceStateIndex + 1) % states.length;
+    };
+
+    applyState();
+
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    this.presenceInterval = window.setInterval(applyState, 2000);
+  }
+
+  loadRandomAvatar(avatarImg) {
+    const backgrounds = [
+      "b6e3f4",
+      "c0aede",
+      "ffd93d",
+      "ffdfbf",
+      "d1d4f9",
+      "b6e3f4,c0aede",
+      "ffd93d,ffdfbf",
+      "d1d4f9,b6e3f4",
+      "c0aede,ffd93d",
+      "ffdfbf,d1d4f9",
+    ];
+    const hairs = [
+      "classic01",
+      "classic02",
+      "curly",
+      "elvis",
+      "long",
+      "ponyTail",
+      "stylish",
+    ];
+
+    const seed = Math.random().toString(36).slice(2, 10);
+    const background =
+      backgrounds[Math.floor(Math.random() * backgrounds.length)];
+    const hair = hairs[Math.floor(Math.random() * hairs.length)];
+
+    const url =
+      `https://api.dicebear.com/9.x/miniavs/svg?seed=${seed}` +
+      `&backgroundColor=${encodeURIComponent(background)}` +
+      "&backgroundType=gradientLinear" +
+      `&hair=${hair}`;
+
+    avatarImg.style.opacity = "0";
+    avatarImg.addEventListener(
+      "load",
+      () => {
+        avatarImg.style.transition = "opacity 500ms ease";
+        avatarImg.style.opacity = "1";
+      },
+      { once: true }
+    );
+
+    avatarImg.addEventListener(
+      "error",
+      () => {
+        avatarImg.style.opacity = "1";
+      },
+      { once: true }
+    );
+
+    avatarImg.src = url;
+  }
+
+  teardownPresenceDemo() {
+    if (this.presenceInterval) {
+      clearInterval(this.presenceInterval);
+      this.presenceInterval = null;
+    }
+
+    if (!this.presenceElements) {
+      return;
+    }
+
+    const { container, avatarImg, presenceDot, presenceText } =
+      this.presenceElements;
+
+    if (container) {
+      container.removeAttribute("data-presence");
+      delete container.dataset.demoInitialized;
+    }
+
+    if (presenceDot) {
+      presenceDot.className = "presence-dot grey";
+      presenceDot.setAttribute(
+        "aria-label",
+        "Presence status: Not sharing"
+      );
+    }
+
+    if (presenceText) {
+      presenceText.classList.remove("swap");
+      presenceText.textContent = "Not sharing";
+      presenceText.removeAttribute("data-state");
+    }
+
+    if (avatarImg) {
+      avatarImg.style.opacity = "1";
+    }
+
+    this.presenceElements = null;
+    this.presenceStateIndex = 0;
   }
 }
 

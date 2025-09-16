@@ -1,625 +1,1382 @@
-<!-- 
-   Landing Page Template - Welcome new users to MeetchuThere!
-  This template shows when users are not logged in and showcases the app features.
-  Includes animated text and responsive design for desktop and mobile.
--->
+<title>MeetchuThere &mdash; Real-time Campus Meetups</title>
+<meta
+  name="description"
+  content="MeetchuThere helps Bangladesh university students see friends' free time, coordinate meetups, and protect campus privacy in real time."
+/>
+<meta
+  property="og:title"
+  content="MeetchuThere \u2014 Real-time Campus Meetups"
+/>
+<meta
+  property="og:description"
+  content="See who's free, sync schedules, and meet on campus now. Privacy-first and built for Bangladesh students."
+/>
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://meetchuthere.app" />
+<meta property="og:image" content="https://meetchuthere.app/og-image.png" />
 
-<div class="landing-container">
-  <!-- Hero Section -->
-  <section class="hero-section">
+<div class="landing-page" role="region" aria-label="MeetchuThere landing page">
+  <div class="landing-backdrop" aria-hidden="true"></div>
+
+  <header class="hero" id="hero">
     <div class="hero-content">
-      <!-- Brand Logo Area -->
-      <div class="hero-brand">
-        <div class="brand-icon">
-          <!-- Animated Location Pin Icon -->
-          <svg class="location-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-            <circle cx="12" cy="10" r="3"/>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg
+            viewBox="0 0 64 64"
+            role="img"
+            aria-label="MeetchuThere logo"
+            focusable="false"
+          >
+            <g
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="48" r="3"></circle>
+              <circle cx="20" cy="16" r="3"></circle>
+              <circle cx="32" cy="32" r="3"></circle>
+              <circle cx="44" cy="16" r="3"></circle>
+              <circle cx="52" cy="48" r="3"></circle>
+              <path d="M12 48L20 16l12 16L44 16l8 32"></path>
+            </g>
           </svg>
+        </span>
+        <div class="brand-copy">
+          <p class="brand-name" aria-label="MeetchuThere">MeetchuThere</p>
+          <p
+            class="brand-slogan"
+            aria-label="Connect, and together we constellate."
+          >
+            Connect, and together we constellate.
+          </p>
         </div>
-        <h1 class="brand-name">MeetchuThere</h1>
       </div>
 
-      <!-- Main Tagline with Animated Text -->
-      <div class="hero-tagline">
-        <h2 class="tagline-main">
-          Know when your friends are 
-          <span class="animated-text-container">
-            <span class="animated-text" id="animatedText1">on campus</span>
-            <span class="animated-text" id="animatedText2">free to meet</span>
-          </span>
-        </h2>
-      </div>
+      <h1 class="hero-headline">See who's free. Meet on campus&mdash;now.</h1>
+      <p class="hero-value">Sync schedules, see who’s free, meet now.</p>
 
-      <!-- Description -->
-      <p class="hero-description">
-       See who’s around, know who’s free, connect now.
-      </p>
-
-      <!-- Call to Action Button -->
       <div class="hero-cta">
-        <button id="joinButton" class="cta-button">
-          <span class="cta-text">Join MeetchuThere</span>
+        <button
+          class="btn btn-primary"
+          data-evt="signup_started"
+          type="button"
+          aria-label="Sign up with your university email"
+          id="landing-signup"
+        >
+          Sign up with your university email
         </button>
       </div>
+
+      <ul class="trust-chips" aria-label="Trust indicators">
+        <li>Privacy controls</li>
+        <li>Student-only access</li>
+        <li>Built by students</li>
+      </ul>
     </div>
-
-    <!-- Floating Elements for Visual Interest -->
-    <div class="floating-elements">
-      <div class="floating-element element-1"></div>
-      <div class="floating-element element-2"></div>
-      <div class="floating-element element-3"></div>
-      <div class="floating-element element-4"></div>
-    </div>
-  </section>
-
-  <!-- Features Preview Section -->
-  <section class="features-section">
-    <div class="features-grid">
-      <!-- Feature 1 -->
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
+    <div class="hero-visual" role="presentation" aria-hidden="true">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="screen-header">
+            <span class="profile-dot"></span>
+            <span class="profile-dot profile-dot--friend"></span>
+            <span class="status-pill">Free now</span>
+          </div>
+          <div class="screen-card">
+            <p class="screen-title">Weekly schedule</p>
+            <ul class="screen-slots">
+              <li><span>08:00</span><span>Free</span></li>
+              <li class="slot-busy">
+                <span>10:00</span><span>Group study</span>
+              </li>
+              <li><span>13:00</span><span>Free</span></li>
+              <li><span>15:30</span><span>Canteen meetup</span></li>
+            </ul>
+          </div>
+          <div class="screen-footer">Campus presence active</div>
         </div>
-        <h3>Find Friends</h3>
-        <p>Reserve your unique handle, add your friends to connect with them easily.</p>
-      </div>
-
-      <!-- Feature 2 -->
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-        </div>
-        <h3>Share Schedules</h3>
-        <p>Share your class schedule and compare availability with friends.</p>
-      </div>
-
-      <!-- Feature 3 -->
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-            <circle cx="12" cy="10" r="3"/>
-          </svg>
-        </div>
-        <h3>Campus Presence</h3>
-        <p>Know exactly when your friends are on campus and available to meet.</p>
       </div>
     </div>
-  </section>
+  </header>
 
-  <!-- Background Decoration -->
-  <div class="background-decoration">
-    <div class="gradient-orb orb-1"></div>
-    <div class="gradient-orb orb-2"></div>
-    <div class="gradient-orb orb-3"></div>
+  <main class="sections" id="main-content" role="main">
+    <div class="scroll-set set-middle" aria-label="How it works and features">
+      <section
+        class="section glass"
+        id="how-it-works"
+        aria-labelledby="how-it-works-title"
+      >
+        <div class="how-it-grid">
+          <div class="how-it-copy">
+            <div class="section-heading compact">
+              <h2 id="how-it-works-title">How it works</h2>
+              <p class="how-it-tag">3 fast steps</p>
+            </div>
+            <div class="steps how-it-steps">
+              <article class="step-card">
+                <span class="step-number">1</span>
+                <h3>Import your schedule</h3>
+                <p>Upload a screenshot. OCR fills your week.</p>
+              </article>
+              <article class="step-card">
+                <span class="step-number">2</span>
+                <h3>Compare schedules</h3>
+                <p>See overlapping breaks instantly.</p>
+              </article>
+              <article class="step-card">
+                <span class="step-number">3</span>
+                <h3>Share presence</h3>
+                <p>Let friends know you’re on campus.</p>
+              </article>
+            </div>
+          </div>
+          <div
+            class="how-it-visual"
+            aria-label="Campus presence demo"
+            aria-live="polite"
+          >
+            <div class="landing-avatar-demo">
+              <div
+                class="avatar-frame"
+                role="img"
+                aria-label="Demo student avatar showing presence state"
+              >
+                <img
+                  id="demo-avatar-img"
+                  src=""
+                  alt="Demo student avatar"
+                  loading="lazy"
+                />
+                <div
+                  class="presence-dot grey"
+                  id="demo-presence-dot"
+                  aria-label="Presence status: Not sharing"
+                ></div>
+              </div>
+              <p class="presence-status-text" id="demo-presence-text">
+                Not sharing
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="section glass"
+        id="feature-tour"
+        aria-labelledby="features-title"
+      >
+        <div class="section-heading">
+          <h2 id="features-title">Built for student life</h2>
+          <p>
+            Everything you need for spontaneous meetups without spamming group
+            chats.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Import your class schedule in seconds</h3>
+            <p>
+              Snap or upload your routine—our OCR and smart text detection
+              cleanly parse IUB (NSU, BRAC soon) formats so you never type slots
+              manually.
+            </p>
+          </article>
+          <article class="feature-card">
+            <h3>Add your friends</h3>
+            <p>
+              Send a request, share schedules, instantly see overlapping free
+              time and plan hangouts without spamming group chats.
+            </p>
+          </article>
+          <article class="feature-card">
+            <h3>Campus Presence</h3>
+            <p>
+              Auto‑detects when you’re on campus (low‑energy Wi‑Fi + smart
+              zones) so your circle knows when to meet—no manual toggling.
+            </p>
+          </article>
+          <article class="feature-card">
+            <h3>You are in control</h3>
+            <p>
+              Hide schedule or presence anytime. Instant privacy controls with
+              one tap—share only what helps you meet faster.
+            </p>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <div class="scroll-set set-final" aria-label="Social proof and FAQ">
+      <section
+        class="section"
+        id="demo-preview"
+        aria-labelledby="social-proof-title"
+      >
+        <div class="section-heading">
+          <h2 id="social-proof-title">Students already love it</h2>
+          <p>Quotes from early testers across Dhaka campuses.</p>
+        </div>
+        <div class="quotes">
+          <figure class="quote glass">
+            <blockquote>
+              "Between labs I can see who's free at SEHS cafe&mdash;makes group
+              work instant."
+            </blockquote>
+            <figcaption>&mdash; Samira, IUB Computer Science</figcaption>
+          </figure>
+          <figure class="quote glass">
+            <blockquote>
+              "Privacy toggles mean only my circle sees me. No more random
+              pings."
+            </blockquote>
+            <figcaption>&mdash; Ayaan, BRAC University</figcaption>
+          </figure>
+          <figure class="quote glass">
+            <blockquote>
+              "Uploaded my routine in 30 seconds. Now we meet after ACC 203
+              without texting 10 people."
+            </blockquote>
+            <figcaption>&mdash; Nafisa, NSU BBA</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section glass" id="faq" aria-labelledby="faq-title">
+        <div class="section-heading">
+          <h2 id="faq-title">FAQ</h2>
+          <p>Short answers before you hop in.</p>
+        </div>
+        <div class="faq-grid">
+          <details>
+            <summary>Do I need a university email?</summary>
+            <p>
+              Yes. Sign up with your verified .edu email so only students join.
+            </p>
+          </details>
+          <details>
+            <summary>Will friends always see my location?</summary>
+            <p>
+              No. Presence is opt-in per session and auto-disables after
+              meetups.
+            </p>
+          </details>
+          <details>
+            <summary>Does OCR work with Bengali timetables?</summary>
+            <p>
+              Yep! Hind Siliguri training ensures Bangladesh templates parse
+              cleanly.
+            </p>
+          </details>
+          <details>
+            <summary>Can I import Google Calendar?</summary>
+            <p>
+              Calendar sync is in beta&mdash;try schedule upload now and enable
+              beta access in settings.
+            </p>
+          </details>
+          <details>
+            <summary>Is there a web and mobile app?</summary>
+            <p>
+              Yes. The web app is mobile-first and installs as a PWA for quick
+              launching.
+            </p>
+          </details>
+        </div>
+      </section>
+    </div>
+    <!-- end scroll-set final -->
+  </main>
+
+  <div class="cta-sticky" aria-hidden="true">
+    <button class="btn btn-primary" data-evt="signup_started" type="button">
+      Sign up with your university email
+    </button>
   </div>
+
+  <footer class="landing-footer" role="contentinfo">
+    <p class="brand-name">MeetchuThere</p>
+    <p class="brand-slogan">Connect, and together we constellate.</p>
+    <p class="footer-meta">MeetchuThere c 2025, crafted with care</p>
+  </footer>
 </div>
 
+<script type="module">
+  import { authManager } from "/src/js/services/auth/AuthService.js";
+  import { AnalyticsService } from "/src/js/services/analytics/AnalyticsService.js";
+  import { logManager } from "/src/js/utils/debug/LogManager.js";
+
+  const metadata = [
+    {
+      name: "description",
+      content:
+        "MeetchuThere helps Bangladesh university students see friends' free time, coordinate meetups, and protect campus privacy in real time.",
+    },
+    {
+      property: "og:title",
+      content: "MeetchuThere \u2014 Real-time Campus Meetups",
+    },
+    {
+      property: "og:description",
+      content:
+        "See who's free, sync schedules, and meet on campus now. Privacy-first and built for Bangladesh students.",
+    },
+    { property: "og:type", content: "website" },
+    {
+      property: "og:url",
+      content: window.location.origin + window.location.pathname,
+    },
+    { property: "og:image", content: "https://meetchuthere.app/og-image.png" },
+  ];
+
+  document.title = "MeetchuThere \u2014 Real-time Campus Meetups";
+  metadata.forEach((meta) => {
+    const key = meta.name ? "name" : "property";
+    const selector = `${key}="${meta[key]}"`;
+    let tag = document.head.querySelector(`meta[${selector}]`);
+    if (!tag) {
+      tag = document.createElement("meta");
+      tag.setAttribute(key, meta[key]);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute("content", meta.content);
+  });
+
+  document.documentElement.lang = document.documentElement.lang || "en";
+
+  function handleSignupClick(event) {
+    event.preventDefault();
+    const button = event.currentTarget;
+    button.classList.add("is-busy");
+    try {
+      AnalyticsService?.trackFeatureUsage?.("landing_signup", {
+        source: "landing",
+      });
+    } catch (error) {
+      console.warn("Analytics tracking failed", error);
+    }
+    try {
+      if (authManager?.showAuthModal) {
+        authManager.showAuthModal();
+        logManager?.auth?.login?.("Landing signup triggered");
+      } else {
+        window.location.hash = "#home";
+      }
+    } catch (error) {
+      logManager?.auth?.error?.("Landing signup failed", error);
+    } finally {
+      window.setTimeout(() => button.classList.remove("is-busy"), 1200);
+    }
+  }
+
+  const signupButtons = document.querySelectorAll(
+    '[data-evt="signup_started"]'
+  );
+  signupButtons.forEach((btn) =>
+    btn.addEventListener("click", handleSignupClick)
+  );
+
+  // Landing presence demo avatar (inline DiceBear without app deps)
+  (() => {
+    try {
+      const avatarImg = document.getElementById("demo-avatar-img");
+      const presenceDot = document.getElementById("demo-presence-dot");
+      const presenceText = document.getElementById("demo-presence-text");
+      if (!avatarImg || !presenceDot || !presenceText) return;
+
+      const bgChoices = [
+        "b6e3f4",
+        "c0aede",
+        "ffd93d",
+        "ffdfbf",
+        "d1d4f9",
+        "b6e3f4,c0aede",
+        "ffd93d,ffdfbf",
+        "d1d4f9,b6e3f4",
+        "c0aede,ffd93d",
+        "ffdfbf,d1d4f9",
+      ];
+      const hairChoices = [
+        "classic01",
+        "classic02",
+        "curly",
+        "elvis",
+        "long",
+        "ponyTail",
+        "stylish",
+      ];
+      const seed = Math.random().toString(36).slice(2, 10);
+      const bg = bgChoices[Math.floor(Math.random() * bgChoices.length)];
+      const hair = hairChoices[Math.floor(Math.random() * hairChoices.length)];
+      const url = `https://api.dicebear.com/9.x/miniavs/svg?seed=${seed}&backgroundColor=${encodeURIComponent(
+        bg
+      )}&backgroundType=gradientLinear&hair=${hair}`;
+      avatarImg.style.opacity = "0";
+      avatarImg.addEventListener(
+        "load",
+        () => {
+          avatarImg.style.transition = "opacity 500ms ease";
+          avatarImg.style.opacity = "1";
+        },
+        { once: true }
+      );
+      avatarImg.src = url;
+
+      const states = [
+        { cls: "grey", label: "Not sharing" },
+        { cls: "red", label: "Off campus" },
+        { cls: "green", label: "On campus" },
+      ];
+      let idx = 0;
+      function cyclePresence() {
+        const { cls, label } = states[idx];
+        presenceDot.className = `presence-dot ${cls}`;
+        presenceDot.setAttribute("aria-label", `Presence status: ${label}`);
+        presenceText.classList.remove("swap");
+        void presenceText.offsetWidth; // restart animation
+        presenceText.textContent = label;
+        presenceText.classList.add("swap");
+        idx = (idx + 1) % states.length;
+      }
+      cyclePresence();
+      const intervalId = setInterval(cyclePresence, 2000);
+      document.addEventListener("spa:page:unload", (evt) => {
+        if (evt.detail?.route === "landing") clearInterval(intervalId);
+      });
+    } catch (err) {
+      console.warn("Landing presence demo failed", err);
+    }
+  })();
+
+  const observer = window.IntersectionObserver
+    ? new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in-view");
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.2 }
+      )
+    : null;
+
+  if (observer) {
+    document
+      .querySelectorAll(".glass, .feature-card, .quote, details")
+      .forEach((el) => observer.observe(el));
+  }
+
+  document.addEventListener("spa:page:unload", (evt) => {
+    if (evt.detail?.route === "landing") {
+      signupButtons.forEach((btn) =>
+        btn.removeEventListener("click", handleSignupClick)
+      );
+      observer?.disconnect?.();
+    }
+  });
+</script>
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Do I need a university email?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Sign up with your verified .edu email so only students join."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Will friends always see my location?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Presence is opt-in per session and auto-disables after meetups."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does OCR work with Bengali timetables?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Hind Siliguri training ensures Bangladesh templates parse cleanly."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I import Google Calendar?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Calendar sync is in beta&mdash;try schedule upload now and enable beta access in settings."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a web and mobile app?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. The web app installs as a mobile-ready PWA for quick launching."
+        }
+      }
+    ]
+  }
+</script>
+
 <style>
-/* ===== LANDING PAGE STYLES ===== */
-.landing-container {
-  min-height: 100vh;
-  min-height: 100dvh; /* Dynamic viewport height for mobile */
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
+  @import url("https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@500&family=Inter:wght@400;500;600&family=Poppins:wght@600;700;800&family=Sora:wght@600;700&display=swap");
 
-/* Hero Section */
-.hero-section {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1.5rem;
-  position: relative;
-  z-index: 2;
-}
+  :root {
+    color-scheme: dark;
+    --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    --font-heading: "Poppins", "Sora", sans-serif;
+    --font-brand: "Sora", "Poppins", sans-serif;
+    --font-bengali: "Hind Siliguri", sans-serif;
 
-.hero-content {
-  text-align: center;
-  max-width: 800px;
-  width: 100%;
-}
+    --color-bg-top: #08040f;
+    --color-bg: #040308;
+    --color-bg-bottom: #070013;
+    --color-primary: #b37fff;
+    --color-primary-strong: #d7c4ff;
+    --color-primary-soft: rgba(143, 81, 255, 0.3);
+    --color-accent: rgba(255, 133, 255, 0.2);
+    --color-surface: rgba(20, 10, 40, 0.55);
+    --color-surface-deep: rgba(32, 12, 65, 0.55);
+    --color-surface-soft: rgba(40, 15, 73, 0.55);
+    --color-border: rgba(186, 141, 255, 0.28);
+    --color-border-soft: rgba(170, 130, 255, 0.22);
+    --color-text: #f6f5ff;
+    --color-text-soft: rgba(246, 245, 255, 0.85);
+    --color-text-subtle: rgba(225, 214, 255, 0.78);
+    --color-text-muted: rgba(213, 199, 255, 0.72);
 
-/* Brand Area */
-.hero-brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
+    --radius-lg: 24px;
+    --radius-md: 20px;
+    --radius-sm: 16px;
+    --radius-pill: 999px;
 
-.brand-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  color: var(--accent-primary);
-  animation: brandIconFloat 3s ease-in-out infinite;
-}
+    --shadow-soft: 0 18px 40px rgba(75, 20, 120, 0.35);
+    --shadow-brand: 0 12px 25px rgba(118, 0, 255, 0.25);
 
-.location-icon {
-  filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.3));
-}
-
-.brand-name {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  margin: 0;
-  text-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
-}
-
-/* Animated Tagline */
-.hero-tagline {
-  margin-bottom: 1.5rem;
-}
-
-.tagline-main {
-  font-size: clamp(1.5rem, 4vw, 2.5rem);
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.2;
-  margin: 0;
-}
-
-.animated-text-container {
-  position: relative;
-  display: inline-block;
-  height: 1.2em;
-  vertical-align: top;
-  overflow: hidden;
-  text-align: left;
-  /* Ensure container has minimum width */
-  min-width: 6.5em;
-}
-
-.animated-text {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  font-weight: 700;
-  /* Use solid color instead of gradient for reliability */
-  color: var(--accent-primary);
-  /* Remove CSS animation - let JavaScript handle this */
-  opacity: 0;
-  transform: translateY(100%);
-  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 500ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hero Description */
-.hero-description {
-  font-size: clamp(1rem, 2.5vw, 1.25rem);
-  color: var(--text-secondary);
-  margin-bottom: 2.5rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
-}
-
-/* Call to Action Button */
-.hero-cta {
-  margin-bottom: 3rem;
-}
-
-.cta-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
-  border: none;
-  border-radius: 50px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.cta-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(139, 92, 246, 0.4);
-}
-
-.cta-button:active {
-  transform: translateY(0);
-}
-
-.cta-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.cta-button:hover::before {
-  left: 100%;
-}
-
-/* Floating Background Elements */
-.floating-elements {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.floating-element {
-  position: absolute;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(168, 85, 247, 0.05));
-  border-radius: 50%;
-  backdrop-filter: blur(10px);
-  animation: float 6s ease-in-out infinite;
-}
-
-.element-1 {
-  width: 80px;
-  height: 80px;
-  top: 20%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.element-2 {
-  width: 120px;
-  height: 120px;
-  top: 60%;
-  right: 15%;
-  animation-delay: -2s;
-}
-
-.element-3 {
-  width: 60px;
-  height: 60px;
-  top: 80%;
-  left: 20%;
-  animation-delay: -4s;
-}
-
-.element-4 {
-  width: 100px;
-  height: 100px;
-  top: 10%;
-  right: 25%;
-  animation-delay: -1s;
-}
-
-/* Features Section */
-.features-section {
-  padding: 3rem 1.5rem;
-  background: rgba(0, 0, 0, 0.02);
-  backdrop-filter: blur(10px);
-}
-
-.features-grid {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-}
-
-.feature-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius);
-  padding: 2rem;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--glass-lift-shadow);
-  border-color: var(--glass-border-strong);
-}
-
-.feature-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
-  border-radius: 16px;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
-}
-
-.feature-card h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.75rem;
-}
-
-.feature-card p {
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Background Decoration */
-.background-decoration {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: -2;
-}
-
-.gradient-orb {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 40%, transparent 70%);
-  filter: blur(40px);
-  animation: orbFloat 8s ease-in-out infinite;
-}
-
-.orb-1 {
-  width: 400px;
-  height: 400px;
-  top: -200px;
-  left: -200px;
-  animation-delay: 0s;
-}
-
-.orb-2 {
-  width: 600px;
-  height: 600px;
-  bottom: -300px;
-  right: -300px;
-  animation-delay: -4s;
-}
-
-.orb-3 {
-  width: 300px;
-  height: 300px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  animation-delay: -2s;
-}
-
-/* ===== ANIMATIONS ===== */
-@keyframes brandIconFloat {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translateY(-20px) rotate(180deg);
-    opacity: 1;
-  }
-}
-
-@keyframes orbFloat {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-30px) scale(1.1);
-  }
-}
-
-/* ===== RESPONSIVE DESIGN ===== */
-
-/* Landing page specific: Override CSS variables to use full viewport since bottom nav is hidden */
-body.page-landing {
-  --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-  --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-}
-
-/* Mobile Optimizations (≤ 480px) */
-@media (max-width: 480px) {
-  /* Landing page specific: Override mobile variables too */
-  body.page-landing {
-    --main-content-available-height: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
-    --main-content-available-height-with-bottom-nav: calc(100dvh - var(--nav-height) - env(safe-area-inset-bottom));
+    --space-section: clamp(3rem, 7vw, 4.5rem);
+    --space-inline: clamp(1.25rem, 4vw, 4rem);
+    --space-card: clamp(1.5rem, 3vw, 2.5rem);
+    --space-gap: 1.5rem;
+    --max-width-text: 32rem;
   }
 
-  body.page-landing .main-content {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  .page-landing {
+    background: radial-gradient(
+        circle at 20% 20%,
+        rgba(118, 77, 255, 0.18),
+        transparent 55%
+      ),
+      radial-gradient(
+        circle at 80% 0%,
+        rgba(255, 53, 255, 0.22),
+        transparent 60%
+      ),
+      linear-gradient(
+        180deg,
+        var(--color-bg-top) 0%,
+        var(--color-bg) 35%,
+        var(--color-bg-bottom) 100%
+      );
+    min-height: 100vh;
+    font-family: var(--font-body);
+    color: var(--color-text);
   }
 
-  .landing-container {
-    min-height: auto;
-    height: 100%;
+  .page-landing .main-content {
+    padding: 0;
   }
 
-  .hero-section {
-    padding: 1.5rem 1rem;
-    min-height: auto;
-  }
-
-  .hero-brand {
+  .landing-page {
+    position: relative;
+    display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    gap: var(--space-section);
+    padding-bottom: 6rem;
   }
 
-  .brand-icon {
-    width: 56px;
-    height: 56px;
+  .landing-backdrop::before,
+  .landing-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        circle at 20% 80%,
+        rgba(140, 100, 255, 0.25),
+        transparent 55%
+      ),
+      radial-gradient(
+        circle at 90% 30%,
+        rgba(255, 133, 255, 0.18),
+        transparent 60%
+      );
+    filter: blur(120px);
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    padding: clamp(2rem, 5vw, 4rem) clamp(1.25rem, 4vw, 4rem) 1rem;
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .brand {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .brand-mark {
+    display: inline-flex;
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: linear-gradient(
+      160deg,
+      rgba(132, 70, 255, 0.25),
+      rgba(63, 0, 118, 0.6)
+    );
+    border: 1px solid rgba(199, 161, 255, 0.35);
+    backdrop-filter: blur(16px);
+    color: #d7c4ff;
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-brand);
+  }
+
+  .brand svg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .brand-copy {
+    display: flex;
+    flex-direction: column;
   }
 
   .brand-name {
-    font-size: clamp(1.75rem, 8vw, 2rem);
+    font-family: "Sora", "Poppins", sans-serif;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
-  .tagline-main {
-    font-size: clamp(1.1rem, 6vw, 1.25rem);
-    line-height: 1.3;
+  .brand-slogan {
+    margin: 0.2rem 0 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    color: var(--color-text-subtle);
   }
 
-  .hero-description {
-    font-size: clamp(0.9rem, 4vw, 1rem);
-    margin-bottom: 2rem;
-    padding: 0 0.5rem;
+  .hero-headline {
+    font-family: "Poppins", "Sora", sans-serif;
+    font-size: clamp(2rem, 7vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0;
+    color: #ffffff;
+    text-shadow: 0 16px 40px rgba(171, 94, 255, 0.35);
   }
 
-  .cta-button {
-    padding: 0.875rem 1.5rem;
-    font-size: clamp(0.9rem, 4vw, 1rem);
+  .hero-value {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 32rem;
+    color: var(--color-text-soft);
   }
 
-  .features-section {
-    padding: 2rem 1rem 3rem; /* Extra bottom padding */
+  .hero-subtext {
+    margin: 0;
+    color: var(--color-text-subtle);
+    font-size: 0.95rem;
   }
 
-  .features-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  .hero-cta {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
-  .feature-card {
-    padding: 1.5rem;
+  .btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.85rem 1.4rem;
+    font-size: 1rem;
+    min-height: 44px;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease,
+      background 150ms ease;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text);
   }
 
-  .feature-card h3 {
-    font-size: clamp(1.1rem, 5vw, 1.25rem);
+  .btn-primary {
+    background: linear-gradient(
+      120deg,
+      rgba(143, 61, 255, 0.95),
+      rgba(255, 108, 251, 0.85)
+    );
+    box-shadow: 0 18px 40px rgba(105, 30, 200, 0.35);
   }
 
-  .feature-card p {
-    font-size: clamp(0.9rem, 4vw, 1rem);
+  .btn-primary:is(:hover, :focus-visible) {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 45px rgba(105, 30, 200, 0.45);
   }
 
-  /* Reduce floating elements on mobile */
-  .floating-element {
-    opacity: 0.5;
-  }
-  
-  .element-2,
-  .element-4 {
-    display: none;
+  .btn-secondary {
+    background: rgba(40, 18, 68, 0.8);
+    border: 1px solid rgba(186, 141, 255, 0.3);
   }
 
-  .animated-text-container {
+  .btn-secondary:is(:hover, :focus-visible) {
+    transform: translateY(-1px);
+    background: rgba(58, 28, 100, 0.85);
+  }
+
+  .btn:focus-visible {
+    outline: 3px solid rgba(215, 182, 255, 0.8);
+    outline-offset: 2px;
+  }
+
+  .btn.is-busy {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .trust-chips {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .trust-chips li {
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(199, 161, 255, 0.35);
+    background: rgba(31, 10, 61, 0.65);
+    font-size: 0.85rem;
+    color: var(--color-text-soft);
+  }
+
+  .hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .phone-frame {
+    width: min(320px, 88vw);
+    border-radius: 34px;
+    padding: 1.1rem;
+    background: linear-gradient(
+      160deg,
+      rgba(50, 16, 90, 0.9),
+      rgba(22, 10, 44, 0.9)
+    );
+    border: 1px solid rgba(172, 134, 255, 0.35);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .phone-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 26px;
+    background: radial-gradient(
+        circle at 20% 0%,
+        rgba(180, 127, 255, 0.25),
+        transparent 70%
+      ),
+      rgba(14, 6, 28, 0.9);
+    border: 1px solid rgba(199, 161, 255, 0.25);
+  }
+
+  .screen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .profile-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(140deg, #9b5cff, #5f1ccc);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.35);
+  }
+
+  .profile-dot--friend {
+    background: linear-gradient(140deg, #4ad4ff, #8f69ff);
     position: relative;
-    display: inline-block;
-    height: 1.2em;
-    vertical-align: top;
-    overflow: hidden;
+  }
+
+  .profile-dot--friend::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ff4571;
+    border: 2px solid rgba(12, 6, 20, 0.9);
+  }
+
+  .status-pill {
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(110, 81, 255, 0.2);
+    border: 1px solid rgba(186, 141, 255, 0.35);
+    font-size: 0.75rem;
+    color: var(--color-text-soft);
+  }
+
+  .screen-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(23, 8, 48, 0.82);
+    border: 1px solid rgba(188, 149, 255, 0.25);
+  }
+
+  .screen-title {
+    margin: 0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+  }
+
+  .screen-slots {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .screen-slots li {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 12px;
+    background: rgba(34, 12, 66, 0.88);
+    border: 1px solid rgba(197, 158, 255, 0.2);
+  }
+
+  .screen-slots .slot-busy {
+    background: rgba(163, 79, 255, 0.2);
+    border-color: rgba(230, 152, 255, 0.3);
+  }
+
+  .screen-footer {
+    margin-top: auto;
+    font-size: 0.72rem;
     text-align: center;
-    /* Ensure container has minimum width */
-    min-width: 6.5em;
-}
+    padding: 0.4rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(116, 89, 255, 0.18);
+    border: 1px solid rgba(169, 140, 255, 0.25);
+    color: var(--color-text-muted);
+  }
 
-}
+  .sections {
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
+    padding: 0 clamp(1.25rem, 4vw, 4rem);
+  }
 
-/* Tablet Styles (481px - 768px) */
-@media (min-width: 481px) and (max-width: 768px) {
-  .hero-section {
-    padding: 2rem 1.5rem;
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
   }
-  
-  .features-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 
-/* Desktop Styles (≥ 769px) */
-@media (min-width: 769px) {
-  .hero-section {
-    padding: 3rem 2rem;
+  .section-heading h2 {
+    font-family: "Sora", "Poppins", sans-serif;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    margin: 0;
   }
-  
-  .hero-content {
-    max-width: 900px;
-  }
-  
-  .features-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2.5rem;
-  }
-}
 
-/* Large Desktop (≥ 1200px) */
-@media (min-width: 1200px) {
-  .hero-section {
-    padding: 4rem 2rem;
+  .section-heading p {
+    margin: 0.6rem 0 0;
+    color: var(--color-text-subtle);
+    max-width: 32rem;
   }
-  
-  .features-section {
-    padding: 4rem 2rem;
-  }
-}
 
-/* Dark Mode Adjustments */
-body.dark-mode .feature-card {
-  background: var(--glass-bg-dark);
-  border-color: var(--glass-border-dark);
-}
+  .glass {
+    background: rgba(20, 10, 40, 0.55);
+    border-radius: 24px;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    border: 1px solid rgba(186, 141, 255, 0.25);
+    backdrop-filter: blur(18px);
+  }
 
-body.dark-mode .brand-icon {
-  background: var(--glass-bg-dark);
-  border-color: var(--glass-border-dark);
-}
+  .glass.in-view {
+    animation: fade-up 600ms ease forwards;
+  }
 
-/* Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-  .animated-text,
-  .floating-element,
-  .gradient-orb,
-  .brand-icon {
-    animation: none;
+  .steps {
+    display: grid;
+    gap: 1.3rem;
   }
-  
-  .cta-button:hover {
-    transform: none;
+
+  .how-it-grid {
+    display: grid;
+    gap: 1.75rem;
+    align-items: start;
   }
-  
-  .feature-card:hover {
-    transform: none;
+
+  .how-it-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 620px;
   }
-}
+
+  .how-it-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .how-it-visual {
+    justify-self: center;
+  }
+
+  @media (min-width: 560px) {
+    .how-it-steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 720px) {
+    .how-it-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 1fr);
+    }
+    .how-it-visual {
+      justify-self: end;
+    }
+  }
+
+  @media (min-width: 960px) {
+    .how-it-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+      gap: 2.5rem;
+    }
+    .how-it-steps {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .landing-avatar-demo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(40, 15, 73, 0.45);
+    border: 1px solid rgba(186, 141, 255, 0.25);
+    padding: 1.2rem 1rem 1.4rem;
+    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    position: relative;
+    width: min(100%, 260px);
+    transition: transform 320ms ease, box-shadow 320ms ease,
+      border-color 320ms ease;
+    animation: fade-up 700ms ease both;
+  }
+
+  .landing-avatar-demo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      circle at 70% 30%,
+      rgba(160, 120, 255, 0.15),
+      transparent 65%
+    );
+    pointer-events: none;
+  }
+
+  .avatar-frame {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(
+      140deg,
+      rgba(120, 70, 255, 0.35),
+      rgba(55, 0, 120, 0.55)
+    );
+    box-shadow: 0 10px 28px -6px rgba(90, 40, 160, 0.45);
+    border: 2px solid rgba(195, 158, 255, 0.4);
+    overflow: hidden;
+  }
+
+  .avatar-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .landing-avatar-demo .presence-dot {
+    bottom: 6px;
+    right: 6px;
+    transform-origin: center;
+    transition: transform 250ms ease, box-shadow 300ms ease,
+      background 360ms ease;
+    animation: presenceCyclePulse 2s linear infinite;
+  }
+
+  @keyframes presenceCyclePulse {
+    0%,
+    33%,
+    100% {
+      transform: scale(1);
+    }
+    16% {
+      transform: scale(1.1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    83% {
+      transform: scale(1.1);
+    }
+  }
+
+  .presence-status-text {
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--color-text-subtle);
+    background: rgba(32, 12, 65, 0.55);
+    padding: 0.4rem 0.9rem;
+    border: 1px solid rgba(186, 141, 255, 0.3);
+    border-radius: 999px;
+    min-width: 140px;
+    text-align: center;
+    transition: color 300ms ease, background 300ms ease, border-color 300ms ease,
+      opacity 350ms ease;
+    opacity: 1;
+  }
+
+  .presence-status-text.swap {
+    animation: statusFade 1800ms ease;
+  }
+
+  @keyframes statusFade {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    12% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.95;
+    }
+  }
+
+  .landing-avatar-demo[data-presence="grey"] .presence-status-text {
+    color: var(--color-text-subtle);
+    background: rgba(32, 12, 65, 0.55);
+    border-color: rgba(186, 141, 255, 0.3);
+  }
+
+  .landing-avatar-demo[data-presence="red"] .presence-status-text {
+    color: #ff9fae;
+    background: rgba(92, 20, 46, 0.55);
+    border-color: rgba(255, 159, 174, 0.4);
+  }
+
+  .landing-avatar-demo[data-presence="green"] .presence-status-text {
+    color: #9fffb8;
+    background: rgba(18, 66, 52, 0.55);
+    border-color: rgba(159, 255, 184, 0.4);
+  }
+
+  .step-card {
+    position: relative;
+    padding-left: 3.2rem;
+  }
+
+  .step-number {
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 18px;
+    background: rgba(172, 118, 255, 0.22);
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+  }
+
+  .step-card h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .step-card p {
+    margin: 0;
+    color: var(--color-text-subtle);
+  }
+
+  .privacy-grid,
+  .feature-grid,
+  .quotes,
+  .faq-grid {
+    display: grid;
+    gap: 1.2rem;
+  }
+
+  .privacy-card,
+  .feature-card,
+  .quote {
+    border-radius: 20px;
+    padding: 1.5rem;
+    border: 1px solid rgba(170, 130, 255, 0.2);
+    background: rgba(32, 12, 65, 0.55);
+    backdrop-filter: blur(12px);
+  }
+
+  .feature-card h3,
+  .privacy-card h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+  }
+
+  .feature-card p,
+  .privacy-card p {
+    margin: 0;
+    color: var(--color-text-subtle);
+  }
+
+  .quotes .quote {
+    font-style: normal;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .quotes blockquote {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: rgba(247, 244, 255, 0.87);
+  }
+
+  .quotes figcaption {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+  }
+
+  .faq-grid details {
+    background: rgba(40, 15, 73, 0.55);
+    border-radius: 16px;
+    padding: 1.1rem 1.3rem;
+    border: 1px solid rgba(186, 141, 255, 0.22);
+  }
+
+  .faq-grid summary {
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .faq-grid summary:focus-visible {
+    outline: 3px solid #8c62ff;
+    border-radius: 12px;
+  }
+
+  .faq-grid p {
+    margin: 0.75rem 0 0;
+    color: var(--color-text-subtle);
+  }
+
+  .cta-sticky {
+    position: fixed;
+    inset: auto 1rem 1rem;
+    z-index: 20;
+    background: rgba(14, 6, 28, 0.8);
+    border: 1px solid rgba(148, 102, 255, 0.45);
+    border-radius: 18px;
+    padding: 0.8rem;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .landing-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 2rem 1rem 3rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .landing-footer .brand-name {
+    color: rgba(255, 240, 255, 0.95);
+  }
+
+  @media (min-width: 720px) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr);
+      align-items: center;
+    }
+
+    .hero-content {
+      max-width: 560px;
+    }
+
+    .sections {
+      padding-inline: clamp(2.5rem, 8vw, 7rem);
+    }
+
+    .privacy-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .quotes {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .faq-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cta-sticky {
+      display: none;
+    }
+  }
+
+  .section-heading.compact p {
+    margin-top: 0.4rem;
+  }
+  .how-it-tag {
+    margin: 0;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    background: rgba(120, 70, 255, 0.18);
+    border: 1px solid rgba(186, 141, 255, 0.3);
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+  }
+
+  /* Scroll snap sets */
+  .landing-page {
+    overflow-y: auto;
+    height: 100%;
+    scroll-snap-type: y mandatory;
+  }
+
+  .scroll-set,
+  .hero {
+    scroll-snap-align: start;
+  }
+
+  .set-middle,
+  .set-final {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .landing-page {
+      scroll-snap-type: none;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .sections {
+      gap: 4rem;
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 </style>
