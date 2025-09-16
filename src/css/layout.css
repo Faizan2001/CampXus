@@ -101,11 +101,12 @@
   font-size: 1.5rem;
 }
 .logo span {
-  font-size: 1.5rem;
-  font-weight: 850;
-  font-style: normal; /* Changed from italic to normal */
+  font-size: 2rem;
+  font-weight: 700;
+  font-family: "Sora", "Poppins", sans-serif;
+  font-style: normal;
   color: transparent;
-  background: linear-gradient(135deg, #4f46e5, #8b5cf6, #d946ef);
+  background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
   background-clip: text;
   -webkit-background-clip: text;
   display: inline-block;
@@ -930,8 +931,13 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .logo span {
     font-size: 1rem !important;
-    font-weight: 850;
+    font-family: "Sora", "Poppins", sans-serif;
+    font-weight: 700;
     font-style: normal;
+    color: transparent;
+    background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
+    background-clip: text;
+    -webkit-background-clip: text;
   }
   .theme-toggle {
     min-width: 2rem !important;
@@ -1000,7 +1006,13 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     min-height: 44px;
   }
   .logo span {
-    font-size: 1.2rem !important;
+    font-size: 1.5rem !important;
+    font-family: "Sora", "Poppins", sans-serif;
+    font-weight: 700;
+    color: transparent;
+    background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
+    background-clip: text;
+    -webkit-background-clip: text;
   }
   .nav-link,
   .user-menu-trigger,
@@ -1035,23 +1047,15 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   /* Mobile: always assume bottom nav is present due to display: grid in mobile-bottom-nav */
   .main-content {
     /* Use dynamic height variables that account for bottom nav */
-    height: var(--main-content-available-height-with-bottom-nav);
-    max-height: var(--main-content-available-height-with-bottom-nav);
+    height: auto;
     min-height: var(--main-content-available-height-with-bottom-nav);
     padding-bottom: 8px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   .content-grid {
     /* Content grid fills available main-content space */
     flex: 1 1 auto;
     min-height: 0;
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   /* optional vertical headers */
@@ -1087,6 +1091,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .logo span {
     font-size: 1.25rem;
+    font-family: "Sora", "Poppins", sans-serif;
+    font-weight: 700;
+    color: transparent;
+    background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
+    background-clip: text;
+    -webkit-background-clip: text;
   }
   .nav-link {
     padding: 0.5rem 0.85rem;

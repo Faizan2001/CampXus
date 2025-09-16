@@ -11,6 +11,7 @@
 // Import necessary services and utilities
 import { authManager } from "../services/auth/AuthService.js";
 import { logManager } from "../utils/debug/LogManager.js";
+import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 
 /**
  * Landing Page Class
@@ -23,6 +24,7 @@ class LandingPage {
     this.presenceInterval = null;
     this.presenceElements = null;
     this.presenceStateIndex = 0;
+    this.originalButtonMarkup = "";
     this.boundHandleJoinClick = this.handleJoinClick.bind(this);
 
     logManager.ui.init("LandingPage: Initializing landing page controller");
@@ -53,9 +55,10 @@ class LandingPage {
    * Set up the join button functionality
    */
   setupJoinButton() {
-    this.joinButton = document.getElementById("joinButton");
+    this.joinButton = document.querySelector('[data-evt="signup_started"]');
 
     if (this.joinButton) {
+      this.originalButtonMarkup = this.joinButton.innerHTML;
       this.joinButton.addEventListener("click", this.boundHandleJoinClick);
       logManager.ui.init("LandingPage: Join button event listener attached");
     } else {
@@ -68,15 +71,32 @@ class LandingPage {
    */
   async handleJoinClick(event) {
     event.preventDefault();
-    
+
+    if (!this.joinButton) {
+      logManager.ui?.warn?.("LandingPage: Join button missing during click");
+      return;
+    }
+
     try {
       // Add loading state to button
       const originalText = this.joinButton.innerHTML;
+      if (!this.originalButtonMarkup) {
+        this.originalButtonMarkup = originalText;
+      }
+      this.joinButton.classList.add("is-busy");
       this.joinButton.innerHTML = `<span class="cta-text">Opening...</span>`;
       this.joinButton.disabled = true;
 
       logManager.ui.click("LandingPage: Join button clicked - opening authentication");
-      
+
+      try {
+        AnalyticsService?.trackFeatureUsage?.("landing_signup", {
+          source: "landing",
+        });
+      } catch (trackError) {
+        logManager.ui?.warn?.("LandingPage: Analytics tracking failed", trackError);
+      }
+
       // Trigger authentication modal
       if (authManager && authManager.showAuthModal) {
         authManager.showAuthModal();
@@ -100,7 +120,8 @@ class LandingPage {
       // Restore button state after a short delay
       setTimeout(() => {
         if (this.joinButton) {
-          this.joinButton.innerHTML = `<span class="cta-text">Join MeetchuThere</span>`;
+          this.joinButton.innerHTML = this.originalButtonMarkup || originalText;
+          this.joinButton.classList.remove("is-busy");
           this.joinButton.disabled = false;
         }
       }, 1000);
@@ -294,9 +315,9 @@ class LandingPage {
     this.presenceStateIndex = 0;
 
     const states = [
-      { cls: "grey", label: "Not sharing" },
-      { cls: "red", label: "Off campus" },
-      { cls: "green", label: "On campus" },
+      { cls: "grey", label: "Not sharing", color: "#9fa7b8" },
+      { cls: "red", label: "Off campus", color: "#ff87a4" },
+      { cls: "green", label: "On campus", color: "#75f7b9" },
     ];
 
     const applyState = () => {
@@ -316,6 +337,9 @@ class LandingPage {
       presenceText.classList.add("swap");
 
       container.setAttribute("data-presence", state.cls);
+      if (state.color) {
+        container.style.setProperty("--presence-color", state.color);
+      }
 
       this.presenceStateIndex =
         (this.presenceStateIndex + 1) % states.length;
@@ -401,6 +425,7 @@ class LandingPage {
     if (container) {
       container.removeAttribute("data-presence");
       delete container.dataset.demoInitialized;
+      container.style.removeProperty("--presence-color");
     }
 
     if (presenceDot) {
