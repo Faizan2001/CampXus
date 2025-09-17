@@ -85,11 +85,21 @@ function initializeInteractiveElements() {
 function applyTheme() {
   const savedTheme = localStorage.getItem("theme");
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const hasSavedTheme = savedTheme === "dark" || savedTheme === "light";
+  const themePreference = hasSavedTheme ? savedTheme : "dark";
 
-  dbg("🎨 Applying theme...", { savedTheme, prefersDark });
+  if (!hasSavedTheme) {
+    localStorage.setItem("theme", themePreference);
+  }
 
-  // Apply theme: saved preference > system preference > default (dark)
-  const shouldUseDark = savedTheme === "dark" || (!savedTheme && prefersDark);
+  dbg("🎨 Applying theme...", {
+    savedTheme,
+    prefersDark,
+    appliedTheme: themePreference,
+  });
+
+  // Default to dark unless the user explicitly picked light mode
+  const shouldUseDark = themePreference === "dark";
 
   if (shouldUseDark) {
     document.body.classList.add("dark-mode");
