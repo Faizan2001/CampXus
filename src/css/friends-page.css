@@ -664,6 +664,7 @@ body.page-friends .schedule-section {
   gap: 8px;
   flex-shrink: 0;
   align-items: center;
+  min-width: 200px;
 }
 
 .btn-view-schedule {
@@ -679,6 +680,8 @@ body.page-friends .schedule-section {
   align-items: center;
   gap: var(--space-xs);
   font-size: 0.9em;
+  min-width: 100px;
+  justify-content: center;
 }
 .btn-view-schedule:hover {
   background: var(--primary-dark);
@@ -690,14 +693,16 @@ body.page-friends .schedule-section {
   color: var(--text-secondary);
   border: var(--friends-btn-friend-menu-border);
   padding: 8px;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--friends-action-size);
+  height: var(--friends-action-size);
+  min-width: var(--friends-action-size);
+  min-height: var(--friends-action-size);
   backdrop-filter: blur(10px);
 }
 .btn-friend-menu:hover {
@@ -858,10 +863,12 @@ body.page-friends .schedule-section {
   align-items: center;
   gap: 0.4rem;
   margin: 0.5rem 0 0 0;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  padding: 0.3rem 0.6rem;
-  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  min-height: 34px;
+  border-radius: 999px;
+  line-height: 1;
   transition: all 0.3s ease;
 }
 .schedule-access i {
@@ -1329,9 +1336,11 @@ body.page-friends
   );
   color: var(--text-secondary);
   border: none;
-  border-radius: 9px;
-  width: 32px;
-  height: 32px;
+  border-radius: 12px;
+  width: var(--friends-action-size);
+  height: var(--friends-action-size);
+  min-width: var(--friends-action-size);
+  min-height: var(--friends-action-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1361,7 +1370,7 @@ body.page-friends
     var(--friends-button-highlight-white-subtle) 40%,
     transparent 100%
   );
-  border-radius: 8px 8px 0 0;
+  border-radius: 12px 12px 0 0;
   pointer-events: none;
 }
 .friend-options-menu .options-button:hover {
@@ -1606,9 +1615,11 @@ div.friend-options-menu.show div.options-dropdown,
 .quick-access-star,
 .mutual-schedule-btn,
 .mutual-location-btn {
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  border-radius: 12px;
+  width: var(--friends-action-size);
+  height: var(--friends-action-size);
+  min-width: var(--friends-action-size);
+  min-height: var(--friends-action-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1652,7 +1663,7 @@ div.friend-options-menu.show div.options-dropdown,
     rgba(255, 255, 255, 0.05) 50%,
     transparent 100%
   );
-  border-radius: 8px 8px 0 0;
+  border-radius: 12px 12px 0 0;
   pointer-events: none;
 }
 .quick-access-star:hover {
@@ -1756,7 +1767,7 @@ div.friend-options-menu.show div.options-dropdown,
     rgba(255, 255, 255, 0.05) 50%,
     transparent 100%
   );
-  border-radius: 8px 8px 0 0;
+  border-radius: 12px 12px 0 0;
   pointer-events: none;
 }
 .mutual-schedule-btn:hover {
@@ -1977,13 +1988,16 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   position: relative;
   width: 64px;
   height: 32px;
-  border-radius: 16px;
+  min-width: 64px;
+  min-height: 32px;
+  border-radius: 999px;
   border: 2px solid rgba(255, 255, 255, 0.25);
   background: linear-gradient(
     135deg,
     rgba(239, 68, 68, 0.9),
     rgba(220, 38, 38, 0.95)
   );
+  display: inline-block;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(12px) saturate(1.2);
@@ -1993,6 +2007,8 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .location-toggle-switch.enabled {
   background: linear-gradient(
@@ -2073,6 +2089,13 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 3px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
 }
+.location-toggle-switch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
 
 .location-toggle-switch:focus {
   outline: none;
@@ -2146,6 +2169,8 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .friend-actions {
     flex-shrink: 0;
     max-width: fit-content;
+    min-width: 150px;
+    justify-content: flex-end;
   }
 
   .friend-options-menu .options-dropdown {
@@ -2162,8 +2187,10 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     gap: 8px;
   }
   .friend-options-menu .options-button {
-    width: 26px;
-    height: 26px;
+    width: var(--friends-action-size-mobile);
+    height: var(--friends-action-size-mobile);
+    min-width: var(--friends-action-size-mobile);
+    min-height: var(--friends-action-size-mobile);
     font-size: 0.75rem;
   }
 
@@ -2178,6 +2205,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     padding: var(--friends-privacy-status-padding-mobile);
     font-size: var(--friends-privacy-status-font-size-mobile);
     gap: var(--friends-privacy-status-gap-mobile);
+    min-height: 30px;
     margin-bottom: 1px !important;
   }
   .friend-card .schedule-access.bilateral-privacy i {
@@ -2191,6 +2219,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     padding: var(--friends-privacy-status-padding-mobile);
     font-size: var(--friends-privacy-status-font-size-mobile);
     gap: var(--friends-privacy-status-gap-mobile);
+    min-height: 30px;
     margin-bottom: 1px !important;
   }
   .friend-card .location-sharing-status.bilateral-location i {
@@ -2244,6 +2273,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .friend-actions {
     gap: 6px;
     min-height: 44px;
+    min-width: 175px;
   }
 
   /* Scrollable containers */
@@ -2367,8 +2397,10 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     font-size: 0.8rem;
   }
   .friend-options-menu .options-button {
-    width: 28px;
-    height: 28px;
+    width: var(--friends-action-size-tablet);
+    height: var(--friends-action-size-tablet);
+    min-width: var(--friends-action-size-tablet);
+    min-height: var(--friends-action-size-tablet);
     font-size: 0.8rem;
   }
 }
@@ -2394,6 +2426,10 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     gap: 14px;
     border-radius: 10px;
     min-height: 60px;
+  }
+  .friend-actions {
+    min-width: 180px;
+    justify-content: flex-end;
   }
   .friend-card .friend-avatar {
     width: 44px !important;
@@ -2444,6 +2480,10 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     gap: 16px;
     min-height: 68px;
   }
+  .friend-actions {
+    
+    min-width: fit-content;
+  }
   .friend-card .friend-avatar {
     width: 52px !important;
     height: 52px !important;
@@ -2461,7 +2501,9 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .location-toggle-switch {
     width: 56px;
     height: 28px;
-    border-radius: 14px;
+    min-width: 56px;
+    min-height: 28px;
+    border-radius: 999px;
     backdrop-filter: blur(10px) saturate(1.1);
     -webkit-backdrop-filter: blur(10px) saturate(1.1);
     position: relative;
@@ -2508,12 +2550,29 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     height: 28px;
     line-height: 1;
   }
+
+  .quick-access-star,
+  .mutual-schedule-btn,
+  .mutual-location-btn,
+  .btn-friend-menu,
+  .friend-options-menu .options-button {
+    width: var(--friends-action-size-mobile);
+    height: var(--friends-action-size-mobile);
+    min-width: var(--friends-action-size-mobile);
+    min-height: var(--friends-action-size-mobile);
+  }
+
+  .friend-actions {
+    min-width: 150px;
+  }
 }
 @media (min-width: 768px) and (max-width: 1023px) {
   .location-toggle-switch {
     width: 60px;
     height: 30px;
-    border-radius: 15px;
+    min-width: 60px;
+    min-height: 30px;
+    border-radius: 999px;
   }
   .location-toggle-text {
     font-size: 8px;
@@ -2541,12 +2600,29 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     height: 30px;
     line-height: 1;
   }
+
+  .quick-access-star,
+  .mutual-schedule-btn,
+  .mutual-location-btn,
+  .btn-friend-menu,
+  .friend-options-menu .options-button {
+    width: var(--friends-action-size-tablet);
+    height: var(--friends-action-size-tablet);
+    min-width: var(--friends-action-size-tablet);
+    min-height: var(--friends-action-size-tablet);
+  }
+
+  .friend-actions {
+    min-width: 175px;
+  }
 }
 @media (min-width: 1024px) {
   .location-toggle-switch {
     width: 68px;
     height: 34px;
-    border-radius: 17px;
+    min-width: 68px;
+    min-height: 34px;
+    border-radius: 999px;
   }
   .location-toggle-text {
     font-size: 10px;
@@ -2573,6 +2649,17 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .presence-label {
     height: 34px;
     line-height: 1;
+  }
+
+  .quick-access-star,
+  .mutual-schedule-btn,
+  .mutual-location-btn,
+  .btn-friend-menu,
+  .friend-options-menu .options-button {
+    width: var(--friends-action-size);
+    height: var(--friends-action-size);
+    min-width: var(--friends-action-size);
+    min-height: var(--friends-action-size);
   }
 }
 

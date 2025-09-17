@@ -10,15 +10,51 @@
  * - Custom events for CampXus-specific features
  */
 
-import { analytics } from "../../lib/firebase/firebase-config.js";
-import { logEvent, setUserId, setUserProperties } from "firebase/analytics";
+import app from "../../lib/firebase/firebase-config.js";
+
+let analyticsContextPromise = null;
+
+function ensureAnalyticsContext() {
+  if (typeof window === "undefined") {
+    return Promise.resolve(null);
+  }
+
+  if (analyticsContextPromise) {
+    return analyticsContextPromise;
+  }
+
+  analyticsContextPromise = import("firebase/analytics")
+    .then((mod) => {
+      try {
+        const analytics = mod.getAnalytics(app);
+        return {
+          analytics,
+          logEvent: mod.logEvent,
+          setUserId: mod.setUserId,
+          setUserProperties: mod.setUserProperties,
+        };
+      } catch (error) {
+        console.warn(
+          "📊 Analytics disabled: Firebase analytics not supported in this environment",
+          error.message
+        );
+        return null;
+      }
+    })
+    .catch((error) => {
+      console.warn("📊 Analytics module failed to load:", error.message);
+      return null;
+    });
+
+  return analyticsContextPromise;
+}
 
 export class AnalyticsService {
   /**
    * ✅ Basic availability check so callers can short‑circuit
-   */
+  */
   static isEnabled() {
-    return !!analytics && AnalyticsService._collectionEnabled !== false;
+    return AnalyticsService._collectionEnabled !== false;
   }
 
   // Internal flag for runtime consent (default true unless explicitly disabled)
@@ -35,15 +71,30 @@ export class AnalyticsService {
       console.log("📊 Analytics collection enabled");
     }
   }
+  static _runWithAnalytics(handler) {
+    if (!AnalyticsService.isEnabled()) {
+      return;
+    }
+
+    ensureAnalyticsContext()
+      .then((ctx) => {
+        if (!ctx) {
+          return;
+        }
+        handler(ctx);
+      })
+      .catch((error) => {
+        console.warn("📊 Analytics action failed:", error);
+      });
+  }
+
   /**
    * 📈 Track user registration
    * @param {string} university - University code (e.g., 'iub', 'nsu')
    * @param {string} major - User's major/subject
    */
   static trackUserRegistration(university, major = "unknown") {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "sign_up", {
         method: "email",
         university: university?.toLowerCase() || "unknown",
@@ -54,9 +105,7 @@ export class AnalyticsService {
         university,
         major,
       });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -65,9 +114,7 @@ export class AnalyticsService {
    * @param {string} method - Upload method ('ocr', 'manual', 'import')
    */
   static trackScheduleUpload(university, method = "unknown") {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "schedule_upload", {
         university: university?.toLowerCase() || "unknown",
         method: method,
@@ -78,9 +125,7 @@ export class AnalyticsService {
         university,
         method,
       });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -88,18 +133,14 @@ export class AnalyticsService {
    * @param {string} action - 'sent', 'accepted', 'rejected'
    */
   static trackFriendActivity(action) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "friend_activity", {
         action: action,
         feature: "social",
       });
 
       console.log("📊 Analytics: Friend activity tracked", { action });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -108,16 +149,13 @@ export class AnalyticsService {
    * @param {string} route
    */
   static trackPageView(pageName, route = "") {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "route_view", {
         page_title: pageName,
         page_location: route,
       });
       console.log("📊 Analytics: Route view tracked", { pageName, route });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -126,9 +164,7 @@ export class AnalyticsService {
    * @param {Object} properties - Additional properties
    */
   static trackFeatureUsage(feature, properties = {}) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "feature_usage", {
         feature_name: feature,
         ...properties,
@@ -138,9 +174,7 @@ export class AnalyticsService {
         feature,
         properties,
       });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -149,9 +183,7 @@ export class AnalyticsService {
    * @param {Object} properties - Event properties
    */
   static trackCampusPresence(event, properties = {}) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "campus_presence", {
         event_type: event,
         ...properties,
@@ -161,9 +193,7 @@ export class AnalyticsService {
         event,
         properties,
       });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -172,16 +202,13 @@ export class AnalyticsService {
    * @param {object} extra
    */
   static trackFriendRequest(phase, extra = {}) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "friend_request", {
         phase,
         ...extra,
       });
       console.log("📊 Analytics: Friend request event", { phase, extra });
-    } catch (e) {
-      console.warn("📊 Analytics tracking failed:", e);
-    }
+    });
   }
 
   /**
@@ -190,16 +217,13 @@ export class AnalyticsService {
    * @param {string} scope - global|friend_specific
    */
   static trackLocationSharingToggle(enabled, scope = "global") {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "location_sharing_toggle", {
         enabled: enabled ? "on" : "off",
         scope,
       });
       console.log("📊 Analytics: Location sharing toggled", { enabled, scope });
-    } catch (e) {
-      console.warn("📊 Analytics tracking failed:", e);
-    }
+    });
   }
 
   /**
@@ -208,13 +232,10 @@ export class AnalyticsService {
    * @param {object} meta
    */
   static trackScheduleEdit(action, meta = {}) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "schedule_edit", { action, ...meta });
       console.log("📊 Analytics: Schedule edit", { action, meta });
-    } catch (e) {
-      console.warn("📊 Analytics tracking failed:", e);
-    }
+    });
   }
 
   /**
@@ -224,19 +245,15 @@ export class AnalyticsService {
    * @param {string} location - Where the error occurred
    */
   static trackError(errorType, errorMessage, location) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
+    AnalyticsService._runWithAnalytics(({ analytics, logEvent }) => {
       logEvent(analytics, "app_error", {
         error_type: errorType,
-        error_message: errorMessage.substring(0, 100), // Limit length
+        error_message: errorMessage.substring(0, 100),
         error_location: location,
       });
 
       console.log("📊 Analytics: Error tracked", { errorType, location });
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
-    }
+    });
   }
 
   /**
@@ -244,45 +261,52 @@ export class AnalyticsService {
    * @param {Object} userData - User data from profile
    */
   static setUserProperties(userData) {
-    try {
-      if (!AnalyticsService.isEnabled()) return;
-
-      const university = userData?.universityInfo?.university || "unknown";
-      const major = userData?.profile?.major || "unknown";
-      const startingYear = userData?.profile?.startingYear || "unknown";
-      const handle = userData?.profile?.handle || userData?.handle || "anon";
-
-      // Set a stable user id if available (won't appear until next event after set)
-      if (userData?.uid) {
-        try {
-          setUserId(analytics, userData.uid);
-        } catch {}
-      }
-
-      // Set user properties (uses dedicated API instead of logging a login event)
-      try {
-        setUserProperties(analytics, {
-          university: university,
-          major: major,
-          starting_year: startingYear,
-          handle: handle.substring(0, 24),
-        });
-      } catch (e) {
-        console.warn("📊 Failed setting user properties", e?.message);
-      }
-
-      // Still log a login event (recommended GA event) for funnel attribution
-      logEvent(analytics, "login", { method: "password", university, major });
-      console.log("📊 Analytics: User properties set", university);
-    } catch (error) {
-      console.warn("📊 Analytics tracking failed:", error);
+    if (!AnalyticsService.isEnabled()) {
+      return;
     }
+
+    const university = userData?.universityInfo?.university || "unknown";
+    const major = userData?.profile?.major || "unknown";
+    const startingYear = userData?.profile?.startingYear || "unknown";
+    const handle = userData?.profile?.handle || userData?.handle || "anon";
+
+    ensureAnalyticsContext()
+      .then((ctx) => {
+        if (!ctx) {
+          return;
+        }
+
+        const { analytics, logEvent, setUserId, setUserProperties } = ctx;
+
+        if (userData?.uid) {
+          try {
+            setUserId(analytics, userData.uid);
+          } catch {}
+        }
+
+        try {
+          setUserProperties(analytics, {
+            university: university,
+            major: major,
+            starting_year: startingYear,
+            handle: handle.substring(0, 24),
+          });
+        } catch (error) {
+          console.warn("📊 Failed setting user properties", error?.message);
+        }
+
+        logEvent(analytics, "login", { method: "password", university, major });
+        console.log("📊 Analytics: User properties set", university);
+      })
+      .catch((error) => {
+        console.warn("📊 Analytics user property update failed:", error);
+      });
   }
 }
 
 // Helper function to check if analytics is available
 export function isAnalyticsAvailable() {
-  return !!analytics;
+  return AnalyticsService.isEnabled();
 }
 
 /**
@@ -290,29 +314,35 @@ export function isAnalyticsAvailable() {
  * This helps events show up immediately in DebugView
  */
 export function enableDebugMode() {
-  if (!analytics) {
-    console.warn("📊 Analytics not available for debug mode");
-    return;
-  }
+  ensureAnalyticsContext()
+    .then((ctx) => {
+      if (!ctx) {
+        console.warn("📊 Analytics not available for debug mode");
+        return;
+      }
 
-  try {
-    // For web, we need to log a special debug event
-    logEvent(analytics, "route_view", {
-      debug_mode: 1,
-      page_title: "debug_mode_enabled",
-      page_location: window.location.href,
+      const { analytics, logEvent } = ctx;
+
+      try {
+        logEvent(analytics, "route_view", {
+          debug_mode: 1,
+          page_title: "debug_mode_enabled",
+          page_location: window.location.href,
+        });
+
+        localStorage.setItem("firebase_debug_mode", "true");
+
+        console.log("📊 Debug mode enabled for Firebase Analytics Web");
+        console.log(
+          "📊 Go to Firebase Console → Analytics → DebugView to see events"
+        );
+      } catch (error) {
+        console.error("📊 Failed to enable debug mode:", error);
+      }
+    })
+    .catch((error) => {
+      console.error("📊 Failed to load analytics for debug mode:", error);
     });
-
-    // Also set in localStorage for persistence
-    localStorage.setItem("firebase_debug_mode", "true");
-
-    console.log("📊 Debug mode enabled for Firebase Analytics Web");
-    console.log(
-      "📊 Go to Firebase Console → Analytics → DebugView to see events"
-    );
-  } catch (error) {
-    console.error("📊 Failed to enable debug mode:", error);
-  }
 }
 
 /**

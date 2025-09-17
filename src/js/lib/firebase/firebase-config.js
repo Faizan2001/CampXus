@@ -7,8 +7,6 @@ import {
   indexedDBLocalPersistence,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getAnalytics } from "firebase/analytics";
 
 // Browser-compatible configuration loading
 // Load Firebase config from environment variables with security validation
@@ -103,20 +101,12 @@ try {
 // Initialize other services with error handling
 export { auth };
 export const db = getFirestore(app);
-export const storage = getStorage(app);
 
-// Initialize Analytics
-let analytics;
-try {
-  analytics = getAnalytics(app);
-  if (typeof window !== "undefined" && window.logManager) {
-    window.logManager.dev.debug("Firebase Analytics initialized successfully");
-  }
-} catch (error) {
-  console.warn("⚠️ Firebase Analytics initialization failed:", error.message);
-  // Analytics is optional, so we don't throw an error
+export async function getStorageInstance() {
+  const { getStorage } = await import("firebase/storage");
+  return getStorage(app);
 }
-export { analytics };
+
 
 // TEMPORARY: Expose Firestore helpers globally for manual console testing of handle system
 // Remove after Phase 2 once dedicated admin tooling or test harness is in place.

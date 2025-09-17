@@ -103,7 +103,7 @@
 .logo span {
   font-size: 2rem;
   font-weight: 700;
-  font-family: "Sora", "Poppins", sans-serif;
+  font-family: var(--font-brand, "Sora", "Poppins", sans-serif);
   font-style: normal;
   color: transparent;
   background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
