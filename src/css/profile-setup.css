@@ -401,6 +401,7 @@ body.page-profile .profile-setup-card.glass-card {
   font: inherit;
   -webkit-appearance: none;
 }
+
 .typeahead-item:hover,
 .select-item:hover,
 .typeahead-item:focus-visible,

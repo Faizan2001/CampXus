@@ -48,9 +48,9 @@
           <p class="brand-name" aria-label="MeetchuThere">MeetchuThere</p>
           <p
             class="brand-slogan"
-            aria-label="Connect, and together we constellate."
+            aria-label="Connect, and constellate together."
           >
-            Connect, and together we constellate.
+            Connect, and constellate together.
           </p>
         </div>
       </div>
@@ -63,10 +63,10 @@
           class="btn btn-primary"
           data-evt="signup_started"
           type="button"
-          aria-label="Sign up with your university email"
+          aria-label="Join with your university email"
           id="landing-signup"
         >
-          Sign up with your university email
+          Join with your university email
         </button>
       </div>
 
@@ -201,24 +201,21 @@
         <div class="quotes">
           <figure class="quote glass">
             <blockquote>
-              "Between labs I can see who's free at SEHS cafe&mdash;makes group
-              work instant."
+              "Okay, I actually love the avatar customisation."
             </blockquote>
-            <figcaption>&mdash; Samira, IUB Computer Science</figcaption>
+            <figcaption>&mdash; Samira, IUB - Computer Science</figcaption>
           </figure>
           <figure class="quote glass">
             <blockquote>
-              "Privacy toggles mean only my circle sees me. No more random
-              pings."
+              "Privacy toggles are very useful and important. I wouldn't want all the friends I've added to see my schedule or campus presence."
             </blockquote>
-            <figcaption>&mdash; Ayaan, BRAC University</figcaption>
+            <figcaption>&mdash; Ayaan, IUB - Marketing</figcaption>
           </figure>
           <figure class="quote glass">
             <blockquote>
-              "Uploaded my routine in 30 seconds. Now we meet after ACC 203
-              without texting 10 people."
+              "Uploaded my routine and had my schedule ready in 30 seconds. The experience felt like a lot of things were very thoughtfully curated for me."
             </blockquote>
-            <figcaption>&mdash; Nafisa, NSU BBA</figcaption>
+            <figcaption>&mdash; Nafisa, IUB - CMN</figcaption>
           </figure>
         </div>
       </section>
@@ -230,37 +227,71 @@
         </div>
         <div class="faq-grid">
           <details>
-            <summary>Do I need a university email?</summary>
+            <summary>Who can sign up right now?</summary>
             <p>
-              Yes. Sign up with your verified .edu email so only students join.
+              Students with a verified @iub.edu.bd email. We&rsquo;re working to
+              add more universities next.
             </p>
           </details>
           <details>
-            <summary>Will friends always see my location?</summary>
+            <summary>
+              Can I register with Gmail or a friend&rsquo;s email?
+            </summary>
             <p>
-              No. Presence is opt-in per session and auto-disables after
-              meetups.
+              No. University email verification is required so every profile
+              maps to a real campus identity.
             </p>
           </details>
           <details>
-            <summary>Does OCR work with Bengali timetables?</summary>
+            <summary>Does the app cost anything?</summary>
+            <p>No. It&rsquo;s free for students.</p>
+          </details>
+          <details>
+            <summary>How do I install it on my phone?</summary>
             <p>
-              Yep! Hind Siliguri training ensures Bangladesh templates parse
-              cleanly.
+              Open the web app in Chrome (Android) or Safari (iOS) and tap Add
+              to Home Screen. It behaves like an app after install.
             </p>
           </details>
           <details>
-            <summary>Can I import Google Calendar?</summary>
+            <summary>How do I add my schedule?</summary>
             <p>
-              Calendar sync is in beta&mdash;try schedule upload now and enable
-              beta access in settings.
+              Paste your IRAS schedule into Profile &rarr; Schedule Import, or
+              upload a cropped screenshot for OCR (beta) to detect your courses
+              in seconds.
             </p>
           </details>
           <details>
-            <summary>Is there a web and mobile app?</summary>
+            <summary>Can I fix mistakes or add custom slots?</summary>
             <p>
-              Yes. The web app is mobile-first and installs as a PWA for quick
-              launching.
+              Yes. Tap any slot to edit, or use Add row to create custom time
+              ranges.
+            </p>
+          </details>
+          <details>
+            <summary>Who can see my schedule or campus presence?</summary>
+            <p>
+              Only friends you&rsquo;ve added and mutually granted visibility
+              to. You can hide both anytime with one tap.
+            </p>
+          </details>
+          <details>
+            <summary>Do I have to share GPS for campus presence?</summary>
+            <p>
+              No. Being connected to campus Wi-Fi can set your status to On
+              campus. GPS is only used as a fallback, and we don&rsquo;t sell or
+              share your data.
+            </p>
+          </details>
+          <details>
+            <summary>Are you here to make a profit off students?</summary>
+            <p>
+              Hiya, dev here. No, this application is student-owned, community-serving and you make
+              it whole. I am a student just like you. I go to IUB, and I planned
+              this application since my second semester and worked hundreds of
+              hours on it to fill gaps I personally faced. I met some of the
+              best teachers and friends in my life in IUB, so this is my thank
+              you to the community that has given me so much.
             </p>
           </details>
         </div>
@@ -271,14 +302,14 @@
 
   <footer class="landing-footer" role="contentinfo">
     <p class="brand-name">MeetchuThere</p>
-    <p class="brand-slogan">Connect, and together we constellate.</p>
-    <p class="footer-meta">MeetchuThere c 2025, crafted with care</p>
+    <p class="brand-slogan">Connect, and constellate together.</p>
+    <p class="footer-meta">MeetchuThere © 2025, crafted with care</p>
   </footer>
 </div>
 
 <script type="module">
   import { authManager } from "/src/js/services/auth/AuthService.js";
-import { logManager } from "/src/js/utils/debug/LogManager.js";
+  import { logManager } from "/src/js/utils/debug/LogManager.js";
 
   const metadata = [
     {
@@ -827,7 +858,6 @@ import { logManager } from "/src/js/utils/debug/LogManager.js";
     padding: 0 clamp(1.25rem, 4vw, 4rem);
   }
 
-
   @media (max-width: 640px) {
     .hero {
       min-height: max(420px, calc(100vh - 56px));
@@ -886,34 +916,29 @@ import { logManager } from "/src/js/utils/debug/LogManager.js";
   .how-it-grid {
     display: flex;
     flex-direction: column;
-    gap: 1.75rem;
+    gap: clamp(1.6rem, 4vw, 2.4rem);
     align-items: flex-start;
+    width: 100%;
   }
 
   .how-it-copy {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    max-width: 620px;
+    gap: clamp(1.3rem, 3vw, 1.8rem);
+    max-width: min(680px, 100%);
   }
 
   .how-it-steps {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  @media (min-width: 560px) {
-    .how-it-steps {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    width: 100%;
+    display: grid;
+    gap: clamp(1.1rem, 2.8vw, 1.6rem);
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   }
 
   @media (min-width: 960px) {
     .how-it-grid {
-      align-items: center;
-      gap: 2.25rem;
-    }
-    .how-it-steps {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: flex-start;
+      gap: clamp(2rem, 3vw, 2.6rem);
     }
   }
 
@@ -1106,31 +1131,35 @@ import { logManager } from "/src/js/utils/debug/LogManager.js";
 
   .step-card {
     position: relative;
-    padding-left: 3.2rem;
+    padding-left: clamp(2.4rem, 5vw, 3.2rem);
   }
 
   .step-number {
     position: absolute;
     left: 0;
-    top: 0.2rem;
-    width: 2.4rem;
-    height: 2.4rem;
+    top: 0.1rem;
+    width: clamp(2.1rem, 4.2vw, 2.6rem);
+    height: clamp(2.1rem, 4.2vw, 2.6rem);
     border-radius: 18px;
     background: rgba(172, 118, 255, 0.22);
     display: grid;
     place-items: center;
     font-weight: 600;
+    font-size: clamp(1rem, 2.5vw, 1.1rem);
   }
 
   .step-card h3 {
     margin: 0 0 0.4rem;
-    font-size: 1.2rem;
+    font-size: clamp(1.05rem, 2.5vw, 1.25rem);
     font-weight: 600;
+    line-height: 1.35;
   }
 
   .step-card p {
     margin: 0;
     color: var(--color-text-subtle);
+    font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+    line-height: 1.6;
   }
 
   .privacy-grid,
@@ -1204,7 +1233,6 @@ import { logManager } from "/src/js/utils/debug/LogManager.js";
     margin: 0.75rem 0 0;
     color: var(--color-text-subtle);
   }
-
 
   .landing-footer {
     display: flex;
