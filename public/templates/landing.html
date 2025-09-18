@@ -956,6 +956,8 @@
 
   .landing-avatar-demo {
     --presence-color: rgba(176, 146, 255, 0.45);
+    --presence-dot-offset-x: clamp(18px, 2vw, 22px);
+    --presence-dot-offset-y: clamp(2px, 2vw, 8px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -973,7 +975,9 @@
     z-index: 0;
   }
 
-  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  @supports (
+    (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
+  ) {
     .brand-mark {
       -webkit-backdrop-filter: blur(16px);
       backdrop-filter: blur(16px);
@@ -1043,20 +1047,25 @@
   }
 
   .landing-avatar-demo .presence-dot {
-    bottom: clamp(6px, 2vw, 12px);
-    right: clamp(6px, 2vw, 12px);
-    width: clamp(20px, 6vw, 28px);
-    min-width: clamp(20px, 6vw, 28px);
-    height: clamp(20px, 6vw, 28px);
+    position: absolute;
+    bottom: var(--presence-dot-offset-y);
+    right: var(--presence-dot-offset-x);
+    width: clamp(28px, 6vw, 36px);
+    min-width: clamp(28px, 6vw, 36px);
+    height: clamp(28px, 6vw, 36px);
     border-width: clamp(2px, 0.6vw, 3px);
     border-radius: 999px;
-    transform-origin: center;
-    transition: box-shadow 320ms ease, background 360ms ease,
-      border-color 360ms ease;
-    box-shadow: 0 8px 20px
-      color-mix(in srgb, var(--presence-color) 55%, transparent);
+    transition: background 360ms ease, border-color 360ms ease,
+      box-shadow 320ms ease;
+    border-color: color-mix(
+      in srgb,
+      var(--presence-color) 64%,
+      rgba(255, 255, 255, 0.65)
+    );
+    box-shadow: 0 10px 22px
+      color-mix(in srgb, var(--presence-color) 40%, transparent);
     z-index: 2;
-    animation: none;
+    will-change: background, border-color, box-shadow;
   }
 
   .presence-status-text {
