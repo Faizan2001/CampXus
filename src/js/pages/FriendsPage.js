@@ -31,6 +31,149 @@ import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
 import { LocationSharingToggle } from "../components/presence/LocationSharingToggle.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
+import { onboardingService } from "../services/onboarding/OnboardingService.js";
+import {
+  showCoachMark,
+  hasActiveCoachMarks,
+} from "../services/onboarding/CoachMarkManager.js";
+import { logManager } from "../utils/debug/LogManager.js";
+
+function devLog(message, detail = {}) {
+  if (!import.meta.env || !import.meta.env.DEV) {
+    return;
+  }
+
+  if (logManager?.dev?.info) {
+    logManager.dev.info(message, detail);
+    return;
+  }
+
+  console.log(message, detail);
+}
+
+function isElementVisible(element) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  if (element.offsetParent === null && style.position !== "fixed") return false;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function isElementInViewport(element, visibilityThreshold = 0.4) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+
+  const intersectionLeft = Math.max(rect.left, 0);
+  const intersectionRight = Math.min(rect.right, viewportWidth);
+  const intersectionTop = Math.max(rect.top, 0);
+  const intersectionBottom = Math.min(rect.bottom, viewportHeight);
+
+  const intersectionWidth = Math.max(0, intersectionRight - intersectionLeft);
+  const intersectionHeight = Math.max(0, intersectionBottom - intersectionTop);
+
+  if (intersectionWidth === 0 || intersectionHeight === 0) {
+    return false;
+  }
+
+  const visibleArea = intersectionWidth * intersectionHeight;
+  const totalArea = rect.width * rect.height;
+
+  return totalArea > 0 && visibleArea / totalArea >= visibilityThreshold;
+}
+
+function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : preferred;
+  const available = viewportWidth - 48;
+  return Math.max(minimum, Math.min(preferred, available));
+}
+
+function didUserAcknowledgeHint(reason) {
+  return reason === "primary" || reason === "secondary";
+}
+
+const PRESENCE_DEMO_HTML = `
+  <div class="onboarding-presence-demo">
+    <div class="landing-avatar-demo" data-demo-initialized="1" data-presence="hidden">
+      <div class="avatar-frame" role="img" aria-label="Campus presence states demo">
+        <img data-presence-state="hidden" src="/assets/onboarding/demo-not-sharing.png" alt="Presence hidden" loading="lazy" />
+        <img data-presence-state="away" src="/assets/onboarding/demo-off-campus.png" alt="Off campus" loading="lazy" />
+        <img data-presence-state="on" src="/assets/onboarding/demo-on-campus.png" alt="On campus" loading="lazy" />
+      </div>
+      <p class="presence-status-text swap">
+        <span data-state="hidden">Hidden</span>
+        <span data-state="away">Away</span>
+        <span data-state="on">On campus</span>
+      </p>
+    </div>
+  </div>
+`;
+
+const FRIENDS_HINT_RETRY_DELAY = 600;
+const FRIENDS_HINT_MAX_ATTEMPTS = 8;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function showCoachMarkWithRetries({ targetResolver, buildConfig }, options = {}) {
+  const attempts = options.attempts ?? FRIENDS_HINT_MAX_ATTEMPTS;
+  const delayMs = options.delayMs ?? FRIENDS_HINT_RETRY_DELAY;
+  let tries = 0;
+
+  while (tries < attempts) {
+    if (hasActiveCoachMarks()) {
+      await delay(delayMs);
+      continue;
+    }
+
+    const target =
+      typeof targetResolver === "function"
+        ? targetResolver()
+        : document.querySelector(targetResolver);
+
+    if (target instanceof Element) {
+      try {
+        target.scrollIntoView({
+          block: "center",
+          inline: "center",
+          behavior: tries === 0 ? "auto" : "smooth",
+        });
+      } catch (_) {
+        /* ignore scroll errors */
+      }
+      await delay(140);
+
+      const config =
+        typeof buildConfig === "function" ? buildConfig(target) : buildConfig;
+      if (!config) return false;
+      const mark = showCoachMark({
+        ...config,
+        target,
+      });
+
+      if (mark) {
+        if (typeof mark.update === "function") {
+          requestAnimationFrame(() => mark.update());
+          requestAnimationFrame(() => mark.update());
+        }
+        const result = await mark.waitForClose;
+        if (didUserAcknowledgeHint(result?.reason)) {
+          return true;
+        }
+      }
+    }
+
+    tries += 1;
+    await delay(delayMs);
+  }
+
+  return false;
+}
 
 class FriendsUI {
   constructor() {
@@ -86,6 +229,9 @@ class FriendsUI {
     this.outgoingLocationRequestsMap = new Map(); // friendId -> boolean
     // Track last applied pending-UI state to avoid flicker
     this._pendingLocationUi = new Map(); // friendId -> boolean
+
+    this.friendActionsHintShown = false;
+    this.friendActionsHintPrimed = false;
   }
 
   /**
@@ -658,6 +804,20 @@ class FriendsUI {
     try {
       console.log("📍 Initializing Campus Presence features...");
 
+      // Ensure profile is available so onboarding state is accurate
+      try {
+        await currentUser.waitForProfile();
+      } catch (_) {
+        /* profile wait timeout is non-fatal */
+      }
+
+      // Prime onboarding state after profile to avoid 2s fallback window
+      try {
+        await onboardingService.init();
+      } catch (_) {
+        /* non-fatal */
+      }
+
       // Add compact location sharing toggle in header
       await this.addHeaderLocationToggle();
 
@@ -692,6 +852,176 @@ class FriendsUI {
       console.log("✅ Header location sharing toggle added successfully");
     } catch (error) {
       console.error("❌ Error initializing header location toggle:", error);
+    }
+  }
+
+  async maybeShowCampusPresenceHint(retryCount = 12) {
+    // Disabled: campus presence glass card hint removed
+    return;
+    devLog("[Friends Onboarding] maybeShowCampusPresenceHint invoked", {
+      retryCount,
+      hintShown: this.campusPresenceHintShown,
+    });
+    if (this.campusPresenceHintShown) return;
+    await onboardingService.init().catch(() => {});
+    if (!onboardingService.shouldShow("campusPresenceHintSeen")) {
+      devLog("[Friends Onboarding] Presence hint suppressed by service");
+      return;
+    }
+
+    const presenceSection = document.querySelector(
+      ".campus-presence-header"
+    );
+    if (!presenceSection) {
+      if (retryCount > 0) {
+        setTimeout(
+          () => this.maybeShowCampusPresenceHint(retryCount - 1),
+          FRIENDS_HINT_RETRY_DELAY
+        );
+      }
+      return;
+    }
+
+    // Ensure the header container exists; the inner toggle may render slightly later on slow devices.
+    const toggleContainer = presenceSection.querySelector(
+      ".header-location-toggle-container"
+    );
+    if (!toggleContainer && retryCount > 0) {
+      devLog("[Friends Onboarding] Waiting for presence header container", {
+        retryCount,
+      });
+      setTimeout(
+        () => this.maybeShowCampusPresenceHint(retryCount - 1),
+        FRIENDS_HINT_RETRY_DELAY
+      );
+      return;
+    }
+
+    const scheduleRetry = () => {
+      if (retryCount > 0) {
+        devLog("[Friends Onboarding] Scheduling presence hint retry", {
+          nextRetry: retryCount - 1,
+        });
+        setTimeout(
+          () => this.maybeShowCampusPresenceHint(retryCount - 1),
+          FRIENDS_HINT_RETRY_DELAY
+        );
+      }
+    };
+
+    const attemptShow = () => {
+      if (this.campusPresenceHintShown) return;
+      if (!isElementVisible(presenceSection)) {
+        devLog("[Friends Onboarding] Presence section not visible yet");
+        scheduleRetry();
+        return;
+      }
+      const hintViewportReady = isElementInViewport(presenceSection, 0.1);
+      const hintViewportFallback = retryCount <= 1;
+      if (!hintViewportReady && !hintViewportFallback) {
+        devLog("[Friends Onboarding] Presence section not in viewport yet");
+        scheduleRetry();
+        return;
+      }
+
+      if (hasActiveCoachMarks()) {
+        devLog("[Friends Onboarding] Presence hint waiting for other coachmark");
+        setTimeout(attemptShow, FRIENDS_HINT_RETRY_DELAY);
+        return;
+      }
+
+      this.campusPresenceHintShown = true;
+      this.detachCampusPresenceHintObserver();
+      devLog("[Friends Onboarding] Showing campus presence hint", {
+        retryCount,
+      });
+
+      const isCompact = window.innerWidth <= 600;
+      const hintHtml = isCompact
+        ? `<div class="coachmark-html-list"><p>Toggle presence to let friends know when you're around campus.</p><p>Switch it off anytime to go private.</p></div>`
+        : `${PRESENCE_DEMO_HTML}<div class="coachmark-html-list"><p>Toggle presence to let friends know when you're around campus.</p><p>Switch it off anytime to go private.</p></div>`;
+
+      // Hybrid anchoring: on desktop, anchor to the actual toggle button if present;
+      // on compact/mobile, anchor to the header section for better layout fit.
+      const desktopToggleBtn = presenceSection.querySelector(
+        ".location-toggle-switch"
+      );
+      const targetEl = !isCompact && desktopToggleBtn ? desktopToggleBtn : presenceSection;
+
+      const mark = showCoachMark({
+        id: "campus-presence-toggle",
+        target: targetEl,
+        title: "Share when you're on campus",
+        descriptionHtml: hintHtml,
+        responsivePlacement: { mobile: "top", desktop: "right" },
+        maxWidth: getResponsiveCoachmarkWidth(isCompact ? 200 : 240, 188),
+        primaryButton: { text: "OK" },
+      });
+
+      if (mark) {
+        if (typeof mark.update === "function") {
+          requestAnimationFrame(() => mark.update());
+          requestAnimationFrame(() => mark.update());
+        }
+        mark.waitForClose
+          .then((result) => {
+            if (didUserAcknowledgeHint(result?.reason)) {
+              onboardingService
+                .markSeen("campusPresenceHintSeen", { allowPending: true })
+                .catch(() => {});
+            } else {
+              this.campusPresenceHintShown = false;
+              devLog(
+                "[Friends Onboarding] Presence hint dismissed without acknowledgement, retrying",
+                { reason: result?.reason }
+              );
+              scheduleRetry();
+            }
+          })
+          .finally(() => {
+            this.campusPresenceHintObserver = null;
+          });
+      } else {
+        this.campusPresenceHintShown = false;
+        scheduleRetry();
+      }
+    };
+
+    this.detachCampusPresenceHintObserver();
+
+    const initialViewportReady = isElementInViewport(presenceSection, 0.1);
+    if (initialViewportReady || retryCount <= 1) {
+      setTimeout(() => attemptShow(), 120);
+      return;
+    }
+
+    this.campusPresenceHintObserver = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries.find(
+          (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.1
+        );
+        if (!visibleEntry) {
+          return;
+        }
+        devLog(
+          "[Friends Onboarding] Presence section entered viewport via observer",
+          { intersectionRatio: visibleEntry.intersectionRatio }
+        );
+        this.detachCampusPresenceHintObserver();
+        attemptShow();
+      },
+      {
+        // Relax thresholds to trigger earlier on small screens
+        threshold: [0.1, 0.3, 0.5],
+        rootMargin: "0px 0px -5% 0px",
+      }
+    );
+
+    try {
+      this.campusPresenceHintObserver.observe(presenceSection);
+    } catch (error) {
+      console.warn("⚠️ Unable to observe campus presence hint target:", error);
+      this.campusPresenceHintObserver = null;
     }
   }
 
@@ -854,6 +1184,8 @@ class FriendsUI {
     }
 
     // Display search results with compact mobile-friendly meta line
+    this.latestSearchResults = filteredResults;
+
     const resultsHTML = filteredResults
       .map(
         (student) => {
@@ -917,10 +1249,10 @@ class FriendsUI {
           const button = e.target.closest(".btn-send-request");
           const studentId = button.dataset.studentId;
           if (button.disabled) return;
-          this.handleSendFriendRequest(
-            studentId,
-            (results || []).find((s) => s.id === studentId)
-          );
+          const student =
+            this.latestSearchResults?.find((s) => s.id === studentId) ||
+            (results || []).find((s) => s.id === studentId);
+          this.handleSendFriendRequest(studentId, student);
         }
         if (e.target.closest(".btn-clear-search")) {
           this.clearSearchResults();
@@ -1167,7 +1499,138 @@ class FriendsUI {
       await this.updateAllFriendCardsBilateralPrivacy(friends);
       // Set up direct friendship document listeners to ensure immediate icon updates
       await this.setupFriendCardPrivacyListeners(friends);
+      this.maybeShowFriendActionsHint(friends);
     }, 500);
+  }
+
+  async maybeShowFriendActionsHint(friends) {
+    if (!Array.isArray(friends) || friends.length === 0) {
+      this.friendActionsHintPrimed = false;
+      devLog("[Friends Onboarding] Friend actions hint skipped - no friends yet");
+      return;
+    }
+
+    if (this.friendActionsHintShown || this.friendActionsHintPrimed) return;
+
+    await onboardingService.init().catch(() => {});
+    if (!onboardingService.shouldShow("friendActionsHintSeen")) {
+      devLog("[Friends Onboarding] Friend actions hint suppressed by service");
+      return;
+    }
+
+    const firstCard = this.elements.friendsList?.querySelector(".friend-card");
+    if (!firstCard) {
+      devLog("[Friends Onboarding] Waiting for first friend card");
+      setTimeout(() => this.maybeShowFriendActionsHint(friends), FRIENDS_HINT_RETRY_DELAY);
+      return;
+    }
+
+    const locationBtn = firstCard.querySelector(".mutual-location-btn");
+    const scheduleBtn = firstCard.querySelector(".mutual-schedule-btn");
+    const starBtn = firstCard.querySelector(".quick-access-star");
+
+    if (!locationBtn || !scheduleBtn || !starBtn) {
+      devLog("[Friends Onboarding] Friend action buttons not ready", {
+        hasLocationBtn: !!locationBtn,
+        hasScheduleBtn: !!scheduleBtn,
+        hasStarBtn: !!starBtn,
+      });
+      setTimeout(() => this.maybeShowFriendActionsHint(friends), FRIENDS_HINT_RETRY_DELAY);
+      return;
+    }
+
+    if (hasActiveCoachMarks()) {
+      devLog("[Friends Onboarding] Another coachmark active, retrying friend actions hint");
+      setTimeout(() => this.maybeShowFriendActionsHint(friends), FRIENDS_HINT_RETRY_DELAY);
+      return;
+    }
+
+    this.friendActionsHintShown = true;
+    devLog("[Friends Onboarding] Starting friend actions hint sequence");
+
+    const steps = [
+      {
+        targetResolver: () => firstCard.querySelector(".mutual-location-btn"),
+        buildConfig: () => ({
+          id: "friend-actions-location",
+          title: "Share campus status",
+          description:
+            "Toggle this to let each other know when you're on campus. You can go private anytime.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "bottom", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Next" },
+        }),
+      },
+      {
+        targetResolver: () => firstCard.querySelector(".mutual-schedule-btn"),
+        buildConfig: () => ({
+          id: "friend-actions-schedule",
+          title: "Schedule visibility",
+          description:
+            "Let this friend peek at your timetable when planning together, and turn it off anytime.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "top", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Next" },
+        }),
+      },
+      {
+        targetResolver: () => firstCard.querySelector(".quick-access-star"),
+        buildConfig: () => ({
+          id: "friend-actions-star",
+          title: "Pin to quick access",
+          description:
+            "Star them to keep their avatar in the top bar for quick compare and presence updates.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "top", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Next" },
+        }),
+      },
+      {
+        targetResolver: () =>
+          firstCard.querySelector(".friend-options-container .options-button"),
+        buildConfig: () => ({
+          id: "friend-actions-more",
+          title: "More actions",
+          description:
+            "Need to tweak privacy or remove a friend? Open this menu for the full toolkit.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "top", desktop: "left" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Done" },
+        }),
+      },
+    ];
+
+    for (const step of steps) {
+      devLog("[Friends Onboarding] Showing friend action hint", { id: step.buildConfig().id });
+      const shown = await showCoachMarkWithRetries(step, {
+        attempts: FRIENDS_HINT_MAX_ATTEMPTS,
+        delayMs: FRIENDS_HINT_RETRY_DELAY,
+      });
+
+      if (!shown) {
+        devLog("[Friends Onboarding] Friend action hint aborted", {
+          id: step.buildConfig().id,
+        });
+        this.friendActionsHintShown = false;
+        this.friendActionsHintPrimed = false;
+        return;
+      }
+      devLog("[Friends Onboarding] Friend action hint acknowledged", {
+        id: step.buildConfig().id,
+      });
+    }
+
+    onboardingService
+      .markSeen("friendActionsHintSeen", { allowPending: true })
+      .catch(() => {})
+      .finally(() => {
+        this.friendActionsHintShown = false;
+        this.friendActionsHintPrimed = true;
+      });
   }
 
   /**
@@ -1403,6 +1866,22 @@ class FriendsUI {
         studentData?.profile?.handle ||
         buttonEl?.dataset.studentName ||
         "unknown";
+
+      if (!studentData) {
+        try {
+          studentData = await friendsManager.getUserSummary?.(studentId);
+        } catch (err) {
+          console.warn("⚠️ Failed to fetch user summary via friendsManager", err);
+        }
+      }
+
+      if (!studentData) {
+        try {
+          studentData = await dataManager.getUserProfileMinimal?.(studentId);
+        } catch (err) {
+          console.warn("⚠️ Failed to fetch minimal profile for", studentId, err);
+        }
+      }
 
       console.log(`📩 Sending friend request to: @${targetHandle}`);
 
@@ -3351,6 +3830,7 @@ class FriendsUI {
       console.warn("⚠️ Error cleaning up campus presence components:", error);
     }
   }
+
 }
 
 // 🌟 Export a single instance
@@ -3367,6 +3847,21 @@ document.addEventListener("spa:page:load", (event) => {
     console.log("🎨 Friends page loaded, initializing UI...");
     // Use the singleton instance instead of creating a new one
     friendsUI.init();
+
+    // (campus presence hint removed)
+
+    // Also try to kick off friend action hints shortly after load,
+    // if the user already has friends rendered.
+    setTimeout(() => {
+      try {
+        const data = friendsUI.currentFriendsData || [];
+        if (!friendsUI.friendActionsHintShown && !friendsUI.friendActionsHintPrimed && data.length > 0) {
+          friendsUI.maybeShowFriendActionsHint(data);
+        }
+      } catch (_) {
+        /* non-fatal */
+      }
+    }, 1100);
 
     // (window.friendsManager removed; use ES module import instead)
   }

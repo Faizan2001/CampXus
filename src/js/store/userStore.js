@@ -248,6 +248,39 @@ class CurrentUserManager {
     this._notifySubscribers();
   }
 
+  setOnboardingState(partialState = {}) {
+    if (!partialState || typeof partialState !== "object") {
+      return;
+    }
+
+    const currentProfile = this._profile || {};
+    const systemInfo = currentProfile.systemInfo || {};
+    const onboarding = systemInfo.onboarding || {};
+
+    const updatedProfile = {
+      ...currentProfile,
+      systemInfo: {
+        ...systemInfo,
+        onboarding: {
+          ...onboarding,
+          ...partialState,
+        },
+      },
+    };
+
+    this._profile = updatedProfile;
+
+    try {
+      if (this._uid && updatedProfile) {
+        profileCache.save(this._uid, updatedProfile);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+
+    this._notifySubscribers();
+  }
+
   /**
    * Returns a promise that resolves when the user profile is loaded.
    * This is the key function to solve the race condition.

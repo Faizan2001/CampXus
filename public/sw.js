@@ -4,7 +4,7 @@
   - Uses stale-while-revalidate for static assets
 */
 
-const CACHE_NAME = 'meetchuthere-shell-v1';
+const CACHE_NAME = 'meetchuthere-shell-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -43,11 +43,18 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin static assets; let APIs (e.g., Firebase) hit the network
   const url = new URL(req.url);
   const sameOrigin = url.origin === location.origin;
-  const isStatic = /\.(?:css|js|mjs|png|jpg|jpeg|svg|webp|ico|woff2?|ttf|eot|html)$/.test(url.pathname)
+
+  // Do NOT cache HTML template fragments (e.g., /templates/*.html)
+  const isHtml = url.pathname.endsWith('.html');
+  const isIndexHtml = url.pathname === '/' || url.pathname === '/index.html';
+
+  // Static assets to cache: CSS/JS/fonts/images + index.html + manifest
+  const isStaticAsset = /\.(?:css|js|mjs|png|jpg|jpeg|svg|webp|ico|woff2?|ttf|eot)$/.test(url.pathname)
+    || isIndexHtml
     || url.pathname === '/manifest.json';
 
-  if (!(sameOrigin && isStatic)) {
-    return; // don't intercept dynamic/API requests
+  if (!(sameOrigin && isStaticAsset)) {
+    return; // don't intercept dynamic/API requests or template HTML fragments
   }
 
   // Static assets → stale-while-revalidate

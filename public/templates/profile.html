@@ -198,6 +198,16 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
                 <div class="form-hint">
                   Copy schedule text from your university portal and paste it here
                 </div>
+                <div class="import-help-row">
+                  <button
+                    type="button"
+                    id="schedule-help-trigger"
+                    class="import-help-trigger"
+                    aria-haspopup="dialog"
+                  >
+How?
+                  </button>
+                </div>
               </div>
               <button type="button" id="parse-schedule-btn" class="button secondary">
                 <i class="fas fa-search"></i> Parse Schedule
@@ -239,6 +249,33 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
             <div class="status-content">
               <div class="spinner"></div>
               <p id="status-text">Processing your schedule...</p>
+            </div>
+          </div>
+          <div
+            id="schedule-help-overlay"
+            class="schedule-help-overlay hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="schedule-help-title"
+          >
+            <div class="schedule-help-backdrop"></div>
+            <div class="schedule-help-content">
+              <button
+                type="button"
+                class="close-help"
+                aria-label="Close schedule help"
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
+              <h3 id="schedule-help-title">Paste Your Schedule In Seconds</h3>
+              <p class="schedule-help-text">
+                Copy the highlighted text from your IUB portal just like this and paste it into the box. Tap anywhere outside this card to close.
+              </p>
+              <img
+                src="/assets/onboarding/paste-schedule-example.png"
+                alt="Example of semester-wise registered courses table highlighting the rows to copy"
+                class="schedule-help-image"
+              />
             </div>
           </div>
         </div>

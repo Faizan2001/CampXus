@@ -41,6 +41,7 @@ IMPORTED MODULES:
 @import url("./responsive-enhancements.css"); /* Modern responsive features */
 @import url("./schedule-mobile.css"); /* Mobile responsiveness for new schedule layout */
 @import url("./profile-setup.css"); /* Profile setup styles */
+@import url("./onboarding.css"); /* Coach marks and onboarding hints */
 @import url("./friends-page.css"); /* Friends page styles */
 @import url("./presence.css"); /* Campus presence dots and indicators */
 @import url("./notifications.css"); /* Notifications page styles */

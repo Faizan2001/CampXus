@@ -1633,6 +1633,62 @@ class DataManager {
     }
   }
 
+  async updateOnboardingState(userId, onboardingUpdates = {}) {
+    if (!userId) {
+      throw new Error("User ID is required to update onboarding state");
+    }
+
+    if (
+      !onboardingUpdates ||
+      typeof onboardingUpdates !== "object" ||
+      Object.keys(onboardingUpdates).length === 0
+    ) {
+      return { success: false, error: "No onboarding updates provided" };
+    }
+
+    const updates = {
+      "systemInfo.lastUpdated": serverTimestamp(),
+    };
+
+    let hasPayload = false;
+    Object.entries(onboardingUpdates).forEach(([key, value]) => {
+      if (value === undefined) return;
+      updates[`systemInfo.onboarding.${key}`] = value;
+      hasPayload = true;
+    });
+
+    if (!hasPayload) {
+      return { success: false, error: "No valid onboarding fields provided" };
+    }
+
+    if (!this.isOnline) {
+      this.pendingOperations.push(() =>
+        this.updateOnboardingState(userId, onboardingUpdates)
+      );
+      return { success: true, offline: true };
+    }
+
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, updates);
+
+    const cacheKey = `user_${userId}`;
+    const cached = this.getCachedData(cacheKey);
+    if (cached) {
+      const systemInfo = cached.systemInfo || {};
+      const onboarding = systemInfo.onboarding || {};
+      cached.systemInfo = {
+        ...systemInfo,
+        onboarding: {
+          ...onboarding,
+          ...onboardingUpdates,
+        },
+      };
+      this.setCachedData(cacheKey, cached);
+    }
+
+    return { success: true };
+  }
+
   /**
    * Mark user as online
    * @param {string} userId - User ID

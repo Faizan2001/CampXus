@@ -55,6 +55,10 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js"; // 🎯 NEW: Schedule import functionality
+import {
+  onboardingService,
+  DEFAULT_ONBOARDING_STATE,
+} from "../../services/onboarding/OnboardingService.js";
 
 /**
  * =============================================================================
@@ -81,6 +85,12 @@ class ProfileSetup {
     this.dataLoadInProgress = false; // Prevent duplicate data loading
     this.existingProfileData = null; // Cache for existing profile data
     this.isInitialized = false; // Flag to prevent re-initialization
+
+    this.boundScheduleHelpKeyHandler = (event) => {
+      if (event.key === "Escape") {
+        this.closeScheduleHelpOverlay();
+      }
+    };
 
     // Store this instance globally to prevent duplicates
     window.profileSetupInstance = this;
@@ -1113,6 +1123,28 @@ class ProfileSetup {
     }
   }
 
+  getInitialOnboardingState(existingState = {}, runtimeState = {}) {
+    const base = JSON.parse(JSON.stringify(DEFAULT_ONBOARDING_STATE));
+    const merged = {
+      ...base,
+      ...(existingState || {}),
+    };
+
+    if (runtimeState && typeof runtimeState === "object") {
+      Object.entries(runtimeState).forEach(([key, value]) => {
+        if (key === "version") {
+          return;
+        }
+        if (value === true || (value && typeof value === "object")) {
+          merged[key] = value;
+        }
+      });
+    }
+
+    merged.version = DEFAULT_ONBOARDING_STATE.version;
+    return merged;
+  }
+
   /**
    * =============================================================================
    *                         5. STEP NAVIGATION SYSTEM
@@ -1863,9 +1895,31 @@ class ProfileSetup {
       const db = getFirestore();
       const desiredHandleRef = doc(db, "handles", cleanProfileData.handle);
       const userRef = doc(db, "users", userId);
+      let userWasNew = false;
+      let runtimeOnboardingState = {};
+      if (onboardingService?.getState) {
+        try {
+          if (typeof onboardingService.init === "function") {
+            await onboardingService.init();
+          }
+          runtimeOnboardingState = onboardingService.getState();
+        } catch (error) {
+          console.warn(
+            "⚠️ Failed to hydrate onboarding state before profile save; falling back to persisted data",
+            error
+          );
+          runtimeOnboardingState = onboardingService.getState
+            ? onboardingService.getState()
+            : {};
+        }
+      }
+
       await runTransaction(db, async (tx) => {
         const userSnap = await tx.get(userRef);
         const isNewUser = !userSnap.exists();
+        if (isNewUser) {
+          userWasNew = true;
+        }
         const userData = userSnap.data() || {};
         const previousHandle = userData?.profile?.handle;
         const lastHandleChangeAt = userData?.systemInfo?.lastHandleChangeAt;
@@ -1926,6 +1980,13 @@ class ProfileSetup {
           systemInfoUpdates.lastHandleChangeAt = serverTimestamp();
         }
 
+        systemInfoUpdates.onboarding = this.getInitialOnboardingState(
+          userData?.systemInfo?.onboarding,
+          runtimeOnboardingState
+        );
+        profileDataForFirestore.systemInfo.onboarding =
+          systemInfoUpdates.onboarding;
+
         // Prepare merged user doc update
         const userUpdate = {
           profile: cleanProfileData,
@@ -1936,6 +1997,14 @@ class ProfileSetup {
 
         tx.set(userRef, userUpdate, { merge: true });
       });
+
+      if (userWasNew && onboardingService?.resetSessionHints) {
+        try {
+          onboardingService.resetSessionHints();
+        } catch (error) {
+          console.warn("⚠️ Failed to reset onboarding session hints for new user", error);
+        }
+      }
 
       console.log("✅ Profile saved successfully to Firestore");
 
@@ -2195,9 +2264,68 @@ class ProfileSetup {
       scheduleImageInput.setAttribute("data-listener-attached", "true");
     }
 
+    const scheduleHelpTrigger = document.getElementById(
+      "schedule-help-trigger"
+    );
+    const scheduleHelpOverlay = document.getElementById(
+      "schedule-help-overlay"
+    );
+
+    if (
+      scheduleHelpTrigger &&
+      !scheduleHelpTrigger.hasAttribute("data-listener-attached")
+    ) {
+      scheduleHelpTrigger.addEventListener("click", () =>
+        this.openScheduleHelpOverlay()
+      );
+      scheduleHelpTrigger.setAttribute("data-listener-attached", "true");
+    }
+
+    if (scheduleHelpOverlay) {
+      if (!scheduleHelpOverlay.hasAttribute("data-listener-attached")) {
+        scheduleHelpOverlay.addEventListener("click", (event) => {
+          const target = event.target;
+          if (
+            target.id === "schedule-help-overlay" ||
+            target.classList.contains("schedule-help-backdrop")
+          ) {
+            this.closeScheduleHelpOverlay();
+          }
+        });
+        scheduleHelpOverlay.setAttribute("data-listener-attached", "true");
+      }
+
+      const closeBtn = scheduleHelpOverlay.querySelector(".close-help");
+      if (closeBtn && !closeBtn.hasAttribute("data-listener-attached")) {
+        closeBtn.addEventListener("click", () => this.closeScheduleHelpOverlay());
+        closeBtn.setAttribute("data-listener-attached", "true");
+      }
+    }
+
     // Privacy controls have been moved to Friends page for better UX
 
     this.setupFormValidation();
+  }
+
+  openScheduleHelpOverlay() {
+    const overlay = document.getElementById("schedule-help-overlay");
+    if (!overlay) return;
+
+    overlay.classList.remove("hidden");
+    overlay.classList.add("active");
+    document.addEventListener("keydown", this.boundScheduleHelpKeyHandler);
+
+    onboardingService
+      .markSeen("schedulePasteHelpSeen", { allowPending: true })
+      .catch(() => {});
+  }
+
+  closeScheduleHelpOverlay() {
+    const overlay = document.getElementById("schedule-help-overlay");
+    if (!overlay) return;
+    overlay.classList.remove("active");
+    overlay.classList.add("hidden");
+    document.removeEventListener("keydown", this.boundScheduleHelpKeyHandler);
   }
 
   /**

@@ -36,6 +36,15 @@ export function initScheduleControlsToggle() {
         const first = bar.querySelector('.control-btn');
         if (first) first.focus();
       }, 180);
+      try {
+        document.dispatchEvent(
+          new CustomEvent("scheduleControls:opened", {
+            detail: { trigger: "user" },
+          })
+        );
+      } catch (_) {
+        /* ignore */
+      }
     }
   };
 

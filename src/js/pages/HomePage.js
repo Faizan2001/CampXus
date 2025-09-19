@@ -27,6 +27,25 @@ import { initScheduleControlsToggle } from "../components/schedule/ScheduleContr
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 // Logging
 import { logManager } from "../utils/debug/LogManager.js"; // ✅ Restored import to fix ReferenceError
+import { onboardingService } from "../services/onboarding/OnboardingService.js";
+import {
+  showCoachMark,
+  hideAllCoachMarks,
+  hasActiveCoachMarks,
+} from "../services/onboarding/CoachMarkManager.js";
+
+function devLog(message, detail = {}) {
+  if (!import.meta.env || !import.meta.env.DEV) {
+    return;
+  }
+
+  if (logManager?.dev?.info) {
+    logManager.dev.info(message, detail);
+    return;
+  }
+
+  console.log(message, detail);
+}
 
 /* ================================
    APPLICATION STATE
@@ -67,6 +86,7 @@ let state = {
 export function getState() {
   return state;
 }
+
 export function _setStateForTesting(newState) {
   state = { ...state, ...newState };
 }
@@ -251,6 +271,534 @@ function getSlotInfo(user, dayIndex, timeIndex) {
       classroomNumber: "",
     }
   );
+}
+
+/* ================================
+   ONBOARDING HELPERS
+================================== */
+
+const onboardingTimeouts = new Set();
+const hintSessionState = new Map();
+let controlsHintsStarted = false;
+let controlsHintsActive = false;
+let pendingTapHint = false;
+
+const CONTROL_HINT_KEYS = [
+  "viewToggleHintSeen",
+  "addSlotHintSeen",
+  "pinHintSeen",
+];
+
+function didUserAcknowledgeHint(reason) {
+  return reason === "primary" || reason === "secondary";
+}
+
+function markHintComplete(key) {
+  hintSessionState.set(key, "done");
+  onboardingService.markSeen(key, { allowPending: true }).catch(() => {});
+
+  devLog("[Onboarding] Hint marked complete", { key });
+
+  if (key === "scheduleControlsHintSeen") {
+    scheduleOnboardingTimeout(() => startScheduleControlsHints(), 200);
+  }
+
+  if (CONTROL_HINT_KEYS.includes(key)) {
+    maybeScheduleTapHint(300);
+  }
+}
+
+function areControlHintsComplete() {
+  let serviceState = null;
+  try {
+    serviceState = onboardingService?.getState
+      ? onboardingService.getState()
+      : null;
+  } catch (_) {
+    serviceState = null;
+  }
+
+  return CONTROL_HINT_KEYS.every((key) => {
+    if (hintSessionState.get(key) === "done") {
+      return true;
+    }
+
+    if (serviceState && serviceState[key]) {
+      hintSessionState.set(key, "done");
+      return true;
+    }
+
+    return false;
+  });
+}
+
+function maybeScheduleTapHint(delay = 600) {
+  if (hintSessionState.get("scheduleTapHintSeen") === "done") {
+    pendingTapHint = false;
+    devLog("[Onboarding] Tap hint already complete");
+    return;
+  }
+
+  if (!areControlHintsComplete() || controlsHintsActive) {
+    pendingTapHint = true;
+    devLog("[Onboarding] Tap hint deferred", {
+      controlsHintsActive,
+      controlsComplete: areControlHintsComplete(),
+    });
+    return;
+  }
+
+  pendingTapHint = false;
+  devLog("[Onboarding] Scheduling tap hint", { delay });
+  scheduleOnboardingTimeout(showScheduleTapHint, delay);
+}
+
+function scheduleOnboardingTimeout(callback, delay = 800) {
+  const timeoutId = window.setTimeout(() => {
+    onboardingTimeouts.delete(timeoutId);
+    callback();
+  }, delay);
+  onboardingTimeouts.add(timeoutId);
+  return timeoutId;
+}
+
+function clearOnboardingTimeouts() {
+  onboardingTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+  onboardingTimeouts.clear();
+}
+
+function waitMs(delay) {
+  return new Promise((resolve) => {
+    scheduleOnboardingTimeout(resolve, delay);
+  });
+}
+
+function isElementVisibleForHint(element) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : preferred;
+  const available = viewportWidth - 48; // keep 24px margin on each side
+  const safePreferred = Math.min(preferred, Math.max(minimum, available));
+  return Math.max(minimum, safePreferred);
+}
+
+async function showHintOnce({ key, targetResolver, buildConfig }) {
+  const currentState = hintSessionState.get(key);
+  if (currentState === "showing" || currentState === "done") {
+    return null;
+  }
+
+  await onboardingService.init().catch(() => {});
+  if (!onboardingService.shouldShow(key)) {
+    hintSessionState.set(key, "done");
+    if (CONTROL_HINT_KEYS.includes(key)) {
+      maybeScheduleTapHint(300);
+    }
+    if (key === "scheduleTapHintSeen") {
+      pendingTapHint = false;
+    }
+    devLog("[Onboarding] Hint suppressed by onboardingService", { key });
+    return null;
+  }
+
+  const target =
+    typeof targetResolver === "function"
+      ? targetResolver()
+      : document.querySelector(targetResolver);
+  if (!isElementVisibleForHint(target)) {
+    devLog("[Onboarding] Hint target not visible", { key });
+    return null;
+  }
+
+  try {
+    target.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+  } catch (_) {
+    /* ignore scroll failures */
+  }
+  await waitMs(120);
+
+  if (hasActiveCoachMarks()) {
+    return null;
+  }
+
+  const config =
+    typeof buildConfig === "function" ? buildConfig(target) : buildConfig;
+  if (!config) return null;
+
+  const mark = showCoachMark({ ...config, target });
+  if (!mark) {
+    devLog("[Onboarding] showCoachMark failed", { key });
+    return null;
+  }
+
+  hintSessionState.set(key, "showing");
+  devLog("[Onboarding] Hint rendered", { key });
+  if (typeof mark.update === "function") {
+    requestAnimationFrame(() => mark.update());
+    requestAnimationFrame(() => mark.update());
+  }
+  return mark;
+}
+
+function attemptHintUntilShown({ key, targetResolver, buildConfig, retryDelay = 1600 }) {
+  const attempt = async () => {
+    devLog("[Onboarding] attemptHintUntilShown", { key, retryDelay });
+    const mark = await showHintOnce({ key, targetResolver, buildConfig });
+    if (!mark) {
+      if (hintSessionState.get(key) !== "done") {
+        devLog("[Onboarding] Hint not shown, scheduling retry", { key, retryDelay });
+        scheduleOnboardingTimeout(attempt, retryDelay);
+      }
+      return;
+    }
+
+    const result = await mark.waitForClose;
+    if (didUserAcknowledgeHint(result?.reason)) {
+      markHintComplete(key);
+      return;
+    }
+
+    hintSessionState.delete(key);
+    devLog("[Onboarding] Hint dismissed without acknowledgement", {
+      key,
+      reason: result?.reason,
+    });
+    scheduleOnboardingTimeout(attempt, retryDelay);
+  };
+
+  attempt();
+}
+
+async function showHintWithRetries(hint, options = {}) {
+  const { attempts = 6, delay = 600 } = options;
+  let tries = 0;
+
+  while (hintSessionState.get(hint.key) !== "done" && tries < attempts) {
+    if (hasActiveCoachMarks()) {
+      await waitMs(delay);
+      continue;
+    }
+
+    devLog("[Onboarding] showHintWithRetries attempt", {
+      key: hint.key,
+      attempt: tries + 1,
+      attempts,
+    });
+    const mark = await showHintOnce(hint);
+    if (mark) {
+      const result = await mark.waitForClose;
+      if (didUserAcknowledgeHint(result?.reason)) {
+        markHintComplete(hint.key);
+        return true;
+      }
+      hintSessionState.delete(hint.key);
+      devLog("[Onboarding] Hint dismissed during retries", {
+        key: hint.key,
+        reason: result?.reason,
+      });
+    }
+    tries += 1;
+    await waitMs(delay);
+  }
+
+  devLog("[Onboarding] showHintWithRetries exhausted", {
+    key: hint.key,
+    attempts,
+  });
+  return hintSessionState.get(hint.key) === "done";
+}
+
+function isMobileLayout() {
+  return state.isMobile || window.innerWidth <= 768;
+}
+
+function showScheduleToggleHint() {
+  const toggleBtn = document.getElementById("scheduleControlsToggle");
+
+  if (!isElementVisibleForHint(toggleBtn)) {
+    devLog("[Onboarding] Toggle hint skipped - button hidden");
+    markHintComplete("scheduleControlsHintSeen");
+    if (!isMobileLayout()) {
+      startScheduleControlsHints();
+    }
+    return;
+  }
+
+  devLog("[Onboarding] Showing schedule toggle hint");
+  attemptHintUntilShown({
+    key: "scheduleControlsHintSeen",
+    targetResolver: () => toggleBtn,
+    buildConfig: () => ({
+      title: "Schedule options",
+      description: "Tap to reveal Add Slot, Pin mode, and the day/grid view buttons.",
+      highlightShape: "circle",
+      responsivePlacement: { mobile: "bottom", desktop: "left" },
+      offset: 12,
+      maxWidth: 220,
+      primaryButton: { text: "Next" },
+    }),
+  });
+
+}
+
+let controlsHintQueue = Promise.resolve();
+const COMPARE_HINT_RETRY_DELAY = 1400;
+const compareHintTargets = {
+  roundButton: null,
+};
+
+function startScheduleControlsHints() {
+  if (controlsHintsStarted) {
+    devLog("[Onboarding] Control hints already running");
+    return;
+  }
+
+  const bar = document.getElementById("scheduleControlsBar");
+  if (!bar) {
+    devLog("[Onboarding] scheduleControlsBar missing");
+    return;
+  }
+
+  ensureScheduleControlsOpen();
+
+  const controlsVisible =
+    !isMobileLayout() ||
+    bar.classList.contains("expanded") ||
+    getComputedStyle(bar).display !== "none";
+
+  if (!controlsVisible) {
+    devLog("[Onboarding] Control bar hidden, retrying");
+    scheduleOnboardingTimeout(startScheduleControlsHints, 240);
+    return;
+  }
+
+  controlsHintsStarted = true;
+  controlsHintsActive = true;
+  devLog("[Onboarding] Control hint queue starting");
+
+  controlsHintQueue = controlsHintQueue.then(async () => {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    ensureScheduleControlsOpen();
+
+    const hintsInOrder = [
+      {
+        key: "viewToggleHintSeen",
+        targetResolver: () => document.getElementById("dayViewBtn"),
+        buildConfig: () => ({
+        title: "Day or week view",
+        description: "Switch between a focused single-day list and the full weekly grid.",
+        responsivePlacement: { mobile: "top", desktop: "bottom" },
+        maxWidth: getResponsiveCoachmarkWidth(220, 180),
+        offset: 12,
+        primaryButton: { text: "Next" },
+      }),
+      },
+      {
+        key: "addSlotHintSeen",
+        targetResolver: () => document.getElementById("addNewTimeSlotBtn"),
+        buildConfig: () => ({
+        title: "Add custom slots",
+        description: "Tap here and add new rows of time ranges to your schedule.",
+        responsivePlacement: { mobile: "top", desktop: "bottom" },
+        maxWidth: getResponsiveCoachmarkWidth(220, 180),
+        offset: 12,
+        primaryButton: { text: "Next" },
+      }),
+      },
+      {
+        key: "pinHintSeen",
+        targetResolver: () => document.getElementById("togglePinModeBtn"),
+        buildConfig: () => ({
+          title: "Pin important slots",
+          description: "Pinning marks preferred meeting times so friends can spot them instantly.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "top", desktop: "bottom" },
+          maxWidth: getResponsiveCoachmarkWidth(204, 176),
+          offset: 12,
+          primaryButton: { text: "Done" },
+        }),
+      },
+    ];
+
+    for (const hint of hintsInOrder) {
+      if (hintSessionState.get(hint.key) === "done") continue;
+      ensureScheduleControlsOpen();
+      devLog("[Onboarding] Showing control hint", { key: hint.key });
+      const shown = await showHintWithRetries(hint, { attempts: 8, delay: 500 });
+      if (!shown) {
+        devLog("[Onboarding] Control hint aborted", { key: hint.key });
+        break;
+      }
+      devLog("[Onboarding] Control hint acknowledged", { key: hint.key });
+    }
+
+    controlsHintsActive = false;
+    controlsHintsStarted = false;
+    if (pendingTapHint) {
+      devLog("[Onboarding] Control hints finished, scheduling tap hint if pending");
+      maybeScheduleTapHint(300);
+    }
+  });
+}
+
+function handleScheduleControlsOpened() {
+  if (hintSessionState.get("scheduleControlsHintSeen") !== "done") {
+    return;
+  }
+  devLog("[Onboarding] scheduleControls:opened received - starting control hints");
+  startScheduleControlsHints();
+}
+
+function ensureScheduleControlsOpen() {
+  const toggleBtn = document.getElementById("scheduleControlsToggle");
+  const bar = document.getElementById("scheduleControlsBar");
+  if (!toggleBtn || !bar) return;
+
+  if (toggleBtn.getAttribute("aria-expanded") !== "true") {
+    toggleBtn.setAttribute("aria-expanded", "true");
+    bar.classList.add("expanded");
+    document.dispatchEvent(
+      new CustomEvent("scheduleControls:opened", {
+        detail: { trigger: "onboarding" },
+      })
+    );
+  }
+}
+
+function showScheduleTapHint() {
+  if (!areControlHintsComplete()) {
+    pendingTapHint = true;
+    maybeScheduleTapHint(600);
+    devLog("[Onboarding] Tap hint deferred until controls complete");
+    return;
+  }
+
+  devLog("[Onboarding] Attempting tap hint");
+  attemptHintUntilShown({
+    key: "scheduleTapHintSeen",
+    targetResolver: () => {
+      if (state.viewMode === "day") {
+        return document.getElementById("scheduleDayView");
+      }
+      return document.getElementById("scheduleGridView");
+    },
+    buildConfig: (target) => ({
+      title: "Tap slots to edit",
+      description: "Tap any time slot to add a new class, or edit an existing slot you have.",
+      responsivePlacement: isMobileLayout()
+        ? { mobile: "top" }
+        : target.id === "scheduleDayView"
+        ? { desktop: "right" }
+        : { desktop: "top" },
+      primaryButton: { text: "OK" },
+    }),
+  });
+}
+
+function handleFriendsBarRendered(event) {
+  const count = event?.detail?.count ?? 0;
+  if (count > 0) {
+    const roundBtn = document.getElementById("roundCompareBtn");
+    if (roundBtn) {
+      compareHintTargets.roundButton = roundBtn;
+    }
+  } else {
+    compareHintTargets.roundButton = null;
+  }
+}
+
+function resolveCompareHintTarget(detail = {}) {
+  const { buttonElement, buttonId, source } = detail;
+  if (buttonElement instanceof Element && document.contains(buttonElement)) {
+    return buttonElement;
+  }
+  if (typeof buttonId === "string") {
+    const explicit = document.getElementById(buttonId);
+    if (explicit) {
+      return explicit;
+    }
+  }
+  if (source === "desktop" || source === "desktop-button") {
+    const desktopBtn = document.getElementById("compare");
+    if (desktopBtn) {
+      return desktopBtn;
+    }
+  }
+  // Prefer a fresh query within the friends bar to avoid stale references on mobile
+  const freshMobileBtn = document.querySelector(
+    "#horizontal-friends-container .round-compare-btn, #roundCompareBtn"
+  );
+  if (freshMobileBtn) return freshMobileBtn;
+
+  if (
+    compareHintTargets.roundButton &&
+    document.contains(compareHintTargets.roundButton)
+  ) {
+    return compareHintTargets.roundButton;
+  }
+
+  return (
+    document.getElementById("roundCompareBtn") ||
+    document.getElementById("compare")
+  );
+}
+
+function handleCompareOnboardingRequest(event) {
+  if (hintSessionState.get("compareHintSeen") === "done") {
+    devLog("[Onboarding] Compare hint already completed");
+    return;
+  }
+
+  const detail = event?.detail ? { ...event.detail } : {};
+  const retryCount = detail.__retryCount || 0;
+  devLog("[Onboarding] Compare hint request received", {
+    retryCount,
+    source: detail.source,
+  });
+
+  const initialTarget = resolveCompareHintTarget(detail);
+  if (!initialTarget) {
+    if (retryCount >= 4) {
+      devLog("[Onboarding] Compare hint target not found after retries", {
+        retryCount,
+      });
+      return;
+    }
+    const nextDetail = { ...detail, __retryCount: retryCount + 1 };
+    setTimeout(
+      () => handleCompareOnboardingRequest({ detail: nextDetail }),
+      COMPARE_HINT_RETRY_DELAY
+    );
+    devLog("[Onboarding] Compare hint target missing, scheduling retry", {
+      retryCount: retryCount + 1,
+    });
+    return;
+  }
+
+  devLog("[Onboarding] Showing compare hint", {
+    source: detail.source,
+  });
+  attemptHintUntilShown({
+    key: "compareHintSeen",
+    targetResolver: () => resolveCompareHintTarget(detail),
+    buildConfig: () => ({
+      title: "Compare schedules",
+      description: "Select yourself and friends to instantly find overlapping free time.",
+      highlightShape: "circle",
+      // On mobile, place the card above the round button for a clear anchor
+      responsivePlacement: { mobile: "top", desktop: "top" },
+      offset: 12,
+      maxWidth: getResponsiveCoachmarkWidth(216, 176),
+      primaryButton: { text: "OK" },
+    }),
+    retryDelay: COMPARE_HINT_RETRY_DELAY,
+  });
 }
 
 /**
@@ -3496,6 +4044,24 @@ function handleToggleCompareMode() {
     state.pinModeActive = false; // Disable pin mode in compare mode
     state.selectedUserIds.clear(); // Clear selected users when entering compare mode
 
+    const desktopCompareButton = document.getElementById("compare");
+    if (desktopCompareButton) {
+      document.dispatchEvent(
+        new CustomEvent("compare:onboarding", {
+          detail: {
+            source: "desktop-button",
+            buttonElement: desktopCompareButton,
+          },
+        })
+      );
+    } else {
+      document.dispatchEvent(
+        new CustomEvent("compare:onboarding", {
+          detail: { source: "desktop-button" },
+        })
+      );
+    }
+
     // Compare Mode enabled
   } else {
     // ✅ FIXED: When exiting compare mode, don't auto-select user
@@ -6081,6 +6647,14 @@ function setupFriendsBarEventListeners() {
     "compare:selection",
     handleCompareSelectionChange
   );
+  document.removeEventListener(
+    "friendsbar:avatarsRendered",
+    handleFriendsBarRendered
+  );
+  document.removeEventListener(
+    "compare:onboarding",
+    handleCompareOnboardingRequest
+  );
 
   // Listen for schedule change events (when user clicks friend avatar) - MUST PERSIST!
   addUIControlListener(document, "schedule:change", (event) => {
@@ -6094,6 +6668,16 @@ function setupFriendsBarEventListeners() {
     document,
     "compare:selection",
     handleCompareSelectionChange
+  );
+  addUIControlListener(
+    document,
+    "friendsbar:avatarsRendered",
+    handleFriendsBarRendered
+  );
+  addUIControlListener(
+    document,
+    "compare:onboarding",
+    handleCompareOnboardingRequest
   );
 
   console.log("✅ Friends bar event listeners set up successfully");
@@ -7044,10 +7628,19 @@ document.addEventListener("spa:page:load", async (event) => {
       console.warn("⚠️ Failed to init schedule controls toggle (non-fatal)", e);
     }
 
+    document.addEventListener(
+      "scheduleControls:opened",
+      handleScheduleControlsOpened
+    );
+
     // Auto-disable pin mode when dropdown closes
     document.addEventListener(
       "scheduleControls:closed",
       () => {
+        if (controlsHintsActive) {
+          devLog("[Onboarding] scheduleControls:closed while hints active, re-opening");
+          scheduleOnboardingTimeout(() => ensureScheduleControlsOpen(), 120);
+        }
         if (state.pinModeActive) {
           state.pinModeActive = false;
           updateUI();
@@ -7125,6 +7718,11 @@ document.addEventListener("spa:page:load", async (event) => {
     console.log("🎨 Updating UI with loaded data...");
     await updateUI();
 
+    devLog("[Onboarding] Scheduling initial toggle hint");
+    scheduleOnboardingTimeout(showScheduleToggleHint, 450);
+    devLog("[Onboarding] Scheduling initial tap hint placeholder");
+    maybeScheduleTapHint(1400);
+
     // 🎯 REMOVED: Preselection now handled by HorizontalFriendsBar.forceUserSelection()
     // The HorizontalFriendsBar will auto-select user after it's fully rendered
 
@@ -7172,6 +7770,16 @@ document.addEventListener("spa:page:unload", (event) => {
       state.horizontalFriendsBar.destroy();
       state.horizontalFriendsBar = null;
     }
+
+    hideAllCoachMarks();
+    clearOnboardingTimeouts();
+    controlsHintQueue = Promise.resolve();
+    controlsHintsStarted = false;
+    controlsHintsActive = false;
+    document.removeEventListener(
+      "scheduleControls:opened",
+      handleScheduleControlsOpened
+    );
 
     // Clear any temporary selections but keep the state for when we return
     console.log("🧹 Home page cleanup completed - resources freed");

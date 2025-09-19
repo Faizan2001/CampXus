@@ -155,6 +155,15 @@ This file contains all styles for the mobile-friendly schedule redesign:
 }
 
 .view-mode-toggle {
+  order: 0;
+}
+
+.schedule-actions-group {
+  order: 1;
+  margin-left: auto;
+}
+
+.view-mode-toggle {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -419,7 +428,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   }
   .view-mode-toggle {
     order: 2;
-    margin-left: auto;
+    margin-right: auto;
   }
 }
 

@@ -48,6 +48,8 @@ import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import { PresenceDot } from "../presence/PresenceDot.js";
 import { friendshipPrivacyService } from "../../services/friends/FriendshipPrivacyService.js";
+import { onboardingService } from "../../services/onboarding/OnboardingService.js";
+import { showCoachMark } from "../../services/onboarding/CoachMarkManager.js";
 
 // Global instance for external access
 let globalHorizontalFriendsBarInstance = null;
@@ -584,6 +586,14 @@ export class HorizontalFriendsBar {
       this.avatarElements.set(friend.friendId || friend.userId, friendElement);
     });
 
+    document.dispatchEvent(
+      new CustomEvent("friendsbar:avatarsRendered", {
+        detail: {
+          count: this.quickAccessFriends.length,
+        },
+      })
+    );
+
     // Friend avatars rendered with privacy status and presence dots
   }
 
@@ -602,6 +612,13 @@ export class HorizontalFriendsBar {
     `;
 
     container.insertAdjacentHTML("beforeend", emptyStateHtml);
+
+    document.dispatchEvent(
+      new CustomEvent("friendsbar:avatarsRendered", {
+        detail: { count: 0 },
+      })
+    );
+
     // Empty state rendered
   }
 
@@ -1263,11 +1280,21 @@ export class HorizontalFriendsBar {
   /**
    * Toggle compare mode on/off
    */
-  handleToggleCompareMode() {
+  async handleToggleCompareMode() {
     // Prevent rapid successive clicks
     if (this._isToggling) {
       console.log("🚫 Compare mode toggle already in progress, ignoring");
       return;
+    }
+
+    if (
+      !this.compareMode &&
+      (this.quickAccessFriends?.length || 0) === 0
+    ) {
+      const promptShown = await this.showComparePromptHint();
+      if (promptShown) {
+        return;
+      }
     }
 
     this._isToggling = true;
@@ -1286,6 +1313,46 @@ export class HorizontalFriendsBar {
     setTimeout(() => {
       this._isToggling = false;
     }, 500);
+  }
+
+  async showComparePromptHint() {
+    await onboardingService.init().catch(() => {});
+    if (!onboardingService.shouldShow("comparePromptSeen")) {
+      return false;
+    }
+
+    const compareButton = this.container.querySelector(".btn-compare");
+    if (!compareButton) {
+      return false;
+    }
+
+    const mark = showCoachMark({
+      id: "compare-add-friend",
+      target: compareButton,
+      title: "Add friends to compare",
+      description:
+        "Star a friend from the Friends page first — then use compare mode to line up free time.",
+      highlightShape: "circle",
+      responsivePlacement: { mobile: "top", desktop: "top" },
+      primaryButton: { text: "OK" },
+    });
+
+    if (!mark) {
+      return false;
+    }
+
+    if (typeof mark.update === "function") {
+      requestAnimationFrame(() => mark.update());
+      requestAnimationFrame(() => mark.update());
+    }
+
+    mark.waitForClose.then(() => {
+      onboardingService
+        .markSeen("comparePromptSeen", { allowPending: true })
+        .catch(() => {});
+    });
+
+    return true;
   }
 
   /**
@@ -1325,8 +1392,25 @@ export class HorizontalFriendsBar {
 
     // (removed) First-time tooltip was unused and stored in localStorage
 
+    const compareButton = this.container.querySelector(".btn-compare");
+
     // Emit event for other components
-    this.emitCompareModeEvent(true);
+    this.emitCompareModeEvent(true, {
+      trigger: "button",
+      source: "friends-bar",
+      buttonId: compareButton?.id || "roundCompareBtn",
+      buttonElement: compareButton || null,
+    });
+
+    document.dispatchEvent(
+      new CustomEvent("compare:onboarding", {
+        detail: {
+          source: "friends-bar",
+          buttonId: compareButton?.id || "roundCompareBtn",
+          buttonElement: compareButton || null,
+        },
+      })
+    );
 
     this.showDebouncedNotification(
       "Compare mode activated - Tap friends to compare schedules",
@@ -1364,8 +1448,15 @@ export class HorizontalFriendsBar {
     // Update UI to exit compare mode
     this.updateCompareUI();
 
+    const compareButton = this.container.querySelector(".btn-compare");
+
     // Emit event for other components
-    this.emitCompareModeEvent(false);
+    this.emitCompareModeEvent(false, {
+      trigger: "button",
+      source: "friends-bar",
+      buttonId: compareButton?.id || "roundCompareBtn",
+      buttonElement: compareButton || null,
+    });
 
     // ✅ Reuse existing schedule-change flow: when exiting compare mode,
     // automatically select and render the user's schedule to match the purple ring
@@ -1591,9 +1682,9 @@ export class HorizontalFriendsBar {
   updateCompareButtonVisibility() {
     const compareButton = this.container.querySelector(".btn-compare");
     if (compareButton) {
-      // Show compare button only if user has friends to compare with
       const hasFriends = this.quickAccessFriends.length > 0;
-      compareButton.style.display = hasFriends ? "flex" : "none";
+      compareButton.style.display = "flex";
+      compareButton.classList.toggle("compare-button--empty", !hasFriends);
     }
   }
 
@@ -1602,11 +1693,15 @@ export class HorizontalFriendsBar {
   /**
    * Emit compare mode change event
    */
-  emitCompareModeEvent(isActive) {
+  emitCompareModeEvent(isActive, extraDetail = {}) {
     const eventDetail = {
       compareMode: isActive,
       selectedFriends: Array.from(this.selectedForCompare),
       timestamp: Date.now(),
+      source: extraDetail.source || "friends-bar",
+      trigger: extraDetail.trigger || null,
+      buttonId: extraDetail.buttonId || null,
+      buttonElement: extraDetail.buttonElement || null,
     };
 
     console.log("📡 Emitting compare:mode event:", eventDetail);
@@ -5017,11 +5112,8 @@ export class HorizontalFriendsBar {
         this._userPresenceFallback = this._loadUserPresenceFallback();
       }
 
-      // Determine sharing flag
-      let hasLocationSharing =
-        typeof systemInfo.locationSharingEnabled === "boolean"
-          ? systemInfo.locationSharingEnabled
-          : this._userPresenceFallback?.hasLocationSharing ?? false;
+      // Determine sharing flag (privacy-first default: disabled unless explicitly enabled)
+      const hasLocationSharing = systemInfo.locationSharingEnabled === true;
 
       // If sharing disabled explicitly, clear cache and return grey state
       if (systemInfo.locationSharingEnabled === false) {
@@ -5042,7 +5134,11 @@ export class HorizontalFriendsBar {
       // Determine campus status using live data first, then fallback
       let campusStatus = systemInfo.lastKnownLocation?.campusStatus;
       if (!campusStatus || campusStatus === "unknown") {
-        campusStatus = this._userPresenceFallback?.campusStatus;
+        const fb = this._userPresenceFallback;
+        const uid = (currentUser && (currentUser.uid || currentUser?.state?.user?.uid)) || null;
+        if (fb && fb.uid && uid && fb.uid === uid) {
+          campusStatus = fb.campusStatus;
+        }
       }
 
       // Expiry: if lastActive is older than 12h, treat as no presence
@@ -5122,13 +5218,11 @@ export class HorizontalFriendsBar {
     return null;
   }
 
-  _saveUserPresenceFallback({
-    lastActiveMs,
-    campusStatus,
-    hasLocationSharing,
-  }) {
+  _saveUserPresenceFallback({ lastActiveMs, campusStatus, hasLocationSharing }) {
     try {
+      const uid = (currentUser && (currentUser.uid || currentUser?.state?.user?.uid)) || null;
       this._userPresenceFallback = {
+        uid,
         lastActiveMs,
         campusStatus,
         hasLocationSharing,

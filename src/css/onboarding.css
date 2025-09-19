@@ -1,0 +1,346 @@
+/* ===========================================================================
+ *                            Onboarding Coach Marks
+ * ===========================================================================
+ * Shared styling for lightweight product tour bubbles, highlights, and
+ * contextual hints used across CampXus.
+ * ---------------------------------------------------------------------------
+ */
+
+
+.coachmark-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 12000;
+  pointer-events: auto;
+}
+
+.coachmark-overlay.active {
+  pointer-events: auto;
+}
+
+.coachmark-card {
+  position: absolute;
+  max-width: min(240px, 88vw);
+  background: rgba(17, 24, 39, 0.9);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(99, 102, 241, 0.34);
+  border-radius: 16px;
+  padding: clamp(0.75rem, 2.4vw, 1.05rem) clamp(0.85rem, 3vw, 1.15rem);
+  color: #f8fafc;
+  box-shadow:
+    0 20px 45px rgba(30, 41, 90, 0.42),
+    0 0 18px rgba(129, 140, 248, 0.38),
+    0 0 0 1px rgba(148, 163, 255, 0.18) inset;
+  pointer-events: auto;
+  transform-origin: center;
+  animation: coachmark-fade-in 0.25s ease forwards;
+  z-index: 12001;
+}
+
+.coachmark-card h4 {
+  font-size: 0.95rem;
+  margin: 0 0 0.3rem;
+  font-weight: 600;
+}
+
+.coachmark-card p,
+.coachmark-card .coachmark-html {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+  color: #e2e8f0;
+}
+
+.coachmark-html > :last-child {
+  margin-bottom: 0;
+}
+
+.coachmark-card .coachmark-html-list p {
+  margin: 0 0 0.65rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.coachmark-card .coachmark-html-list p:last-child {
+  margin-bottom: 0.2rem;
+}
+
+.coachmark-card .coachmark-html-list strong {
+  color: #f8fafc;
+}
+
+.coachmark-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.coachmark-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.coachmark-btn.primary {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.85), rgba(129, 140, 248, 1));
+  color: #f8fafc;
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.35);
+}
+
+.coachmark-btn.primary:hover,
+.coachmark-btn.primary:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(79, 70, 229, 0.45);
+  outline: none;
+}
+
+.coachmark-btn.secondary {
+  background: rgba(148, 163, 184, 0.22);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.coachmark-btn.secondary:hover,
+.coachmark-btn.secondary:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(148, 163, 184, 0.25);
+  outline: none;
+}
+
+.coachmark-highlight {
+  position: relative;
+  z-index: 12001;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 3px rgba(129, 140, 248, 0.55),
+    0 14px 38px rgba(88, 80, 220, 0.35);
+  transition: box-shadow 0.2s ease;
+}
+
+.coachmark-highlight.coachmark-circle {
+  border-radius: 999px;
+}
+
+.coachmark-highlight:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(129, 140, 248, 0.65),
+    0 18px 45px rgba(88, 80, 220, 0.42);
+}
+
+.coachmark-arrow {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: inherit;
+  transform: rotate(45deg);
+  border-left: 1px solid rgba(99, 102, 241, 0.45);
+  border-top: 1px solid rgba(99, 102, 241, 0.45);
+}
+
+.coachmark-placement-top .coachmark-card {
+  transform-origin: bottom center;
+}
+.coachmark-placement-bottom .coachmark-card {
+  transform-origin: top center;
+}
+.coachmark-placement-left .coachmark-card {
+  transform-origin: center right;
+}
+.coachmark-placement-right .coachmark-card {
+  transform-origin: center left;
+}
+
+.coachmark-placement-top .coachmark-arrow {
+  top: auto;
+  bottom: -8px;
+  border-left: none;
+  border-top: none;
+  border-right: 1px solid rgba(99, 102, 241, 0.45);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.45);
+}
+
+.coachmark-placement-left .coachmark-arrow {
+  top: calc(50% - 8px);
+  left: auto;
+  right: -8px;
+  border-left: none;
+  border-top: 1px solid rgba(99, 102, 241, 0.45);
+  border-right: 1px solid rgba(99, 102, 241, 0.45);
+}
+
+.coachmark-placement-right .coachmark-arrow {
+  top: calc(50% - 8px);
+  left: -8px;
+  border-top: none;
+  border-left: 1px solid rgba(99, 102, 241, 0.45);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.45);
+}
+
+
+.onboarding-presence-demo {
+  width: clamp(120px, 50vw, 180px);
+  margin: 0 auto clamp(0.45rem, 2vw, 0.8rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.onboarding-presence-demo .landing-avatar-demo {
+  width: 100%;
+  border-radius: 14px;
+  padding: 0.55rem 0.65rem 0.85rem;
+  background: linear-gradient(155deg, rgba(46, 55, 104, 0.6), rgba(30, 41, 59, 0.74));
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.32),
+    0 0 0 1px rgba(148, 163, 255, 0.16) inset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.onboarding-presence-demo .landing-avatar-demo .avatar-frame {
+  position: relative;
+  width: clamp(90px, 44vw, 140px);
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(129, 140, 248, 0.18), transparent 70%);
+}
+
+.onboarding-presence-demo .landing-avatar-demo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  animation: presenceImageCycle 6s infinite ease-in-out;
+}
+
+.onboarding-presence-demo .landing-avatar-demo img[data-presence-state="hidden"] {
+  animation-delay: 0s;
+}
+
+.onboarding-presence-demo .landing-avatar-demo img[data-presence-state="away"] {
+  animation-delay: 2s;
+}
+
+.onboarding-presence-demo .landing-avatar-demo img[data-presence-state="on"] {
+  animation-delay: 4s;
+}
+
+.onboarding-presence-demo .landing-avatar-demo .presence-status-text {
+  position: relative;
+  min-height: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+}
+
+.onboarding-presence-demo .landing-avatar-demo .presence-status-text span {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, 2px);
+  font-size: 0.7rem;
+  opacity: 0;
+  animation: presenceTextCycle 6s infinite ease-in-out;
+}
+
+.onboarding-presence-demo .landing-avatar-demo .presence-status-text span[data-state="hidden"] {
+  animation-delay: 0s;
+  color: #7f8ea3;
+}
+
+.onboarding-presence-demo .landing-avatar-demo .presence-status-text span[data-state="away"] {
+  animation-delay: 2s;
+  color: #ff7575;
+}
+
+.onboarding-presence-demo .landing-avatar-demo .presence-status-text span[data-state="on"] {
+  animation-delay: 4s;
+  color: #75f7b9;
+}
+
+@keyframes coachmark-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes presenceTextCycle {
+  0%, 16% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  20%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+
+@keyframes presenceImageCycle {
+  0%, 16% {
+    opacity: 1;
+  }
+  20%, 100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .coachmark-card {
+    max-width: min(210px, 90vw);
+    padding: 0.75rem 0.9rem;
+    border-radius: 14px;
+  }
+
+  .coachmark-card h4 {
+    font-size: 0.88rem;
+  }
+
+  .coachmark-card p,
+  .coachmark-card .coachmark-html {
+    font-size: 0.82rem;
+  }
+
+  .coachmark-actions {
+    gap: 0.45rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .coachmark-card {
+    max-width: min(190px, 92vw);
+    padding: 0.7rem 0.85rem;
+  }
+
+  .coachmark-card h4 {
+    font-size: 0.85rem;
+  }
+
+  .coachmark-card p,
+  .coachmark-card .coachmark-html {
+    font-size: 0.78rem;
+  }
+
+  .coachmark-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
