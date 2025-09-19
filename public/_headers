@@ -23,3 +23,11 @@
 /favicon.ico
   Content-Type: image/png
   Cache-Control: public, max-age=3600
+
+/icons/favicon-32x32.png
+  Content-Type: image/png
+  Cache-Control: public, max-age=3600
+
+/icons/favicon-16x16.png
+  Content-Type: image/png
+  Cache-Control: public, max-age=3600
