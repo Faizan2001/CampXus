@@ -11,6 +11,19 @@
       name="description"
       content="Connect with university friends in real-time. Share your schedule, see when classmates are on campus, and never miss a chance to meet up."
     />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://meetchuthere.com/" />
+    
+    <!-- Open Graph / Twitter defaults (router updates these per page) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="MeetchuThere - Schedule & Availability" />
+    <meta property="og:description" content="Connect with university friends in real-time and meet on campus." />
+    <meta property="og:image" content="https://meetchuthere.com/icons/icon-512x512.png" />
+    <meta property="og:url" content="https://meetchuthere.com/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MeetchuThere - Schedule & Availability" />
+    <meta name="twitter:description" content="Connect with university friends in real-time and meet on campus." />
+    <meta name="twitter:image" content="https://meetchuthere.com/icons/icon-512x512.png" />
   <!-- CSP is set via hosting headers to avoid duplication/conflicts. -->
     <title>MeetchuThere - Schedule & Availability Tracker</title>
 
@@ -53,6 +66,30 @@
     <!-- Android/Chrome Icons -->
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
+    
+    <!-- JSON-LD: Organization + WebSite (SearchAction) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "MeetchuThere",
+      "url": "https://meetchuthere.com",
+      "logo": "https://meetchuthere.com/icons/icon-512x512.png"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "url": "https://meetchuthere.com",
+      "name": "MeetchuThere",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://meetchuthere.com/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
     <!-- App container is now visible by default again -->

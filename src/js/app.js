@@ -113,6 +113,18 @@ let __presenceStarted = false;
 async function initializeSPA() {
   logManager.system.init("MeetchuThere SPA Initialization");
 
+  // Map pretty paths (/about) to SPA routes (#about) for direct links
+  try {
+    const path = (window.location.pathname || "/").replace(/\/+$/, "");
+    const hasHash = !!window.location.hash;
+    const routeFromPath = path.split("/").filter(Boolean).shift() || "";
+    const known = new Set(["home", "friends", "notifications", "about", "profile", "landing"]);
+    if (!hasHash && known.has(routeFromPath) && routeFromPath !== "landing") {
+      const newHash = `#${routeFromPath}`;
+      history.replaceState({}, "", `/${newHash}`);
+    }
+  } catch (_) {}
+
   // Double-check that essential DOM elements exist
   const mainContent = document.querySelector(".main-content");
   const topNav = document.querySelector(".top-nav");

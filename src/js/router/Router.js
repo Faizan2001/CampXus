@@ -39,6 +39,9 @@ class SPARouter {
         jsImporters: [() => import("/src/js/pages/LandingPage.js")],
         description:
           "Connect with your university friends and know when they're on campus",
+        canonicalPath: "/",
+        indexable: true,
+        og: { image: "/icons/icon-512x512.png", type: "website" }
       },
       home: {
         title: "Schedule - MeetchuThere",
@@ -49,6 +52,7 @@ class SPARouter {
         jsImporters: [() => import("/src/js/pages/HomePage.js")], // Lazy-load Home page controller (dev and prod)
         description: "Manage your weekly schedule and compare with friends",
         requiresAuth: true, // 🛡️ Now requires authentication
+        indexable: false
       },
       profile: {
         title: "Profile Setup - MeetchuThere",
@@ -60,6 +64,7 @@ class SPARouter {
         jsImporters: [() => import("/src/js/components/forms/ProfileSetup.js")],
         description: "Set up your student profile and preferences",
         requiresAuth: true, // 🛡️ Requires authentication
+        indexable: false
       },
       friends: {
         title: "Friends - MeetchuThere",
@@ -71,6 +76,7 @@ class SPARouter {
         jsImporters: [() => import("/src/js/pages/FriendsPage.js")],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
+        indexable: false
       },
       notifications: {
         title: "Notifications - MeetchuThere",
@@ -80,6 +86,7 @@ class SPARouter {
         description:
           "View your campus social notifications and location sharing requests",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
+        indexable: false
       },
       about: {
         title: "About - MeetchuThere",
@@ -87,6 +94,9 @@ class SPARouter {
         cssFiles: [],
         jsFiles: [],
         description: "Learn about the developer and the app",
+        canonicalPath: "/about/",
+        indexable: true,
+        og: { image: "/icons/icon-512x512.png", type: "website" }
       },
     };
 
@@ -966,8 +976,17 @@ class SPARouter {
       // Update page title
       document.title = routeData.title;
 
-      // Update meta description
+      // Update meta description and social tags
       this.updateMetaDescription(routeData.description);
+      this.updateRobotsMeta(routeData.indexable !== false);
+      const canonicalUrl = this.updateCanonicalUrl(routeData.canonicalPath || null);
+      this.updateOpenGraphTags({
+        title: routeData.title,
+        description: routeData.description,
+        url: canonicalUrl,
+        image: routeData?.og?.image || "/icons/icon-512x512.png",
+        type: routeData?.og?.type || "website",
+      });
 
       // Add body class for page-specific styling
       this.updateBodyClass(route);
@@ -1234,6 +1253,77 @@ class SPARouter {
       document.head.appendChild(metaDesc);
     }
     metaDesc.content = description;
+  }
+
+  /**
+   * Ensure and update <meta name="robots">
+   */
+  updateRobotsMeta(indexable = true) {
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement("meta");
+      robots.name = "robots";
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute("content", indexable ? "index,follow" : "noindex,nofollow");
+  }
+
+  /**
+   * Create/update canonical link. If canonicalPath is null, defaults to current origin + pathname (no hash).
+   * Returns the final canonical URL.
+   */
+  updateCanonicalUrl(canonicalPath = null) {
+    const siteBase = (window.ENV && window.ENV.SITE_URL) || window.location.origin;
+    const baseUrl = siteBase.replace(/\/$/, "");
+    const path = canonicalPath !== null
+      ? canonicalPath
+      : (window.location.pathname || "/");
+    const canonical = baseUrl + (path.startsWith("/") ? path : `/${path}`);
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      document.head.appendChild(link);
+    }
+    link.setAttribute("href", canonical);
+    return canonical;
+  }
+
+  /**
+   * Update Open Graph and Twitter card tags per route
+   */
+  updateOpenGraphTags({ title, description, url, image, type }) {
+    const siteBase = (window.ENV && window.ENV.SITE_URL) || window.location.origin;
+    const toAbsolute = (src) => {
+      if (!src) return '';
+      if (/^https?:\/\//i.test(src)) return src;
+      const base = siteBase.replace(/\/$/, '');
+      return base + (src.startsWith('/') ? src : `/${src}`);
+    };
+    const imgUrl = toAbsolute(image || '/icons/icon-512x512.png');
+    const ensure = (selector, attrs) => {
+      let el = document.querySelector(selector);
+      if (!el) {
+        el = document.createElement("meta");
+        if (selector.startsWith('meta[property')) {
+          el.setAttribute("property", selector.match(/property=\"([^\"]+)\"/)[1]);
+        } else if (selector.startsWith('meta[name')) {
+          el.setAttribute("name", selector.match(/name=\"([^\"]+)\"/)[1]);
+        }
+        document.head.appendChild(el);
+      }
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      return el;
+    };
+    ensure('meta[property="og:type"]', { content: type || "website" });
+    ensure('meta[property="og:title"]', { content: title || "" });
+    ensure('meta[property="og:description"]', { content: description || "" });
+    ensure('meta[property="og:image"]', { content: imgUrl });
+    ensure('meta[property="og:url"]', { content: url || window.location.href });
+    ensure('meta[name="twitter:card"]', { content: "summary_large_image" });
+    ensure('meta[name="twitter:title"]', { content: title || "" });
+    ensure('meta[name="twitter:description"]', { content: description || "" });
+    ensure('meta[name="twitter:image"]', { content: imgUrl });
   }
 
   /**
