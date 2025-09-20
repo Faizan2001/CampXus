@@ -120,7 +120,7 @@ IMPORTED MODULES:
 /* SPA Page Transitions */
 .main-content {
   /* Ensure dynamic content displays properly */
-  
+
   opacity: 1;
   transition: opacity 0.3s ease-in-out;
   position: relative;
@@ -158,9 +158,30 @@ IMPORTED MODULES:
   color: white !important;
 }
 
+/* Exception: About link (nav-cta) should never have purple background */
+.nav-link.nav-cta.active {
+  background: transparent !important;
+  color: var(--accent-primary) !important;
+}
+
 .nav-link.active .nav-text,
 .dropdown-item.active span {
   color: white !important;
+}
+
+/* Exception: About link text should keep accent color */
+.nav-link.nav-cta.active .nav-text {
+  color: var(--accent-primary) !important;
+}
+
+/* Remove border from About button when on About page */
+body.page-about .nav-link.nav-cta.active {
+  box-shadow: none !important;
+}
+
+/* Hide About button when authenticated (robust: driven by body class) */
+body.is-auth #aboutBtn {
+  display: none !important;
 }
 
 /* Page-specific body classes for styling */

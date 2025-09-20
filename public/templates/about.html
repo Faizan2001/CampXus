@@ -1,136 +1,58 @@
-<!-- 
-  🎯 Learning: This is the ABOUT template - information about the developer and app!
-  This could include your bio, the app's purpose, contact info, etc.
--->
+<div class="about-page" role="region" aria-label="About MeetchuThere">
+  <section class="about-hero">
+    <div class="about-photo-frame">
+      <img
+        class="about-photo"
+        src="/assets/dev-picture.jpg"
+        alt="Faizan, creator of MeetchuThere"
+        width="320"
+        height="320"
+        loading="eager"
+      />
+    </div>
+    <h2 class="about-name" aria-label="Faizan">Faizan</h2>
+    <p class="about-tagline">
+      <span class="tagline-line tagline-top shine">CSC ’26 at IUB</span>
+      <span class="tagline-line tagline-bottom shine"
+        >Guy who got tired of screenshots</span
+      >
+    </p>
+    <h1 class="about-title">By a student, for the students.</h1>
+    <p class="about-summary">
+      Hey! I’m Faizan, a 4th-year CSC student at IUB. I built MeetchuThere
+      because my friends and I were tired of juggling screenshots and messy
+      group chats just to figure out who’s free. Now, you can instantly see
+      who’s on campus and when your friends are free— no chaos, no guesswork.
+    </p>
+  </section>
 
-<div class="content-grid">
-  <div class="about-container">
-    <!-- About Header -->
-    <section class="glass-card about-header">
-      <div class="page-title-section">
-        <h1 class="page-title">
-          <i class="fas fa-info-circle"></i>
-          About MeetchuThere
-        </h1>
-        <p class="page-subtitle">
-          A modern schedule management app for university students, built with
-          love and lots of learning!
-        </p>
-      </div>
-    </section>
+  <section class="about-highlights" aria-label="What MeetchuThere helps you do">
+    <article class="about-tile">
+      <h3>What it helps you do</h3>
+      <ul>
+        <li>Import your class routine in seconds.</li>
+        <li>Spot overlapping free time with friends instantly.</li>
+        <li>Share when you're on campus with your friends.</li>
+        <li>Give you complete privacy control of your profile.</li>
+      </ul>
+    </article>
+  </section>
 
-    <!-- App Information -->
-    <section class="glass-card app-info">
-      <h3>
-        <i class="fas fa-rocket"></i>
-        About This App
-      </h3>
-      <div class="info-content">
-        <p>
-          <strong>MeetchuThere</strong> is a schedule comparison and management tool
-          designed specifically for university students. It helps you:
-        </p>
-        <ul class="feature-list">
-          <li>
-            <i class="fas fa-calendar-check"></i> Manage your weekly class
-            schedule
-          </li>
-          <li>
-            <i class="fas fa-users"></i> Connect with classmates and friends
-          </li>
-          <li>
-            <i class="fas fa-layer-group"></i> Compare schedules to find study
-            times
-          </li>
-          <li>
-            <i class="fas fa-mobile-alt"></i> Access your schedule on any device
-          </li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- Developer Information -->
-    <section class="glass-card developer-info">
-      <h3>
-        <i class="fas fa-code"></i>
-        About the Developer
-      </h3>
-      <div class="developer-card">
-        <div class="developer-avatar">
-          <i class="fas fa-user-graduate"></i>
-        </div>
-        <div class="developer-details">
-          <h4>University Student & Aspiring Developer</h4>
-          <p>
-            Built as a learning project to explore modern web development
-            technologies including Firebase, Single Page Applications, and
-            responsive design.
-          </p>
-          <div class="tech-stack">
-            <span class="tech-tag">HTML5</span>
-            <span class="tech-tag">CSS3</span>
-            <span class="tech-tag">JavaScript ES6+</span>
-            <span class="tech-tag">Firebase</span>
-            <span class="tech-tag">SPA Architecture</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Contact & Links -->
-    <section class="glass-card contact-info">
-      <h3>
-        <i class="fas fa-envelope"></i>
-        Get in Touch
-      </h3>
-      <div class="contact-content">
-        <p>
-          Questions, suggestions, or want to contribute? Feel free to reach out!
-        </p>
-        <div class="contact-buttons">
-          <button type="button" class="btn btn-primary">
-            <i class="fab fa-github"></i>
-            View on GitHub
-          </button>
-          <button type="button" class="btn btn-secondary">
-            <i class="fas fa-bug"></i>
-            Report an Issue
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Version & Credits -->
-    <section class="glass-card version-info">
-      <h3>
-        <i class="fas fa-tag"></i>
-        Version & Credits
-      </h3>
-      <div class="version-content">
-        <p><strong>Version:</strong> 1.0.0 (Student Learning Edition)</p>
-        <p><strong>Last Updated:</strong> June 2025</p>
-        <p>
-          <strong>Special Thanks:</strong> To all the amazing web development
-          resources and tutorials that made this possible!
-        </p>
-
-        <div class="credits">
-          <h4>Built with:</h4>
-          <ul>
-            <li>🔥 Firebase for backend services</li>
-            <li>🎨 Font Awesome for icons</li>
-            <li>📱 CSS Grid & Flexbox for responsive design</li>
-            <li>⚡ Modern JavaScript (ES6+)</li>
-            <li>💖 Lots of enthusiasm and late-night coding sessions</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  </div>
+  <section class="about-contact" aria-label="Contact">
+    <h2 class="about-title" style="font-size: clamp(1.6rem, 4vw, 2.3rem)">
+      Let’s connect
+    </h2>
+    <p>
+      Got ideas to share? Want MeetchuThere in your university? Or just want to
+      collaborate? Let’s talk— I’d love to hear from you.
+    </p>
+    <a
+      href="mailto:stud.ioprojects001@gmail.com"
+      class="primary-btn"
+      aria-label="Email MeetchuThere"
+    >
+      <i class="fas fa-envelope" aria-hidden="true"></i>
+      <span>stud.ioprojects001@gmail.com</span>
+    </a>
+  </section>
 </div>
-
-<!-- 
-  🎯 Learning Note: This template demonstrates how you can create rich,
-  informative pages within your SPA. You could add animations, interactive
-  elements, or even a contact form using the same pattern!
--->

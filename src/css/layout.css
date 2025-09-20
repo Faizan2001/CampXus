@@ -191,6 +191,18 @@ body:not(.dark-mode) .nav-link {
     0 2px 6px rgba(0, 0, 0, 0.15);
   color: var(--nav-link-hover-color, var(--accent-primary));
 }
+.nav-cta {
+  color: var(--accent-primary);
+  font-weight: 600;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+.nav-cta:hover,
+.nav-cta:focus-visible {
+  color: var(--accent-secondary);
+  background: transparent;
+}
 .nav-link.active:hover,
 .nav-link[aria-current="page"]:hover {
   transform: translateY(-2px);
@@ -542,7 +554,6 @@ body:not(.dark-mode) .user-dropdown {
 .dropdown-item#signOutBtn:hover i {
   color: var(--error-red);
 }
-
 
 /* ===== AVATAR SYSTEM ===== */
 .user-avatar-trigger,
@@ -1132,6 +1143,14 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .nav-text {
     display: none;
+  }
+
+  /* Exception: Show About text on mobile, scaled smaller */
+  #aboutBtn .nav-text,
+  .nav-cta .nav-text {
+    display: inline !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
   }
   .nav-link {
     padding: 0.25rem;

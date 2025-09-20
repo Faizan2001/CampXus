@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 1200 280"
+  width="1200"
+  height="280"
+  role="img"
+  aria-label="MeetchuThere wordmark"
+>
+  <defs>
+    <!-- Matches site gradient: #d5b6ff → #c580ff (50%) → #8c62ff -->
+    <linearGradient id="mt-brand-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d5b6ff" />
+      <stop offset="50%" stop-color="#c580ff" />
+      <stop offset="100%" stop-color="#8c62ff" />
+    </linearGradient>
+    <!-- Optional: tweak letter spacing by adjusting dx values below if desired -->
+  </defs>
+
+  <!-- Transparent background by default; only gradient fill on text -->
+  <g>
+    <!-- Using Sora/Poppins bold to match navbar brand. If the exact fonts
+         are not available where this SVG is rendered as an image, the look
+         may vary. For perfect fidelity, inline the font or outline paths. -->
+    <text
+      x="40"
+      y="205"
+      font-family="Sora, Poppins, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+      font-size="180"
+      font-weight="700"
+      fill="url(#mt-brand-gradient)"
+      letter-spacing="0"
+    >
+      MeetchuThere
+    </text>
+  </g>
+</svg>
+

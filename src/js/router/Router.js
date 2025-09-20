@@ -41,7 +41,7 @@ class SPARouter {
           "Connect with your university friends and know when they're on campus",
         canonicalPath: "/",
         indexable: true,
-        og: { image: "/icons/icon-512x512.png", type: "website" }
+        og: { image: "/icons/icon-512x512.png", type: "website" },
       },
       home: {
         title: "Schedule - MeetchuThere",
@@ -52,7 +52,7 @@ class SPARouter {
         jsImporters: [() => import("/src/js/pages/HomePage.js")], // Lazy-load Home page controller (dev and prod)
         description: "Manage your weekly schedule and compare with friends",
         requiresAuth: true, // 🛡️ Now requires authentication
-        indexable: false
+        indexable: false,
       },
       profile: {
         title: "Profile Setup - MeetchuThere",
@@ -64,7 +64,7 @@ class SPARouter {
         jsImporters: [() => import("/src/js/components/forms/ProfileSetup.js")],
         description: "Set up your student profile and preferences",
         requiresAuth: true, // 🛡️ Requires authentication
-        indexable: false
+        indexable: false,
       },
       friends: {
         title: "Friends - MeetchuThere",
@@ -76,7 +76,7 @@ class SPARouter {
         jsImporters: [() => import("/src/js/pages/FriendsPage.js")],
         description: "Connect with your classmates and study buddies",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
-        indexable: false
+        indexable: false,
       },
       notifications: {
         title: "Notifications - MeetchuThere",
@@ -86,7 +86,7 @@ class SPARouter {
         description:
           "View your campus social notifications and location sharing requests",
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
-        indexable: false
+        indexable: false,
       },
       about: {
         title: "About - MeetchuThere",
@@ -96,7 +96,7 @@ class SPARouter {
         description: "Learn about the developer and the app",
         canonicalPath: "/about/",
         indexable: true,
-        og: { image: "/icons/icon-512x512.png", type: "website" }
+        og: { image: "/icons/icon-512x512.png", type: "website" },
       },
     };
 
@@ -112,8 +112,8 @@ class SPARouter {
     this._pendingRoute = null;
     this._lastNavigation = { route: null, ts: 0 };
     this._navVisibility = { hidden: null };
-  // During first page load we may suppress auth-driven redirects
-  this._suppressAuthRedirects = false;
+    // During first page load we may suppress auth-driven redirects
+    this._suppressAuthRedirects = false;
     // Prevent re-entrant profile gate redirects
     this._profileGateInProgress = false;
 
@@ -439,14 +439,17 @@ class SPARouter {
       // Navigating via browser
       // Harden: if target requires auth and Firebase auth state isn't ready yet, gate with loader
       const requiresAuth = this.routes[route]?.requiresAuth === true;
-      const hasFirebaseUser = !!(authManager?.auth?.currentUser);
+      const hasFirebaseUser = !!authManager?.auth?.currentUser;
       if (requiresAuth && !hasFirebaseUser) {
         // Defer handling to smart loader flow to avoid content flash
         this._suppressAuthRedirects = true;
         this.showLoading();
         Promise.resolve()
           .then(async () => {
-            if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+            if (
+              authManager?.authReady &&
+              typeof authManager.authReady.then === "function"
+            ) {
               await Promise.race([
                 authManager.authReady.catch(() => {}),
                 new Promise((r) => setTimeout(r, 1500)),
@@ -454,7 +457,7 @@ class SPARouter {
             } else {
               await new Promise((r) => setTimeout(r, 250));
             }
-            const authed = !!(authManager?.auth?.currentUser);
+            const authed = !!authManager?.auth?.currentUser;
             await this.loadPage(authed ? route : "landing", false);
           })
           .finally(() => {
@@ -477,13 +480,16 @@ class SPARouter {
       if (route !== this.currentPage) {
         // Hash navigation with auth hardening
         const requiresAuth = this.routes[route]?.requiresAuth === true;
-        const hasFirebaseUser = !!(authManager?.auth?.currentUser);
+        const hasFirebaseUser = !!authManager?.auth?.currentUser;
         if (requiresAuth && !hasFirebaseUser) {
           this._suppressAuthRedirects = true;
           this.showLoading();
           Promise.resolve()
             .then(async () => {
-              if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+              if (
+                authManager?.authReady &&
+                typeof authManager.authReady.then === "function"
+              ) {
                 await Promise.race([
                   authManager.authReady.catch(() => {}),
                   new Promise((r) => setTimeout(r, 1500)),
@@ -491,7 +497,7 @@ class SPARouter {
               } else {
                 await new Promise((r) => setTimeout(r, 250));
               }
-              const authed = !!(authManager?.auth?.currentUser);
+              const authed = !!authManager?.auth?.currentUser;
               await this.loadPage(authed ? route : "landing", false);
             })
             .finally(() => {
@@ -594,7 +600,7 @@ class SPARouter {
   loadInitialPage() {
     // loadInitialPage called
 
-  // Parse the current URL to determine which page to load
+    // Parse the current URL to determine which page to load
     const hash = window.location.hash.slice(1); // Remove the # symbol
     let route = hash && this.routes[hash] ? hash : "home";
 
@@ -635,9 +641,9 @@ class SPARouter {
     const desiredRoute = hash && this.routes[hash] ? hash : "home";
     const desiredConfig = this.routes[desiredRoute];
 
-  // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
-  const firebaseUser = authManager?.auth?.currentUser;
-  const alreadyAuthed = !!firebaseUser;
+    // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
+    const firebaseUser = authManager?.auth?.currentUser;
+    const alreadyAuthed = !!firebaseUser;
     if (desiredRoute === "landing") {
       // If we already know user is authenticated, go straight to home
       if (alreadyAuthed) {
@@ -657,7 +663,7 @@ class SPARouter {
           await new Promise((resolve) => setTimeout(resolve, 250));
         }
 
-        const isAuthedNow = !!(authManager?.auth?.currentUser);
+        const isAuthedNow = !!authManager?.auth?.currentUser;
         const target = isAuthedNow ? "home" : "landing";
         await this.navigateTo(target, true);
       } finally {
@@ -668,7 +674,7 @@ class SPARouter {
     }
 
     // If route doesn’t require auth or user already known/logged in, proceed immediately
-    if (!desiredConfig?.requiresAuth || !!(authManager?.auth?.currentUser)) {
+    if (!desiredConfig?.requiresAuth || !!authManager?.auth?.currentUser) {
       return this.navigateTo(desiredRoute, false);
     }
 
@@ -685,7 +691,7 @@ class SPARouter {
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
 
-      const isAuthedNow = !!(authManager?.auth?.currentUser);
+      const isAuthedNow = !!authManager?.auth?.currentUser;
       const target = isAuthedNow ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
@@ -751,17 +757,21 @@ class SPARouter {
     const routeConfig = this.routes[route];
     if (routeConfig.requiresAuth) {
       // Use Firebase auth currentUser as the source of truth (avoid optimistic store hydration)
-      let isAuthenticated = !!(authManager?.auth?.currentUser);
+      let isAuthenticated = !!authManager?.auth?.currentUser;
 
       // Stabilization: if store says logged in but Firebase isn't ready yet, wait briefly
-      if (!isAuthenticated && currentUser.isLoggedIn() && authManager?.authReady) {
+      if (
+        !isAuthenticated &&
+        currentUser.isLoggedIn() &&
+        authManager?.authReady
+      ) {
         try {
           await Promise.race([
             authManager.authReady.catch(() => {}),
             new Promise((r) => setTimeout(r, 1000)),
           ]);
         } catch (_) {}
-        isAuthenticated = !!(authManager?.auth?.currentUser);
+        isAuthenticated = !!authManager?.auth?.currentUser;
       }
 
       if (!isAuthenticated) {
@@ -769,13 +779,13 @@ class SPARouter {
           `🔒 Access denied to route: ${route}. Redirecting to landing page.`
         );
         console.log("🔍 Debug auth state:", {
-          hasFirebaseUser: !!(authManager?.auth?.currentUser),
+          hasFirebaseUser: !!authManager?.auth?.currentUser,
           hasUserStore: !!currentUser.user,
           isLoggedInStore: currentUser.isLoggedIn(),
           userUIDStore: currentUser.user?.uid,
         });
 
-  // Redirect to landing page (suppress extra toasts)
+        // Redirect to landing page (suppress extra toasts)
         this.navigateTo("landing", updateHistory);
         if (this._pendingRoute === route) this._pendingRoute = null;
         return;
@@ -785,7 +795,9 @@ class SPARouter {
       // If navigating to any protected route other than 'profile', verify setup completion.
       // This covers first-login flow and direct hash navigation.
       if (route !== "profile") {
-        const redirected = await this._ensureProfileCompletionGate(updateHistory);
+        const redirected = await this._ensureProfileCompletionGate(
+          updateHistory
+        );
         if (redirected) {
           if (this._pendingRoute === route) this._pendingRoute = null;
           return; // navigation has been redirected to profile setup
@@ -795,7 +807,7 @@ class SPARouter {
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
     if (route === "landing") {
-      const hasFirebaseUser = !!(authManager?.auth?.currentUser);
+      const hasFirebaseUser = !!authManager?.auth?.currentUser;
       const intentionalLogout =
         sessionStorage.getItem("intentionalLogout") === "true";
 
@@ -809,7 +821,11 @@ class SPARouter {
 
       // Stabilization: if store says logged in but Firebase user isn't ready yet,
       // wait briefly for authReady before deciding. Do not bounce if it's an intentional logout.
-      if (!intentionalLogout && currentUser.isLoggedIn() && authManager?.authReady) {
+      if (
+        !intentionalLogout &&
+        currentUser.isLoggedIn() &&
+        authManager?.authReady
+      ) {
         try {
           await Promise.race([
             authManager.authReady.catch(() => {}),
@@ -901,9 +917,7 @@ class SPARouter {
       // Wait briefly for hydration if not complete yet
       if (!isComplete) {
         try {
-          if (
-            typeof currentUser?.waitForProfileWithTimeout === "function"
-          ) {
+          if (typeof currentUser?.waitForProfileWithTimeout === "function") {
             await currentUser.waitForProfileWithTimeout(1500).catch(() => {});
           } else {
             await new Promise((r) => setTimeout(r, 300));
@@ -917,9 +931,7 @@ class SPARouter {
       // Last resort: fetch from Firestore directly
       if (!isComplete) {
         try {
-          const profileDoc = await dataManager.getUserProfile(
-            firebaseUser.uid
-          );
+          const profileDoc = await dataManager.getUserProfile(firebaseUser.uid);
           if (profileDoc) {
             isComplete = !!(
               profileDoc?.systemInfo?.profileSetupComplete === true
@@ -979,7 +991,9 @@ class SPARouter {
       // Update meta description and social tags
       this.updateMetaDescription(routeData.description);
       this.updateRobotsMeta(routeData.indexable !== false);
-      const canonicalUrl = this.updateCanonicalUrl(routeData.canonicalPath || null);
+      const canonicalUrl = this.updateCanonicalUrl(
+        routeData.canonicalPath || null
+      );
       this.updateOpenGraphTags({
         title: routeData.title,
         description: routeData.description,
@@ -1265,7 +1279,10 @@ class SPARouter {
       robots.name = "robots";
       document.head.appendChild(robots);
     }
-    robots.setAttribute("content", indexable ? "index,follow" : "noindex,nofollow");
+    robots.setAttribute(
+      "content",
+      indexable ? "index,follow" : "noindex,nofollow"
+    );
   }
 
   /**
@@ -1273,11 +1290,11 @@ class SPARouter {
    * Returns the final canonical URL.
    */
   updateCanonicalUrl(canonicalPath = null) {
-    const siteBase = (window.ENV && window.ENV.SITE_URL) || window.location.origin;
+    const siteBase =
+      (window.ENV && window.ENV.SITE_URL) || window.location.origin;
     const baseUrl = siteBase.replace(/\/$/, "");
-    const path = canonicalPath !== null
-      ? canonicalPath
-      : (window.location.pathname || "/");
+    const path =
+      canonicalPath !== null ? canonicalPath : window.location.pathname || "/";
     const canonical = baseUrl + (path.startsWith("/") ? path : `/${path}`);
     let link = document.querySelector('link[rel="canonical"]');
     if (!link) {
@@ -1293,21 +1310,25 @@ class SPARouter {
    * Update Open Graph and Twitter card tags per route
    */
   updateOpenGraphTags({ title, description, url, image, type }) {
-    const siteBase = (window.ENV && window.ENV.SITE_URL) || window.location.origin;
+    const siteBase =
+      (window.ENV && window.ENV.SITE_URL) || window.location.origin;
     const toAbsolute = (src) => {
-      if (!src) return '';
+      if (!src) return "";
       if (/^https?:\/\//i.test(src)) return src;
-      const base = siteBase.replace(/\/$/, '');
-      return base + (src.startsWith('/') ? src : `/${src}`);
+      const base = siteBase.replace(/\/$/, "");
+      return base + (src.startsWith("/") ? src : `/${src}`);
     };
-    const imgUrl = toAbsolute(image || '/icons/icon-512x512.png');
+    const imgUrl = toAbsolute(image || "/icons/icon-512x512.png");
     const ensure = (selector, attrs) => {
       let el = document.querySelector(selector);
       if (!el) {
         el = document.createElement("meta");
-        if (selector.startsWith('meta[property')) {
-          el.setAttribute("property", selector.match(/property=\"([^\"]+)\"/)[1]);
-        } else if (selector.startsWith('meta[name')) {
+        if (selector.startsWith("meta[property")) {
+          el.setAttribute(
+            "property",
+            selector.match(/property=\"([^\"]+)\"/)[1]
+          );
+        } else if (selector.startsWith("meta[name")) {
           el.setAttribute("name", selector.match(/name=\"([^\"]+)\"/)[1]);
         }
         document.head.appendChild(el);
@@ -1383,9 +1404,13 @@ class SPARouter {
     const navLinks = document.querySelector(".nav-links");
     const mobileBottomNav = document.querySelector(".mobile-bottom-nav");
     const isLoggedIn = currentUser.isLoggedIn() && currentUser.user;
+    // Secondary safeguard: ensure body class reflects auth state for CSS-driven visibility
+    try {
+      document.body.classList.toggle("is-auth", !!isLoggedIn);
+    } catch (_) {}
 
-    // Hide navigation elements if user is on landing page and not logged in
-    if (route === "landing" && !isLoggedIn) {
+    // Hide navigation elements if user is on landing page OR about page and not logged in
+    if ((route === "landing" || route === "about") && !isLoggedIn) {
       if (navLinks) {
         navLinks.style.display = "none";
       }
@@ -1393,7 +1418,7 @@ class SPARouter {
         mobileBottomNav.style.display = "none";
       }
       if (this._navVisibility.hidden !== true) {
-        console.log("🔒 Navigation hidden - landing page, not logged in");
+        console.log(`🔒 Navigation hidden - ${route} page, not logged in`);
         this._navVisibility.hidden = true;
       }
     } else {
@@ -1408,6 +1433,8 @@ class SPARouter {
         this._navVisibility.hidden = false;
       }
     }
+
+    // Let Menu.js control auth-dependent body class; CSS handles About visibility
   }
 
   /**

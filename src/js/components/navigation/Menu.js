@@ -79,6 +79,12 @@ function initializeInteractiveElements() {
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
 
+  // Set initial auth body class to avoid flash for authenticated users on load
+  try {
+    const hasFirebaseUser = !!authManager?.auth?.currentUser;
+    document.body.classList.toggle("is-auth", hasFirebaseUser);
+  } catch (_) {}
+
   dbg("✅ Menu system initialized successfully");
 }
 
@@ -550,6 +556,11 @@ function handleAuthStateChange({ isLoggedIn, profile }) {
     userMenu.style.display = "none";
     clearUserDisplayInfo();
   }
+
+  // Toggle a robust body class for auth-dependent styling (e.g., About button visibility)
+  try {
+    document.body.classList.toggle("is-auth", !!(isLoggedIn && profile));
+  } catch (_) {}
 }
 
 /**
@@ -1308,8 +1319,7 @@ function setupNotificationsIndicatorListener(userId) {
     friendReqUnsub = dataManager.listenToPendingFriendRequests(
       userId,
       (requests) => {
-        _pendingFriendHasAlert =
-          Array.isArray(requests) && requests.length > 0;
+        _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
         recomputeNotificationsDot();
       }
     );
