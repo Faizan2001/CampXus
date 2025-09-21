@@ -7,7 +7,7 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "dev": "npm run dev:config && vite --host",
-    "build": "node scripts/generate-sitemap.js && vite build",
+  "build": "node scripts/generate-sitemap.js && vite build",
     "preview": "vite preview",
     "dev:config": "node src/js/core/firestore/dev-tools/generate-env-config.js",
     "dev:check": "node src/js/core/firestore/dev-tools/check-dev-setup.js",

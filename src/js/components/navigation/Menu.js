@@ -1049,17 +1049,20 @@ function initializeMobileBottomNav() {
     currentUser.subscribe(({ isLoggedIn, profile }) => {
       if (isLoggedIn && profile) {
         // Use centralized display info from user store (hydrated/cached)
-        const info = typeof currentUser.getDisplayInfo === "function"
-          ? currentUser.getDisplayInfo()
-          : {
-              handle: profile?.profile?.handle || profile?.handle || "user",
-              email:
-                profile?.profile?.email ||
-                profile?.email ||
-                (currentUser?._user ? currentUser._user.email : ""),
-              avatarConfig:
-                profile?.avatarConfig || profile?.profile?.avatarConfig || null,
-            };
+        const info =
+          typeof currentUser.getDisplayInfo === "function"
+            ? currentUser.getDisplayInfo()
+            : {
+                handle: profile?.profile?.handle || profile?.handle || "user",
+                email:
+                  profile?.profile?.email ||
+                  profile?.email ||
+                  (currentUser?._user ? currentUser._user.email : ""),
+                avatarConfig:
+                  profile?.avatarConfig ||
+                  profile?.profile?.avatarConfig ||
+                  null,
+              };
 
         if (sheetNameEl) {
           sheetNameEl.textContent = info.handle || "user";
@@ -1070,7 +1073,10 @@ function initializeMobileBottomNav() {
         if (sheetAvatar && avatarManager) {
           try {
             const avatarCfg = info.avatarConfig;
-            if (avatarCfg && typeof avatarManager.generateAvatarUrl === "function") {
+            if (
+              avatarCfg &&
+              typeof avatarManager.generateAvatarUrl === "function"
+            ) {
               const url = avatarManager.generateAvatarUrl(avatarCfg);
               sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
             } else {

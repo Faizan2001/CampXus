@@ -21,7 +21,7 @@
   Cache-Control: public, max-age=3600
 
 /favicon.ico
-  Content-Type: image/png
+  Content-Type: image/x-icon
   Cache-Control: public, max-age=3600
 
 /icons/favicon-32x32.png

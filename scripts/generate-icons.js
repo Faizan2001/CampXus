@@ -9,6 +9,7 @@ async function generateIcons() {
   const targets = [
     { name: 'favicon-16x16.png', size: 16 },
     { name: 'favicon-32x32.png', size: 32 },
+  { name: 'icon-48x48.png', size: 48 },
     { name: 'icon-16x16.png', size: 16 },
     { name: 'icon-32x32.png', size: 32 },
     { name: 'icon-72x72.png', size: 72 },
