@@ -108,45 +108,49 @@ Modern authentication modal that matches the MeetchuThere design language with:
 
 /* Header with Modern MeetchuThere Branding */
 .auth-header {
-  background: var(--auth-header-gradient);
   color: var(--auth-button-text);
   text-align: center;
   padding: 2rem;
   position: relative;
   border-radius: var(--radius-lg, 1.5rem) var(--radius-lg, 1.5rem) 0 0;
   overflow: hidden;
+  /* Ensure blend effects are contained to header */
+  isolation: isolate;
+
+  /* Beautiful animated gradient background - Dark mode optimized */
+  background: linear-gradient(
+    -45deg,
+    rgba(88, 28, 135, 0.4),    /* Deep violet */
+    rgba(147, 51, 234, 0.35),  /* Rich purple */
+    rgba(126, 34, 206, 0.3),   /* Royal purple */
+    rgba(168, 85, 247, 0.25),  /* Light purple */
+    rgba(196, 181, 253, 0.2),  /* Lavender */
+    rgba(233, 213, 255, 0.15), /* Pale purple */
+    rgba(249, 247, 255, 0.1),  /* Almost white */
+    rgba(79, 70, 229, 0.3)     /* Indigo accent */
+  );
+  background-size: 500% 500%;
+  animation: gradientWave 18s ease-in-out infinite;
 }
 
-/* Add subtle animated background pattern */
+/* Remove old animations */
 .auth-header::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    45deg,
-    transparent 25%,
-    var(--auth-header-pattern) 25%,
-    var(--auth-header-pattern) 50%,
-    transparent 50%,
-    transparent 75%,
-    var(--auth-header-pattern) 75%
-  );
-  background-size: 20px 20px;
-  animation: gradientShift 20s ease infinite;
-  opacity: 0.3;
+  content: none !important;
+}
+
+.auth-header::after {
+  content: none !important;
 }
 
 .auth-logo {
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   margin-bottom: 0.5rem;
-  background: var(--auth-logo-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: var(--auth-logo-text-fill);
+  font-family: var(--font-brand, "Sora", "Poppins", sans-serif);
+  color: transparent;
+  background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
   background-clip: text;
+  -webkit-background-clip: text;
   position: relative;
   z-index: 2;
 }
@@ -300,6 +304,42 @@ Modern authentication modal that matches the MeetchuThere design language with:
   backdrop-filter: blur(10px);
 }
 
+/* Wrapper to host password eye toggle */
+.form-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-input-wrapper .form-input {
+  padding-right: 3rem; /* leave space for eye button */
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 0.5rem;
+  line-height: 1;
+}
+
+.password-toggle:focus-visible,
+.password-toggle:hover {
+  background: var(--glass-bg-hover, rgba(255, 255, 255, 0.15));
+  outline: none;
+}
+
+.eye-icon {
+  font-size: 1rem;
+  display: inline-block;
+}
+
 .form-input:focus {
   outline: none;
   border-color: var(--auth-input-focus-border);
@@ -361,8 +401,8 @@ Modern authentication modal that matches the MeetchuThere design language with:
   font-size: 0.9rem;
   font-weight: 500;
   backdrop-filter: blur(10px);
-  transition: opacity 0.3s var(--animation-smooth, ease), 
-              transform 0.3s var(--animation-smooth, ease);
+  transition: opacity 0.3s var(--animation-smooth, ease),
+    transform 0.3s var(--animation-smooth, ease);
 }
 
 /* Forgot Password Section - Modern Link Design */
@@ -428,7 +468,7 @@ Modern authentication modal that matches the MeetchuThere design language with:
   box-shadow: 0 4px 20px var(--auth-button-shadow-primary),
     0 2px 8px var(--auth-button-shadow-secondary);
   overflow: hidden;
-  
+
   /* 🔧 Fix: Prevent height collapse during loading */
   min-height: 52px; /* Matches padding + line-height */
   display: flex;
@@ -599,6 +639,27 @@ Modern authentication modal that matches the MeetchuThere design language with:
   }
 }
 
+/* authHeaderShift removed per request */
+
+/* Beautiful gradient wave animation for auth header */
+@keyframes gradientWave {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 /* Responsive Design - Mobile Optimizations */
 @media (max-width: 640px) {
   .auth-container {
@@ -737,5 +798,20 @@ body:not(.dark-mode) .auth-container {
 
   .loading-dots .dot {
     animation: none !important;
+  }
+
+  /* Disable gradient wave animation for reduced motion */
+  .auth-header {
+    animation: none !important;
+    background: linear-gradient(
+      -45deg,
+      rgba(88, 28, 135, 0.35),    /* Deep violet - reduced opacity */
+      rgba(147, 51, 234, 0.3),    /* Rich purple */
+      rgba(126, 34, 206, 0.25),   /* Royal purple */
+      rgba(168, 85, 247, 0.2),    /* Light purple */
+      rgba(196, 181, 253, 0.15),  /* Lavender */
+      rgba(233, 213, 255, 0.1),   /* Pale purple */
+      rgba(79, 70, 229, 0.25)     /* Indigo accent */
+    );
   }
 }

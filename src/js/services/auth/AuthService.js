@@ -51,10 +51,10 @@ class AuthManager {
     this.authStateListeners = [];
     this.isSigningUp = false;
     this.isSigningIn = false;
-  // Expose Firebase Auth instance for external consumers (e.g., Router)
-  // Router checks authManager.auth.currentUser to gate protected routes.
-  // Previously this was undefined, causing false negatives and redirect loops.
-  this.auth = auth;
+    // Expose Firebase Auth instance for external consumers (e.g., Router)
+    // Router checks authManager.auth.currentUser to gate protected routes.
+    // Previously this was undefined, causing false negatives and redirect loops.
+    this.auth = auth;
     // A promise that resolves when the initial auth state is known
     this.authReady = new Promise((resolve) => {
       this.resolveAuthReady = resolve;
@@ -141,7 +141,7 @@ class AuthManager {
           <button class="auth-close" id="auth-close-btn">&times;</button>
           
           <div class="auth-header">
-            <div class="auth-logo">🎓 MeetchuThere</div>
+            <div class="auth-logo">MeetchuThere</div>
             <div class="auth-subtitle">Join your university community</div>
           </div>
 
@@ -168,14 +168,19 @@ class AuthManager {
 
               <div class="form-group">
                 <label class="form-label" for="signin-password">Password</label>
-                <input 
-                  type="password" 
-                  id="signin-password" 
-                  class="form-input"
-                  placeholder="Enter your password"
-                  autocomplete="current-password"
-                  required
-                />
+                <div class="form-input-wrapper">
+                  <input 
+                    type="password" 
+                    id="signin-password" 
+                    class="form-input"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    required
+                  />
+                  <button type="button" class="password-toggle" data-target="signin-password" aria-label="Show password" aria-pressed="false" title="Show password">
+                    <i class="fas fa-eye eye-icon" aria-hidden="true"></i>
+                  </button>
+                </div>
                 <div class="form-error"></div>
               </div>
 
@@ -185,7 +190,7 @@ class AuthManager {
                   <div class="dot"></div>
                   <div class="dot"></div>
                 </div>
-                <span class="button-text">Sign In to MeetchuThere</span>
+                <span class="button-text">Sign In</span>
               </button>
               
               <div class="forgot-password-section">
@@ -215,28 +220,38 @@ class AuthManager {
 
               <div class="form-group">
                 <label class="form-label" for="signup-password">Password</label>
-                <input 
-                  type="password" 
-                  id="signup-password" 
-                  class="form-input"
-                  placeholder="Choose a strong password"
-                  autocomplete="new-password"
-                  minlength="6"
-                  required
-                />
+                <div class="form-input-wrapper">
+                  <input 
+                    type="password" 
+                    id="signup-password" 
+                    class="form-input"
+                    placeholder="Choose a strong password"
+                    autocomplete="new-password"
+                    minlength="6"
+                    required
+                  />
+                  <button type="button" class="password-toggle" data-target="signup-password" aria-label="Show password" aria-pressed="false" title="Show password">
+                    <i class="fas fa-eye eye-icon" aria-hidden="true"></i>
+                  </button>
+                </div>
                 <div class="form-error"></div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="signup-confirm-password">Confirm Password</label>
-                <input 
-                  type="password" 
-                  id="signup-confirm-password" 
-                  class="form-input"
-                  placeholder="Re-enter your password"
-                  autocomplete="new-password"
-                  required
-                />
+                <div class="form-input-wrapper">
+                  <input 
+                    type="password" 
+                    id="signup-confirm-password" 
+                    class="form-input"
+                    placeholder="Re-enter your password"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <button type="button" class="password-toggle" data-target="signup-confirm-password" aria-label="Show password" aria-pressed="false" title="Show password">
+                    <i class="fas fa-eye eye-icon" aria-hidden="true"></i>
+                  </button>
+                </div>
                 <div class="form-error"></div>
               </div>
 
@@ -246,7 +261,7 @@ class AuthManager {
                   <div class="dot"></div>
                   <div class="dot"></div>
                 </div>
-                <span class="button-text">Create MeetchuThere Account</span>
+                <span class="button-text">Create Account</span>
               </button>
             </form>
           </div>
@@ -292,6 +307,10 @@ class AuthManager {
           e.preventDefault();
           this.handleSignIn();
         });
+        // Dismiss banners on any input within the form
+        signinForm.addEventListener("input", () => {
+          dismissFormMessages("signin-form");
+        });
       } else {
         console.warn("⚠️ AuthService: #signin-form not found during setup");
       }
@@ -301,6 +320,10 @@ class AuthManager {
         signupForm.addEventListener("submit", (e) => {
           e.preventDefault();
           this.handleSignUp();
+        });
+        // Dismiss banners on any input within the form
+        signupForm.addEventListener("input", () => {
+          dismissFormMessages("signup-form");
         });
       } else {
         console.warn("⚠️ AuthService: #signup-form not found during setup");
@@ -337,12 +360,30 @@ class AuthManager {
         formInputs.forEach((input) => {
           input.addEventListener("input", () => {
             clearFieldError(input); // Use external function
+            // Also dismiss any lingering form-level banners when typing
+            const form = input.closest("form");
+            if (form && form.id) {
+              dismissFormMessages(form.id);
+            }
           });
         });
       } else {
         console.warn(
           "⚠️ AuthService: .form-input elements not found during setup"
         );
+      }
+
+      // Password visibility toggles
+      const toggles = document.querySelectorAll(".password-toggle");
+      if (toggles.length > 0) {
+        toggles.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const targetId = btn.getAttribute("data-target");
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            togglePasswordVisibility(input, btn);
+          });
+        });
       }
     } catch (error) {
       console.error(
@@ -567,13 +608,13 @@ class AuthManager {
         showFormSuccess(
           // Use external function
           "signup-form",
-          "🔧 Development account created! You can sign in immediately."
+          "Development account created. You can sign in immediately."
         );
       } else {
         showFormSuccess(
           // Use external function
           "signup-form",
-          "🎉 Account created! Check your email to verify your account, then sign in."
+          "Account created. Check your email to verify your account, then sign in."
         );
       }
 
@@ -610,7 +651,7 @@ class AuthManager {
     if (!email) {
       showFieldError(
         emailEl,
-        "Please enter your university email address first 📧"
+        "Please enter your university email address first"
       );
       return;
     }
@@ -631,7 +672,7 @@ class AuthManager {
       // Show success message
       showFormSuccess(
         "signin-form",
-        `🔑 Password reset email sent to ${email}. Check your inbox!`
+        `Password reset email sent to ${email}. Check your inbox.`
       );
 
       console.log(`📧 Password reset email sent to: ${email}`);
@@ -641,13 +682,12 @@ class AuthManager {
       // Handle specific Firebase error cases
       let errorMessage;
       if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email address 🔍";
+        errorMessage = "No account found with this email address";
       } else if (error.code === "auth/too-many-requests") {
         errorMessage =
-          "Too many password reset attempts. Please try again later ⏰";
+          "Too many password reset attempts. Please try again later";
       } else {
-        errorMessage =
-          "Failed to send password reset email. Please try again 🛠️";
+        errorMessage = "Failed to send password reset email. Please try again";
       }
 
       showFormError("signin-form", errorMessage);
@@ -1171,7 +1211,19 @@ class AuthManager {
     if (validation) {
       // Show university info
       universityName.textContent = validation.name;
-      universityDomain.textContent = `✅ ${validation.domain}`;
+
+      // Hide domain line for IUB emails to reduce redundancy in UI
+      const isIub = String(validation.domain || "")
+        .toLowerCase()
+        .includes("iub.edu.bd");
+      if (isIub) {
+        universityDomain.textContent = "";
+        universityDomain.style.display = "none";
+      } else {
+        universityDomain.textContent = `${validation.domain}`;
+        universityDomain.style.display = ""; // reset if previously hidden
+      }
+
       universityInfo.classList.add("visible");
     } else {
       universityInfo.classList.remove("visible");
@@ -1203,7 +1255,7 @@ class AuthManager {
       showFieldError(
         // Use external function
         document.getElementById("signin-password"),
-        "Please enter your password 🔒"
+        "Please enter your password"
       );
       isValid = false;
     }
@@ -1233,14 +1285,14 @@ class AuthManager {
       showFieldError(
         // Use external function
         document.getElementById("signup-password"),
-        "Please choose a password 🔒"
+        "Please choose a password"
       );
       isValid = false;
     } else if (password.length < 6) {
       showFieldError(
         // Use external function
         document.getElementById("signup-password"),
-        "Password must be at least 6 characters long 📏"
+        "Password must be at least 6 characters long"
       );
       isValid = false;
     }
@@ -1250,7 +1302,7 @@ class AuthManager {
       showFieldError(
         // Use external function
         document.getElementById("signup-confirm-password"),
-        "Passwords don't match 🔄"
+        "Passwords don't match"
       );
       isValid = false;
     }
@@ -1267,8 +1319,8 @@ class AuthManager {
   getReadableError(error) {
     // Changed parameter from errorMessage to error
     const errorMap = {
-      "auth/user-not-found": "No account found with this email address 🔍",
-      "auth/wrong-password": "Incorrect password. Please try again 🔑",
+      "auth/user-not-found": "No account found with this email address",
+      "auth/wrong-password": "Incorrect password. Please try again",
       "auth/invalid-credential":
         "Incorrect email or password. Please try again.", // Added this line
       "auth/email-already-in-use": "An account with this email already exists",
@@ -1291,8 +1343,8 @@ class AuthManager {
       return error.message;
     }
 
-    // If all else fails, return a generic error message
-    return "An unexpected error occurred. Please try again. 🛠️";
+    // If all else fails, return a generic error message (no emojis per UX)
+    return "An unexpected error occurred. Please try again.";
   }
 }
 
@@ -1306,7 +1358,8 @@ class AuthManager {
  */
 function showFieldError(input, message) {
   input.classList.add("error");
-  const errorEl = input.parentNode.querySelector(".form-error");
+  const group = input.closest(".form-group") || input.parentNode;
+  const errorEl = group ? group.querySelector(".form-error") : null;
   if (errorEl) {
     errorEl.textContent = message;
     errorEl.classList.add("show");
@@ -1320,7 +1373,8 @@ function showFieldError(input, message) {
 function clearFieldError(input) {
   input.classList.remove("error");
   input.classList.remove("success");
-  const errorEl = input.parentNode.querySelector(".form-error");
+  const group = input.closest(".form-group") || input.parentNode;
+  const errorEl = group ? group.querySelector(".form-error") : null;
   if (errorEl) {
     errorEl.classList.remove("show");
   }
@@ -1341,6 +1395,19 @@ function showFormError(formId, message) {
       .insertBefore(errorDiv, document.getElementById(formId).firstChild);
   }
   errorDiv.textContent = message;
+
+  // Auto-dismiss on next input (one-time listener)
+  const form = document.getElementById(formId);
+  if (form) {
+    const handleOnce = () => {
+      try {
+        errorDiv.remove();
+      } catch (_) {}
+      form.removeEventListener("input", handleOnce);
+    };
+    // Add as a normal listener and ensure removal after first run
+    form.addEventListener("input", handleOnce);
+  }
 }
 
 /**
@@ -1380,12 +1447,33 @@ function clearAllErrors() {
   document
     .querySelectorAll(".form-error")
     .forEach((el) => (el.textContent = ""));
+  // Remove any existing banners entirely
   document
-    .querySelectorAll(".form-success")
-    .forEach((el) => (el.textContent = ""));
+    .querySelectorAll(".error-message, .success-message")
+    .forEach((el) => {
+      try {
+        el.remove();
+      } catch (_) {}
+    });
   document.querySelectorAll(".form-input").forEach((el) => {
     el.classList.remove("error");
     el.classList.remove("success");
+  });
+}
+
+/**
+ * Dismiss form-level messages (error/success banners) within a form
+ * @param {string} formId
+ */
+function dismissFormMessages(formId) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.querySelectorAll(".error-message, .success-message").forEach((msg) => {
+    try {
+      msg.remove();
+    } catch (_) {
+      // no-op
+    }
   });
 }
 
@@ -1408,6 +1496,25 @@ function setLoadingState(button, isLoading) {
     if (buttonText) buttonText.style.display = "block";
     if (loadingDots) loadingDots.style.display = "none";
     button.disabled = false;
+  }
+}
+
+/**
+ * Toggle visibility of a password input and update the toggle button state
+ * @param {HTMLInputElement} input
+ * @param {HTMLButtonElement} btn
+ */
+function togglePasswordVisibility(input, btn) {
+  const isHidden = input.type === "password";
+  input.type = isHidden ? "text" : "password";
+  const label = isHidden ? "Hide password" : "Show password";
+  btn.setAttribute("aria-label", label);
+  btn.setAttribute("title", label);
+  btn.setAttribute("aria-pressed", String(isHidden));
+  const icon = btn.querySelector(".eye-icon");
+  if (icon) {
+    icon.classList.toggle("fa-eye", !isHidden);
+    icon.classList.toggle("fa-eye-slash", isHidden);
   }
 }
 

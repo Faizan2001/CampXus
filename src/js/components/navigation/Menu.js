@@ -946,8 +946,8 @@ function initializeMobileBottomNav() {
   const sheetDarkToggle = document.getElementById("mobileSheetDarkModeToggle");
   const sheetSignOut = document.getElementById("mobileSheetSignOutBtn");
   const sheetAvatar = document.getElementById("mobileSheetAvatar");
-  const sheetTitle = document.getElementById("mobileProfileTitle");
-  const sheetEmail = document.getElementById("mobileProfileEmail");
+  const sheetNameEl = document.getElementById("mobileSheetName");
+  const sheetEmailEl = document.getElementById("mobileSheetEmail");
 
   if (!mobileProfileTrigger) {
     dbg("📱 Mobile profile trigger not found, skipping mobile nav setup");
@@ -1044,18 +1044,38 @@ function initializeMobileBottomNav() {
       closeMobileSheet();
     });
   }
-  // Populate sheet user info
+  // Populate sheet user info (same as dropdown: handle as name, email as subline)
   if (currentUser && typeof currentUser.subscribe === "function") {
     currentUser.subscribe(({ isLoggedIn, profile }) => {
       if (isLoggedIn && profile) {
-        if (sheetTitle)
-          sheetTitle.textContent =
-            profile.displayName || profile.firstName || "Profile";
-        if (sheetEmail) sheetEmail.textContent = profile.email || "";
-        if (sheetAvatar && avatarManager && profile.avatarConfig) {
+        // Use centralized display info from user store (hydrated/cached)
+        const info = typeof currentUser.getDisplayInfo === "function"
+          ? currentUser.getDisplayInfo()
+          : {
+              handle: profile?.profile?.handle || profile?.handle || "user",
+              email:
+                profile?.profile?.email ||
+                profile?.email ||
+                (currentUser?._user ? currentUser._user.email : ""),
+              avatarConfig:
+                profile?.avatarConfig || profile?.profile?.avatarConfig || null,
+            };
+
+        if (sheetNameEl) {
+          sheetNameEl.textContent = info.handle || "user";
+        }
+        if (sheetEmailEl) {
+          sheetEmailEl.textContent = info.email || "";
+        }
+        if (sheetAvatar && avatarManager) {
           try {
-            const url = avatarManager.generateAvatarUrl(profile.avatarConfig);
-            sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
+            const avatarCfg = info.avatarConfig;
+            if (avatarCfg && typeof avatarManager.generateAvatarUrl === "function") {
+              const url = avatarManager.generateAvatarUrl(avatarCfg);
+              sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
+            } else {
+              sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+            }
           } catch {
             sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
           }

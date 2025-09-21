@@ -13,18 +13,36 @@
     />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://meetchuthere.com/" />
-    
+
     <!-- Open Graph / Twitter defaults (router updates these per page) -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="MeetchuThere - Schedule & Availability" />
-    <meta property="og:description" content="Connect with university friends in real-time and meet on campus." />
-    <meta property="og:image" content="https://meetchuthere.com/icons/icon-512x512.png" />
+    <meta
+      property="og:title"
+      content="MeetchuThere - Schedule & Availability"
+    />
+    <meta
+      property="og:description"
+      content="Connect with university friends in real-time and meet on campus."
+    />
+    <meta
+      property="og:image"
+      content="https://meetchuthere.com/icons/icon-512x512.png"
+    />
     <meta property="og:url" content="https://meetchuthere.com/" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="MeetchuThere - Schedule & Availability" />
-    <meta name="twitter:description" content="Connect with university friends in real-time and meet on campus." />
-    <meta name="twitter:image" content="https://meetchuthere.com/icons/icon-512x512.png" />
-  <!-- CSP is set via hosting headers to avoid duplication/conflicts. -->
+    <meta
+      name="twitter:title"
+      content="MeetchuThere - Schedule & Availability"
+    />
+    <meta
+      name="twitter:description"
+      content="Connect with university friends in real-time and meet on campus."
+    />
+    <meta
+      name="twitter:image"
+      content="https://meetchuthere.com/icons/icon-512x512.png"
+    />
+    <!-- CSP is set via hosting headers to avoid duplication/conflicts. -->
     <title>MeetchuThere - Schedule & Availability Tracker</title>
 
     <link
@@ -32,7 +50,11 @@
       rel="stylesheet"
     />
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link
+      rel="preconnect"
+      href="https://firestore.googleapis.com"
+      crossorigin
+    />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
@@ -48,47 +70,79 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="MeetchuThere" />
     <meta name="mobile-web-app-capable" content="yes" />
-    
+
     <!-- Manifest for PWA -->
     <link rel="manifest" href="/manifest.json" />
-    
+
     <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/icons/favicon-32x32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="/icons/favicon-16x16.png"
+    />
     <link rel="shortcut icon" href="/favicon.ico" />
-    
+
     <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png" />
-    
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/icons/apple-touch-icon.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="152x152"
+      href="/icons/icon-152x152.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="144x144"
+      href="/icons/icon-144x144.png"
+    />
+
     <!-- Android/Chrome Icons -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
-    
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/icons/icon-192x192.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="512x512"
+      href="/icons/icon-512x512.png"
+    />
+
     <!-- JSON-LD: Organization + WebSite (SearchAction) -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "MeetchuThere",
-      "url": "https://meetchuthere.com",
-      "logo": "https://meetchuthere.com/icons/icon-512x512.png"
-    }
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "MeetchuThere",
+        "url": "https://meetchuthere.com",
+        "logo": "https://meetchuthere.com/icons/icon-512x512.png"
+      }
     </script>
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "url": "https://meetchuthere.com",
-      "name": "MeetchuThere",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://meetchuthere.com/search?q={search_term_string}",
-        "query-input": "required name=search_term_string"
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "url": "https://meetchuthere.com",
+        "name": "MeetchuThere",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://meetchuthere.com/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
       }
-    }
     </script>
   </head>
   <body>
@@ -314,7 +368,7 @@
       class="mobile-profile-sheet"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="mobileProfileTitle"
+      aria-labelledby="mobileSheetName"
       hidden
     >
       <div class="mobile-sheet-grabber" aria-hidden="true"></div>
@@ -322,9 +376,9 @@
         <div class="mobile-sheet-avatar" id="mobileSheetAvatar">
           <i class="fas fa-user-circle"></i>
         </div>
-        <div class="mobile-sheet-user-info">
-          <h3 id="mobileProfileTitle">User</h3>
-          <p id="mobileProfileEmail" class="mobile-sheet-email"></p>
+        <div class="user-details">
+          <strong class="user-name" id="mobileSheetName">User</strong>
+          <span class="user-email" id="mobileSheetEmail"></span>
         </div>
       </header>
       <nav

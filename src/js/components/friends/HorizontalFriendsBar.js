@@ -503,7 +503,7 @@ export class HorizontalFriendsBar {
             <div class="selection-ring"></div>
           </div>
         </div>
-        <div class="avatar-label">Me</div>
+  <div class="avatar-label">You</div>
       </div>
     `;
 
@@ -1287,10 +1287,7 @@ export class HorizontalFriendsBar {
       return;
     }
 
-    if (
-      !this.compareMode &&
-      (this.quickAccessFriends?.length || 0) === 0
-    ) {
+    if (!this.compareMode && (this.quickAccessFriends?.length || 0) === 0) {
       const promptShown = await this.showComparePromptHint();
       if (promptShown) {
         return;
@@ -5135,7 +5132,9 @@ export class HorizontalFriendsBar {
       let campusStatus = systemInfo.lastKnownLocation?.campusStatus;
       if (!campusStatus || campusStatus === "unknown") {
         const fb = this._userPresenceFallback;
-        const uid = (currentUser && (currentUser.uid || currentUser?.state?.user?.uid)) || null;
+        const uid =
+          (currentUser && (currentUser.uid || currentUser?.state?.user?.uid)) ||
+          null;
         if (fb && fb.uid && uid && fb.uid === uid) {
           campusStatus = fb.campusStatus;
         }
@@ -5218,9 +5217,15 @@ export class HorizontalFriendsBar {
     return null;
   }
 
-  _saveUserPresenceFallback({ lastActiveMs, campusStatus, hasLocationSharing }) {
+  _saveUserPresenceFallback({
+    lastActiveMs,
+    campusStatus,
+    hasLocationSharing,
+  }) {
     try {
-      const uid = (currentUser && (currentUser.uid || currentUser?.state?.user?.uid)) || null;
+      const uid =
+        (currentUser && (currentUser.uid || currentUser?.state?.user?.uid)) ||
+        null;
       this._userPresenceFallback = {
         uid,
         lastActiveMs,
