@@ -127,8 +127,8 @@ body.page-notifications .schedule-section {
 }
 
 .notifications-header .page-title i {
-  color: var(--primary-color, #667eea);
-  opacity: 0.8;
+  color: var(--accent-primary);
+  opacity: 0.9;
 }
 
 .notifications-header .page-subtitle {
@@ -229,6 +229,17 @@ body.page-notifications .schedule-section {
   gap: 0.5rem;
 }
 
+/* Ensure header icon in notifications card uses accent color (matches heart) */
+.notifications-card .page-title i {
+  color: var(--accent-primary);
+  opacity: 0.9;
+}
+
+/* Final override: any page-title icon within notifications page should use accent */
+.notifications-page .page-title i {
+  color: var(--accent-primary) !important;
+}
+
 .notifications-card .header-actions .button {
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
@@ -286,8 +297,8 @@ body.page-notifications .schedule-section {
   gap: 0.5rem;
 }
 .notifications-card h3 i {
-  color: var(--primary-color, #667eea);
-  opacity: 0.8;
+  color: var(--accent-primary);
+  opacity: 0.9;
 }
 
 

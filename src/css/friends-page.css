@@ -93,7 +93,7 @@ body.page-friends .schedule-section {
   gap: 0.5rem;
 }
 .campus-presence-header .page-title i {
-  color: var(--primary-color, #667eea);
+  color: var(--accent-primary);
 }
 .campus-presence-header .page-subtitle {
   color: var(--text-secondary);
