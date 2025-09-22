@@ -1980,9 +1980,11 @@ class ProfileSetup {
           systemInfoUpdates.lastHandleChangeAt = serverTimestamp();
         }
 
+        // For brand-new users, start with a clean onboarding slate regardless of any runtime state
+        // observed during setup. For existing users, merge to preserve progress.
         systemInfoUpdates.onboarding = this.getInitialOnboardingState(
           userData?.systemInfo?.onboarding,
-          runtimeOnboardingState
+          isNewUser ? {} : runtimeOnboardingState
         );
         profileDataForFirestore.systemInfo.onboarding =
           systemInfoUpdates.onboarding;

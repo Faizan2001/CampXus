@@ -65,8 +65,10 @@ function isElementInViewport(element, visibilityThreshold = 0.4) {
   const rect = element.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return false;
 
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight;
+  const viewportWidth =
+    window.innerWidth || document.documentElement.clientWidth;
 
   const intersectionLeft = Math.max(rect.left, 0);
   const intersectionRight = Math.min(rect.right, viewportWidth);
@@ -87,7 +89,8 @@ function isElementInViewport(element, visibilityThreshold = 0.4) {
 }
 
 function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
-  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : preferred;
+  const viewportWidth =
+    typeof window !== "undefined" ? window.innerWidth : preferred;
   const available = viewportWidth - 48;
   return Math.max(minimum, Math.min(preferred, available));
 }
@@ -120,7 +123,10 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function showCoachMarkWithRetries({ targetResolver, buildConfig }, options = {}) {
+async function showCoachMarkWithRetries(
+  { targetResolver, buildConfig },
+  options = {}
+) {
   const attempts = options.attempts ?? FRIENDS_HINT_MAX_ATTEMPTS;
   const delayMs = options.delayMs ?? FRIENDS_HINT_RETRY_DELAY;
   let tries = 0;
@@ -407,7 +413,8 @@ class FriendsUI {
           snap.docs.forEach((d) => {
             const data = d.data();
             const recipientId = data.userId; // friend id
-            if (recipientId) this.outgoingLocationRequestsMap.set(recipientId, true);
+            if (recipientId)
+              this.outgoingLocationRequestsMap.set(recipientId, true);
           });
 
           // Update visible cards without full re-render
@@ -417,17 +424,28 @@ class FriendsUI {
                 my: false,
                 friend: false,
               };
-              const hasPending = this.outgoingLocationRequestsMap.get(friend.id) === true;
+              const hasPending =
+                this.outgoingLocationRequestsMap.get(friend.id) === true;
               const handshake = this.mutualLocationHandshake.get(friend.id);
-              const shouldShowPending = (handshake !== true && hasPending) || (!!vis.my && !vis.friend && hasPending);
-              this._applyPendingUiIfChanged(friend.id, friend.handle, shouldShowPending);
+              const shouldShowPending =
+                (handshake !== true && hasPending) ||
+                (!!vis.my && !vis.friend && hasPending);
+              this._applyPendingUiIfChanged(
+                friend.id,
+                friend.handle,
+                shouldShowPending
+              );
             });
           } catch (_) {}
         },
-        (err) => console.warn("⚠️ Outgoing location-requests listener error", err)
+        (err) =>
+          console.warn("⚠️ Outgoing location-requests listener error", err)
       );
     } catch (e) {
-      console.warn("⚠️ Failed to set up outgoing location-requests listener:", e);
+      console.warn(
+        "⚠️ Failed to set up outgoing location-requests listener:",
+        e
+      );
     }
   }
 
@@ -769,8 +787,7 @@ class FriendsUI {
         // Show send request state
         console.log(`📋 Setting button to send request state for ${studentId}`);
         button.className = "btn-send-request";
-        button.innerHTML =
-          '<i class="fas fa-user-plus"></i> Add';
+        button.innerHTML = '<i class="fas fa-user-plus"></i> Add';
         button.disabled = false;
       }
     });
@@ -870,9 +887,7 @@ class FriendsUI {
       return;
     }
 
-    const presenceSection = document.querySelector(
-      ".campus-presence-header"
-    );
+    const presenceSection = document.querySelector(".campus-presence-header");
     if (!presenceSection) {
       if (retryCount > 0) {
         setTimeout(
@@ -926,7 +941,9 @@ class FriendsUI {
       }
 
       if (hasActiveCoachMarks()) {
-        devLog("[Friends Onboarding] Presence hint waiting for other coachmark");
+        devLog(
+          "[Friends Onboarding] Presence hint waiting for other coachmark"
+        );
         setTimeout(attemptShow, FRIENDS_HINT_RETRY_DELAY);
         return;
       }
@@ -947,7 +964,8 @@ class FriendsUI {
       const desktopToggleBtn = presenceSection.querySelector(
         ".location-toggle-switch"
       );
-      const targetEl = !isCompact && desktopToggleBtn ? desktopToggleBtn : presenceSection;
+      const targetEl =
+        !isCompact && desktopToggleBtn ? desktopToggleBtn : presenceSection;
 
       const mark = showCoachMark({
         id: "campus-presence-toggle",
@@ -1148,7 +1166,7 @@ class FriendsUI {
     console.log("📋 Displaying search results:", results);
 
     // Find or create search results container
-  const searchSection = document.querySelector(".friends-search");
+    const searchSection = document.querySelector(".friends-search");
     let resultsContainer = document.getElementById("searchResults");
 
     if (!resultsContainer) {
@@ -1194,25 +1212,24 @@ class FriendsUI {
     this.latestSearchResults = filteredResults;
 
     const resultsHTML = filteredResults
-      .map(
-        (student) => {
-          const handle =
-            student.profile?.handle || student.profile?.handle_lower || "Unknown";
-          const major =
-            student.profile?.major ||
-            student.profile?.major_lower ||
-            "Unknown Major";
-          const uniName =
-            student.universityInfo?.universityName ||
-            student.universityInfo?.university ||
-            "";
-          const isIub = this.isIubUniversity(student.universityInfo);
-          const majorLine = isIub ? `${major} · IUB` : major;
-          const universityLine = isIub
-            ? ""
-            : escapeHTML(uniName || "Unknown University");
+      .map((student) => {
+        const handle =
+          student.profile?.handle || student.profile?.handle_lower || "Unknown";
+        const major =
+          student.profile?.major ||
+          student.profile?.major_lower ||
+          "Unknown Major";
+        const uniName =
+          student.universityInfo?.universityName ||
+          student.universityInfo?.university ||
+          "";
+        const isIub = this.isIubUniversity(student.universityInfo);
+        const majorLine = isIub ? `${major} · IUB` : major;
+        const universityLine = isIub
+          ? ""
+          : escapeHTML(uniName || "Unknown University");
 
-          return `
+        return `
       <div class="student-card" data-student-id="${student.id}">
         <div class="student-avatar">
           ${this.renderAvatar(student)}
@@ -1220,15 +1237,18 @@ class FriendsUI {
         <div class="student-info">
           <h4 class="student-name">${escapeHTML(handle)}</h4>
           <p class="student-major">${escapeHTML(majorLine)}</p>
-          ${universityLine ? `<p class="student-university">${universityLine}</p>` : ""}
+          ${
+            universityLine
+              ? `<p class="student-university">${universityLine}</p>`
+              : ""
+          }
         </div>
         <div class="student-actions">
           ${this.renderFriendRequestButton(student)}
         </div>
       </div>
     `;
-        }
-      )
+      })
       .join("");
 
     resultsContainer.innerHTML = `
@@ -1303,7 +1323,10 @@ class FriendsUI {
     const resultsContainer = document.getElementById("searchResults");
     if (resultsContainer) {
       // Remove delegated listener to avoid duplicate handlers on next render
-      if (this._searchResultsListenerAttached && this.boundHandlers?.searchResultsClick) {
+      if (
+        this._searchResultsListenerAttached &&
+        this.boundHandlers?.searchResultsClick
+      ) {
         try {
           resultsContainer.removeEventListener(
             "click",
@@ -1513,7 +1536,9 @@ class FriendsUI {
   async maybeShowFriendActionsHint(friends) {
     if (!Array.isArray(friends) || friends.length === 0) {
       this.friendActionsHintPrimed = false;
-      devLog("[Friends Onboarding] Friend actions hint skipped - no friends yet");
+      devLog(
+        "[Friends Onboarding] Friend actions hint skipped - no friends yet"
+      );
       return;
     }
 
@@ -1528,7 +1553,10 @@ class FriendsUI {
     const firstCard = this.elements.friendsList?.querySelector(".friend-card");
     if (!firstCard) {
       devLog("[Friends Onboarding] Waiting for first friend card");
-      setTimeout(() => this.maybeShowFriendActionsHint(friends), FRIENDS_HINT_RETRY_DELAY);
+      setTimeout(
+        () => this.maybeShowFriendActionsHint(friends),
+        FRIENDS_HINT_RETRY_DELAY
+      );
       return;
     }
 
@@ -1542,13 +1570,21 @@ class FriendsUI {
         hasScheduleBtn: !!scheduleBtn,
         hasStarBtn: !!starBtn,
       });
-      setTimeout(() => this.maybeShowFriendActionsHint(friends), FRIENDS_HINT_RETRY_DELAY);
+      setTimeout(
+        () => this.maybeShowFriendActionsHint(friends),
+        FRIENDS_HINT_RETRY_DELAY
+      );
       return;
     }
 
     if (hasActiveCoachMarks()) {
-      devLog("[Friends Onboarding] Another coachmark active, retrying friend actions hint");
-      setTimeout(() => this.maybeShowFriendActionsHint(friends), FRIENDS_HINT_RETRY_DELAY);
+      devLog(
+        "[Friends Onboarding] Another coachmark active, retrying friend actions hint"
+      );
+      setTimeout(
+        () => this.maybeShowFriendActionsHint(friends),
+        FRIENDS_HINT_RETRY_DELAY
+      );
       return;
     }
 
@@ -1612,7 +1648,9 @@ class FriendsUI {
     ];
 
     for (const step of steps) {
-      devLog("[Friends Onboarding] Showing friend action hint", { id: step.buildConfig().id });
+      devLog("[Friends Onboarding] Showing friend action hint", {
+        id: step.buildConfig().id,
+      });
       const shown = await showCoachMarkWithRetries(step, {
         attempts: FRIENDS_HINT_MAX_ATTEMPTS,
         delayMs: FRIENDS_HINT_RETRY_DELAY,
@@ -1675,7 +1713,7 @@ class FriendsUI {
 
     console.log("📬 Displaying friend requests:", requests);
 
-  const requestsHTML = requests
+    const requestsHTML = requests
       .map(
         (request) => `
       <div class="friend-request-card" data-request-id="${request.id}">
@@ -1694,13 +1732,13 @@ class FriendsUI {
         <div class="request-actions">
           <button class="btn-accept-request" data-request-id="${
             request.id
-      }" data-request-name="${escapeHTML(request.handle)}">
+          }" data-request-name="${escapeHTML(request.handle)}">
             <i class="fas fa-check"></i>
             Accept
           </button>
           <button class="btn-reject-request" data-request-id="${
             request.id
-      }" data-request-name="${escapeHTML(request.handle)}">
+          }" data-request-name="${escapeHTML(request.handle)}">
             <i class="fas fa-times"></i>
             Decline
           </button>
@@ -1878,7 +1916,10 @@ class FriendsUI {
         try {
           studentData = await friendsManager.getUserSummary?.(studentId);
         } catch (err) {
-          console.warn("⚠️ Failed to fetch user summary via friendsManager", err);
+          console.warn(
+            "⚠️ Failed to fetch user summary via friendsManager",
+            err
+          );
         }
       }
 
@@ -1886,7 +1927,11 @@ class FriendsUI {
         try {
           studentData = await dataManager.getUserProfileMinimal?.(studentId);
         } catch (err) {
-          console.warn("⚠️ Failed to fetch minimal profile for", studentId, err);
+          console.warn(
+            "⚠️ Failed to fetch minimal profile for",
+            studentId,
+            err
+          );
         }
       }
 
@@ -1944,8 +1989,7 @@ class FriendsUI {
         // Reset button
         if (button) {
           button.disabled = false;
-          button.innerHTML =
-            '<i class="fas fa-user-plus"></i> Add';
+          button.innerHTML = '<i class="fas fa-user-plus"></i> Add';
         }
       }
     } catch (error) {
@@ -1962,8 +2006,7 @@ class FriendsUI {
       );
       if (button) {
         button.className = "btn-send-request";
-        button.innerHTML =
-          '<i class="fas fa-user-plus"></i> Add';
+        button.innerHTML = '<i class="fas fa-user-plus"></i> Add';
         button.disabled = false;
       }
     }
@@ -2209,7 +2252,9 @@ class FriendsUI {
     // Show unfriend confirmation modal
     showModal({
       title: "Unfriend Confirmation",
-      content: `Are you sure you want to unfriend <strong>@${escapeHTML(friend.handle)}</strong>?<br><br>This action cannot be undone.`,
+      content: `Are you sure you want to unfriend <strong>@${escapeHTML(
+        friend.handle
+      )}</strong>?<br><br>This action cannot be undone.`,
       isHtmlContent: true,
       showConfirmationButtons: true,
       confirmText: "Unfriend",
@@ -2544,60 +2589,68 @@ class FriendsUI {
               true;
           }
 
-      if (!mutualMeta) {
-        // First-time confirmation and request
-        showModal({
-          title: "Send Location Share Request",
-          content: `Send location sharing request to @${friend.handle}? They will be notified. You only need to do this once.`,
-          showConfirmationButtons: true,
-          confirmText: "Send Request",
-          cancelText: "Cancel",
-          onConfirm: async () => {
-            // Instant UI: set to pending immediately, revert on failure
-            const revertUi = () => {
-              this._setLocationRequestPendingUI(friendId, friend.handle, false);
-              btn.classList.remove("mine-visible");
-              btn.classList.add("mine-hidden");
-            };
-            // Apply optimistic UI now
-            this._setLocationRequestPendingUI(friendId, friend.handle, true);
-            btn.classList.add("mine-visible");
-            btn.classList.remove("mine-hidden");
-            try {
-              const result = await friendsManager.requestLocationSharing(
-                friendId,
-                friendshipId
-              );
-              if (result?.success) {
-                notificationManager.showSystemNotification(
-                  `Request sent to @${friend.handle}`,
-                  "success",
-                  { duration: 2500 }
+          if (!mutualMeta) {
+            // First-time confirmation and request
+            showModal({
+              title: "Send Location Share Request",
+              content: `Send location sharing request to @${friend.handle}? They will be notified. You only need to do this once.`,
+              showConfirmationButtons: true,
+              confirmText: "Send Request",
+              cancelText: "Cancel",
+              onConfirm: async () => {
+                // Instant UI: set to pending immediately, revert on failure
+                const revertUi = () => {
+                  this._setLocationRequestPendingUI(
+                    friendId,
+                    friend.handle,
+                    false
+                  );
+                  btn.classList.remove("mine-visible");
+                  btn.classList.add("mine-hidden");
+                };
+                // Apply optimistic UI now
+                this._setLocationRequestPendingUI(
+                  friendId,
+                  friend.handle,
+                  true
                 );
-              } else {
-                revertUi();
-                notificationManager.showSystemNotification(
-                  result?.message || "Failed to send request",
-                  "error",
-                  { duration: 3500 }
-                );
-              }
-            } catch (reqErr) {
-              console.error(
-                "❌ Failed to send location share request:",
-                reqErr
-              );
-              revertUi();
-              notificationManager.showSystemNotification(
-                "Failed to send request",
-                "error",
-                { duration: 3500 }
-              );
-            }
-            return true;
-          },
-        });
-      } else {
+                btn.classList.add("mine-visible");
+                btn.classList.remove("mine-hidden");
+                try {
+                  const result = await friendsManager.requestLocationSharing(
+                    friendId,
+                    friendshipId
+                  );
+                  if (result?.success) {
+                    notificationManager.showSystemNotification(
+                      `Request sent to @${friend.handle}`,
+                      "success",
+                      { duration: 2500 }
+                    );
+                  } else {
+                    revertUi();
+                    notificationManager.showSystemNotification(
+                      result?.message || "Failed to send request",
+                      "error",
+                      { duration: 3500 }
+                    );
+                  }
+                } catch (reqErr) {
+                  console.error(
+                    "❌ Failed to send location share request:",
+                    reqErr
+                  );
+                  revertUi();
+                  notificationManager.showSystemNotification(
+                    "Failed to send request",
+                    "error",
+                    { duration: 3500 }
+                  );
+                }
+                return true;
+              },
+            });
+          } else {
             // Post-handshake: decide based on precise per-user visibility
             let state = this.locationVisibilityState.get(friendId);
             if (!state) {
@@ -2632,10 +2685,11 @@ class FriendsUI {
 
             let newEnabled = targetEnabled;
             try {
-              newEnabled = await friendshipPrivacyService.toggleLocationVisibility(
-                userUid,
-                friendId
-              );
+              newEnabled =
+                await friendshipPrivacyService.toggleLocationVisibility(
+                  userUid,
+                  friendId
+                );
             } catch (toggleErr) {
               // Revert on failure
               btn.classList.toggle("mine-visible", wasEnabled);
@@ -2660,17 +2714,17 @@ class FriendsUI {
                 }
               }, 400);
             }
-      }
-    } catch (err) {
-      console.error("❌ Failed to toggle/request location sharing:", err);
-      notificationManager.showSystemNotification(
-        "Failed to update location sharing",
-        "error",
-        { duration: 3500 }
-      );
-    } finally {
-      btn.classList.remove("loading");
-    }
+          }
+        } catch (err) {
+          console.error("❌ Failed to toggle/request location sharing:", err);
+          notificationManager.showSystemNotification(
+            "Failed to update location sharing",
+            "error",
+            { duration: 3500 }
+          );
+        } finally {
+          btn.classList.remove("loading");
+        }
 
         e.stopPropagation();
         return;
@@ -2831,11 +2885,21 @@ class FriendsUI {
             const myLoc = loc[currentUserUid] === true;
             const friendLoc = loc[friendId] === true;
             // Pending UI based on outgoing notifications + visibility
-            const friendObj = this.currentFriendsData.find((f) => f.id === friendId);
-            const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
-            const handshakeEnabled = data.locationSharingMetadata?.mutualSharingEnabled === true;
-            const shouldShowPending = (!handshakeEnabled && hasPending) || (!!myLoc && !friendLoc && hasPending);
-            this._applyPendingUiIfChanged(friendId, friendObj?.handle, shouldShowPending);
+            const friendObj = this.currentFriendsData.find(
+              (f) => f.id === friendId
+            );
+            const hasPending =
+              this.outgoingLocationRequestsMap.get(friendId) === true;
+            const handshakeEnabled =
+              data.locationSharingMetadata?.mutualSharingEnabled === true;
+            const shouldShowPending =
+              (!handshakeEnabled && hasPending) ||
+              (!!myLoc && !friendLoc && hasPending);
+            this._applyPendingUiIfChanged(
+              friendId,
+              friendObj?.handle,
+              shouldShowPending
+            );
             if (!shouldShowPending) {
               const locBtn = card.querySelector(".mutual-location-btn");
               const locIcon = locBtn?.querySelector("i");
@@ -3409,9 +3473,13 @@ class FriendsUI {
       });
 
       // Determine pending from outgoing notifications + visibility
-  const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
-  const handshakeEnabled = friendship.locationSharingMetadata?.mutualSharingEnabled === true;
-  const shouldShowPending = (!handshakeEnabled && hasPending) || (currentUserSharing && !friendSharing && hasPending);
+      const hasPending =
+        this.outgoingLocationRequestsMap.get(friendId) === true;
+      const handshakeEnabled =
+        friendship.locationSharingMetadata?.mutualSharingEnabled === true;
+      const shouldShowPending =
+        (!handshakeEnabled && hasPending) ||
+        (currentUserSharing && !friendSharing && hasPending);
 
       // Update the action button (mutual-location-btn)
       const friendCard = this.elements.friendsList.querySelector(
@@ -3480,12 +3548,9 @@ class FriendsUI {
       const pendingBtn = document.createElement("button");
       pendingBtn.className = "btn-pending-request";
       pendingBtn.setAttribute("data-student-id", friendId);
-      pendingBtn.setAttribute(
-        "data-student-name",
-        friendHandle || "friend"
-      );
+      pendingBtn.setAttribute("data-student-name", friendHandle || "friend");
       pendingBtn.setAttribute("disabled", "");
-  pendingBtn.setAttribute("title", "Location share request pending");
+      pendingBtn.setAttribute("title", "Location share request pending");
       pendingBtn.innerHTML = '<i class="fas fa-clock"></i>';
 
       if (locationBtn) {
@@ -3526,7 +3591,11 @@ class FriendsUI {
     const prev = this._pendingLocationUi.get(friendId) === true;
     if (prev === !!shouldShowPending) return; // no change → no DOM churn
     this._pendingLocationUi.set(friendId, !!shouldShowPending);
-    this._setLocationRequestPendingUI(friendId, friendHandle, !!shouldShowPending);
+    this._setLocationRequestPendingUI(
+      friendId,
+      friendHandle,
+      !!shouldShowPending
+    );
   }
 
   /**
@@ -3798,13 +3867,17 @@ class FriendsUI {
       if (this.friendshipPrivacyUnsubscribers) {
         try {
           this.friendshipPrivacyUnsubscribers.forEach((unsub) => {
-            try { if (typeof unsub === "function") unsub(); } catch (_) {}
+            try {
+              if (typeof unsub === "function") unsub();
+            } catch (_) {}
           });
         } catch (_) {}
         this.friendshipPrivacyUnsubscribers.clear();
       }
       if (this.friendshipPrivacyObserver) {
-        try { this.friendshipPrivacyObserver.disconnect(); } catch (_) {}
+        try {
+          this.friendshipPrivacyObserver.disconnect();
+        } catch (_) {}
         this.friendshipPrivacyObserver = null;
       }
 
@@ -3862,7 +3935,6 @@ class FriendsUI {
       console.warn("⚠️ Error cleaning up campus presence components:", error);
     }
   }
-
 }
 
 // 🌟 Export a single instance
@@ -3887,7 +3959,11 @@ document.addEventListener("spa:page:load", (event) => {
     setTimeout(() => {
       try {
         const data = friendsUI.currentFriendsData || [];
-        if (!friendsUI.friendActionsHintShown && !friendsUI.friendActionsHintPrimed && data.length > 0) {
+        if (
+          !friendsUI.friendActionsHintShown &&
+          !friendsUI.friendActionsHintPrimed &&
+          data.length > 0
+        ) {
           friendsUI.maybeShowFriendActionsHint(data);
         }
       } catch (_) {

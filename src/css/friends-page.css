@@ -2432,7 +2432,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     position: absolute;
     top: calc(100% + 8px);
     left: 0;
-  right: 0; /* default: span full wrapper width */
+    right: 0; /* default: span full wrapper width */
     margin-top: 0; /* handled by top offset */
     z-index: 40; /* above surrounding cards */
   }
@@ -2497,7 +2497,6 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     min-height: 68px;
   }
   .friend-actions {
-    
     min-width: fit-content;
   }
   .friend-card .friend-avatar {

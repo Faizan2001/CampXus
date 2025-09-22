@@ -27,12 +27,35 @@ class OnboardingService {
     this._initialized = false;
     this._initializingPromise = null;
     this._profileReady = false;
-    this._sessionDismissed = this._loadSessionDismissed();
+    // Track current UID to scope session suppression per-user
+    this._currentUid = currentUser?.uid || null;
+    this._sessionDismissed = this._loadSessionDismissed(this._currentUid);
     this._pendingRemoteUpdates = {};
 
     this._unsubscribe = currentUser.subscribe((snapshot) => {
+      // Switch session suppression namespace when UID changes
+      const nextUid = snapshot?.user?.uid || null;
+      if (nextUid !== this._currentUid) {
+        this._currentUid = nextUid;
+        // Load per-user session dismissed set; for logged-out (null) default to empty
+        this._sessionDismissed = this._loadSessionDismissed(this._currentUid);
+
+  // Reset onboarding state when account changes to ensure per-user isolation
+  // and avoid inheriting the previous user's flags/state in memory.
+  this._state = cloneState(DEFAULT_ONBOARDING_STATE);
+  this._initialized = false; // Force re-init for the new user
+  this._profileReady = false; // Wait for the new profile/onboarding to load
+  // Drop any pending remote updates from the previous user
+  this._pendingRemoteUpdates = {};
+      }
+
       const profile = snapshot?.profile;
       if (!profile) {
+        // If logged out, also mark profile as not ready so new user will re-init
+        if (!snapshot?.isLoggedIn) {
+          this._profileReady = false;
+          // Do not change persisted user-level onboarding state here; only session suppression.
+        }
         return;
       }
       const onboarding = profile?.systemInfo?.onboarding;
@@ -42,6 +65,13 @@ class OnboardingService {
         this._profileReady = true;
       }
     });
+
+    // Cleanup legacy global session key so old device-level suppressions don't leak
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   async init(force = false) {
@@ -249,9 +279,19 @@ class OnboardingService {
     }
   }
 
-  _loadSessionDismissed() {
+  _effectiveSessionKey(uid) {
+    // Namespace by UID so dismissals don’t leak across accounts in same device session
+    const suffix = uid ? String(uid) : "guest";
+    return `${SESSION_STORAGE_KEY}:${suffix}`;
+  }
+
+  _loadSessionDismissed(uid) {
     try {
-      const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (!uid) {
+        // For logged-out sessions, start fresh each time
+        return new Set();
+      }
+      const stored = sessionStorage.getItem(this._effectiveSessionKey(uid));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
@@ -266,8 +306,9 @@ class OnboardingService {
 
   _saveSessionDismissed() {
     try {
+      const key = this._effectiveSessionKey(this._currentUid);
       sessionStorage.setItem(
-        SESSION_STORAGE_KEY,
+        key,
         JSON.stringify(Array.from(this._sessionDismissed))
       );
     } catch (_) {
@@ -280,7 +321,9 @@ export const onboardingService = new OnboardingService();
 
 try {
   const envMode =
-    (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.MODE) ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      import.meta.env.MODE) ||
     (typeof window !== "undefined" && window.ENV && window.ENV.ENVIRONMENT) ||
     "development";
 
