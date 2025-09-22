@@ -1,20 +1,24 @@
-import { createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { PNG } from 'pngjs';
+import { createWriteStream } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { PNG } from "pngjs";
 
 // Minimal PNG-to-ICO packer (combines 16/32/48 pngs into favicon.ico)
 // Note: This is a simple packer for uncompressed PNG entries in ICO.
 
 function writeIconDirEntry(stream, width, height, size, offset) {
-  stream.write(Buffer.from([
-    width === 256 ? 0 : width, // 0 means 256 in ICO format
-    height === 256 ? 0 : height,
-    0, // color count
-    0, // reserved
-    1, 0, // color planes
-    32, 0, // bpp
-  ]));
+  stream.write(
+    Buffer.from([
+      width === 256 ? 0 : width, // 0 means 256 in ICO format
+      height === 256 ? 0 : height,
+      0, // color count
+      0, // reserved
+      1,
+      0, // color planes
+      32,
+      0, // bpp
+    ])
+  );
   const sizeBuf = Buffer.alloc(4);
   sizeBuf.writeUInt32LE(size, 0);
   stream.write(sizeBuf);
@@ -24,10 +28,22 @@ function writeIconDirEntry(stream, width, height, size, offset) {
 }
 
 async function main() {
-  const base = resolve(process.cwd(), 'public/icons');
+  const base = resolve(process.cwd(), "public/icons");
   const sizes = [16, 32, 48];
   const files = await Promise.all(
-    sizes.map(async (s) => ({ s, buf: await readFile(resolve(base, s === 16 ? 'favicon-16x16.png' : s === 32 ? 'favicon-32x32.png' : 'icon-48x48.png')) }))
+    sizes.map(async (s) => ({
+      s,
+      buf: await readFile(
+        resolve(
+          base,
+          s === 16
+            ? "favicon-16x16.png"
+            : s === 32
+            ? "favicon-32x32.png"
+            : "icon-48x48.png"
+        )
+      ),
+    }))
   );
 
   // Validate PNGs
@@ -38,7 +54,7 @@ async function main() {
     });
   }
 
-  const outPath = resolve(process.cwd(), 'public/favicon.ico');
+  const outPath = resolve(process.cwd(), "public/favicon.ico");
   const out = createWriteStream(outPath);
 
   // ICONDIR header

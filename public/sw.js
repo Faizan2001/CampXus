@@ -4,14 +4,13 @@
   - Uses stale-while-revalidate for static assets
 */
 
-const CACHE_NAME = 'meetchuthere-shell-v2';
+const CACHE_NAME = 'meetchuthere-shell-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/src/css/styles.css',
-  '/public/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/manifest.json',
+  // Avoid pre-caching icons to prevent stale favicons/logos in SERP
 ];
 
 self.addEventListener('install', (event) => {
@@ -48,10 +47,13 @@ self.addEventListener('fetch', (event) => {
   const isHtml = url.pathname.endsWith('.html');
   const isIndexHtml = url.pathname === '/' || url.pathname === '/index.html';
 
-  // Static assets to cache: CSS/JS/fonts/images + index.html + manifest
-  const isStaticAsset = /\.(?:css|js|mjs|png|jpg|jpeg|svg|webp|ico|woff2?|ttf|eot)$/.test(url.pathname)
+  // Bypass caching for any icon files so favicon updates propagate immediately
+  const isIconPath = url.pathname.startsWith('/icons/') || url.pathname === '/favicon.ico';
+
+  // Static assets to cache: CSS/JS/fonts/images (excluding icons) + index.html + manifest
+  const isStaticAsset = (/\.(?:css|js|mjs|png|jpg|jpeg|svg|webp|ico|woff2?|ttf|eot)$/.test(url.pathname)
     || isIndexHtml
-    || url.pathname === '/manifest.json';
+    || url.pathname === '/manifest.json') && !isIconPath;
 
   if (!(sameOrigin && isStaticAsset)) {
     return; // don't intercept dynamic/API requests or template HTML fragments
@@ -63,11 +65,14 @@ self.addEventListener('fetch', (event) => {
       const networkFetch = fetch(req)
         .then((res) => {
           const resClone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+    caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
           return res;
         })
         .catch(() => cached || Promise.reject('no-match'));
       return cached || networkFetch;
     })
   );
+  return;
+  
+  // If it's an icon path, fall through and let the network fetch without caching
 });

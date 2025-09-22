@@ -31,3 +31,16 @@
 /icons/favicon-16x16.png
   Content-Type: image/png
   Cache-Control: public, max-age=3600
+
+/* Cache-control for other icons (limit TTL so Google can refresh) */
+/icons/icon-192x192.png
+  Content-Type: image/png
+  Cache-Control: public, max-age=3600
+
+/icons/icon-512x512.png
+  Content-Type: image/png
+  Cache-Control: public, max-age=3600
+
+/icons/apple-touch-icon.png
+  Content-Type: image/png
+  Cache-Control: public, max-age=3600
