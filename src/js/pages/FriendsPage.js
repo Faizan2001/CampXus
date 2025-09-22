@@ -418,7 +418,8 @@ class FriendsUI {
                 friend: false,
               };
               const hasPending = this.outgoingLocationRequestsMap.get(friend.id) === true;
-              const shouldShowPending = !!vis.my && !vis.friend && hasPending;
+              const handshake = this.mutualLocationHandshake.get(friend.id);
+              const shouldShowPending = (handshake !== true && hasPending) || (!!vis.my && !vis.friend && hasPending);
               this._applyPendingUiIfChanged(friend.id, friend.handle, shouldShowPending);
             });
           } catch (_) {}
@@ -2826,7 +2827,8 @@ class FriendsUI {
             // Pending UI based on outgoing notifications + visibility
             const friendObj = this.currentFriendsData.find((f) => f.id === friendId);
             const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
-            const shouldShowPending = !!myLoc && !friendLoc && hasPending;
+            const handshakeEnabled = data.locationSharingMetadata?.mutualSharingEnabled === true;
+            const shouldShowPending = (!handshakeEnabled && hasPending) || (!!myLoc && !friendLoc && hasPending);
             this._applyPendingUiIfChanged(friendId, friendObj?.handle, shouldShowPending);
             if (!shouldShowPending) {
               const locBtn = card.querySelector(".mutual-location-btn");
@@ -2838,9 +2840,7 @@ class FriendsUI {
                 locBtn.classList.toggle("mine-hidden", !myLoc);
               }
             }
-            const handshake =
-              data.locationSharingMetadata?.mutualSharingEnabled === true;
-            this.mutualLocationHandshake.set(friendId, handshake);
+            this.mutualLocationHandshake.set(friendId, handshakeEnabled);
             this.locationVisibilityState.set(friendId, {
               my: !!myLoc,
               friend: !!friendLoc,
@@ -3403,8 +3403,9 @@ class FriendsUI {
       });
 
       // Determine pending from outgoing notifications + visibility
-      const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
-      const shouldShowPending = currentUserSharing && !friendSharing && hasPending;
+  const hasPending = this.outgoingLocationRequestsMap.get(friendId) === true;
+  const handshakeEnabled = friendship.locationSharingMetadata?.mutualSharingEnabled === true;
+  const shouldShowPending = (!handshakeEnabled && hasPending) || (currentUserSharing && !friendSharing && hasPending);
 
       // Update the action button (mutual-location-btn)
       const friendCard = this.elements.friendsList.querySelector(
@@ -3478,7 +3479,7 @@ class FriendsUI {
         friendHandle || "friend"
       );
       pendingBtn.setAttribute("disabled", "");
-      pendingBtn.setAttribute("title", "Friend request pending");
+  pendingBtn.setAttribute("title", "Location share request pending");
       pendingBtn.innerHTML = '<i class="fas fa-clock"></i>';
 
       if (locationBtn) {
@@ -3764,6 +3765,17 @@ class FriendsUI {
       if (this.outgoingRequestsMap) {
         this.outgoingRequestsMap.clear();
       }
+      // Reset last-applied pending UI state so new DOM can re-apply pending correctly on return
+      if (this._pendingLocationUi) {
+        this._pendingLocationUi.clear();
+      }
+      // Clear cached visibility/handshake maps to force fresh snapshot-driven UI when returning
+      if (this.locationVisibilityState) {
+        this.locationVisibilityState.clear();
+      }
+      if (this.mutualLocationHandshake) {
+        this.mutualLocationHandshake.clear();
+      }
       // Clean up outgoing location-requests listener
       if (this._outgoingLocReqUnsub) {
         try {
@@ -3775,6 +3787,20 @@ class FriendsUI {
       // Clear friend data arrays
       this.currentFriendsData = [];
       this.currentFriendRequestsData = [];
+
+      // Detach friendship privacy listeners and observer if any
+      if (this.friendshipPrivacyUnsubscribers) {
+        try {
+          this.friendshipPrivacyUnsubscribers.forEach((unsub) => {
+            try { if (typeof unsub === "function") unsub(); } catch (_) {}
+          });
+        } catch (_) {}
+        this.friendshipPrivacyUnsubscribers.clear();
+      }
+      if (this.friendshipPrivacyObserver) {
+        try { this.friendshipPrivacyObserver.disconnect(); } catch (_) {}
+        this.friendshipPrivacyObserver = null;
+      }
 
       // Remove event listeners to prevent memory leaks
       try {
