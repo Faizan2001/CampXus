@@ -69,24 +69,36 @@ body:not(.dark-mode) .schedule-section {
   align-items: center;
   gap: 0.5rem;
   font-size: 1.05rem;
+  padding-left: 12px; /* add padding on the left for both mobile and desktop */
 }
 
-.schedule-owner-indicator {
-  margin-left: 0.5rem;
-  padding: 0.25rem 0.75rem;
-  background: var(--accent-primary);
-  color: white;
-  border-radius: var(--radius-lg);
-  font-size: 0.8rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  box-shadow: var(--shadow-sm);
-  animation: fadeInScale 0.3s var(--animation-smooth);
+/* Heading layout: keep owner intact and ellipsize the trailing 'Schedule' part */
+#schedule-heading-text { display: inline-flex; align-items: baseline; gap: 0.25rem; max-width: 100%; }
+.schedule-title-owner { flex: 0 0 auto; white-space: nowrap; }
+.schedule-title-tail { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* On narrow screens keep it compact */
+/* Small screens: reserve fixed title width and truncate heading */
+@media (max-width: 600px) {
+  /* Two columns: fixed-ish title area + actions (future button) */
+  .schedule-header {
+    display: grid;
+    grid-template-columns: minmax(0, clamp(160px, 65vw, 420px)) auto;
+    align-items: center;
+    column-gap: 8px;
+  }
+  .schedule-header h3 {
+    font-size: 1rem;
+    min-width: 0; /* allow shrink inside grid */
+    padding-left: 12px;
+  }
+  /* Keep inline pieces; truncation happens on tail */
+  #schedule-heading-text { display: inline-flex; }
+  .schedule-title-owner { display: inline; }
+  .schedule-title-tail { display: inline; }
 }
-.schedule-owner-indicator i { font-size: 0.75rem; opacity: 0.9; }
-body.compare-mode-active .schedule-owner-indicator { display: none !important; }
+
+/* Removed .schedule-owner-indicator styles; heading text now reflects owner */
 
 @keyframes fadeInScale {
   from { opacity: 0; transform: scale(0.9); }

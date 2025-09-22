@@ -6715,8 +6715,8 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-    // Hide schedule owner indicator
-    updateScheduleOwnerIndicator(null, false);
+  // Update schedule heading for empty state
+  updateScheduleHeadingText(null, false);
 
     console.log("📋 Showing empty schedule state");
   } else if (isUserSchedule) {
@@ -6734,8 +6734,8 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-    // Hide schedule owner indicator
-    updateScheduleOwnerIndicator(null, false);
+  // Update schedule heading back to default (user schedule)
+  updateScheduleHeadingText(null, false);
 
     console.log("👤 Switched to user's own schedule");
   } else {
@@ -6912,8 +6912,8 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       usersCount: Object.keys(state.users).length,
     });
 
-    // Show schedule owner indicator
-    updateScheduleOwnerIndicator(friendName, true);
+  // Update schedule heading to show friend's handle
+  updateScheduleHeadingText(friendName, true);
 
     console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
 
@@ -6933,24 +6933,43 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
  * @param {string} friendName - Name of the friend whose schedule is being viewed
  * @param {boolean} isFriendSchedule - Whether viewing a friend's schedule (true) or user's own (false)
  */
-function updateScheduleOwnerIndicator(friendName, isFriendSchedule) {
-  const indicator = document.getElementById("schedule-owner-indicator");
-  if (!indicator) return;
+function formatHandleForDisplay(name) {
+  if (!name || typeof name !== "string") return "";
+  const trimmed = name.trim();
+  if (trimmed.startsWith("@") && trimmed.length > 1) {
+    return "@" + trimmed.charAt(1).toUpperCase() + trimmed.slice(2);
+  }
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
 
-  if (isFriendSchedule) {
-    // Show friend's name in indicator
-    const nameSpan = indicator.querySelector(".owner-name");
-    if (nameSpan) {
-      nameSpan.textContent = `${friendName}'s Schedule`;
-    }
-    indicator.style.display = "flex";
-    console.log(
-      `📋 Schedule owner indicator showing: ${friendName}'s Schedule`
-    );
+function updateScheduleHeadingText(friendName, isFriendSchedule) {
+  const headingSpan = document.getElementById("schedule-heading-text");
+  if (!headingSpan) return;
+
+  if (isFriendSchedule && friendName) {
+  // Build: <owner>'s <tail>Schedule</tail>
+  headingSpan.innerHTML = "";
+  const owner = document.createElement("span");
+  owner.className = "schedule-title-owner";
+  const displayName = formatHandleForDisplay(friendName);
+  owner.textContent = `${displayName}'s`;
+  const space = document.createTextNode(" ");
+  const tail = document.createElement("span");
+  tail.className = "schedule-title-tail"; // this part should ellipsize
+  tail.textContent = "schedule";
+  owner.title = `${displayName}'s schedule`;
+  headingSpan.appendChild(owner);
+  headingSpan.appendChild(space);
+  headingSpan.appendChild(tail);
+  // Set accessible label so SRs read full phrase regardless of truncation
+  try {
+    headingSpan.setAttribute("aria-label", `${displayName}'s schedule`);
+  } catch (_) {}
   } else {
-    // Hide indicator when viewing own schedule
-    indicator.style.display = "none";
-    console.log(`📋 Schedule owner indicator hidden (viewing own schedule)`);
+    headingSpan.textContent = "Schedule";
+    try {
+      headingSpan.setAttribute("aria-label", "Schedule");
+    } catch (_) {}
   }
 }
 
@@ -7051,7 +7070,7 @@ function convertFirestoreToHomePageFormat(firestoreScheduleData) {
  * Show message when friend has no schedule
  */
 function showFriendScheduleNotice(friendName, type, detail) {
-  updateScheduleOwnerIndicator(null, false);
+  updateScheduleHeadingText(null, false);
   state.activeUserId = null;
   state.currentViewingFriendId = null;
   const base = friendName || "Friend";
