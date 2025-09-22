@@ -2420,6 +2420,22 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .search-results.show {
     max-height: 400px;
   }
+
+  /* Desktop: anchor search dropdown to input wrapper and allow overflow */
+  .glass-card.friends-search {
+    overflow: visible; /* allow dropdown to extend beyond card if needed */
+  }
+  .friends-search .search-input-wrapper {
+    position: relative; /* containing block for absolute dropdown */
+  }
+  .friends-search .search-input-wrapper #searchResults.search-results {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+  right: 0; /* default: span full wrapper width */
+    margin-top: 0; /* handled by top offset */
+    z-index: 40; /* above surrounding cards */
+  }
   .friend-card,
   .friend-request-card {
     padding: 14px;

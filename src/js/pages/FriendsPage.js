@@ -1148,14 +1148,20 @@ class FriendsUI {
     console.log("📋 Displaying search results:", results);
 
     // Find or create search results container
-    const searchSection = document.querySelector(".friends-search");
+  const searchSection = document.querySelector(".friends-search");
     let resultsContainer = document.getElementById("searchResults");
 
     if (!resultsContainer) {
       resultsContainer = document.createElement("div");
       resultsContainer.id = "searchResults";
       resultsContainer.className = "search-results";
-      searchSection.appendChild(resultsContainer);
+      // Prefer attaching to the input wrapper so we can anchor dropdown width/position
+      const inputWrapper = searchSection.querySelector(".search-input-wrapper");
+      if (inputWrapper) {
+        inputWrapper.appendChild(resultsContainer);
+      } else {
+        searchSection.appendChild(resultsContainer);
+      }
     }
 
     // Filter out users who are already friends (accepted requests)
