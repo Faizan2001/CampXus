@@ -32,6 +32,12 @@
   Content-Type: image/png
   Cache-Control: public, max-age=3600
 
+/* Prevent Cloudflare Pages preview domains from being indexed */
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex
+
 /* Cache-control for other icons (limit TTL so Google can refresh) */
 /icons/icon-192x192.png
   Content-Type: image/png
