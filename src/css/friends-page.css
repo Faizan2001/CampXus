@@ -44,7 +44,8 @@ body.page-friends .content-grid {
     -webkit-overflow-scrolling: touch;
     /* Ensure content can scroll past the fixed bottom nav */
     padding-bottom: calc(
-      var(--mobile-bottom-nav-height, 60px) + max(env(safe-area-inset-bottom, 0px), 16px)
+      var(--mobile-bottom-nav-height, 60px) +
+        max(env(safe-area-inset-bottom, 0px), 16px)
     ) !important;
   }
 
@@ -96,10 +97,10 @@ body.page-friends .content-grid {
 
     body.page-friends .friends-scrollable-container,
     body.page-friends .requests-scrollable-container {
-  max-height: min(56vh, 420px) !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  overscroll-behavior: contain;
+      max-height: min(56vh, 420px) !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      overscroll-behavior: contain;
     }
   }
 }
@@ -2032,12 +2033,26 @@ div.friend-options-menu.show div.options-dropdown,
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
+.mutual-schedule-btn.unknown {
+  /* Neutral glass until we resolve actual state to avoid green-by-default */
+  background: linear-gradient(
+    135deg,
+    rgba(148, 163, 184, 0.14) 0%,
+    /* slate-400 */ rgba(100, 116, 139, 0.16) 100% /* slate-500 */
+  );
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
 .mutual-schedule-btn i {
   font-size: 0.875rem;
   color: rgba(34, 197, 94, 0.85);
   transition: all 0.3s ease;
   z-index: 1;
   position: relative;
+}
+.mutual-schedule-btn.unknown i {
+  color: rgba(100, 116, 139, 0.85); /* slate */
 }
 .mutual-schedule-btn.mine-visible {
   border-color: #10b981 !important;
@@ -2099,6 +2114,17 @@ div.friend-options-menu.show div.options-dropdown,
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
+.mutual-location-btn.unknown {
+  /* Neutral glass until we resolve actual state to avoid green-by-default */
+  background: linear-gradient(
+    135deg,
+    rgba(148, 163, 184, 0.14) 0%,
+    rgba(100, 116, 139, 0.16) 100%
+  );
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
 .mutual-location-btn::before {
   content: "";
   position: absolute;
@@ -2127,6 +2153,9 @@ div.friend-options-menu.show div.options-dropdown,
   transition: all 0.3s ease;
   z-index: 1;
   position: relative;
+}
+.mutual-location-btn.unknown i {
+  color: rgba(100, 116, 139, 0.85);
 }
 .mutual-location-btn.restricted {
   background: linear-gradient(
@@ -2729,25 +2758,27 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
 
   /* Desktop: anchor search dropdown to input wrapper and allow overflow */
   .friends-search .search-input-wrapper {
-  position: relative; /* containing block for absolute dropdown */
-  z-index: 60; /* ensure it stacks above subsequent cards */
+    position: relative; /* containing block for absolute dropdown */
+    z-index: 60; /* ensure it stacks above subsequent cards */
   }
   .friends-search .search-input-wrapper #searchResults.search-results {
     position: absolute;
     top: calc(100% + 8px);
-  /* Cap width for readability on wide screens and align to the right */
-  left: auto;
-  right: 0;
-  width: min(100%, 720px);
+    /* Cap width for readability on wide screens and align to the right */
+    left: auto;
+    right: 0;
+    width: min(100%, 720px);
     margin-top: 0; /* handled by top offset */
     z-index: 100; /* above surrounding cards */
-    background: var(--glass-bg-strong); /* darker glass for desktop readability */
+    background: var(
+      --glass-bg-strong
+    ); /* darker glass for desktop readability */
     border: 1px solid var(--glass-border);
     backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
     -webkit-backdrop-filter: var(--glass-backdrop-blur)
       var(--glass-backdrop-saturate);
-  overscroll-behavior: contain; /* prevent scroll chaining to page */
-  box-shadow: var(--friends-search-shadow-active); /* slightly stronger */
+    overscroll-behavior: contain; /* prevent scroll chaining to page */
+    box-shadow: var(--friends-search-shadow-active); /* slightly stronger */
   }
   .friend-card,
   .friend-request-card {

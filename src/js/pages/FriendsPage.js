@@ -307,17 +307,19 @@ class FriendsUI {
 
       this.isInitialized = true;
 
-      // Always load initial data on page visit
+      // 📬 Seed pending location-share requests BEFORE initial render so pending clocks persist on first open
+      await this.seedOutgoingPendingLocationRequests();
+      await this.seedIncomingPendingLocationRequests();
+
+      // 📡 Then attach realtime listeners for subsequent changes
+      await this.setupOutgoingLocationRequestsListener();
+      await this.setupIncomingLocationRequestsListener();
+
+      // Always load initial data on page visit (caches seeded above ensure immediate pending UI)
       this.loadInitialData();
 
       // 📍 Initialize Campus Presence features
       await this.initializeCampusPresence();
-
-      // 📬 Seed and listen to location-share requests (pending) to drive UI state
-      await this.seedOutgoingPendingLocationRequests();
-      await this.seedIncomingPendingLocationRequests();
-      await this.setupOutgoingLocationRequestsListener();
-      await this.setupIncomingLocationRequestsListener();
 
       console.log(
         "🎨 Friends UI initialized successfully with real-time updates, privacy controls, and campus presence"
@@ -1820,13 +1822,13 @@ class FriendsUI {
       <div class="friend-actions-dropdown" data-friend-id="${
         friend.id
       }" aria-hidden="true">
-        <button class="mutual-location-btn" 
+  <button class="mutual-location-btn unknown" 
                 data-friend-id="${friend.id}"
                 aria-label="Mutual location status"
                 title="Mutual location status">
           <i class="fas fa-map-marker-alt"></i>
         </button>
-        <button class="mutual-schedule-btn" 
+  <button class="mutual-schedule-btn unknown" 
                 data-friend-id="${friend.id}"
                 aria-label="Mutual schedule status"
                 title="Mutual schedule status">
@@ -1845,17 +1847,25 @@ class FriendsUI {
     // 🔗 Render friend options menus for each friend card with bilateral privacy
     await this.renderFriendOptionsMenus(friends);
 
+    // ⏱️ Apply any known pending states from caches immediately (no network)
+    this._applyPendingStateFromCachesForAllFriends();
+
+    // 🚀 Fast-path: prefetch friendship docs in parallel and clear "unknown" states
+    // ASAP for both schedule and location buttons before realtime settles
+    try {
+      await this._fastPrefetchFriendshipStatesAndApply(friends);
+    } catch (_) {}
+
     // ⭐ Update Quick Access star states for all friend cards
     await this.updateAllQuickAccessStars(friends);
 
-    // 🔐 Update all friend cards with their actual bilateral privacy status
-    // Add small delay to allow Firestore writes to propagate
-    setTimeout(async () => {
+    // 🔐 Update all friend cards with their actual bilateral privacy status (no artificial delay)
+    // Then set up direct friendship document listeners for immediate icon updates
+    try {
       await this.updateAllFriendCardsBilateralPrivacy(friends);
-      // Set up direct friendship document listeners to ensure immediate icon updates
       await this.setupFriendCardPrivacyListeners(friends);
       this.maybeShowFriendActionsHint(friends);
-    }, 500);
+    } catch (_) {}
 
     // 🧭 Attach drawer toggle interactions (delegated once)
     this._ensureFriendActionDrawerHandlers();
@@ -1879,6 +1889,136 @@ class FriendsUI {
         });
       }
     }
+  }
+
+  /**
+   * 🚀 Fast prefetch of friendship state to clear "unknown" button states quickly
+   * Runs right after initial render; uses parallel reads and applies DOM updates
+   * without waiting for realtime listeners or deeper privacy rendering.
+   *
+   * - Populates caches: scheduleVisibilityState, mutualStatus, locationVisibilityState,
+   *   mutualLocationHandshake
+   * - Immediately clears `.unknown` on mutual buttons and sets basic classes/icons
+   */
+  async _fastPrefetchFriendshipStatesAndApply(friends) {
+    const currentUserUid = currentUser?.state?.user?.uid;
+    if (!currentUserUid || !Array.isArray(friends) || friends.length === 0)
+      return;
+
+    // Build friendship IDs deterministically
+    const entries = friends
+      .map((f) => {
+        const friendId = f.id || f.uid || f.friendId;
+        if (!friendId || friendId === currentUserUid) return null;
+        const friendshipId =
+          f.friendshipId && typeof f.friendshipId === "string"
+            ? f.friendshipId
+            : currentUserUid < friendId
+            ? `${currentUserUid}_${friendId}`
+            : `${friendId}_${currentUserUid}`;
+        return { friend: f, friendId, friendshipId };
+      })
+      .filter(Boolean);
+
+    if (entries.length === 0) return;
+
+    // Parallel fetch all friendship docs
+    const docs = await Promise.all(
+      entries.map(async ({ friendId, friendshipId }) => {
+        try {
+          const doc = await dataManager.getFriendshipDocument(friendshipId);
+          return { friendId, friendshipId, doc };
+        } catch (e) {
+          return { friendId, friendshipId, doc: null };
+        }
+      })
+    );
+
+    // Update caches from docs
+    docs.forEach(({ friendId, doc }) => {
+      if (!doc) return;
+      const sched = doc.scheduleVisibility || {};
+      const loc = doc.locationVisibility || {};
+      const handshake =
+        doc.locationSharingMetadata?.mutualSharingEnabled === true;
+
+      // Cache schedule mutual and my-side for quick icon application
+      const mySched = sched[currentUserUid] === true;
+      const friendSched = sched[friendId] === true;
+      const mutualSched = mySched && friendSched;
+      try {
+        if (!this.scheduleVisibilityState)
+          this.scheduleVisibilityState = new Map();
+        this.scheduleVisibilityState.set(friendId, { my: !!mySched });
+        if (!this.mutualStatus) this.mutualStatus = new Map();
+        this.mutualStatus.set(friendId, !!mutualSched);
+      } catch (_) {}
+
+      // Cache location
+      const myLoc = loc[currentUserUid] === true;
+      const friendLoc = loc[friendId] === true;
+      try {
+        if (!this.locationVisibilityState)
+          this.locationVisibilityState = new Map();
+        this.locationVisibilityState.set(friendId, {
+          my: !!myLoc,
+          friend: !!friendLoc,
+        });
+        if (!this.mutualLocationHandshake)
+          this.mutualLocationHandshake = new Map();
+        this.mutualLocationHandshake.set(friendId, !!handshake);
+      } catch (_) {}
+    });
+
+    // Apply DOM updates in a single pass
+    entries.forEach(({ friend, friendId }) => {
+      // Pending takes precedence: replace the location button with clock if needed
+      const outgoingPending =
+        this.outgoingLocationRequestsMap?.get(friendId) === true;
+      const incomingPending =
+        this.incomingLocationRequestsMap?.get(friendId) === true;
+      const hasPending = outgoingPending || incomingPending;
+      if (hasPending) {
+        this._applyPendingUiIfChanged(friendId, friend.handle, true);
+        // Skip normal location button tweaks when pending
+      } else {
+        // Location button: set classes and clear unknown quickly from cached doc
+        const locBtn = document.querySelector(
+          `.friend-actions-dropdown[data-friend-id="${friendId}"] .mutual-location-btn`
+        );
+        const locIcon = locBtn?.querySelector("i");
+        if (locBtn && locIcon) {
+          const locState = this.locationVisibilityState?.get(friendId) || {
+            my: false,
+            friend: false,
+          };
+          const mutualLoc = !!(locState.my && locState.friend);
+          locIcon.className = "fas fa-map-marker-alt";
+          locBtn.classList.toggle("restricted", !mutualLoc);
+          locBtn.classList.toggle("mine-visible", !!locState.my);
+          locBtn.classList.toggle("mine-hidden", !locState.my);
+          locBtn.classList.remove("unknown");
+        }
+      }
+
+      // Schedule button: set mutual state and clear unknown
+      const schedBtn = document.querySelector(
+        `.friend-actions-dropdown[data-friend-id="${friendId}"] .mutual-schedule-btn`
+      );
+      const schedIcon = schedBtn?.querySelector("i");
+      if (schedBtn && schedIcon) {
+        const mutual = this.mutualStatus?.get(friendId) === true;
+        const mySched =
+          this.scheduleVisibilityState?.get(friendId)?.my === true;
+        schedIcon.className = mutual
+          ? "fas fa-calendar-check"
+          : "fas fa-calendar-times";
+        schedBtn.classList.toggle("restricted", !mutual);
+        schedBtn.classList.toggle("mine-visible", !!mySched);
+        schedBtn.classList.toggle("mine-hidden", !mySched);
+        schedBtn.classList.remove("unknown");
+      }
+    });
   }
 
   /**
@@ -2065,6 +2205,8 @@ class FriendsUI {
         `.friend-actions-dropdown[data-friend-id="${friendId}"] .mutual-schedule-btn`
       );
       if (scheduleBtn) {
+        // Clear unknown placeholder state when resolving real status
+        scheduleBtn.classList.remove("unknown");
         const icon = scheduleBtn.querySelector("i");
         let hasMutualKnown = this.mutualStatus?.has(friendId);
         let mutualAllowed = this.mutualStatus?.get(friendId) === true;
@@ -2211,6 +2353,11 @@ class FriendsUI {
       this._applyPendingUiIfChanged(friendId, friendHandle, shouldShowPending);
 
       if (!shouldShowPending && hasVisKnown) {
+        // Clear unknown placeholder state when we have visibility info
+        const locBtnUnknown = document.querySelector(
+          `.friend-actions-dropdown[data-friend-id="${friendId}"] .mutual-location-btn`
+        );
+        locBtnUnknown?.classList?.remove("unknown");
         // Clear local optimistic pending marker if no longer pending
         try {
           this.outgoingLocationRequestsMap?.set(friendId, false);
@@ -2233,6 +2380,27 @@ class FriendsUI {
       // Clear re-entrancy guard
       this._refreshingStates.delete(friendId);
     }
+  }
+
+  /**
+   * ⚡ Apply pending state immediately from cached maps after rendering friends
+   * to avoid waiting for any network calls. Idempotent.
+   */
+  _applyPendingStateFromCachesForAllFriends() {
+    try {
+      (this.currentFriendsData || []).forEach((friend) => {
+        const friendId = friend.id;
+        const friendHandle = friend.handle;
+        const outgoing =
+          this.outgoingLocationRequestsMap.get(friendId) === true;
+        const incoming =
+          this.incomingLocationRequestsMap.get(friendId) === true;
+        const hasPending = outgoing || incoming;
+        if (!hasPending) return;
+        // If we don't yet know handshake/visibility, still render pending clock to be safe
+        this._applyPendingUiIfChanged(friendId, friendHandle, true);
+      });
+    } catch (_) {}
   }
 
   async maybeShowFriendActionsHint(friends) {
@@ -3228,20 +3396,37 @@ class FriendsUI {
 
           this.isUpdatingPrivacy = true; // suppress heavy re-renders
 
+          // Optimistic flip: compute target state from current UI
           const iconEl = btn.querySelector("i");
-          if (iconEl && iconEl.classList.contains("fa-calendar-check")) {
-            iconEl.className = "fas fa-calendar-times";
-            btn.classList.add("restricted");
+          const wasVisible = btn.classList.contains("mine-visible");
+          const targetVisible = !wasVisible;
+
+          // Apply optimistic classes and icon immediately
+          btn.classList.toggle("mine-visible", targetVisible);
+          btn.classList.toggle("mine-hidden", !targetVisible);
+          if (iconEl) {
+            iconEl.className = targetVisible
+              ? "fas fa-calendar-check"
+              : "fas fa-calendar-times";
           }
 
+          // Persist change
           const newVisible =
             await friendshipPrivacyService.toggleScheduleVisibility(
               userUid,
               friendId
             );
 
-          btn.classList.toggle("mine-visible", !!newVisible);
-          btn.classList.toggle("mine-hidden", !newVisible);
+          // If backend result differs from optimistic target, correct it
+          if (!!newVisible !== targetVisible) {
+            btn.classList.toggle("mine-visible", !!newVisible);
+            btn.classList.toggle("mine-hidden", !newVisible);
+            if (iconEl) {
+              iconEl.className = newVisible
+                ? "fas fa-calendar-check"
+                : "fas fa-calendar-times";
+            }
+          }
 
           if (newVisible) {
             setTimeout(() => {
@@ -3274,6 +3459,18 @@ class FriendsUI {
           }
         } catch (err) {
           console.error("❌ Failed to toggle schedule visibility:", err);
+          // Revert optimistic UI
+          try {
+            const iconEl = btn.querySelector("i");
+            const wasVisible = !btn.classList.contains("mine-hidden");
+            btn.classList.toggle("mine-visible", wasVisible);
+            btn.classList.toggle("mine-hidden", !wasVisible);
+            if (iconEl) {
+              iconEl.className = wasVisible
+                ? "fas fa-calendar-check"
+                : "fas fa-calendar-times";
+            }
+          } catch (_) {}
           notificationManager.showSystemNotification(
             "Failed to update schedule privacy",
             "error",
@@ -3823,34 +4020,36 @@ class FriendsUI {
         avatarConfig: friend.avatarConfig,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
+      // Optimistic UI: flip immediately
+      this.updateStarButtonState(starButton, !isCurrentlyStarred);
 
       let result;
-      if (isCurrentlyStarred) {
-        // Remove from Quick Access
-        result = await friendsManager.removeFromQuickAccess(friendId);
-        console.log(`❌ Removing @${friend.handle} from Quick Access`);
-      } else {
-        // Add to Quick Access
-        result = await friendsManager.addToQuickAccess(friendId, friendInfo);
-        console.log(`⭐ Adding @${friend.handle} to Quick Access`);
+      try {
+        if (isCurrentlyStarred) {
+          // Remove from Quick Access
+          result = await friendsManager.removeFromQuickAccess(friendId);
+          console.log(`❌ Removing @${friend.handle} from Quick Access`);
+        } else {
+          // Add to Quick Access
+          result = await friendsManager.addToQuickAccess(friendId, friendInfo);
+          console.log(`⭐ Adding @${friend.handle} to Quick Access`);
+        }
+      } catch (e) {
+        result = { success: false, message: e?.message || String(e) };
       }
 
-      if (result.success) {
-        // Update star button visual state
-        this.updateStarButtonState(starButton, !isCurrentlyStarred);
-
-        // Log success instead of showing notification
-        const action = isCurrentlyStarred ? "removed from" : "added to";
-        console.log(`@${friend.handle} ${action} Quick Access!`);
-
-        console.log(`✅ Quick Access toggle successful for @${friend.handle}`);
-      } else {
-        // Log error instead of showing notification
+      if (!result.success) {
+        // Revert UI on failure
+        this.updateStarButtonState(starButton, isCurrentlyStarred);
         console.error(result.message || "Failed to update Quick Access");
         console.error(
           `❌ Quick Access toggle failed for @${friend.handle}:`,
           result.message
         );
+      } else {
+        const action = isCurrentlyStarred ? "removed from" : "added to";
+        console.log(`@${friend.handle} ${action} Quick Access!`);
+        console.log(`✅ Quick Access toggle successful for @${friend.handle}`);
       }
     } catch (error) {
       console.error("❌ Error in Quick Access toggle:", error);
@@ -4370,6 +4569,7 @@ class FriendsUI {
           btn.classList.toggle("restricted", !mutualLocationSharing);
           btn.classList.toggle("mine-visible", !!currentUserSharing);
           btn.classList.toggle("mine-hidden", !currentUserSharing);
+          btn.classList.remove("unknown");
           btn.title = mutualLocationSharing
             ? "Mutual: You and this friend share location"
             : currentUserSharing && !friendSharing
