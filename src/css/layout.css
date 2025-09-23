@@ -1233,6 +1233,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     padding-bottom: 16px;
   }
 
+  /* Exception: friends page needs the main scroller to remain scrollable on iOS */
+  body.page-friends .main-content {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
   /* sheet-as-dropdown option on mobile */
   .user-dropdown.mobile-sheet {
     position: fixed;

@@ -36,11 +36,71 @@ body.page-friends .content-grid {
 /* Ensure proper scrolling on mobile */
 @media (max-width: 768px) {
   body.page-friends .main-content {
+    /* Break out of rigid height constraints on mobile to avoid Safari lock-ups */
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    /* Ensure content can scroll past the fixed bottom nav */
+    padding-bottom: calc(
+      var(--mobile-bottom-nav-height, 60px) + max(env(safe-area-inset-bottom, 0px), 16px)
+    ) !important;
+  }
+
+  body.page-friends .content-grid {
+    /* Let main-content be the only scroller; don't clamp children */
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   body.page-friends .main-content .glass-card {
     min-height: fit-content !important;
+  }
+
+  /* Remove nested scroll areas on mobile; rely on main-content scrolling */
+  /* Above ~4 friends, make the friends list scrollable within the card */
+  body.page-friends .friends-scrollable-container {
+    /* Allow roughly 4-5 cards before scrolling kicks in on mobile */
+    max-height: min(56vh, 420px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain;
+  }
+  body.page-friends .requests-scrollable-container {
+    max-height: min(56vh, 420px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain;
+  }
+}
+
+/* iOS-specific safety net: improve momentum scrolling and relax heights */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    body.page-friends .main-content {
+      height: auto !important;
+      min-height: auto !important;
+      max-height: none !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      overscroll-behavior: contain;
+    }
+
+    body.page-friends .content-grid {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+    }
+
+    body.page-friends .friends-scrollable-container,
+    body.page-friends .requests-scrollable-container {
+  max-height: min(56vh, 420px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+    }
   }
 }
 
@@ -106,6 +166,14 @@ body.page-friends .schedule-section {
    ============================================================================ */
 
 /* Input */
+.glass-card.friends-search {
+  /* Allow the dropdown to overflow and layer above following cards */
+  position: relative;
+  z-index: 50;
+  overflow: visible;
+  /* Ensure consistent hit area on iOS even when content is light */
+  min-height: 96px;
+}
 .friends-search .search-input-wrapper {
   display: flex;
   gap: 0.5rem;
@@ -155,16 +223,30 @@ body.page-friends .schedule-section {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   max-height: 0;
   overflow: hidden;
-  background: var(--friends-color-transparent);
+  /* Stronger base to avoid excessive transparency on desktop */
+  background: var(--glass-bg);
   border: none;
   border-radius: 8px;
   box-shadow: var(--friends-search-shadow);
+  pointer-events: none; /* enabled only when .show, prevents accidental hits */
 }
 .search-results.show {
   opacity: 1;
   transform: translateY(0) scale(1);
   max-height: 400px;
   box-shadow: var(--friends-search-shadow-active);
+  pointer-events: auto; /* capture clicks when visible */
+}
+
+@media (min-width: 768px) {
+  /* Anchor dropdown under input wrapper, right-aligned, cap width, prevent scroll chaining */
+  #searchResults.search-results {
+    position: absolute;
+    right: 0;
+    left: auto;
+    width: min(100%, 720px);
+    overscroll-behavior: contain;
+  }
 }
 
 .search-results-header {
@@ -173,8 +255,8 @@ body.page-friends .schedule-section {
   align-items: center;
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: var(--friends-search-header-bg);
-  border: var(--friends-search-header-border);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
   border-radius: 8px 8px 0 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -236,7 +318,8 @@ body.page-friends .schedule-section {
   border-radius: 0 0 8px 8px;
   border: var(--friends-search-container-border);
   border-top: none;
-  background: var(--friends-search-container-bg);
+  /* Make content area more opaque and readable */
+  background: var(--glass-bg-strong);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   scrollbar-width: thin;
@@ -664,7 +747,204 @@ body.page-friends .schedule-section {
   gap: 8px;
   flex-shrink: 0;
   align-items: center;
-  min-width: 200px;
+  justify-content: flex-end;
+  width: -moz-fit-content;
+  width: fit-content;
+  min-width: -moz-fit-content;
+  min-width: fit-content;
+}
+
+/* --- Actions drawer pattern --- */
+.friend-actions {
+  position: relative;
+  /* Fit content so friend-info can take more space */
+  width: auto;
+  min-width: auto;
+  flex: 0 0 auto;
+  width: -moz-fit-content;
+  width: fit-content;
+  min-width: -moz-fit-content;
+  min-width: fit-content;
+}
+.friend-actions-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* keep star comfortably spaced */
+}
+.drawer-toggle-btn {
+  border-radius: 12px;
+  width: var(--friends-action-size);
+  height: var(--friends-action-size);
+  min-width: var(--friends-action-size);
+  min-height: var(--friends-action-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  /* Slight elevated glass look */
+  background: linear-gradient(
+    135deg,
+    var(--friends-button-glass-bg-light) 0%,
+    var(--friends-button-glass-bg-lighter) 100%
+  );
+  border: var(--friends-btn-friend-menu-border);
+  color: var(--text-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 3px 10px var(--friends-button-shadow-dark-subtle),
+    0 1px 2px var(--friends-button-shadow-dark-faint),
+    inset 0 1px 0 var(--friends-button-highlight-white-medium),
+    inset 0 -1px 0 var(--friends-button-shadow-dark-active);
+  position: relative;
+  overflow: hidden;
+}
+.drawer-toggle-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 58%;
+  background: linear-gradient(
+    180deg,
+    var(--friends-button-highlight-white-medium) 0%,
+    var(--friends-button-highlight-white-subtle) 45%,
+    transparent 100%
+  );
+  border-radius: 12px 12px 0 0;
+  pointer-events: none;
+}
+.drawer-toggle-btn:hover {
+  background: linear-gradient(
+    135deg,
+    var(--friends-button-glass-bg-hover-light) 0%,
+    var(--friends-button-glass-bg-hover-medium) 100%
+  );
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 5px 16px var(--friends-button-shadow-dark-strong),
+    0 2px 6px var(--friends-button-shadow-dark-hover),
+    0 1px 2px var(--friends-button-shadow-dark-faint),
+    inset 0 1px 0 var(--friends-button-highlight-white-hover),
+    inset 0 -1px 0 var(--friends-button-shadow-dark-hover-light);
+}
+.drawer-toggle-btn i {
+  font-size: 0.875rem;
+}
+
+/* The hidden drawer area containing the existing toggles + 3-dots menu */
+/* Full-width dropdown drawer placed under the friend card (sibling element) */
+.friend-actions-dropdown {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* align icons to right */
+  gap: 8px;
+  width: 100%;
+  opacity: 0;
+  overflow: hidden;
+  max-height: 0;
+  transform: translateY(-8px);
+  transition: max-height 260ms cubic-bezier(0.4, 0, 0.2, 1), opacity 180ms ease,
+    transform 260ms cubic-bezier(0.4, 0, 0.2, 1), padding 200ms ease,
+    margin 200ms ease, box-shadow 200ms ease;
+  padding: 0 10px; /* space for right-aligned row */
+  margin: 0 0 6px 0;
+  background: transparent;
+  position: relative;
+  /* Allow clicks to bubble to container listeners; disabled when fully closed via max-height */
+  pointer-events: auto;
+}
+
+/* When card is open, reveal the drawer smoothly */
+.friend-card.drawer-open + .friend-actions-dropdown[data-friend-id] {
+  opacity: 1;
+  max-height: 56px; /* fits the row of buttons */
+  transform: translateY(0);
+  position: relative;
+  /* Ensure the dropdown sits above the friend-actions row for clickability */
+  z-index: 10;
+  pointer-events: auto;
+  padding: 6px 12px;
+  margin-top: 4px; /* tighter to feel connected */
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    var(--friends-button-glass-bg-light) 0%,
+    var(--friends-button-glass-bg-lighter) 100%
+  );
+  border: var(--friends-btn-friend-menu-border);
+  box-shadow: 0 10px 24px var(--friends-button-shadow-dark-strong),
+    0 4px 12px var(--friends-button-shadow-dark-hover),
+    0 2px 6px var(--friends-button-shadow-dark-faint),
+    inset 0 1px 0 var(--friends-button-highlight-white-medium);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* subtle top highlight to visually connect with the card */
+.friend-card.drawer-open + .friend-actions-dropdown[data-friend-id]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--friends-card-highlight);
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+/* Maintain minimum 44px tap targets */
+.drawer-toggle-btn,
+.quick-access-star,
+.mutual-schedule-btn,
+.mutual-location-btn {
+  width: max(44px, var(--friends-action-size));
+  height: max(44px, var(--friends-action-size));
+  min-width: max(44px, var(--friends-action-size));
+  min-height: max(44px, var(--friends-action-size));
+}
+
+/* Prevent cramped spacing between arrow and star */
+.friend-actions-compact .drawer-toggle-btn {
+  margin-right: 4px;
+}
+
+/* Ensure the star remains always visible, drawer stays to its left */
+.friend-actions {
+  gap: 10px;
+}
+
+/* Small screens: keep inline; compact row fit-content at end */
+@media (max-width: 480px) {
+  .friend-card {
+    flex-direction: row;
+    align-items: center;
+  }
+  .friend-actions {
+    width: -moz-fit-content;
+    width: fit-content;
+  }
+}
+
+/* Keep the entire actions stack above info while open */
+.friend-card.drawer-open .friend-actions {
+  position: relative;
+  z-index: 6;
+}
+
+/* Align dropdown buttons in a row inside the full-width drawer */
+.friend-actions-dropdown > .mutual-location-btn,
+.friend-actions-dropdown > .mutual-schedule-btn,
+.friend-actions-dropdown > .friend-options-container {
+  display: inline-flex;
+  vertical-align: middle;
+  pointer-events: auto;
+}
+.friend-actions-dropdown {
+  white-space: nowrap;
 }
 
 .btn-view-schedule {
@@ -1632,6 +1912,17 @@ div.friend-options-menu.show div.options-dropdown,
   margin-right: 4px;
 }
 
+/* Exact 44x44 sizing for core action buttons across all devices */
+.quick-access-star,
+.mutual-schedule-btn,
+.mutual-location-btn,
+.friend-options-menu .options-button {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
 /* Star */
 .quick-access-star {
   background: linear-gradient(
@@ -1788,6 +2079,13 @@ div.friend-options-menu.show div.options-dropdown,
 }
 .mutual-schedule-btn.restricted i {
   color: rgba(239, 68, 68, 0.9);
+}
+
+/* Ensure mutual buttons in the dropdown receive clicks */
+.friend-actions-dropdown .mutual-schedule-btn,
+.friend-actions-dropdown .mutual-location-btn {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Mutual location */
@@ -2169,7 +2467,6 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .friend-actions {
     flex-shrink: 0;
     max-width: fit-content;
-    min-width: 150px;
     justify-content: flex-end;
   }
 
@@ -2245,6 +2542,15 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     padding: 0.5rem 0.4rem;
     gap: 0.75rem;
   }
+  /* Stack the search input and button to avoid cramped layout between 480–768px */
+  .friends-search .search-input-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .friends-search .search-btn {
+    width: 100%;
+  }
   .friends-container .glass-card {
     border-bottom: none;
     margin-bottom: 0;
@@ -2273,7 +2579,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .friend-actions {
     gap: 6px;
     min-height: 44px;
-    min-width: 175px;
+    min-width: fit-content;
   }
 
   /* Scrollable containers */
@@ -2422,19 +2728,26 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   }
 
   /* Desktop: anchor search dropdown to input wrapper and allow overflow */
-  .glass-card.friends-search {
-    overflow: visible; /* allow dropdown to extend beyond card if needed */
-  }
   .friends-search .search-input-wrapper {
-    position: relative; /* containing block for absolute dropdown */
+  position: relative; /* containing block for absolute dropdown */
+  z-index: 60; /* ensure it stacks above subsequent cards */
   }
   .friends-search .search-input-wrapper #searchResults.search-results {
     position: absolute;
     top: calc(100% + 8px);
-    left: 0;
-    right: 0; /* default: span full wrapper width */
+  /* Cap width for readability on wide screens and align to the right */
+  left: auto;
+  right: 0;
+  width: min(100%, 720px);
     margin-top: 0; /* handled by top offset */
-    z-index: 40; /* above surrounding cards */
+    z-index: 100; /* above surrounding cards */
+    background: var(--glass-bg-strong); /* darker glass for desktop readability */
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
+    -webkit-backdrop-filter: var(--glass-backdrop-blur)
+      var(--glass-backdrop-saturate);
+  overscroll-behavior: contain; /* prevent scroll chaining to page */
+  box-shadow: var(--friends-search-shadow-active); /* slightly stronger */
   }
   .friend-card,
   .friend-request-card {
@@ -2444,7 +2757,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     min-height: 60px;
   }
   .friend-actions {
-    min-width: 180px;
+    min-width: fit-content;
     justify-content: flex-end;
   }
   .friend-card .friend-avatar {
@@ -2486,6 +2799,13 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
 
 /* --- D. ≥1024px (Desktop) ------------------------------------------------- */
 @media (min-width: 1024px) {
+  .friends-search .search-input-wrapper {
+    position: relative;
+    z-index: 60;
+  }
+  .friends-search .search-input-wrapper #searchResults.search-results {
+    z-index: 60;
+  }
   .friends-scrollable-container,
   .requests-scrollable-container {
     max-height: 500px;
@@ -2578,7 +2898,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   }
 
   .friend-actions {
-    min-width: 150px;
+    min-width: fit-content;
   }
 }
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -2628,7 +2948,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   }
 
   .friend-actions {
-    min-width: 175px;
+    min-width: fit-content;
   }
 }
 @media (min-width: 1024px) {
