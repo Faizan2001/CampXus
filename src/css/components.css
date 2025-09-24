@@ -711,7 +711,7 @@ body.dark-mode .notifications-card:active {
   border: 1px solid var(--input-border);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 1rem;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
   resize: none;

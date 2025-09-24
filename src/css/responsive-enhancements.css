@@ -48,6 +48,27 @@ ENHANCEMENTS INCLUDED:
   --content-max-width: clamp(320px, 95vw, 1400px);
 }
 
+/* Prevent iOS form zoom by keeping interactive fields at 16px+ */
+@supports (-webkit-touch-callout: none) {
+  input:not([type]),
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"],
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
 /* ===== ENHANCED VIEWPORT AND CONTAINER SUPPORT ===== */
 
 /* Better mobile viewport handling */
