@@ -36,6 +36,7 @@ class OnboardingService {
       // Switch session suppression namespace when UID changes
       const nextUid = snapshot?.user?.uid || null;
       if (nextUid !== this._currentUid) {
+        const prevUid = this._currentUid;
         this._currentUid = nextUid;
         // Load per-user session dismissed set; for logged-out (null) default to empty
         this._sessionDismissed = this._loadSessionDismissed(this._currentUid);
@@ -47,6 +48,17 @@ class OnboardingService {
   this._profileReady = false; // Wait for the new profile/onboarding to load
   // Drop any pending remote updates from the previous user
   this._pendingRemoteUpdates = {};
+
+        // Notify UI modules (Home/Friends) to clear any in-memory hint queues/state
+        try {
+          document.dispatchEvent(
+            new CustomEvent("onboarding:user-switched", {
+              detail: { previousUid: prevUid, nextUid },
+            })
+          );
+        } catch (_) {
+          /* ignore dispatch failures in non-DOM contexts */
+        }
       }
 
       const profile = snapshot?.profile;

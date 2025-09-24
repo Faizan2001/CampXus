@@ -362,6 +362,20 @@ function scheduleOnboardingTimeout(callback, delay = 800) {
   return timeoutId;
 }
 
+// Reset local onboarding hint state when account switches so new users see hints
+document.addEventListener("onboarding:user-switched", () => {
+  try {
+    hideAllCoachMarks();
+  } catch (_) {}
+  try {
+    clearOnboardingTimeouts();
+  } catch (_) {}
+  hintSessionState.clear();
+  controlsHintsStarted = false;
+  controlsHintsActive = false;
+  pendingTapHint = false;
+});
+
 function clearOnboardingTimeouts() {
   onboardingTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
   onboardingTimeouts.clear();

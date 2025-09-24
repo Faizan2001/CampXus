@@ -35,6 +35,7 @@ import { onboardingService } from "../services/onboarding/OnboardingService.js";
 import {
   showCoachMark,
   hasActiveCoachMarks,
+  hideAllCoachMarks,
 } from "../services/onboarding/CoachMarkManager.js";
 import { logManager } from "../utils/debug/LogManager.js";
 
@@ -123,6 +124,25 @@ function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
   const available = viewportWidth - 48;
   return Math.max(minimum, Math.min(preferred, available));
 }
+
+// Ensure per-user onboarding: clear any local hint flags when account changes
+document.addEventListener("onboarding:user-switched", () => {
+  try {
+    friendsUI?.campusPresenceHintObserver?.disconnect?.();
+  } catch (_) {}
+  try {
+    hideAllCoachMarks();
+  } catch (_) {}
+  try {
+    // Reset local flags used to gate hint sequences
+    const ui = friendsUI;
+    if (ui) {
+      ui.friendActionsHintShown = false;
+      ui.friendActionsHintPrimed = false;
+      ui.campusPresenceHintShown = false;
+    }
+  } catch (_) {}
+});
 
 function didUserAcknowledgeHint(reason) {
   return reason === "primary" || reason === "secondary";
@@ -1181,23 +1201,22 @@ class FriendsUI {
       toggleContainer.innerHTML = "";
       await this.globalLocationToggle.render(toggleContainer);
 
-      console.log("✅ Header location sharing toggle added successfully");
+      logInfo("✅ Header location sharing toggle added successfully");
     } catch (error) {
-      console.error("❌ Error initializing header location toggle:", error);
+      logWarn("❌ Error initializing header location toggle", { error });
     }
   }
 
   async maybeShowCampusPresenceHint(retryCount = 12) {
-    // Disabled: campus presence glass card hint removed
-    return;
-    devLog("[Friends Onboarding] maybeShowCampusPresenceHint invoked", {
+    // Re-enabled: show campus presence hint and auto-scroll to header if needed
+    logInfo("[Friends Onboarding] maybeShowCampusPresenceHint invoked", {
       retryCount,
       hintShown: this.campusPresenceHintShown,
     });
     if (this.campusPresenceHintShown) return;
     await onboardingService.init().catch(() => {});
     if (!onboardingService.shouldShow("campusPresenceHintSeen")) {
-      devLog("[Friends Onboarding] Presence hint suppressed by service");
+      logInfo("[Friends Onboarding] Presence hint suppressed by service");
       return;
     }
 
@@ -1217,7 +1236,7 @@ class FriendsUI {
       ".header-location-toggle-container"
     );
     if (!toggleContainer && retryCount > 0) {
-      devLog("[Friends Onboarding] Waiting for presence header container", {
+      logInfo("[Friends Onboarding] Waiting for presence header container", {
         retryCount,
       });
       setTimeout(
@@ -1229,7 +1248,7 @@ class FriendsUI {
 
     const scheduleRetry = () => {
       if (retryCount > 0) {
-        devLog("[Friends Onboarding] Scheduling presence hint retry", {
+        logInfo("[Friends Onboarding] Scheduling presence hint retry", {
           nextRetry: retryCount - 1,
         });
         setTimeout(
@@ -1242,29 +1261,31 @@ class FriendsUI {
     const attemptShow = () => {
       if (this.campusPresenceHintShown) return;
       if (!isElementVisible(presenceSection)) {
-        devLog("[Friends Onboarding] Presence section not visible yet");
+        logInfo("[Friends Onboarding] Presence section not visible yet");
         scheduleRetry();
         return;
       }
       const hintViewportReady = isElementInViewport(presenceSection, 0.1);
       const hintViewportFallback = retryCount <= 1;
       if (!hintViewportReady && !hintViewportFallback) {
-        devLog("[Friends Onboarding] Presence section not in viewport yet");
+        // Auto-scroll the section into view as requested, then retry soon
+        try {
+          presenceSection.scrollIntoView({ block: "center", behavior: "smooth" });
+        } catch (_) { /* ignore */ }
+        logInfo("[Friends Onboarding] Scrolling presence section into view");
         scheduleRetry();
         return;
       }
 
       if (hasActiveCoachMarks()) {
-        devLog(
-          "[Friends Onboarding] Presence hint waiting for other coachmark"
-        );
+        logInfo("[Friends Onboarding] Presence hint waiting for other coachmark");
         setTimeout(attemptShow, FRIENDS_HINT_RETRY_DELAY);
         return;
       }
 
       this.campusPresenceHintShown = true;
       this.detachCampusPresenceHintObserver();
-      devLog("[Friends Onboarding] Showing campus presence hint", {
+      logInfo("[Friends Onboarding] Showing campus presence hint", {
         retryCount,
       });
 
@@ -1304,7 +1325,7 @@ class FriendsUI {
                 .catch(() => {});
             } else {
               this.campusPresenceHintShown = false;
-              devLog(
+              logInfo(
                 "[Friends Onboarding] Presence hint dismissed without acknowledgement, retrying",
                 { reason: result?.reason }
               );
@@ -1336,10 +1357,9 @@ class FriendsUI {
         if (!visibleEntry) {
           return;
         }
-        devLog(
-          "[Friends Onboarding] Presence section entered viewport via observer",
-          { intersectionRatio: visibleEntry.intersectionRatio }
-        );
+        logInfo("[Friends Onboarding] Presence section entered viewport via observer", {
+          intersectionRatio: visibleEntry.intersectionRatio,
+        });
         this.detachCampusPresenceHintObserver();
         attemptShow();
       },
@@ -1353,9 +1373,23 @@ class FriendsUI {
     try {
       this.campusPresenceHintObserver.observe(presenceSection);
     } catch (error) {
-      console.warn("⚠️ Unable to observe campus presence hint target:", error);
+      logWarn("⚠️ Unable to observe campus presence hint target", { error });
       this.campusPresenceHintObserver = null;
     }
+  }
+
+  /**
+   * 🧹 Detach and clear the campus presence IntersectionObserver if present
+   */
+  detachCampusPresenceHintObserver() {
+    try {
+      if (this.campusPresenceHintObserver && typeof this.campusPresenceHintObserver.disconnect === "function") {
+        this.campusPresenceHintObserver.disconnect();
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    this.campusPresenceHintObserver = null;
   }
 
   /**
@@ -2063,7 +2097,7 @@ class FriendsUI {
         this._onDrawerToggleClick
       );
 
-      // Close on outside click (but ignore when modal/coachmark overlays are active)
+      // Close on outside click (ignore when modal/coachmark overlays are active)
       this._onDocumentClickCloseDrawer = (ev) => {
         const anyOpen = document.querySelector(".friend-card.drawer-open");
         if (!anyOpen) return;
@@ -2071,8 +2105,11 @@ class FriendsUI {
         // If a modal or coachmark overlay is active, don't auto-close the drawer
         const modalActive = document.querySelector(".modal-overlay.active");
         const coachmarkActive = document.querySelector(
-          ".coachmark-overlay.active"
+          ".coachmark-overlay, .coachmark-overlay.active"
         );
+        try {
+          if (hasActiveCoachMarks && hasActiveCoachMarks()) return;
+        } catch (_) {}
         if (modalActive || coachmarkActive) return;
 
         const withinOpen = ev.target.closest?.(".friend-card.drawer-open");
@@ -2096,8 +2133,11 @@ class FriendsUI {
           // If a modal or coachmark overlay is active, don't also close the drawer
           const modalActive = document.querySelector(".modal-overlay.active");
           const coachmarkActive = document.querySelector(
-            ".coachmark-overlay.active"
+            ".coachmark-overlay, .coachmark-overlay.active"
           );
+          try {
+            if (hasActiveCoachMarks && hasActiveCoachMarks()) return;
+          } catch (_) {}
           if (modalActive || coachmarkActive) return;
 
           const openCard = document.querySelector(".friend-card.drawer-open");
@@ -2422,7 +2462,7 @@ class FriendsUI {
 
     const firstCard = this.elements.friendsList?.querySelector(".friend-card");
     if (!firstCard) {
-      devLog("[Friends Onboarding] Waiting for first friend card");
+      logInfo("[Friends Onboarding] Waiting for first friend card");
       setTimeout(
         () => this.maybeShowFriendActionsHint(friends),
         FRIENDS_HINT_RETRY_DELAY
@@ -2432,10 +2472,19 @@ class FriendsUI {
 
     // Ensure the external actions drawer is open for the first card so buttons exist in DOM
     const firstFriendId = firstCard.dataset.friendId;
+    const wasOpen = firstCard.classList.contains("drawer-open");
     if (firstFriendId) {
       try {
+        logInfo("[Friends Onboarding] Ensuring drawer open before hints", {
+          friendId: firstFriendId,
+          wasOpen,
+        });
         this.toggleFriendActionsDrawer(firstFriendId, true);
-      } catch (_) {}
+      } catch (e) {
+        logWarn("[Friends Onboarding] Failed to open drawer before hints", {
+          error: e,
+        });
+      }
     }
 
     // Query actions from the external dropdown sibling, not inside the card
@@ -2447,7 +2496,7 @@ class FriendsUI {
     const starBtn = firstCard.querySelector(".quick-access-star");
 
     if (!locationBtn || !scheduleBtn || !starBtn) {
-      devLog("[Friends Onboarding] Friend action buttons not ready", {
+      logInfo("[Friends Onboarding] Friend action buttons not ready", {
         hasLocationBtn: !!locationBtn,
         hasScheduleBtn: !!scheduleBtn,
         hasStarBtn: !!starBtn,
@@ -2471,41 +2520,30 @@ class FriendsUI {
     }
 
     this.friendActionsHintShown = true;
-    devLog("[Friends Onboarding] Starting friend actions hint sequence");
+    logInfo("[Friends Onboarding] Starting friend actions hint sequence", {
+      friendId: firstFriendId,
+      wasOpen,
+    });
+
+    const ensureOpen = () => {
+      try {
+        const cardNow = this.elements.friendsList?.querySelector(
+          `.friend-card[data-friend-id="${firstFriendId}"]`
+        );
+        const isOpenNow = cardNow?.classList?.contains("drawer-open");
+        if (!isOpenNow) {
+          logInfo("[Friends Onboarding] Re-opening drawer for hint step", {
+            friendId: firstFriendId,
+          });
+          this.toggleFriendActionsDrawer(firstFriendId, true);
+        }
+      } catch (e) {
+        logWarn("[Friends Onboarding] Failed to ensure drawer open", { error: e });
+      }
+    };
 
     const steps = [
-      {
-        targetResolver: () =>
-          this.elements.friendsList?.querySelector(
-            `.friend-actions-dropdown[data-friend-id="${firstFriendId}"] .mutual-location-btn`
-          ),
-        buildConfig: () => ({
-          id: "friend-actions-location",
-          title: "Share campus status",
-          description:
-            "Toggle this to let each other know when you're on campus. You can go private anytime.",
-          highlightShape: "circle",
-          responsivePlacement: { mobile: "bottom", desktop: "top" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
-          primaryButton: { text: "Next" },
-        }),
-      },
-      {
-        targetResolver: () =>
-          this.elements.friendsList?.querySelector(
-            `.friend-actions-dropdown[data-friend-id="${firstFriendId}"] .mutual-schedule-btn`
-          ),
-        buildConfig: () => ({
-          id: "friend-actions-schedule",
-          title: "Schedule visibility",
-          description:
-            "Let this friend peek at your timetable when planning together, and turn it off anytime.",
-          highlightShape: "circle",
-          responsivePlacement: { mobile: "top", desktop: "top" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
-          primaryButton: { text: "Next" },
-        }),
-      },
+      // 1) Quick Access star first
       {
         targetResolver: () => firstCard.querySelector(".quick-access-star"),
         buildConfig: () => ({
@@ -2519,11 +2557,78 @@ class FriendsUI {
           primaryButton: { text: "Next" },
         }),
       },
+      // 2) Drawer toggle button hint – then open the drawer after acknowledge
       {
-        targetResolver: () =>
-          this.elements.friendsList?.querySelector(
+        targetResolver: () => firstCard.querySelector(".drawer-toggle-btn"),
+        buildConfig: () => ({
+          id: "friend-actions-drawer-toggle",
+          title: "More friend actions",
+          description:
+            "Open this drawer to manage campus status, schedule sharing, and more options.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "top", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Next" },
+          onPrimary: () => {
+            try {
+              logInfo("[Friends Onboarding] Opening drawer after toggle hint", {
+                friendId: firstFriendId,
+              });
+              this.toggleFriendActionsDrawer(firstFriendId, true);
+            } catch (e) {
+              logWarn("[Friends Onboarding] Failed opening drawer after hint", {
+                error: e,
+              });
+            }
+          },
+        }),
+      },
+      // 3) Mutual location
+      {
+        targetResolver: () => {
+          ensureOpen();
+          return this.elements.friendsList?.querySelector(
+            `.friend-actions-dropdown[data-friend-id="${firstFriendId}"] .mutual-location-btn`
+          );
+        },
+        buildConfig: () => ({
+          id: "friend-actions-location",
+          title: "Share campus status",
+          description:
+            "Toggle this to let each other know when you're on campus. You can go private anytime.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "bottom", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Next" },
+        }),
+      },
+      // 4) Mutual schedule
+      {
+        targetResolver: () => {
+          ensureOpen();
+          return this.elements.friendsList?.querySelector(
+            `.friend-actions-dropdown[data-friend-id="${firstFriendId}"] .mutual-schedule-btn`
+          );
+        },
+        buildConfig: () => ({
+          id: "friend-actions-schedule",
+          title: "Schedule visibility",
+          description:
+            "Let this friend peek at your timetable when planning together, and turn it off anytime.",
+          highlightShape: "circle",
+          responsivePlacement: { mobile: "top", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          primaryButton: { text: "Next" },
+        }),
+      },
+      // 5) More options button
+      {
+        targetResolver: () => {
+          ensureOpen();
+          return this.elements.friendsList?.querySelector(
             `.friend-actions-dropdown[data-friend-id="${firstFriendId}"] .friend-options-container .options-button`
-          ),
+          );
+        },
         buildConfig: () => ({
           id: "friend-actions-more",
           title: "More actions",
@@ -2554,10 +2659,20 @@ class FriendsUI {
         this.friendActionsHintPrimed = false;
         return;
       }
-      devLog("[Friends Onboarding] Friend action hint acknowledged", {
+      logInfo("[Friends Onboarding] Friend action hint acknowledged", {
         id: step.buildConfig().id,
       });
     }
+
+    // Restore drawer state to original if we opened it only for hints
+    try {
+      if (!wasOpen) {
+        logInfo("[Friends Onboarding] Restoring drawer closed state", {
+          friendId: firstFriendId,
+        });
+        this.toggleFriendActionsDrawer(firstFriendId, false);
+      }
+    } catch (_) {}
 
     onboardingService
       .markSeen("friendActionsHintSeen", { allowPending: true })
@@ -5131,7 +5246,12 @@ document.addEventListener("spa:page:load", (event) => {
     // Use the singleton instance instead of creating a new one
     friendsUI.init();
 
-    // (campus presence hint removed)
+    // Show campus presence onboarding hint after initial render
+    setTimeout(() => {
+      try {
+        friendsUI.maybeShowCampusPresenceHint();
+      } catch (_) { /* non-fatal */ }
+    }, 900);
 
     // Also try to kick off friend action hints shortly after load,
     // if the user already has friends rendered.
