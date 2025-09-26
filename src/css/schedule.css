@@ -107,6 +107,24 @@ body:not(.dark-mode) .schedule-section {
 
 .schedule-header-actions { display: flex; align-items: center; gap: 12px; }
 
+/* Header Compare action styles */
+.compare-action-btn {
+  border-color: var(--primary-glass) !important;
+}
+.compare-action-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+.compare-action-btn.active {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px var(--primary-glass) !important;
+  animation: compare-activate 320ms ease;
+}
+.compare-action-btn.active i {
+  transform: rotate(180deg);
+}
+
 /* Pin button */
 .pin-btn {
   padding: 8px 12px;
@@ -1184,16 +1202,25 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 
 .user-avatar-container {
   flex-shrink: 0; position: relative; z-index: 2; min-height: fit-content; display: flex; align-items: center;
-  overflow: visible; padding: 0.3rem 0.5rem 0.25rem;
+  overflow: visible; padding: 0.5rem 0.5rem 0.4rem; /* extra vertical room for selection glow */
 }
 .friends-scroll-container {
-  flex: 1; position: relative; overflow-x: auto; overflow-y: hidden; padding: 0;
+  flex: 1; position: relative; overflow-x: auto; overflow-y: visible; padding: 0; /* allow vertical glow to show */
   scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
 }
 .friends-scroll-container::-webkit-scrollbar { display: none; }
 .friends-avatars-list {
   display: flex; gap: 0.75rem; align-items: center;
-  padding: 0.3rem 1rem 0.25rem 0.5rem; min-height: fit-content; width: fit-content;
+  padding: 0.5rem 1rem 0.4rem 0.75rem; /* extra left padding to avoid first-avatar cutoff */
+  min-height: fit-content; width: fit-content;
+}
+
+/* Nudge the first avatar slightly away from the left edge */
+.friends-avatars-list > .friend-avatar-item:first-child { margin-left: 0.25rem; }
+
+@media (max-width: 480px) {
+  .friends-avatars-list { padding-left: 0.65rem; }
+  .friends-avatars-list > .friend-avatar-item:first-child { margin-left: 0.2rem; }
 }
 
 .friend-avatar-item {
@@ -1282,6 +1309,13 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 .btn-retry:active { transform: translateY(0); }
 
 .horizontal-friends-bar.compare-mode { border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+/* In compare mode, hide the normal purple selection ring entirely */
+.horizontal-friends-bar.compare-mode .friend-avatar-item .selection-ring:not(.compare-selected-ring) {
+  opacity: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  transform: none !important;
+}
 .friend-avatar-item.compare-mode-available { animation: attention-wiggle 0.3s ease-in-out infinite alternate; }
 .friend-avatar-item.compare-mode-available .avatar-container {
   box-shadow: 0 0 0 2px rgba(139,92,246,0.25), 0 6px 18px rgba(139,92,246,0.25);
@@ -1381,9 +1415,9 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 
   /* Friends bar sizing */
   .horizontal-friends-bar { padding: 0 !important; margin: 0; border-radius: 0; }
-  .friends-avatars-list { gap: 0.6rem; padding: 0 !important; }
+  .friends-avatars-list { gap: 0.6rem; padding: 0.4rem 0 0.35rem 0 !important; }
   .friend-avatar-item { min-width: 52px; padding: 0.25rem 0.2rem 0; }
-  .user-avatar-container { padding: 0.25rem 0.2rem 0 0; }
+  .user-avatar-container { padding: 0.4rem 0.2rem 0.35rem 0; }
   .avatar-container { width: 52px; height: 52px; }
   .avatar-label { font-size: 0.7rem; max-width: 64px; margin-top: 0.25rem; }
 }
@@ -1490,9 +1524,9 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 
   /* Friends bar */
   .horizontal-friends-bar { padding: 0 !important; border-radius: 0; }
-  .friends-avatars-list { gap: 0.5rem; padding: 0 !important; }
-  .friend-avatar-item { min-width: 48px; padding: 0.2rem 0.15rem 0; }
-  .user-avatar-container { padding: 0.2rem 0.15rem 0 0; }
+  .friends-avatars-list { gap: 0.5rem; padding: 0.35rem 0 0.3rem 0 !important; }
+  .friend-avatar-item { min-width: 48px; padding: 0.25rem 0.15rem 0; }
+  .user-avatar-container { padding: 0.35rem 0.15rem 0.3rem 0; }
   .avatar-container { width: 48px; height: 48px; }
   .avatar-label { font-size: 0.65rem; max-width: 60px; margin-top: 0.2rem; }
 }

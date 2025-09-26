@@ -234,16 +234,6 @@ export class HorizontalFriendsBar {
             <!-- Friend avatars will be rendered here (SCROLLABLE) -->
           </div>
         </div>
-        <div class="compare-button-container" id="${this.containerId}-compare">
-          <button class="btn-compare compare-button round-compare-btn" 
-                  type="button" 
-                  title="Toggle Compare Mode"
-                  id="roundCompareBtn"
-                  aria-label="Toggle Compare Mode">
-            <i class="fas fa-balance-scale" aria-hidden="true"></i>
-          </button>
-          <div class="compare-button-label" aria-hidden="true">Compare</div>
-        </div>
       </div>
     `;
 
@@ -255,12 +245,8 @@ export class HorizontalFriendsBar {
     this.avatarsContainer = document.getElementById(
       `${this.containerId}-avatars`
     );
-    this.compareButtonContainer = document.getElementById(
-      `${this.containerId}-compare`
-    );
-
     console.log(
-      "🎨 UI structure created for HorizontalFriendsBar with round compare button"
+      "🎨 UI structure created for HorizontalFriendsBar (no embedded compare button)"
     );
   }
 
@@ -351,8 +337,38 @@ export class HorizontalFriendsBar {
             // Only apply if component is still alive
             if (!this.isInitialized) return;
             this.quickAccessFriends = hydrated;
-            // Refresh presence dots with latest data without blowing away timers
-            this.refreshPresenceDotsWithLatestData();
+            this.sortQuickAccessFriendsForDisplay();
+            // Re-render friends list to apply new ordering and refresh presence dots
+            if (this.avatarsContainer) {
+              this.avatarsContainer.innerHTML = "";
+              // Preserve mapping and state for the user avatar
+              const userEl = this.avatarElements.get("user") || null;
+              // Remove only friend entries from the map
+              this.avatarElements.forEach((_, key) => {
+                if (key !== "user") this.avatarElements.delete(key);
+              });
+              // Re-render friends only (user avatar remains untouched)
+              this.renderFriendsAvatars(this.avatarsContainer);
+              // Ensure the user avatar is still tracked in the map
+              if (userEl) this.avatarElements.set("user", userEl);
+              // If compare mode is active, ensure 'selected' is not present on user
+              if (this.compareMode && userEl) {
+                userEl.classList.remove("selected");
+              }
+              this.updateScrollIndicators();
+              if (this.compareMode) {
+                this.updateCompareSelectionUI();
+              } else {
+                // Restore visual selection: user when null, friend ID otherwise; skip when 'none'
+                if (this.selectedFriendId !== "none") {
+                  const idToRestore = this.selectedFriendId == null ? "user" : this.selectedFriendId;
+                  this.updateVisualSelection(idToRestore);
+                }
+              }
+            } else {
+              // Fallback: refresh dots in place if we cannot re-render container
+              this.refreshPresenceDotsWithLatestData();
+            }
             // Ensure profile listeners are bound
             await this.setupStarredFriendProfileListeners();
           } catch (bgErr) {
@@ -411,6 +427,7 @@ export class HorizontalFriendsBar {
       // Validation completed (reduced logging for console noise)
 
       this.quickAccessFriends = validatedFriends;
+      this.sortQuickAccessFriendsForDisplay();
 
       // Set up profile listeners (skip await on first paint; background task handles it)
       if (this.quickAccessFriends.length > 0 && !firstLoad) {
@@ -1361,6 +1378,8 @@ export class HorizontalFriendsBar {
     console.log("� DEBUG COMPARE: Activating compare mode");
 
     this.compareMode = true;
+    // In compare mode there is no single active selection
+    this.selectedFriendId = "none";
     this.selectedForCompare.clear();
 
     console.log(
@@ -1439,6 +1458,8 @@ export class HorizontalFriendsBar {
 
     this.compareMode = false;
     this.selectedForCompare.clear();
+    // After exiting compare, return to user's schedule as the active selection
+    this.selectedFriendId = null;
 
     console.log(
       "🔴 DEBUG COMPARE: Compare mode deactivated - cleared all selections"
@@ -1664,12 +1685,16 @@ export class HorizontalFriendsBar {
         const checkmark = element.querySelector(".compare-checkmark");
         if (checkmark) checkmark.remove();
 
-        // Restore user selection state when exiting compare mode
+        // Only show purple selection ring on the user if the user is the active selection
         if (friendId === "user") {
-          element.classList.add("selected");
-          console.log(
-            `🔴 DEBUG COMPARE: Restored user selection state after exiting compare mode`
-          );
+          if (this.selectedFriendId === null) {
+            element.classList.add("selected");
+            console.log(
+              `🔴 DEBUG COMPARE: Restored user selection state after exiting compare mode`
+            );
+          } else {
+            element.classList.remove("selected");
+          }
         }
       }
     });
@@ -3978,6 +4003,10 @@ export class HorizontalFriendsBar {
           friend.handle || "Unknown User"
         }`
       );
+
+      // Re-sort list based on new presence and re-render friends order
+      this.sortQuickAccessFriendsForDisplay();
+      this._reRenderFriendsPreservingState();
     } catch (error) {
       console.error("❌ Error handling campus presence update:", error);
     }
@@ -4005,7 +4034,7 @@ export class HorizontalFriendsBar {
 
         // Find the element fresh from the DOM
         const container = document.querySelector(
-          ".horizontal-friends-bar .friends-avatars"
+          ".horizontal-friends-bar .friends-avatars-list"
         );
         if (container) {
           avatarElement = container.querySelector(
@@ -4059,6 +4088,38 @@ export class HorizontalFriendsBar {
   }
 
   /**
+   * Re-render only the friends portion (not the user avatar), preserving selection/compare state
+   */
+  _reRenderFriendsPreservingState() {
+    if (!this.avatarsContainer) return;
+
+    const userElement = this.avatarElements.get("user") || null;
+
+    // Clear friends container and mapping entries except user
+    this.avatarsContainer.innerHTML = "";
+    this.avatarElements.forEach((_, key) => {
+      if (key !== "user") this.avatarElements.delete(key);
+    });
+
+    // Re-render friends with the new order
+    this.renderFriendsAvatars(this.avatarsContainer);
+
+    // Restore user mapping
+    if (userElement) this.avatarElements.set("user", userElement);
+
+    // Apply state: compare vs normal selection
+    if (this.compareMode) {
+      if (userElement) userElement.classList.remove("selected");
+      this.updateCompareSelectionUI();
+    } else if (this.selectedFriendId !== "none") {
+      const idToRestore = this.selectedFriendId == null ? "user" : this.selectedFriendId;
+      this.updateVisualSelection(idToRestore);
+    }
+
+    this.updateScrollIndicators();
+  }
+
+  /**
    * 🔧 FIXED: Handle current user's own campus presence changes
    * This method updates the bilateral location sharing calculations when the current user's location changes
    * @param {string} campusStatus - New campus status ('on_campus', 'off_campus', 'unknown')
@@ -4101,6 +4162,10 @@ export class HorizontalFriendsBar {
           this.quickAccessFriends[index] = friend;
           this.updateFriendPresenceDot(index, friend);
         });
+
+        // After dots updated, re-sort and re-render friends to reflect new priorities
+        this.sortQuickAccessFriendsForDisplay();
+        this._reRenderFriendsPreservingState();
 
         console.log(
           `✅ Refreshed location data for current user and updated ${refreshedFriends.length} presence dots`
@@ -4363,6 +4428,47 @@ export class HorizontalFriendsBar {
       `[HorizontalFriendsBar] Enhanced ${enhancedFriends.length} friends with location data`
     );
     return enhancedFriends;
+  }
+
+  /**
+   * Sort friends for display: green (on campus) → red (off campus) → grey (no sharing/unknown),
+   * then by most recent activity within each group.
+   */
+  sortQuickAccessFriendsForDisplay() {
+    try {
+      const presencePriority = (f) => {
+        // Determine effective sharing/visibility
+        const canSee = f?.hasLocationSharing === true || f?.canSeeLocation === true;
+        if (!canSee) return 2; // grey when not mutually shared
+
+        // Status-based grouping
+        const status = f?.lastKnownLocation?.campusStatus;
+        if (status === "on_campus") return 0; // green first
+        if (status === "off_campus") return 1; // red second
+
+        // Unknown status → grey group
+        return 2;
+      };
+      const ageMs = (f) => {
+        try {
+          const d = PresenceDot.normalizeTimestamp(f?.lastActive);
+          return d ? Date.now() - d.getTime() : Number.POSITIVE_INFINITY;
+        } catch {
+          return Number.POSITIVE_INFINITY;
+        }
+      };
+      this.quickAccessFriends.sort((a, b) => {
+        const p = presencePriority(a) - presencePriority(b);
+        if (p !== 0) return p;
+        const age = ageMs(a) - ageMs(b); // smaller age = more recent
+        if (age !== 0) return age;
+        const ha = (a.handle || a.displayName || "").toLowerCase();
+        const hb = (b.handle || b.displayName || "").toLowerCase();
+        return ha.localeCompare(hb);
+      });
+    } catch (e) {
+      console.warn("[HorizontalFriendsBar] Sorting by presence failed:", e);
+    }
   }
 
   /**

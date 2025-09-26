@@ -22,45 +22,60 @@
         <h3>
           <span id="schedule-heading-text" aria-live="polite" aria-atomic="true" aria-label="Schedule">Schedule</span>
         </h3>
-        <!-- Mobile Controls Toggle -->
-        <button
-          id="scheduleControlsToggle"
-          class="schedule-controls-toggle"
-          title="Schedule Options"
-          aria-label="Toggle schedule controls"
-          aria-expanded="false"
-        >
-          <span class="toggle-icon-wrapper" aria-hidden="true">
-            <!-- Closed state icon (chevron down) -->
-            <svg
-              class="icon-state icon-closed"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-            <!-- Open state icon (chevron up) -->
-            <svg
-              class="icon-state icon-open"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="18 15 12 9 6 15"></polyline>
-            </svg>
-          </span>
-        </button>
+        <div class="schedule-header-actions">
+          <!-- Header Compare Action (replaces friends-bar compare button) -->
+          <button
+            id="compareActionBtn"
+            class="control-btn compare-action-btn"
+            title="Compare schedule"
+            aria-label="Compare schedule"
+            style="display:none"
+          >
+            <i class="fas fa-balance-scale" aria-hidden="true"></i>
+            <span class="btn-text">Compare schedule</span>
+            <span class="btn-text-mobile">Compare</span>
+          </button>
+
+          <!-- Mobile Controls Toggle -->
+          <button
+            id="scheduleControlsToggle"
+            class="schedule-controls-toggle"
+            title="Schedule Options"
+            aria-label="Toggle schedule controls"
+            aria-expanded="false"
+          >
+            <span class="toggle-icon-wrapper" aria-hidden="true">
+              <!-- Closed state icon (chevron down) -->
+              <svg
+                class="icon-state icon-closed"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <!-- Open state icon (chevron up) -->
+              <svg
+                class="icon-state icon-open"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+            </span>
+          </button>
+        </div>
       </div>
 
       <!-- Unified Schedule Controls -->

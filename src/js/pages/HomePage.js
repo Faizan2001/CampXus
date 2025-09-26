@@ -28,6 +28,7 @@ import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 // Logging
 import { logManager } from "../utils/debug/LogManager.js"; // ✅ Restored import to fix ReferenceError
 import { onboardingService } from "../services/onboarding/OnboardingService.js";
+import { getHorizontalFriendsBarInstance } from "../components/friends/HorizontalFriendsBar.js";
 import {
   showCoachMark,
   hideAllCoachMarks,
@@ -6729,8 +6730,9 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-  // Update schedule heading for empty state
+  // Update schedule heading and header compare visibility for empty state
   updateScheduleHeadingText(null, false);
+  try { updateHeaderCompareUI(); } catch (_) {}
 
     console.log("📋 Showing empty schedule state");
   } else if (isUserSchedule) {
@@ -6748,8 +6750,9 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-  // Update schedule heading back to default (user schedule)
+  // Update schedule heading back to default and hide compare action
   updateScheduleHeadingText(null, false);
+  try { updateHeaderCompareUI(); } catch (_) {}
 
     console.log("👤 Switched to user's own schedule");
   } else {
@@ -6926,8 +6929,10 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
       usersCount: Object.keys(state.users).length,
     });
 
-  // Update schedule heading to show friend's handle
-  updateScheduleHeadingText(friendName, true);
+    // Update schedule heading to show friend's handle
+    updateScheduleHeadingText(friendName, true);
+    // Show Compare action in header when viewing a friend
+    try { updateHeaderCompareUI(); } catch (_) {}
 
     console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
 
@@ -6960,6 +6965,15 @@ function updateScheduleHeadingText(friendName, isFriendSchedule) {
   const headingSpan = document.getElementById("schedule-heading-text");
   if (!headingSpan) return;
 
+  // Compare mode heading
+  if (state.compareMode) {
+    const count = state.selectedUserIds?.size || 0;
+    const label = count > 0 ? `Comparing ${count}` : "Compare mode";
+    headingSpan.textContent = label;
+    try { headingSpan.setAttribute("aria-label", label); } catch (_) {}
+    return;
+  }
+
   if (isFriendSchedule && friendName) {
   // Build: <owner>'s <tail>Schedule</tail>
   headingSpan.innerHTML = "";
@@ -6985,6 +6999,68 @@ function updateScheduleHeadingText(friendName, isFriendSchedule) {
       headingSpan.setAttribute("aria-label", "Schedule");
     } catch (_) {}
   }
+}
+
+// Update the header Compare action visibility/text
+function updateHeaderCompareUI() {
+  const btn = document.getElementById("compareActionBtn");
+  if (!btn) return;
+
+  if (state.compareMode) {
+    btn.style.display = "inline-flex";
+    btn.title = "Exit compare";
+    btn.setAttribute("aria-label", "Exit compare");
+    btn.setAttribute("aria-pressed", "true");
+    btn.classList.add("active");
+    const icon = btn.querySelector("i");
+    if (icon) icon.className = "fas fa-times-circle";
+    const text = btn.querySelector(".btn-text");
+    if (text) text.textContent = "Exit Compare";
+    const mobile = btn.querySelector(".btn-text-mobile");
+    if (mobile) mobile.textContent = "Exit";
+    return;
+  }
+
+  if (state.currentViewingFriendId) {
+    btn.style.display = "inline-flex";
+    btn.title = "Compare schedule";
+    btn.setAttribute("aria-label", "Compare schedule");
+    btn.setAttribute("aria-pressed", "false");
+    btn.classList.remove("active");
+    const icon = btn.querySelector("i");
+    if (icon) icon.className = "fas fa-balance-scale";
+    const text = btn.querySelector(".btn-text");
+    if (text) text.textContent = "Compare schedule";
+    const mobile = btn.querySelector(".btn-text-mobile");
+    if (mobile) mobile.textContent = "Compare";
+  } else {
+    btn.style.display = "none";
+    btn.classList.remove("active");
+    btn.removeAttribute("aria-pressed");
+  }
+}
+
+function handleHeaderCompareAction() {
+  const instance = getHorizontalFriendsBarInstance?.() || null;
+  if (!instance) return;
+
+  if (state.compareMode) {
+    try { instance.deactivateCompareMode(); } catch (_) {}
+    updateHeaderCompareUI();
+    return;
+  }
+
+  const friendId = state.currentViewingFriendId;
+  if (!friendId) return;
+
+  try { instance.activateCompareMode(); } catch (_) { instance.handleToggleCompareMode?.(); }
+  try { instance.toggleCompareSelection("user", "You"); } catch (_) {}
+  try {
+    const friendName = state.users?.[friendId]?.name || friendId;
+    instance.toggleCompareSelection(friendId, friendName);
+  } catch (_) {}
+
+  updateHeaderCompareUI();
 }
 
 /**
@@ -7157,6 +7233,9 @@ function handleCompareModeChange(event) {
 
   // Update body class for global styling
   document.body.classList.toggle("compare-mode-active", isCompareMode);
+  // Update header controls/text
+  try { updateHeaderCompareUI(); } catch (_) {}
+  try { updateScheduleHeadingText(null, false); } catch (_) {}
 
   // Sync with desktop compare button if it exists
   const desktopCompareButton = document.getElementById("compare");
@@ -7265,6 +7344,8 @@ function handleCompareSelectionChange(event) {
   // Update UI to show comparison grid
   console.log(`🎨 Triggering UI update for comparison mode`);
   updateUI();
+  try { updateScheduleHeadingText(null, false); } catch (_) {}
+  try { updateHeaderCompareUI(); } catch (_) {}
 
   // Force specific rendering based on current view mode
   if (compareMode && userCount >= 2) {
@@ -7670,6 +7751,17 @@ document.addEventListener("spa:page:load", async (event) => {
     // Initialize DOM elements for the home page (first pass)
     console.log("📋 Initializing DOM elements...");
     initializeDomElements();
+    // Bind header compare action
+    try {
+      const headerCompare = document.getElementById("compareActionBtn");
+      if (headerCompare && !headerCompare._bound) {
+        headerCompare.addEventListener("click", handleHeaderCompareAction);
+        headerCompare._bound = true;
+      }
+      updateHeaderCompareUI();
+    } catch (e) {
+      console.warn("⚠️ Failed to bind header compare action (non-fatal)", e);
+    }
 
     // Initialize schedule controls mobile toggle (idempotent)
     try {
@@ -7768,6 +7860,7 @@ document.addEventListener("spa:page:load", async (event) => {
     // Render UI with loaded data - now safely with DOM readiness checks
     console.log("🎨 Updating UI with loaded data...");
     await updateUI();
+    try { updateHeaderCompareUI(); } catch (_) {}
 
     devLog("[Onboarding] Scheduling initial toggle hint");
     scheduleOnboardingTimeout(showScheduleToggleHint, 450);
