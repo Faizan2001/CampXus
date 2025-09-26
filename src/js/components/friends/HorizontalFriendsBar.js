@@ -238,9 +238,11 @@ export class HorizontalFriendsBar {
           <button class="btn-compare compare-button round-compare-btn" 
                   type="button" 
                   title="Toggle Compare Mode"
-                  id="roundCompareBtn">
-            <i class="fas fa-balance-scale"></i>
+                  id="roundCompareBtn"
+                  aria-label="Toggle Compare Mode">
+            <i class="fas fa-balance-scale" aria-hidden="true"></i>
           </button>
+          <div class="compare-button-label" aria-hidden="true">Compare</div>
         </div>
       </div>
     `;

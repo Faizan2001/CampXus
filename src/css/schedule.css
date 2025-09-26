@@ -924,6 +924,46 @@ body.page-home .schedule-grid-view {
 .horizontal-friends-section { width: 100%; margin-bottom: 0; position: relative; z-index: 10; }
 .horizontal-friends-wrapper { width: 100%; }
 
+/* Ensure the section and wrapper never pick up glass styles */
+.horizontal-friends-section,
+.horizontal-friends-section:hover,
+.horizontal-friends-section:active,
+.horizontal-friends-section:focus,
+.horizontal-friends-section:focus-visible,
+.horizontal-friends-section:focus-within,
+.horizontal-friends-wrapper,
+.horizontal-friends-wrapper:hover,
+.horizontal-friends-wrapper:active,
+.horizontal-friends-wrapper:focus,
+.horizontal-friends-wrapper:focus-visible,
+.horizontal-friends-wrapper:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Dark mode: same hard reset for section/wrapper */
+body.dark-mode .horizontal-friends-section,
+body.dark-mode .horizontal-friends-section:hover,
+body.dark-mode .horizontal-friends-section:active,
+body.dark-mode .horizontal-friends-section:focus,
+body.dark-mode .horizontal-friends-section:focus-visible,
+body.dark-mode .horizontal-friends-section:focus-within,
+body.dark-mode .horizontal-friends-wrapper,
+body.dark-mode .horizontal-friends-wrapper:hover,
+body.dark-mode .horizontal-friends-wrapper:active,
+body.dark-mode .horizontal-friends-wrapper:focus,
+body.dark-mode .horizontal-friends-wrapper:focus-visible,
+body.dark-mode .horizontal-friends-wrapper:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Visibility helpers */
 .mobile-only { display: block; }
 .desktop-only { display: none; }
@@ -964,33 +1004,124 @@ body:not(.dark-mode) .day-time-slot.busy .slot-time { color: rgba(255,255,255,0.
 /* ====================================================================================
                             HORIZONTAL FRIENDS BAR
 ==================================================================================== */
+/* Minimal, no-bar look for the friends bar */
 .horizontal-friends-bar {
   width: 100%;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius);
-  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-saturate);
-  box-shadow: var(--glass-outer-glow), var(--glass-lift-shadow), var(--glass-inner-glow);
-  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition: none;
   position: relative; overflow: visible; display: flex; align-items: center;
-  gap: 0.75rem; padding: 0.75rem 1rem; min-height: fit-content; z-index: 1;
+  gap: 0.75rem; padding: 0; margin: 0; min-height: fit-content; z-index: 1;
+}
+
+/* Global dark-mode hard reset to beat components.css base rule */
+body.dark-mode .horizontal-friends-bar,
+body.dark-mode .horizontal-friends-bar:hover,
+body.dark-mode .horizontal-friends-bar:active,
+body.dark-mode .horizontal-friends-bar:focus,
+body.dark-mode .horizontal-friends-bar:focus-visible,
+body.dark-mode .horizontal-friends-bar:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Ensure no border/background is re-introduced by other styles on hover/active */
+.schedule-section .horizontal-friends-bar,
+.schedule-section .horizontal-friends-bar:hover,
+.schedule-section .horizontal-friends-bar:active,
+.schedule-section .horizontal-friends-bar:focus,
+.schedule-section .horizontal-friends-bar:focus-visible,
+.schedule-section .horizontal-friends-bar:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 6px !important; /* requested left padding */
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The friends bar lives in its own section above the schedule grid.
+   Neutralize the dark-mode glass background there as well. */
+.horizontal-friends-section .horizontal-friends-bar,
+.horizontal-friends-section .horizontal-friends-bar:hover,
+.horizontal-friends-section .horizontal-friends-bar:active,
+.horizontal-friends-section .horizontal-friends-bar:focus,
+.horizontal-friends-section .horizontal-friends-bar:focus-visible,
+.horizontal-friends-section .horizontal-friends-bar:focus-within,
+.horizontal-friends-wrapper .horizontal-friends-bar,
+.horizontal-friends-wrapper .horizontal-friends-bar:hover,
+.horizontal-friends-wrapper .horizontal-friends-bar:active,
+.horizontal-friends-wrapper .horizontal-friends-bar:focus,
+.horizontal-friends-wrapper .horizontal-friends-bar:focus-visible,
+.horizontal-friends-wrapper .horizontal-friends-bar:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 6px !important;
+  outline: none !important;
+}
+
+/* Stronger dark-mode overrides to defeat components.css hover/active styles */
+body.dark-mode .schedule-section .horizontal-friends-bar,
+body.dark-mode .schedule-section .horizontal-friends-bar:hover,
+body.dark-mode .schedule-section .horizontal-friends-bar:active,
+body.dark-mode .schedule-section .horizontal-friends-bar:focus,
+body.dark-mode .schedule-section .horizontal-friends-bar:focus-visible,
+body.dark-mode .schedule-section .horizontal-friends-bar:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 6px !important;
+  outline: none !important;
+}
+
+/* Dark mode override for the friends section wrapper as well */
+body.dark-mode .horizontal-friends-section .horizontal-friends-bar,
+body.dark-mode .horizontal-friends-section .horizontal-friends-bar:hover,
+body.dark-mode .horizontal-friends-section .horizontal-friends-bar:active,
+body.dark-mode .horizontal-friends-section .horizontal-friends-bar:focus,
+body.dark-mode .horizontal-friends-section .horizontal-friends-bar:focus-visible,
+body.dark-mode .horizontal-friends-section .horizontal-friends-bar:focus-within,
+body.dark-mode .horizontal-friends-wrapper .horizontal-friends-bar,
+body.dark-mode .horizontal-friends-wrapper .horizontal-friends-bar:hover,
+body.dark-mode .horizontal-friends-wrapper .horizontal-friends-bar:active,
+body.dark-mode .horizontal-friends-wrapper .horizontal-friends-bar:focus,
+body.dark-mode .horizontal-friends-wrapper .horizontal-friends-bar:focus-visible,
+body.dark-mode .horizontal-friends-wrapper .horizontal-friends-bar:focus-within {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 6px !important;
+  outline: none !important;
 }
 
 /* Decorative lines and conic animation */
-.schedule-section .horizontal-friends-bar::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--glass-highlight) 20%, var(--glass-highlight-strong) 50%, var(--glass-highlight) 80%, transparent 100%);
-  z-index: 1; border-radius: var(--glass-radius) var(--glass-radius) 0 0; pointer-events: none;
-}
-.schedule-section .horizontal-friends-bar::after {
-  content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-  background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, var(--glass-highlight-faint) 45deg, rgba(139,92,246,0.08) 90deg, transparent 135deg,
-                              var(--glass-highlight-faint) 180deg, rgba(168,85,247,0.06) 225deg, transparent 270deg, var(--glass-highlight-faint) 315deg, transparent 360deg);
-  animation: friendsBarRotate 20s linear infinite; pointer-events: none; z-index: -1; opacity: 0.7; border-radius: var(--glass-radius);
-}
+.schedule-section .horizontal-friends-bar::before,
+.schedule-section .horizontal-friends-bar::after { display: none !important; content: none !important; }
 body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: none !important; opacity: 0 !important; }
 @keyframes friendsBarRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
@@ -1029,7 +1160,7 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 
 /* Avatar overrides inside friends bar */
 .horizontal-friends-bar .avatar-container {
-  width: 48px !important; height: 48px !important; border-radius: 50% !important;
+  width: 56px !important; height: 56px !important; border-radius: 50% !important;
   overflow: visible !important; flex-shrink: 0 !important; aspect-ratio: 1 / 1 !important; position: relative !important;
 }
 .horizontal-friends-bar .avatar-image {
@@ -1068,12 +1199,30 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 .friend-avatar-item {
   display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
   min-width: 64px; max-width: 64px; cursor: pointer; transition: all 0.2s ease-out;
-  position: relative; padding: 0.3rem 0.25rem 0; margin: 0; border-radius: var(--border-radius);
-  outline: none; flex-shrink: 0;
+  position: relative; padding: 0.35rem 0.35rem 0; margin: 0; border-radius: var(--border-radius);
+  outline: none; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+  overflow: visible;
 }
 .friend-avatar-item:hover { transform: translateY(-1px); }
-.friend-avatar-item:focus { box-shadow: 0 0 0 2px var(--primary-glass); }
+/* Move focus ring to the round avatar only (keyboard users) */
+.friend-avatar-item:focus-visible { outline: none; box-shadow: none; }
+.friend-avatar-item:focus-visible .avatar-container { box-shadow: 0 0 0 2px var(--primary-glass); border-radius: 50%; }
 .friend-avatar-item:active { transform: translateY(0); }
+/* Extra hard reset in schedule & friends sections to avoid blue tap box */
+.schedule-section .friend-avatar-item:focus,
+.horizontal-friends-section .friend-avatar-item:focus,
+.horizontal-friends-wrapper .friend-avatar-item:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+/* On touch devices, never show the rectangular focus ring */
+@media (hover: none) {
+  .friend-avatar-item:focus,
+  .friend-avatar-item:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
 
 .avatar-container { position: relative; width: 48px; height: 48px; border-radius: 50%; overflow: visible; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; aspect-ratio: 1/1; }
 .avatar-image {
@@ -1097,8 +1246,8 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 .friend-avatar-item:hover:not(.selected) .selection-ring { opacity: 0.5; }
 
 .avatar-label {
-  font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); text-align: center;
-  max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.2s ease; line-height: 1.2;
+  font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); text-align: center;
+  max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.2s ease; line-height: 1.2;
 }
 .friend-avatar-item.selected .avatar-label { color: var(--primary); font-weight: 600; }
 .friend-avatar-item:hover .avatar-label { color: var(--text-primary); }
@@ -1132,12 +1281,40 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 .btn-retry:hover { background: var(--primary-dark); transform: translateY(-1px); }
 .btn-retry:active { transform: translateY(0); }
 
-.horizontal-friends-bar.compare-mode { border-color: var(--primary-glass); box-shadow: 0 4px 16px var(--primary-shadow); }
-.friend-avatar-item.compare-mode-available { animation: gentle-wiggle 0.3s ease-in-out infinite alternate; }
+.horizontal-friends-bar.compare-mode { border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+.friend-avatar-item.compare-mode-available { animation: attention-wiggle 0.3s ease-in-out infinite alternate; }
+.friend-avatar-item.compare-mode-available .avatar-container {
+  box-shadow: 0 0 0 2px rgba(139,92,246,0.25), 0 6px 18px rgba(139,92,246,0.25);
+}
+.friend-avatar-item.compare-mode-available:not(.compare-selected) .avatar-container::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 72%;
+  height: 10px;
+  transform: translateX(-50%) scaleX(0.98);
+  background: radial-gradient(ellipse at center,
+    rgba(139,92,246,0.45) 0%,
+    rgba(139,92,246,0.18) 45%,
+    rgba(0,0,0,0) 70%
+  );
+  filter: blur(6px);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+  animation: compare-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes compare-pulse {
+  0%   { opacity: 0.45; transform: translateX(-50%) scaleX(0.92); }
+  50%  { opacity: 0.95; transform: translateX(-50%) scaleX(1.06); }
+  100% { opacity: 0.45; transform: translateX(-50%) scaleX(0.92); }
+}
 .friend-avatar-item.compare-mode-available.compare-selected { animation: none !important; }
 .friend-avatar-item.compare-selected .avatar-container { transform: scale(1); border: 2px solid var(--primary); box-shadow: 0 4px 12px var(--primary-shadow); }
 .compare-checkmark { position: absolute; top: -2px; right: -2px; width: 20px; height: 20px; background: var(--primary); border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; z-index: 3; animation: checkmark-appear 0.3s cubic-bezier(0.68,-0.55,0.265,1.55); }
-@keyframes gentle-wiggle { 0% { transform: rotate(-1deg); } 100% { transform: rotate(1deg); } }
+@keyframes attention-wiggle { 0% { transform: rotate(-2.5deg) scale(0.995); } 100% { transform: rotate(2.5deg) scale(1.005); } }
 @keyframes checkmark-appear { 0% { transform: scale(0) rotate(180deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
 
 /* Compare mode red rings */
@@ -1203,12 +1380,12 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
   .pin-tooltip-user-color { width: 12px !important; height: 12px !important; }
 
   /* Friends bar sizing */
-  .horizontal-friends-bar { padding: 0.4rem 0.8rem 0.2rem; margin: 0; border-radius: var(--glass-radius); }
-  .friends-avatars-list { gap: 0.6rem; padding: 0.25rem 0.8rem 0.2rem 0.4rem; }
-  .friend-avatar-item { min-width: 44px; padding: 0.25rem 0.2rem 0; }
+  .horizontal-friends-bar { padding: 0 !important; margin: 0; border-radius: 0; }
+  .friends-avatars-list { gap: 0.6rem; padding: 0 !important; }
+  .friend-avatar-item { min-width: 52px; padding: 0.25rem 0.2rem 0; }
   .user-avatar-container { padding: 0.25rem 0.2rem 0 0; }
-  .avatar-container { width: 44px; height: 44px; }
-  .avatar-label { font-size: 0.65rem; max-width: 44px; margin-top: 0.25rem; }
+  .avatar-container { width: 52px; height: 52px; }
+  .avatar-label { font-size: 0.7rem; max-width: 64px; margin-top: 0.25rem; }
 }
 
 /* <= 600px */
@@ -1218,6 +1395,13 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 
 /* <= 480px */
 @media (max-width: 480px) {
+  /* Tighter schedule glass card padding on small devices */
+  .schedule-section.glass-card,
+  .glass-card.schedule-section {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
   /* Grid: narrower time column & content-driven columns */
   .schedule-section .schedule-grid-view { --time-col-width: 78px; --slot-row-height: 3.25rem; }
   .schedule-section .schedule-grid-view table.schedule-table { table-layout: auto !important; width: auto !important; }
@@ -1305,12 +1489,12 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
   .pin-tooltip-user-color { width: 10px !important; height: 10px !important; }
 
   /* Friends bar */
-  .horizontal-friends-bar { padding: 0.35rem 0.6rem 0.15rem; border-radius: var(--glass-radius); }
-  .friends-avatars-list { gap: 0.5rem; padding: 0.2rem 0.6rem 0.15rem 0.3rem; }
-  .friend-avatar-item { min-width: 40px; padding: 0.2rem 0.15rem 0; }
+  .horizontal-friends-bar { padding: 0 !important; border-radius: 0; }
+  .friends-avatars-list { gap: 0.5rem; padding: 0 !important; }
+  .friend-avatar-item { min-width: 48px; padding: 0.2rem 0.15rem 0; }
   .user-avatar-container { padding: 0.2rem 0.15rem 0 0; }
-  .avatar-container { width: 40px; height: 40px; }
-  .avatar-label { font-size: 0.6rem; max-width: 40px; margin-top: 0.2rem; }
+  .avatar-container { width: 48px; height: 48px; }
+  .avatar-label { font-size: 0.65rem; max-width: 60px; margin-top: 0.2rem; }
 }
 
 /* <= 325px */
