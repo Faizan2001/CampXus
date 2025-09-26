@@ -7649,6 +7649,24 @@ document.addEventListener("spa:page:load", async (event) => {
       users: Object.keys(state.users),
     });
 
+    // Enforce UX rule: compare mode must be OFF on fresh home load
+    // Clear any lingering selections from a previous visit
+    if (state.compareMode || state.selectedUserIds.size > 0) {
+      console.log(
+        "🧼 Resetting compare state on home load (compareMode OFF, selections cleared)"
+      );
+      state.compareMode = false;
+      state.selectedUserIds.clear();
+      // Clear caches tied to compare state to avoid stale overlays
+      try {
+        memoCache.clear();
+        matrixCache.clear();
+        console.log(
+          "🧹 Cleared memoization and matrix caches due to compare state reset"
+        );
+      } catch (_) {}
+    }
+
     // Initialize DOM elements for the home page (first pass)
     console.log("📋 Initializing DOM elements...");
     initializeDomElements();
@@ -7814,7 +7832,20 @@ document.addEventListener("spa:page:unload", (event) => {
       handleScheduleControlsOpened
     );
 
-    // Clear any temporary selections but keep the state for when we return
+    // UX requirement: when leaving Home, exit compare mode and clear selections
+    if (state.compareMode || state.selectedUserIds.size > 0) {
+      console.log(
+        "🧼 Resetting compare state on home unload (compareMode OFF, selections cleared)"
+      );
+      state.compareMode = false;
+      state.selectedUserIds.clear();
+      state.currentViewingFriendId = null;
+      try {
+        memoCache.clear();
+        matrixCache.clear();
+      } catch (_) {}
+    }
+
     console.log("🧹 Home page cleanup completed - resources freed");
   }
 });
