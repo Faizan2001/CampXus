@@ -172,7 +172,7 @@
         <div class="step-header">
           <h2 class="step-title">Import Your Schedule</h2>
           <p class="step-description">
-            Upload a schedule photo or paste your schedule text to get started quickly (Optional)
+            Paste your schedule text to get started quickly (Optional)
           </p>
         </div>
 
@@ -186,7 +186,19 @@
                 <h3>Paste Schedule Text</h3>
               </div>
               <div class="form-group">
-                <label class="form-label" for="schedule-text-input">Schedule Text</label>
+                <div class="label-row">
+                  <label class="form-label" for="schedule-text-input">Schedule Text</label>
+                  <div class="import-help-row">
+                    <button
+                      type="button"
+                      id="schedule-help-trigger"
+                      class="import-help-trigger"
+                      aria-haspopup="dialog"
+                    >
+How?
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   id="schedule-text-input"
                   name="schedule-text-input"
@@ -195,26 +207,19 @@
                   placeholder="Paste your schedule text here...
 Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
                 ></textarea>
-                <div class="form-hint">
-                  Copy schedule text from your university portal and paste it here
-                </div>
-                <div class="import-help-row">
-                  <button
-                    type="button"
-                    id="schedule-help-trigger"
-                    class="import-help-trigger"
-                    aria-haspopup="dialog"
-                  >
-How?
-                  </button>
-                </div>
+                <div class="form-hint">Copy schedule text from your university portal and paste it here</div>
               </div>
               <button type="button" id="parse-schedule-btn" class="button secondary">
                 <i class="fas fa-search"></i> Parse Schedule
               </button>
             </div>
 
-            <!-- Upload Option -->
+            <!-- Upload Option (image upload) -->
+            <!--
+              Temporarily disabled: Image upload import is not available.
+              Keeping the markup commented to hide the feature in UI while preserving structure for future re-enable.
+              To re-enable, uncomment this block and restore event listeners in ProfileSetup.js.
+
             <div class="import-option">
               <div class="option-header">
                 <div class="option-icon">📷</div>
@@ -229,6 +234,7 @@ How?
                 <input type="file" id="schedule-image-input" accept="image/*" hidden>
               </div>
             </div>
+            -->
           </div>
 
           <!-- Schedule Preview -->

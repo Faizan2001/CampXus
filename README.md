@@ -6,7 +6,7 @@ A real-time social scheduling platform for university students. Connect with cla
 
 CampXus helps university students manage their schedules and connect with classmates through:
 
-- **Smart Schedule Management**: Import schedules via OCR, create custom time slots, and compare availability with friends
+- **Smart Schedule Management**: Paste schedule text to detect courses, create custom time slots, and compare availability with friends
 - **Social Discovery**: Find classmates by handle or student ID within your university
 - **Real-time Friends System**: Send friend requests, manage connections, and view schedules with bilateral privacy controls
 - **Campus Presence**: Share location status with adaptive GPS and network detection
@@ -15,7 +15,7 @@ CampXus helps university students manage their schedules and connect with classm
 ## Features
 
 ### Schedule Management
-- OCR-powered schedule import from images
+- Paste-to-import schedule text (automatic course detection)
 - Dynamic time slot creation and editing
 - Real-time schedule comparison and conflict detection
 - Dual storage (Firestore + localStorage) with offline support
@@ -40,7 +40,7 @@ CampXus helps university students manage their schedules and connect with classm
 - **Backend**: Firebase (Authentication, Firestore, Real-time listeners)
 - **Build**: Vite with optimized code splitting
 - **Testing**: Jest with jsdom environment
-- **OCR**: Tesseract.js for schedule image processing
+ 
 
 ## Quick Start
 

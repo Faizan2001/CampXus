@@ -2246,25 +2246,26 @@ class ProfileSetup {
       parseScheduleBtn.setAttribute("data-listener-attached", "true");
     }
 
-    if (
-      scheduleUploadArea &&
-      !scheduleUploadArea.hasAttribute("data-listener-attached")
-    ) {
-      scheduleUploadArea.addEventListener("click", () => {
-        if (scheduleImageInput) scheduleImageInput.click();
-      });
-      scheduleUploadArea.setAttribute("data-listener-attached", "true");
-    }
+    // OCR upload disabled (beta): do not attach file upload listeners
+    // if (
+    //   scheduleUploadArea &&
+    //   !scheduleUploadArea.hasAttribute("data-listener-attached")
+    // ) {
+    //   scheduleUploadArea.addEventListener("click", () => {
+    //     if (scheduleImageInput) scheduleImageInput.click();
+    //   });
+    //   scheduleUploadArea.setAttribute("data-listener-attached", "true");
+    // }
 
-    if (
-      scheduleImageInput &&
-      !scheduleImageInput.hasAttribute("data-listener-attached")
-    ) {
-      scheduleImageInput.addEventListener("change", (e) =>
-        this.handleImageUpload(e)
-      );
-      scheduleImageInput.setAttribute("data-listener-attached", "true");
-    }
+    // if (
+    //   scheduleImageInput &&
+    //   !scheduleImageInput.hasAttribute("data-listener-attached")
+    // ) {
+    //   scheduleImageInput.addEventListener("change", (e) =>
+    //     this.handleImageUpload(e)
+    //   );
+    //   scheduleImageInput.setAttribute("data-listener-attached", "true");
+    // }
 
     const scheduleHelpTrigger = document.getElementById(
       "schedule-help-trigger"
@@ -2603,6 +2604,18 @@ class ProfileSetup {
         this.hideScheduleStatus();
 
         console.log("✅ Schedule parsed successfully:", result);
+
+        // Mobile UX: auto-scroll to preview when courses are detected
+        try {
+          const coursesDetected = Number(result?.stats?.validCourses || 0) > 0;
+          const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+          if (coursesDetected && isMobile && previewDiv) {
+            // slight delay to ensure preview is rendered
+            setTimeout(() => {
+              previewDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          }
+        } catch (_) {}
       } else {
         this.showScheduleError(`Failed to parse schedule: ${result.error}`);
       }
@@ -2618,111 +2631,16 @@ class ProfileSetup {
   }
 
   /**
-   * Handle image upload for OCR processing
+   * Handle image upload for OCR processing (disabled)
    */
   async handleImageUpload(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Prevent double-processing by checking if we're already processing
-    if (this.isProcessingImage) {
-      console.log("🚫 Already processing an image, ignoring duplicate request");
-      return;
-    }
-
-    this.isProcessingImage = true;
-
-    try {
-      // Quick check if OCR is likely to work
-      if (!this.isOcrLikelySupported()) {
-        throw new Error(
-          "Image upload requires a modern browser with web worker support. Please use text paste instead."
-        );
-      }
-
-      // Show processing status
-      this.showScheduleStatus("Uploading image...", "info");
-
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Please select a valid image file (PNG, JPG, etc.)");
-      }
-
-      // Check file size (max 10MB)
-      const maxSize = 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        throw new Error(
-          "Image file is too large. Please use an image smaller than 10MB."
-        );
-      }
-
-      // Process image with OCR
-      const result = await this.scheduleImportService.processScheduleImage(
-        file,
-        (message, progress) => {
-          this.showScheduleStatus(message, "info", progress);
-        }
-      );
-
-      if (result.success) {
-        this.scheduleData = result.scheduleData;
-
-        // Check if any courses were actually found
-        const courseCount =
-          result.validationResult?.validatedCourses?.length || 0;
-
-        if (courseCount > 0) {
-          // Success with courses found
-          this.showSchedulePreview(result);
-          const ocrInfo = `✅ Found ${courseCount} courses! OCR completed with ${result.ocrConfidence}% confidence.`;
-          this.showScheduleStatus(ocrInfo, "success");
-          console.log(
-            "🎉 Image processing successful! Courses found:",
-            courseCount
-          );
-        } else {
-          // Success but no courses found - provide helpful guidance
-          this.showSchedulePreview(result); // Still show empty preview
-          const helpMessage = `📷 OCR completed (${result.ocrConfidence}% confidence) but no courses detected. Try:\n• Taking a clearer photo\n• Ensuring good lighting\n• Cropping to show only the schedule table\n• Or paste the text manually instead`;
-          this.showScheduleStatus(helpMessage, "info");
-          console.log(
-            "ℹ️ OCR successful but no courses parsed. Raw text:",
-            result.extractedText || "No text extracted"
-          );
-        }
-      } else {
-        throw new Error(result.error || "Failed to process image");
-      }
-    } catch (error) {
-      console.error("Image upload failed:", error);
-
-      // Provide helpful error messages based on the error type
-      let errorMessage = `Image processing failed: ${error.message}`;
-
-      if (
-        error.message.includes("security settings") ||
-        error.message.includes("CSP")
-      ) {
-        errorMessage =
-          "Image upload blocked by browser security. Please refresh the page and try again, or use text paste instead.";
-      } else if (error.message.includes("not supported")) {
-        errorMessage =
-          "Image upload not supported in this browser. Please use text paste instead.";
-      } else if (error.message.includes("too large")) {
-        errorMessage =
-          "Image file is too large. Please use an image smaller than 10MB.";
-      } else if (error.message.includes("valid image")) {
-        errorMessage = "Please select a valid image file (PNG, JPG, etc.).";
-      }
-
-      this.showScheduleError(errorMessage);
-
-      // Clear the file inputCAn
+    if (event?.target) {
       event.target.value = "";
-    } finally {
-      // Always reset the processing flag
-      this.isProcessingImage = false;
     }
+    this.showScheduleError(
+      "Image upload is not available. Please paste your schedule text instead."
+    );
+    return;
   }
 
   /**

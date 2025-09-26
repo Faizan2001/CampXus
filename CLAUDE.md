@@ -95,7 +95,7 @@ The codebase uses ES6 modules with careful dependency management:
   - `data/` - Firestore operations and data management
   - `friends/` - Social features and friendship management
   - `realtime/` - Real-time updates and notifications
-  - `schedule/` - Schedule management and OCR processing
+  - `schedule/` - Schedule management and paste-to-text processing
 - **Components**: Located in `src/js/components/` - reusable UI components
 - **Pages**: Located in `src/js/pages/` - page-specific handlers
 - **Store**: Located in `src/js/store/` - state management
@@ -180,7 +180,7 @@ The project uses Jest with ESM support and custom configuration:
 
 - `src/js/tests/core/`: Tests for core application logic
 - `src/js/tests/firebase/`: Tests for Firebase integration  
-- `src/js/tests/services/`: Tests for service layer (OCR, schedule import)
+- `src/js/tests/services/`: Tests for service layer (schedule import)
 - `src/js/tests/__mocks__/spa-init.mock.js`: Mock file to prevent CSS imports during testing
 
 ### Jest Configuration Details
@@ -610,7 +610,7 @@ The latest version includes comprehensive privacy management with visual feedbac
 ### Core Dependencies
 
 - **Firebase v11.8.1**: Authentication, Firestore database, real-time listeners
-- **Tesseract.js v6.0.1**: OCR processing for schedule image recognition
+  
 - **Playwright v1.54.1**: Browser automation for testing and development
 
 ### Development Dependencies

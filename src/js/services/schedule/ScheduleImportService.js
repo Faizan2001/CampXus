@@ -19,7 +19,8 @@
 
 import { UniversityParser } from "./UniversityParser.js";
 import { ScheduleValidator } from "./ScheduleValidator.js";
-import { OcrService } from "./OcrService.js";
+// OCR disabled (beta): Commented out to prevent bundling and usage
+// import { OcrService } from "./OcrService.js";
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 import { parseTime, minutesToTimeString } from "../../utils/time/timeUtils.js";
 import { currentUser } from "../../store/userStore.js";
@@ -32,7 +33,8 @@ export class ScheduleImportService {
   constructor() {
     this.parser = new UniversityParser();
     this.validator = new ScheduleValidator();
-    this.ocrService = new OcrService();
+    // OCR disabled (beta): do not initialize OCR service
+    // this.ocrService = new OcrService();
     this.isProcessing = false;
   }
 
@@ -288,112 +290,16 @@ export class ScheduleImportService {
    * @param {Function} progressCallback - Optional progress callback
    * @returns {Promise<Object>} Processed schedule data with OCR and validation results
    */
-  async processScheduleImage(imageFile, progressCallback = null) {
-    if (this.isProcessing) {
-      return {
-        success: false,
-        error: "Already processing a schedule. Please wait.",
-        scheduleData: null,
-        validationResult: null,
-        ocrResult: null,
-      };
-    }
-
-    this.isProcessing = true;
-
-    try {
-      // Step 1: Extract text from image using OCR
-      if (progressCallback) progressCallback("Starting OCR processing...", 5);
-
-      const ocrResult = await this.ocrService.processScheduleImage(
-        imageFile,
-        progressCallback
-      );
-
-      if (!ocrResult.success) {
-        return {
-          success: false,
-          error: `OCR failed: ${ocrResult.error}`,
-          scheduleData: null,
-          validationResult: null,
-          ocrResult: ocrResult,
-        };
-      }
-
-      console.log("📷 OCR extracted text:", ocrResult.extractedText);
-      console.log("📊 OCR confidence:", `${Math.round(ocrResult.confidence)}%`);
-      console.log(
-        "📄 OCR found schedule section:",
-        ocrResult.metadata?.foundScheduleSection
-      );
-      console.log(
-        "📋 OCR extracted lines:",
-        ocrResult.scheduleData?.length || 0
-      );
-
-      // Log each extracted line for debugging
-      if (ocrResult.scheduleData && ocrResult.scheduleData.length > 0) {
-        console.log("📝 Individual extracted lines:");
-        ocrResult.scheduleData.forEach((line, index) => {
-          console.log(`  ${index + 1}: "${line}"`);
-        });
-      }
-
-      // Check if OCR extracted any meaningful text
-      if (
-        !ocrResult.extractedText ||
-        ocrResult.extractedText.trim().length === 0
-      ) {
-        console.warn("⚠️ OCR extracted no text from image");
-        return {
-          success: false,
-          error:
-            "No text could be extracted from the image. Please ensure the image is clear and contains visible course schedule information. Try using a higher quality image or paste the text manually instead.",
-          scheduleData: null,
-          validationResult: null,
-          ocrResult: ocrResult,
-          feedback: {
-            suggestion:
-              'Try taking a clearer screenshot with good lighting, or use the "Paste Text" option instead.',
-            ocrConfidence: Math.round(ocrResult.confidence),
-            extractedLines: ocrResult.scheduleData?.length || 0,
-          },
-        };
-      }
-
-      // Step 2: Process the extracted text using existing text pipeline
-      if (progressCallback)
-        progressCallback("Processing extracted text...", 95);
-
-      const textResult = await this.processScheduleText(
-        ocrResult.extractedText,
-        true
-      );
-
-      // Combine results
-      const combinedResult = {
-        ...textResult,
-        ocrResult: ocrResult,
-        importType: "image",
-        ocrConfidence: Math.round(ocrResult.confidence),
-        extractedLinesCount: ocrResult.scheduleData?.length || 0,
-      };
-
-      if (progressCallback) progressCallback("Complete!", 100);
-
-      return combinedResult;
-    } catch (error) {
-      console.error("❌ Image processing failed:", error);
-      return {
-        success: false,
-        error: error.message,
-        scheduleData: null,
-        validationResult: null,
-        ocrResult: null,
-      };
-    } finally {
-      this.isProcessing = false;
-    }
+  // OCR disabled (beta): provide a stub that clearly indicates unavailability
+  async processScheduleImage(_imageFile, _progressCallback = null) {
+    return {
+      success: false,
+      error:
+        "Image import is not available. Please paste your schedule text instead.",
+      scheduleData: null,
+      validationResult: null,
+      ocrResult: null,
+    };
   }
 
   /**
@@ -422,9 +328,8 @@ export class ScheduleImportService {
    * @returns {Promise<void>}
    */
   async cleanup() {
-    if (this.ocrService) {
-      await this.ocrService.cleanup();
-    }
+    // OCR disabled (beta): nothing to cleanup
+    return;
   }
 }
 

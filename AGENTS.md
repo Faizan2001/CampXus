@@ -11,7 +11,7 @@
 - SPA flow: `index.html` and `src/js/app.js` bootstrap the app, set logging, await `authManager.authReady`, then initialize `router/Router.js` to render into `.main-content` using `public/templates/*`.
 - Presentation: `pages/*` coordinate features per view; `components/*` are reusable UI pieces; styles live in `src/css` and are imported via `app.js` for bundling.
 - State: Lightweight client state in `store/userStore.js`; keep transient view state inside modules/components.
-- Services: Domain logic in `services/` (e.g., `schedule/`, `friends/`, `location/`). Scheduling uses `ScheduleStorageService`, `ScheduleValidator`; OCR via `OcrService`; social features via `FriendsService` + `FriendshipPrivacyService`.
+- Services: Domain logic in `services/` (e.g., `schedule/`, `friends/`, `location/`). Scheduling uses `ScheduleStorageService`, `ScheduleValidator` (paste-to-import text based); social features via `FriendsService` + `FriendshipPrivacyService`.
 - Realtime & notifications: `RealtimeService` and `NotificationService` handle Firebase listeners; ensure listeners are created/cleaned up within pages/components to prevent leaks.
 - Data & security: Firestore config/rules (`lib/firebase/*`, `firestore.rules`); runtime config injected to `window.ENV` by `dev:config`.
 - Privacy: Enforced via `lib/security/privacyManager.js` and bilateral controls in `FriendshipPrivacyService`—follow these when reading/writing schedule data.
