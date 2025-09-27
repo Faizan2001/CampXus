@@ -15,6 +15,7 @@ export const DEFAULT_ONBOARDING_STATE = Object.freeze({
   campusPresenceHintSeen: false,
   friendActionsHintSeen: false,
   schedulePasteHelpSeen: false,
+  friendsBarHintSeen: false,
 });
 
 function cloneState(state) {
@@ -157,6 +158,7 @@ class OnboardingService {
     const updatePayload = {};
     let changed = false;
 
+    let lastKey = null;
     keysArray.forEach((key) => {
       if (!key) return;
       if (this._state[key] !== true) {
@@ -164,6 +166,7 @@ class OnboardingService {
         changed = true;
         updatePayload[key] = true;
       }
+      lastKey = key;
       this._sessionDismissed.add(key);
     });
 
@@ -173,6 +176,9 @@ class OnboardingService {
       return { success: true, persisted: false };
     }
 
+    if (lastKey) {
+      updatePayload.__eventName = `seen:${lastKey}`;
+    }
     currentUser.setOnboardingState?.(updatePayload);
 
     if (this._profileReady && currentUser.uid) {

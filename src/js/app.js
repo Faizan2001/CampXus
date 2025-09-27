@@ -259,6 +259,18 @@ async function initializeSPA() {
 
   // Register service worker (PWA install + offline shell)
   tryRegisterServiceWorker();
+
+  // Dev-only: install onboarding test tools (console command + header button)
+  try {
+    if (import.meta?.env?.DEV) {
+      const { installOnboardingDevTools } = await import(
+        "./utils/dev/DevOnboardingTools.js"
+      );
+      installOnboardingDevTools();
+    }
+  } catch (_) {
+    // Ignore failures in dev helpers
+  }
 }
 
 // Initialize when DOM is ready, or immediately if already ready

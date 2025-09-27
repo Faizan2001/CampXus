@@ -65,6 +65,7 @@ let state = {
   friendsScheduleData: new Map(), // Cache for friends' schedule data
   friendsScheduleCache: new Map(), // Enhanced cache with metadata: {data, timestamp, isStale}
   isFriendsBarInitializing: false, // Prevent duplicate/overlapping init
+  friendsBarHintActive: false, // Serialize the friends-bar hint to avoid duplicates
 
   // Mobile Schedule Redesign State
   viewMode: "day", // 'day' or 'grid' - default to day view for mobile-first
@@ -551,7 +552,7 @@ function showScheduleToggleHint() {
     targetResolver: () => toggleBtn,
     buildConfig: () => ({
       title: "Schedule options",
-      description: "Tap to reveal Add Slot, Pin mode, and the day/grid view buttons.",
+      description: "Reveal additional controls for schedules.",
       highlightShape: "circle",
       responsivePlacement: { mobile: "bottom", desktop: "left" },
       offset: 12,
@@ -606,7 +607,7 @@ function startScheduleControlsHints() {
         key: "viewToggleHintSeen",
         targetResolver: () => document.getElementById("dayViewBtn"),
         buildConfig: () => ({
-        title: "Day or week view",
+        title: "Day or Grid view",
         description: "Switch between a focused single-day list and the full weekly grid.",
         responsivePlacement: { mobile: "top", desktop: "bottom" },
         maxWidth: getResponsiveCoachmarkWidth(220, 180),
@@ -619,7 +620,7 @@ function startScheduleControlsHints() {
         targetResolver: () => document.getElementById("addNewTimeSlotBtn"),
         buildConfig: () => ({
         title: "Add custom slots",
-        description: "Tap here and add new rows of time ranges to your schedule.",
+        description: "Add new time ranges to your schedule.",
         responsivePlacement: { mobile: "top", desktop: "bottom" },
         maxWidth: getResponsiveCoachmarkWidth(220, 180),
         offset: 12,
@@ -631,7 +632,7 @@ function startScheduleControlsHints() {
         targetResolver: () => document.getElementById("togglePinModeBtn"),
         buildConfig: () => ({
           title: "Pin important slots",
-          description: "Pinning marks preferred meeting times so friends can spot them instantly.",
+          description: "Your pinned slots can be seen by friends too.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "top", desktop: "bottom" },
           maxWidth: getResponsiveCoachmarkWidth(204, 176),
@@ -7862,6 +7863,74 @@ document.addEventListener("spa:page:load", async (event) => {
     await updateUI();
     try { updateHeaderCompareUI(); } catch (_) {}
 
+    // If user just starred their first friend and navigated to Schedule, show where stars go
+    try {
+      const uid = currentUser?.uid || "guest";
+      const showHintKey = `campxus:onboarding:showFriendsBarHint:${uid}`;
+      const glowKey = `campxus:onboarding:postStarNavGlow:${uid}`;
+      await onboardingService.init().catch(() => {});
+      // Show if explicitly asked, or if a pending post-star glow exists (fallback path)
+      const wantFriendsBarHint =
+        (sessionStorage.getItem(showHintKey) === "1" ||
+          sessionStorage.getItem(glowKey) === "1") &&
+        !state.friendsBarHintActive &&
+        onboardingService.shouldShow("friendsBarHintSeen");
+      if (wantFriendsBarHint) {
+        // Attempt when the friends bar reports avatars rendered (even empty)
+        const tryShow = () => {
+          // Prevent re-entrancy across poll + event race
+          if (state.friendsBarHintActive) return false;
+          const anchor =
+            document.getElementById("horizontal-friends-container-avatars") ||
+            document.querySelector(
+              "#horizontal-friends-container .friends-avatars-list"
+            ) ||
+            document.getElementById("horizontal-friends-container");
+          if (!anchor || !document.body.contains(anchor)) return false;
+          if (hasActiveCoachMarks()) return false;
+          // Claim the hint attempt just before showing
+          state.friendsBarHintActive = true;
+          const mark = showCoachMark({
+            id: "friends-bar-stars",
+            target: anchor,
+            title: "Quick Access",
+            description: "Starred friends are shown here.",
+            placement: "auto",
+            responsivePlacement: { desktop: "bottom" },
+            maxWidth: getResponsiveCoachmarkWidth(200, 176),
+            highlight: false,
+            primaryButton: { text: "OK" },
+          });
+          if (mark) {
+            sessionStorage.removeItem(showHintKey);
+            sessionStorage.removeItem(glowKey);
+            onboardingService
+              .markSeen("friendsBarHintSeen", { allowPending: true })
+              .catch(() => {});
+            return true;
+          }
+          // Release the lock if show failed, so we can retry later
+          state.friendsBarHintActive = false;
+          return false;
+        };
+
+        let attempts = 20;
+        const poll = () => {
+          if (tryShow()) return;
+          if (--attempts > 0) setTimeout(poll, 300);
+        };
+
+        const once = (e) => {
+          document.removeEventListener("friendsbar:avatarsRendered", once);
+          setTimeout(poll, 80);
+        };
+        document.addEventListener("friendsbar:avatarsRendered", once);
+
+        // Also kick off a first attempt in case bar is already there
+        setTimeout(poll, 120);
+      }
+    } catch (_) {}
+
     devLog("[Onboarding] Scheduling initial toggle hint");
     scheduleOnboardingTimeout(showScheduleToggleHint, 450);
     devLog("[Onboarding] Scheduling initial tap hint placeholder");
@@ -7919,6 +7988,8 @@ document.addEventListener("spa:page:unload", (event) => {
     clearOnboardingTimeouts();
     controlsHintQueue = Promise.resolve();
     controlsHintsStarted = false;
+    // Release friends bar hint lock for next visit
+    state.friendsBarHintActive = false;
     controlsHintsActive = false;
     document.removeEventListener(
       "scheduleControls:opened",

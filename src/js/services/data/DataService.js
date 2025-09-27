@@ -1651,11 +1651,24 @@ class DataManager {
     };
 
     let hasPayload = false;
+    // Support special logging fields for onboarding events
+    const eventName = onboardingUpdates?.__eventName;
+    const withLog = typeof eventName === "string" && eventName.length > 0;
+
     Object.entries(onboardingUpdates).forEach(([key, value]) => {
       if (value === undefined) return;
+      if (key.startsWith("__")) return; // skip internal keys
       updates[`systemInfo.onboarding.${key}`] = value;
       hasPayload = true;
     });
+
+    if (withLog) {
+      // Write lightweight audit fields under onboarding
+      updates["systemInfo.onboarding.lastEvent"] = eventName;
+      updates["systemInfo.onboarding.lastEventAt"] = serverTimestamp();
+      updates[`systemInfo.onboarding.events.${eventName}.lastAt`] = serverTimestamp();
+      hasPayload = true;
+    }
 
     if (!hasPayload) {
       return { success: false, error: "No valid onboarding fields provided" };
@@ -1676,13 +1689,18 @@ class DataManager {
     if (cached) {
       const systemInfo = cached.systemInfo || {};
       const onboarding = systemInfo.onboarding || {};
-      cached.systemInfo = {
+      const merged = {
         ...systemInfo,
         onboarding: {
           ...onboarding,
           ...onboardingUpdates,
         },
       };
+      if (withLog) {
+        merged.onboarding.lastEvent = eventName;
+        // Keep lastEventAt best-effort; serverTimestamp not available on client cache
+      }
+      cached.systemInfo = merged;
       this.setCachedData(cacheKey, cached);
     }
 

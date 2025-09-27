@@ -126,7 +126,7 @@ function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
 }
 
 // Ensure per-user onboarding: clear any local hint flags when account changes
-document.addEventListener("onboarding:user-switched", () => {
+document.addEventListener("onboarding:user-switched", (e) => {
   try {
     friendsUI?.campusPresenceHintObserver?.disconnect?.();
   } catch (_) {}
@@ -141,6 +141,20 @@ document.addEventListener("onboarding:user-switched", () => {
       ui.friendActionsHintPrimed = false;
       ui.campusPresenceHintShown = false;
     }
+  } catch (_) {}
+  try {
+    // Remove any leftover glow classes so the next user doesn't see them
+    const desktopLink = document.querySelector(
+      '.top-nav .nav-links a.nav-link[data-spa-route="home"]'
+    );
+    const mobileLink = document.querySelector(
+      '.mobile-bottom-nav a.mobile-nav-item[data-spa-route="home"]'
+    );
+    desktopLink?.classList?.remove?.("onboarding-glow");
+    mobileLink?.classList?.remove?.("onboarding-glow");
+    document
+      .querySelectorAll(".quick-access-star.onboarding-glow")
+      ?.forEach((el) => el.classList.remove("onboarding-glow"));
   } catch (_) {}
 });
 
@@ -167,6 +181,15 @@ const PRESENCE_DEMO_HTML = `
 
 const FRIENDS_HINT_RETRY_DELAY = 600;
 const FRIENDS_HINT_MAX_ATTEMPTS = 8;
+// Serialize friends page hints to ensure only one coachmark is visible at a time
+let friendsHintQueue = Promise.resolve();
+function enqueueFriendHint(taskFn) {
+  friendsHintQueue = friendsHintQueue
+    .then(() => taskFn())
+    .catch(() => {})
+    .then(() => delay(120));
+  return friendsHintQueue;
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -299,6 +322,9 @@ class FriendsUI {
     this._restoringDrawer = false; // guard against restore loops
     this._onDrawerToggleClick = null; // store toggle handler for cleanup
     this._refreshingStates = new Set(); // debounce refreshFriendActionsState per friend
+
+    // Gate to serialize coachmarks on Friends page
+    this.hintsBusy = false;
   }
 
   /**
@@ -1277,12 +1303,13 @@ class FriendsUI {
         return;
       }
 
-      if (hasActiveCoachMarks()) {
+      if (hasActiveCoachMarks() || this.hintsBusy) {
         logInfo("[Friends Onboarding] Presence hint waiting for other coachmark");
         setTimeout(attemptShow, FRIENDS_HINT_RETRY_DELAY);
         return;
       }
 
+      this.hintsBusy = true;
       this.campusPresenceHintShown = true;
       this.detachCampusPresenceHintObserver();
       logInfo("[Friends Onboarding] Showing campus presence hint", {
@@ -1291,24 +1318,25 @@ class FriendsUI {
 
       const isCompact = window.innerWidth <= 600;
       const hintHtml = isCompact
-        ? `<div class="coachmark-html-list"><p>Toggle presence to let friends know when you're around campus.</p><p>Switch it off anytime to go private.</p></div>`
-        : `${PRESENCE_DEMO_HTML}<div class="coachmark-html-list"><p>Toggle presence to let friends know when you're around campus.</p><p>Switch it off anytime to go private.</p></div>`;
+        ? `<div class="coachmark-html-list"><p>Toggle to allow friends to see when you're on campus.</p></div>`
+        : `${PRESENCE_DEMO_HTML}<div class="coachmark-html-list"><p>Toggle to allow friends to see when you're on campus.</p></div>`;
 
-      // Hybrid anchoring: on desktop, anchor to the actual toggle button if present;
-      // on compact/mobile, anchor to the header section for better layout fit.
-      const desktopToggleBtn = presenceSection.querySelector(
-        ".location-toggle-switch"
-      );
-      const targetEl =
-        !isCompact && desktopToggleBtn ? desktopToggleBtn : presenceSection;
+      // Prefer the actual switch when present; fall back to section wrapper
+      const switchBtn =
+        presenceSection.querySelector(
+          ".header-location-toggle-container .location-toggle-switch"
+        ) || presenceSection.querySelector(".location-toggle-switch");
+      const targetEl = switchBtn || presenceSection;
 
       const mark = showCoachMark({
         id: "campus-presence-toggle",
         target: targetEl,
-        title: "Share when you're on campus",
+        title: isCompact ? "Share campus status" : "Share when you're on campus",
         descriptionHtml: hintHtml,
-        responsivePlacement: { mobile: "top", desktop: "right" },
-        maxWidth: getResponsiveCoachmarkWidth(isCompact ? 200 : 240, 188),
+        // Use auto on mobile to keep within viewport; prefer right on desktop
+        placement: "auto",
+        responsivePlacement: { desktop: "right" },
+        maxWidth: getResponsiveCoachmarkWidth(isCompact ? 196 : 236, 184),
         primaryButton: { text: "OK" },
       });
 
@@ -1334,9 +1362,11 @@ class FriendsUI {
           })
           .finally(() => {
             this.campusPresenceHintObserver = null;
+            this.hintsBusy = false;
           });
       } else {
         this.campusPresenceHintShown = false;
+        this.hintsBusy = false;
         scheduleRetry();
       }
     };
@@ -2508,7 +2538,7 @@ class FriendsUI {
       return;
     }
 
-    if (hasActiveCoachMarks()) {
+    if (hasActiveCoachMarks() || this.hintsBusy) {
       devLog(
         "[Friends Onboarding] Another coachmark active, retrying friend actions hint"
       );
@@ -2520,6 +2550,7 @@ class FriendsUI {
     }
 
     this.friendActionsHintShown = true;
+    this.hintsBusy = true;
     logInfo("[Friends Onboarding] Starting friend actions hint sequence", {
       friendId: firstFriendId,
       wasOpen,
@@ -2545,29 +2576,33 @@ class FriendsUI {
     const steps = [
       // 1) Quick Access star first
       {
-        targetResolver: () => firstCard.querySelector(".quick-access-star"),
+        targetResolver: () =>
+          this.elements.friendsList?.querySelector(
+            `.quick-access-star[data-friend-id="${firstFriendId}"]`
+          ),
         buildConfig: () => ({
           id: "friend-actions-star",
-          title: "Pin to quick access",
-          description:
-            "Star them to keep their avatar in the top bar for quick compare and presence updates.",
+          title: "Star friends",
+          description: "Star this friend to see their updates on the schedule page.",
           highlightShape: "circle",
-          responsivePlacement: { mobile: "top", desktop: "top" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          responsivePlacement: { mobile: "bottom", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(200, 176),
           primaryButton: { text: "Next" },
         }),
       },
       // 2) Drawer toggle button hint – then open the drawer after acknowledge
       {
-        targetResolver: () => firstCard.querySelector(".drawer-toggle-btn"),
+        targetResolver: () =>
+          this.elements.friendsList?.querySelector(
+            `.friend-card[data-friend-id="${firstFriendId}"] .drawer-toggle-btn`
+          ),
         buildConfig: () => ({
           id: "friend-actions-drawer-toggle",
-          title: "More friend actions",
-          description:
-            "Open this drawer to manage campus status, schedule sharing, and more options.",
+          title: "Privacy & Options",
+          description: "Open this drawer for privacy toggles, and other options.",
           highlightShape: "circle",
-          responsivePlacement: { mobile: "top", desktop: "top" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          responsivePlacement: { mobile: "bottom", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(200, 176),
           primaryButton: { text: "Next" },
           onPrimary: () => {
             try {
@@ -2593,12 +2628,11 @@ class FriendsUI {
         },
         buildConfig: () => ({
           id: "friend-actions-location",
-          title: "Share campus status",
-          description:
-            "Toggle this to let each other know when you're on campus. You can go private anytime.",
+          title: "Location Privacy",
+          description: "Toggle this button to hide/share your campus presence with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          maxWidth: getResponsiveCoachmarkWidth(200, 176),
           primaryButton: { text: "Next" },
         }),
       },
@@ -2612,12 +2646,11 @@ class FriendsUI {
         },
         buildConfig: () => ({
           id: "friend-actions-schedule",
-          title: "Schedule visibility",
-          description:
-            "Let this friend peek at your timetable when planning together, and turn it off anytime.",
+          title: "Schedule Privacy",
+          description: "Toggle this button to hide/share your schedule with this friend.",
           highlightShape: "circle",
-          responsivePlacement: { mobile: "top", desktop: "top" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          responsivePlacement: { mobile: "bottom", desktop: "top" },
+          maxWidth: getResponsiveCoachmarkWidth(200, 176),
           primaryButton: { text: "Next" },
         }),
       },
@@ -2631,12 +2664,11 @@ class FriendsUI {
         },
         buildConfig: () => ({
           id: "friend-actions-more",
-          title: "More actions",
-          description:
-            "Need to tweak privacy or remove a friend? Open this menu for the full toolkit.",
+          title: "More options",
+          description: "Unfriending and other options are here.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "top", desktop: "left" },
-          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          maxWidth: getResponsiveCoachmarkWidth(200, 176),
           primaryButton: { text: "Done" },
         }),
       },
@@ -2657,6 +2689,7 @@ class FriendsUI {
         });
         this.friendActionsHintShown = false;
         this.friendActionsHintPrimed = false;
+        this.hintsBusy = false;
         return;
       }
       logInfo("[Friends Onboarding] Friend action hint acknowledged", {
@@ -2674,13 +2707,82 @@ class FriendsUI {
       }
     } catch (_) {}
 
+    // After the full sequence, encourage starring with a subtle glow on the first card's star
+    try {
+      // Re-query the DOM by friendId in case the card re-rendered during hints
+      const firstStar = this.elements.friendsList?.querySelector(
+        `.quick-access-star[data-friend-id="${firstFriendId}"]`
+      );
+      if (firstStar && !firstStar.classList.contains("starred")) {
+        firstStar.classList.add("onboarding-glow");
+        // Remove glow when user interacts with the star
+        const removeGlow = () => firstStar.classList.remove("onboarding-glow");
+        firstStar.addEventListener("click", removeGlow, { once: true });
+      }
+    } catch (_) {}
+
     onboardingService
       .markSeen("friendActionsHintSeen", { allowPending: true })
       .catch(() => {})
       .finally(() => {
         this.friendActionsHintShown = false;
         this.friendActionsHintPrimed = true;
+        this.hintsBusy = false;
       });
+  }
+
+  /**
+   * ✨ After first star, glow the Schedule nav item and prepare friends bar hint
+   */
+  applyScheduleNavGlowAfterFirstStar() {
+    try {
+      // Avoid duplicates (namespace by UID for per-user state)
+      const uid = currentUser?.uid || "guest";
+      const glowKey = `campxus:onboarding:postStarNavGlow:${uid}`;
+      const showHintKey = `campxus:onboarding:showFriendsBarHint:${uid}`;
+      if (sessionStorage.getItem(glowKey) === "1") return;
+
+      const isMobile = window.innerWidth <= 768;
+      const desktopLink = document.querySelector(
+        '.top-nav .nav-links a.nav-link[data-spa-route="home"]'
+      );
+      const mobileLink = document.querySelector(
+        '.mobile-bottom-nav a.mobile-nav-item[data-spa-route="home"]'
+      );
+
+      const target = isMobile ? mobileLink : desktopLink;
+      if (target) {
+        target.classList.add("onboarding-glow");
+        // Clicking schedule should remove glow and queue the friends bar hint on Home
+        const handler = () => {
+          try {
+            target.classList.remove("onboarding-glow");
+          } catch (_) {}
+          sessionStorage.setItem(showHintKey, "1");
+          sessionStorage.removeItem(glowKey);
+          target.removeEventListener("click", handler);
+        };
+        target.addEventListener("click", handler);
+        sessionStorage.setItem(glowKey, "1");
+
+        // Fallback: if user navigates to schedule without clicking the glowing link,
+        // convert the glow intent into a friends-bar hint on next home load.
+        const onSpaLoad = (e) => {
+          try {
+            if (!e?.detail || e.detail.route !== "home") return;
+            // Convert outstanding glow intent into showFriendsBarHint
+            if (sessionStorage.getItem(glowKey) === "1") {
+              try { target.classList.remove("onboarding-glow"); } catch (_) {}
+              sessionStorage.setItem(showHintKey, "1");
+              sessionStorage.removeItem(glowKey);
+            }
+          } finally {
+            document.removeEventListener("spa:page:load", onSpaLoad);
+          }
+        };
+        document.addEventListener("spa:page:load", onSpaLoad, { once: true });
+      }
+    } catch (_) {}
   }
 
   /**
@@ -4113,6 +4215,13 @@ class FriendsUI {
    */
   async handleQuickAccessToggle(friendId, starButton) {
     try {
+      // Snapshot Quick Access count (use cache) to detect first-star case
+      let quickAccessBefore = 0;
+      try {
+        const before = await friendsManager.getQuickAccessFriends(true);
+        quickAccessBefore = Array.isArray(before) ? before.length : 0;
+      } catch (_) {}
+
       // Find the friend's information from the current friends list
       const friend = this.currentFriendsData.find((f) => f.id === friendId);
       if (!friend) {
@@ -4165,6 +4274,11 @@ class FriendsUI {
         const action = isCurrentlyStarred ? "removed from" : "added to";
         console.log(`@${friend.handle} ${action} Quick Access!`);
         console.log(`✅ Quick Access toggle successful for @${friend.handle}`);
+
+        // If we just added and it was the first one, guide user to Schedule
+        if (!isCurrentlyStarred && quickAccessBefore === 0) {
+          this.applyScheduleNavGlowAfterFirstStar();
+        }
       }
     } catch (error) {
       console.error("❌ Error in Quick Access toggle:", error);

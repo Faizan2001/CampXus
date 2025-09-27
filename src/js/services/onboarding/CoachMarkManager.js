@@ -160,6 +160,7 @@ export function showCoachMark(options = {}) {
     responsivePlacement,
     offset = DEFAULT_OFFSET,
     highlightShape = "rounded",
+    highlight = true,
     primaryButton,
     secondaryButton,
     dismissOnBackdrop = false,
@@ -198,26 +199,31 @@ export function showCoachMark(options = {}) {
   arrow.className = "coachmark-arrow";
   card.appendChild(arrow);
 
+  // Scrollable body container to avoid clipping the arrow
+  const body = document.createElement("div");
+  body.className = "coachmark-body";
+  card.appendChild(body);
+
   if (title) {
     const heading = document.createElement("h4");
     heading.textContent = title;
-    card.appendChild(heading);
+    body.appendChild(heading);
   }
 
   if (descriptionHtml) {
     const wrapper = document.createElement("div");
     wrapper.className = "coachmark-html";
     wrapper.innerHTML = descriptionHtml;
-    card.appendChild(wrapper);
+    body.appendChild(wrapper);
   } else if (description) {
     const paragraph = document.createElement("p");
     paragraph.textContent = description;
-    card.appendChild(paragraph);
+    body.appendChild(paragraph);
   }
 
   const actions = document.createElement("div");
   actions.className = "coachmark-actions";
-  card.appendChild(actions);
+  body.appendChild(actions);
 
   let resolveClose;
   const waitForClose = new Promise((resolve) => {
@@ -324,14 +330,16 @@ export function showCoachMark(options = {}) {
   document.addEventListener("keydown", keyHandler);
   destroyers.push(() => document.removeEventListener("keydown", keyHandler));
 
-  const highlightClasses = ["coachmark-highlight"];
-  if ((highlightShape || "") === "circle") {
-    highlightClasses.push("coachmark-circle");
+  if (highlight) {
+    const highlightClasses = ["coachmark-highlight"];
+    if ((highlightShape || "") === "circle") {
+      highlightClasses.push("coachmark-circle");
+    }
+    highlightClasses.forEach((cls) => target.classList.add(cls));
+    destroyers.push(() =>
+      highlightClasses.forEach((cls) => target.classList.remove(cls))
+    );
   }
-  highlightClasses.forEach((cls) => target.classList.add(cls));
-  destroyers.push(() =>
-    highlightClasses.forEach((cls) => target.classList.remove(cls))
-  );
 
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add("active"));
@@ -356,9 +364,6 @@ export function showCoachMark(options = {}) {
       }
       return userPlacement;
     })();
-
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
 
     let top;
     let left;
@@ -385,28 +390,27 @@ export function showCoachMark(options = {}) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    const minLeftBoundary = scrollX + 12;
-    const maxLeftBoundary =
-      scrollX + Math.max(12, viewportWidth - cardRect.width - 12);
-    const desiredLeft = left + scrollX;
+    // Position relative to viewport (overlay is fixed; children are absolute)
+    const minLeftBoundary = 12;
+    const maxLeftBoundary = Math.max(12, viewportWidth - cardRect.width - 12);
+    const desiredLeft = left; // already in viewport coordinates
     let finalLeft = clamp(desiredLeft, minLeftBoundary, maxLeftBoundary);
 
     if (desiredLeft > maxLeftBoundary) {
-      const alignRight = targetRect.right + scrollX - cardRect.width;
+      const alignRight = targetRect.right - cardRect.width;
       finalLeft = clamp(alignRight, minLeftBoundary, maxLeftBoundary);
     } else if (desiredLeft < minLeftBoundary) {
-      const alignLeft = targetRect.left + scrollX;
+      const alignLeft = targetRect.left;
       finalLeft = clamp(alignLeft, minLeftBoundary, maxLeftBoundary);
     }
 
-    const minTopBoundary = scrollY + 12;
-    const maxTopBoundary =
-      scrollY + Math.max(12, viewportHeight - cardRect.height - 12);
-    const desiredTop = top + scrollY;
+    const minTopBoundary = 12;
+    const maxTopBoundary = Math.max(12, viewportHeight - cardRect.height - 12);
+    const desiredTop = top; // already in viewport coordinates
     let finalTop = clamp(desiredTop, minTopBoundary, maxTopBoundary);
 
     if (desiredTop > maxTopBoundary) {
-      const alignBottom = targetRect.bottom + scrollY - cardRect.height;
+      const alignBottom = targetRect.bottom - cardRect.height;
       finalTop = clamp(alignBottom, minTopBoundary, maxTopBoundary);
     }
 
