@@ -26,6 +26,7 @@ import {
   getAvatarFallback,
 } from "../utils/avatar/avatarUtils.js";
 import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyService.js";
+import { uiCache } from "../services/cache/UiCacheService.js";
 import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
 import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
 import { LocationSharingToggle } from "../components/presence/LocationSharingToggle.js";
@@ -342,6 +343,11 @@ class FriendsUI {
 
       // Always set up event listeners since DOM elements are recreated
       this.setupEventListeners();
+
+      // Paint from cache immediately to avoid empty UI on slow devices
+      try {
+        await this.renderCachedFriendsIfAvailable();
+      } catch (_) {}
 
       // 🎛️ Set up real-time integration
       this.setupRealTimeCallbacks();
@@ -900,13 +906,31 @@ class FriendsUI {
             return;
           }
 
-          // Avoid full refresh during an in-progress privacy toggle to keep UI snappy
-          if (this.isUpdatingPrivacy) {
-            logInfo(
-              "⏭️ Skipping full friends list refresh (privacy toggle in progress)"
-            );
-          } else {
-            await this.displayFriendsList(friends);
+          // Avoid heavy re-render if item set is unchanged (patch in place)
+          try {
+            const idsSig = friends
+              .map((f) => f.id)
+              .filter(Boolean)
+              .sort()
+              .join(";");
+            const structureUnchanged = this._lastFriendsIdsSig === idsSig;
+
+            if (!this.isUpdatingPrivacy && !structureUnchanged) {
+              await this.displayFriendsList(friends);
+              this._lastFriendsIdsSig = idsSig;
+            } else {
+              // Patch lightweight UI bits only
+              this.currentFriendsData = friends;
+              try {
+                await this.updateAllQuickAccessStars(friends);
+                await this.updateAllFriendCardsBilateralPrivacy(friends);
+              } catch (_) {}
+            }
+          } catch (_) {
+            // Fallback to full render on any error
+            if (!this.isUpdatingPrivacy) {
+              await this.displayFriendsList(friends);
+            }
           }
 
           // Update search button states (hide buttons for existing friends)
@@ -1427,7 +1451,7 @@ class FriendsUI {
    */
   async loadInitialData() {
     try {
-      // Show loading state
+      // Show loading state (no-op placeholder, we keep cached content visible)
       this.showLoadingState();
 
       // Load friends list
@@ -1842,6 +1866,15 @@ class FriendsUI {
 
     console.log("👥 Displaying friends:", friends);
 
+    // Track item-set signature to decide future diff strategy
+    try {
+      this._lastFriendsIdsSig = friends
+        .map((f) => f.id)
+        .filter(Boolean)
+        .sort()
+        .join(";");
+    } catch (_) {}
+
     const friendsHTML = friends
       .map(
         (friend) => `
@@ -1907,6 +1940,12 @@ class FriendsUI {
       .join("");
 
     this.elements.friendsList.innerHTML = friendsHTML;
+
+    // Persist for next navigation to minimize empty-state flicker
+    try {
+      const uid = currentUser?.state?.user?.uid;
+      if (uid) uiCache.set(uiCache.keys.friendsList(uid), friends, 120_000);
+    } catch (_) {}
 
     // 🔗 Render friend options menus for each friend card with bilateral privacy
     await this.renderFriendOptionsMenus(friends);
@@ -2935,7 +2974,26 @@ class FriendsUI {
   renderAvatar(userData) {
     // Use the centralized avatar utility with cache-busting for fresh avatars
     // This ensures consistent avatar rendering across the entire app
-    return renderUserAvatar(userData, true);
+    return renderUserAvatar(userData, false);
+  }
+
+  /**
+   * Pre-render from cached friends list if available, then background-refresh.
+   */
+  async renderCachedFriendsIfAvailable() {
+    try {
+      const uid = currentUser?.state?.user?.uid;
+      if (!uid) return;
+      const cached = uiCache.get(uiCache.keys.friendsList(uid));
+      if (Array.isArray(cached) && cached.length > 0 && this.elements?.friendsList) {
+        console.log("👥 Rendering friends from cache before fresh fetch", {
+          count: cached.length,
+        });
+        await this.displayFriendsList(cached);
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 
   /**

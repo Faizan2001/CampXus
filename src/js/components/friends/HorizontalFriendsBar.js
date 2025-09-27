@@ -50,6 +50,7 @@ import { PresenceDot } from "../presence/PresenceDot.js";
 import { friendshipPrivacyService } from "../../services/friends/FriendshipPrivacyService.js";
 import { onboardingService } from "../../services/onboarding/OnboardingService.js";
 import { showCoachMark } from "../../services/onboarding/CoachMarkManager.js";
+import { uiCache } from "../../services/cache/UiCacheService.js";
 
 // Global instance for external access
 let globalHorizontalFriendsBarInstance = null;
@@ -323,6 +324,32 @@ export class HorizontalFriendsBar {
       const quickAccessData =
         await friendsManager.getQuickAccessFriendsWithPrivacy(cachePreferred);
 
+      // Apply last-known presence (stale-while-revalidate) to avoid grey-dot flicker
+      try {
+        const uid = currentUser?.user?.uid;
+        const cachedPresence = uiCache.get(uiCache.keys.horizontalPresence(uid));
+        if (cachedPresence && Array.isArray(quickAccessData)) {
+          quickAccessData.forEach((f) => {
+            const id = f.friendId || f.userId;
+            const p = cachedPresence[id];
+            if (!p) return;
+            // Only hydrate safe, view-only fields; do not override privacy
+            f.lastActive = p.lastActive || f.lastActive || null;
+            f.lastKnownLocation = p.lastKnownLocation || f.lastKnownLocation || null;
+            f.hasLocationSharing =
+              typeof p.hasLocationSharing === "boolean"
+                ? p.hasLocationSharing
+                : f.hasLocationSharing;
+            f.canSeeLocation =
+              typeof p.canSeeLocation === "boolean"
+                ? p.canSeeLocation
+                : f.canSeeLocation;
+          });
+        }
+      } catch (_) {
+        // Non-fatal: fall through if cache unavailable
+      }
+
       // On first paint, avoid heavy per-friend profile fetch. Render ASAP with loading dots,
       // then hydrate presence/lastActive in the background.
       let quickAccessWithLocation = [];
@@ -338,39 +365,27 @@ export class HorizontalFriendsBar {
             if (!this.isInitialized) return;
             this.quickAccessFriends = hydrated;
             this.sortQuickAccessFriendsForDisplay();
-            // Re-render friends list to apply new ordering and refresh presence dots
-            if (this.avatarsContainer) {
-              this.avatarsContainer.innerHTML = "";
-              // Preserve mapping and state for the user avatar
-              const userEl = this.avatarElements.get("user") || null;
-              // Remove only friend entries from the map
-              this.avatarElements.forEach((_, key) => {
-                if (key !== "user") this.avatarElements.delete(key);
-              });
-              // Re-render friends only (user avatar remains untouched)
-              this.renderFriendsAvatars(this.avatarsContainer);
-              // Ensure the user avatar is still tracked in the map
-              if (userEl) this.avatarElements.set("user", userEl);
-              // If compare mode is active, ensure 'selected' is not present on user
-              if (this.compareMode && userEl) {
-                userEl.classList.remove("selected");
-              }
-              this.updateScrollIndicators();
-              if (this.compareMode) {
-                this.updateCompareSelectionUI();
-              } else {
-                // Restore visual selection: user when null, friend ID otherwise; skip when 'none'
-                if (this.selectedFriendId !== "none") {
-                  const idToRestore = this.selectedFriendId == null ? "user" : this.selectedFriendId;
-                  this.updateVisualSelection(idToRestore);
-                }
-              }
-            } else {
-              // Fallback: refresh dots in place if we cannot re-render container
-              this.refreshPresenceDotsWithLatestData();
-            }
+            // Update existing dots in place and reorder minimally to avoid flicker
+            this.refreshPresenceDotsWithLatestData();
+            this._reorderDomToMatchQuickAccessOrder();
             // Ensure profile listeners are bound
             await this.setupStarredFriendProfileListeners();
+
+            // Persist latest presence snapshot for next navigation
+            try {
+              const uid = currentUser?.user?.uid;
+              const snapshot = {};
+              this.quickAccessFriends.forEach((f) => {
+                const id = f.friendId || f.userId;
+                snapshot[id] = {
+                  lastActive: f.lastActive || null,
+                  lastKnownLocation: f.lastKnownLocation || null,
+                  hasLocationSharing: !!f.hasLocationSharing,
+                  canSeeLocation: !!f.canSeeLocation,
+                };
+              });
+              uiCache.set(uiCache.keys.horizontalPresence(uid), snapshot, 120_000);
+            } catch (_) {}
           } catch (bgErr) {
             console.warn("⚠️ Background enhancement failed:", bgErr);
           }
@@ -517,7 +532,7 @@ export class HorizontalFriendsBar {
            aria-label="View your schedule">
         <div class="avatar-container">
           <div class="avatar-image">
-            ${renderUserAvatar(this.currentUser, true)}
+            ${renderUserAvatar(this.currentUser, false)}
             ${userPresenceDot}
             <div class="selection-ring"></div>
           </div>
@@ -587,7 +602,7 @@ export class HorizontalFriendsBar {
              aria-label="${ariaLabel}">
           <div class="avatar-container">
             <div class="avatar-image">
-              ${renderUserAvatar(friend, true)}
+              ${renderUserAvatar(friend, false)}
               ${presenceDot}
               <div class="selection-ring"></div>
             </div>
@@ -4077,6 +4092,20 @@ export class HorizontalFriendsBar {
       this.friendLoading.set(friendId, false);
       existingPresenceDot.classList.remove("spinner-overlay");
       existingPresenceDot.title = "";
+
+      // Persist per-friend presence to session cache for next navigation
+      try {
+        const uid = currentUser?.user?.uid;
+        const key = uiCache.keys.horizontalPresence(uid);
+        const snapshot = uiCache.get(key) || {};
+        snapshot[friendId] = {
+          lastActive: friend.lastActive || null,
+          lastKnownLocation: friend.lastKnownLocation || null,
+          hasLocationSharing: !!friend.hasLocationSharing,
+          canSeeLocation: !!friend.canSeeLocation,
+        };
+        uiCache.set(key, snapshot, 120_000);
+      } catch (_) {}
     } catch (error) {
       console.error(
         `❌ Error updating presence dot for ${
@@ -4117,6 +4146,42 @@ export class HorizontalFriendsBar {
     }
 
     this.updateScrollIndicators();
+  }
+
+  /**
+   * Reorder existing friend avatar DOM nodes to match current quickAccessFriends order
+   * without recreating elements. Minimizes flicker and avoids avatar image refetches.
+   */
+  _reorderDomToMatchQuickAccessOrder() {
+    if (!this.avatarsContainer || !this.quickAccessFriends?.length) return;
+
+    // Build desired order by ids
+    const desired = this.quickAccessFriends.map((f) => f.friendId || f.userId);
+
+    // Check current order in DOM
+    const current = Array.from(
+      this.avatarsContainer.querySelectorAll('.friend-avatar-item')
+    ).map((el) => el.getAttribute('data-friend-id'));
+
+    // If identical, nothing to do
+    const sameOrder =
+      desired.length === current.length &&
+      desired.every((id, idx) => id === current[idx]);
+    if (sameOrder) return;
+
+    // Move nodes in desired order
+    desired.forEach((id) => {
+      const node = this.avatarElements.get(id);
+      if (node && node.parentNode === this.avatarsContainer) {
+        this.avatarsContainer.appendChild(node);
+      } else if (!node) {
+        // Try to find it fresh if cache got stale
+        const fresh = this.avatarsContainer.querySelector(
+          `[data-friend-id="${id}"]`
+        );
+        if (fresh) this.avatarsContainer.appendChild(fresh);
+      }
+    });
   }
 
   /**
