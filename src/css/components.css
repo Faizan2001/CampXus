@@ -1039,11 +1039,25 @@ body.page-about.has-bottom-nav .main-content {
   animation: aboutAuraPulse 4.5s ease-in-out infinite;
 }
 
-.about-photo {
+/* Inner clip to enable pan/zoom while keeping circular mask */
+.about-photo-clip {
+  --about-photo-zoom: 9%;
   width: clamp(240px, 42vw, 320px);
+  height: clamp(240px, 42vw, 320px);
   border-radius: 50%;
+  overflow: hidden;
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.45);
+  position: relative;
+}
+
+.about-photo {
+  width: calc(100% + var(--about-photo-zoom, 5%));
+  height: calc(100% + var(--about-photo-zoom, 5%));
+  max-width: none;
   object-fit: cover;
+  transform: translateX(var(--about-photo-pan-x, 0))
+    translateY(var(--about-photo-pan-y, 0));
+  will-change: transform;
 }
 
 .about-photo-frame::before {
