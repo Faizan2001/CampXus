@@ -214,6 +214,16 @@ function hideModal() {
   // Internal function
   if (!modalDomElements || !modalDomElements.appModal) return;
 
+  // Hide action buttons immediately to prevent flicker during fade-out
+  try {
+    if (modalDomElements.modalActionButtons) {
+      modalDomElements.modalActionButtons.style.display = "none";
+    }
+    if (modalDomElements.modalConfirmBtn) {
+      modalDomElements.modalConfirmBtn.classList.remove("single-ok", "success-btn");
+    }
+  } catch (_) {}
+
   modalDomElements.appModal.classList.remove("active");
 
   // Store the current callbacks before they might be overwritten by a new modal

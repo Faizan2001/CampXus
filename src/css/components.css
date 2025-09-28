@@ -199,6 +199,101 @@ This file contains all UI component styles for the MeetchuThere app:
     0 0 0 2px rgba(106, 90, 205, 0.2);
 }
 
+/* ===== PWA iOS Install Modal Content ===== */
+.pwa-ios-instructions {
+  text-align: left;
+  color: var(--text-secondary);
+}
+.pwa-ios-instructions .steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.pwa-ios-instructions .step {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch; /* allow images to span full width */
+  gap: 0.6rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 6px 20px var(--modal-shadow-base), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.pwa-ios-instructions .step .step-text {
+  width: 100%;
+  text-align: center;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.pwa-ios-instructions .step .step-text strong {
+  color: var(--text-primary);
+}
+.pwa-ios-instructions .step .step-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain; /* prevent cropping for small images */
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  padding: 8px; /* horizontal breathing room */
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+
+/* On very small screens, keep images visible without overflow */
+@media (max-width: 480px) {
+  .pwa-ios-instructions .step .step-img {
+    padding: 6px;
+  }
+}
+.pwa-ios-instructions small.note {
+  display: block;
+  margin-top: 0.75rem;
+  opacity: 0.85;
+  text-align: center;
+}
+
+/* Half-screen modal card for PWA install */
+.modal-content.pwa-install-card {
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(1200px 600px at 50% -100px, rgba(139, 92, 246, 0.18), transparent 60%), var(--depth-surface);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+  /* Responsive sizing: aim for half screen but allow more on tiny devices */
+  min-height: 42vh;
+  max-height: min(82dvh, 640px);
+  padding-bottom: calc(2.5rem + env(safe-area-inset-bottom, 0px));
+}
+.modal-content.pwa-install-card .modal-action-buttons {
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Make the message area scrollable so bottom content isn't cut off */
+.modal-content.pwa-install-card .modal-message {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  max-height: calc(70dvh);
+  padding-right: 0.25rem;
+  margin-right: -0.25rem; /* keep scrollbar off-edge */
+}
+@media (max-width: 480px) {
+  .modal-content.pwa-install-card {
+    min-height: 45vh;
+    max-height: 85dvh; /* allow near full height on tiny devices */
+  }
+  .modal-content.pwa-install-card .modal-message {
+    max-height: calc(72dvh);
+  }
+}
+
 .notification-low {
   opacity: 0.9;
   border-width: 1px;

@@ -183,6 +183,17 @@
         </div>
 
         <div class="nav-right">
+          <!-- Mobile Install PWA button (shown under 480px when eligible) -->
+          <button
+            id="installPwaBtn"
+            class="nav-link nav-cta nav-install"
+            type="button"
+            style="display: none"
+            aria-label="Install app"
+            title="Install app"
+          >
+            <span class="nav-text">Install</span>
+          </button>
           <!-- About (visible to all, even when signed out) -->
           <a
             data-spa-route="about"

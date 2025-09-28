@@ -78,6 +78,16 @@
   gap: clamp(0.5rem, 2vw, 1rem);
 }
 
+/* Install PWA button: hidden by default, shown on narrow mobile widths */
+#installPwaBtn {
+  display: none; /* JS will also control when eligible */
+}
+@media (max-width: 480px) {
+  #installPwaBtn {
+    display: inline-flex; /* only appears on mobile widths */
+  }
+}
+
 /* inline links group */
 .nav-links {
   display: flex;

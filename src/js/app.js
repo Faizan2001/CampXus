@@ -35,6 +35,7 @@ import "/src/css/styles.css";
 // 🔧 Development tools
 import { logManager } from "./utils/debug/LogManager.js";
 import { profileCache } from "./cache/profileCache.js"; // 🚀 Hydration cache
+import { pwaInstallService } from "./services/pwa/PWAInstallService.js";
 
 // 🎯 DEBUG: Log that modules are imported
 logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
@@ -153,6 +154,11 @@ async function initializeSPA() {
   initializeDomElements();
   initModal(DOM_ELEMENTS);
   logManager.system.init("Modal system initialized successfully!");
+
+  // Initialize PWA install gating and UI (Android prompt + iOS instructions)
+  try {
+    pwaInstallService.initialize();
+  } catch (_) {}
 
   // 🌍 Initialize Campus Presence services in background (NON-BLOCKING)
   // Defer Campus Presence services until auth is ready and user is logged in
