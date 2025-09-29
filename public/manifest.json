@@ -2,7 +2,7 @@
   "name": "MeetchuThere - University Friend Finder",
   "short_name": "MeetchuThere",
   "description": "Connect with your university friends in real-time. Share your schedule, see when classmates are on campus, and never miss a chance to meet up.",
-  "theme_color": "#151820",
+  "theme_color": "#0A0B0F",
   "background_color": "#0A0B0F",
   "display": "standalone",
   "start_url": "/",

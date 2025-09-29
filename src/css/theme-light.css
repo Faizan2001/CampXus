@@ -1,0 +1,477 @@
+/* ============================================================================
+   LIGHT THEME OVERRIDES & ENHANCEMENTS
+   ============================================================================
+
+   PURPOSE:
+   This file contains all light mode specific styling that needs to override
+   the default dark theme. It uses body:not(.dark-mode) selector to target
+   light mode only.
+
+   ORGANIZATION:
+   1. Form Inputs & Text Fields
+   2. Schedule - Day View Time Slots
+   3. Schedule - View Controls & Buttons
+   4. Friends Page - Action Buttons
+   5. Glass Cards & Containers
+   6. About Page - Text Gradients & Typography
+   7. Responsive Adjustments
+
+   WHY SEPARATE FILE:
+   - Keeps dark mode (default) clean in variables.css
+   - Easy to debug light mode issues
+   - Clear separation of concerns
+   - Follows CSS best practices for theme management
+
+============================================================================ */
+
+/* ============================================================================
+   1. FORM INPUTS & TEXT FIELDS
+   All text inputs, textareas, and form elements in light mode
+============================================================================ */
+
+/* Basic Input Styling - White backgrounds with purple borders */
+body:not(.dark-mode) .form-input,
+body:not(.dark-mode) input[type="text"],
+body:not(.dark-mode) input[type="email"],
+body:not(.dark-mode) input[type="password"],
+body:not(.dark-mode) textarea,
+body:not(.dark-mode) select {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(139, 125, 232, 0.3) !important;
+  color: #1e1b29 !important;
+  box-shadow: 0 2px 8px rgba(139, 125, 232, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Placeholder Text Styling */
+body:not(.dark-mode) .form-input::placeholder,
+body:not(.dark-mode) input::placeholder,
+body:not(.dark-mode) textarea::placeholder {
+  color: #8b87a0 !important;
+  opacity: 0.7;
+}
+
+/* Focus States - Enhanced purple glow */
+body:not(.dark-mode) .form-input:focus,
+body:not(.dark-mode) input:focus,
+body:not(.dark-mode) textarea:focus,
+body:not(.dark-mode) select:focus {
+  background: rgba(255, 255, 255, 1) !important;
+  border-color: #8b7de8 !important;
+  box-shadow: 0 0 0 3px rgba(139, 125, 232, 0.15),
+              0 4px 12px rgba(139, 125, 232, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  outline: none;
+}
+
+/* Profile Setup Specific Inputs */
+body:not(.dark-mode) .setup-container .form-input,
+body:not(.dark-mode) .profile-setup .form-input {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid rgba(139, 125, 232, 0.3) !important;
+}
+
+/* Handle Input - Special validation states */
+body:not(.dark-mode) #setup-handle {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(139, 125, 232, 0.3) !important;
+}
+
+body:not(.dark-mode) #setup-handle.valid {
+  border-color: rgba(74, 222, 128, 0.5) !important;
+  background: rgba(240, 255, 244, 0.95) !important;
+}
+
+body:not(.dark-mode) #setup-handle.invalid {
+  border-color: rgba(220, 38, 38, 0.5) !important;
+  background: rgba(254, 242, 242, 0.95) !important;
+}
+
+/* Textarea Specific - Bio and long text fields */
+body:not(.dark-mode) .bio-textarea,
+body:not(.dark-mode) textarea.form-input {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid rgba(139, 125, 232, 0.3) !important;
+  min-height: 120px;
+}
+
+/* Dropdown Menus */
+body:not(.dark-mode) .select-dropdown,
+body:not(.dark-mode) .typeahead-list {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(139, 125, 232, 0.25) !important;
+  box-shadow: 0 8px 24px rgba(139, 125, 232, 0.15),
+              0 4px 8px rgba(139, 125, 232, 0.08) !important;
+}
+
+/* Dropdown Items */
+body:not(.dark-mode) .select-dropdown-item,
+body:not(.dark-mode) .typeahead-item {
+  color: #1e1b29 !important;
+}
+
+body:not(.dark-mode) .select-dropdown-item:hover,
+body:not(.dark-mode) .typeahead-item:hover,
+body:not(.dark-mode) .select-dropdown-item.selected {
+  background: rgba(139, 125, 232, 0.12) !important;
+  color: #1e1b29 !important;
+}
+
+/* ============================================================================
+   2. SCHEDULE - DAY VIEW TIME SLOTS
+   Time slot cards showing free/busy periods
+============================================================================ */
+
+/* Base Day Time Slot - White card with purple border */
+body:not(.dark-mode) .day-time-slot {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 2px solid rgba(139, 125, 232, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(139, 125, 232, 0.1),
+              0 2px 4px rgba(139, 125, 232, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  color: #1e1b29 !important;
+}
+
+/* Hover State - Lift effect with enhanced shadow */
+body:not(.dark-mode) .day-time-slot:hover {
+  background: rgba(248, 246, 255, 1) !important;
+  border-color: rgba(139, 125, 232, 0.4) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(139, 125, 232, 0.18),
+              0 4px 8px rgba(139, 125, 232, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+/* FREE SLOTS - Light green tint */
+body:not(.dark-mode) .day-time-slot.free {
+  background: rgba(240, 255, 244, 0.9) !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.12),
+              0 2px 4px rgba(74, 222, 128, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+body:not(.dark-mode) .day-time-slot.free:hover {
+  background: rgba(236, 253, 245, 1) !important;
+  border-color: rgba(74, 222, 128, 0.5) !important;
+  box-shadow: 0 8px 20px rgba(74, 222, 128, 0.2),
+              0 4px 8px rgba(74, 222, 128, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+body:not(.dark-mode) .day-time-slot.free .slot-free-text {
+  color: #059669 !important;
+  font-weight: 600;
+}
+
+/* BUSY SLOTS - Purple gradient with white text */
+body:not(.dark-mode) .day-time-slot.busy {
+  background: linear-gradient(135deg, #8b7de8 0%, #9d8ef0 100%) !important;
+  border-color: rgba(139, 125, 232, 0.6) !important;
+  box-shadow: 0 6px 16px rgba(139, 125, 232, 0.25),
+              0 3px 6px rgba(139, 125, 232, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
+body:not(.dark-mode) .day-time-slot.busy:hover {
+  background: linear-gradient(135deg, #9d8ef0 0%, #b8aff5 100%) !important;
+  border-color: rgba(139, 125, 232, 0.7) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(139, 125, 232, 0.35),
+              0 5px 10px rgba(139, 125, 232, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Busy Slot Content - White text with shadow */
+body:not(.dark-mode) .day-time-slot.busy .slot-course-code,
+body:not(.dark-mode) .day-time-slot.busy .slot-classroom,
+body:not(.dark-mode) .day-time-slot.busy .slot-time {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Time Badge Styling */
+body:not(.dark-mode) .day-time-slot .slot-time {
+  background: rgba(139, 125, 232, 0.12) !important;
+  color: #5e5a73 !important;
+  border: 1px solid rgba(139, 125, 232, 0.2) !important;
+  font-weight: 600;
+}
+
+body:not(.dark-mode) .day-time-slot.busy .slot-time {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body:not(.dark-mode) .day-time-slot.free .slot-time {
+  background: rgba(74, 222, 128, 0.15) !important;
+  color: #059669 !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+/* Course Code & Classroom Text */
+body:not(.dark-mode) .day-time-slot .slot-course-code {
+  color: #1e1b29 !important;
+  font-weight: 700;
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+}
+
+body:not(.dark-mode) .day-time-slot .slot-classroom {
+  color: #5e5a73 !important;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* ============================================================================
+   3. SCHEDULE - VIEW CONTROLS & BUTTONS
+   Day selector and view toggle buttons
+============================================================================ */
+
+/* View Mode Toggle & Day Selector Buttons */
+body:not(.dark-mode) .view-mode-btn,
+body:not(.dark-mode) .day-selector-btn {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(139, 125, 232, 0.2) !important;
+  color: #5e5a73 !important;
+  box-shadow: 0 2px 6px rgba(139, 125, 232, 0.08) !important;
+}
+
+body:not(.dark-mode) .view-mode-btn:hover,
+body:not(.dark-mode) .day-selector-btn:hover {
+  background: rgba(248, 246, 255, 0.95) !important;
+  border-color: rgba(139, 125, 232, 0.3) !important;
+  color: #1e1b29 !important;
+}
+
+/* Active State - Purple gradient */
+body:not(.dark-mode) .view-mode-btn.active,
+body:not(.dark-mode) .day-selector-btn.active {
+  background: linear-gradient(135deg, #8b7de8 0%, #9d8ef0 100%) !important;
+  border-color: rgba(139, 125, 232, 0.6) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(139, 125, 232, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ============================================================================
+   4. FRIENDS PAGE - ACTION BUTTONS
+   Star button and other friend action buttons
+============================================================================ */
+
+/* STAR BUTTON - Highly visible in light mode */
+body:not(.dark-mode) .quick-access-star {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25) 0%, rgba(255, 193, 7, 0.3) 100%) !important;
+  border: 2px solid rgba(255, 215, 0, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.25),
+              0 2px 6px rgba(255, 193, 7, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+body:not(.dark-mode) .quick-access-star i {
+  color: rgba(255, 165, 0, 0.9) !important;
+  font-size: 1rem !important;
+}
+
+/* Star Hover - Enhanced visibility */
+body:not(.dark-mode) .quick-access-star:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.35) 0%, rgba(255, 193, 7, 0.4) 100%) !important;
+  border-color: rgba(255, 215, 0, 0.7) !important;
+  transform: translateY(-2px) scale(1.08) !important;
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.35),
+              0 4px 12px rgba(255, 193, 7, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+body:not(.dark-mode) .quick-access-star:hover i {
+  color: rgba(255, 140, 0, 1) !important;
+  transform: scale(1.15);
+}
+
+/* Star Starred State - Golden glow */
+body:not(.dark-mode) .quick-access-star.starred {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.5) 0%, rgba(255, 193, 7, 0.6) 100%) !important;
+  border-color: rgba(255, 215, 0, 0.8) !important;
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.5),
+              0 6px 20px rgba(255, 193, 7, 0.4),
+              0 3px 10px rgba(255, 215, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+body:not(.dark-mode) .quick-access-star.starred i {
+  color: #ff8c00 !important;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+
+/* Star Starred Hover - Maximum prominence */
+body:not(.dark-mode) .quick-access-star.starred:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.6) 0%, rgba(255, 193, 7, 0.7) 100%) !important;
+  transform: translateY(-3px) scale(1.12) !important;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.7),
+              0 8px 24px rgba(255, 193, 7, 0.5),
+              0 4px 14px rgba(255, 215, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
+/* ============================================================================
+   5. GLASS CARDS & CONTAINERS
+   Main container styling in light mode
+============================================================================ */
+
+body:not(.dark-mode) .glass-card {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(139, 125, 232, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(139, 125, 232, 0.1),
+              0 4px 12px rgba(139, 125, 232, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+/* ============================================================================
+   6. ABOUT PAGE - TEXT GRADIENTS & TYPOGRAPHY
+   About page title, name, and tagline styling for light mode
+============================================================================ */
+
+/* About Page Title - Vibrant purple gradient with depth */
+body:not(.dark-mode) .about-title {
+  background: linear-gradient(
+    135deg,
+    #6d28d9 0%,
+    #8b5cf6 20%,
+    #a78bfa 40%,
+    #c4b5fd 60%,
+    #8b5cf6 80%,
+    #6d28d9 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  text-shadow: none;
+  filter: brightness(0.95);
+}
+
+/* About Page Name - Rich purple-to-indigo gradient */
+body:not(.dark-mode) .about-name {
+  background: linear-gradient(
+    120deg,
+    #4c1d95 0%,
+    #6d28d9 25%,
+    #7c3aed 45%,
+    #8b5cf6 60%,
+    #6d28d9 80%,
+    #4c1d95 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  filter: brightness(1.05);
+}
+
+/* About Page Tagline - Solid deep purple text, no gradient */
+body:not(.dark-mode) .tagline-line {
+  color: #5b21b6 !important;
+  font-weight: 600 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  animation: none !important;
+}
+
+/* Shine effect override - Keep it solid in light mode */
+body:not(.dark-mode) .tagline-line.shine {
+  color: #5b21b6 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  animation: none !important;
+}
+
+/* About Tile Cards - White glass with purple accent */
+body:not(.dark-mode) .about-tile {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 246, 255, 0.98) 50%,
+    rgba(255, 255, 255, 0.92) 100%
+  ) !important;
+  border: 2px solid rgba(139, 125, 232, 0.25) !important;
+  box-shadow: 0 8px 24px rgba(139, 125, 232, 0.12),
+              0 4px 12px rgba(139, 125, 232, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  color: #1e1b29 !important;
+}
+
+/* About Tile Hover - Enhanced elevation */
+body:not(.dark-mode) .about-tile:hover {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(250, 248, 255, 1) 50%,
+    rgba(255, 255, 255, 0.98) 100%
+  ) !important;
+  border-color: rgba(139, 125, 232, 0.35) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(139, 125, 232, 0.18),
+              0 6px 16px rgba(139, 125, 232, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+/* About Tile Headings - Purple accent */
+body:not(.dark-mode) .about-tile h3 {
+  color: #7c3aed !important;
+  font-weight: 700 !important;
+}
+
+/* About Tile Text - Dark readable text */
+body:not(.dark-mode) .about-tile ul,
+body:not(.dark-mode) .about-tile p {
+  color: #5e5a73 !important;
+}
+
+/* About Tile List Items */
+body:not(.dark-mode) .about-tile li {
+  color: #3f3a52 !important;
+}
+
+/* ============================================================================
+   7. RESPONSIVE ADJUSTMENTS
+   Mobile and tablet specific overrides
+============================================================================ */
+
+@media (max-width: 768px) {
+  /* Thinner borders on mobile for better touch targets */
+  body:not(.dark-mode) .day-time-slot {
+    border-width: 1.5px !important;
+  }
+
+  /* Larger text on mobile */
+  body:not(.dark-mode) .form-input {
+    font-size: clamp(1rem, 2.5vw, 1.1rem);
+  }
+}
+
+/* High Contrast Mode - Accessibility */
+@media (prefers-contrast: high) {
+  body:not(.dark-mode) .day-time-slot {
+    border-width: 3px !important;
+  }
+
+  body:not(.dark-mode) .form-input {
+    border-width: 2px !important;
+  }
+
+  body:not(.dark-mode) .day-time-slot.busy {
+    background: #8b7de8 !important;
+  }
+}
+
+/* ============================================================================
+   END OF LIGHT THEME OVERRIDES
+
+   DEBUGGING TIPS:
+   - Check body class: Should NOT have "dark-mode" class for light mode
+   - Inspect element: Look for !important overrides
+   - Browser DevTools: Check which styles are being applied
+   - Variables: Check variables.css for color definitions
+
+============================================================================ */

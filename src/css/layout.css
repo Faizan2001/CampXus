@@ -47,6 +47,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.1rem clamp(0.75rem, 2vw, 1rem);
+  /* Respect safe area insets for notched devices */
+  padding-top: max(0.1rem, env(safe-area-inset-top, 0px));
+  padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-right, 0px));
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -55,6 +59,15 @@
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px var(--shadow);
+}
+
+/* Ensure fully opaque nav background in PWA standalone mode */
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  .top-nav {
+    background: var(--depth-background);
+    /* Ensure status bar area is filled on iOS/Android notched devices */
+    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  }
 }
 
 /* nav sections */

@@ -261,6 +261,16 @@ async function initializeSPA() {
     window.addEventListener("themeChanged", () => {
       syncMetaThemeColorToNav();
     });
+    // Re-sync when PWA is resumed from background (fixes status bar color mismatch)
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        syncMetaThemeColorToNav();
+      }
+    });
+    // Also sync on page show (handles back/forward cache)
+    window.addEventListener("pageshow", () => {
+      syncMetaThemeColorToNav();
+    });
   } catch (_) {}
 
   // Register service worker (PWA install + offline shell)

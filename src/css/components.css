@@ -1194,9 +1194,12 @@ body.page-about.has-bottom-nav .main-content {
   font-style: italic;
   font-weight: 600;
   letter-spacing: 0.1px;
-  /* Keep text static and silver via .shine */
+  /* Keep text static and silver, no gradient */
   color: #cfd2d6;
-  animation: none;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  animation: none !important;
 }
 
 .tagline-top {
@@ -1295,23 +1298,16 @@ body.page-about.has-bottom-nav .main-content {
   }
 }
 
-/* Shimmer wave animation for tagline text */
+/* Shimmer wave animation for tagline text - DISABLED globally per requirements */
 .shine {
   font-style: italic;
-  background: linear-gradient(
-    90deg,
-    #9ca3af 0%,
-    #9ca3af 35%,
-    #ffffff 50%,
-    #f3f4f6 65%,
-    #9ca3af 100%
-  );
-  background-size: 300% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  /* Disable gradient - keep static color */
+  background: none !important;
+  background-clip: initial !important;
+  -webkit-background-clip: initial !important;
+  color: inherit;
   text-shadow: none;
-  animation: shimmerWave 12s linear infinite;
+  animation: none !important;
 }
 
 @keyframes shimmerWave {
