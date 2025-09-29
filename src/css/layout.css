@@ -64,9 +64,29 @@
 /* Ensure fully opaque nav background in PWA standalone mode */
 @media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
   .top-nav {
-    background: var(--depth-background);
+    /* Use a solid color so OS status/gesture bars match exactly */
+    background: var(--nav-solid-bg);
     /* Ensure status bar area is filled on iOS/Android notched devices */
     padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  }
+
+  /* Ensure the safe-area region above the nav is painted with the same color
+     even if sticky positioning causes a compositing gap on resume */
+  .top-nav::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--nav-solid-bg);
+    z-index: 999; /* under .top-nav (1000), above page background */
+    pointer-events: none;
+  }
+
+  /* Bottom navigation uses the same solid background for seamless gesture area */
+  .mobile-bottom-nav {
+    background: var(--nav-solid-bg);
   }
 }
 

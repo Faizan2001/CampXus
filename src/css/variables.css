@@ -139,6 +139,8 @@ body:not(.dark-mode) {
     rgba(205, 193, 255, 0.04) 100%
   );
   --nav-bg: rgba(255, 255, 255, 0.85);
+  /* Solid nav surface color for PWA system UI (status/navigation bars) */
+  --nav-solid-bg: #ffffff;
 
   /* Enhanced Glassmorphism System */
   /* Glass Card Variables */
@@ -465,6 +467,8 @@ body.dark-mode {
       rgba(168, 85, 247, 0.04) 100%
     );
     --nav-bg: rgba(21, 24, 32, 0.9);
+    /* Solid nav surface color for PWA system UI (status/navigation bars) */
+    --nav-solid-bg: #151820;
 
     /* Glass System - Dark Mode */
     --glass-bg: rgba(42, 45, 56, 0.8);
