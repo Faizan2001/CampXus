@@ -87,6 +87,12 @@
     display: inline-flex; /* only appears on mobile widths */
   }
 }
+/* Force hide in installed PWA contexts (Android/iOS standalone modes) */
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  #installPwaBtn {
+    display: none !important;
+  }
+}
 
 /* inline links group */
 .nav-links {

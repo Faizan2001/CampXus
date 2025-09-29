@@ -26,8 +26,8 @@ function isStandalone() {
   // Android installed PWA
   const standaloneDisplay =
     window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
-  // iOS installed to homescreen
-  const iOSStandalone = typeof window.navigator.standalone === "boolean" && window.navigator.standalone;
+  // iOS installed to homescreen - navigator.standalone is iOS-specific
+  const iOSStandalone = window.navigator.standalone === true;
   return !!standaloneDisplay || !!iOSStandalone;
 }
 
