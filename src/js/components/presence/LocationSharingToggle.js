@@ -211,6 +211,18 @@ export class LocationSharingToggle {
     // Keyboard navigation
     this.element.addEventListener("keydown", this.handleKeyDown.bind(this));
 
+    // Listen for permission changes to refresh UI state automatically
+    this._onPermissionChanged = async (_e) => {
+      try {
+        // Refresh UI state on any permission change (denied/granted)
+        await this.refresh();
+      } catch (_) {}
+    };
+    document.addEventListener(
+      "location-permission:changed",
+      this._onPermissionChanged
+    );
+
     console.log("🎯 Event handlers attached to LocationSharingToggle");
   }
 
@@ -239,6 +251,55 @@ export class LocationSharingToggle {
     this.setLoading(true);
 
     try {
+      // When turning ON, require browser location permission to be granted
+      if (newEnabled === true) {
+        try {
+          const { campusLocationService } = await import(
+            "../../services/location/CampusLocationService.js"
+          );
+          let status = campusLocationService.getPermissionStatus?.() || null;
+
+          // If not already granted, request permission inside the click gesture
+          if (status !== "granted") {
+            await campusLocationService.requestLocationPermission();
+            status = campusLocationService.getPermissionStatus?.() || null;
+          }
+
+          if (status !== "granted") {
+            // Block enabling; guide the user to enable permission
+            notificationManager.showWarningNotification(
+              "Location permission is blocked. Enable location in your browser settings to share campus presence.",
+              { duration: 6000 }
+            );
+
+            // Ensure profile stays OFF (defensive sync)
+            try {
+              await locationPrivacyService.setGlobalLocationPreferences(
+                currentUserUid,
+                { enabled: false, shareWithFriends: false, updateTimestamp: new Date() }
+              );
+            } catch (_) {}
+
+            // Reflect UI back to OFF and stop here
+            this.currentState.globalEnabled = false;
+            this.updateToggleState();
+            this.setLoading(false);
+            return;
+          }
+        } catch (permErr) {
+          console.warn("Permission gating error:", permErr);
+          notificationManager.showWarningNotification(
+            "Unable to check location permission. Please enable it in browser settings.",
+            { duration: 5000 }
+          );
+          // Keep OFF on error
+          this.currentState.globalEnabled = false;
+          this.updateToggleState();
+          this.setLoading(false);
+          return;
+        }
+      }
+
       // Update global preferences
       const success = await locationPrivacyService.setGlobalLocationPreferences(
         currentUserUid,
@@ -396,6 +457,20 @@ export class LocationSharingToggle {
             currentUserUid
           );
         this.currentState.globalEnabled = globalPrefs?.enabled ?? false;
+
+        // Enforce permission gating at render-time too (reflect OFF)
+        try {
+          const { campusLocationService } = await import(
+            "../../services/location/CampusLocationService.js"
+          );
+          const status = campusLocationService.getPermissionStatus?.() || null;
+          if (status !== "granted" && this.currentState.globalEnabled) {
+            // Auto-correct UI to OFF (service handles flipping profile + notify)
+            this.currentState.globalEnabled = false;
+          }
+        } catch (_) {
+          // best-effort
+        }
       }
 
       // Get friend-specific preferences
@@ -621,6 +696,15 @@ export class LocationSharingToggle {
 
     this.element = null;
     this.isLoading = false;
+
+    // Remove global listeners
+    if (this._onPermissionChanged) {
+      document.removeEventListener(
+        "location-permission:changed",
+        this._onPermissionChanged
+      );
+      this._onPermissionChanged = null;
+    }
 
     console.log(
       `🧹 LocationSharingToggle destroyed (${this.options.mode} mode)`

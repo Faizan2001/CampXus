@@ -388,10 +388,19 @@ class LocationScheduler {
   // ----- Utilities -----
   isSharingEnabled() {
     try {
-      return (
+      const sharing =
         !!currentUser?.user?.uid &&
-        currentUser?.profile?.systemInfo?.locationSharingEnabled === true
-      );
+        currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+      // Also require browser geolocation permission to be granted
+      try {
+        // campusLocationService is already imported at top
+        const perm = campusLocationService.getPermissionStatus
+          ? campusLocationService.getPermissionStatus()
+          : null;
+        return sharing && perm === "granted";
+      } catch (_) {
+        return false;
+      }
     } catch (_) {
       return false;
     }
@@ -425,4 +434,3 @@ export const locationScheduler = new LocationScheduler();
 if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname.startsWith("127."))) {
   window.locationScheduler = locationScheduler;
 }
-

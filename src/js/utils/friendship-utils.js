@@ -37,8 +37,7 @@ export function getFriendshipId(uid1, uid2) {
   return [uid1, uid2].sort().join("_");
 }
 
-/**
- * Enhanced friendship document structure with bilateral privacy controls
+/* Enhanced friendship document structure with bilateral privacy controls
  *
  * @param {string} user1Id - First user ID
  * @param {string} user2Id - Second user ID

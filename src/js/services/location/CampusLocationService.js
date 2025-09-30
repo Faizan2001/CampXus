@@ -20,6 +20,7 @@ import { locationTierService } from "./LocationTierService.js";
 
 // Import centralized logging system
 import { logManager } from "../../utils/debug/LogManager.js";
+import { notificationManager } from "../realtime/NotificationService.js";
 
 /**
  * Service class for campus location detection and presence management
@@ -76,14 +77,15 @@ export class CampusLocationService {
       const uid = currentUser?.uid;
       const enabled =
         currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
-      if (!uid || !enabled) {
+      const permissionGranted = this.permissionStatus === "granted";
+      if (!uid || !enabled || !permissionGranted) {
         // Stop if previously running
         if (this.presencePollingIntervalId) {
           clearInterval(this.presencePollingIntervalId);
           this.presencePollingIntervalId = null;
         }
         logManager.location.info(
-          "[CampusLocationService] Presence polling not started (no user or disabled)"
+          "[CampusLocationService] Presence polling not started (no user, disabled, or permission blocked)"
         );
         return;
       }
@@ -133,6 +135,13 @@ export class CampusLocationService {
    */
   async runPresencePollNow() {
     try {
+      // Guard: do nothing if permission is not allowed
+      if (this.permissionStatus !== "granted") {
+        logManager.location.warn(
+          "[CampusLocationService] Immediate presence poll skipped - permission not granted"
+        );
+        return;
+      }
       await this._runPresencePollSafely();
       logManager.location.info(
         "[CampusLocationService] Presence poll executed immediately"
@@ -155,6 +164,10 @@ export class CampusLocationService {
         !currentUser?.uid ||
         currentUser?.profile?.systemInfo?.locationSharingEnabled !== true
       ) {
+        return;
+      }
+      // Guard: do nothing if permission not granted
+      if (this.permissionStatus !== "granted") {
         return;
       }
       document.dispatchEvent(
@@ -257,6 +270,9 @@ export class CampusLocationService {
           if (
             currentUser?.profile?.systemInfo?.locationSharingEnabled !== true
           ) {
+            return;
+          }
+          if (this.permissionStatus !== "granted") {
             return;
           }
         } catch (_) {
@@ -383,6 +399,9 @@ export class CampusLocationService {
     this.isLocationSupported = "geolocation" in navigator;
     this.currentPosition = null;
     this.permissionStatus = null;
+    this._permissionListenerAttached = false;
+    this._denialSyncInProgress = false;
+    this._lastDenialHandledAt = 0;
 
     // Location tracking properties
     this.trackingWatchId = null;
@@ -497,6 +516,33 @@ export class CampusLocationService {
 
     // 🎯 PHASE 2 ENHANCEMENT: Initialize lifecycle tracking for trigger scenarios
     this.setupLifecycleTracking();
+
+    // Initialize passive permission monitoring so we can auto-sync when revoked/granted
+    try {
+      if (!this._permissionListenerAttached && navigator?.permissions && typeof navigator.permissions.query === "function") {
+        navigator.permissions
+          .query({ name: "geolocation" })
+          .then((permission) => {
+            this.permissionStatus = permission.state;
+            this.dispatchPermissionChanged(permission.state);
+            if (permission.state === "granted") {
+              this.autoEnableAfterPermissionGranted();
+            }
+            permission.addEventListener("change", () => {
+              this.permissionStatus = permission.state;
+              this.dispatchPermissionChanged(permission.state);
+              if (permission.state !== "granted") {
+                this.handlePermissionDenied("permissions_api_change");
+              }
+              if (permission.state === "granted") {
+                this.autoEnableAfterPermissionGranted();
+              }
+            });
+            this._permissionListenerAttached = true;
+          })
+          .catch(() => {});
+      }
+    } catch (_) {}
   }
 
   /**
@@ -537,11 +583,12 @@ export class CampusLocationService {
 
       if (!isSecureContext) {
         logManager.location.warn(
-          "⚠️ Geolocation requires HTTPS in production. For development, this will show a graceful fallback."
+          "⚠️ Geolocation requires a secure context (HTTPS or localhost)."
         );
-        // In development over HTTP, provide a mock location for testing
-        this.permissionStatus = "granted";
-        return { success: true, message: "insecure_context_mock" };
+        // Treat as not allowed to keep gating consistent even in dev
+        this.permissionStatus = "denied";
+        this.dispatchPermissionChanged("denied");
+        return { success: false, error: "insecure_context", message: "Secure context required" };
       }
 
       // 🔧 MOBILE FIX: Detect mobile browser and adjust behavior accordingly
@@ -603,38 +650,11 @@ export class CampusLocationService {
             this.permissionStatus = "granted";
             this.currentPosition = position;
 
-            // 🔧 MOBILE FIX: Enhanced permission monitoring for mobile browsers
-            if ("permissions" in navigator) {
-              navigator.permissions
-                .query({ name: "geolocation" })
-                .then((permission) => {
-                  logManager.location.info(
-                    `Permission API state: ${permission.state}`
-                  );
+            // Auto-enable when permission is granted
+            try { this.dispatchPermissionChanged("granted"); } catch (_) {}
+            try { this.autoEnableAfterPermissionGranted(); } catch (_) {}
 
-                  permission.addEventListener("change", () => {
-                    this.permissionStatus = permission.state;
-                    logManager.location.info(
-                      "Permission changed to:",
-                      permission.state
-                    );
-
-                    // 🔧 MOBILE FIX: Handle mobile-specific permission revocation
-                    if (permission.state === "denied" && isMobile) {
-                      logManager.location.warn(
-                        "📱 Mobile permission revoked - stopping all location tracking"
-                      );
-                      this.stopLocationTracking();
-                    }
-                  });
-                })
-                .catch((permError) => {
-                  logManager.location.warn(
-                    "Permission API not fully supported:",
-                    permError
-                  );
-                });
-            }
+            // Centralized permission monitoring is already attached during initialization.
 
             resolve({ success: true });
           },
@@ -658,6 +678,8 @@ export class CampusLocationService {
                   "❌ Location permission DENIED by user"
                 );
                 this.permissionStatus = "denied";
+                this.dispatchPermissionChanged("denied");
+                this.handlePermissionDenied("user_denied_prompt");
 
                 if (isIOSSafari) {
                   logManager.location.info(
@@ -733,6 +755,7 @@ export class CampusLocationService {
     } catch (error) {
       logManager.location.fail("Error requesting location permission:", error);
       this.permissionStatus = "denied";
+      this.dispatchPermissionChanged("denied");
       return { success: false, error: "exception", message: error?.message };
     }
   }
@@ -752,6 +775,13 @@ export class CampusLocationService {
       logManager.system.error("Geolocation not supported");
       return null;
     }
+    // Respect permission gating: do not attempt location pipeline without permission
+    if (this.permissionStatus !== "granted") {
+      logManager.location.warn(
+        "3-tier location request blocked - permission not granted"
+      );
+      return null;
+    }
     this.emitPresenceDataLoading();
     try {
       return await locationTierService.getCurrentLocation(
@@ -764,6 +794,32 @@ export class CampusLocationService {
       return null;
     }
     // Legacy inline tier pipeline removed. Method delegates to LocationTierService.
+  }
+
+  /**
+   * Auto-enable global location sharing and start tracking when permission is granted
+   */
+  async autoEnableAfterPermissionGranted() {
+    try {
+      const uid = currentUser?.uid;
+      if (!uid) return;
+      const already =
+        currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+      if (!already) {
+        try {
+          await dataManager.updateLocationSharingPreference(uid, true);
+        } catch (e) {
+          logManager.location.warn(
+            "[CampusLocationService] Failed to auto-enable sharing after permission grant",
+            e
+          );
+        }
+      }
+      // Start tracking (polling + immediate poll)
+      try {
+        await this.startLocationTracking();
+      } catch (_) {}
+    } catch (_) {}
   }
 
   /**
@@ -815,6 +871,13 @@ export class CampusLocationService {
         // Create enhanced error with code for permission handling
         const enhancedError = new Error(`${errorType}: ${error.message}`);
         enhancedError.code = error.code;
+
+        // If permission denied mid-session (e.g., Ask Every Time → Deny), auto-sync OFF
+        if (error.code === 1) {
+          this.permissionStatus = "denied";
+          try { this.dispatchPermissionChanged("denied"); } catch (_) {}
+          try { this.handlePermissionDenied("gps_call_denied"); } catch (_) {}
+        }
         reject(enhancedError);
       };
 
@@ -3223,6 +3286,63 @@ export class CampusLocationService {
     console.log(
       "[CampusLocationService] ✅ Location polling and health systems stopped"
     );
+  }
+
+  /**
+   * Broadcast permission state change event
+   */
+  dispatchPermissionChanged(status) {
+    try {
+      document.dispatchEvent(
+        new CustomEvent("location-permission:changed", {
+          detail: { status, timestamp: Date.now() },
+        })
+      );
+    } catch (_) {}
+  }
+
+  /**
+   * Auto-sync profile and UI when permission is denied
+   */
+  async handlePermissionDenied(reason = "unknown") {
+    try {
+      // Avoid duplicate work/notifications within a short window
+      if (this._denialSyncInProgress) return;
+      this._denialSyncInProgress = true;
+
+      this.stopLocationTracking();
+
+      const uid = currentUser?.uid;
+      if (uid) {
+        try {
+          await dataManager.updateLocationSharingPreference(uid, false);
+        } catch (e) {
+          logManager.location.warn(
+            "[CampusLocationService] Failed to auto-sync preference to OFF after denial",
+            e
+          );
+        }
+      }
+
+      const now = Date.now();
+      if (!this._lastDenialHandledAt || now - this._lastDenialHandledAt > 2500) {
+        try {
+          notificationManager.showWarningNotification(
+            "Campus presence turned off because location permission is not allowed.",
+            { duration: 6000 }
+          );
+        } catch (_) {}
+        this._lastDenialHandledAt = now;
+      }
+
+      logManager.location.warn(
+        `[CampusLocationService] Auto-disabled presence due to permission denial (${reason})`
+      );
+    } catch (_) {
+      // swallow
+    } finally {
+      this._denialSyncInProgress = false;
+    }
   }
 
   /**
