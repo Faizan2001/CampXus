@@ -776,8 +776,14 @@ function syncMetaThemeColorToNav() {
  */
 function tryRegisterServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  // Only register in production builds (vite sets import.meta.env.PROD)
-  if (!(import.meta.env && import.meta.env.PROD)) return;
+  // Allow service worker in development for testing push notifications
+  // Can be disabled via localStorage.setItem('disableDevSW', 'true')
+  const isProduction = import.meta.env && import.meta.env.PROD;
+  const devSWDisabled = !isProduction && localStorage.getItem('disableDevSW') === 'true';
+  if (devSWDisabled) {
+    console.info('Service worker disabled in dev mode (localStorage.disableDevSW)');
+    return;
+  }
   const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
   if (!isSecure) return;
   navigator.serviceWorker

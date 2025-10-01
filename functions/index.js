@@ -107,9 +107,9 @@ async function removeInvalidTokens(userId, tokens, responses) {
         (String(err.code).includes("registration-token-not-registered") ||
           String(err.code).includes("invalid-argument"))
       ) {
-        const token = tokens[idx];
+        const tokenId = tokens[idx];
         batch.delete(
-          db.collection("users").doc(userId).collection("fcmTokens").doc(token)
+          db.collection("users").doc(userId).collection("fcmTokens").doc(tokenId)
         );
       }
     }
