@@ -1,7 +1,9 @@
 import { initializeApp as initAdminApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
-import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { https } from "firebase-functions"; // for potential callable future use
 import * as logger from "firebase-functions/logger";
 
 // Initialize Admin SDK once
@@ -17,6 +19,50 @@ function getYyyyMmDd(date = new Date()) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}${m}${d}`;
+}
+
+function getTodayKey() { return getYyyyMmDd(); }
+
+// Simple rate limit doc path helper
+function rateLimitRef(userId) {
+  return db.collection("users").doc(userId).collection("meta").doc("rateLimits");
+}
+
+async function incrementRate(userId, key, limitPerDay) {
+  const today = getTodayKey();
+  const ref = rateLimitRef(userId);
+  let allowed = true;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? snap.data() : {};
+    const dayObj = data[today] || {};
+    const current = dayObj[key] || 0;
+    if (current >= limitPerDay) {
+      allowed = false; return;
+    }
+    dayObj[key] = current + 1;
+    tx.set(ref, { [today]: dayObj }, { merge: true });
+  });
+  return allowed;
+}
+
+// Utility: collect all subcollection docs (shallow) and batch delete
+async function deleteUserSubcollection(userId, sub) {
+  const snap = await db.collection("users").doc(userId).collection(sub).get();
+  if (snap.empty) return 0;
+  const batch = db.batch();
+  snap.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+  return snap.size;
+}
+
+async function deleteUserFriendships(userId) {
+  const q = await db.collection("friendships").where("users", "array-contains", userId).get();
+  if (q.empty) return 0;
+  const batch = db.batch();
+  q.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+  return q.size;
 }
 
 async function getUserTokens(userId) {
@@ -138,6 +184,15 @@ export const onFriendRequestCreated = onDocumentCreated("friendRequests/{id}", a
   const toUserId = data.toUserId;
   if (!toUserId) return;
 
+  // Spam limit: sender daily friend requests (e.g. 40/day)
+  if (data.fromUserId) {
+    const ok = await incrementRate(data.fromUserId, "friendRequestsSent", 40);
+    if (!ok) {
+      logger.warn("Friend request rate limit exceeded", { user: data.fromUserId });
+      return; // silently drop push but still allow Firestore doc; alternative: delete doc
+    }
+  }
+
   const { prefs } = await getUserPrefs(toUserId);
   if (prefs.friendRequests === false) {
     logger.info("Recipient disabled friendRequests push", { toUserId });
@@ -160,6 +215,15 @@ export const onNotificationCreated = onDocumentCreated("notifications/{id}", asy
   if (!data || data.type !== "location_share_request") return;
   const toUserId = data.userId;
   if (!toUserId) return;
+
+  // Spam limit: location share requests per sender (e.g. 60/day)
+  if (data.fromUserId) {
+    const ok = await incrementRate(data.fromUserId, "locationRequestsSent", 60);
+    if (!ok) {
+      logger.warn("Location request rate limit exceeded", { user: data.fromUserId });
+      return;
+    }
+  }
 
   const { prefs } = await getUserPrefs(toUserId);
   if (prefs.locationRequests === false) {
@@ -234,5 +298,90 @@ export const onUserPresenceUpdated = onDocumentUpdated("users/{userId}", async (
     })());
   }
   await Promise.allSettled(sendPromises);
+});
+
+// 4) Token write trigger for server-side dedupe (browser -> PWA upgrade)
+export const onFcmTokenWrite = onDocumentWritten("users/{userId}/fcmTokens/{tokenId}", async (event) => {
+  const after = event.data?.after?.data();
+  if (!after) return; // deleted handled separately
+  if (after.isPWA !== true || !after.deviceKey) return; // only act on PWA token
+  const { userId, tokenId } = event.params;
+  const snap = await db.collection("users").doc(userId).collection("fcmTokens").get();
+  const batch = db.batch();
+  let removed = 0;
+  snap.forEach(docSnap => {
+    if (docSnap.id === tokenId) return;
+    const d = docSnap.data();
+    if (d.deviceKey === after.deviceKey && d.isPWA !== true) {
+      batch.delete(docSnap.ref);
+      removed++;
+    }
+  });
+  if (removed > 0) {
+    await batch.commit();
+    logger.info("Server token dedupe complete", { userId, removed });
+  }
+});
+
+// 5) Monthly stale token cleanup (older than 90 days by updatedAt or createdAt)
+export const cleanupStaleTokens = onSchedule("1 of month 00:30", async () => {
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const usersSnap = await db.collection("users").get();
+  let totalDeleted = 0;
+  for (const userDoc of usersSnap.docs) {
+    const tokens = await userDoc.ref.collection("fcmTokens").get();
+    if (tokens.empty) continue;
+    const batch = db.batch();
+    let localDeleted = 0;
+    tokens.forEach(t => {
+      const d = t.data();
+      const ts = d?.updatedAt?.toMillis?.() || d?.createdAt?.toMillis?.();
+      if (ts && ts < cutoff) { batch.delete(t.ref); localDeleted++; }
+    });
+    if (localDeleted > 0) { await batch.commit(); totalDeleted += localDeleted; }
+  }
+  logger.info("Stale token cleanup finished", { totalDeleted });
+});
+
+// 6) Daily stats aggregation
+export const aggregateDailyStats = onSchedule("every day 00:10", async () => {
+  const since = Date.now() - 24 * 60 * 60 * 1000;
+  const dayKey = getTodayKey();
+  const usersSnap = await db.collection("users").get();
+  let active24h = 0, new24h = 0, pwaInstalls = 0;
+  for (const u of usersSnap.docs) {
+    const d = u.data();
+    const lastActive = d?.systemInfo?.lastActive?.toMillis?.();
+    if (lastActive && lastActive > since) active24h++;
+    const createdAt = d?.systemInfo?.createdAt?.toMillis?.();
+    if (createdAt && createdAt > since) new24h++;
+    // quick check for at least one PWA token
+    const pwaSnap = await u.ref.collection("fcmTokens").where("isPWA", "==", true).limit(1).get().catch(()=>null);
+    if (pwaSnap && !pwaSnap.empty) pwaInstalls++;
+  }
+  const friendshipCount = (await db.collection("friendships").count().get()).data().count;
+  await db.collection("systemStats").doc(dayKey).set({
+    date: dayKey,
+    activeUsers24h: active24h,
+    newUsers24h: new24h,
+    totalUsers: usersSnap.size,
+    totalFriendships: friendshipCount,
+    pwaInstalls,
+    generatedAt: new Date().toISOString()
+  }, { merge: true });
+  logger.info("Daily stats aggregated", { dayKey, active24h, pwaInstalls });
+});
+
+// 7) Cascade cleanup when a user document is deleted
+export const onUserDeleted = onDocumentDeleted("users/{userId}", async (event) => {
+  const { userId } = event.params;
+  // Delete fcmTokens, meta, other lightweight subcollections
+  const subs = ["fcmTokens", "meta"];
+  let total = 0;
+  for (const s of subs) {
+    total += await deleteUserSubcollection(userId, s);
+  }
+  const friendshipsRemoved = await deleteUserFriendships(userId);
+  logger.info("Cascade user cleanup", { userId, subDocsDeleted: total, friendshipsRemoved });
 });
 
