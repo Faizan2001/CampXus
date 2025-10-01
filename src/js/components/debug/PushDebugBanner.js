@@ -113,37 +113,25 @@ export async function installPushDebugBanner() {
     ui.refresh.addEventListener("click", () => render());
     ui.test.addEventListener("click", async () => {
       try {
-        const { getFunctions, httpsCallable } = await import(
-          "firebase/functions"
-        );
         const { default: app, auth } = await import(
           "../../lib/firebase/firebase-config.js"
         );
-        const fn = httpsCallable(getFunctions(app, "us-central1"), "sendTestPush");
-        let resp;
-        try {
-          resp = await fn({});
-        } catch (err) {
-          // Fallback: manual fetch with ID token if callable complains unauthenticated
-          const msg = (err && (err.message || err.code)) || "";
-          const unauth = /unauth|Auth required|401/.test(String(msg));
-          if (!unauth) throw err;
-          const user = auth?.currentUser;
-          if (!user) throw new Error("No auth user for test push");
-          const idToken = await user.getIdToken(/*forceRefresh*/ true);
-          const projectId = (window.ENV && window.ENV.FIREBASE_PROJECT_ID) || "";
-          const url = `https://us-central1-${projectId}.cloudfunctions.net/sendTestPushHttp`;
-          const r = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({}),
-          });
-          const json = await r.json().catch(() => ({}));
-          resp = { data: json };
-        }
+        // Prefer HTTP endpoint with explicit ID token to avoid callable 401s
+        const user = auth?.currentUser;
+        if (!user) throw new Error("No auth user for test push (sign in)");
+        const idToken = await user.getIdToken(/*forceRefresh*/ true);
+        const projectId = (window.ENV && window.ENV.FIREBASE_PROJECT_ID) || "";
+        const url = `https://us-central1-${projectId}.cloudfunctions.net/sendTestPushHttp`;
+        const r = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({}),
+        });
+        const json = await r.json().catch(() => ({}));
+        const resp = { data: json };
         const data = resp?.data || {};
         console.log("Test push result", data);
         if (ui.last) {
