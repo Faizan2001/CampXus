@@ -224,6 +224,20 @@ async function initializeSPA() {
             );
             await pushMessagingService.initAfterLogin();
             await pushMessagingService.initAndMaybePrompt();
+
+            // Optional: install push debug banner when enabled
+            try {
+              const params = new URLSearchParams(location.search);
+              const pushDebug =
+                params.get("pushdebug") === "1" ||
+                localStorage.getItem("push:debug") === "true";
+              if (pushDebug) {
+                const { installPushDebugBanner } = await import(
+                  "./components/debug/PushDebugBanner.js"
+                );
+                installPushDebugBanner();
+              }
+            } catch (_) {}
           } catch (e) {
             console.warn("Push messaging init failed (non-fatal)", e);
           }
@@ -309,6 +323,34 @@ async function initializeSPA() {
   } catch (_) {
     // Ignore failures in dev helpers
   }
+
+  // Secret gesture to toggle Push Debug banner without console (mobile-friendly)
+  try {
+    const brand = document.querySelector('.nav-left.nav-brand .logo');
+    if (brand) {
+      let tapCount = 0;
+      let lastTap = 0;
+      const resetMs = 1500;
+      brand.addEventListener('click', async () => {
+        const now = Date.now();
+        if (now - lastTap > resetMs) tapCount = 0;
+        lastTap = now;
+        tapCount++;
+        if (tapCount >= 5) {
+          tapCount = 0;
+          try {
+            localStorage.setItem('push:debug', 'true');
+            const { installPushDebugBanner } = await import(
+              './components/debug/PushDebugBanner.js'
+            );
+            installPushDebugBanner();
+            // brief toast
+            console.info('🔔 Push Debug enabled');
+          } catch (_) {}
+        }
+      });
+    }
+  } catch (_) {}
 }
 
 // Initialize when DOM is ready, or immediately if already ready

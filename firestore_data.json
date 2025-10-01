@@ -6,6 +6,51 @@
     }
   },
   "friendRequests": {
+    "5bLWdalIiKmiW4n8fS3O": {
+      "respondedAt": null,
+      "fromUserInfo": {
+        "university": "iub",
+        "major": "ANT",
+        "handle": "samiya",
+        "avatarConfig": {
+          "style": "adventurer",
+          "seed": "1ucvlmgm1jb",
+          "options": {
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "ffdfbf,d1d4f9",
+            "glasses": "variant05",
+            "eyebrows": "variant02",
+            "mouth": "variant02",
+            "eyes": "variant10",
+            "hair": "long05"
+          }
+        }
+      },
+      "toUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "status": "pending",
+      "fromUserId": "1fWg2eqBADQGu55alSbZpBd1plq1",
+      "toUserInfo": {
+        "university": "iub",
+        "handle": "faizan",
+        "major": "CSC",
+        "avatarConfig": {
+          "style": "notionists",
+          "options": {
+            "body": "variant06",
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          },
+          "seed": "y0chkk73swg"
+        }
+      },
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1759330931,
+        "_nanoseconds": 669000000,
+        "_date": "2025-10-01T15:02:11.669Z"
+      },
+      "_subcollections": {}
+    },
     "OCssmZzoupJEcPQfm8e9": {
       "fromUserId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
       "status": "pending",
@@ -133,51 +178,6 @@
           },
           "style": "notionists"
         }
-      },
-      "_subcollections": {}
-    },
-    "bydEdA3mDDK7r8kGjkzp": {
-      "respondedAt": null,
-      "fromUserInfo": {
-        "avatarConfig": {
-          "style": "adventurer",
-          "seed": "1ucvlmgm1jb",
-          "options": {
-            "glasses": "variant05",
-            "hair": "long05",
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "eyes": "variant10",
-            "mouth": "variant02",
-            "eyebrows": "variant02"
-          }
-        },
-        "major": "ANT",
-        "university": "iub",
-        "handle": "samiya"
-      },
-      "toUserInfo": {
-        "university": "iub",
-        "avatarConfig": {
-          "options": {
-            "backgroundColor": "d1d4f9,ffd5dc",
-            "backgroundType": "gradientLinear",
-            "body": "variant06"
-          },
-          "style": "notionists",
-          "seed": "y0chkk73swg"
-        },
-        "major": "CSC",
-        "handle": "faizan"
-      },
-      "fromUserId": "1fWg2eqBADQGu55alSbZpBd1plq1",
-      "toUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
-      "status": "pending",
-      "createdAt": {
-        "_type": "timestamp",
-        "_seconds": 1759329463,
-        "_nanoseconds": 449000000,
-        "_date": "2025-10-01T14:37:43.449Z"
       },
       "_subcollections": {}
     },
@@ -2096,12 +2096,6 @@
             }
           }
         },
-        "lastUpdated": {
-          "_type": "timestamp",
-          "_seconds": 1759325233,
-          "_nanoseconds": 12000000,
-          "_date": "2025-10-01T13:27:13.012Z"
-        },
         "lastKnownLocation": {
           "coordinates": {
             "longitude": 90.4467084,
@@ -2123,18 +2117,47 @@
             "_date": "2025-10-01T13:27:14.733Z"
           }
         },
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759330851,
+          "_nanoseconds": 730000000,
+          "_date": "2025-10-01T15:00:51.730Z"
+        },
         "lastActive": {
           "_type": "timestamp",
-          "_seconds": 1759329467,
-          "_nanoseconds": 511000000,
-          "_date": "2025-10-01T14:37:47.511Z"
+          "_seconds": 1759330872,
+          "_nanoseconds": 451000000,
+          "_date": "2025-10-01T15:01:12.451Z"
         }
       },
       "_subcollections": {
+        "fcmTokens": {
+          "fJh2zYurJFfd25XZNYJCf_:APA91bFwSm7UX13Yht0yEeJ_89pAJbxbIaGuUxxmmxunALFf2brWHjCnFPOl4uUu4KB3EsOXDRdEc3NTklzzI5gZkk3kzQIicq1t5I0v0T2XhgrAbzZEICs": {
+            "appVersion": null,
+            "deviceKey": "d18lqoky",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "isPWA": false,
+            "platform": "web",
+            "token": "fJh2zYurJFfd25XZNYJCf_:APA91bFwSm7UX13Yht0yEeJ_89pAJbxbIaGuUxxmmxunALFf2brWHjCnFPOl4uUu4KB3EsOXDRdEc3NTklzzI5gZkk3kzQIicq1t5I0v0T2XhgrAbzZEICs",
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759330880,
+              "_nanoseconds": 250000000,
+              "_date": "2025-10-01T15:01:20.250Z"
+            },
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759330880,
+              "_nanoseconds": 250000000,
+              "_date": "2025-10-01T15:01:20.250Z"
+            },
+            "_subcollections": {}
+          }
+        },
         "meta": {
           "rateLimits": {
             "20251001": {
-              "friendRequestsSent": 3
+              "friendRequestsSent": 4
             },
             "_subcollections": {}
           }
@@ -7294,95 +7317,102 @@
         },
         "lastUpdated": {
           "_type": "timestamp",
-          "_seconds": 1759329409,
-          "_nanoseconds": 954000000,
-          "_date": "2025-10-01T14:36:49.954Z"
+          "_seconds": 1759330998,
+          "_nanoseconds": 126000000,
+          "_date": "2025-10-01T15:03:18.126Z"
         },
         "lastActive": {
           "_type": "timestamp",
-          "_seconds": 1759329411,
-          "_nanoseconds": 344000000,
-          "_date": "2025-10-01T14:36:51.344Z"
+          "_seconds": 1759330998,
+          "_nanoseconds": 126000000,
+          "_date": "2025-10-01T15:03:18.126Z"
         }
       },
       "quickAccessData": {
         "totalStarred": 7,
         "lastUpdated": {
           "_type": "timestamp",
-          "_seconds": 1759329411,
-          "_nanoseconds": 642000000,
-          "_date": "2025-10-01T14:36:51.642Z"
+          "_seconds": 1759330998,
+          "_nanoseconds": 541000000,
+          "_date": "2025-10-01T15:03:18.541Z"
         },
         "starredFriends": [
           {
-            "isRestricted": false,
-            "friendId": "fN14DF3BOPSRgAZq20SZrIG219h2",
+            "handle": "rabbage",
             "privacyStatus": {
               "description": "Schedule is visible - quick access enabled",
-              "source": "friendship_document_change",
               "avatarEnabled": true,
+              "source": "friendship_document_change",
               "tooltip": "Click to view schedule",
-              "lastUpdated": "2025-10-01T14:36:52.691Z"
-            },
-            "avatarConfig": {
-              "options": {
-                "body": "variant17",
-                "backgroundColor": "d1d4f9",
-                "backgroundType": "gradientLinear"
-              },
-              "seed": "77n4cwalvus",
-              "style": "notionists"
+              "lastUpdated": "2025-10-01T15:03:19.610Z"
             },
             "userId": "fN14DF3BOPSRgAZq20SZrIG219h2",
-            "handle": "rabbage"
-          },
-          {
-            "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
             "avatarConfig": {
+              "seed": "77n4cwalvus",
               "options": {
-                "body": "variant23",
-                "backgroundColor": "b6e3f4",
-                "backgroundType": "solid"
+                "backgroundColor": "d1d4f9",
+                "backgroundType": "gradientLinear",
+                "body": "variant17"
               },
-              "style": "notionists",
-              "seed": "sleg565m2qd"
+              "style": "notionists"
             },
-            "handle": "shamsahmad",
-            "isRestricted": false,
-            "privacyStatus": {
-              "description": "@shamsahmad's schedule is visible - quick access enabled",
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule"
-            },
-            "friendId": "g9k71EY3NtefUfuw9uGcHnAWycJ3"
-          },
-          {
-            "avatarConfig": {
-              "style": "adventurer",
-              "options": {
-                "mouth": "variant01",
-                "hairColor": "562306",
-                "eyebrows": "variant01",
-                "backgroundType": "solid",
-                "hair": "short14",
-                "eyes": "variant07",
-                "backgroundColor": "ffd93d"
-              },
-              "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
-            },
-            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-            "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "description": "@cheesewhizz's schedule is visible - quick access enabled"
-            },
-            "handle": "cheesewhizz",
+            "friendId": "fN14DF3BOPSRgAZq20SZrIG219h2",
             "isRestricted": false
           },
           {
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "description": "@shamsahmad's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "handle": "shamsahmad",
+            "avatarConfig": {
+              "options": {
+                "backgroundType": "solid",
+                "body": "variant23",
+                "backgroundColor": "b6e3f4"
+              },
+              "seed": "sleg565m2qd",
+              "style": "notionists"
+            },
+            "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+            "friendId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+            "isRestricted": false
+          },
+          {
+            "handle": "cheesewhizz",
+            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
             "isRestricted": false,
+            "avatarConfig": {
+              "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+              "style": "adventurer",
+              "options": {
+                "hairColor": "562306",
+                "backgroundType": "solid",
+                "hair": "short14",
+                "backgroundColor": "ffd93d",
+                "mouth": "variant01",
+                "eyebrows": "variant01",
+                "eyes": "variant07"
+              }
+            },
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "description": "@cheesewhizz's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
+          },
+          {
+            "handle": "saf",
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "description": "@saf's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
             "friendId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+            "isRestricted": false,
             "avatarConfig": {
               "style": "bottts-neutral",
               "options": {
@@ -7390,84 +7420,101 @@
                 "eyes": "robocop"
               },
               "seed": "mwpc3g9qqds"
-            },
-            "handle": "saf",
-            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-            "privacyStatus": {
-              "tooltip": "Click to view schedule",
-              "description": "@saf's schedule is visible - quick access enabled",
-              "avatarEnabled": true
             }
           },
           {
-            "handle": "mehalkhan",
-            "userId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
             "privacyStatus": {
-              "avatarEnabled": true,
               "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
               "description": "@mehalkhan's schedule is visible - quick access enabled"
             },
+            "userId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
             "avatarConfig": {
               "seed": "fmsiinvxg5n",
-              "style": "notionists",
               "options": {
-                "backgroundType": "gradientLinear",
                 "backgroundColor": "ffdfbf,a7ffc4",
-                "body": "variant13"
-              }
+                "body": "variant13",
+                "backgroundType": "gradientLinear"
+              },
+              "style": "notionists"
             },
-            "isRestricted": false,
-            "friendId": "eW35kPbp79eKEAwFp5tNVNvYwZo1"
+            "handle": "mehalkhan",
+            "friendId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+            "isRestricted": false
           },
           {
             "isRestricted": false,
+            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
             "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "handle": "salman",
+            "avatarConfig": {
+              "options": {
+                "backgroundType": "gradientLinear",
+                "body": "variant23",
+                "backgroundColor": "ffdfbf,a7ffc4"
+              },
+              "style": "notionists",
+              "seed": "a8xysug49uc"
+            },
             "privacyStatus": {
               "description": "@salman's schedule is visible - quick access enabled",
               "avatarEnabled": true,
               "tooltip": "Click to view schedule"
             },
-            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "avatarConfig": {
-              "seed": "a8xysug49uc",
-              "style": "notionists",
-              "options": {
-                "body": "variant23",
-                "backgroundType": "gradientLinear",
-                "backgroundColor": "ffdfbf,a7ffc4"
-              }
-            }
+            "handle": "salman"
           },
           {
+            "userId": "JYix6DOY90er8SBPT7umzigIxv43",
+            "isRestricted": false,
+            "handle": "serena",
+            "friendId": "JYix6DOY90er8SBPT7umzigIxv43",
             "privacyStatus": {
               "description": "@serena's schedule is visible - quick access enabled",
               "tooltip": "Click to view schedule",
               "avatarEnabled": true
             },
-            "handle": "serena",
-            "friendId": "JYix6DOY90er8SBPT7umzigIxv43",
             "avatarConfig": {
               "seed": "ha8mlu6rbef",
+              "style": "miniavs",
               "options": {
+                "hair": "long",
                 "backgroundColor": "ffdfbf,d1d4f9",
-                "backgroundType": "gradientLinear",
-                "hair": "long"
-              },
-              "style": "miniavs"
-            },
-            "userId": "JYix6DOY90er8SBPT7umzigIxv43",
-            "isRestricted": false
+                "backgroundType": "gradientLinear"
+              }
+            }
           }
         ],
         "lastPrivacyUpdate": {
           "_type": "timestamp",
-          "_seconds": 1759329411,
-          "_nanoseconds": 642000000,
-          "_date": "2025-10-01T14:36:51.642Z"
+          "_seconds": 1759330998,
+          "_nanoseconds": 541000000,
+          "_date": "2025-10-01T15:03:18.541Z"
         }
       },
-      "_subcollections": {}
+      "_subcollections": {
+        "fcmTokens": {
+          "fzpXFrBJexCibphQqh_0bq:APA91bHm_K2feU4SnWchoVt_wkyP_XhtnF3b-6qkCkk1HV_RJa4uGT00SsM1OIBuBILbGIDmVFytuAAah_ioG5olOiC5F3eBuY5WZCc1bhiLSY7Xr9_7jGk": {
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759330991,
+              "_nanoseconds": 660000000,
+              "_date": "2025-10-01T15:03:11.660Z"
+            },
+            "appVersion": null,
+            "deviceKey": "d1edrppe",
+            "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
+            "isPWA": true,
+            "platform": "android",
+            "token": "fzpXFrBJexCibphQqh_0bq:APA91bHm_K2feU4SnWchoVt_wkyP_XhtnF3b-6qkCkk1HV_RJa4uGT00SsM1OIBuBILbGIDmVFytuAAah_ioG5olOiC5F3eBuY5WZCc1bhiLSY7Xr9_7jGk",
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759330991,
+              "_nanoseconds": 660000000,
+              "_date": "2025-10-01T15:03:11.660Z"
+            },
+            "_subcollections": {}
+          }
+        }
+      }
     },
     "g9k71EY3NtefUfuw9uGcHnAWycJ3": {
       "socialInfo": {
