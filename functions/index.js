@@ -242,38 +242,33 @@ async function getUserPrefs(userId) {
   return { prefs, user: data };
 }
 
-// Increment and check daily limit for starred presence per recipient
-async function canSendStarredPresenceToday(recipientId) {
+// Check and mark starred presence notification in a single transaction (prevents race conditions)
+async function tryMarkStarredPresenceSent(recipientId, actorId) {
   const today = getYyyyMmDd();
+  // Store in separate doc per recipient per day to avoid field count limits
   const ref = db
     .collection("users")
     .doc(recipientId)
     .collection("meta")
-    .doc("notificationCounts");
-  const doc = await ref.get();
-  const counts = doc.exists ? doc.data() : {};
-  const current = counts?.[today]?.starredPresence || 0;
-  return current < 10; // allow at least 10 per day
-}
+    .doc(`presenceNotifications_${today}`);
 
-async function incrementStarredPresenceCount(recipientId) {
-  const today = getYyyyMmDd();
-  const ref = db
-    .collection("users")
-    .doc(recipientId)
-    .collection("meta")
-    .doc("notificationCounts");
+  let alreadySent = false;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    const base = snap.exists ? snap.data() : {};
-    const dayObj = base[today] || {};
-    const next = (dayObj.starredPresence || 0) + 1;
-    tx.set(
-      ref,
-      { [today]: { ...dayObj, starredPresence: next } },
-      { merge: true }
-    );
+    const data = snap.exists ? snap.data() : {};
+
+    // Check if already sent
+    if (data[actorId]) {
+      alreadySent = true;
+      return; // Exit transaction without marking
+    }
+
+    // Mark as sent
+    data[actorId] = Date.now();
+    tx.set(ref, data, { merge: true });
   });
+
+  return !alreadySent; // Return true if we successfully marked (= notification should send)
 }
 
 async function areFriends(userA, userB) {
@@ -386,6 +381,9 @@ export const onNotificationCreated = onDocumentCreated(
 );
 
 // 3) Starred presence alert when a user becomes ON CAMPUS
+// ⚠️ LIMITATION: Firestore v2 onDocumentUpdated fires on ANY field change
+// Cannot filter to only systemInfo.lastKnownLocation changes at trigger level
+// We compensate with early exit checks to minimize processing
 export const onUserPresenceUpdated = onDocumentUpdated(
   "users/{userId}",
   async (event) => {
@@ -393,10 +391,11 @@ export const onUserPresenceUpdated = onDocumentUpdated(
     const after = event.data?.after?.data();
     if (!before || !after) return;
 
-    const beforeStatus =
-      before?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
-    const afterStatus =
-      after?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
+    // 🚀 EARLY EXIT: Check if campus status actually changed
+    const beforeStatus = before?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
+    const afterStatus = after?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
+
+    // Skip if status didn't change (most common case for profile/friend updates)
     if (beforeStatus === afterStatus) return;
 
     // Only react to transitions to on_campus
@@ -418,6 +417,30 @@ export const onUserPresenceUpdated = onDocumentUpdated(
         ? `@${actorDoc.data().profile.handle}`
         : "A friend";
 
+    // 🚀 OPTIMIZATION: Collect friend IDs and batch fetch their user docs
+    const friendIds = friendshipsSnap.docs
+      .map((fr) => {
+        const friendship = fr.data();
+        return friendship.user1Id === actorId
+          ? friendship.user2Id
+          : friendship.user1Id;
+      })
+      .filter(Boolean);
+
+    if (friendIds.length === 0) return;
+
+    // Batch fetch friend user docs in chunks of 10 (Firestore getAll limit)
+    const friendDataMap = {};
+    for (let i = 0; i < friendIds.length; i += 10) {
+      const chunk = friendIds.slice(i, i + 10);
+      const friendDocs = await db.getAll(
+        ...chunk.map((id) => db.collection("users").doc(id))
+      );
+      friendDocs.forEach((doc) => {
+        if (doc.exists) friendDataMap[doc.id] = doc.data();
+      });
+    }
+
     // For each friend, check starred + privacy + prefs, then send (up to daily limit)
     const sendPromises = [];
     for (const fr of friendshipsSnap.docs) {
@@ -428,22 +451,27 @@ export const onUserPresenceUpdated = onDocumentUpdated(
           : friendship.user1Id;
       if (!friendId) continue;
 
-      const { prefs, user: recipientUser } = await getUserPrefs(friendId);
+      const recipientUser = friendDataMap[friendId];
+      if (!recipientUser) continue;
+
+      const prefs = recipientUser?.notificationPreferences || {
+        friendRequests: true,
+        locationRequests: true,
+        starredPresence: true,
+      };
       if (prefs.starredPresence === false) continue;
 
       // Must be starred by recipient
       if (!isStarredBy(recipientUser, actorId)) continue;
 
       // Check bilateral location visibility allows recipient to see actor
-      // The locationVisibility map is keyed by the user who is sharing their location.
-      // To allow the recipient (friendId) to see the actor, the actor's flag must be true.
       const vis = friendship?.locationVisibility || {};
-      const canSee = vis[actorId] === true || vis?.[actorId] === "true"; // tolerate string boolean
+      const canSee = vis[actorId] === true || vis?.[actorId] === "true";
       if (!canSee) continue;
 
-      // Rate limit: max 10 per day per recipient
-      const okToday = await canSendStarredPresenceToday(friendId);
-      if (!okToday) continue;
+      // Rate limit: one notification per actor per recipient per day (atomic check-and-set)
+      const shouldSend = await tryMarkStarredPresenceSent(friendId, actorId);
+      if (!shouldSend) continue;
 
       const notification = {
         title: "On Campus",
@@ -451,11 +479,9 @@ export const onUserPresenceUpdated = onDocumentUpdated(
       };
       const data = { link: "/#notifications", type: "starred_presence" };
       sendPromises.push(
-        (async () => {
-          const res = await sendToUser(friendId, notification, data);
-          await incrementStarredPresenceCount(friendId);
-          logger.info("Starred presence push result", { friendId, ...res });
-        })()
+        sendToUser(friendId, notification, data).then((res) => {
+          logger.info("Starred presence push result", { friendId, actorId, ...res });
+        })
       );
     }
     await Promise.allSettled(sendPromises);
