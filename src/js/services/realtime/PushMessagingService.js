@@ -222,9 +222,9 @@ class PushMessagingService {
         userAgent: navigator.userAgent.substring(0, 120), // Slightly longer for fingerprinting
       });
 
-      // DEDUPLICATION: If this is a PWA, remove any browser tokens for this device
+      // DEDUPLICATION: If this is a PWA, remove any other tokens for this device (browser or stale PWA)
       if (isPWA) {
-        await this._cleanupBrowserTokens(uid, token, deviceKey);
+        await this._cleanupSameDeviceOtherTokens(uid, token, deviceKey);
       }
 
       logManager.system.info(
@@ -253,7 +253,7 @@ class PushMessagingService {
     }
   }
 
-  async _cleanupBrowserTokens(uid, currentToken, deviceKey) {
+  async _cleanupSameDeviceOtherTokens(uid, currentToken, deviceKey) {
     try {
       // Get all tokens for this user
       const { getFirestore, collection, getDocs, deleteDoc, doc } =
@@ -271,13 +271,9 @@ class PushMessagingService {
         // and are non-PWA (legacy browser registrations). This avoids deleting legitimate browser tokens on OTHER devices.
         const sameDevice =
           deviceKey && tokenData.deviceKey && tokenData.deviceKey === deviceKey;
-        if (
-          tokenId !== currentToken &&
-          tokenData.isPWA !== true &&
-          sameDevice
-        ) {
+        if (tokenId !== currentToken && sameDevice) {
           logManager.system.info(
-            `Removing duplicate browser token (same device): ${tokenId.substring(
+            `Removing duplicate token (same device): ${tokenId.substring(
               0,
               20
             )}...`
@@ -291,7 +287,7 @@ class PushMessagingService {
       await Promise.all(deletePromises);
       if (deletePromises.length > 0) {
         logManager.system.info(
-          `Cleaned up ${deletePromises.length} duplicate browser token(s)`
+          `Cleaned up ${deletePromises.length} duplicate same-device token(s)`
         );
       }
     } catch (e) {

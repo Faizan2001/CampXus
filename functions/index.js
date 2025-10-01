@@ -96,18 +96,27 @@ async function getUserTokens(userId) {
   return tokens;
 }
 
+function _shouldDeleteTokenForError(err) {
+  const s = `${String(err?.code || "").toLowerCase()} ${String(
+    err?.message || ""
+  ).toLowerCase()}`;
+  return (
+    s.includes("registration-token-not-registered") ||
+    s.includes("invalid-registration-token") ||
+    s.includes("invalid-argument") ||
+    s.includes("mismatch") ||
+    s.includes("sender") ||
+    s.includes("unregistered")
+  );
+}
+
 async function removeInvalidTokens(userId, tokens, responses) {
   const batch = db.batch();
   responses.responses.forEach((resp, idx) => {
     if (!resp.success) {
       const err = resp.error;
       // Remove invalid/expired tokens
-      if (
-        err &&
-        err.code &&
-        (String(err.code).includes("registration-token-not-registered") ||
-          String(err.code).includes("invalid-argument"))
-      ) {
+      if (_shouldDeleteTokenForError(err)) {
         const tokenId = tokens[idx];
         batch.delete(
           db.collection("users").doc(userId).collection("fcmTokens").doc(tokenId)
@@ -167,6 +176,12 @@ async function sendToUser(userId, notification, data = {}) {
   };
   const resp = await messaging.sendEachForMulticast(message);
   await removeInvalidTokens(userId, chosenTokens, resp);
+  const errors = [];
+  resp.responses.forEach((r, i) => {
+    if (!r.success) {
+      errors.push({ index: i, code: r.error?.code || "unknown" });
+    }
+  });
   return {
     success: true,
     sent: resp.successCount,
@@ -174,6 +189,7 @@ async function sendToUser(userId, notification, data = {}) {
     tokensConsidered: tokenObjs.length,
     tokensSent: chosenTokens.length,
     usedPwaOnly: pwaTokens.length > 0,
+    errors,
   };
 }
 
@@ -414,7 +430,7 @@ export const onFcmTokenWrite = onDocumentWritten(
   async (event) => {
     const after = event.data?.after?.data();
     if (!after) return; // deleted handled separately
-    if (after.isPWA !== true || !after.deviceKey) return; // only act on PWA token
+    if (after.isPWA !== true || !after.deviceKey) return; // only act on new PWA token
     const { userId, tokenId } = event.params;
     const snap = await db
       .collection("users")
@@ -426,7 +442,7 @@ export const onFcmTokenWrite = onDocumentWritten(
     snap.forEach((docSnap) => {
       if (docSnap.id === tokenId) return;
       const d = docSnap.data();
-      if (d.deviceKey === after.deviceKey && d.isPWA !== true) {
+      if (d.deviceKey === after.deviceKey) {
         batch.delete(docSnap.ref);
         removed++;
       }

@@ -137,7 +137,8 @@ export async function installPushDebugBanner() {
         if (ui.last) {
           if (data.ok && data.details) {
             const d = data.details;
-            ui.last.textContent = `last: ok, sent=${d.sent}, failed=${d.failed}, tokensSent=${d.tokensSent}, tokensConsidered=${d.tokensConsidered}, usedPwaOnly=${d.usedPwaOnly}`;
+            const codes = (d.errors || []).map((e) => e.code).join(',');
+            ui.last.textContent = `last: ok, sent=${d.sent}, failed=${d.failed}, tokensSent=${d.tokensSent}, tokensConsidered=${d.tokensConsidered}, usedPwaOnly=${d.usedPwaOnly}${codes ? `, failedCodes=${codes}` : ''}`;
           } else {
             ui.last.textContent = `last: error ${data.error || "unknown"}`;
           }
