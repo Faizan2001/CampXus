@@ -10,15 +10,22 @@ function isIOS() {
   const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
   const iOSDevice = /iphone|ipad|ipod/i.test(ua);
   const iPadOsTouchMac =
-    typeof navigator !== "undefined" && navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    typeof navigator !== "undefined" &&
+    navigator.platform === "MacIntel" &&
+    navigator.maxTouchPoints > 1;
   return iOSDevice || iPadOsTouchMac;
 }
 
 function isStandalone() {
   try {
     const standaloneDisplay =
-      typeof window !== "undefined" && window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
-    const iOSStandalone = typeof window !== "undefined" && window.navigator && window.navigator.standalone === true;
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(display-mode: standalone)").matches;
+    const iOSStandalone =
+      typeof window !== "undefined" &&
+      window.navigator &&
+      window.navigator.standalone === true;
     return !!standaloneDisplay || !!iOSStandalone;
   } catch (_e) {
     return false;
@@ -49,11 +56,20 @@ class PushMessagingService {
           const link = payload?.data?.link || null;
 
           // Keep it simple: show a system-level toast
-          notificationManager.showSystemNotification(`${title}${body ? ": " + body : ""}`, "info", { duration: 4000 });
+          notificationManager.showSystemNotification(
+            `${title}${body ? ": " + body : ""}`,
+            "info",
+            { duration: 4000 }
+          );
 
           // Optional: could store or update a badge using Menu helpers
-          if (typeof window !== "undefined" && window.updateMobileNotificationBadge) {
-            try { window.updateMobileNotificationBadge(1); } catch (_) {}
+          if (
+            typeof window !== "undefined" &&
+            window.updateMobileNotificationBadge
+          ) {
+            try {
+              window.updateMobileNotificationBadge(1);
+            } catch (_) {}
           }
 
           // Optionally navigate immediately if payload requests it (not default)
@@ -75,9 +91,13 @@ class PushMessagingService {
   async initAndMaybePrompt() {
     // iOS: only prompt if installed as a PWA
     if (isIOS() && !isStandalone()) {
-      logManager.system.info("iOS detected without PWA install — not prompting for push");
+      logManager.system.info(
+        "iOS detected without PWA install — not prompting for push"
+      );
       try {
-        const { pwaInstallService } = await import("../pwa/PWAInstallService.js");
+        const { pwaInstallService } = await import(
+          "../pwa/PWAInstallService.js"
+        );
         pwaInstallService.showIOSInstructions();
       } catch (_) {}
       return;
@@ -87,7 +107,9 @@ class PushMessagingService {
     if (!uid) return;
 
     const onceKey = `push:promptShown:${uid}`;
-    const alreadyPrompted = (typeof localStorage !== "undefined") && localStorage.getItem(onceKey) === "true";
+    const alreadyPrompted =
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem(onceKey) === "true";
     if (alreadyPrompted) {
       // Still ensure we have a token
       await this._getAndSaveTokenIfNeeded();
@@ -96,7 +118,9 @@ class PushMessagingService {
 
     // Only prompt after login
     await this._requestPermissionAndRegister();
-    try { localStorage.setItem(onceKey, "true"); } catch (_) {}
+    try {
+      localStorage.setItem(onceKey, "true");
+    } catch (_) {}
   }
 
   async _requestPermissionAndRegister() {
@@ -121,14 +145,20 @@ class PushMessagingService {
     if (!messaging) return;
 
     try {
-      const vapidKey = (typeof window !== "undefined" && window.ENV && window.ENV.FIREBASE_VAPID_KEY) || null;
+      const vapidKey =
+        (typeof window !== "undefined" &&
+          window.ENV &&
+          window.ENV.FIREBASE_VAPID_KEY) ||
+        null;
       if (!vapidKey) {
         console.warn("FIREBASE_VAPID_KEY missing — cannot obtain FCM token");
         return;
       }
 
       // Ensure we use our app SW so background notifications work
-      const registration = await navigator.serviceWorker?.getRegistration("/sw.js") || (await navigator.serviceWorker?.ready);
+      const registration =
+        (await navigator.serviceWorker?.getRegistration("/sw.js")) ||
+        (await navigator.serviceWorker?.ready);
       const { getToken } = await import("firebase/messaging");
       const token = await getToken(messaging, {
         vapidKey,
@@ -143,7 +173,11 @@ class PushMessagingService {
       if (!force && token === this._activeToken) return;
       this._activeToken = token;
 
-      const platform = isIOS() ? "ios" : (/(android)/i.test(navigator.userAgent) ? "android" : "web");
+      const platform = isIOS()
+        ? "ios"
+        : /(android)/i.test(navigator.userAgent)
+        ? "android"
+        : "web";
       const isPWA = isStandalone();
 
       // Derive a coarse device key (non-PII) to distinguish multiple devices for same user
@@ -154,8 +188,10 @@ class PushMessagingService {
       // Simple hash (dj2 style) to keep key short; fallback to raw if hashing fails
       let deviceKey = deviceKeyBase;
       try {
-        let h = 5381, i = 0;
-        while (i < deviceKeyBase.length) h = (h * 33) ^ deviceKeyBase.charCodeAt(i++);
+        let h = 5381,
+          i = 0;
+        while (i < deviceKeyBase.length)
+          h = (h * 33) ^ deviceKeyBase.charCodeAt(i++);
         deviceKey = `d${(h >>> 0).toString(36)}`;
       } catch (_) {}
 
@@ -172,7 +208,9 @@ class PushMessagingService {
         await this._cleanupBrowserTokens(uid, token, deviceKey);
       }
 
-      logManager.system.info(`FCM token saved for user (${isPWA ? 'PWA' : 'Browser'})`);
+      logManager.system.info(
+        `FCM token saved for user (${isPWA ? "PWA" : "Browser"})`
+      );
     } catch (e) {
       console.warn("Failed to get/save FCM token", e);
     }
@@ -181,7 +219,8 @@ class PushMessagingService {
   async _cleanupBrowserTokens(uid, currentToken, deviceKey) {
     try {
       // Get all tokens for this user
-      const { getFirestore, collection, getDocs, deleteDoc, doc } = await import("firebase/firestore");
+      const { getFirestore, collection, getDocs, deleteDoc, doc } =
+        await import("firebase/firestore");
       const db = getFirestore();
       const tokensRef = collection(db, "users", uid, "fcmTokens");
       const tokensSnapshot = await getDocs(tokensRef);
@@ -193,16 +232,30 @@ class PushMessagingService {
         const tokenId = tokenDoc.id;
         // Only consider deleting tokens that appear to be the same physical device (matching derived deviceKey)
         // and are non-PWA (legacy browser registrations). This avoids deleting legitimate browser tokens on OTHER devices.
-        const sameDevice = deviceKey && tokenData.deviceKey && tokenData.deviceKey === deviceKey;
-        if (tokenId !== currentToken && tokenData.isPWA !== true && sameDevice) {
-          logManager.system.info(`Removing duplicate browser token (same device): ${tokenId.substring(0, 20)}...`);
-          deletePromises.push(deleteDoc(doc(db, "users", uid, "fcmTokens", tokenId)));
+        const sameDevice =
+          deviceKey && tokenData.deviceKey && tokenData.deviceKey === deviceKey;
+        if (
+          tokenId !== currentToken &&
+          tokenData.isPWA !== true &&
+          sameDevice
+        ) {
+          logManager.system.info(
+            `Removing duplicate browser token (same device): ${tokenId.substring(
+              0,
+              20
+            )}...`
+          );
+          deletePromises.push(
+            deleteDoc(doc(db, "users", uid, "fcmTokens", tokenId))
+          );
         }
       });
 
       await Promise.all(deletePromises);
       if (deletePromises.length > 0) {
-        logManager.system.info(`Cleaned up ${deletePromises.length} duplicate browser token(s)`);
+        logManager.system.info(
+          `Cleaned up ${deletePromises.length} duplicate browser token(s)`
+        );
       }
     } catch (e) {
       console.warn("Failed to cleanup browser tokens (non-fatal)", e);
@@ -219,7 +272,9 @@ class PushMessagingService {
         return null;
       }
       // Reuse the existing initialized app via firebase-config.js
-      const { default: app } = await import("../../lib/firebase/firebase-config.js");
+      const { default: app } = await import(
+        "../../lib/firebase/firebase-config.js"
+      );
       this._messaging = getMessaging(app);
       return this._messaging;
     } catch (e) {

@@ -562,6 +562,8 @@ class LogManager {
         message,
         data
       ),
+    info: (message, data) =>
+      this.log(LOG_LEVELS.INFO, "system", LOG_EMOJIS.SYS_INIT, message, data),
     perf: (message, data) =>
       this.log(LOG_LEVELS.DEBUG, "system", LOG_EMOJIS.SYS_PERF, message, data),
     error: (message, data) =>
