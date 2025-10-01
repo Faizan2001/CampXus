@@ -267,6 +267,15 @@ async function initializeSPA() {
 
   logManager.system.init("SPA Initialization completed");
 
+  // Show environment indicator on non-production domains
+  if (window.location.hostname !== 'meetchuthere.com') {
+    const envBanner = document.createElement('div');
+    const envName = window.location.hostname.includes('stage') ? 'STAGING' : 'DEVELOPMENT';
+    envBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:orange;color:white;padding:5px 10px;z-index:9999;text-align:center;font-weight:bold;font-size:12px;';
+    envBanner.textContent = `🚧 ${envName} ENVIRONMENT - ${window.location.hostname}`;
+    document.body.appendChild(envBanner);
+  }
+
   // Sync browser UI theme color with nav background for seamless header
   try {
     syncMetaThemeColorToNav();
