@@ -55,12 +55,26 @@ class PushMessagingService {
           const body = payload?.notification?.body || "";
           const link = payload?.data?.link || null;
 
-          // Keep it simple: show a system-level toast
-          notificationManager.showSystemNotification(
-            `${title}${body ? ": " + body : ""}`,
-            "info",
-            { duration: 4000 }
-          );
+          // 🔔 Only show in-app toast for foreground messages in PWA
+          // Service worker handles actual notifications, so we just show a subtle banner
+          const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                        window.navigator.standalone === true;
+
+          if (!isPWA) {
+            // Browser mode: show system notification since SW might not
+            notificationManager.showSystemNotification(
+              `${title}${body ? ": " + body : ""}`,
+              "info",
+              { duration: 4000 }
+            );
+          } else {
+            // PWA mode: SW already showed notification, just show subtle banner
+            notificationManager.showSystemNotification(
+              `${title}${body ? ": " + body : ""}`,
+              "info",
+              { duration: 2000 }
+            );
+          }
 
           // Optional: could store or update a badge using Menu helpers
           if (

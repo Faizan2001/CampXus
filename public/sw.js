@@ -98,11 +98,24 @@ try {
 
   const messaging = firebase.messaging();
 
+  // 🔔 Firebase automatically shows notifications when payload contains notification object
+  // onBackgroundMessage is only needed for data-only messages or custom handling
+  // Since we're sending notification+data from Cloud Functions, Firebase handles display
+  // We just need to ensure click behavior is correct (handled by notificationclick listener below)
+
   messaging.onBackgroundMessage((payload) => {
+    // Only show notification if it's a data-only message (no notification object)
+    // This prevents duplicate notifications
+    if (payload?.notification) {
+      console.log('Notification already shown by Firebase, skipping duplicate');
+      return;
+    }
+
+    // Handle data-only messages
     try {
-      const notificationTitle = payload?.notification?.title || 'Notification';
+      const notificationTitle = payload?.data?.title || 'Notification';
       const notificationOptions = {
-        body: payload?.notification?.body || '',
+        body: payload?.data?.body || '',
         icon: '/icons/icon-192x192.png',
         badge: '/icons/icon-72x72.png',
         data: {

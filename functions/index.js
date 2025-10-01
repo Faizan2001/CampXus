@@ -1,7 +1,6 @@
 import { initializeApp as initAdminApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
-import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import {
   onDocumentCreated,
   onDocumentUpdated,
@@ -157,11 +156,49 @@ async function sendToUser(userId, notification, data = {}) {
     tokens: chosenTokens,
     notification: safeNotification,
     data,
+    // Android-specific config for PWA notifications (wakes device, shows on lockscreen)
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "default",
+        priority: "high",
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        defaultLightSettings: true,
+        visibility: "public", // Shows on lockscreen
+        icon: "icon-192x192",
+        color: "#4F46E5", // Your brand color
+      },
+    },
+    // iOS-specific config (APNS)
+    apns: {
+      headers: {
+        "apns-priority": "10", // High priority (wakes device)
+        "apns-push-type": "alert",
+      },
+      payload: {
+        aps: {
+          alert: {
+            title: safeNotification.title,
+            body: safeNotification.body,
+          },
+          sound: "default",
+          badge: 1,
+          "content-available": 1, // Wakes app in background
+          "mutable-content": 1, // Allows notification extensions
+          interruptionLevel: "time-sensitive", // iOS 15+ bypasses Focus modes
+        },
+      },
+    },
+    // Web-specific config for browser notifications
     webpush: {
       headers: { Urgency: "high" },
       notification: {
         icon: "https://meetchuthere.com/icons/icon-192x192.png",
         badge: "https://meetchuthere.com/icons/icon-72x72.png",
+        requireInteraction: false,
+        vibrate: [200, 100, 200],
+        tag: "meetchuthere-notification", // Prevents stacking duplicates
       },
       // Ensure clicks open the SPA route even when the browser autoshows notifications
       fcmOptions: {
@@ -537,62 +574,4 @@ export const onUserDeleted = onDocumentDeleted(
 );
 
 // 8) Debug: send a test push to the authenticated user (or provided target)
-export const sendTestPush = https.onCall(async (data, context) => {
-  const caller = context.auth?.uid;
-  if (!caller) {
-    throw new https.HttpsError("unauthenticated", "Auth required");
-  }
-  const targetUserId = (data && data.userId) || caller;
-  const title = (data && data.title) || "Test Push";
-  const body = (data && data.body) || "If you see this, push works";
-  const link = (data && data.link) || "/#notifications";
-
-  try {
-    const res = await sendToUser(
-      targetUserId,
-      { title, body },
-      { link, type: "test_push" }
-    );
-    return { ok: true, details: res };
-  } catch (e) {
-    return { ok: false, error: e?.message || String(e) };
-  }
-});
-
-// Debug HTTP variant (auth via ID token in Authorization header). CORS enabled for in-app debug only.
-export const sendTestPushHttp = https.onRequest(async (req, res) => {
-  // CORS for debug UI
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  if (req.method === "OPTIONS") return res.status(204).send("");
-  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
-
-  try {
-    const authHeader = String(req.headers.authorization || "");
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.substring("Bearer ".length)
-      : null;
-    if (!token) return res.status(401).json({ ok: false, error: "unauthenticated" });
-    let decoded;
-    try {
-      decoded = await getAdminAuth().verifyIdToken(token);
-    } catch {
-      return res.status(401).json({ ok: false, error: "unauthenticated" });
-    }
-    const caller = decoded.uid;
-    const targetUserId = req.body?.userId || caller;
-    const title = req.body?.title || "Test Push";
-    const body = req.body?.body || "If you see this, push works";
-    const link = req.body?.link || "/#notifications";
-
-    const result = await sendToUser(
-      targetUserId,
-      { title, body },
-      { link, type: "test_push" }
-    );
-    return res.json({ ok: true, details: result });
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: e?.message || String(e) });
-  }
-});
+// Debug test endpoints removed for production
