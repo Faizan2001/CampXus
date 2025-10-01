@@ -143,12 +143,69 @@ class PushMessagingService {
       if (!force && token === this._activeToken) return;
       this._activeToken = token;
 
+      const platform = isIOS() ? "ios" : (/(android)/i.test(navigator.userAgent) ? "android" : "web");
+      const isPWA = isStandalone();
+
+      // Derive a coarse device key (non-PII) to distinguish multiple devices for same user
+      // Use a stable subset of the UA to avoid generating new keys for minor version bumps.
+      const ua = navigator.userAgent || "";
+      const uaFragment = ua.split(" ").slice(0, 4).join(" "); // first few tokens only
+      const deviceKeyBase = `${platform}|${uaFragment}`.toLowerCase();
+      // Simple hash (dj2 style) to keep key short; fallback to raw if hashing fails
+      let deviceKey = deviceKeyBase;
+      try {
+        let h = 5381, i = 0;
+        while (i < deviceKeyBase.length) h = (h * 33) ^ deviceKeyBase.charCodeAt(i++);
+        deviceKey = `d${(h >>> 0).toString(36)}`;
+      } catch (_) {}
+
+      // Save the new token
       await dataManager.saveFcmToken(uid, token, {
-        platform: isIOS() ? "ios" : (/(android)/i.test(navigator.userAgent) ? "android" : "web"),
+        platform,
+        isPWA,
+        deviceKey,
+        userAgent: navigator.userAgent.substring(0, 120), // Slightly longer for fingerprinting
       });
-      logManager.system.info("FCM token saved for user");
+
+      // DEDUPLICATION: If this is a PWA, remove any browser tokens for this device
+      if (isPWA) {
+        await this._cleanupBrowserTokens(uid, token, deviceKey);
+      }
+
+      logManager.system.info(`FCM token saved for user (${isPWA ? 'PWA' : 'Browser'})`);
     } catch (e) {
       console.warn("Failed to get/save FCM token", e);
+    }
+  }
+
+  async _cleanupBrowserTokens(uid, currentToken, deviceKey) {
+    try {
+      // Get all tokens for this user
+      const { getFirestore, collection, getDocs, deleteDoc, doc } = await import("firebase/firestore");
+      const db = getFirestore();
+      const tokensRef = collection(db, "users", uid, "fcmTokens");
+      const tokensSnapshot = await getDocs(tokensRef);
+
+      // Delete tokens that are NOT PWA and NOT the current token
+      const deletePromises = [];
+      tokensSnapshot.forEach((tokenDoc) => {
+        const tokenData = tokenDoc.data();
+        const tokenId = tokenDoc.id;
+        // Only consider deleting tokens that appear to be the same physical device (matching derived deviceKey)
+        // and are non-PWA (legacy browser registrations). This avoids deleting legitimate browser tokens on OTHER devices.
+        const sameDevice = deviceKey && tokenData.deviceKey && tokenData.deviceKey === deviceKey;
+        if (tokenId !== currentToken && tokenData.isPWA !== true && sameDevice) {
+          logManager.system.info(`Removing duplicate browser token (same device): ${tokenId.substring(0, 20)}...`);
+          deletePromises.push(deleteDoc(doc(db, "users", uid, "fcmTokens", tokenId)));
+        }
+      });
+
+      await Promise.all(deletePromises);
+      if (deletePromises.length > 0) {
+        logManager.system.info(`Cleaned up ${deletePromises.length} duplicate browser token(s)`);
+      }
+    } catch (e) {
+      console.warn("Failed to cleanup browser tokens (non-fatal)", e);
     }
   }
 

@@ -180,9 +180,12 @@ class DataManager {
         {
           token,
           platform: meta.platform || (/(iphone|ipad|ipod|ios)/i.test(navigator.userAgent) ? "ios" : (/android/i.test(navigator.userAgent) ? "android" : "web")),
-          userAgent: (typeof navigator !== "undefined" ? navigator.userAgent : "unknown"),
+          userAgent: meta.userAgent || (typeof navigator !== "undefined" ? navigator.userAgent : "unknown"),
           appVersion: meta.appVersion || null,
-          createdAt: meta.createdAt || serverTimestamp(),
+          // Persist PWA/device metadata for dedupe + analytics
+          isPWA: meta.isPWA === true, // store explicit boolean
+          deviceKey: meta.deviceKey || null,
+          createdAt: meta.createdAt || serverTimestamp(), // do not overwrite existing createdAt due to merge
           updatedAt: serverTimestamp(),
         },
         { merge: true }

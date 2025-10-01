@@ -46,14 +46,34 @@ async function sendToUser(userId, notification, data = {}) {
   if (!tokens.length) return { success: false, reason: "no_tokens" };
   const message = {
     tokens,
-    notification,
+    notification: {
+      ...notification,
+      icon: notification.icon || "https://meetchuthere.com/icons/icon-192x192.png",
+    },
     data,
-    android: { priority: "high" },
+    android: {
+      priority: "high",
+      notification: {
+        icon: "https://meetchuthere.com/icons/icon-192x192.png",
+        color: "#8b7de8", // MeetchuThere brand purple
+      },
+    },
     apns: {
       headers: { "apns-priority": "10" },
-      payload: { aps: { sound: "default" } },
+      payload: {
+        aps: {
+          sound: "default",
+          "mutable-content": 1,
+        }
+      },
     },
-    webpush: { headers: { Urgency: "high" } },
+    webpush: {
+      headers: { Urgency: "high" },
+      notification: {
+        icon: "https://meetchuthere.com/icons/icon-192x192.png",
+        badge: "https://meetchuthere.com/icons/icon-72x72.png",
+      },
+    },
   };
   const resp = await messaging.sendEachForMulticast(message);
   await removeInvalidTokens(userId, tokens, resp);
