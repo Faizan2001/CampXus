@@ -28,6 +28,7 @@ export async function installPushDebugBanner() {
         <span id="pd-tokens" style="opacity:.9"></span>
         <button id="pd-refresh" style="margin-left:6px;background:#6366f1;border:none;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Refresh</button>
         <button id="pd-test" style="background:#f59e0b;border:none;color:#0b141a;padding:4px 8px;border-radius:6px;cursor:pointer">Test Push</button>
+        <button id="pd-replace" style="background:#22d3ee;border:none;color:#0b141a;padding:4px 8px;border-radius:6px;cursor:pointer">Replace Token</button>
         <button id="pd-register" style="background:#10b981;border:none;color:#0b141a;padding:4px 8px;border-radius:6px;cursor:pointer">Force Register</button>
         <button id="pd-close" style="background:#e11d48;border:none;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Close</button>
       </div>
@@ -44,6 +45,7 @@ export async function installPushDebugBanner() {
       last: el.querySelector("#pd-last"),
       refresh: el.querySelector("#pd-refresh"),
       test: el.querySelector("#pd-test"),
+      replace: el.querySelector("#pd-replace"),
       register: el.querySelector("#pd-register"),
       close: el.querySelector("#pd-close"),
     };
@@ -111,6 +113,27 @@ export async function installPushDebugBanner() {
     }
 
     ui.refresh.addEventListener("click", () => render());
+    ui.replace.addEventListener("click", async () => {
+      try {
+        const { default: app } = await import(
+          "../../lib/firebase/firebase-config.js"
+        );
+        const { getMessaging, deleteToken, isSupported } = await import(
+          "firebase/messaging"
+        );
+        if (!(await isSupported())) throw new Error("messaging not supported");
+        const messaging = getMessaging(app);
+        const deleted = await deleteToken(messaging);
+        console.log("Token deleted: ", deleted);
+        const { pushMessagingService } = await import(
+          "../../services/realtime/PushMessagingService.js"
+        );
+        await pushMessagingService._getAndSaveTokenIfNeeded(true);
+      } catch (e) {
+        console.warn("Replace token failed", e);
+      }
+      await render();
+    });
     ui.test.addEventListener("click", async () => {
       try {
         const { default: app, auth } = await import(
