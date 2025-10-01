@@ -110,37 +110,29 @@ class PushMessagingService {
   }
 
   async initAndMaybePrompt() {
-    // iOS: only prompt if installed as a PWA
+    // New behavior: do not auto-prompt. Just ensure token if already granted.
+    await this.ensureRegisteredIfGranted();
+  }
+
+  // Public: called by UI (on user gesture) to run permission + token flow
+  async requestPermissionFlow() {
     if (isIOS() && !isStandalone()) {
-      logManager.system.info(
-        "iOS detected without PWA install — not prompting for push"
-      );
       try {
-        const { pwaInstallService } = await import(
-          "../pwa/PWAInstallService.js"
-        );
+        const { pwaInstallService } = await import("../pwa/PWAInstallService.js");
         pwaInstallService.showIOSInstructions();
       } catch (_) {}
-      return;
+      return { permission: (typeof Notification !== 'undefined' && Notification.permission) || "default", gated: true };
     }
-
-    const uid = currentUser?.uid;
-    if (!uid) return;
-
-    const onceKey = `push:promptShown:${uid}`;
-    const alreadyPrompted =
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem(onceKey) === "true";
-    if (alreadyPrompted) {
-      // Still ensure we have a token
-      await this._getAndSaveTokenIfNeeded();
-      return;
-    }
-
-    // Only prompt after login
     await this._requestPermissionAndRegister();
+    return { permission: (typeof Notification !== 'undefined' && Notification.permission) || "default" };
+  }
+
+  // Public: ensure a token exists when already granted
+  async ensureRegisteredIfGranted() {
     try {
-      localStorage.setItem(onceKey, "true");
+      if (!("Notification" in window)) return;
+      if (Notification.permission !== "granted") return;
+      await this._getAndSaveTokenIfNeeded();
     } catch (_) {}
   }
 
