@@ -83,6 +83,13 @@ class PushMessagingService {
           console.warn("FCM foreground message handling failed", e);
         }
       });
+
+      // Best-effort: ensure the server actually has a token doc for this user.
+      // We observed cases where permission was granted but no token doc existed,
+      // which makes Cloud Functions unable to deliver pushes.
+      try {
+        await this._ensureServerHasTokenDoc();
+      } catch (_) {}
     } catch (e) {
       console.warn("PushMessagingService init failed (non-fatal)", e);
     }
@@ -213,6 +220,24 @@ class PushMessagingService {
       );
     } catch (e) {
       console.warn("Failed to get/save FCM token", e);
+    }
+  }
+
+  async _ensureServerHasTokenDoc() {
+    const uid = currentUser?.uid;
+    if (!uid) return;
+    try {
+      const { getFirestore, collection, getDocs } = await import(
+        "firebase/firestore"
+      );
+      const db = getFirestore();
+      const snap = await getDocs(collection(db, "users", uid, "fcmTokens"));
+      if (!snap || snap.empty) {
+        // Force a registration attempt if none exists
+        await this._getAndSaveTokenIfNeeded(true);
+      }
+    } catch (e) {
+      // Non-fatal; do nothing
     }
   }
 
