@@ -76,3 +76,100 @@ self.addEventListener('fetch', (event) => {
   
   // If it's an icon path, fall through and let the network fetch without caching
 });
+
+// =============================
+// Firebase Cloud Messaging (Background)
+// =============================
+// Use compat SDK in the service worker for simplicity
+try {
+  // These scripts are allowed by CSP (gstatic)
+  // IMPORTANT: Keep this version in sync with package.json firebase version (11.8.1)
+  importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js');
+
+  // Minimal init for messaging (public values)
+  // Note: messagingSenderId is not secret; safe to expose in SW
+  firebase.initializeApp({
+    apiKey: 'AIzaSyC_kanIBFqxyq8LLE4CKuzH24yEfCMjFiQ',
+    appId: '1:749689064628:web:e757a95468a0a9a285dbe1',
+    projectId: 'meetchuthere-00',
+    messagingSenderId: '749689064628',
+  });
+
+  const messaging = firebase.messaging();
+
+  // 🔔 Firebase automatically shows notifications when payload contains notification object
+  // onBackgroundMessage is only needed for data-only messages or custom handling
+  // Since we're sending notification+data from Cloud Functions, Firebase handles display
+  // We just need to ensure click behavior is correct (handled by notificationclick listener below)
+
+  messaging.onBackgroundMessage((payload) => {
+    // Only show notification if it's a data-only message (no notification object)
+    // This prevents duplicate notifications
+    if (payload?.notification) {
+      console.log('Notification already shown by Firebase, skipping duplicate');
+      return;
+    }
+
+    // Handle data-only messages
+    try {
+      const notificationTitle = payload?.data?.title || 'Notification';
+      const deepLink = payload?.data?.link || '/#notifications';
+      const notificationOptions = {
+        body: payload?.data?.body || '',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-96x96.png', // M logo badge for status bar
+        tag: 'meetchuthere-notification',
+        renotify: true,
+        requireInteraction: false, // Ignored on Android; false better for desktop
+        vibrate: [200, 100, 200],
+        timestamp: Date.now(),
+        silent: false,
+        actions: [
+          { action: 'open', title: 'View', icon: '/icons/icon-72x72.png' },
+        ],
+        data: {
+          link: deepLink,
+        },
+      };
+      self.registration.showNotification(notificationTitle, notificationOptions);
+    } catch (e) {
+      // swallow
+    }
+  });
+} catch (e) {
+  // Messaging may not be available in all browsers – fail silently
+}
+
+// Focus/open client on notification click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  // Default to notifications page if no deep link provided
+  const defaultLink = '/#notifications';
+  const link = (event.notification && event.notification.data && event.notification.data.link) || defaultLink;
+  const actionLink = (event.action && typeof event.action === 'string') ? link : link; // reserved for future actions
+
+  event.waitUntil((async () => {
+    const allClients = await clients.matchAll({ includeUncontrolled: true, type: 'window' });
+    const url = new URL(actionLink, self.location.origin).href;
+
+    // Try to focus an open tab of our app and navigate it
+    for (const client of allClients) {
+      try {
+        if ('focus' in client) {
+          await client.focus();
+        }
+        if ('navigate' in client) {
+          await client.navigate(url);
+        }
+        return;
+      } catch (_) {
+        // continue to next client
+      }
+    }
+    // Otherwise, open a new window
+    if (clients.openWindow) {
+      return clients.openWindow(url);
+    }
+  })());
+});

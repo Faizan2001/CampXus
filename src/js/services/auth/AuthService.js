@@ -737,6 +737,13 @@ class AuthManager {
         lastUpdated: serverTimestamp(),
         lastActive: serverTimestamp(),
       },
+
+      // Notification Preferences (opt-in by default)
+      notificationPreferences: {
+        friendRequests: true,
+        locationRequests: true,
+        starredPresence: true,
+      },
     };
 
     console.log(

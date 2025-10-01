@@ -215,6 +215,19 @@ async function initializeSPA() {
         } catch (_) {}
         // If user is logged in, start Campus Presence services lazily now
         tryStartCampusPresenceAfterLogin();
+
+        // Initialize push messaging and prompt after login
+        (async () => {
+          try {
+            const { pushMessagingService } = await import(
+              "./services/realtime/PushMessagingService.js"
+            );
+            await pushMessagingService.initAfterLogin();
+            await pushMessagingService.initAndMaybePrompt();
+          } catch (e) {
+            console.warn("Push messaging init failed (non-fatal)", e);
+          }
+        })();
       })
       .catch((error) => {
         console.warn(
@@ -254,6 +267,15 @@ async function initializeSPA() {
 
   logManager.system.init("SPA Initialization completed");
 
+  // Show environment indicator on non-production domains
+  if (window.location.hostname !== 'meetchuthere.com') {
+    const envBanner = document.createElement('div');
+    const envName = window.location.hostname.includes('stage') ? 'STAGING' : 'DEV';
+    envBanner.style.cssText = 'position:fixed;top:8px;left:8px;background:rgba(255,152,0,0.9);color:white;padding:4px 8px;z-index:9999;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
+    envBanner.textContent = envName;
+    document.body.appendChild(envBanner);
+  }
+
   // Sync browser UI theme color with nav background for seamless header
   try {
     syncMetaThemeColorToNav();
@@ -287,6 +309,8 @@ async function initializeSPA() {
   } catch (_) {
     // Ignore failures in dev helpers
   }
+
+  // No debug gesture in production
 }
 
 // Initialize when DOM is ready, or immediately if already ready
@@ -754,8 +778,14 @@ function syncMetaThemeColorToNav() {
  */
 function tryRegisterServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  // Only register in production builds (vite sets import.meta.env.PROD)
-  if (!(import.meta.env && import.meta.env.PROD)) return;
+  // Allow service worker in development for testing push notifications
+  // Can be disabled via localStorage.setItem('disableDevSW', 'true')
+  const isProduction = import.meta.env && import.meta.env.PROD;
+  const devSWDisabled = !isProduction && localStorage.getItem('disableDevSW') === 'true';
+  if (devSWDisabled) {
+    console.info('Service worker disabled in dev mode (localStorage.disableDevSW)');
+    return;
+  }
   const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
   if (!isSecure) return;
   navigator.serviceWorker
