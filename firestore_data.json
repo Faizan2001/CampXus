@@ -1,65 +1,59 @@
 {
   "admin": {
     "config": {
-      "devAccountCreationEnabled": true
+      "devAccountCreationEnabled": false,
+      "_subcollections": {}
     }
   },
   "friendRequests": {
-    "CBgJQLN5LRgRtredKVHZ": {
-      "fromUserInfo": {
-        "major": "INB",
-        "handle": "saf",
-        "avatarConfig": {
-          "options": {
-            "mouth": "square01",
-            "eyes": "robocop"
-          },
-          "seed": "mwpc3g9qqds",
-          "style": "bottts-neutral"
-        },
-        "university": "iub"
-      },
+    "OCssmZzoupJEcPQfm8e9": {
+      "fromUserId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
       "status": "pending",
       "respondedAt": null,
-      "fromUserId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-      "toUserId": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
+      "toUserId": "NV5zglhrHOgoAVj8Q556bR1LyKp1",
       "toUserInfo": {
-        "handle": "faizansyeddev",
+        "handle": "hash",
         "avatarConfig": {
-          "seed": "49m5jelttqw",
-          "style": "miniavs",
           "options": {
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "b6e3f4,c0aede",
-            "hair": "classic01"
-          }
+            "hairColor": "afafaf",
+            "eyes": "variant08",
+            "backgroundColor": "ffd93d,ffdfbf",
+            "eyebrows": "variant03",
+            "glasses": "variant03",
+            "hair": "long12"
+          },
+          "style": "adventurer",
+          "seed": "ilg91baeou"
         },
+        "major": "CMN",
+        "university": "iub"
+      },
+      "fromUserInfo": {
+        "handle": "mehalkhan",
         "university": "iub",
-        "major": "CSC"
+        "avatarConfig": {
+          "style": "notionists",
+          "options": {
+            "body": "variant13",
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "ffdfbf,a7ffc4"
+          },
+          "seed": "fmsiinvxg5n"
+        },
+        "major": "MAT"
       },
       "createdAt": {
-        "_seconds": 1758622427,
-        "_nanoseconds": 141000000
-      }
+        "_type": "timestamp",
+        "_seconds": 1758876892,
+        "_nanoseconds": 425000000,
+        "_date": "2025-09-26T08:54:52.425Z"
+      },
+      "_subcollections": {}
     },
     "PbdMlJd9bScV0ayulD8p": {
       "fromUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
       "toUserId": "yroG9cmCp4RYniUSfbXUsa63BE52",
       "status": "pending",
-      "fromUserInfo": {
-        "handle": "faizan",
-        "major": "CSC",
-        "university": "iub",
-        "avatarConfig": {
-          "style": "notionists",
-          "seed": "6ly2h282unx",
-          "options": {
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "body": "variant07",
-            "backgroundType": "gradientLinear"
-          }
-        }
-      },
       "toUserInfo": {
         "handle": "tonoy",
         "major": "Cse",
@@ -77,27 +71,30 @@
       },
       "respondedAt": null,
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757845046,
-        "_nanoseconds": 349000000
-      }
+        "_nanoseconds": 349000000,
+        "_date": "2025-09-14T10:17:26.349Z"
+      },
+      "fromUserInfo": {
+        "handle": "faizan",
+        "major": "CSC",
+        "university": "iub",
+        "avatarConfig": {
+          "style": "notionists",
+          "seed": "y0chkk73swg",
+          "options": {
+            "backgroundColor": "d1d4f9,ffd5dc",
+            "backgroundType": "gradientLinear",
+            "body": "variant06"
+          }
+        }
+      },
+      "_subcollections": {}
     },
     "Z6ykwRidV9nyQl77W1SC": {
       "fromUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
       "toUserId": "NV5zglhrHOgoAVj8Q556bR1LyKp1",
-      "fromUserInfo": {
-        "university": "iub",
-        "major": "CSC",
-        "handle": "faizan",
-        "avatarConfig": {
-          "seed": "6ly2h282unx",
-          "style": "notionists",
-          "options": {
-            "body": "variant07",
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "backgroundType": "gradientLinear"
-          }
-        }
-      },
       "respondedAt": null,
       "toUserInfo": {
         "university": "iub",
@@ -118,9 +115,112 @@
       },
       "status": "pending",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758434022,
-        "_nanoseconds": 904000000
-      }
+        "_nanoseconds": 904000000,
+        "_date": "2025-09-21T05:53:42.904Z"
+      },
+      "fromUserInfo": {
+        "university": "iub",
+        "major": "CSC",
+        "handle": "faizan",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "options": {
+            "body": "variant06",
+            "backgroundColor": "d1d4f9,ffd5dc",
+            "backgroundType": "gradientLinear"
+          },
+          "style": "notionists"
+        }
+      },
+      "_subcollections": {}
+    },
+    "gA9GI3qvUB2c87MZxwBh": {
+      "fromUserId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+      "toUserInfo": {
+        "avatarConfig": {
+          "style": "miniavs",
+          "options": {
+            "backgroundType": "gradientLinear",
+            "hair": "elvis",
+            "backgroundColor": "c0aede,ffd93d"
+          },
+          "seed": "d0oMNpSSo0dZNELFCDLDd2W81Ln1"
+        },
+        "major": "MKT",
+        "university": "iub",
+        "handle": "chilljesus"
+      },
+      "toUserId": "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+      "status": "pending",
+      "respondedAt": null,
+      "fromUserInfo": {
+        "avatarConfig": {
+          "seed": "fmsiinvxg5n",
+          "style": "notionists",
+          "options": {
+            "backgroundColor": "ffdfbf,a7ffc4",
+            "body": "variant13",
+            "backgroundType": "gradientLinear"
+          }
+        },
+        "university": "iub",
+        "handle": "mehalkhan",
+        "major": "MAT"
+      },
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758876921,
+        "_nanoseconds": 512000000,
+        "_date": "2025-09-26T08:55:21.512Z"
+      },
+      "_subcollections": {}
+    },
+    "s7BlTQDdwZ5xcMUumRpk": {
+      "toUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "fromUserId": "1fWg2eqBADQGu55alSbZpBd1plq1",
+      "respondedAt": null,
+      "toUserInfo": {
+        "university": "iub",
+        "major": "CSC",
+        "handle": "faizan",
+        "avatarConfig": {
+          "style": "notionists",
+          "seed": "y0chkk73swg",
+          "options": {
+            "backgroundType": "gradientLinear",
+            "body": "variant06",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          }
+        }
+      },
+      "fromUserInfo": {
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "1ucvlmgm1jb",
+          "style": "adventurer",
+          "options": {
+            "glasses": "variant05",
+            "eyebrows": "variant02",
+            "backgroundType": "gradientLinear",
+            "hair": "long05",
+            "eyes": "variant10",
+            "mouth": "variant02",
+            "backgroundColor": "ffdfbf,d1d4f9"
+          }
+        },
+        "handle": "samiya",
+        "major": "ANT"
+      },
+      "status": "pending",
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1759332146,
+        "_nanoseconds": 172000000,
+        "_date": "2025-10-01T15:22:26.172Z"
+      },
+      "_subcollections": {}
     },
     "uu8OJtqJ8oEV5uQce2xO": {
       "status": "pending",
@@ -139,90 +239,32 @@
         "university": "iub"
       },
       "fromUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
-      "fromUserInfo": {
-        "avatarConfig": {
-          "options": {
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "body": "variant07"
-          },
-          "seed": "6ly2h282unx",
-          "style": "notionists"
-        },
-        "handle": "faizan",
-        "university": "iub",
-        "major": "CSC"
-      },
       "toUserId": "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
       "respondedAt": null,
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758434031,
-        "_nanoseconds": 428000000
-      }
+        "_nanoseconds": 428000000,
+        "_date": "2025-09-21T05:53:51.428Z"
+      },
+      "fromUserInfo": {
+        "handle": "faizan",
+        "university": "iub",
+        "major": "CSC",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "options": {
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "d1d4f9,ffd5dc",
+            "body": "variant06"
+          },
+          "style": "notionists"
+        }
+      },
+      "_subcollections": {}
     }
   },
   "friendships": {
-    "1fWg2eqBADQGu55alSbZpBd1plq1_JYix6DOY90er8SBPT7umzigIxv43": {
-      "users": [
-        "JYix6DOY90er8SBPT7umzigIxv43",
-        "1fWg2eqBADQGu55alSbZpBd1plq1"
-      ],
-      "user1Id": "JYix6DOY90er8SBPT7umzigIxv43",
-      "user2Id": "1fWg2eqBADQGu55alSbZpBd1plq1",
-      "mutualFriends": 0,
-      "scheduleVisibility": {
-        "JYix6DOY90er8SBPT7umzigIxv43": true,
-        "1fWg2eqBADQGu55alSbZpBd1plq1": true
-      },
-      "privacyMetadata": {
-        "lastPrivacyUpdate": {
-          "_seconds": 1757888343,
-          "_nanoseconds": 642000000
-        },
-        "privacyUpdatedBy": null,
-        "privacyVersion": 1
-      },
-      "createdAt": {
-        "_seconds": 1757888343,
-        "_nanoseconds": 709000000
-      },
-      "lastInteraction": {
-        "_seconds": 1757888343,
-        "_nanoseconds": 709000000
-      },
-      "user1Info": {
-        "handle": "serena",
-        "major": "CSC",
-        "avatarConfig": {
-          "seed": "ha8mlu6rbef",
-          "style": "miniavs",
-          "options": {
-            "backgroundType": "gradientLinear",
-            "hair": "long",
-            "backgroundColor": "ffdfbf,d1d4f9"
-          }
-        },
-        "university": "iub"
-      },
-      "user2Info": {
-        "handle": "samiya",
-        "avatarConfig": {
-          "seed": "1ucvlmgm1jb",
-          "style": "adventurer",
-          "options": {
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "glasses": "variant05",
-            "backgroundType": "gradientLinear",
-            "eyes": "variant10",
-            "eyebrows": "variant02",
-            "hair": "long05",
-            "mouth": "variant02"
-          }
-        },
-        "university": "iub",
-        "major": "ANT"
-      }
-    },
     "1fWg2eqBADQGu55alSbZpBd1plq1_MnJAjvEqk3P4glouiFk9YeuUwlv2": {
       "users": [
         "1fWg2eqBADQGu55alSbZpBd1plq1",
@@ -237,19 +279,25 @@
       },
       "privacyMetadata": {
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1757453612,
-          "_nanoseconds": 201000000
+          "_nanoseconds": 201000000,
+          "_date": "2025-09-09T21:33:32.201Z"
         },
         "privacyUpdatedBy": null,
         "privacyVersion": 1
       },
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757453612,
-        "_nanoseconds": 284000000
+        "_nanoseconds": 284000000,
+        "_date": "2025-09-09T21:33:32.284Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1757453612,
-        "_nanoseconds": 284000000
+        "_nanoseconds": 284000000,
+        "_date": "2025-09-09T21:33:32.284Z"
       },
       "user2Info": {
         "handle": "hamza",
@@ -282,103 +330,24 @@
           }
         },
         "major": "ANT"
-      }
-    },
-    "1fWg2eqBADQGu55alSbZpBd1plq1_feqobVVYWifSKPdpWrItOUxvmA72": {
-      "users": [
-        "feqobVVYWifSKPdpWrItOUxvmA72",
-        "1fWg2eqBADQGu55alSbZpBd1plq1"
-      ],
-      "user1Id": "feqobVVYWifSKPdpWrItOUxvmA72",
-      "user2Id": "1fWg2eqBADQGu55alSbZpBd1plq1",
-      "mutualFriends": 0,
-      "scheduleVisibility": {
-        "feqobVVYWifSKPdpWrItOUxvmA72": true,
-        "1fWg2eqBADQGu55alSbZpBd1plq1": true
       },
-      "privacyMetadata": {
-        "lastPrivacyUpdate": {
-          "_seconds": 1757888342,
-          "_nanoseconds": 487000000
-        },
-        "privacyUpdatedBy": null,
-        "privacyVersion": 1
-      },
-      "createdAt": {
-        "_seconds": 1757888342,
-        "_nanoseconds": 561000000
-      },
-      "lastInteraction": {
-        "_seconds": 1757888342,
-        "_nanoseconds": 561000000
-      },
-      "user1Info": {
-        "handle": "faizan",
-        "major": "CSC",
-        "avatarConfig": {
-          "style": "notionists",
-          "seed": "6ly2h282unx",
-          "options": {
-            "body": "variant07",
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "backgroundType": "gradientLinear"
-          }
-        },
-        "university": "iub"
-      },
-      "user2Info": {
-        "handle": "samiya",
-        "avatarConfig": {
-          "options": {
-            "mouth": "variant02",
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "eyes": "variant10",
-            "eyebrows": "variant02",
-            "hair": "long05",
-            "backgroundType": "gradientLinear",
-            "glasses": "variant05"
-          },
-          "seed": "1ucvlmgm1jb",
-          "style": "adventurer"
-        },
-        "university": "iub",
-        "major": "ANT"
-      },
-      "locationVisibility": {
-        "1fWg2eqBADQGu55alSbZpBd1plq1": true,
-        "feqobVVYWifSKPdpWrItOUxvmA72": true
-      },
-      "locationSharingMetadata": {
-        "locationUpdatedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
-        "mutualSharingEnabled": true,
-        "lastLocationUpdate": 1758621283834
-      }
+      "_subcollections": {}
     },
     "4ULoLq1KaDdZWqcXthgO0YJI2Yl1_HVpYkLaWaAQ0FdJKBtB7jCmlRbG2": {
       "users": [
         "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
         "4ULoLq1KaDdZWqcXthgO0YJI2Yl1"
       ],
-      "user2Info": {
-        "major": "INB",
-        "handle": "saf",
-        "avatarConfig": {
-          "style": "bottts-neutral",
-          "seed": "mwpc3g9qqds",
-          "options": {
-            "mouth": "square01",
-            "eyes": "robocop"
-          }
-        }
-      },
       "scheduleVisibility": {
         "4ULoLq1KaDdZWqcXthgO0YJI2Yl1": true,
         "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2": true
       },
       "privacyMetadata": {
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758636088,
-          "_nanoseconds": 814000000
+          "_nanoseconds": 814000000,
+          "_date": "2025-09-23T14:01:28.814Z"
         },
         "privacyUpdatedBy": null,
         "privacyVersion": 1
@@ -387,12 +356,16 @@
       "mutualFriends": 0,
       "user2Id": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758636088,
-        "_nanoseconds": 918000000
+        "_nanoseconds": 918000000,
+        "_date": "2025-09-23T14:01:28.918Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758636088,
-        "_nanoseconds": 918000000
+        "_nanoseconds": 918000000,
+        "_date": "2025-09-23T14:01:28.918Z"
       },
       "locationVisibility": {
         "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2": true,
@@ -416,7 +389,21 @@
           }
         },
         "university": "iub"
-      }
+      },
+      "user2Info": {
+        "major": "INB",
+        "handle": "saf",
+        "avatarConfig": {
+          "style": "bottts-neutral",
+          "seed": "mwpc3g9qqds",
+          "options": {
+            "mouth": "square01",
+            "eyes": "robocop"
+          }
+        },
+        "university": "iub"
+      },
+      "_subcollections": {}
     },
     "4ULoLq1KaDdZWqcXthgO0YJI2Yl1_ZYVavUhRtqg0v5LwBctS23ayaMB3": {
       "user1Id": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
@@ -428,8 +415,10 @@
         "privacyVersion": 1,
         "privacyUpdatedBy": null,
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758622381,
-          "_nanoseconds": 430000000
+          "_nanoseconds": 430000000,
+          "_date": "2025-09-23T10:13:01.430Z"
         }
       },
       "scheduleVisibility": {
@@ -439,12 +428,16 @@
       "mutualFriends": 0,
       "user2Id": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758622381,
-        "_nanoseconds": 632000000
+        "_nanoseconds": 632000000,
+        "_date": "2025-09-23T10:13:01.632Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758622381,
-        "_nanoseconds": 632000000
+        "_nanoseconds": 632000000,
+        "_date": "2025-09-23T10:13:01.632Z"
       },
       "locationVisibility": {
         "ZYVavUhRtqg0v5LwBctS23ayaMB3": true,
@@ -485,7 +478,8 @@
         "handle": "cheesewhizz",
         "major": "INB",
         "university": "iub"
-      }
+      },
+      "_subcollections": {}
     },
     "4ULoLq1KaDdZWqcXthgO0YJI2Yl1_feqobVVYWifSKPdpWrItOUxvmA72": {
       "users": [
@@ -496,26 +490,16 @@
       "user2Id": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
       "mutualFriends": 0,
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757845107,
-        "_nanoseconds": 321000000
+        "_nanoseconds": 321000000,
+        "_date": "2025-09-14T10:18:27.321Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1757845107,
-        "_nanoseconds": 321000000
-      },
-      "user1Info": {
-        "handle": "faizan",
-        "major": "CSC",
-        "avatarConfig": {
-          "style": "notionists",
-          "seed": "6ly2h282unx",
-          "options": {
-            "body": "variant07",
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "a7ffc4,d1d4f9"
-          }
-        },
-        "university": "iub"
+        "_nanoseconds": 321000000,
+        "_date": "2025-09-14T10:18:27.321Z"
       },
       "privacyMetadata": {
         "privacyUpdatedBy": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
@@ -547,7 +531,22 @@
         "mutualSharingEnabled": true,
         "locationUpdatedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
         "lastLocationUpdate": 1758563789911
-      }
+      },
+      "user1Info": {
+        "handle": "faizan",
+        "major": "CSC",
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "options": {
+            "body": "variant06",
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          },
+          "style": "notionists"
+        }
+      },
+      "_subcollections": {}
     },
     "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2_ZYVavUhRtqg0v5LwBctS23ayaMB3": {
       "user2Id": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
@@ -555,8 +554,10 @@
         "privacyUpdatedBy": null,
         "privacyVersion": 1,
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758636067,
-          "_nanoseconds": 111000000
+          "_nanoseconds": 111000000,
+          "_date": "2025-09-23T14:01:07.111Z"
         }
       },
       "scheduleVisibility": {
@@ -570,12 +571,16 @@
       ],
       "user1Id": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758636067,
-        "_nanoseconds": 403000000
+        "_nanoseconds": 403000000,
+        "_date": "2025-09-23T14:01:07.403Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758636067,
-        "_nanoseconds": 403000000
+        "_nanoseconds": 403000000,
+        "_date": "2025-09-23T14:01:07.403Z"
       },
       "locationVisibility": {
         "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2": true,
@@ -617,7 +622,8 @@
         },
         "major": "CSE",
         "university": "iub"
-      }
+      },
+      "_subcollections": {}
     },
     "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2_feqobVVYWifSKPdpWrItOUxvmA72": {
       "user2Id": "feqobVVYWifSKPdpWrItOUxvmA72",
@@ -626,8 +632,10 @@
         "privacyVersion": 1,
         "privacyUpdatedBy": null,
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758636039,
-          "_nanoseconds": 257000000
+          "_nanoseconds": 257000000,
+          "_date": "2025-09-23T14:00:39.257Z"
         }
       },
       "scheduleVisibility": {
@@ -640,12 +648,16 @@
         "feqobVVYWifSKPdpWrItOUxvmA72"
       ],
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758636038,
-        "_nanoseconds": 170000000
+        "_nanoseconds": 170000000,
+        "_date": "2025-09-23T14:00:38.170Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758636038,
-        "_nanoseconds": 170000000
+        "_nanoseconds": 170000000,
+        "_date": "2025-09-23T14:00:38.170Z"
       },
       "user1Info": {
         "avatarConfig": {
@@ -671,146 +683,157 @@
         "lastLocationUpdate": 1758636092123
       },
       "user2Info": {
+        "major": "CSC",
+        "handle": "faizan",
+        "university": "iub",
         "avatarConfig": {
-          "seed": "6ly2h282unx",
+          "seed": "y0chkk73swg",
           "options": {
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "body": "variant07",
+            "body": "variant06",
+            "backgroundColor": "d1d4f9,ffd5dc",
             "backgroundType": "gradientLinear"
           },
           "style": "notionists"
-        },
-        "major": "CSC",
-        "handle": "faizan",
-        "university": "iub"
-      }
+        }
+      },
+      "_subcollections": {}
     },
     "JYix6DOY90er8SBPT7umzigIxv43_feqobVVYWifSKPdpWrItOUxvmA72": {
-      "user1Id": "JYix6DOY90er8SBPT7umzigIxv43",
       "mutualFriends": 0,
+      "user2Id": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "privacyMetadata": {
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1759138388,
+          "_nanoseconds": 29000000,
+          "_date": "2025-09-29T09:33:08.029Z"
+        },
+        "privacyVersion": 1,
+        "privacyUpdatedBy": null
+      },
+      "user1Id": "JYix6DOY90er8SBPT7umzigIxv43",
       "users": [
         "JYix6DOY90er8SBPT7umzigIxv43",
         "feqobVVYWifSKPdpWrItOUxvmA72"
       ],
-      "user2Id": "feqobVVYWifSKPdpWrItOUxvmA72",
-      "createdAt": {
-        "_seconds": 1758565679,
-        "_nanoseconds": 108000000
-      },
-      "lastInteraction": {
-        "_seconds": 1758565679,
-        "_nanoseconds": 108000000
-      },
-      "locationVisibility": {
-        "feqobVVYWifSKPdpWrItOUxvmA72": true
-      },
-      "user2Info": {
-        "avatarConfig": {
-          "style": "notionists",
-          "options": {
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "backgroundType": "gradientLinear",
-            "body": "variant07"
-          },
-          "seed": "6ly2h282unx"
-        },
-        "major": "CSC",
-        "handle": "faizan",
-        "university": "iub"
-      },
-      "user1Info": {
-        "major": "CSC",
-        "handle": "serena",
-        "avatarConfig": {
-          "seed": "ha8mlu6rbef",
-          "style": "miniavs",
-          "options": {
-            "hair": "long",
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "ffdfbf,d1d4f9"
-          }
-        },
-        "university": "iub"
-      },
-      "locationSharingMetadata": {
-        "locationUpdatedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
-        "lastLocationUpdate": {
-          "_seconds": 1758569373,
-          "_nanoseconds": 968000000
-        }
-      },
-      "privacyMetadata": {
-        "privacyUpdatedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
-        "lastPrivacyUpdate": 1758614913054,
-        "privacyVersion": 5
-      },
       "scheduleVisibility": {
-        "JYix6DOY90er8SBPT7umzigIxv43": true,
-        "feqobVVYWifSKPdpWrItOUxvmA72": true
-      }
-    },
-    "JYix6DOY90er8SBPT7umzigIxv43_k4QYI7jlsvORhWsRNI10ZnPQvxO2": {
-      "users": [
-        "JYix6DOY90er8SBPT7umzigIxv43",
-        "k4QYI7jlsvORhWsRNI10ZnPQvxO2"
-      ],
-      "user1Id": "JYix6DOY90er8SBPT7umzigIxv43",
-      "user2Id": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
-      "mutualFriends": 0,
+        "feqobVVYWifSKPdpWrItOUxvmA72": true,
+        "JYix6DOY90er8SBPT7umzigIxv43": true
+      },
       "createdAt": {
-        "_seconds": 1757963268,
-        "_nanoseconds": 39000000
+        "_type": "timestamp",
+        "_seconds": 1759138388,
+        "_nanoseconds": 96000000,
+        "_date": "2025-09-29T09:33:08.096Z"
       },
       "lastInteraction": {
-        "_seconds": 1757963268,
-        "_nanoseconds": 39000000
-      },
-      "user2Info": {
-        "handle": "faizansyeddev",
-        "major": "CSC",
-        "avatarConfig": {
-          "style": "miniavs",
-          "seed": "49m5jelttqw",
-          "options": {
-            "hair": "classic01",
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "b6e3f4,c0aede"
-          }
-        },
-        "university": "iub"
+        "_type": "timestamp",
+        "_seconds": 1759138388,
+        "_nanoseconds": 96000000,
+        "_date": "2025-09-29T09:33:08.096Z"
       },
       "user1Info": {
         "handle": "serena",
-        "major": "CSC",
         "avatarConfig": {
           "style": "miniavs",
-          "seed": "ha8mlu6rbef",
           "options": {
             "backgroundColor": "ffdfbf,d1d4f9",
             "hair": "long",
+            "backgroundType": "gradientLinear"
+          },
+          "seed": "ha8mlu6rbef"
+        },
+        "major": "CSC",
+        "university": "iub"
+      },
+      "locationVisibility": {
+        "JYix6DOY90er8SBPT7umzigIxv43": true,
+        "feqobVVYWifSKPdpWrItOUxvmA72": true
+      },
+      "locationSharingMetadata": {
+        "locationUpdatedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
+        "mutualSharingEnabled": true,
+        "lastLocationUpdate": 1759138455881
+      },
+      "user2Info": {
+        "major": "CSC",
+        "handle": "faizan",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "style": "notionists",
+          "options": {
+            "body": "variant06",
+            "backgroundColor": "d1d4f9,ffd5dc",
             "backgroundType": "gradientLinear"
           }
         },
         "university": "iub"
       },
-      "locationVisibility": {
-        "JYix6DOY90er8SBPT7umzigIxv43": true,
-        "k4QYI7jlsvORhWsRNI10ZnPQvxO2": true
-      },
-      "locationSharingMetadata": {
-        "mutualSharingEnabled": true,
-        "locationUpdatedBy": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
-        "lastLocationUpdate": 1758211452761
+      "_subcollections": {}
+    },
+    "JYix6DOY90er8SBPT7umzigIxv43_k4QYI7jlsvORhWsRNI10ZnPQvxO2": {
+      "mutualFriends": 0,
+      "user1Id": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
+      "user2Id": "JYix6DOY90er8SBPT7umzigIxv43",
+      "users": [
+        "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
+        "JYix6DOY90er8SBPT7umzigIxv43"
+      ],
+      "scheduleVisibility": {
+        "k4QYI7jlsvORhWsRNI10ZnPQvxO2": true,
+        "JYix6DOY90er8SBPT7umzigIxv43": true
       },
       "privacyMetadata": {
-        "privacyUpdatedBy": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
-        "lastPrivacyUpdate": 1758211466153,
-        "privacyVersion": 5
+        "privacyVersion": 1,
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1758967307,
+          "_nanoseconds": 23000000,
+          "_date": "2025-09-27T10:01:47.023Z"
+        },
+        "privacyUpdatedBy": null
       },
-      "scheduleVisibility": {
-        "JYix6DOY90er8SBPT7umzigIxv43": true,
-        "k4QYI7jlsvORhWsRNI10ZnPQvxO2": true
-      }
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758967307,
+        "_nanoseconds": 111000000,
+        "_date": "2025-09-27T10:01:47.111Z"
+      },
+      "lastInteraction": {
+        "_type": "timestamp",
+        "_seconds": 1758967307,
+        "_nanoseconds": 111000000,
+        "_date": "2025-09-27T10:01:47.111Z"
+      },
+      "user2Info": {
+        "avatarConfig": {
+          "options": {
+            "backgroundType": "gradientLinear",
+            "hair": "long",
+            "backgroundColor": "ffdfbf,d1d4f9"
+          },
+          "style": "miniavs",
+          "seed": "ha8mlu6rbef"
+        },
+        "major": "CSC",
+        "handle": "serena",
+        "university": "iub"
+      },
+      "user1Info": {
+        "avatarConfig": {
+          "seed": "49m5jelttqw",
+          "options": {
+            "backgroundColor": "b6e3f4,c0aede",
+            "backgroundType": "gradientLinear",
+            "hair": "classic01"
+          },
+          "style": "miniavs"
+        },
+        "major": "CSC",
+        "handle": "faizansyeddev",
+        "university": "iub"
+      },
+      "_subcollections": {}
     },
     "NV5zglhrHOgoAVj8Q556bR1LyKp1_d0oMNpSSo0dZNELFCDLDd2W81Ln1": {
       "users": [
@@ -837,12 +860,16 @@
         }
       },
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758273810,
-        "_nanoseconds": 890000000
+        "_nanoseconds": 890000000,
+        "_date": "2025-09-19T09:23:30.890Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758273810,
-        "_nanoseconds": 890000000
+        "_nanoseconds": 890000000,
+        "_date": "2025-09-19T09:23:30.890Z"
       },
       "user2Info": {
         "handle": "chilljesus",
@@ -866,7 +893,8 @@
       "scheduleVisibility": {
         "NV5zglhrHOgoAVj8Q556bR1LyKp1": true,
         "d0oMNpSSo0dZNELFCDLDd2W81Ln1": true
-      }
+      },
+      "_subcollections": {}
     },
     "ZYVavUhRtqg0v5LwBctS23ayaMB3_feqobVVYWifSKPdpWrItOUxvmA72": {
       "users": [
@@ -875,8 +903,10 @@
       ],
       "privacyMetadata": {
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758621585,
-          "_nanoseconds": 288000000
+          "_nanoseconds": 288000000,
+          "_date": "2025-09-23T09:59:45.288Z"
         },
         "privacyUpdatedBy": null,
         "privacyVersion": 1
@@ -889,26 +919,16 @@
       "user1Id": "feqobVVYWifSKPdpWrItOUxvmA72",
       "user2Id": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758621585,
-        "_nanoseconds": 665000000
+        "_nanoseconds": 665000000,
+        "_date": "2025-09-23T09:59:45.665Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758621585,
-        "_nanoseconds": 665000000
-      },
-      "user1Info": {
-        "avatarConfig": {
-          "seed": "6ly2h282unx",
-          "options": {
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "body": "variant07",
-            "backgroundType": "gradientLinear"
-          },
-          "style": "notionists"
-        },
-        "handle": "faizan",
-        "major": "CSC",
-        "university": "iub"
+        "_nanoseconds": 665000000,
+        "_date": "2025-09-23T09:59:45.665Z"
       },
       "user2Info": {
         "avatarConfig": {
@@ -936,7 +956,233 @@
         "mutualSharingEnabled": true,
         "locationUpdatedBy": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
         "lastLocationUpdate": 1758621867181
-      }
+      },
+      "user1Info": {
+        "handle": "faizan",
+        "major": "CSC",
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "options": {
+            "body": "variant06",
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          },
+          "style": "notionists"
+        }
+      },
+      "_subcollections": {}
+    },
+    "eW35kPbp79eKEAwFp5tNVNvYwZo1_feqobVVYWifSKPdpWrItOUxvmA72": {
+      "user2Id": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "mutualFriends": 0,
+      "user1Id": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+      "users": [
+        "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+        "feqobVVYWifSKPdpWrItOUxvmA72"
+      ],
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758876494,
+        "_nanoseconds": 339000000,
+        "_date": "2025-09-26T08:48:14.339Z"
+      },
+      "lastInteraction": {
+        "_type": "timestamp",
+        "_seconds": 1758876494,
+        "_nanoseconds": 339000000,
+        "_date": "2025-09-26T08:48:14.339Z"
+      },
+      "privacyMetadata": {
+        "privacyUpdatedBy": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+        "lastPrivacyUpdate": 1758876579183,
+        "privacyVersion": 5
+      },
+      "scheduleVisibility": {
+        "feqobVVYWifSKPdpWrItOUxvmA72": true,
+        "eW35kPbp79eKEAwFp5tNVNvYwZo1": true
+      },
+      "locationVisibility": {
+        "feqobVVYWifSKPdpWrItOUxvmA72": true,
+        "eW35kPbp79eKEAwFp5tNVNvYwZo1": true
+      },
+      "locationSharingMetadata": {
+        "mutualSharingEnabled": true,
+        "locationUpdatedBy": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+        "lastLocationUpdate": 1758876579651
+      },
+      "user1Info": {
+        "major": "MAT",
+        "handle": "mehalkhan",
+        "avatarConfig": {
+          "seed": "fmsiinvxg5n",
+          "options": {
+            "backgroundColor": "ffdfbf,a7ffc4",
+            "backgroundType": "gradientLinear",
+            "body": "variant13"
+          },
+          "style": "notionists"
+        },
+        "university": "iub"
+      },
+      "user2Info": {
+        "major": "CSC",
+        "handle": "faizan",
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "options": {
+            "body": "variant06",
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          },
+          "style": "notionists"
+        }
+      },
+      "_subcollections": {}
+    },
+    "fN14DF3BOPSRgAZq20SZrIG219h2_feqobVVYWifSKPdpWrItOUxvmA72": {
+      "mutualFriends": 0,
+      "users": [
+        "fN14DF3BOPSRgAZq20SZrIG219h2",
+        "feqobVVYWifSKPdpWrItOUxvmA72"
+      ],
+      "user1Id": "fN14DF3BOPSRgAZq20SZrIG219h2",
+      "user2Id": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758703816,
+        "_nanoseconds": 521000000,
+        "_date": "2025-09-24T08:50:16.521Z"
+      },
+      "lastInteraction": {
+        "_type": "timestamp",
+        "_seconds": 1758703816,
+        "_nanoseconds": 521000000,
+        "_date": "2025-09-24T08:50:16.521Z"
+      },
+      "user1Info": {
+        "avatarConfig": {
+          "style": "notionists",
+          "options": {
+            "body": "variant17",
+            "backgroundType": "gradientLinear",
+            "backgroundColor": "d1d4f9"
+          },
+          "seed": "77n4cwalvus"
+        },
+        "handle": "rabbage",
+        "major": "CMN",
+        "university": "iub"
+      },
+      "locationVisibility": {
+        "feqobVVYWifSKPdpWrItOUxvmA72": true,
+        "fN14DF3BOPSRgAZq20SZrIG219h2": true
+      },
+      "locationSharingMetadata": {
+        "mutualSharingEnabled": true,
+        "locationUpdatedBy": "fN14DF3BOPSRgAZq20SZrIG219h2",
+        "lastLocationUpdate": 1758703995276
+      },
+      "privacyMetadata": {
+        "privacyUpdatedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
+        "lastPrivacyUpdate": 1758763667260,
+        "privacyVersion": 5
+      },
+      "scheduleVisibility": {
+        "fN14DF3BOPSRgAZq20SZrIG219h2": true,
+        "feqobVVYWifSKPdpWrItOUxvmA72": true
+      },
+      "user2Info": {
+        "major": "CSC",
+        "handle": "faizan",
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "y0chkk73swg",
+          "style": "notionists",
+          "options": {
+            "backgroundColor": "d1d4f9,ffd5dc",
+            "body": "variant06",
+            "backgroundType": "gradientLinear"
+          }
+        }
+      },
+      "_subcollections": {}
+    },
+    "fN14DF3BOPSRgAZq20SZrIG219h2_g9k71EY3NtefUfuw9uGcHnAWycJ3": {
+      "users": [
+        "fN14DF3BOPSRgAZq20SZrIG219h2",
+        "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+      ],
+      "user2Id": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+      "user1Id": "fN14DF3BOPSRgAZq20SZrIG219h2",
+      "user1Info": {
+        "major": "CMN",
+        "avatarConfig": {
+          "options": {
+            "body": "variant17",
+            "backgroundColor": "d1d4f9",
+            "backgroundType": "gradientLinear"
+          },
+          "style": "notionists",
+          "seed": "77n4cwalvus"
+        },
+        "handle": "rabbage"
+      },
+      "privacyMetadata": {
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1758704842,
+          "_nanoseconds": 500000000,
+          "_date": "2025-09-24T09:07:22.500Z"
+        },
+        "privacyUpdatedBy": null,
+        "privacyVersion": 1
+      },
+      "mutualFriends": 0,
+      "scheduleVisibility": {
+        "g9k71EY3NtefUfuw9uGcHnAWycJ3": true,
+        "fN14DF3BOPSRgAZq20SZrIG219h2": true
+      },
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758704842,
+        "_nanoseconds": 617000000,
+        "_date": "2025-09-24T09:07:22.617Z"
+      },
+      "lastInteraction": {
+        "_type": "timestamp",
+        "_seconds": 1758704842,
+        "_nanoseconds": 617000000,
+        "_date": "2025-09-24T09:07:22.617Z"
+      },
+      "locationVisibility": {
+        "g9k71EY3NtefUfuw9uGcHnAWycJ3": true
+      },
+      "locationSharingMetadata": {
+        "locationUpdatedBy": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+        "lastLocationUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1758705168,
+          "_nanoseconds": 219000000,
+          "_date": "2025-09-24T09:12:48.219Z"
+        }
+      },
+      "user2Info": {
+        "major": "CMN",
+        "handle": "shamsahmad",
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "sleg565m2qd",
+          "style": "notionists",
+          "options": {
+            "body": "variant23",
+            "backgroundType": "solid",
+            "backgroundColor": "b6e3f4"
+          }
+        }
+      },
+      "_subcollections": {}
     },
     "feqobVVYWifSKPdpWrItOUxvmA72_g9k71EY3NtefUfuw9uGcHnAWycJ3": {
       "user1Id": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
@@ -947,39 +1193,16 @@
       ],
       "mutualFriends": 0,
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758526054,
-        "_nanoseconds": 630000000
+        "_nanoseconds": 630000000,
+        "_date": "2025-09-22T07:27:34.630Z"
       },
       "lastInteraction": {
+        "_type": "timestamp",
         "_seconds": 1758526054,
-        "_nanoseconds": 630000000
-      },
-      "user2Info": {
-        "avatarConfig": {
-          "style": "notionists",
-          "seed": "6ly2h282unx",
-          "options": {
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "backgroundType": "gradientLinear",
-            "body": "variant07"
-          }
-        },
-        "handle": "faizan",
-        "major": "CSC",
-        "university": "iub"
-      },
-      "user1Info": {
-        "avatarConfig": {
-          "style": "miniavs",
-          "options": {
-            "hair": "curly",
-            "backgroundColor": "ffd93d"
-          },
-          "seed": "s0o0564cql"
-        },
-        "handle": "shamsahmad",
-        "major": "CMN",
-        "university": "iub"
+        "_nanoseconds": 630000000,
+        "_date": "2025-09-22T07:27:34.630Z"
       },
       "privacyMetadata": {
         "privacyUpdatedBy": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
@@ -992,177 +1215,315 @@
       },
       "locationVisibility": {
         "feqobVVYWifSKPdpWrItOUxvmA72": true,
-        "g9k71EY3NtefUfuw9uGcHnAWycJ3": false
+        "g9k71EY3NtefUfuw9uGcHnAWycJ3": true
       },
       "locationSharingMetadata": {
         "locationUpdatedBy": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
         "mutualSharingEnabled": true,
-        "lastLocationUpdate": 1758690486917
-      }
+        "lastLocationUpdate": 1758705176588
+      },
+      "user1Info": {
+        "handle": "shamsahmad",
+        "major": "CMN",
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "sleg565m2qd",
+          "options": {
+            "body": "variant23",
+            "backgroundColor": "b6e3f4",
+            "backgroundType": "solid"
+          },
+          "style": "notionists"
+        }
+      },
+      "user2Info": {
+        "handle": "faizan",
+        "major": "CSC",
+        "university": "iub",
+        "avatarConfig": {
+          "style": "notionists",
+          "seed": "y0chkk73swg",
+          "options": {
+            "backgroundType": "gradientLinear",
+            "body": "variant06",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          }
+        }
+      },
+      "_subcollections": {}
     }
   },
   "handles": {
     "cheesewhizz": {
       "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757845786,
-        "_nanoseconds": 618000000
+        "_nanoseconds": 618000000,
+        "_date": "2025-09-14T10:29:46.618Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757845786,
-        "_nanoseconds": 618000000
-      }
+        "_nanoseconds": 618000000,
+        "_date": "2025-09-14T10:29:46.618Z"
+      },
+      "_subcollections": {}
     },
     "chilljesus": {
       "userId": "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758273324,
-        "_nanoseconds": 145000000
+        "_nanoseconds": 145000000,
+        "_date": "2025-09-19T09:15:24.145Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1758273324,
-        "_nanoseconds": 145000000
-      }
+        "_nanoseconds": 145000000,
+        "_date": "2025-09-19T09:15:24.145Z"
+      },
+      "_subcollections": {}
     },
     "faizan": {
       "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757833119,
-        "_nanoseconds": 18000000
+        "_nanoseconds": 18000000,
+        "_date": "2025-09-14T06:58:39.018Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757833119,
-        "_nanoseconds": 18000000
-      }
+        "_nanoseconds": 18000000,
+        "_date": "2025-09-14T06:58:39.018Z"
+      },
+      "_subcollections": {}
     },
     "faizansyeddev": {
       "userId": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757832284,
-        "_nanoseconds": 473000000
+        "_nanoseconds": 473000000,
+        "_date": "2025-09-14T06:44:44.473Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757832284,
-        "_nanoseconds": 473000000
-      }
+        "_nanoseconds": 473000000,
+        "_date": "2025-09-14T06:44:44.473Z"
+      },
+      "_subcollections": {}
     },
     "hash": {
       "userId": "NV5zglhrHOgoAVj8Q556bR1LyKp1",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758273723,
-        "_nanoseconds": 154000000
+        "_nanoseconds": 154000000,
+        "_date": "2025-09-19T09:22:03.154Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1758273723,
-        "_nanoseconds": 154000000
-      }
+        "_nanoseconds": 154000000,
+        "_date": "2025-09-19T09:22:03.154Z"
+      },
+      "_subcollections": {}
+    },
+    "mehalkhan": {
+      "userId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758876313,
+        "_nanoseconds": 561000000,
+        "_date": "2025-09-26T08:45:13.561Z"
+      },
+      "lastClaimedAt": {
+        "_type": "timestamp",
+        "_seconds": 1758876313,
+        "_nanoseconds": 561000000,
+        "_date": "2025-09-26T08:45:13.561Z"
+      },
+      "_subcollections": {}
+    },
+    "newuser": {
+      "userId": "iRZ2FfxwiOOgUHzO61Hsg1BQ4sb2",
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758701321,
+        "_nanoseconds": 516000000,
+        "_date": "2025-09-24T08:08:41.516Z"
+      },
+      "lastClaimedAt": {
+        "_type": "timestamp",
+        "_seconds": 1758701321,
+        "_nanoseconds": 516000000,
+        "_date": "2025-09-24T08:08:41.516Z"
+      },
+      "_subcollections": {}
+    },
+    "rabbage": {
+      "userId": "fN14DF3BOPSRgAZq20SZrIG219h2",
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1758703733,
+        "_nanoseconds": 543000000,
+        "_date": "2025-09-24T08:48:53.543Z"
+      },
+      "lastClaimedAt": {
+        "_type": "timestamp",
+        "_seconds": 1758703733,
+        "_nanoseconds": 543000000,
+        "_date": "2025-09-24T08:48:53.543Z"
+      },
+      "_subcollections": {}
     },
     "saf": {
       "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757844608,
-        "_nanoseconds": 166000000
+        "_nanoseconds": 166000000,
+        "_date": "2025-09-14T10:10:08.166Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757844608,
-        "_nanoseconds": 166000000
-      }
+        "_nanoseconds": 166000000,
+        "_date": "2025-09-14T10:10:08.166Z"
+      },
+      "_subcollections": {}
     },
     "salman": {
       "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758635918,
-        "_nanoseconds": 797000000
+        "_nanoseconds": 797000000,
+        "_date": "2025-09-23T13:58:38.797Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1758635918,
-        "_nanoseconds": 797000000
-      }
+        "_nanoseconds": 797000000,
+        "_date": "2025-09-23T13:58:38.797Z"
+      },
+      "_subcollections": {}
     },
     "samiya": {
       "userId": "1fWg2eqBADQGu55alSbZpBd1plq1",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757280732,
-        "_nanoseconds": 103000000
+        "_nanoseconds": 103000000,
+        "_date": "2025-09-07T21:32:12.103Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757280732,
-        "_nanoseconds": 103000000
-      }
+        "_nanoseconds": 103000000,
+        "_date": "2025-09-07T21:32:12.103Z"
+      },
+      "_subcollections": {}
     },
     "serena": {
       "userId": "JYix6DOY90er8SBPT7umzigIxv43",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757362405,
-        "_nanoseconds": 680000000
+        "_nanoseconds": 680000000,
+        "_date": "2025-09-08T20:13:25.680Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757362405,
-        "_nanoseconds": 680000000
-      }
+        "_nanoseconds": 680000000,
+        "_date": "2025-09-08T20:13:25.680Z"
+      },
+      "_subcollections": {}
     },
     "shamsahmad": {
       "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1758439569,
-        "_nanoseconds": 587000000
+        "_nanoseconds": 587000000,
+        "_date": "2025-09-21T07:26:09.587Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1758439569,
-        "_nanoseconds": 587000000
-      }
+        "_nanoseconds": 587000000,
+        "_date": "2025-09-21T07:26:09.587Z"
+      },
+      "_subcollections": {}
     },
     "tonoy": {
       "userId": "yroG9cmCp4RYniUSfbXUsa63BE52",
       "createdAt": {
+        "_type": "timestamp",
         "_seconds": 1757839276,
-        "_nanoseconds": 899000000
+        "_nanoseconds": 899000000,
+        "_date": "2025-09-14T08:41:16.899Z"
       },
       "lastClaimedAt": {
+        "_type": "timestamp",
         "_seconds": 1757839276,
-        "_nanoseconds": 899000000
-      }
+        "_nanoseconds": 899000000,
+        "_date": "2025-09-14T08:41:16.899Z"
+      },
+      "_subcollections": {}
     }
   },
   "notifications": {
-    "p0jHAMXvlHcjOThOeUEc": {
-      "status": "pending",
-      "expiresAt": {
-        "_seconds": 1759174174,
-        "_nanoseconds": 23000000
-      },
-      "userId": "JYix6DOY90er8SBPT7umzigIxv43",
+    "DIO7GxG2eRfV3F1nFr2M": {
+      "userId": "fN14DF3BOPSRgAZq20SZrIG219h2",
       "actionButtons": [
         "accept",
         "dismiss"
       ],
+      "fromUserId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
       "type": "location_share_request",
+      "expiresAt": {
+        "_type": "timestamp",
+        "_seconds": 1759309968,
+        "_nanoseconds": 358000000,
+        "_date": "2025-10-01T09:12:48.358Z"
+      },
       "fromUserInfo": {
-        "major": "CSC",
-        "handle": "faizan",
         "avatarConfig": {
-          "style": "notionists",
+          "style": "miniavs",
+          "seed": "s0o0564cql",
           "options": {
-            "backgroundColor": "a7ffc4,d1d4f9",
-            "backgroundType": "gradientLinear",
-            "body": "variant07"
-          },
-          "seed": "6ly2h282unx"
-        }
+            "hair": "curly",
+            "backgroundColor": "ffd93d"
+          }
+        },
+        "major": "CMN",
+        "handle": "shamsahmad"
       },
       "locationRequest": {
+        "currentStatus": "pending_both",
+        "friendshipId": "fN14DF3BOPSRgAZq20SZrIG219h2_g9k71EY3NtefUfuw9uGcHnAWycJ3",
         "requestedAt": {
-          "_seconds": 1758569374,
-          "_nanoseconds": 23000000
-        },
-        "friendshipId": "JYix6DOY90er8SBPT7umzigIxv43_feqobVVYWifSKPdpWrItOUxvmA72",
-        "currentStatus": "pending_both"
+          "_type": "timestamp",
+          "_seconds": 1758705168,
+          "_nanoseconds": 358000000,
+          "_date": "2025-09-24T09:12:48.358Z"
+        }
       },
-      "fromUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "status": "pending",
       "createdAt": {
-        "_seconds": 1758569374,
-        "_nanoseconds": 124000000
-      }
+        "_type": "timestamp",
+        "_seconds": 1758705168,
+        "_nanoseconds": 467000000,
+        "_date": "2025-09-24T09:12:48.467Z"
+      },
+      "_subcollections": {}
     }
   },
   "universities": {
@@ -1170,7 +1531,8 @@
       "domain": "iub.edu.bd",
       "allowedDomains": "[iub.edu.bd]",
       "isActive": true,
-      "name": "Independent University, Bangladesh"
+      "name": "Independent University, Bangladesh",
+      "_subcollections": {}
     }
   },
   "users": {
@@ -1608,13 +1970,17 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1757454282,
-            "_nanoseconds": 303000000
+            "_nanoseconds": 303000000,
+            "_date": "2025-09-09T21:44:42.303Z"
           },
           "lastModifiedBy": "1fWg2eqBADQGu55alSbZpBd1plq1",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1757280732,
-            "_nanoseconds": 73000000
+            "_nanoseconds": 73000000,
+            "_date": "2025-09-07T21:32:12.073Z"
           },
           "version": 21,
           "importSource": "manual",
@@ -1661,30 +2027,38 @@
       },
       "quickAccessData": {
         "lastPrivacyUpdate": {
-          "_seconds": 1758614756,
-          "_nanoseconds": 475000000
-        },
-        "lastUpdated": {
-          "_seconds": 1758614796,
-          "_nanoseconds": 762000000
+          "_type": "timestamp",
+          "_seconds": 1759322490,
+          "_nanoseconds": 975000000,
+          "_date": "2025-10-01T12:41:30.975Z"
         },
         "starredFriends": [],
-        "totalStarred": 0
+        "totalStarred": 0,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759322498,
+          "_nanoseconds": 325000000,
+          "_date": "2025-10-01T12:41:38.325Z"
+        }
       },
       "systemInfo": {
         "status": "online",
         "profileSetupComplete": true,
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1757280732,
-          "_nanoseconds": 103000000
+          "_nanoseconds": 103000000,
+          "_date": "2025-09-07T21:32:12.103Z"
         },
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1757280491,
-          "_nanoseconds": 261000000
+          "_nanoseconds": 261000000,
+          "_date": "2025-09-07T21:28:11.261Z"
         },
+        "locationSharingEnabled": true,
         "onboarding": {
           "compareHintSeen": false,
-          "campusPresenceHintSeen": false,
           "comparePromptSeen": false,
           "schedulePasteHelpSeen": false,
           "version": 2,
@@ -1693,33 +2067,120 @@
           "addSlotHintSeen": true,
           "pinHintSeen": true,
           "scheduleTapHintSeen": true,
-          "friendActionsHintSeen": true
-        },
-        "locationSharingEnabled": true,
-        "lastUpdated": {
-          "_seconds": 1758614805,
-          "_nanoseconds": 595000000
-        },
-        "lastActive": {
-          "_seconds": 1758614807,
-          "_nanoseconds": 99000000
+          "friendActionsHintSeen": true,
+          "campusPresenceHintSeen": true,
+          "lastEventAt": {
+            "_type": "timestamp",
+            "_seconds": 1759136742,
+            "_nanoseconds": 669000000,
+            "_date": "2025-09-29T09:05:42.669Z"
+          },
+          "friendsBarHintSeen": true,
+          "lastEvent": "seen:friendsBarHintSeen",
+          "events": {
+            "seen:campusPresenceHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759136735,
+                "_nanoseconds": 231000000,
+                "_date": "2025-09-29T09:05:35.231Z"
+              }
+            },
+            "seen:friendsBarHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759136742,
+                "_nanoseconds": 669000000,
+                "_date": "2025-09-29T09:05:42.669Z"
+              }
+            }
+          }
         },
         "lastKnownLocation": {
-          "coordinates": null,
-          "campusStatus": "off_campus",
-          "networkInfo": {
-            "networkDetection": true,
-            "timestamp": "2025-09-23T08:06:45.914Z",
-            "detectionMethod": "ipinfo_lite_as_domain",
-            "ipOrganization": "Unknown"
+          "coordinates": {
+            "longitude": 90.4467084,
+            "latitude": 23.8199629,
+            "accuracy": 1755.1633074544484,
+            "timestamp": "2025-10-01T13:27:13.646Z"
           },
+          "campusStatus": "off_campus",
           "lastUpdated": {
-            "_seconds": 1758614807,
-            "_nanoseconds": 99000000
+            "_type": "timestamp",
+            "_seconds": 1759325234,
+            "_nanoseconds": 733000000,
+            "_date": "2025-10-01T13:27:14.733Z"
           },
           "detectedAt": {
-            "_seconds": 1758614807,
-            "_nanoseconds": 99000000
+            "_type": "timestamp",
+            "_seconds": 1759325234,
+            "_nanoseconds": 733000000,
+            "_date": "2025-10-01T13:27:14.733Z"
+          }
+        },
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759332015,
+          "_nanoseconds": 666000000,
+          "_date": "2025-10-01T15:20:15.666Z"
+        },
+        "lastActive": {
+          "_type": "timestamp",
+          "_seconds": 1759332306,
+          "_nanoseconds": 79000000,
+          "_date": "2025-10-01T15:25:06.079Z"
+        }
+      },
+      "_subcollections": {
+        "fcmTokens": {
+          "fJh2zYurJFfd25XZNYJCf_:APA91bFSaVSWZFATNfxCn_lhGZETRIAOo-FnbRL0p5mlGrr4XiNXlDGFH3nUFmxwqppiiKcf8ARd8pOC9yLPKXdEkjUsJUVXh_2zyiU-TypfIfTEg9t9zU0": {
+            "appVersion": null,
+            "deviceKey": "d18lqoky",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "isPWA": false,
+            "platform": "web",
+            "token": "fJh2zYurJFfd25XZNYJCf_:APA91bFSaVSWZFATNfxCn_lhGZETRIAOo-FnbRL0p5mlGrr4XiNXlDGFH3nUFmxwqppiiKcf8ARd8pOC9yLPKXdEkjUsJUVXh_2zyiU-TypfIfTEg9t9zU0",
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332047,
+              "_nanoseconds": 595000000,
+              "_date": "2025-10-01T15:20:47.595Z"
+            },
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332047,
+              "_nanoseconds": 595000000,
+              "_date": "2025-10-01T15:20:47.595Z"
+            },
+            "_subcollections": {}
+          },
+          "fJh2zYurJFfd25XZNYJCf_:APA91bFwSm7UX13Yht0yEeJ_89pAJbxbIaGuUxxmmxunALFf2brWHjCnFPOl4uUu4KB3EsOXDRdEc3NTklzzI5gZkk3kzQIicq1t5I0v0T2XhgrAbzZEICs": {
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332005,
+              "_nanoseconds": 130000000,
+              "_date": "2025-10-01T15:20:05.130Z"
+            },
+            "appVersion": null,
+            "deviceKey": "d18lqoky",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "isPWA": false,
+            "platform": "web",
+            "token": "fJh2zYurJFfd25XZNYJCf_:APA91bFwSm7UX13Yht0yEeJ_89pAJbxbIaGuUxxmmxunALFf2brWHjCnFPOl4uUu4KB3EsOXDRdEc3NTklzzI5gZkk3kzQIicq1t5I0v0T2XhgrAbzZEICs",
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332005,
+              "_nanoseconds": 130000000,
+              "_date": "2025-10-01T15:20:05.130Z"
+            },
+            "_subcollections": {}
+          }
+        },
+        "meta": {
+          "rateLimits": {
+            "20251001": {
+              "friendRequestsSent": 1
+            },
+            "_subcollections": {}
           }
         }
       }
@@ -2089,13 +2550,17 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1757948197,
-            "_nanoseconds": 546000000
+            "_nanoseconds": 546000000,
+            "_date": "2025-09-15T14:56:37.546Z"
           },
           "lastModifiedBy": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1757844612,
-            "_nanoseconds": 444000000
+            "_nanoseconds": 444000000,
+            "_date": "2025-09-14T10:10:12.444Z"
           },
           "version": 2,
           "importSource": "manual",
@@ -2116,95 +2581,103 @@
       "quickAccessData": {
         "totalStarred": 3,
         "lastUpdated": {
-          "_seconds": 1758636116,
-          "_nanoseconds": 974000000
+          "_type": "timestamp",
+          "_seconds": 1759087355,
+          "_nanoseconds": 586000000,
+          "_date": "2025-09-28T19:22:35.586Z"
         },
         "starredFriends": [
           {
+            "handle": "faizan",
             "isRestricted": false,
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "lastUpdated": "2025-09-23T14:01:56.844Z",
-              "tooltip": "Click to view schedule",
-              "source": "friendship_document_change",
-              "description": "Schedule is visible - quick access enabled"
-            },
-            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
             "avatarConfig": {
-              "seed": "a8xysug49uc",
+              "seed": "6ly2h282unx",
+              "style": "notionists",
               "options": {
-                "body": "variant23",
-                "backgroundType": "gradientLinear",
-                "backgroundColor": "ffdfbf,a7ffc4"
-              },
-              "style": "notionists"
+                "body": "variant07",
+                "backgroundColor": "a7ffc4,d1d4f9",
+                "backgroundType": "gradientLinear"
+              }
             },
-            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "handle": "salman"
+            "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "privacyStatus": {
+              "source": "friendship_document_change",
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule",
+              "description": "Schedule is visible - quick access enabled",
+              "lastUpdated": "2025-09-28T19:22:35.529Z"
+            }
           },
           {
+            "handle": "cheesewhizz",
             "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+            "isRestricted": false,
             "privacyStatus": {
               "avatarEnabled": true,
               "description": "@cheesewhizz's schedule is visible - quick access enabled",
               "tooltip": "Click to view schedule"
             },
-            "isRestricted": false,
-            "handle": "cheesewhizz",
+            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
             "avatarConfig": {
               "style": "adventurer",
               "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
               "options": {
-                "backgroundColor": "ffd93d",
-                "mouth": "variant01",
                 "backgroundType": "solid",
-                "hairColor": "562306",
-                "hair": "short14",
+                "eyes": "variant07",
+                "mouth": "variant01",
                 "eyebrows": "variant01",
-                "eyes": "variant07"
+                "backgroundColor": "ffd93d",
+                "hairColor": "562306",
+                "hair": "short14"
               }
             }
           },
           {
-            "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
-            "avatarConfig": {
-              "seed": "6ly2h282unx",
-              "options": {
-                "backgroundColor": "a7ffc4,d1d4f9",
-                "backgroundType": "gradientLinear",
-                "body": "variant07"
-              },
-              "style": "notionists"
-            },
-            "handle": "faizan",
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "description": "@faizan's schedule is visible - quick access enabled"
-            },
             "isRestricted": false,
-            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72"
+            "avatarConfig": {
+              "style": "notionists",
+              "seed": "a8xysug49uc",
+              "options": {
+                "body": "variant23",
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "ffdfbf,a7ffc4"
+              }
+            },
+            "privacyStatus": {
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "description": "@salman's schedule is visible - quick access enabled"
+            },
+            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+            "handle": "salman",
+            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2"
           }
         ],
         "lastPrivacyUpdate": {
-          "_seconds": 1758636116,
-          "_nanoseconds": 974000000
+          "_type": "timestamp",
+          "_seconds": 1759087355,
+          "_nanoseconds": 586000000,
+          "_date": "2025-09-28T19:22:35.586Z"
         }
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1757844267,
-          "_nanoseconds": 883000000
+          "_nanoseconds": 883000000,
+          "_date": "2025-09-14T10:04:27.883Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1757844608,
-          "_nanoseconds": 166000000
+          "_nanoseconds": 166000000,
+          "_date": "2025-09-14T10:10:08.166Z"
         },
         "profileSetupComplete": true,
         "status": "online",
+        "locationSharingEnabled": true,
         "onboarding": {
-          "campusPresenceHintSeen": false,
           "comparePromptSeen": false,
           "schedulePasteHelpSeen": false,
           "version": 2,
@@ -2214,35 +2687,62 @@
           "pinHintSeen": true,
           "scheduleTapHintSeen": true,
           "friendActionsHintSeen": true,
-          "compareHintSeen": true
+          "compareHintSeen": true,
+          "lastEventAt": {
+            "_type": "timestamp",
+            "_seconds": 1759087420,
+            "_nanoseconds": 550000000,
+            "_date": "2025-09-28T19:23:40.550Z"
+          },
+          "lastEvent": "seen:campusPresenceHintSeen",
+          "campusPresenceHintSeen": true,
+          "events": {
+            "seen:campusPresenceHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759087420,
+                "_nanoseconds": 550000000,
+                "_date": "2025-09-28T19:23:40.550Z"
+              }
+            }
+          }
         },
-        "locationSharingEnabled": true,
         "lastUpdated": {
-          "_seconds": 1758636132,
-          "_nanoseconds": 826000000
+          "_type": "timestamp",
+          "_seconds": 1759087482,
+          "_nanoseconds": 328000000,
+          "_date": "2025-09-28T19:24:42.328Z"
         },
         "lastActive": {
-          "_seconds": 1758636209,
-          "_nanoseconds": 641000000
+          "_type": "timestamp",
+          "_seconds": 1759087502,
+          "_nanoseconds": 28000000,
+          "_date": "2025-09-28T19:25:02.028Z"
         },
         "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.8142217994173,
-            "timestamp": "2025-09-23T14:03:10.127Z",
-            "accuracy": 16.728260661142244,
-            "longitude": 90.43882478447796
+          "coordinates": null,
+          "networkInfo": {
+            "networkDetection": true,
+            "timestamp": "2025-09-28T19:25:00.876Z",
+            "ipOrganization": "Unknown",
+            "detectionMethod": "ipinfo_lite_as_domain"
           },
+          "campusStatus": "off_campus",
           "lastUpdated": {
-            "_seconds": 1758636209,
-            "_nanoseconds": 641000000
+            "_type": "timestamp",
+            "_seconds": 1759087502,
+            "_nanoseconds": 28000000,
+            "_date": "2025-09-28T19:25:02.028Z"
           },
           "detectedAt": {
-            "_seconds": 1758636209,
-            "_nanoseconds": 641000000
+            "_type": "timestamp",
+            "_seconds": 1759087502,
+            "_nanoseconds": 28000000,
+            "_date": "2025-09-28T19:25:02.028Z"
           }
         }
-      }
+      },
+      "_subcollections": {}
     },
     "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2": {
       "socialInfo": {
@@ -2600,8 +3100,10 @@
         },
         "metadata": {
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1758635918,
-            "_nanoseconds": 750000000
+            "_nanoseconds": 750000000,
+            "_date": "2025-09-23T13:58:38.750Z"
           },
           "importSource": "profile_setup",
           "isEmpty": false,
@@ -2620,8 +3122,10 @@
           "schemaVersion": 1,
           "lastModifiedBy": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1758635918,
-            "_nanoseconds": 750000000
+            "_nanoseconds": 750000000,
+            "_date": "2025-09-23T13:58:38.750Z"
           }
         },
         "timeBasedPins": {
@@ -2636,13 +3140,17 @@
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1758621104,
-          "_nanoseconds": 305000000
+          "_nanoseconds": 305000000,
+          "_date": "2025-09-23T09:51:44.305Z"
         },
         "status": "online",
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1758635918,
-          "_nanoseconds": 797000000
+          "_nanoseconds": 797000000,
+          "_date": "2025-09-23T13:58:38.797Z"
         },
         "profileSetupComplete": true,
         "locationSharingEnabled": true,
@@ -2669,28 +3177,38 @@
           },
           "coordinates": null,
           "lastUpdated": {
+            "_type": "timestamp",
             "_seconds": 1758636170,
-            "_nanoseconds": 112000000
+            "_nanoseconds": 112000000,
+            "_date": "2025-09-23T14:02:50.112Z"
           },
           "detectedAt": {
+            "_type": "timestamp",
             "_seconds": 1758636170,
-            "_nanoseconds": 112000000
+            "_nanoseconds": 112000000,
+            "_date": "2025-09-23T14:02:50.112Z"
           }
         },
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1758684376,
-          "_nanoseconds": 2000000
+          "_nanoseconds": 2000000,
+          "_date": "2025-09-24T03:26:16.002Z"
         },
         "lastActive": {
+          "_type": "timestamp",
           "_seconds": 1758684376,
-          "_nanoseconds": 2000000
+          "_nanoseconds": 2000000,
+          "_date": "2025-09-24T03:26:16.002Z"
         }
       },
       "quickAccessData": {
         "totalStarred": 3,
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1758684376,
-          "_nanoseconds": 384000000
+          "_nanoseconds": 384000000,
+          "_date": "2025-09-24T03:26:16.384Z"
         },
         "starredFriends": [
           {
@@ -2760,10 +3278,13 @@
           }
         ],
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758684376,
-          "_nanoseconds": 384000000
+          "_nanoseconds": 384000000,
+          "_date": "2025-09-24T03:26:16.384Z"
         }
-      }
+      },
+      "_subcollections": {}
     },
     "JYix6DOY90er8SBPT7umzigIxv43": {
       "uid": "JYix6DOY90er8SBPT7umzigIxv43",
@@ -3131,13 +3652,17 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1757363547,
-            "_nanoseconds": 140000000
+            "_nanoseconds": 140000000,
+            "_date": "2025-09-08T20:32:27.140Z"
           },
           "lastModifiedBy": "JYix6DOY90er8SBPT7umzigIxv43",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1757362332,
-            "_nanoseconds": 100000000
+            "_nanoseconds": 100000000,
+            "_date": "2025-09-08T20:12:12.100Z"
           },
           "version": 2,
           "importSource": "manual",
@@ -3156,509 +3681,164 @@
         }
       },
       "quickAccessData": {
-        "lastPrivacyUpdate": {
-          "_seconds": 1758565219,
-          "_nanoseconds": 732000000
-        },
+        "totalStarred": 1,
         "lastUpdated": {
-          "_seconds": 1758565654,
-          "_nanoseconds": 962000000
+          "_type": "timestamp",
+          "_seconds": 1759320588,
+          "_nanoseconds": 792000000,
+          "_date": "2025-10-01T12:09:48.792Z"
         },
-        "starredFriends": [],
-        "totalStarred": 0
+        "starredFriends": [
+          {
+            "isRestricted": false,
+            "avatarConfig": {
+              "style": "notionists",
+              "seed": "y0chkk73swg",
+              "options": {
+                "backgroundColor": "d1d4f9,ffd5dc",
+                "body": "variant06",
+                "backgroundType": "gradientLinear"
+              }
+            },
+            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "privacyStatus": {
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "description": "Schedule is visible - quick access enabled",
+              "source": "friendship_document_change",
+              "lastUpdated": "2025-10-01T12:09:48.726Z"
+            },
+            "handle": "faizan",
+            "userId": "feqobVVYWifSKPdpWrItOUxvmA72"
+          }
+        ],
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1759320588,
+          "_nanoseconds": 792000000,
+          "_date": "2025-10-01T12:09:48.792Z"
+        }
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1757362331,
-          "_nanoseconds": 668000000
+          "_nanoseconds": 668000000,
+          "_date": "2025-09-08T20:12:11.668Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1757362405,
-          "_nanoseconds": 680000000
+          "_nanoseconds": 680000000,
+          "_date": "2025-09-08T20:13:25.680Z"
         },
         "profileSetupComplete": true,
         "status": "online",
         "onboarding": {
+          "version": 2,
           "compareHintSeen": false,
-          "campusPresenceHintSeen": false,
           "comparePromptSeen": false,
           "schedulePasteHelpSeen": false,
-          "version": 2,
           "scheduleControlsHintSeen": true,
           "viewToggleHintSeen": true,
           "addSlotHintSeen": true,
           "pinHintSeen": true,
           "scheduleTapHintSeen": true,
-          "friendActionsHintSeen": true
-        },
-        "locationSharingEnabled": true,
-        "lastUpdated": {
-          "_seconds": 1758569354,
-          "_nanoseconds": 983000000
+          "campusPresenceHintSeen": true,
+          "friendActionsHintSeen": true,
+          "friendsBarHintSeen": true,
+          "lastEvent": "seen:friendsBarHintSeen",
+          "lastEventAt": {
+            "seconds": 1758967324,
+            "nanoseconds": 770000000
+          },
+          "events": {
+            "seen:friendActionsHintSeen": {
+              "lastAt": {
+                "seconds": 1758967319,
+                "nanoseconds": 727000000
+              }
+            },
+            "seen:friendsBarHintSeen": {
+              "lastAt": {
+                "seconds": 1758967324,
+                "nanoseconds": 770000000
+              }
+            },
+            "seen:scheduleTapHintSeen": {
+              "lastAt": {
+                "seconds": 1758967287,
+                "nanoseconds": 2000000
+              }
+            },
+            "seen:pinHintSeen": {
+              "lastAt": {
+                "seconds": 1758967285,
+                "nanoseconds": 299000000
+              }
+            },
+            "seen:scheduleControlsHintSeen": {
+              "lastAt": {
+                "seconds": 1758967281,
+                "nanoseconds": 24000000
+              }
+            },
+            "seen:viewToggleHintSeen": {
+              "lastAt": {
+                "seconds": 1758967282,
+                "nanoseconds": 932000000
+              }
+            },
+            "seen:campusPresenceHintSeen": {
+              "lastAt": {
+                "seconds": 1758967295,
+                "nanoseconds": 339000000
+              }
+            },
+            "seen:addSlotHintSeen": {
+              "lastAt": {
+                "seconds": 1758967284,
+                "nanoseconds": 176000000
+              }
+            }
+          }
         },
         "lastKnownLocation": {
           "coordinates": {
-            "latitude": 22.3712316,
-            "timestamp": "2025-09-22T19:29:15.867Z",
-            "accuracy": 14.792,
-            "longitude": 91.8347329
+            "latitude": 23.8214173,
+            "timestamp": "2025-09-30T21:42:55.387Z",
+            "longitude": 90.4419919,
+            "accuracy": 1908.2906833884233
           },
           "campusStatus": "off_campus",
           "lastUpdated": {
-            "_seconds": 1758569356,
-            "_nanoseconds": 973000000
+            "_type": "timestamp",
+            "_seconds": 1759268576,
+            "_nanoseconds": 461000000,
+            "_date": "2025-09-30T21:42:56.461Z"
           },
           "detectedAt": {
-            "_seconds": 1758569356,
-            "_nanoseconds": 973000000
+            "_type": "timestamp",
+            "_seconds": 1759268576,
+            "_nanoseconds": 461000000,
+            "_date": "2025-09-30T21:42:56.461Z"
           }
+        },
+        "locationSharingEnabled": false,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759322118,
+          "_nanoseconds": 953000000,
+          "_date": "2025-10-01T12:35:18.953Z"
         },
         "lastActive": {
-          "_seconds": 1758578735,
-          "_nanoseconds": 759000000
-        }
-      }
-    },
-    "MnJAjvEqk3P4glouiFk9YeuUwlv2": {
-      "uid": "MnJAjvEqk3P4glouiFk9YeuUwlv2",
-      "universityInfo": {
-        "university": "iub",
-        "universityName": "Independent University, Bangladesh",
-        "studentId": "hamim.dev"
-      },
-      "socialInfo": {
-        "friendsCount": 0,
-        "pendingRequestsCount": 0,
-        "privacy": "university",
-        "searchable": true,
-        "lastFriendActivity": null,
-        "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
-      },
-      "avatarConfig": {
-        "seed": "c7qyji9lju8",
-        "options": {
-          "backgroundColor": "d1d4f9,b6e3f4",
-          "hair": "stylish",
-          "backgroundType": "gradientLinear"
-        },
-        "style": "miniavs"
-      },
-      "profile": {
-        "bio": "",
-        "email": "hamim.dev@iub.edu.bd",
-        "studentId": "hamim.dev",
-        "firstName": "Mahmudul Hasan",
-        "lastName": "Hamim",
-        "startingYear": "2025",
-        "major": "Computer Science",
-        "lastName_lower": "hamim",
-        "handle": "hamza",
-        "firstName_lower": "mahmudul hasan",
-        "major_lower": "computer science"
-      },
-      "scheduleData": {
-        "schedule": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": true,
-            "6": false
-          },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": true,
-            "5": true,
-            "6": true
-          },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false
-          },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false
-          }
-        },
-        "slotInfo": {
-          "0": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "CMN205",
-              "classroomNumber": "C2002"
-            },
-            "5": {
-              "courseCode": "CSC311",
-              "classroomNumber": "BC6012"
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "1": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "2": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "CMN205",
-              "classroomNumber": "C2002"
-            },
-            "5": {
-              "courseCode": "CSC311",
-              "classroomNumber": "BC6012"
-            },
-            "6": {
-              "courseCode": "CSC425",
-              "classroomNumber": "BC6007"
-            }
-          },
-          "3": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "4": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "CSC455",
-              "classroomNumber": "GPLab"
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "5": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          },
-          "6": {
-            "0": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "1": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "2": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "3": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "4": {
-              "courseCode": "",
-              "classroomNumber": ""
-            },
-            "5": {
-              "courseCode": "CSC455",
-              "classroomNumber": "GPLab"
-            },
-            "6": {
-              "courseCode": "",
-              "classroomNumber": ""
-            }
-          }
-        },
-        "timeSlots": [
-          {
-            "start": "08:00",
-            "end": "09:30",
-            "label": "08:00-09:30"
-          },
-          {
-            "start": "09:40",
-            "end": "11:10",
-            "label": "09:40-11:10"
-          },
-          {
-            "start": "11:20",
-            "end": "12:50",
-            "label": "11:20-12:50"
-          },
-          {
-            "start": "13:00",
-            "end": "14:30",
-            "label": "13:00-14:30"
-          },
-          {
-            "start": "14:40",
-            "end": "16:10",
-            "label": "14:40-16:10"
-          },
-          {
-            "start": "16:20",
-            "end": "17:50",
-            "label": "16:20-17:50"
-          },
-          {
-            "start": "18:30",
-            "end": "21:30",
-            "label": "18:30-21:30"
-          }
-        ],
-        "pinnedSlots": {},
-        "timeBasedPins": {
-          "0": [],
-          "1": [],
-          "2": [],
-          "3": [],
-          "4": [],
-          "5": [],
-          "6": []
-        },
-        "metadata": {
-          "schemaVersion": 1,
-          "lastModified": {
-            "_seconds": 1757369371,
-            "_nanoseconds": 55000000
-          },
-          "lastModifiedBy": "MnJAjvEqk3P4glouiFk9YeuUwlv2",
-          "createdAt": {
-            "nanoseconds": 69000000,
-            "seconds": 1757359762
-          },
-          "version": 5,
-          "importSource": "manual",
-          "freeBusySummary": [
-            2,
-            0,
-            3,
-            0,
-            1,
-            0,
-            1
-          ],
-          "totalClasses": 7,
-          "isEmpty": false,
-          "hasConflicts": false
+          "_type": "timestamp",
+          "_seconds": 1759322118,
+          "_nanoseconds": 953000000,
+          "_date": "2025-10-01T12:35:18.953Z"
         }
       },
-      "quickAccessData": {
-        "lastPrivacyUpdate": {
-          "_seconds": 1757453964,
-          "_nanoseconds": 594000000
-        },
-        "lastUpdated": {
-          "_seconds": 1758054777,
-          "_nanoseconds": 391000000
-        },
-        "starredFriends": [],
-        "totalStarred": 0
-      },
-      "systemInfo": {
-        "createdAt": {
-          "_seconds": 1757366524,
-          "_nanoseconds": 649000000
-        },
-        "lastHandleChangeAt": {
-          "_seconds": 1757366625,
-          "_nanoseconds": 103000000
-        },
-        "profileSetupComplete": true,
-        "status": "online",
-        "locationSharingEnabled": true,
-        "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.8184012,
-            "longitude": 90.4279749,
-            "accuracy": 100,
-            "timestamp": "2025-09-09T21:39:23.809Z"
-          },
-          "lastUpdated": {
-            "_seconds": 1757453964,
-            "_nanoseconds": 608000000
-          },
-          "detectedAt": {
-            "_seconds": 1757453964,
-            "_nanoseconds": 608000000
-          }
-        },
-        "lastUpdated": {
-          "_seconds": 1758054877,
-          "_nanoseconds": 504000000
-        },
-        "lastActive": {
-          "_seconds": 1758054877,
-          "_nanoseconds": 504000000
-        }
-      }
+      "_subcollections": {}
     },
     "NV5zglhrHOgoAVj8Q556bR1LyKp1": {
       "uid": "NV5zglhrHOgoAVj8Q556bR1LyKp1",
@@ -4029,13 +4209,17 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1758273723,
-            "_nanoseconds": 149000000
+            "_nanoseconds": 149000000,
+            "_date": "2025-09-19T09:22:03.149Z"
           },
           "lastModifiedBy": "NV5zglhrHOgoAVj8Q556bR1LyKp1",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1758273723,
-            "_nanoseconds": 149000000
+            "_nanoseconds": 149000000,
+            "_date": "2025-09-19T09:22:03.149Z"
           },
           "version": 1,
           "importSource": "profile_setup",
@@ -4055,8 +4239,10 @@
       },
       "quickAccessData": {
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1758273830,
-          "_nanoseconds": 945000000
+          "_nanoseconds": 945000000,
+          "_date": "2025-09-19T09:23:50.945Z"
         },
         "starredFriends": [
           {
@@ -4073,12 +4259,16 @@
               }
             },
             "starredAt": {
+              "_type": "timestamp",
               "_seconds": 1758273830,
-              "_nanoseconds": 776000000
+              "_nanoseconds": 776000000,
+              "_date": "2025-09-19T09:23:50.776Z"
             },
             "lastInteraction": {
+              "_type": "timestamp",
               "_seconds": 1758273830,
-              "_nanoseconds": 776000000
+              "_nanoseconds": 776000000,
+              "_date": "2025-09-19T09:23:50.776Z"
             },
             "friendshipId": "NV5zglhrHOgoAVj8Q556bR1LyKp1_d0oMNpSSo0dZNELFCDLDd2W81Ln1"
           }
@@ -4087,24 +4277,519 @@
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1758273569,
-          "_nanoseconds": 9000000
+          "_nanoseconds": 9000000,
+          "_date": "2025-09-19T09:19:29.009Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1758273723,
-          "_nanoseconds": 154000000
+          "_nanoseconds": 154000000,
+          "_date": "2025-09-19T09:22:03.154Z"
         },
         "profileSetupComplete": true,
         "status": "online",
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1758273862,
-          "_nanoseconds": 485000000
+          "_nanoseconds": 485000000,
+          "_date": "2025-09-19T09:24:22.485Z"
         },
         "lastActive": {
+          "_type": "timestamp",
           "_seconds": 1758273866,
-          "_nanoseconds": 526000000
+          "_nanoseconds": 526000000,
+          "_date": "2025-09-19T09:24:26.526Z"
         }
-      }
+      },
+      "_subcollections": {}
+    },
+    "XqE2RvVG8JWMMvPq4h1ot6TqCXh1": {
+      "avatarConfig": null,
+      "uid": "XqE2RvVG8JWMMvPq4h1ot6TqCXh1",
+      "profile": {
+        "lastName": "",
+        "bio": "",
+        "firstName": "",
+        "startingYear": "",
+        "major": "",
+        "email": "2221456@iub.edu.bd",
+        "handle": null
+      },
+      "socialInfo": {
+        "friendsCount": 0,
+        "pendingRequestsCount": 0,
+        "defaultLocationSharing": false,
+        "searchable": true,
+        "locationPrivacyLevel": "friends_only",
+        "privacy": "university",
+        "lastFriendActivity": null
+      },
+      "universityInfo": {
+        "studentId": "2221456",
+        "universityName": "Independent University, Bangladesh",
+        "university": "iub"
+      },
+      "scheduleData": {
+        "metadata": {
+          "hasConflicts": false,
+          "isEmpty": true,
+          "lastModifiedBy": "XqE2RvVG8JWMMvPq4h1ot6TqCXh1",
+          "lastModified": {
+            "_type": "timestamp",
+            "_seconds": 1759067952,
+            "_nanoseconds": 147000000,
+            "_date": "2025-09-28T13:59:12.147Z"
+          },
+          "schemaVersion": 1,
+          "totalClasses": 0,
+          "importSource": "manual",
+          "createdAt": {
+            "_type": "timestamp",
+            "_seconds": 1759067952,
+            "_nanoseconds": 147000000,
+            "_date": "2025-09-28T13:59:12.147Z"
+          },
+          "freeBusySummary": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "version": 1
+        },
+        "pinnedSlots": {
+          "0": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "1": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "2": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "3": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "4": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "5": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "6": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          }
+        },
+        "timeBasedPins": {
+          "0": [],
+          "1": [],
+          "2": [],
+          "3": [],
+          "4": [],
+          "5": [],
+          "6": []
+        },
+        "timeSlots": [
+          {
+            "label": "08:00-09:30",
+            "end": "09:30",
+            "start": "08:00"
+          },
+          {
+            "start": "09:40",
+            "end": "11:10",
+            "label": "09:40-11:10"
+          },
+          {
+            "start": "11:20",
+            "end": "12:50",
+            "label": "11:20-12:50"
+          },
+          {
+            "label": "13:00-14:30",
+            "end": "14:30",
+            "start": "13:00"
+          },
+          {
+            "label": "14:40-16:10",
+            "start": "14:40",
+            "end": "16:10"
+          },
+          {
+            "start": "16:20",
+            "label": "16:20-17:50",
+            "end": "17:50"
+          }
+        ],
+        "slotInfo": {
+          "0": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "1": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "2": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "3": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "4": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "5": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "6": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          }
+        },
+        "schedule": {
+          "0": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "1": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "2": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "3": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "4": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "5": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          },
+          "6": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false
+          }
+        }
+      },
+      "systemInfo": {
+        "profileSetupComplete": false,
+        "createdAt": {
+          "_type": "timestamp",
+          "_seconds": 1759063257,
+          "_nanoseconds": 2000000,
+          "_date": "2025-09-28T12:40:57.002Z"
+        },
+        "status": "online",
+        "lastActive": {
+          "_type": "timestamp",
+          "_seconds": 1759068258,
+          "_nanoseconds": 695000000,
+          "_date": "2025-09-28T14:04:18.695Z"
+        },
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759068293,
+          "_nanoseconds": 220000000,
+          "_date": "2025-09-28T14:04:53.220Z"
+        },
+        "onboarding": {
+          "compareHintSeen": false,
+          "schedulePasteHelpSeen": false,
+          "version": 2,
+          "friendsBarHintSeen": false,
+          "campusPresenceHintSeen": false,
+          "comparePromptSeen": false,
+          "friendActionsHintSeen": false,
+          "scheduleControlsHintSeen": true,
+          "viewToggleHintSeen": true,
+          "addSlotHintSeen": true,
+          "pinHintSeen": true,
+          "lastEventAt": {
+            "_type": "timestamp",
+            "_seconds": 1759068293,
+            "_nanoseconds": 220000000,
+            "_date": "2025-09-28T14:04:53.220Z"
+          },
+          "lastEvent": "seen:scheduleTapHintSeen",
+          "scheduleTapHintSeen": true,
+          "events": {
+            "seen:scheduleControlsHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759068262,
+                "_nanoseconds": 457000000,
+                "_date": "2025-09-28T14:04:22.457Z"
+              }
+            },
+            "seen:viewToggleHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759068285,
+                "_nanoseconds": 770000000,
+                "_date": "2025-09-28T14:04:45.770Z"
+              }
+            },
+            "seen:addSlotHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759068290,
+                "_nanoseconds": 349000000,
+                "_date": "2025-09-28T14:04:50.349Z"
+              }
+            },
+            "seen:pinHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759068291,
+                "_nanoseconds": 600000000,
+                "_date": "2025-09-28T14:04:51.600Z"
+              }
+            },
+            "seen:scheduleTapHintSeen": {
+              "lastAt": {
+                "_type": "timestamp",
+                "_seconds": 1759068293,
+                "_nanoseconds": 220000000,
+                "_date": "2025-09-28T14:04:53.220Z"
+              }
+            }
+          }
+        }
+      },
+      "_subcollections": {}
     },
     "ZYVavUhRtqg0v5LwBctS23ayaMB3": {
       "uid": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
@@ -4431,8 +5116,10 @@
           "importSource": "profile_setup",
           "lastModifiedBy": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1758621491,
-            "_nanoseconds": 461000000
+            "_nanoseconds": 461000000,
+            "_date": "2025-09-23T09:58:11.461Z"
           },
           "totalClasses": 9,
           "freeBusySummary": [
@@ -4449,8 +5136,10 @@
           "isEmpty": false,
           "schemaVersion": 1,
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1757845786,
-            "_nanoseconds": 588000000
+            "_nanoseconds": 588000000,
+            "_date": "2025-09-14T10:29:46.588Z"
           }
         },
         "timeSlots": [
@@ -4503,59 +5192,56 @@
       "quickAccessData": {
         "totalStarred": 3,
         "lastUpdated": {
-          "_seconds": 1758636118,
-          "_nanoseconds": 329000000
+          "_type": "timestamp",
+          "_seconds": 1759098044,
+          "_nanoseconds": 731000000,
+          "_date": "2025-09-28T22:20:44.731Z"
         },
         "starredFriends": [
           {
-            "handle": "salman",
-            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
             "avatarConfig": {
               "options": {
-                "body": "variant23",
                 "backgroundColor": "ffdfbf,a7ffc4",
-                "backgroundType": "gradientLinear"
+                "backgroundType": "gradientLinear",
+                "body": "variant23"
               },
-              "seed": "a8xysug49uc",
-              "style": "notionists"
+              "style": "notionists",
+              "seed": "a8xysug49uc"
             },
-            "isRestricted": false,
-            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
             "privacyStatus": {
-              "description": "Schedule is visible - quick access enabled",
-              "lastUpdated": "2025-09-23T14:01:58.200Z",
-              "tooltip": "Click to view schedule",
               "avatarEnabled": true,
-              "source": "friendship_document_change"
-            }
+              "source": "friendship_document_change",
+              "lastUpdated": "2025-09-28T22:20:44.561Z",
+              "description": "Schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+            "isRestricted": false,
+            "handle": "salman",
+            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2"
           },
           {
-            "handle": "saf",
-            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-            "avatarConfig": {
-              "options": {
-                "eyes": "robocop",
-                "mouth": "square01"
-              },
-              "style": "bottts-neutral",
-              "seed": "mwpc3g9qqds"
-            },
             "friendId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-            "isRestricted": false,
+            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
             "privacyStatus": {
               "avatarEnabled": true,
               "description": "@saf's schedule is visible - quick access enabled",
               "tooltip": "Click to view schedule"
+            },
+            "isRestricted": false,
+            "handle": "saf",
+            "avatarConfig": {
+              "style": "bottts-neutral",
+              "options": {
+                "mouth": "square01",
+                "eyes": "robocop"
+              },
+              "seed": "mwpc3g9qqds"
             }
           },
           {
+            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
             "isRestricted": false,
-            "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
-            "privacyStatus": {
-              "description": "@faizan's schedule is visible - quick access enabled",
-              "tooltip": "Click to view schedule",
-              "avatarEnabled": true
-            },
             "avatarConfig": {
               "options": {
                 "backgroundType": "gradientLinear",
@@ -4565,28 +5251,39 @@
               "style": "notionists",
               "seed": "6ly2h282unx"
             },
-            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
-            "handle": "faizan"
+            "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "handle": "faizan",
+            "privacyStatus": {
+              "description": "@faizan's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true
+            }
           }
         ],
         "lastPrivacyUpdate": {
-          "_seconds": 1758636118,
-          "_nanoseconds": 329000000
+          "_type": "timestamp",
+          "_seconds": 1759098044,
+          "_nanoseconds": 731000000,
+          "_date": "2025-09-28T22:20:44.731Z"
         }
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1757845280,
-          "_nanoseconds": 40000000
+          "_nanoseconds": 40000000,
+          "_date": "2025-09-14T10:21:20.040Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1757845786,
-          "_nanoseconds": 618000000
+          "_nanoseconds": 618000000,
+          "_date": "2025-09-14T10:29:46.618Z"
         },
         "profileSetupComplete": true,
         "status": "online",
+        "locationSharingEnabled": true,
         "onboarding": {
-          "campusPresenceHintSeen": false,
           "comparePromptSeen": false,
           "version": 2,
           "scheduleControlsHintSeen": true,
@@ -4596,35 +5293,45 @@
           "scheduleTapHintSeen": true,
           "schedulePasteHelpSeen": true,
           "friendActionsHintSeen": true,
-          "compareHintSeen": true
-        },
-        "locationSharingEnabled": true,
-        "lastUpdated": {
-          "_seconds": 1758637103,
-          "_nanoseconds": 393000000
+          "compareHintSeen": true,
+          "campusPresenceHintSeen": true
         },
         "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "accuracy": 59.09606996357353,
-            "longitude": 90.42981135042108,
-            "latitude": 23.82211337196871,
-            "timestamp": "2025-09-23T14:18:23.922Z"
+          "networkInfo": {
+            "networkDetection": true,
+            "detectionMethod": "ipinfo_lite_as_domain",
+            "timestamp": "2025-09-24T12:22:39.034Z",
+            "ipOrganization": "Unknown"
           },
+          "campusStatus": "off_campus",
+          "coordinates": null,
           "lastUpdated": {
-            "_seconds": 1758637105,
-            "_nanoseconds": 232000000
+            "_type": "timestamp",
+            "_seconds": 1758716560,
+            "_nanoseconds": 109000000,
+            "_date": "2025-09-24T12:22:40.109Z"
           },
           "detectedAt": {
-            "_seconds": 1758637105,
-            "_nanoseconds": 232000000
+            "_type": "timestamp",
+            "_seconds": 1758716560,
+            "_nanoseconds": 109000000,
+            "_date": "2025-09-24T12:22:40.109Z"
           }
         },
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759098117,
+          "_nanoseconds": 989000000,
+          "_date": "2025-09-28T22:21:57.989Z"
+        },
         "lastActive": {
-          "_seconds": 1758647774,
-          "_nanoseconds": 787000000
+          "_type": "timestamp",
+          "_seconds": 1759098117,
+          "_nanoseconds": 989000000,
+          "_date": "2025-09-28T22:21:57.989Z"
         }
-      }
+      },
+      "_subcollections": {}
     },
     "d0oMNpSSo0dZNELFCDLDd2W81Ln1": {
       "uid": "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
@@ -4992,13 +5699,17 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1758273324,
-            "_nanoseconds": 186000000
+            "_nanoseconds": 186000000,
+            "_date": "2025-09-19T09:15:24.186Z"
           },
           "lastModifiedBy": "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1758273324,
-            "_nanoseconds": 186000000
+            "_nanoseconds": 186000000,
+            "_date": "2025-09-19T09:15:24.186Z"
           },
           "version": 1,
           "importSource": "profile_setup",
@@ -5019,8 +5730,10 @@
       "quickAccessData": {
         "totalStarred": 1,
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1758494117,
-          "_nanoseconds": 675000000
+          "_nanoseconds": 675000000,
+          "_date": "2025-09-21T22:35:17.675Z"
         },
         "starredFriends": [
           {
@@ -5050,18 +5763,24 @@
           }
         ],
         "lastPrivacyUpdate": {
+          "_type": "timestamp",
           "_seconds": 1758494117,
-          "_nanoseconds": 675000000
+          "_nanoseconds": 675000000,
+          "_date": "2025-09-21T22:35:17.675Z"
         }
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1758273090,
-          "_nanoseconds": 38000000
+          "_nanoseconds": 38000000,
+          "_date": "2025-09-19T09:11:30.038Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1758273324,
-          "_nanoseconds": 145000000
+          "_nanoseconds": 145000000,
+          "_date": "2025-09-19T09:15:24.145Z"
         },
         "profileSetupComplete": true,
         "locationSharingEnabled": false,
@@ -5075,12 +5794,16 @@
             "timestamp": "2025-09-19T09:16:00.359Z"
           },
           "lastUpdated": {
+            "_type": "timestamp",
             "_seconds": 1758273361,
-            "_nanoseconds": 513000000
+            "_nanoseconds": 513000000,
+            "_date": "2025-09-19T09:16:01.513Z"
           },
           "detectedAt": {
+            "_type": "timestamp",
             "_seconds": 1758273361,
-            "_nanoseconds": 513000000
+            "_nanoseconds": 513000000,
+            "_date": "2025-09-19T09:16:01.513Z"
           }
         },
         "status": "online",
@@ -5098,14 +5821,1025 @@
           "compareHintSeen": true
         },
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1758634091,
-          "_nanoseconds": 820000000
+          "_nanoseconds": 820000000,
+          "_date": "2025-09-23T13:28:11.820Z"
         },
         "lastActive": {
+          "_type": "timestamp",
           "_seconds": 1758634091,
-          "_nanoseconds": 820000000
+          "_nanoseconds": 820000000,
+          "_date": "2025-09-23T13:28:11.820Z"
         }
-      }
+      },
+      "_subcollections": {}
+    },
+    "eW35kPbp79eKEAwFp5tNVNvYwZo1": {
+      "universityInfo": {
+        "studentId": "2230136",
+        "university": "iub",
+        "universityName": "Independent University, Bangladesh"
+      },
+      "uid": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+      "socialInfo": {
+        "locationPrivacyLevel": "friends_only",
+        "lastFriendActivity": null,
+        "searchable": true,
+        "pendingRequestsCount": 0,
+        "privacy": "university",
+        "friendsCount": 0,
+        "defaultLocationSharing": false
+      },
+      "avatarConfig": {
+        "seed": "fmsiinvxg5n",
+        "options": {
+          "backgroundColor": "ffdfbf,a7ffc4",
+          "body": "variant13",
+          "backgroundType": "gradientLinear"
+        },
+        "style": "notionists"
+      },
+      "profile": {
+        "bio": "",
+        "email": "2230136@iub.edu.bd",
+        "studentId": "2230136",
+        "firstName": "Mehal",
+        "lastName": "Khan",
+        "startingYear": "2022",
+        "major": "MAT",
+        "lastName_lower": "khan",
+        "handle": "mehalkhan",
+        "firstName_lower": "mehal",
+        "major_lower": "mat"
+      },
+      "quickAccessData": {
+        "totalStarred": 1,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1758879104,
+          "_nanoseconds": 248000000,
+          "_date": "2025-09-26T09:31:44.248Z"
+        },
+        "starredFriends": [
+          {
+            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "isRestricted": false,
+            "avatarConfig": {
+              "seed": "6ly2h282unx",
+              "options": {
+                "body": "variant07",
+                "backgroundColor": "a7ffc4,d1d4f9",
+                "backgroundType": "gradientLinear"
+              },
+              "style": "notionists"
+            },
+            "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "handle": "faizan",
+            "privacyStatus": {
+              "tooltip": "Click to view schedule",
+              "source": "friendship_document_change",
+              "lastUpdated": "2025-09-26T09:31:43.457Z",
+              "description": "Schedule is visible - quick access enabled",
+              "avatarEnabled": true
+            }
+          }
+        ],
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1758879104,
+          "_nanoseconds": 248000000,
+          "_date": "2025-09-26T09:31:44.248Z"
+        }
+      },
+      "scheduleData": {
+        "metadata": {
+          "lastModified": {
+            "_type": "timestamp",
+            "_seconds": 1758879126,
+            "_nanoseconds": 319000000,
+            "_date": "2025-09-26T09:32:06.319Z"
+          },
+          "hasConflicts": false,
+          "importSource": "profile_setup",
+          "schemaVersion": 1,
+          "createdAt": {
+            "_type": "timestamp",
+            "_seconds": 1758876312,
+            "_nanoseconds": 965000000,
+            "_date": "2025-09-26T08:45:12.965Z"
+          },
+          "freeBusySummary": [
+            2,
+            3,
+            3,
+            3,
+            2,
+            1,
+            1
+          ],
+          "totalClasses": 15,
+          "isEmpty": false,
+          "lastModifiedBy": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+          "version": 7
+        },
+        "timeSlots": [
+          {
+            "label": "08:00-09:30",
+            "start": "08:00",
+            "end": "09:30"
+          },
+          {
+            "label": "09:40-11:10",
+            "start": "09:40",
+            "end": "11:10"
+          },
+          {
+            "label": "11:20-12:50",
+            "end": "12:50",
+            "start": "11:20"
+          },
+          {
+            "label": "13:00-14:30",
+            "start": "13:00",
+            "end": "14:30"
+          },
+          {
+            "start": "14:40",
+            "end": "16:10",
+            "label": "14:40-16:10"
+          },
+          {
+            "start": "16:20",
+            "label": "16:20-17:50",
+            "end": "17:50"
+          },
+          {
+            "start": "18:30",
+            "end": "20:00",
+            "label": "18:30-20:00"
+          }
+        ],
+        "timeBasedPins": {
+          "0": [],
+          "1": [],
+          "2": [],
+          "3": [],
+          "4": [],
+          "5": [],
+          "6": []
+        },
+        "slotInfo": {
+          "0": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": "GYM"
+            },
+            "4": {
+              "classroomNumber": "BC2010",
+              "courseCode": "FIN201"
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "6": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "1": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "courseCode": "MAT451",
+              "classroomNumber": "C2005"
+            },
+            "2": {
+              "classroomNumber": "C2002",
+              "courseCode": "MAT450"
+            },
+            "3": {
+              "courseCode": "GYM",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "6": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "2": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "courseCode": "MAT399L",
+              "classroomNumber": "FT"
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "4": {
+              "classroomNumber": "BC2010",
+              "courseCode": "FIN201"
+            },
+            "5": {
+              "courseCode": "GYM",
+              "classroomNumber": ""
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "3": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "classroomNumber": "C2005",
+              "courseCode": "MAT451"
+            },
+            "2": {
+              "classroomNumber": "C2002",
+              "courseCode": "MAT450"
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": "GYM"
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "4": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "courseCode": "GYM",
+              "classroomNumber": ""
+            },
+            "4": {
+              "courseCode": "MAT230",
+              "classroomNumber": "MK5004"
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "5": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "6": {
+              "courseCode": "LFE201",
+              "classroomNumber": "BCTBA7"
+            }
+          },
+          "6": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "MK5004",
+              "courseCode": "MAT230"
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          }
+        },
+        "schedule": {
+          "0": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": true,
+            "4": true,
+            "5": false,
+            "6": false
+          },
+          "1": {
+            "0": false,
+            "1": true,
+            "2": true,
+            "3": true,
+            "4": false,
+            "5": false,
+            "6": false
+          },
+          "2": {
+            "0": false,
+            "1": false,
+            "2": true,
+            "3": false,
+            "4": true,
+            "5": true,
+            "6": false
+          },
+          "3": {
+            "0": false,
+            "1": true,
+            "2": true,
+            "3": true,
+            "4": false,
+            "5": false,
+            "6": false
+          },
+          "4": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": true,
+            "4": true,
+            "5": false,
+            "6": false
+          },
+          "5": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": true
+          },
+          "6": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": true,
+            "5": false,
+            "6": false
+          }
+        },
+        "pinnedSlots": {
+          "0": {},
+          "1": {},
+          "2": {},
+          "3": {},
+          "4": {},
+          "5": {},
+          "6": {}
+        }
+      },
+      "systemInfo": {
+        "createdAt": {
+          "_type": "timestamp",
+          "_seconds": 1758875885,
+          "_nanoseconds": 987000000,
+          "_date": "2025-09-26T08:38:05.987Z"
+        },
+        "status": "online",
+        "lastHandleChangeAt": {
+          "_type": "timestamp",
+          "_seconds": 1758876313,
+          "_nanoseconds": 561000000,
+          "_date": "2025-09-26T08:45:13.561Z"
+        },
+        "profileSetupComplete": true,
+        "onboarding": {
+          "comparePromptSeen": false,
+          "schedulePasteHelpSeen": false,
+          "version": 2,
+          "scheduleControlsHintSeen": true,
+          "viewToggleHintSeen": true,
+          "addSlotHintSeen": true,
+          "pinHintSeen": true,
+          "scheduleTapHintSeen": true,
+          "campusPresenceHintSeen": true,
+          "friendActionsHintSeen": true,
+          "compareHintSeen": true
+        },
+        "locationSharingEnabled": true,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1758879131,
+          "_nanoseconds": 654000000,
+          "_date": "2025-09-26T09:32:11.654Z"
+        },
+        "lastActive": {
+          "_type": "timestamp",
+          "_seconds": 1758879133,
+          "_nanoseconds": 561000000,
+          "_date": "2025-09-26T09:32:13.561Z"
+        },
+        "lastKnownLocation": {
+          "coordinates": null,
+          "campusStatus": "off_campus",
+          "networkInfo": {
+            "networkDetection": true,
+            "timestamp": "2025-09-26T09:32:11.007Z",
+            "ipOrganization": "Unknown",
+            "detectionMethod": "ipinfo_lite_as_domain"
+          },
+          "lastUpdated": {
+            "_type": "timestamp",
+            "_seconds": 1758879133,
+            "_nanoseconds": 561000000,
+            "_date": "2025-09-26T09:32:13.561Z"
+          },
+          "detectedAt": {
+            "_type": "timestamp",
+            "_seconds": 1758879133,
+            "_nanoseconds": 561000000,
+            "_date": "2025-09-26T09:32:13.561Z"
+          }
+        }
+      },
+      "_subcollections": {}
+    },
+    "fN14DF3BOPSRgAZq20SZrIG219h2": {
+      "universityInfo": {
+        "universityName": "Independent University, Bangladesh",
+        "university": "iub",
+        "studentId": "2320731"
+      },
+      "uid": "fN14DF3BOPSRgAZq20SZrIG219h2",
+      "socialInfo": {
+        "defaultLocationSharing": false,
+        "friendsCount": 0,
+        "privacy": "university",
+        "searchable": true,
+        "locationPrivacyLevel": "friends_only",
+        "lastFriendActivity": null,
+        "pendingRequestsCount": 0
+      },
+      "avatarConfig": {
+        "seed": "77n4cwalvus",
+        "options": {
+          "backgroundColor": "d1d4f9",
+          "body": "variant17",
+          "backgroundType": "gradientLinear"
+        },
+        "style": "notionists"
+      },
+      "profile": {
+        "email": "2320731@iub.edu.bd",
+        "bio": "",
+        "studentId": "2320731",
+        "firstName": "Ridwan",
+        "lastName": "Haider",
+        "startingYear": "2023",
+        "major": "CMN",
+        "lastName_lower": "haider",
+        "handle": "rabbage",
+        "firstName_lower": "ridwan",
+        "major_lower": "cmn"
+      },
+      "scheduleData": {
+        "slotInfo": {
+          "0": {
+            "0": {
+              "courseCode": "MKT340",
+              "classroomNumber": "BC4010"
+            },
+            "1": {
+              "classroomNumber": "C5004",
+              "courseCode": "CMN430"
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "6": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "1": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "CMN442",
+              "classroomNumber": "C3002"
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "courseCode": "CMN313",
+              "classroomNumber": "C3002"
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "2": {
+            "0": {
+              "courseCode": "MKT340",
+              "classroomNumber": "BC4010"
+            },
+            "1": {
+              "courseCode": "CMN430",
+              "classroomNumber": "C5004"
+            },
+            "2": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "3": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "courseCode": "CMN442",
+              "classroomNumber": "C3002"
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "classroomNumber": "C3002",
+              "courseCode": "CMN313"
+            },
+            "6": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          },
+          "4": {
+            "0": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "6": {
+              "classroomNumber": "",
+              "courseCode": ""
+            }
+          },
+          "5": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "5": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "6": {
+              "courseCode": "LFE201",
+              "classroomNumber": "BCTBA7"
+            }
+          },
+          "6": {
+            "0": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "3": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "4": {
+              "courseCode": "",
+              "classroomNumber": ""
+            },
+            "5": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "6": {
+              "courseCode": "",
+              "classroomNumber": ""
+            }
+          }
+        },
+        "pinnedSlots": {},
+        "timeSlots": [
+          {
+            "start": "08:00",
+            "end": "09:30",
+            "label": "08:00-09:30"
+          },
+          {
+            "end": "11:10",
+            "label": "09:40-11:10",
+            "start": "09:40"
+          },
+          {
+            "start": "11:20",
+            "label": "11:20-12:50",
+            "end": "12:50"
+          },
+          {
+            "start": "13:00",
+            "label": "13:00-14:30",
+            "end": "14:30"
+          },
+          {
+            "start": "14:40",
+            "label": "14:40-16:10",
+            "end": "16:10"
+          },
+          {
+            "label": "16:20-17:50",
+            "start": "16:20",
+            "end": "17:50"
+          },
+          {
+            "start": "18:30",
+            "end": "20:00",
+            "label": "18:30-20:00"
+          }
+        ],
+        "timeBasedPins": {
+          "0": [],
+          "1": [],
+          "2": [],
+          "3": [],
+          "4": [],
+          "5": [],
+          "6": []
+        },
+        "schedule": {
+          "0": {
+            "0": true,
+            "1": true,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": false
+          },
+          "1": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": true,
+            "4": false,
+            "5": true,
+            "6": false
+          },
+          "2": {
+            "0": true,
+            "1": true,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": false
+          },
+          "3": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": true,
+            "4": false,
+            "5": true,
+            "6": false
+          },
+          "4": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": false
+          },
+          "5": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": true
+          },
+          "6": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": false
+          }
+        },
+        "metadata": {
+          "totalClasses": 9,
+          "hasConflicts": false,
+          "schemaVersion": 1,
+          "freeBusySummary": [
+            2,
+            2,
+            2,
+            2,
+            0,
+            1,
+            0
+          ],
+          "createdAt": {
+            "_type": "timestamp",
+            "_seconds": 1758703647,
+            "_nanoseconds": 332000000,
+            "_date": "2025-09-24T08:47:27.332Z"
+          },
+          "lastModified": {
+            "_type": "timestamp",
+            "_seconds": 1758703647,
+            "_nanoseconds": 332000000,
+            "_date": "2025-09-24T08:47:27.332Z"
+          },
+          "lastModifiedBy": "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "isEmpty": false,
+          "version": 1,
+          "importSource": "profile_setup"
+        }
+      },
+      "quickAccessData": {
+        "totalStarred": 1,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1758704118,
+          "_nanoseconds": 73000000,
+          "_date": "2025-09-24T08:55:18.073Z"
+        },
+        "starredFriends": [
+          {
+            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "isRestricted": false,
+            "handle": "faizan",
+            "privacyStatus": {
+              "lastUpdated": "2025-09-24T08:53:51.575Z",
+              "source": "friendship_document_change",
+              "avatarEnabled": true,
+              "description": "Schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "avatarConfig": {
+              "options": {
+                "backgroundType": "gradientLinear",
+                "body": "variant07",
+                "backgroundColor": "a7ffc4,d1d4f9"
+              },
+              "style": "notionists",
+              "seed": "6ly2h282unx"
+            },
+            "userId": "feqobVVYWifSKPdpWrItOUxvmA72"
+          }
+        ],
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1758704118,
+          "_nanoseconds": 73000000,
+          "_date": "2025-09-24T08:55:18.073Z"
+        }
+      },
+      "systemInfo": {
+        "createdAt": {
+          "_type": "timestamp",
+          "_seconds": 1758703542,
+          "_nanoseconds": 897000000,
+          "_date": "2025-09-24T08:45:42.897Z"
+        },
+        "lastHandleChangeAt": {
+          "_type": "timestamp",
+          "_seconds": 1758703733,
+          "_nanoseconds": 543000000,
+          "_date": "2025-09-24T08:48:53.543Z"
+        },
+        "profileSetupComplete": true,
+        "status": "online",
+        "locationSharingEnabled": true,
+        "onboarding": {
+          "comparePromptSeen": false,
+          "schedulePasteHelpSeen": false,
+          "version": 2,
+          "scheduleControlsHintSeen": true,
+          "viewToggleHintSeen": true,
+          "addSlotHintSeen": true,
+          "pinHintSeen": true,
+          "scheduleTapHintSeen": true,
+          "campusPresenceHintSeen": true,
+          "friendActionsHintSeen": true,
+          "compareHintSeen": true
+        },
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1758704315,
+          "_nanoseconds": 35000000,
+          "_date": "2025-09-24T08:58:35.035Z"
+        },
+        "lastActive": {
+          "_type": "timestamp",
+          "_seconds": 1758704316,
+          "_nanoseconds": 795000000,
+          "_date": "2025-09-24T08:58:36.795Z"
+        },
+        "lastKnownLocation": {
+          "networkInfo": {
+            "timestamp": "2025-09-24T08:57:09.278Z",
+            "networkDetection": true,
+            "ipOrganization": "iub.edu.bd",
+            "detectionMethod": "ipinfo_lite_as_domain"
+          },
+          "campusStatus": "on_campus",
+          "coordinates": null,
+          "lastUpdated": {
+            "_type": "timestamp",
+            "_seconds": 1758704316,
+            "_nanoseconds": 795000000,
+            "_date": "2025-09-24T08:58:36.795Z"
+          },
+          "detectedAt": {
+            "_type": "timestamp",
+            "_seconds": 1758704316,
+            "_nanoseconds": 795000000,
+            "_date": "2025-09-24T08:58:36.795Z"
+          }
+        }
+      },
+      "_subcollections": {}
     },
     "feqobVVYWifSKPdpWrItOUxvmA72": {
       "uid": "feqobVVYWifSKPdpWrItOUxvmA72",
@@ -5139,14 +6873,24 @@
       "id": "feqobVVYWifSKPdpWrItOUxvmA72",
       "avatarConfig": {
         "style": "notionists",
-        "seed": "6ly2h282unx",
         "options": {
-          "backgroundColor": "a7ffc4,d1d4f9",
+          "body": "variant06",
           "backgroundType": "gradientLinear",
-          "body": "variant07"
-        }
+          "backgroundColor": "d1d4f9,ffd5dc"
+        },
+        "seed": "y0chkk73swg"
       },
       "scheduleData": {
+        "timeBasedPins": {
+          "0": [],
+          "1": [],
+          "2": [],
+          "3": [],
+          "4": [],
+          "5": [],
+          "6": []
+        },
+        "pinnedSlots": {},
         "schedule": {
           "0": {
             "0": false,
@@ -5219,180 +6963,81 @@
             "7": false
           }
         },
-        "pinnedSlots": {
-          "0": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false,
-            "7": false
+        "timeSlots": [
+          {
+            "label": "08:00-09:30",
+            "start": "08:00",
+            "end": "09:30"
           },
-          "1": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false,
-            "7": false
+          {
+            "end": "11:10",
+            "start": "09:40",
+            "label": "09:40-11:10"
           },
-          "2": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false,
-            "7": false
+          {
+            "start": "11:20",
+            "label": "11:20-12:50",
+            "end": "12:50"
           },
-          "3": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false,
-            "7": false
+          {
+            "label": "13:00-14:30",
+            "end": "14:30",
+            "start": "13:00"
           },
-          "4": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false,
-            "7": false
+          {
+            "start": "14:40",
+            "label": "14:40-16:10",
+            "end": "16:10"
           },
-          "5": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": true,
-            "6": false,
-            "7": true
+          {
+            "start": "16:20",
+            "label": "16:20-17:50",
+            "end": "17:50"
           },
-          "6": {
-            "0": false,
-            "1": false,
-            "2": false,
-            "3": false,
-            "4": false,
-            "5": false,
-            "6": false,
-            "7": false
+          {
+            "start": "18:30",
+            "end": "20:00",
+            "label": "18:30-20:00"
+          },
+          {
+            "label": "20:00-21:30",
+            "start": "20:00",
+            "end": "21:30"
           }
-        },
-        "timeBasedPins": {
-          "0": [
-            {
-              "end": "17:50",
-              "pinned": true,
-              "label": "16:20-17:50",
-              "start": "16:20"
-            }
-          ],
-          "1": [
-            {
-              "label": "16:20-17:50",
-              "end": "17:50",
-              "start": "16:20",
-              "pinned": true
-            }
-          ],
-          "2": [],
-          "3": [
-            {
-              "pinned": true,
-              "start": "16:20",
-              "end": "17:50",
-              "label": "16:20-17:50"
-            }
-          ],
-          "4": [],
-          "5": [
-            {
-              "label": "16:20-17:50",
-              "end": "17:50",
-              "pinned": true,
-              "start": "16:20"
-            },
-            {
-              "end": "21:30",
-              "pinned": true,
-              "label": "20:00-21:30",
-              "start": "20:00"
-            }
-          ],
-          "6": []
-        },
-        "metadata": {
-          "lastModified": {
-            "_seconds": 1758547518,
-            "_nanoseconds": 296000000
-          },
-          "version": 18,
-          "totalClasses": 10,
-          "schemaVersion": 1,
-          "hasConflicts": false,
-          "lastModifiedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
-          "isEmpty": false,
-          "createdAt": {
-            "_seconds": 1757833120,
-            "_nanoseconds": 869000000
-          },
-          "importSource": "profile_setup",
-          "freeBusySummary": [
-            2,
-            4,
-            0,
-            3,
-            0,
-            1,
-            0
-          ]
-        },
+        ],
         "slotInfo": {
           "0": {
             "0": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "1": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "2": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
-            "4": {
               "courseCode": "",
               "classroomNumber": ""
+            },
+            "4": {
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "5": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "6": {
-              "courseCode": "CSC424",
-              "classroomNumber": "BC6013"
-            },
-            "7": {
               "classroomNumber": "BC6013",
               "courseCode": "CSC424"
+            },
+            "7": {
+              "courseCode": "CSC424",
+              "classroomNumber": "BC6013"
             }
           },
           "1": {
@@ -5405,12 +7050,12 @@
               "classroomNumber": "MK7005L"
             },
             "2": {
-              "courseCode": "CSC212",
-              "classroomNumber": "BC10018"
+              "classroomNumber": "BC10018",
+              "courseCode": "CSC212"
             },
             "3": {
-              "courseCode": "CMN442",
-              "classroomNumber": "C3002"
+              "classroomNumber": "C3002",
+              "courseCode": "CMN442"
             },
             "4": {
               "courseCode": "CSC411",
@@ -5425,8 +7070,8 @@
               "classroomNumber": ""
             },
             "7": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             }
           },
           "2": {
@@ -5435,8 +7080,8 @@
               "classroomNumber": ""
             },
             "1": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "2": {
               "classroomNumber": "",
@@ -5447,16 +7092,16 @@
               "classroomNumber": ""
             },
             "4": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
               "classroomNumber": "",
               "courseCode": ""
             },
             "6": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "7": {
               "classroomNumber": "",
@@ -5465,36 +7110,36 @@
           },
           "3": {
             "0": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "1": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "2": {
               "classroomNumber": "BC10018",
               "courseCode": "CSC212"
             },
             "3": {
-              "courseCode": "CMN442",
-              "classroomNumber": "C3002"
+              "classroomNumber": "C3002",
+              "courseCode": "CMN442"
             },
             "4": {
               "courseCode": "CSC411",
               "classroomNumber": "MK5004"
             },
             "5": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "6": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "7": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             }
           },
           "4": {
@@ -5503,32 +7148,32 @@
               "classroomNumber": ""
             },
             "1": {
+              "classroomNumber": "",
+              "courseCode": ""
+            },
+            "2": {
               "courseCode": "",
               "classroomNumber": ""
             },
-            "2": {
-              "classroomNumber": "",
-              "courseCode": ""
-            },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
               "classroomNumber": "",
               "courseCode": ""
             },
             "5": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "6": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "7": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             }
           },
           "5": {
@@ -5537,28 +7182,28 @@
               "classroomNumber": ""
             },
             "1": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "2": {
               "classroomNumber": "",
               "courseCode": ""
             },
             "3": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "4": {
-              "classroomNumber": "",
-              "courseCode": ""
+              "courseCode": "",
+              "classroomNumber": ""
             },
             "5": {
               "courseCode": "",
               "classroomNumber": ""
             },
             "6": {
-              "courseCode": "LFE201",
-              "classroomNumber": "BCTBA7"
+              "classroomNumber": "BCTBA7",
+              "courseCode": "LFE201"
             },
             "7": {
               "classroomNumber": "",
@@ -5571,12 +7216,12 @@
               "classroomNumber": ""
             },
             "1": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "2": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "3": {
               "courseCode": "",
@@ -5587,8 +7232,8 @@
               "courseCode": ""
             },
             "5": {
-              "courseCode": "",
-              "classroomNumber": ""
+              "classroomNumber": "",
+              "courseCode": ""
             },
             "6": {
               "classroomNumber": "",
@@ -5600,195 +7245,294 @@
             }
           }
         },
-        "timeSlots": [
-          {
-            "end": "09:30",
-            "start": "08:00",
-            "label": "08:00-09:30"
+        "metadata": {
+          "lastModified": {
+            "_type": "timestamp",
+            "_seconds": 1759138369,
+            "_nanoseconds": 954000000,
+            "_date": "2025-09-29T09:32:49.954Z"
           },
-          {
-            "label": "09:40-11:10",
-            "start": "09:40",
-            "end": "11:10"
+          "hasConflicts": false,
+          "lastModifiedBy": "feqobVVYWifSKPdpWrItOUxvmA72",
+          "importSource": "profile_setup",
+          "totalClasses": 10,
+          "isEmpty": false,
+          "schemaVersion": 1,
+          "createdAt": {
+            "_type": "timestamp",
+            "_seconds": 1757833120,
+            "_nanoseconds": 869000000,
+            "_date": "2025-09-14T06:58:40.869Z"
           },
-          {
-            "label": "11:20-12:50",
-            "end": "12:50",
-            "start": "11:20"
-          },
-          {
-            "start": "13:00",
-            "label": "13:00-14:30",
-            "end": "14:30"
-          },
-          {
-            "end": "16:10",
-            "start": "14:40",
-            "label": "14:40-16:10"
-          },
-          {
-            "end": "17:50",
-            "start": "16:20",
-            "label": "16:20-17:50"
-          },
-          {
-            "end": "20:00",
-            "start": "18:30",
-            "label": "18:30-20:00"
-          },
-          {
-            "start": "20:00",
-            "end": "21:30",
-            "label": "20:00-21:30"
-          }
-        ]
+          "version": 29,
+          "freeBusySummary": [
+            2,
+            4,
+            0,
+            3,
+            0,
+            1,
+            0
+          ]
+        }
       },
       "quickAccessData": {
-        "totalStarred": 4,
+        "totalStarred": 7,
         "lastUpdated": {
-          "_seconds": 1758694460,
-          "_nanoseconds": 67000000
+          "_type": "timestamp",
+          "_seconds": 1759332291,
+          "_nanoseconds": 453000000,
+          "_date": "2025-10-01T15:24:51.453Z"
         },
         "starredFriends": [
           {
-            "handle": "salman",
-            "privacyStatus": {
-              "description": "Schedule is visible - quick access enabled",
-              "source": "friendship_document_change",
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule",
-              "lastUpdated": "2025-09-24T06:14:19.878Z"
-            },
-            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "isRestricted": false,
+            "handle": "rabbage",
+            "friendId": "fN14DF3BOPSRgAZq20SZrIG219h2",
             "avatarConfig": {
-              "style": "notionists",
-              "seed": "a8xysug49uc",
+              "seed": "77n4cwalvus",
               "options": {
-                "body": "variant23",
-                "backgroundColor": "ffdfbf,a7ffc4",
-                "backgroundType": "gradientLinear"
-              }
+                "body": "variant17",
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "d1d4f9"
+              },
+              "style": "notionists"
+            },
+            "userId": "fN14DF3BOPSRgAZq20SZrIG219h2",
+            "isRestricted": false,
+            "privacyStatus": {
+              "source": "friendship_document_change",
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "lastUpdated": "2025-10-01T15:24:52.542Z",
+              "description": "Schedule is visible - quick access enabled"
             }
           },
           {
-            "isRestricted": false,
-            "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
             "friendId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
-            "avatarConfig": {
-              "options": {
-                "backgroundColor": "ffd93d",
-                "hair": "curly"
-              },
-              "style": "miniavs",
-              "seed": "s0o0564cql"
-            },
+            "isRestricted": false,
             "handle": "shamsahmad",
             "privacyStatus": {
-              "description": "@shamsahmad's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule",
               "avatarEnabled": true,
-              "tooltip": "Click to view schedule"
-            }
+              "description": "@shamsahmad's schedule is visible - quick access enabled"
+            },
+            "avatarConfig": {
+              "options": {
+                "body": "variant23",
+                "backgroundType": "solid",
+                "backgroundColor": "b6e3f4"
+              },
+              "seed": "sleg565m2qd",
+              "style": "notionists"
+            },
+            "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3"
           },
           {
-            "avatarConfig": {
-              "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-              "style": "adventurer",
-              "options": {
-                "backgroundType": "solid",
-                "hairColor": "562306",
-                "backgroundColor": "ffd93d",
-                "mouth": "variant01",
-                "eyes": "variant07",
-                "eyebrows": "variant01",
-                "hair": "short14"
-              }
-            },
             "handle": "cheesewhizz",
-            "isRestricted": false,
-            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-            "privacyStatus": {
-              "tooltip": "Click to view schedule",
-              "description": "@cheesewhizz's schedule is visible - quick access enabled",
-              "avatarEnabled": true
+            "avatarConfig": {
+              "options": {
+                "hairColor": "562306",
+                "backgroundType": "solid",
+                "eyebrows": "variant01",
+                "mouth": "variant01",
+                "backgroundColor": "ffd93d",
+                "eyes": "variant07",
+                "hair": "short14"
+              },
+              "style": "adventurer",
+              "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
             },
-            "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
+            "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+            "privacyStatus": {
+              "description": "@cheesewhizz's schedule is visible - quick access enabled",
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule"
+            },
+            "isRestricted": false,
+            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
           },
           {
             "handle": "saf",
-            "privacyStatus": {
-              "tooltip": "Click to view schedule",
-              "description": "@saf's schedule is visible - quick access enabled",
-              "avatarEnabled": true
-            },
-            "friendId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
             "avatarConfig": {
               "options": {
-                "mouth": "square01",
-                "eyes": "robocop"
+                "eyes": "robocop",
+                "mouth": "square01"
               },
               "seed": "mwpc3g9qqds",
               "style": "bottts-neutral"
             },
-            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-            "isRestricted": false
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "description": "@saf's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "isRestricted": false,
+            "friendId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1"
+          },
+          {
+            "handle": "mehalkhan",
+            "isRestricted": false,
+            "avatarConfig": {
+              "seed": "fmsiinvxg5n",
+              "options": {
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "ffdfbf,a7ffc4",
+                "body": "variant13"
+              },
+              "style": "notionists"
+            },
+            "userId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+            "friendId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule",
+              "description": "@mehalkhan's schedule is visible - quick access enabled"
+            }
+          },
+          {
+            "isRestricted": false,
+            "privacyStatus": {
+              "description": "@salman's schedule is visible - quick access enabled",
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule"
+            },
+            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+            "avatarConfig": {
+              "options": {
+                "backgroundColor": "ffdfbf,a7ffc4",
+                "body": "variant23",
+                "backgroundType": "gradientLinear"
+              },
+              "style": "notionists",
+              "seed": "a8xysug49uc"
+            },
+            "handle": "salman",
+            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2"
+          },
+          {
+            "handle": "serena",
+            "userId": "JYix6DOY90er8SBPT7umzigIxv43",
+            "isRestricted": false,
+            "friendId": "JYix6DOY90er8SBPT7umzigIxv43",
+            "privacyStatus": {
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "description": "@serena's schedule is visible - quick access enabled"
+            },
+            "avatarConfig": {
+              "options": {
+                "hair": "long",
+                "backgroundColor": "ffdfbf,d1d4f9",
+                "backgroundType": "gradientLinear"
+              },
+              "seed": "ha8mlu6rbef",
+              "style": "miniavs"
+            }
           }
         ],
         "lastPrivacyUpdate": {
-          "_seconds": 1758694460,
-          "_nanoseconds": 67000000
+          "_type": "timestamp",
+          "_seconds": 1759332291,
+          "_nanoseconds": 453000000,
+          "_date": "2025-10-01T15:24:51.453Z"
         }
       },
       "systemInfo": {
         "createdAt": {
-          "_seconds": 1757833042,
-          "_nanoseconds": 257000000
-        },
-        "lastHandleChangeAt": {
-          "_seconds": 1757833119,
-          "_nanoseconds": 18000000
+          "_type": "timestamp",
+          "_seconds": 1759138072,
+          "_nanoseconds": 449000000,
+          "_date": "2025-09-29T09:27:52.449Z"
         },
         "profileSetupComplete": true,
+        "onboarding": {
+          "pinHintSeen": true,
+          "scheduleControlsHintSeen": true,
+          "lastEventAt": {
+            "seconds": 1759135654,
+            "type": "firestore/timestamp/1.0",
+            "nanoseconds": 351000000
+          },
+          "comparePromptSeen": false,
+          "addSlotHintSeen": true,
+          "compareHintSeen": true,
+          "version": 2,
+          "friendsBarHintSeen": false,
+          "campusPresenceHintSeen": true,
+          "viewToggleHintSeen": true,
+          "scheduleTapHintSeen": true,
+          "events": {
+            "seen:schedulePasteHelpSeen": {
+              "lastAt": {
+                "type": "firestore/timestamp/1.0",
+                "nanoseconds": 351000000,
+                "seconds": 1759135654
+              }
+            }
+          },
+          "lastEvent": "seen:schedulePasteHelpSeen",
+          "friendActionsHintSeen": true,
+          "schedulePasteHelpSeen": true
+        },
         "status": "online",
         "locationSharingEnabled": true,
-        "onboarding": {
-          "campusPresenceHintSeen": false,
-          "comparePromptSeen": false,
-          "schedulePasteHelpSeen": false,
-          "version": 2,
-          "scheduleControlsHintSeen": true,
-          "viewToggleHintSeen": true,
-          "addSlotHintSeen": true,
-          "pinHintSeen": true,
-          "scheduleTapHintSeen": true,
-          "friendActionsHintSeen": true,
-          "compareHintSeen": true
-        },
         "lastUpdated": {
-          "_seconds": 1758694236,
-          "_nanoseconds": 815000000
+          "_type": "timestamp",
+          "_seconds": 1759332352,
+          "_nanoseconds": 385000000,
+          "_date": "2025-10-01T15:25:52.385Z"
         },
         "lastActive": {
-          "_seconds": 1758694791,
-          "_nanoseconds": 820000000
+          "_type": "timestamp",
+          "_seconds": 1759332355,
+          "_nanoseconds": 665000000,
+          "_date": "2025-10-01T15:25:55.665Z"
         },
         "lastKnownLocation": {
-          "networkInfo": {
-            "detectionMethod": "ipinfo_lite_as_domain",
-            "networkDetection": true,
-            "timestamp": "2025-09-24T06:19:49.904Z",
-            "ipOrganization": "Unknown"
-          },
-          "coordinates": null,
           "campusStatus": "off_campus",
+          "coordinates": {
+            "longitude": 90.42798,
+            "latitude": 23.8184853,
+            "accuracy": 16.163000106811523,
+            "timestamp": "2025-10-01T15:25:55.531Z"
+          },
           "lastUpdated": {
-            "_seconds": 1758694791,
-            "_nanoseconds": 820000000
+            "_type": "timestamp",
+            "_seconds": 1759332355,
+            "_nanoseconds": 665000000,
+            "_date": "2025-10-01T15:25:55.665Z"
           },
           "detectedAt": {
-            "_seconds": 1758694791,
-            "_nanoseconds": 820000000
+            "_type": "timestamp",
+            "_seconds": 1759332355,
+            "_nanoseconds": 665000000,
+            "_date": "2025-10-01T15:25:55.665Z"
+          }
+        }
+      },
+      "_subcollections": {
+        "fcmTokens": {
+          "dpgVgLfH8mCoT-q9qUs9Z3:APA91bGNO4rT0zoSkILZebd8afnIJ7Zk3XaPa5uKgpx3j7ag7A5ueOKtKE798WMaYsFsgD0nzUmKFzPp-3KBGA9b6hDYXND1PWJGOS84zBFd592RDWLgNDo": {
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332210,
+              "_nanoseconds": 139000000,
+              "_date": "2025-10-01T15:23:30.139Z"
+            },
+            "appVersion": null,
+            "deviceKey": "d1edrppe",
+            "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
+            "isPWA": true,
+            "platform": "android",
+            "token": "dpgVgLfH8mCoT-q9qUs9Z3:APA91bGNO4rT0zoSkILZebd8afnIJ7Zk3XaPa5uKgpx3j7ag7A5ueOKtKE798WMaYsFsgD0nzUmKFzPp-3KBGA9b6hDYXND1PWJGOS84zBFd592RDWLgNDo",
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332210,
+              "_nanoseconds": 139000000,
+              "_date": "2025-10-01T15:23:30.139Z"
+            },
+            "_subcollections": {}
           }
         }
       }
@@ -5808,14 +7552,6 @@
         "university": "iub",
         "studentId": "2211306",
         "universityName": "Independent University, Bangladesh"
-      },
-      "avatarConfig": {
-        "seed": "s0o0564cql",
-        "options": {
-          "backgroundColor": "ffd93d",
-          "hair": "curly"
-        },
-        "style": "miniavs"
       },
       "profile": {
         "bio": "",
@@ -5881,8 +7617,10 @@
         "metadata": {
           "importSource": "profile_setup",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1758439569,
-            "_nanoseconds": 777000000
+            "_nanoseconds": 777000000,
+            "_date": "2025-09-21T07:26:09.777Z"
           },
           "freeBusySummary": [
             2,
@@ -5897,8 +7635,10 @@
           "isEmpty": false,
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1758439569,
-            "_nanoseconds": 777000000
+            "_nanoseconds": 777000000,
+            "_date": "2025-09-21T07:26:09.777Z"
           },
           "hasConflicts": false,
           "totalClasses": 9,
@@ -6182,57 +7922,139 @@
           }
         }
       },
+      "avatarConfig": {
+        "options": {
+          "backgroundType": "solid",
+          "backgroundColor": "b6e3f4",
+          "body": "variant23"
+        },
+        "style": "notionists",
+        "seed": "sleg565m2qd"
+      },
+      "quickAccessData": {
+        "totalStarred": 2,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759253258,
+          "_nanoseconds": 461000000,
+          "_date": "2025-09-30T17:27:38.461Z"
+        },
+        "starredFriends": [
+          {
+            "isRestricted": false,
+            "avatarConfig": {
+              "seed": "6ly2h282unx",
+              "options": {
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "a7ffc4,d1d4f9",
+                "body": "variant07"
+              },
+              "style": "notionists"
+            },
+            "handle": "faizan",
+            "friendId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "userId": "feqobVVYWifSKPdpWrItOUxvmA72",
+            "privacyStatus": {
+              "lastUpdated": "2025-09-30T17:27:38.743Z",
+              "avatarEnabled": true,
+              "source": "friendship_document_change",
+              "description": "Schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            }
+          },
+          {
+            "isRestricted": false,
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "description": "@rabbage's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "friendId": "fN14DF3BOPSRgAZq20SZrIG219h2",
+            "handle": "rabbage",
+            "avatarConfig": {
+              "seed": "77n4cwalvus",
+              "options": {
+                "body": "variant17",
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "d1d4f9"
+              },
+              "style": "notionists"
+            },
+            "userId": "fN14DF3BOPSRgAZq20SZrIG219h2"
+          }
+        ],
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1759253258,
+          "_nanoseconds": 461000000,
+          "_date": "2025-09-30T17:27:38.461Z"
+        }
+      },
       "systemInfo": {
-        "createdAt": {
-          "_seconds": 1758439181,
-          "_nanoseconds": 843000000
-        },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1758439569,
-          "_nanoseconds": 587000000
+          "_nanoseconds": 587000000,
+          "_date": "2025-09-21T07:26:09.587Z"
         },
-        "profileSetupComplete": true,
         "status": "online",
-        "locationSharingEnabled": true,
+        "profileSetupComplete": true,
         "onboarding": {
-          "campusPresenceHintSeen": false,
+          "friendActionsHintSeen": true,
+          "scheduleControlsHintSeen": true,
+          "scheduleTapHintSeen": true,
+          "pinHintSeen": true,
+          "addSlotHintSeen": true,
           "version": 2,
           "schedulePasteHelpSeen": true,
-          "scheduleControlsHintSeen": true,
-          "viewToggleHintSeen": true,
-          "addSlotHintSeen": true,
-          "pinHintSeen": true,
-          "scheduleTapHintSeen": true,
-          "comparePromptSeen": true,
+          "campusPresenceHintSeen": true,
           "compareHintSeen": true,
-          "friendActionsHintSeen": true
+          "viewToggleHintSeen": true,
+          "comparePromptSeen": true
         },
+        "createdAt": {
+          "_type": "timestamp",
+          "_seconds": 1758439181,
+          "_nanoseconds": 843000000,
+          "_date": "2025-09-21T07:19:41.843Z"
+        },
+        "locationSharingEnabled": true,
         "lastKnownLocation": {
-          "coordinates": {
-            "latitude": 23.8682541,
-            "accuracy": 16.066,
-            "longitude": 90.3907,
-            "timestamp": "2025-09-24T05:08:24.033Z"
+          "networkInfo": {
+            "ipOrganization": "Unknown",
+            "detectionMethod": "ipinfo_lite_as_domain",
+            "timestamp": "2025-09-30T17:30:04.713Z",
+            "networkDetection": true
           },
           "campusStatus": "off_campus",
+          "coordinates": null,
           "lastUpdated": {
-            "_seconds": 1758690505,
-            "_nanoseconds": 163000000
+            "_type": "timestamp",
+            "_seconds": 1759253406,
+            "_nanoseconds": 277000000,
+            "_date": "2025-09-30T17:30:06.277Z"
           },
           "detectedAt": {
-            "_seconds": 1758690505,
-            "_nanoseconds": 163000000
+            "_type": "timestamp",
+            "_seconds": 1759253406,
+            "_nanoseconds": 277000000,
+            "_date": "2025-09-30T17:30:06.277Z"
           }
         },
         "lastUpdated": {
-          "_seconds": 1758692687,
-          "_nanoseconds": 790000000
+          "_type": "timestamp",
+          "_seconds": 1759253431,
+          "_nanoseconds": 10000000,
+          "_date": "2025-09-30T17:30:31.010Z"
         },
         "lastActive": {
-          "_seconds": 1758692687,
-          "_nanoseconds": 790000000
+          "_type": "timestamp",
+          "_seconds": 1759253431,
+          "_nanoseconds": 10000000,
+          "_date": "2025-09-30T17:30:31.010Z"
         }
-      }
+      },
+      "_subcollections": {}
     },
     "k4QYI7jlsvORhWsRNI10ZnPQvxO2": {
       "uid": "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
@@ -6275,12 +8097,16 @@
       "scheduleData": {
         "metadata": {
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1758399378,
-            "_nanoseconds": 393000000
+            "_nanoseconds": 393000000,
+            "_date": "2025-09-20T20:16:18.393Z"
           },
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1757832287,
-            "_nanoseconds": 581000000
+            "_nanoseconds": 581000000,
+            "_date": "2025-09-14T06:44:47.581Z"
           },
           "totalClasses": 10,
           "schemaVersion": 1,
@@ -6673,54 +8499,37 @@
         }
       },
       "quickAccessData": {
-        "totalStarred": 1,
-        "lastUpdated": {
-          "_seconds": 1758429449,
-          "_nanoseconds": 130000000
-        },
-        "starredFriends": [
-          {
-            "avatarConfig": {
-              "style": "miniavs",
-              "seed": "ha8mlu6rbef",
-              "options": {
-                "hair": "long",
-                "backgroundType": "gradientLinear",
-                "backgroundColor": "ffdfbf,d1d4f9"
-              }
-            },
-            "userId": "JYix6DOY90er8SBPT7umzigIxv43",
-            "friendId": "JYix6DOY90er8SBPT7umzigIxv43",
-            "isRestricted": false,
-            "privacyStatus": {
-              "tooltip": "Click to view schedule",
-              "source": "friendship_document_change",
-              "description": "Schedule is visible - quick access enabled",
-              "lastUpdated": "2025-09-21T04:37:28.999Z",
-              "avatarEnabled": true
-            },
-            "handle": "serena"
-          }
-        ],
         "lastPrivacyUpdate": {
-          "_seconds": 1758429449,
-          "_nanoseconds": 130000000
+          "_type": "timestamp",
+          "_seconds": 1758906148,
+          "_nanoseconds": 753000000,
+          "_date": "2025-09-26T17:02:28.753Z"
+        },
+        "starredFriends": [],
+        "totalStarred": 0,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1758967262,
+          "_nanoseconds": 366000000,
+          "_date": "2025-09-27T10:01:02.366Z"
         }
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1757832254,
-          "_nanoseconds": 574000000
+          "_nanoseconds": 574000000,
+          "_date": "2025-09-14T06:44:14.574Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1757832284,
-          "_nanoseconds": 473000000
+          "_nanoseconds": 473000000,
+          "_date": "2025-09-14T06:44:44.473Z"
         },
         "profileSetupComplete": true,
         "status": "online",
         "onboarding": {
-          "compareHintSeen": false,
-          "campusPresenceHintSeen": false,
           "comparePromptSeen": false,
           "schedulePasteHelpSeen": false,
           "version": 2,
@@ -6729,32 +8538,75 @@
           "viewToggleHintSeen": true,
           "addSlotHintSeen": true,
           "pinHintSeen": true,
-          "friendActionsHintSeen": true
-        },
-        "locationSharingEnabled": true,
-        "lastUpdated": {
-          "_seconds": 1758429095,
-          "_nanoseconds": 286000000
-        },
-        "lastActive": {
-          "_seconds": 1758429455,
-          "_nanoseconds": 38000000
+          "friendActionsHintSeen": true,
+          "compareHintSeen": true,
+          "campusPresenceHintSeen": true
         },
         "lastKnownLocation": {
           "coordinates": {
-            "latitude": 22.3712232,
-            "accuracy": 15.742,
-            "longitude": 91.834733,
-            "timestamp": "2025-09-21T04:37:33.909Z"
+            "longitude": 90.4467084,
+            "latitude": 23.8199629,
+            "accuracy": 1755.1633074544484,
+            "timestamp": "2025-10-01T13:57:00.911Z"
           },
           "campusStatus": "off_campus",
           "lastUpdated": {
-            "_seconds": 1758429455,
-            "_nanoseconds": 38000000
+            "_type": "timestamp",
+            "_seconds": 1759327022,
+            "_nanoseconds": 1000000,
+            "_date": "2025-10-01T13:57:02.001Z"
           },
           "detectedAt": {
-            "_seconds": 1758429455,
-            "_nanoseconds": 38000000
+            "_type": "timestamp",
+            "_seconds": 1759327022,
+            "_nanoseconds": 1000000,
+            "_date": "2025-10-01T13:57:02.001Z"
+          }
+        },
+        "locationSharingEnabled": false,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759329419,
+          "_nanoseconds": 908000000,
+          "_date": "2025-10-01T14:36:59.908Z"
+        },
+        "lastActive": {
+          "_type": "timestamp",
+          "_seconds": 1759329419,
+          "_nanoseconds": 908000000,
+          "_date": "2025-10-01T14:36:59.908Z"
+        }
+      },
+      "_subcollections": {
+        "fcmTokens": {
+          "eGHXfIU3XrFMS6kXKBcRex:APA91bEahj5rCcO1mU36FOaT94bAMBUjsI1tX0ViII-O4lWbJ6nltgZLoVL8Mv1hJ3HZz0uiWPamaESE8SUEr2ObERtMUXSnCkn80I17I-j5Gw1LkdiiVhY": {
+            "appVersion": null,
+            "deviceKey": "d18lqoky",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "isPWA": false,
+            "platform": "web",
+            "token": "eGHXfIU3XrFMS6kXKBcRex:APA91bEahj5rCcO1mU36FOaT94bAMBUjsI1tX0ViII-O4lWbJ6nltgZLoVL8Mv1hJ3HZz0uiWPamaESE8SUEr2ObERtMUXSnCkn80I17I-j5Gw1LkdiiVhY",
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759329316,
+              "_nanoseconds": 288000000,
+              "_date": "2025-10-01T14:35:16.288Z"
+            },
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759329316,
+              "_nanoseconds": 288000000,
+              "_date": "2025-10-01T14:35:16.288Z"
+            },
+            "_subcollections": {}
+          }
+        },
+        "meta": {
+          "rateLimits": {
+            "20251001": {
+              "friendRequestsSent": 5
+            },
+            "_subcollections": {}
           }
         }
       }
@@ -7086,13 +8938,17 @@
         "metadata": {
           "schemaVersion": 1,
           "lastModified": {
+            "_type": "timestamp",
             "_seconds": 1757839277,
-            "_nanoseconds": 171000000
+            "_nanoseconds": 171000000,
+            "_date": "2025-09-14T08:41:17.171Z"
           },
           "lastModifiedBy": "yroG9cmCp4RYniUSfbXUsa63BE52",
           "createdAt": {
+            "_type": "timestamp",
             "_seconds": 1757839277,
-            "_nanoseconds": 171000000
+            "_nanoseconds": 171000000,
+            "_date": "2025-09-14T08:41:17.171Z"
           },
           "version": 1,
           "importSource": "profile_setup",
@@ -7112,24 +8968,33 @@
       },
       "systemInfo": {
         "createdAt": {
+          "_type": "timestamp",
           "_seconds": 1757838603,
-          "_nanoseconds": 664000000
+          "_nanoseconds": 664000000,
+          "_date": "2025-09-14T08:30:03.664Z"
         },
         "lastHandleChangeAt": {
+          "_type": "timestamp",
           "_seconds": 1757839276,
-          "_nanoseconds": 899000000
+          "_nanoseconds": 899000000,
+          "_date": "2025-09-14T08:41:16.899Z"
         },
         "profileSetupComplete": true,
         "status": "online",
         "lastUpdated": {
+          "_type": "timestamp",
           "_seconds": 1757870169,
-          "_nanoseconds": 365000000
+          "_nanoseconds": 365000000,
+          "_date": "2025-09-14T17:16:09.365Z"
         },
         "lastActive": {
+          "_type": "timestamp",
           "_seconds": 1758022355,
-          "_nanoseconds": 704000000
+          "_nanoseconds": 704000000,
+          "_date": "2025-09-16T11:32:35.704Z"
         }
-      }
+      },
+      "_subcollections": {}
     }
   }
 }

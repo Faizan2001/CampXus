@@ -59,6 +59,20 @@ service cloud.firestore {
         isVerified() || isDevEmail()
       );
     }
+
+    // --- User Subcollections: FCM tokens ---
+    // Allows each authenticated user to manage their own device tokens
+    match /users/{userId}/fcmTokens/{token} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- User Subcollections: Meta (server-managed counters) ---
+    // Clients may read their own meta docs, but only server (Admin SDK) writes
+    match /users/{userId}/meta/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {

@@ -1,0 +1,16 @@
+{
+  "name": "meetchuthere-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "type": "module",
+  "scripts": {
+    "lint": "echo 'No lint configured'",
+    "build": "echo 'No build step'"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.4.0"
+  }
+}
