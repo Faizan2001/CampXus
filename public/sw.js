@@ -114,12 +114,22 @@ try {
     // Handle data-only messages
     try {
       const notificationTitle = payload?.data?.title || 'Notification';
+      const deepLink = payload?.data?.link || '/#notifications';
       const notificationOptions = {
         body: payload?.data?.body || '',
         icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-72x72.png',
+        badge: '/icons/icon-96x96.png', // M logo badge for status bar
+        tag: 'meetchuthere-notification',
+        renotify: true,
+        requireInteraction: false, // Ignored on Android; false better for desktop
+        vibrate: [200, 100, 200],
+        timestamp: Date.now(),
+        silent: false,
+        actions: [
+          { action: 'open', title: 'View', icon: '/icons/icon-72x72.png' },
+        ],
         data: {
-          link: payload?.data?.link || '/',
+          link: deepLink,
         },
       };
       self.registration.showNotification(notificationTitle, notificationOptions);
@@ -134,17 +144,27 @@ try {
 // Focus/open client on notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const link = (event.notification && event.notification.data && event.notification.data.link) || '/';
+  // Default to notifications page if no deep link provided
+  const defaultLink = '/#notifications';
+  const link = (event.notification && event.notification.data && event.notification.data.link) || defaultLink;
+  const actionLink = (event.action && typeof event.action === 'string') ? link : link; // reserved for future actions
+
   event.waitUntil((async () => {
     const allClients = await clients.matchAll({ includeUncontrolled: true, type: 'window' });
-    const url = new URL(link, self.location.origin).href;
-    // Try to focus an open tab of our app
+    const url = new URL(actionLink, self.location.origin).href;
+
+    // Try to focus an open tab of our app and navigate it
     for (const client of allClients) {
-      // If the app is already open, just focus it and navigate if needed
-      if ('focus' in client) {
-        await client.focus();
-        try { client.navigate(url); } catch (_) {}
+      try {
+        if ('focus' in client) {
+          await client.focus();
+        }
+        if ('navigate' in client) {
+          await client.navigate(url);
+        }
         return;
+      } catch (_) {
+        // continue to next client
       }
     }
     // Otherwise, open a new window

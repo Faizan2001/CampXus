@@ -186,7 +186,8 @@ async function sendToUser(userId, notification, data = {}) {
           badge: 1,
           "content-available": 1, // Wakes app in background
           "mutable-content": 1, // Allows notification extensions
-          interruptionLevel: "time-sensitive", // iOS 15+ bypasses Focus modes
+          // iOS 15+: ensure banner/lockscreen even in Focus via time-sensitive
+          "interruption-level": "time-sensitive",
         },
       },
     },
@@ -195,10 +196,15 @@ async function sendToUser(userId, notification, data = {}) {
       headers: { Urgency: "high" },
       notification: {
         icon: "https://meetchuthere.com/icons/icon-192x192.png",
-        badge: "https://meetchuthere.com/icons/icon-72x72.png",
-        requireInteraction: false,
+        badge: "https://meetchuthere.com/icons/icon-96x96.png", // Use M logo badge (smaller for status bar)
+        requireInteraction: false, // true ignored on Android; false better for desktop UX
+        renotify: true, // Vibrate/sound on repeat notifications
         vibrate: [200, 100, 200],
         tag: "meetchuthere-notification", // Prevents stacking duplicates
+        timestamp: Date.now(),
+        actions: [
+          { action: "open", title: "View", icon: "https://meetchuthere.com/icons/icon-72x72.png" },
+        ],
       },
       // Ensure clicks open the SPA route even when the browser autoshows notifications
       fcmOptions: {
@@ -330,7 +336,7 @@ export const onFriendRequestCreated = onDocumentCreated(
       title: "New Friend Request",
       body: `${handle} wants to be your friend`,
     };
-    const payload = { link: "/#friends", type: "friend_request" };
+    const payload = { link: "/#notifications", type: "friend_request" };
     const res = await sendToUser(toUserId, notification, payload);
     logger.info("Friend request push sent", res);
   }
@@ -443,7 +449,7 @@ export const onUserPresenceUpdated = onDocumentUpdated(
         title: "On Campus",
         body: `${actorHandle} just arrived on campus`,
       };
-      const data = { link: "/#friends", type: "starred_presence" };
+      const data = { link: "/#notifications", type: "starred_presence" };
       sendPromises.push(
         (async () => {
           const res = await sendToUser(friendId, notification, data);
