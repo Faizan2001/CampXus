@@ -138,30 +138,25 @@ async function sendToUser(userId, notification, data = {}) {
     ? pwaTokens
     : tokenObjs.map((t) => t.id);
 
+  // Build absolute link for FCM WebPush (relative links cause invalid-argument)
+  let absoluteLink;
+  try {
+    const base = process.env.PUBLIC_BASE_URL || "https://meetchuthere.com";
+    const rel = (data && data.link) || "/";
+    absoluteLink = new URL(rel, base).toString();
+  } catch (_) {
+    absoluteLink = "https://meetchuthere.com/";
+  }
+
+  const safeNotification = {
+    title: notification?.title || "",
+    body: notification?.body || "",
+  };
+
   const message = {
     tokens: chosenTokens,
-    notification: {
-      ...notification,
-      icon:
-        notification.icon || "https://meetchuthere.com/icons/icon-192x192.png",
-    },
+    notification: safeNotification,
     data,
-    android: {
-      priority: "high",
-      notification: {
-        icon: "https://meetchuthere.com/icons/icon-192x192.png",
-        color: "#8b7de8", // MeetchuThere brand purple
-      },
-    },
-    apns: {
-      headers: { "apns-priority": "10" },
-      payload: {
-        aps: {
-          sound: "default",
-          "mutable-content": 1,
-        },
-      },
-    },
     webpush: {
       headers: { Urgency: "high" },
       notification: {
@@ -170,7 +165,7 @@ async function sendToUser(userId, notification, data = {}) {
       },
       // Ensure clicks open the SPA route even when the browser autoshows notifications
       fcmOptions: {
-        link: (data && data.link) || "/",
+        link: absoluteLink,
       },
     },
   };

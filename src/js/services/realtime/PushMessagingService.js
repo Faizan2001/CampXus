@@ -271,7 +271,8 @@ class PushMessagingService {
         // and are non-PWA (legacy browser registrations). This avoids deleting legitimate browser tokens on OTHER devices.
         const sameDevice =
           deviceKey && tokenData.deviceKey && tokenData.deviceKey === deviceKey;
-        if (tokenId !== currentToken && sameDevice) {
+        // 🔧 FIX: Compare token VALUES, not document ID vs token string
+        if (tokenData.token !== currentToken && sameDevice) {
           logManager.system.info(
             `Removing duplicate token (same device): ${tokenId.substring(
               0,
