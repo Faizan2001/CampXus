@@ -113,7 +113,7 @@ export async function installPushDebugBanner() {
         const { default: app } = await import(
           "../../lib/firebase/firebase-config.js"
         );
-        const fn = httpsCallable(getFunctions(app), "sendTestPush");
+        const fn = httpsCallable(getFunctions(app, "us-central1"), "sendTestPush");
         const resp = await fn({});
         const data = resp?.data || {};
         console.log("Test push result", data);
