@@ -26,6 +26,7 @@ export async function installPushDebugBanner() {
         <span id="pd-msg" style="opacity:.9"></span>
         <span id="pd-tokens" style="opacity:.9"></span>
         <button id="pd-refresh" style="margin-left:6px;background:#6366f1;border:none;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Refresh</button>
+        <button id="pd-test" style="background:#f59e0b;border:none;color:#0b141a;padding:4px 8px;border-radius:6px;cursor:pointer">Test Push</button>
         <button id="pd-register" style="background:#10b981;border:none;color:#0b141a;padding:4px 8px;border-radius:6px;cursor:pointer">Force Register</button>
         <button id="pd-close" style="background:#e11d48;border:none;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Close</button>
       </div>
@@ -38,6 +39,7 @@ export async function installPushDebugBanner() {
       msg: el.querySelector("#pd-msg"),
       tokens: el.querySelector("#pd-tokens"),
       refresh: el.querySelector("#pd-refresh"),
+      test: el.querySelector("#pd-test"),
       register: el.querySelector("#pd-register"),
       close: el.querySelector("#pd-close"),
     };
@@ -101,6 +103,21 @@ export async function installPushDebugBanner() {
     }
 
     ui.refresh.addEventListener("click", () => render());
+    ui.test.addEventListener("click", async () => {
+      try {
+        const { getFunctions, httpsCallable } = await import(
+          "firebase/functions"
+        );
+        const { default: app } = await import(
+          "../../lib/firebase/firebase-config.js"
+        );
+        const fn = httpsCallable(getFunctions(app), "sendTestPush");
+        const resp = await fn({});
+        console.log("Test push result", resp?.data);
+      } catch (e) {
+        console.warn("Test push call failed", e);
+      }
+    });
     ui.register.addEventListener("click", async () => {
       try {
         const { pushMessagingService } = await import(
@@ -128,4 +145,3 @@ export async function installPushDebugBanner() {
 }
 
 export default installPushDebugBanner;
-

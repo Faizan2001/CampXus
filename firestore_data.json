@@ -6,51 +6,6 @@
     }
   },
   "friendRequests": {
-    "5bLWdalIiKmiW4n8fS3O": {
-      "respondedAt": null,
-      "fromUserInfo": {
-        "university": "iub",
-        "major": "ANT",
-        "handle": "samiya",
-        "avatarConfig": {
-          "style": "adventurer",
-          "seed": "1ucvlmgm1jb",
-          "options": {
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "ffdfbf,d1d4f9",
-            "glasses": "variant05",
-            "eyebrows": "variant02",
-            "mouth": "variant02",
-            "eyes": "variant10",
-            "hair": "long05"
-          }
-        }
-      },
-      "toUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
-      "status": "pending",
-      "fromUserId": "1fWg2eqBADQGu55alSbZpBd1plq1",
-      "toUserInfo": {
-        "university": "iub",
-        "handle": "faizan",
-        "major": "CSC",
-        "avatarConfig": {
-          "style": "notionists",
-          "options": {
-            "body": "variant06",
-            "backgroundType": "gradientLinear",
-            "backgroundColor": "d1d4f9,ffd5dc"
-          },
-          "seed": "y0chkk73swg"
-        }
-      },
-      "createdAt": {
-        "_type": "timestamp",
-        "_seconds": 1759330931,
-        "_nanoseconds": 669000000,
-        "_date": "2025-10-01T15:02:11.669Z"
-      },
-      "_subcollections": {}
-    },
     "OCssmZzoupJEcPQfm8e9": {
       "fromUserId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
       "status": "pending",
@@ -219,6 +174,51 @@
         "_seconds": 1758876921,
         "_nanoseconds": 512000000,
         "_date": "2025-09-26T08:55:21.512Z"
+      },
+      "_subcollections": {}
+    },
+    "s7BlTQDdwZ5xcMUumRpk": {
+      "toUserId": "feqobVVYWifSKPdpWrItOUxvmA72",
+      "fromUserId": "1fWg2eqBADQGu55alSbZpBd1plq1",
+      "respondedAt": null,
+      "toUserInfo": {
+        "university": "iub",
+        "major": "CSC",
+        "handle": "faizan",
+        "avatarConfig": {
+          "style": "notionists",
+          "seed": "y0chkk73swg",
+          "options": {
+            "backgroundType": "gradientLinear",
+            "body": "variant06",
+            "backgroundColor": "d1d4f9,ffd5dc"
+          }
+        }
+      },
+      "fromUserInfo": {
+        "university": "iub",
+        "avatarConfig": {
+          "seed": "1ucvlmgm1jb",
+          "style": "adventurer",
+          "options": {
+            "glasses": "variant05",
+            "eyebrows": "variant02",
+            "backgroundType": "gradientLinear",
+            "hair": "long05",
+            "eyes": "variant10",
+            "mouth": "variant02",
+            "backgroundColor": "ffdfbf,d1d4f9"
+          }
+        },
+        "handle": "samiya",
+        "major": "ANT"
+      },
+      "status": "pending",
+      "createdAt": {
+        "_type": "timestamp",
+        "_seconds": 1759332146,
+        "_nanoseconds": 172000000,
+        "_date": "2025-10-01T15:22:26.172Z"
       },
       "_subcollections": {}
     },
@@ -2119,37 +2119,58 @@
         },
         "lastUpdated": {
           "_type": "timestamp",
-          "_seconds": 1759330851,
-          "_nanoseconds": 730000000,
-          "_date": "2025-10-01T15:00:51.730Z"
+          "_seconds": 1759332015,
+          "_nanoseconds": 666000000,
+          "_date": "2025-10-01T15:20:15.666Z"
         },
         "lastActive": {
           "_type": "timestamp",
-          "_seconds": 1759330872,
-          "_nanoseconds": 451000000,
-          "_date": "2025-10-01T15:01:12.451Z"
+          "_seconds": 1759332306,
+          "_nanoseconds": 79000000,
+          "_date": "2025-10-01T15:25:06.079Z"
         }
       },
       "_subcollections": {
         "fcmTokens": {
+          "fJh2zYurJFfd25XZNYJCf_:APA91bFSaVSWZFATNfxCn_lhGZETRIAOo-FnbRL0p5mlGrr4XiNXlDGFH3nUFmxwqppiiKcf8ARd8pOC9yLPKXdEkjUsJUVXh_2zyiU-TypfIfTEg9t9zU0": {
+            "appVersion": null,
+            "deviceKey": "d18lqoky",
+            "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "isPWA": false,
+            "platform": "web",
+            "token": "fJh2zYurJFfd25XZNYJCf_:APA91bFSaVSWZFATNfxCn_lhGZETRIAOo-FnbRL0p5mlGrr4XiNXlDGFH3nUFmxwqppiiKcf8ARd8pOC9yLPKXdEkjUsJUVXh_2zyiU-TypfIfTEg9t9zU0",
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332047,
+              "_nanoseconds": 595000000,
+              "_date": "2025-10-01T15:20:47.595Z"
+            },
+            "updatedAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332047,
+              "_nanoseconds": 595000000,
+              "_date": "2025-10-01T15:20:47.595Z"
+            },
+            "_subcollections": {}
+          },
           "fJh2zYurJFfd25XZNYJCf_:APA91bFwSm7UX13Yht0yEeJ_89pAJbxbIaGuUxxmmxunALFf2brWHjCnFPOl4uUu4KB3EsOXDRdEc3NTklzzI5gZkk3kzQIicq1t5I0v0T2XhgrAbzZEICs": {
+            "createdAt": {
+              "_type": "timestamp",
+              "_seconds": 1759332005,
+              "_nanoseconds": 130000000,
+              "_date": "2025-10-01T15:20:05.130Z"
+            },
             "appVersion": null,
             "deviceKey": "d18lqoky",
             "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
             "isPWA": false,
             "platform": "web",
             "token": "fJh2zYurJFfd25XZNYJCf_:APA91bFwSm7UX13Yht0yEeJ_89pAJbxbIaGuUxxmmxunALFf2brWHjCnFPOl4uUu4KB3EsOXDRdEc3NTklzzI5gZkk3kzQIicq1t5I0v0T2XhgrAbzZEICs",
-            "createdAt": {
-              "_type": "timestamp",
-              "_seconds": 1759330880,
-              "_nanoseconds": 250000000,
-              "_date": "2025-10-01T15:01:20.250Z"
-            },
             "updatedAt": {
               "_type": "timestamp",
-              "_seconds": 1759330880,
-              "_nanoseconds": 250000000,
-              "_date": "2025-10-01T15:01:20.250Z"
+              "_seconds": 1759332005,
+              "_nanoseconds": 130000000,
+              "_date": "2025-10-01T15:20:05.130Z"
             },
             "_subcollections": {}
           }
@@ -2157,7 +2178,7 @@
         "meta": {
           "rateLimits": {
             "20251001": {
-              "friendRequestsSent": 4
+              "friendRequestsSent": 1
             },
             "_subcollections": {}
           }
@@ -7255,6 +7276,168 @@
           ]
         }
       },
+      "quickAccessData": {
+        "totalStarred": 7,
+        "lastUpdated": {
+          "_type": "timestamp",
+          "_seconds": 1759332291,
+          "_nanoseconds": 453000000,
+          "_date": "2025-10-01T15:24:51.453Z"
+        },
+        "starredFriends": [
+          {
+            "handle": "rabbage",
+            "friendId": "fN14DF3BOPSRgAZq20SZrIG219h2",
+            "avatarConfig": {
+              "seed": "77n4cwalvus",
+              "options": {
+                "body": "variant17",
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "d1d4f9"
+              },
+              "style": "notionists"
+            },
+            "userId": "fN14DF3BOPSRgAZq20SZrIG219h2",
+            "isRestricted": false,
+            "privacyStatus": {
+              "source": "friendship_document_change",
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "lastUpdated": "2025-10-01T15:24:52.542Z",
+              "description": "Schedule is visible - quick access enabled"
+            }
+          },
+          {
+            "friendId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+            "isRestricted": false,
+            "handle": "shamsahmad",
+            "privacyStatus": {
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "description": "@shamsahmad's schedule is visible - quick access enabled"
+            },
+            "avatarConfig": {
+              "options": {
+                "body": "variant23",
+                "backgroundType": "solid",
+                "backgroundColor": "b6e3f4"
+              },
+              "seed": "sleg565m2qd",
+              "style": "notionists"
+            },
+            "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+          },
+          {
+            "handle": "cheesewhizz",
+            "avatarConfig": {
+              "options": {
+                "hairColor": "562306",
+                "backgroundType": "solid",
+                "eyebrows": "variant01",
+                "mouth": "variant01",
+                "backgroundColor": "ffd93d",
+                "eyes": "variant07",
+                "hair": "short14"
+              },
+              "style": "adventurer",
+              "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
+            },
+            "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+            "privacyStatus": {
+              "description": "@cheesewhizz's schedule is visible - quick access enabled",
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule"
+            },
+            "isRestricted": false,
+            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
+          },
+          {
+            "handle": "saf",
+            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+            "avatarConfig": {
+              "options": {
+                "eyes": "robocop",
+                "mouth": "square01"
+              },
+              "seed": "mwpc3g9qqds",
+              "style": "bottts-neutral"
+            },
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "description": "@saf's schedule is visible - quick access enabled",
+              "tooltip": "Click to view schedule"
+            },
+            "isRestricted": false,
+            "friendId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1"
+          },
+          {
+            "handle": "mehalkhan",
+            "isRestricted": false,
+            "avatarConfig": {
+              "seed": "fmsiinvxg5n",
+              "options": {
+                "backgroundType": "gradientLinear",
+                "backgroundColor": "ffdfbf,a7ffc4",
+                "body": "variant13"
+              },
+              "style": "notionists"
+            },
+            "userId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+            "friendId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+            "privacyStatus": {
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule",
+              "description": "@mehalkhan's schedule is visible - quick access enabled"
+            }
+          },
+          {
+            "isRestricted": false,
+            "privacyStatus": {
+              "description": "@salman's schedule is visible - quick access enabled",
+              "avatarEnabled": true,
+              "tooltip": "Click to view schedule"
+            },
+            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+            "avatarConfig": {
+              "options": {
+                "backgroundColor": "ffdfbf,a7ffc4",
+                "body": "variant23",
+                "backgroundType": "gradientLinear"
+              },
+              "style": "notionists",
+              "seed": "a8xysug49uc"
+            },
+            "handle": "salman",
+            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2"
+          },
+          {
+            "handle": "serena",
+            "userId": "JYix6DOY90er8SBPT7umzigIxv43",
+            "isRestricted": false,
+            "friendId": "JYix6DOY90er8SBPT7umzigIxv43",
+            "privacyStatus": {
+              "tooltip": "Click to view schedule",
+              "avatarEnabled": true,
+              "description": "@serena's schedule is visible - quick access enabled"
+            },
+            "avatarConfig": {
+              "options": {
+                "hair": "long",
+                "backgroundColor": "ffdfbf,d1d4f9",
+                "backgroundType": "gradientLinear"
+              },
+              "seed": "ha8mlu6rbef",
+              "style": "miniavs"
+            }
+          }
+        ],
+        "lastPrivacyUpdate": {
+          "_type": "timestamp",
+          "_seconds": 1759332291,
+          "_nanoseconds": 453000000,
+          "_date": "2025-10-01T15:24:51.453Z"
+        }
+      },
       "systemInfo": {
         "createdAt": {
           "_type": "timestamp",
@@ -7294,222 +7477,60 @@
         },
         "status": "online",
         "locationSharingEnabled": true,
-        "lastKnownLocation": {
-          "campusStatus": "off_campus",
-          "coordinates": {
-            "latitude": 23.8199629,
-            "accuracy": 1755.1633074544484,
-            "longitude": 90.4467084,
-            "timestamp": "2025-10-01T13:27:15.092Z"
-          },
-          "lastUpdated": {
-            "_type": "timestamp",
-            "_seconds": 1759325236,
-            "_nanoseconds": 180000000,
-            "_date": "2025-10-01T13:27:16.180Z"
-          },
-          "detectedAt": {
-            "_type": "timestamp",
-            "_seconds": 1759325236,
-            "_nanoseconds": 180000000,
-            "_date": "2025-10-01T13:27:16.180Z"
-          }
-        },
         "lastUpdated": {
           "_type": "timestamp",
-          "_seconds": 1759330998,
-          "_nanoseconds": 126000000,
-          "_date": "2025-10-01T15:03:18.126Z"
+          "_seconds": 1759332352,
+          "_nanoseconds": 385000000,
+          "_date": "2025-10-01T15:25:52.385Z"
         },
         "lastActive": {
           "_type": "timestamp",
-          "_seconds": 1759330998,
-          "_nanoseconds": 126000000,
-          "_date": "2025-10-01T15:03:18.126Z"
-        }
-      },
-      "quickAccessData": {
-        "totalStarred": 7,
-        "lastUpdated": {
-          "_type": "timestamp",
-          "_seconds": 1759330998,
-          "_nanoseconds": 541000000,
-          "_date": "2025-10-01T15:03:18.541Z"
+          "_seconds": 1759332355,
+          "_nanoseconds": 665000000,
+          "_date": "2025-10-01T15:25:55.665Z"
         },
-        "starredFriends": [
-          {
-            "handle": "rabbage",
-            "privacyStatus": {
-              "description": "Schedule is visible - quick access enabled",
-              "avatarEnabled": true,
-              "source": "friendship_document_change",
-              "tooltip": "Click to view schedule",
-              "lastUpdated": "2025-10-01T15:03:19.610Z"
-            },
-            "userId": "fN14DF3BOPSRgAZq20SZrIG219h2",
-            "avatarConfig": {
-              "seed": "77n4cwalvus",
-              "options": {
-                "backgroundColor": "d1d4f9",
-                "backgroundType": "gradientLinear",
-                "body": "variant17"
-              },
-              "style": "notionists"
-            },
-            "friendId": "fN14DF3BOPSRgAZq20SZrIG219h2",
-            "isRestricted": false
+        "lastKnownLocation": {
+          "campusStatus": "off_campus",
+          "coordinates": {
+            "longitude": 90.42798,
+            "latitude": 23.8184853,
+            "accuracy": 16.163000106811523,
+            "timestamp": "2025-10-01T15:25:55.531Z"
           },
-          {
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "description": "@shamsahmad's schedule is visible - quick access enabled",
-              "tooltip": "Click to view schedule"
-            },
-            "handle": "shamsahmad",
-            "avatarConfig": {
-              "options": {
-                "backgroundType": "solid",
-                "body": "variant23",
-                "backgroundColor": "b6e3f4"
-              },
-              "seed": "sleg565m2qd",
-              "style": "notionists"
-            },
-            "userId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
-            "friendId": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
-            "isRestricted": false
+          "lastUpdated": {
+            "_type": "timestamp",
+            "_seconds": 1759332355,
+            "_nanoseconds": 665000000,
+            "_date": "2025-10-01T15:25:55.665Z"
           },
-          {
-            "handle": "cheesewhizz",
-            "friendId": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-            "isRestricted": false,
-            "avatarConfig": {
-              "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
-              "style": "adventurer",
-              "options": {
-                "hairColor": "562306",
-                "backgroundType": "solid",
-                "hair": "short14",
-                "backgroundColor": "ffd93d",
-                "mouth": "variant01",
-                "eyebrows": "variant01",
-                "eyes": "variant07"
-              }
-            },
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "description": "@cheesewhizz's schedule is visible - quick access enabled",
-              "tooltip": "Click to view schedule"
-            },
-            "userId": "ZYVavUhRtqg0v5LwBctS23ayaMB3"
-          },
-          {
-            "handle": "saf",
-            "privacyStatus": {
-              "avatarEnabled": true,
-              "description": "@saf's schedule is visible - quick access enabled",
-              "tooltip": "Click to view schedule"
-            },
-            "friendId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-            "userId": "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
-            "isRestricted": false,
-            "avatarConfig": {
-              "style": "bottts-neutral",
-              "options": {
-                "mouth": "square01",
-                "eyes": "robocop"
-              },
-              "seed": "mwpc3g9qqds"
-            }
-          },
-          {
-            "privacyStatus": {
-              "tooltip": "Click to view schedule",
-              "avatarEnabled": true,
-              "description": "@mehalkhan's schedule is visible - quick access enabled"
-            },
-            "userId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
-            "avatarConfig": {
-              "seed": "fmsiinvxg5n",
-              "options": {
-                "backgroundColor": "ffdfbf,a7ffc4",
-                "body": "variant13",
-                "backgroundType": "gradientLinear"
-              },
-              "style": "notionists"
-            },
-            "handle": "mehalkhan",
-            "friendId": "eW35kPbp79eKEAwFp5tNVNvYwZo1",
-            "isRestricted": false
-          },
-          {
-            "isRestricted": false,
-            "friendId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "userId": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
-            "avatarConfig": {
-              "options": {
-                "backgroundType": "gradientLinear",
-                "body": "variant23",
-                "backgroundColor": "ffdfbf,a7ffc4"
-              },
-              "style": "notionists",
-              "seed": "a8xysug49uc"
-            },
-            "privacyStatus": {
-              "description": "@salman's schedule is visible - quick access enabled",
-              "avatarEnabled": true,
-              "tooltip": "Click to view schedule"
-            },
-            "handle": "salman"
-          },
-          {
-            "userId": "JYix6DOY90er8SBPT7umzigIxv43",
-            "isRestricted": false,
-            "handle": "serena",
-            "friendId": "JYix6DOY90er8SBPT7umzigIxv43",
-            "privacyStatus": {
-              "description": "@serena's schedule is visible - quick access enabled",
-              "tooltip": "Click to view schedule",
-              "avatarEnabled": true
-            },
-            "avatarConfig": {
-              "seed": "ha8mlu6rbef",
-              "style": "miniavs",
-              "options": {
-                "hair": "long",
-                "backgroundColor": "ffdfbf,d1d4f9",
-                "backgroundType": "gradientLinear"
-              }
-            }
+          "detectedAt": {
+            "_type": "timestamp",
+            "_seconds": 1759332355,
+            "_nanoseconds": 665000000,
+            "_date": "2025-10-01T15:25:55.665Z"
           }
-        ],
-        "lastPrivacyUpdate": {
-          "_type": "timestamp",
-          "_seconds": 1759330998,
-          "_nanoseconds": 541000000,
-          "_date": "2025-10-01T15:03:18.541Z"
         }
       },
       "_subcollections": {
         "fcmTokens": {
-          "fzpXFrBJexCibphQqh_0bq:APA91bHm_K2feU4SnWchoVt_wkyP_XhtnF3b-6qkCkk1HV_RJa4uGT00SsM1OIBuBILbGIDmVFytuAAah_ioG5olOiC5F3eBuY5WZCc1bhiLSY7Xr9_7jGk": {
+          "dpgVgLfH8mCoT-q9qUs9Z3:APA91bGNO4rT0zoSkILZebd8afnIJ7Zk3XaPa5uKgpx3j7ag7A5ueOKtKE798WMaYsFsgD0nzUmKFzPp-3KBGA9b6hDYXND1PWJGOS84zBFd592RDWLgNDo": {
             "createdAt": {
               "_type": "timestamp",
-              "_seconds": 1759330991,
-              "_nanoseconds": 660000000,
-              "_date": "2025-10-01T15:03:11.660Z"
+              "_seconds": 1759332210,
+              "_nanoseconds": 139000000,
+              "_date": "2025-10-01T15:23:30.139Z"
             },
             "appVersion": null,
             "deviceKey": "d1edrppe",
             "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
             "isPWA": true,
             "platform": "android",
-            "token": "fzpXFrBJexCibphQqh_0bq:APA91bHm_K2feU4SnWchoVt_wkyP_XhtnF3b-6qkCkk1HV_RJa4uGT00SsM1OIBuBILbGIDmVFytuAAah_ioG5olOiC5F3eBuY5WZCc1bhiLSY7Xr9_7jGk",
+            "token": "dpgVgLfH8mCoT-q9qUs9Z3:APA91bGNO4rT0zoSkILZebd8afnIJ7Zk3XaPa5uKgpx3j7ag7A5ueOKtKE798WMaYsFsgD0nzUmKFzPp-3KBGA9b6hDYXND1PWJGOS84zBFd592RDWLgNDo",
             "updatedAt": {
               "_type": "timestamp",
-              "_seconds": 1759330991,
-              "_nanoseconds": 660000000,
-              "_date": "2025-10-01T15:03:11.660Z"
+              "_seconds": 1759332210,
+              "_nanoseconds": 139000000,
+              "_date": "2025-10-01T15:23:30.139Z"
             },
             "_subcollections": {}
           }

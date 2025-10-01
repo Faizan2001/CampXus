@@ -523,3 +523,26 @@ export const onUserDeleted = onDocumentDeleted(
     });
   }
 );
+
+// 8) Debug: send a test push to the authenticated user (or provided target)
+export const sendTestPush = https.onCall(async (data, context) => {
+  const caller = context.auth?.uid;
+  if (!caller) {
+    throw new https.HttpsError("unauthenticated", "Auth required");
+  }
+  const targetUserId = (data && data.userId) || caller;
+  const title = (data && data.title) || "Test Push";
+  const body = (data && data.body) || "If you see this, push works";
+  const link = (data && data.link) || "/#notifications";
+
+  try {
+    const res = await sendToUser(
+      targetUserId,
+      { title, body },
+      { link, type: "test_push" }
+    );
+    return { ok: true, details: res };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+});
