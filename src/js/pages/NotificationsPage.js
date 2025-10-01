@@ -22,6 +22,7 @@ import { escapeHTML } from "../utils/security/sanitize.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { getAvatarFallback } from "../utils/avatar/avatarUtils.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
+import { renderPushPermissionBanner } from "../components/notifications/PushPermissionBanner.js";
 import { campusLocationService } from "../services/location/CampusLocationService.js";
 import {
   realTimeManager,
@@ -180,6 +181,7 @@ export class NotificationsPage {
       const template = `
         <div class="content-grid">
           <div class="notifications-page">
+            <div id="pushPermissionBanner" class="push-permission-banner-host" aria-live="polite"></div>
             <section class="glass-card notifications-card">
               <div class="notifications-card-header">
                 <h1 class="page-title">
@@ -228,6 +230,7 @@ export class NotificationsPage {
         mainContent.innerHTML = template;
         this.baseRendered = true;
         this.setupEventHandlers();
+        try { renderPushPermissionBanner(); } catch (_) {}
         console.log("✅ NotificationsPage rendered successfully");
       } else {
         console.error("❌ Main content container not found");

@@ -206,7 +206,7 @@ async function initializeSPA() {
         authTimeoutMs
       )
     );
-    Promise.race([authManager.authReady, authTimeout])
+  Promise.race([authManager.authReady, authTimeout])
       .then(() => {
         logManager.auth.login("Authentication ready (background)!");
         // Re-run hydration now that true auth user is known (will noop if already set)
@@ -216,7 +216,7 @@ async function initializeSPA() {
         // If user is logged in, start Campus Presence services lazily now
         tryStartCampusPresenceAfterLogin();
 
-        // Initialize push messaging and prompt after login
+        // Initialize push messaging after login
         (async () => {
           try {
             const { pushMessagingService } = await import(
@@ -224,6 +224,33 @@ async function initializeSPA() {
             );
             await pushMessagingService.initAfterLogin();
             await pushMessagingService.initAndMaybePrompt();
+
+            // Subtle reminder banner on login if not granted
+            try {
+              const { notificationPermissionService } = await import(
+                "./services/realtime/NotificationPermissionService.js"
+              );
+              const { notificationManager } = await import(
+                "./services/realtime/NotificationService.js"
+              );
+              const state = notificationPermissionService.getState();
+              if (state.actionable === "promptable") {
+                notificationManager.showInfoNotification(
+                  "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
+                  { duration: 5000 }
+                );
+              } else if (state.actionable === "needs_install" && state.isIOS) {
+                notificationManager.showInfoNotification(
+                  "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
+                  { duration: 6000 }
+                );
+              } else if (state.actionable === "denied") {
+                notificationManager.showWarningNotification(
+                  "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
+                  { duration: 6000 }
+                );
+              }
+            } catch (_) {}
           } catch (e) {
             console.warn("Push messaging init failed (non-fatal)", e);
           }
