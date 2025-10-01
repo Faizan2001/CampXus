@@ -30,6 +30,7 @@ export async function installPushDebugBanner() {
         <button id="pd-register" style="background:#10b981;border:none;color:#0b141a;padding:4px 8px;border-radius:6px;cursor:pointer">Force Register</button>
         <button id="pd-close" style="background:#e11d48;border:none;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Close</button>
       </div>
+      <div id="pd-last" style="margin-top:6px;color:#cbd5e1;max-width:80ch;word-break:break-word"></div>
     `;
     document.body.appendChild(el);
 
@@ -38,6 +39,7 @@ export async function installPushDebugBanner() {
       sw: el.querySelector("#pd-sw"),
       msg: el.querySelector("#pd-msg"),
       tokens: el.querySelector("#pd-tokens"),
+      last: el.querySelector("#pd-last"),
       refresh: el.querySelector("#pd-refresh"),
       test: el.querySelector("#pd-test"),
       register: el.querySelector("#pd-register"),
@@ -113,9 +115,19 @@ export async function installPushDebugBanner() {
         );
         const fn = httpsCallable(getFunctions(app), "sendTestPush");
         const resp = await fn({});
-        console.log("Test push result", resp?.data);
+        const data = resp?.data || {};
+        console.log("Test push result", data);
+        if (ui.last) {
+          if (data.ok && data.details) {
+            const d = data.details;
+            ui.last.textContent = `last: ok, sent=${d.sent}, failed=${d.failed}, tokensSent=${d.tokensSent}, tokensConsidered=${d.tokensConsidered}, usedPwaOnly=${d.usedPwaOnly}`;
+          } else {
+            ui.last.textContent = `last: error ${data.error || "unknown"}`;
+          }
+        }
       } catch (e) {
         console.warn("Test push call failed", e);
+        if (ui.last) ui.last.textContent = `last: call failed ${e?.message || e}`;
       }
     });
     ui.register.addEventListener("click", async () => {

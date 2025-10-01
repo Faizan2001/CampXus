@@ -163,9 +163,21 @@ class PushMessagingService {
       }
 
       // Ensure we use our app SW so background notifications work
-      const registration =
-        (await navigator.serviceWorker?.getRegistration("/sw.js")) ||
-        (await navigator.serviceWorker?.ready);
+      // Ensure we have a live registration that controls this page
+      let registration = null;
+      try {
+        registration = await navigator.serviceWorker?.ready;
+      } catch (_) {}
+      if (!registration) {
+        try {
+          registration = await navigator.serviceWorker?.getRegistration();
+        } catch (_) {}
+      }
+      // As a last resort, wait briefly and retry once
+      if (!registration) {
+        await new Promise((r) => setTimeout(r, 800));
+        try { registration = await navigator.serviceWorker?.ready; } catch (_) {}
+      }
       const { getToken } = await import("firebase/messaging");
       const token = await getToken(messaging, {
         vapidKey,
