@@ -196,7 +196,7 @@ async function sendToUser(userId, notification, data = {}) {
       headers: { Urgency: "high" },
       notification: {
         icon: "https://meetchuthere.com/icons/icon-192x192.png",
-        badge: "https://meetchuthere.com/icons/icon-96x96.png", // Use M logo badge (smaller for status bar)
+        badge: "https://meetchuthere.com/icons/notification-badge-96x96.png", // White silhouette for Android status bar
         requireInteraction: false, // true ignored on Android; false better for desktop UX
         renotify: true, // Vibrate/sound on repeat notifications
         vibrate: [200, 100, 200],

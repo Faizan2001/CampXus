@@ -118,7 +118,7 @@ try {
       const notificationOptions = {
         body: payload?.data?.body || '',
         icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-96x96.png', // M logo badge for status bar
+        badge: '/icons/notification-badge-96x96.png', // White silhouette for Android status bar
         tag: 'meetchuthere-notification',
         renotify: true,
         requireInteraction: false, // Ignored on Android; false better for desktop
