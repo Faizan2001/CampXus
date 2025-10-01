@@ -21,6 +21,7 @@ export async function installPushDebugBanner() {
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <strong>Push Debug</strong>
+        <span id="pd-user" style="opacity:.9"></span>
         <span id="pd-perm" style="opacity:.9"></span>
         <span id="pd-sw" style="opacity:.9"></span>
         <span id="pd-msg" style="opacity:.9"></span>
@@ -35,6 +36,7 @@ export async function installPushDebugBanner() {
     document.body.appendChild(el);
 
     const ui = {
+      user: el.querySelector("#pd-user"),
       perm: el.querySelector("#pd-perm"),
       sw: el.querySelector("#pd-sw"),
       msg: el.querySelector("#pd-msg"),
@@ -91,6 +93,10 @@ export async function installPushDebugBanner() {
 
     async function render() {
       const s = await gatherState();
+      try {
+        const uid = currentUser?.uid || "(signed out)";
+        ui.user.textContent = `user: ${uid}`;
+      } catch (_) {}
       ui.perm.textContent = `perm: ${s.permission}`;
       ui.sw.textContent = `sw: ${s.swHasRegistration ? "reg" : "no-reg"}/${
         s.swControlled ? "ctrl" : "no-ctrl"
@@ -110,11 +116,34 @@ export async function installPushDebugBanner() {
         const { getFunctions, httpsCallable } = await import(
           "firebase/functions"
         );
-        const { default: app } = await import(
+        const { default: app, auth } = await import(
           "../../lib/firebase/firebase-config.js"
         );
         const fn = httpsCallable(getFunctions(app, "us-central1"), "sendTestPush");
-        const resp = await fn({});
+        let resp;
+        try {
+          resp = await fn({});
+        } catch (err) {
+          // Fallback: manual fetch with ID token if callable complains unauthenticated
+          const msg = (err && (err.message || err.code)) || "";
+          const unauth = /unauth|Auth required|401/.test(String(msg));
+          if (!unauth) throw err;
+          const user = auth?.currentUser;
+          if (!user) throw new Error("No auth user for test push");
+          const idToken = await user.getIdToken(/*forceRefresh*/ true);
+          const projectId = (window.ENV && window.ENV.FIREBASE_PROJECT_ID) || "";
+          const url = `https://us-central1-${projectId}.cloudfunctions.net/sendTestPush`;
+          const r = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ data: {} }),
+          });
+          const json = await r.json().catch(() => ({}));
+          resp = { data: json?.result || json };
+        }
         const data = resp?.data || {};
         console.log("Test push result", data);
         if (ui.last) {
