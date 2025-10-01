@@ -162,6 +162,56 @@ class DataManager {
   }
 
   // =========================
+  // FCM TOKEN MANAGEMENT
+  // =========================
+
+  /**
+   * Save or update an FCM token under users/{uid}/fcmTokens/{token}
+   * @param {string} userId
+   * @param {string} token
+   * @param {Object} meta
+   */
+  async saveFcmToken(userId, token, meta = {}) {
+    try {
+      if (!userId || !token) return { success: false, error: "Missing uid or token" };
+      const tokenRef = doc(db, "users", userId, "fcmTokens", token);
+      await setDoc(
+        tokenRef,
+        {
+          token,
+          platform: meta.platform || (/(iphone|ipad|ipod|ios)/i.test(navigator.userAgent) ? "ios" : (/android/i.test(navigator.userAgent) ? "android" : "web")),
+          userAgent: (typeof navigator !== "undefined" ? navigator.userAgent : "unknown"),
+          appVersion: meta.appVersion || null,
+          createdAt: meta.createdAt || serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Failed to save FCM token:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete an FCM token document users/{uid}/fcmTokens/{token}
+   * @param {string} userId
+   * @param {string} token
+   */
+  async deleteFcmToken(userId, token) {
+    try {
+      if (!userId || !token) return { success: false, error: "Missing uid or token" };
+      const tokenRef = doc(db, "users", userId, "fcmTokens", token);
+      await deleteDoc(tokenRef);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Failed to delete FCM token:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // =========================
   // NETWORK & CACHE HELPERS
   // =========================
 
@@ -819,7 +869,7 @@ class DataManager {
         throw new Error("Invalid profile data");
       }
 
-      // --- BEGIN: Auto-generate search fields and ensure socialInfo ---
+      // --- BEGIN: Auto-generate search fields and ensure socialInfo/notificationPreferences ---
       if (profileData.profile) {
         // (Removed displayName auto-generation – handle is canonical now)
         if (profileData.profile.firstName) {
@@ -845,9 +895,17 @@ class DataManager {
           // Campus Presence location fields (2025 Enhancement)
           locationPrivacyLevel: "friends_only", // "friends_only" | "nobody"
           defaultLocationSharing: false, // Default for new friendships
+          campusPresenceVisible: true,
         };
       }
-      // --- END: Auto-generate search fields and ensure socialInfo ---
+      if (!profileData.notificationPreferences) {
+        profileData.notificationPreferences = {
+          friendRequests: true,
+          locationRequests: true,
+          starredPresence: true,
+        };
+      }
+      // --- END: Auto-generate search fields and ensure socialInfo/notificationPreferences ---
 
       // 🛡️ SAFEGUARD: Clean avatar config if present (using centralized method)
       if (profileData.avatarConfig) {

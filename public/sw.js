@@ -76,3 +76,67 @@ self.addEventListener('fetch', (event) => {
   
   // If it's an icon path, fall through and let the network fetch without caching
 });
+
+// =============================
+// Firebase Cloud Messaging (Background)
+// =============================
+// Use compat SDK in the service worker for simplicity
+try {
+  // These scripts are allowed by CSP (gstatic)
+  // IMPORTANT: Keep this version in sync with package.json firebase version (11.8.1)
+  importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js');
+
+  // Minimal init for messaging (public values)
+  // Note: messagingSenderId is not secret; safe to expose in SW
+  firebase.initializeApp({
+    apiKey: 'AIzaSyC_kanIBFqxyq8LLE4CKuzH24yEfCMjFiQ',
+    appId: '1:749689064628:web:e757a95468a0a9a285dbe1',
+    projectId: 'meetchuthere-00',
+    messagingSenderId: '749689064628',
+  });
+
+  const messaging = firebase.messaging();
+
+  messaging.onBackgroundMessage((payload) => {
+    try {
+      const notificationTitle = payload?.notification?.title || 'Notification';
+      const notificationOptions = {
+        body: payload?.notification?.body || '',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
+        data: {
+          link: payload?.data?.link || '/',
+        },
+      };
+      self.registration.showNotification(notificationTitle, notificationOptions);
+    } catch (e) {
+      // swallow
+    }
+  });
+} catch (e) {
+  // Messaging may not be available in all browsers – fail silently
+}
+
+// Focus/open client on notification click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const link = (event.notification && event.notification.data && event.notification.data.link) || '/';
+  event.waitUntil((async () => {
+    const allClients = await clients.matchAll({ includeUncontrolled: true, type: 'window' });
+    const url = new URL(link, self.location.origin).href;
+    // Try to focus an open tab of our app
+    for (const client of allClients) {
+      // If the app is already open, just focus it and navigate if needed
+      if ('focus' in client) {
+        await client.focus();
+        try { client.navigate(url); } catch (_) {}
+        return;
+      }
+    }
+    // Otherwise, open a new window
+    if (clients.openWindow) {
+      return clients.openWindow(url);
+    }
+  })());
+});

@@ -15,6 +15,11 @@ firebase-debug.log
 .firebase/
 src/js/lib/firebase/env-config.js
 
+# Cloud Functions
+functions/node_modules/                   
+functions/.runtimeconfig.json           
+functions/lib/                           
+
 # OS generated files
 .DS_Store
 .DS_Store?

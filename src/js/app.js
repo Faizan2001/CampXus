@@ -215,6 +215,19 @@ async function initializeSPA() {
         } catch (_) {}
         // If user is logged in, start Campus Presence services lazily now
         tryStartCampusPresenceAfterLogin();
+
+        // Initialize push messaging and prompt after login
+        (async () => {
+          try {
+            const { pushMessagingService } = await import(
+              "./services/realtime/PushMessagingService.js"
+            );
+            await pushMessagingService.initAfterLogin();
+            await pushMessagingService.initAndMaybePrompt();
+          } catch (e) {
+            console.warn("Push messaging init failed (non-fatal)", e);
+          }
+        })();
       })
       .catch((error) => {
         console.warn(
