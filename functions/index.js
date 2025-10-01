@@ -1,6 +1,7 @@
 import { initializeApp as initAdminApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import {
   onDocumentCreated,
   onDocumentUpdated,
@@ -544,5 +545,43 @@ export const sendTestPush = https.onCall(async (data, context) => {
     return { ok: true, details: res };
   } catch (e) {
     return { ok: false, error: e?.message || String(e) };
+  }
+});
+
+// Debug HTTP variant (auth via ID token in Authorization header). CORS enabled for in-app debug only.
+export const sendTestPushHttp = https.onRequest(async (req, res) => {
+  // CORS for debug UI
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
+
+  try {
+    const authHeader = String(req.headers.authorization || "");
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.substring("Bearer ".length)
+      : null;
+    if (!token) return res.status(401).json({ ok: false, error: "unauthenticated" });
+    let decoded;
+    try {
+      decoded = await getAdminAuth().verifyIdToken(token);
+    } catch {
+      return res.status(401).json({ ok: false, error: "unauthenticated" });
+    }
+    const caller = decoded.uid;
+    const targetUserId = req.body?.userId || caller;
+    const title = req.body?.title || "Test Push";
+    const body = req.body?.body || "If you see this, push works";
+    const link = req.body?.link || "/#notifications";
+
+    const result = await sendToUser(
+      targetUserId,
+      { title, body },
+      { link, type: "test_push" }
+    );
+    return res.json({ ok: true, details: result });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
 });

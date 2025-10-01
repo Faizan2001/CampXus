@@ -132,17 +132,17 @@ export async function installPushDebugBanner() {
           if (!user) throw new Error("No auth user for test push");
           const idToken = await user.getIdToken(/*forceRefresh*/ true);
           const projectId = (window.ENV && window.ENV.FIREBASE_PROJECT_ID) || "";
-          const url = `https://us-central1-${projectId}.cloudfunctions.net/sendTestPush`;
+          const url = `https://us-central1-${projectId}.cloudfunctions.net/sendTestPushHttp`;
           const r = await fetch(url, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${idToken}`,
             },
-            body: JSON.stringify({ data: {} }),
+            body: JSON.stringify({}),
           });
           const json = await r.json().catch(() => ({}));
-          resp = { data: json?.result || json };
+          resp = { data: json };
         }
         const data = resp?.data || {};
         console.log("Test push result", data);
