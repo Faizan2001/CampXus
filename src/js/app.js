@@ -270,9 +270,9 @@ async function initializeSPA() {
   // Show environment indicator on non-production domains
   if (window.location.hostname !== 'meetchuthere.com') {
     const envBanner = document.createElement('div');
-    const envName = window.location.hostname.includes('stage') ? 'STAGING' : 'DEVELOPMENT';
-    envBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:orange;color:white;padding:5px 10px;z-index:9999;text-align:center;font-weight:bold;font-size:12px;';
-    envBanner.textContent = `🚧 ${envName} ENVIRONMENT - ${window.location.hostname}`;
+    const envName = window.location.hostname.includes('stage') ? 'STAGING' : 'DEV';
+    envBanner.style.cssText = 'position:fixed;top:8px;left:8px;background:rgba(255,152,0,0.9);color:white;padding:4px 8px;z-index:9999;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
+    envBanner.textContent = envName;
     document.body.appendChild(envBanner);
   }
 
