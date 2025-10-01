@@ -1332,7 +1332,8 @@ function setupNotificationsIndicatorListener(userId) {
       (notifications) => {
         // Show dot if there are any unseen friend/location requests
         _notifDocsHasAlert = notifications.some((n) => {
-          const isUnseen = !n.readAt && !n.dismissedAt;
+          // Check for both timestamp fields AND status field (backwards compatibility)
+          const isUnseen = !n.readAt && !n.dismissedAt && n.status !== "read" && n.status !== "dismissed";
           const isTargetType =
             n.type === "friend_request" || n.type === "location_share_request";
           return isUnseen && isTargetType;

@@ -798,14 +798,15 @@ body:not(.dark-mode) .user-dropdown {
 /* badge */
 .mobile-nav-badge {
   position: absolute;
-  top: 4px;
-  left: calc(50% + 10px); /* anchor to icon center; nudge right */
+  top: 6px;
+  right: 8px; /* Position from right edge instead of calculating from center */
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: #ff4d4d; /* same red dot as desktop */
   display: none;
   animation: badgePop 0.32s ease-out both;
+  box-shadow: 0 0 0 2px var(--bg-primary); /* Add ring to prevent blending with icon */
 }
 
 /* profile trigger + avatar in bottom nav */
