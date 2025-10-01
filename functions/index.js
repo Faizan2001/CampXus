@@ -158,6 +158,10 @@ async function sendToUser(userId, notification, data = {}) {
         icon: "https://meetchuthere.com/icons/icon-192x192.png",
         badge: "https://meetchuthere.com/icons/icon-72x72.png",
       },
+      // Ensure clicks open the SPA route even when the browser autoshows notifications
+      fcmOptions: {
+        link: (data && data.link) || "/",
+      },
     },
   };
   const resp = await messaging.sendEachForMulticast(message);
@@ -376,8 +380,10 @@ export const onUserPresenceUpdated = onDocumentUpdated(
       if (!isStarredBy(recipientUser, actorId)) continue;
 
       // Check bilateral location visibility allows recipient to see actor
+      // The locationVisibility map is keyed by the user who is sharing their location.
+      // To allow the recipient (friendId) to see the actor, the actor's flag must be true.
       const vis = friendship?.locationVisibility || {};
-      const canSee = vis[friendId] === true || vis?.[friendId] === "true"; // tolerate string boolean
+      const canSee = vis[actorId] === true || vis?.[actorId] === "true"; // tolerate string boolean
       if (!canSee) continue;
 
       // Rate limit: max 10 per day per recipient
