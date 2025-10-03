@@ -225,7 +225,7 @@ async function initializeSPA() {
             await pushMessagingService.initAfterLogin();
             await pushMessagingService.initAndMaybePrompt();
 
-            // Subtle reminder banner on login if not granted
+            // Subtle reminder banner only for logged-in users and not on landing
             try {
               const { notificationPermissionService } = await import(
                 "./services/realtime/NotificationPermissionService.js"
@@ -234,22 +234,53 @@ async function initializeSPA() {
                 "./services/realtime/NotificationService.js"
               );
               const state = notificationPermissionService.getState();
-              if (state.actionable === "promptable") {
-                notificationManager.showInfoNotification(
-                  "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
-                  { duration: 5000 }
-                );
-              } else if (state.actionable === "needs_install" && state.isIOS) {
-                notificationManager.showInfoNotification(
-                  "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
-                  { duration: 6000 }
-                );
-              } else if (state.actionable === "denied") {
-                notificationManager.showWarningNotification(
-                  "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
-                  { duration: 6000 }
-                );
+              const isLoggedInNow = currentUser.isLoggedIn() && !!authManager?.auth?.currentUser;
+              const isOnLanding = (typeof spaRouter !== "undefined" && spaRouter && spaRouter.currentPage === "landing");
+
+              if (!isLoggedInNow) {
+                // Only show to logged-in users
+                return;
               }
+
+              const showPermissionNotice = () => {
+                const freshState = notificationPermissionService.getState();
+                if (freshState.actionable === "promptable") {
+                  notificationManager.showInfoNotification(
+                    "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
+                    { duration: 5000 }
+                  );
+                } else if (freshState.actionable === "needs_install" && freshState.isIOS) {
+                  notificationManager.showInfoNotification(
+                    "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
+                    { duration: 6000 }
+                  );
+                } else if (freshState.actionable === "denied") {
+                  notificationManager.showWarningNotification(
+                    "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
+                    { duration: 6000 }
+                  );
+                }
+              };
+
+              if (isOnLanding) {
+                // Defer showing until we leave landing page
+                const once = (event) => {
+                  try {
+                    const route = event?.detail?.route || (spaRouter && spaRouter.currentPage);
+                    if (route && route !== "landing") {
+                      document.removeEventListener("spa:route:changed", once);
+                      showPermissionNotice();
+                    }
+                  } catch (_) {
+                    document.removeEventListener("spa:route:changed", once);
+                  }
+                };
+                document.addEventListener("spa:route:changed", once);
+                return;
+              }
+
+              // Not on landing; show immediately if actionable
+              showPermissionNotice();
             } catch (_) {}
           } catch (e) {
             console.warn("Push messaging init failed (non-fatal)", e);

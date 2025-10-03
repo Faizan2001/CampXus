@@ -145,14 +145,14 @@ class AuthManager {
             <div class="auth-subtitle">Join your university community</div>
           </div>
 
-          <div class="auth-tabs">
-            <button class="auth-tab active" data-tab="signin">Sign In</button>
-            <button class="auth-tab" data-tab="signup">Sign Up</button>
+          <div class="auth-tabs" role="tablist" aria-label="Authentication tabs">
+            <button class="auth-tab" data-tab="signin" role="tab" aria-selected="false" tabindex="-1">Log In</button>
+            <button class="auth-tab active" data-tab="signup" role="tab" aria-selected="true" tabindex="0">Sign Up</button>
           </div>
 
           <div class="auth-body">
             <!-- Sign In Form -->
-            <form id="signin-form" class="auth-form active">
+            <form id="signin-form" class="auth-form" role="tabpanel" aria-hidden="true">
               <div class="form-group">
                 <label class="form-label" for="signin-email">University Email</label>
                 <input 
@@ -190,7 +190,7 @@ class AuthManager {
                   <div class="dot"></div>
                   <div class="dot"></div>
                 </div>
-                <span class="button-text">Sign In</span>
+                <span class="button-text">Log In</span>
               </button>
               
               <div class="forgot-password-section">
@@ -199,23 +199,23 @@ class AuthManager {
             </form>
 
             <!-- Sign Up Form -->
-            <form id="signup-form" class="auth-form">
-              <div class="university-info" id="university-info">
-                <div class="university-name" id="university-name"></div>
-                <div class="university-domain" id="university-domain"></div>
-              </div>
-
+            <form id="signup-form" class="auth-form active" role="tabpanel" aria-hidden="false">
               <div class="form-group">
                 <label class="form-label" for="signup-email">University Email</label>
-                <input 
-                  type="email" 
-                  id="signup-email" 
+                <input
+                  type="email"
+                  id="signup-email"
                   class="form-input"
                   placeholder="yourID@university.edu.bd"
                   autocomplete="username"
                   required
                 />
                 <div class="form-error"></div>
+              </div>
+
+              <div class="university-info" id="university-info">
+                <div class="university-name" id="university-name"></div>
+                <div class="university-domain" id="university-domain"></div>
               </div>
 
               <div class="form-group">
@@ -1116,8 +1116,9 @@ class AuthManager {
 
   /**
    * Show authentication modal
+   * @param {('signin'|'signup')} [defaultTab='signup'] - Which tab to select on open
    */
-  showAuthModal() {
+  showAuthModal(defaultTab = "signup") {
     // 🎯 SAFEGUARD: Don't show auth modal if user is already logged in
     if (this.getCurrentUser()) {
       console.log("🚫 User already logged in, not showing auth modal");
@@ -1128,6 +1129,10 @@ class AuthManager {
     if (this.authModal) {
       this.authModal.style.display = "flex";
       this.authModal.classList.add("active");
+      // Ensure the intended tab is active when opening
+      try {
+        this.switchTab(defaultTab);
+      } catch (_) {}
     }
     document.body.style.overflow = "hidden";
   }
@@ -1155,12 +1160,16 @@ class AuthManager {
       if (authTabs.length > 0) {
         authTabs.forEach((tab) => {
           tab.classList.remove("active");
+          tab.setAttribute("aria-selected", "false");
+          tab.setAttribute("tabindex", "-1");
         });
       }
 
       const targetTab = document.querySelector(`[data-tab="${tabName}"]`);
       if (targetTab) {
         targetTab.classList.add("active");
+        targetTab.setAttribute("aria-selected", "true");
+        targetTab.setAttribute("tabindex", "0");
       } else {
         console.warn(
           `⚠️ AuthService: Tab button [data-tab="${tabName}"] not found`
@@ -1172,12 +1181,14 @@ class AuthManager {
       if (authForms.length > 0) {
         authForms.forEach((form) => {
           form.classList.remove("active");
+          form.setAttribute("aria-hidden", "true");
         });
       }
 
       const targetForm = document.getElementById(`${tabName}-form`);
       if (targetForm) {
         targetForm.classList.add("active");
+        targetForm.setAttribute("aria-hidden", "false");
       } else {
         console.warn(`⚠️ AuthService: Form #${tabName}-form not found`);
       }

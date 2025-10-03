@@ -16,6 +16,7 @@ import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import current
 import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
+import { profileCache } from "../cache/profileCache.js"; // 🚀 Session hint for faster initial route
 
 /**
  * Helper function to detect if fetched content is a full HTML document
@@ -440,6 +441,8 @@ class SPARouter {
       // Harden: if target requires auth and Firebase auth state isn't ready yet, gate with loader
       const requiresAuth = this.routes[route]?.requiresAuth === true;
       const hasFirebaseUser = !!authManager?.auth?.currentUser;
+      const hasSessionHint =
+        hasFirebaseUser || !!profileCache.peek() || currentUser.isLoggedIn();
       if (requiresAuth && !hasFirebaseUser) {
         // Defer handling to smart loader flow to avoid content flash
         this._suppressAuthRedirects = true;
@@ -452,7 +455,7 @@ class SPARouter {
             ) {
               await Promise.race([
                 authManager.authReady.catch(() => {}),
-                new Promise((r) => setTimeout(r, 1500)),
+                new Promise((r) => setTimeout(r, hasSessionHint ? 3500 : 1500)),
               ]);
             } else {
               await new Promise((r) => setTimeout(r, 250));
@@ -481,6 +484,8 @@ class SPARouter {
         // Hash navigation with auth hardening
         const requiresAuth = this.routes[route]?.requiresAuth === true;
         const hasFirebaseUser = !!authManager?.auth?.currentUser;
+        const hasSessionHint =
+          hasFirebaseUser || !!profileCache.peek() || currentUser.isLoggedIn();
         if (requiresAuth && !hasFirebaseUser) {
           this._suppressAuthRedirects = true;
           this.showLoading();
@@ -492,7 +497,7 @@ class SPARouter {
               ) {
                 await Promise.race([
                   authManager.authReady.catch(() => {}),
-                  new Promise((r) => setTimeout(r, 1500)),
+                  new Promise((r) => setTimeout(r, hasSessionHint ? 3500 : 1500)),
                 ]);
               } else {
                 await new Promise((r) => setTimeout(r, 250));
@@ -640,6 +645,12 @@ class SPARouter {
     const hash = window.location.hash.slice(1);
     const desiredRoute = hash && this.routes[hash] ? hash : "home";
     const desiredConfig = this.routes[desiredRoute];
+    // 🚀 Session hint: if we have a cached profile or store says logged in, prefer waiting longer vs flashing landing
+    const hasSessionHint =
+      !!authManager?.auth?.currentUser ||
+      !!profileCache.peek() ||
+      (currentUser && currentUser.isLoggedIn && currentUser.isLoggedIn());
+    const effectiveTimeout = hasSessionHint ? Math.max(timeoutMs, 3500) : timeoutMs;
 
     // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
     const firebaseUser = authManager?.auth?.currentUser;
@@ -657,7 +668,7 @@ class SPARouter {
         if (authReadyPromise && typeof authReadyPromise.then === "function") {
           await Promise.race([
             authReadyPromise.catch(() => {}),
-            new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+            new Promise((resolve) => setTimeout(resolve, effectiveTimeout)),
           ]);
         } else {
           await new Promise((resolve) => setTimeout(resolve, 250));
@@ -685,14 +696,23 @@ class SPARouter {
       if (authReadyPromise && typeof authReadyPromise.then === "function") {
         await Promise.race([
           authReadyPromise.catch(() => {}),
-          new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+          new Promise((resolve) => setTimeout(resolve, effectiveTimeout)),
         ]);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
 
       const isAuthedNow = !!authManager?.auth?.currentUser;
-      const target = isAuthedNow ? desiredRoute : "landing";
+      // If we have a session hint, prefer not flashing landing; keep waiting a bit longer
+      if (!isAuthedNow && hasSessionHint) {
+        try {
+          await Promise.race([
+            authReadyPromise?.catch?.(() => {}) || Promise.resolve(),
+            new Promise((resolve) => setTimeout(resolve, 1000)),
+          ]);
+        } catch (_) {}
+      }
+      const target = !!authManager?.auth?.currentUser ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -766,9 +786,13 @@ class SPARouter {
         authManager?.authReady
       ) {
         try {
+          const hasSessionHint =
+            !!authManager?.auth?.currentUser ||
+            !!profileCache.peek() ||
+            currentUser.isLoggedIn();
           await Promise.race([
             authManager.authReady.catch(() => {}),
-            new Promise((r) => setTimeout(r, 1000)),
+            new Promise((r) => setTimeout(r, hasSessionHint ? 2500 : 1000)),
           ]);
         } catch (_) {}
         isAuthenticated = !!authManager?.auth?.currentUser;
@@ -827,9 +851,13 @@ class SPARouter {
         authManager?.authReady
       ) {
         try {
+          const hasSessionHint =
+            !!authManager?.auth?.currentUser ||
+            !!profileCache.peek() ||
+            currentUser.isLoggedIn();
           await Promise.race([
             authManager.authReady.catch(() => {}),
-            new Promise((r) => setTimeout(r, 1000)),
+            new Promise((r) => setTimeout(r, hasSessionHint ? 2500 : 1000)),
           ]);
         } catch (_) {}
         if (authManager?.auth?.currentUser) {

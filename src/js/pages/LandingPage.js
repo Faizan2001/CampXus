@@ -97,9 +97,9 @@ class LandingPage {
         logManager.ui?.warn?.("LandingPage: Analytics tracking failed", trackError);
       }
 
-      // Trigger authentication modal
+      // Trigger authentication modal with Sign Up tab active
       if (authManager && authManager.showAuthModal) {
-        authManager.showAuthModal();
+        authManager.showAuthModal("signup");
         logManager.auth.login("LandingPage: Authentication modal opened successfully");
       } else {
         logManager.auth.error("LandingPage: authManager or showAuthModal method not available");
