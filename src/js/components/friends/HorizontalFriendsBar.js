@@ -4502,11 +4502,17 @@ export class HorizontalFriendsBar {
   sortQuickAccessFriendsForDisplay() {
     try {
       const presencePriority = (f) => {
-        // Determine effective sharing/visibility
+        // Determine effective sharing/visibility (mutual required)
         const canSee = f?.hasLocationSharing === true || f?.canSeeLocation === true;
         if (!canSee) return 2; // grey when not mutually shared
 
-        // Status-based grouping
+        // Respect the same recency rules as PresenceDot (<= 12h)
+        const d = PresenceDot.normalizeTimestamp(f?.lastActive);
+        if (!d) return 2; // missing timestamp → grey
+        const minutesAgo = Math.floor((Date.now() - d.getTime()) / (1000 * 60));
+        if (minutesAgo > 12 * 60) return 2; // stale activity → grey
+
+        // Status-based grouping (only after recency check)
         const status = f?.lastKnownLocation?.campusStatus;
         if (status === "on_campus") return 0; // green first
         if (status === "off_campus") return 1; // red second

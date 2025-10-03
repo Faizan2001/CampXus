@@ -1662,32 +1662,18 @@ export class FriendsManager {
         friends.map(async (friend) => {
           try {
             // 🌍 Campus Presence: Ensure friendshipId is available for bilateral location sharing
+            // Optimal approach: deterministically derive from UIDs (canonical doc id is sorted uid1_uid2)
             let friendshipId = friend.friendshipId;
-            if (!friendshipId) {
-              console.warn(
-                `⚠️ Missing friendshipId for @${friend.handle}, looking up...`
-              );
-              // Look up friendship document ID by friend IDs
-              const friendships = await dataManager.getUserFriendships(
-                currentUser.uid
-              );
-              const friendship = friendships.find(
-                (f) =>
-                  (f.user1Id === currentUser.uid &&
-                    f.user2Id === friend.friendId) ||
-                  (f.user2Id === currentUser.uid &&
-                    f.user1Id === friend.friendId)
-              );
-              friendshipId = friendship?.id;
-              if (friendshipId) {
-                console.log(
-                  `✅ Found friendshipId for @${friend.handle}: ${friendshipId}`
-                );
-                // Cache the friendshipId to prevent future lookups
-                friend.friendshipId = friendshipId;
-              } else {
-                console.error(
-                  `❌ Could not find friendship document for @${friend.handle}`
+            if (!friendshipId && currentUser?.uid && friend.friendId) {
+              const a = currentUser.uid;
+              const b = friend.friendId;
+              friendshipId = a < b ? `${a}_${b}` : `${b}_${a}`;
+              // Cache the derived ID for downstream consumers
+              friend.friendshipId = friendshipId;
+              // Reduce noise: log at debug level instead of warning
+              if (process.env.NODE_ENV === "development") {
+                console.debug(
+                  `🔧 Derived friendshipId for @${friend.handle}: ${friendshipId}`
                 );
               }
             }

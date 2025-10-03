@@ -1055,16 +1055,22 @@ class RealTimeManager {
   async validateFriendshipDocuments(userId, friendIds, currentFriendships) {
     this.log(`🔍 CLEANUP: Validating ${friendIds.length} friendship documents`);
 
+    // Robust validator supporting both shapes: {users: []} or {user1Id, user2Id}
+    const isBetween = (friendship, a, b) => {
+      if (Array.isArray(friendship?.users)) {
+        return friendship.users.includes(a) && friendship.users.includes(b);
+      }
+      const u1 = friendship?.user1Id;
+      const u2 = friendship?.user2Id;
+      return (u1 === a && u2 === b) || (u1 === b && u2 === a);
+    };
+
     const results = [];
 
     for (const friendId of friendIds) {
-      // Check if a friendship document exists between current user and this friend
-      const friendshipExists = currentFriendships.some(
-        (friendship) =>
-          friendship.users &&
-          friendship.users.includes(userId) &&
-          friendship.users.includes(friendId)
-      );
+      const friendshipExists = Array.isArray(currentFriendships)
+        ? currentFriendships.some((f) => isBetween(f, userId, friendId))
+        : false;
 
       if (!friendshipExists) {
         this.log(`❌ CLEANUP: No friendship document found for ${friendId}`);
