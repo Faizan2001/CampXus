@@ -3351,6 +3351,16 @@ class DataManager {
       const intentionalLogout =
         typeof sessionStorage !== "undefined" &&
         sessionStorage.getItem("intentionalLogout") === "true";
+      // NEW: If auth isn't ready yet on first load, wait briefly instead of returning a skipped result
+      if (!intentionalLogout && !auth.currentUser) {
+        try {
+          // Small wait to let Firebase auth settle on first app open
+          await currentUser.waitForUid(1500);
+        } catch (_) {
+          /* non-fatal */
+        }
+      }
+
       if (intentionalLogout || !auth.currentUser) {
         return {
           starredFriends: [],

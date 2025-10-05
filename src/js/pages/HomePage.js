@@ -6624,8 +6624,43 @@ async function initializeHorizontalFriendsBar() {
             initializeHorizontalFriendsBar();
           }
         });
+        state.isFriendsBarInitializing = false;
         return;
       }
+    }
+
+    // NEW: Ensure Firebase auth is ready to avoid empty Quick Access on first load
+    try {
+      const uid = await currentUser.waitForUid(5000);
+      const hasFirebaseUser = !!(authManager?.auth && authManager.auth.currentUser);
+      if (!uid || !hasFirebaseUser) {
+        console.warn(
+          "⏱️ UID or Firebase auth not ready; deferring HorizontalFriendsBar init"
+        );
+        // Re-attempt after auth state settles
+        const once = (cb) => {
+          let done = false;
+          return (user) => {
+            if (done) return;
+            if (user) {
+              done = true;
+              try { cb(); } catch (_) {}
+            }
+          };
+        };
+        try {
+          authManager.onAuthStateChanged(
+            once(() => initializeHorizontalFriendsBar())
+          );
+        } catch (_) {
+          // Fallback: small timeout retry
+          setTimeout(() => initializeHorizontalFriendsBar(), 600);
+        }
+        state.isFriendsBarInitializing = false;
+        return;
+      }
+    } catch (_) {
+      // Non-fatal; proceed – DataService has its own guards
     }
 
     console.log("🚀 Creating new HorizontalFriendsBar instance...");
