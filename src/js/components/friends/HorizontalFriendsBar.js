@@ -3059,10 +3059,8 @@ export class HorizontalFriendsBar {
         );
       } else {
         const userDocRef = doc(db, "users", currentUserProfile.uid);
+        // Privacy-only: do not overwrite starredFriends; record metadata only
         await updateDoc(userDocRef, {
-          "quickAccessData.starredFriends": cleanFriendsData,
-          "quickAccessData.lastUpdated": serverTimestamp(),
-          // Add flag to identify this as a privacy-only update
           "quickAccessData.lastPrivacyUpdate": serverTimestamp(),
         });
         this.lastPrivacySyncHash = newHash;
@@ -3209,8 +3207,8 @@ export class HorizontalFriendsBar {
       });
 
       const userDocRef = doc(db, "users", currentUserProfile.uid);
+      // Batched sync should not overwrite starredFriends outside manual actions
       await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": cleanFriendsData,
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
 
@@ -3503,8 +3501,8 @@ export class HorizontalFriendsBar {
         });
 
         const userDocRef = doc(db, "users", currentUserProfile.uid);
+        // Urgent sync should not overwrite starredFriends; only update metadata timestamp
         await updateDoc(userDocRef, {
-          "quickAccessData.starredFriends": cleanFriendsData,
           "quickAccessData.lastUpdated": serverTimestamp(),
         });
 

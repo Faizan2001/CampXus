@@ -923,6 +923,14 @@ class RealTimeManager {
         return;
       }
 
+      // Mobile startup guard: skip until friendships are loaded to avoid false removals
+      if (!Array.isArray(currentFriendships) || currentFriendships.length === 0) {
+        this.log(
+          "ℹ️ CLEANUP: Skipping bilateral cleanup – no friendships loaded yet"
+        );
+        return;
+      }
+
       // Get current Quick Access friends
       const quickAccessData = await dataManager.getQuickAccessFriends(userId);
       if (quickAccessData?.skipped) {
