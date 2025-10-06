@@ -409,15 +409,25 @@ class RealTimeManager {
         async (friendships) => {
           this.log(`🤝 Friendships update: ${friendships.length} friends`);
 
-          // Always trigger bilateral cleanup when friendships change
-          // This ensures starred friends are cleaned up even when FriendsService isn't listening
+          // Only trigger bilateral cleanup when we have a reliable snapshot
+          // Skip if this is a mobile cached snapshot to avoid transient partial data
+          const isMobileCachedSnapshot = Array.isArray(friendships)
+            ? friendships.some((f) => f?._mobileMetadata?.fromCache === true)
+            : false;
+
           try {
             const intentionalLogout =
               typeof sessionStorage !== "undefined" &&
               sessionStorage.getItem("intentionalLogout") === "true";
             if (!intentionalLogout) {
-              this.log(`🧹 Triggering bilateral cleanup for ${userId}`);
-              await this.performBilateralCleanup(userId, friendships);
+              if (isMobileCachedSnapshot) {
+                this.log(
+                  `ℹ️ CLEANUP: Skipping bilateral cleanup for cached mobile snapshot`
+                );
+              } else {
+                this.log(`🧹 Triggering bilateral cleanup for ${userId}`);
+                await this.performBilateralCleanup(userId, friendships);
+              }
             } else if (this.debugMode) {
               this.log(
                 `ℹ️ Skipping bilateral cleanup (intentional logout in progress)`
@@ -949,6 +959,18 @@ class RealTimeManager {
       const quickAccessFriends = quickAccessData.starredFriends || [];
       if (quickAccessFriends.length === 0) {
         this.log(`🔍 No Quick Access friends to validate for ${userId}`);
+        return;
+      }
+
+      // If friendships snapshot is smaller than the number of starred friends,
+      // it's likely a partial load; skip cleanup to avoid false removals.
+      if (
+        Array.isArray(currentFriendships) &&
+        currentFriendships.length < quickAccessFriends.length
+      ) {
+        this.log(
+          `ℹ️ CLEANUP: Skipping – friendships (${currentFriendships.length}) < starred friends (${quickAccessFriends.length})`
+        );
         return;
       }
 

@@ -848,6 +848,21 @@ function tryRegisterServiceWorker() {
   if (!isSecure) return;
   navigator.serviceWorker
     .register('/sw.js')
-    .then(() => logManager.system.init('Service worker registered'))
+    .then((reg) => {
+      logManager.system.init('Service worker registered');
+      // Proactively check for updates to avoid stale PWA code causing data issues
+      try { reg.update(); } catch (_) {}
+      // Periodically re-check in the background
+      try { setInterval(() => { try { reg.update(); } catch (_) {} }, 15 * 60 * 1000); } catch (_) {}
+      // Optional: auto-reload when a new SW takes control (safe for SPA shell updates)
+      try {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // Prevent infinite reload loops
+          if (window.__swReloadedOnce) return;
+          window.__swReloadedOnce = true;
+          try { window.location.reload(); } catch (_) {}
+        });
+      } catch (_) {}
+    })
     .catch((e) => console.warn('SW registration failed (non-fatal):', e));
 }

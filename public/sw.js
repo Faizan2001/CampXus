@@ -4,7 +4,8 @@
   - Uses stale-while-revalidate for static assets
 */
 
-const CACHE_NAME = 'meetchuthere-shell-v3';
+// Bump cache version to force clients to fetch latest app code in PWAs
+const CACHE_NAME = 'meetchuthere-shell-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
