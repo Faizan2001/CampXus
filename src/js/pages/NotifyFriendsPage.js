@@ -18,6 +18,20 @@ export class NotifyFriendsPage {
     this.currentPingId = null; // last sent batch id
   }
 
+  async fetchFriendMinimal(userId) {
+    try {
+      if (!userId) return null;
+      const info = await dataManager.getUserProfileMinimal(userId);
+      if (!info) return null;
+      return {
+        handle: info.handle || "friend",
+        avatarConfig: info.avatarConfig || null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   async init() {
     try {
       const main = document.querySelector(".notify-overlay");
@@ -240,9 +254,20 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
 
       const res = await dataManager.createAvailabilityPings(uid, recipients, fromUserInfo, pingId);
       if (res?.success) {
-        // Update cooldowns (TEMP: 1 minute for testing)
+        // Update cooldowns only for friends who actually received a new ping
         const exp = Date.now() + 15 * 60 * 1000;
-        recipients.forEach((id) => this.cooldowns.set(id, exp));
+        const skipped = Array.isArray(res.skipped) ? new Set(res.skipped) : new Set();
+        let created = 0;
+        recipients.forEach((id) => {
+          if (!skipped.has(id)) {
+            this.cooldowns.set(id, exp);
+            created++;
+          }
+        });
+        // If any were skipped due to existing cooldown, reload cooldowns to avoid UI drift
+        if (skipped.size > 0) {
+          try { await this.loadCooldowns(); } catch (_) {}
+        }
         this.selected.clear();
         this.renderStarred();
         this.updateControls();

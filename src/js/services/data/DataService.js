@@ -4216,12 +4216,20 @@ class DataManager {
       }
 
       const now = Date.now();
-      // TEMP: shorten cooldown to 1 minute for testing
       const expiresAtDate = new Date(now + 15 * 60 * 1000);
       const batchPromises = [];
+      const skipped = [];
       const notificationsRef = collection(db, "notifications");
 
       for (const toUserId of recipientIds) {
+        // Guard: skip if an active ping already exists (enforces 15m cooldown client-side)
+        try {
+          const hasActive = await this.hasActiveAvailabilityPing(fromUserId, toUserId);
+          if (hasActive) {
+            skipped.push(toUserId);
+            continue;
+          }
+        } catch (_) {}
         const data = {
           userId: toUserId,
           fromUserId,
@@ -4240,7 +4248,7 @@ class DataManager {
       }
 
       await Promise.all(batchPromises);
-      return { success: true };
+      return { success: true, createdCount: batchPromises.length, skipped };
     } catch (error) {
       console.error("❌ Error creating availability pings:", error);
       return { success: false, error: error.message };

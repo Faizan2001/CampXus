@@ -583,13 +583,8 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
       logger.error("Failed creating availability_response notification", { senderId, respondentId, err: String(e) });
     }
 
-    // Delete the original availability_ping to prevent bloat
-    try {
-      await db.collection("notifications").doc(id).delete();
-      logger.info("Deleted availability_ping after response", { id });
-    } catch (e) {
-      logger.warn("Could not delete availability_ping after response", { id, err: String(e) });
-    }
+    // Do not delete the original availability_ping; keep until expiresAt so
+    // sender cooldown remains enforced across devices/sessions.
   }
 );
 
