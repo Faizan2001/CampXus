@@ -119,7 +119,14 @@ async function initializeSPA() {
     const path = (window.location.pathname || "/").replace(/\/+$/, "");
     const hasHash = !!window.location.hash;
     const routeFromPath = path.split("/").filter(Boolean).shift() || "";
-    const known = new Set(["home", "friends", "notifications", "about", "profile", "landing"]);
+    const known = new Set([
+      "home",
+      "friends",
+      "notifications",
+      "about",
+      "profile",
+      "landing",
+    ]);
     if (!hasHash && known.has(routeFromPath) && routeFromPath !== "landing") {
       const newHash = `#${routeFromPath}`;
       history.replaceState({}, "", `/${newHash}`);
@@ -206,7 +213,7 @@ async function initializeSPA() {
         authTimeoutMs
       )
     );
-  Promise.race([authManager.authReady, authTimeout])
+    Promise.race([authManager.authReady, authTimeout])
       .then(() => {
         logManager.auth.login("Authentication ready (background)!");
         // Re-run hydration now that true auth user is known (will noop if already set)
@@ -234,8 +241,12 @@ async function initializeSPA() {
                 "./services/realtime/NotificationService.js"
               );
               const state = notificationPermissionService.getState();
-              const isLoggedInNow = currentUser.isLoggedIn() && !!authManager?.auth?.currentUser;
-              const isOnLanding = (typeof spaRouter !== "undefined" && spaRouter && spaRouter.currentPage === "landing");
+              const isLoggedInNow =
+                currentUser.isLoggedIn() && !!authManager?.auth?.currentUser;
+              const isOnLanding =
+                typeof spaRouter !== "undefined" &&
+                spaRouter &&
+                spaRouter.currentPage === "landing";
 
               if (!isLoggedInNow) {
                 // Only show to logged-in users
@@ -249,7 +260,10 @@ async function initializeSPA() {
                     "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
                     { duration: 5000 }
                   );
-                } else if (freshState.actionable === "needs_install" && freshState.isIOS) {
+                } else if (
+                  freshState.actionable === "needs_install" &&
+                  freshState.isIOS
+                ) {
                   notificationManager.showInfoNotification(
                     "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
                     { duration: 6000 }
@@ -266,7 +280,9 @@ async function initializeSPA() {
                 // Defer showing until we leave landing page
                 const once = (event) => {
                   try {
-                    const route = event?.detail?.route || (spaRouter && spaRouter.currentPage);
+                    const route =
+                      event?.detail?.route ||
+                      (spaRouter && spaRouter.currentPage);
                     if (route && route !== "landing") {
                       document.removeEventListener("spa:route:changed", once);
                       showPermissionNotice();
@@ -326,10 +342,13 @@ async function initializeSPA() {
   logManager.system.init("SPA Initialization completed");
 
   // Show environment indicator on non-production domains
-  if (window.location.hostname !== 'meetchuthere.com') {
-    const envBanner = document.createElement('div');
-    const envName = window.location.hostname.includes('stage') ? 'STAGING' : 'DEV';
-    envBanner.style.cssText = 'position:fixed;top:8px;left:8px;background:rgba(255,152,0,0.9);color:white;padding:4px 8px;z-index:9999;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
+  if (window.location.hostname !== "meetchuthere.com") {
+    const envBanner = document.createElement("div");
+    const envName = window.location.hostname.includes("stage")
+      ? "STAGING"
+      : "DEV";
+    envBanner.style.cssText =
+      "position:fixed;top:8px;left:8px;background:rgba(255,152,0,0.9);color:white;padding:4px 8px;z-index:9999;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);";
     envBanner.textContent = envName;
     document.body.appendChild(envBanner);
   }
@@ -370,6 +389,10 @@ async function initializeSPA() {
 
   // No debug gesture in production
 }
+
+// ===== TEMP DEBUG (ultra-wide collapse) =====
+// Logs container widths and route when viewport >= 1854px
+// Ultra-wide debug removed per request
 
 // Initialize when DOM is ready, or immediately if already ready
 if (document.readyState === "loading") {
@@ -812,21 +835,21 @@ export { initializeCampusPresenceInBackground, fetchFreshLocationForPresence };
 function syncMetaThemeColorToNav() {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) return;
-  const nav = document.querySelector('.top-nav');
+  const nav = document.querySelector(".top-nav");
   if (!nav) return;
   const cs = getComputedStyle(nav);
-  const bg = cs.backgroundColor || 'rgb(21, 24, 32)';
+  const bg = cs.backgroundColor || "rgb(21, 24, 32)";
   // Convert rgba to opaque rgb for theme-color (browsers ignore alpha)
   const rgba = bg.match(/rgba?\(([^)]+)\)/i);
   if (rgba) {
-    const parts = rgba[1].split(',').map((s) => s.trim());
+    const parts = rgba[1].split(",").map((s) => s.trim());
     const r = parseInt(parts[0], 10) || 21;
     const g = parseInt(parts[1], 10) || 24;
     const b = parseInt(parts[2], 10) || 32;
     const hex = `#${[r, g, b]
-      .map((n) => n.toString(16).padStart(2, '0'))
-      .join('')}`;
-    meta.setAttribute('content', hex);
+      .map((n) => n.toString(16).padStart(2, "0"))
+      .join("")}`;
+    meta.setAttribute("content", hex);
   }
 }
 
@@ -835,34 +858,48 @@ function syncMetaThemeColorToNav() {
  * Only runs on HTTPS or localhost.
  */
 function tryRegisterServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+  if (!("serviceWorker" in navigator)) return;
   // Allow service worker in development for testing push notifications
   // Can be disabled via localStorage.setItem('disableDevSW', 'true')
   const isProduction = import.meta.env && import.meta.env.PROD;
-  const devSWDisabled = !isProduction && localStorage.getItem('disableDevSW') === 'true';
+  const devSWDisabled =
+    !isProduction && localStorage.getItem("disableDevSW") === "true";
   if (devSWDisabled) {
-    console.info('Service worker disabled in dev mode (localStorage.disableDevSW)');
+    console.info(
+      "Service worker disabled in dev mode (localStorage.disableDevSW)"
+    );
     return;
   }
-  const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+  const isSecure =
+    location.protocol === "https:" || location.hostname === "localhost";
   if (!isSecure) return;
   navigator.serviceWorker
-    .register('/sw.js')
+    .register("/sw.js")
     .then((reg) => {
-      logManager.system.init('Service worker registered');
+      logManager.system.init("Service worker registered");
       // Proactively check for updates to avoid stale PWA code causing data issues
-      try { reg.update(); } catch (_) {}
+      try {
+        reg.update();
+      } catch (_) {}
       // Periodically re-check in the background
-      try { setInterval(() => { try { reg.update(); } catch (_) {} }, 15 * 60 * 1000); } catch (_) {}
+      try {
+        setInterval(() => {
+          try {
+            reg.update();
+          } catch (_) {}
+        }, 15 * 60 * 1000);
+      } catch (_) {}
       // Optional: auto-reload when a new SW takes control (safe for SPA shell updates)
       try {
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
           // Prevent infinite reload loops
           if (window.__swReloadedOnce) return;
           window.__swReloadedOnce = true;
-          try { window.location.reload(); } catch (_) {}
+          try {
+            window.location.reload();
+          } catch (_) {}
         });
       } catch (_) {}
     })
-    .catch((e) => console.warn('SW registration failed (non-fatal):', e));
+    .catch((e) => console.warn("SW registration failed (non-fatal):", e));
 }

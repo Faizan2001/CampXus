@@ -89,6 +89,16 @@ class SPARouter {
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
         indexable: false,
       },
+      notify: {
+        title: "Notify Friends - MeetchuThere",
+        template: "/templates/notify.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/notify.css"],
+        jsImporters: [() => import("/src/js/pages/NotifyFriendsPage.js")],
+        description:
+          "Ask your starred friends if they're free and see responses",
+        requiresAuth: true,
+        indexable: false,
+      },
       about: {
         title: "About - MeetchuThere",
         template: "/templates/about.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
@@ -893,6 +903,19 @@ class SPARouter {
           lastActiveError
         );
       }
+    }
+    // Special-case: open Notify overlay without route reload
+    if (route === "notify") {
+      try {
+        const mod = await import("../pages/NotifyFriendsPage.js");
+        if (mod && typeof mod.openNotifyOverlay === "function") {
+          await mod.openNotifyOverlay();
+        }
+      } catch (e) {
+        console.warn("⚠️ Failed to open notify overlay via route:", e);
+      }
+      this._pendingRoute = null;
+      return;
     }
 
     try {

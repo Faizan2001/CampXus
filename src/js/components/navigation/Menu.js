@@ -37,6 +37,9 @@ let activeNotifUid = null; // Prevent re-initializing listeners on unrelated use
 // Unified indicator state (avoid reading DOM which caused stale badges)
 let _notifDocsHasAlert = false; // any unseen notifications of target types
 let _pendingFriendHasAlert = false; // any pending friend requests
+// Notify indicator vars predeclared to avoid TDZ
+let notifyRespUnsub = null;
+let _notifyHasAlert = false;
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
@@ -78,6 +81,9 @@ function initializeInteractiveElements() {
 
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
+
+  // Initialize notify-friends button and indicator
+  initializeNotifyFriendsEntry();
 
   // Set initial auth body class to avoid flash for authenticated users on load
   try {
@@ -1330,12 +1336,15 @@ function setupNotificationsIndicatorListener(userId) {
     notificationsUnsub = dataManager.setupNotificationsListener(
       userId,
       (notifications) => {
-        // Show dot if there are any unseen friend/location requests
+        // Show dot if there are any unseen friend/location/availability pings
         _notifDocsHasAlert = notifications.some((n) => {
           // Check for both timestamp fields AND status field (backwards compatibility)
           const isUnseen = !n.readAt && !n.dismissedAt && n.status !== "read" && n.status !== "dismissed";
-          const isTargetType =
-            n.type === "friend_request" || n.type === "location_share_request";
+          const isTargetType = (
+            n.type === "friend_request" ||
+            n.type === "location_share_request" ||
+            n.type === "availability_ping"
+          );
           return isUnseen && isTargetType;
         });
         recomputeNotificationsDot();
@@ -1390,4 +1399,96 @@ function toggleNotificationsDot(show) {
 
 function recomputeNotificationsDot() {
   toggleNotificationsDot(_notifDocsHasAlert || _pendingFriendHasAlert);
+}
+
+// =========================
+// Notify Friends Entry + Indicator
+// =========================
+
+function initializeNotifyFriendsEntry() {
+  try {
+    const btn = document.getElementById("notifyFriendsBtn");
+    if (btn) {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          const mod = await import("../../pages/NotifyFriendsPage.js");
+          if (typeof mod.openNotifyOverlay === "function") {
+            await mod.openNotifyOverlay();
+            try { sessionStorage.setItem("notify:lastClearTs", String(Date.now())); } catch (_) {}
+            setNotifyDot(false);
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to open Notify overlay:", err);
+        }
+      });
+    }
+
+    // Show/hide by auth state
+    if (currentUser && typeof currentUser.subscribe === "function") {
+      currentUser.subscribe(({ isLoggedIn }) => {
+        const b = document.getElementById("notifyFriendsBtn");
+        if (!b) return;
+        b.style.display = isLoggedIn ? "inline-flex" : "none";
+        if (!isLoggedIn) setNotifyDot(false);
+      });
+    }
+
+    // Setup indicator
+    setupNotifyFriendsIndicator();
+
+    // Clear dot when overlay opens via custom event
+    document.addEventListener("notify:overlay:open", () => {
+      try { sessionStorage.setItem("notify:lastClearTs", String(Date.now())); } catch (_) {}
+      setNotifyDot(false);
+    });
+  } catch (e) {
+    console.warn("⚠️ Failed to initialize Notify Friends entry:", e);
+  }
+}
+
+function setupNotifyFriendsIndicator() {
+  try {
+    // Cleanup previous
+    if (notifyRespUnsub) {
+      try { notifyRespUnsub(); } catch (_) {}
+      notifyRespUnsub = null;
+    }
+
+    // Listen for responded availability pings sent BY me in the last 30 minutes
+    if (currentUser && typeof currentUser.subscribe === "function") {
+      currentUser.subscribe(({ isLoggedIn }) => {
+        if (!isLoggedIn || !currentUser.uid) {
+          if (notifyRespUnsub) { try { notifyRespUnsub(); } catch (_) {} notifyRespUnsub = null; }
+          setNotifyDot(false);
+          return;
+        }
+        const uid = currentUser.uid;
+        // Use DataService to set up a lightweight listener
+        try {
+          if (notifyRespUnsub) { try { notifyRespUnsub(); } catch (_) {} }
+          notifyRespUnsub = dataManager.setupAvailabilityResponsesListener(
+            uid,
+            (hasUnseen) => {
+              _notifyHasAlert = !!hasUnseen;
+              setNotifyDot(_notifyHasAlert);
+            }
+          );
+        } catch (err) {
+          console.warn("⚠️ Could not start Notify indicator listener", err);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to set notify indicator:", e);
+  }
+}
+
+function setNotifyDot(show) {
+  const btn = document.getElementById("notifyFriendsBtn");
+  if (!btn) return;
+  const dot = btn.querySelector(".nav-dot");
+  if (!dot) return;
+  dot.style.display = show ? "inline-block" : "none";
 }

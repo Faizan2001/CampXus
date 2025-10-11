@@ -50,7 +50,10 @@
   /* Respect safe area insets for notched devices */
   padding-top: max(0.1rem, env(safe-area-inset-top, 0px));
   padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
-  padding-right: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-right, 0px));
+  padding-right: max(
+    clamp(0.75rem, 2vw, 1rem),
+    env(safe-area-inset-right, 0px)
+  );
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -62,7 +65,9 @@
 }
 
 /* Ensure fully opaque nav background in PWA standalone mode */
-@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+@media (display-mode: standalone),
+  (display-mode: fullscreen),
+  (display-mode: minimal-ui) {
   .top-nav {
     /* Use a solid color so OS status/gesture bars match exactly */
     background: var(--nav-solid-bg);
@@ -121,7 +126,9 @@
   }
 }
 /* Force hide in installed PWA contexts (Android/iOS standalone modes) */
-@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+@media (display-mode: standalone),
+  (display-mode: fullscreen),
+  (display-mode: minimal-ui) {
   #installPwaBtn {
     display: none !important;
   }
@@ -1461,10 +1468,17 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     max-width: none;
     width: 100%;
     margin: 0;
+    /* Ensure main content can expand properly */
+    height: auto;
+    max-height: none;
+    min-height: var(--main-content-available-height);
   }
   .content-grid {
     max-width: 1400px !important;
     gap: 0.5rem !important;
+    /* Ensure content grid fills available space */
+    height: auto;
+    min-height: 0;
   }
   .schedule-column {
     width: 100% !important;
@@ -1472,8 +1486,11 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .schedule-section {
     order: unset !important;
-    height: 100%;
-    max-height: calc(100dvh - 4rem);
+    height: auto;
+    min-height: 600px;
+    max-height: calc(
+      100dvh - 12rem
+    ); /* Increased to account for nav + padding */
   }
   .glass-card {
     padding: 2rem;

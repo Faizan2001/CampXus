@@ -4199,6 +4199,173 @@ class DataManager {
   }
 
   /**
+   * Create availability ping notifications for multiple recipients (per friend cooldown respected by caller)
+   * @param {string} fromUserId
+   * @param {Array<string>} recipientIds
+   * @param {Object} fromUserInfo - cached sender info (handle, avatarConfig)
+   * @param {string} pingId - session id to group this batch
+   */
+  async createAvailabilityPings(fromUserId, recipientIds = [], fromUserInfo = {}, pingId) {
+    try {
+      if (!fromUserId || !Array.isArray(recipientIds) || recipientIds.length === 0)
+        return { success: false, error: "Missing sender or recipients" };
+
+      if (!navigator.onLine) {
+        this.showNotification("You are offline", "warning");
+        return { success: false, error: "offline" };
+      }
+
+      const now = Date.now();
+      // TEMP: shorten cooldown to 1 minute for testing
+      const expiresAtDate = new Date(now + 15 * 60 * 1000);
+      const batchPromises = [];
+      const notificationsRef = collection(db, "notifications");
+
+      for (const toUserId of recipientIds) {
+        const data = {
+          userId: toUserId,
+          fromUserId,
+          type: "availability_ping",
+          status: "pending",
+          expiresAt: expiresAtDate,
+          fromUserInfo: fromUserInfo || {},
+          availabilityPing: { pingId: pingId || `ping_${now}` },
+        };
+        batchPromises.push(
+          addDoc(notificationsRef, {
+            ...data,
+            createdAt: serverTimestamp(),
+          })
+        );
+      }
+
+      await Promise.all(batchPromises);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error creating availability pings:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Build a map of friendId -> expiresAt for active availability pings sent by a user
+   */
+  async getActiveAvailabilityPingMap(fromUserId) {
+    try {
+      if (!fromUserId) return new Map();
+      const q = query(
+        collection(db, "notifications"),
+        where("fromUserId", "==", fromUserId),
+        where("type", "==", "availability_ping")
+      );
+      const snap = await getDocs(q);
+      const map = new Map();
+      const now = Date.now();
+      snap.forEach((d) => {
+        const data = d.data();
+        const exp = data?.expiresAt?.toDate?.()?.getTime?.() || new Date(data?.expiresAt || 0).getTime();
+        if (exp && exp > now) {
+          const toUserId = data?.userId;
+          if (toUserId) {
+            map.set(toUserId, exp);
+          }
+        }
+      });
+      return map;
+    } catch (e) {
+      console.warn("⚠️ getActiveAvailabilityPingMap failed:", e);
+      return new Map();
+    }
+  }
+
+  /**
+   * Check active cooldown for a specific recipient (per-friend 30m)
+   */
+  async hasActiveAvailabilityPing(fromUserId, toUserId) {
+    try {
+      if (!fromUserId || !toUserId) return false;
+      const q = query(
+        collection(db, "notifications"),
+        where("fromUserId", "==", fromUserId),
+        where("type", "==", "availability_ping"),
+        where("userId", "==", toUserId)
+      );
+      const snap = await getDocs(q);
+      const now = Date.now();
+      for (const d of snap.docs) {
+        const data = d.data();
+        const exp = data?.expiresAt?.toDate?.()?.getTime?.() || new Date(data?.expiresAt || 0).getTime();
+        if (exp && exp > now) return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn("⚠️ hasActiveAvailabilityPing failed:", e);
+      return false;
+    }
+  }
+
+  /**
+   * Recipient response: set response to 'available' or 'busy', mark respondedAt
+   */
+  async respondToAvailabilityPing(notificationId, response) {
+    try {
+      if (!notificationId || !response) return { success: false, error: "invalid" };
+      const allowed = response === "available" || response === "busy";
+      if (!allowed) return { success: false, error: "invalid_response" };
+      const ref = doc(db, "notifications", notificationId);
+      await updateDoc(ref, {
+        response,
+        status: "responded",
+        respondedAt: serverTimestamp(),
+      });
+      return { success: true };
+    } catch (e) {
+      console.error("❌ respondToAvailabilityPing failed:", e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Lightweight listener to compute whether there are unseen responses for availability pings
+   * Calls callback(true|false)
+   */
+  setupAvailabilityResponsesListener(userId, callback) {
+    try {
+      if (!userId) return () => {};
+      // Listen for response notifications addressed TO the current user
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", userId),
+        where("type", "==", "availability_response")
+      );
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          let has = false;
+          let lastClear = 0;
+          try {
+            lastClear = parseInt(sessionStorage.getItem("notify:lastClearTs") || "0", 10) || 0;
+          } catch (_) {}
+          snap.docs.forEach((d) => {
+            if (has) return;
+            const data = d.data();
+            const createdAt = data?.createdAt?.toDate?.()?.getTime?.() || 0;
+            const resp = data?.response;
+            if ((resp === "available" || resp === "busy") && createdAt && createdAt > lastClear) {
+              has = true;
+            }
+          });
+          try { callback(!!has); } catch (cbErr) { console.warn(cbErr); }
+        },
+        (err) => console.warn("⚠️ Availability responses listener error", err)
+      );
+      return unsub;
+    } catch (e) {
+      console.warn("⚠️ setupAvailabilityResponsesListener failed:", e);
+      return () => {};
+    }
+  }
+  /**
    * Check if there is an existing pending outgoing location share request
    * from a sender to a recipient (friend) for a specific friendship.
    * This prevents duplicate spammy notifications.
@@ -4275,12 +4442,8 @@ class DataManager {
       querySnapshot.forEach((doc) => {
         const data = doc.data();
 
-        // Filter out expired notifications
+        // Filter out expired notifications (client does not delete)
         if (data.expiresAt && data.expiresAt.toDate() < now) {
-          // Auto-cleanup expired notification (fire-and-forget)
-          this.deleteNotification(doc.id).catch((err) =>
-            console.warn("⚠️ Failed to auto-cleanup expired notification:", err)
-          );
           return;
         }
 
@@ -4546,13 +4709,6 @@ class DataManager {
 
             // Filter out expired notifications
             if (data.expiresAt && data.expiresAt.toDate() < now) {
-              // Auto-cleanup expired notification (fire-and-forget)
-              this.deleteNotification(doc.id).catch((err) =>
-                console.warn(
-                  "⚠️ Failed to auto-cleanup expired notification:",
-                  err
-                )
-              );
               return;
             }
 
