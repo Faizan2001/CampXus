@@ -118,11 +118,17 @@
 
 /* Install PWA button: hidden by default, shown on narrow mobile widths */
 #installPwaBtn {
-  display: none; /* JS will also control when eligible */
+  display: none !important; /* JS will also control when eligible */
 }
 @media (max-width: 480px) {
   #installPwaBtn {
-    display: inline-flex; /* only appears on mobile widths */
+    display: inline-flex !important; /* only appears on mobile widths */
+  }
+}
+/* Explicitly hide on desktop and larger screens */
+@media (min-width: 481px) {
+  #installPwaBtn {
+    display: none !important;
   }
 }
 /* Force hide in installed PWA contexts (Android/iOS standalone modes) */
@@ -259,6 +265,7 @@ body:not(.dark-mode) .nav-link {
   color: var(--accent-secondary);
   background: transparent;
 }
+
 .nav-link.active:hover,
 .nav-link[aria-current="page"]:hover {
   transform: translateY(-2px);
@@ -1209,6 +1216,25 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     font-size: 0.8rem !important;
     font-weight: 500 !important;
   }
+
+  /* Hide notify button text on mobile - icon only */
+  #notifyFriendsBtn .nav-text {
+    display: none !important;
+  }
+
+  /* Larger icon and proper touch target for notify button on mobile */
+  #notifyFriendsBtn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0.625rem;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #notifyFriendsBtn i {
+    font-size: 1.4rem;
+  }
+
   .nav-link {
     padding: 0.25rem;
     min-width: 44px;

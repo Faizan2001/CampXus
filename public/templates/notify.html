@@ -41,7 +41,16 @@
       </div>
     </section>
 
-    <section class="notify-segment">
+    <!-- Sticky send button right after starred friends -->
+    <div class="notify-send-button">
+      <button id="notifySendBtn" class="send-button" disabled>
+        <i class="fas fa-paper-plane"></i>
+        <span>Send Notification</span>
+      </button>
+    </div>
+
+    <!-- Response sections below (read-only, informational) -->
+    <section class="notify-segment notify-responses">
       <div class="segment-header">
         <h3 class="segment-title">Available</h3>
       </div>
@@ -55,7 +64,7 @@
       </div>
     </section>
 
-    <section class="notify-segment">
+    <section class="notify-segment notify-responses">
       <div class="segment-header">
         <h3 class="segment-title">Busy</h3>
       </div>
@@ -64,13 +73,6 @@
         <p>No responses yet</p>
       </div>
     </section>
-
-    <!-- Sticky send button at bottom -->
-    <div class="notify-send-button">
-      <button id="notifySendBtn" class="send-button" disabled>
-        <i class="fas fa-paper-plane"></i>
-        <span>Send Notification</span>
-      </button>
-    </div>
   </div>
 </div>
+

@@ -1412,6 +1412,23 @@ function initializeNotifyFriendsEntry() {
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Check if overlay is already open
+        const existingOverlay = document.querySelector(".notify-overlay");
+        if (existingOverlay) {
+          // Close the overlay if it's already open
+          try {
+            const mod = await import("../../pages/NotifyFriendsPage.js");
+            if (mod.notifyFriendsPage && typeof mod.notifyFriendsPage.closeOverlay === "function") {
+              mod.notifyFriendsPage.closeOverlay();
+            }
+          } catch (err) {
+            console.warn("⚠️ Failed to close Notify overlay:", err);
+          }
+          return;
+        }
+        
+        // Open the overlay if it's not open
         try {
           const mod = await import("../../pages/NotifyFriendsPage.js");
           if (typeof mod.openNotifyOverlay === "function") {

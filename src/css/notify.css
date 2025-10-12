@@ -50,6 +50,22 @@
   display: none;
 }
 
+/* ===== CLOSING ANIMATIONS ===== */
+.notify-overlay.closing .notify-backdrop {
+  animation: backdropOut 200ms ease-out both;
+}
+
+.notify-overlay.closing .notify-container {
+  animation: modalFadeIn 250ms cubic-bezier(0.16, 1, 0.3, 1) reverse both;
+}
+
+/* Mobile closing animation */
+@media (max-width: 480px) {
+  .notify-overlay.closing .notify-container {
+    animation: sheetOut 250ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+}
+
 /* ===== HEADER ===== */
 .notify-header {
   display: flex;
@@ -101,6 +117,21 @@
   padding: 1rem 1.5rem;
 }
 
+/* Starred friends segment - less bottom padding since button follows */
+.notify-segment:first-of-type {
+  padding-bottom: 0.5rem;
+}
+
+/* Response sections (Available/Busy) - visual separator */
+.notify-segment.notify-responses {
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+}
+
+.notify-segment.notify-responses:first-of-type {
+  margin-top: 0.5rem;
+}
+
 .segment-header {
   display: flex;
   align-items: center;
@@ -121,6 +152,13 @@
   letter-spacing: 0.05em;
 }
 
+/* Response sections have lighter, more subtle titles */
+.notify-responses .segment-title {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
 .segment-actions {
   display: flex;
   align-items: center;
@@ -132,10 +170,13 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--text-secondary);
-  padding: 0.375rem 0.625rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.625rem;
+  border: 1px solid var(--border);
+  background: transparent;
   transition: all 0.2s ease;
   user-select: none;
 }
@@ -143,6 +184,17 @@
 .select-all:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
+}
+
+/* Selected state - purple accent background */
+.select-all:has(input[type="checkbox"]:checked) {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.select-all:active {
+  transform: scale(0.98);
 }
 
 .select-all input[type="checkbox"] {
@@ -177,30 +229,40 @@
   gap: 0.5rem;
 
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Ensure consistent sizing */
-  min-height: 110px;
+  /* Ensure consistent sizing - FIXED dimensions */
+  width: 84px;
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
   box-sizing: border-box;
+
+  /* Prevent text selection on tap */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.notify-overlay .friend-card:hover,
-.notify-container .friend-card:hover {
+/* Unselected state - neutral, no accent colors */
+.notify-overlay .friend-card:hover:not(.selected):not(.disabled),
+.notify-container .friend-card:hover:not(.selected):not(.disabled) {
   background: var(--surface-hover);
-  border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--shadow);
+  border-color: var(--border-hover, var(--border));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
-.notify-overlay .friend-card:active,
-.notify-container .friend-card:active {
-  transform: translateY(0);
+.notify-overlay .friend-card:active:not(.disabled),
+.notify-container .friend-card:active:not(.disabled) {
+  transform: scale(0.98);
 }
 
 .notify-overlay .friend-card.disabled,
 .notify-container .friend-card.disabled {
   opacity: 0.5;
   pointer-events: none;
+  cursor: not-allowed;
 }
 
 .notify-overlay .friend-avatar,
@@ -209,13 +271,15 @@
   height: 56px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--border);
-  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--depth-surface);
   flex-shrink: 0;
 
-  /* Ensure avatar stays in place */
-  display: block;
+  /* Ensure avatar stays in place and fits properly */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
 }
 
@@ -224,6 +288,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -232,28 +297,35 @@
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   text-align: center;
   width: 100%;
+  max-width: 76px; /* Ensure it fits within card width minus padding */
 
-  /* Ensure name is below */
-  display: block;
+  /* Allow up to 2 lines with ellipsis on overflow */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  
+  /* Ensure consistent height for layout */
+  min-height: 2em;
+  line-height: 1;
+  
   margin: 0;
   padding: 0;
 }
 
+/* Hide checkbox visually but keep for accessibility */
 .notify-overlay .friend-select,
 .notify-container .friend-select {
   position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--accent-primary);
-  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
 }
 
 .notify-overlay .friend-badge,
@@ -288,19 +360,32 @@
   border-color: var(--error);
 }
 
-/* Selected state */
+/* Selected state - purple accent */
 .notify-overlay .friend-card.selected,
 .notify-container .friend-card.selected {
-  background: var(--surface-active);
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface));
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px var(--surface-active);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  transform: scale(1.02);
+}
+
+.notify-overlay .friend-card.selected:hover,
+.notify-container .friend-card.selected:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface));
+  transform: scale(1.02) translateY(-1px);
 }
 
 .notify-overlay .friend-card.selected .friend-avatar,
 .notify-container .friend-card.selected .friend-avatar {
-  /* No avatar ring when selected; only card highlight */
-  border-color: var(--border);
-  box-shadow: none;
+  border-color: var(--accent-primary);
+  border-width: 2px;
+}
+
+.notify-overlay .friend-card.selected .friend-name,
+.notify-container .friend-card.selected .friend-name {
+  color: var(--accent-primary);
+  font-weight: 600;
 }
 
 .notify-overlay .friend-card:focus-within,
@@ -320,8 +405,9 @@
 /* ===== SEND BUTTON ===== */
 .notify-send-button {
   padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border);
+  padding-bottom: 0.75rem; /* Less bottom padding since responses follow */
   background: var(--depth-surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .send-button {
@@ -397,6 +483,20 @@
     );
     border-radius: 1.5rem 1.5rem 0 0;
     animation: sheetIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    
+    /* Enable vertical scrolling */
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    
+    /* Hide scrollbar */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  /* Hide scrollbar for Chrome/Safari/Opera */
+  .notify-container::-webkit-scrollbar {
+    display: none;
   }
 
   .notify-grabber {
@@ -411,6 +511,44 @@
 
   .notify-header {
     padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Mobile segment styling */
+  .notify-segment {
+    padding: 1rem 1.5rem;
+  }
+
+  /* Starred friends segment - no bottom padding, send button is part of it */
+  .notify-segment:first-of-type {
+    padding-bottom: 0;
+  }
+
+  /* Send button - integrated with starred friends segment */
+  .notify-send-button {
+    padding: 0.5rem 1.5rem 1rem 1.5rem; /* 8px top, 16px bottom */
+    background: var(--depth-surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Response sections - clear visual separation */
+  .notify-segment.notify-responses {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  /* Empty state on mobile - less padding */
+  .notify-segment.notify-responses .segment-empty {
+    padding: 1rem 0;
+  }
+
+  /* Adjust segment header spacing for mobile */
+  .segment-header {
+    margin-bottom: 0.75rem;
+  }
+
+  .segment-title {
+    font-size: 0.8125rem;
   }
 
   .friend-avatar {
@@ -418,14 +556,48 @@
     height: 56px;
   }
 
+  /* Convert grids to horizontal scrollable lists on mobile */
   .notify-overlay .friends-grid,
   .notify-container .friends-grid {
-    grid-template-columns: repeat(4, 1fr);
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+    scroll-behavior: smooth;
+    padding: 0.75rem 0; /* More vertical breathing room */
+    /* Hide scrollbar but keep functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
   }
 
-  /* Ensure send button doesn't get cut off */
-  .notify-send-button {
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  /* Hide scrollbar for Chrome/Safari/Opera */
+  .notify-overlay .friends-grid::-webkit-scrollbar,
+  .notify-container .friends-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Friend cards in horizontal scroll */
+  .notify-overlay .friend-card,
+  .notify-container .friend-card {
+    flex-shrink: 0;
+    width: 84px;
+    scroll-snap-align: start;
+  }
+
+  /* First card padding for alignment */
+  .notify-overlay .friends-grid > .friend-card:first-child,
+  .notify-container .friends-grid > .friend-card:first-child {
+    margin-left: 0.25rem;
+  }
+
+  /* Last card padding for proper scroll end */
+  .notify-overlay .friends-grid > .friend-card:last-child,
+  .notify-container .friends-grid > .friend-card:last-child {
+    margin-right: 0.25rem;
   }
 }
 
@@ -457,12 +629,32 @@
   }
 }
 
+@keyframes sheetOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
 @keyframes backdropIn {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes backdropOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

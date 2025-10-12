@@ -60,6 +60,7 @@ export class NotifyFriendsPage {
     const selectAll = document.getElementById("notifySelectAll");
     const sendBtn = document.getElementById("notifySendBtn");
     const container = document.getElementById("notifyContainer");
+    const notifyBtn = document.getElementById("notifyFriendsBtn");
 
     const close = () => {
       try { this.closeOverlay(); } catch (_) {}
@@ -78,6 +79,11 @@ export class NotifyFriendsPage {
       }
       this.renderStarred();
       this.updateControls();
+      // Update label text
+      const label = selectAll.parentElement?.querySelector("span");
+      if (label) {
+        label.textContent = selectAll.checked ? "Unselect all" : "Select all";
+      }
     });
 
     sendBtn?.addEventListener("click", () => this.handleSend());
@@ -144,7 +150,14 @@ export class NotifyFriendsPage {
     if (!grid) return;
     grid.innerHTML = "";
 
-    this.starred.forEach((f) => {
+    // Sort starred friends alphabetically by handle (A-Z)
+    const sortedStarred = [...this.starred].sort((a, b) => {
+      const handleA = (a.handle || '').toLowerCase();
+      const handleB = (b.handle || '').toLowerCase();
+      return handleA.localeCompare(handleB);
+    });
+
+    sortedStarred.forEach((f) => {
       const id = f.friendId;
       const disabled = this.isOnCooldown(id);
       const card = document.createElement("div");
@@ -180,6 +193,7 @@ export class NotifyFriendsPage {
       const name = document.createElement("div");
       name.className = "friend-name";
       name.textContent = f.handle || "friend";
+      name.title = f.handle || "friend"; // Show full name on hover
 
       card.appendChild(chk);
       card.appendChild(avatar);
@@ -348,6 +362,7 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
       const name = document.createElement("div");
       name.className = "friend-name";
       name.textContent = info.handle || "friend";
+      name.title = info.handle || "friend"; // Show full name on hover
       const badge = document.createElement("div");
       badge.className = `friend-badge ${isAvailable ? "green" : "red"}`;
       badge.textContent = isAvailable ? "Available" : "Busy";
@@ -399,7 +414,17 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
   closeOverlay() {
     try {
       const root = document.querySelector(".notify-overlay");
-      if (root && root.parentNode) root.parentNode.removeChild(root);
+      if (root && root.parentNode) {
+        // Add closing class for animation
+        root.classList.add("closing");
+        
+        // Wait for animation to complete before removing
+        setTimeout(() => {
+          if (root.parentNode) {
+            root.parentNode.removeChild(root);
+          }
+        }, 250); // Match animation duration
+      }
     } catch (_) {}
     this.cleanup();
   }
