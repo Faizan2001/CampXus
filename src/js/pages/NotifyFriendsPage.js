@@ -47,10 +47,14 @@ export class NotifyFriendsPage {
 
       this.isInitialized = true;
       // Mark responses seen (clear dot)
-      try { sessionStorage.setItem("notify:lastClearTs", String(Date.now())); } catch (_) {}
+      try {
+        sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
+      } catch (_) {}
     } catch (e) {
       console.error("NotifyFriendsPage init error", e);
-      notificationManager.showErrorNotification("Failed to open Notify overlay");
+      notificationManager.showErrorNotification(
+        "Failed to open Notify overlay"
+      );
     }
   }
 
@@ -63,7 +67,9 @@ export class NotifyFriendsPage {
     const notifyBtn = document.getElementById("notifyFriendsBtn");
 
     const close = () => {
-      try { this.closeOverlay(); } catch (_) {}
+      try {
+        this.closeOverlay();
+      } catch (_) {}
     };
     closeBtn?.addEventListener("click", close);
     backdrop?.addEventListener("click", close);
@@ -89,14 +95,21 @@ export class NotifyFriendsPage {
     sendBtn?.addEventListener("click", () => this.handleSend());
 
     // Accessibility: focus close button on open and close on ESC
-    try { closeBtn?.focus({ preventScroll: true }); } catch (_) {}
-    document.addEventListener("keydown", this._escHandler = (e) => {
-      if (e.key === "Escape") close();
-    });
+    try {
+      closeBtn?.focus({ preventScroll: true });
+    } catch (_) {}
+    document.addEventListener(
+      "keydown",
+      (this._escHandler = (e) => {
+        if (e.key === "Escape") close();
+      })
+    );
 
     // Mobile swipe-to-dismiss
     let startY = null;
-    container?.addEventListener("pointerdown", (e) => { startY = e.clientY; });
+    container?.addEventListener("pointerdown", (e) => {
+      startY = e.clientY;
+    });
     container?.addEventListener("pointerup", (e) => {
       if (startY !== null && e.clientY - startY > 60) close();
       startY = null;
@@ -115,7 +128,11 @@ export class NotifyFriendsPage {
     }));
     this.starred.forEach((f) => {
       const id = f.friendId;
-      if (id) this.friendInfo.set(id, { handle: f.handle, avatarConfig: f.avatarConfig });
+      if (id)
+        this.friendInfo.set(id, {
+          handle: f.handle,
+          avatarConfig: f.avatarConfig,
+        });
     });
     const empty = document.getElementById("notifyStarredEmpty");
     const grid = document.getElementById("notifyStarredGrid");
@@ -152,8 +169,8 @@ export class NotifyFriendsPage {
 
     // Sort starred friends alphabetically by handle (A-Z)
     const sortedStarred = [...this.starred].sort((a, b) => {
-      const handleA = (a.handle || '').toLowerCase();
-      const handleB = (b.handle || '').toLowerCase();
+      const handleA = (a.handle || "").toLowerCase();
+      const handleB = (b.handle || "").toLowerCase();
       return handleA.localeCompare(handleB);
     });
 
@@ -162,7 +179,9 @@ export class NotifyFriendsPage {
       const disabled = this.isOnCooldown(id);
       const card = document.createElement("div");
       const isSelected = this.selected.has(id);
-      card.className = `friend-card${disabled ? " disabled" : ""}${isSelected ? " selected" : ""}`;
+      card.className = `notify-friend-card${disabled ? " disabled" : ""}${
+        isSelected ? " selected" : ""
+      }`;
       card.dataset.friendId = id;
       card.setAttribute("role", "checkbox");
       card.setAttribute("aria-checked", String(isSelected));
@@ -183,7 +202,11 @@ export class NotifyFriendsPage {
       const avatar = document.createElement("div");
       avatar.className = "friend-avatar";
       const cfg = f.avatarConfig;
-      if (cfg && avatarManager && typeof avatarManager.generateAvatarUrl === "function") {
+      if (
+        cfg &&
+        avatarManager &&
+        typeof avatarManager.generateAvatarUrl === "function"
+      ) {
         const url = avatarManager.generateAvatarUrl(cfg);
         avatar.innerHTML = `<img src="${url}" alt="@${f.handle}" style="width:100%;height:100%;object-fit:cover;"/>`;
       } else {
@@ -203,8 +226,11 @@ export class NotifyFriendsPage {
         const exp = this.cooldowns.get(id);
         const badge = document.createElement("div");
         badge.className = "friend-badge";
-        badge.title = 'Can notify again in ' + this.formatCooldown(exp);
-badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(exp));
+        badge.title = "Can notify again in " + this.formatCooldown(exp);
+        badge.setAttribute(
+          "aria-label",
+          "Can notify again in " + this.formatCooldown(exp)
+        );
         badge.textContent = this.formatCooldown(exp);
         card.appendChild(badge);
       }
@@ -217,7 +243,8 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
         card.addEventListener("click", (e) => {
           if (e.target === chk) return;
           const newVal = !this.selected.has(id);
-          if (newVal) this.selected.add(id); else this.selected.delete(id);
+          if (newVal) this.selected.add(id);
+          else this.selected.delete(id);
           chk.checked = newVal;
           card.classList.toggle("selected", newVal);
           card.setAttribute("aria-checked", String(newVal));
@@ -227,7 +254,8 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             const newVal = !this.selected.has(id);
-            if (newVal) this.selected.add(id); else this.selected.delete(id);
+            if (newVal) this.selected.add(id);
+            else this.selected.delete(id);
             chk.checked = newVal;
             card.classList.toggle("selected", newVal);
             card.setAttribute("aria-checked", String(newVal));
@@ -241,9 +269,13 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
   updateControls() {
     const sendBtn = document.getElementById("notifySendBtn");
     const selectAll = document.getElementById("notifySelectAll");
-    const totalSelectable = this.starred.filter((f) => !this.isOnCooldown(f.friendId)).length;
+    const totalSelectable = this.starred.filter(
+      (f) => !this.isOnCooldown(f.friendId)
+    ).length;
     if (selectAll) selectAll.disabled = totalSelectable === 0;
-    if (sendBtn) sendBtn.disabled = this.selected.size === 0 || totalSelectable === 0 || !navigator.onLine;
+    if (sendBtn)
+      sendBtn.disabled =
+        this.selected.size === 0 || totalSelectable === 0 || !navigator.onLine;
   }
 
   async handleSend() {
@@ -260,17 +292,25 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
 
       const fromUserInfo = {
         handle: profile?.profile?.handle || profile?.handle || "user",
-        avatarConfig: profile?.avatarConfig || profile?.profile?.avatarConfig || null,
+        avatarConfig:
+          profile?.avatarConfig || profile?.profile?.avatarConfig || null,
       };
 
       const pingId = `ping_${Date.now()}`;
       this.currentPingId = pingId;
 
-      const res = await dataManager.createAvailabilityPings(uid, recipients, fromUserInfo, pingId);
+      const res = await dataManager.createAvailabilityPings(
+        uid,
+        recipients,
+        fromUserInfo,
+        pingId
+      );
       if (res?.success) {
         // Update cooldowns only for friends who actually received a new ping
         const exp = Date.now() + 15 * 60 * 1000;
-        const skipped = Array.isArray(res.skipped) ? new Set(res.skipped) : new Set();
+        const skipped = Array.isArray(res.skipped)
+          ? new Set(res.skipped)
+          : new Set();
         let created = 0;
         recipients.forEach((id) => {
           if (!skipped.has(id)) {
@@ -280,7 +320,9 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
         });
         // If any were skipped due to existing cooldown, reload cooldowns to avoid UI drift
         if (skipped.size > 0) {
-          try { await this.loadCooldowns(); } catch (_) {}
+          try {
+            await this.loadCooldowns();
+          } catch (_) {}
         }
         this.selected.clear();
         this.renderStarred();
@@ -299,36 +341,46 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
     try {
       const uid = currentUser?.uid;
       if (!uid) return;
-      if (this.unsub) { try { this.unsub(); } catch (_) {} }
+      if (this.unsub) {
+        try {
+          this.unsub();
+        } catch (_) {}
+      }
       // Listen for availability responses addressed TO me (sender)
       const qRef = query(
         collection(db, "notifications"),
         where("userId", "==", uid),
         where("type", "==", "availability_response")
       );
-      this.unsub = onSnapshot(qRef, async (snap) => {
-        this.responses.available.clear();
-        this.responses.busy.clear();
-        const now = Date.now();
-        for (const d of snap.docs) {
-          const data = d.data();
-          const exp = data?.expiresAt?.toDate?.()?.getTime?.() || new Date(data?.expiresAt || 0).getTime();
-          if (!exp || exp <= now) continue;
-          const resp = (data?.response || "").toLowerCase();
-          const responderId = data?.fromUserId;
-          if (!responderId) continue;
-          if (resp === "available") this.responses.available.add(responderId);
-          else if (resp === "busy") this.responses.busy.add(responderId);
-          // Cache friend info if missing
-          if (responderId && !this.friendInfo.has(responderId)) {
-            try {
-              const minimal = await this.fetchFriendMinimal(responderId);
-              if (minimal) this.friendInfo.set(responderId, minimal);
-            } catch (_) {}
+      this.unsub = onSnapshot(
+        qRef,
+        async (snap) => {
+          this.responses.available.clear();
+          this.responses.busy.clear();
+          const now = Date.now();
+          for (const d of snap.docs) {
+            const data = d.data();
+            const exp =
+              data?.expiresAt?.toDate?.()?.getTime?.() ||
+              new Date(data?.expiresAt || 0).getTime();
+            if (!exp || exp <= now) continue;
+            const resp = (data?.response || "").toLowerCase();
+            const responderId = data?.fromUserId;
+            if (!responderId) continue;
+            if (resp === "available") this.responses.available.add(responderId);
+            else if (resp === "busy") this.responses.busy.add(responderId);
+            // Cache friend info if missing
+            if (responderId && !this.friendInfo.has(responderId)) {
+              try {
+                const minimal = await this.fetchFriendMinimal(responderId);
+                if (minimal) this.friendInfo.set(responderId, minimal);
+              } catch (_) {}
+            }
           }
-        }
-        this.renderResponses();
-      }, (err) => console.warn("Notify responses listener error", err));
+          this.renderResponses();
+        },
+        (err) => console.warn("Notify responses listener error", err)
+      );
     } catch (e) {
       console.warn("setupRealtimeResponses error", e);
     }
@@ -347,13 +399,20 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
     empty.style.display = "none";
     grid.style.display = "grid";
     ids.forEach((id) => {
-      const info = this.friendInfo.get(id) || { handle: "friend", avatarConfig: null };
+      const info = this.friendInfo.get(id) || {
+        handle: "friend",
+        avatarConfig: null,
+      };
       const card = document.createElement("div");
-      card.className = "friend-card";
+      card.className = "notify-friend-card";
       const avatar = document.createElement("div");
       avatar.className = "friend-avatar";
       const cfg = info.avatarConfig;
-      if (cfg && avatarManager && typeof avatarManager.generateAvatarUrl === "function") {
+      if (
+        cfg &&
+        avatarManager &&
+        typeof avatarManager.generateAvatarUrl === "function"
+      ) {
         const url = avatarManager.generateAvatarUrl(cfg);
         avatar.innerHTML = `<img src="${url}" alt="@${info.handle}" style="width:100%;height:100%;object-fit:cover;"/>`;
       } else {
@@ -389,7 +448,10 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
   }
 
   startTicker() {
-    if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = null; }
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
     this.tickTimer = setInterval(() => {
       let changed = false;
       this.starred.forEach((f) => {
@@ -400,13 +462,17 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
   }
 
   cleanup() {
-    try { if (this.unsub) this.unsub(); } catch (_) {}
+    try {
+      if (this.unsub) this.unsub();
+    } catch (_) {}
     this.unsub = null;
     if (this.tickTimer) clearInterval(this.tickTimer);
     this.tickTimer = null;
     this.isInitialized = false;
     if (this._escHandler) {
-      try { document.removeEventListener("keydown", this._escHandler); } catch (_) {}
+      try {
+        document.removeEventListener("keydown", this._escHandler);
+      } catch (_) {}
       this._escHandler = null;
     }
   }
@@ -417,7 +483,7 @@ badge.setAttribute('aria-label', 'Can notify again in ' + this.formatCooldown(ex
       if (root && root.parentNode) {
         // Add closing class for animation
         root.classList.add("closing");
-        
+
         // Wait for animation to complete before removing
         setTimeout(() => {
           if (root.parentNode) {
@@ -440,11 +506,11 @@ export async function openNotifyOverlay() {
   }
   try {
     // Ensure CSS is loaded on demand (avoid global import collisions)
-    const CSS_ID = 'notify-css';
+    const CSS_ID = "notify-css";
     if (!document.getElementById(CSS_ID)) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = '/src/css/notify.css';
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "/src/css/notify.css";
       link.id = CSS_ID;
       document.head.appendChild(link);
     }

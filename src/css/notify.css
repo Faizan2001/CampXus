@@ -206,33 +206,38 @@
 .notify-overlay .friends-grid,
 .notify-container .friends-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 0.75rem;
 }
 
-/* ===== FRIEND CARD ===== */
-/* Use specific selector to override friends-page.css */
-.notify-overlay .friend-card,
-.notify-container .friend-card {
+/* ===== NOTIFY FRIEND CARD ===== */
+/* Unique naming to avoid conflicts with friends-page.css */
+.notify-overlay .notify-friend-card,
+.notify-container .notify-friend-card {
   position: relative;
   padding: 0.75rem 0.5rem;
 
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  /* Glassmorphism styling */
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
   /* Vertical layout with name below avatar - CRITICAL */
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 0.5rem;
+  gap: 0;
 
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Ensure consistent sizing - FIXED dimensions */
-  width: 84px;
+  width: 96px;
   height: 120px;
   min-height: 120px;
   max-height: 120px;
@@ -245,21 +250,22 @@
 }
 
 /* Unselected state - neutral, no accent colors */
-.notify-overlay .friend-card:hover:not(.selected):not(.disabled),
-.notify-container .friend-card:hover:not(.selected):not(.disabled) {
-  background: var(--surface-hover);
-  border-color: var(--border-hover, var(--border));
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px var(--shadow);
+.notify-overlay .notify-friend-card:hover:not(.selected):not(.disabled),
+.notify-container .notify-friend-card:hover:not(.selected):not(.disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-.notify-overlay .friend-card:active:not(.disabled),
-.notify-container .friend-card:active:not(.disabled) {
+.notify-overlay .notify-friend-card:active:not(.disabled),
+.notify-container .notify-friend-card:active:not(.disabled) {
   transform: scale(0.98);
 }
 
-.notify-overlay .friend-card.disabled,
-.notify-container .friend-card.disabled {
+.notify-overlay .notify-friend-card.disabled,
+.notify-container .notify-friend-card.disabled {
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;
@@ -267,13 +273,17 @@
 
 .notify-overlay .friend-avatar,
 .notify-container .friend-avatar {
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid transparent;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  background: var(--depth-surface);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 
   /* Ensure avatar stays in place and fits properly */
@@ -299,7 +309,7 @@
   color: var(--text-primary);
   text-align: center;
   width: 100%;
-  max-width: 76px; /* Ensure it fits within card width minus padding */
+  max-width: 88px; /* Ensure it fits within card width minus padding */
 
   /* Allow up to 2 lines with ellipsis on overflow */
   display: -webkit-box;
@@ -309,12 +319,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
-  
+
   /* Ensure consistent height for layout */
   min-height: 2em;
   line-height: 1;
-  
-  margin: 0;
+
+  margin: 0.5rem 0 0 0; /* Only top margin for spacing from avatar */
   padding: 0;
 }
 
@@ -360,36 +370,53 @@
   border-color: var(--error);
 }
 
-/* Selected state - purple accent */
-.notify-overlay .friend-card.selected,
-.notify-container .friend-card.selected {
-  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface));
-  border-color: var(--accent-primary);
-  border-width: 2px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  transform: scale(1.02);
+/* Selected state - purple accent glassmorphism */
+.notify-overlay .notify-friend-card.selected,
+.notify-container .notify-friend-card.selected {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15),
+    rgba(168, 85, 247, 0.1)
+  ) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1.5px solid rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15),
+              0 8px 24px rgba(139, 92, 246, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.02) !important;
 }
 
-.notify-overlay .friend-card.selected:hover,
-.notify-container .friend-card.selected:hover {
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface));
-  transform: scale(1.02) translateY(-1px);
+.notify-overlay .notify-friend-card.selected:hover,
+.notify-container .notify-friend-card.selected:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.2),
+    rgba(168, 85, 247, 0.15)
+  ) !important;
+  border-color: rgba(139, 92, 246, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2),
+              0 12px 32px rgba(139, 92, 246, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  transform: scale(1.02) translateY(-2px) !important;
 }
 
-.notify-overlay .friend-card.selected .friend-avatar,
-.notify-container .friend-card.selected .friend-avatar {
-  border-color: var(--accent-primary);
-  border-width: 2px;
+.notify-overlay .notify-friend-card.selected .friend-avatar,
+.notify-container .notify-friend-card.selected .friend-avatar {
+  border-color: var(--accent-primary) !important;
+  border-width: 2.5px !important;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.3) !important;
 }
 
-.notify-overlay .friend-card.selected .friend-name,
-.notify-container .friend-card.selected .friend-name {
-  color: var(--accent-primary);
-  font-weight: 600;
+.notify-overlay .notify-friend-card.selected .friend-name,
+.notify-container .notify-friend-card.selected .friend-name {
+  color: var(--accent-primary) !important;
+  font-weight: 600 !important;
+  text-shadow: 0 0 12px rgba(139, 92, 246, 0.3) !important;
 }
 
-.notify-overlay .friend-card:focus-within,
-.notify-container .friend-card:focus-within {
+.notify-overlay .notify-friend-card:focus-within,
+.notify-container .notify-friend-card:focus-within {
   outline: none;
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
@@ -483,12 +510,12 @@
     );
     border-radius: 1.5rem 1.5rem 0 0;
     animation: sheetIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
-    
+
     /* Enable vertical scrolling */
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    
+
     /* Hide scrollbar */
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
@@ -551,9 +578,10 @@
     font-size: 0.8125rem;
   }
 
-  .friend-avatar {
-    width: 56px;
-    height: 56px;
+  .notify-overlay .friend-avatar,
+  .notify-container .friend-avatar {
+    width: 58px !important;
+    height: 58px !important;
   }
 
   /* Convert grids to horizontal scrollable lists on mobile */
@@ -581,22 +609,23 @@
   }
 
   /* Friend cards in horizontal scroll */
-  .notify-overlay .friend-card,
-  .notify-container .friend-card {
+  .notify-overlay .notify-friend-card,
+  .notify-container .notify-friend-card {
     flex-shrink: 0;
-    width: 84px;
+    width: 104px;
+    height: 140px;
     scroll-snap-align: start;
   }
 
   /* First card padding for alignment */
-  .notify-overlay .friends-grid > .friend-card:first-child,
-  .notify-container .friends-grid > .friend-card:first-child {
+  .notify-overlay .friends-grid > .notify-friend-card:first-child,
+  .notify-container .friends-grid > .notify-friend-card:first-child {
     margin-left: 0.25rem;
   }
 
   /* Last card padding for proper scroll end */
-  .notify-overlay .friends-grid > .friend-card:last-child,
-  .notify-container .friends-grid > .friend-card:last-child {
+  .notify-overlay .friends-grid > .notify-friend-card:last-child,
+  .notify-container .friends-grid > .notify-friend-card:last-child {
     margin-right: 0.25rem;
   }
 }

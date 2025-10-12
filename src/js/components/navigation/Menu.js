@@ -1339,12 +1339,15 @@ function setupNotificationsIndicatorListener(userId) {
         // Show dot if there are any unseen friend/location/availability pings
         _notifDocsHasAlert = notifications.some((n) => {
           // Check for both timestamp fields AND status field (backwards compatibility)
-          const isUnseen = !n.readAt && !n.dismissedAt && n.status !== "read" && n.status !== "dismissed";
-          const isTargetType = (
+          const isUnseen =
+            !n.readAt &&
+            !n.dismissedAt &&
+            n.status !== "read" &&
+            n.status !== "dismissed";
+          const isTargetType =
             n.type === "friend_request" ||
             n.type === "location_share_request" ||
-            n.type === "availability_ping"
-          );
+            n.type === "availability_ping";
           return isUnseen && isTargetType;
         });
         recomputeNotificationsDot();
@@ -1412,14 +1415,17 @@ function initializeNotifyFriendsEntry() {
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Check if overlay is already open
         const existingOverlay = document.querySelector(".notify-overlay");
         if (existingOverlay) {
           // Close the overlay if it's already open
           try {
             const mod = await import("../../pages/NotifyFriendsPage.js");
-            if (mod.notifyFriendsPage && typeof mod.notifyFriendsPage.closeOverlay === "function") {
+            if (
+              mod.notifyFriendsPage &&
+              typeof mod.notifyFriendsPage.closeOverlay === "function"
+            ) {
               mod.notifyFriendsPage.closeOverlay();
             }
           } catch (err) {
@@ -1427,13 +1433,15 @@ function initializeNotifyFriendsEntry() {
           }
           return;
         }
-        
+
         // Open the overlay if it's not open
         try {
           const mod = await import("../../pages/NotifyFriendsPage.js");
           if (typeof mod.openNotifyOverlay === "function") {
             await mod.openNotifyOverlay();
-            try { sessionStorage.setItem("notify:lastClearTs", String(Date.now())); } catch (_) {}
+            try {
+              sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
+            } catch (_) {}
             setNotifyDot(false);
           }
         } catch (err) {
@@ -1457,7 +1465,9 @@ function initializeNotifyFriendsEntry() {
 
     // Clear dot when overlay opens via custom event
     document.addEventListener("notify:overlay:open", () => {
-      try { sessionStorage.setItem("notify:lastClearTs", String(Date.now())); } catch (_) {}
+      try {
+        sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
+      } catch (_) {}
       setNotifyDot(false);
     });
   } catch (e) {
@@ -1469,7 +1479,9 @@ function setupNotifyFriendsIndicator() {
   try {
     // Cleanup previous
     if (notifyRespUnsub) {
-      try { notifyRespUnsub(); } catch (_) {}
+      try {
+        notifyRespUnsub();
+      } catch (_) {}
       notifyRespUnsub = null;
     }
 
@@ -1477,14 +1489,23 @@ function setupNotifyFriendsIndicator() {
     if (currentUser && typeof currentUser.subscribe === "function") {
       currentUser.subscribe(({ isLoggedIn }) => {
         if (!isLoggedIn || !currentUser.uid) {
-          if (notifyRespUnsub) { try { notifyRespUnsub(); } catch (_) {} notifyRespUnsub = null; }
+          if (notifyRespUnsub) {
+            try {
+              notifyRespUnsub();
+            } catch (_) {}
+            notifyRespUnsub = null;
+          }
           setNotifyDot(false);
           return;
         }
         const uid = currentUser.uid;
         // Use DataService to set up a lightweight listener
         try {
-          if (notifyRespUnsub) { try { notifyRespUnsub(); } catch (_) {} }
+          if (notifyRespUnsub) {
+            try {
+              notifyRespUnsub();
+            } catch (_) {}
+          }
           notifyRespUnsub = dataManager.setupAvailabilityResponsesListener(
             uid,
             (hasUnseen) => {
