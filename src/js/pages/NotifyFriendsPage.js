@@ -476,6 +476,8 @@ export class NotifyFriendsPage {
       } catch (_) {}
       this._escHandler = null;
     }
+    // Clear selected friends when closing overlay
+    this.selected.clear();
   }
 
   closeOverlay() {
