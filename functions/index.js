@@ -564,7 +564,8 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
         response: newResp || after.status || "available",
         availabilityResponse: { pingId: after?.availabilityPing?.pingId || "" },
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        // Expire responses after 5 minutes to align with 5m cooldown
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
         status: "pending",
       });
       // Also send a push to the sender's device (no in-app list item required)

@@ -4216,13 +4216,14 @@ class DataManager {
       }
 
       const now = Date.now();
-      const expiresAtDate = new Date(now + 15 * 60 * 1000);
+      // Availability pings expire after 5 minutes; this also drives the per-friend cooldown
+      const expiresAtDate = new Date(now + 5 * 60 * 1000);
       const batchPromises = [];
       const skipped = [];
       const notificationsRef = collection(db, "notifications");
 
       for (const toUserId of recipientIds) {
-        // Guard: skip if an active ping already exists (enforces 15m cooldown client-side)
+        // Guard: skip if an active ping already exists (enforces 5m cooldown client-side)
         try {
           const hasActive = await this.hasActiveAvailabilityPing(fromUserId, toUserId);
           if (hasActive) {
@@ -4287,7 +4288,7 @@ class DataManager {
   }
 
   /**
-   * Check active cooldown for a specific recipient (per-friend 30m)
+   * Check active cooldown for a specific recipient (per-friend 5m)
    */
   async hasActiveAvailabilityPing(fromUserId, toUserId) {
     try {

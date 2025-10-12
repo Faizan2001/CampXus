@@ -306,8 +306,8 @@ export class NotifyFriendsPage {
         pingId
       );
       if (res?.success) {
-        // Update cooldowns only for friends who actually received a new ping
-        const exp = Date.now() + 15 * 60 * 1000;
+        // Update cooldowns only for friends who actually received a new ping (5m cooldown)
+        const exp = Date.now() + 5 * 60 * 1000;
         const skipped = Array.isArray(res.skipped)
           ? new Set(res.skipped)
           : new Set();
@@ -422,12 +422,13 @@ export class NotifyFriendsPage {
       name.className = "friend-name";
       name.textContent = info.handle || "friend";
       name.title = info.handle || "friend"; // Show full name on hover
-      const badge = document.createElement("div");
-      badge.className = `friend-badge ${isAvailable ? "green" : "red"}`;
-      badge.textContent = isAvailable ? "Available" : "Busy";
+      const statusIcon = document.createElement("i");
+      statusIcon.className = `fa-solid ${isAvailable ? "fa-circle-check" : "fa-circle-xmark"} friend-status-icon ${isAvailable ? "available" : "busy"}`;
+      statusIcon.setAttribute("aria-label", isAvailable ? "Available" : "Busy");
+      statusIcon.title = isAvailable ? "Available" : "Busy";
       card.appendChild(avatar);
       card.appendChild(name);
-      card.appendChild(badge);
+      card.appendChild(statusIcon);
       grid.appendChild(card);
     });
   }

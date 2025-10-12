@@ -224,7 +224,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1),
-              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
   /* Vertical layout with name below avatar - CRITICAL */
   display: flex !important;
@@ -256,7 +256,7 @@
   border-color: rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15),
-              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .notify-overlay .notify-friend-card:active:not(.disabled),
@@ -283,7 +283,7 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
-              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 
   /* Ensure avatar stays in place and fits properly */
@@ -370,6 +370,27 @@
   border-color: var(--error);
 }
 
+/* Status icons for busy/available responses */
+.notify-overlay .friend-status-icon,
+.notify-container .friend-status-icon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 1.25rem;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.notify-overlay .friend-status-icon.available,
+.notify-container .friend-status-icon.available {
+  color: var(--success);
+}
+
+.notify-overlay .friend-status-icon.busy,
+.notify-container .friend-status-icon.busy {
+  color: var(--error);
+}
+
 /* Selected state - purple accent glassmorphism */
 .notify-overlay .notify-friend-card.selected,
 .notify-container .notify-friend-card.selected {
@@ -382,8 +403,7 @@
   -webkit-backdrop-filter: blur(16px) !important;
   border: 1.5px solid rgba(139, 92, 246, 0.4) !important;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15),
-              0 8px 24px rgba(139, 92, 246, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    0 8px 24px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   transform: scale(1.02) !important;
 }
 
@@ -396,8 +416,8 @@
   ) !important;
   border-color: rgba(139, 92, 246, 0.5) !important;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2),
-              0 12px 32px rgba(139, 92, 246, 0.25),
-              inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    0 12px 32px rgba(139, 92, 246, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
   transform: scale(1.02) translateY(-2px) !important;
 }
 
