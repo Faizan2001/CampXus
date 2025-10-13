@@ -25,6 +25,10 @@ import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
+import {
+  initLocationPermissionBanner,
+  destroyLocationPermissionBanner,
+} from "../components/presence/LocationPermissionBanner.js";
 // Logging
 import { logManager } from "../utils/debug/LogManager.js"; // ✅ Restored import to fix ReferenceError
 import { onboardingService } from "../services/onboarding/OnboardingService.js";
@@ -7874,6 +7878,9 @@ document.addEventListener("spa:page:load", async (event) => {
       console.log("⭐ Skipping Horizontal Friends Bar (user not logged in)");
     }
 
+    // Initialize location permission banner (shown when GPS permission is missing)
+    initLocationPermissionBanner();
+
     // Initialize schedule scroll indicator
     console.log("📍 Initializing schedule scroll indicator...");
     initializeScheduleScrollIndicator();
@@ -8018,6 +8025,8 @@ document.addEventListener("spa:page:unload", (event) => {
       state.horizontalFriendsBar.destroy();
       state.horizontalFriendsBar = null;
     }
+
+    destroyLocationPermissionBanner();
 
     hideAllCoachMarks();
     clearOnboardingTimeouts();

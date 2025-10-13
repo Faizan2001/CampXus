@@ -268,13 +268,15 @@ class LocationScheduler {
 
   // ----- GPS scheduling -----
   async runGpsBurst() {
-    // GPS burst: t=0, +20s, +40s
+    // GPS burst: t=0s (fast), +15s, +25s, +40s
     this.cancelGpsBurst();
-    const attempts = [0, 20000, 40000];
+    const attempts = [0, 15000, 25000, 40000];
     const statuses = [];
 
     const runAttempt = async (idx) => {
-      const pos = await this.safeGetGps(12000, false, `burst_${idx + 1}`);
+      // First attempt uses tighter 5s timeout for snappy feedback; subsequent attempts 12s
+      const timeout = idx === 0 ? 5000 : 12000;
+      const pos = await this.safeGetGps(timeout, false, `burst_${idx + 1}`);
       if (pos) {
         // Update DB/UI immediately
         campusLocationService.processFreshLocation(pos);
@@ -343,7 +345,9 @@ class LocationScheduler {
 
   async runSingleGpsUpdate(reason = "manual") {
     if (!this.visible || !this.isSharingEnabled()) return;
-    const pos = await this.safeGetGps(12000, false, reason);
+    // Manual refresh gets a tighter 5s timeout for quick user feedback
+    const timeout = reason === "manual" ? 5000 : 12000;
+    const pos = await this.safeGetGps(timeout, false, reason);
     if (!pos) return;
 
     // Update DB/UI

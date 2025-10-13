@@ -10,6 +10,33 @@
 <div class="content-grid">
   <!-- Horizontal Friends Bar - Instagram-style at page top -->
   <section class="horizontal-friends-section">
+    <div
+      id="gps-permission-banner"
+      class="gps-permission-banner"
+      data-component="location-permission-banner"
+      aria-hidden="true"
+    >
+      <span class="gps-banner-text">
+        Enable GPS accuracy to share your live campus presence.
+      </span>
+      <div class="gps-banner-actions">
+        <button
+          type="button"
+          class="gps-banner-action"
+          data-action="enable-gps"
+        >
+          Enable
+        </button>
+        <button
+          type="button"
+          class="gps-banner-dismiss"
+          data-action="dismiss-gps"
+          aria-label="Dismiss location permission banner"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    </div>
     <div id="horizontal-friends-container" class="horizontal-friends-wrapper">
       <!-- HorizontalFriendsBar component will be initialized here -->
     </div>

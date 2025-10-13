@@ -423,7 +423,9 @@ export class NotifyFriendsPage {
       name.textContent = info.handle || "friend";
       name.title = info.handle || "friend"; // Show full name on hover
       const statusIcon = document.createElement("i");
-      statusIcon.className = `fa-solid ${isAvailable ? "fa-circle-check" : "fa-circle-xmark"} friend-status-icon ${isAvailable ? "available" : "busy"}`;
+      statusIcon.className = `fa-solid ${
+        isAvailable ? "fa-circle-check" : "fa-circle-xmark"
+      } friend-status-icon ${isAvailable ? "available" : "busy"}`;
       statusIcon.setAttribute("aria-label", isAvailable ? "Available" : "Busy");
       statusIcon.title = isAvailable ? "Available" : "Busy";
       card.appendChild(avatar);

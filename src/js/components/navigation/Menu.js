@@ -1296,6 +1296,7 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
 // =========================
 // Notifications Nav Indicator
 // =========================

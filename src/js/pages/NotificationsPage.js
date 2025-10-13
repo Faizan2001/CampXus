@@ -338,7 +338,6 @@ export class NotificationsPage {
     if (merged.length === 0) {
       return `
         <div class="no-notifications">
-          <div class="no-notifications-icon">🔔</div>
           <h4 class="no-notifications-text">All caught up!</h4>
           <p class="no-notifications-subtitle">
             No new notifications right now. When friends send you requests or share their location,

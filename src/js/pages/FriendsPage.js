@@ -29,7 +29,6 @@ import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyS
 import { uiCache } from "../services/cache/UiCacheService.js";
 import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
 import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
-import { LocationSharingToggle } from "../components/presence/LocationSharingToggle.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 import { onboardingService } from "../services/onboarding/OnboardingService.js";
@@ -129,9 +128,6 @@ function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
 // Ensure per-user onboarding: clear any local hint flags when account changes
 document.addEventListener("onboarding:user-switched", (e) => {
   try {
-    friendsUI?.campusPresenceHintObserver?.disconnect?.();
-  } catch (_) {}
-  try {
     hideAllCoachMarks();
   } catch (_) {}
   try {
@@ -140,7 +136,6 @@ document.addEventListener("onboarding:user-switched", (e) => {
     if (ui) {
       ui.friendActionsHintShown = false;
       ui.friendActionsHintPrimed = false;
-      ui.campusPresenceHintShown = false;
     }
   } catch (_) {}
   try {
@@ -162,23 +157,6 @@ document.addEventListener("onboarding:user-switched", (e) => {
 function didUserAcknowledgeHint(reason) {
   return reason === "primary" || reason === "secondary";
 }
-
-const PRESENCE_DEMO_HTML = `
-  <div class="onboarding-presence-demo">
-    <div class="landing-avatar-demo" data-demo-initialized="1" data-presence="hidden">
-      <div class="avatar-frame" role="img" aria-label="Campus presence states demo">
-        <img data-presence-state="hidden" src="/assets/onboarding/demo-not-sharing.png" alt="Presence hidden" loading="lazy" />
-        <img data-presence-state="away" src="/assets/onboarding/demo-off-campus.png" alt="Off campus" loading="lazy" />
-        <img data-presence-state="on" src="/assets/onboarding/demo-on-campus.png" alt="On campus" loading="lazy" />
-      </div>
-      <p class="presence-status-text swap">
-        <span data-state="hidden">Hidden</span>
-        <span data-state="away">Away</span>
-        <span data-state="on">On campus</span>
-      </p>
-    </div>
-  </div>
-`;
 
 const FRIENDS_HINT_RETRY_DELAY = 600;
 const FRIENDS_HINT_MAX_ATTEMPTS = 8;
@@ -287,9 +265,6 @@ class FriendsUI {
     // 🔒 Privacy update flag to prevent unnecessary re-renders
     this.isUpdatingPrivacy = false;
 
-    // 📍 Campus Presence - Location sharing toggle instance
-    this.globalLocationToggle = null;
-
     // Removed global exposure (window.friendsPage) for security/privacy
 
     // Debounce timers for targeted privacy UI updates
@@ -370,11 +345,8 @@ class FriendsUI {
       // Always load initial data on page visit (caches seeded above ensure immediate pending UI)
       this.loadInitialData();
 
-      // 📍 Initialize Campus Presence features
-      await this.initializeCampusPresence();
-
       console.log(
-        "🎨 Friends UI initialized successfully with real-time updates, privacy controls, and campus presence"
+        "🎨 Friends UI initialized successfully with real-time updates and privacy controls"
       );
     } catch (error) {
       console.error("❌ Error initializing Friends UI:", error);
@@ -1199,252 +1171,7 @@ class FriendsUI {
     }
   }
 
-  /**
-   * 📍 Initialize Campus Presence features
-   */
-  async initializeCampusPresence() {
-    try {
-      console.log("📍 Initializing Campus Presence features...");
 
-      // Ensure profile is available so onboarding state is accurate
-      try {
-        await currentUser.waitForProfile();
-      } catch (_) {
-        /* profile wait timeout is non-fatal */
-      }
-
-      // Prime onboarding state after profile to avoid 2s fallback window
-      try {
-        await onboardingService.init();
-      } catch (_) {
-        /* non-fatal */
-      }
-
-      // Add compact location sharing toggle in header
-      await this.addHeaderLocationToggle();
-
-      console.log("✅ Campus Presence features initialized successfully");
-    } catch (error) {
-      console.error("❌ Error initializing Campus Presence features:", error);
-    }
-  }
-
-  /**
-   * 📍 Add compact global location sharing toggle in header
-   */
-  async addHeaderLocationToggle() {
-    const toggleContainer = document.querySelector(
-      ".campus-presence-header .header-location-toggle-container"
-    );
-    if (!toggleContainer) {
-      console.warn("⚠️ Header location toggle container not found");
-      return;
-    }
-
-    try {
-      // Initialize LocationSharingToggle with global mode
-      this.globalLocationToggle = new LocationSharingToggle({
-        mode: "global",
-      });
-
-      // Clear previous render if any
-      toggleContainer.innerHTML = "";
-      await this.globalLocationToggle.render(toggleContainer);
-
-      logInfo("✅ Header location sharing toggle added successfully");
-    } catch (error) {
-      logWarn("❌ Error initializing header location toggle", { error });
-    }
-  }
-
-  async maybeShowCampusPresenceHint(retryCount = 12) {
-    // Re-enabled: show campus presence hint and auto-scroll to header if needed
-    logInfo("[Friends Onboarding] maybeShowCampusPresenceHint invoked", {
-      retryCount,
-      hintShown: this.campusPresenceHintShown,
-    });
-    if (this.campusPresenceHintShown) return;
-    await onboardingService.init().catch(() => {});
-    if (!onboardingService.shouldShow("campusPresenceHintSeen")) {
-      logInfo("[Friends Onboarding] Presence hint suppressed by service");
-      return;
-    }
-
-    const presenceSection = document.querySelector(".campus-presence-header");
-    if (!presenceSection) {
-      if (retryCount > 0) {
-        setTimeout(
-          () => this.maybeShowCampusPresenceHint(retryCount - 1),
-          FRIENDS_HINT_RETRY_DELAY
-        );
-      }
-      return;
-    }
-
-    // Ensure the header container exists; the inner toggle may render slightly later on slow devices.
-    const toggleContainer = presenceSection.querySelector(
-      ".header-location-toggle-container"
-    );
-    if (!toggleContainer && retryCount > 0) {
-      logInfo("[Friends Onboarding] Waiting for presence header container", {
-        retryCount,
-      });
-      setTimeout(
-        () => this.maybeShowCampusPresenceHint(retryCount - 1),
-        FRIENDS_HINT_RETRY_DELAY
-      );
-      return;
-    }
-
-    const scheduleRetry = () => {
-      if (retryCount > 0) {
-        logInfo("[Friends Onboarding] Scheduling presence hint retry", {
-          nextRetry: retryCount - 1,
-        });
-        setTimeout(
-          () => this.maybeShowCampusPresenceHint(retryCount - 1),
-          FRIENDS_HINT_RETRY_DELAY
-        );
-      }
-    };
-
-    const attemptShow = () => {
-      if (this.campusPresenceHintShown) return;
-      if (!isElementVisible(presenceSection)) {
-        logInfo("[Friends Onboarding] Presence section not visible yet");
-        scheduleRetry();
-        return;
-      }
-      const hintViewportReady = isElementInViewport(presenceSection, 0.1);
-      const hintViewportFallback = retryCount <= 1;
-      if (!hintViewportReady && !hintViewportFallback) {
-        // Auto-scroll the section into view as requested, then retry soon
-        try {
-          presenceSection.scrollIntoView({ block: "center", behavior: "smooth" });
-        } catch (_) { /* ignore */ }
-        logInfo("[Friends Onboarding] Scrolling presence section into view");
-        scheduleRetry();
-        return;
-      }
-
-      if (hasActiveCoachMarks() || this.hintsBusy) {
-        logInfo("[Friends Onboarding] Presence hint waiting for other coachmark");
-        setTimeout(attemptShow, FRIENDS_HINT_RETRY_DELAY);
-        return;
-      }
-
-      this.hintsBusy = true;
-      this.campusPresenceHintShown = true;
-      this.detachCampusPresenceHintObserver();
-      logInfo("[Friends Onboarding] Showing campus presence hint", {
-        retryCount,
-      });
-
-      const isCompact = window.innerWidth <= 600;
-      const hintHtml = isCompact
-        ? `<div class="coachmark-html-list"><p>Toggle to allow friends to see when you're on campus.</p></div>`
-        : `${PRESENCE_DEMO_HTML}<div class="coachmark-html-list"><p>Toggle to allow friends to see when you're on campus.</p></div>`;
-
-      // Prefer the actual switch when present; fall back to section wrapper
-      const switchBtn =
-        presenceSection.querySelector(
-          ".header-location-toggle-container .location-toggle-switch"
-        ) || presenceSection.querySelector(".location-toggle-switch");
-      const targetEl = switchBtn || presenceSection;
-
-      const mark = showCoachMark({
-        id: "campus-presence-toggle",
-        target: targetEl,
-        title: isCompact ? "Share campus status" : "Share when you're on campus",
-        descriptionHtml: hintHtml,
-        // Use auto on mobile to keep within viewport; prefer right on desktop
-        placement: "auto",
-        responsivePlacement: { desktop: "right" },
-        maxWidth: getResponsiveCoachmarkWidth(isCompact ? 196 : 236, 184),
-        primaryButton: { text: "OK" },
-      });
-
-      if (mark) {
-        if (typeof mark.update === "function") {
-          requestAnimationFrame(() => mark.update());
-          requestAnimationFrame(() => mark.update());
-        }
-        mark.waitForClose
-          .then((result) => {
-            if (didUserAcknowledgeHint(result?.reason)) {
-              onboardingService
-                .markSeen("campusPresenceHintSeen", { allowPending: true })
-                .catch(() => {});
-            } else {
-              this.campusPresenceHintShown = false;
-              logInfo(
-                "[Friends Onboarding] Presence hint dismissed without acknowledgement, retrying",
-                { reason: result?.reason }
-              );
-              scheduleRetry();
-            }
-          })
-          .finally(() => {
-            this.campusPresenceHintObserver = null;
-            this.hintsBusy = false;
-          });
-      } else {
-        this.campusPresenceHintShown = false;
-        this.hintsBusy = false;
-        scheduleRetry();
-      }
-    };
-
-    this.detachCampusPresenceHintObserver();
-
-    const initialViewportReady = isElementInViewport(presenceSection, 0.1);
-    if (initialViewportReady || retryCount <= 1) {
-      setTimeout(() => attemptShow(), 120);
-      return;
-    }
-
-    this.campusPresenceHintObserver = new IntersectionObserver(
-      (entries) => {
-        const visibleEntry = entries.find(
-          (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.1
-        );
-        if (!visibleEntry) {
-          return;
-        }
-        logInfo("[Friends Onboarding] Presence section entered viewport via observer", {
-          intersectionRatio: visibleEntry.intersectionRatio,
-        });
-        this.detachCampusPresenceHintObserver();
-        attemptShow();
-      },
-      {
-        // Relax thresholds to trigger earlier on small screens
-        threshold: [0.1, 0.3, 0.5],
-        rootMargin: "0px 0px -5% 0px",
-      }
-    );
-
-    try {
-      this.campusPresenceHintObserver.observe(presenceSection);
-    } catch (error) {
-      logWarn("⚠️ Unable to observe campus presence hint target", { error });
-      this.campusPresenceHintObserver = null;
-    }
-  }
-
-  /**
-   * 🧹 Detach and clear the campus presence IntersectionObserver if present
-   */
-  detachCampusPresenceHintObserver() {
-    try {
-      if (this.campusPresenceHintObserver && typeof this.campusPresenceHintObserver.disconnect === "function") {
-        this.campusPresenceHintObserver.disconnect();
-      }
-    } catch (_) {
-      /* ignore */
-    }
-    this.campusPresenceHintObserver = null;
-  }
 
   /**
    * 📊 Load initial data when page opens
@@ -4994,7 +4721,7 @@ class FriendsUI {
   updateLocationSharingVisualIndicator() {}
 
   /**
-   * 🧹 Clean up friend options menus and campus presence components
+   * 🧹 Clean up friend options menus and real-time listeners
    */
   cleanupFriendOptionsMenus() {
     this.friendOptionMenus.forEach((menu, friendId) => {
@@ -5166,9 +4893,6 @@ class FriendsUI {
 
       // Clean up friend options menus first
       this.cleanupFriendOptionsMenus();
-
-      // Clean up campus presence components
-      this.cleanupCampusPresence();
 
       if (this.searchTimeout) {
         clearTimeout(this.searchTimeout);
@@ -5379,28 +5103,6 @@ class FriendsUI {
     }
   }
 
-  /**
-   * 🧹 Clean up campus presence components
-   */
-  cleanupCampusPresence() {
-    try {
-      // Clean up global location toggle
-      if (this.globalLocationToggle) {
-        this.globalLocationToggle.destroy();
-        this.globalLocationToggle = null;
-      }
-
-      // Remove header location toggle DOM (new structure)
-      const headerContainer = document.querySelector(
-        ".campus-presence-header .header-location-toggle-container"
-      );
-      if (headerContainer) headerContainer.innerHTML = "";
-
-      logInfo("🧹 Campus presence components cleaned up");
-    } catch (error) {
-      logWarn("⚠️ Error cleaning up campus presence components:", { error });
-    }
-  }
 }
 
 // 🌟 Export a single instance
@@ -5417,13 +5119,6 @@ document.addEventListener("spa:page:load", (event) => {
     logInfo("🎨 Friends page loaded, initializing UI...");
     // Use the singleton instance instead of creating a new one
     friendsUI.init();
-
-    // Show campus presence onboarding hint after initial render
-    setTimeout(() => {
-      try {
-        friendsUI.maybeShowCampusPresenceHint();
-      } catch (_) { /* non-fatal */ }
-    }, 900);
 
     // Also try to kick off friend action hints shortly after load,
     // if the user already has friends rendered.

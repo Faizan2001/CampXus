@@ -15,9 +15,11 @@
 
 /* 🏗️ MAIN CONTENT OVERRIDE */
 body.page-friends .main-content {
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden; /* Page should not scroll */
   padding: 0.5rem 0.4rem !important; /* Same as home page */
+  height: var(--main-content-available-height-with-bottom-nav);
+  display: flex;
+  flex-direction: column;
 }
 
 body.page-friends .content-grid {
@@ -31,49 +33,45 @@ body.page-friends .content-grid {
   width: 100% !important;
   max-width: 100% !important;
   gap: 0 !important;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-/* Ensure proper scrolling on mobile */
+/* Mobile-specific non-scrollable layout */
 @media (max-width: 768px) {
   body.page-friends .main-content {
-    /* Break out of rigid height constraints on mobile to avoid Safari lock-ups */
-    height: auto !important;
-    min-height: auto !important;
-    max-height: none !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    /* Ensure content can scroll past the fixed bottom nav */
-    padding-bottom: calc(
-      var(--mobile-bottom-nav-height, 60px) +
-        max(env(safe-area-inset-bottom, 0px), 16px)
-    ) !important;
+    /* Fixed height to prevent page scrolling */
+    height: var(--main-content-available-height-with-bottom-nav) !important;
+    max-height: var(--main-content-available-height-with-bottom-nav) !important;
+    min-height: var(--main-content-available-height-with-bottom-nav) !important;
+    overflow: hidden !important;
+    padding: 0.5rem !important;
   }
 
   body.page-friends .content-grid {
-    /* Let main-content be the only scroller; don't clamp children */
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
-  body.page-friends .main-content .glass-card {
-    min-height: fit-content !important;
-  }
-
-  /* Remove nested scroll areas on mobile; rely on main-content scrolling */
-  /* Above ~4 friends, make the friends list scrollable within the card */
+  /* Friends list container should scroll, not the page */
   body.page-friends .friends-scrollable-container {
-    /* Allow roughly 4-5 cards before scrolling kicks in on mobile */
-    max-height: min(56vh, 420px) !important;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain;
+    max-height: none !important; /* Let flexbox handle the height */
   }
   body.page-friends .requests-scrollable-container {
-    max-height: min(56vh, 420px) !important;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain;
+    max-height: none !important;
   }
 }
 
@@ -81,26 +79,8 @@ body.page-friends .content-grid {
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 768px) {
     body.page-friends .main-content {
-      height: auto !important;
-      min-height: auto !important;
-      max-height: none !important;
-      overflow-y: auto !important;
-      -webkit-overflow-scrolling: touch !important;
-      overscroll-behavior: contain;
-    }
-
-    body.page-friends .content-grid {
-      height: auto !important;
-      min-height: 0 !important;
-      overflow: visible !important;
-    }
-
-    body.page-friends .friends-scrollable-container,
-    body.page-friends .requests-scrollable-container {
-      max-height: min(56vh, 420px) !important;
-      overflow-y: auto !important;
-      -webkit-overflow-scrolling: touch !important;
-      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: none;
     }
   }
 }
@@ -119,6 +99,41 @@ body.page-friends .schedule-section {
   display: none !important;
 }
 
+body.page-friends .main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.page-friends .content-grid {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.page-friends .friends-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.friends-search {
+  flex: 0 0 auto; /* Don't grow or shrink */
+}
+
+.friends-list {
+  flex: 1 1 auto; /* Take remaining space */
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Critical for flexbox scrolling */
+  overflow: hidden;
+}
+
 .friends-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -128,10 +143,35 @@ body.page-friends .schedule-section {
   gap: 0.75rem; /* tighter spacing */
   flex: 1 1 auto;
   height: 100%;
-  min-height: 0;
+  min-height: 0; /* Critical for flexbox scrolling */
   width: 100%;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .friends-container {
+    padding: 0;
+    gap: 0.75rem;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .friends-scrollable-container,
+  .requests-scrollable-container {
+    /* Remove max-height restrictions - let flexbox handle it */
+    max-height: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .friends-container {
+    padding: 0 !important;
+  }
 }
 
 /* Fixed-height friends list card */
@@ -140,26 +180,6 @@ body.page-friends .schedule-section {
   max-height: 400px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-}
-
-/* Page header */
-.campus-presence-header .page-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 1rem 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.5rem;
-}
-.campus-presence-header .page-title i {
-  color: var(--accent-primary);
-}
-.campus-presence-header .page-subtitle {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  line-height: 1.6;
 }
 
 /* ============================================================================
@@ -174,6 +194,20 @@ body.page-friends .schedule-section {
   overflow: visible;
   /* Ensure consistent hit area on iOS even when content is light */
   min-height: 96px;
+  flex: 0 0 auto; /* Don't grow or shrink */
+}
+
+.glass-card.friends-list {
+  flex: 1 1 auto; /* Take remaining space */
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Critical for flexbox scrolling */
+  overflow: hidden;
+}
+
+.glass-card.friends-list h3 {
+  flex: 0 0 auto; /* Header doesn't grow */
+  margin-bottom: 0px;
 }
 .friends-search .search-input-wrapper {
   display: flex;
@@ -617,7 +651,7 @@ body.page-friends .schedule-section {
 
 .friends-scrollable-container,
 .requests-scrollable-container {
-  max-height: 400px;
+  /* Remove max-height to let flexbox handle sizing */
   overflow-y: auto;
   overflow-x: visible; /* allow menus to overflow horizontally */
   padding: 16px;
@@ -635,6 +669,8 @@ body.page-friends .schedule-section {
   position: static;
   z-index: auto;
   isolation: isolate;
+  flex: 1 1 auto; /* Take remaining space and scroll */
+  min-height: 0; /* Critical for flexbox scrolling */
 }
 .friends-scrollable-container::-webkit-scrollbar,
 .requests-scrollable-container::-webkit-scrollbar {
@@ -2283,33 +2319,8 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
 }
 
 /* ============================================================================
-   15) CAMPUS PRESENCE — LOCATION TOGGLE
+   Location sharing toggle styles
    ============================================================================ */
-
-.campus-presence-controls {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 44px;
-  gap: 12px;
-}
-.presence-label {
-  color: var(--text-primary);
-  font-size: clamp(0.95rem, 2.8vw, 1rem);
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  line-height: 1;
-  white-space: nowrap;
-}
-.campus-presence-header .header-location-toggle-container {
-  position: static;
-  display: flex;
-  align-items: center;
-}
 
 .location-toggle-switch {
   position: relative;
@@ -2450,12 +2461,6 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     width: 100%;
     max-width: 100%;
   }
-  .campus-presence-header .page-title {
-    font-size: 1.25rem;
-  }
-  .campus-presence-header .page-subtitle {
-    font-size: 1rem;
-  }
   .friends-search .search-input-wrapper {
     flex-direction: column;
     gap: 0.75rem;
@@ -2464,6 +2469,12 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     width: 100%;
     justify-self: stretch;
     padding: 0.75rem 1rem;
+  }
+  body.page-friends .main-content {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+  .friends-scrollable-container {
+    max-height: none;
   }
 
   .friend-card {

@@ -20,11 +20,11 @@
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
   --main-content-available-height: calc(
-    100dvh - var(--nav-height) - env(safe-area-inset-bottom)
+    100dvh - var(--nav-height) - env(safe-area-inset-bottom, 0px)
   );
   --main-content-available-height-with-bottom-nav: calc(
     100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-      env(safe-area-inset-bottom)
+      env(safe-area-inset-bottom, 0px)
   );
 }
 
@@ -36,6 +36,34 @@
   min-height: -webkit-fill-available; /* iOS fallback */
   display: flex;
   flex-direction: column;
+  /* Ensure safe area is respected on all sides in standalone mode */
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* iOS PWA Standalone Mode - Prevent clipping and respect safe areas */
+@media (display-mode: standalone) {
+  html {
+    /* Ensure viewport fills screen properly in standalone */
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  body {
+    /* Prevent body from being clipped */
+    height: 100%;
+    overflow: hidden;
+    /* Only add horizontal safe area padding, not bottom */
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 
+            0px env(safe-area-inset-left, 0px);
+  }
+  
+  .app-container {
+    /* Container fills body properly */
+    height: 100%;
+    max-height: 100%;
+  }
 }
 
 /* ===== TOP NAVIGATION ===== */
@@ -73,6 +101,9 @@
     background: var(--nav-solid-bg);
     /* Ensure status bar area is filled on iOS/Android notched devices */
     padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+    /* Prevent nav from being clipped on iOS */
+    position: -webkit-sticky;
+    position: sticky;
   }
 
   /* Ensure the safe-area region above the nav is painted with the same color
@@ -362,7 +393,8 @@ body:not(.dark-mode) .nav-link:hover {
   height: var(--main-content-available-height);
   max-height: var(--main-content-available-height);
   min-height: var(--main-content-available-height);
-  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+  /* Reduced padding - bottom nav handles safe area */
+  padding-bottom: 0.75rem;
 }
 
 /* Prevent default focus outline around the main content container */
@@ -736,7 +768,7 @@ body:not(.dark-mode) .user-dropdown {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 0; /* Sits at absolute bottom of viewport */
   z-index: 1000;
   display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -746,8 +778,10 @@ body:not(.dark-mode) .user-dropdown {
   padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
   padding-top: 6px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
-  height: calc(var(--bn-h) + env(safe-area-inset-bottom, 0px));
+  /* Padding bottom extends into safe area on iOS, fallback to 8px for Android/devices without safe areas */
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+  /* Height is just the nav bar itself, padding handles safe area */
+  height: var(--bn-h);
   background: var(--nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

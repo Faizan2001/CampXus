@@ -5791,10 +5791,4 @@ export function getUserPresenceStatus() {
  */
 export function isHorizontalFriendsBarActive() {
   return globalHorizontalFriendsBarInstance?.isInitialized || false;
-  // Record optimistic removal timestamp
-  try {
-    this.optimisticRemovals.set(friendId, Date.now());
-  } catch (_) {}
-  // Clear optimistic guard so the friend can reappear
-  this.optimisticRemovals.delete(friendId);
 }

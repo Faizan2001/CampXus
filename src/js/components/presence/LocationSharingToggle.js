@@ -72,7 +72,6 @@ export class LocationSharingToggle {
     // Bind methods to preserve context
     this.handleGlobalToggle = this.handleGlobalToggle.bind(this);
     this.handleFriendToggle = this.handleFriendToggle.bind(this);
-    this.handleFixPermission = this.handleFixPermission.bind(this);
 
     console.log(
       `🎯 LocationSharingToggle created in ${this.options.mode} mode`,
@@ -113,6 +112,7 @@ export class LocationSharingToggle {
    */
   generateGlobalToggleHTML() {
     const { globalEnabled, permissionMissing } = this.currentState;
+    const permissionState = permissionMissing ? "missing" : "granted";
     const needsPermission = !!(globalEnabled && permissionMissing);
 
     return `
@@ -124,7 +124,7 @@ export class LocationSharingToggle {
               aria-checked="${globalEnabled}"
               aria-label="Toggle campus presence sharing with friends"
               ${needsPermission ? 'data-permission-missing="true"' : ''}
-              ${needsPermission ? 'data-permission-state="missing"' : 'data-permission-state="granted"'}
+              data-permission-state="${permissionState}"
               ${needsPermission ? 'title="Location permission required to resume sharing"' : ''}
               data-action="toggle-global"
               ${this.isLoading ? "disabled" : ""}>
@@ -132,18 +132,6 @@ export class LocationSharingToggle {
         <span class="location-toggle-text location-toggle-on">ON</span>
         <span class="location-toggle-slider"></span>
       </button>
-      ${
-        needsPermission
-          ? `
-        <div class="location-permission-helper" role="note" aria-live="polite">
-          <span class="permission-hint">Location permission is needed for GPS updates</span>
-          <button type="button" class="permission-action" data-action="fix-permission">
-            Enable Location
-          </button>
-        </div>
-      `
-          : ''
-      }
     `;
   }
 
@@ -227,12 +215,6 @@ export class LocationSharingToggle {
 
     // Keyboard navigation
     this.element.addEventListener("keydown", this.handleKeyDown.bind(this));
-
-    // In-toggle CTA for fixing permission
-    const fixBtn = this.element.querySelector('[data-action="fix-permission"]');
-    if (fixBtn) {
-      fixBtn.addEventListener("click", this.handleFixPermission);
-    }
 
     // Listen for permission changes to refresh UI state automatically
     this._onPermissionChanged = async (_e) => {
@@ -516,60 +498,25 @@ export class LocationSharingToggle {
 
       // Reflect permission status attributes on the toggle for styling/UX
       if (this.options.mode === "global") {
-        const needsPermission = !!(this.currentState.globalEnabled && this.currentState.permissionMissing);
+        const permissionMissing = !!this.currentState.permissionMissing;
+        const permissionState = permissionMissing ? "missing" : "granted";
+        const needsPermission =
+          !!(this.currentState.globalEnabled && permissionMissing);
+
+        toggle.setAttribute("data-permission-state", permissionState);
+
         if (needsPermission) {
-          toggle.setAttribute('data-permission-missing', 'true');
-          toggle.setAttribute('data-permission-state', 'missing');
-          toggle.setAttribute('title', 'Location permission required to resume sharing');
+          toggle.setAttribute("data-permission-missing", "true");
+          toggle.setAttribute(
+            "title",
+            "Location permission required to resume sharing"
+          );
         } else {
-          toggle.removeAttribute('data-permission-missing');
-          toggle.setAttribute('data-permission-state', 'granted');
-          toggle.removeAttribute('title');
+          toggle.removeAttribute("data-permission-missing");
+          toggle.removeAttribute("title");
         }
       }
     }
-  }
-
-  /**
-   * 🎯 Handle in-toggle permission fix on iOS/Safari (user gesture)
-   */
-  async handleFixPermission(e) {
-    e.preventDefault();
-    if (this.isLoading) return;
-    const currentUserUid = currentUser.state?.user?.uid;
-    if (!currentUserUid) return;
-
-    this.setLoading(true);
-    try {
-      const { campusLocationService } = await import(
-        "../../services/location/CampusLocationService.js"
-      );
-      const result = await campusLocationService.requestLocationPermission();
-      const status = campusLocationService.getPermissionStatus?.() || null;
-      // Update local state
-      this.currentState.permissionMissing = status !== "granted";
-
-      if (status === "granted") {
-        // Start presence tracking with GPS now available
-        await this.handleLocationTrackingForGlobalToggle(true);
-        notificationManager.show(
-          "Location enabled. GPS updates will start automatically.",
-          "success"
-        );
-      } else {
-        notificationManager.showWarningNotification(
-          "Location permission still blocked. You can enable it in Settings.",
-          { duration: 5000 }
-        );
-      }
-    } catch (err) {
-      notificationManager.show(
-        "Unable to request location permission.",
-        "error"
-      );
-    }
-    await this.refresh();
-    this.setLoading(false);
   }
 
   /**

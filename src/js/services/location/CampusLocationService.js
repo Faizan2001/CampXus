@@ -1410,6 +1410,105 @@ export class CampusLocationService {
     return distance;
   }
 
+  _updateLocalPresenceCache(campusStatus, locationInfo = {}) {
+    try {
+      if (!campusStatus || campusStatus === "unknown") {
+        return;
+      }
+
+      const profile = currentUser?.profile;
+      if (!profile) {
+        return;
+      }
+
+      const systemInfo = profile.systemInfo || {};
+      if (systemInfo.locationSharingEnabled === false) {
+        return;
+      }
+
+      const toMillis = (value) => {
+        if (!value) return Date.now();
+        if (typeof value === "number") return value;
+        if (value instanceof Date) return value.getTime();
+        if (typeof value.toDate === "function") {
+          return value.toDate().getTime();
+        }
+        if (typeof value.seconds === "number") {
+          const millis = value.seconds * 1000;
+          const nanos = value.nanoseconds || value.nanoseconds === 0
+            ? value.nanoseconds / 1e6
+            : 0;
+          return millis + nanos;
+        }
+        return Date.now();
+      };
+
+      const timestampMs = toMillis(locationInfo.timestamp || Date.now());
+
+      const existingLocation = systemInfo.lastKnownLocation || {};
+
+      const updatedLocation = {
+        ...existingLocation,
+        campusStatus,
+        timestamp: timestampMs,
+      };
+
+      if (Object.prototype.hasOwnProperty.call(locationInfo, "latitude")) {
+        updatedLocation.latitude = locationInfo.latitude;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(locationInfo, "longitude")) {
+        updatedLocation.longitude = locationInfo.longitude;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(locationInfo, "accuracy")) {
+        updatedLocation.accuracy = locationInfo.accuracy;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(locationInfo, "source")) {
+        updatedLocation.source = locationInfo.source;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(locationInfo, "tier")) {
+        updatedLocation.tier = locationInfo.tier;
+      }
+
+      const previousStatus = existingLocation.campusStatus;
+      const previousLat = existingLocation.latitude;
+      const previousLon = existingLocation.longitude;
+
+      const locationChanged =
+        previousStatus !== campusStatus ||
+        (Object.prototype.hasOwnProperty.call(locationInfo, "latitude") &&
+          previousLat !== locationInfo.latitude) ||
+        (Object.prototype.hasOwnProperty.call(locationInfo, "longitude") &&
+          previousLon !== locationInfo.longitude);
+
+      if (!locationChanged) {
+        return;
+      }
+
+      const updatedSystemInfo = {
+        ...systemInfo,
+        lastKnownLocation: updatedLocation,
+        lastActive: timestampMs,
+        status: "online",
+      };
+
+      const updatedProfile = {
+        ...profile,
+        systemInfo: updatedSystemInfo,
+      };
+
+      currentUser.setProfile(updatedProfile);
+    } catch (error) {
+      console.warn(
+        "[CampusLocationService] Failed to update local presence cache:",
+        error
+      );
+    }
+  }
+
   /**
    * Get current permission status
    * @returns {string|null} Permission status: 'granted', 'denied', 'prompt', or null
@@ -3584,7 +3683,7 @@ export class CampusLocationService {
     }
 
     // 🚀 SMART DATABASE WRITE: Only for meaningful user activity or network detection
-    const debounceTime = isTriggeredUpdate || isNetworkDetection ? 1000 : 10000; // Faster for triggers and network detection
+    const debounceTime = isTriggeredUpdate || isNetworkDetection ? 200 : 10000; // Faster for triggers and network detection
 
     this.locationUpdateDebounceTimeout = setTimeout(async () => {
       try {
@@ -3662,6 +3761,15 @@ export class CampusLocationService {
               networkDetection: true,
               ipOrganization: position.userOrganization || "Unknown",
             };
+
+        this._updateLocalPresenceCache(finalCampusStatus, {
+          latitude: hasValidCoordinates ? position.coords.latitude : null,
+          longitude: hasValidCoordinates ? position.coords.longitude : null,
+          accuracy: hasValidCoordinates ? position.coords.accuracy : null,
+          timestamp: position.timestamp,
+          source,
+          tier,
+        });
 
         const updateResult = await dataManager.updateUserLocationStatus(
           currentUser.uid,
@@ -4738,6 +4846,15 @@ export class CampusLocationService {
         accuracy: position.coords.accuracy,
         timestamp: position.timestamp,
         campusStatus: newCampusStatus,
+      });
+
+      this._updateLocalPresenceCache(newCampusStatus, {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: position.timestamp,
+        source: "gps",
+        tier: 2,
       });
 
       // 🚀 ENTERPRISE FIX: Only update database and trigger animations for worthy location changes

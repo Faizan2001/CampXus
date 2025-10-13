@@ -99,6 +99,99 @@ IMPORTED MODULES:
   backdrop-filter: blur(5px);
 }
 
+/* Location permission banner */
+.gps-permission-banner {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0;
+  border-radius: 0.85rem;
+  background: var(--surface-card, rgba(15, 20, 30, 0.65));
+  color: var(--text-primary, #fff);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  border: 1px solid rgba(102, 224, 255, 0.16);
+  box-shadow: 0 10px 24px rgba(8, 12, 18, 0.25);
+  backdrop-filter: blur(16px);
+  margin-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-12px);
+  transition: opacity 0.28s ease, transform 0.28s ease,
+    padding 0.28s ease, margin 0.28s ease, max-height 0.28s ease;
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+}
+
+.gps-permission-banner[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+  padding: 0.45rem 0.85rem;
+  margin-bottom: 0.85rem;
+  max-height: 160px;
+}
+
+.gps-permission-banner .gps-banner-text {
+  flex: 1 1 auto;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.gps-permission-banner .gps-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.gps-permission-banner .gps-banner-action {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--nav-solid-bg, #05070c);
+  background: var(--accent-primary, #66e0ff);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.gps-permission-banner .gps-banner-action:active {
+  transform: scale(0.97);
+}
+
+.gps-permission-banner .gps-banner-action[aria-busy="true"] {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.gps-permission-banner .gps-banner-dismiss {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65));
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.gps-permission-banner .gps-banner-dismiss:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary, #fff);
+}
+
 .loading-spinner {
   text-align: center;
   padding: 2rem;
