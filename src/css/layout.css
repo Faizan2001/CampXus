@@ -116,20 +116,9 @@
   gap: clamp(0.5rem, 2vw, 1rem);
 }
 
-/* Install PWA button: hidden by default, shown on narrow mobile widths */
+/* Install PWA button: hidden by default; visibility controlled by JS (auth + profile + width) */
 #installPwaBtn {
-  display: none !important; /* JS will also control when eligible */
-}
-@media (max-width: 480px) {
-  #installPwaBtn {
-    display: inline-flex !important; /* only appears on mobile widths */
-  }
-}
-/* Explicitly hide on desktop and larger screens */
-@media (min-width: 481px) {
-  #installPwaBtn {
-    display: none !important;
-  }
+  display: none !important;
 }
 /* Force hide in installed PWA contexts (Android/iOS standalone modes) */
 @media (display-mode: standalone),
@@ -220,6 +209,28 @@ body:not(.dark-mode) .nav-link {
   height: 8px;
   border-radius: 50%;
   background: #ff4d4d; /* unified red dot badge */
+}
+
+/* Inline badge dot for the Notify button */
+#notifyFriendsBtn .nav-dot {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4d; /* same red as other alerts */
+  display: none; /* toggled via JS */
+  animation: badgePop 0.32s ease-out both;
+  box-shadow: 0 0 0 2px var(--bg-primary); /* ring for contrast */
+}
+
+/* Tighter corner placement on mobile (icon-only button) */
+@media (max-width: 768px) {
+  #notifyFriendsBtn .nav-dot {
+    top: 6px;
+    right: 6px;
+  }
 }
 .nav-link::before {
   content: "";
