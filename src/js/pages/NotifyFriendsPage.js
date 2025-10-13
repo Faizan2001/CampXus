@@ -15,6 +15,9 @@ export class NotifyFriendsPage {
     this.starred = []; // { friendId, handle, avatarConfig }
     this.friendInfo = new Map(); // friendId -> { handle, avatarConfig }
     this.responses = { available: new Set(), busy: new Set() };
+    // Local linger cache: friendId -> { status: 'available'|'busy', expiresAtMs, lastCreatedMs }
+    // Keeps responses visible for 10 minutes even if backend document expires sooner
+    this.responseLinger = new Map();
     this.currentPingId = null; // last sent batch id
   }
 
@@ -352,38 +355,147 @@ export class NotifyFriendsPage {
         where("userId", "==", uid),
         where("type", "==", "availability_response")
       );
-      this.unsub = onSnapshot(
+      const unsubs = [];
+
+      // Listener A: response docs created by Cloud Functions
+      unsubs.push(onSnapshot(
         qRef,
         async (snap) => {
-          this.responses.available.clear();
-          this.responses.busy.clear();
-          const now = Date.now();
+          // Do not clear local state here; we maintain a 10m local linger window
           for (const d of snap.docs) {
             const data = d.data();
-            const exp =
-              data?.expiresAt?.toDate?.()?.getTime?.() ||
-              new Date(data?.expiresAt || 0).getTime();
-            if (!exp || exp <= now) continue;
-            const resp = (data?.response || "").toLowerCase();
             const responderId = data?.fromUserId;
             if (!responderId) continue;
-            if (resp === "available") this.responses.available.add(responderId);
-            else if (resp === "busy") this.responses.busy.add(responderId);
+            const resp = (data?.response || "").toLowerCase();
+            if (resp !== "available" && resp !== "busy") continue;
+
+            // Determine createdAt for this response
+            const createdAtMs =
+              data?.createdAt?.toDate?.()?.getTime?.() ||
+              new Date(data?.createdAt || Date.now()).getTime();
+            // Linger for 10 minutes regardless of backend expiry
+            const tenMinutes = 10 * 60 * 1000;
+
+            const existing = this.responseLinger.get(responderId);
+            // If this is newer or there is no existing entry, update and reset expiry
+            if (!existing || (createdAtMs && createdAtMs >= (existing.lastCreatedMs || 0))) {
+              this.responseLinger.set(responderId, {
+                status: resp,
+                expiresAtMs: createdAtMs + tenMinutes,
+                lastCreatedMs: createdAtMs,
+              });
+            }
+
             // Cache friend info if missing
-            if (responderId && !this.friendInfo.has(responderId)) {
+            if (!this.friendInfo.has(responderId)) {
               try {
                 const minimal = await this.fetchFriendMinimal(responderId);
                 if (minimal) this.friendInfo.set(responderId, minimal);
               } catch (_) {}
             }
           }
-          this.renderResponses();
+
+          // Recompute visible response sets from linger cache and render
+          this.refreshResponsesFromLinger();
         },
         (err) => console.warn("Notify responses listener error", err)
-      );
+      ));
+
+      // Listener B: track changes directly on outgoing ping docs for immediate updates
+      try {
+        const pingRef = query(
+          collection(db, "notifications"),
+          where("fromUserId", "==", uid),
+          where("type", "==", "availability_ping")
+        );
+        unsubs.push(
+          onSnapshot(
+            pingRef,
+            async (snap) => {
+              for (const d of snap.docs) {
+                const data = d.data();
+                const toUserId = data?.userId;
+                const resp = (data?.response || "").toLowerCase();
+                if (!toUserId) continue;
+                if (resp !== "available" && resp !== "busy") continue;
+                // Prefer respondedAt if present; otherwise fallback to createdAt
+                const respondedAtMs =
+                  data?.respondedAt?.toDate?.()?.getTime?.() ||
+                  new Date(data?.respondedAt || 0).getTime();
+                const createdAtMs =
+                  data?.createdAt?.toDate?.()?.getTime?.() ||
+                  new Date(data?.createdAt || Date.now()).getTime();
+                const eventTimeMs = respondedAtMs || createdAtMs || Date.now();
+                const tenMinutes = 10 * 60 * 1000;
+
+                const existing = this.responseLinger.get(toUserId);
+                if (!existing || eventTimeMs >= (existing.lastCreatedMs || 0)) {
+                  this.responseLinger.set(toUserId, {
+                    status: resp,
+                    expiresAtMs: eventTimeMs + tenMinutes,
+                    lastCreatedMs: eventTimeMs,
+                  });
+                }
+                if (!this.friendInfo.has(toUserId)) {
+                  try {
+                    const minimal = await this.fetchFriendMinimal(toUserId);
+                    if (minimal) this.friendInfo.set(toUserId, minimal);
+                  } catch (_) {}
+                }
+              }
+              this.refreshResponsesFromLinger();
+            },
+            (err) => console.warn("Notify ping listener error", err)
+          )
+        );
+      } catch (_) {}
+
+      // Combine unsubs into a single handle
+      this.unsub = () => {
+        unsubs.forEach((u) => {
+          try {
+            if (typeof u === "function") u();
+          } catch (_) {}
+        });
+      };
     } catch (e) {
       console.warn("setupRealtimeResponses error", e);
     }
+  }
+
+  refreshResponsesFromLinger() {
+    const now = Date.now();
+    let changed = false;
+    // Drop expired entries and rebuild sets
+    const nextAvailable = new Set();
+    const nextBusy = new Set();
+    for (const [friendId, entry] of this.responseLinger.entries()) {
+      if (!entry || !entry.expiresAtMs || entry.expiresAtMs <= now) {
+        this.responseLinger.delete(friendId);
+        changed = true;
+        continue;
+      }
+      if (entry.status === "available") nextAvailable.add(friendId);
+      else if (entry.status === "busy") nextBusy.add(friendId);
+    }
+
+    // Detect if sets actually changed to avoid unnecessary re-render
+    const sameSize =
+      nextAvailable.size === this.responses.available.size &&
+      nextBusy.size === this.responses.busy.size;
+    let sameMembers = sameSize;
+    if (sameMembers) {
+      for (const id of nextAvailable) if (!this.responses.available.has(id)) { sameMembers = false; break; }
+      if (sameMembers) for (const id of nextBusy) if (!this.responses.busy.has(id)) { sameMembers = false; break; }
+    }
+
+    if (!sameMembers) {
+      this.responses.available = nextAvailable;
+      this.responses.busy = nextBusy;
+      changed = true;
+    }
+
+    if (changed) this.renderResponses();
   }
 
   renderResponseGrid(gridId, emptyId, ids, isAvailable) {
@@ -461,6 +573,8 @@ export class NotifyFriendsPage {
         if (this.isOnCooldown(f.friendId)) changed = true;
       });
       if (changed) this.renderStarred();
+      // Periodically prune expired linger responses (10m window)
+      this.refreshResponsesFromLinger();
     }, 60000);
   }
 
@@ -480,6 +594,8 @@ export class NotifyFriendsPage {
     }
     // Clear selected friends when closing overlay
     this.selected.clear();
+    // Clear lingering responses on close to free memory
+    this.responseLinger.clear();
   }
 
   closeOverlay() {

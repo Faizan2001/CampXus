@@ -1107,7 +1107,6 @@ function initializeMobileBottomNav() {
 
   // Active state + notification badge
   setupMobileNavActiveStates();
-  setupMobileNotificationBadge();
 
   dbg("✅ Mobile bottom navigation initialized");
 }
@@ -1229,56 +1228,6 @@ function updateAriaCurrent(route) {
     const r = item.getAttribute("data-spa-route");
     item.setAttribute("aria-current", r === route ? "page" : "false");
   });
-}
-
-/**
- * Set up mobile notification badge functionality
- */
-function setupMobileNotificationBadge() {
-  // Example: Show badge when there are notifications
-  // This can be connected to your real notification system
-
-  // For demo purposes, show/hide badge based on notification data
-  function updateNotificationBadge(count = 0) {
-    const badge = document.querySelector(".mobile-nav-badge");
-    if (!badge) return;
-
-    if (count > 0) {
-      badge.textContent = count > 99 ? "99+" : count.toString();
-      badge.style.display = "block";
-      // Trigger badge animation
-      badge.style.animation = "none";
-      requestAnimationFrame(() => {
-        badge.style.animation = "badgePop 0.32s ease-out";
-      });
-    } else {
-      badge.style.display = "none";
-    }
-  }
-
-  // Add haptic feedback for navigation taps (if supported)
-  function addHapticFeedback() {
-    const navItems = document.querySelectorAll(
-      ".mobile-nav-item[data-spa-route]"
-    );
-
-    navItems.forEach((item) => {
-      item.addEventListener("click", () => {
-        // Subtle haptic feedback on supported devices
-        if (navigator.vibrate) {
-          navigator.vibrate(10);
-        }
-      });
-    });
-  }
-
-  // Initialize
-  addHapticFeedback();
-
-  // Expose updateNotificationBadge globally for other parts of the app
-  window.updateMobileNotificationBadge = updateNotificationBadge;
-
-  dbg("📱 Mobile notification badge system initialized");
 }
 
 // Add CSS class for touch feedback
@@ -1500,6 +1449,14 @@ function setupNotifyFriendsIndicator() {
           return;
         }
         const uid = currentUser.uid;
+        
+        // 🎯 FIX: Initialize lastClearTs on first login to prevent showing old notifications as "new"
+        try {
+          if (!sessionStorage.getItem("notify:lastClearTs")) {
+            sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
+          }
+        } catch (_) {}
+        
         // Use DataService to set up a lightweight listener
         try {
           if (notifyRespUnsub) {

@@ -49,16 +49,16 @@
     height: 100%;
     overflow: hidden;
   }
-  
+
   body {
     /* Prevent body from being clipped */
     height: 100%;
     overflow: hidden;
     /* Only add horizontal safe area padding, not bottom */
-    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 
-            0px env(safe-area-inset-left, 0px);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0px
+      env(safe-area-inset-left, 0px);
   }
-  
+
   .app-container {
     /* Container fills body properly */
     height: 100%;

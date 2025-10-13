@@ -76,15 +76,8 @@ class PushMessagingService {
             );
           }
 
-          // Optional: could store or update a badge using Menu helpers
-          if (
-            typeof window !== "undefined" &&
-            window.updateMobileNotificationBadge
-          ) {
-            try {
-              window.updateMobileNotificationBadge(1);
-            } catch (_) {}
-          }
+          // Note: Badge updates are handled automatically by real-time notification listeners in Menu.js
+          // No need to manually update badge here as the Firestore listener will detect new notifications
 
           // Optionally navigate immediately if payload requests it (not default)
           if (link && payload?.data?.autoNavigate === "1") {
