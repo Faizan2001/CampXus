@@ -77,15 +77,16 @@ export class CampusLocationService {
       const uid = currentUser?.uid;
       const enabled =
         currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
-      const permissionGranted = this.permissionStatus === "granted";
-      if (!uid || !enabled || !permissionGranted) {
+      // iOS: allow polling start even when permission isn't currently granted
+      // so Tier 1 (network) detection can still work without GPS.
+      if (!uid || !enabled) {
         // Stop if previously running
         if (this.presencePollingIntervalId) {
           clearInterval(this.presencePollingIntervalId);
           this.presencePollingIntervalId = null;
         }
         logManager.location.info(
-          "[CampusLocationService] Presence polling not started (no user, disabled, or permission blocked)"
+          "[CampusLocationService] Presence polling not started (no user or disabled)"
         );
         return;
       }
@@ -135,13 +136,6 @@ export class CampusLocationService {
    */
   async runPresencePollNow() {
     try {
-      // Guard: do nothing if permission is not allowed
-      if (this.permissionStatus !== "granted") {
-        logManager.location.warn(
-          "[CampusLocationService] Immediate presence poll skipped - permission not granted"
-        );
-        return;
-      }
       await this._runPresencePollSafely();
       logManager.location.info(
         "[CampusLocationService] Presence poll executed immediately"
@@ -157,17 +151,13 @@ export class CampusLocationService {
 
   async _runPresencePollSafely() {
     if (this._isPresencePollRunning) return;
-    this._isPresencePollRunning = true;
+      this._isPresencePollRunning = true;
     try {
       // Guard: do nothing if user not signed in or sharing disabled
       if (
         !currentUser?.uid ||
         currentUser?.profile?.systemInfo?.locationSharingEnabled !== true
       ) {
-        return;
-      }
-      // Guard: do nothing if permission not granted
-      if (this.permissionStatus !== "granted") {
         return;
       }
       document.dispatchEvent(
@@ -189,6 +179,10 @@ export class CampusLocationService {
           result.coords.longitude == null)
       ) {
         try {
+          // Do not attempt browser GPS enrichment unless permission is granted
+          if (this.permissionStatus !== "granted") {
+            throw new Error("permission_not_granted");
+          }
           const browserPos = await this.getBrowserLocationWithTimeout(
             false,
             10000
@@ -775,13 +769,48 @@ export class CampusLocationService {
       logManager.system.error("Geolocation not supported");
       return null;
     }
-    // Respect permission gating: do not attempt location pipeline without permission
+    // If geolocation permission is not granted, still attempt Tier 1 (network) detection
+    // without invoking GPS. This avoids prompting outside a user gesture while still
+    // allowing automatic presence to work on iOS reopen. Once permission is granted,
+    // the full GPS pipeline runs automatically.
     if (this.permissionStatus !== "granted") {
-      logManager.location.warn(
-        "3-tier location request blocked - permission not granted"
-      );
+      try {
+        const t1 = await networkDetectionService.detectCampusPresence("iub");
+        if (t1?.success) {
+          return {
+            coords: {
+              latitude: null,
+              longitude: null,
+              accuracy: 50,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+            },
+            timestamp: Date.now(),
+            source: "ipinfo_lite_as_domain",
+            provider: "network_detection_service",
+            tier: 1,
+            cost: 0,
+            campusStatus: t1.campusStatus,
+            confidence: t1.confidence || (t1.campusStatus === "on_campus" ? "high" : "low"),
+            userIP: t1.userIP,
+            userOrganization: t1.userOrganization,
+            matchReason: t1.matchReason,
+            responseTime: t1.responseTime || 0,
+            shouldWriteToDatabase: true,
+            batteryOptimized: true,
+          };
+        }
+      } catch (e) {
+        logManager.location.warn(
+          `Network-only detection failed (no permission): ${e?.message || e}`
+        );
+      }
+      // If Tier 1 didn't yield a useful result, do not attempt GPS without permission
       return null;
     }
+
     this.emitPresenceDataLoading();
     try {
       return await locationTierService.getCurrentLocation(
@@ -805,17 +834,12 @@ export class CampusLocationService {
       if (!uid) return;
       const already =
         currentUser?.profile?.systemInfo?.locationSharingEnabled === true;
+      // Preserve user's toggle choice; do not auto-enable sharing.
       if (!already) {
-        try {
-          await dataManager.updateLocationSharingPreference(uid, true);
-        } catch (e) {
-          logManager.location.warn(
-            "[CampusLocationService] Failed to auto-enable sharing after permission grant",
-            e
-          );
-        }
+        // User has sharing disabled; nothing to do.
+        return;
       }
-      // Start tracking (polling + immediate poll)
+      // Start tracking (polling + immediate poll) if user already enabled sharing
       try {
         await this.startLocationTracking();
       } catch (_) {}
@@ -3312,17 +3336,8 @@ export class CampusLocationService {
 
       this.stopLocationTracking();
 
-      const uid = currentUser?.uid;
-      if (uid) {
-        try {
-          await dataManager.updateLocationSharingPreference(uid, false);
-        } catch (e) {
-          logManager.location.warn(
-            "[CampusLocationService] Failed to auto-sync preference to OFF after denial",
-            e
-          );
-        }
-      }
+      // Do not auto-flip the user's global preference to OFF on denial.
+      // Preserve intent (toggle remains ON) and rely on permissionMissing UI state.
 
       const now = Date.now();
       if (!this._lastDenialHandledAt || now - this._lastDenialHandledAt > 2500) {
