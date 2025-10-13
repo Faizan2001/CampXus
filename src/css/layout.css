@@ -118,7 +118,7 @@
 
 /* Install PWA button: hidden by default; visibility controlled by JS (auth + profile + width) */
 #installPwaBtn {
-  display: none !important;
+  display: none;
 }
 /* Force hide in installed PWA contexts (Android/iOS standalone modes) */
 @media (display-mode: standalone),

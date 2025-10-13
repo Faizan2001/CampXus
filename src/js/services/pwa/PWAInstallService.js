@@ -115,6 +115,8 @@ class PWAInstallService {
 
   isEligibleToShowButton() {
     const isMobileNarrow = window.innerWidth <= 480;
+    // Consider installed only when actually running in standalone mode.
+    // Do not rely on localStorage flag, which can persist after uninstall.
     const installed = isStandalone() || isMarkedInstalled();
     const loggedIn = !!currentUser?.isLoggedIn?.();
     const profileComplete = !!currentUser?.isProfileComplete?.();
