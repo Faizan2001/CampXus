@@ -347,8 +347,24 @@ async function initializeSPA() {
     const envName = window.location.hostname.includes("stage")
       ? "STAGING"
       : "DEV";
-    envBanner.style.cssText =
-      "position:fixed;top:8px;left:8px;background:rgba(255,152,0,0.9);color:white;padding:4px 8px;z-index:9999;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);";
+    // Place banner near the bottom-left so it never obscures the top navigation
+    // and make it click-through (pointer-events: none).
+    const bottomOffset = `calc(var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 8px)`;
+    envBanner.style.cssText = [
+      "position:fixed",
+      `left:8px` ,
+      `bottom:${bottomOffset}`,
+      "background:rgba(255,152,0,0.9)",
+      "color:white",
+      "padding:4px 8px",
+      "z-index:1500",
+      "border-radius:4px",
+      "font-size:10px",
+      "font-weight:600",
+      "letter-spacing:0.5px",
+      "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
+      "pointer-events:none",
+    ].join(";") + ";";
     envBanner.textContent = envName;
     document.body.appendChild(envBanner);
   }

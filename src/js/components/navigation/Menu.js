@@ -1362,6 +1362,16 @@ function initializeNotifyFriendsEntry() {
   try {
     const btn = document.getElementById("notifyFriendsBtn");
     if (btn) {
+      // Make an immediate best-effort decision so the button isn't invisible until the
+      // auth subscription fires (affects iOS PWA on cold start).
+      try {
+        if (typeof currentUser?.isLoggedIn === "function") {
+          btn.style.display = currentUser.isLoggedIn()
+            ? "inline-flex"
+            : "none";
+        }
+      } catch (_) {}
+
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();

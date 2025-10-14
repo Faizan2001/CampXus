@@ -1170,7 +1170,7 @@ body.dark-mode.page-notifications .toggle-switch {
     height: 70vw;
     min-height: 40vw;
     max-height: calc(
-      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) - env(safe-area-inset-bottom, 0px)
+      100dvh - var(--nav-height, 64px) - var(--mobile-bottom-nav-height, 60px) - var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom, 0px)
     ) !important;
     padding-bottom: 20px;
   }

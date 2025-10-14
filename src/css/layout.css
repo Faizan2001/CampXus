@@ -19,12 +19,14 @@
 :root {
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
+  /* Extra visual height of bottom nav (top padding + border). Ensures content stays above nav in iOS PWA. */
+  --mobile-bottom-nav-top-gap: 8px;
   --main-content-available-height: calc(
     100dvh - var(--nav-height) - env(safe-area-inset-bottom, 0px)
   );
   --main-content-available-height-with-bottom-nav: calc(
     100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-      env(safe-area-inset-bottom, 0px)
+      var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom, 0px)
   );
 }
 
@@ -188,6 +190,8 @@
   font-family: var(--font-brand, "Sora", "Poppins", sans-serif);
   font-style: normal;
   color: transparent;
+  /* iOS Safari/PWA: ensure gradient text renders reliably */
+  -webkit-text-fill-color: transparent;
   background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
   background-clip: text;
   -webkit-background-clip: text;
@@ -1106,7 +1110,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     );
     --main-content-available-height-with-bottom-nav: calc(
       100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-        env(safe-area-inset-bottom)
+        var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom)
     );
   }
 
@@ -1358,6 +1362,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* small extra bottom padding to keep last items comfortably above the nav */
     padding-bottom: 16px;
   }
 
