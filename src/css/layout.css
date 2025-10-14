@@ -77,6 +77,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.1rem clamp(0.75rem, 2vw, 1rem);
+  /* Ensure the bar always occupies space (rare iOS PWA collapse bug) */
+  min-height: var(--nav-height);
   /* Respect safe area insets for notched devices */
   padding-top: max(0.1rem, env(safe-area-inset-top, 0px));
   padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
@@ -126,6 +128,8 @@
   .mobile-bottom-nav {
     background: var(--nav-solid-bg);
   }
+
+  /* Keep gradient logo in PWA; rely on compositing hints above */
 }
 
 /* nav sections */
@@ -195,6 +199,9 @@
   background: linear-gradient(90deg, #d5b6ff, #c580ff 50%, #8c62ff);
   background-clip: text;
   -webkit-background-clip: text;
+  /* Encourage proper compositing on iOS */
+  will-change: transform;
+  transform: translateZ(0);
   display: inline-block;
   outline: none; /* Remove dotted outline */
   border: none; /* Remove any border */

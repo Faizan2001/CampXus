@@ -3475,10 +3475,10 @@ async function _renderScheduleGridInternal() {
   currentTimeSlotsToRender.forEach((timeSlot, timeIndex) => {
     const row = document.createElement("tr");
 
-    // First cell: Time slot label - convert to 12-hour format for display
+    // First cell: Time slot label (24-hour format for grid view)
     const timeCell = document.createElement("td");
     timeCell.classList.add("time-slot-label");
-    timeCell.textContent = convertTimeRangeTo12Hour(timeSlot.label);
+    timeCell.textContent = timeSlot.label;
 
     if (allowEditingHeaders) {
       timeCell.classList.add("editable-timeslot-header");
