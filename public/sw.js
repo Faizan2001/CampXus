@@ -5,7 +5,7 @@
 */
 
 // Bump cache version to force clients to fetch latest app code in PWAs
-const CACHE_NAME = 'meetchuthere-shell-v4';
+const CACHE_NAME = 'meetchuthere-shell-v5';
 const APP_SHELL = [
   '/',
   '/index.html',
