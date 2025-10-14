@@ -34,7 +34,7 @@
 .app-container {
   /* Let content define height; avoid forcing fixed viewport height on iOS */
   min-height: 100dvh;
-  height: auto;
+  height: 100dvh; /* Force full viewport height */
   min-height: -webkit-fill-available; /* iOS fallback */
   display: flex;
   flex-direction: column;
@@ -1479,6 +1479,20 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
   .nav-link {
     padding: var(--space-sm) var(--space-md);
+  }
+
+  /* Larger Notify button on desktop */
+  #notifyFriendsBtn {
+    padding: 0.75rem 1.5rem;
+  }
+
+  #notifyFriendsBtn i {
+    font-size: 1.2rem;
+  }
+
+  #notifyFriendsBtn .nav-text {
+    font-size: 1rem;
+    font-weight: 600;
   }
 
   .main-content {

@@ -16,8 +16,10 @@
 /* 🏗️ MAIN CONTENT OVERRIDE */
 body.page-friends .main-content {
   overflow: hidden; /* Page should not scroll */
-  padding: 0.5rem 0.4rem !important; /* Same as home page */
-  height: var(--main-content-available-height-with-bottom-nav);
+  padding: 0 !important; /* Full viewport width */
+  height: var(--main-content-available-height); /* Desktop default - full height */
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -29,9 +31,9 @@ body.page-friends .content-grid {
   grid-template-columns: unset !important;
   grid-template-rows: unset !important;
   height: 100%;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
-  width: 100% !important;
-  max-width: 100% !important;
   gap: 0 !important;
   flex: 1 1 auto;
   min-height: 0;
@@ -40,12 +42,12 @@ body.page-friends .content-grid {
 /* Mobile-specific non-scrollable layout */
 @media (max-width: 768px) {
   body.page-friends .main-content {
-    /* Fixed height to prevent page scrolling */
+    /* Fixed height to prevent page scrolling - use bottom-nav-adjusted height on mobile */
     height: var(--main-content-available-height-with-bottom-nav) !important;
     max-height: var(--main-content-available-height-with-bottom-nav) !important;
     min-height: var(--main-content-available-height-with-bottom-nav) !important;
     overflow: hidden !important;
-    padding: 0.5rem !important;
+    padding: 0 !important; /* Full viewport on mobile too */
   }
 
   body.page-friends .content-grid {
@@ -103,19 +105,25 @@ body.page-friends .main-content {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  max-width: 100%;
   min-height: 0;
   overflow: hidden;
+  padding: 0; /* Remove padding for full viewport span */
 }
 
 body.page-friends .content-grid {
   display: flex;
   flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
 body.page-friends .friends-container {
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
   overflow: hidden;
   display: flex;
