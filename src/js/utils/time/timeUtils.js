@@ -66,6 +66,78 @@ export function convertToHHMM(timeStr) {
 }
 
 /**
+ * Converts 24-hour time format to 12-hour format with AM/PM for display.
+ * Example: "08:00" -> "8:00 AM", "17:30" -> "5:30 PM", "00:00" -> "12:00 AM"
+ * @param {string} time24 - Time string in HH:MM 24-hour format
+ * @returns {string} Time string in 12-hour format with AM/PM
+ */
+export function convertTo12Hour(time24) {
+  if (!time24 || typeof time24 !== "string") return time24;
+  
+  const trimmed = time24.trim();
+  const parts = trimmed.split(':');
+  
+  if (parts.length !== 2) return time24;
+  
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  
+  if (isNaN(hours) || hours < 0 || hours > 23) return time24;
+  
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  
+  // Convert hours to 12-hour format
+  if (hours === 0) {
+    hours = 12; // Midnight
+  } else if (hours > 12) {
+    hours -= 12; // PM hours
+  }
+  // 12 PM stays as 12
+  
+  return `${hours}:${minutes} ${ampm}`;
+}
+
+/**
+ * Converts a time range in 24-hour format to 12-hour format with AM/PM.
+ * Example: "08:00-09:30" -> "8:00-9:30 AM", "11:30-13:00" -> "11:30 AM-1:00 PM"
+ * @param {string} timeRange - Time range string in format "HH:MM-HH:MM"
+ * @returns {string} Time range in 12-hour format with AM/PM
+ */
+export function convertTimeRangeTo12Hour(timeRange) {
+  if (!timeRange || typeof timeRange !== "string") return timeRange;
+  
+  const parts = timeRange.split('-');
+  if (parts.length !== 2) return timeRange;
+  
+  const start24 = parts[0].trim();
+  const end24 = parts[1].trim();
+  
+  const start12 = convertTo12Hour(start24);
+  const end12 = convertTo12Hour(end24);
+  
+  // Optimize display: if both times have same AM/PM, show it once
+  const startParts = start12.split(' ');
+  const endParts = end12.split(' ');
+  
+  if (startParts.length === 2 && endParts.length === 2) {
+    const startTime = startParts[0];
+    const startPeriod = startParts[1];
+    const endTime = endParts[0];
+    const endPeriod = endParts[1];
+    
+    if (startPeriod === endPeriod) {
+      // Same period: "8:00-9:30 AM"
+      return `${startTime}-${endTime} ${endPeriod}`;
+    } else {
+      // Different periods: "11:30 AM-1:00 PM"
+      return `${startTime} ${startPeriod}-${endTime} ${endPeriod}`;
+    }
+  }
+  
+  return `${start12}-${end12}`;
+}
+
+/**
  * Parses a time string into total minutes from midnight.
  * Supports multiple formats: HH:MM, H:MM, H:MM AM/PM, HH:MM AM/PM
  * @param {string} timeStr - The time string, e.g., "09:30", "9:30 AM", "5:00 PM".

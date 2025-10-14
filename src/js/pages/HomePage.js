@@ -16,6 +16,7 @@ import {
   isValidTimeFormat,
   isValidStrictHHMMTimeFormat,
   createUnifiedSchedule,
+  convertTimeRangeTo12Hour,
 } from "../utils/time/timeUtils.js";
 import { authManager } from "../services/auth/AuthService.js";
 import { dataManager } from "../services/data/DataService.js";
@@ -3474,10 +3475,10 @@ async function _renderScheduleGridInternal() {
   currentTimeSlotsToRender.forEach((timeSlot, timeIndex) => {
     const row = document.createElement("tr");
 
-    // First cell: Time slot label
+    // First cell: Time slot label - convert to 12-hour format for display
     const timeCell = document.createElement("td");
     timeCell.classList.add("time-slot-label");
-    timeCell.textContent = timeSlot.label;
+    timeCell.textContent = convertTimeRangeTo12Hour(timeSlot.label);
 
     if (allowEditingHeaders) {
       timeCell.classList.add("editable-timeslot-header");
@@ -5622,8 +5623,11 @@ function createNormalSlotContent(
     ? `<span class="can-pin-indicator" data-action="pin-toggle" data-day="${state.selectedDay}" data-time="${timeIndex}" title="Click to pin this slot">&#43;</span>`
     : "";
 
+  // Convert time label to 12-hour format for display
+  const displayTime = convertTimeRangeTo12Hour(timeSlot.label);
+
   return `
-    <div class="slot-time">${timeSlot.label}</div>
+    <div class="slot-time">${displayTime}</div>
     <div class="slot-content">
       ${(() => {
         if (!isBusy) return '<div class="slot-free-text">Free</div>';
@@ -5654,8 +5658,11 @@ function createCompareSlotContent(timeSlot, timeIndex) {
     timeIndex
   );
 
+  // Convert time label to 12-hour format for display
+  const displayTime = convertTimeRangeTo12Hour(timeSlot.label);
+
   return `
-    <div class="slot-time">${timeSlot.label}</div>
+    <div class="slot-time">${displayTime}</div>
     <div class="slot-content">
   <div class="slot-comparison-status ${comparisonStatus.cssClass}">
         <div class="comparison-indicator">
@@ -5703,8 +5710,11 @@ function createDayViewCompareSlotContent(
     icon = "fas fa-user-slash";
   }
 
+  // Convert time label to 12-hour format for display
+  const displayTime = convertTimeRangeTo12Hour(timeSlot.label);
+
   return `
-    <div class="slot-time">${timeSlot.label}</div>
+    <div class="slot-time">${displayTime}</div>
     <div class="slot-content">
   <div class="slot-comparison-status ${comparisonStatus.cssClass}">
         <div class="comparison-indicator">
