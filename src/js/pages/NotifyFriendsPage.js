@@ -16,7 +16,7 @@ export class NotifyFriendsPage {
     this.friendInfo = new Map(); // friendId -> { handle, avatarConfig }
     this.responses = { available: new Set(), busy: new Set() };
     // Local linger cache: friendId -> { status: 'available'|'busy', expiresAtMs, lastCreatedMs }
-    // Keeps responses visible for 10 minutes even if backend document expires sooner
+    // Keeps responses visible for 20 minutes even if backend document expires sooner
     this.responseLinger = new Map();
     this.currentPingId = null; // last sent batch id
   }
@@ -373,15 +373,15 @@ export class NotifyFriendsPage {
             const createdAtMs =
               data?.createdAt?.toDate?.()?.getTime?.() ||
               new Date(data?.createdAt || Date.now()).getTime();
-            // Linger for 10 minutes regardless of backend expiry
-            const tenMinutes = 10 * 60 * 1000;
+            // Linger for 20 minutes regardless of backend expiry
+            const twentyMinutes = 20 * 60 * 1000;
 
             const existing = this.responseLinger.get(responderId);
             // If this is newer or there is no existing entry, update and reset expiry
             if (!existing || (createdAtMs && createdAtMs >= (existing.lastCreatedMs || 0))) {
               this.responseLinger.set(responderId, {
                 status: resp,
-                expiresAtMs: createdAtMs + tenMinutes,
+                expiresAtMs: createdAtMs + twentyMinutes,
                 lastCreatedMs: createdAtMs,
               });
             }
@@ -426,13 +426,13 @@ export class NotifyFriendsPage {
                   data?.createdAt?.toDate?.()?.getTime?.() ||
                   new Date(data?.createdAt || Date.now()).getTime();
                 const eventTimeMs = respondedAtMs || createdAtMs || Date.now();
-                const tenMinutes = 10 * 60 * 1000;
+                const twentyMinutes = 20 * 60 * 1000;
 
                 const existing = this.responseLinger.get(toUserId);
                 if (!existing || eventTimeMs >= (existing.lastCreatedMs || 0)) {
                   this.responseLinger.set(toUserId, {
                     status: resp,
-                    expiresAtMs: eventTimeMs + tenMinutes,
+                    expiresAtMs: eventTimeMs + twentyMinutes,
                     lastCreatedMs: eventTimeMs,
                   });
                 }
@@ -573,7 +573,7 @@ export class NotifyFriendsPage {
         if (this.isOnCooldown(f.friendId)) changed = true;
       });
       if (changed) this.renderStarred();
-      // Periodically prune expired linger responses (10m window)
+      // Periodically prune expired linger responses (20m window)
       this.refreshResponsesFromLinger();
     }, 60000);
   }

@@ -4216,8 +4216,8 @@ class DataManager {
       }
 
       const now = Date.now();
-      // Availability pings expire after 5 minutes; this also drives the per-friend cooldown
-      const expiresAtDate = new Date(now + 5 * 60 * 1000);
+      // Receiver has 100 minutes to respond; sender cooldown is 5 minutes (allows refresh every 5m)
+      const expiresAtDate = new Date(now + 100 * 60 * 1000);
       const batchPromises = [];
       const skipped = [];
       const notificationsRef = collection(db, "notifications");
@@ -4231,6 +4231,23 @@ class DataManager {
             continue;
           }
         } catch (_) {}
+        
+        // Delete any existing pending notification from this sender to this recipient (silent refresh)
+        try {
+          const existingQuery = query(
+            notificationsRef,
+            where("fromUserId", "==", fromUserId),
+            where("userId", "==", toUserId),
+            where("type", "==", "availability_ping"),
+            where("status", "==", "pending")
+          );
+          const existingSnap = await getDocs(existingQuery);
+          const deletePromises = existingSnap.docs.map(doc => deleteDoc(doc.ref));
+          await Promise.all(deletePromises);
+        } catch (deleteErr) {
+          console.warn("⚠️ Failed to delete old notification:", deleteErr);
+        }
+        
         const data = {
           userId: toUserId,
           fromUserId,

@@ -70,11 +70,11 @@ A real-time availability checking system where users can ask their starred frien
 - **Pending (notification sent)**:
   - Disabled/grayed out
   - Clock icon overlay
-  - Yellow badge showing countdown: "15m", "10m", "5m", "4m", "3m", "2m", "1m"
-  - Live countdown updates (gaps: 5-minute intervals until 5m mark, then 1-minute intervals)
-  - Becomes available again after 15 minutes
-- **Cooldown message**: "Can notify again in 12m" (shows when hovering/tapping pending friend)
-  - Live countdown with same gap intervals as badge
+  - Yellow badge showing countdown: "5m", "4m", "3m", "2m", "1m"
+  - Live countdown updates (1-minute intervals)
+  - Becomes available again after 5 minutes
+- **Cooldown message**: "Can notify again in Xm" (shows when hovering/tapping pending friend)
+  - Live countdown with 1-minute intervals
 
 #### **Empty State**
 
@@ -103,7 +103,7 @@ A real-time availability checking system where users can ask their starred frien
 
 - Shows friends who responded "Available" to your notification
 - Responses appear here when friends click "Available" on their notification
-- Responses persist for 15 minutes, then auto-clear
+- Responses persist for 20 minutes, then auto-clear
 - After auto-clear, reverts to "No responses yet" placeholder
 
 ### **2.3 Segment 3: Busy (Responses)**
@@ -119,7 +119,7 @@ A real-time availability checking system where users can ask their starred frien
 
 - Shows friends who responded "Busy" to your notification
 - Responses appear here when friends click "Busy" on their notification
-- Responses persist for 15 minutes, then auto-clear
+- Responses persist for 20 minutes, then auto-clear
 - After auto-clear, reverts to "No responses yet" placeholder
 
 ---
@@ -136,8 +136,8 @@ A real-time availability checking system where users can ask their starred frien
 
 #### **Cooldown Rules (Per Friend)**
 
-- Can send notification to Friend A once every 15 minutes
-- Can send to Friend B independently (separate 15-min timer)
+- Can send notification to Friend A once every 5 minutes
+- Can send to Friend B independently (separate 5-min timer)
 - Each friend has their own cooldown tracker
 
 #### **Notification Content (Receivers)**
@@ -150,9 +150,10 @@ A real-time availability checking system where users can ask their starred frien
 
 ### **3.2 Auto-Expiration**
 
-- **Sent notifications**: Auto-delete after 15 minutes if not responded to
-- **Responses**: Auto-clear from segments after 15 minutes
-- **Cooldown**: After 15 minutes, can send new notification to same friend
+- **Sent notifications**: Receiver has 100 minutes to respond; notification expires if not responded to
+- **Responses**: Sender sees response in Available/Busy segment for 20 minutes, then auto-clears
+- **Cooldown**: After 5 minutes, can send new notification to same friend
+- **Silent refresh**: If sender sends another notification within 100 minutes, receiver's old notification is replaced with new one (timer resets to 100 minutes)
 
 ### **3.3 Response Mechanism**
 
@@ -217,7 +218,7 @@ A real-time availability checking system where users can ask their starred frien
 - **Live countdown**:
   - Pending friend badges update in real-time
   - "Can notify again in Xm" updates in real-time
-  - Update intervals: 5-minute gaps until 5min mark, then 1-minute gaps
+  - Update intervals: 1-minute gaps
 - **Response updates**:
   - When friend responds, sender's overlay updates immediately (if open)
   - Badge appears on button if overlay closed
@@ -227,9 +228,10 @@ A real-time availability checking system where users can ask their starred frien
 - **Firebase Functions**: Handle push notifications to receivers' devices
 - **Database Structure**:
   - Store in optimal collection (see firestore_data.json for current structure)
-  - Track 15-minute window for auto-expiration
-  - Store per-friend cooldown timers
+  - Receiver notifications: 100-minute expiration window
+  - Sender cooldown: 5 minutes per friend
   - Track notification state (sent, responded, expired)
+  - Silent refresh: Delete old pending notification when new one arrives from same sender
 - **Push Notifications**:
   - Initial request: "@yourhandle is asking if you're free"
   - Counter-notification: "@alice responded: Available"
@@ -238,16 +240,17 @@ A real-time availability checking system where users can ask their starred frien
 ### **5.3 State Management**
 
 - Track sent notifications per friend with timestamps
-- Track responses with timestamps (for 15-min auto-clear)
-- Track cooldown state per friend
+- Track responses with timestamps (for 20-min auto-clear in sender's UI)
+- Track cooldown state per friend (5 minutes)
 - Update badge visibility based on response presence
 - Clear badge when overlay opened
 
 ### **5.4 Data Cleanup**
 
-- Auto-remove notifications after 15 minutes (if not responded)
-- Auto-clear responses from segments after 15 minutes
-- Reset cooldown timers after 15 minutes
+- Backend cleanup runs every 5 minutes to remove expired notifications
+- Receiver notifications expire after 100 minutes (if not responded)
+- Sender's UI clears responses after 20 minutes (local linger)
+- Reset cooldown timers after 5 minutes
 - Clean up orphaned data if friendships end
 
 ---
@@ -300,8 +303,10 @@ A real-time availability checking system where users can ask their starred frien
 - User can successfully send "Are you free?" notifications
 - Friends receive notifications within 5 seconds
 - Responses appear in sender's segments within 5 seconds
-- Cooldowns enforce 15-minute rule correctly
-- Notifications auto-expire after 15 minutes
+- Cooldowns enforce 5-minute rule correctly
+- Receiver notifications expire after 100 minutes if not responded
+- Sender sees responses for 20 minutes before auto-clear
+- Silent refresh works: new notification replaces old one from same sender
 - No orphaned data or memory leaks
 - Proper cleanup on friendship changes
 
