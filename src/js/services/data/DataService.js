@@ -4274,7 +4274,8 @@ class DataManager {
   }
 
   /**
-   * Build a map of friendId -> expiresAt for active availability pings sent by a user
+   * Build a map of friendId -> cooldown expiry (createdAt + 5m)
+   * regardless of notification TTL (which may be 100m).
    */
   async getActiveAvailabilityPingMap(fromUserId) {
     try {
@@ -4287,14 +4288,23 @@ class DataManager {
       const snap = await getDocs(q);
       const map = new Map();
       const now = Date.now();
+      const COOLDOWN_MS = 5 * 60 * 1000;
+      const PING_TTL_MS = 100 * 60 * 1000; // used only for fallback if createdAt missing
       snap.forEach((d) => {
         const data = d.data();
-        const exp = data?.expiresAt?.toDate?.()?.getTime?.() || new Date(data?.expiresAt || 0).getTime();
-        if (exp && exp > now) {
-          const toUserId = data?.userId;
-          if (toUserId) {
-            map.set(toUserId, exp);
-          }
+        const toUserId = data?.userId;
+        if (!toUserId) return;
+        // Prefer createdAt; if missing, derive from expiresAt - 100m
+        const createdAtMs =
+          data?.createdAt?.toDate?.()?.getTime?.() ||
+          (data?.expiresAt?.toDate?.()?.getTime?.() ?
+            data.expiresAt.toDate().getTime() - PING_TTL_MS :
+            new Date(data?.createdAt || 0).getTime());
+        if (!createdAtMs) return;
+        const cooldownExp = createdAtMs + COOLDOWN_MS;
+        if (cooldownExp > now) {
+          const prev = map.get(toUserId) || 0;
+          if (cooldownExp > prev) map.set(toUserId, cooldownExp);
         }
       });
       return map;
@@ -4306,6 +4316,7 @@ class DataManager {
 
   /**
    * Check active cooldown for a specific recipient (per-friend 5m)
+   * Cooldown is based on createdAt + 5m, independent of the ping's 100m TTL.
    */
   async hasActiveAvailabilityPing(fromUserId, toUserId) {
     try {
@@ -4318,10 +4329,17 @@ class DataManager {
       );
       const snap = await getDocs(q);
       const now = Date.now();
+      const COOLDOWN_MS = 5 * 60 * 1000;
+      const PING_TTL_MS = 100 * 60 * 1000; // used only for fallback if createdAt missing
       for (const d of snap.docs) {
         const data = d.data();
-        const exp = data?.expiresAt?.toDate?.()?.getTime?.() || new Date(data?.expiresAt || 0).getTime();
-        if (exp && exp > now) return true;
+        const createdAtMs =
+          data?.createdAt?.toDate?.()?.getTime?.() ||
+          (data?.expiresAt?.toDate?.()?.getTime?.() ?
+            data.expiresAt.toDate().getTime() - PING_TTL_MS :
+            new Date(data?.createdAt || 0).getTime());
+        if (!createdAtMs) continue;
+        if (createdAtMs + COOLDOWN_MS > now) return true;
       }
       return false;
     } catch (e) {

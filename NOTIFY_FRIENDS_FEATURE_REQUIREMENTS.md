@@ -87,7 +87,7 @@ A real-time availability checking system where users can ask their starred frien
   - Sends notification to all selected friends immediately
   - No confirmation dialog
   - Checkboxes auto-uncheck after send
-  - Sent friends become disabled for 15 minutes
+  - Sent friends become disabled for 5 minutes
   - Shows pending state with countdown
 
 ### **2.2 Segment 2: Available (Responses)**
@@ -103,7 +103,7 @@ A real-time availability checking system where users can ask their starred frien
 
 - Shows friends who responded "Available" to your notification
 - Responses appear here when friends click "Available" on their notification
-- Responses persist for 20 minutes, then auto-clear
+- Responses persist for 100 minutes, then auto-clear
 - After auto-clear, reverts to "No responses yet" placeholder
 
 ### **2.3 Segment 3: Busy (Responses)**
@@ -119,7 +119,7 @@ A real-time availability checking system where users can ask their starred frien
 
 - Shows friends who responded "Busy" to your notification
 - Responses appear here when friends click "Busy" on their notification
-- Responses persist for 20 minutes, then auto-clear
+- Responses persist for 100 minutes, then auto-clear
 - After auto-clear, reverts to "No responses yet" placeholder
 
 ---
@@ -151,7 +151,7 @@ A real-time availability checking system where users can ask their starred frien
 ### **3.2 Auto-Expiration**
 
 - **Sent notifications**: Receiver has 100 minutes to respond; notification expires if not responded to
-- **Responses**: Sender sees response in Available/Busy segment for 20 minutes, then auto-clears
+- **Responses**: Sender sees response in Available/Busy segment for 100 minutes, then auto-clears
 - **Cooldown**: After 5 minutes, can send new notification to same friend
 - **Silent refresh**: If sender sends another notification within 100 minutes, receiver's old notification is replaced with new one (timer resets to 100 minutes)
 
