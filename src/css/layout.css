@@ -37,7 +37,7 @@
   /* Dark by default to prevent white flash before JS */
   --color-bg: #0a0b0f;
   --color-text: #f8f8f8;
-  --color-nav: #0d021a; /* dark nav tone */
+  --color-nav: #0d021a; /* dark nav tone - matches status bar */
   --color-nav-text: #ffffff;
   --color-safearea: var(--color-nav);
 }
@@ -1239,7 +1239,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (max-width: 600px) {
   :root {
     /* Slightly shorter bottom nav on small screens */
-    --mobile-bottom-nav-height: 50px;
+    --mobile-bottom-nav-height: 52px;
   }
   .mobile-nav-item { grid-template-rows: 26px auto; }
   .top-nav .top-nav-inner { padding: 0 0.75rem; }

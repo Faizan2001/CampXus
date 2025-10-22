@@ -466,9 +466,9 @@ body.dark-mode {
       rgba(192, 132, 252, 0.02) 50%,
       rgba(168, 85, 247, 0.04) 100%
     );
-    --nav-bg: rgba(21, 24, 32, 0.9);
+    --nav-bg: rgba(13, 2, 26, 0.9);
     /* Solid nav surface color for PWA system UI (status/navigation bars) */
-    --nav-solid-bg: #151820;
+    --nav-solid-bg: #0d021a;
 
     /* Glass System - Dark Mode */
     --glass-bg: rgba(42, 45, 56, 0.8);
@@ -1482,7 +1482,7 @@ body.dark-mode.page-friends {
 
   /* Premium Dark Theme Backgrounds */
   --depth-background: #0a0b0f;
-  --depth-surface: #151820;
+  --depth-surface: #0d021a;
   --depth-elevated: #1e2028;
   --depth-floating: #2a2d38;
 
