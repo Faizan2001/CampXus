@@ -121,6 +121,9 @@ function applyTheme() {
     dbg("☀️ Applied light mode theme");
   }
 
+  // Mark theme readiness so CSS can safely map variables for light mode
+  document.body.classList.add("theme-ready");
+
   updateToggleIcon();
 }
 
@@ -164,6 +167,17 @@ function toggleDarkMode() {
       detail: { isDarkMode, theme: isDarkMode ? "dark" : "light" },
     })
   );
+
+  // Immediately sync the status bar/theme-color to avoid inverted header on iOS 18 PWAs
+  try {
+    // Update the first theme-color meta without media (fallback) if present,
+    // otherwise update all theme-color tags so Android/iOS reflect app toggle.
+    const metas = Array.from(document.querySelectorAll('meta[name="theme-color"]'));
+    const darkColor = "#0d021a";
+    const lightColor = "#ffffff";
+    const color = isDarkMode ? darkColor : lightColor;
+    metas.forEach((m) => m.setAttribute("content", color));
+  } catch (_) {}
 
   // Add smooth transition class
   body.classList.add("theme-transition");

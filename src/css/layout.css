@@ -21,6 +21,8 @@
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
   /* Extra visual height of bottom nav (top padding + border). Ensures content stays above nav in iOS PWA. */
   --mobile-bottom-nav-top-gap: 8px;
+  /* iOS safe-area top inset (0 on devices without a notch) */
+  --safe-top: env(safe-area-inset-top, 0px);
   --main-content-available-height: calc(
     100dvh - var(--nav-height) - env(safe-area-inset-bottom, 0px)
   );
@@ -28,6 +30,32 @@
     100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
       var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom, 0px)
   );
+}
+
+/* ===== UNIVERSAL THEME VARIABLES (DARK DEFAULT) ===== */
+:root {
+  /* Dark by default to prevent white flash before JS */
+  --color-bg: #0a0b0f;
+  --color-text: #f8f8f8;
+  --color-nav: #0d021a; /* dark nav tone */
+  --color-nav-text: #ffffff;
+  --color-safearea: var(--color-nav);
+}
+
+/* When the app marks theme readiness, allow light theme when dark-mode is NOT set */
+body.theme-ready:not(.dark-mode) {
+  --color-bg: #f5f5fa;
+  --color-text: #0a0a0f;
+  --color-nav: #ffffff;
+  --color-nav-text: #111111;
+  --color-safearea: var(--color-nav);
+}
+
+html { background-color: var(--color-bg); }
+body {
+  /* iOS black-translucent uses body background for status bar area */
+  background-color: var(--color-nav);
+  color: var(--color-text);
 }
 
 /* ===== APP CONTAINER ===== */
@@ -42,8 +70,8 @@
   position: relative;
   width: 100%;
   overflow-x: hidden;
-  /* Push content below the fixed top-nav and iOS safe area */
-  padding-top: calc(var(--nav-height) + env(safe-area-inset-top, 0px));
+  /* Push content below the fixed top-nav (safe area is handled inside the nav via safe-spacer) */
+  padding-top: var(--nav-height);
 }
 
 /* iOS PWA Standalone Mode - Prevent clipping and respect safe areas */
@@ -79,7 +107,7 @@
   z-index: 1000;
   width: 100%;
   min-width: 0;
-  background: var(--nav-solid-bg);
+  background: var(--color-nav);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px var(--shadow);
 }
@@ -760,8 +788,8 @@ body:not(.dark-mode) .user-dropdown {
   position: fixed;
   left: 0;
   right: 0;
-  /* Sit fully above the iOS home-indicator safe area */
-  bottom: env(safe-area-inset-bottom, 0px);
+  /* Anchor to bottom (avoid layout jump while env() resolves) */
+  bottom: 0;
   z-index: 1000;
   display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -771,25 +799,29 @@ body:not(.dark-mode) .user-dropdown {
   padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
   padding-top: 6px;
-  /* Visual gap inside bar (safe area is now below via bottom offset) */
+  /* Include the iOS home-indicator inset inside the bar */
+  /* Small inner gap; height includes the safe-area inset to avoid a gap */
   padding-bottom: 8px;
-  /* Visible bar height */
-  height: var(--bn-h);
-  background: var(--nav-bg);
+  height: calc(var(--bn-h) + env(safe-area-inset-bottom, 0px));
+  background: var(--color-nav);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   transition: background 0.3s var(--animation-smooth),
     backdrop-filter 0.3s var(--animation-smooth);
 }
+
+/* Global safe-area fills using body pseudo-elements */
+/* Safe-area pseudo elements removed to avoid double strips; relying on
+   fixed nav spacing + body background to present safe areas. */
 .mobile-nav-item {
   position: relative;
   width: 100%;
   max-width: 110px;
   height: 100%;
-  padding: 2px 0 2px;
+  padding: 3px 0 2px; /* slight top lift to align with avatar */
   display: grid;
-  grid-template-rows: 20px auto; /* tighter stack: icon + label */
+  grid-template-rows: 26px auto; /* taller icon row to match avatar presence */
   row-gap: 0px;
   place-items: center;
   color: #bdbacb;
@@ -804,15 +836,16 @@ body:not(.dark-mode) .user-dropdown {
   -webkit-appearance: none;
 }
 .mobile-nav-item i {
-  font-size: 20px; /* slightly smaller icon */
-  line-height: 22px;
+  font-size: 24px; /* match avatar column presence */
+  line-height: 24px;
+  margin-top: 2px; /* bring icon slightly closer to label */
   transition: transform 0.18s ease;
 }
 .mobile-nav-label {
   font-size: 11px;
   opacity: 0.9;
   line-height: 1;
-  margin-top: 0;
+  margin-top: 2px; /* tiny separation from icon */
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .mobile-nav-item.active,
@@ -880,9 +913,7 @@ body:not(.dark-mode) .user-dropdown {
 .mobile-profile-trigger.active .mobile-user-avatar {
   transform: scale(1.1);
 }
-.mobile-profile-trigger i {
-  color: inherit;
-}
+.mobile-profile-trigger i { color: inherit; }
 .mobile-profile-trigger.active i {
   color: var(--accent-primary);
 }
@@ -1165,7 +1196,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     /* Use dynamic height variables that account for bottom nav */
     height: auto;
     min-height: var(--main-content-available-height-with-bottom-nav);
-    padding-bottom: 8px;
+    /* Reserve space equal to bottom nav height + safe-area */
+    padding-bottom: calc(
+      var(--mobile-bottom-nav-height, 60px) +
+      var(--mobile-bottom-nav-top-gap, 8px) +
+      env(safe-area-inset-bottom, 0px)
+    );
   }
 
   .content-grid {
@@ -1203,9 +1239,9 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (max-width: 600px) {
   :root {
     /* Slightly shorter bottom nav on small screens */
-    --mobile-bottom-nav-height: 56px;
+    --mobile-bottom-nav-height: 50px;
   }
-  .mobile-nav-item { grid-template-rows: 20px auto; }
+  .mobile-nav-item { grid-template-rows: 26px auto; }
   .top-nav .top-nav-inner { padding: 0 0.75rem; }
   .logo span {
     font-size: 1.25rem;

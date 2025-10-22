@@ -851,22 +851,25 @@ export { initializeCampusPresenceInBackground, fetchFreshLocationForPresence };
 function syncMetaThemeColorToNav() {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) return;
-  const nav = document.querySelector(".top-nav");
-  if (!nav) return;
-  const cs = getComputedStyle(nav);
-  const bg = cs.backgroundColor || "rgb(21, 24, 32)";
-  // Convert rgba to opaque rgb for theme-color (browsers ignore alpha)
-  const rgba = bg.match(/rgba?\(([^)]+)\)/i);
-  if (rgba) {
-    const parts = rgba[1].split(",").map((s) => s.trim());
-    const r = parseInt(parts[0], 10) || 21;
-    const g = parseInt(parts[1], 10) || 24;
-    const b = parseInt(parts[2], 10) || 32;
-    const hex = `#${[r, g, b]
-      .map((n) => n.toString(16).padStart(2, "0"))
-      .join("")}`;
-    meta.setAttribute("content", hex);
+  // Prefer CSS variable directly to avoid compositing/race issues on iOS 18
+  const rootStyles = getComputedStyle(document.documentElement);
+  let color = (rootStyles.getPropertyValue("--nav-solid-bg") || "").trim();
+
+  // If variable not resolved to a hex, fallback to computed background color
+  if (!color || color === "initial" || color === "inherit") {
+    const nav = document.querySelector(".top-nav");
+    const bg = nav ? getComputedStyle(nav).backgroundColor : "rgb(21,24,32)";
+    const rgba = bg.match(/rgba?\(([^)]+)\)/i);
+    if (rgba) {
+      const parts = rgba[1].split(",").map((s) => s.trim());
+      const r = parseInt(parts[0], 10) || 21;
+      const g = parseInt(parts[1], 10) || 24;
+      const b = parseInt(parts[2], 10) || 32;
+      color = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+    }
   }
+
+  if (color) meta.setAttribute("content", color);
 }
 
 /**

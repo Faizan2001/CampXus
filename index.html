@@ -65,26 +65,12 @@
     <link rel="stylesheet" href="/src/css/styles.css" />
 
     <!-- PWA and Icon Configuration -->
-    <!-- Single theme-color meta; we update it early via inline script and keep it synced in app.js -->
-    <meta name="theme-color" content="#0A0B0F" />
-    <script>
-      // Set theme-color ASAP to match saved/app theme before JS bundles load
-      (function () {
-        try {
-          var saved = (localStorage.getItem("theme") || "").toLowerCase();
-          var prefersDark =
-            window.matchMedia &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches;
-          var isDark = saved ? saved === "dark" : prefersDark;
-          // Match CSS --nav-solid-bg for each theme
-          var color = isDark ? "#151820" : "#ffffff";
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute("content", color);
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Unified dark status bar for iOS/Android (system-aware) -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d021a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="color-scheme" content="dark light" />
     <meta name="apple-mobile-web-app-title" content="MeetchuThere" />
     <meta name="mobile-web-app-capable" content="yes" />
 
@@ -249,8 +235,8 @@
                   </a>
                   <!-- Dark Mode Toggle (moved to dropdown) -->
                   <button type="button" class="dropdown-item" id="darkModeToggle" aria-label="Toggle dark mode">
-                    <i class="fas fa-moon"></i>
-                    <span id="darkModeText">Dark Mode</span>
+                    <i class="fas fa-sun"></i>
+                    <span id="darkModeText">Light Mode</span>
                   </button>
                   <button type="button" class="dropdown-item" id="signOutBtn">
                     <i class="fas fa-sign-out-alt"></i>
@@ -418,8 +404,8 @@
           id="mobileSheetDarkModeToggle"
           aria-pressed="false"
         >
-          <i class="fas fa-moon"></i
-          ><span id="mobileSheetDarkModeText">Dark Mode</span>
+          <i class="fas fa-sun"></i
+          ><span id="mobileSheetDarkModeText">Light Mode</span>
         </button>
         <button
           role="menuitem"
