@@ -42,6 +42,8 @@
   position: relative;
   width: 100%;
   overflow-x: hidden;
+  /* Push content below the fixed top-nav and iOS safe area */
+  padding-top: calc(var(--nav-height) + env(safe-area-inset-top, 0px));
 }
 
 /* iOS PWA Standalone Mode - Prevent clipping and respect safe areas */
@@ -70,59 +72,38 @@
 
 /* ===== TOP NAVIGATION ===== */
 .top-nav {
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   top: 0;
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.1rem clamp(0.75rem, 2vw, 1rem);
-  /* Ensure the bar always occupies space (rare iOS PWA collapse bug) */
-  min-height: var(--nav-height);
-  /* Respect safe area insets for notched devices */
-  padding-top: max(0.1rem, env(safe-area-inset-top, 0px));
-  padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
-  padding-right: max(
-    clamp(0.75rem, 2vw, 1rem),
-    env(safe-area-inset-right, 0px)
-  );
   width: 100%;
   min-width: 0;
-  box-sizing: border-box;
-  gap: 1rem;
-  background: var(--nav-bg);
-  backdrop-filter: blur(20px);
+  background: var(--nav-solid-bg);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px var(--shadow);
+}
+
+.top-nav .safe-spacer{ height: var(--safe-top); }
+
+.top-nav .top-nav-inner{
+  height: var(--nav-height);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 0 clamp(0.75rem, 2vw, 1rem);
+  padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
 }
 
 /* Ensure fully opaque nav background in PWA standalone mode */
 @media (display-mode: standalone),
   (display-mode: fullscreen),
   (display-mode: minimal-ui) {
-  .top-nav {
-    /* Use a solid color so OS status/gesture bars match exactly */
-    background: var(--nav-solid-bg);
-    /* Ensure status bar area is filled on iOS/Android notched devices */
-    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
-    /* Prevent nav from being clipped on iOS */
-    position: -webkit-sticky;
-    position: sticky;
-  }
+  .top-nav { background: var(--nav-solid-bg); }
 
-  /* Ensure the safe-area region above the nav is painted with the same color
-     even if sticky positioning causes a compositing gap on resume */
-  .top-nav::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-top, 0px);
-    background: var(--nav-solid-bg);
-    z-index: 999; /* under .top-nav (1000), above page background */
-    pointer-events: none;
-  }
+  .top-nav::before { display: none; }
 
   /* Bottom navigation uses the same solid background for seamless gesture area */
   .mobile-bottom-nav {
@@ -779,7 +760,8 @@ body:not(.dark-mode) .user-dropdown {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0; /* Sits at absolute bottom of viewport */
+  /* Sit fully above the iOS home-indicator safe area */
+  bottom: env(safe-area-inset-bottom, 0px);
   z-index: 1000;
   display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -789,9 +771,9 @@ body:not(.dark-mode) .user-dropdown {
   padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
   padding-top: 6px;
-  /* Padding bottom extends into safe area on iOS, fallback to 8px for Android/devices without safe areas */
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
-  /* Height is just the nav bar itself, padding handles safe area */
+  /* Visual gap inside bar (safe area is now below via bottom offset) */
+  padding-bottom: 8px;
+  /* Visible bar height */
   height: var(--bn-h);
   background: var(--nav-bg);
   backdrop-filter: blur(12px);
@@ -805,9 +787,10 @@ body:not(.dark-mode) .user-dropdown {
   width: 100%;
   max-width: 110px;
   height: 100%;
-  padding: 4px 0 2px;
+  padding: 2px 0 2px;
   display: grid;
-  grid-template-rows: 24px auto;
+  grid-template-rows: 20px auto; /* tighter stack: icon + label */
+  row-gap: 0px;
   place-items: center;
   color: #bdbacb;
   text-decoration: none;
@@ -821,13 +804,15 @@ body:not(.dark-mode) .user-dropdown {
   -webkit-appearance: none;
 }
 .mobile-nav-item i {
-  font-size: 22px;
+  font-size: 20px; /* slightly smaller icon */
   line-height: 22px;
   transition: transform 0.18s ease;
 }
 .mobile-nav-label {
   font-size: 11px;
-  opacity: 0.85;
+  opacity: 0.9;
+  line-height: 1;
+  margin-top: 0;
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .mobile-nav-item.active,
@@ -1048,8 +1033,8 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 
 /* ===== ULTRA-COMPACT ≤325px ===== */
 @media (max-width: 325px) {
-  .top-nav {
-    padding: 0rem 0.55rem;
+  .top-nav .top-nav-inner {
+    padding: 0 0.55rem;
   }
   .nav-right {
     gap: 0.25rem !important;
@@ -1121,8 +1106,8 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     );
   }
 
-  body .top-nav {
-    padding: 0rem 0.75rem;
+  .top-nav .top-nav-inner {
+    padding: 0 0.75rem;
     gap: 0.5rem;
     height: var(--nav-height);
   }
@@ -1216,10 +1201,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 
 /* ===== MOBILE COMPACT TOP-NAV ≤600px ===== */
 @media (max-width: 600px) {
-  .top-nav {
-    padding: 0.45rem 0.75rem;
-    backdrop-filter: blur(18px);
+  :root {
+    /* Slightly shorter bottom nav on small screens */
+    --mobile-bottom-nav-height: 56px;
   }
+  .mobile-nav-item { grid-template-rows: 20px auto; }
+  .top-nav .top-nav-inner { padding: 0 0.75rem; }
   .logo span {
     font-size: 1.25rem;
     font-family: "Sora", "Poppins", sans-serif;
@@ -1250,8 +1237,8 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 
 /* ===== MOBILE / GENERAL ≤768px ===== */
 @media (max-width: 768px) {
-  .top-nav {
-    padding: 0.55rem clamp(0.75rem, 3vw, 1.25rem);
+  .top-nav .top-nav-inner {
+    padding: 0 clamp(0.75rem, 3vw, 1.25rem);
   }
   .nav-center {
     flex: 1;
