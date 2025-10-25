@@ -87,6 +87,8 @@ This file contains all UI component styles for the MeetchuThere app:
   padding-top: 0;
   padding-bottom: 0;
   max-height: 0;
+  display: none !important;
+  visibility: hidden !important;
 }
 
 .notification-content {

@@ -166,6 +166,194 @@ body {
 #installPwaBtn {
   display: none;
 }
+
+/* ===== ENHANCED INSTALL BUTTON STYLING ===== */
+/* Make Install button highly attention-drawing with modern UI/UX principles */
+#installPwaBtn.nav-link {
+  /* Eye-catching gradient background that adapts to theme */
+  background: linear-gradient(135deg, #8b7de8 0%, #a855f7 50%, #c084fc 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-family: "Sora", "Poppins", sans-serif !important;
+  padding: 0.35rem 1.25rem !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 15px rgba(139, 125, 232, 0.4),
+              0 0 20px rgba(139, 125, 232, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  position: relative;
+  overflow: hidden;
+  transform: translateY(0);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Animated gradient */
+  background-size: 200% 200%;
+  animation: installGradientShift 3s ease infinite;
+}
+
+/* Subtle shimmer effect overlay */
+#installPwaBtn.nav-link::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 70%
+  );
+  transform: rotate(45deg);
+  animation: installShimmer 3s ease-in-out infinite;
+}
+
+/* Pulsing glow effect to draw attention */
+#installPwaBtn.nav-link::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0.75rem;
+  opacity: 0;
+  box-shadow: 0 0 30px rgba(139, 125, 232, 0.8);
+  animation: installPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Hover state - more intense and lifted */
+#installPwaBtn.nav-link:hover {
+  background: linear-gradient(135deg, #9d8ef5 0%, #b870ff 50%, #d4a0ff 100%) !important;
+  transform: translateY(-3px) scale(1.05) !important;
+  box-shadow: 0 6px 25px rgba(139, 125, 232, 0.6),
+              0 0 35px rgba(139, 125, 232, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+#installPwaBtn.nav-link:hover::after {
+  opacity: 1;
+}
+
+/* Active/pressed state */
+#installPwaBtn.nav-link:active {
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 3px 15px rgba(139, 125, 232, 0.5),
+              0 0 25px rgba(139, 125, 232, 0.3) !important;
+}
+
+/* Light mode specific enhancements */
+body:not(.dark-mode) #installPwaBtn.nav-link {
+  background: linear-gradient(135deg, #8b7de8 0%, #9d4edd 50%, #c77dff 100%) !important;
+  box-shadow: 0 4px 15px rgba(139, 125, 232, 0.35),
+              0 2px 8px rgba(139, 125, 232, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+body:not(.dark-mode) #installPwaBtn.nav-link:hover {
+  background: linear-gradient(135deg, #9d8ef5 0%, #b565f2 50%, #d896ff 100%) !important;
+  box-shadow: 0 6px 25px rgba(139, 125, 232, 0.5),
+              0 3px 12px rgba(139, 125, 232, 0.35),
+              inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Ensure text stays white and visible */
+#installPwaBtn.nav-link .nav-text {
+  position: relative;
+  z-index: 2;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  font-weight: 700 !important;
+  font-family: "Sora", "Poppins", sans-serif !important;
+}
+
+/* Focus state for accessibility */
+#installPwaBtn.nav-link:focus-visible {
+  outline: 3px solid rgba(139, 125, 232, 0.5);
+  outline-offset: 3px;
+  box-shadow: 0 4px 15px rgba(139, 125, 232, 0.4),
+              0 0 0 4px rgba(139, 125, 232, 0.2) !important;
+}
+
+/* Gradient animation */
+@keyframes installGradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Shimmer animation */
+@keyframes installShimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+/* Pulse glow animation */
+@keyframes installPulse {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Mobile responsiveness - keep it prominent but not overwhelming */
+@media (max-width: 768px) {
+  #installPwaBtn.nav-link {
+    padding: 0.25rem 1rem !important;
+    font-size: 0.9rem;
+  }
+  
+  #installPwaBtn.nav-link .nav-text {
+    font-size: 0.9rem;
+  }
+}
+
+/* Smaller screens - maintain flat appearance */
+@media (max-width: 600px) {
+  #installPwaBtn.nav-link {
+    padding: 0.25rem 0.85rem !important;
+    font-size: 0.9rem;
+  }
+}
+
+/* Extra small screens - compact but still eye-catching */
+@media (max-width: 480px) {
+  #installPwaBtn.nav-link {
+    padding: 0.25rem 0.7rem !important;
+    font-size: 0.85rem;
+    box-shadow: 0 3px 12px rgba(139, 125, 232, 0.4),
+                0 0 15px rgba(139, 125, 232, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  #installPwaBtn.nav-link {
+    animation: none;
+  }
+  
+  #installPwaBtn.nav-link::before,
+  #installPwaBtn.nav-link::after {
+    animation: none;
+  }
+  
+  #installPwaBtn.nav-link:hover {
+    transform: translateY(-2px) !important;
+  }
+}
+
 /* Force hide in installed PWA contexts (Android/iOS standalone modes) */
 @media (display-mode: standalone),
   (display-mode: fullscreen),
