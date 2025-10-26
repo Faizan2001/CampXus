@@ -126,6 +126,53 @@ async function removeInvalidTokens(userId, tokens, responses) {
   await batch.commit();
 }
 
+// Derive a stable WebPush tag per notification type to control stacking/collapsing behavior.
+function computeWebpushTag(data = {}) {
+  try {
+    const type = String(data?.type || "general");
+    const today = getYyyyMmDd();
+    // Prefer explicit IDs if provided in payload
+    const fromUserId = data?.fromUserId || data?.senderId || "";
+    const actorId = data?.actorId || data?.fromUserId || "";
+    const pingId = data?.pingId || data?.availabilityResponse?.pingId || data?.availabilityPing?.pingId || "";
+
+    switch (type) {
+      case "friend_request":
+        return `friend-request-${fromUserId || Date.now()}`;
+      case "location_request":
+        return `location-request-${fromUserId || Date.now()}`;
+      case "starred_presence":
+        // Collapse repeated presence from same actor within a day; allow stacking across different actors
+        return `presence-${actorId || today}-${today}`;
+      case "availability_response":
+        return `availability-response-${pingId || Date.now()}`;
+      case "availability_ping":
+        return `availability-ping-${pingId || fromUserId || Date.now()}`;
+      default:
+        return `meetchuthere-${type}-${today}`;
+    }
+  } catch (_) {
+    return `meetchuthere-notification-${Date.now()}`;
+  }
+}
+
+// Compute TTL (in seconds) based on type. WebPush respects the `TTL` header.
+function computeWebpushTTLSeconds(data = {}) {
+  const type = String(data?.type || "general");
+  switch (type) {
+    case "friend_request":
+      return 24 * 60 * 60; // 24h
+    case "location_request":
+      return 6 * 60 * 60; // 6h
+    case "starred_presence":
+      return 6 * 60 * 60; // 6h
+    case "availability_response":
+      return 24 * 60 * 60; // 24h
+    default:
+      return 24 * 60 * 60; // sensible default
+  }
+}
+
 async function sendToUser(userId, notification, data = {}) {
   const tokenObjs = await getUserTokens(userId);
   if (!tokenObjs.length) return { success: false, reason: "no_tokens" };
@@ -152,10 +199,14 @@ async function sendToUser(userId, notification, data = {}) {
     body: notification?.body || "",
   };
 
-  const message = {
-    tokens: chosenTokens,
+  // Enrich data with a server-provided tag so the SW can mirror it for data-only deliveries
+  const tag = computeWebpushTag(data);
+  const ttlSeconds = computeWebpushTTLSeconds(data);
+  const enrichedData = { ...data, notificationTag: tag };
+
+  const baseMessage = {
     notification: safeNotification,
-    data,
+    data: enrichedData,
     // Android-specific config for PWA notifications (wakes device, shows on lockscreen)
     android: {
       priority: "high",
@@ -193,14 +244,14 @@ async function sendToUser(userId, notification, data = {}) {
     },
     // Web-specific config for browser notifications
     webpush: {
-      headers: { Urgency: "high" },
+      headers: { Urgency: "high", TTL: String(ttlSeconds) },
       notification: {
         icon: "https://meetchuthere.com/icons/icon-192x192.png",
         badge: "https://meetchuthere.com/icons/notification-badge-96x96.png", // White silhouette for Android status bar
         requireInteraction: false, // true ignored on Android; false better for desktop UX
         renotify: true, // Vibrate/sound on repeat notifications
         vibrate: [200, 100, 200],
-        tag: "meetchuthere-notification", // Prevents stacking duplicates
+        tag, // Per-type/per-entity tag controls stacking behavior
         timestamp: Date.now(),
         actions: [
           { action: "open", title: "View", icon: "https://meetchuthere.com/icons/icon-72x72.png" },
@@ -212,7 +263,10 @@ async function sendToUser(userId, notification, data = {}) {
       },
     },
   };
-  const resp = await messaging.sendEachForMulticast(message);
+
+  // First attempt: chosenTokens (PWA-only if available)
+  let message = { ...baseMessage, tokens: chosenTokens };
+  let resp = await messaging.sendEachForMulticast(message);
   await removeInvalidTokens(userId, chosenTokens, resp);
   const errors = [];
   resp.responses.forEach((r, i) => {
@@ -220,6 +274,33 @@ async function sendToUser(userId, notification, data = {}) {
       errors.push({ index: i, code: r.error?.code || "unknown" });
     }
   });
+
+  // Fallback: if we attempted PWA-only and reached zero devices, retry with non-PWA tokens once
+  let retriedToNonPwa = false;
+  if (pwaTokens.length > 0 && resp.successCount === 0) {
+    const nonPwa = tokenObjs.filter((t) => !t.isPWA).map((t) => t.id);
+    if (nonPwa.length > 0) {
+      retriedToNonPwa = true;
+      try {
+        const retryMessage = { ...baseMessage, tokens: nonPwa };
+        const retryResp = await messaging.sendEachForMulticast(retryMessage);
+        await removeInvalidTokens(userId, nonPwa, retryResp);
+        retryResp.responses.forEach((r, i) => {
+          if (!r.success) {
+            errors.push({ index: `retry-${i}`, code: r.error?.code || "unknown" });
+          }
+        });
+        // Merge counts
+        resp = {
+          ...resp,
+          successCount: resp.successCount + retryResp.successCount,
+          failureCount: resp.failureCount + retryResp.failureCount,
+        };
+      } catch (e) {
+        // swallow; original resp stands
+      }
+    }
+  }
   return {
     success: true,
     sent: resp.successCount,
@@ -227,6 +308,7 @@ async function sendToUser(userId, notification, data = {}) {
     tokensConsidered: tokenObjs.length,
     tokensSent: chosenTokens.length,
     usedPwaOnly: pwaTokens.length > 0,
+    retriedToNonPwa,
     errors,
   };
 }
@@ -331,7 +413,11 @@ export const onFriendRequestCreated = onDocumentCreated(
       title: "New Friend Request",
       body: `${handle} wants to be your friend`,
     };
-    const payload = { link: "/#notifications", type: "friend_request" };
+    const payload = {
+      link: "/#notifications",
+      type: "friend_request",
+      fromUserId: data.fromUserId || "",
+    };
     const res = await sendToUser(toUserId, notification, payload);
     logger.info("Friend request push sent", res);
   }
@@ -377,7 +463,11 @@ export const onNotificationCreated = onDocumentCreated(
         title: "Location Request",
         body: `${handle} requested to share location`,
       };
-      const payload = { link: "/#notifications", type: "location_request" };
+      const payload = {
+        link: "/#notifications",
+        type: "location_request",
+        fromUserId: data.fromUserId || "",
+      };
       const res = await sendToUser(toUserId, notification, payload);
       logger.info("Location request push sent", res);
       return;
@@ -394,7 +484,12 @@ export const onNotificationCreated = onDocumentCreated(
         title: "Are you free?",
         body: `${handle} wants to know if you're free`,
       };
-      const payload = { link: "/#notifications", type: "availability_ping" };
+      const payload = {
+        link: "/#notifications",
+        type: "availability_ping",
+        pingId: data?.availabilityPing?.pingId || data?.availabilityPing?.id || "",
+        fromUserId: data.fromUserId || "",
+      };
       try {
         const res = await sendToUser(toUserId, notification, payload);
         logger.info("Availability ping push sent", res);
@@ -506,7 +601,11 @@ export const onUserPresenceUpdated = onDocumentUpdated(
         title: "On Campus",
         body: `${actorHandle} just arrived on campus`,
       };
-      const data = { link: "/#notifications", type: "starred_presence" };
+      const data = {
+        link: "/#notifications",
+        type: "starred_presence",
+        actorId,
+      };
       sendPromises.push(
         sendToUser(friendId, notification, data).then((res) => {
           logger.info("Starred presence push result", { friendId, actorId, ...res });
@@ -576,7 +675,11 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
         const how = (newResp === "available") ? "Available" : "Busy";
         const body = `${who} responded: ${how}`;
         // Link to notify overlay; Router opens overlay without reloading
-        const payload = { link: "/#notify", type: "availability_response" };
+        const payload = {
+          link: "/#notify",
+          type: "availability_response",
+          pingId: after?.availabilityPing?.pingId || "",
+        };
         await sendToUser(senderId, { title, body }, payload);
       } catch (pushErr) {
         logger.warn("Failed to send availability response push", { senderId, err: String(pushErr) });

@@ -116,11 +116,12 @@ try {
     try {
       const notificationTitle = payload?.data?.title || 'Notification';
       const deepLink = payload?.data?.link || '/#notifications';
+      const tag = payload?.data?.notificationTag || 'meetchuthere-notification';
       const notificationOptions = {
         body: payload?.data?.body || '',
         icon: '/icons/icon-192x192.png',
         badge: '/icons/notification-badge-96x96.png', // White silhouette for Android status bar
-        tag: 'meetchuthere-notification',
+        tag,
         renotify: true,
         requireInteraction: false, // Ignored on Android; false better for desktop
         vibrate: [200, 100, 200],
@@ -131,6 +132,7 @@ try {
         ],
         data: {
           link: deepLink,
+          notificationTag: tag,
         },
       };
       self.registration.showNotification(notificationTitle, notificationOptions);
