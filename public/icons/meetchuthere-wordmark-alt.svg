@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 280"
+  width="1280"
+  height="280"
+  role="img"
+  aria-label="MeetchuThere wordmark"
+  preserveAspectRatio="xMinYMid meet"
+  style="overflow: visible;"
+>
+  <defs>
+    <!-- Matches app brand gradient: #d5b6ff → #c580ff → #8c62ff -->
+    <linearGradient id="mt-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d5b6ff" />
+      <stop offset="50%" stop-color="#c580ff" />
+      <stop offset="100%" stop-color="#8c62ff" />
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent background; wordmark only -->
+  <text
+    x="40"
+    y="210"
+    font-family="Sora, Poppins, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    font-size="180"
+    font-weight="700"
+    letter-spacing="0"
+    fill="url(#mt-gradient)"
+  >MeetchuThere</text>
+</svg>
