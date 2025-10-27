@@ -6,6 +6,36 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
+    // --- Class Spaces (dev testing + read access) ---
+    // Reads: allow authenticated users (spaces are university-visible in app logic)
+    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
+    match /classSpaces/{spaceId} {
+      allow read: if request.auth != null;
+      // Allow client writes ONLY for dev test spaces you own
+      allow create, update: if request.auth != null &&
+        request.resource.data.devTest == true &&
+        request.resource.data.devOwnerUid == request.auth.uid;
+      allow delete: if request.auth != null &&
+        resource.data.devTest == true &&
+        resource.data.devOwnerUid == request.auth.uid;
+
+      // Messages subcollection: client reads only; writes via Cloud Function (sendGroupMessage)
+      match /messages/{msgId} {
+        allow read: if request.auth != null;
+        // Dev-only: allow creating messages under your own devTest spaces
+        allow create: if request.auth != null &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devTest == true &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devOwnerUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      // Members subcollection (if used): client reads only; membership managed by server/scheduler
+      match /members/{memberId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
     function devCreationEnabled() {
       // Toggle stored on document: admin/config
       return exists(/databases/$(database)/documents/admin/config) &&

@@ -1292,6 +1292,40 @@ class DataManager {
   }
 
   /**
+   * Update users/{uid}.courses with normalized compact entries used for grouping.
+   * Creates/overwrites the array only when courses are provided (non-empty).
+   * @param {string} userId
+   * @param {Array<Object>} courses - Array of normalized course entries
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateUserCourses(userId, courses) {
+    try {
+      if (!userId || !Array.isArray(courses)) {
+        return { success: false, error: "invalid_args" };
+      }
+      if (courses.length === 0) {
+        // Do not create empty arrays (respect 'create only when present')
+        return { success: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), {
+        courses: courses,
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
+      // Update cache entry for user profile if present
+      const cacheKey = `user_${userId}`;
+      const cached = this.getCachedData(cacheKey);
+      if (cached) {
+        this.setCachedData(cacheKey, { ...cached, courses });
+      }
+      return { success: true };
+    } catch (error) {
+      console.error("[dataManager] updateUserCourses failed:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Get a user's schedule with Phase-1 enhanced structure.
    * @param {string} userId - The user's UID
    * @returns {Promise<Object|null>} Enhanced schedule data or null
@@ -1328,6 +1362,38 @@ class DataManager {
       console.error("Error fetching schedule:", error);
       this.showError("Failed to load schedule");
       return null;
+    }
+  }
+
+  /**
+   * Get class spaces for current user via array-contains on memberIds.
+   * Returns lightweight summaries for GroupsPage cards.
+   */
+  async getUserClassSpaces() {
+    try {
+      if (!this.isOnline) return [];
+      const userId = (auth.currentUser && auth.currentUser.uid) || currentUser?.uid;
+      if (!userId) return [];
+      const qSpaces = query(
+        collection(db, 'classSpaces'),
+        where('memberIds', 'array-contains', userId)
+      );
+      const snap = await getDocs(qSpaces);
+      const list = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data() || {};
+        list.push({ spaceId: docSnap.id, ...d });
+      });
+      // Sort by lastActivity desc
+      list.sort((a, b) => {
+        const at = a.lastActivity?.toMillis?.() || 0;
+        const bt = b.lastActivity?.toMillis?.() || 0;
+        return bt - at;
+      });
+      return list;
+    } catch (e) {
+      console.error('[dataManager] getUserClassSpaces failed:', e);
+      return [];
     }
   }
 

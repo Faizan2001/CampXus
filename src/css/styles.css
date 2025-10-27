@@ -46,6 +46,7 @@ IMPORTED MODULES:
 @import url("./presence.css"); /* Campus presence dots and indicators */
 @import url("./notifications.css"); /* Notifications page styles */
 @import url("./notify.css"); /* Notify Friends overlay styles */
+@import url("./groups.css"); /* Groups & Group detail styles */
 @import url("./theme-light.css"); /* Light theme overrides and enhancements */
 
 /*

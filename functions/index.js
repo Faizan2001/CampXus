@@ -830,3 +830,185 @@ export const onUserDeleted = onDocumentDeleted(
 
 // 8) Debug: send a test push to the authenticated user (or provided target)
 // Debug test endpoints removed for production
+
+// -----------------------------------------------------------------------------
+// Class Spaces — Scheduler, Messaging, Trimming (stubs/minimal v1)
+// -----------------------------------------------------------------------------
+
+function buildSpaceIdFromCourse(university, course) {
+  try {
+    if (!university) return "";
+    const uni = String(university).toLowerCase().trim();
+    const sectionKey = String(course.section || 0).padStart(2, "0");
+    if (!course.dayPattern || !course.timeSlot || !course.classroom || sectionKey === "00") return "";
+    const useCode = !course.courseName || course.courseName.endsWith("...") || (course.courseName.split(/\s+/).length < 3);
+    const nameSlug = useCode && course.courseCode
+      ? String(course.courseCode).toLowerCase()
+      : String(course.courseName || "").replace(/\s+/g, "-").toLowerCase();
+    const day = String(course.dayPattern).toUpperCase();
+    const slot = String(course.timeSlot);
+    const room = String(course.classroom).toUpperCase();
+    // Exclude ambiguous rooms
+    if (/^(ONLINE|TBA|NA|NONE)$/i.test(room)) return "";
+    return `${uni}__${nameSlug}__sec${sectionKey}__${day}__${slot}__${room}`;
+  } catch (_) {
+    return "";
+  }
+}
+
+async function fetchMemberInfo(uid) {
+  try {
+    const snap = await db.collection("users").doc(uid).get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    return {
+      handle: d?.profile?.handle || "",
+      firstName: d?.profile?.firstName || "",
+      lastName: d?.profile?.lastName || "",
+      major: d?.profile?.major || "",
+      avatarConfig: d?.avatarConfig || null,
+      profilePhotoUrl: d?.profile?.profilePhotoUrl || null,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+export const scheduleDailyClassSpaces = onSchedule({ schedule: "every day 06:00", timeZone: "Asia/Dhaka" }, async () => {
+  // Build buckets by canonical key using users.courses[]
+  const usersSnap = await db.collection("users").get();
+  const buckets = new Map(); // key -> Set<uid>
+  const index = new Map(); // key -> sample course for metadata
+  for (const docSnap of usersSnap.docs) {
+    const d = docSnap.data() || {};
+    const uni = d?.universityInfo?.university || "";
+    const arr = Array.isArray(d?.courses) ? d.courses : [];
+    if (!uni || arr.length === 0) continue;
+    for (const c of arr) {
+      const id = buildSpaceIdFromCourse(uni, c);
+      if (!id) continue;
+      if (!buckets.has(id)) buckets.set(id, new Set());
+      buckets.get(id).add(docSnap.id);
+      if (!index.has(id)) index.set(id, { university: uni, course: c });
+    }
+  }
+
+  // Upsert spaces for buckets with ≥4 members
+  for (const [spaceId, set] of buckets) {
+    const members = Array.from(set);
+    const { university, course } = index.get(spaceId) || {};
+    const ref = db.collection("classSpaces").doc(spaceId);
+    if (members.length >= 4) {
+      // Prepare memberInfo cache (top N to keep doc reasonable; can expand later)
+      const memberInfo = {};
+      const preview = members.slice(0, 20); // limit info cache; roster UI can lazy fetch
+      await Promise.all(
+        preview.map(async (uid) => {
+          const info = await fetchMemberInfo(uid);
+          if (info) memberInfo[uid] = info;
+        })
+      );
+
+      const payload = {
+        spaceId,
+        university,
+        courseName: course?.courseName || null,
+        courseCode: course?.courseCode || null,
+        section: course?.section || null,
+        dayPattern: course?.dayPattern || null,
+        timeSlot: course?.timeSlot || null,
+        timeStart: course?.timeStart || null,
+        timeEnd: course?.timeEnd || null,
+        classroom: course?.classroom || null,
+        memberIds: members,
+        memberCount: members.length,
+        memberInfo,
+        active: true,
+        lastMemberUpdate: new Date(),
+        updatedAt: new Date(),
+        createdAt: new Date(),
+        visibility: "university",
+      };
+      await ref.set(payload, { merge: true });
+    } else {
+      // If space exists, mark inactive but keep history
+      const snap = await ref.get();
+      if (snap.exists) {
+        await ref.set({ active: false, updatedAt: new Date() }, { merge: true });
+      }
+    }
+  }
+  logger.info("scheduleDailyClassSpaces completed", { buckets: buckets.size });
+});
+
+// Rate-limited message sending via callable (membership checked in CF)
+export const sendGroupMessage = https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new https.HttpsError("unauthenticated", "Must be signed in");
+  }
+  const uid = context.auth.uid;
+  const spaceId = String(data?.spaceId || "").trim();
+  const content = String(data?.content || "").trim();
+  if (!spaceId || !content) {
+    throw new https.HttpsError("invalid-argument", "spaceId and content required");
+  }
+  if (content.length > 500) {
+    throw new https.HttpsError("invalid-argument", "Message too long");
+  }
+
+  // Rate limit: 1 message per 3 seconds per user per space
+  const rateKey = `msg_${spaceId}`;
+  const ok = await incrementRate(uid, rateKey, 1000000); // daily cap very high
+  // Enforce a short-term throttle using a per-space user doc
+  const throttleRef = db.collection("rateLimits").doc(`${spaceId}_${uid}`);
+  const now = Date.now();
+  const throttleSnap = await throttleRef.get();
+  const lastAt = throttleSnap.exists ? throttleSnap.data()?.lastAt || 0 : 0;
+  if (now - lastAt < 3000) {
+    throw new https.HttpsError("resource-exhausted", "Slow down");
+  }
+  await throttleRef.set({ lastAt: now }, { merge: true });
+
+  // Membership check
+  const spaceDoc = await db.collection("classSpaces").doc(spaceId).get();
+  if (!spaceDoc.exists) throw new https.HttpsError("not-found", "Space not found");
+  const space = spaceDoc.data() || {};
+  const isMember = Array.isArray(space.memberIds) && space.memberIds.includes(uid);
+  if (!isMember) throw new https.HttpsError("permission-denied", "Not a member");
+
+  // Write message
+  const msgRef = db.collection("classSpaces").doc(spaceId).collection("messages").doc();
+  const senderInfo = await fetchMemberInfo(uid);
+  await msgRef.set({
+    messageId: msgRef.id,
+    senderId: uid,
+    senderInfo: senderInfo || { handle: "", firstName: "" },
+    content,
+    createdAt: new Date(),
+    edited: false,
+    editedAt: null,
+    deleted: false,
+  });
+  await spaceDoc.ref.set(
+    {
+      lastActivity: new Date(),
+      lastMessagePreview: { content: content.slice(0, 140), senderId: uid, createdAt: new Date() },
+    },
+    { merge: true }
+  );
+  return { success: true, messageId: msgRef.id };
+});
+
+// Nightly trim to 2,000 latest messages per space
+export const trimSpaceMessages = onSchedule({ schedule: "every day 03:00", timeZone: "Asia/Dhaka" }, async () => {
+  const spaces = await db.collection("classSpaces").where("active", "==", true).get();
+  for (const s of spaces.docs) {
+    const ref = s.ref.collection("messages");
+    const snap = await ref.orderBy("createdAt", "desc").offset(2000).limit(500).get();
+    if (snap.empty) continue;
+    const batch = db.batch();
+    snap.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  logger.info("trimSpaceMessages completed");
+});

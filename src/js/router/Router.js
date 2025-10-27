@@ -99,6 +99,24 @@ class SPARouter {
         requiresAuth: true,
         indexable: false,
       },
+      groups: {
+        title: "Groups - MeetchuThere",
+        template: "/templates/groups.html",
+        cssFiles: ["/src/css/styles.css"],
+        jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
+        description: "Your class spaces (auto-created)",
+        requiresAuth: true,
+        indexable: false,
+      },
+      group: {
+        title: "Group - MeetchuThere",
+        template: "/templates/group.html",
+        cssFiles: ["/src/css/styles.css"],
+        jsImporters: [() => import("/src/js/pages/GroupDetailPage.js")],
+        description: "Class space chat and members",
+        requiresAuth: true,
+        indexable: false,
+      },
       about: {
         title: "About - MeetchuThere",
         template: "/templates/about.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
