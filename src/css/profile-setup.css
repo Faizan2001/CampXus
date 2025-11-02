@@ -116,6 +116,49 @@ body.page-profile .profile-setup-card.glass-card {
   scrollbar-color: var(--accent-primary) transparent;
 }
 
+/* Q/A section styling */
+.qna-controls, .qna-list, .qna-item, .qna-item label, .qna-answer, #qna-picker {
+  font-family: var(--font-brand, "Sora", "Poppins", sans-serif);
+}
+.qna-list {
+  display: grid;
+  gap: 12px;
+}
+.qna-item {
+  position: relative;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.qna-item .qna-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  background: #ef4444; /* red */
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+}
+.qna-item .qna-remove.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.qna-item label {
+  display: block;
+  margin-bottom: 6px;
+}
+.qna-item .qna-answer {
+  width: 100%;
+  resize: vertical;
+}
+
 /* Custom scrollbar for setup body (inner scrollable content) */
 .setup-body::-webkit-scrollbar {
   width: 4px; /* Even thinner for inner content */

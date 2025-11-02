@@ -56,6 +56,13 @@ import {
 } from "firebase/firestore";
 import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js"; // 🎯 NEW: Schedule import functionality
 import {
+  getCuratedQABank,
+  MAX_QA_ANSWERS,
+  MIN_QA_ANSWERS,
+  MAX_QA_ANSWER_LENGTH,
+  MIN_QA_ANSWER_LENGTH,
+} from "../../services/profile/QABankService.js";
+import {
   onboardingService,
   DEFAULT_ONBOARDING_STATE,
 } from "../../services/onboarding/OnboardingService.js";
@@ -139,6 +146,11 @@ class ProfileSetup {
 
     // Cooldown refresh interval reference
     this.handleCooldownInterval = null;
+
+    // Q&A bank (curated)
+    this.qnaBank = getCuratedQABank();
+    this.qnaAnswers = new Map(); // id -> answer string
+    this.qnaSelectedIds = new Set(); // selected question ids
 
     // Predefined majors list (code → name)
     this.MAJORS = [
@@ -502,6 +514,18 @@ class ProfileSetup {
       if (bioCount) {
         bioCount.textContent = bioValue.length;
       }
+
+      // Load existing Q/A answers (we render Q/A UI later via initQnaUI)
+      try {
+        const qna = profile.qnaResponses || [];
+        if (Array.isArray(qna) && qna.length) {
+          qna.forEach((entry) => {
+            if (entry?.questionId && typeof entry?.answer === 'string') {
+              this.qnaAnswers.set(entry.questionId, entry.answer);
+            }
+          });
+        }
+      } catch (_) {}
 
       // Handle avatar configuration
       const avatarSource = isNested ? profileData : profile;
@@ -1350,10 +1374,12 @@ class ProfileSetup {
         this.clearValidationErrors();
       }
     } else if (this.currentStep === 1) {
-      // Step 1: Avatar & bio (optional)
+      // Step 1: Avatar, Bio & Q/A — require at least 1 valid Q/A (>= min length)
       nextBtn.textContent = "Next Step →";
-      nextBtn.disabled = false;
-      nextBtn.classList.remove("disabled-state");
+      const validQnaCount = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
+      const isStepValid = validQnaCount >= MIN_QA_ANSWERS;
+      nextBtn.disabled = !isStepValid;
+      nextBtn.classList.toggle("disabled-state", !isStepValid);
     } else if (this.currentStep === 2) {
       // Step 2: Schedule Import (optional, this is the new final step)
       nextBtn.textContent = "Complete Setup!";
@@ -1393,9 +1419,176 @@ class ProfileSetup {
         return false;
       }
     }
-    // Step 1 (Profile pic/bio) is optional, so no validation needed
+    // Step 1 (Avatar, Bio, Q/A)
+    if (this.currentStep === 1) {
+      // live validation feedback: show if over max or show guidance; final save enforces ≥1 with min length
+      const count = this.getQnaResponseCount();
+      const feedback = document.getElementById("qna-feedback");
+      if (feedback) {
+        feedback.textContent = `Answer at least ${MIN_QA_ANSWERS} (min ${MIN_QA_ANSWER_LENGTH} chars), up to ${MAX_QA_ANSWERS}.`;
+        feedback.className = "field-hint";
+      }
+    }
 
     return true;
+  }
+
+  /**
+   * ===================== Q&A (Curated) =====================
+   */
+  initQnaUI() {
+    try {
+      const picker = document.getElementById('qna-picker');
+      const selectedList = document.getElementById('qna-selected-list');
+      if (!picker || !selectedList) return;
+
+      // Start with existing answers' questionIds or default to first bank item
+      const existingIds = Array.from(this.qnaAnswers.entries())
+        .filter(([, a]) => typeof a === 'string')
+        .map(([id]) => id);
+      if (existingIds.length) {
+        existingIds.forEach((id) => this.qnaSelectedIds.add(id));
+      } else {
+        const defaultId = this.qnaBank[0]?.id;
+        if (defaultId) this.qnaSelectedIds.add(defaultId);
+      }
+
+      const onPickerChange = (e) => {
+        const id = e.target.value;
+        if (!id) return;
+        if (this.qnaSelectedIds.has(id)) return; // no duplicates
+        if (this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
+          const feedback = document.getElementById('qna-feedback');
+          if (feedback) {
+            feedback.textContent = `You can add up to ${MAX_QA_ANSWERS} questions.`;
+            feedback.className = 'field-hint';
+          }
+          picker.value = '';
+          return;
+        }
+        this.qnaSelectedIds.add(id);
+        this.renderQnaSelected();
+        this.refreshQnaPicker();
+        picker.value = '';
+        this.validateCurrentStep();
+      };
+
+      if (!picker.hasAttribute('data-listener-attached')) {
+        picker.addEventListener('change', onPickerChange);
+        picker.setAttribute('data-listener-attached', 'true');
+      }
+
+      this.renderQnaSelected();
+      this.refreshQnaPicker();
+      this.validateCurrentStep();
+    } catch (err) {
+      console.warn('initQnaUI failed:', err);
+    }
+  }
+
+  refreshQnaPicker() {
+    const picker = document.getElementById('qna-picker');
+    if (!picker) return;
+    // rebuild options: keep placeholder, then add items not in selected
+    const placeholder = picker.querySelector('option[value=""]');
+    picker.innerHTML = '';
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = 'Add a question…';
+    ph.disabled = true;
+    ph.selected = true;
+    picker.appendChild(ph);
+    this.qnaBank.forEach((q) => {
+      if (this.qnaSelectedIds.has(q.id)) return;
+      const opt = document.createElement('option');
+      opt.value = q.id;
+      opt.textContent = q.text;
+      picker.appendChild(opt);
+    });
+    // disable picker if reached max
+    picker.disabled = this.qnaSelectedIds.size >= MAX_QA_ANSWERS;
+  }
+
+  renderQnaSelected() {
+    const selectedList = document.getElementById('qna-selected-list');
+    if (!selectedList) return;
+    selectedList.innerHTML = '';
+    const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
+    const allowRemove = this.qnaSelectedIds.size > 1;
+    Array.from(this.qnaSelectedIds).forEach((id) => {
+      const q = bankById.get(id);
+      const item = document.createElement('div');
+      item.className = 'qna-item';
+      item.setAttribute('data-qna-id', id);
+      item.innerHTML = `
+        <button type="button" class="qna-remove" aria-label="Remove question" title="Remove question">−</button>
+        <label class="form-label">${q?.text || ''}</label>
+        <textarea class="form-input qna-answer" rows="2" maxlength="${MAX_QA_ANSWER_LENGTH}" placeholder="Type your answer"></textarea>
+        <div class="char-counter-container"><span class="qna-count">0</span>/${MAX_QA_ANSWER_LENGTH}</div>
+      `;
+      const ta = item.querySelector('textarea.qna-answer');
+      const counter = item.querySelector('.qna-count');
+      const removeBtn = item.querySelector('.qna-remove');
+      // restore existing answer
+      const prev = this.qnaAnswers.get(id) || '';
+      if (prev) {
+        ta.value = prev;
+        if (counter) counter.textContent = String(prev.length);
+      }
+      // textarea input
+      ta.addEventListener('input', (e) => {
+        const val = (e.target.value || '').slice(0, MAX_QA_ANSWER_LENGTH);
+        this.qnaAnswers.set(id, val.trim());
+        if (counter) counter.textContent = String(val.length);
+        this.validateCurrentStep();
+      });
+      // remove button
+      if (!allowRemove) {
+        removeBtn.disabled = true;
+        removeBtn.classList.add('disabled');
+      } else {
+        removeBtn.addEventListener('click', () => {
+          if (this.qnaSelectedIds.size <= 1) return; // guard
+          this.qnaSelectedIds.delete(id);
+          // keep answer in map but optional: clear to free if removed
+          // this.qnaAnswers.delete(id);
+          this.renderQnaSelected();
+          this.refreshQnaPicker();
+          this.validateCurrentStep();
+        });
+      }
+      selectedList.appendChild(item);
+    });
+  }
+
+  getQnaResponseCount(minLen = 1) {
+    let count = 0;
+    this.qnaSelectedIds.forEach((id) => {
+      const val = (this.qnaAnswers.get(id) || '').trim();
+      if (val.length >= minLen) count++;
+    });
+    return count;
+  }
+
+  buildQnaResponsesForSave() {
+    const now = new Date();
+    const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
+    const responses = [];
+    this.qnaSelectedIds.forEach((id) => {
+      const answer = this.qnaAnswers.get(id) || '';
+      const trimmed = answer.trim();
+      if (trimmed.length < MIN_QA_ANSWER_LENGTH) return; // must meet min length
+      const q = bankById.get(id);
+      if (!q) return;
+      responses.push({
+        questionId: id,
+        question: q.text,
+        answer: trimmed.slice(0, MAX_QA_ANSWER_LENGTH),
+        answeredAt: now,
+      });
+    });
+    // Keep only up to MAX_QA_ANSWERS
+    return responses.slice(0, MAX_QA_ANSWERS);
   }
 
   /**
@@ -1877,6 +2070,23 @@ class ProfileSetup {
         },
       };
 
+      // Curated Q&A (PRD: ≥1, ≤5 answers)
+      const qna = this.buildQnaResponsesForSave();
+      if (qna.length < MIN_QA_ANSWERS) {
+        // Bring user back to Step 1 and show feedback
+        this.currentStep = 1;
+        this.updateStepDisplay();
+        const feedback = document.getElementById('qna-feedback');
+        if (feedback) {
+          feedback.textContent = `Please answer at least ${MIN_QA_ANSWERS} question (${MIN_QA_ANSWER_LENGTH}–${MAX_QA_ANSWER_LENGTH} chars).`;
+          feedback.className = 'error-message';
+          feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        throw new Error('Please answer at least one curated question.');
+      }
+      // Only add field when provided, per PRD
+      profileDataForFirestore.profile.qnaResponses = qna;
+
       const userId =
         this.currentUser?.uid ||
         currentUser?.uid ||
@@ -2234,6 +2444,9 @@ class ProfileSetup {
       });
       bioInput.setAttribute("data-listener-attached", "true");
     }
+
+    // Q/A
+    this.initQnaUI();
 
     // 🎯 NEW: Schedule import event listeners
     if (

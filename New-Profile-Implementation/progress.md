@@ -27,6 +27,13 @@ Status: In progress (dev‑testable UI shipped)
   - Added “Groups” to top and bottom nav (`index.html`).
 - Friends page error fix
   - Replaced mixed Firestore instances with `getFirestore()` from same import to stop `collection(...)` type error.
+ - Profiles — Q/A (PRD)
+  - Q/A section in Profile Setup with dropdown to add questions and red minus to remove (cannot remove last one).
+  - Default shows 1 question; users can add up to 5, no duplicates.
+  - Validation: at least 1 answered with 10–150 chars; 150 max enforced per answer.
+  - UI guard: Next Step button disabled on Q/A step until ≥1 valid answer.
+  - Saves to `users/{uid}.profile.qnaResponses[]` with `{questionId, question, answer, answeredAt}`; prefill on revisit.
+  - Files: `public/templates/profile.html`, `src/js/components/forms/ProfileSetup.js`, `src/js/services/profile/QABankService.js`, `src/css/profile-setup.css`.
 
 ## How to test (manual)
 - Courses save
@@ -37,6 +44,13 @@ Status: In progress (dev‑testable UI shipped)
   - Open card → `#group` → send message. Dev spaces: direct write; prod spaces: CF path.
 - Scheduler
   - After 06:00 Asia/Dhaka, buckets with ≥4 members create/refresh spaces.
+ - Profiles — Q/A
+  - Go to Profile Setup → Avatar & Bio step → “Q/A” appears.
+  - Use dropdown to add questions (no duplicates). 1 question shown by default.
+  - Remove via red minus (disabled when only one remains). Up to 5 questions total.
+  - Enter 10–150 chars per answer; counters update.
+  - Save with 0 valid answers (>=10 chars) → blocked; with ≥1 valid → profile saves.
+  - Verify Firestore: `users/{uid}.profile.qnaResponses[]` stores only answered prompts.
 
 ## Next (suggested)
 - Groups polish
@@ -46,7 +60,7 @@ Status: In progress (dev‑testable UI shipped)
 - Profiles (v1)
   - Photo upload (512×512 WebP + 128 thumb) + `useAvatar` toggle
   - Interests chips (predefined + custom, 3–20 chars, ≤10)
-  - Curated Q&A (≥1, ≤5) and profile view rendering
+  - Profile view rendering (show Q&A, interests)
   - Gate Groups until `profileSetupComplete === true`
 - CF/rules hardening
   - Keep messages CF‑only for non‑dev spaces; ensure callable receives ID token (optionally set region in client `getFunctions(app, 'us-central1')`)
@@ -65,7 +79,7 @@ Status: In progress (dev‑testable UI shipped)
 - [ ] Groups: members tab avatar chips and profile click‑through
 - [ ] Profiles: photo upload (512×512 WebP + 128 thumb) + `useAvatar` toggle
 - [ ] Profiles: interests chips (predefined + custom, 3–20 chars, ≤10)
-- [ ] Profiles: curated Q&A (≥1, ≤5); require ≥1; store and render on profile
+- [x] Profiles: curated Q&A (≥1, ≤5); require ≥1; store and prefill on setup
 - [ ] Gate Groups until `systemInfo.profileSetupComplete === true`
 - [ ] CF/auth hardening for production sendGroupMessage (ensure ID token; region `us-central1`)
 - [ ] Rules QA: deny direct client writes to non‑dev messages; keep dev path only under `devTest`
