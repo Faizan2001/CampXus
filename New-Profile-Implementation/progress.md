@@ -27,13 +27,24 @@ Status: In progress (dev‑testable UI shipped)
   - Added “Groups” to top and bottom nav (`index.html`).
 - Friends page error fix
   - Replaced mixed Firestore instances with `getFirestore()` from same import to stop `collection(...)` type error.
- - Profiles — Q/A (PRD)
+- Profiles — Q/A (PRD)
   - Q/A section in Profile Setup with dropdown to add questions and red minus to remove (cannot remove last one).
   - Default shows 1 question; users can add up to 5, no duplicates.
   - Validation: at least 1 answered with 10–150 chars; 150 max enforced per answer.
   - UI guard: Next Step button disabled on Q/A step until ≥1 valid answer.
   - Saves to `users/{uid}.profile.qnaResponses[]` with `{questionId, question, answer, answeredAt}`; prefill on revisit.
   - Files: `public/templates/profile.html`, `src/js/components/forms/ProfileSetup.js`, `src/js/services/profile/QABankService.js`, `src/css/profile-setup.css`.
+
+- Profiles — Photo Upload (PRD)
+  - Added client-side photo upload with auto center-crop and WebP export: 512×512 main + 128×128 thumb.
+  - Uploads to `profilePhotos/{uid}/photo.webp` and `.../thumb.webp`; sets `profile.profilePhotoUrl`.
+  - Toggle “Use avatar instead of photo” persists `profile.useAvatar`.
+  - Files: `public/templates/profile.html`, `src/js/components/forms/ProfileSetup.js`, `src/js/services/profile/ProfilePhotoService.js`.
+
+- Profiles — Interests (PRD)
+  - Added Interests chips UI: suggestions + custom add (lowercase, 3–20 chars), up to 10.
+  - Icons via Font Awesome Free; chip colors auto-assigned; saves to `profile.interests[]`.
+  - Files: `public/templates/profile.html`, `src/js/components/forms/ProfileSetup.js`, `src/js/services/profile/InterestsService.js`, `src/css/profile-setup.css`.
 
 ## How to test (manual)
 - Courses save
@@ -171,3 +182,10 @@ firebase deploy --only functions:scheduleDailyClassSpaces,functions:sendGroupMes
 ## Known Issues / Tips
 - CF 401 on `sendGroupMessage` indicates missing ID token. Dev spaces bypass the CF path; for prod spaces, set region in client: `getFunctions(app, 'us-central1')` and ensure you’re signed in before calling.
 - Presence logs/noise are expected on route changes; they don’t affect Groups.
+ - Profiles — Photo
+  - Click “Upload Photo” → choose image → preview shows; toggle “Use avatar” switches view.
+  - Save profile → Firestore: `profile.profilePhotoUrl` set; Storage: `profilePhotos/{uid}/...` exists.
+
+ - Profiles — Interests
+  - Tap suggested chips or add custom (3–20 chars, lowercase) → up to 10.
+  - Save profile → Firestore: `profile.interests[]` populated.

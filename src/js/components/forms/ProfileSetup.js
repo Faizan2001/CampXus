@@ -63,6 +63,18 @@ import {
   MIN_QA_ANSWER_LENGTH,
 } from "../../services/profile/QABankService.js";
 import {
+  processProfilePhoto,
+  uploadProfilePhotoBlobs,
+  deleteExistingProfilePhotos,
+} from "../../services/profile/ProfilePhotoService.js";
+import {
+  STARTER_INTERESTS,
+  MAX_INTERESTS,
+  normalizeInterest,
+  isValidCustomInterest,
+  interestIcon,
+} from "../../services/profile/InterestsService.js";
+import {
   onboardingService,
   DEFAULT_ONBOARDING_STATE,
 } from "../../services/onboarding/OnboardingService.js";
@@ -151,6 +163,13 @@ class ProfileSetup {
     this.qnaBank = getCuratedQABank();
     this.qnaAnswers = new Map(); // id -> answer string
     this.qnaSelectedIds = new Set(); // selected question ids
+
+    // Profile photo state
+    this.profilePhotoUrl = null;
+    this.useAvatar = true;
+
+    // Interests
+    this.interests = new Set();
 
     // Predefined majors list (code → name)
     this.MAJORS = [
@@ -525,6 +544,27 @@ class ProfileSetup {
             }
           });
         }
+      } catch (_) {}
+
+      // Load photo + useAvatar
+      try {
+        const useAvatar = !!getProfileValue("useAvatar", true);
+        const photoUrl = getProfileValue("profilePhotoUrl", "");
+        this.useAvatar = useAvatar;
+        this.profilePhotoUrl = photoUrl || null;
+        const toggle = document.getElementById("use-avatar-toggle");
+        if (toggle) toggle.checked = !!this.useAvatar;
+        this.updatePhotoPreview();
+      } catch (_) {}
+
+      // Load interests
+      try {
+        const interests = Array.isArray(profile.interests)
+          ? profile.interests
+          : [];
+        interests.forEach((i) => this.interests.add(i.toString().toLowerCase()));
+        this.renderInterestsSelected();
+        this.renderInterestsSuggestions();
       } catch (_) {}
 
       // Handle avatar configuration
@@ -976,6 +1016,10 @@ class ProfileSetup {
     this.initMajorTypeahead();
     this.initStartingYearDropdown();
     this.initializeAvatarSystem();
+    // Initialize Q/A + Interests + Photo bindings after DOM is ready
+    this.initQnaUI();
+    this.initInterestsUI();
+    this.initPhotoBindings();
   }
 
   /**
@@ -1039,6 +1083,11 @@ class ProfileSetup {
     this.updateStepDisplay();
     this.updateProgress();
     this.validateCurrentStep();
+
+    // Re-bind dynamics
+    this.initQnaUI();
+    this.initInterestsUI();
+    this.initPhotoBindings();
   }
 
   /**
@@ -1591,6 +1640,229 @@ class ProfileSetup {
     return responses.slice(0, MAX_QA_ANSWERS);
   }
 
+  // ===================== Photo =====================
+  initPhotoBindings() {
+    try {
+      const uploadBtn = document.getElementById('profile-photo-upload-btn');
+      const fileInput = document.getElementById('profile-photo-input');
+      const swapBtn = document.getElementById('swap-photo-avatar-btn');
+      if (uploadBtn && fileInput && !uploadBtn.hasAttribute('data-listener-attached')) {
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        uploadBtn.setAttribute('data-listener-attached', 'true');
+      }
+      if (fileInput && !fileInput.hasAttribute('data-listener-attached')) {
+        fileInput.addEventListener('change', (e) => this.handlePhotoSelected(e));
+        fileInput.setAttribute('data-listener-attached', 'true');
+      }
+      if (swapBtn && !swapBtn.hasAttribute('data-listener-attached')) {
+        swapBtn.addEventListener('click', () => {
+          // If no photo available, prompt upload when swapping to photo
+          if (this.useAvatar) {
+            if (!this.profilePhotoUrl) {
+              const fileInput = document.getElementById('profile-photo-input');
+              if (fileInput) fileInput.click();
+              return;
+            }
+            // Switch to photo
+            this.useAvatar = false;
+          } else {
+            // Switch to avatar
+            this.useAvatar = true;
+          }
+          this.updatePhotoPreview();
+          this.updateAvatarPreview();
+          this._updateSwapButtonLabel();
+        });
+        swapBtn.setAttribute('data-listener-attached', 'true');
+      }
+      this.updatePhotoPreview();
+      this._updateSwapButtonLabel();
+    } catch (err) {
+      console.warn('initPhotoBindings failed:', err);
+    }
+  }
+
+  async handlePhotoSelected(event) {
+    try {
+      const userId = this.currentUser?.uid || currentUser?.uid;
+      if (!userId) return;
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const { mainBlob, thumbBlob } = await processProfilePhoto(file);
+      if (mainBlob.size > 400 * 1024) {
+        alert('Photo is too large after processing. Please choose a different image.');
+        return;
+      }
+      // Only delete old files if a previous photo exists
+      if (this.profilePhotoUrl) {
+        await deleteExistingProfilePhotos(userId);
+      }
+      const { url } = await uploadProfilePhotoBlobs(userId, mainBlob, thumbBlob);
+      this.profilePhotoUrl = url;
+      this.useAvatar = false;
+      this._updateSwapButtonLabel();
+      this.updatePhotoPreview();
+      this.validateCurrentStep();
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      alert('Failed to upload photo. Please try another image.');
+    }
+  }
+
+  updatePhotoPreview() {
+    try {
+      const photoBox = document.getElementById('photo-preview-display');
+      if (!photoBox) return;
+      photoBox.innerHTML = '';
+      if (!this.useAvatar && this.profilePhotoUrl) {
+        const img = document.createElement('img');
+        img.src = this.profilePhotoUrl;
+        img.alt = 'Profile photo';
+        img.width = 96; img.height = 96; img.loading='lazy';
+        img.style.cssText = 'width:96px;height:96px;border-radius:50%;object-fit:cover;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;';
+        photoBox.appendChild(img);
+        photoBox.classList.add('selected');
+        const avatarBox = document.getElementById('avatar-preview-display');
+        avatarBox?.classList.remove('selected');
+      } else {
+        const i = document.createElement('i');
+        i.className = 'fas fa-user-circle';
+        i.style.cssText = 'font-size:48px;opacity:.6;';
+        photoBox.appendChild(i);
+        photoBox.classList.remove('selected');
+        const avatarBox = document.getElementById('avatar-preview-display');
+        avatarBox?.classList.add('selected');
+      }
+    } catch (_) {}
+  }
+
+  _updateSwapButtonLabel() {
+    const btn = document.getElementById('swap-photo-avatar-btn');
+    if (!btn) return;
+    if (this.useAvatar) {
+      btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap to Photo';
+    } else {
+      btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap to Avatar';
+    }
+  }
+
+  // ===================== Interests =====================
+  initInterestsUI() {
+    try {
+      const input = document.getElementById('interest-input');
+      const addBtn = document.getElementById('add-interest-btn');
+      if (input && !input.hasAttribute('data-listener-attached')) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            this.tryAddInterest(input.value);
+          }
+        });
+        input.setAttribute('data-listener-attached', 'true');
+      }
+      if (addBtn && !addBtn.hasAttribute('data-listener-attached')) {
+        addBtn.addEventListener('click', () => {
+          this.tryAddInterest(input.value);
+        });
+        addBtn.setAttribute('data-listener-attached', 'true');
+      }
+      this.renderInterestsSuggestions();
+      this.renderInterestsSelected();
+    } catch (err) {
+      console.warn('initInterestsUI failed:', err);
+    }
+  }
+
+  tryAddInterest(raw) {
+    const feedback = document.getElementById('interest-feedback');
+    const v = normalizeInterest(raw);
+    if (!isValidCustomInterest(v)) {
+      if (feedback) {
+        feedback.textContent = 'Use 3–20 lowercase letters/numbers/spaces.';
+        feedback.className = 'error-message';
+      }
+      return;
+    }
+    if (this.interests.has(v)) {
+      if (feedback) { feedback.textContent = 'Already added.'; feedback.className = 'field-hint'; }
+      return;
+    }
+    if (this.interests.size >= MAX_INTERESTS) {
+      if (feedback) { feedback.textContent = `Max ${MAX_INTERESTS} interests.`; feedback.className = 'error-message'; }
+      return;
+    }
+    this.interests.add(v);
+    const input = document.getElementById('interest-input');
+    if (input) input.value = '';
+    if (feedback) { feedback.textContent = 'Added.'; feedback.className = 'field-hint'; }
+    this.renderInterestsSelected();
+  }
+
+  renderInterestsSuggestions() {
+    const host = document.getElementById('interests-suggestions');
+    if (!host) return;
+    host.innerHTML = '';
+    STARTER_INTERESTS.forEach((i) => {
+      if (this.interests.has(i.key)) return;
+      const chip = this._makeInterestChip(i.key);
+      chip.addEventListener('click', () => {
+        if (this.interests.size >= MAX_INTERESTS) return;
+        this.interests.add(i.key);
+        this.renderInterestsSelected();
+        this.renderInterestsSuggestions();
+      });
+      host.appendChild(chip);
+    });
+  }
+
+  renderInterestsSelected() {
+    const host = document.getElementById('interests-selected');
+    if (!host) return;
+    host.innerHTML = '';
+    Array.from(this.interests).forEach((key) => {
+      const chip = this._makeInterestChip(key, true);
+      const removeBtn = chip.querySelector('.chip-remove');
+      if (removeBtn) {
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.interests.delete(key);
+          this.renderInterestsSelected();
+          this.renderInterestsSuggestions();
+        });
+      }
+      host.appendChild(chip);
+    });
+  }
+
+  _makeInterestChip(key, removable = false) {
+    const chip = document.createElement('div');
+    chip.className = 'interest-chip';
+    chip.setAttribute('data-color', String((this._hash(key) % 5) + 1));
+    const iconEl = document.createElement('i');
+    iconEl.className = interestIcon(key);
+    const label = document.createElement('span');
+    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+    chip.appendChild(iconEl);
+    chip.appendChild(label);
+    if (removable) {
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'chip-remove';
+      removeBtn.textContent = '×';
+      chip.appendChild(removeBtn);
+    }
+    return chip;
+  }
+
+  _hash(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = (h << 5) - h + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h);
+  }
+
   /**
    * Show visual feedback when disabled button is clicked
    */
@@ -2070,7 +2342,7 @@ class ProfileSetup {
         },
       };
 
-      // Curated Q&A (PRD: ≥1, ≤5 answers)
+      // Curated Q/A (PRD: ≥1, ≤5 answers)
       const qna = this.buildQnaResponsesForSave();
       if (qna.length < MIN_QA_ANSWERS) {
         // Bring user back to Step 1 and show feedback
@@ -2086,6 +2358,18 @@ class ProfileSetup {
       }
       // Only add field when provided, per PRD
       profileDataForFirestore.profile.qnaResponses = qna;
+
+      // Profile photo + useAvatar
+      if (this.profilePhotoUrl) {
+        profileDataForFirestore.profile.profilePhotoUrl = this.profilePhotoUrl;
+      }
+      profileDataForFirestore.profile.useAvatar = !!this.useAvatar;
+
+      // Interests (≤10)
+      const interests = Array.from(this.interests || []);
+      if (interests.length > 0) {
+        profileDataForFirestore.profile.interests = interests.slice(0, 10);
+      }
 
       const userId =
         this.currentUser?.uid ||

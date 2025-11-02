@@ -12,8 +12,11 @@ yarn-error.log*
 
 # Firebase (CRITICAL: Never commit these!)
 firebase-debug.log
+firestore-debug.log
+ui-debug.log
 .firebase/
 src/js/lib/firebase/env-config.js
+.emulator-data/
 
 # Cloud Functions
 functions/node_modules/                   
