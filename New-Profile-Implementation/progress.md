@@ -64,6 +64,9 @@ Status: In progress (dev‑testable UI shipped)
   - Verify Firestore: `users/{uid}.profile.qnaResponses[]` stores only answered prompts.
 
 ## Next (suggested)
+- Profile view page (photo/avatar, interests, Q/A, mutual
+    friends, classes in common), then Groups polish and CF
+    hardening.
 - Groups polish
   - Unread badge + last message time on cards
   - Message pagination (“Load older”) and scroll anchoring
@@ -77,6 +80,7 @@ Status: In progress (dev‑testable UI shipped)
   - Keep messages CF‑only for non‑dev spaces; ensure callable receives ID token (optionally set region in client `getFunctions(app, 'us-central1')`)
 - Dev ergonomics (optional)
   - Suppress presence location polling on non‑home routes during dev
+
 
 ## Notes
 - 401 on `sendGroupMessage` during dev is expected when CF auth isn’t attached; dev spaces now bypass CF to avoid console noise.
