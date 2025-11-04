@@ -173,14 +173,25 @@ class DataManager {
    */
   async saveFcmToken(userId, token, meta = {}) {
     try {
-      if (!userId || !token) return { success: false, error: "Missing uid or token" };
+      if (!userId || !token)
+        return { success: false, error: "Missing uid or token" };
       const tokenRef = doc(db, "users", userId, "fcmTokens", token);
       await setDoc(
         tokenRef,
         {
           token,
-          platform: meta.platform || (/(iphone|ipad|ipod|ios)/i.test(navigator.userAgent) ? "ios" : (/android/i.test(navigator.userAgent) ? "android" : "web")),
-          userAgent: meta.userAgent || (typeof navigator !== "undefined" ? navigator.userAgent : "unknown"),
+          platform:
+            meta.platform ||
+            (/(iphone|ipad|ipod|ios)/i.test(navigator.userAgent)
+              ? "ios"
+              : /android/i.test(navigator.userAgent)
+              ? "android"
+              : "web"),
+          userAgent:
+            meta.userAgent ||
+            (typeof navigator !== "undefined"
+              ? navigator.userAgent
+              : "unknown"),
           appVersion: meta.appVersion || null,
           // Persist PWA/device metadata for dedupe + analytics
           isPWA: meta.isPWA === true, // store explicit boolean
@@ -204,7 +215,8 @@ class DataManager {
    */
   async deleteFcmToken(userId, token) {
     try {
-      if (!userId || !token) return { success: false, error: "Missing uid or token" };
+      if (!userId || !token)
+        return { success: false, error: "Missing uid or token" };
       const tokenRef = doc(db, "users", userId, "fcmTokens", token);
       await deleteDoc(tokenRef);
       return { success: true };
@@ -1372,11 +1384,12 @@ class DataManager {
   async getUserClassSpaces() {
     try {
       if (!this.isOnline) return [];
-      const userId = (auth.currentUser && auth.currentUser.uid) || currentUser?.uid;
+      const userId =
+        (auth.currentUser && auth.currentUser.uid) || currentUser?.uid;
       if (!userId) return [];
       const qSpaces = query(
-        collection(db, 'classSpaces'),
-        where('memberIds', 'array-contains', userId)
+        collection(db, "classSpaces"),
+        where("memberIds", "array-contains", userId)
       );
       const snap = await getDocs(qSpaces);
       const list = [];
@@ -1392,7 +1405,7 @@ class DataManager {
       });
       return list;
     } catch (e) {
-      console.error('[dataManager] getUserClassSpaces failed:', e);
+      console.error("[dataManager] getUserClassSpaces failed:", e);
       return [];
     }
   }
@@ -1793,7 +1806,8 @@ class DataManager {
       // Write lightweight audit fields under onboarding
       updates["systemInfo.onboarding.lastEvent"] = eventName;
       updates["systemInfo.onboarding.lastEventAt"] = serverTimestamp();
-      updates[`systemInfo.onboarding.events.${eventName}.lastAt`] = serverTimestamp();
+      updates[`systemInfo.onboarding.events.${eventName}.lastAt`] =
+        serverTimestamp();
       hasPayload = true;
     }
 
@@ -2931,7 +2945,8 @@ class DataManager {
       // Downgrade noise on auth transitions: permission-denied is expected when signed out
       const isAuthMissing = !auth?.currentUser;
       const isPermissionDenied = error?.code === "permission-denied";
-      const logMethod = isPermissionDenied || isAuthMissing ? console.info : console.error;
+      const logMethod =
+        isPermissionDenied || isAuthMissing ? console.info : console.error;
       logMethod("📱 Mobile-resilient friendships listener error:", {
         code: error?.code,
         message: error?.message,
@@ -4271,9 +4286,18 @@ class DataManager {
    * @param {Object} fromUserInfo - cached sender info (handle, avatarConfig)
    * @param {string} pingId - session id to group this batch
    */
-  async createAvailabilityPings(fromUserId, recipientIds = [], fromUserInfo = {}, pingId) {
+  async createAvailabilityPings(
+    fromUserId,
+    recipientIds = [],
+    fromUserInfo = {},
+    pingId
+  ) {
     try {
-      if (!fromUserId || !Array.isArray(recipientIds) || recipientIds.length === 0)
+      if (
+        !fromUserId ||
+        !Array.isArray(recipientIds) ||
+        recipientIds.length === 0
+      )
         return { success: false, error: "Missing sender or recipients" };
 
       if (!navigator.onLine) {
@@ -4291,13 +4315,16 @@ class DataManager {
       for (const toUserId of recipientIds) {
         // Guard: skip if an active ping already exists (enforces 5m cooldown client-side)
         try {
-          const hasActive = await this.hasActiveAvailabilityPing(fromUserId, toUserId);
+          const hasActive = await this.hasActiveAvailabilityPing(
+            fromUserId,
+            toUserId
+          );
           if (hasActive) {
             skipped.push(toUserId);
             continue;
           }
         } catch (_) {}
-        
+
         // Delete any existing pending notification from this sender to this recipient (silent refresh)
         try {
           const existingQuery = query(
@@ -4308,12 +4335,14 @@ class DataManager {
             where("status", "==", "pending")
           );
           const existingSnap = await getDocs(existingQuery);
-          const deletePromises = existingSnap.docs.map(doc => deleteDoc(doc.ref));
+          const deletePromises = existingSnap.docs.map((doc) =>
+            deleteDoc(doc.ref)
+          );
           await Promise.all(deletePromises);
         } catch (deleteErr) {
           console.warn("⚠️ Failed to delete old notification:", deleteErr);
         }
-        
+
         const data = {
           userId: toUserId,
           fromUserId,
@@ -4363,9 +4392,9 @@ class DataManager {
         // Prefer createdAt; if missing, derive from expiresAt - 100m
         const createdAtMs =
           data?.createdAt?.toDate?.()?.getTime?.() ||
-          (data?.expiresAt?.toDate?.()?.getTime?.() ?
-            data.expiresAt.toDate().getTime() - PING_TTL_MS :
-            new Date(data?.createdAt || 0).getTime());
+          (data?.expiresAt?.toDate?.()?.getTime?.()
+            ? data.expiresAt.toDate().getTime() - PING_TTL_MS
+            : new Date(data?.createdAt || 0).getTime());
         if (!createdAtMs) return;
         const cooldownExp = createdAtMs + COOLDOWN_MS;
         if (cooldownExp > now) {
@@ -4401,9 +4430,9 @@ class DataManager {
         const data = d.data();
         const createdAtMs =
           data?.createdAt?.toDate?.()?.getTime?.() ||
-          (data?.expiresAt?.toDate?.()?.getTime?.() ?
-            data.expiresAt.toDate().getTime() - PING_TTL_MS :
-            new Date(data?.createdAt || 0).getTime());
+          (data?.expiresAt?.toDate?.()?.getTime?.()
+            ? data.expiresAt.toDate().getTime() - PING_TTL_MS
+            : new Date(data?.createdAt || 0).getTime());
         if (!createdAtMs) continue;
         if (createdAtMs + COOLDOWN_MS > now) return true;
       }
@@ -4419,7 +4448,8 @@ class DataManager {
    */
   async respondToAvailabilityPing(notificationId, response) {
     try {
-      if (!notificationId || !response) return { success: false, error: "invalid" };
+      if (!notificationId || !response)
+        return { success: false, error: "invalid" };
       const allowed = response === "available" || response === "busy";
       if (!allowed) return { success: false, error: "invalid_response" };
       const ref = doc(db, "notifications", notificationId);
@@ -4454,18 +4484,30 @@ class DataManager {
           let has = false;
           let lastClear = 0;
           try {
-            lastClear = parseInt(sessionStorage.getItem("notify:lastClearTs") || "0", 10) || 0;
+            lastClear =
+              parseInt(
+                sessionStorage.getItem("notify:lastClearTs") || "0",
+                10
+              ) || 0;
           } catch (_) {}
           snap.docs.forEach((d) => {
             if (has) return;
             const data = d.data();
             const createdAt = data?.createdAt?.toDate?.()?.getTime?.() || 0;
             const resp = data?.response;
-            if ((resp === "available" || resp === "busy") && createdAt && createdAt > lastClear) {
+            if (
+              (resp === "available" || resp === "busy") &&
+              createdAt &&
+              createdAt > lastClear
+            ) {
               has = true;
             }
           });
-          try { callback(!!has); } catch (cbErr) { console.warn(cbErr); }
+          try {
+            callback(!!has);
+          } catch (cbErr) {
+            console.warn(cbErr);
+          }
         },
         (err) => console.warn("⚠️ Availability responses listener error", err)
       );
@@ -4484,7 +4526,11 @@ class DataManager {
    * @param {string} friendshipId - Friendship document ID
    * @returns {Promise<boolean>} true if a pending request exists
    */
-  async hasPendingOutgoingLocationShareRequest(fromUserId, toUserId, friendshipId) {
+  async hasPendingOutgoingLocationShareRequest(
+    fromUserId,
+    toUserId,
+    friendshipId
+  ) {
     try {
       if (!fromUserId || !toUserId || !friendshipId) return false;
 
@@ -4503,7 +4549,11 @@ class DataManager {
         const data = docSnap.data();
         // Ensure it targets the intended friend and friendship
         if (data.userId !== toUserId) continue;
-        if (data.expiresAt && data.expiresAt.toDate && data.expiresAt.toDate().getTime() < now) {
+        if (
+          data.expiresAt &&
+          data.expiresAt.toDate &&
+          data.expiresAt.toDate().getTime() < now
+        ) {
           continue; // treat expired as non-pending
         }
         const req = data.locationRequest || {};
@@ -4513,7 +4563,10 @@ class DataManager {
       }
       return false;
     } catch (error) {
-      console.warn("⚠️ [DataManager] hasPendingOutgoingLocationShareRequest failed:", error);
+      console.warn(
+        "⚠️ [DataManager] hasPendingOutgoingLocationShareRequest failed:",
+        error
+      );
       // Fail-open to avoid blocking legitimate requests on transient errors
       return false;
     }

@@ -23,6 +23,7 @@ import {
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
+import "/src/css/mutual-friends-modal.css";
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
@@ -350,21 +351,22 @@ async function initializeSPA() {
     // Place banner near the bottom-left so it never obscures the top navigation
     // and make it click-through (pointer-events: none).
     const bottomOffset = `calc(var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 8px)`;
-    envBanner.style.cssText = [
-      "position:fixed",
-      `left:8px` ,
-      `bottom:${bottomOffset}`,
-      "background:rgba(255,152,0,0.9)",
-      "color:white",
-      "padding:4px 8px",
-      "z-index:1500",
-      "border-radius:4px",
-      "font-size:10px",
-      "font-weight:600",
-      "letter-spacing:0.5px",
-      "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
-      "pointer-events:none",
-    ].join(";") + ";";
+    envBanner.style.cssText =
+      [
+        "position:fixed",
+        `left:8px`,
+        `bottom:${bottomOffset}`,
+        "background:rgba(255,152,0,0.9)",
+        "color:white",
+        "padding:4px 8px",
+        "z-index:1500",
+        "border-radius:4px",
+        "font-size:10px",
+        "font-weight:600",
+        "letter-spacing:0.5px",
+        "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
+        "pointer-events:none",
+      ].join(";") + ";";
     envBanner.textContent = envName;
     document.body.appendChild(envBanner);
   }
@@ -865,7 +867,9 @@ function syncMetaThemeColorToNav() {
       const r = parseInt(parts[0], 10) || 21;
       const g = parseInt(parts[1], 10) || 24;
       const b = parseInt(parts[2], 10) || 32;
-      color = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+      color = `#${[r, g, b]
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("")}`;
     }
   }
 

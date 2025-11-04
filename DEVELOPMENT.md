@@ -118,7 +118,7 @@ if (window.location.hostname === "localhost") {
 
 **Result:**
 
-- `localhost:5173` → Uses emulators
+- `localhost:5173` or `localhost:5174` → Uses emulators
 - `yourdomain.com` → Uses production
 
 ---

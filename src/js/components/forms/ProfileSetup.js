@@ -2009,6 +2009,8 @@ class ProfileSetup {
 
     // Next button text is handled by validateCurrentStep
     this.validateCurrentStep(); // Re-validate to update button text and state
+
+    // (Public View button now injected into bottom nav for visibility)
   }
 
   /**
@@ -2019,6 +2021,7 @@ class ProfileSetup {
     const skipBtn = document.getElementById("setup-skip-btn");
     const nextButton = document.getElementById("setup-next-btn");
     const finishButton = document.getElementById("finish-setup-button");
+    const skipNextContainer = document.querySelector('.skip-next-buttons');
 
     if (prevBtn) {
       prevBtn.style.display = this.currentStep === 0 ? "none" : "flex";
@@ -2041,6 +2044,44 @@ class ProfileSetup {
         nextButton.style.display = "inline-block";
         finishButton.style.display = "none";
       }
+    }
+
+    // Ensure a clearly visible Public View button when on Step 1 (Avatar & Bio)
+    try {
+      const existing = document.getElementById('public-view-nav-btn');
+      if (this.currentStep === 1) {
+        if (skipNextContainer && !existing) {
+          const pvBtn = document.createElement('button');
+          pvBtn.id = 'public-view-nav-btn';
+          pvBtn.type = 'button';
+          pvBtn.className = 'button secondary';
+          pvBtn.innerHTML = '<i class="fas fa-eye"></i> Public View';
+          pvBtn.addEventListener('click', () => {
+            try {
+              const uid = (this.currentUser && this.currentUser.uid) || (currentUser && currentUser.uid);
+              if (!uid) {
+                alert('Please sign in to preview your public profile.');
+                return;
+              }
+              window.location.hash = `#user?id=${uid}&preview=1`;
+            } catch (e) {
+              console.error('Failed to open public view', e);
+            }
+          });
+          // Insert before Skip to keep Next on the right
+          const firstChild = skipNextContainer.firstElementChild;
+          if (firstChild) {
+            skipNextContainer.insertBefore(pvBtn, firstChild);
+          } else {
+            skipNextContainer.appendChild(pvBtn);
+          }
+        }
+        if (existing) existing.style.display = 'inline-block';
+      } else if (existing) {
+        existing.style.display = 'none';
+      }
+    } catch (_) {
+      // non-fatal UI enhancement
     }
   }
 

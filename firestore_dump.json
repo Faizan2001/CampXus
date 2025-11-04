@@ -12194,7 +12194,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "OVVArGHbZobBp2bviDFg1nJLY3w2",
+          "ez3tcYQ4VzTPE4j35gPwO4590wG2"
+        ]
       },
       "profile": {
         "bio": "",
@@ -13121,7 +13125,14 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "JYix6DOY90er8SBPT7umzigIxv43",
+          "MnJAjvEqk3P4glouiFk9YeuUwlv2",
+          "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "k4QYI7jlsvORhWsRNI10ZnPQvxO2"
+        ]
       },
       "avatarConfig": {
         "style": "adventurer",
@@ -13961,7 +13972,13 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "AelZ1tHYJ8giPbnsYRoKdiXo0F72",
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "jklqfGIpaEQrGcJWjm3TcslUiiL2"
+        ]
       },
       "profile": {
         "bio": "",
@@ -15090,7 +15107,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "profile": {
         "email": "2511443@iub.edu.bd",
@@ -16091,7 +16111,13 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+          "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "tKPSQyKSQWdWexefZoehzFHB6Xp1"
+        ]
       },
       "avatarConfig": {
         "seed": "mwpc3g9qqds",
@@ -16756,7 +16782,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "QHb2433LwgXVZtRuGIMAwOl8UBe2"
+        ]
       },
       "avatarConfig": {
         "seed": "5olwLzFDsGULXJYVivxC6lg3pF23",
@@ -17266,7 +17295,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "S4QMniclUaSJ1SnA1mVVFenQyTw1",
+          "bWZzMbk53egD5X4Fsnn2aNycPA83"
+        ]
       },
       "avatarConfig": {
         "seed": "o6t8i1bhi5",
@@ -20310,7 +20343,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "MlE2JQVX8DW8Fk9OvMbzdZwUQDc2",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "x8stme10ip",
@@ -20873,7 +20910,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "7ZJvxzIVicUoPtPRHR429itJnL73",
@@ -21395,7 +21435,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2"
+        ]
       },
       "avatarConfig": {
         "seed": "86TT4fg331TaxSBSpkzcdqogmJm1",
@@ -22342,7 +22386,12 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "avatarConfig": {
         "seed": "8PmA7xXDLKfS8FqxzlAkjEYwbGO2",
@@ -25816,7 +25865,15 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "20fvRUhmUYX1U1sigxume45l0nw1",
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2",
+          "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "avatarConfig": {
         "seed": "a11uytq7a5",
@@ -29006,7 +29063,15 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+          "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "scheduleData": {
         "schedule": {
@@ -30156,7 +30221,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "EMinxzYItxVZvs8BelyvphwgYzg1",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "iciy46it5ef",
@@ -32224,7 +32293,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "ot4MJLVCsTZt3NLBolTMAWj8Zxv1"
+        ]
       },
       "avatarConfig": {
         "seed": "kwmscsu30xj",
@@ -33831,7 +33903,12 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "DmkzsWSgRwWRm6pbdcH034sO3Fn2",
@@ -34562,7 +34639,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "CGEqrfRK9DcIk5UG8eKO2BomJm22"
+        ]
       },
       "avatarConfig": {
         "style": "notionists",
@@ -35109,7 +35189,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "profile": {
         "email": "2231537@iub.edu.bd",
@@ -36623,7 +36706,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "kY60dj6TMshRlfArKDmYC7D4wJo1",
+          "twNbQ0qVSXZ85pQeqrcHBgJyNbx1"
+        ]
       },
       "avatarConfig": {
         "seed": "je9cs38uizh",
@@ -39651,7 +39738,12 @@
         "privacy": "university",
         "pendingRequestsCount": 0,
         "searchable": true,
-        "locationPrivacyLevel": "friends_only"
+        "locationPrivacyLevel": "friends_only",
+        "friendIds": [
+          "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+          "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "uid": "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
       "universityInfo": {
@@ -42719,7 +42811,12 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "1fWg2eqBADQGu55alSbZpBd1plq1",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "k4QYI7jlsvORhWsRNI10ZnPQvxO2"
+        ]
       },
       "avatarConfig": {
         "seed": "ha8mlu6rbef",
@@ -44376,7 +44473,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "724RUMVf36OhgigxNF8CgaYTb7b2"
+        ]
       },
       "avatarConfig": {
         "seed": "MlE2JQVX8DW8Fk9OvMbzdZwUQDc2",
@@ -45939,7 +46039,17 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "86TT4fg331TaxSBSpkzcdqogmJm1",
+          "CCoG0XDCOyUpR3jkvRdyTQHqx6p2",
+          "DmkzsWSgRwWRm6pbdcH034sO3Fn2",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "avatarConfig": {
         "seed": "ilg91baeou",
@@ -47144,7 +47254,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "19TBEC4IyRXifOR7EJXoLDhmnHE2",
+          "ez3tcYQ4VzTPE4j35gPwO4590wG2"
+        ]
       },
       "avatarConfig": {
         "seed": "OVVArGHbZobBp2bviDFg1nJLY3w2",
@@ -50046,7 +50160,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "5olwLzFDsGULXJYVivxC6lg3pF23"
+        ]
       },
       "profile": {
         "email": "2320449@iub.edu.bd",
@@ -52513,7 +52630,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "5oytGaulKYM6XCYhoLQkEdu5A8i2"
+        ]
       },
       "profile": {
         "bio": "",
@@ -53599,7 +53719,16 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "20fvRUhmUYX1U1sigxume45l0nw1",
+          "8PmA7xXDLKfS8FqxzlAkjEYwbGO2",
+          "AelZ1tHYJ8giPbnsYRoKdiXo0F72",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+          "rSAXN4eWe8eCpckGPr0ZuHOqhMh1"
+        ]
       },
       "avatarConfig": {
         "seed": "5g1nft4h8jg",
@@ -57859,7 +57988,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "iuKISdlALiZpWsx9TLmE4GcaG6Y2",
+          "wK2k90MmRrdzyKojkRKBLzZfFvO2"
+        ]
       },
       "avatarConfig": {
         "seed": "tfh41nehw9b",
@@ -59377,7 +59510,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "pswzTZ4kUETNAX62ejZ79GvYjUo1"
+        ]
       },
       "avatarConfig": {
         "seed": "YMJqXky0bMO5xQAgmoAKUQVPQqi1",
@@ -59910,7 +60046,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "twNbQ0qVSXZ85pQeqrcHBgJyNbx1"
+        ]
       },
       "avatarConfig": {
         "seed": "vswx9x8k94",
@@ -60408,7 +60547,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "eW35kPbp79eKEAwFp5tNVNvYwZo1"
+        ]
       },
       "avatarConfig": {
         "style": "thumbs",
@@ -61070,7 +61212,16 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "86TT4fg331TaxSBSpkzcdqogmJm1",
+          "AelZ1tHYJ8giPbnsYRoKdiXo0F72",
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+          "rSAXN4eWe8eCpckGPr0ZuHOqhMh1"
+        ]
       },
       "avatarConfig": {
         "seed": "bd0v0rwmppm",
@@ -61812,7 +61963,13 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+          "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "tKPSQyKSQWdWexefZoehzFHB6Xp1"
+        ]
       },
       "avatarConfig": {
         "seed": "ZYVavUhRtqg0v5LwBctS23ayaMB3",
@@ -64003,7 +64160,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "5oytGaulKYM6XCYhoLQkEdu5A8i2"
+        ]
       },
       "avatarConfig": {
         "seed": "bWZzMbk53egD5X4Fsnn2aNycPA83",
@@ -65541,7 +65701,16 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "CCoG0XDCOyUpR3jkvRdyTQHqx6p2",
+          "DmkzsWSgRwWRm6pbdcH034sO3Fn2",
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+          "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "avatarConfig": {
         "seed": "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
@@ -67738,7 +67907,15 @@
         "pendingRequestsCount": 0,
         "privacy": "university",
         "friendsCount": 0,
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "1fWg2eqBADQGu55alSbZpBd1plq1",
+          "CCoG0XDCOyUpR3jkvRdyTQHqx6p2",
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "ZKDLl925YxMpkoM0ps5FB29zzxD2",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "fmsiinvxg5n",
@@ -69477,7 +69654,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "19TBEC4IyRXifOR7EJXoLDhmnHE2",
+          "OVVArGHbZobBp2bviDFg1nJLY3w2"
+        ]
       },
       "avatarConfig": {
         "seed": "qqnmrnyh0bj",
@@ -69942,7 +70123,15 @@
         "searchable": true,
         "locationPrivacyLevel": "friends_only",
         "lastFriendActivity": null,
-        "pendingRequestsCount": 0
+        "pendingRequestsCount": 0,
+        "friendIds": [
+          "20fvRUhmUYX1U1sigxume45l0nw1",
+          "AelZ1tHYJ8giPbnsYRoKdiXo0F72",
+          "CCoG0XDCOyUpR3jkvRdyTQHqx6p2",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "avatarConfig": {
         "seed": "77n4cwalvus",
@@ -70616,7 +70805,33 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "1fWg2eqBADQGu55alSbZpBd1plq1",
+          "3Y7CeX2bYwXTO5vlVp9uWZGUN103",
+          "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+          "724RUMVf36OhgigxNF8CgaYTb7b2",
+          "7ZJvxzIVicUoPtPRHR429itJnL73",
+          "8PmA7xXDLKfS8FqxzlAkjEYwbGO2",
+          "AelZ1tHYJ8giPbnsYRoKdiXo0F72",
+          "CCoG0XDCOyUpR3jkvRdyTQHqx6p2",
+          "CGEqrfRK9DcIk5UG8eKO2BomJm22",
+          "DmkzsWSgRwWRm6pbdcH034sO3Fn2",
+          "Esi0gJjJ1qf0f2lZXjpsOt1QHgY2",
+          "HVpYkLaWaAQ0FdJKBtB7jCmlRbG2",
+          "JYix6DOY90er8SBPT7umzigIxv43",
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2",
+          "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "eW35kPbp79eKEAwFp5tNVNvYwZo1",
+          "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3",
+          "k4QYI7jlsvORhWsRNI10ZnPQvxO2",
+          "rSAXN4eWe8eCpckGPr0ZuHOqhMh1",
+          "tKPSQyKSQWdWexefZoehzFHB6Xp1"
+        ]
       },
       "profile": {
         "bio": "",
@@ -72131,7 +72346,20 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "searchable": true,
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "8PmA7xXDLKfS8FqxzlAkjEYwbGO2",
+          "AelZ1tHYJ8giPbnsYRoKdiXo0F72",
+          "CCoG0XDCOyUpR3jkvRdyTQHqx6p2",
+          "NV5zglhrHOgoAVj8Q556bR1LyKp1",
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2",
+          "d0oMNpSSo0dZNELFCDLDd2W81Ln1",
+          "fN14DF3BOPSRgAZq20SZrIG219h2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "hUqIHiltwkdSJ8nzOYVM1Ul9CNO2",
+          "rSAXN4eWe8eCpckGPr0ZuHOqhMh1"
+        ]
       },
       "uid": "g9k71EY3NtefUfuw9uGcHnAWycJ3",
       "universityInfo": {
@@ -73409,7 +73637,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "profile": {
         "email": "1830684@iub.edu.bd",
@@ -74817,7 +75048,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "XRsSWa1uXYT6seSGjz62t6VZgwK2"
+        ]
       },
       "avatarConfig": {
         "seed": "iuKISdlALiZpWsx9TLmE4GcaG6Y2",
@@ -75780,7 +76014,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "20fvRUhmUYX1U1sigxume45l0nw1",
+          "uSs2ftTA0pMa1axSJXiMr3PE78q1"
+        ]
       },
       "avatarConfig": {
         "seed": "k7dm9bp2pta",
@@ -76369,7 +76607,12 @@
         "searchable": true,
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
-        "defaultLocationSharing": false
+        "defaultLocationSharing": false,
+        "friendIds": [
+          "1fWg2eqBADQGu55alSbZpBd1plq1",
+          "JYix6DOY90er8SBPT7umzigIxv43",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "49m5jelttqw",
@@ -77478,7 +77721,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "tiCtUCPfoFhFSn7Qrw6x1Wps9OY2"
+        ]
       },
       "avatarConfig": {
         "seed": "bdezfrhahxn",
@@ -78040,7 +78286,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "Fkb3vZh5oPN5dpZaA02xl8qUH9I3",
+          "twNbQ0qVSXZ85pQeqrcHBgJyNbx1"
+        ]
       },
       "avatarConfig": {
         "seed": "yg37ejjt5ns",
@@ -80579,7 +80829,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "o0d6OGSlllMx0Q0C9nRi5T6cB572",
+          "uSs2ftTA0pMa1axSJXiMr3PE78q1"
+        ]
       },
       "avatarConfig": {
         "seed": "ra968nuiy8k",
@@ -81662,7 +81916,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "mMVmaddRdoQhp0uTBJZDgmE775T2"
+        ]
       },
       "avatarConfig": {
         "seed": "1n9l0moog5g",
@@ -83138,7 +83395,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "DNJubWqYtSMjFjqgqMX0Gu7x9AD3"
+        ]
       },
       "avatarConfig": {
         "seed": "wrdf4y8twc",
@@ -84206,7 +84466,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "YMJqXky0bMO5xQAgmoAKUQVPQqi1"
+        ]
       },
       "avatarConfig": {
         "seed": "pswzTZ4kUETNAX62ejZ79GvYjUo1",
@@ -86192,7 +86455,13 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "SXg3KOutU7QltdrhUbTnXN9RGz63",
+          "ZUL9zhDRzfV0an1gLgWrxJg6r3P2",
+          "feqobVVYWifSKPdpWrItOUxvmA72",
+          "g9k71EY3NtefUfuw9uGcHnAWycJ3"
+        ]
       },
       "avatarConfig": {
         "seed": "rSAXN4eWe8eCpckGPr0ZuHOqhMh1",
@@ -87666,7 +87935,12 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "4ULoLq1KaDdZWqcXthgO0YJI2Yl1",
+          "ZYVavUhRtqg0v5LwBctS23ayaMB3",
+          "feqobVVYWifSKPdpWrItOUxvmA72"
+        ]
       },
       "avatarConfig": {
         "seed": "q7jmukmiwk",
@@ -88267,7 +88541,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "kLiGHa0wVQbrCFgS09So1bXRKer2"
+        ]
       },
       "avatarConfig": {
         "seed": "tiCtUCPfoFhFSn7Qrw6x1Wps9OY2",
@@ -89810,7 +90087,12 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "Fkb3vZh5oPN5dpZaA02xl8qUH9I3",
+          "YMqfDidqA9bfxBu5X4jxyHD1ao93",
+          "kY60dj6TMshRlfArKDmYC7D4wJo1"
+        ]
       },
       "avatarConfig": {
         "seed": "00bf8rb7vk65d",
@@ -91347,7 +91629,11 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "jklqfGIpaEQrGcJWjm3TcslUiiL2",
+          "mMVmaddRdoQhp0uTBJZDgmE775T2"
+        ]
       },
       "avatarConfig": {
         "seed": "uSs2ftTA0pMa1axSJXiMr3PE78q1",
@@ -93369,7 +93655,10 @@
         "lastFriendActivity": null,
         "locationPrivacyLevel": "friends_only",
         "defaultLocationSharing": false,
-        "campusPresenceVisible": true
+        "campusPresenceVisible": true,
+        "friendIds": [
+          "XRsSWa1uXYT6seSGjz62t6VZgwK2"
+        ]
       },
       "profile": {
         "bio": "",

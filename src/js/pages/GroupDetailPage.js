@@ -62,7 +62,9 @@ class GroupDetailPage {
       .map((uid) => {
         const info = memberInfo[uid] || {};
         const name = `${info.firstName || ''} ${info.lastName || ''}`.trim() || (info.handle ? `@${info.handle}` : uid);
-        return `<div class="member-item">${name}</div>`;
+        const label = name || uid;
+        const target = encodeURIComponent(uid);
+        return `<div class="member-item"><a class="member-link" href="#user?id=${target}">${escapeHtml(label)}</a> <a class="member-profile-btn" href="#user?id=${target}" title="View profile" aria-label="View profile"><i class="fas fa-id-badge"></i></a></div>`;
       })
       .join("");
 

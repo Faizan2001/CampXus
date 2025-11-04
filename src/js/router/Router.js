@@ -117,6 +117,15 @@ class SPARouter {
         requiresAuth: true,
         indexable: false,
       },
+      user: {
+        title: "Profile - MeetchuThere",
+        template: "/templates/user-profile.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/profile-setup.css"],
+        jsImporters: [() => import("/src/js/pages/UserProfilePage.js")],
+        description: "View a student profile",
+        requiresAuth: true,
+        indexable: false,
+      },
       about: {
         title: "About - MeetchuThere",
         template: "/templates/about.html", // ✅ Fixed: Absolute path to prevent fallback to index.html
@@ -148,6 +157,21 @@ class SPARouter {
 
     // 🎯 Learning: Initialize the router when created
     this.init();
+  }
+
+  /**
+   * Extract the route name from a location hash, ignoring query params.
+   * Example: "#user?id=123" -> "user" if defined in routes.
+   */
+  _parseRouteName(rawHash) {
+    try {
+      const raw = String(rawHash || "").replace(/^#/, "");
+      const name = raw.split("?")[0];
+      if (name && this.routes[name]) return name;
+      return this.routes[raw] ? raw : "home";
+    } catch (_) {
+      return "home";
+    }
   }
 
   /**
@@ -461,8 +485,7 @@ class SPARouter {
       // Try to get route from event state first, then from URL hash
       let route = event.state?.route;
       if (!route) {
-        const hash = window.location.hash.slice(1);
-        route = hash && this.routes[hash] ? hash : "home";
+        route = this._parseRouteName(window.location.hash);
       }
 
       // Navigating via browser
@@ -504,8 +527,7 @@ class SPARouter {
     // Also listen for hash changes (in case someone manually types a URL)
     window.addEventListener("hashchange", (event) => {
       // Hash change detected
-      const hash = window.location.hash.slice(1);
-      const route = hash && this.routes[hash] ? hash : "home";
+      const route = this._parseRouteName(window.location.hash);
 
       // Only navigate if it's different from current page
       if (route !== this.currentPage) {
@@ -525,7 +547,9 @@ class SPARouter {
               ) {
                 await Promise.race([
                   authManager.authReady.catch(() => {}),
-                  new Promise((r) => setTimeout(r, hasSessionHint ? 3500 : 1500)),
+                  new Promise((r) =>
+                    setTimeout(r, hasSessionHint ? 3500 : 1500)
+                  ),
                 ]);
               } else {
                 await new Promise((r) => setTimeout(r, 250));
@@ -634,8 +658,8 @@ class SPARouter {
     // loadInitialPage called
 
     // Parse the current URL to determine which page to load
-    const hash = window.location.hash.slice(1); // Remove the # symbol
-    let route = hash && this.routes[hash] ? hash : "home";
+    const hash = window.location.hash;
+    let route = this._parseRouteName(hash);
 
     // 🛡️ Authentication-aware routing: Check if user is logged in
     const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
@@ -670,15 +694,16 @@ class SPARouter {
    */
   async loadInitialPageSmart(authReadyPromise, timeoutMs = 1500) {
     // Determine desired route from hash (or default to home)
-    const hash = window.location.hash.slice(1);
-    const desiredRoute = hash && this.routes[hash] ? hash : "home";
+    const desiredRoute = this._parseRouteName(window.location.hash);
     const desiredConfig = this.routes[desiredRoute];
     // 🚀 Session hint: if we have a cached profile or store says logged in, prefer waiting longer vs flashing landing
     const hasSessionHint =
       !!authManager?.auth?.currentUser ||
       !!profileCache.peek() ||
       (currentUser && currentUser.isLoggedIn && currentUser.isLoggedIn());
-    const effectiveTimeout = hasSessionHint ? Math.max(timeoutMs, 3500) : timeoutMs;
+    const effectiveTimeout = hasSessionHint
+      ? Math.max(timeoutMs, 3500)
+      : timeoutMs;
 
     // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
     const firebaseUser = authManager?.auth?.currentUser;
@@ -740,7 +765,9 @@ class SPARouter {
           ]);
         } catch (_) {}
       }
-      const target = !!authManager?.auth?.currentUser ? desiredRoute : "landing";
+      const target = !!authManager?.auth?.currentUser
+        ? desiredRoute
+        : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -1160,7 +1187,11 @@ class SPARouter {
       this.updateNavigationVisibility(route);
 
       // Update URL hash to match current route (for direct linking and refresh)
-      if (window.location.hash !== `#${route}`) {
+      // IMPORTANT: Only update if the route part differs; preserve query params
+      const currentHash = window.location.hash || "";
+      const currentRoutePart = this._parseRouteName(currentHash);
+      if (currentRoutePart !== route) {
+        // Only replace if the route actually changed (preserve query params otherwise)
         history.replaceState({ route }, routeData.title, `#${route}`);
       }
 
@@ -1171,7 +1202,8 @@ class SPARouter {
       this.dispatchRouteChangedEvent(route);
 
       // 🎯 NEW: Announce that the page content is loaded and ready for initialization
-      this.dispatchPageLoadEvent(route);
+      // Pass the full hash so page controllers can access query params
+      this.dispatchPageLoadEvent(route, currentHash);
 
       console.log(`✅ Successfully loaded page: ${route}`);
     } catch (error) {
@@ -1654,10 +1686,16 @@ Stack: ${error?.stack || "No stack trace available"}
   /**
    * 🎯 NEW: Dispatch event after page content is loaded into the DOM.
    * This is the signal for page-specific scripts to initialize.
+   * @param {string} route - The route name
+   * @param {string} fullHash - The complete hash including query params
    */
-  dispatchPageLoadEvent(route) {
+  dispatchPageLoadEvent(route, fullHash = "") {
     const event = new CustomEvent("spa:page:load", {
-      detail: { route, router: this },
+      detail: {
+        route,
+        router: this,
+        hash: fullHash || window.location.hash,
+      },
     });
     document.dispatchEvent(event);
     console.log(`🔔 Dispatched spa:page:load event for route: ${route}`);

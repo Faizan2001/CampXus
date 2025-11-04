@@ -103,7 +103,12 @@ export { auth };
 export const db = getFirestore(app);
 
 // Connect to emulators in development (localhost only)
-if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+const isLocalhost =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
+
+if (isLocalhost) {
   const { connectAuthEmulator } = await import("firebase/auth");
   const { connectFirestoreEmulator } = await import("firebase/firestore");
 
@@ -147,10 +152,12 @@ export async function getStorageInstance() {
   const storage = getStorage(app);
 
   // Connect Storage emulator in development
-  if (
+  const isLocalhost =
     typeof window !== "undefined" &&
-    window.location.hostname === "localhost"
-  ) {
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+
+  if (isLocalhost) {
     try {
       connectStorageEmulator(storage, "localhost", 9199);
     } catch (error) {

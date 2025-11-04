@@ -118,7 +118,11 @@ async function removeInvalidTokens(userId, tokens, responses) {
       if (_shouldDeleteTokenForError(err)) {
         const tokenId = tokens[idx];
         batch.delete(
-          db.collection("users").doc(userId).collection("fcmTokens").doc(tokenId)
+          db
+            .collection("users")
+            .doc(userId)
+            .collection("fcmTokens")
+            .doc(tokenId)
         );
       }
     }
@@ -134,7 +138,11 @@ function computeWebpushTag(data = {}) {
     // Prefer explicit IDs if provided in payload
     const fromUserId = data?.fromUserId || data?.senderId || "";
     const actorId = data?.actorId || data?.fromUserId || "";
-    const pingId = data?.pingId || data?.availabilityResponse?.pingId || data?.availabilityPing?.pingId || "";
+    const pingId =
+      data?.pingId ||
+      data?.availabilityResponse?.pingId ||
+      data?.availabilityPing?.pingId ||
+      "";
 
     switch (type) {
       case "friend_request":
@@ -254,7 +262,11 @@ async function sendToUser(userId, notification, data = {}) {
         tag, // Per-type/per-entity tag controls stacking behavior
         timestamp: Date.now(),
         actions: [
-          { action: "open", title: "View", icon: "https://meetchuthere.com/icons/icon-72x72.png" },
+          {
+            action: "open",
+            title: "View",
+            icon: "https://meetchuthere.com/icons/icon-72x72.png",
+          },
         ],
       },
       // Ensure clicks open the SPA route even when the browser autoshows notifications
@@ -287,7 +299,10 @@ async function sendToUser(userId, notification, data = {}) {
         await removeInvalidTokens(userId, nonPwa, retryResp);
         retryResp.responses.forEach((r, i) => {
           if (!r.success) {
-            errors.push({ index: `retry-${i}`, code: r.error?.code || "unknown" });
+            errors.push({
+              index: `retry-${i}`,
+              code: r.error?.code || "unknown",
+            });
           }
         });
         // Merge counts
@@ -487,7 +502,8 @@ export const onNotificationCreated = onDocumentCreated(
       const payload = {
         link: "/#notifications",
         type: "availability_ping",
-        pingId: data?.availabilityPing?.pingId || data?.availabilityPing?.id || "",
+        pingId:
+          data?.availabilityPing?.pingId || data?.availabilityPing?.id || "",
         fromUserId: data.fromUserId || "",
       };
       try {
@@ -516,8 +532,10 @@ export const onUserPresenceUpdated = onDocumentUpdated(
     if (!before || !after) return;
 
     // 🚀 EARLY EXIT: Check if campus status actually changed
-    const beforeStatus = before?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
-    const afterStatus = after?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
+    const beforeStatus =
+      before?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
+    const afterStatus =
+      after?.systemInfo?.lastKnownLocation?.campusStatus || "unknown";
 
     // Skip if status didn't change (most common case for profile/friend updates)
     if (beforeStatus === afterStatus) return;
@@ -608,15 +626,17 @@ export const onUserPresenceUpdated = onDocumentUpdated(
       };
       sendPromises.push(
         sendToUser(friendId, notification, data).then((res) => {
-          logger.info("Starred presence push result", { friendId, actorId, ...res });
+          logger.info("Starred presence push result", {
+            friendId,
+            actorId,
+            ...res,
+          });
         })
       );
     }
     await Promise.allSettled(sendPromises);
   }
 );
-
-
 
 // Availability ping: create response notification to sender and delete original
 export const onAvailabilityPingResponded = onDocumentUpdated(
@@ -630,8 +650,10 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
     const id = event.params?.id;
     const prevResp = before?.response || null;
     const newResp = after?.response || null;
-    const statusChangedToResponded = before?.status !== "responded" && after?.status === "responded";
-    const responseAdded = !prevResp && (newResp === "available" || newResp === "busy");
+    const statusChangedToResponded =
+      before?.status !== "responded" && after?.status === "responded";
+    const responseAdded =
+      !prevResp && (newResp === "available" || newResp === "busy");
     if (!statusChangedToResponded && !responseAdded) return;
 
     const senderId = after.fromUserId; // original sender
@@ -650,7 +672,10 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
         };
       }
     } catch (e) {
-      logger.warn("Failed to fetch respondent user info", { respondentId, err: String(e) });
+      logger.warn("Failed to fetch respondent user info", {
+        respondentId,
+        err: String(e),
+      });
     }
 
     // Create a response notification for the sender
@@ -671,8 +696,10 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
       // Also send a push to the sender's device (no in-app list item required)
       try {
         const title = "Availability Response";
-        const who = fromUserInfo?.handle ? `@${fromUserInfo.handle}` : "A friend";
-        const how = (newResp === "available") ? "Available" : "Busy";
+        const who = fromUserInfo?.handle
+          ? `@${fromUserInfo.handle}`
+          : "A friend";
+        const how = newResp === "available" ? "Available" : "Busy";
         const body = `${who} responded: ${how}`;
         // Link to notify overlay; Router opens overlay without reloading
         const payload = {
@@ -682,10 +709,17 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
         };
         await sendToUser(senderId, { title, body }, payload);
       } catch (pushErr) {
-        logger.warn("Failed to send availability response push", { senderId, err: String(pushErr) });
+        logger.warn("Failed to send availability response push", {
+          senderId,
+          err: String(pushErr),
+        });
       }
     } catch (e) {
-      logger.error("Failed creating availability_response notification", { senderId, respondentId, err: String(e) });
+      logger.error("Failed creating availability_response notification", {
+        senderId,
+        respondentId,
+        err: String(e),
+      });
     }
 
     // Do not delete the original availability_ping; keep until expiresAt so
@@ -694,23 +728,32 @@ export const onAvailabilityPingResponded = onDocumentUpdated(
 );
 
 // Periodic cleanup: remove expired availability ping/response docs
-export const cleanupExpiredAvailabilityPings = onSchedule("every 5 minutes", async () => {
-  const now = new Date();
-  try {
-    const coll = db.collection("notifications");
-    const types = ["availability_ping", "availability_response"];
-    for (const t of types) {
-      const snap = await coll.where("type", "==", t).where("expiresAt", "<", now).get();
-      if (snap.empty) continue;
-      const batch = db.batch();
-      snap.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      logger.info("Cleaned up expired availability docs", { type: t, count: snap.size });
+export const cleanupExpiredAvailabilityPings = onSchedule(
+  "every 5 minutes",
+  async () => {
+    const now = new Date();
+    try {
+      const coll = db.collection("notifications");
+      const types = ["availability_ping", "availability_response"];
+      for (const t of types) {
+        const snap = await coll
+          .where("type", "==", t)
+          .where("expiresAt", "<", now)
+          .get();
+        if (snap.empty) continue;
+        const batch = db.batch();
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        logger.info("Cleaned up expired availability docs", {
+          type: t,
+          count: snap.size,
+        });
+      }
+    } catch (e) {
+      logger.warn("Failed cleanupExpiredAvailabilityPings", { err: String(e) });
     }
-  } catch (e) {
-    logger.warn("Failed cleanupExpiredAvailabilityPings", { err: String(e) });
   }
-});
+);
 // 4) Token write trigger for server-side dedupe (browser -> PWA upgrade)
 export const onFcmTokenWrite = onDocumentWritten(
   "users/{userId}/fcmTokens/{tokenId}",
@@ -840,11 +883,23 @@ function buildSpaceIdFromCourse(university, course) {
     if (!university) return "";
     const uni = String(university).toLowerCase().trim();
     const sectionKey = String(course.section || 0).padStart(2, "0");
-    if (!course.dayPattern || !course.timeSlot || !course.classroom || sectionKey === "00") return "";
-    const useCode = !course.courseName || course.courseName.endsWith("...") || (course.courseName.split(/\s+/).length < 3);
-    const nameSlug = useCode && course.courseCode
-      ? String(course.courseCode).toLowerCase()
-      : String(course.courseName || "").replace(/\s+/g, "-").toLowerCase();
+    if (
+      !course.dayPattern ||
+      !course.timeSlot ||
+      !course.classroom ||
+      sectionKey === "00"
+    )
+      return "";
+    const useCode =
+      !course.courseName ||
+      course.courseName.endsWith("...") ||
+      course.courseName.split(/\s+/).length < 3;
+    const nameSlug =
+      useCode && course.courseCode
+        ? String(course.courseCode).toLowerCase()
+        : String(course.courseName || "")
+            .replace(/\s+/g, "-")
+            .toLowerCase();
     const day = String(course.dayPattern).toUpperCase();
     const slot = String(course.timeSlot);
     const room = String(course.classroom).toUpperCase();
@@ -874,72 +929,80 @@ async function fetchMemberInfo(uid) {
   }
 }
 
-export const scheduleDailyClassSpaces = onSchedule({ schedule: "every day 06:00", timeZone: "Asia/Dhaka" }, async () => {
-  // Build buckets by canonical key using users.courses[]
-  const usersSnap = await db.collection("users").get();
-  const buckets = new Map(); // key -> Set<uid>
-  const index = new Map(); // key -> sample course for metadata
-  for (const docSnap of usersSnap.docs) {
-    const d = docSnap.data() || {};
-    const uni = d?.universityInfo?.university || "";
-    const arr = Array.isArray(d?.courses) ? d.courses : [];
-    if (!uni || arr.length === 0) continue;
-    for (const c of arr) {
-      const id = buildSpaceIdFromCourse(uni, c);
-      if (!id) continue;
-      if (!buckets.has(id)) buckets.set(id, new Set());
-      buckets.get(id).add(docSnap.id);
-      if (!index.has(id)) index.set(id, { university: uni, course: c });
-    }
-  }
-
-  // Upsert spaces for buckets with ≥4 members
-  for (const [spaceId, set] of buckets) {
-    const members = Array.from(set);
-    const { university, course } = index.get(spaceId) || {};
-    const ref = db.collection("classSpaces").doc(spaceId);
-    if (members.length >= 4) {
-      // Prepare memberInfo cache (top N to keep doc reasonable; can expand later)
-      const memberInfo = {};
-      const preview = members.slice(0, 20); // limit info cache; roster UI can lazy fetch
-      await Promise.all(
-        preview.map(async (uid) => {
-          const info = await fetchMemberInfo(uid);
-          if (info) memberInfo[uid] = info;
-        })
-      );
-
-      const payload = {
-        spaceId,
-        university,
-        courseName: course?.courseName || null,
-        courseCode: course?.courseCode || null,
-        section: course?.section || null,
-        dayPattern: course?.dayPattern || null,
-        timeSlot: course?.timeSlot || null,
-        timeStart: course?.timeStart || null,
-        timeEnd: course?.timeEnd || null,
-        classroom: course?.classroom || null,
-        memberIds: members,
-        memberCount: members.length,
-        memberInfo,
-        active: true,
-        lastMemberUpdate: new Date(),
-        updatedAt: new Date(),
-        createdAt: new Date(),
-        visibility: "university",
-      };
-      await ref.set(payload, { merge: true });
-    } else {
-      // If space exists, mark inactive but keep history
-      const snap = await ref.get();
-      if (snap.exists) {
-        await ref.set({ active: false, updatedAt: new Date() }, { merge: true });
+export const scheduleDailyClassSpaces = onSchedule(
+  { schedule: "every day 06:00", timeZone: "Asia/Dhaka" },
+  async () => {
+    // Build buckets by canonical key using users.courses[]
+    const usersSnap = await db.collection("users").get();
+    const buckets = new Map(); // key -> Set<uid>
+    const index = new Map(); // key -> sample course for metadata
+    for (const docSnap of usersSnap.docs) {
+      const d = docSnap.data() || {};
+      const uni = d?.universityInfo?.university || "";
+      const arr = Array.isArray(d?.courses) ? d.courses : [];
+      if (!uni || arr.length === 0) continue;
+      for (const c of arr) {
+        const id = buildSpaceIdFromCourse(uni, c);
+        if (!id) continue;
+        if (!buckets.has(id)) buckets.set(id, new Set());
+        buckets.get(id).add(docSnap.id);
+        if (!index.has(id)) index.set(id, { university: uni, course: c });
       }
     }
+
+    // Upsert spaces for buckets with ≥4 members
+    for (const [spaceId, set] of buckets) {
+      const members = Array.from(set);
+      const { university, course } = index.get(spaceId) || {};
+      const ref = db.collection("classSpaces").doc(spaceId);
+      if (members.length >= 4) {
+        // Prepare memberInfo cache (top N to keep doc reasonable; can expand later)
+        const memberInfo = {};
+        const preview = members.slice(0, 20); // limit info cache; roster UI can lazy fetch
+        await Promise.all(
+          preview.map(async (uid) => {
+            const info = await fetchMemberInfo(uid);
+            if (info) memberInfo[uid] = info;
+          })
+        );
+
+        const payload = {
+          spaceId,
+          university,
+          courseName: course?.courseName || null,
+          courseCode: course?.courseCode || null,
+          section: course?.section || null,
+          dayPattern: course?.dayPattern || null,
+          timeSlot: course?.timeSlot || null,
+          timeStart: course?.timeStart || null,
+          timeEnd: course?.timeEnd || null,
+          classroom: course?.classroom || null,
+          memberIds: members,
+          memberCount: members.length,
+          memberInfo,
+          active: true,
+          lastMemberUpdate: new Date(),
+          updatedAt: new Date(),
+          createdAt: new Date(),
+          visibility: "university",
+        };
+        await ref.set(payload, { merge: true });
+      } else {
+        // If space exists, mark inactive but keep history
+        const snap = await ref.get();
+        if (snap.exists) {
+          await ref.set(
+            { active: false, updatedAt: new Date() },
+            { merge: true }
+          );
+        }
+      }
+    }
+    logger.info("scheduleDailyClassSpaces completed", {
+      buckets: buckets.size,
+    });
   }
-  logger.info("scheduleDailyClassSpaces completed", { buckets: buckets.size });
-});
+);
 
 // Rate-limited message sending via callable (membership checked in CF)
 export const sendGroupMessage = https.onCall(async (data, context) => {
@@ -950,7 +1013,10 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
   const spaceId = String(data?.spaceId || "").trim();
   const content = String(data?.content || "").trim();
   if (!spaceId || !content) {
-    throw new https.HttpsError("invalid-argument", "spaceId and content required");
+    throw new https.HttpsError(
+      "invalid-argument",
+      "spaceId and content required"
+    );
   }
   if (content.length > 500) {
     throw new https.HttpsError("invalid-argument", "Message too long");
@@ -971,13 +1037,20 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
 
   // Membership check
   const spaceDoc = await db.collection("classSpaces").doc(spaceId).get();
-  if (!spaceDoc.exists) throw new https.HttpsError("not-found", "Space not found");
+  if (!spaceDoc.exists)
+    throw new https.HttpsError("not-found", "Space not found");
   const space = spaceDoc.data() || {};
-  const isMember = Array.isArray(space.memberIds) && space.memberIds.includes(uid);
-  if (!isMember) throw new https.HttpsError("permission-denied", "Not a member");
+  const isMember =
+    Array.isArray(space.memberIds) && space.memberIds.includes(uid);
+  if (!isMember)
+    throw new https.HttpsError("permission-denied", "Not a member");
 
   // Write message
-  const msgRef = db.collection("classSpaces").doc(spaceId).collection("messages").doc();
+  const msgRef = db
+    .collection("classSpaces")
+    .doc(spaceId)
+    .collection("messages")
+    .doc();
   const senderInfo = await fetchMemberInfo(uid);
   await msgRef.set({
     messageId: msgRef.id,
@@ -992,7 +1065,11 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
   await spaceDoc.ref.set(
     {
       lastActivity: new Date(),
-      lastMessagePreview: { content: content.slice(0, 140), senderId: uid, createdAt: new Date() },
+      lastMessagePreview: {
+        content: content.slice(0, 140),
+        senderId: uid,
+        createdAt: new Date(),
+      },
     },
     { merge: true }
   );
@@ -1000,15 +1077,150 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
 });
 
 // Nightly trim to 2,000 latest messages per space
-export const trimSpaceMessages = onSchedule({ schedule: "every day 03:00", timeZone: "Asia/Dhaka" }, async () => {
-  const spaces = await db.collection("classSpaces").where("active", "==", true).get();
-  for (const s of spaces.docs) {
-    const ref = s.ref.collection("messages");
-    const snap = await ref.orderBy("createdAt", "desc").offset(2000).limit(500).get();
-    if (snap.empty) continue;
-    const batch = db.batch();
-    snap.forEach((d) => batch.delete(d.ref));
-    await batch.commit();
+export const trimSpaceMessages = onSchedule(
+  { schedule: "every day 03:00", timeZone: "Asia/Dhaka" },
+  async () => {
+    const spaces = await db
+      .collection("classSpaces")
+      .where("active", "==", true)
+      .get();
+    for (const s of spaces.docs) {
+      const ref = s.ref.collection("messages");
+      const snap = await ref
+        .orderBy("createdAt", "desc")
+        .offset(2000)
+        .limit(500)
+        .get();
+      if (snap.empty) continue;
+      const batch = db.batch();
+      snap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    logger.info("trimSpaceMessages completed");
   }
-  logger.info("trimSpaceMessages completed");
-});
+);
+
+// =============================================================================
+// 👥 FRIENDSHIP DENORMALIZATION
+// =============================================================================
+
+/**
+ * Trigger: When a friendship is created or deleted
+ * Purpose: Update socialInfo.friendIds arrays for both users
+ * Enables: Efficient mutual friends display without querying friendships collection
+ */
+export const onFriendshipWriteUpdateFriendIds = onDocumentWritten(
+  "friendships/{friendshipId}",
+  async (event) => {
+    const before = event.data?.before;
+    const after = event.data?.after;
+
+    // Determine the two user IDs from the friendship document
+    let user1Id, user2Id;
+
+    if (after && after.exists) {
+      // Created or updated - use the 'after' data
+      const data = after.data();
+      user1Id = data.user1Id;
+      user2Id = data.user2Id;
+    } else if (before && before.exists) {
+      // Deleted - use the 'before' data
+      const data = before.data();
+      user1Id = data.user1Id;
+      user2Id = data.user2Id;
+    } else {
+      logger.warn("onFriendshipWriteUpdateFriendIds: No valid data found");
+      return;
+    }
+
+    if (!user1Id || !user2Id) {
+      logger.warn("onFriendshipWriteUpdateFriendIds: Missing user IDs", {
+        user1Id,
+        user2Id,
+      });
+      return;
+    }
+
+    // Determine if this is a create or delete
+    const wasCreated = !before?.exists && after?.exists;
+    const wasDeleted = before?.exists && !after?.exists;
+
+    if (!wasCreated && !wasDeleted) {
+      // Just an update to the friendship doc (e.g., privacy settings)
+      // friendIds don't need to change
+      logger.info(
+        "onFriendshipWriteUpdateFriendIds: Friendship updated (not create/delete), skipping"
+      );
+      return;
+    }
+
+    logger.info("onFriendshipWriteUpdateFriendIds: Processing", {
+      user1Id,
+      user2Id,
+      wasCreated,
+      wasDeleted,
+    });
+
+    try {
+      // Update both users in parallel
+      await Promise.all([
+        updateUserFriendIds(user1Id, user2Id, wasCreated),
+        updateUserFriendIds(user2Id, user1Id, wasCreated),
+      ]);
+
+      logger.info(
+        "onFriendshipWriteUpdateFriendIds: Successfully updated both users"
+      );
+    } catch (error) {
+      logger.error(
+        "onFriendshipWriteUpdateFriendIds: Error updating friendIds",
+        error
+      );
+    }
+  }
+);
+
+/**
+ * Helper: Update a single user's friendIds array
+ * @param {string} userId - The user whose friendIds to update
+ * @param {string} friendId - The friend to add/remove
+ * @param {boolean} isAdd - true to add, false to remove
+ */
+async function updateUserFriendIds(userId, friendId, isAdd) {
+  const userRef = db.collection("users").doc(userId);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+
+      if (!userSnap.exists) {
+        logger.warn(`updateUserFriendIds: User ${userId} not found`);
+        return;
+      }
+
+      const userData = userSnap.data();
+      const socialInfo = userData.socialInfo || {};
+      let friendIds = socialInfo.friendIds || [];
+
+      if (isAdd) {
+        // Add friend if not already present
+        if (!friendIds.includes(friendId)) {
+          friendIds.push(friendId);
+          logger.info(`Adding ${friendId} to ${userId}'s friendIds`);
+        }
+      } else {
+        // Remove friend
+        friendIds = friendIds.filter((id) => id !== friendId);
+        logger.info(`Removing ${friendId} from ${userId}'s friendIds`);
+      }
+
+      // Update the document
+      tx.update(userRef, {
+        "socialInfo.friendIds": friendIds,
+      });
+    });
+  } catch (error) {
+    logger.error(`updateUserFriendIds: Error for user ${userId}`, error);
+    throw error;
+  }
+}
