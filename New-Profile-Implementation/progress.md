@@ -107,6 +107,18 @@ Status: In progress (dev‑testable UI shipped)
   - Verify: mutual friends list matches intersection of your friendIds and viewed user's friendIds.
   - Future friendships: Add new friend → check both users' `socialInfo.friendIds` arrays updated automatically via Cloud Function trigger.
   - Unfriend: Remove friendship → verify friendIds arrays updated (friend removed from both users).
+- Profiles — Social Links
+  - Go to Profile Setup → Avatar & Bio step → scroll to "Social Links" section (after Interests).
+  - Select platform from dropdown (Instagram, Facebook, LinkedIn, GitHub, X, Custom).
+  - Enter username (e.g., "@username" or "username") or full URL → click Add.
+  - Verify: link appears as card with platform icon and correct color (Instagram gradient, Facebook blue, etc.).
+  - Test validation: invalid formats show error; duplicate URLs rejected.
+  - Test username display: LinkedIn shows plain username (e.g., "faizan-syed15"), Instagram/X show @username, Facebook/GitHub show plain username.
+  - Add up to 6 links (7th blocked with feedback).
+  - Remove links via × button.
+  - Save profile → Firestore: `users/{uid}.profile.socialLinks[]` contains `{type, url}` objects.
+  - View public profile → Social section shows branded chips; click to open link in new tab.
+  - Test mobile responsiveness: chips wrap correctly, touch targets adequate.
 
 ## Next (suggested)
 
@@ -134,9 +146,20 @@ Status: In progress (dev‑testable UI shipped)
 
 ---
 
+- Profiles — Social Links (PRD)
+  - Implemented social links feature with support for 6 platforms: Instagram, Facebook, LinkedIn, GitHub, X (Twitter), Custom URLs.
+  - Profile Setup UI: dropdown selector + input field + add button; displays added links as cards with platform icons and colors.
+  - Validation: platform-specific URL/username patterns; supports @username, username, or full URL formats; auto-normalizes to full URLs.
+  - Max 6 links enforced; duplicate detection; inline validation feedback.
+  - Saves to `users/{uid}.profile.socialLinks[]` with `{type, url}` structure.
+  - Public Profile View: displays social links as branded chips with platform-specific colors (Instagram gradient, Facebook blue, LinkedIn blue, GitHub gray, X black, Custom purple gradient).
+  - Platform-specific username display: LinkedIn shows username after /in/, Facebook/GitHub show plain username, Instagram/X show @username, Custom shows domain.
+  - Accessibility: aria-label added to input field for screen readers.
+  - Files: `src/js/services/profile/SocialLinksService.js`, `src/js/components/forms/ProfileSetup.js`, `src/js/pages/UserProfilePage.js`, `public/templates/profile.html`, `public/templates/user-profile.html`, `src/css/profile-setup.css`, `src/css/user-profile.css`.
+
 ## Open TODOs (checkpoint)
 
-- [ ] Profiles: social links input UI in Profile Setup (Instagram, LinkedIn, etc.)
+- [x] Profiles: social links input UI in Profile Setup (Instagram, LinkedIn, etc.)
 - [ ] Profiles: mutual friends "View all" modal expansion (optional)
 - [ ] Groups: unread badge on cards (count + recent time)
 - [ ] Groups: message pagination (load older + scroll anchor)

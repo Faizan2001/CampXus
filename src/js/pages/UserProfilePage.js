@@ -24,20 +24,11 @@ class UserProfilePage {
       const hashStr = hash || window.location.hash || "";
       console.log("[UserProfilePage] parseUserIdFromHash - raw hash:", hashStr);
       const idx = hashStr.indexOf("?");
-      console.log(
-        "[UserProfilePage] parseUserIdFromHash - question mark index:",
-        idx
-      );
       const qs = idx >= 0 ? hashStr.substring(idx + 1) : "";
-      console.log("[UserProfilePage] parseUserIdFromHash - query string:", qs);
       const params = new URLSearchParams(qs);
       const raw = params.get("id");
-      console.log("[UserProfilePage] parseUserIdFromHash - raw id:", raw);
       const result = raw ? decodeURIComponent(raw) : null;
-      console.log(
-        "[UserProfilePage] parseUserIdFromHash - final result:",
-        result
-      );
+      console.log("[UserProfilePage] parseUserIdFromHash - final result:", result);
       return result;
     } catch (e) {
       console.error("[UserProfilePage] parseUserIdFromHash - error:", e);
@@ -137,10 +128,7 @@ class UserProfilePage {
     }
 
     let targetProfile = null;
-    console.log(
-      "[UserProfilePage] Fetching target profile for:",
-      this.targetUid
-    );
+    console.log("[UserProfilePage] Fetching target profile for:", this.targetUid);
 
     try {
       targetProfile = await dataManager.getUserProfile(this.targetUid);
@@ -151,17 +139,12 @@ class UserProfilePage {
 
     // Fallback for preview/self: wait briefly for hydrated profile, then use it
     if (!targetProfile && (isSelf || preview)) {
-      console.log(
-        "[UserProfilePage] Trying waitForProfileWithTimeout fallback..."
-      );
+      console.log("[UserProfilePage] Trying waitForProfileWithTimeout fallback...");
       try {
         if (currentUser.waitForProfileWithTimeout) {
           await currentUser.waitForProfileWithTimeout(1500).catch(() => {});
           targetProfile = currentUser?.profile || null;
-          console.log(
-            "[UserProfilePage] waitForProfileWithTimeout result:",
-            !!targetProfile
-          );
+          console.log("[UserProfilePage] waitForProfileWithTimeout result:", !!targetProfile);
         }
       } catch (e) {
         console.warn("[UserProfilePage] waitForProfileWithTimeout error:", e);
@@ -471,16 +454,42 @@ class UserProfilePage {
     const type = String(link?.type || "custom");
     const url = String(link?.url || "#");
     
-    // Extract username/display text from URL
+    // Extract username/display text from URL based on platform
     let displayText = '';
     try {
       const urlObj = new URL(url);
       const pathname = urlObj.pathname;
       const parts = pathname.split('/').filter(p => p);
-      if (parts.length > 0) {
-        displayText = '@' + parts[0];
-      } else {
+      
+      if (type === 'linkedin') {
+        // LinkedIn format: /in/username or /company/name
+        // Extract the actual username after /in/
+        if (parts.length >= 2 && parts[0] === 'in') {
+          displayText = parts[1];
+        } else if (parts.length > 0) {
+          displayText = parts[parts.length - 1];
+        } else {
+          displayText = 'LinkedIn';
+        }
+      } else if (type === 'facebook' || type === 'github') {
+        // Facebook and GitHub: just show username without @
+        if (parts.length > 0) {
+          displayText = parts[0];
+        } else {
+          displayText = type;
+        }
+      } else if (type === 'instagram' || type === 'x') {
+        // Instagram and X/Twitter: show with @ prefix
+        if (parts.length > 0) {
+          displayText = '@' + parts[0];
+        } else {
+          displayText = '@' + type;
+        }
+      } else if (type === 'custom') {
+        // Custom: show domain name
         displayText = urlObj.hostname.replace('www.', '');
+      } else {
+        displayText = parts.length > 0 ? parts[0] : type;
       }
     } catch {
       displayText = type;

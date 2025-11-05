@@ -159,7 +159,7 @@ export function isDuplicateLink(links, url) {
 
 /**
  * Prepare social links array for Firestore save
- * Filters out empty entries and validates format
+ * Filters out empty entries and validates format with URL validation
  * @param {Array} links - Array of link objects {type, url}
  * @returns {Array} Clean array ready for Firestore
  */
@@ -174,10 +174,21 @@ export function prepareSocialLinksForSave(links) {
       if (!link || !link.type || !link.url) return false;
       
       // Validate type exists
-      if (!getSocialLinkType(link.type)) return false;
+      const typeConfig = getSocialLinkType(link.type);
+      if (!typeConfig) return false;
       
       // URL must be non-empty string
       if (typeof link.url !== 'string' || !link.url.trim()) return false;
+      
+      // Validate URL format using regex pattern
+      if (!typeConfig.pattern.test(link.url.trim())) return false;
+      
+      // Additional URL validation - try to parse as URL
+      try {
+        new URL(link.url);
+      } catch (e) {
+        return false; // Invalid URL structure
+      }
       
       return true;
     })
@@ -192,19 +203,44 @@ export function prepareSocialLinksForSave(links) {
 export function getSocialLinkDisplayName(link) {
   if (!link || !link.url) return '';
   
+  const type = link.type || 'custom';
+  
   try {
     const url = new URL(link.url);
     const pathname = url.pathname;
-    
-    // Extract username from common patterns
     const parts = pathname.split('/').filter(p => p);
-    if (parts.length > 0) {
-      // For most social media: /{username}
-      return '@' + parts[0];
-    }
     
-    // Fallback: show domain
-    return url.hostname.replace('www.', '');
+    if (type === 'linkedin') {
+      // LinkedIn format: /in/username or /company/name
+      // Extract the actual username after /in/
+      if (parts.length >= 2 && parts[0] === 'in') {
+        return parts[1];
+      } else if (parts.length > 0) {
+        return parts[parts.length - 1];
+      } else {
+        return 'LinkedIn';
+      }
+    } else if (type === 'facebook' || type === 'github') {
+      // Facebook and GitHub: just show username without @
+      if (parts.length > 0) {
+        return parts[0];
+      } else {
+        return type;
+      }
+    } else if (type === 'instagram' || type === 'x') {
+      // Instagram and X/Twitter: show with @ prefix
+      if (parts.length > 0) {
+        return '@' + parts[0];
+      } else {
+        return '@' + type;
+      }
+    } else if (type === 'custom') {
+      // Custom: show domain name
+      return url.hostname.replace('www.', '');
+    } else {
+      // Default fallback
+      return parts.length > 0 ? parts[0] : type;
+    }
   } catch {
     // If URL parsing fails, return as-is
     return link.url;
