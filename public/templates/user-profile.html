@@ -127,19 +127,90 @@
     line-height: 1.5;
   }
 
-  /* Social links */
-  .user-profile-view .social-links a {
+  /* Social links - Branded chips with original platform colors */
+  .user-profile-view .social-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .user-profile-view .social-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-right: 0.75rem;
-    margin-bottom: 0.5rem;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 20px;
     text-decoration: none;
-    color: var(--accent-primary, #3b82f6);
-    transition: opacity 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    color: #fff;
   }
-  .user-profile-view .social-links a:hover {
-    opacity: 0.8;
+  
+  .user-profile-view .social-chip i {
+    font-size: 16px;
+  }
+  
+  .user-profile-view .social-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Platform-specific branded colors */
+  .user-profile-view .social-chip-instagram {
+    background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .user-profile-view .social-chip-facebook {
+    background: #1877f2;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .user-profile-view .social-chip-linkedin {
+    background: #0a66c2;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .user-profile-view .social-chip-github {
+    background: #333;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .user-profile-view .social-chip-x {
+    background: #000;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .user-profile-view .social-chip-custom {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Hover effects with platform-specific shadows */
+  .user-profile-view .social-chip-instagram:hover {
+    box-shadow: 0 4px 16px rgba(253, 29, 29, 0.4);
+  }
+  
+  .user-profile-view .social-chip-facebook:hover {
+    box-shadow: 0 4px 16px rgba(24, 119, 242, 0.4);
+  }
+  
+  .user-profile-view .social-chip-linkedin:hover {
+    box-shadow: 0 4px 16px rgba(10, 102, 194, 0.4);
+  }
+  
+  .user-profile-view .social-chip-github:hover {
+    box-shadow: 0 4px 16px rgba(51, 51, 51, 0.5);
+  }
+  
+  .user-profile-view .social-chip-x:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  }
+  
+  .user-profile-view .social-chip-custom:hover {
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
   }
 
   /* Mutual friends */

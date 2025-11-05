@@ -75,6 +75,16 @@ import {
   interestIcon,
 } from "../../services/profile/InterestsService.js";
 import {
+  MAX_SOCIAL_LINKS,
+  SOCIAL_LINK_TYPES,
+  validateSocialLink,
+  isDuplicateLink,
+  prepareSocialLinksForSave,
+  getSocialLinkIcon,
+  getSocialLinkColor,
+  getSocialLinkDisplayName,
+} from "../../services/profile/SocialLinksService.js";
+import {
   onboardingService,
   DEFAULT_ONBOARDING_STATE,
 } from "../../services/onboarding/OnboardingService.js";
@@ -170,6 +180,9 @@ class ProfileSetup {
 
     // Interests
     this.interests = new Set();
+
+    // Social Links
+    this.socialLinks = [];
 
     // Predefined majors list (code → name)
     this.MAJORS = [
@@ -565,6 +578,15 @@ class ProfileSetup {
         interests.forEach((i) => this.interests.add(i.toString().toLowerCase()));
         this.renderInterestsSelected();
         this.renderInterestsSuggestions();
+      } catch (_) {}
+
+      // Load social links
+      try {
+        const socialLinks = Array.isArray(profile.socialLinks)
+          ? profile.socialLinks
+          : [];
+        this.socialLinks = socialLinks.filter(link => link && link.type && link.url);
+        this.renderSocialLinks();
       } catch (_) {}
 
       // Handle avatar configuration
@@ -1016,10 +1038,11 @@ class ProfileSetup {
     this.initMajorTypeahead();
     this.initStartingYearDropdown();
     this.initializeAvatarSystem();
-    // Initialize Q/A + Interests + Photo bindings after DOM is ready
+    // Initialize Q/A + Interests + Photo + Social Links bindings after DOM is ready
     this.initQnaUI();
     this.initInterestsUI();
     this.initPhotoBindings();
+    this.initSocialLinksUI();
   }
 
   /**
@@ -1088,6 +1111,7 @@ class ProfileSetup {
     this.initQnaUI();
     this.initInterestsUI();
     this.initPhotoBindings();
+    this.initSocialLinksUI();
   }
 
   /**
@@ -1863,6 +1887,168 @@ class ProfileSetup {
     return Math.abs(h);
   }
 
+  // ===================== Social Links =====================
+  initSocialLinksUI() {
+    try {
+      const typeSelect = document.getElementById('social-link-type');
+      const input = document.getElementById('social-link-input');
+      const addBtn = document.getElementById('add-social-link-btn');
+      
+      if (!typeSelect || !input || !addBtn) return;
+
+      // Update placeholder based on selected type
+      const updatePlaceholder = () => {
+        const selectedType = typeSelect.value;
+        const typeConfig = SOCIAL_LINK_TYPES.find(t => t.type === selectedType);
+        if (typeConfig) {
+          input.placeholder = typeConfig.placeholder;
+        }
+      };
+
+      // Attach event listeners only once
+      if (!typeSelect.hasAttribute('data-listener-attached')) {
+        typeSelect.addEventListener('change', updatePlaceholder);
+        typeSelect.setAttribute('data-listener-attached', 'true');
+      }
+
+      if (!input.hasAttribute('data-listener-attached')) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            this.tryAddSocialLink();
+          }
+        });
+        input.setAttribute('data-listener-attached', 'true');
+      }
+
+      if (!addBtn.hasAttribute('data-listener-attached')) {
+        addBtn.addEventListener('click', () => this.tryAddSocialLink());
+        addBtn.setAttribute('data-listener-attached', 'true');
+      }
+
+      updatePlaceholder();
+      this.renderSocialLinks();
+    } catch (err) {
+      console.warn('initSocialLinksUI failed:', err);
+    }
+  }
+
+  tryAddSocialLink() {
+    const typeSelect = document.getElementById('social-link-type');
+    const input = document.getElementById('social-link-input');
+    const feedback = document.getElementById('social-link-feedback');
+
+    if (!typeSelect || !input) return;
+
+    const type = typeSelect.value;
+    const inputValue = input.value.trim();
+
+    if (!inputValue) {
+      if (feedback) {
+        feedback.textContent = 'Please enter a username or URL.';
+        feedback.className = 'error-message';
+      }
+      return;
+    }
+
+    // Validate the link
+    const validation = validateSocialLink(type, inputValue);
+    if (!validation.valid) {
+      if (feedback) {
+        feedback.textContent = validation.reason;
+        feedback.className = 'error-message';
+      }
+      return;
+    }
+
+    // Check for duplicates
+    if (isDuplicateLink(this.socialLinks, validation.url)) {
+      if (feedback) {
+        feedback.textContent = 'This link has already been added.';
+        feedback.className = 'error-message';
+      }
+      return;
+    }
+
+    // Check max limit
+    if (this.socialLinks.length >= MAX_SOCIAL_LINKS) {
+      if (feedback) {
+        feedback.textContent = `Maximum ${MAX_SOCIAL_LINKS} links allowed.`;
+        feedback.className = 'error-message';
+      }
+      return;
+    }
+
+    // Add the link
+    this.socialLinks.push({
+      type: type,
+      url: validation.url
+    });
+
+    // Clear input and show success
+    input.value = '';
+    if (feedback) {
+      feedback.textContent = 'Link added successfully!';
+      feedback.className = 'field-hint';
+    }
+
+    this.renderSocialLinks();
+  }
+
+  renderSocialLinks() {
+    const host = document.getElementById('social-links-list');
+    if (!host) return;
+
+    host.innerHTML = '';
+
+    if (this.socialLinks.length === 0) {
+      return; // No links to display
+    }
+
+    this.socialLinks.forEach((link, index) => {
+      const item = document.createElement('div');
+      item.className = 'social-link-item';
+
+      // Icon
+      const iconBox = document.createElement('div');
+      iconBox.className = `social-link-icon ${getSocialLinkColor(link.type)}`;
+      const icon = document.createElement('i');
+      icon.className = getSocialLinkIcon(link.type);
+      iconBox.appendChild(icon);
+
+      // Content
+      const content = document.createElement('div');
+      content.className = 'social-link-content';
+      
+      const typeLabel = document.createElement('div');
+      typeLabel.className = 'social-link-type';
+      typeLabel.textContent = SOCIAL_LINK_TYPES.find(t => t.type === link.type)?.label || link.type;
+      
+      const urlDisplay = document.createElement('div');
+      urlDisplay.className = 'social-link-url';
+      urlDisplay.textContent = getSocialLinkDisplayName(link);
+      urlDisplay.title = link.url; // Show full URL on hover
+
+      content.appendChild(typeLabel);
+      content.appendChild(urlDisplay);
+
+      // Remove button
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'social-link-remove';
+      removeBtn.innerHTML = '×';
+      removeBtn.addEventListener('click', () => {
+        this.socialLinks.splice(index, 1);
+        this.renderSocialLinks();
+      });
+
+      item.appendChild(iconBox);
+      item.appendChild(content);
+      item.appendChild(removeBtn);
+      host.appendChild(item);
+    });
+  }
+
   /**
    * Show visual feedback when disabled button is clicked
    */
@@ -2410,6 +2596,12 @@ class ProfileSetup {
       const interests = Array.from(this.interests || []);
       if (interests.length > 0) {
         profileDataForFirestore.profile.interests = interests.slice(0, 10);
+      }
+
+      // Social Links (optional, ≤6)
+      const socialLinks = prepareSocialLinksForSave(this.socialLinks);
+      if (socialLinks.length > 0) {
+        profileDataForFirestore.profile.socialLinks = socialLinks;
       }
 
       const userId =

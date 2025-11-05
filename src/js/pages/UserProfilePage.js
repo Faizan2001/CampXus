@@ -470,17 +470,37 @@ class UserProfilePage {
   renderSocialLink(link) {
     const type = String(link?.type || "custom");
     const url = String(link?.url || "#");
+    
+    // Extract username/display text from URL
+    let displayText = '';
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const parts = pathname.split('/').filter(p => p);
+      if (parts.length > 0) {
+        displayText = '@' + parts[0];
+      } else {
+        displayText = urlObj.hostname.replace('www.', '');
+      }
+    } catch {
+      displayText = type;
+    }
+    
     const map = {
-      instagram: { icon: "fab fa-instagram", label: "Instagram" },
-      facebook: { icon: "fab fa-facebook", label: "Facebook" },
-      linkedin: { icon: "fab fa-linkedin", label: "LinkedIn" },
-      github: { icon: "fab fa-github", label: "GitHub" },
-      x: { icon: "fab fa-x-twitter", label: "X" },
-      custom: { icon: "fas fa-link", label: "Link" },
+      instagram: { icon: "fab fa-instagram", colorClass: "social-chip-instagram" },
+      facebook: { icon: "fab fa-facebook", colorClass: "social-chip-facebook" },
+      linkedin: { icon: "fab fa-linkedin", colorClass: "social-chip-linkedin" },
+      github: { icon: "fab fa-github", colorClass: "social-chip-github" },
+      x: { icon: "fab fa-x-twitter", colorClass: "social-chip-x" },
+      custom: { icon: "fas fa-link", colorClass: "social-chip-custom" },
     };
     const meta = map[type] || map.custom;
     const safeUrl = url.startsWith("http") ? url : `https://${url}`;
-    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer"><i class="${meta.icon}"></i><span>${meta.label}</span></a>`;
+    
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="social-chip ${meta.colorClass}">
+      <i class="${meta.icon}"></i>
+      <span>${this.escapeHtml(displayText)}</span>
+    </a>`;
   }
 
   renderInterests(profileDoc) {

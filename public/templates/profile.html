@@ -222,6 +222,28 @@
           <div id="interests-selected" class="interests-selected chips-grid" style="margin-top:.5rem;"></div>
         </div>
 
+        <!-- Social Links (Optional) -->
+        <div class="form-group">
+          <div class="step-header" style="margin-top: 1rem;">
+            <h3 class="step-title" style="font-size: 1.1rem;">Social Links</h3>
+            <p class="step-description">Add up to 6 social media links (Optional)</p>
+          </div>
+          <div class="social-links-controls" style="display:flex; gap:.5rem; align-items:flex-start; flex-wrap:wrap;">
+            <select id="social-link-type" class="form-input" aria-label="Select social platform" style="flex: 1; min-width:140px;">
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="github">GitHub</option>
+              <option value="x">X (Twitter)</option>
+              <option value="custom">Custom Link</option>
+            </select>
+            <input id="social-link-input" class="form-input" placeholder="Enter username or URL" style="flex: 2; min-width:180px;" />
+            <button type="button" id="add-social-link-btn" class="button secondary">Add</button>
+          </div>
+          <div id="social-link-feedback" class="field-hint">Add your social media profiles to connect with classmates.</div>
+          <div id="social-links-list" class="social-links-list" style="margin-top:.75rem;"></div>
+        </div>
+
       </div>
 
       <!-- Step 2: Schedule Import -->
