@@ -19,78 +19,91 @@ export const MAX_SOCIAL_LINKS = 6;
 // Supported social link types with icons and validation patterns
 export const SOCIAL_LINK_TYPES = [
   {
-    type: 'instagram',
-    label: 'Instagram',
-    icon: 'fab fa-instagram',
-    placeholder: 'instagram.com/username or @username',
-    pattern: /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/?$|^@?([a-zA-Z0-9._]+)$/,
+    type: "instagram",
+    label: "Instagram",
+    icon: "fab fa-instagram",
+    placeholder: "instagram.com/username or @username",
+    pattern:
+      /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/?$|^@?([a-zA-Z0-9._]+)$/,
     normalize: (input) => {
       // Handle @username, username, or full URL
-      const match = input.match(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/?$|^@?([a-zA-Z0-9._]+)$/);
+      const match = input.match(
+        /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/?$|^@?([a-zA-Z0-9._]+)$/
+      );
       if (!match) return null;
       const username = match[1] || match[2];
       return `https://instagram.com/${username}`;
-    }
+    },
   },
   {
-    type: 'facebook',
-    label: 'Facebook',
-    icon: 'fab fa-facebook',
-    placeholder: 'facebook.com/username',
+    type: "facebook",
+    label: "Facebook",
+    icon: "fab fa-facebook",
+    placeholder: "facebook.com/username",
     pattern: /^(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9.]+)\/?$/,
     normalize: (input) => {
-      const match = input.match(/^(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9.]+)\/?$/);
+      const match = input.match(
+        /^(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9.]+)\/?$/
+      );
       if (!match) return null;
       return `https://facebook.com/${match[1]}`;
-    }
+    },
   },
   {
-    type: 'linkedin',
-    label: 'LinkedIn',
-    icon: 'fab fa-linkedin',
-    placeholder: 'linkedin.com/in/username',
-    pattern: /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9-]+)\/?$/,
+    type: "linkedin",
+    label: "LinkedIn",
+    icon: "fab fa-linkedin",
+    placeholder: "linkedin.com/in/username",
+    pattern:
+      /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9-]+)\/?$/,
     normalize: (input) => {
-      const match = input.match(/^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9-]+)\/?$/);
+      const match = input.match(
+        /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9-]+)\/?$/
+      );
       if (!match) return null;
       return `https://linkedin.com/in/${match[1]}`;
-    }
+    },
   },
   {
-    type: 'github',
-    label: 'GitHub',
-    icon: 'fab fa-github',
-    placeholder: 'github.com/username',
+    type: "github",
+    label: "GitHub",
+    icon: "fab fa-github",
+    placeholder: "github.com/username",
     pattern: /^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9-]+)\/?$/,
     normalize: (input) => {
-      const match = input.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9-]+)\/?$/);
+      const match = input.match(
+        /^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9-]+)\/?$/
+      );
       if (!match) return null;
       return `https://github.com/${match[1]}`;
-    }
+    },
   },
   {
-    type: 'x',
-    label: 'X (Twitter)',
-    icon: 'fab fa-x-twitter',
-    placeholder: 'x.com/username or @username',
-    pattern: /^(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/?$|^@?([a-zA-Z0-9_]+)$/,
+    type: "x",
+    label: "X (Twitter)",
+    icon: "fab fa-x-twitter",
+    placeholder: "x.com/username or @username",
+    pattern:
+      /^(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/?$|^@?([a-zA-Z0-9_]+)$/,
     normalize: (input) => {
-      const match = input.match(/^(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/?$|^@?([a-zA-Z0-9_]+)$/);
+      const match = input.match(
+        /^(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/?$|^@?([a-zA-Z0-9_]+)$/
+      );
       if (!match) return null;
       const username = match[1] || match[2];
       return `https://x.com/${username}`;
-    }
+    },
   },
   {
-    type: 'custom',
-    label: 'Custom Link',
-    icon: 'fas fa-link',
-    placeholder: 'https://example.com',
+    type: "custom",
+    label: "Custom Link",
+    icon: "fas fa-link",
+    placeholder: "https://example.com",
     pattern: /^https?:\/\/.+\..+$/,
     normalize: (input) => {
       // Ensure URL has protocol
       if (!/^https?:\/\//i.test(input)) {
-        input = 'https://' + input;
+        input = "https://" + input;
       }
       try {
         const url = new URL(input);
@@ -98,8 +111,8 @@ export const SOCIAL_LINK_TYPES = [
       } catch {
         return null;
       }
-    }
-  }
+    },
+  },
 ];
 
 /**
@@ -108,7 +121,7 @@ export const SOCIAL_LINK_TYPES = [
  * @returns {Object|null} Type configuration or null if not found
  */
 export function getSocialLinkType(type) {
-  return SOCIAL_LINK_TYPES.find(t => t.type === type) || null;
+  return SOCIAL_LINK_TYPES.find((t) => t.type === type) || null;
 }
 
 /**
@@ -118,32 +131,36 @@ export function getSocialLinkType(type) {
  * @returns {Object} {valid: boolean, url: string|null, reason: string}
  */
 export function validateSocialLink(type, input) {
-  if (!input || typeof input !== 'string') {
-    return { valid: false, url: null, reason: 'Input required' };
+  if (!input || typeof input !== "string") {
+    return { valid: false, url: null, reason: "Input required" };
   }
 
   const trimmed = input.trim();
   if (!trimmed) {
-    return { valid: false, url: null, reason: 'Input required' };
+    return { valid: false, url: null, reason: "Input required" };
   }
 
   const typeConfig = getSocialLinkType(type);
   if (!typeConfig) {
-    return { valid: false, url: null, reason: 'Invalid link type' };
+    return { valid: false, url: null, reason: "Invalid link type" };
   }
 
   // Test against pattern
   if (!typeConfig.pattern.test(trimmed)) {
-    return { valid: false, url: null, reason: `Invalid ${typeConfig.label} format` };
+    return {
+      valid: false,
+      url: null,
+      reason: `Invalid ${typeConfig.label} format`,
+    };
   }
 
   // Normalize URL
   const normalizedUrl = typeConfig.normalize(trimmed);
   if (!normalizedUrl) {
-    return { valid: false, url: null, reason: 'Could not normalize URL' };
+    return { valid: false, url: null, reason: "Could not normalize URL" };
   }
 
-  return { valid: true, url: normalizedUrl, reason: '' };
+  return { valid: true, url: normalizedUrl, reason: "" };
 }
 
 /**
@@ -154,7 +171,7 @@ export function validateSocialLink(type, input) {
  */
 export function isDuplicateLink(links, url) {
   if (!Array.isArray(links)) return false;
-  return links.some(link => link.url === url);
+  return links.some((link) => link.url === url);
 }
 
 /**
@@ -169,27 +186,27 @@ export function prepareSocialLinksForSave(links) {
   }
 
   return links
-    .filter(link => {
+    .filter((link) => {
       // Must have both type and url
       if (!link || !link.type || !link.url) return false;
-      
+
       // Validate type exists
       const typeConfig = getSocialLinkType(link.type);
       if (!typeConfig) return false;
-      
+
       // URL must be non-empty string
-      if (typeof link.url !== 'string' || !link.url.trim()) return false;
-      
+      if (typeof link.url !== "string" || !link.url.trim()) return false;
+
       // Validate URL format using regex pattern
       if (!typeConfig.pattern.test(link.url.trim())) return false;
-      
+
       // Additional URL validation - try to parse as URL
       try {
         new URL(link.url);
       } catch (e) {
         return false; // Invalid URL structure
       }
-      
+
       return true;
     })
     .slice(0, MAX_SOCIAL_LINKS); // Enforce max limit
@@ -201,42 +218,42 @@ export function prepareSocialLinksForSave(links) {
  * @returns {string} Display name or shortened URL
  */
 export function getSocialLinkDisplayName(link) {
-  if (!link || !link.url) return '';
-  
-  const type = link.type || 'custom';
-  
+  if (!link || !link.url) return "";
+
+  const type = link.type || "custom";
+
   try {
     const url = new URL(link.url);
     const pathname = url.pathname;
-    const parts = pathname.split('/').filter(p => p);
-    
-    if (type === 'linkedin') {
+    const parts = pathname.split("/").filter((p) => p);
+
+    if (type === "linkedin") {
       // LinkedIn format: /in/username or /company/name
       // Extract the actual username after /in/
-      if (parts.length >= 2 && parts[0] === 'in') {
+      if (parts.length >= 2 && parts[0] === "in") {
         return parts[1];
       } else if (parts.length > 0) {
         return parts[parts.length - 1];
       } else {
-        return 'LinkedIn';
+        return "LinkedIn";
       }
-    } else if (type === 'facebook' || type === 'github') {
+    } else if (type === "facebook" || type === "github") {
       // Facebook and GitHub: just show username without @
       if (parts.length > 0) {
         return parts[0];
       } else {
         return type;
       }
-    } else if (type === 'instagram' || type === 'x') {
+    } else if (type === "instagram" || type === "x") {
       // Instagram and X/Twitter: show with @ prefix
       if (parts.length > 0) {
-        return '@' + parts[0];
+        return "@" + parts[0];
       } else {
-        return '@' + type;
+        return "@" + type;
       }
-    } else if (type === 'custom') {
+    } else if (type === "custom") {
       // Custom: show domain name
-      return url.hostname.replace('www.', '');
+      return url.hostname.replace("www.", "");
     } else {
       // Default fallback
       return parts.length > 0 ? parts[0] : type;
@@ -254,7 +271,7 @@ export function getSocialLinkDisplayName(link) {
  */
 export function getSocialLinkIcon(type) {
   const typeConfig = getSocialLinkType(type);
-  return typeConfig ? typeConfig.icon : 'fas fa-link';
+  return typeConfig ? typeConfig.icon : "fas fa-link";
 }
 
 /**
@@ -264,12 +281,12 @@ export function getSocialLinkIcon(type) {
  */
 export function getSocialLinkColor(type) {
   const colors = {
-    instagram: 'social-instagram',
-    facebook: 'social-facebook',
-    linkedin: 'social-linkedin',
-    github: 'social-github',
-    x: 'social-x',
-    custom: 'social-custom'
+    instagram: "social-instagram",
+    facebook: "social-facebook",
+    linkedin: "social-linkedin",
+    github: "social-github",
+    x: "social-x",
+    custom: "social-custom",
   };
-  return colors[type] || 'social-custom';
+  return colors[type] || "social-custom";
 }

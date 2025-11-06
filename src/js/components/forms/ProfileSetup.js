@@ -552,7 +552,7 @@ class ProfileSetup {
         const qna = profile.qnaResponses || [];
         if (Array.isArray(qna) && qna.length) {
           qna.forEach((entry) => {
-            if (entry?.questionId && typeof entry?.answer === 'string') {
+            if (entry?.questionId && typeof entry?.answer === "string") {
               this.qnaAnswers.set(entry.questionId, entry.answer);
             }
           });
@@ -575,7 +575,9 @@ class ProfileSetup {
         const interests = Array.isArray(profile.interests)
           ? profile.interests
           : [];
-        interests.forEach((i) => this.interests.add(i.toString().toLowerCase()));
+        interests.forEach((i) =>
+          this.interests.add(i.toString().toLowerCase())
+        );
         this.renderInterestsSelected();
         this.renderInterestsSuggestions();
       } catch (_) {}
@@ -585,7 +587,9 @@ class ProfileSetup {
         const socialLinks = Array.isArray(profile.socialLinks)
           ? profile.socialLinks
           : [];
-        this.socialLinks = socialLinks.filter(link => link && link.type && link.url);
+        this.socialLinks = socialLinks.filter(
+          (link) => link && link.type && link.url
+        );
         this.renderSocialLinks();
       } catch (_) {}
 
@@ -1370,7 +1374,8 @@ class ProfileSetup {
         document.getElementById("setup-last-name")?.value.trim() || "";
       const startingYear =
         document.getElementById("setup-starting-year")?.value || "";
-      const majorRaw = document.getElementById("setup-major")?.value.trim() || "";
+      const majorRaw =
+        document.getElementById("setup-major")?.value.trim() || "";
       const major = majorRaw.toUpperCase();
       const email = document.getElementById("setup-email")?.value.trim() || "";
 
@@ -1511,13 +1516,13 @@ class ProfileSetup {
    */
   initQnaUI() {
     try {
-      const picker = document.getElementById('qna-picker');
-      const selectedList = document.getElementById('qna-selected-list');
+      const picker = document.getElementById("qna-picker");
+      const selectedList = document.getElementById("qna-selected-list");
       if (!picker || !selectedList) return;
 
       // Start with existing answers' questionIds or default to first bank item
       const existingIds = Array.from(this.qnaAnswers.entries())
-        .filter(([, a]) => typeof a === 'string')
+        .filter(([, a]) => typeof a === "string")
         .map(([id]) => id);
       if (existingIds.length) {
         existingIds.forEach((id) => this.qnaSelectedIds.add(id));
@@ -1531,49 +1536,49 @@ class ProfileSetup {
         if (!id) return;
         if (this.qnaSelectedIds.has(id)) return; // no duplicates
         if (this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
-          const feedback = document.getElementById('qna-feedback');
+          const feedback = document.getElementById("qna-feedback");
           if (feedback) {
             feedback.textContent = `You can add up to ${MAX_QA_ANSWERS} questions.`;
-            feedback.className = 'field-hint';
+            feedback.className = "field-hint";
           }
-          picker.value = '';
+          picker.value = "";
           return;
         }
         this.qnaSelectedIds.add(id);
         this.renderQnaSelected();
         this.refreshQnaPicker();
-        picker.value = '';
+        picker.value = "";
         this.validateCurrentStep();
       };
 
-      if (!picker.hasAttribute('data-listener-attached')) {
-        picker.addEventListener('change', onPickerChange);
-        picker.setAttribute('data-listener-attached', 'true');
+      if (!picker.hasAttribute("data-listener-attached")) {
+        picker.addEventListener("change", onPickerChange);
+        picker.setAttribute("data-listener-attached", "true");
       }
 
       this.renderQnaSelected();
       this.refreshQnaPicker();
       this.validateCurrentStep();
     } catch (err) {
-      console.warn('initQnaUI failed:', err);
+      console.warn("initQnaUI failed:", err);
     }
   }
 
   refreshQnaPicker() {
-    const picker = document.getElementById('qna-picker');
+    const picker = document.getElementById("qna-picker");
     if (!picker) return;
     // rebuild options: keep placeholder, then add items not in selected
     const placeholder = picker.querySelector('option[value=""]');
-    picker.innerHTML = '';
-    const ph = document.createElement('option');
-    ph.value = '';
-    ph.textContent = 'Add a question…';
+    picker.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "Add a question…";
     ph.disabled = true;
     ph.selected = true;
     picker.appendChild(ph);
     this.qnaBank.forEach((q) => {
       if (this.qnaSelectedIds.has(q.id)) return;
-      const opt = document.createElement('option');
+      const opt = document.createElement("option");
       opt.value = q.id;
       opt.textContent = q.text;
       picker.appendChild(opt);
@@ -1583,34 +1588,34 @@ class ProfileSetup {
   }
 
   renderQnaSelected() {
-    const selectedList = document.getElementById('qna-selected-list');
+    const selectedList = document.getElementById("qna-selected-list");
     if (!selectedList) return;
-    selectedList.innerHTML = '';
+    selectedList.innerHTML = "";
     const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
     const allowRemove = this.qnaSelectedIds.size > 1;
     Array.from(this.qnaSelectedIds).forEach((id) => {
       const q = bankById.get(id);
-      const item = document.createElement('div');
-      item.className = 'qna-item';
-      item.setAttribute('data-qna-id', id);
+      const item = document.createElement("div");
+      item.className = "qna-item";
+      item.setAttribute("data-qna-id", id);
       item.innerHTML = `
         <button type="button" class="qna-remove" aria-label="Remove question" title="Remove question">−</button>
-        <label class="form-label">${q?.text || ''}</label>
+        <label class="form-label">${q?.text || ""}</label>
         <textarea class="form-input qna-answer" rows="2" maxlength="${MAX_QA_ANSWER_LENGTH}" placeholder="Type your answer"></textarea>
         <div class="char-counter-container"><span class="qna-count">0</span>/${MAX_QA_ANSWER_LENGTH}</div>
       `;
-      const ta = item.querySelector('textarea.qna-answer');
-      const counter = item.querySelector('.qna-count');
-      const removeBtn = item.querySelector('.qna-remove');
+      const ta = item.querySelector("textarea.qna-answer");
+      const counter = item.querySelector(".qna-count");
+      const removeBtn = item.querySelector(".qna-remove");
       // restore existing answer
-      const prev = this.qnaAnswers.get(id) || '';
+      const prev = this.qnaAnswers.get(id) || "";
       if (prev) {
         ta.value = prev;
         if (counter) counter.textContent = String(prev.length);
       }
       // textarea input
-      ta.addEventListener('input', (e) => {
-        const val = (e.target.value || '').slice(0, MAX_QA_ANSWER_LENGTH);
+      ta.addEventListener("input", (e) => {
+        const val = (e.target.value || "").slice(0, MAX_QA_ANSWER_LENGTH);
         this.qnaAnswers.set(id, val.trim());
         if (counter) counter.textContent = String(val.length);
         this.validateCurrentStep();
@@ -1618,9 +1623,9 @@ class ProfileSetup {
       // remove button
       if (!allowRemove) {
         removeBtn.disabled = true;
-        removeBtn.classList.add('disabled');
+        removeBtn.classList.add("disabled");
       } else {
-        removeBtn.addEventListener('click', () => {
+        removeBtn.addEventListener("click", () => {
           if (this.qnaSelectedIds.size <= 1) return; // guard
           this.qnaSelectedIds.delete(id);
           // keep answer in map but optional: clear to free if removed
@@ -1637,7 +1642,7 @@ class ProfileSetup {
   getQnaResponseCount(minLen = 1) {
     let count = 0;
     this.qnaSelectedIds.forEach((id) => {
-      const val = (this.qnaAnswers.get(id) || '').trim();
+      const val = (this.qnaAnswers.get(id) || "").trim();
       if (val.length >= minLen) count++;
     });
     return count;
@@ -1648,7 +1653,7 @@ class ProfileSetup {
     const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
     const responses = [];
     this.qnaSelectedIds.forEach((id) => {
-      const answer = this.qnaAnswers.get(id) || '';
+      const answer = this.qnaAnswers.get(id) || "";
       const trimmed = answer.trim();
       if (trimmed.length < MIN_QA_ANSWER_LENGTH) return; // must meet min length
       const q = bankById.get(id);
@@ -1667,23 +1672,29 @@ class ProfileSetup {
   // ===================== Photo =====================
   initPhotoBindings() {
     try {
-      const uploadBtn = document.getElementById('profile-photo-upload-btn');
-      const fileInput = document.getElementById('profile-photo-input');
-      const swapBtn = document.getElementById('swap-photo-avatar-btn');
-      if (uploadBtn && fileInput && !uploadBtn.hasAttribute('data-listener-attached')) {
-        uploadBtn.addEventListener('click', () => fileInput.click());
-        uploadBtn.setAttribute('data-listener-attached', 'true');
+      const uploadBtn = document.getElementById("profile-photo-upload-btn");
+      const fileInput = document.getElementById("profile-photo-input");
+      const swapBtn = document.getElementById("swap-photo-avatar-btn");
+      if (
+        uploadBtn &&
+        fileInput &&
+        !uploadBtn.hasAttribute("data-listener-attached")
+      ) {
+        uploadBtn.addEventListener("click", () => fileInput.click());
+        uploadBtn.setAttribute("data-listener-attached", "true");
       }
-      if (fileInput && !fileInput.hasAttribute('data-listener-attached')) {
-        fileInput.addEventListener('change', (e) => this.handlePhotoSelected(e));
-        fileInput.setAttribute('data-listener-attached', 'true');
+      if (fileInput && !fileInput.hasAttribute("data-listener-attached")) {
+        fileInput.addEventListener("change", (e) =>
+          this.handlePhotoSelected(e)
+        );
+        fileInput.setAttribute("data-listener-attached", "true");
       }
-      if (swapBtn && !swapBtn.hasAttribute('data-listener-attached')) {
-        swapBtn.addEventListener('click', () => {
+      if (swapBtn && !swapBtn.hasAttribute("data-listener-attached")) {
+        swapBtn.addEventListener("click", () => {
           // If no photo available, prompt upload when swapping to photo
           if (this.useAvatar) {
             if (!this.profilePhotoUrl) {
-              const fileInput = document.getElementById('profile-photo-input');
+              const fileInput = document.getElementById("profile-photo-input");
               if (fileInput) fileInput.click();
               return;
             }
@@ -1697,12 +1708,12 @@ class ProfileSetup {
           this.updateAvatarPreview();
           this._updateSwapButtonLabel();
         });
-        swapBtn.setAttribute('data-listener-attached', 'true');
+        swapBtn.setAttribute("data-listener-attached", "true");
       }
       this.updatePhotoPreview();
       this._updateSwapButtonLabel();
     } catch (err) {
-      console.warn('initPhotoBindings failed:', err);
+      console.warn("initPhotoBindings failed:", err);
     }
   }
 
@@ -1714,54 +1725,63 @@ class ProfileSetup {
       if (!file) return;
       const { mainBlob, thumbBlob } = await processProfilePhoto(file);
       if (mainBlob.size > 400 * 1024) {
-        alert('Photo is too large after processing. Please choose a different image.');
+        alert(
+          "Photo is too large after processing. Please choose a different image."
+        );
         return;
       }
       // Only delete old files if a previous photo exists
       if (this.profilePhotoUrl) {
         await deleteExistingProfilePhotos(userId);
       }
-      const { url } = await uploadProfilePhotoBlobs(userId, mainBlob, thumbBlob);
+      const { url } = await uploadProfilePhotoBlobs(
+        userId,
+        mainBlob,
+        thumbBlob
+      );
       this.profilePhotoUrl = url;
       this.useAvatar = false;
       this._updateSwapButtonLabel();
       this.updatePhotoPreview();
       this.validateCurrentStep();
     } catch (err) {
-      console.error('Photo upload failed:', err);
-      alert('Failed to upload photo. Please try another image.');
+      console.error("Photo upload failed:", err);
+      alert("Failed to upload photo. Please try another image.");
     }
   }
 
   updatePhotoPreview() {
     try {
-      const photoBox = document.getElementById('photo-preview-display');
+      const photoBox = document.getElementById("photo-preview-display");
       if (!photoBox) return;
-      photoBox.innerHTML = '';
+      photoBox.innerHTML = "";
       if (!this.useAvatar && this.profilePhotoUrl) {
-        const img = document.createElement('img');
+        const img = document.createElement("img");
         img.src = this.profilePhotoUrl;
-        img.alt = 'Profile photo';
-        img.width = 96; img.height = 96; img.loading='lazy';
-        img.style.cssText = 'width:96px;height:96px;border-radius:50%;object-fit:cover;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;';
+        img.alt = "Profile photo";
+        img.width = 96;
+        img.height = 96;
+        img.loading = "lazy";
+        img.style.cssText =
+          "width:96px;height:96px;border-radius:50%;object-fit:cover;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;";
         photoBox.appendChild(img);
-        photoBox.classList.add('selected');
-        const avatarBox = document.getElementById('avatar-preview-display');
-        avatarBox?.classList.remove('selected');
+        photoBox.classList.add("selected");
+        const avatarBox = document.getElementById("avatar-preview-display");
+        avatarBox?.classList.remove("selected");
       } else {
-        const i = document.createElement('i');
-        i.className = 'fas fa-user-circle';
-        i.style.cssText = 'font-size:48px;opacity:.6;';
+        const i = document.createElement("i");
+        i.className = "fas fa-user-circle";
+        i.style.cssText = "font-size:48px;opacity:.6;";
         photoBox.appendChild(i);
-        photoBox.classList.remove('selected');
-        const avatarBox = document.getElementById('avatar-preview-display');
-        avatarBox?.classList.add('selected');
+        photoBox.classList.remove("selected");
+        const avatarBox = document.getElementById("avatar-preview-display");
+        avatarBox?.classList.add("selected");
       }
     } catch (_) {}
   }
 
   _updateSwapButtonLabel() {
-    const btn = document.getElementById('swap-photo-avatar-btn');
+    const btn = document.getElementById("swap-photo-avatar-btn");
     if (!btn) return;
     if (this.useAvatar) {
       btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap to Photo';
@@ -1773,63 +1793,72 @@ class ProfileSetup {
   // ===================== Interests =====================
   initInterestsUI() {
     try {
-      const input = document.getElementById('interest-input');
-      const addBtn = document.getElementById('add-interest-btn');
-      if (input && !input.hasAttribute('data-listener-attached')) {
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
+      const input = document.getElementById("interest-input");
+      const addBtn = document.getElementById("add-interest-btn");
+      if (input && !input.hasAttribute("data-listener-attached")) {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
             e.preventDefault();
             this.tryAddInterest(input.value);
           }
         });
-        input.setAttribute('data-listener-attached', 'true');
+        input.setAttribute("data-listener-attached", "true");
       }
-      if (addBtn && !addBtn.hasAttribute('data-listener-attached')) {
-        addBtn.addEventListener('click', () => {
+      if (addBtn && !addBtn.hasAttribute("data-listener-attached")) {
+        addBtn.addEventListener("click", () => {
           this.tryAddInterest(input.value);
         });
-        addBtn.setAttribute('data-listener-attached', 'true');
+        addBtn.setAttribute("data-listener-attached", "true");
       }
       this.renderInterestsSuggestions();
       this.renderInterestsSelected();
     } catch (err) {
-      console.warn('initInterestsUI failed:', err);
+      console.warn("initInterestsUI failed:", err);
     }
   }
 
   tryAddInterest(raw) {
-    const feedback = document.getElementById('interest-feedback');
+    const feedback = document.getElementById("interest-feedback");
     const v = normalizeInterest(raw);
     if (!isValidCustomInterest(v)) {
       if (feedback) {
-        feedback.textContent = 'Use 3–20 lowercase letters/numbers/spaces.';
-        feedback.className = 'error-message';
+        feedback.textContent = "Use 3–20 lowercase letters/numbers/spaces.";
+        feedback.className = "error-message";
       }
       return;
     }
     if (this.interests.has(v)) {
-      if (feedback) { feedback.textContent = 'Already added.'; feedback.className = 'field-hint'; }
+      if (feedback) {
+        feedback.textContent = "Already added.";
+        feedback.className = "field-hint";
+      }
       return;
     }
     if (this.interests.size >= MAX_INTERESTS) {
-      if (feedback) { feedback.textContent = `Max ${MAX_INTERESTS} interests.`; feedback.className = 'error-message'; }
+      if (feedback) {
+        feedback.textContent = `Max ${MAX_INTERESTS} interests.`;
+        feedback.className = "error-message";
+      }
       return;
     }
     this.interests.add(v);
-    const input = document.getElementById('interest-input');
-    if (input) input.value = '';
-    if (feedback) { feedback.textContent = 'Added.'; feedback.className = 'field-hint'; }
+    const input = document.getElementById("interest-input");
+    if (input) input.value = "";
+    if (feedback) {
+      feedback.textContent = "Added.";
+      feedback.className = "field-hint";
+    }
     this.renderInterestsSelected();
   }
 
   renderInterestsSuggestions() {
-    const host = document.getElementById('interests-suggestions');
+    const host = document.getElementById("interests-suggestions");
     if (!host) return;
-    host.innerHTML = '';
+    host.innerHTML = "";
     STARTER_INTERESTS.forEach((i) => {
       if (this.interests.has(i.key)) return;
       const chip = this._makeInterestChip(i.key);
-      chip.addEventListener('click', () => {
+      chip.addEventListener("click", () => {
         if (this.interests.size >= MAX_INTERESTS) return;
         this.interests.add(i.key);
         this.renderInterestsSelected();
@@ -1840,14 +1869,14 @@ class ProfileSetup {
   }
 
   renderInterestsSelected() {
-    const host = document.getElementById('interests-selected');
+    const host = document.getElementById("interests-selected");
     if (!host) return;
-    host.innerHTML = '';
+    host.innerHTML = "";
     Array.from(this.interests).forEach((key) => {
       const chip = this._makeInterestChip(key, true);
-      const removeBtn = chip.querySelector('.chip-remove');
+      const removeBtn = chip.querySelector(".chip-remove");
       if (removeBtn) {
-        removeBtn.addEventListener('click', (e) => {
+        removeBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.interests.delete(key);
           this.renderInterestsSelected();
@@ -1859,20 +1888,20 @@ class ProfileSetup {
   }
 
   _makeInterestChip(key, removable = false) {
-    const chip = document.createElement('div');
-    chip.className = 'interest-chip';
-    chip.setAttribute('data-color', String((this._hash(key) % 5) + 1));
-    const iconEl = document.createElement('i');
+    const chip = document.createElement("div");
+    chip.className = "interest-chip";
+    chip.setAttribute("data-color", String((this._hash(key) % 5) + 1));
+    const iconEl = document.createElement("i");
     iconEl.className = interestIcon(key);
-    const label = document.createElement('span');
+    const label = document.createElement("span");
     label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
     chip.appendChild(iconEl);
     chip.appendChild(label);
     if (removable) {
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'chip-remove';
-      removeBtn.textContent = '×';
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "chip-remove";
+      removeBtn.textContent = "×";
       chip.appendChild(removeBtn);
     }
     return chip;
@@ -1890,63 +1919,86 @@ class ProfileSetup {
   // ===================== Social Links =====================
   initSocialLinksUI() {
     try {
-      const typeSelect = document.getElementById('social-link-type');
-      const input = document.getElementById('social-link-input');
-      const addBtn = document.getElementById('add-social-link-btn');
-      
-      if (!typeSelect || !input || !addBtn) return;
+      console.log("[ProfileSetup] initSocialLinksUI called");
+      const typeSelect = document.getElementById("social-link-type");
+      const input = document.getElementById("social-link-input");
+      const addBtn = document.getElementById("add-social-link-btn");
+
+      console.log("[ProfileSetup] Social links elements:", { 
+        typeSelect: !!typeSelect, 
+        input: !!input, 
+        addBtn: !!addBtn 
+      });
+
+      if (!typeSelect || !input || !addBtn) {
+        console.warn("[ProfileSetup] Social links elements not found");
+        return;
+      }
 
       // Update placeholder based on selected type
       const updatePlaceholder = () => {
         const selectedType = typeSelect.value;
-        const typeConfig = SOCIAL_LINK_TYPES.find(t => t.type === selectedType);
+        const typeConfig = SOCIAL_LINK_TYPES.find(
+          (t) => t.type === selectedType
+        );
         if (typeConfig) {
           input.placeholder = typeConfig.placeholder;
         }
       };
 
       // Attach event listeners only once
-      if (!typeSelect.hasAttribute('data-listener-attached')) {
-        typeSelect.addEventListener('change', updatePlaceholder);
-        typeSelect.setAttribute('data-listener-attached', 'true');
+      if (!typeSelect.hasAttribute("data-listener-attached")) {
+        typeSelect.addEventListener("change", updatePlaceholder);
+        typeSelect.setAttribute("data-listener-attached", "true");
       }
 
-      if (!input.hasAttribute('data-listener-attached')) {
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
+      if (!input.hasAttribute("data-listener-attached")) {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
             e.preventDefault();
             this.tryAddSocialLink();
           }
         });
-        input.setAttribute('data-listener-attached', 'true');
+        input.setAttribute("data-listener-attached", "true");
       }
 
-      if (!addBtn.hasAttribute('data-listener-attached')) {
-        addBtn.addEventListener('click', () => this.tryAddSocialLink());
-        addBtn.setAttribute('data-listener-attached', 'true');
+      if (!addBtn.hasAttribute("data-listener-attached")) {
+        console.log("[ProfileSetup] Attaching click listener to add button");
+        addBtn.addEventListener("click", () => {
+          console.log("[ProfileSetup] Add button clicked!");
+          this.tryAddSocialLink();
+        });
+        addBtn.setAttribute("data-listener-attached", "true");
+      } else {
+        console.log("[ProfileSetup] Add button already has listener");
       }
 
       updatePlaceholder();
       this.renderSocialLinks();
     } catch (err) {
-      console.warn('initSocialLinksUI failed:', err);
+      console.warn("initSocialLinksUI failed:", err);
     }
   }
 
   tryAddSocialLink() {
-    const typeSelect = document.getElementById('social-link-type');
-    const input = document.getElementById('social-link-input');
-    const feedback = document.getElementById('social-link-feedback');
+    console.log("[ProfileSetup] tryAddSocialLink called");
+    const typeSelect = document.getElementById("social-link-type");
+    const input = document.getElementById("social-link-input");
+    const feedback = document.getElementById("social-link-feedback");
 
-    if (!typeSelect || !input) return;
+    console.log("[ProfileSetup] Elements found:", { typeSelect: !!typeSelect, input: !!input, feedback: !!feedback });
+    if (!typeSelect || !input) {
+      console.warn("[ProfileSetup] Missing required elements");
+      return;
+    }
 
     const type = typeSelect.value;
     const inputValue = input.value.trim();
 
     if (!inputValue) {
       if (feedback) {
-        feedback.textContent = 'Please enter a username or URL.';
-        feedback.className = 'error-message';
+        feedback.textContent = "Please enter a username or URL.";
+        feedback.className = "error-message";
       }
       return;
     }
@@ -1956,7 +2008,7 @@ class ProfileSetup {
     if (!validation.valid) {
       if (feedback) {
         feedback.textContent = validation.reason;
-        feedback.className = 'error-message';
+        feedback.className = "error-message";
       }
       return;
     }
@@ -1964,8 +2016,8 @@ class ProfileSetup {
     // Check for duplicates
     if (isDuplicateLink(this.socialLinks, validation.url)) {
       if (feedback) {
-        feedback.textContent = 'This link has already been added.';
-        feedback.className = 'error-message';
+        feedback.textContent = "This link has already been added.";
+        feedback.className = "error-message";
       }
       return;
     }
@@ -1974,7 +2026,7 @@ class ProfileSetup {
     if (this.socialLinks.length >= MAX_SOCIAL_LINKS) {
       if (feedback) {
         feedback.textContent = `Maximum ${MAX_SOCIAL_LINKS} links allowed.`;
-        feedback.className = 'error-message';
+        feedback.className = "error-message";
       }
       return;
     }
@@ -1982,50 +2034,51 @@ class ProfileSetup {
     // Add the link
     this.socialLinks.push({
       type: type,
-      url: validation.url
+      url: validation.url,
     });
 
     // Clear input and show success
-    input.value = '';
+    input.value = "";
     if (feedback) {
-      feedback.textContent = 'Link added successfully!';
-      feedback.className = 'field-hint';
+      feedback.textContent = "Link added successfully!";
+      feedback.className = "field-hint";
     }
 
     this.renderSocialLinks();
   }
 
   renderSocialLinks() {
-    const host = document.getElementById('social-links-list');
+    const host = document.getElementById("social-links-list");
     if (!host) return;
 
-    host.innerHTML = '';
+    host.innerHTML = "";
 
     if (this.socialLinks.length === 0) {
       return; // No links to display
     }
 
     this.socialLinks.forEach((link, index) => {
-      const item = document.createElement('div');
-      item.className = 'social-link-item';
+      const item = document.createElement("div");
+      item.className = "social-link-item";
 
       // Icon
-      const iconBox = document.createElement('div');
+      const iconBox = document.createElement("div");
       iconBox.className = `social-link-icon ${getSocialLinkColor(link.type)}`;
-      const icon = document.createElement('i');
+      const icon = document.createElement("i");
       icon.className = getSocialLinkIcon(link.type);
       iconBox.appendChild(icon);
 
       // Content
-      const content = document.createElement('div');
-      content.className = 'social-link-content';
-      
-      const typeLabel = document.createElement('div');
-      typeLabel.className = 'social-link-type';
-      typeLabel.textContent = SOCIAL_LINK_TYPES.find(t => t.type === link.type)?.label || link.type;
-      
-      const urlDisplay = document.createElement('div');
-      urlDisplay.className = 'social-link-url';
+      const content = document.createElement("div");
+      content.className = "social-link-content";
+
+      const typeLabel = document.createElement("div");
+      typeLabel.className = "social-link-type";
+      typeLabel.textContent =
+        SOCIAL_LINK_TYPES.find((t) => t.type === link.type)?.label || link.type;
+
+      const urlDisplay = document.createElement("div");
+      urlDisplay.className = "social-link-url";
       urlDisplay.textContent = getSocialLinkDisplayName(link);
       urlDisplay.title = link.url; // Show full URL on hover
 
@@ -2033,11 +2086,11 @@ class ProfileSetup {
       content.appendChild(urlDisplay);
 
       // Remove button
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'social-link-remove';
-      removeBtn.innerHTML = '×';
-      removeBtn.addEventListener('click', () => {
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "social-link-remove";
+      removeBtn.innerHTML = "×";
+      removeBtn.addEventListener("click", () => {
         this.socialLinks.splice(index, 1);
         this.renderSocialLinks();
       });
@@ -2207,7 +2260,7 @@ class ProfileSetup {
     const skipBtn = document.getElementById("setup-skip-btn");
     const nextButton = document.getElementById("setup-next-btn");
     const finishButton = document.getElementById("finish-setup-button");
-    const skipNextContainer = document.querySelector('.skip-next-buttons');
+    const skipNextContainer = document.querySelector(".skip-next-buttons");
 
     if (prevBtn) {
       prevBtn.style.display = this.currentStep === 0 ? "none" : "flex";
@@ -2234,24 +2287,26 @@ class ProfileSetup {
 
     // Ensure a clearly visible Public View button when on Step 1 (Avatar & Bio)
     try {
-      const existing = document.getElementById('public-view-nav-btn');
+      const existing = document.getElementById("public-view-nav-btn");
       if (this.currentStep === 1) {
         if (skipNextContainer && !existing) {
-          const pvBtn = document.createElement('button');
-          pvBtn.id = 'public-view-nav-btn';
-          pvBtn.type = 'button';
-          pvBtn.className = 'button secondary';
+          const pvBtn = document.createElement("button");
+          pvBtn.id = "public-view-nav-btn";
+          pvBtn.type = "button";
+          pvBtn.className = "button secondary";
           pvBtn.innerHTML = '<i class="fas fa-eye"></i> Public View';
-          pvBtn.addEventListener('click', () => {
+          pvBtn.addEventListener("click", () => {
             try {
-              const uid = (this.currentUser && this.currentUser.uid) || (currentUser && currentUser.uid);
+              const uid =
+                (this.currentUser && this.currentUser.uid) ||
+                (currentUser && currentUser.uid);
               if (!uid) {
-                alert('Please sign in to preview your public profile.');
+                alert("Please sign in to preview your public profile.");
                 return;
               }
               window.location.hash = `#user?id=${uid}&preview=1`;
             } catch (e) {
-              console.error('Failed to open public view', e);
+              console.error("Failed to open public view", e);
             }
           });
           // Insert before Skip to keep Next on the right
@@ -2262,9 +2317,9 @@ class ProfileSetup {
             skipNextContainer.appendChild(pvBtn);
           }
         }
-        if (existing) existing.style.display = 'inline-block';
+        if (existing) existing.style.display = "inline-block";
       } else if (existing) {
-        existing.style.display = 'none';
+        existing.style.display = "none";
       }
     } catch (_) {
       // non-fatal UI enhancement
@@ -2575,13 +2630,13 @@ class ProfileSetup {
         // Bring user back to Step 1 and show feedback
         this.currentStep = 1;
         this.updateStepDisplay();
-        const feedback = document.getElementById('qna-feedback');
+        const feedback = document.getElementById("qna-feedback");
         if (feedback) {
           feedback.textContent = `Please answer at least ${MIN_QA_ANSWERS} question (${MIN_QA_ANSWER_LENGTH}–${MAX_QA_ANSWER_LENGTH} chars).`;
-          feedback.className = 'error-message';
-          feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          feedback.className = "error-message";
+          feedback.scrollIntoView({ behavior: "smooth", block: "center" });
         }
-        throw new Error('Please answer at least one curated question.');
+        throw new Error("Please answer at least one curated question.");
       }
       // Only add field when provided, per PRD
       profileDataForFirestore.profile.qnaResponses = qna;
@@ -2718,7 +2773,7 @@ class ProfileSetup {
 
         // Prepare merged user doc update
         const userUpdate = {
-          profile: cleanProfileData,
+          profile: profileDataForFirestore.profile,
           universityInfo: profileDataForFirestore.universityInfo,
           avatarConfig: profileDataForFirestore.avatarConfig,
           systemInfo: systemInfoUpdates,
@@ -2731,7 +2786,10 @@ class ProfileSetup {
         try {
           onboardingService.resetSessionHints();
         } catch (error) {
-          console.warn("⚠️ Failed to reset onboarding session hints for new user", error);
+          console.warn(
+            "⚠️ Failed to reset onboarding session hints for new user",
+            error
+          );
         }
       }
 
@@ -3030,7 +3088,9 @@ class ProfileSetup {
 
       const closeBtn = scheduleHelpOverlay.querySelector(".close-help");
       if (closeBtn && !closeBtn.hasAttribute("data-listener-attached")) {
-        closeBtn.addEventListener("click", () => this.closeScheduleHelpOverlay());
+        closeBtn.addEventListener("click", () =>
+          this.closeScheduleHelpOverlay()
+        );
         closeBtn.setAttribute("data-listener-attached", "true");
       }
     }
@@ -3077,11 +3137,11 @@ class ProfileSetup {
 
     // Ensure a wrapper around the input (so dropdown anchors to the input, not the whole form-group)
     let wrapper = input.parentElement;
-    if (!wrapper.classList.contains('typeahead-wrapper')) {
-      const newWrapper = document.createElement('div');
-      newWrapper.className = 'typeahead-wrapper';
-      newWrapper.style.position = 'relative';
-      newWrapper.style.width = '100%';
+    if (!wrapper.classList.contains("typeahead-wrapper")) {
+      const newWrapper = document.createElement("div");
+      newWrapper.className = "typeahead-wrapper";
+      newWrapper.style.position = "relative";
+      newWrapper.style.width = "100%";
       // Insert wrapper and move input inside
       wrapper.insertBefore(newWrapper, input);
       newWrapper.appendChild(input);
@@ -3089,7 +3149,7 @@ class ProfileSetup {
     }
 
     // Container for suggestions anchored to wrapper
-    let list = wrapper.querySelector('#major-suggestions');
+    let list = wrapper.querySelector("#major-suggestions");
     if (!list) {
       list = document.createElement("div");
       list.id = "major-suggestions";
@@ -3100,11 +3160,12 @@ class ProfileSetup {
     const setPlacement = () => {
       // Decide whether to open upwards based on viewport space
       const rect = input.getBoundingClientRect();
-      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const viewportH =
+        window.innerHeight || document.documentElement.clientHeight;
       const spaceBelow = viewportH - rect.bottom;
       const spaceAbove = rect.top;
       const needUp = spaceBelow < 180 && spaceAbove > spaceBelow; // threshold
-      list.classList.toggle('open-up', needUp);
+      list.classList.toggle("open-up", needUp);
     };
 
     const render = (items) => {
@@ -3240,18 +3301,19 @@ class ProfileSetup {
 
     const setPlacement = () => {
       const rect = display.getBoundingClientRect();
-      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const viewportH =
+        window.innerHeight || document.documentElement.clientHeight;
       const spaceBelow = viewportH - rect.bottom;
       const spaceAbove = rect.top;
       const needUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-      list.classList.toggle('open-up', needUp);
+      list.classList.toggle("open-up", needUp);
     };
 
     const toggle = () => {
       const isOpen = list.classList.toggle("open");
       display.setAttribute("aria-expanded", String(isOpen));
       if (isOpen) requestAnimationFrame(setPlacement);
-      else list.classList.remove('open-up');
+      else list.classList.remove("open-up");
     };
 
     display.addEventListener("click", toggle);
@@ -3265,7 +3327,8 @@ class ProfileSetup {
 
     // Keep in sync if template preselects a value
     select.addEventListener("change", () => {
-      display.textContent = select.options[select.selectedIndex]?.text || "Select year";
+      display.textContent =
+        select.options[select.selectedIndex]?.text || "Select year";
       renderYears();
     });
   }
@@ -3338,11 +3401,13 @@ class ProfileSetup {
         // Mobile UX: auto-scroll to preview when courses are detected
         try {
           const coursesDetected = Number(result?.stats?.validCourses || 0) > 0;
-          const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+          const isMobile =
+            window.matchMedia &&
+            window.matchMedia("(max-width: 768px)").matches;
           if (coursesDetected && isMobile && previewDiv) {
             // slight delay to ensure preview is rendered
             setTimeout(() => {
-              previewDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              previewDiv.scrollIntoView({ behavior: "smooth", block: "start" });
             }, 50);
           }
         } catch (_) {}

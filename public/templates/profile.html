@@ -120,9 +120,11 @@
 
       <!-- Step 1: Avatar & Bio -->
       <div class="setup-step" data-step="1">
-        <div class="step-header">    
+        <div class="step-header">
           <h2 class="step-title">Avatar, Photo & Bio</h2>
-          <p class="step-description">Choose a photo or avatar, add bio, Q/A and interests.</p>
+          <p class="step-description">
+            Choose a photo or avatar, add bio, Q/A and interests.
+          </p>
         </div>
 
         <!-- Avatar Selection Section -->
@@ -149,23 +151,49 @@
         </div>
 
         <div class="form-group">
-          <div class="form-row" style="gap: 1rem; align-items: center;">
-            <div class="form-group" style="flex: 1; min-width: 180px;">
+          <div class="form-row" style="gap: 1rem; align-items: center">
+            <div class="form-group" style="flex: 1; min-width: 180px">
               <label class="form-label">Profile Photo</label>
-              <div style="display:flex; gap:.5rem; align-items:center;">
-                <button type="button" id="profile-photo-upload-btn" class="button secondary">
+              <div style="display: flex; gap: 0.5rem; align-items: center">
+                <button
+                  type="button"
+                  id="profile-photo-upload-btn"
+                  class="button secondary"
+                >
                   <i class="fas fa-cloud-upload-alt"></i> Upload Photo
                 </button>
-                <input type="file" id="profile-photo-input" accept="image/*" hidden />
+                <input
+                  type="file"
+                  id="profile-photo-input"
+                  accept="image/*"
+                  hidden
+                />
                 <button type="button" id="swap-photo-avatar-btn" class="button">
                   <i class="fas fa-exchange-alt"></i> Swap to Avatar
                 </button>
               </div>
-              <small class="form-hint">Auto center-crop to square; stored as 512×512 WebP + 128 thumb.</small>
+              <small class="form-hint"
+                >Auto center-crop to square; stored as 512×512 WebP + 128
+                thumb.</small
+              >
             </div>
-            <div class="form-group" style="flex: 0 0 auto;">
-              <div id="photo-preview-display" class="avatar-preview-display" title="Your profile photo" style="width:96px;height:96px;display:flex;align-items:center;justify-content:center;">
-                <i class="fas fa-user-circle" style="font-size:48px;opacity:.6;"></i>
+            <div class="form-group" style="flex: 0 0 auto">
+              <div
+                id="photo-preview-display"
+                class="avatar-preview-display"
+                title="Your profile photo"
+                style="
+                  width: 96px;
+                  height: 96px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                <i
+                  class="fas fa-user-circle"
+                  style="font-size: 48px; opacity: 0.6"
+                ></i>
               </div>
             </div>
           </div>
@@ -185,51 +213,109 @@
 
         <!-- Q/A (PRD: ≥1, ≤5 answers; 10–150 chars each) -->
         <div class="form-group">
-          <div class="step-header" style="margin-top: 1rem;">
-            <h3 class="step-title" style="font-size: 1.1rem;">Q/A</h3>
+          <div class="step-header" style="margin-top: 1rem">
+            <h3 class="step-title" style="font-size: 1.1rem">Q/A</h3>
             <p class="step-description">
               Answer at least 1 (max 5). 10–150 characters each.
             </p>
           </div>
-          <div class="qna-controls" style="margin-bottom: .5rem;">
-            <select id="qna-picker" class="form-input" aria-label="Add a question">
+          <div class="qna-controls" style="margin-bottom: 0.5rem">
+            <select
+              id="qna-picker"
+              class="form-input"
+              aria-label="Add a question"
+            >
               <option value="" selected disabled>Add a question…</option>
-              <option value="three-words">Three words my friends actually use for me:</option>
-              <option value="group-role">In a group project, I usually take the role of…</option>
-              <option value="tiny-ritual">A tiny ritual that makes my day 1% better is…</option>
-              <option value="proudest">My proudest personal achievement so far is…</option>
-              <option value="niche-interest">A niche interest that tells me we’ll get along is…</option>
-              <option value="ask-me">If we bump into each other on campus, ask me about…</option>
+              <option value="three-words">
+                Three words my friends actually use for me:
+              </option>
+              <option value="group-role">
+                In a group project, I usually take the role of…
+              </option>
+              <option value="tiny-ritual">
+                A tiny ritual that makes my day 1% better is…
+              </option>
+              <option value="proudest">
+                My proudest personal achievement so far is…
+              </option>
+              <option value="niche-interest">
+                A niche interest that tells me we’ll get along is…
+              </option>
+              <option value="ask-me">
+                If we bump into each other on campus, ask me about…
+              </option>
               <option value="this-semester">This semester, I’m into…</option>
             </select>
           </div>
           <div id="qna-selected-list" class="qna-list"></div>
-          <div id="qna-feedback" class="field-hint">Answer at least 1 (10–150 chars), up to 5.</div>
+          <div id="qna-feedback" class="field-hint">
+            Answer at least 1 (10–150 chars), up to 5.
+          </div>
         </div>
 
         <!-- Interests -->
         <div class="form-group">
-          <div class="step-header" style="margin-top: 1rem;">
-            <h3 class="step-title" style="font-size: 1.1rem;">Interests</h3>
-            <p class="step-description">Pick up to 10. You can add your own too.</p>
+          <div class="step-header" style="margin-top: 1rem">
+            <h3 class="step-title" style="font-size: 1.1rem">Interests</h3>
+            <p class="step-description">
+              Pick up to 10. You can add your own too.
+            </p>
           </div>
-          <div class="interests-controls" style="display:flex; gap:.5rem; align-items:center;">
-            <input id="interest-input" class="form-input" placeholder="Add custom interest (3–20 chars, lowercase)" />
-            <button type="button" id="add-interest-btn" class="button secondary">Add</button>
+          <div
+            class="interests-controls"
+            style="display: flex; gap: 0.5rem; align-items: center"
+          >
+            <input
+              id="interest-input"
+              class="form-input"
+              placeholder="Add custom interest (3–20 chars, lowercase)"
+            />
+            <button
+              type="button"
+              id="add-interest-btn"
+              class="button secondary"
+            >
+              Add
+            </button>
           </div>
-          <div id="interest-feedback" class="field-hint">Tap suggestions or add your own.</div>
-          <div id="interests-suggestions" class="interests-suggestions chips-grid" style="margin-top:.5rem;"></div>
-          <div id="interests-selected" class="interests-selected chips-grid" style="margin-top:.5rem;"></div>
+          <div id="interest-feedback" class="field-hint">
+            Tap suggestions or add your own.
+          </div>
+          <div
+            id="interests-suggestions"
+            class="interests-suggestions chips-grid"
+            style="margin-top: 0.5rem"
+          ></div>
+          <div
+            id="interests-selected"
+            class="interests-selected chips-grid"
+            style="margin-top: 0.5rem"
+          ></div>
         </div>
 
         <!-- Social Links (Optional) -->
         <div class="form-group">
-          <div class="step-header" style="margin-top: 1rem;">
-            <h3 class="step-title" style="font-size: 1.1rem;">Social Links</h3>
-            <p class="step-description">Add up to 6 social media links (Optional)</p>
+          <div class="step-header" style="margin-top: 1rem">
+            <h3 class="step-title" style="font-size: 1.1rem">Social Links</h3>
+            <p class="step-description">
+              Add up to 6 social media links (Optional)
+            </p>
           </div>
-          <div class="social-links-controls" style="display:flex; gap:.5rem; align-items:flex-start; flex-wrap:wrap;">
-            <select id="social-link-type" class="form-input" aria-label="Select social platform" style="flex: 1; min-width:140px;">
+          <div
+            class="social-links-controls"
+            style="
+              display: flex;
+              gap: 0.5rem;
+              align-items: flex-start;
+              flex-wrap: wrap;
+            "
+          >
+            <select
+              id="social-link-type"
+              class="form-input"
+              aria-label="Select social platform"
+              style="flex: 1; min-width: 140px"
+            >
               <option value="instagram">Instagram</option>
               <option value="facebook">Facebook</option>
               <option value="linkedin">LinkedIn</option>
@@ -237,13 +323,30 @@
               <option value="x">X (Twitter)</option>
               <option value="custom">Custom Link</option>
             </select>
-            <input id="social-link-input" class="form-input" placeholder="Enter username or URL" aria-label="Enter social media username or URL" style="flex: 2; min-width:180px;" />
-            <button type="button" id="add-social-link-btn" class="button secondary">Add</button>
+            <input
+              id="social-link-input"
+              class="form-input"
+              placeholder="Enter username or URL"
+              aria-label="Enter social media username or URL"
+              style="flex: 2; min-width: 180px"
+            />
+            <button
+              type="button"
+              id="add-social-link-btn"
+              class="button secondary"
+            >
+              Add
+            </button>
           </div>
-          <div id="social-link-feedback" class="field-hint">Add your social media profiles to connect with classmates.</div>
-          <div id="social-links-list" class="social-links-list" style="margin-top:.75rem;"></div>
+          <div id="social-link-feedback" class="field-hint">
+            Add your social media profiles to connect with classmates.
+          </div>
+          <div
+            id="social-links-list"
+            class="social-links-list"
+            style="margin-top: 0.75rem"
+          ></div>
         </div>
-
       </div>
 
       <!-- Step 2: Schedule Import -->
@@ -266,7 +369,9 @@
               </div>
               <div class="form-group">
                 <div class="label-row">
-                  <label class="form-label" for="schedule-text-input">Schedule Text</label>
+                  <label class="form-label" for="schedule-text-input"
+                    >Schedule Text</label
+                  >
                   <div class="import-help-row">
                     <button
                       type="button"
@@ -274,7 +379,7 @@
                       class="import-help-trigger"
                       aria-haspopup="dialog"
                     >
-How?
+                      How?
                     </button>
                   </div>
                 </div>
@@ -286,9 +391,16 @@ How?
                   placeholder="Paste your schedule text here...
 Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
                 ></textarea>
-                <div class="form-hint">Copy schedule text from your university portal and paste it here</div>
+                <div class="form-hint">
+                  Copy schedule text from your university portal and paste it
+                  here
+                </div>
               </div>
-              <button type="button" id="parse-schedule-btn" class="button secondary">
+              <button
+                type="button"
+                id="parse-schedule-btn"
+                class="button secondary"
+              >
                 <i class="fas fa-search"></i> Parse Schedule
               </button>
             </div>
@@ -354,7 +466,9 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
               </button>
               <h3 id="schedule-help-title">Paste Your Schedule In Seconds</h3>
               <p class="schedule-help-text">
-                Copy the highlighted text from your IUB portal just like this and paste it into the box. Tap anywhere outside this card to close.
+                Copy the highlighted text from your IUB portal just like this
+                and paste it into the box. Tap anywhere outside this card to
+                close.
               </p>
               <img
                 src="/assets/onboarding/paste-schedule-example.png"
@@ -374,9 +488,12 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
         id="setup-prev-btn"
         style="display: none"
       >
-Previous Step
+        Previous Step
       </button>
-      <div style="display: flex; gap: 1rem; align-items: center" class="skip-next-buttons">
+      <div
+        style="display: flex; gap: 1rem; align-items: center"
+        class="skip-next-buttons"
+      >
         <button
           type="button"
           class="button muted setup-nav-button"
@@ -389,7 +506,7 @@ Previous Step
           class="button btn-primary setup-nav-button"
           id="setup-next-btn"
         >
-Next Step
+          Next Step
         </button>
       </div>
     </div>
