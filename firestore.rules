@@ -12,9 +12,16 @@ service cloud.firestore {
     match /classSpaces/{spaceId} {
       allow read: if request.auth != null;
       // Allow client writes ONLY for dev test spaces you own
-      allow create, update: if request.auth != null &&
+      // Create: must be a devTest doc owned by caller
+      allow create: if request.auth != null &&
         request.resource.data.devTest == true &&
         request.resource.data.devOwnerUid == request.auth.uid;
+      // Update: only permitted on existing devTest docs owned by caller (prevents flipping prod docs to dev)
+      allow update: if request.auth != null &&
+        resource.data.devTest == true &&
+        resource.data.devOwnerUid == request.auth.uid &&
+        request.resource.data.devTest == true &&
+        request.resource.data.devOwnerUid == resource.data.devOwnerUid;
       allow delete: if request.auth != null &&
         resource.data.devTest == true &&
         resource.data.devOwnerUid == request.auth.uid;
@@ -175,6 +182,17 @@ service cloud.firestore {
     match /user_deletion_requests/{requestId} {
         allow create: if request.auth.uid == request.resource.data.userId;
         allow read, update, delete: if false;
+    }
+
+    // --- Moderation Reports (/moderationReports) ---
+    // Users can submit reports for review by moderators/admins
+    match /moderationReports/{reportId} {
+      // Only authenticated users can create reports (they are reporting something)
+      allow create: if request.auth != null &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.createdAt == request.time;
+      // Reads/updates/deletes reserved for admin panel (not client-accessible)
+      allow read, update, delete: if false;
     }
 
     // --- Helper Functions ---

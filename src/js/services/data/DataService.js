@@ -986,7 +986,7 @@ class DataManager {
   /**
    * Get just the minimal profile info (firstName, email, avatarConfig).
    * @param {string|object} userIdOrObj - UID or user object
-   * @returns {Promise<{handle: string|null, email: string|null, avatarConfig: object|null}|null>}
+   * @returns {Promise<{uid: string, handle: string|null, email: string|null, firstName: string, lastName: string, major: string, profilePhotoUrl: string|null, avatarConfig: object|null}|null>}
    * @example
    *   const mini = await dataManager.getUserProfileMinimal("abc123");
    */
@@ -1012,12 +1012,24 @@ class DataManager {
         return null;
       }
       const data = userDoc.data();
-      // Defensive extraction: Only pull minimal fields
-      const handle = data?.profile?.handle ?? null;
-      const email = data?.profile?.email ?? null;
-      const avatarConfig = data?.avatarConfig ?? null;
-      console.log("Returned minimal profile: @" + handle, email, avatarConfig);
-      return { handle, email, avatarConfig };
+      const profile = data?.profile || {};
+      const payload = {
+        uid: userId,
+        handle: profile.handle ?? null,
+        email: profile.email ?? null,
+        firstName: profile.firstName ?? "",
+        lastName: profile.lastName ?? "",
+        major: profile.major ?? "",
+        profilePhotoUrl: profile.profilePhotoUrl ?? null,
+        avatarConfig: data?.avatarConfig ?? null,
+      };
+      console.log(
+        `Returned minimal profile for ${userId}:`,
+        payload.handle,
+        payload.firstName,
+        payload.lastName
+      );
+      return payload;
     } catch (error) {
       console.error("[dataManager] Error in getUserProfileMinimal:", error);
       return null;

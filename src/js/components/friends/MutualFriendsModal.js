@@ -150,10 +150,8 @@ export class MutualFriendsModal {
 
   renderFriendCard(friend) {
     const handle = friend.handle ? `@${friend.handle}` : "User";
-    const name =
-      friend.firstName && friend.lastName
-        ? `${friend.firstName} ${friend.lastName}`
-        : friend.firstName || friend.lastName || "";
+    const fullName = `${friend.firstName || ""} ${friend.lastName || ""}`.trim();
+    const name = fullName || friend.handle || "Friend";
     const major = friend.major || "";
 
     // Determine avatar/photo
@@ -161,19 +159,21 @@ export class MutualFriendsModal {
     if (friend.profilePhotoUrl) {
       avatarHtml = `<img src="${this.escapeHtml(
         friend.profilePhotoUrl
-      )}" alt="${this.escapeHtml(handle)}" class="friend-photo">`;
-    } else if (friend.avatarConfig) {
-      const avatarUrl = getAvatarUrl(friend.avatarConfig);
-      avatarHtml = `<img src="${this.escapeHtml(
-        avatarUrl
-      )}" alt="${this.escapeHtml(handle)}" class="friend-avatar">`;
+      )}" alt="${this.escapeHtml(name)}" class="friend-photo">`;
     } else {
-      avatarHtml = `<div class="friend-avatar-placeholder"><i class="fas fa-user"></i></div>`;
+      const avatarUrl = getAvatarUrl(friend);
+      if (avatarUrl) {
+        avatarHtml = `<img src="${this.escapeHtml(
+          avatarUrl
+        )}" alt="${this.escapeHtml(name)}" class="friend-avatar">`;
+      } else {
+        avatarHtml = `<div class="friend-avatar-placeholder"><i class="fas fa-user"></i></div>`;
+      }
     }
 
     return `
       <div class="mutual-friend-card" data-user-id="${this.escapeHtml(
-        friend.uid || friend.id
+        friend.uid || friend.id || ""
       )}">
         <div class="friend-card-avatar">
           ${avatarHtml}

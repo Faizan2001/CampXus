@@ -54,6 +54,51 @@ body.page-group .main-content {
   gap: 0.75rem;
 }
 
+/* Cache indicator */
+.cache-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.cache-indicator .cache-age {
+  flex: 1;
+}
+
+.cache-indicator .btn-refresh {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.cache-indicator .btn-refresh:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.cache-indicator .btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cache-indicator .refresh-icon {
+  font-size: 1.1rem;
+  display: inline-block;
+}
+
 @media (min-width: 600px) {
   .groups-list { grid-template-columns: repeat(2, 1fr); }
 }
@@ -84,6 +129,33 @@ body.page-group .main-content {
   font-size: 1.05rem;
   font-weight: 600;
   margin: 0 0 0.25rem 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Unread badge */
+.unread-badge {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, #FF6B6B, #FF4757);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 75, 87, 0.6);
+  animation: pulse-badge 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
 }
 
 .group-sub {
@@ -95,6 +167,14 @@ body.page-group .main-content {
   margin-top: auto;
   opacity: 0.85;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.group-time {
+  opacity: 0.75;
+  font-size: 0.85rem;
 }
 
 .group-preview {
@@ -107,6 +187,54 @@ body.page-group .main-content {
 .groups-empty {
   margin-top: 0.75rem;
   opacity: 0.8;
+}
+
+/* Profile gate message */
+.profile-gate-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  min-height: 50vh;
+}
+
+.profile-gate-message .gate-icon {
+  font-size: 4rem;
+  opacity: 0.6;
+  margin-bottom: 1.5rem;
+  color: #6C63FF;
+}
+
+.profile-gate-message h2 {
+  font-size: 1.5rem;
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+}
+
+.profile-gate-message p {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin: 0 0 1.5rem 0;
+  max-width: 400px;
+}
+
+.profile-gate-message .btn.primary {
+  background: linear-gradient(135deg, #6C63FF, #9B67F8);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.profile-gate-message .btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
 }
 
 /* ============================
@@ -162,6 +290,33 @@ body.page-group .main-content {
   flex-direction: column;
   gap: 0.4rem;
   padding: 0.25rem;
+}
+
+.load-older-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  margin: 0.5rem 0.25rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  width: calc(100% - 0.5rem);
+}
+
+.load-older-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
+  transform: translateY(-1px);
+}
+
+.load-older-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.load-older-btn.hidden {
+  display: none;
 }
 
 .message {
@@ -224,4 +379,84 @@ body.page-group .main-content {
   padding: 0.55rem 0.9rem;
   border-radius: 12px;
 }
+
+/* Members list */
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 0.75rem;
+  transition: background 0.15s ease;
+}
+
+.member-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.member-link {
+  flex: 1;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.member-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.member-profile-btn,
+.member-report-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.member-profile-btn:hover {
+  background: rgba(108, 99, 255, 0.15);
+  border-color: rgba(108, 99, 255, 0.3);
+  color: #6C63FF;
+}
+
+.member-report-btn:hover {
+  background: rgba(255, 75, 87, 0.15);
+  border-color: rgba(255, 75, 87, 0.3);
+  color: #ff4b57;
+}
+
+/* Message report button */
+.message-report-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  margin-left: 0.5rem;
+}
+
+.message-report-btn:hover {
+  color: #ff4b57;
+}
+
 

@@ -14,6 +14,10 @@ Status: In progress (dev‑testable UI shipped)
   - Route + template: `#groups` → classroom‑style cards; `#group` → messenger‑style chat.
   - Files: `public/templates/groups.html`, `public/templates/group.html`, `src/js/pages/GroupsPage.js`, `src/js/pages/GroupDetailPage.js`.
   - Styles: `src/css/groups.css` (imported in `src/css/styles.css`).
+- Groups dev tooling visibility
+  - Was: Create/Clear dev class-space buttons rendered for every authenticated user (even production) because markup was always injected.
+  - Now: `shouldShowDevSpaceTools()` checks Vite build mode and optional `window.ENV.ENABLE_DEV_SPACES` flag so buttons only exist in non-production environments, keeping prod users away from dev-only controls.
+  - Why: prevents accidental prod mutations and matches requirement that prod users never see dev tooling. File: `src/js/pages/GroupsPage.js`.
 - Messaging
   - Client service: `src/js/services/groups/ClassSpacesService.js`.
   - Dev: bypass CF and write directly for `devTest` spaces (rules‑gated) to avoid 401 noise.
@@ -74,6 +78,7 @@ Status: In progress (dev‑testable UI shipped)
     - 5-color chip cycling for visual variety
     - Click to navigate to friend's profile
     - Smooth animations and glass morphism styling
+  - Fix: mutual-friends modal now receives enriched minimal profiles (name, photo, uid) so cards render actual classmates instead of blank placeholders, and profile links work reliably. Files: `src/js/services/data/DataService.js`, `src/js/components/friends/MutualFriendsModal.js`.
   - Files: `src/js/components/friends/MutualFriendsModal.js`, `src/css/mutual-friends-modal.css`, `functions/index.js` (lines 1020-1129).
   - Integration: UserProfilePage displays "X mutual friend(s)" button that opens modal with intersected friendIds.
 
@@ -120,6 +125,76 @@ Status: In progress (dev‑testable UI shipped)
   - View public profile → Social section shows branded chips; click to open link in new tab.
   - Test mobile responsiveness: chips wrap correctly, touch targets adequate.
 
+- Groups — Unread Badges
+  - Navigate to `#groups` → verify group cards display correctly.
+  - Note which cards have activity (check `lastActivity` timestamp in Firestore).
+  - Observe: cards with new activity since your last view show a red pulsing dot badge next to the title.
+  - Observe: cards display relative time (e.g., "2m ago", "1h ago", "3d ago") in the meta section.
+  - Click a card with an unread badge → opens group chat.
+  - Return to `#groups` → verify the badge is now gone for that card (marked as viewed).
+  - Send a message in another group → return to groups list → verify badge appears on that card.
+  - Close browser and reopen → navigate to `#groups` → verify badges persist across sessions (localStorage).
+  - Test edge cases: never-viewed groups with activity show badge; groups with no activity show no badge.
+
+- Groups — Profile Completion Gate
+  - Sign in with an account that has incomplete profile (missing firstName, lastName, or profileSetupComplete=false).
+  - Navigate to `#groups` → verify gate message appears with icon, heading, description, and "Complete Profile" button.
+  - Click "Complete Profile" → verify redirect to profile setup page.
+  - Try accessing `#group` directly (via URL or link) → verify redirect to profile setup after 1.5s with message in title.
+  - Complete profile setup → navigate to `#groups` → verify normal groups page loads (no gate).
+  - Verify with complete profile that dev tools buttons appear (if in dev mode).
+
+- Groups — Message Pagination
+  - Open a group chat with >50 messages (create test data or wait for active groups).
+  - Initial load: verify only 50 most recent messages displayed; "Load Older Messages" button visible at top.
+  - Click "Load Older Messages" → button shows "Loading..." state.
+  - Verify: older messages load above current messages; scroll position stays anchored (no jump).
+  - Verify: button hides when no more messages exist (<50 returned).
+  - Send new message → verify auto-scroll to bottom only if already near bottom.
+  - Scroll to middle of chat → send new message elsewhere → verify no auto-scroll (preserves position).
+  - Load all messages (click Load Older until gone) → verify button disappears when complete.
+  - Test with <50 messages total → verify button never appears.
+
+- Moderation — Report Modal (Users)
+  - Navigate to group Members tab.
+  - Verify: each member (except yourself) has flag icon button next to profile icon.
+  - Click flag icon on any member → report modal opens.
+  - Verify modal header: "Report User".
+  - Try submitting empty → verify "Submit Report" button disabled.
+  - Select reason from dropdown (Harassment, Spam, etc.).
+  - Enter <50 chars in description → verify button still disabled, counter shows "X / 50 minimum".
+  - Enter ≥50 chars → verify button enables, counter shows "X / 500" in green.
+  - Click Submit Report → verify button shows "Submitting..." and disables.
+  - Verify: success screen shows check icon, "Report Submitted" heading, thank you message.
+  - Verify: modal auto-closes after 1.5s.
+  - Check Firestore `moderationReports` collection → verify document created with correct fields.
+
+- Moderation — Report Modal (Messages)
+  - Navigate to group Chat tab.
+  - Verify: messages from others show small flag icon; your own messages don't.
+  - Click flag icon on any message → report modal opens.
+  - Verify modal header: "Report Message".
+  - Follow same validation steps as user reporting.
+  - Submit report → verify Firestore document includes `reportedMessageId` and `spaceId`.
+  - Test mobile view (<600px): verify modal slides up from bottom.
+  - Test desktop: verify modal centered with backdrop blur.
+  - Click backdrop or X button → verify modal closes without submitting.
+
+- Groups — List Cache
+  - Navigate to `#groups` → first load fetches from Firestore (no cache).
+  - Observe: cache indicator appears at top showing "Updated 0m ago" with refresh button (↻).
+  - Navigate away (e.g., to profile) and return within 1 minute → instant load from cache (soft refresh).
+  - Wait >1 minute, return to `#groups` → cache refreshes from Firestore (soft refresh expired).
+  - Observe: cache age updates (e.g., "Updated 2m ago").
+  - Wait 5 minutes → navigate to `#groups` → cache expired, fetches fresh data from Firestore.
+  - Click refresh button (↻) → button shows loading state, invalidates cache, fetches new data.
+  - Verify: cache persists across browser sessions (localStorage).
+  - Check console logs: "[GroupsPage] Using cached groups data" when cache hit.
+  - Close/reopen browser → navigate to `#groups` → verify cache still works (localStorage persistence).
+  - Test error handling: disable network → navigate to `#groups` → verify error message with "Retry" button.
+  - Click "Retry" → verify invalidates cache and refetches.
+  - Verify cost savings: with 2,000 users and 5-min cache, reads reduced from ~576k/day to ~24k/day (check Firestore usage in Firebase Console over time).
+
 ## Next (suggested)
 
 - Profiles polish (PRD Phase 1)
@@ -157,15 +232,137 @@ Status: In progress (dev‑testable UI shipped)
   - Accessibility: aria-label added to input field for screen readers.
   - Files: `src/js/services/profile/SocialLinksService.js`, `src/js/components/forms/ProfileSetup.js`, `src/js/pages/UserProfilePage.js`, `public/templates/profile.html`, `public/templates/user-profile.html`, `src/css/profile-setup.css`, `src/css/user-profile.css`.
 
+- Groups — Unread Badges
+  - Implemented unread tracking system using localStorage to persist last-viewed timestamps per space.
+  - **UnreadTracker Service**: Created `src/js/services/groups/UnreadTracker.js` with methods:
+    - `markAsViewed(spaceId, userId)`: Records current timestamp when user views a space
+    - `hasUnread(spaceId, space, userId)`: Compares lastActivity with lastViewedTime to determine unread status
+    - `getRelativeTime(space)`: Formats lastActivity as relative time string (e.g., "2m ago", "1h ago", "3d ago")
+    - Persists to localStorage under key `campxus:unreadTracker:{userId}` for cross-session consistency
+  - **User Scoping (Security Fix)**:
+    - **Problem**: Global storage key leaked viewing history between accounts on same device.
+    - **Solution**: Storage keys include userId: `campxus:unreadTracker:{userId}`
+    - `ensureUserLoaded(userId)`: Automatically loads correct user's data when switching accounts
+    - `currentUserId` tracking: Prevents cross-account data contamination
+    - **Impact**: Each user's unread state is isolated; no viewing history leakage between accounts.
+  - **GroupsPage Integration**: Updated group cards to display:
+    - Red pulsing dot badge (`.unread-badge`) next to title when `hasUnread()` returns true
+    - Relative time display in meta section showing when last activity occurred
+  - **GroupDetailPage Integration**: Automatically calls `markAsViewed()` when user opens a chat, clearing the unread state
+  - **CSS Styling**: Added animated pulsing badge with gradient background and glow effect in `groups.css`
+  - Files: `src/js/services/groups/UnreadTracker.js`, `src/js/pages/GroupsPage.js`, `src/js/pages/GroupDetailPage.js`, `src/css/groups.css`.
+
+- Groups — Profile Completion Gate (PRD Critical Requirement)
+  - Implemented profile completion check before allowing Groups access (PRD: "Migration: Completing profile is required before accessing Groups").
+  - **GroupsPage Gate**: Displays friendly message with icon and "Complete Profile" button when `!currentUser.isProfileComplete()`.
+  - **GroupDetailPage Gate**: Redirects to profile setup after 1.5s if accessed directly without complete profile.
+  - **Race Condition Fix**:
+    - **Problem**: `isProfileComplete()` checked synchronously before profile data loaded from Firestore, causing false negatives for complete users on fresh page loads.
+    - **Solution**: Added `await currentUser.waitForProfile()` before gate check to ensure profile data is loaded.
+    - **Impact**: Complete users no longer stuck on "Complete Your Profile" screen on fresh tabs/devices.
+  - **Styling**: Added centered gate message with glassmorphism styling matching app design system.
+  - **User Check**: Uses `currentUser.isProfileComplete()` which validates `systemInfo.profileSetupComplete`, `firstName`, `lastName`, and `email`.
+  - Files: `src/js/pages/GroupsPage.js`, `src/js/pages/GroupDetailPage.js`, `src/css/groups.css`.
+
+- Groups — Message Pagination (PRD Requirement)
+  - Implemented "Load Older Messages" button with scroll anchoring (PRD: "Pagination (limit 50), listener only on active chat").
+  - **Load Older Button**: Appears when ≥50 messages loaded and more messages exist; positioned at top of chat.
+  - **Scroll Anchoring**: Preserves scroll position when loading older messages (prevents jump to bottom).
+  - **Service Implementation**: 
+    - `listenToMessages()`: Uses `orderBy("createdAt", "desc")` + `limit(50)` to fetch latest 50 messages, then reverses in-memory for chronological display.
+    - `loadMore()`: Uses `orderBy("createdAt", "desc")` + `startAfter(firstDoc)` to page backward through older messages, reverses for display.
+    - **Fix Applied**: Changed from ascending order (which showed oldest first) to descending order (shows latest first), matching PRD requirement.
+  - **Pagination Cursor Preservation (Critical Fix)**:
+    - **Problem**: Realtime listener overwrote `this.lastDocs` on every update, destroying pagination cursor when new messages arrived.
+    - **Solution**: Added separate `this.earliestDoc` field that preserves the pagination cursor across realtime updates.
+    - **Minimal Fix Logic**: 
+      - `this.earliestDoc` set ONLY on initial load (`if (this.earliestDoc === null)`)
+      - Realtime listener NEVER overwrites `this.earliestDoc` (only updates `this.lastDocs` for deduplication)
+      - "Load Older" handler uses `this.earliestDoc` as cursor, updates it to `docs[0]` from loadMore result
+    - **Impact**: Users can continue paginating backward indefinitely, even with constant realtime message arrivals.
+  - **Message Update Handling (Critical Fix)**:
+    - **Problem**: Realtime listener filtered out existing message IDs (`!existingIds.has(m.id)`), so message edits, deletions, and moderation actions were ignored; stale copies remained in UI forever.
+    - **Solution**: Replace existing messages instead of filtering them out using Map-based update logic.
+    - **Implementation**: 
+      - Create map of existing messages by ID for O(1) lookup
+      - For each incoming message: if ID exists, replace at same index; if new, append
+      - Re-sort chronologically after updates to maintain order
+    - **Impact**: Message edits, deletions, and moderation status changes now reflect in realtime; users see current state instead of stale cached copies.
+  - **Pagination Button Visibility (Critical Fix)**:
+    - **Problem**: "Load Older Messages" button injected with `hidden` class in template, but code never removed it when initial load had ≥50 messages; button stayed `display:none` forever, making pagination completely unusable.
+    - **Solution**: Remove `hidden` class in `listenToMessages` when initial snapshot contains a full page (≥50 items).
+    - **Implementation**: Added check after setting `earliestDoc`: if `items.length >= 50`, set `hasMoreMessages = true` and `loadOlderBtn.classList.remove('hidden')`.
+    - **Impact**: Pagination button now appears when more history exists; users can load messages beyond latest 50; feature is now actually usable.
+  - **State Management**: Tracks `allMessages`, `hasMoreMessages`, `isLoadingMore`, `earliestDoc` (pagination cursor), `lastDocs` (latest window for deduplication).
+  - **Auto-scroll Logic**: Scrolls to bottom only for new messages or when already at bottom (not when viewing history).
+  - Files: `src/js/pages/GroupDetailPage.js`, `src/js/services/groups/ClassSpacesService.js`, `public/templates/group.html`, `src/css/groups.css`.
+
+- Moderation v1 — Report Modal (PRD Phase 5)
+  - Implemented report modal with reason selection and description validation (PRD: "Report modal: reason in {Harassment, Spam, Impersonation, Inappropriate profile, Other} + required description ≥50 chars").
+  - **ReportModal Component**: Reusable modal for reporting users or messages with 5 reason categories.
+  - **Validation**: Enforces minimum 50 characters for description; real-time character counter shows progress (green at 50+).
+  - **Firestore Integration**: Writes to `moderationReports/{autoId}` collection with `reporterId`, `reason`, `description`, `createdAt`, and type-specific fields.
+  - **Firestore Rules**: Added security rule allowing authenticated users to create reports (validates `reporterId` matches auth.uid and `createdAt` is server time); reads/updates/deletes reserved for admin panel.
+  - **User Reporting**: Report button on each member in Members tab (excludes self).
+  - **Message Reporting**: Small flag icon on each message bubble (only for others' messages).
+  - **Success State**: Shows success animation after submission, auto-closes after 1.5s.
+  - **Mobile-First**: Bottom sheet on mobile (<600px), centered modal on desktop; smooth animations.
+  - **CSS Scope Pollution Fix (Critical)**:
+    - **Problem**: Report modal CSS used bare selectors (`.form-group`, `.char-count`, `.form-help`) that globally overrode ALL form styles across the app (profile setup, auth, friends, etc.).
+    - **Solution**: Scoped all selectors under `.report-modal` prefix to isolate styles to the modal only.
+    - **Impact**: Profile setup forms, auth forms, and other app forms no longer affected by report modal styles; prevents unintended styling conflicts.
+  - Files: `src/js/components/modals/ReportModal.js`, `src/css/report-modal.css`, `src/js/pages/GroupDetailPage.js`, `public/templates/group.html`, `src/css/groups.css`, `firestore.rules` (lines 182-190).
+
+- Groups — List Cache (Free Tier Optimization)
+  - **Problem**: Real-time onSnapshot listeners for groups list would cause excessive Firestore reads at scale.
+    - 2,000 users × 20 groups × 15 members = ~576,000 reads/day (11× over free tier limit of 50k).
+  - **Solution**: Implemented 5-minute localStorage cache reducing reads by 95% (2,000 users → ~24,000 reads/day).
+  - **GroupsCache Service**: Created `src/js/services/groups/GroupsCache.js` with:
+    - `CACHE_KEY`: 'campxus:groupsCache' (base key, scoped per user)
+    - `CACHE_TTL`: 5 minutes (300,000ms) - hard expiration
+    - `SOFT_REFRESH_TTL`: 1 minute (60,000ms) - refreshes on navigation if stale
+    - Methods: `get(userId, softRefresh)`, `set(data, userId)`, `getAge(userId)`, `getAgeString(userId)`, `isValid(userId, softRefresh)`, `clear(userId)`, `invalidate(userId)`
+  - **User Scoping (Security Fix)**: 
+    - Cache keys include userId: `campxus:groupsCache:{userId}`
+    - Validates cached userId matches current user on retrieval
+    - Prevents privacy leak when switching accounts on same device
+    - Auto-invalidates cache if userId mismatch detected
+  - **Timestamp Rehydration (Critical Fix)**:
+    - **Problem**: Firestore Timestamp objects lost `.toDate()` method when serialized to JSON, breaking unread badges and relative time display.
+    - **Solution**: Serialize timestamps to milliseconds before saving, rehydrate to Firestore Timestamp objects on retrieval.
+    - **Implementation**: `saveToStorage()` converts `lastActivity`, `createdAt`, `lastMessagePreview.timestamp` to milliseconds; `get()` restores using `Timestamp.fromMillis()`.
+    - **Impact**: Unread badges and "Xm ago" text now work correctly when loading from cache.
+  - **GroupsPage Integration**:
+    - `loadGroups()`: Checks cache first with soft refresh (1min TTL on navigation), fetches from Firestore only if expired/invalid.
+    - `renderGroups()`: Separated rendering logic from data fetching for cache hits.
+    - `updateCacheIndicator()`: Displays "Updated Xm ago" text with manual refresh button (↻ icon).
+    - `isRefreshing`: Flag to prevent concurrent refresh operations.
+  - **UI Elements**:
+    - Cache age indicator at top of groups list showing last refresh time.
+    - Manual refresh button allowing users to force cache invalidation.
+    - Loading states and error handling with retry logic.
+  - **Cost Savings Calculation**:
+    - Without cache: 2,000 users × 288 reads/day = 576,000 reads/day
+    - With 5-min cache: 2,000 users × 12 reads/day = 24,000 reads/day (95% reduction)
+    - Stays well within free tier limit of 50,000 reads/day
+  - **User Experience**:
+    - Initial page load: checks cache (soft refresh with 1min TTL)
+    - Cache hit: instant render with age indicator
+    - Cache miss: fetch from Firestore, save to cache, display with refresh button
+    - Navigation: soft refresh ensures data is <1min old when returning to groups page
+    - Manual refresh: users can force update anytime via refresh button
+    - Account switching: cache automatically cleared/invalidated to prevent data leaks
+  - Files: `src/js/services/groups/GroupsCache.js`, `src/js/pages/GroupsPage.js`, `src/css/groups.css`.
+
 ## Open TODOs (checkpoint)
 
 - [x] Profiles: social links input UI in Profile Setup (Instagram, LinkedIn, etc.)
 - [ ] Profiles: mutual friends "View all" modal expansion (optional)
-- [ ] Groups: unread badge on cards (count + recent time)
-- [ ] Groups: message pagination (load older + scroll anchor)
+- [x] Groups: unread badge on cards (count + recent time)
+- [x] Groups: message pagination (load older + scroll anchor)
 - [ ] Groups: members tab avatar chips with profile click‑through
-- [ ] Gate Groups until `systemInfo.profileSetupComplete === true`
-- [ ] Moderation: report modal → `moderationReports/{autoId}`
+- [x] Gate Groups until `systemInfo.profileSetupComplete === true`
+- [x] Moderation: report modal → `moderationReports/{autoId}`
 - [ ] Moderation: basic block UX (client-side hide)
 - [ ] CF/auth hardening for production sendGroupMessage (ensure ID token; region `us-central1`)
 - [ ] Rules QA: deny direct client writes to non‑dev messages; keep dev path only under `devTest`

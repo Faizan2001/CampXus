@@ -47,6 +47,7 @@ IMPORTED MODULES:
 @import url("./notifications.css"); /* Notifications page styles */
 @import url("./notify.css"); /* Notify Friends overlay styles */
 @import url("./groups.css"); /* Groups & Group detail styles */
+@import url("./report-modal.css"); /* Report modal for moderation */
 @import url("./theme-light.css"); /* Light theme overrides and enhancements */
 
 /*

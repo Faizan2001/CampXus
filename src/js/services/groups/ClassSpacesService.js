@@ -6,11 +6,14 @@ import {
   query,
   orderBy,
   limit as qLimit,
+  limitToLast,
   startAfter,
+  endBefore,
   onSnapshot,
   addDoc,
   updateDoc,
   serverTimestamp,
+  getDocs,
 } from "firebase/firestore";
 
 export class ClassSpacesService {
@@ -22,21 +25,25 @@ export class ClassSpacesService {
 
   listenToMessages(spaceId, onChange, { pageSize = 50 } = {}) {
     const ref = collection(db, "classSpaces", spaceId, "messages");
-    const q = query(ref, orderBy("createdAt"), qLimit(pageSize));
+    // Use descending order to get latest messages first
+    const q = query(ref, orderBy("createdAt", "desc"), qLimit(pageSize));
     return onSnapshot(q, (snap) => {
       const items = [];
       snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-      onChange(items, snap.docs);
+      // Reverse to show oldest-to-newest in UI (chat convention)
+      onChange(items.reverse(), snap.docs.slice().reverse());
     });
   }
 
-  async loadMore(spaceId, lastDoc, { pageSize = 50 } = {}) {
+  async loadMore(spaceId, firstDoc, { pageSize = 50 } = {}) {
     const ref = collection(db, "classSpaces", spaceId, "messages");
-    const q = query(ref, orderBy("createdAt"), startAfter(lastDoc), qLimit(pageSize));
-    const snap = await (await import("firebase/firestore")).getDocs(q);
+    // Continue with desc order to get older messages (before firstDoc)
+    const q = query(ref, orderBy("createdAt", "desc"), startAfter(firstDoc), qLimit(pageSize));
+    const snap = await getDocs(q);
     const items = [];
     snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-    return { items, docs: snap.docs };
+    // Reverse to maintain oldest-to-newest order in UI
+    return { items: items.reverse(), docs: snap.docs.slice().reverse() };
   }
 
   async sendMessage(spaceId, content) {
@@ -69,7 +76,8 @@ export class ClassSpacesService {
 
     try {
       const { getFunctions, httpsCallable } = await import("firebase/functions");
-      const functions = getFunctions(app);
+      // Use explicit region to match deployed functions and avoid 401/mismatch
+      const functions = getFunctions(app, 'us-central1');
       const callable = httpsCallable(functions, "sendGroupMessage");
       const res = await callable({ spaceId, content });
       return res?.data?.messageId || null;
