@@ -122,6 +122,22 @@ class UserProfilePage {
     const preview = this.isPreviewMode(this.fullHash);
     console.log("[UserProfilePage] isSelf:", isSelf, "preview:", preview);
 
+    // Preview banner (optional enhancement)
+    try {
+      if (preview) {
+        const card = document.getElementById("profile-card");
+        if (card && !card.querySelector(".preview-banner")) {
+          const banner = document.createElement("div");
+          banner.className = "preview-banner";
+          banner.innerHTML = `
+            <i class="fas fa-eye"></i>
+            <span>Preview mode: This is how others will see your public profile.</span>
+          `;
+          card.insertBefore(banner, card.firstChild);
+        }
+      }
+    } catch (_) {}
+
     // Load profiles
     let myProfile = null;
     if (myUid) {

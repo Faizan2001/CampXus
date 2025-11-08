@@ -38,7 +38,12 @@ export class ClassSpacesService {
   async loadMore(spaceId, firstDoc, { pageSize = 50 } = {}) {
     const ref = collection(db, "classSpaces", spaceId, "messages");
     // Continue with desc order to get older messages (before firstDoc)
-    const q = query(ref, orderBy("createdAt", "desc"), startAfter(firstDoc), qLimit(pageSize));
+    const q = query(
+      ref,
+      orderBy("createdAt", "desc"),
+      startAfter(firstDoc),
+      qLimit(pageSize)
+    );
     const snap = await getDocs(q);
     const items = [];
     snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
@@ -56,7 +61,11 @@ export class ClassSpacesService {
     }
     // If this is a dev test space you own, bypass CF to avoid 401 noise in dev
     const space = await this.getSpace(spaceId);
-    if (space?.devTest === true && Array.isArray(space.memberIds) && space.memberIds.includes(uid)) {
+    if (
+      space?.devTest === true &&
+      Array.isArray(space.memberIds) &&
+      space.memberIds.includes(uid)
+    ) {
       const messagesRef = collection(db, "classSpaces", spaceId, "messages");
       const ref = await addDoc(messagesRef, {
         senderId: uid,
@@ -69,24 +78,37 @@ export class ClassSpacesService {
       });
       await updateDoc(doc(db, "classSpaces", spaceId), {
         lastActivity: serverTimestamp(),
-        lastMessagePreview: { content: content.slice(0, 140), senderId: uid, createdAt: serverTimestamp() },
+        lastMessagePreview: {
+          content: content.slice(0, 140),
+          senderId: uid,
+          createdAt: serverTimestamp(),
+        },
       });
       return ref.id;
     }
 
     try {
-      const { getFunctions, httpsCallable } = await import("firebase/functions");
+      const { getFunctions, httpsCallable } = await import(
+        "firebase/functions"
+      );
       // Use explicit region to match deployed functions and avoid 401/mismatch
-      const functions = getFunctions(app, 'us-central1');
+      const functions = getFunctions(app, "us-central1");
       const callable = httpsCallable(functions, "sendGroupMessage");
       const res = await callable({ spaceId, content });
       return res?.data?.messageId || null;
     } catch (e) {
       // Fallback for dev test spaces (if server auth failed due to 401 in dev)
       const msg = String(e?.message || "");
-      const unauth = msg.includes("unauthenticated") || msg.includes("Must be signed in") || msg.includes("401");
+      const unauth =
+        msg.includes("unauthenticated") ||
+        msg.includes("Must be signed in") ||
+        msg.includes("401");
       if (!unauth) throw e;
-      if (space?.devTest === true && Array.isArray(space.memberIds) && space.memberIds.includes(uid)) {
+      if (
+        space?.devTest === true &&
+        Array.isArray(space.memberIds) &&
+        space.memberIds.includes(uid)
+      ) {
         // Write directly to messages and update metadata
         const messagesRef = collection(db, "classSpaces", spaceId, "messages");
         const ref = await addDoc(messagesRef, {
@@ -100,7 +122,11 @@ export class ClassSpacesService {
         });
         await updateDoc(doc(db, "classSpaces", spaceId), {
           lastActivity: serverTimestamp(),
-          lastMessagePreview: { content: content.slice(0, 140), senderId: uid, createdAt: serverTimestamp() },
+          lastMessagePreview: {
+            content: content.slice(0, 140),
+            senderId: uid,
+            createdAt: serverTimestamp(),
+          },
         });
         return ref.id;
       }

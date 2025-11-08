@@ -32,12 +32,12 @@ export class ReportModal {
     this.onClose = onClose;
 
     // Create modal HTML
-    this.modal = document.createElement('div');
-    this.modal.className = 'report-modal-overlay';
+    this.modal = document.createElement("div");
+    this.modal.className = "report-modal-overlay";
     this.modal.innerHTML = `
       <div class="report-modal">
         <div class="report-modal-header">
-          <h2>Report ${type === 'user' ? 'User' : 'Message'}</h2>
+          <h2>Report ${type === "user" ? "User" : "Message"}</h2>
           <button class="report-modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="report-modal-body">
@@ -77,87 +77,87 @@ export class ReportModal {
 
     document.body.appendChild(this.modal);
     this.bindEvents();
-    
+
     // Focus on reason dropdown
     setTimeout(() => {
-      const reasonSelect = this.modal.querySelector('#reportReason');
+      const reasonSelect = this.modal.querySelector("#reportReason");
       if (reasonSelect) reasonSelect.focus();
     }, 100);
   }
 
   bindEvents() {
-    const closeBtn = this.modal.querySelector('.report-modal-close');
-    const cancelBtn = this.modal.querySelector('#reportCancelBtn');
-    const submitBtn = this.modal.querySelector('#reportSubmitBtn');
-    const reasonSelect = this.modal.querySelector('#reportReason');
-    const descriptionTextarea = this.modal.querySelector('#reportDescription');
-    const charCount = this.modal.querySelector('#descCharCount');
-    const errorDiv = this.modal.querySelector('#reportError');
+    const closeBtn = this.modal.querySelector(".report-modal-close");
+    const cancelBtn = this.modal.querySelector("#reportCancelBtn");
+    const submitBtn = this.modal.querySelector("#reportSubmitBtn");
+    const reasonSelect = this.modal.querySelector("#reportReason");
+    const descriptionTextarea = this.modal.querySelector("#reportDescription");
+    const charCount = this.modal.querySelector("#descCharCount");
+    const errorDiv = this.modal.querySelector("#reportError");
 
     // Close handlers
-    closeBtn?.addEventListener('click', () => this.close());
-    cancelBtn?.addEventListener('click', () => this.close());
-    this.modal.addEventListener('click', (e) => {
+    closeBtn?.addEventListener("click", () => this.close());
+    cancelBtn?.addEventListener("click", () => this.close());
+    this.modal.addEventListener("click", (e) => {
       if (e.target === this.modal) this.close();
     });
 
     // Validation handlers
     const validate = () => {
-      const reason = reasonSelect?.value || '';
-      const description = descriptionTextarea?.value?.trim() || '';
+      const reason = reasonSelect?.value || "";
+      const description = descriptionTextarea?.value?.trim() || "";
       const isValid = reason && description.length >= 50;
-      
+
       if (submitBtn) {
         submitBtn.disabled = !isValid;
       }
-      
+
       return isValid;
     };
 
     // Character counter
-    descriptionTextarea?.addEventListener('input', (e) => {
+    descriptionTextarea?.addEventListener("input", (e) => {
       const length = e.target.value.length;
       const isValid = length >= 50;
-      
+
       if (charCount) {
-        charCount.textContent = isValid 
-          ? `${length} / 500` 
+        charCount.textContent = isValid
+          ? `${length} / 500`
           : `${length} / 50 minimum`;
-        charCount.style.color = isValid ? '#4ade80' : '';
+        charCount.style.color = isValid ? "#4ade80" : "";
       }
-      
+
       validate();
     });
 
-    reasonSelect?.addEventListener('change', () => validate());
+    reasonSelect?.addEventListener("change", () => validate());
 
     // Submit handler
-    submitBtn?.addEventListener('click', async () => {
+    submitBtn?.addEventListener("click", async () => {
       if (!validate()) return;
-      
+
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Submitting...';
-      errorDiv?.classList.add('hidden');
+      submitBtn.textContent = "Submitting...";
+      errorDiv?.classList.add("hidden");
 
       try {
         await this.submitReport({
           reason: reasonSelect.value,
           description: descriptionTextarea.value.trim(),
         });
-        
+
         // Show success and close
         this.showSuccess();
         setTimeout(() => this.close(), 1500);
       } catch (error) {
-        logManager?.system?.error?.('Report submission failed', error);
-        
+        logManager?.system?.error?.("Report submission failed", error);
+
         if (errorDiv) {
-          errorDiv.textContent = 'Failed to submit report. Please try again.';
-          errorDiv.classList.remove('hidden');
+          errorDiv.textContent = "Failed to submit report. Please try again.";
+          errorDiv.classList.remove("hidden");
         }
-        
+
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Report';
+        submitBtn.textContent = "Submit Report";
       }
     });
   }
@@ -165,7 +165,7 @@ export class ReportModal {
   async submitReport({ reason, description }) {
     const reporterId = currentUser.uid;
     if (!reporterId) {
-      throw new Error('Must be signed in to report');
+      throw new Error("Must be signed in to report");
     }
 
     const reportData = {
@@ -173,26 +173,29 @@ export class ReportModal {
       reason,
       description,
       createdAt: serverTimestamp(),
-      status: 'pending', // For future admin review
+      status: "pending", // For future admin review
     };
 
     // Add type-specific fields
-    if (this.reportType === 'user') {
+    if (this.reportType === "user") {
       reportData.reportedUserId = this.reportedId;
-    } else if (this.reportType === 'message') {
+    } else if (this.reportType === "message") {
       reportData.reportedMessageId = this.reportedId;
       reportData.spaceId = this.additionalData.spaceId || null;
     }
 
     // Write to moderationReports collection
-    const reportsRef = collection(db, 'moderationReports');
+    const reportsRef = collection(db, "moderationReports");
     await addDoc(reportsRef, reportData);
 
-    logManager?.system?.info?.('Report submitted', { type: this.reportType, id: this.reportedId });
+    logManager?.system?.info?.("Report submitted", {
+      type: this.reportType,
+      id: this.reportedId,
+    });
   }
 
   showSuccess() {
-    const body = this.modal?.querySelector('.report-modal-body');
+    const body = this.modal?.querySelector(".report-modal-body");
     if (!body) return;
 
     body.innerHTML = `
@@ -209,7 +212,7 @@ export class ReportModal {
       this.modal.parentNode.removeChild(this.modal);
     }
     this.modal = null;
-    
+
     if (this.onClose) {
       this.onClose();
     }

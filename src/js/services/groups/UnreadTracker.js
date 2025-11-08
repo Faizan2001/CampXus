@@ -5,7 +5,7 @@
  * User-scoped to prevent cross-account data leakage.
  */
 
-const STORAGE_KEY = 'campxus:unreadTracker';
+const STORAGE_KEY = "campxus:unreadTracker";
 
 export class UnreadTracker {
   constructor() {
@@ -30,16 +30,16 @@ export class UnreadTracker {
    */
   loadFromStorage(userId) {
     if (!userId) {
-      console.warn('[UnreadTracker] No userId provided');
+      console.warn("[UnreadTracker] No userId provided");
       return {};
     }
-    
+
     try {
       const key = this.getStorageKey(userId);
       const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : {};
     } catch (e) {
-      console.warn('Failed to load unread tracker from localStorage', e);
+      console.warn("Failed to load unread tracker from localStorage", e);
       return {};
     }
   }
@@ -49,15 +49,15 @@ export class UnreadTracker {
    */
   saveToStorage() {
     if (!this.currentUserId) {
-      console.warn('[UnreadTracker] Cannot save without currentUserId');
+      console.warn("[UnreadTracker] Cannot save without currentUserId");
       return;
     }
-    
+
     try {
       const key = this.getStorageKey(this.currentUserId);
       localStorage.setItem(key, JSON.stringify(this.viewedTimes));
     } catch (e) {
-      console.warn('Failed to save unread tracker to localStorage', e);
+      console.warn("Failed to save unread tracker to localStorage", e);
     }
   }
 
@@ -67,7 +67,7 @@ export class UnreadTracker {
    */
   ensureUserLoaded(userId) {
     if (!userId) return;
-    
+
     // If switching users, load the new user's data
     if (this.currentUserId !== userId) {
       this.currentUserId = userId;
@@ -82,7 +82,7 @@ export class UnreadTracker {
    */
   markAsViewed(spaceId, userId) {
     if (!spaceId || !userId) return;
-    
+
     this.ensureUserLoaded(userId);
     this.viewedTimes[spaceId] = new Date().toISOString();
     this.saveToStorage();
@@ -96,9 +96,9 @@ export class UnreadTracker {
    */
   getLastViewedTime(spaceId, userId) {
     if (!spaceId || !userId) return null;
-    
+
     this.ensureUserLoaded(userId);
-    
+
     if (!this.viewedTimes[spaceId]) return null;
     try {
       return new Date(this.viewedTimes[spaceId]);
@@ -116,23 +116,23 @@ export class UnreadTracker {
    */
   hasUnread(spaceId, space, userId) {
     if (!spaceId || !space || !userId) return false;
-    
+
     this.ensureUserLoaded(userId);
-    
+
     const lastViewed = this.getLastViewedTime(spaceId, userId);
     const lastActivity = space.lastActivity?.toDate?.() || null;
-    
+
     // If never viewed and there's activity, it's unread
     if (!lastViewed && lastActivity) return true;
-    
+
     // If viewed but no activity, it's read
     if (lastViewed && !lastActivity) return false;
-    
+
     // Compare timestamps
     if (lastViewed && lastActivity) {
       return lastActivity > lastViewed;
     }
-    
+
     return false;
   }
 
@@ -142,8 +142,8 @@ export class UnreadTracker {
    * @returns {string} Relative time string (e.g., "2m ago", "1h ago", "3d ago")
    */
   getRelativeTime(space) {
-    if (!space?.lastActivity?.toDate) return '';
-    
+    if (!space?.lastActivity?.toDate) return "";
+
     try {
       const activityDate = space.lastActivity.toDate();
       const now = new Date();
@@ -151,16 +151,19 @@ export class UnreadTracker {
       const diffMins = Math.floor(diffMs / (1000 * 60));
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      
-      if (diffMins < 1) return 'just now';
+
+      if (diffMins < 1) return "just now";
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays < 7) return `${diffDays}d ago`;
-      
+
       // Older than a week, show date
-      return activityDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      return activityDate.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      });
     } catch (e) {
-      return '';
+      return "";
     }
   }
 

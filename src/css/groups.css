@@ -36,15 +36,15 @@ body.page-group .main-content {
 }
 
 .groups-page .dev-tools .btn {
-  background: var(--btn-bg, rgba(255,255,255,0.06));
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--btn-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #fff;
   border-radius: 10px;
   padding: 0.45rem 0.7rem;
 }
 
 .groups-page .dev-tools .btn.danger {
-  border-color: rgba(255,0,0,0.25);
+  border-color: rgba(255, 0, 0, 0.25);
 }
 
 /* Cards grid */
@@ -59,8 +59,8 @@ body.page-group .main-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.75rem;
@@ -73,8 +73,8 @@ body.page-group .main-content {
 }
 
 .cache-indicator .btn-refresh {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 0.3rem 0.6rem;
   cursor: pointer;
@@ -86,7 +86,7 @@ body.page-group .main-content {
 }
 
 .cache-indicator .btn-refresh:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .cache-indicator .btn-refresh:disabled {
@@ -100,20 +100,24 @@ body.page-group .main-content {
 }
 
 @media (min-width: 600px) {
-  .groups-list { grid-template-columns: repeat(2, 1fr); }
+  .groups-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (min-width: 900px) {
-  .groups-list { grid-template-columns: repeat(3, 1fr); }
+  .groups-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .group-card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 0.9rem;
   cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
   display: flex;
   flex-direction: column;
   min-height: 118px;
@@ -121,8 +125,8 @@ body.page-group .main-content {
 
 .group-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-  background: rgba(255,255,255,0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .group-title {
@@ -140,7 +144,7 @@ body.page-group .main-content {
   display: inline-block;
   width: 10px;
   height: 10px;
-  background: linear-gradient(135deg, #FF6B6B, #FF4757);
+  background: linear-gradient(135deg, #ff6b6b, #ff4757);
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(255, 75, 87, 0.6);
   animation: pulse-badge 2s ease-in-out infinite;
@@ -148,7 +152,8 @@ body.page-group .main-content {
 }
 
 @keyframes pulse-badge {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -204,7 +209,7 @@ body.page-group .main-content {
   font-size: 4rem;
   opacity: 0.6;
   margin-bottom: 1.5rem;
-  color: #6C63FF;
+  color: #6c63ff;
 }
 
 .profile-gate-message h2 {
@@ -221,8 +226,8 @@ body.page-group .main-content {
 }
 
 .profile-gate-message .btn.primary {
-  background: linear-gradient(135deg, #6C63FF, #9B67F8);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(135deg, #6c63ff, #9b67f8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
   padding: 0.75rem 1.5rem;
   border-radius: 12px;
@@ -253,7 +258,9 @@ body.page-group .main-content {
   margin: 0;
 }
 
-.group-sub { margin-top: 0.15rem; }
+.group-sub {
+  margin-top: 0.15rem;
+}
 
 .group-tabs {
   display: flex;
@@ -261,29 +268,33 @@ body.page-group .main-content {
 }
 
 .group-tabs .tab {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #fff;
   padding: 0.45rem 0.7rem;
   border-radius: 10px;
 }
 
 .group-tabs .tab.active {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .group-tab-content {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 0.5rem;
 }
 
-.group-tab-content.hidden { display: none; }
+.group-tab-content.hidden {
+  display: none;
+}
 
 /* Messages list */
 .messages {
-  max-height: calc(var(--main-content-available-height-with-bottom-nav, 70vh) - 160px);
+  max-height: calc(
+    var(--main-content-available-height-with-bottom-nav, 70vh) - 160px
+  );
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   display: flex;
@@ -293,8 +304,8 @@ body.page-group .main-content {
 }
 
 .load-older-btn {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #fff;
   padding: 0.5rem 1rem;
   border-radius: 10px;
@@ -306,7 +317,7 @@ body.page-group .main-content {
 }
 
 .load-older-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   transform: translateY(-1px);
 }
 
@@ -333,14 +344,14 @@ body.page-group .main-content {
 }
 
 .bubble.other {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .bubble.me {
   margin-left: auto;
-  background: linear-gradient(135deg, #6C63FF, #9B67F8);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(135deg, #6c63ff, #9b67f8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .message .sender {
@@ -365,16 +376,16 @@ body.page-group .main-content {
 
 .message-input input {
   flex: 1 1 auto;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #fff;
   padding: 0.55rem 0.7rem;
   border-radius: 12px;
 }
 
 .message-input button {
-  background: linear-gradient(135deg, #6C63FF, #9B67F8);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(135deg, #6c63ff, #9b67f8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
   padding: 0.55rem 0.9rem;
   border-radius: 12px;
@@ -392,15 +403,62 @@ body.page-group .main-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 0.75rem;
   transition: background 0.15s ease;
 }
 
 .member-item:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.member-item.blocked {
+  opacity: 0.6;
+}
+
+.member-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-placeholder i {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+}
+
+.member-badge {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: #ff9aa2;
+  background: rgba(255, 154, 162, 0.15);
+  border: 1px solid rgba(255, 154, 162, 0.25);
+  border-radius: 9999px;
+  padding: 2px 8px;
 }
 
 .member-link {
@@ -408,6 +466,9 @@ body.page-group .main-content {
   color: #fff;
   text-decoration: none;
   font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .member-actions {
@@ -418,9 +479,9 @@ body.page-group .main-content {
 
 .member-profile-btn,
 .member-report-btn {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
   padding: 0.4rem 0.6rem;
   border-radius: 8px;
   cursor: pointer;
@@ -431,10 +492,37 @@ body.page-group .main-content {
   justify-content: center;
 }
 
+.member-block-btn,
+.member-unblock-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.member-block-btn:hover {
+  background: rgba(255, 99, 132, 0.15);
+  border-color: rgba(255, 99, 132, 0.3);
+  color: #ff6384;
+}
+
+.member-unblock-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
 .member-profile-btn:hover {
   background: rgba(108, 99, 255, 0.15);
   border-color: rgba(108, 99, 255, 0.3);
-  color: #6C63FF;
+  color: #6c63ff;
 }
 
 .member-report-btn:hover {
@@ -447,7 +535,7 @@ body.page-group .main-content {
 .message-report-btn {
   background: transparent;
   border: none;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.4);
   font-size: 0.75rem;
   padding: 0.2rem 0.4rem;
   cursor: pointer;
@@ -458,5 +546,3 @@ body.page-group .main-content {
 .message-report-btn:hover {
   color: #ff4b57;
 }
-
-

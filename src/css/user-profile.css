@@ -50,6 +50,22 @@
   margin-top: 1.25rem;
 }
 
+/* Preview banner */
+.user-profile-view .preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.16);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: var(--text-primary, #fff);
+}
+.user-profile-view .preview-banner i {
+  color: var(--accent-primary, #6366f1);
+}
+
 .user-profile-view .profile-section h2 {
   font-size: 1.1rem;
   margin-bottom: 0.75rem;
@@ -263,28 +279,28 @@
 
 /* Color-coded chips (cycle through 5 colors like profile setup) */
 .user-profile-view .chip:nth-child(5n + 1) {
-  background: rgba(59, 130, 246, 0.18);
-  border-color: rgba(59, 130, 246, 0.28);
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.35);
 }
 
 .user-profile-view .chip:nth-child(5n + 2) {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.35);
 }
 
 .user-profile-view .chip:nth-child(5n + 3) {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
 .user-profile-view .chip:nth-child(5n + 4) {
-  background: rgba(236, 72, 153, 0.18);
-  border-color: rgba(236, 72, 153, 0.28);
+  background: rgba(236, 72, 153, 0.25);
+  border-color: rgba(236, 72, 153, 0.35);
 }
 
 .user-profile-view .chip:nth-child(5n + 5) {
-  background: rgba(99, 102, 241, 0.18);
-  border-color: rgba(99, 102, 241, 0.28);
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.35);
 }
 
 /* Buttons */

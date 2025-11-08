@@ -2,6 +2,8 @@ import { classSpacesService } from "../services/groups/ClassSpacesService.js";
 import { logManager } from "../utils/debug/LogManager.js";
 import { unreadTracker } from "../services/groups/UnreadTracker.js";
 import { currentUser } from "../store/userStore.js";
+import { blockService } from "../services/social/BlockService.js";
+import { getAvatarUrl } from "../utils/avatar/avatarUtils.js";
 
 export class GroupDetailPage {
   constructor() {
@@ -16,6 +18,65 @@ export class GroupDetailPage {
     this._initialRenderDone = false; // track first paint for auto-scroll
   }
 
+  // Re-render members list state (blocked badges/buttons) without full reload
+  refreshMembersList(space, myUid) {
+    try {
+      const membersList = document.getElementById("membersList");
+      if (!membersList) return;
+      membersList.querySelectorAll(".member-item").forEach((row) => {
+        const uid = row.getAttribute("data-uid");
+        if (!uid || uid === myUid) return;
+        const blocked = blockService.isBlocked(myUid, uid);
+        row.classList.toggle("blocked", blocked);
+        const badge = row.querySelector(".member-badge");
+        if (badge) badge.style.display = blocked ? "inline-block" : "none";
+        const actions = row.querySelector(".member-actions");
+        if (!actions) return;
+        const reportBtn = actions.querySelector(".member-report-btn");
+        let blockBtn = actions.querySelector(".member-block-btn");
+        let unblockBtn = actions.querySelector(".member-unblock-btn");
+        if (blocked) {
+          if (blockBtn) blockBtn.remove();
+          if (!unblockBtn) {
+            unblockBtn = document.createElement("button");
+            unblockBtn.className = "member-unblock-btn";
+            unblockBtn.dataset.uid = uid;
+            unblockBtn.title = "Unblock user";
+            unblockBtn.setAttribute("aria-label", "Unblock user");
+            unblockBtn.innerHTML = '<i class="fas fa-user-check"></i>';
+            actions.insertBefore(unblockBtn, reportBtn);
+            unblockBtn.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              blockService.unblock(myUid, uid);
+              this.refreshMembersList(space, myUid);
+              const messagesEl = document.getElementById("messages");
+              this.renderMessages(messagesEl, myUid);
+            });
+          }
+        } else {
+          if (unblockBtn) unblockBtn.remove();
+          if (!blockBtn) {
+            blockBtn = document.createElement("button");
+            blockBtn.className = "member-block-btn";
+            blockBtn.dataset.uid = uid;
+            blockBtn.title = "Block user";
+            blockBtn.setAttribute("aria-label", "Block user");
+            blockBtn.innerHTML = '<i class="fas fa-user-slash"></i>';
+            actions.insertBefore(blockBtn, reportBtn);
+            blockBtn.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              blockService.block(myUid, uid);
+              this.refreshMembersList(space, myUid);
+              const messagesEl = document.getElementById("messages");
+              this.renderMessages(messagesEl, myUid);
+            });
+          }
+        }
+      });
+    } catch (_) {}
+  }
   parseSpaceIdFromHash() {
     try {
       const hash = window.location.hash || ""; // e.g., #group?id=abc
@@ -25,7 +86,7 @@ export class GroupDetailPage {
       const fromQuery = params.get("id");
       if (fromQuery) return fromQuery;
       try {
-        const fromStore = sessionStorage.getItem('group:spaceId');
+        const fromStore = sessionStorage.getItem("group:spaceId");
         if (fromStore) return fromStore;
       } catch (_) {}
       return null;
@@ -39,9 +100,9 @@ export class GroupDetailPage {
     try {
       await currentUser.waitForProfile();
     } catch (e) {
-      console.error('[GroupDetailPage] Failed to load profile', e);
+      console.error("[GroupDetailPage] Failed to load profile", e);
     }
-    
+
     // PRD Requirement: Gate Groups until profile setup is complete
     if (!currentUser.isProfileComplete()) {
       const titleEl = document.getElementById("group-title");
@@ -56,17 +117,19 @@ export class GroupDetailPage {
       setTimeout(async () => {
         try {
           const { navigateTo } = await import("../app.js");
-          window.location.hash = '#profile';
-          navigateTo('profile');
+          window.location.hash = "#profile";
+          navigateTo("profile");
         } catch (_) {
-          window.location.hash = '#profile';
+          window.location.hash = "#profile";
         }
       }, 1500);
       return;
     }
-    
+
     this.spaceId = this.parseSpaceIdFromHash();
-    try { sessionStorage.removeItem('group:spaceId'); } catch (_) {}
+    try {
+      sessionStorage.removeItem("group:spaceId");
+    } catch (_) {}
     const titleEl = document.getElementById("group-title");
     const subEl = document.getElementById("group-sub");
     const messagesEl = document.getElementById("messages");
@@ -92,7 +155,9 @@ export class GroupDetailPage {
     }
     const title = this.buildTitle(space);
     titleEl.textContent = title;
-    subEl.textContent = `${space.classroom || ''} • ${space.dayPattern || ''} ${space.timeStart || ''}-${space.timeEnd || ''}`;
+    subEl.textContent = `${space.classroom || ""} • ${space.dayPattern || ""} ${
+      space.timeStart || ""
+    }-${space.timeEnd || ""}`;
 
     // Get current user ID early for member filtering
     const { getAuth } = await import("firebase/auth");
@@ -104,23 +169,39 @@ export class GroupDetailPage {
       unreadTracker.markAsViewed(this.spaceId, myUid);
     }
 
-    // Members list
+    // Members list (with avatar chips + block/unblock actions)
     const memberIds = Array.isArray(space.memberIds) ? space.memberIds : [];
     const memberInfo = space.memberInfo || {};
     membersList.innerHTML = memberIds
       .map((uid) => {
-        if (uid === myUid) return ''; // Skip self
+        if (uid === myUid) return ""; // Skip self
         const info = memberInfo[uid] || {};
-        const name = `${info.firstName || ''} ${info.lastName || ''}`.trim() || (info.handle ? `@${info.handle}` : uid);
+        const name =
+          `${info.firstName || ""} ${info.lastName || ""}`.trim() ||
+          (info.handle ? `@${info.handle}` : uid);
         const label = name || uid;
         const target = encodeURIComponent(uid);
+        const photo = info.profilePhotoUrl || null;
+        const avatar = photo || getAvatarUrl({ avatarConfig: info.avatarConfig }) || null;
+        const blocked = blockService.isBlocked(myUid, uid);
         return `
-          <div class="member-item">
-            <a class="member-link" href="#user?id=${target}">${escapeHtml(label)}</a>
+          <div class="member-item${blocked ? " blocked" : ""}" data-uid="${uid}">
+            <div class="member-main">
+              <a class="member-avatar" href="#user?id=${target}" aria-label="View profile">
+                ${avatar ? `<img src="${avatar}" alt="${escapeHtml(label)}">` : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`}
+              </a>
+              <a class="member-link" href="#user?id=${target}">${escapeHtml(label)}</a>
+              ${blocked ? '<span class="member-badge">Blocked</span>' : ''}
+            </div>
             <div class="member-actions">
               <a class="member-profile-btn" href="#user?id=${target}" title="View profile" aria-label="View profile">
                 <i class="fas fa-id-badge"></i>
               </a>
+              ${
+                blocked
+                  ? `<button class="member-unblock-btn" data-uid="${uid}" title="Unblock user" aria-label="Unblock user"><i class="fas fa-user-check"></i></button>`
+                  : `<button class="member-block-btn" data-uid="${uid}" title="Block user" aria-label="Block user"><i class="fas fa-user-slash"></i></button>`
+              }
               <button class="member-report-btn" data-uid="${uid}" title="Report user" aria-label="Report user">
                 <i class="fas fa-flag"></i>
               </button>
@@ -129,38 +210,66 @@ export class GroupDetailPage {
         `;
       })
       .join("");
-    
+
     // Bind report buttons for members
-    const reportBtns = membersList.querySelectorAll('.member-report-btn');
-    reportBtns.forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    const reportBtns = membersList.querySelectorAll(".member-report-btn");
+    reportBtns.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
         const uid = btn.dataset.uid;
         if (!uid) return;
-        
-        const { ReportModal } = await import("../components/modals/ReportModal.js");
+
+        const { ReportModal } = await import(
+          "../components/modals/ReportModal.js"
+        );
         const modal = new ReportModal();
         modal.show({
-          type: 'user',
+          type: "user",
           reportedId: uid,
           additionalData: { spaceId: this.spaceId },
         });
       });
     });
 
-    // Tabs
-    tabChat.addEventListener('click', () => {
-      tabChat.classList.add('active');
-      tabMembers.classList.remove('active');
-      chatPane.classList.remove('hidden');
-      membersPane.classList.add('hidden');
+    // Bind block/unblock buttons
+    const blockBtns = membersList.querySelectorAll(".member-block-btn");
+    blockBtns.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const uid = btn.dataset.uid;
+        if (!uid || !myUid) return;
+        blockService.block(myUid, uid);
+        this.refreshMembersList(space, myUid);
+        this.renderMessages(messagesEl, myUid);
+      });
     });
-    tabMembers.addEventListener('click', () => {
-      tabMembers.classList.add('active');
-      tabChat.classList.remove('active');
-      membersPane.classList.remove('hidden');
-      chatPane.classList.add('hidden');
+    const unblockBtns = membersList.querySelectorAll(".member-unblock-btn");
+    unblockBtns.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const uid = btn.dataset.uid;
+        if (!uid || !myUid) return;
+        blockService.unblock(myUid, uid);
+        this.refreshMembersList(space, myUid);
+        this.renderMessages(messagesEl, myUid);
+      });
+    });
+
+    // Tabs
+    tabChat.addEventListener("click", () => {
+      tabChat.classList.add("active");
+      tabMembers.classList.remove("active");
+      chatPane.classList.remove("hidden");
+      membersPane.classList.add("hidden");
+    });
+    tabMembers.addEventListener("click", () => {
+      tabMembers.classList.add("active");
+      tabChat.classList.remove("active");
+      membersPane.classList.remove("hidden");
+      chatPane.classList.add("hidden");
     });
 
     // Messages listener
@@ -172,7 +281,10 @@ export class GroupDetailPage {
         const prevScrollHeight = messagesEl?.scrollHeight ?? 0;
         const nearBottom = (() => {
           if (!messagesEl) return true;
-          const bottomGap = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+          const bottomGap =
+            messagesEl.scrollHeight -
+            messagesEl.scrollTop -
+            messagesEl.clientHeight;
           return bottomGap < 100; // within 100px of bottom counts as near-bottom
         })();
 
@@ -204,11 +316,11 @@ export class GroupDetailPage {
         if (this.earliestDoc === null && docs && docs.length > 0) {
           // docs are oldest → newest per ClassSpacesService
           this.earliestDoc = docs[0];
-          
+
           // Show pagination button if we got a full page (implies more may exist)
           if (loadOlderBtn && items.length >= 50) {
             this.hasMoreMessages = true;
-            loadOlderBtn.classList.remove('hidden');
+            loadOlderBtn.classList.remove("hidden");
           }
         }
 
@@ -238,85 +350,89 @@ export class GroupDetailPage {
 
     // Load older messages handler
     if (loadOlderBtn) {
-      loadOlderBtn.addEventListener('click', async () => {
+      loadOlderBtn.addEventListener("click", async () => {
         if (this.isLoadingMore || !this.hasMoreMessages) return;
-        
+
         this.isLoadingMore = true;
         loadOlderBtn.disabled = true;
-        loadOlderBtn.textContent = 'Loading...';
-        
+        loadOlderBtn.textContent = "Loading...";
+
         try {
           // Save scroll position to restore after loading
           const oldScrollHeight = messagesEl.scrollHeight;
-          
+
           // Use preserved pagination cursor (never affected by realtime updates)
           const firstDoc = this.earliestDoc;
           if (!firstDoc) {
             this.hasMoreMessages = false;
-            loadOlderBtn.classList.add('hidden');
+            loadOlderBtn.classList.add("hidden");
             return;
           }
-          
+
           // Load older messages (docs returned oldest→newest)
-          const { items, docs } = await classSpacesService.loadMore(this.spaceId, firstDoc, { pageSize: 50 });
-          
+          const { items, docs } = await classSpacesService.loadMore(
+            this.spaceId,
+            firstDoc,
+            { pageSize: 50 }
+          );
+
           if (items.length === 0) {
             this.hasMoreMessages = false;
-            loadOlderBtn.classList.add('hidden');
+            loadOlderBtn.classList.add("hidden");
             return;
           }
-          
+
           // Update pagination cursor to the oldest doc from this batch
           this.earliestDoc = docs[0];
-          
+
           // Update latest window docs (prepend older docs)
           this.lastDocs = [...docs, ...this.lastDocs];
-          
+
           // Add older messages to the beginning
-          const existingIds = new Set(this.allMessages.map(m => m.id));
-          const olderMessages = items.filter(m => !existingIds.has(m.id));
+          const existingIds = new Set(this.allMessages.map((m) => m.id));
+          const olderMessages = items.filter((m) => !existingIds.has(m.id));
           this.allMessages = [...olderMessages, ...this.allMessages];
-          
+
           // Re-render
           this.renderMessages(messagesEl, myUid);
-          
+
           // Restore scroll position (scroll anchoring)
           const newScrollHeight = messagesEl.scrollHeight;
           messagesEl.scrollTop = newScrollHeight - oldScrollHeight;
-          
+
           // Hide button if we loaded less than page size
           if (items.length < 50) {
             this.hasMoreMessages = false;
-            loadOlderBtn.classList.add('hidden');
+            loadOlderBtn.classList.add("hidden");
           }
         } catch (e) {
-          logManager?.system?.error?.('Failed to load older messages', e);
-          alert('Failed to load older messages');
+          logManager?.system?.error?.("Failed to load older messages", e);
+          alert("Failed to load older messages");
         } finally {
           this.isLoadingMore = false;
           loadOlderBtn.disabled = false;
-          loadOlderBtn.textContent = 'Load Older Messages';
+          loadOlderBtn.textContent = "Load Older Messages";
         }
       });
     }
 
     // Send handler
-    sendBtn.addEventListener('click', async () => {
-      const text = (input.value || '').trim();
+    sendBtn.addEventListener("click", async () => {
+      const text = (input.value || "").trim();
       if (!text) return;
       try {
         sendBtn.disabled = true;
         await classSpacesService.sendMessage(this.spaceId, text);
-        input.value = '';
+        input.value = "";
       } catch (e) {
-        logManager?.system?.error?.('sendMessage failed', e);
-        alert('Failed to send message');
+        logManager?.system?.error?.("sendMessage failed", e);
+        alert("Failed to send message");
       } finally {
         sendBtn.disabled = false;
       }
     });
-    input.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+    input.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendBtn.click();
       }
@@ -324,48 +440,77 @@ export class GroupDetailPage {
   }
 
   buildTitle(s) {
-    const codeOrName = s.courseCode || (s.courseName ? this.toTitleCase(s.courseName) : 'Course');
-    const sec = s.section ? `S-${parseInt(s.section, 10)}` : '';
-    const slot = `${s.dayPattern || ''} ${s.timeStart || ''}-${s.timeEnd || ''}`.trim();
-    return `${codeOrName} • ${sec} • ${slot}`.replace(/\s+•\s+•/g, ' •').replace(/•\s*$/,'');
+    const codeOrName =
+      s.courseCode ||
+      (s.courseName ? this.toTitleCase(s.courseName) : "Course");
+    const sec = s.section ? `S-${parseInt(s.section, 10)}` : "";
+    const slot = `${s.dayPattern || ""} ${s.timeStart || ""}-${
+      s.timeEnd || ""
+    }`.trim();
+    return `${codeOrName} • ${sec} • ${slot}`
+      .replace(/\s+•\s+•/g, " •")
+      .replace(/•\s*$/, "");
   }
 
   toTitleCase(str) {
-    return String(str || '')
-      .split(' ')
-      .map(w => w ? (w[0].toUpperCase() + w.slice(1)) : '')
-      .join(' ');
+    return String(str || "")
+      .split(" ")
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
+      .join(" ");
   }
 
   renderMessages(messagesEl, myUid) {
     if (!messagesEl) return;
-    
-    messagesEl.innerHTML = this.allMessages
+
+    // Filter out messages from blocked users (client-side hide)
+    const visibleMessages = Array.isArray(this.allMessages)
+      ? this.allMessages.filter(
+          (m) => !m.senderId || !blockService.isBlocked(myUid, m.senderId)
+        )
+      : [];
+
+    messagesEl.innerHTML = visibleMessages
       .map((m) => {
         const isMe = myUid && m.senderId === myUid;
-        const sender = m.senderInfo?.firstName || m.senderInfo?.handle || (isMe ? 'You' : m.senderId);
-        const text = m.content || '';
+        const sender =
+          m.senderInfo?.firstName ||
+          m.senderInfo?.handle ||
+          (isMe ? "You" : m.senderId);
+        const text = m.content || "";
         const ts = m.createdAt?.toDate?.() || null;
-        const time = ts ? new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(ts) : '';
-        const bubbleClass = isMe ? 'bubble me' : 'bubble other';
-        const reportBtn = !isMe ? `<button class="message-report-btn" data-msgid="${m.id}" title="Report message"><i class="fas fa-flag"></i></button>` : '';
-        return `<div class="message" data-msgid="${m.id}"><div class="${bubbleClass}"><span class="sender">${sender}</span><span class="time">${time}</span><div class="text">${escapeHtml(text)}</div>${reportBtn}</div></div>`;
+        const time = ts
+          ? new Intl.DateTimeFormat(undefined, {
+              hour: "2-digit",
+              minute: "2-digit",
+            }).format(ts)
+          : "";
+        const bubbleClass = isMe ? "bubble me" : "bubble other";
+        const reportBtn = !isMe
+          ? `<button class="message-report-btn" data-msgid="${m.id}" title="Report message"><i class="fas fa-flag"></i></button>`
+          : "";
+        return `<div class="message" data-msgid="${
+          m.id
+        }"><div class="${bubbleClass}"><span class="sender">${sender}</span><span class="time">${time}</span><div class="text">${escapeHtml(
+          text
+        )}</div>${reportBtn}</div></div>`;
       })
       .join("");
-    
+
     // Bind report buttons for messages
-    const reportBtns = messagesEl.querySelectorAll('.message-report-btn');
-    reportBtns.forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    const reportBtns = messagesEl.querySelectorAll(".message-report-btn");
+    reportBtns.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
         const msgId = btn.dataset.msgid;
         if (!msgId) return;
-        
-        const { ReportModal } = await import("../components/modals/ReportModal.js");
+
+        const { ReportModal } = await import(
+          "../components/modals/ReportModal.js"
+        );
         const modal = new ReportModal();
         modal.show({
-          type: 'message',
+          type: "message",
           reportedId: msgId,
           additionalData: { spaceId: this.spaceId },
         });
@@ -388,25 +533,25 @@ export class GroupDetailPage {
 
 function escapeHtml(str) {
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // Wire to SPA lifecycle
 let currentPageInstance = null;
-document.addEventListener('spa:page:unload', (e) => {
+document.addEventListener("spa:page:unload", (e) => {
   if (currentPageInstance) {
     currentPageInstance.destroy();
     currentPageInstance = null;
   }
 });
 
-document.addEventListener('spa:page:load', async (event) => {
+document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
-  if (route !== 'group') return;
+  if (route !== "group") return;
   currentPageInstance = new GroupDetailPage();
   await currentPageInstance.mount();
 });

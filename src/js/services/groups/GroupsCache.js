@@ -1,21 +1,21 @@
 /**
  * GroupsCache Service
  * Aggressive caching for groups list to reduce Firestore reads and stay within free tier.
- * 
+ *
  * Strategy:
  * - Cache groups list in localStorage with 5-minute TTL
  * - Reduces Firestore reads by ~95% (from 288 reads/day to ~12 reads/day per user)
  * - Manual refresh available for users who want latest data
  * - Auto-refresh on return to page after 1 minute
- * 
+ *
  * Free Tier Impact:
  * - Without cache: 2,000 users × 288 reads/day = 576,000 reads/day ❌
  * - With cache: 2,000 users × 12 reads/day = 24,000 reads/day ✅
  */
 
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
 
-const CACHE_KEY = 'campxus:groupsCache';
+const CACHE_KEY = "campxus:groupsCache";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const SOFT_REFRESH_TTL = 1 * 60 * 1000; // 1 minute for soft refresh on navigation
 
@@ -31,7 +31,7 @@ export class GroupsCache {
    */
   getCacheKey(userId) {
     if (!userId) {
-      console.warn('[GroupsCache] No userId provided for cache key');
+      console.warn("[GroupsCache] No userId provided for cache key");
       return CACHE_KEY; // Fallback to generic key
     }
     return `${CACHE_KEY}:${userId}`;
@@ -47,24 +47,24 @@ export class GroupsCache {
       const key = userId ? this.getCacheKey(userId) : CACHE_KEY;
       const raw = localStorage.getItem(key);
       if (!raw) return null;
-      
+
       const parsed = JSON.parse(raw);
-      
+
       // Validate cache structure and userId match
       if (!parsed.timestamp || !Array.isArray(parsed.data)) {
         return null;
       }
-      
+
       // Security: Validate cached userId matches current user
       if (userId && parsed.userId && parsed.userId !== userId) {
-        console.warn('[GroupsCache] Cache userId mismatch, invalidating');
+        console.warn("[GroupsCache] Cache userId mismatch, invalidating");
         this.invalidate(userId);
         return null;
       }
-      
+
       return parsed;
     } catch (e) {
-      console.warn('Failed to load groups cache from localStorage', e);
+      console.warn("Failed to load groups cache from localStorage", e);
       return null;
     }
   }
@@ -76,15 +76,15 @@ export class GroupsCache {
    */
   saveToStorage(data, userId) {
     if (!userId) {
-      console.warn('[GroupsCache] Cannot save cache without userId');
+      console.warn("[GroupsCache] Cannot save cache without userId");
       return;
     }
-    
+
     try {
       // Serialize Firestore Timestamps to milliseconds for safe localStorage storage
-      const serializedData = data.map(space => {
+      const serializedData = data.map((space) => {
         const serialized = { ...space };
-        
+
         // Convert Firestore Timestamps to milliseconds
         if (space.lastActivity?.toMillis) {
           serialized.lastActivity = space.lastActivity.toMillis();
@@ -95,13 +95,13 @@ export class GroupsCache {
         if (space.lastMessagePreview?.timestamp?.toMillis) {
           serialized.lastMessagePreview = {
             ...space.lastMessagePreview,
-            timestamp: space.lastMessagePreview.timestamp.toMillis()
+            timestamp: space.lastMessagePreview.timestamp.toMillis(),
           };
         }
-        
+
         return serialized;
       });
-      
+
       const cacheData = {
         data: serializedData,
         userId, // Store userId for validation
@@ -111,7 +111,7 @@ export class GroupsCache {
       localStorage.setItem(key, JSON.stringify(cacheData));
       this.cache = cacheData;
     } catch (e) {
-      console.warn('Failed to save groups cache to localStorage', e);
+      console.warn("Failed to save groups cache to localStorage", e);
     }
   }
 
@@ -123,10 +123,10 @@ export class GroupsCache {
    */
   get(userId, softRefresh = false) {
     if (!userId) {
-      console.warn('[GroupsCache] Cannot get cache without userId');
+      console.warn("[GroupsCache] Cannot get cache without userId");
       return null;
     }
-    
+
     const cached = this.loadFromStorage(userId);
     if (!cached || !cached.timestamp) {
       return null;
@@ -140,28 +140,31 @@ export class GroupsCache {
     }
 
     this.cache = cached; // Update instance cache
-    
+
     // Rehydrate Firestore Timestamps from milliseconds
-    const rehydratedData = cached.data.map(space => {
+    const rehydratedData = cached.data.map((space) => {
       const rehydrated = { ...space };
-      
+
       // Restore Firestore Timestamps from milliseconds
-      if (typeof space.lastActivity === 'number') {
+      if (typeof space.lastActivity === "number") {
         rehydrated.lastActivity = Timestamp.fromMillis(space.lastActivity);
       }
-      if (typeof space.createdAt === 'number') {
+      if (typeof space.createdAt === "number") {
         rehydrated.createdAt = Timestamp.fromMillis(space.createdAt);
       }
-      if (space.lastMessagePreview && typeof space.lastMessagePreview.timestamp === 'number') {
+      if (
+        space.lastMessagePreview &&
+        typeof space.lastMessagePreview.timestamp === "number"
+      ) {
         rehydrated.lastMessagePreview = {
           ...space.lastMessagePreview,
-          timestamp: Timestamp.fromMillis(space.lastMessagePreview.timestamp)
+          timestamp: Timestamp.fromMillis(space.lastMessagePreview.timestamp),
         };
       }
-      
+
       return rehydrated;
     });
-    
+
     return rehydratedData;
   }
 
@@ -181,7 +184,7 @@ export class GroupsCache {
    */
   getAge(userId) {
     if (!userId) return Infinity;
-    
+
     const cached = this.loadFromStorage(userId);
     if (!cached || !cached.timestamp) {
       return Infinity;
@@ -196,16 +199,16 @@ export class GroupsCache {
    */
   getAgeString(userId) {
     const age = this.getAge(userId);
-    
+
     if (age === Infinity) {
-      return 'never';
+      return "never";
     }
 
     const seconds = Math.floor(age / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
 
-    if (seconds < 10) return 'just now';
+    if (seconds < 10) return "just now";
     if (seconds < 60) return `${seconds}s ago`;
     if (minutes < 60) return `${minutes}m ago`;
     return `${hours}h ago`;
@@ -233,7 +236,7 @@ export class GroupsCache {
       } else {
         // Clear all groups caches (for cleanup/logout)
         const keys = Object.keys(localStorage);
-        keys.forEach(key => {
+        keys.forEach((key) => {
           if (key.startsWith(CACHE_KEY)) {
             localStorage.removeItem(key);
           }
@@ -241,7 +244,7 @@ export class GroupsCache {
       }
       this.cache = null;
     } catch (e) {
-      console.warn('Failed to clear groups cache', e);
+      console.warn("Failed to clear groups cache", e);
     }
   }
 

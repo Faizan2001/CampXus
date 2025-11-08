@@ -113,6 +113,7 @@ Status: In progress (dev‑testable UI shipped)
   - Future friendships: Add new friend → check both users' `socialInfo.friendIds` arrays updated automatically via Cloud Function trigger.
   - Unfriend: Remove friendship → verify friendIds arrays updated (friend removed from both users).
 - Profiles — Social Links
+
   - Go to Profile Setup → Avatar & Bio step → scroll to "Social Links" section (after Interests).
   - Select platform from dropdown (Instagram, Facebook, LinkedIn, GitHub, X, Custom).
   - Enter username (e.g., "@username" or "username") or full URL → click Add.
@@ -126,6 +127,7 @@ Status: In progress (dev‑testable UI shipped)
   - Test mobile responsiveness: chips wrap correctly, touch targets adequate.
 
 - Groups — Unread Badges
+
   - Navigate to `#groups` → verify group cards display correctly.
   - Note which cards have activity (check `lastActivity` timestamp in Firestore).
   - Observe: cards with new activity since your last view show a red pulsing dot badge next to the title.
@@ -137,6 +139,7 @@ Status: In progress (dev‑testable UI shipped)
   - Test edge cases: never-viewed groups with activity show badge; groups with no activity show no badge.
 
 - Groups — Profile Completion Gate
+
   - Sign in with an account that has incomplete profile (missing firstName, lastName, or profileSetupComplete=false).
   - Navigate to `#groups` → verify gate message appears with icon, heading, description, and "Complete Profile" button.
   - Click "Complete Profile" → verify redirect to profile setup page.
@@ -145,6 +148,7 @@ Status: In progress (dev‑testable UI shipped)
   - Verify with complete profile that dev tools buttons appear (if in dev mode).
 
 - Groups — Message Pagination
+
   - Open a group chat with >50 messages (create test data or wait for active groups).
   - Initial load: verify only 50 most recent messages displayed; "Load Older Messages" button visible at top.
   - Click "Load Older Messages" → button shows "Loading..." state.
@@ -156,6 +160,7 @@ Status: In progress (dev‑testable UI shipped)
   - Test with <50 messages total → verify button never appears.
 
 - Moderation — Report Modal (Users)
+
   - Navigate to group Members tab.
   - Verify: each member (except yourself) has flag icon button next to profile icon.
   - Click flag icon on any member → report modal opens.
@@ -170,6 +175,7 @@ Status: In progress (dev‑testable UI shipped)
   - Check Firestore `moderationReports` collection → verify document created with correct fields.
 
 - Moderation — Report Modal (Messages)
+
   - Navigate to group Chat tab.
   - Verify: messages from others show small flag icon; your own messages don't.
   - Click flag icon on any message → report modal opens.
@@ -222,6 +228,7 @@ Status: In progress (dev‑testable UI shipped)
 ---
 
 - Profiles — Social Links (PRD)
+
   - Implemented social links feature with support for 6 platforms: Instagram, Facebook, LinkedIn, GitHub, X (Twitter), Custom URLs.
   - Profile Setup UI: dropdown selector + input field + add button; displays added links as cards with platform icons and colors.
   - Validation: platform-specific URL/username patterns; supports @username, username, or full URL formats; auto-normalizes to full URLs.
@@ -233,6 +240,7 @@ Status: In progress (dev‑testable UI shipped)
   - Files: `src/js/services/profile/SocialLinksService.js`, `src/js/components/forms/ProfileSetup.js`, `src/js/pages/UserProfilePage.js`, `public/templates/profile.html`, `public/templates/user-profile.html`, `src/css/profile-setup.css`, `src/css/user-profile.css`.
 
 - Groups — Unread Badges
+
   - Implemented unread tracking system using localStorage to persist last-viewed timestamps per space.
   - **UnreadTracker Service**: Created `src/js/services/groups/UnreadTracker.js` with methods:
     - `markAsViewed(spaceId, userId)`: Records current timestamp when user views a space
@@ -253,6 +261,7 @@ Status: In progress (dev‑testable UI shipped)
   - Files: `src/js/services/groups/UnreadTracker.js`, `src/js/pages/GroupsPage.js`, `src/js/pages/GroupDetailPage.js`, `src/css/groups.css`.
 
 - Groups — Profile Completion Gate (PRD Critical Requirement)
+
   - Implemented profile completion check before allowing Groups access (PRD: "Migration: Completing profile is required before accessing Groups").
   - **GroupsPage Gate**: Displays friendly message with icon and "Complete Profile" button when `!currentUser.isProfileComplete()`.
   - **GroupDetailPage Gate**: Redirects to profile setup after 1.5s if accessed directly without complete profile.
@@ -265,17 +274,18 @@ Status: In progress (dev‑testable UI shipped)
   - Files: `src/js/pages/GroupsPage.js`, `src/js/pages/GroupDetailPage.js`, `src/css/groups.css`.
 
 - Groups — Message Pagination (PRD Requirement)
+
   - Implemented "Load Older Messages" button with scroll anchoring (PRD: "Pagination (limit 50), listener only on active chat").
   - **Load Older Button**: Appears when ≥50 messages loaded and more messages exist; positioned at top of chat.
   - **Scroll Anchoring**: Preserves scroll position when loading older messages (prevents jump to bottom).
-  - **Service Implementation**: 
+  - **Service Implementation**:
     - `listenToMessages()`: Uses `orderBy("createdAt", "desc")` + `limit(50)` to fetch latest 50 messages, then reverses in-memory for chronological display.
     - `loadMore()`: Uses `orderBy("createdAt", "desc")` + `startAfter(firstDoc)` to page backward through older messages, reverses for display.
     - **Fix Applied**: Changed from ascending order (which showed oldest first) to descending order (shows latest first), matching PRD requirement.
   - **Pagination Cursor Preservation (Critical Fix)**:
     - **Problem**: Realtime listener overwrote `this.lastDocs` on every update, destroying pagination cursor when new messages arrived.
     - **Solution**: Added separate `this.earliestDoc` field that preserves the pagination cursor across realtime updates.
-    - **Minimal Fix Logic**: 
+    - **Minimal Fix Logic**:
       - `this.earliestDoc` set ONLY on initial load (`if (this.earliestDoc === null)`)
       - Realtime listener NEVER overwrites `this.earliestDoc` (only updates `this.lastDocs` for deduplication)
       - "Load Older" handler uses `this.earliestDoc` as cursor, updates it to `docs[0]` from loadMore result
@@ -283,7 +293,7 @@ Status: In progress (dev‑testable UI shipped)
   - **Message Update Handling (Critical Fix)**:
     - **Problem**: Realtime listener filtered out existing message IDs (`!existingIds.has(m.id)`), so message edits, deletions, and moderation actions were ignored; stale copies remained in UI forever.
     - **Solution**: Replace existing messages instead of filtering them out using Map-based update logic.
-    - **Implementation**: 
+    - **Implementation**:
       - Create map of existing messages by ID for O(1) lookup
       - For each incoming message: if ID exists, replace at same index; if new, append
       - Re-sort chronologically after updates to maintain order
@@ -298,6 +308,7 @@ Status: In progress (dev‑testable UI shipped)
   - Files: `src/js/pages/GroupDetailPage.js`, `src/js/services/groups/ClassSpacesService.js`, `public/templates/group.html`, `src/css/groups.css`.
 
 - Moderation v1 — Report Modal (PRD Phase 5)
+
   - Implemented report modal with reason selection and description validation (PRD: "Report modal: reason in {Harassment, Spam, Impersonation, Inappropriate profile, Other} + required description ≥50 chars").
   - **ReportModal Component**: Reusable modal for reporting users or messages with 5 reason categories.
   - **Validation**: Enforces minimum 50 characters for description; real-time character counter shows progress (green at 50+).
@@ -322,7 +333,7 @@ Status: In progress (dev‑testable UI shipped)
     - `CACHE_TTL`: 5 minutes (300,000ms) - hard expiration
     - `SOFT_REFRESH_TTL`: 1 minute (60,000ms) - refreshes on navigation if stale
     - Methods: `get(userId, softRefresh)`, `set(data, userId)`, `getAge(userId)`, `getAgeString(userId)`, `isValid(userId, softRefresh)`, `clear(userId)`, `invalidate(userId)`
-  - **User Scoping (Security Fix)**: 
+  - **User Scoping (Security Fix)**:
     - Cache keys include userId: `campxus:groupsCache:{userId}`
     - Validates cached userId matches current user on retrieval
     - Prevents privacy leak when switching accounts on same device
@@ -357,14 +368,14 @@ Status: In progress (dev‑testable UI shipped)
 ## Open TODOs (checkpoint)
 
 - [x] Profiles: social links input UI in Profile Setup (Instagram, LinkedIn, etc.)
-- [ ] Profiles: mutual friends "View all" modal expansion (optional)
+- [x] Profiles: mutual friends "View all" modal expansion (optional)
 - [x] Groups: unread badge on cards (count + recent time)
 - [x] Groups: message pagination (load older + scroll anchor)
-- [ ] Groups: members tab avatar chips with profile click‑through
+- [x] Groups: members tab avatar chips with profile click‑through
 - [x] Gate Groups until `systemInfo.profileSetupComplete === true`
 - [x] Moderation: report modal → `moderationReports/{autoId}`
-- [ ] Moderation: basic block UX (client-side hide)
-- [ ] CF/auth hardening for production sendGroupMessage (ensure ID token; region `us-central1`)
+- [x] Moderation: basic block UX (client-side hide)
+- [x] CF/auth hardening for production sendGroupMessage (ensure ID token; region `us-central1`)
 - [ ] Rules QA: deny direct client writes to non‑dev messages; keep dev path only under `devTest`
 - [x] Profiles: photo upload (512×512 WebP + 128 thumb) + `useAvatar` toggle
 - [x] Profiles: interests chips (predefined + custom, 3–20 chars, ≤10)
