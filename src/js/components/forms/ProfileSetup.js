@@ -4089,6 +4089,18 @@ function initializeProfileSetup() {
   if (!window.profileSetupInstance) {
     console.log("🚀 [DEBUG] No ProfileSetup instance found, creating one.");
     window.profileSetupInstance = new ProfileSetup();
+
+    // Attach critical UI listeners immediately so controls respond
+    // even while waiting for user/profile hydration. Safe to call
+    // multiple times due to data-listener-attached guards.
+    try {
+      // Defer to next frame to ensure template nodes exist
+      requestAnimationFrame(() => {
+        try {
+          window.profileSetupInstance.initSocialLinksUI();
+        } catch (_) {}
+      });
+    } catch (_) {}
   }
 
   // Trigger the initialization process.
