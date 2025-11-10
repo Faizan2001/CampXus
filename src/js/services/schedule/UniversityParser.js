@@ -946,8 +946,8 @@ export class UniversityParser {
           );
           // Try to detect a day code near the time (supports optional colon)
           const dcWindow = searchText.substring(
-            Math.max(0, matchIndex - 6),
-            matchIndex + 1
+            Math.max(0, matchIndex - 10),
+            matchIndex
           );
           const dcMatch = dcWindow.match(/\b(MWF|MW|TR|ST|AR|S|M|T|W|A|F|R)\s*:?[\s]*$/i);
           if (dcMatch) {
@@ -1270,8 +1270,32 @@ export class UniversityParser {
       .trim();
 
     console.log("🔧 Cleaning time string:", timeStr, "→", cleanTimeStr);
+    // Prefer exact full-range matches before any mobile cut-off inference
+    // Pattern 1: Perfect format "18:30-21:30"
+    let match = cleanTimeStr.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
+    if (match) {
+      const [, hour1, min1, hour2, min2] = match;
+      return {
+        startTime: `${hour1.padStart(2, "0")}:${min1}`,
+        endTime: `${hour2.padStart(2, "0")}:${min2}`,
+        inferred: false,
+      };
+    }
 
-    // Check for mobile-responsive cut-off pattern first (highest priority)
+    // Pattern 2: "1830-2130" (no colons)
+    match = cleanTimeStr.match(/(\d{3,4})-(\d{3,4})/);
+    if (match) {
+      let [, time1, time2] = match;
+      time1 = time1.padStart(4, "0");
+      time2 = time2.padStart(4, "0");
+      return {
+        startTime: `${time1.substring(0, 2)}:${time1.substring(2)}`,
+        endTime: `${time2.substring(0, 2)}:${time2.substring(2)}`,
+        inferred: false,
+      };
+    }
+
+    // Check for mobile-responsive cut-off pattern only if no full range was detected
     if (
       cleanTimeStr.includes("CUTOFF") ||
       cleanTimeStr.match(/(\d{1,2}:?\d{0,2})-?$/)
@@ -1301,33 +1325,6 @@ export class UniversityParser {
           };
         }
       }
-    }
-
-    // Try various patterns to extract times (existing logic)
-    let match;
-
-    // Pattern 1: Perfect format "18:30-21:30"
-    match = cleanTimeStr.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
-    if (match) {
-      const [, hour1, min1, hour2, min2] = match;
-      return {
-        startTime: `${hour1.padStart(2, "0")}:${min1}`,
-        endTime: `${hour2.padStart(2, "0")}:${min2}`,
-        inferred: false,
-      };
-    }
-
-    // Pattern 2: "1830-2130" (no colons)
-    match = cleanTimeStr.match(/(\d{3,4})-(\d{3,4})/);
-    if (match) {
-      let [, time1, time2] = match;
-      time1 = time1.padStart(4, "0");
-      time2 = time2.padStart(4, "0");
-      return {
-        startTime: `${time1.substring(0, 2)}:${time1.substring(2)}`,
-        endTime: `${time2.substring(0, 2)}:${time2.substring(2)}`,
-        inferred: false,
-      };
     }
 
     // Pattern 3: Corrupted format like "18302130" (all smashed together)

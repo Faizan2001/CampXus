@@ -1,5 +1,5 @@
 import { initializeApp as initAdminApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import {
   onDocumentCreated,
@@ -950,7 +950,7 @@ export const scheduleDailyClassSpaces = onSchedule(
       }
     }
 
-    // Upsert spaces for buckets with ≥4 members
+    // Upsert spaces for buckets with ≥4 members (production threshold per PRD)
     for (const [spaceId, set] of buckets) {
       const members = Array.from(set);
       const { university, course } = index.get(spaceId) || {};
@@ -1022,7 +1022,7 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
     throw new https.HttpsError("invalid-argument", "Message too long");
   }
 
-  // Rate limit: 1 message per 3 seconds per user per space
+  // Rate limit: 1 message per 2 seconds per user per space
   const rateKey = `msg_${spaceId}`;
   const ok = await incrementRate(uid, rateKey, 1000000); // daily cap very high
   // Enforce a short-term throttle using a per-space user doc
@@ -1030,7 +1030,7 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
   const now = Date.now();
   const throttleSnap = await throttleRef.get();
   const lastAt = throttleSnap.exists ? throttleSnap.data()?.lastAt || 0 : 0;
-  if (now - lastAt < 3000) {
+  if (now - lastAt < 2000) {
     throw new https.HttpsError("resource-exhausted", "Slow down");
   }
   await throttleRef.set({ lastAt: now }, { merge: true });
@@ -1057,22 +1057,34 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
     senderId: uid,
     senderInfo: senderInfo || { handle: "", firstName: "" },
     content,
-    createdAt: new Date(),
+    createdAt: FieldValue.serverTimestamp(),
     edited: false,
     editedAt: null,
     deleted: false,
   });
-  await spaceDoc.ref.set(
-    {
-      lastActivity: new Date(),
-      lastMessagePreview: {
-        content: content.slice(0, 140),
-        senderId: uid,
-        createdAt: new Date(),
-      },
-    },
-    { merge: true }
-  );
+  // Coalesce metadata updates to reduce write pressure: update if >10s or sender changed
+  try {
+    const spaceData = spaceDoc.data() || {};
+    const lastTs = spaceData.lastActivity?.toDate?.() || new Date(0);
+    const timeSince = Date.now() - lastTs.getTime();
+    const lastSender = spaceData.lastMessagePreview?.senderId || null;
+    const shouldUpdate = timeSince > 10000 || lastSender !== uid;
+    if (shouldUpdate) {
+      await spaceDoc.ref.set(
+        {
+          lastActivity: FieldValue.serverTimestamp(),
+          lastMessagePreview: {
+            content: content.slice(0, 140),
+            senderId: uid,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true }
+      );
+    }
+  } catch (e) {
+    logger.warn("sendGroupMessage: metadata coalescing failed", String(e));
+  }
   return { success: true, messageId: msgRef.id };
 });
 
@@ -1101,7 +1113,140 @@ export const trimSpaceMessages = onSchedule(
 );
 
 // =============================================================================
-// 👥 FRIENDSHIP DENORMALIZATION
+// � MANUAL CLASS SPACES SCHEDULER TRIGGER (for staging/testing)
+// =============================================================================
+
+/**
+ * Manual trigger for scheduleDailyClassSpaces
+ * Usage: Call this HTTPS endpoint to run the scheduler on-demand
+ * URL: https://YOUR_REGION-YOUR_PROJECT_ID.cloudfunctions.net/triggerClassSpaceScheduler
+ *
+ * For security, this should be protected in production (add auth check)
+ */
+export const triggerClassSpaceScheduler = https.onRequest(async (req, res) => {
+  // Basic CORS for staging/manual testing
+  try {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") {
+      return res.status(204).send("");
+    }
+
+    // ---------------- SECURITY GUARDRAILS ----------------
+    // EMULATOR ONLY: This endpoint is disabled for hosted environments (staging/prod).
+    const isEmulator =
+      !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+      process.env.FUNCTIONS_EMULATOR === "true";
+    if (!isEmulator) {
+      return res.status(403).json({
+        success: false,
+        error: "Manual scheduler is emulator-only",
+      });
+    }
+
+    logger.info("Manual scheduler trigger called (emulator)");
+
+    // Build buckets by canonical key using users.courses[]
+    const usersSnap = await db.collection("users").get();
+    const buckets = new Map(); // key -> Set<uid>
+    const index = new Map(); // key -> sample course for metadata
+
+    for (const docSnap of usersSnap.docs) {
+      const d = docSnap.data() || {};
+      const uni = d?.universityInfo?.university || "";
+      const arr = Array.isArray(d?.courses) ? d.courses : [];
+      if (!uni || arr.length === 0) continue;
+
+      for (const c of arr) {
+        const id = buildSpaceIdFromCourse(uni, c);
+        if (!id) continue;
+        if (!buckets.has(id)) buckets.set(id, new Set());
+        buckets.get(id).add(docSnap.id);
+        if (!index.has(id)) index.set(id, { university: uni, course: c });
+      }
+    }
+
+    let spacesCreated = 0;
+    let spacesDeactivated = 0;
+
+    // Upsert spaces for buckets with ≥2 members (lowered from 4 for staging)
+    for (const [spaceId, set] of buckets) {
+      const members = Array.from(set);
+      const { university, course } = index.get(spaceId) || {};
+      const ref = db.collection("classSpaces").doc(spaceId);
+
+      if (members.length >= 2) {
+        // Prepare memberInfo cache
+        const memberInfo = {};
+        const preview = members.slice(0, 20);
+        await Promise.all(
+          preview.map(async (uid) => {
+            const info = await fetchMemberInfo(uid);
+            if (info) memberInfo[uid] = info;
+          })
+        );
+
+        const payload = {
+          spaceId,
+          university,
+          courseName: course?.courseName || null,
+          courseCode: course?.courseCode || null,
+          section: course?.section || null,
+          dayPattern: course?.dayPattern || null,
+          timeSlot: course?.timeSlot || null,
+          timeStart: course?.timeStart || null,
+          timeEnd: course?.timeEnd || null,
+          classroom: course?.classroom || null,
+          memberIds: members,
+          memberCount: members.length,
+          memberInfo,
+          active: true,
+          lastMemberUpdate: new Date(),
+          updatedAt: new Date(),
+          createdAt: new Date(),
+          visibility: "university",
+        };
+        await ref.set(payload, { merge: true });
+        spacesCreated++;
+      } else {
+        // If space exists, mark inactive but keep history
+        const snap = await ref.get();
+        if (snap.exists) {
+          await ref.set(
+            { active: false, updatedAt: new Date() },
+            { merge: true }
+          );
+          spacesDeactivated++;
+        }
+      }
+    }
+
+    logger.info("Manual scheduler completed", {
+      totalBuckets: buckets.size,
+      spacesCreated,
+      spacesDeactivated,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Class spaces scheduler executed successfully",
+      totalBuckets: buckets.size,
+      spacesCreated,
+      spacesDeactivated,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error("Manual scheduler trigger failed", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// =============================================================================
+// �👥 FRIENDSHIP DENORMALIZATION
 // =============================================================================
 
 /**
@@ -1224,3 +1369,96 @@ async function updateUserFriendIds(userId, friendId, isAdd) {
     throw error;
   }
 }
+
+// =============================================================================
+// 📨 MESSAGE ON-CREATE TRIGGER (direct write path)
+// =============================================================================
+
+export const onMessageCreate = onDocumentCreated(
+  "classSpaces/{spaceId}/messages/{messageId}",
+  async (event) => {
+    try {
+      const { spaceId, messageId } = event.params || {};
+      const snap = event.data;
+      if (!snap) return;
+      const message = snap.data();
+      if (!message) return;
+
+      const senderId = message.senderId || "";
+      const content = String(message.content || "").trim();
+      if (!senderId || !content) return;
+
+      // Post-hoc rate limiting: 1 message / 3s per user per space
+      const throttleRef = db.collection("rateLimits").doc(`${spaceId}_${senderId}`);
+      const now = Date.now();
+      let violated = false;
+      try {
+        await db.runTransaction(async (tx) => {
+          const throttleSnap = await tx.get(throttleRef);
+          const lastAt = throttleSnap.exists ? throttleSnap.data()?.lastAt || 0 : 0;
+          if (now - lastAt < 2000) { // 2s window
+            // Violation: delete message and record
+            tx.delete(snap.ref);
+            tx.set(
+              throttleRef,
+              {
+                lastAt,
+                violations: FieldValue.increment(1),
+                lastViolation: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+            violated = true;
+            logger.warn("Rate limit violation (onCreate)", { spaceId, senderId, messageId });
+            return;
+          }
+          tx.set(throttleRef, { lastAt: now }, { merge: true });
+        });
+      } catch (e) {
+        logger.warn("onMessageCreate: rate-limit txn failed", String(e));
+      }
+
+      if (violated) {
+        // Short-circuit: do not recreate the doc or update metadata
+        return;
+      }
+
+      // Ensure messageId and senderInfo snapshot exist for UI rendering
+      try {
+        const info = await fetchMemberInfo(senderId);
+        const setPayload = { messageId: event.params?.messageId || snap.id };
+        if (info) setPayload.senderInfo = info;
+        await snap.ref.set(setPayload, { merge: true });
+      } catch (_) {}
+
+      // Update parent space metadata with 10s coalescing or when sender changes
+      try {
+        const spaceRef = db.collection("classSpaces").doc(spaceId);
+        const spaceDoc = await spaceRef.get();
+        if (!spaceDoc.exists) return;
+        const data = spaceDoc.data() || {};
+        const lastTs = data.lastActivity?.toDate?.() || new Date(0);
+        const timeSince = Date.now() - lastTs.getTime();
+        const lastSender = data.lastMessagePreview?.senderId || null;
+        const shouldUpdate = timeSince > 10000 || lastSender !== senderId;
+        if (shouldUpdate) {
+          await spaceRef.set(
+            {
+              lastActivity: FieldValue.serverTimestamp(),
+              lastMessagePreview: {
+                content: content.slice(0, 140),
+                senderId,
+                createdAt: FieldValue.serverTimestamp(),
+              },
+            },
+            { merge: true }
+          );
+        }
+      } catch (e) {
+        logger.warn("onMessageCreate: metadata update failed", String(e));
+      }
+    } catch (err) {
+      logger.error("onMessageCreate failed", err);
+    }
+  }
+);

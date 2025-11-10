@@ -4,6 +4,7 @@ import { unreadTracker } from "../services/groups/UnreadTracker.js";
 import { currentUser } from "../store/userStore.js";
 import { blockService } from "../services/social/BlockService.js";
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js";
+import { friendsManager } from "../services/friends/FriendsService.js";
 
 export class GroupDetailPage {
   constructor() {
@@ -16,6 +17,7 @@ export class GroupDetailPage {
     this.hasMoreMessages = true;
     this.isLoadingMore = false;
     this._initialRenderDone = false; // track first paint for auto-scroll
+    this._lastSendAtBySpace = {}; // client-side rate limit (per space)
   }
 
   // Re-render members list state (blocked badges/buttons) without full reload
@@ -172,6 +174,10 @@ export class GroupDetailPage {
     // Members list (with avatar chips + block/unblock actions)
     const memberIds = Array.isArray(space.memberIds) ? space.memberIds : [];
     const memberInfo = space.memberInfo || {};
+    // Quick check to avoid showing Add button for existing friends (uses denormalized friendIds)
+    const myFriendIds = Array.isArray(currentUser?.profile?.socialInfo?.friendIds)
+      ? new Set(currentUser.profile.socialInfo.friendIds)
+      : new Set();
     membersList.innerHTML = memberIds
       .map((uid) => {
         if (uid === myUid) return ""; // Skip self
@@ -184,6 +190,7 @@ export class GroupDetailPage {
         const photo = info.profilePhotoUrl || null;
         const avatar = photo || getAvatarUrl({ avatarConfig: info.avatarConfig }) || null;
         const blocked = blockService.isBlocked(myUid, uid);
+        const alreadyFriend = myFriendIds.has(uid);
         return `
           <div class="member-item${blocked ? " blocked" : ""}" data-uid="${uid}">
             <div class="member-main">
@@ -197,6 +204,13 @@ export class GroupDetailPage {
               <a class="member-profile-btn" href="#user?id=${target}" title="View profile" aria-label="View profile">
                 <i class="fas fa-id-badge"></i>
               </a>
+              ${
+                alreadyFriend
+                  ? `<button class="member-friends-btn" title="Friends" aria-label="Friends" disabled><i class="fas fa-user-check"></i></button>`
+                  : `<button class="member-add-btn" data-uid="${uid}" data-handle="${
+                      info.handle || ""
+                    }" data-major="${info.major || ""}" title="Add friend" aria-label="Add friend"><i class="fas fa-user-plus"></i></button>`
+              }
               ${
                 blocked
                   ? `<button class="member-unblock-btn" data-uid="${uid}" title="Unblock user" aria-label="Unblock user"><i class="fas fa-user-check"></i></button>`
@@ -255,6 +269,51 @@ export class GroupDetailPage {
         blockService.unblock(myUid, uid);
         this.refreshMembersList(space, myUid);
         this.renderMessages(messagesEl, myUid);
+      });
+    });
+
+    // Bind add-friend buttons
+    const addFriendBtns = membersList.querySelectorAll(".member-add-btn");
+    addFriendBtns.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const uid = btn.dataset.uid;
+        if (!uid) return;
+
+        // Compose minimal target user data using cached memberInfo and space university
+        const info = memberInfo[uid] || {};
+        const targetUserData = {
+          profile: {
+            handle: info.handle || "",
+            major: info.major || "",
+          },
+          avatarConfig: info.avatarConfig || null,
+          universityInfo: { university: space.university || "" },
+        };
+
+        try {
+          btn.disabled = true;
+          const originalHtml = btn.innerHTML;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+          const res = await friendsManager.sendFriendRequest(uid, targetUserData);
+          if (res?.success) {
+            btn.className = "member-friends-btn";
+            btn.innerHTML = '<i class="fas fa-clock"></i>';
+            btn.title = "Pending";
+            btn.setAttribute("aria-label", "Pending");
+            btn.disabled = true;
+          } else {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert(res?.message || "Failed to send friend request");
+          }
+        } catch (err) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-user-plus"></i>';
+          console.error("[GroupDetailPage] Add friend failed", err);
+          alert("Failed to send friend request");
+        }
       });
     });
 
@@ -420,6 +479,18 @@ export class GroupDetailPage {
     sendBtn.addEventListener("click", async () => {
       const text = (input.value || "").trim();
       if (!text) return;
+      // Client-side 3s throttle per space (additional to server checks)
+      try {
+        const now = Date.now();
+        const lastAt = this._lastSendAtBySpace[this.spaceId] || 0;
+        if (now - lastAt < 3100) {
+          const waitMs = 3100 - (now - lastAt);
+          const secs = Math.ceil(waitMs / 1000);
+          alert(`Please wait ${secs}s before sending another message.`);
+          return;
+        }
+        this._lastSendAtBySpace[this.spaceId] = now;
+      } catch (_) {}
       try {
         sendBtn.disabled = true;
         await classSpacesService.sendMessage(this.spaceId, text);
@@ -476,6 +547,7 @@ export class GroupDetailPage {
           m.senderInfo?.firstName ||
           m.senderInfo?.handle ||
           (isMe ? "You" : m.senderId);
+        const safeSender = escapeHtml(sender);
         const text = m.content || "";
         const ts = m.createdAt?.toDate?.() || null;
         const time = ts
@@ -490,7 +562,7 @@ export class GroupDetailPage {
           : "";
         return `<div class="message" data-msgid="${
           m.id
-        }"><div class="${bubbleClass}"><span class="sender">${sender}</span><span class="time">${time}</span><div class="text">${escapeHtml(
+        }"><div class="${bubbleClass}"><span class="sender">${safeSender}</span><span class="time">${time}</span><div class="text">${escapeHtml(
           text
         )}</div>${reportBtn}</div></div>`;
       })

@@ -59,8 +59,9 @@ export class ClassSpacesService {
     if (!uid) {
       throw new Error("Must be signed in");
     }
-    // If this is a dev test space you own, bypass CF to avoid 401 noise in dev
+    // Load space metadata to choose path
     const space = await this.getSpace(spaceId);
+    // Dev test spaces: write directly (onCreate trigger will coalesce metadata)
     if (
       space?.devTest === true &&
       Array.isArray(space.memberIds) &&
@@ -69,68 +70,50 @@ export class ClassSpacesService {
       const messagesRef = collection(db, "classSpaces", spaceId, "messages");
       const ref = await addDoc(messagesRef, {
         senderId: uid,
-        senderInfo: {},
         content,
         createdAt: serverTimestamp(),
         edited: false,
         editedAt: null,
         deleted: false,
       });
-      await updateDoc(doc(db, "classSpaces", spaceId), {
-        lastActivity: serverTimestamp(),
-        lastMessagePreview: {
-          content: content.slice(0, 140),
-          senderId: uid,
-          createdAt: serverTimestamp(),
-        },
-      });
       return ref.id;
     }
 
+    // Preferred path for production spaces: direct write (rules validate membership)
     try {
-      const { getFunctions, httpsCallable } = await import(
-        "firebase/functions"
-      );
-      // Use explicit region to match deployed functions and avoid 401/mismatch
-      const functions = getFunctions(app, "us-central1");
-      const callable = httpsCallable(functions, "sendGroupMessage");
-      const res = await callable({ spaceId, content });
-      return res?.data?.messageId || null;
-    } catch (e) {
-      // Fallback for dev test spaces (if server auth failed due to 401 in dev)
-      const msg = String(e?.message || "");
-      const unauth =
-        msg.includes("unauthenticated") ||
-        msg.includes("Must be signed in") ||
-        msg.includes("401");
-      if (!unauth) throw e;
-      if (
-        space?.devTest === true &&
-        Array.isArray(space.memberIds) &&
-        space.memberIds.includes(uid)
-      ) {
-        // Write directly to messages and update metadata
+      if (Array.isArray(space?.memberIds) && space.memberIds.includes(uid)) {
         const messagesRef = collection(db, "classSpaces", spaceId, "messages");
         const ref = await addDoc(messagesRef, {
           senderId: uid,
-          senderInfo: {},
           content,
           createdAt: serverTimestamp(),
           edited: false,
           editedAt: null,
           deleted: false,
         });
-        await updateDoc(doc(db, "classSpaces", spaceId), {
-          lastActivity: serverTimestamp(),
-          lastMessagePreview: {
-            content: content.slice(0, 140),
-            senderId: uid,
-            createdAt: serverTimestamp(),
-          },
-        });
         return ref.id;
       }
-      throw e;
+      throw new Error("Not a member");
+    } catch (directErr) {
+      console.warn("Direct write failed, trying callable path", directErr);
+      try {
+        const { getFunctions, httpsCallable, connectFunctionsEmulator } = await import(
+          "firebase/functions"
+        );
+        const functions = getFunctions(app, "us-central1");
+        const isLocal =
+          typeof window !== "undefined" &&
+          (window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1");
+        if (isLocal) {
+          try { connectFunctionsEmulator(functions, "localhost", 5001); } catch (_) {}
+        }
+        const callable = httpsCallable(functions, "sendGroupMessage");
+        const res = await callable({ spaceId, content });
+        return res?.data?.messageId || null;
+      } catch (e2) {
+        throw e2;
+      }
     }
   }
 }

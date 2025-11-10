@@ -307,6 +307,23 @@ Status: In progress (dev‑testable UI shipped)
   - **Auto-scroll Logic**: Scrolls to bottom only for new messages or when already at bottom (not when viewing history).
   - Files: `src/js/pages/GroupDetailPage.js`, `src/js/services/groups/ClassSpacesService.js`, `public/templates/group.html`, `src/css/groups.css`.
 
+- Groups — Members: Add Friend (PRD)
+
+  - Added inline "Add Friend" action to each member row (excluding self) in the Members tab.
+  - Uses denormalized `socialInfo.friendIds` from the current user's profile to hide the button for existing friends and render a disabled "Friends" state.
+  - On click, sends friend request via `friendsManager.sendFriendRequest(uid, targetUserData)` using cached member info and the space university for the minimal payload.
+  - Button states: default (user-plus icon) → sending (spinner) → pending (clock icon, disabled) on success; alerts on error.
+  - Accessibility: aria-labels/tooltips added.
+  - Files: `src/js/pages/GroupDetailPage.js`, `src/css/groups.css`.
+
+- CF/Rules Hardening — QA Complete
+
+  - Verified Firestore rules prevent direct client writes to messages under non‑dev spaces; only allow creates when parent `classSpaces/{spaceId}` has `devTest==true` and `devOwnerUid==request.auth.uid`.
+  - Confirmed classSpaces metadata writes are CF‑only except the narrowly scoped dev path; attempts to flip a prod doc into dev are blocked by checks on both `resource.data` and `request.resource.data`.
+  - Client uses callable CF (`sendGroupMessage`) with explicit region `us-central1` to avoid auth/region mismatch.
+  - No rule changes required; documented QA outcome.
+  - Files: `firestore.rules`, `src/js/services/groups/ClassSpacesService.js`, `functions/index.js`.
+
 - Moderation v1 — Report Modal (PRD Phase 5)
 
   - Implemented report modal with reason selection and description validation (PRD: "Report modal: reason in {Harassment, Spam, Impersonation, Inappropriate profile, Other} + required description ≥50 chars").
@@ -376,7 +393,10 @@ Status: In progress (dev‑testable UI shipped)
 - [x] Moderation: report modal → `moderationReports/{autoId}`
 - [x] Moderation: basic block UX (client-side hide)
 - [x] CF/auth hardening for production sendGroupMessage (ensure ID token; region `us-central1`)
-- [ ] Rules QA: deny direct client writes to non‑dev messages; keep dev path only under `devTest`
+- [x] Rules QA: deny direct client writes to non‑dev messages; keep dev path only under `devTest`
+- [x] Messaging v2: serverTimestamp() + 10s metadata coalescing
+- [x] Messaging v2: enable direct client writes with rules membership check
+- [x] Messaging v2: onCreate trigger adds senderInfo, enforces post‑hoc rate limit, coalesces metadata
 - [x] Profiles: photo upload (512×512 WebP + 128 thumb) + `useAvatar` toggle
 - [x] Profiles: interests chips (predefined + custom, 3–20 chars, ≤10)
 - [x] Profiles: curated Q&A (≥1, ≤5); require ≥1; store and prefill on setup
@@ -395,6 +415,7 @@ Status: In progress (dev‑testable UI shipped)
 - Dev simulation: `src/js/services/groups/DevSpaceTools.js`
 - Firestore rules: `firestore.rules`
 - Cloud Functions (scheduler, trim, callable): `functions/index.js`
+- Cloud Functions (message onCreate trigger): `functions/index.js`
 - Courses normalization: `src/js/utils/schedule/courseNormalization.js`
 - Schedule save hook: `src/js/services/schedule/ScheduleStorageService.js`
 - Profile setup (for v1 fields): `src/js/components/forms/ProfileSetup.js`
@@ -447,8 +468,11 @@ firebase deploy --only functions:scheduleDailyClassSpaces,functions:sendGroupMes
   - Mobile‑first card grid and chat UI (`src/css/groups.css`).
   - Navigation buttons added (top + bottom nav).
 - Messaging
-  - Cloud Function callable in place; dev fallback implemented for `devTest` spaces to avoid CF auth friction.
-  - Rules updated to allow dev owner create/update/delete and messages create for dev spaces only.
+  - Phase 1: Migrated to serverTimestamp() for message and metadata times.
+  - Phase 1: Added 10s metadata coalescing to reduce write pressure on `classSpaces` parent.
+  - Phase 2: Enabled direct client writes with strict Firestore Rules (membership + validation).
+  - Phase 2: Added onCreate trigger to populate senderInfo, enforce post‑hoc 1/3s rate limit, and coalesce metadata.
+  - Dev test spaces continue to work with direct writes; callable kept as fallback.
   - Trim and scheduler jobs present and timezone set (Asia/Dhaka).
 - Dev simulation
   - Create/Clear Test Spaces tools; owner‑scoped.

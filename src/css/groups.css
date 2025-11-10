@@ -47,6 +47,12 @@ body.page-group .main-content {
   border-color: rgba(255, 0, 0, 0.25);
 }
 
+.groups-page .dev-tools .btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: rgba(102, 126, 234, 0.5);
+  font-weight: 500;
+}
+
 /* Cards grid */
 .groups-list {
   display: grid;
@@ -478,7 +484,9 @@ body.page-group .main-content {
 }
 
 .member-profile-btn,
-.member-report-btn {
+.member-report-btn,
+.member-add-btn,
+.member-friends-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.7);
@@ -529,6 +537,17 @@ body.page-group .main-content {
   background: rgba(255, 75, 87, 0.15);
   border-color: rgba(255, 75, 87, 0.3);
   color: #ff4b57;
+}
+
+.member-add-btn:hover {
+  background: rgba(108, 99, 255, 0.15);
+  border-color: rgba(108, 99, 255, 0.3);
+  color: #6c63ff;
+}
+
+.member-friends-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Message report button */
