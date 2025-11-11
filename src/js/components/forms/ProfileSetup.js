@@ -3473,7 +3473,8 @@ export function isValidStartingYear(year) {
   if (isNaN(yearNum)) return false;
 
   const currentYear = new Date().getFullYear();
-  return yearNum >= currentYear - 6 && yearNum <= currentYear;
+  // Allow reasonable undergrad ranges: up to 9 years in the past, not in the future
+  return yearNum >= currentYear - 9 && yearNum <= currentYear;
 }
 
 /**

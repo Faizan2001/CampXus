@@ -105,7 +105,7 @@ export class UniversityParser {
         const course = this.parseCourseLine(line);
         if (course) {
           // Check for duplicates based on course code and time
-          const courseKey = `${course.courseCode}-${course.startTime}-${course.endTime}`;
+          const courseKey = `${course.courseCode}-${course.startTime}-${course.endTime}-${course.dayCode || 'UNK'}`;
           if (!seenCourses.has(courseKey)) {
             courses.push(course);
             seenCourses.add(courseKey);
@@ -137,7 +137,7 @@ export class UniversityParser {
           const nextLine = lines[i + 1].trim();
           const multilineCourse = this.parseMultilineFormat(line, nextLine);
           if (multilineCourse) {
-            const courseKey = `${multilineCourse.courseCode}-${multilineCourse.startTime}-${multilineCourse.endTime}`;
+            const courseKey = `${multilineCourse.courseCode}-${multilineCourse.startTime}-${multilineCourse.endTime}-${multilineCourse.dayCode || 'UNK'}`;
             if (!seenCourses.has(courseKey)) {
               courses.push(multilineCourse);
               seenCourses.add(courseKey);
@@ -168,7 +168,7 @@ export class UniversityParser {
         // If standard parsing failed, try smart critical elements extraction
         const smartExtracted = this.parseFragmentedMobileLine(line, lines, i);
         if (smartExtracted) {
-          const courseKey = `${smartExtracted.courseCode}-${smartExtracted.startTime}-${smartExtracted.endTime}`;
+          const courseKey = `${smartExtracted.courseCode}-${smartExtracted.startTime}-${smartExtracted.endTime}-${smartExtracted.dayCode || 'UNK'}`;
           if (!seenCourses.has(courseKey)) {
             courses.push(smartExtracted);
             seenCourses.add(courseKey);
@@ -795,9 +795,18 @@ export class UniversityParser {
         );
 
         // Resolve day code: prefer detected day code from text; fallback to inference
-        const resolvedDayCode = (dayCode && this.dayCodes[dayCode])
+        const resolvedDayCode = dayCode && this.dayCodes[dayCode]
           ? dayCode
           : this.inferDayCodeFromTime(timeResult.startTime) || "ST";
+
+        // If we smart-extracted from a header-like line, mark the next line as part of this fragment
+        // so it doesn't get re-parsed as a duplicate.
+        const headerKeywords = [/^code\b/i, /^semester/i, /^year\b/i, /^attendance\*/i, /^grade\b/i];
+        const isHeaderLike = headerKeywords.some((re) => re.test(line));
+        const fragmentedParts = [line];
+        if (isHeaderLike && allLines && allLines[currentIndex + 1]) {
+          fragmentedParts.push(allLines[currentIndex + 1]);
+        }
 
         return {
           courseCode: this.correctCourseCode(courseCode),
@@ -815,6 +824,7 @@ export class UniversityParser {
           originalLine: line,
           confidence: "smart-extracted",
           extractedElements: { courseCode, room, timeInfo },
+          fragmentedParts,
         };
       }
     }
@@ -903,67 +913,110 @@ export class UniversityParser {
     console.log(`🏢 Final room: ${room || "Not found"}`);
 
     // Enhanced time extraction with better pattern recognition
-    const timePatterns = [
-      // Full time patterns (highest priority)
-      /ST?:?(\d{1,2}:\d{2}-\d{1,2}:\d{2})/i, // ST:14:40-16:10
-      /T:?(\d{1,2}:\d{2}-\d{1,2}:\d{2})/i, // T:18:30-21:30
-      /(\d{1,2}:\d{2}-\d{1,2}:\d{2})/, // 14:40-16:10
-
-      // Partial patterns with context
-      /ST:?(\d{1,2}:\d{1,2})-?/i, // ST:14:40-, ST14:40
-      /T:?(\d{1,2}:\d{1,2})-?/i, // T:18:30-
-
-      // Compact patterns - just the start time
-      /ST:?(\d{1,2}:\d{1,2})/i, // ST:14:40, ST14:40
-      /ST:?(\d{2,4})/i, // ST:1440, ST1440
-      /T:?(\d{1,2}:\d{1,2})/i, // T:18:30
-
-      // Handle corrupted time fragments like "ST16:2" (should be "ST:16:20")
-      /ST(\d{1,2}):?(\d{1,2})/i, // ST16:2 → 16:20
-      /ST(\d{2})(\d)/i, // ST162 → 16:20
-
-      // Very compact - just numbers that could be time
-      /\b(\d{1,2}:\d{1,2})\b/, // 14:40
-      /\b(\d{3,4})\b/, // 1440, 1830
-    ];
-
     let timeInfo = null;
     let timeContext = "";
+    let detectedDayCode = null;
+
+    // Build a dynamic day-code regex from configured university day codes, match longest first
+    const dayKeys = Object.keys(this.dayCodes || {})
+      .sort((a, b) => b.length - a.length)
+      .join("|");
+
+    const dayTimeRangeRegex = new RegExp(
+      `\\b(${dayKeys})\\s*:?(\\d{1,2}:\\d{2})-(\\d{1,2}:\\d{2})`,
+      "i"
+    );
+    const partialDayTimeRegex = new RegExp(
+      `\\b(${dayKeys})\\s*:?(\\d{1,2}:\\d{1,2})-?`,
+      "i"
+    );
 
     // Prefer extracting time from the current line first, then fallback to combined context
     const timeSearchTexts = [line, combinedText];
-    let detectedDayCode = null;
     for (const searchText of timeSearchTexts) {
-      for (const pattern of timePatterns) {
-        const timeMatch = searchText.match(pattern);
-        if (timeMatch) {
-          timeInfo = timeMatch[1];
-          // Capture surrounding context for better processing
-          const matchIndex = searchText.indexOf(timeMatch[0]);
+      // 1) Try day-coded full time first (e.g., MW:13:00-14:30)
+      let m = searchText.match(dayTimeRangeRegex);
+      if (m) {
+        detectedDayCode = m[1].toUpperCase();
+        timeInfo = `${m[2]}-${m[3]}`;
+        const matchIndex = searchText.indexOf(m[0]);
+        timeContext = searchText.substring(
+          Math.max(0, matchIndex - 20),
+          Math.min(searchText.length, matchIndex + m[0].length + 20)
+        );
+        console.log(
+          `⏰ Found day-coded time: "${m[0]}" → day=${detectedDayCode}, time="${timeInfo}"`
+        );
+        break;
+      }
+
+      // 2) Try generic full time range next
+      m = searchText.match(/(\d{1,2}:\d{2}-\d{1,2}:\d{2})/);
+      if (m) {
+        timeInfo = m[1];
+        const matchIndex = searchText.indexOf(m[0]);
+        timeContext = searchText.substring(
+          Math.max(0, matchIndex - 20),
+          Math.min(searchText.length, matchIndex + m[0].length + 20)
+        );
+        // Try to detect a day code immediately preceding the time
+        const dcWindow = searchText.substring(
+          Math.max(0, matchIndex - 10),
+          matchIndex
+        );
+        const dcMatch = dcWindow.match(
+          new RegExp(`\\b(${dayKeys})\\s*:?[\\s]*$`, "i")
+        );
+        if (dcMatch) {
+          detectedDayCode = dcMatch[1].toUpperCase();
+        }
+        console.log(
+          `⏰ Found time pattern: "${m[0]}" → extracted: "${timeInfo}"`
+        );
+        console.log(`📍 Time context: "${timeContext}"`);
+        break;
+      }
+
+      // 3) Try day-coded partial start time (e.g., MW:13:00- or MW:13:0)
+      m = searchText.match(partialDayTimeRegex);
+      if (m) {
+        detectedDayCode = m[1].toUpperCase();
+        timeInfo = m[2];
+        const matchIndex = searchText.indexOf(m[0]);
+        timeContext = searchText.substring(
+          Math.max(0, matchIndex - 20),
+          Math.min(searchText.length, matchIndex + m[0].length + 20)
+        );
+        console.log(
+          `⏰ Found partial day-coded time: "${m[0]}" → day=${detectedDayCode}, start="${timeInfo}"`
+        );
+        break;
+      }
+
+      // 4) Other compact patterns and fragments
+      const fallbackPatterns = [
+        /\b(\d{1,2}:\d{1,2})\b/, // 14:40
+        /\b(\d{3,4})\b/, // 1440, 1830
+      ];
+      for (const pattern of fallbackPatterns) {
+        const tm = searchText.match(pattern);
+        if (tm) {
+          timeInfo = tm[1];
+          const matchIndex = searchText.indexOf(tm[0]);
           timeContext = searchText.substring(
             Math.max(0, matchIndex - 20),
-            matchIndex + timeMatch[0].length + 20
+            Math.min(searchText.length, matchIndex + tm[0].length + 20)
           );
-          // Try to detect a day code near the time (supports optional colon)
-          const dcWindow = searchText.substring(
-            Math.max(0, matchIndex - 6),
-            matchIndex + 1
-          );
-          const dcMatch = dcWindow.match(/\b(MWF|MW|TR|ST|AR|S|M|T|W|A|F|R)\s*:?[\s]*$/i);
-          if (dcMatch) {
-            detectedDayCode = dcMatch[1].toUpperCase();
-          }
           console.log(
-            `⏰ Found time pattern: "${timeMatch[0]}" → extracted: "${timeInfo}"`
+            `⏰ Found fallback time pattern: "${tm[0]}" → extracted: "${timeInfo}"`
           );
-          console.log(`📍 Time context: "${timeContext}"`);
           break;
         }
       }
       if (timeInfo) break;
     }
 
-    // Special handling for very compact times like "ST:44" which might be "ST:14:44"
+    // Special handling for very compact times like "ST:44" which might be "ST:14:40"
     if (timeInfo && timeInfo.match(/^\d{1,2}$/) && timeInfo.length <= 2) {
       const timeVal = parseInt(timeInfo);
 
@@ -1087,11 +1140,13 @@ export class UniversityParser {
     const hour = parseInt(startTime.split(":")[0]);
 
     // Simple heuristics based on common university scheduling
-    if (hour >= 8 && hour <= 12) return "MW"; // Morning classes usually MW
-    if (hour >= 14 && hour <= 17) return "ST"; // Afternoon classes usually ST
-    if (hour >= 18) return "T"; // Evening classes usually T
+    // Treat 08–13 as MW (morning to early afternoon), 15–17 as ST, >=18 as T
+    if (hour >= 8 && hour <= 13) return "MW";
+    if (hour >= 15 && hour <= 17) return "ST";
+    if (hour >= 18) return "T";
 
-    return "ST"; // Default
+    // Conservative fallback — prefer MW over ST to avoid misclassifying 13:00 as ST
+    return "MW";
   }
 
   /**
