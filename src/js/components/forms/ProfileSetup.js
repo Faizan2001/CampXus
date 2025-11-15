@@ -106,7 +106,7 @@ class ProfileSetup {
     }
 
     this.currentStep = 0;
-    this.totalSteps = 3; // Basic Info, Avatar & Bio, Schedule Import
+    this.totalSteps = 4; // 0: Basics, 1: Photo/Avatar, 2: Story, 3: Schedule & Social
     this.profileData = {};
     this.avatarConfig = null; // Stores user's avatar configuration
     this.scheduleData = null; // Stores imported schedule data
@@ -174,9 +174,9 @@ class ProfileSetup {
     this.qnaAnswers = new Map(); // id -> answer string
     this.qnaSelectedIds = new Set(); // selected question ids
 
-    // Profile photo state
+    // Profile photo state (photo-first by default)
     this.profilePhotoUrl = null;
-    this.useAvatar = true;
+    this.useAvatar = false;
 
     // Interests
     this.interests = new Set();
@@ -547,7 +547,7 @@ class ProfileSetup {
         bioCount.textContent = bioValue.length;
       }
 
-      // Load existing Q/A answers (we render Q/A UI later via initQnaUI)
+      // Load existing icebreaker answers (Q&A) - rendered later via initQnaUI
       try {
         const qna = profile.qnaResponses || [];
         if (Array.isArray(qna) && qna.length) {
@@ -559,15 +559,38 @@ class ProfileSetup {
         }
       } catch (_) {}
 
-      // Load photo + useAvatar
+      // Load photo + useAvatar (photo-first by default for new users)
       try {
-        const useAvatar = !!getProfileValue("useAvatar", true);
+        // Read raw values from the organized profile object so we can detect absence
+        const rawUseAvatar = Object.prototype.hasOwnProperty.call(
+          profile,
+          "useAvatar"
+        )
+          ? profile.useAvatar
+          : null;
+        const hasStoredUseAvatar =
+          rawUseAvatar !== null && rawUseAvatar !== undefined;
+        const storedUseAvatar = !!rawUseAvatar;
+
         const photoUrl = getProfileValue("profilePhotoUrl", "");
-        this.useAvatar = useAvatar;
         this.profilePhotoUrl = photoUrl || null;
+
+        if (hasStoredUseAvatar) {
+          // Respect explicit user preference whenever it exists,
+          // even if a profile photo is available.
+          this.useAvatar = storedUseAvatar;
+        } else {
+          // No stored preference (brand-new or legacy profile) → photo-first.
+          // Photo preview will show either their uploaded photo or a neutral placeholder.
+          this.useAvatar = false;
+        }
+
         const toggle = document.getElementById("use-avatar-toggle");
         if (toggle) toggle.checked = !!this.useAvatar;
         this.updatePhotoPreview();
+        this._updateSwapButtonLabel();
+        this._updatePhotoHelperText();
+        this._updateAvatarPhotoMode();
       } catch (_) {}
 
       // Load interests
@@ -1042,7 +1065,7 @@ class ProfileSetup {
     this.initMajorTypeahead();
     this.initStartingYearDropdown();
     this.initializeAvatarSystem();
-    // Initialize Q/A + Interests + Photo + Social Links bindings after DOM is ready
+    // Initialize icebreakers + interests + photo + social links bindings after DOM is ready
     this.initQnaUI();
     this.initInterestsUI();
     this.initPhotoBindings();
@@ -1194,7 +1217,7 @@ class ProfileSetup {
    */
   collectCurrentStepData() {
     if (this.currentStep === 0) {
-      // Format names using our utility function!
+      // Step 0: Basics
       this.profileData.firstName = formatName(
         document.getElementById("setup-first-name").value.trim()
       );
@@ -1210,16 +1233,17 @@ class ProfileSetup {
         .getElementById("setup-major")
         .value.trim()
         .toUpperCase();
-    } else if (this.currentStep === 1) {
-      this.profileData.bio = document.getElementById("setup-bio").value.trim();
-      // Avatar configuration is handled by this.avatarConfig
-      // Schedule privacy settings are now managed on the Friends page
     } else if (this.currentStep === 2) {
-      // Schedule Import step - schedule data is stored separately in this.scheduleData
-      // DO NOT add schedule data to profileData to avoid Firestore nested arrays error
-      console.log("📅 Schedule import step completed", {
+      // Step 2: Story (Bio, Icebreakers, Interests)
+      const bioEl = document.getElementById("setup-bio");
+      this.profileData.bio = bioEl ? bioEl.value.trim() : "";
+      // Icebreaker questions and interests are already tracked in qnaAnswers / this.interests
+    } else if (this.currentStep === 3) {
+      // Step 3: Schedule & Social (schedule handled separately)
+      console.log("📅 Schedule & Social step completed", {
         hasScheduleData: !!this.scheduleData,
         coursesCount: this.scheduleData?.courses?.length || 0,
+        socialLinksCount: this.socialLinks?.length || 0,
       });
     }
   }
@@ -1271,7 +1295,7 @@ class ProfileSetup {
       this.updateProgress();
       this.validateCurrentStep();
 
-      // Update avatar preview when navigating to avatar step (step 1)
+      // Update avatar preview when navigating to photo/avatar step (step 1)
       if (this.currentStep === 1) {
         // Simple single preview update
         this.updateAvatarPreview();
@@ -1452,14 +1476,19 @@ class ProfileSetup {
         this.clearValidationErrors();
       }
     } else if (this.currentStep === 1) {
-      // Step 1: Avatar, Bio & Q/A — require at least 1 valid Q/A (>= min length)
+      // Step 1: Photo & Avatar – no hard validation, always allow next
+      nextBtn.textContent = "Next Step →";
+      nextBtn.disabled = false;
+      nextBtn.classList.remove("disabled-state");
+    } else if (this.currentStep === 2) {
+      // Step 2: Story – require at least 1 valid icebreaker answer
       nextBtn.textContent = "Next Step →";
       const validQnaCount = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
       const isStepValid = validQnaCount >= MIN_QA_ANSWERS;
       nextBtn.disabled = !isStepValid;
       nextBtn.classList.toggle("disabled-state", !isStepValid);
-    } else if (this.currentStep === 2) {
-      // Step 2: Schedule Import (optional, this is the new final step)
+    } else if (this.currentStep === 3) {
+      // Step 3: Schedule & Social – optional final step
       nextBtn.textContent = "Complete Setup!";
       nextBtn.disabled = false;
       nextBtn.classList.remove("disabled-state");
@@ -1472,7 +1501,7 @@ class ProfileSetup {
    */
   validateStepData() {
     if (this.currentStep === 0) {
-      // Validate Step 0 (Basic Info) using our utility functions
+      // Validate Step 0 (Basics) using our utility functions
       const firstName = document
         .getElementById("setup-first-name")
         .value.trim();
@@ -1497,8 +1526,8 @@ class ProfileSetup {
         return false;
       }
     }
-    // Step 1 (Avatar, Bio, Q/A)
-    if (this.currentStep === 1) {
+    // Step 2 (Story / Icebreakers)
+    if (this.currentStep === 2) {
       // live validation feedback: show if over max or show guidance; final save enforces ≥1 with min length
       const count = this.getQnaResponseCount();
       const feedback = document.getElementById("qna-feedback");
@@ -1707,11 +1736,15 @@ class ProfileSetup {
           this.updatePhotoPreview();
           this.updateAvatarPreview();
           this._updateSwapButtonLabel();
+          this._updatePhotoHelperText();
+          this._updateAvatarPhotoMode();
         });
         swapBtn.setAttribute("data-listener-attached", "true");
       }
       this.updatePhotoPreview();
       this._updateSwapButtonLabel();
+      this._updatePhotoHelperText();
+      this._updateAvatarPhotoMode();
     } catch (err) {
       console.warn("initPhotoBindings failed:", err);
     }
@@ -1743,6 +1776,8 @@ class ProfileSetup {
       this.useAvatar = false;
       this._updateSwapButtonLabel();
       this.updatePhotoPreview();
+      this._updatePhotoHelperText();
+      this._updateAvatarPhotoMode();
       this.validateCurrentStep();
     } catch (err) {
       console.error("Photo upload failed:", err);
@@ -1754,8 +1789,10 @@ class ProfileSetup {
     try {
       const photoBox = document.getElementById("photo-preview-display");
       if (!photoBox) return;
+      const avatarBox = document.getElementById("avatar-preview-display");
       photoBox.innerHTML = "";
-      if (!this.useAvatar && this.profilePhotoUrl) {
+      // Always render either the uploaded photo or a neutral placeholder
+      if (this.profilePhotoUrl) {
         const img = document.createElement("img");
         img.src = this.profilePhotoUrl;
         img.alt = "Profile photo";
@@ -1765,17 +1802,20 @@ class ProfileSetup {
         img.style.cssText =
           "width:96px;height:96px;border-radius:50%;object-fit:cover;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;";
         photoBox.appendChild(img);
-        photoBox.classList.add("selected");
-        const avatarBox = document.getElementById("avatar-preview-display");
-        avatarBox?.classList.remove("selected");
       } else {
         const i = document.createElement("i");
         i.className = "fas fa-user-circle";
         i.style.cssText = "font-size:48px;opacity:.6;";
         photoBox.appendChild(i);
+      }
+
+      // Highlight the active choice based solely on useAvatar
+      if (this.useAvatar) {
         photoBox.classList.remove("selected");
-        const avatarBox = document.getElementById("avatar-preview-display");
         avatarBox?.classList.add("selected");
+      } else {
+        photoBox.classList.add("selected");
+        avatarBox?.classList.remove("selected");
       }
     } catch (_) {}
   }
@@ -1784,9 +1824,33 @@ class ProfileSetup {
     const btn = document.getElementById("swap-photo-avatar-btn");
     if (!btn) return;
     if (this.useAvatar) {
-      btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap to Photo';
+      btn.textContent = "or, Use profile photo instead";
     } else {
-      btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap to Avatar';
+      btn.textContent = "or, Select an avatar";
+    }
+  }
+
+  _updatePhotoHelperText() {
+    const actionSpan = document.getElementById(
+      "profile-photo-helper-action"
+    );
+    if (!actionSpan) return;
+    if (this.profilePhotoUrl) {
+      actionSpan.textContent = "Update picture";
+    } else {
+      actionSpan.textContent = "Upload picture";
+    }
+  }
+
+  _updateAvatarPhotoMode() {
+    const group = document.querySelector(".avatar-photo-group");
+    if (!group) return;
+    if (this.useAvatar) {
+      group.classList.add("avatar-photo-mode-avatar");
+      group.classList.remove("avatar-photo-mode-photo");
+    } else {
+      group.classList.add("avatar-photo-mode-photo");
+      group.classList.remove("avatar-photo-mode-avatar");
     }
   }
 
@@ -2285,7 +2349,7 @@ class ProfileSetup {
       }
     }
 
-    // Ensure a clearly visible Public View button when on Step 1 (Avatar & Bio)
+    // Ensure a clearly visible Public View button when on Photo & Avatar step
     try {
       const existing = document.getElementById("public-view-nav-btn");
       if (this.currentStep === 1) {
@@ -2415,7 +2479,10 @@ class ProfileSetup {
     // If user is currently on avatar step (1) ensure preview renders now
     if (this.currentStep === 1) {
       // Defer a frame to let DOM mount
-      requestAnimationFrame(() => this.updateAvatarPreview());
+      requestAnimationFrame(() => {
+        this.updateAvatarPreview();
+        this._updateAvatarPhotoMode();
+      });
     }
   }
 
@@ -2624,11 +2691,11 @@ class ProfileSetup {
         },
       };
 
-      // Curated Q/A (PRD: ≥1, ≤5 answers)
+      // Curated icebreaker questions (Q&A) (PRD: ≥1, ≤5 answers)
       const qna = this.buildQnaResponsesForSave();
       if (qna.length < MIN_QA_ANSWERS) {
-        // Bring user back to Step 1 and show feedback
-        this.currentStep = 1;
+        // Bring user back to Story step and show feedback
+        this.currentStep = 2;
         this.updateStepDisplay();
         const feedback = document.getElementById("qna-feedback");
         if (feedback) {

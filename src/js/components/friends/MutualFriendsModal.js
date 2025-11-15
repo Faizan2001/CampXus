@@ -79,13 +79,12 @@ export class MutualFriendsModal {
     this.modal
       .querySelector(".close-btn")
       .addEventListener("click", () => this.close());
-    this.modal
-      .querySelector(".mutual-friends-modal-overlay")
-      .addEventListener("click", (e) => {
-        if (e.target.classList.contains("mutual-friends-modal-overlay")) {
-          this.close();
-        }
-      });
+    // Close when clicking on the dark overlay background
+    this.modal.addEventListener("click", (e) => {
+      if (e.target.classList.contains("mutual-friends-modal-overlay")) {
+        this.close();
+      }
+    });
 
     // Animate in
     requestAnimationFrame(() => {
@@ -94,6 +93,7 @@ export class MutualFriendsModal {
   }
 
   async loadFriends() {
+    if (!this.modal) return;
     const listContainer = this.modal.querySelector(".mutual-friends-list");
 
     if (this.currentMutualIds.length === 0) {
