@@ -517,9 +517,16 @@ class RealTimeManager {
       const unsubscribe = dataManager.listenToUserProfile(
         userId,
         (userProfile) => {
+          // Skip updates during optimistic update window to prevent stale data from overwriting cache
+          if (dataManager.quickAccessUpdateInProgress.has(userId)) {
+            this.log(`⏭️ Skipping Quick Access listener update during optimistic update window for ${userId}`);
+            return;
+          }
+
           if (userProfile && userProfile.quickAccessData) {
-            const quickAccessFriends =
-              userProfile.quickAccessData.starredFriends || [];
+            const rawFriends = userProfile.quickAccessData.starredFriends || [];
+            // Ensure it's an array (defensive check)
+            const quickAccessFriends = Array.isArray(rawFriends) ? rawFriends : [];
             // Build structural signature (ordered ids)
             const sig = quickAccessFriends
               .map((f) => f.friendId || f.userId)
@@ -974,12 +981,15 @@ class RealTimeManager {
         return;
       }
 
+      // Ensure quickAccessFriends is an array (defensive check)
+      const validQuickAccessFriends = Array.isArray(quickAccessFriends) ? quickAccessFriends : [];
+      
       this.log(
-        `🔍 CLEANUP: Validating ${quickAccessFriends.length} quickAccess friends against ${currentFriendships.length} current friendships`
+        `🔍 CLEANUP: Validating ${validQuickAccessFriends.length} quickAccess friends against ${currentFriendships.length} current friendships`
       );
 
       // Extract friend IDs from quickAccess for validation
-      const starredFriendIds = quickAccessFriends
+      const starredFriendIds = validQuickAccessFriends
         .map((friend) => friend.friendId)
         .filter(Boolean);
       this.log(

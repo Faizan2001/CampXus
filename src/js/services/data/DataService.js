@@ -399,21 +399,11 @@ class DataManager {
    * @param {string} userId - User ID to sync cache for
    */
   debounceCacheSync(userId) {
-    // Clear existing timeout for this user
-    if (this.syncDebounceMap.has(userId)) {
-      clearTimeout(this.syncDebounceMap.get(userId));
-    }
-
-    // Set new timeout
-    const timeoutId = setTimeout(() => {
-      syncUserDataCache(userId).catch((error) =>
-        logManager.network.error("Friend cache sync failed", error)
-      );
-      this.syncDebounceMap.delete(userId);
-    }, 1000); // 1 second debounce
-
-    this.syncDebounceMap.set(userId, timeoutId);
-    logManager.system.perf(`Debounced cache sync for user: ${userId}`);
+    // Client-side cache sync is now handled solely by server-side Cloud Function.
+    // This method is kept as a no-op for backward compatibility.
+    logManager.system.info(
+      `debounceCacheSync(${userId}) called – propagation handled by Cloud Function`
+    );
   }
 
   /**
@@ -1088,20 +1078,6 @@ class DataManager {
         cachedData.avatarConfig = cleanedConfig;
         this.cache.set(cacheKey, cachedData);
         console.log("🔄 [DataManager] Updated avatar in cache");
-      }
-
-      // 🔄 CRITICAL: Sync avatar changes to all cached locations (friendships, friend requests)
-      console.log(
-        "🔄 [DataManager] Syncing avatar changes to all cached locations..."
-      );
-      try {
-        await syncUserDataCache(userId);
-        console.log(
-          "✅ [DataManager] Avatar sync to cached locations completed"
-        );
-      } catch (syncError) {
-        console.error("⚠️ [DataManager] Avatar sync failed:", syncError);
-        // Don't fail the avatar update if sync fails
       }
 
       return { success: true, cleanedConfig: cleanedConfig };
@@ -3306,12 +3282,52 @@ class DataManager {
 
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
-      const friends = currentQuickAccess.starredFriends || [];
+      const rawFriends = currentQuickAccess.starredFriends || [];
+      
+      // Ensure friends is always an array (defensive check)
+      if (!Array.isArray(rawFriends)) {
+        console.warn('⚠️ [DataManager] starredFriends is not an array:', typeof rawFriends, rawFriends);
+      }
+      const friends = Array.isArray(rawFriends) ? rawFriends : [];
 
       // Check if friend is already in Quick Access (prevent duplicates)
       const existingIndex = friends.findIndex(
         (friend) => friend.friendId === quickAccessEntry.friendId
       );
+
+      // Deep-sanitize a value for Firestore (remove all undefineds)
+      const sanitizeValue = (value) => {
+        if (value === undefined) {
+          return undefined;
+        }
+
+        // Preserve Dates as-is
+        if (value instanceof Date) {
+          return value;
+        }
+
+        // Recursively sanitize plain objects
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          const cleanedObject = {};
+          Object.keys(value).forEach((key) => {
+            const nested = sanitizeValue(value[key]);
+            if (nested !== undefined) {
+              cleanedObject[key] = nested;
+            }
+          });
+          return cleanedObject;
+        }
+
+        // Recursively sanitize arrays
+        if (Array.isArray(value)) {
+          const cleanedArray = value
+            .map((item) => sanitizeValue(item))
+            .filter((item) => item !== undefined);
+          return cleanedArray;
+        }
+
+        return value;
+      };
 
       let updatedFriends;
       if (existingIndex >= 0) {
@@ -3326,21 +3342,50 @@ class DataManager {
         updatedFriends = [quickAccessEntry, ...friends];
       }
 
+      // Sanitize entries to remove any undefined values (Firestore does not allow them)
+      const sanitizedFriends = updatedFriends.map((friend) => {
+        const cleaned = {};
+        Object.keys(friend || {}).forEach((key) => {
+          const value = sanitizeValue(friend[key]);
+          if (value !== undefined) {
+            cleaned[key] = value;
+          }
+        });
+        return cleaned;
+      });
+
+      // Recompute helper friendId list for efficient server-side queries
+      const updatedStarredFriendIds = Array.from(
+        new Set(
+          sanitizedFriends
+            .map((f) => f.friendId || f.userId)
+            .filter((id) => typeof id === "string" && id)
+        )
+      );
+
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
+
+      console.log(`📊 [DataManager] Writing ${sanitizedFriends.length} starred friends to Firestore:`, sanitizedFriends);
 
       // Update the user document with enhanced Quick Access data
       // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
       await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": updatedFriends,
-        "quickAccessData.totalStarred": updatedFriends.length,
+        "quickAccessData.starredFriends": sanitizedFriends,
+        "quickAccessData.starredFriendIds": updatedStarredFriendIds,
+        "quickAccessData.totalStarred": sanitizedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
 
-      // Clear cache immediately after database update to ensure fresh data
+      // Optimistically update cache with the new data to avoid stale reads
       const cacheKey = `quick_access_${userId}`;
-      this.cache.delete(cacheKey);
-      console.log(`🧹 [DataManager] Cleared Quick Access cache for ${userId}`);
+      this.setCachedData(cacheKey, {
+        starredFriends: sanitizedFriends,
+        starredFriendIds: updatedStarredFriendIds,
+        totalStarred: sanitizedFriends.length,
+        lastUpdated: new Date(),
+      });
+      console.log(`✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${sanitizedFriends.length} friends`);
 
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
@@ -3394,11 +3439,26 @@ class DataManager {
 
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
-      const friends = currentQuickAccess.starredFriends || [];
+      const rawFriends = currentQuickAccess.starredFriends || [];
+      
+      // Ensure friends is always an array (defensive check)
+      if (!Array.isArray(rawFriends)) {
+        console.warn('⚠️ [DataManager] starredFriends is not an array:', typeof rawFriends, rawFriends);
+      }
+      const friends = Array.isArray(rawFriends) ? rawFriends : [];
 
       // Filter out the friend to remove
       const updatedFriends = friends.filter(
-        (friend) => friend.friendId !== friendId
+        (friend) => friend.friendId !== friendId && friend.userId !== friendId
+      );
+
+      // Recompute helper friendId list
+      const updatedStarredFriendIds = Array.from(
+        new Set(
+          updatedFriends
+            .map((f) => f.friendId || f.userId)
+            .filter((id) => typeof id === "string" && id)
+        )
       );
 
       // Mark Quick Access update in progress to prevent cascading events
@@ -3408,14 +3468,20 @@ class DataManager {
       // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
       await updateDoc(userDocRef, {
         "quickAccessData.starredFriends": updatedFriends,
+        "quickAccessData.starredFriendIds": updatedStarredFriendIds,
         "quickAccessData.totalStarred": updatedFriends.length,
         "quickAccessData.lastUpdated": serverTimestamp(),
       });
 
-      // Clear cache immediately after database update to ensure fresh data
+      // Optimistically update cache with the new data to avoid stale reads
       const cacheKey = `quick_access_${userId}`;
-      this.cache.delete(cacheKey);
-      console.log(`🧹 [DataManager] Cleared Quick Access cache for ${userId}`);
+      this.setCachedData(cacheKey, {
+        starredFriends: updatedFriends,
+        starredFriendIds: updatedStarredFriendIds,
+        totalStarred: updatedFriends.length,
+        lastUpdated: new Date(),
+      });
+      console.log(`✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${updatedFriends.length} friends`);
 
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
@@ -3444,7 +3510,12 @@ class DataManager {
       const intentionalLogout =
         typeof sessionStorage !== "undefined" &&
         sessionStorage.getItem("intentionalLogout") === "true";
-      // NEW: If auth isn't ready yet on first load, wait briefly instead of returning a skipped result
+      // NEW: If auth isn't ready yet on first load, wait briefly instead of returning a skipped result.
+      // IMPORTANT: Some flows (like FriendsPage → Quick Access toggle) can run before auth.currentUser
+      // is populated even though currentUser.uid is already set. In that case we still want to read
+      // Quick Access data, because Firestore rules will enforce security, and skipping here causes
+      // the UI to see an empty starred list and immediately un-star the friend (exactly the bug seen
+      // where the real-time Quick Access update contains quickAccessFriends: []).
       if (!intentionalLogout && !auth.currentUser) {
         try {
           // Small wait to let Firebase auth settle on first app open
@@ -3454,7 +3525,11 @@ class DataManager {
         }
       }
 
-      if (intentionalLogout || !auth.currentUser) {
+      // Only treat this as a signed-out / skipped read when BOTH:
+      //  - we have an intentionalLogout flag, or
+      //  - neither Firebase Auth nor our userStore report a logged-in user.
+      const hasUserStoreUid = !!currentUser?.uid;
+      if (intentionalLogout || (!auth.currentUser && !hasUserStoreUid)) {
         return {
           starredFriends: [],
           totalStarred: 0,
@@ -3478,9 +3553,18 @@ class DataManager {
 
       // Check cache first
       const cacheKey = `quick_access_${userId}`;
+      console.log(`🔍 [DataManager] Cache lookup for key: ${cacheKey}`);
       const cachedData = this.getCachedData(cacheKey);
+      console.log(`🔍 [DataManager] Cache result:`, cachedData ? `HIT (${cachedData.starredFriends?.length || 0} friends)` : 'MISS');
       if (cachedData) {
         console.log("📦 [DataManager] Using cached Quick Access data");
+        // Ensure cached data has proper array structure (defensive check)
+        if (!Array.isArray(cachedData.starredFriends)) {
+          console.warn('⚠️ [DataManager] Cached starredFriends is not an array, fixing...', typeof cachedData.starredFriends);
+          cachedData.starredFriends = [];
+          // Update cache with fixed data
+          this.setCachedData(cacheKey, cachedData);
+        }
         return cachedData;
       }
 
@@ -3499,6 +3583,19 @@ class DataManager {
         totalStarred: 0,
         lastUpdated: null,
       };
+
+      console.log('🔍 [DataManager] Raw quickAccessData from Firestore:', {
+        hasQuickAccessData: !!userData.quickAccessData,
+        starredFriendsType: typeof quickAccessData.starredFriends,
+        isArray: Array.isArray(quickAccessData.starredFriends),
+        starredFriends: quickAccessData.starredFriends,
+      });
+
+      // Ensure starredFriends is always an array (defensive check)
+      if (!Array.isArray(quickAccessData.starredFriends)) {
+        console.warn('⚠️ [DataManager] Firestore starredFriends is not an array, fixing...', typeof quickAccessData.starredFriends);
+        quickAccessData.starredFriends = [];
+      }
 
       // Cache the result
       this.setCachedData(cacheKey, quickAccessData);
@@ -3654,6 +3751,14 @@ class DataManager {
         handle: friendData.profile?.handle || existingFriend.handle,
         major: friendData.profile?.major || existingFriend.major,
         avatarConfig: friendData.avatarConfig || existingFriend.avatarConfig,
+        profilePhotoUrl:
+          friendData.profile?.profilePhotoUrl ||
+          existingFriend.profilePhotoUrl ||
+          null,
+        useAvatar:
+          typeof friendData.profile?.useAvatar === "boolean"
+            ? friendData.profile.useAvatar
+            : existingFriend.useAvatar,
         // Add update timestamp to track freshness
         lastProfileSync: serverTimestamp(),
       };
@@ -3743,7 +3848,16 @@ class DataManager {
             ...existingFriend, // Keep starredAt, lastInteraction
             handle: freshData.profile?.handle || existingFriend.handle,
             major: freshData.profile?.major || existingFriend.major,
-            avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
+            avatarConfig:
+              freshData.avatarConfig || existingFriend.avatarConfig,
+            profilePhotoUrl:
+              freshData.profile?.profilePhotoUrl ||
+              existingFriend.profilePhotoUrl ||
+              null,
+            useAvatar:
+              typeof freshData.profile?.useAvatar === "boolean"
+                ? freshData.profile.useAvatar
+                : existingFriend.useAvatar,
           };
         }
       );
@@ -5016,140 +5130,51 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
  * @param {object} [customUserInfo] - Optional: provide custom user info instead of fetching from DB
  * @returns {Promise<void>}
  */
+/**
+ * @deprecated
+ * Kept only to avoid runtime errors while Cloud Function handles propagation.
+ * Client-side sync of cached user data is now a no-op.
+ */
 export async function syncUserDataCache(userId, customUserInfo = null) {
   try {
-    console.log("🔄 Synchronizing user data cache for:", userId);
+    console.log("🔄 syncUserDataCache called (client-side):", userId);
 
-    // 🔒 SECURITY: Only sync cache for the current authenticated user
-    // Other users' profile changes should not trigger cache sync operations
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    // 🔒 SECURITY: Only operate for the current authenticated user
+    const current = auth.currentUser;
+    if (!current) {
       console.warn("⚠️ No authenticated user, skipping cache sync");
       return;
     }
 
-    if (userId !== currentUser.uid) {
+    if (userId !== current.uid) {
       console.log(
-        `🔒 Skipping cache sync for ${userId} - only current user (${currentUser.uid}) can sync their own cache`
+        `🔒 Skipping cache sync for ${userId} - only current user (${current.uid}) can sync their own cache`
       );
       return;
     }
 
-    let userInfoForCache;
-
-    if (customUserInfo) {
-      // Use provided data (for efficiency when we already have fresh data)
-      userInfoForCache = customUserInfo;
-      console.log("📋 Using provided user info:", userInfoForCache);
-    } else {
-      // Get latest user data from database
+    // Build user info object for any in-memory callers that still use this
+    let userInfoForCache = customUserInfo || null;
+    if (!userInfoForCache) {
       const userData = await dataManager.getUserProfile(userId);
       if (!userData) {
         console.warn("⚠️ No user data found for cache sync:", userId);
         return;
       }
-
-      // Build consistent cache object
       userInfoForCache = {
         handle: userData.profile?.handle || null,
         major: userData.profile?.major || "Unknown",
         university: userData.universityInfo?.university || "unknown",
         avatarConfig: userData.avatarConfig || null,
       };
-      console.log("📋 Built cache info from database:", userInfoForCache);
     }
 
-    // Update all cached locations using batch operations
-    const batch = writeBatch(db);
-    let updateCount = 0;
-
-    // 1. Update friend requests where you're the sender
-    const outgoingRequests = await getDocs(
-      query(collection(db, "friendRequests"), where("fromUserId", "==", userId))
-    );
-
     console.log(
-      `📤 Found ${outgoingRequests.size} outgoing friend requests to update`
+      "ℹ️ syncUserDataCache is now handled by a Cloud Function. Client will not write shared docs.",
+      userInfoForCache
     );
-    outgoingRequests.forEach((doc) => {
-      // Completely replace fromUserInfo (don't merge nested objects)
-      batch.update(doc.ref, {
-        "fromUserInfo.handle": userInfoForCache.handle,
-        "fromUserInfo.major": userInfoForCache.major,
-        "fromUserInfo.university": userInfoForCache.university,
-        "fromUserInfo.avatarConfig": userInfoForCache.avatarConfig,
-      });
-      updateCount++;
-    });
-
-    // 2. Update friend requests where you're the receiver
-    const incomingRequests = await getDocs(
-      query(collection(db, "friendRequests"), where("toUserId", "==", userId))
-    );
-
-    console.log(
-      `📥 Found ${incomingRequests.size} incoming friend requests to update`
-    );
-    incomingRequests.forEach((doc) => {
-      // Completely replace toUserInfo (don't merge nested objects)
-      batch.update(doc.ref, {
-        "toUserInfo.handle": userInfoForCache.handle,
-        "toUserInfo.major": userInfoForCache.major,
-        "toUserInfo.university": userInfoForCache.university,
-        "toUserInfo.avatarConfig": userInfoForCache.avatarConfig,
-      });
-      updateCount++;
-    });
-
-    // 3. Update friendships where you're involved
-    const friendships = await getDocs(
-      query(
-        collection(db, "friendships"),
-        where("users", "array-contains", userId)
-      )
-    );
-
-    console.log(`👥 Found ${friendships.size} friendships to update`);
-    friendships.forEach((doc) => {
-      const data = doc.data();
-      if (data.user1Id === userId) {
-        // Completely replace user1Info (don't merge nested objects)
-        batch.update(doc.ref, {
-          "user1Info.handle": userInfoForCache.handle,
-          "user1Info.major": userInfoForCache.major,
-          "user1Info.university": userInfoForCache.university,
-          "user1Info.avatarConfig": userInfoForCache.avatarConfig,
-        });
-        updateCount++;
-      } else if (data.user2Id === userId) {
-        // Completely replace user2Info (don't merge nested objects)
-        batch.update(doc.ref, {
-          "user2Info.handle": userInfoForCache.handle,
-          "user2Info.major": userInfoForCache.major,
-          "user2Info.university": userInfoForCache.university,
-          "user2Info.avatarConfig": userInfoForCache.avatarConfig,
-        });
-        updateCount++;
-      }
-    });
-
-    // 4. Save all updates at once
-    if (updateCount > 0) {
-      try {
-        await batch.commit();
-        console.log(
-          `✅ Updated ${updateCount} cached entries with fresh user info`
-        );
-      } catch (error) {
-        console.error(
-          `❌ Batch update failed for ${updateCount} entries:`,
-          error
-        );
-        throw error; // Re-throw for upstream handling
-      }
-    } else {
-      console.log("ℹ️ No cached data to update");
-    }
+    // All propagation to friendRequests, friendships, notifications, and Quick Access
+    // is handled by the syncUserAvatarPhotoChanges Cloud Function in functions/index.js.
   } catch (error) {
     console.error("❌ Cache sync failed:", error);
     // Don't throw - this is a background operation
@@ -5157,7 +5182,7 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
 }
 
 /**
- * @deprecated Use syncUserDataCache() instead - this function is kept for backward compatibility
+ * @deprecated Cloud Function handles propagation. This wrapper will be removed in a future cleanup.
  * Will be removed in future versions
  */
 export async function updateCachedUserData(userId, newUserInfo) {

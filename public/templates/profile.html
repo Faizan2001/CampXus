@@ -132,10 +132,11 @@
           </p>
         </div>
 
-        <!-- Primary: Profile photo upload + preview (centered on all devices) -->
+        <!-- Single UI area that swaps between photo and avatar modes -->
         <div class="form-group avatar-photo-group avatar-photo-mode-photo">
           <div class="avatar-photo-layout">
-            <section class="photo-primary-section">
+            <!-- Photo Upload Section (shown by default) -->
+            <section class="photo-primary-section" id="photo-ui-section">
               <label class="avatar-selection-label">Profile Photo</label>
               <div class="avatar-display-container">
                 <div
@@ -156,7 +157,7 @@
                   class="button secondary"
                 >
                   <i class="fas fa-cloud-upload-alt"></i>
-                  <span>Upload / Update Photo</span>
+                  <span id="profile-photo-btn-text">Upload Photo</span>
                 </button>
                 <input
                   type="file"
@@ -176,9 +177,9 @@
               </small>
             </section>
 
-            <!-- Secondary: Avatar as optional alternative (initially hidden) -->
-            <section class="avatar-selection-section avatar-secondary-section">
-              <label class="avatar-selection-label">Avatar (Optional)</label>
+            <!-- Avatar Selection Section (hidden by default) -->
+            <section class="avatar-selection-section avatar-secondary-section" id="avatar-ui-section">
+              <label class="avatar-selection-label">Choose Avatar</label>
               <div class="avatar-display-container">
                 <div
                   id="avatar-preview-display"
@@ -202,12 +203,13 @@
             </section>
           </div>
 
+          <!-- Toggle button to swap between modes -->
           <button
             type="button"
             id="swap-photo-avatar-btn"
             class="avatar-toggle-button"
           >
-            or, Select an avatar
+            or, Select an Avatar
           </button>
         </div>
       </div>

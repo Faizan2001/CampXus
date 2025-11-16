@@ -4033,6 +4033,8 @@ class FriendsUI {
         handle: friend.handle,
         major: friend.major,
         avatarConfig: friend.avatarConfig,
+        profilePhotoUrl: friend.profilePhotoUrl || null,
+        useAvatar: typeof friend.useAvatar === "boolean" ? friend.useAvatar : undefined,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
       // Optimistic UI: flip immediately
@@ -4126,21 +4128,28 @@ class FriendsUI {
       `⭐ Updating Quick Access star states for ${friends.length} friends`
     );
 
-    // Use Promise.all for parallel execution to improve performance
-    const starPromises = friends.map(async (friend) => {
-      const friendId = friend.id;
+    try {
+      // Always fetch a fresh snapshot of Quick Access friends from FriendsService.
+      // FriendsService will still leverage DataManager's cache under the hood,
+      // but this bypasses any stale in-memory TTL cache inside FriendsService itself.
+      const quickAccessFriends = await friendsManager.getQuickAccessFriends(
+        false
+      );
+      const starredFriendIds = new Set(
+        (quickAccessFriends || []).map(
+          (friend) => friend.friendId || friend.userId
+        )
+      );
 
-      try {
-        // Check if friend is in Quick Access
-        const isStarred = await friendsManager.isInQuickAccess(friendId);
+      friends.forEach((friend) => {
+        const friendId = friend.id;
+        const isStarred = starredFriendIds.has(friendId);
 
-        // Find the star button for this friend
         const starButton = this.elements.friendsList.querySelector(
           `.quick-access-star[data-friend-id="${friendId}"]`
         );
 
         if (starButton) {
-          // Update the star button state
           this.updateStarButtonState(starButton, isStarred);
           console.log(
             `⭐ Updated star state for @${friend.handle}: ${
@@ -4150,17 +4159,12 @@ class FriendsUI {
         } else {
           console.warn(`⚠️ Star button not found for friend ${friendId}`);
         }
-      } catch (error) {
-        console.error(
-          `❌ Error updating star state for @${friend.handle}:`,
-          error
-        );
-      }
-    });
+      });
 
-    // Wait for all star updates to complete
-    await Promise.all(starPromises);
-    console.log(`✅ Quick Access star states updated for all friends`);
+      console.log(`✅ Quick Access star states updated for all friends`);
+    } catch (error) {
+      console.error("❌ Error updating all Quick Access star states:", error);
+    }
   }
 
   /**

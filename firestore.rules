@@ -130,11 +130,16 @@ service cloud.firestore {
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {
-      // Read access: User must be authenticated
-      // Security note: where("users", "array-contains", userId) queries filter server-side
-      // Application code MUST only query with request.auth.uid to maintain privacy
-      // Future: Add field-level security when Firestore supports query param validation
-      allow read: if request.auth != null;
+      // Read access: only participants in the friendship can read
+      // This is enforced at the document level; client queries must include
+      // a filter like where("users", "array-contains", request.auth.uid)
+      // so that only documents containing the caller are ever returned.
+      allow read: if request.auth != null &&
+        (
+          request.auth.uid in resource.data.users ||
+          resource.data.user1Id == request.auth.uid ||
+          resource.data.user2Id == request.auth.uid
+        );
 
       // Delete requires friendship ID to contain requester's UID  
       allow delete: if request.auth != null &&

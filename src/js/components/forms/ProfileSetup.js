@@ -37,7 +37,6 @@ import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { AnalyticsService } from "../../services/analytics/AnalyticsService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
-import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
 import {
   normalizeHandle,
   validateHandle,
@@ -114,6 +113,7 @@ class ProfileSetup {
     this.dataLoadInProgress = false; // Prevent duplicate data loading
     this.existingProfileData = null; // Cache for existing profile data
     this.isInitialized = false; // Flag to prevent re-initialization
+    this._lastAvatarEditClickAt = 0; // Track explicit avatar edit clicks
 
     this.boundScheduleHelpKeyHandler = (event) => {
       if (event.key === "Escape") {
@@ -572,28 +572,31 @@ class ProfileSetup {
           rawUseAvatar !== null && rawUseAvatar !== undefined;
         const storedUseAvatar = !!rawUseAvatar;
 
-        const photoUrl = getProfileValue("profilePhotoUrl", "");
+        // Prefer photo from organized profile, but fall back to any known shapes
+        const photoUrl =
+          getProfileValue("profilePhotoUrl", "") ||
+          this.existingProfileData?.profile?.profilePhotoUrl ||
+          currentUser?.profile?.profilePhotoUrl ||
+          currentUser?.profile?.profile?.profilePhotoUrl ||
+          "";
         this.profilePhotoUrl = photoUrl || null;
 
         if (hasStoredUseAvatar) {
-          // Respect explicit user preference whenever it exists,
-          // even if a profile photo is available.
-          this.useAvatar = storedUseAvatar;
-        } else {
-          // No stored preference (brand-new or legacy profile) → photo-first.
-          // Photo preview will show either their uploaded photo or a neutral placeholder.
-          this.useAvatar = false;
-        }
+        // Respect explicit user preference whenever it exists,
+        // even if a profile photo is available.
+        this.useAvatar = storedUseAvatar;
+      } else {
+        // No stored preference (brand-new or legacy profile) → photo-first.
+        // Photo preview will show either their uploaded photo or a neutral placeholder.
+        this.useAvatar = false;
+      }
 
-        const toggle = document.getElementById("use-avatar-toggle");
-        if (toggle) toggle.checked = !!this.useAvatar;
-        this.updatePhotoPreview();
-        this._updateSwapButtonLabel();
-        this._updatePhotoHelperText();
-        this._updateAvatarPhotoMode();
-      } catch (_) {}
-
-      // Load interests
+      const toggle = document.getElementById("use-avatar-toggle");
+      if (toggle) toggle.checked = !!this.useAvatar;
+      this._swapPhotoAvatarUI();
+      this._updateSwapButtonLabel();
+      this._updatePhotoHelperText();
+    } catch (_) {}      // Load interests
       try {
         const interests = Array.isArray(profile.interests)
           ? profile.interests
@@ -1297,8 +1300,10 @@ class ProfileSetup {
 
       // Update avatar preview when navigating to photo/avatar step (step 1)
       if (this.currentStep === 1) {
-        // Simple single preview update
-        this.updateAvatarPreview();
+        // Ensure correct UI section is shown and previews are updated
+        requestAnimationFrame(() => {
+          this._swapPhotoAvatarUI();
+        });
       }
     } else {
       // Final step - save the profile with loading state
@@ -1347,8 +1352,10 @@ class ProfileSetup {
 
       // Update avatar preview when navigating back to avatar step (step 1)
       if (this.currentStep === 1) {
-        // Simple single preview update
-        this.updateAvatarPreview();
+        // Ensure correct UI section is shown and previews are updated
+        requestAnimationFrame(() => {
+          this._swapPhotoAvatarUI();
+        });
       }
     }
   }
@@ -1476,10 +1483,18 @@ class ProfileSetup {
         this.clearValidationErrors();
       }
     } else if (this.currentStep === 1) {
-      // Step 1: Photo & Avatar – no hard validation, always allow next
+      // Step 1: Photo & Avatar
+      // For photo mode, require an uploaded picture before allowing Next.
+      // For avatar mode, require user to have chosen/confirmed an avatar.
       nextBtn.textContent = "Next Step →";
-      nextBtn.disabled = false;
-      nextBtn.classList.remove("disabled-state");
+      const isAvatarMode = this.useAvatar === true;
+      const hasPhoto = !!this.profilePhotoUrl;
+      const hasAvatar = !!this.avatarConfig;
+      
+      // Valid if: (photo mode AND has photo) OR (avatar mode AND has avatar)
+      const isStepValid = (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
+      nextBtn.disabled = !isStepValid;
+      nextBtn.classList.toggle("disabled-state", !isStepValid);
     } else if (this.currentStep === 2) {
       // Step 2: Story – require at least 1 valid icebreaker answer
       nextBtn.textContent = "Next Step →";
@@ -1522,6 +1537,20 @@ class ProfileSetup {
 
       if (!hasRequiredFields || !hasValidEmail || !hasValidStartingYear) {
         // Show visual feedback for incomplete/invalid fields
+        this.showIncompleteFieldsFeedback();
+        return false;
+      }
+    }
+    if (this.currentStep === 1) {
+      // Step 1 (Show yourself):
+      // If user is in photo mode, require a photo before proceeding.
+      // If user is in avatar mode, require an avatar to be chosen.
+      const isAvatarMode = this.useAvatar === true;
+      const hasPhoto = !!this.profilePhotoUrl;
+      const hasAvatar = !!this.avatarConfig;
+      
+      const isValid = (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
+      if (!isValid) {
         this.showIncompleteFieldsFeedback();
         return false;
       }
@@ -1704,12 +1733,30 @@ class ProfileSetup {
       const uploadBtn = document.getElementById("profile-photo-upload-btn");
       const fileInput = document.getElementById("profile-photo-input");
       const swapBtn = document.getElementById("swap-photo-avatar-btn");
+      
+      // Always start in photo mode (default UI)
+      if (this.useAvatar === undefined) {
+        this.useAvatar = false;
+      }
+      
       if (
         uploadBtn &&
         fileInput &&
         !uploadBtn.hasAttribute("data-listener-attached")
       ) {
-        uploadBtn.addEventListener("click", () => fileInput.click());
+        uploadBtn.addEventListener("click", (e) => {
+          // Always open file picker, never avatar editor from this button
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof e.stopImmediatePropagation === "function") {
+            e.stopImmediatePropagation();
+          }
+          // Hard reset any stale avatar editor intent flags
+          this._avatarEditorRequested = false;
+          this._lastAvatarEditClickAt = 0;
+          console.log("📸 Opening file picker for photo upload...");
+          fileInput.click();
+        });
         uploadBtn.setAttribute("data-listener-attached", "true");
       }
       if (fileInput && !fileInput.hasAttribute("data-listener-attached")) {
@@ -1720,31 +1767,24 @@ class ProfileSetup {
       }
       if (swapBtn && !swapBtn.hasAttribute("data-listener-attached")) {
         swapBtn.addEventListener("click", () => {
-          // If no photo available, prompt upload when swapping to photo
-          if (this.useAvatar) {
-            if (!this.profilePhotoUrl) {
-              const fileInput = document.getElementById("profile-photo-input");
-              if (fileInput) fileInput.click();
-              return;
-            }
-            // Switch to photo
-            this.useAvatar = false;
-          } else {
-            // Switch to avatar
-            this.useAvatar = true;
-          }
-          this.updatePhotoPreview();
-          this.updateAvatarPreview();
+          console.log("🔄 Swapping UI mode. Current useAvatar:", this.useAvatar);
+          // Toggle between photo and avatar UI
+          this.useAvatar = !this.useAvatar;
+          
+          // Update UI to reflect the new mode
+          this._swapPhotoAvatarUI();
           this._updateSwapButtonLabel();
           this._updatePhotoHelperText();
-          this._updateAvatarPhotoMode();
+          this.validateCurrentStep();
         });
         swapBtn.setAttribute("data-listener-attached", "true");
       }
-      this.updatePhotoPreview();
+      
+      // Initialize UI state
+      this._swapPhotoAvatarUI();
       this._updateSwapButtonLabel();
       this._updatePhotoHelperText();
-      this._updateAvatarPhotoMode();
+      this.validateCurrentStep();
     } catch (err) {
       console.warn("initPhotoBindings failed:", err);
     }
@@ -1756,6 +1796,8 @@ class ProfileSetup {
       if (!userId) return;
       const file = event.target.files && event.target.files[0];
       if (!file) return;
+      
+      console.log("📸 Processing uploaded photo...");
       const { mainBlob, thumbBlob } = await processProfilePhoto(file);
       if (mainBlob.size > 400 * 1024) {
         alert(
@@ -1772,12 +1814,17 @@ class ProfileSetup {
         mainBlob,
         thumbBlob
       );
+      
       this.profilePhotoUrl = url;
+      // Ensure we're in photo mode after upload
       this.useAvatar = false;
+      
+      console.log("✅ Photo uploaded successfully:", url);
+      
+      // Update UI
+      this._swapPhotoAvatarUI();
       this._updateSwapButtonLabel();
-      this.updatePhotoPreview();
       this._updatePhotoHelperText();
-      this._updateAvatarPhotoMode();
       this.validateCurrentStep();
     } catch (err) {
       console.error("Photo upload failed:", err);
@@ -1789,7 +1836,7 @@ class ProfileSetup {
     try {
       const photoBox = document.getElementById("photo-preview-display");
       if (!photoBox) return;
-      const avatarBox = document.getElementById("avatar-preview-display");
+      
       photoBox.innerHTML = "";
       // Always render either the uploaded photo or a neutral placeholder
       if (this.profilePhotoUrl) {
@@ -1808,15 +1855,6 @@ class ProfileSetup {
         i.style.cssText = "font-size:48px;opacity:.6;";
         photoBox.appendChild(i);
       }
-
-      // Highlight the active choice based solely on useAvatar
-      if (this.useAvatar) {
-        photoBox.classList.remove("selected");
-        avatarBox?.classList.add("selected");
-      } else {
-        photoBox.classList.add("selected");
-        avatarBox?.classList.remove("selected");
-      }
     } catch (_) {}
   }
 
@@ -1824,9 +1862,9 @@ class ProfileSetup {
     const btn = document.getElementById("swap-photo-avatar-btn");
     if (!btn) return;
     if (this.useAvatar) {
-      btn.textContent = "or, Use profile photo instead";
+      btn.textContent = "or, Upload a Photo Instead";
     } else {
-      btn.textContent = "or, Select an avatar";
+      btn.textContent = "or, Select an Avatar";
     }
   }
 
@@ -1834,23 +1872,55 @@ class ProfileSetup {
     const actionSpan = document.getElementById(
       "profile-photo-helper-action"
     );
+    const btnText = document.getElementById("profile-photo-btn-text");
+    
     if (!actionSpan) return;
+    
     if (this.profilePhotoUrl) {
       actionSpan.textContent = "Update picture";
+      if (btnText) btnText.textContent = "Update Photo";
     } else {
-      actionSpan.textContent = "Upload picture";
+      actionSpan.textContent = "Upload a photo";
+      if (btnText) btnText.textContent = "Upload Photo";
     }
   }
 
-  _updateAvatarPhotoMode() {
+  /**
+   * Swap between photo and avatar UI sections
+   * Shows only one UI at a time based on this.useAvatar flag
+   */
+  _swapPhotoAvatarUI() {
+    const photoSection = document.getElementById("photo-ui-section");
+    const avatarSection = document.getElementById("avatar-ui-section");
     const group = document.querySelector(".avatar-photo-group");
-    if (!group) return;
+    
+    if (!photoSection || !avatarSection) {
+      console.warn("⚠️ Photo or avatar section not found in DOM");
+      return;
+    }
+    
     if (this.useAvatar) {
-      group.classList.add("avatar-photo-mode-avatar");
-      group.classList.remove("avatar-photo-mode-photo");
+      // Show avatar UI, hide photo UI
+      photoSection.style.display = "none";
+      avatarSection.style.display = "block";
+      if (group) {
+        group.classList.add("avatar-photo-mode-avatar");
+        group.classList.remove("avatar-photo-mode-photo");
+      }
+      // Update avatar preview when switching to avatar mode
+      this.updateAvatarPreview();
+      console.log("🎨 Switched to avatar UI");
     } else {
-      group.classList.add("avatar-photo-mode-photo");
-      group.classList.remove("avatar-photo-mode-avatar");
+      // Show photo UI, hide avatar UI
+      photoSection.style.display = "block";
+      avatarSection.style.display = "none";
+      if (group) {
+        group.classList.add("avatar-photo-mode-photo");
+        group.classList.remove("avatar-photo-mode-avatar");
+      }
+      // Update photo preview when switching to photo mode
+      this.updatePhotoPreview();
+      console.log("📸 Switched to photo UI");
     }
   }
 
@@ -2469,19 +2539,12 @@ class ProfileSetup {
     if (this.existingProfileData?.avatarConfig) {
       this.avatarConfig = this.existingProfileData.avatarConfig;
     }
-    // Generate default avatar if none exists
-    else if (!this.avatarConfig && avatarManager) {
-      this.avatarConfig = avatarManager.generateDefaultAvatar(
-        this.currentUser.uid
-      );
-    }
 
     // If user is currently on avatar step (1) ensure preview renders now
     if (this.currentStep === 1) {
       // Defer a frame to let DOM mount
       requestAnimationFrame(() => {
-        this.updateAvatarPreview();
-        this._updateAvatarPhotoMode();
+        this._swapPhotoAvatarUI();
       });
     }
   }
@@ -2490,6 +2553,23 @@ class ProfileSetup {
    * Open avatar editor modal - SIMPLIFIED
    */
   openAvatarEditor() {
+    // Only allow opening when explicitly requested by the avatar edit button,
+    // and within a short time window from that click.
+    const now = Date.now();
+    const recentExplicitClick =
+      this._avatarEditorRequested &&
+      this._lastAvatarEditClickAt &&
+      now - this._lastAvatarEditClickAt < 2000;
+    if (!recentExplicitClick) {
+      console.warn(
+        "[ProfileSetup] Ignoring openAvatarEditor call without recent explicit avatar button click"
+      );
+      return;
+    }
+    // Clear intent flags immediately to avoid accidental reuse
+    this._avatarEditorRequested = false;
+    this._lastAvatarEditClickAt = 0;
+
     if (!avatarManager) {
       console.error("❌ Avatar manager not available");
       alert("Avatar system is not loaded. Please refresh the page.");
@@ -2513,6 +2593,9 @@ class ProfileSetup {
 
       // Update the preview immediately
       this.updateAvatarPreview();
+      
+      // Validate current step to enable Next button if avatar was chosen
+      this.validateCurrentStep();
 
       // If profile is complete, save the avatar change immediately
       if (
@@ -2564,17 +2647,7 @@ class ProfileSetup {
       currentUser.setProfile(updatedProfile);
       console.log("🎨 Avatar updated in currentUser store");
 
-      // 4. 🔄 Sync cached user data so friends see avatar changes immediately
-      // Using centralized cache sync for consistency and reliability
-      syncUserDataCache(this.currentUser.uid)
-        .then(() =>
-          console.log("✅ Friends will see your cleaned avatar in real-time!")
-        )
-        .catch((err) =>
-          console.log("⚠️ Avatar cache update failed (but profile saved):", err)
-        );
-
-      // 5. 🎯 CRITICAL: Dispatch avatar change event to refresh menu immediately
+      // 4. 🎯 CRITICAL: Dispatch avatar change event to refresh menu immediately
       console.log("🚀 Dispatching avatar:changed event for menu refresh...");
       document.dispatchEvent(
         new CustomEvent("avatar:changed", {
@@ -2586,7 +2659,7 @@ class ProfileSetup {
         })
       );
 
-      // 6. 🛡️ FALLBACK: Also try direct force refresh as backup
+      // 5. 🛡️ FALLBACK: Also try direct force refresh as backup
       try {
         // Dynamic import to avoid circular dependencies
         const { forceAvatarRefresh } = await import(
@@ -2881,21 +2954,6 @@ class ProfileSetup {
         );
       }
 
-      // 🔄 NEW: Sync cached user data so friends see changes immediately
-      const userInfoForCache = {
-        handle: claimedHandle,
-        major: cleanProfileData.major,
-        university: universityKey || "unknown",
-        avatarConfig: this.avatarConfig,
-      };
-
-      // Update cache in background (don't wait for it)
-      syncUserDataCache(userId, userInfoForCache)
-        .then(() => console.log("✅ Friends will see your updated info!"))
-        .catch((err) =>
-          console.log("⚠️ Cache update failed, but profile saved:", err)
-        );
-
       // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
       console.log(
         "🔄 Updating currentUser store with fresh profile data after save..."
@@ -3066,12 +3124,21 @@ class ProfileSetup {
       skipBtn.setAttribute("data-listener-attached", "true");
     }
 
-    // Avatar editor button event listener
+    // Avatar editor button event listener (explicit user intent only)
     if (
       avatarEditBtn &&
       !avatarEditBtn.hasAttribute("data-listener-attached")
     ) {
-      avatarEditBtn.addEventListener("click", () => {
+      avatarEditBtn.addEventListener("click", (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof event.stopImmediatePropagation === "function") {
+            event.stopImmediatePropagation();
+          }
+        }
+        this._avatarEditorRequested = true;
+        this._lastAvatarEditClickAt = Date.now();
         this.openAvatarEditor();
       });
       avatarEditBtn.setAttribute("data-listener-attached", "true");

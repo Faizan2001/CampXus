@@ -1849,12 +1849,17 @@ export class HorizontalFriendsBar {
           if (quickAccessData?.starredFriends) {
             // ENHANCED: Only update if data actually changed (prevent unnecessary renders)
             const newFriendsData = quickAccessData.starredFriends;
-            // ✅ STABLE COMPARISON: Ignore volatile fields (lastActive, lastKnownLocation, systemInfo updates)
+            // ✅ STABLE COMPARISON: Check for meaningful changes including photo/avatar updates
             const stableMap = (arr) =>
               (arr || []).map((f) => ({
                 id: f.friendId || f.userId,
                 handle: f.handle,
                 order: f.order || 0,
+                // Include photo/avatar fields to detect changes
+                photoUrl: f.profilePhotoUrl || null,
+                useAvatar: f.useAvatar,
+                avatarStyle: f.avatarConfig?.style,
+                avatarSeed: f.avatarConfig?.seed,
               }));
             const currentStable = stableMap(this.quickAccessFriends);
             const nextStable = stableMap(newFriendsData);
@@ -1862,7 +1867,9 @@ export class HorizontalFriendsBar {
               arr
                 .slice()
                 .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
-                .map((o) => `${o.id}|${o.handle}|${o.order}`)
+                .map((o) => 
+                  `${o.id}|${o.handle}|${o.order}|${o.photoUrl}|${o.useAvatar}|${o.avatarStyle}|${o.avatarSeed}`
+                )
                 .join(";");
             const hasActualChanges =
               serialize(currentStable) !== serialize(nextStable);
@@ -1887,6 +1894,7 @@ export class HorizontalFriendsBar {
               );
 
               // OPTIMIZATION: Only do full render if friend list structure changed (added/removed friends)
+              // For photo/avatar-only changes, just update the specific avatars
               const structureChanged =
                 this.quickAccessFriends.length !== enhancedFriends.length ||
                 !enhancedFriends.every((friend) =>
@@ -1897,6 +1905,7 @@ export class HorizontalFriendsBar {
                   )
                 );
 
+              // Update the friends list
               this.quickAccessFriends = enhancedFriends;
 
               if (structureChanged) {
@@ -1906,13 +1915,11 @@ export class HorizontalFriendsBar {
                 this.render();
               } else {
                 console.log(
-                  "🎨 Friend list unchanged, updating presence dots only"
+                  "🎨 Friend data updated (photo/avatar/presence), updating display"
                 );
-                // Update presence dots individually to preserve timer state
-                // Use the fresh enhanced friends data for accurate presence dots
-                enhancedFriends.forEach((friend, index) => {
-                  this.updateFriendPresenceDot(index, friend);
-                });
+                // For photo/avatar changes, re-render to update avatars
+                // This ensures photos are updated when friends change them
+                this.render();
               }
 
               // Re-setup privacy listeners for new friend list
@@ -2750,6 +2757,18 @@ export class HorizontalFriendsBar {
         friendProfile?.avatarConfig ||
         currentFriend.avatarConfig;
 
+      const newProfilePhotoUrl =
+        friendProfile?.profile?.profilePhotoUrl ||
+        friendProfile?.profilePhotoUrl ||
+        currentFriend.profilePhotoUrl;
+
+      const newUseAvatar =
+        typeof friendProfile?.profile?.useAvatar === "boolean"
+          ? friendProfile.profile.useAvatar
+          : typeof friendProfile?.useAvatar === "boolean"
+          ? friendProfile.useAvatar
+          : currentFriend.useAvatar;
+
       // Get lastActive for presence detection
       const newLastActive = friendProfile?.systemInfo?.lastActive;
       const currentLastActive = currentFriend.lastActive;
@@ -2759,12 +2778,23 @@ export class HorizontalFriendsBar {
       const avatarChanged =
         newAvatarConfig &&
         !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
+      const photoChanged =
+        newProfilePhotoUrl !== currentFriend.profilePhotoUrl;
+      const useAvatarChanged =
+        typeof newUseAvatar === "boolean" &&
+        newUseAvatar !== currentFriend.useAvatar;
       const lastActiveChanged =
         newLastActive &&
         (!currentLastActive ||
           newLastActive.toMillis() !== currentLastActive.toMillis());
 
-      if (!nameChanged && !avatarChanged && !lastActiveChanged) {
+      if (
+        !nameChanged &&
+        !avatarChanged &&
+        !photoChanged &&
+        !useAvatarChanged &&
+        !lastActiveChanged
+      ) {
         console.log(
           `📡 No significant profile changes for ${currentFriend.handle}, skipping update`
         );
@@ -2803,6 +2833,16 @@ export class HorizontalFriendsBar {
         }
       }
 
+      if (photoChanged) {
+        updatedFriend.profilePhotoUrl = newProfilePhotoUrl || null;
+        hasLocalUpdates = true;
+      }
+
+      if (useAvatarChanged) {
+        updatedFriend.useAvatar = newUseAvatar;
+        hasLocalUpdates = true;
+      }
+
       if (lastActiveChanged) {
         // Update lastActive timestamp for presence detection
         updatedFriend.lastActive = newLastActive;
@@ -2822,8 +2862,8 @@ export class HorizontalFriendsBar {
         // Update local state for immediate UI refresh
         this.quickAccessFriends[friendIndex] = updatedFriend;
 
-        // Only trigger full re-render for profile changes (name/avatar), not for presence updates
-        if (nameChanged || avatarChanged) {
+        // Only trigger full re-render for profile changes (name/avatar/photo), not for presence updates
+        if (nameChanged || avatarChanged || photoChanged || useAvatarChanged) {
           this.debouncedRender();
           // Profile UI updated (no database sync)
           // Schedule a batched database sync for profile changes only (longer delay)

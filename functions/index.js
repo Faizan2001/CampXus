@@ -395,6 +395,271 @@ function isStarredBy(recipientUser, actorId) {
 // Triggers
 // -----------------------------
 
+// 0) Sync avatar/photo changes across cached locations when a user profile updates
+export const syncUserAvatarPhotoChanges = onDocumentUpdated(
+  "users/{userId}",
+  async (event) => {
+    try {
+      const userId = event.params.userId;
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+      if (!beforeSnap || !afterSnap) {
+        logger.warn("syncUserAvatarPhotoChanges: missing before/after snapshot", {
+          userId,
+        });
+        return;
+      }
+
+      const before = beforeSnap.data();
+      const after = afterSnap.data();
+      if (!before || !after) {
+        logger.warn("syncUserAvatarPhotoChanges: before/after data missing", {
+          userId,
+        });
+        return;
+      }
+
+      const beforeAvatar = before.avatarConfig || null;
+      const afterAvatar = after.avatarConfig || null;
+      const avatarChanged =
+        JSON.stringify(beforeAvatar) !== JSON.stringify(afterAvatar);
+
+      const beforePhoto = before.profile?.profilePhotoUrl || null;
+      const afterPhoto = after.profile?.profilePhotoUrl || null;
+      const photoChanged = beforePhoto !== afterPhoto;
+
+      const beforeUseAvatar = before.profile?.useAvatar;
+      const afterUseAvatar = after.profile?.useAvatar;
+      const useAvatarChanged = beforeUseAvatar !== afterUseAvatar;
+
+      const beforeHandle = before.profile?.handle || null;
+      const afterHandle = after.profile?.handle || null;
+      const handleChanged = beforeHandle !== afterHandle;
+
+      const beforeMajor = before.profile?.major || null;
+      const afterMajor = after.profile?.major || null;
+      const majorChanged = beforeMajor !== afterMajor;
+
+      const beforeUniversity = before.universityInfo?.university || null;
+      const afterUniversity = after.universityInfo?.university || null;
+      const universityChanged = beforeUniversity !== afterUniversity;
+
+      if (
+        !avatarChanged &&
+        !photoChanged &&
+        !useAvatarChanged &&
+        !handleChanged &&
+        !majorChanged &&
+        !universityChanged
+      ) {
+        // Nothing relevant changed for cached avatar/photo fields
+        return;
+      }
+
+      const updatedUserInfo = {
+        handle: afterHandle,
+        major: afterMajor || "Unknown",
+        university: afterUniversity || "unknown",
+        avatarConfig: afterAvatar || null,
+        profilePhotoUrl: afterPhoto || null,
+        // Default to photo-first when useAvatar is not explicitly set
+        useAvatar:
+          typeof afterUseAvatar === "boolean" ? afterUseAvatar : false,
+      };
+
+      logger.info("syncUserAvatarPhotoChanges: detected profile change", {
+        userId,
+        avatarChanged,
+        photoChanged,
+        useAvatarChanged,
+        handleChanged,
+        majorChanged,
+        universityChanged,
+      });
+
+      let batch = db.batch();
+      let pendingWrites = 0;
+
+      const flushIfNeeded = async () => {
+        if (pendingWrites > 0) {
+          await batch.commit();
+          batch = db.batch();
+          pendingWrites = 0;
+        }
+      };
+
+      const queueUpdate = async (ref, data) => {
+        batch.update(ref, data);
+        pendingWrites += 1;
+        if (pendingWrites >= 400) {
+          await flushIfNeeded();
+        }
+      };
+
+      // 1) Friend requests where user is sender (fromUserInfo)
+      const outgoingReqSnap = await db
+        .collection("friendRequests")
+        .where("fromUserId", "==", userId)
+        .get();
+
+      for (const docSnap of outgoingReqSnap.docs) {
+        const updates = {
+          "fromUserInfo.handle": updatedUserInfo.handle,
+          "fromUserInfo.major": updatedUserInfo.major,
+          "fromUserInfo.university": updatedUserInfo.university,
+        };
+        // Always propagate avatar/photo changes (including removals)
+        if (avatarChanged) {
+          updates["fromUserInfo.avatarConfig"] = updatedUserInfo.avatarConfig;
+        }
+        if (photoChanged) {
+          updates["fromUserInfo.profilePhotoUrl"] =
+            updatedUserInfo.profilePhotoUrl;
+        }
+        if (typeof updatedUserInfo.useAvatar === "boolean") {
+          updates["fromUserInfo.useAvatar"] = updatedUserInfo.useAvatar;
+        }
+        await queueUpdate(docSnap.ref, updates);
+      }
+
+      // 2) Friend requests where user is receiver (toUserInfo)
+      const incomingReqSnap = await db
+        .collection("friendRequests")
+        .where("toUserId", "==", userId)
+        .get();
+
+      for (const docSnap of incomingReqSnap.docs) {
+        const updates = {
+          "toUserInfo.handle": updatedUserInfo.handle,
+          "toUserInfo.major": updatedUserInfo.major,
+          "toUserInfo.university": updatedUserInfo.university,
+        };
+        // Always propagate avatar/photo changes (including removals)
+        if (avatarChanged) {
+          updates["toUserInfo.avatarConfig"] = updatedUserInfo.avatarConfig;
+        }
+        if (photoChanged) {
+          updates["toUserInfo.profilePhotoUrl"] =
+            updatedUserInfo.profilePhotoUrl;
+        }
+        if (typeof updatedUserInfo.useAvatar === "boolean") {
+          updates["toUserInfo.useAvatar"] = updatedUserInfo.useAvatar;
+        }
+        await queueUpdate(docSnap.ref, updates);
+      }
+
+      // 3) Friendships where user is involved (user1Info/user2Info)
+      const friendshipsSnap = await db
+        .collection("friendships")
+        .where("users", "array-contains", userId)
+        .get();
+
+      for (const docSnap of friendshipsSnap.docs) {
+        const data = docSnap.data() || {};
+        const updates = {};
+        const prefix = data.user1Id === userId ? "user1Info" : data.user2Id === userId ? "user2Info" : null;
+        
+        if (prefix) {
+          updates[`${prefix}.handle`] = updatedUserInfo.handle;
+          updates[`${prefix}.major`] = updatedUserInfo.major;
+          updates[`${prefix}.university`] = updatedUserInfo.university;
+          // Always propagate avatar/photo changes (including removals)
+          if (avatarChanged) {
+            updates[`${prefix}.avatarConfig`] = updatedUserInfo.avatarConfig;
+          }
+          if (photoChanged) {
+            updates[`${prefix}.profilePhotoUrl`] =
+              updatedUserInfo.profilePhotoUrl;
+          }
+          if (typeof updatedUserInfo.useAvatar === "boolean") {
+            updates[`${prefix}.useAvatar`] = updatedUserInfo.useAvatar;
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          await queueUpdate(docSnap.ref, updates);
+        }
+      }
+
+      // 4) Notifications where user is the sender (fromUserInfo)
+      const notificationsSnap = await db
+        .collection("notifications")
+        .where("fromUserId", "==", userId)
+        .get();
+
+      for (const docSnap of notificationsSnap.docs) {
+        const updates = {
+          "fromUserInfo.handle": updatedUserInfo.handle,
+          "fromUserInfo.major": updatedUserInfo.major,
+          "fromUserInfo.university": updatedUserInfo.university,
+        };
+        // Always propagate avatar/photo changes (including removals)
+        if (avatarChanged) {
+          updates["fromUserInfo.avatarConfig"] = updatedUserInfo.avatarConfig;
+        }
+        if (photoChanged) {
+          updates["fromUserInfo.profilePhotoUrl"] =
+            updatedUserInfo.profilePhotoUrl;
+        }
+        if (typeof updatedUserInfo.useAvatar === "boolean") {
+          updates["fromUserInfo.useAvatar"] = updatedUserInfo.useAvatar;
+        }
+        await queueUpdate(docSnap.ref, updates);
+      }
+
+      // 5) Quick Access: users who have this user starred
+      // Requires quickAccessData.starredFriendIds: string[] on user docs
+      const quickAccessSnap = await db
+        .collection("users")
+        .where("quickAccessData.starredFriendIds", "array-contains", userId)
+        .get();
+
+      for (const userDoc of quickAccessSnap.docs) {
+        const userData = userDoc.data() || {};
+        const qa = userData.quickAccessData || {};
+        const starredFriends = Array.isArray(qa.starredFriends)
+          ? qa.starredFriends
+          : [];
+
+        let hasChanges = false;
+        const updatedStarredFriends = starredFriends.map((friend) => {
+          const fid = friend.friendId || friend.userId;
+          if (fid === userId) {
+            hasChanges = true;
+            return {
+              ...friend,
+              handle: updatedUserInfo.handle,
+              major: updatedUserInfo.major,
+              avatarConfig: updatedUserInfo.avatarConfig,
+              profilePhotoUrl: updatedUserInfo.profilePhotoUrl,
+              useAvatar: updatedUserInfo.useAvatar,
+            };
+          }
+          return friend;
+        });
+
+        if (hasChanges) {
+          // Update the entire array to avoid Firestore converting it to an object
+          await queueUpdate(userDoc.ref, {
+            "quickAccessData.starredFriends": updatedStarredFriends,
+            "quickAccessData.lastUpdated": FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // Commit any remaining writes
+      await flushIfNeeded();
+
+      logger.info("syncUserAvatarPhotoChanges: sync complete", {
+        userId,
+      });
+    } catch (err) {
+      logger.error("syncUserAvatarPhotoChanges: failed", {
+        error: String(err),
+      });
+    }
+  }
+);
+
 // 1) Friend Requests → notify recipient automatically
 export const onFriendRequestCreated = onDocumentCreated(
   "friendRequests/{id}",

@@ -1,6 +1,6 @@
 import { currentUser } from "../store/userStore.js";
 import { dataManager } from "../services/data/DataService.js";
-import { avatarManager } from "../utils/avatar/avatarManager.js";
+import { getAvatarUrl } from "../utils/avatar/avatarUtils.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { notificationManager } from "../services/realtime/NotificationService.js";
@@ -128,6 +128,9 @@ export class NotifyFriendsPage {
       friendId: f.friendId || f.userId,
       handle: f.handle || f.profile?.handle || "friend",
       avatarConfig: f.avatarConfig || f.profile?.avatarConfig || null,
+      profilePhotoUrl: f.profilePhotoUrl || null,
+      useAvatar:
+        typeof f.useAvatar === "boolean" ? f.useAvatar : undefined,
     }));
     this.starred.forEach((f) => {
       const id = f.friendId;
@@ -135,6 +138,9 @@ export class NotifyFriendsPage {
         this.friendInfo.set(id, {
           handle: f.handle,
           avatarConfig: f.avatarConfig,
+          profilePhotoUrl: f.profilePhotoUrl || null,
+          useAvatar:
+            typeof f.useAvatar === "boolean" ? f.useAvatar : undefined,
         });
     });
     const empty = document.getElementById("notifyStarredEmpty");
@@ -204,17 +210,10 @@ export class NotifyFriendsPage {
 
       const avatar = document.createElement("div");
       avatar.className = "friend-avatar";
-      const cfg = f.avatarConfig;
-      if (
-        cfg &&
-        avatarManager &&
-        typeof avatarManager.generateAvatarUrl === "function"
-      ) {
-        const url = avatarManager.generateAvatarUrl(cfg);
-        avatar.innerHTML = `<img src="${url}" alt="@${f.handle}" style="width:100%;height:100%;object-fit:cover;"/>`;
-      } else {
-        avatar.innerHTML = '<i class="fas fa-user-circle"></i>';
-      }
+      const url = getAvatarUrl(f);
+      avatar.innerHTML = url
+        ? `<img src="${url}" alt="@${f.handle}" style="width:100%;height:100%;object-fit:cover;"/>`
+        : '<i class="fas fa-user-circle"></i>';
 
       const name = document.createElement("div");
       name.className = "friend-name";
@@ -297,6 +296,12 @@ export class NotifyFriendsPage {
         handle: profile?.profile?.handle || profile?.handle || "user",
         avatarConfig:
           profile?.avatarConfig || profile?.profile?.avatarConfig || null,
+        profilePhotoUrl:
+          profile?.profile?.profilePhotoUrl || profile?.profilePhotoUrl || null,
+        useAvatar:
+          typeof profile?.profile?.useAvatar === "boolean"
+            ? profile.profile.useAvatar
+            : undefined,
       };
 
       const pingId = `ping_${Date.now()}`;
@@ -519,17 +524,10 @@ export class NotifyFriendsPage {
       card.className = "notify-friend-card";
       const avatar = document.createElement("div");
       avatar.className = "friend-avatar";
-      const cfg = info.avatarConfig;
-      if (
-        cfg &&
-        avatarManager &&
-        typeof avatarManager.generateAvatarUrl === "function"
-      ) {
-        const url = avatarManager.generateAvatarUrl(cfg);
-        avatar.innerHTML = `<img src="${url}" alt="@${info.handle}" style="width:100%;height:100%;object-fit:cover;"/>`;
-      } else {
-        avatar.innerHTML = '<i class="fas fa-user-circle"></i>';
-      }
+      const url = getAvatarUrl(info);
+      avatar.innerHTML = url
+        ? `<img src="${url}" alt="@${info.handle}" style="width:100%;height:100%;object-fit:cover;"/>`
+        : '<i class="fas fa-user-circle"></i>';
       const name = document.createElement("div");
       name.className = "friend-name";
       name.textContent = info.handle || "friend";

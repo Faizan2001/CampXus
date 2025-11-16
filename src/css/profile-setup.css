@@ -1427,33 +1427,31 @@ body.page-profile .profile-setup-card.glass-card {
 /* Swap animation between photo and avatar sections */
 .avatar-photo-group .photo-primary-section,
 .avatar-photo-group .avatar-secondary-section {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
+/* Photo mode - photo UI visible, avatar UI hidden */
 .avatar-photo-group.avatar-photo-mode-photo .photo-primary-section {
+  display: block;
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
 .avatar-photo-group.avatar-photo-mode-photo .avatar-secondary-section {
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
+  display: none;
 }
 
+/* Avatar mode - avatar UI visible, photo UI hidden */
 .avatar-photo-group.avatar-photo-mode-avatar .avatar-secondary-section {
+  display: block;
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
 .avatar-photo-group.avatar-photo-mode-avatar .photo-primary-section {
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
+  display: none;
 }
 
 .avatar-selection-section {

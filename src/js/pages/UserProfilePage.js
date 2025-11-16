@@ -360,17 +360,15 @@ class UserProfilePage {
       this.dom.handle.textContent
     );
 
-    // Photo or avatar
+    // Photo or avatar (photo-first unless user explicitly chose avatar)
     const imgEl = document.createElement("img");
-    const useAvatar =
-      profileDoc?.profile?.useAvatar === true ||
-      !profileDoc?.profile?.profilePhotoUrl;
-    if (!useAvatar && profileDoc?.profile?.profilePhotoUrl) {
-      imgEl.src = profileDoc.profile.profilePhotoUrl;
-      console.log(
-        "[UserProfilePage] Using profile photo:",
-        profileDoc.profile.profilePhotoUrl
-      );
+    const photoUrl = profileDoc?.profile?.profilePhotoUrl || null;
+    const useAvatarFlag = profileDoc?.profile?.useAvatar;
+    const shouldUsePhoto = !!photoUrl && useAvatarFlag !== true;
+
+    if (shouldUsePhoto) {
+      imgEl.src = photoUrl;
+      console.log("[UserProfilePage] Using profile photo:", photoUrl);
     } else {
       const url = getAvatarUrl(profileDoc) || "";
       if (url) {
