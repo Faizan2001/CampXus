@@ -958,13 +958,22 @@ export class FriendsManager {
       if (user2AvatarConfig) {
         user2Info.avatarConfig = user2AvatarConfig;
       }
-      const user2PhotoUrl = requestData.toUserInfo.profilePhotoUrl || userProfile.profilePhotoUrl;
+      const user2PhotoUrl =
+        requestData.toUserInfo.profilePhotoUrl ||
+        (userProfile.profile && userProfile.profile.profilePhotoUrl) ||
+        userProfile.profilePhotoUrl ||
+        null;
       if (user2PhotoUrl) {
         user2Info.profilePhotoUrl = user2PhotoUrl;
       }
-      const user2UseAvatar = requestData.toUserInfo.useAvatar !== undefined 
-                              ? requestData.toUserInfo.useAvatar 
-                              : userProfile.useAvatar;
+      const user2UseAvatar =
+        requestData.toUserInfo.useAvatar !== undefined
+          ? requestData.toUserInfo.useAvatar
+          : typeof userProfile.profile?.useAvatar === "boolean"
+          ? userProfile.profile.useAvatar
+          : typeof userProfile.useAvatar === "boolean"
+          ? userProfile.useAvatar
+          : undefined;
       if (user2UseAvatar !== undefined) {
         user2Info.useAvatar = user2UseAvatar;
       }
@@ -1659,14 +1668,48 @@ export class FriendsManager {
         return [];
       }
 
+      const toJsDate = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (value && typeof value.toDate === "function") {
+          try {
+            return value.toDate();
+          } catch (_e) {
+            // fall through
+          }
+        }
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          if (
+            typeof value.seconds === "number" &&
+            typeof value.nanoseconds === "number"
+          ) {
+            return new Date(
+              value.seconds * 1000 + value.nanoseconds / 1e6
+            );
+          }
+          if (
+            typeof value._seconds === "number" &&
+            typeof value._nanoseconds === "number"
+          ) {
+            return new Date(
+              value._seconds * 1000 + value._nanoseconds / 1e6
+            );
+          }
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
       // Sort by recent-first ordering (most recently interacted with first)
       const sortedFriends = rawFriends.sort((a, b) => {
         const dateA =
-          a.lastInteraction?.toDate?.() ||
-          new Date(a.lastInteraction || a.starredAt);
+          toJsDate(a.lastInteraction) ||
+          toJsDate(a.starredAt) ||
+          new Date(0);
         const dateB =
-          b.lastInteraction?.toDate?.() ||
-          new Date(b.lastInteraction || b.starredAt);
+          toJsDate(b.lastInteraction) ||
+          toJsDate(b.starredAt) ||
+          new Date(0);
         return dateB - dateA; // Most recent first
       });
 

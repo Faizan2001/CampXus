@@ -34,7 +34,6 @@ describe("courseNormalization", () => {
       classroom: "NAC902",
     };
     const key = buildSpaceKey(course, "iub");
-    expect(key).toContain("iub__csc101__sec02__MW__1120-1250__NAC902".toLowerCase());
+    expect(key).toContain("iub__csc101__sec02__MW__1120-1250__NAC902");
   });
 });
-

@@ -30,29 +30,42 @@ const isEmulator = process.env.FIRESTORE_EMULATOR_HOST;
 
 let app;
 if (isEmulator) {
-  console.log(`🧪 Running against emulator: ${process.env.FIRESTORE_EMULATOR_HOST}`);
+  console.log(
+    `🧪 Running against emulator: ${process.env.FIRESTORE_EMULATOR_HOST}`
+  );
   app = initializeApp({
     projectId: "meetchuthere-00",
   });
 } else {
   // Try to load service account from environment variable or default location
-  const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || 
-                             join(__dirname, '../../service-account-key.json');
-  
+  const serviceAccountPath =
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    join(__dirname, "../../service-account-key.json");
+
   try {
-    const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+    const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
     console.log(`🔐 Using service account: ${serviceAccount.client_email}`);
     app = initializeApp({
       credential: cert(serviceAccount),
       projectId: serviceAccount.project_id,
     });
   } catch (error) {
-    console.error(`❌ Could not load service account from: ${serviceAccountPath}`);
+    console.error(
+      `❌ Could not load service account from: ${serviceAccountPath}`
+    );
     console.error(`\nTo fix this, either:`);
-    console.error(`1. Download service account JSON from Firebase Console > Project Settings > Service Accounts`);
-    console.error(`   and save it as: ${join(__dirname, '../../service-account-key.json')}`);
-    console.error(`2. Or set GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json`);
-    console.error(`3. Or run against emulator: FIRESTORE_EMULATOR_HOST=localhost:8080 node ${process.argv[1]}\n`);
+    console.error(
+      `1. Download service account JSON from Firebase Console > Project Settings > Service Accounts`
+    );
+    console.error(
+      `   and save it as: ${join(__dirname, "../../service-account-key.json")}`
+    );
+    console.error(
+      `2. Or set GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json`
+    );
+    console.error(
+      `3. Or run against emulator: FIRESTORE_EMULATOR_HOST=localhost:8080 node ${process.argv[1]}\n`
+    );
     process.exit(1);
   }
 }
@@ -133,4 +146,3 @@ migrateQuickAccessStarredFriendIds()
     console.error("❌ Migration failed:", err);
     process.exit(1);
   });
-

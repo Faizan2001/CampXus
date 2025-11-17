@@ -3306,6 +3306,32 @@ class DataManager {
           return value;
         }
 
+        // Preserve Firestore Timestamp-like values as-is
+        // (they expose a .toDate() method; converting them to plain objects
+        // would break Quick Access ordering logic that relies on toDate())
+        if (value && typeof value.toDate === "function") {
+          return value;
+        }
+
+        // Handle legacy plain-object timestamps that may have been written by
+        // older code (e.g., {seconds, nanoseconds} without Firestore methods)
+        if (
+          value &&
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          typeof value.seconds === "number" &&
+          typeof value.nanoseconds === "number" &&
+          typeof value.toDate !== "function"
+        ) {
+          try {
+            return new Date(
+              value.seconds * 1000 + value.nanoseconds / 1e6
+            );
+          } catch (_e) {
+            // If anything goes wrong, fall through to generic object handling
+          }
+        }
+
         // Recursively sanitize plain objects
         if (value && typeof value === "object" && !Array.isArray(value)) {
           const cleanedObject = {};
@@ -3649,6 +3675,38 @@ class DataManager {
       const currentQuickAccess = userData.quickAccessData || {};
       const starredFriends = currentQuickAccess.starredFriends || [];
 
+      const toJsDate = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (value && typeof value.toDate === "function") {
+          try {
+            return value.toDate();
+          } catch (_e) {
+            // fall through to other strategies
+          }
+        }
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          if (
+            typeof value.seconds === "number" &&
+            typeof value.nanoseconds === "number"
+          ) {
+            return new Date(
+              value.seconds * 1000 + value.nanoseconds / 1e6
+            );
+          }
+          if (
+            typeof value._seconds === "number" &&
+            typeof value._nanoseconds === "number"
+          ) {
+            return new Date(
+              value._seconds * 1000 + value._nanoseconds / 1e6
+            );
+          }
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
       // Find and update the friend's last interaction timestamp
       const updatedStarredFriends = starredFriends.map((friend) => {
         if (friend.userId === friendId) {
@@ -3663,11 +3721,13 @@ class DataManager {
       // Sort by recent-first (most recent interaction first)
       updatedStarredFriends.sort((a, b) => {
         const dateA =
-          a.lastInteraction?.toDate?.() ||
-          new Date(a.lastInteraction || a.starredAt);
+          toJsDate(a.lastInteraction) ||
+          toJsDate(a.starredAt) ||
+          new Date(0);
         const dateB =
-          b.lastInteraction?.toDate?.() ||
-          new Date(b.lastInteraction || b.starredAt);
+          toJsDate(b.lastInteraction) ||
+          toJsDate(b.starredAt) ||
+          new Date(0);
         return dateB - dateA;
       });
 

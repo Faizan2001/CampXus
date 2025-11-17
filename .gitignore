@@ -13,6 +13,8 @@ yarn-error.log*
 # Firebase (CRITICAL: Never commit these!)
 firebase-debug.log
 firestore-debug.log
+firestore_dump.json
+firebase_dump.json
 ui-debug.log
 .firebase/
 src/js/lib/firebase/env-config.js
@@ -46,6 +48,5 @@ Thumbs.db
 build/
 *.log
 requirements/
-
 
 
