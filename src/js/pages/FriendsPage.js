@@ -1171,8 +1171,6 @@ class FriendsUI {
     }
   }
 
-
-
   /**
    * 📊 Load initial data when page opens
    */
@@ -2341,7 +2339,9 @@ class FriendsUI {
           this.toggleFriendActionsDrawer(firstFriendId, true);
         }
       } catch (e) {
-        logWarn("[Friends Onboarding] Failed to ensure drawer open", { error: e });
+        logWarn("[Friends Onboarding] Failed to ensure drawer open", {
+          error: e,
+        });
       }
     };
 
@@ -2355,7 +2355,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-star",
           title: "Star friends",
-          description: "Star this friend to see their updates on the schedule page.",
+          description:
+            "Star this friend to see their updates on the schedule page.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2371,7 +2372,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-drawer-toggle",
           title: "Privacy & Options",
-          description: "Open this drawer for privacy toggles, and other options.",
+          description:
+            "Open this drawer for privacy toggles, and other options.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2401,7 +2403,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-location",
           title: "Location Privacy",
-          description: "Toggle this button to hide/share your campus presence with this friend.",
+          description:
+            "Toggle this button to hide/share your campus presence with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2419,7 +2422,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-schedule",
           title: "Schedule Privacy",
-          description: "Toggle this button to hide/share your schedule with this friend.",
+          description:
+            "Toggle this button to hide/share your schedule with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2544,7 +2548,9 @@ class FriendsUI {
             if (!e?.detail || e.detail.route !== "home") return;
             // Convert outstanding glow intent into showFriendsBarHint
             if (sessionStorage.getItem(glowKey) === "1") {
-              try { target.classList.remove("onboarding-glow"); } catch (_) {}
+              try {
+                target.classList.remove("onboarding-glow");
+              } catch (_) {}
               sessionStorage.setItem(showHintKey, "1");
               sessionStorage.removeItem(glowKey);
             }
@@ -2718,7 +2724,11 @@ class FriendsUI {
       const uid = currentUser?.state?.user?.uid;
       if (!uid) return;
       const cached = uiCache.get(uiCache.keys.friendsList(uid));
-      if (Array.isArray(cached) && cached.length > 0 && this.elements?.friendsList) {
+      if (
+        Array.isArray(cached) &&
+        cached.length > 0 &&
+        this.elements?.friendsList
+      ) {
         console.log("👥 Rendering friends from cache before fresh fetch", {
           count: cached.length,
         });
@@ -4034,7 +4044,8 @@ class FriendsUI {
         major: friend.major,
         avatarConfig: friend.avatarConfig,
         profilePhotoUrl: friend.profilePhotoUrl || null,
-        useAvatar: typeof friend.useAvatar === "boolean" ? friend.useAvatar : undefined,
+        useAvatar:
+          typeof friend.useAvatar === "boolean" ? friend.useAvatar : undefined,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
       // Optimistic UI: flip immediately
@@ -5112,7 +5123,6 @@ class FriendsUI {
       logError("❌ Error during Friends UI cleanup:", { error });
     }
   }
-
 }
 
 // 🌟 Export a single instance

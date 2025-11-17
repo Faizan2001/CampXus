@@ -327,7 +327,9 @@ export class HorizontalFriendsBar {
       // Apply last-known presence (stale-while-revalidate) to avoid grey-dot flicker
       try {
         const uid = currentUser?.user?.uid;
-        const cachedPresence = uiCache.get(uiCache.keys.horizontalPresence(uid));
+        const cachedPresence = uiCache.get(
+          uiCache.keys.horizontalPresence(uid)
+        );
         if (cachedPresence && Array.isArray(quickAccessData)) {
           quickAccessData.forEach((f) => {
             const id = f.friendId || f.userId;
@@ -335,7 +337,8 @@ export class HorizontalFriendsBar {
             if (!p) return;
             // Only hydrate safe, view-only fields; do not override privacy
             f.lastActive = p.lastActive || f.lastActive || null;
-            f.lastKnownLocation = p.lastKnownLocation || f.lastKnownLocation || null;
+            f.lastKnownLocation =
+              p.lastKnownLocation || f.lastKnownLocation || null;
             f.hasLocationSharing =
               typeof p.hasLocationSharing === "boolean"
                 ? p.hasLocationSharing
@@ -384,7 +387,11 @@ export class HorizontalFriendsBar {
                   canSeeLocation: !!f.canSeeLocation,
                 };
               });
-              uiCache.set(uiCache.keys.horizontalPresence(uid), snapshot, 120_000);
+              uiCache.set(
+                uiCache.keys.horizontalPresence(uid),
+                snapshot,
+                120_000
+              );
             } catch (_) {}
           } catch (bgErr) {
             console.warn("⚠️ Background enhancement failed:", bgErr);
@@ -1867,8 +1874,9 @@ export class HorizontalFriendsBar {
               arr
                 .slice()
                 .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
-                .map((o) => 
-                  `${o.id}|${o.handle}|${o.order}|${o.photoUrl}|${o.useAvatar}|${o.avatarStyle}|${o.avatarSeed}`
+                .map(
+                  (o) =>
+                    `${o.id}|${o.handle}|${o.order}|${o.photoUrl}|${o.useAvatar}|${o.avatarStyle}|${o.avatarSeed}`
                 )
                 .join(";");
             const hasActualChanges =
@@ -2778,8 +2786,7 @@ export class HorizontalFriendsBar {
       const avatarChanged =
         newAvatarConfig &&
         !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
-      const photoChanged =
-        newProfilePhotoUrl !== currentFriend.profilePhotoUrl;
+      const photoChanged = newProfilePhotoUrl !== currentFriend.profilePhotoUrl;
       const useAvatarChanged =
         typeof newUseAvatar === "boolean" &&
         newUseAvatar !== currentFriend.useAvatar;
@@ -4179,7 +4186,8 @@ export class HorizontalFriendsBar {
       if (userElement) userElement.classList.remove("selected");
       this.updateCompareSelectionUI();
     } else if (this.selectedFriendId !== "none") {
-      const idToRestore = this.selectedFriendId == null ? "user" : this.selectedFriendId;
+      const idToRestore =
+        this.selectedFriendId == null ? "user" : this.selectedFriendId;
       this.updateVisualSelection(idToRestore);
     }
 
@@ -4198,8 +4206,8 @@ export class HorizontalFriendsBar {
 
     // Check current order in DOM
     const current = Array.from(
-      this.avatarsContainer.querySelectorAll('.friend-avatar-item')
-    ).map((el) => el.getAttribute('data-friend-id'));
+      this.avatarsContainer.querySelectorAll(".friend-avatar-item")
+    ).map((el) => el.getAttribute("data-friend-id"));
 
     // If identical, nothing to do
     const sameOrder =
@@ -4541,7 +4549,8 @@ export class HorizontalFriendsBar {
     try {
       const presencePriority = (f) => {
         // Determine effective sharing/visibility (mutual required)
-        const canSee = f?.hasLocationSharing === true || f?.canSeeLocation === true;
+        const canSee =
+          f?.hasLocationSharing === true || f?.canSeeLocation === true;
         if (!canSee) return 2; // grey when not mutually shared
 
         // Respect the same recency rules as PresenceDot (<= 12h)

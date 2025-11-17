@@ -3283,10 +3283,14 @@ class DataManager {
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
       const rawFriends = currentQuickAccess.starredFriends || [];
-      
+
       // Ensure friends is always an array (defensive check)
       if (!Array.isArray(rawFriends)) {
-        console.warn('⚠️ [DataManager] starredFriends is not an array:', typeof rawFriends, rawFriends);
+        console.warn(
+          "⚠️ [DataManager] starredFriends is not an array:",
+          typeof rawFriends,
+          rawFriends
+        );
       }
       const friends = Array.isArray(rawFriends) ? rawFriends : [];
 
@@ -3324,9 +3328,7 @@ class DataManager {
           typeof value.toDate !== "function"
         ) {
           try {
-            return new Date(
-              value.seconds * 1000 + value.nanoseconds / 1e6
-            );
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
           } catch (_e) {
             // If anything goes wrong, fall through to generic object handling
           }
@@ -3392,7 +3394,10 @@ class DataManager {
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
 
-      console.log(`📊 [DataManager] Writing ${sanitizedFriends.length} starred friends to Firestore:`, sanitizedFriends);
+      console.log(
+        `📊 [DataManager] Writing ${sanitizedFriends.length} starred friends to Firestore:`,
+        sanitizedFriends
+      );
 
       // Update the user document with enhanced Quick Access data
       // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
@@ -3411,7 +3416,9 @@ class DataManager {
         totalStarred: sanitizedFriends.length,
         lastUpdated: new Date(),
       });
-      console.log(`✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${sanitizedFriends.length} friends`);
+      console.log(
+        `✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${sanitizedFriends.length} friends`
+      );
 
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
@@ -3466,10 +3473,14 @@ class DataManager {
       const userData = userDoc.data();
       const currentQuickAccess = userData.quickAccessData || {};
       const rawFriends = currentQuickAccess.starredFriends || [];
-      
+
       // Ensure friends is always an array (defensive check)
       if (!Array.isArray(rawFriends)) {
-        console.warn('⚠️ [DataManager] starredFriends is not an array:', typeof rawFriends, rawFriends);
+        console.warn(
+          "⚠️ [DataManager] starredFriends is not an array:",
+          typeof rawFriends,
+          rawFriends
+        );
       }
       const friends = Array.isArray(rawFriends) ? rawFriends : [];
 
@@ -3507,7 +3518,9 @@ class DataManager {
         totalStarred: updatedFriends.length,
         lastUpdated: new Date(),
       });
-      console.log(`✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${updatedFriends.length} friends`);
+      console.log(
+        `✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${updatedFriends.length} friends`
+      );
 
       // Clear the flag after a short delay to allow real-time propagation
       setTimeout(() => {
@@ -3581,12 +3594,20 @@ class DataManager {
       const cacheKey = `quick_access_${userId}`;
       console.log(`🔍 [DataManager] Cache lookup for key: ${cacheKey}`);
       const cachedData = this.getCachedData(cacheKey);
-      console.log(`🔍 [DataManager] Cache result:`, cachedData ? `HIT (${cachedData.starredFriends?.length || 0} friends)` : 'MISS');
+      console.log(
+        `🔍 [DataManager] Cache result:`,
+        cachedData
+          ? `HIT (${cachedData.starredFriends?.length || 0} friends)`
+          : "MISS"
+      );
       if (cachedData) {
         console.log("📦 [DataManager] Using cached Quick Access data");
         // Ensure cached data has proper array structure (defensive check)
         if (!Array.isArray(cachedData.starredFriends)) {
-          console.warn('⚠️ [DataManager] Cached starredFriends is not an array, fixing...', typeof cachedData.starredFriends);
+          console.warn(
+            "⚠️ [DataManager] Cached starredFriends is not an array, fixing...",
+            typeof cachedData.starredFriends
+          );
           cachedData.starredFriends = [];
           // Update cache with fixed data
           this.setCachedData(cacheKey, cachedData);
@@ -3610,7 +3631,7 @@ class DataManager {
         lastUpdated: null,
       };
 
-      console.log('🔍 [DataManager] Raw quickAccessData from Firestore:', {
+      console.log("🔍 [DataManager] Raw quickAccessData from Firestore:", {
         hasQuickAccessData: !!userData.quickAccessData,
         starredFriendsType: typeof quickAccessData.starredFriends,
         isArray: Array.isArray(quickAccessData.starredFriends),
@@ -3619,7 +3640,10 @@ class DataManager {
 
       // Ensure starredFriends is always an array (defensive check)
       if (!Array.isArray(quickAccessData.starredFriends)) {
-        console.warn('⚠️ [DataManager] Firestore starredFriends is not an array, fixing...', typeof quickAccessData.starredFriends);
+        console.warn(
+          "⚠️ [DataManager] Firestore starredFriends is not an array, fixing...",
+          typeof quickAccessData.starredFriends
+        );
         quickAccessData.starredFriends = [];
       }
 
@@ -3690,17 +3714,13 @@ class DataManager {
             typeof value.seconds === "number" &&
             typeof value.nanoseconds === "number"
           ) {
-            return new Date(
-              value.seconds * 1000 + value.nanoseconds / 1e6
-            );
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
           }
           if (
             typeof value._seconds === "number" &&
             typeof value._nanoseconds === "number"
           ) {
-            return new Date(
-              value._seconds * 1000 + value._nanoseconds / 1e6
-            );
+            return new Date(value._seconds * 1000 + value._nanoseconds / 1e6);
           }
         }
         const d = new Date(value);
@@ -3721,13 +3741,9 @@ class DataManager {
       // Sort by recent-first (most recent interaction first)
       updatedStarredFriends.sort((a, b) => {
         const dateA =
-          toJsDate(a.lastInteraction) ||
-          toJsDate(a.starredAt) ||
-          new Date(0);
+          toJsDate(a.lastInteraction) || toJsDate(a.starredAt) || new Date(0);
         const dateB =
-          toJsDate(b.lastInteraction) ||
-          toJsDate(b.starredAt) ||
-          new Date(0);
+          toJsDate(b.lastInteraction) || toJsDate(b.starredAt) || new Date(0);
         return dateB - dateA;
       });
 
@@ -3908,8 +3924,7 @@ class DataManager {
             ...existingFriend, // Keep starredAt, lastInteraction
             handle: freshData.profile?.handle || existingFriend.handle,
             major: freshData.profile?.major || existingFriend.major,
-            avatarConfig:
-              freshData.avatarConfig || existingFriend.avatarConfig,
+            avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
             profilePhotoUrl:
               freshData.profile?.profilePhotoUrl ||
               existingFriend.profilePhotoUrl ||

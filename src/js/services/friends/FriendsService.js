@@ -546,9 +546,8 @@ export class FriendsManager {
     if (term.length < 1) return [];
 
     const viewerProfile =
-      (await currentUser
-        .waitForProfileWithTimeout?.(5000)
-        .catch(() => null)) || (await currentUser.waitForProfile());
+      (await currentUser.waitForProfileWithTimeout?.(5000).catch(() => null)) ||
+      (await currentUser.waitForProfile());
     if (!viewerProfile) return [];
 
     // Student ID exact (6+ digits)
@@ -654,12 +653,24 @@ export class FriendsManager {
 
       // Prefer exact match first, then lexicographic
       candidates.sort((a, b) => {
-        const aExact = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() === normalized;
-        const bExact = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() === normalized;
+        const aExact =
+          (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() ===
+          normalized;
+        const bExact =
+          (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() ===
+          normalized;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
-        const ah = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase();
-        const bh = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase();
+        const ah = (
+          a.profile?.handle_lower ||
+          a.profile?.handle ||
+          ""
+        ).toLowerCase();
+        const bh = (
+          b.profile?.handle_lower ||
+          b.profile?.handle ||
+          ""
+        ).toLowerCase();
         return ah.localeCompare(bh);
       });
 
@@ -807,8 +818,7 @@ export class FriendsManager {
           major: userProfile.profile.major,
           university: userProfile.universityInfo.university,
           avatarConfig: userProfile.avatarConfig,
-          profilePhotoUrl:
-            userProfile.profile.profilePhotoUrl || null,
+          profilePhotoUrl: userProfile.profile.profilePhotoUrl || null,
           useAvatar:
             typeof userProfile.profile.useAvatar === "boolean"
               ? userProfile.profile.useAvatar
@@ -823,8 +833,7 @@ export class FriendsManager {
             targetUniversityInfo.universityName ||
             "",
           avatarConfig: targetUserData?.avatarConfig,
-          profilePhotoUrl:
-            targetUserData?.profile?.profilePhotoUrl || null,
+          profilePhotoUrl: targetUserData?.profile?.profilePhotoUrl || null,
           useAvatar:
             typeof targetUserData?.profile?.useAvatar === "boolean"
               ? targetUserData.profile.useAvatar
@@ -927,15 +936,17 @@ export class FriendsManager {
       // (We'll delete the request after successful friendship creation)
 
       // 🎯 STEP 1: Create the friendship document with bilateral privacy
-      
+
       // Build user info objects with only defined values (Firestore doesn't allow undefined)
       const user1Info = {
         handle: requestData.fromUserInfo.handle,
         major: requestData.fromUserInfo.major,
       };
-      
+
       // Add avatar/photo fields only if they exist
-      const user1AvatarConfig = requestData.fromUserInfo.avatarConfig || requestData.fromUserInfo.avatar;
+      const user1AvatarConfig =
+        requestData.fromUserInfo.avatarConfig ||
+        requestData.fromUserInfo.avatar;
       if (user1AvatarConfig) {
         user1Info.avatarConfig = user1AvatarConfig;
       }
@@ -945,16 +956,17 @@ export class FriendsManager {
       if (requestData.fromUserInfo.useAvatar !== undefined) {
         user1Info.useAvatar = requestData.fromUserInfo.useAvatar;
       }
-      
+
       const user2Info = {
         handle: requestData.toUserInfo.handle,
         major: requestData.toUserInfo.major,
       };
-      
+
       // Add avatar/photo fields only if they exist
-      const user2AvatarConfig = requestData.toUserInfo.avatarConfig || 
-                                 requestData.toUserInfo.avatar || 
-                                 userProfile.avatarConfig;
+      const user2AvatarConfig =
+        requestData.toUserInfo.avatarConfig ||
+        requestData.toUserInfo.avatar ||
+        userProfile.avatarConfig;
       if (user2AvatarConfig) {
         user2Info.avatarConfig = user2AvatarConfig;
       }
@@ -977,7 +989,7 @@ export class FriendsManager {
       if (user2UseAvatar !== undefined) {
         user2Info.useAvatar = user2UseAvatar;
       }
-      
+
       const friendshipData = {
         users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
         user1Id: requestData.fromUserId,
@@ -1664,7 +1676,11 @@ export class FriendsManager {
       // Ensure starredFriends is an array (defensive check)
       const rawFriends = quickAccessData.starredFriends;
       if (!Array.isArray(rawFriends)) {
-        console.warn('⚠️ [FriendsService] starredFriends is not an array:', typeof rawFriends, rawFriends);
+        console.warn(
+          "⚠️ [FriendsService] starredFriends is not an array:",
+          typeof rawFriends,
+          rawFriends
+        );
         return [];
       }
 
@@ -1683,17 +1699,13 @@ export class FriendsManager {
             typeof value.seconds === "number" &&
             typeof value.nanoseconds === "number"
           ) {
-            return new Date(
-              value.seconds * 1000 + value.nanoseconds / 1e6
-            );
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
           }
           if (
             typeof value._seconds === "number" &&
             typeof value._nanoseconds === "number"
           ) {
-            return new Date(
-              value._seconds * 1000 + value._nanoseconds / 1e6
-            );
+            return new Date(value._seconds * 1000 + value._nanoseconds / 1e6);
           }
         }
         const d = new Date(value);
@@ -1703,13 +1715,9 @@ export class FriendsManager {
       // Sort by recent-first ordering (most recently interacted with first)
       const sortedFriends = rawFriends.sort((a, b) => {
         const dateA =
-          toJsDate(a.lastInteraction) ||
-          toJsDate(a.starredAt) ||
-          new Date(0);
+          toJsDate(a.lastInteraction) || toJsDate(a.starredAt) || new Date(0);
         const dateB =
-          toJsDate(b.lastInteraction) ||
-          toJsDate(b.starredAt) ||
-          new Date(0);
+          toJsDate(b.lastInteraction) || toJsDate(b.starredAt) || new Date(0);
         return dateB - dateA; // Most recent first
       });
 
@@ -2131,11 +2139,12 @@ export class FriendsManager {
 
       // 🚧 Prevent duplicate pending requests (spam guard)
       try {
-        const hasPending = await dataManager.hasPendingOutgoingLocationShareRequest(
-          currentUser.uid,
-          friendId,
-          friendshipId
-        );
+        const hasPending =
+          await dataManager.hasPendingOutgoingLocationShareRequest(
+            currentUser.uid,
+            friendId,
+            friendshipId
+          );
         if (hasPending) {
           return {
             success: false,
@@ -2170,8 +2179,7 @@ export class FriendsManager {
           handle: userProfile.profile.handle,
           avatarConfig: userProfile.avatarConfig,
           major: userProfile.profile.major,
-          profilePhotoUrl:
-            userProfile.profile.profilePhotoUrl || null,
+          profilePhotoUrl: userProfile.profile.profilePhotoUrl || null,
           useAvatar:
             typeof userProfile.profile.useAvatar === "boolean"
               ? userProfile.profile.useAvatar

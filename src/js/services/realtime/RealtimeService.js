@@ -519,14 +519,18 @@ class RealTimeManager {
         (userProfile) => {
           // Skip updates during optimistic update window to prevent stale data from overwriting cache
           if (dataManager.quickAccessUpdateInProgress.has(userId)) {
-            this.log(`⏭️ Skipping Quick Access listener update during optimistic update window for ${userId}`);
+            this.log(
+              `⏭️ Skipping Quick Access listener update during optimistic update window for ${userId}`
+            );
             return;
           }
 
           if (userProfile && userProfile.quickAccessData) {
             const rawFriends = userProfile.quickAccessData.starredFriends || [];
             // Ensure it's an array (defensive check)
-            const quickAccessFriends = Array.isArray(rawFriends) ? rawFriends : [];
+            const quickAccessFriends = Array.isArray(rawFriends)
+              ? rawFriends
+              : [];
             // Build structural signature (ordered ids)
             const sig = quickAccessFriends
               .map((f) => f.friendId || f.userId)
@@ -941,7 +945,10 @@ class RealTimeManager {
       }
 
       // Mobile startup guard: skip until friendships are loaded to avoid false removals
-      if (!Array.isArray(currentFriendships) || currentFriendships.length === 0) {
+      if (
+        !Array.isArray(currentFriendships) ||
+        currentFriendships.length === 0
+      ) {
         this.log(
           "ℹ️ CLEANUP: Skipping bilateral cleanup – no friendships loaded yet"
         );
@@ -982,8 +989,10 @@ class RealTimeManager {
       }
 
       // Ensure quickAccessFriends is an array (defensive check)
-      const validQuickAccessFriends = Array.isArray(quickAccessFriends) ? quickAccessFriends : [];
-      
+      const validQuickAccessFriends = Array.isArray(quickAccessFriends)
+        ? quickAccessFriends
+        : [];
+
       this.log(
         `🔍 CLEANUP: Validating ${validQuickAccessFriends.length} quickAccess friends against ${currentFriendships.length} current friendships`
       );

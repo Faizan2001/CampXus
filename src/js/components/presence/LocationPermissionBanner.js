@@ -25,6 +25,8 @@ const bannerState = {
   hideTimeout: null,
 };
 
+const dismissedSessionState = {};
+
 function getDismissStorageKey() {
   const uid = currentUser?.uid || "anon";
   return `campxus:locationBanner:dismissed:${uid}`;
@@ -33,7 +35,7 @@ function getDismissStorageKey() {
 function readDismissedFlag() {
   try {
     const key = getDismissStorageKey();
-    return sessionStorage.getItem(key) === "1";
+    return dismissedSessionState[key] === true;
   } catch (error) {
     return false;
   }
@@ -43,12 +45,12 @@ function writeDismissedFlag(value) {
   try {
     const key = getDismissStorageKey();
     if (value) {
-      sessionStorage.setItem(key, "1");
+      dismissedSessionState[key] = true;
     } else {
-      sessionStorage.removeItem(key);
+      delete dismissedSessionState[key];
     }
   } catch (_) {
-    /* sessionStorage may be unavailable (Safari private) */
+    /* ignore */
   }
 }
 

@@ -100,7 +100,7 @@ npm run dev                # Start Vite dev server
 npm test                   # Run Jest test suites
 
 # Firebase
-npm run firebase:emulators            # Start local Firebase emulators
+npm run firebase:emulators             # Start local Firebase emulators
 npm run firebase:emulators:persist    # Start emulators + save/restore data on exit
 npm run firebase:emulators:export     # Export current emulator data
 npm run firebase:serve                # Serve with Firebase hosting

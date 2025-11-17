@@ -404,9 +404,12 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
       const beforeSnap = event.data?.before;
       const afterSnap = event.data?.after;
       if (!beforeSnap || !afterSnap) {
-        logger.warn("syncUserAvatarPhotoChanges: missing before/after snapshot", {
-          userId,
-        });
+        logger.warn(
+          "syncUserAvatarPhotoChanges: missing before/after snapshot",
+          {
+            userId,
+          }
+        );
         return;
       }
 
@@ -463,8 +466,7 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
         avatarConfig: afterAvatar || null,
         profilePhotoUrl: afterPhoto || null,
         // Default to photo-first when useAvatar is not explicitly set
-        useAvatar:
-          typeof afterUseAvatar === "boolean" ? afterUseAvatar : false,
+        useAvatar: typeof afterUseAvatar === "boolean" ? afterUseAvatar : false,
       };
 
       logger.info("syncUserAvatarPhotoChanges: detected profile change", {
@@ -557,8 +559,13 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
       for (const docSnap of friendshipsSnap.docs) {
         const data = docSnap.data() || {};
         const updates = {};
-        const prefix = data.user1Id === userId ? "user1Info" : data.user2Id === userId ? "user2Info" : null;
-        
+        const prefix =
+          data.user1Id === userId
+            ? "user1Info"
+            : data.user2Id === userId
+            ? "user2Info"
+            : null;
+
         if (prefix) {
           updates[`${prefix}.handle`] = updatedUserInfo.handle;
           updates[`${prefix}.major`] = updatedUserInfo.major;
@@ -1654,14 +1661,19 @@ export const onMessageCreate = onDocumentCreated(
       if (!senderId || !content) return;
 
       // Post-hoc rate limiting: 1 message / 3s per user per space
-      const throttleRef = db.collection("rateLimits").doc(`${spaceId}_${senderId}`);
+      const throttleRef = db
+        .collection("rateLimits")
+        .doc(`${spaceId}_${senderId}`);
       const now = Date.now();
       let violated = false;
       try {
         await db.runTransaction(async (tx) => {
           const throttleSnap = await tx.get(throttleRef);
-          const lastAt = throttleSnap.exists ? throttleSnap.data()?.lastAt || 0 : 0;
-          if (now - lastAt < 2000) { // 2s window
+          const lastAt = throttleSnap.exists
+            ? throttleSnap.data()?.lastAt || 0
+            : 0;
+          if (now - lastAt < 2000) {
+            // 2s window
             // Violation: delete message and record
             tx.delete(snap.ref);
             tx.set(
@@ -1674,7 +1686,11 @@ export const onMessageCreate = onDocumentCreated(
               { merge: true }
             );
             violated = true;
-            logger.warn("Rate limit violation (onCreate)", { spaceId, senderId, messageId });
+            logger.warn("Rate limit violation (onCreate)", {
+              spaceId,
+              senderId,
+              messageId,
+            });
             return;
           }
           tx.set(throttleRef, { lastAt: now }, { merge: true });

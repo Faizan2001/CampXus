@@ -582,21 +582,21 @@ class ProfileSetup {
         this.profilePhotoUrl = photoUrl || null;
 
         if (hasStoredUseAvatar) {
-        // Respect explicit user preference whenever it exists,
-        // even if a profile photo is available.
-        this.useAvatar = storedUseAvatar;
-      } else {
-        // No stored preference (brand-new or legacy profile) → photo-first.
-        // Photo preview will show either their uploaded photo or a neutral placeholder.
-        this.useAvatar = false;
-      }
+          // Respect explicit user preference whenever it exists,
+          // even if a profile photo is available.
+          this.useAvatar = storedUseAvatar;
+        } else {
+          // No stored preference (brand-new or legacy profile) → photo-first.
+          // Photo preview will show either their uploaded photo or a neutral placeholder.
+          this.useAvatar = false;
+        }
 
-      const toggle = document.getElementById("use-avatar-toggle");
-      if (toggle) toggle.checked = !!this.useAvatar;
-      this._swapPhotoAvatarUI();
-      this._updateSwapButtonLabel();
-      this._updatePhotoHelperText();
-    } catch (_) {}      // Load interests
+        const toggle = document.getElementById("use-avatar-toggle");
+        if (toggle) toggle.checked = !!this.useAvatar;
+        this._swapPhotoAvatarUI();
+        this._updateSwapButtonLabel();
+        this._updatePhotoHelperText();
+      } catch (_) {} // Load interests
       try {
         const interests = Array.isArray(profile.interests)
           ? profile.interests
@@ -1493,11 +1493,11 @@ class ProfileSetup {
       // generate a default avatar as "having an avatar" so that
       // the default generated avatar also satisfies this step.
       const hasAvatar =
-        !!this.avatarConfig ||
-        (!!this.currentUser && !!avatarManager);
-      
+        !!this.avatarConfig || (!!this.currentUser && !!avatarManager);
+
       // Valid if: (photo mode AND has photo) OR (avatar mode AND has avatar)
-      const isStepValid = (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
+      const isStepValid =
+        (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
       nextBtn.disabled = !isStepValid;
       nextBtn.classList.toggle("disabled-state", !isStepValid);
     } else if (this.currentStep === 2) {
@@ -1553,10 +1553,10 @@ class ProfileSetup {
       const isAvatarMode = this.useAvatar === true;
       const hasPhoto = !!this.profilePhotoUrl;
       const hasAvatar =
-        !!this.avatarConfig ||
-        (!!this.currentUser && !!avatarManager);
-      
-      const isValid = (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
+        !!this.avatarConfig || (!!this.currentUser && !!avatarManager);
+
+      const isValid =
+        (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
       if (!isValid) {
         this.showIncompleteFieldsFeedback();
         return false;
@@ -1740,12 +1740,12 @@ class ProfileSetup {
       const uploadBtn = document.getElementById("profile-photo-upload-btn");
       const fileInput = document.getElementById("profile-photo-input");
       const swapBtn = document.getElementById("swap-photo-avatar-btn");
-      
+
       // Always start in photo mode (default UI)
       if (this.useAvatar === undefined) {
         this.useAvatar = false;
       }
-      
+
       if (
         uploadBtn &&
         fileInput &&
@@ -1774,10 +1774,13 @@ class ProfileSetup {
       }
       if (swapBtn && !swapBtn.hasAttribute("data-listener-attached")) {
         swapBtn.addEventListener("click", () => {
-          console.log("🔄 Swapping UI mode. Current useAvatar:", this.useAvatar);
+          console.log(
+            "🔄 Swapping UI mode. Current useAvatar:",
+            this.useAvatar
+          );
           // Toggle between photo and avatar UI
           this.useAvatar = !this.useAvatar;
-          
+
           // Update UI to reflect the new mode
           this._swapPhotoAvatarUI();
           this._updateSwapButtonLabel();
@@ -1786,7 +1789,7 @@ class ProfileSetup {
         });
         swapBtn.setAttribute("data-listener-attached", "true");
       }
-      
+
       // Initialize UI state
       this._swapPhotoAvatarUI();
       this._updateSwapButtonLabel();
@@ -1803,7 +1806,7 @@ class ProfileSetup {
       if (!userId) return;
       const file = event.target.files && event.target.files[0];
       if (!file) return;
-      
+
       console.log("📸 Processing uploaded photo...");
       const { mainBlob, thumbBlob } = await processProfilePhoto(file);
       if (mainBlob.size > 400 * 1024) {
@@ -1821,13 +1824,13 @@ class ProfileSetup {
         mainBlob,
         thumbBlob
       );
-      
+
       this.profilePhotoUrl = url;
       // Ensure we're in photo mode after upload
       this.useAvatar = false;
-      
+
       console.log("✅ Photo uploaded successfully:", url);
-      
+
       // Update UI
       this._swapPhotoAvatarUI();
       this._updateSwapButtonLabel();
@@ -1843,7 +1846,7 @@ class ProfileSetup {
     try {
       const photoBox = document.getElementById("photo-preview-display");
       if (!photoBox) return;
-      
+
       photoBox.innerHTML = "";
       // Always render either the uploaded photo or a neutral placeholder
       if (this.profilePhotoUrl) {
@@ -1876,13 +1879,11 @@ class ProfileSetup {
   }
 
   _updatePhotoHelperText() {
-    const actionSpan = document.getElementById(
-      "profile-photo-helper-action"
-    );
+    const actionSpan = document.getElementById("profile-photo-helper-action");
     const btnText = document.getElementById("profile-photo-btn-text");
-    
+
     if (!actionSpan) return;
-    
+
     if (this.profilePhotoUrl) {
       actionSpan.textContent = "Update picture";
       if (btnText) btnText.textContent = "Update Photo";
@@ -1900,12 +1901,12 @@ class ProfileSetup {
     const photoSection = document.getElementById("photo-ui-section");
     const avatarSection = document.getElementById("avatar-ui-section");
     const group = document.querySelector(".avatar-photo-group");
-    
+
     if (!photoSection || !avatarSection) {
       console.warn("⚠️ Photo or avatar section not found in DOM");
       return;
     }
-    
+
     if (this.useAvatar) {
       // Show avatar UI, hide photo UI
       photoSection.style.display = "none";
@@ -2065,10 +2066,10 @@ class ProfileSetup {
       const input = document.getElementById("social-link-input");
       const addBtn = document.getElementById("add-social-link-btn");
 
-      console.log("[ProfileSetup] Social links elements:", { 
-        typeSelect: !!typeSelect, 
-        input: !!input, 
-        addBtn: !!addBtn 
+      console.log("[ProfileSetup] Social links elements:", {
+        typeSelect: !!typeSelect,
+        input: !!input,
+        addBtn: !!addBtn,
       });
 
       if (!typeSelect || !input || !addBtn) {
@@ -2127,7 +2128,11 @@ class ProfileSetup {
     const input = document.getElementById("social-link-input");
     const feedback = document.getElementById("social-link-feedback");
 
-    console.log("[ProfileSetup] Elements found:", { typeSelect: !!typeSelect, input: !!input, feedback: !!feedback });
+    console.log("[ProfileSetup] Elements found:", {
+      typeSelect: !!typeSelect,
+      input: !!input,
+      feedback: !!feedback,
+    });
     if (!typeSelect || !input) {
       console.warn("[ProfileSetup] Missing required elements");
       return;
@@ -2613,7 +2618,7 @@ class ProfileSetup {
 
       // Update the preview immediately
       this.updateAvatarPreview();
-      
+
       // Validate current step to enable Next button if avatar was chosen
       this.validateCurrentStep();
 
