@@ -131,7 +131,7 @@
   transform: translateX(4px) scale(0.98);
 }
 
-.friend-card-avatar {
+.mutual-friend-card .friend-card-avatar {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -142,13 +142,13 @@
   border: 2px solid rgba(0, 0, 0, 0.05);
 }
 
-.friend-card-avatar img {
+.mutual-friend-card .friend-card-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.friend-avatar-placeholder {
+.mutual-friend-card .friend-avatar-placeholder {
   width: 100%;
   height: 100%;
   display: flex;
@@ -159,12 +159,12 @@
   font-size: 20px;
 }
 
-.friend-card-info {
+.mutual-friend-card .friend-card-info {
   flex: 1;
   min-width: 0;
 }
 
-.friend-card-name {
+.mutual-friend-card .friend-card-name {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary, #333);
@@ -174,19 +174,19 @@
   text-overflow: ellipsis;
 }
 
-.friend-card-handle {
+.mutual-friend-card .friend-card-handle {
   font-size: 13px;
   color: var(--text-secondary, #666);
   margin-bottom: 2px;
 }
 
-.friend-card-major {
+.mutual-friend-card .friend-card-major {
   font-size: 12px;
   color: var(--text-tertiary, #999);
   margin-top: 2px;
 }
 
-.friend-card-arrow {
+.mutual-friend-card .friend-card-arrow {
   color: var(--text-tertiary, #999);
   font-size: 14px;
   flex-shrink: 0;
@@ -199,10 +199,10 @@
   color: var(--primary-color, #4a90e2);
 }
 
-/* Loading/Error States */
-.mutual-friends-modal .loading-spinner,
-.mutual-friends-modal .no-mutual-friends,
-.mutual-friends-modal .error-message {
+/* Loading/Error States - Scoped to modal content only */
+.mutual-friends-list .loading-spinner,
+.mutual-friends-list .no-mutual-friends,
+.mutual-friends-list .error-message {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -212,24 +212,24 @@
   color: var(--text-secondary, #666);
 }
 
-.mutual-friends-modal .loading-spinner i,
-.mutual-friends-modal .no-mutual-friends i,
-.mutual-friends-modal .error-message i {
+.mutual-friends-list .loading-spinner i,
+.mutual-friends-list .no-mutual-friends i,
+.mutual-friends-list .error-message i {
   font-size: 32px;
   margin-bottom: 12px;
   opacity: 0.5;
 }
 
-.mutual-friends-modal .loading-spinner i {
+.mutual-friends-list .loading-spinner i {
   color: var(--primary-color, #4a90e2);
 }
 
-.mutual-friends-modal .error-message i {
+.mutual-friends-list .error-message i {
   color: #e74c3c;
 }
 
-.mutual-friends-modal .no-mutual-friends p,
-.mutual-friends-modal .error-message p {
+.mutual-friends-list .no-mutual-friends p,
+.mutual-friends-list .error-message p {
   margin: 0;
   font-size: 14px;
 }
@@ -266,16 +266,16 @@
   }
 
   .mutual-friends-header h3,
-  .friend-card-name {
+  .mutual-friend-card .friend-card-name {
     color: #fff;
   }
 
   .mutual-friends-count,
-  .friend-card-handle {
+  .mutual-friend-card .friend-card-handle {
     color: #aaa;
   }
 
-  .friend-card-major {
+  .mutual-friend-card .friend-card-major {
     color: #888;
   }
 

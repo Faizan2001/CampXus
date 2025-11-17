@@ -1489,7 +1489,12 @@ class ProfileSetup {
       nextBtn.textContent = "Next Step →";
       const isAvatarMode = this.useAvatar === true;
       const hasPhoto = !!this.profilePhotoUrl;
-      const hasAvatar = !!this.avatarConfig;
+      // Treat either an explicit avatarConfig or the ability to
+      // generate a default avatar as "having an avatar" so that
+      // the default generated avatar also satisfies this step.
+      const hasAvatar =
+        !!this.avatarConfig ||
+        (!!this.currentUser && !!avatarManager);
       
       // Valid if: (photo mode AND has photo) OR (avatar mode AND has avatar)
       const isStepValid = (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
@@ -1547,7 +1552,9 @@ class ProfileSetup {
       // If user is in avatar mode, require an avatar to be chosen.
       const isAvatarMode = this.useAvatar === true;
       const hasPhoto = !!this.profilePhotoUrl;
-      const hasAvatar = !!this.avatarConfig;
+      const hasAvatar =
+        !!this.avatarConfig ||
+        (!!this.currentUser && !!avatarManager);
       
       const isValid = (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
       if (!isValid) {
@@ -2538,13 +2545,26 @@ class ProfileSetup {
     // Use existing avatar config from loaded profile data (always fresh)
     if (this.existingProfileData?.avatarConfig) {
       this.avatarConfig = this.existingProfileData.avatarConfig;
+    } else if (!this.avatarConfig && avatarManager) {
+      // No stored avatar yet → prepare a default config so that
+      // avatar mode is immediately valid (even if the user keeps
+      // the default generated avatar).
+      try {
+        this.avatarConfig = avatarManager.generateDefaultAvatar(
+          this.currentUser.uid
+        );
+      } catch (e) {
+        console.warn("⚠️ Failed to generate default avatar config", e);
+      }
     }
 
-    // If user is currently on avatar step (1) ensure preview renders now
+    // If user is currently on avatar step (1) ensure preview and validation
+    // reflect the current mode (photo vs avatar) and avatar availability.
     if (this.currentStep === 1) {
       // Defer a frame to let DOM mount
       requestAnimationFrame(() => {
         this._swapPhotoAvatarUI();
+        this.validateCurrentStep();
       });
     }
   }
