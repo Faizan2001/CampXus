@@ -176,7 +176,9 @@ export class GroupDetailPage {
     const memberIds = Array.isArray(space.memberIds) ? space.memberIds : [];
     const memberInfo = space.memberInfo || {};
     // Quick check to avoid showing Add button for existing friends (uses denormalized friendIds)
-    const myFriendIds = Array.isArray(currentUser?.profile?.socialInfo?.friendIds)
+    const myFriendIds = Array.isArray(
+      currentUser?.profile?.socialInfo?.friendIds
+    )
       ? new Set(currentUser.profile.socialInfo.friendIds)
       : new Set();
     membersList.innerHTML = memberIds
@@ -189,17 +191,26 @@ export class GroupDetailPage {
         const label = name || uid;
         const target = encodeURIComponent(uid);
         const photo = info.profilePhotoUrl || null;
-        const avatar = photo || getAvatarUrl({ avatarConfig: info.avatarConfig }) || null;
+        const avatar =
+          photo || getAvatarUrl({ avatarConfig: info.avatarConfig }) || null;
         const blocked = blockService.isBlocked(myUid, uid);
         const alreadyFriend = myFriendIds.has(uid);
         return `
-          <div class="member-item${blocked ? " blocked" : ""}" data-uid="${uid}">
+          <div class="member-item${
+            blocked ? " blocked" : ""
+          }" data-uid="${uid}">
             <div class="member-main">
               <a class="member-avatar" href="#user?id=${target}" aria-label="View profile">
-                ${avatar ? `<img src="${avatar}" alt="${escapeHtml(label)}">` : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`}
+                ${
+                  avatar
+                    ? `<img src="${avatar}" alt="${escapeHtml(label)}">`
+                    : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`
+                }
               </a>
-              <a class="member-link" href="#user?id=${target}">${escapeHtml(label)}</a>
-              ${blocked ? '<span class="member-badge">Blocked</span>' : ''}
+              <a class="member-link" href="#user?id=${target}">${escapeHtml(
+          label
+        )}</a>
+              ${blocked ? '<span class="member-badge">Blocked</span>' : ""}
             </div>
             <div class="member-actions">
               <a class="member-profile-btn" href="#user?id=${target}" title="View profile" aria-label="View profile">
@@ -210,7 +221,9 @@ export class GroupDetailPage {
                   ? `<button class="member-friends-btn" title="Friends" aria-label="Friends" disabled><i class="fas fa-user-check"></i></button>`
                   : `<button class="member-add-btn" data-uid="${uid}" data-handle="${
                       info.handle || ""
-                    }" data-major="${info.major || ""}" title="Add friend" aria-label="Add friend"><i class="fas fa-user-plus"></i></button>`
+                    }" data-major="${
+                      info.major || ""
+                    }" title="Add friend" aria-label="Add friend"><i class="fas fa-user-plus"></i></button>`
               }
               ${
                 blocked
@@ -297,7 +310,10 @@ export class GroupDetailPage {
           btn.disabled = true;
           const originalHtml = btn.innerHTML;
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          const res = await friendsManager.sendFriendRequest(uid, targetUserData);
+          const res = await friendsManager.sendFriendRequest(
+            uid,
+            targetUserData
+          );
           if (res?.success) {
             btn.className = "member-friends-btn";
             btn.innerHTML = '<i class="fas fa-clock"></i>';
@@ -307,7 +323,10 @@ export class GroupDetailPage {
           } else {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
-            notificationManager.show(res?.message || "Failed to send friend request", "error");
+            notificationManager.show(
+              res?.message || "Failed to send friend request",
+              "error"
+            );
           }
         } catch (err) {
           btn.disabled = false;
@@ -487,7 +506,10 @@ export class GroupDetailPage {
         if (now - lastAt < 3100) {
           const waitMs = 3100 - (now - lastAt);
           const secs = Math.ceil(waitMs / 1000);
-          notificationManager.show(`Please wait ${secs}s before sending another message.`, "warning");
+          notificationManager.show(
+            `Please wait ${secs}s before sending another message.`,
+            "warning"
+          );
           return;
         }
         this._lastSendAtBySpace[this.spaceId] = now;

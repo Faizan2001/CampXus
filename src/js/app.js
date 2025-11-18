@@ -501,7 +501,10 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
         );
       }
     } catch (e) {
-      logManager.location.warn("Campus Presence lazy init failed:", e?.message || e);
+      logManager.location.warn(
+        "Campus Presence lazy init failed:",
+        e?.message || e
+      );
     }
   };
 
@@ -799,7 +802,9 @@ async function initializeCampusPresenceInBackground() {
  * 🎯 Priority Mode: Ensures presence dots get latest coordinates quickly
  */
 async function fetchFreshLocationForPresence() {
-  logManager.location.info("🎯 Priority: Fetching fresh location data for presence dots...");
+  logManager.location.info(
+    "🎯 Priority: Fetching fresh location data for presence dots..."
+  );
 
   try {
     const { campusLocationService } = await import(
@@ -817,9 +822,13 @@ async function fetchFreshLocationForPresence() {
     } else if (typeof campusLocationService.handleTriggerEvent === "function") {
       // Alternative method for immediate location update
       await campusLocationService.handleTriggerEvent("presence_priority");
-      logManager.location.info("✅ Priority: Trigger event sent for fresh presence data");
+      logManager.location.info(
+        "✅ Priority: Trigger event sent for fresh presence data"
+      );
     } else {
-      logManager.location.warn("⚠️ Priority: No immediate location method available");
+      logManager.location.warn(
+        "⚠️ Priority: No immediate location method available"
+      );
     }
 
     // Emit event that fresh data is being fetched
@@ -925,5 +934,7 @@ function tryRegisterServiceWorker() {
         });
       } catch (_) {}
     })
-    .catch((e) => logManager.system.warn("SW registration failed (non-fatal):", e));
+    .catch((e) =>
+      logManager.system.warn("SW registration failed (non-fatal):", e)
+    );
 }

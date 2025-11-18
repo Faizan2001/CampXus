@@ -18,7 +18,6 @@ This file contains CSS styles for the Campus Presence feature including:
   --spinner-thickness: 2.5px; /* CHANGE THIS THICKNESS (1px = thinnest, 4px = thickest) */
 }
 
-
 /* ===== SCHEDULE PRESENCE PILLS (STATUS PILL) ===== */
 
 .presence-pill {
@@ -40,24 +39,23 @@ This file contains CSS styles for the Campus Presence feature including:
   text-transform: uppercase;
   letter-spacing: 0.08em;
   z-index: 11;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(6px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none; /* keep avatar fully clickable */
-  transition:
-    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
 }
 
 .presence-pill .pill-text {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    sans-serif;
   font-weight: 900;
   font-size: 9px;
   line-height: 1;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .presence-pill.expanded {
@@ -68,7 +66,7 @@ This file contains CSS styles for the Campus Presence feature including:
 }
 
 .presence-pill.green {
-  background: linear-gradient(135deg, #00C851 0%, #00B246 50%, #009E3A 100%);
+  background: linear-gradient(135deg, #00c851 0%, #00b246 50%, #009e3a 100%);
   color: #ffffff;
 }
 
@@ -78,12 +76,12 @@ This file contains CSS styles for the Campus Presence feature including:
 }
 
 .presence-pill.red {
-  background: linear-gradient(135deg, #FF3547 0%, #E63946 50%, #DC2626 100%);
+  background: linear-gradient(135deg, #ff3547 0%, #e63946 50%, #dc2626 100%);
   color: #ffffff;
 }
 
 .presence-pill.grey {
-  background: linear-gradient(135deg, #95A5A6 0%, #7F8C8D 50%, #6C7B7D 100%);
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 50%, #6c7b7d 100%);
   color: #f9fafb;
 }
 
@@ -133,57 +131,7 @@ This file contains CSS styles for the Campus Presence feature including:
 
 body.dark-mode .presence-pill {
   border-color: #2a2d38;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-
-
-/* ===== PRESENCE DOT INDICATORS ===== */
-
-.presence-dot {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 12px;
-  border: 2px solid white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 800;
-  z-index: 10;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.1);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(4px);
-}
-
-/* Modern gradient backgrounds with bright white text */
-.presence-dot.green {
-  background: linear-gradient(135deg, #00C851 0%, #00B246 50%, #009E3A 100%);
-  color: white;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-}
-
-.presence-dot.red {
-  background: linear-gradient(135deg, #FF3547 0%, #E63946 50%, #DC2626 100%);
-  color: white;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-}
-
-.presence-dot.grey {
-  background: linear-gradient(135deg, #95A5A6 0%, #7F8C8D 50%, #6C7B7D 100%);
-  /* No text content for grey dots */
-}
-
-.dot-text {
-  line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.2px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 /* Avatar container positioning */
@@ -192,150 +140,9 @@ body.dark-mode .presence-pill {
   display: inline-block;
 }
 
-/* ===== ENHANCED PRESENCE DOT ANIMATIONS ===== */
-
-/* Subtle pulse animation for online status */
-.presence-dot.green {
-  /* No default pulse for friends; user pulse added below */
-  animation: none;
-}
-
-/* Only the current user's green dot pulses */
-.friend-avatar-item[data-friend-id="user"] .presence-dot.green {
-  animation: onlinePulse 3s ease-in-out infinite;
-}
-
-@keyframes onlinePulse {
-  0%, 100% { 
-    transform: scale(1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 0 0 0 rgba(0, 200, 81, 0.4);
-  }
-  50% { 
-    transform: scale(1.05);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 0 0 4px rgba(0, 200, 81, 0.2);
-  }
-}
-
-/* Offline status - no animation */
-.presence-dot.red {
-  animation: none;
-}
-
-/* Unknown status - subtle fade */
-.presence-dot.grey {
-  animation: greyFade 4s ease-in-out infinite;
-}
-
-@keyframes greyFade {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 0.5; }
-}
-
-/* ===== PRESENCE DOT HOVER EFFECTS ===== */
-
-.presence-dot:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-}
-
-.presence-dot.green:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 6px rgba(0, 200, 81, 0.3);
-}
-
-.presence-dot.red:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 6px rgba(255, 53, 71, 0.3);
-}
-
-.presence-dot.grey:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 6px rgba(149, 165, 166, 0.3);
-}
-
-/* ===== PRESENCE DOT RESPONSIVE DESIGN ===== */
-
-/* Mobile adjustments */
-@media (max-width: 768px) {
-  .presence-dot {
-    min-width: 16px;
-    height: 16px;
-    padding: 0 3px;
-    font-size: 8px;
-    bottom: -1px;
-    right: -1px;
-    border-width: 1.5px;
-    border-radius: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  .presence-dot {
-    min-width: 14px;
-    height: 14px;
-    padding: 0 2px;
-    font-size: 7px;
-    bottom: 0;
-    right: 0;
-    border-width: 1px;
-    border-radius: 8px;
-  }
-}
-
-/* ===== PRESENCE DOT ACCESSIBILITY ===== */
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .presence-dot {
-    border-width: 3px;
-    border-color: #000;
-  }
-  
-  .presence-dot.green {
-    background: #00AA00;
-  }
-  
-  .presence-dot.red {
-    background: #CC0000;
-  }
-  
-  .presence-dot.grey {
-    background: #666666;
-  }
-}
-
-/* Reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .presence-dot,
-  .presence-dot.green,
-  .presence-dot.grey {
-    animation: none;
-  }
-  
-  .presence-dot:hover {
-    transform: none;
-  }
-}
-
-/* ===== DARK MODE SUPPORT (app-controlled) ===== */
-
-body.dark-mode .presence-dot {
-  border-color: #2a2d38; /* Use app's dark surface color */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-
-body.dark-mode .presence-dot:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-}
-
-/* ===== PRESENCE DOT FOCUS STATES ===== */
-
-/* Keyboard navigation support */
-.presence-dot:focus {
-  outline: 2px solid var(--accent-primary, #8B5CF6);
-  outline-offset: 2px;
-}
-
 /* ===== INTEGRATION WITH EXISTING AVATAR STYLES ===== */
 
-/* Ensure presence dots work with MeetchuThere avatar system */
+/* Ensure presence indicators work with MeetchuThere avatar system */
 .user-avatar,
 .avatar-placeholder {
   position: relative;
@@ -349,90 +156,4 @@ body.dark-mode .presence-dot:hover {
 .friend-avatar-item .user-avatar,
 .friend-avatar-item .avatar-placeholder {
   position: relative;
-}
-
-/* Presence dot positioning for different avatar sizes */
-.user-avatar.large .presence-dot {
-  min-width: 22px;
-  height: 22px;
-  padding: 0 5px;
-  font-size: 10px;
-  bottom: -3px;
-  right: -3px;
-  border-radius: 14px;
-}
-
-.user-avatar.small .presence-dot {
-  min-width: 14px;
-  height: 14px;
-  padding: 0 2px;
-  font-size: 7px;
-  bottom: -1px;
-  right: -1px;
-  border-radius: 8px;
-}
-
-/* ===== PRESENCE DOT COUNT TEXT OPTIMIZATION ===== */
-
-/* Ensure count text is always readable */
-.presence-dot .dot-text {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
-  text-align: center;
-  user-select: none;
-}
-
-/* Single digit optimization */
-.presence-dot .dot-text[data-count="1"],
-.presence-dot .dot-text[data-count="2"],
-.presence-dot .dot-text[data-count="3"],
-.presence-dot .dot-text[data-count="4"],
-.presence-dot .dot-text[data-count="5"],
-.presence-dot .dot-text[data-count="6"],
-.presence-dot .dot-text[data-count="7"],
-.presence-dot .dot-text[data-count="8"],
-.presence-dot .dot-text[data-count="9"] {
-  letter-spacing: 0;
-}
-
-/* Double digit optimization */
-.presence-dot .dot-text[data-count="10"],
-.presence-dot .dot-text[data-count="11"],
-.presence-dot .dot-text[data-count="12"],
-.presence-dot .dot-text[data-count="13"],
-.presence-dot .dot-text[data-count="14"],
-.presence-dot .dot-text[data-count="15"],
-.presence-dot .dot-text[data-count="16"],
-.presence-dot .dot-text[data-count="17"],
-.presence-dot .dot-text[data-count="18"],
-.presence-dot .dot-text[data-count="19"] {
-  letter-spacing: -1px;
-  font-size: 8px;
-}
-
-/* Large numbers (20+) - show "+" indicator */
-.presence-dot .dot-text[data-count="20+"],
-.presence-dot .dot-text.count-overflow {
-  font-size: 7px;
-  letter-spacing: -0.5px;
-}
-
-/* ===== PRESENCE DOT ERROR STATE ===== */
-
-.presence-dot.error {
-  background: #FFA500; /* Orange for error state */
-  color: white;
-  animation: errorPulse 2s ease-in-out infinite;
-}
-
-@keyframes errorPulse {
-  0%, 100% { 
-    transform: scale(1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  }
-  50% { 
-    transform: scale(1.1);
-    box-shadow: 0 2px 6px rgba(255, 165, 0, 0.4);
-  }
 }

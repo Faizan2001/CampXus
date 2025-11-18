@@ -1372,7 +1372,10 @@ class ProfileSetup {
       }
     } catch (error) {
       console.error("Error during skip setup:", error);
-      notificationManager.show("Could not process skip action. Please try again.", "error");
+      notificationManager.show(
+        "Could not process skip action. Please try again.",
+        "error"
+      );
       if (nextBtn) nextBtn.disabled = false;
     }
   }
@@ -1803,7 +1806,10 @@ class ProfileSetup {
       console.log("📸 Processing uploaded photo...");
       const { mainBlob, thumbBlob } = await processProfilePhoto(file);
       if (mainBlob.size > 400 * 1024) {
-        notificationManager.show("Photo is too large after processing. Please choose a different image.", "warning");
+        notificationManager.show(
+          "Photo is too large after processing. Please choose a different image.",
+          "warning"
+        );
         return;
       }
       // Only delete old files if a previous photo exists
@@ -1829,7 +1835,10 @@ class ProfileSetup {
       this.validateCurrentStep();
     } catch (err) {
       console.error("Photo upload failed:", err);
-      notificationManager.show("Failed to upload photo. Please try another image.", "error");
+      notificationManager.show(
+        "Failed to upload photo. Please try another image.",
+        "error"
+      );
     }
   }
 
@@ -2438,7 +2447,10 @@ class ProfileSetup {
                 (this.currentUser && this.currentUser.uid) ||
                 (currentUser && currentUser.uid);
               if (!uid) {
-                notificationManager.show("Please sign in to preview your public profile.", "info");
+                notificationManager.show(
+                  "Please sign in to preview your public profile.",
+                  "info"
+                );
                 return;
               }
               window.location.hash = `#user?id=${uid}&preview=1`;
@@ -2588,13 +2600,19 @@ class ProfileSetup {
 
     if (!avatarManager) {
       console.error("❌ Avatar manager not available");
-      notificationManager.show("Avatar system is not loaded. Please refresh the page.", "error");
+      notificationManager.show(
+        "Avatar system is not loaded. Please refresh the page.",
+        "error"
+      );
       return;
     }
 
     if (!this.currentUser) {
       console.error("❌ No user available for avatar editor");
-      notificationManager.show("Please sign in to customize your avatar.", "info");
+      notificationManager.show(
+        "Please sign in to customize your avatar.",
+        "info"
+      );
       return;
     }
 
@@ -2999,7 +3017,10 @@ class ProfileSetup {
       }, 1500); // 1.5-second delay
     } catch (error) {
       console.error("❌ Final profile save failed:", error);
-      notificationManager.show("Oh no! Something went wrong while saving your profile. Please check your connection and try again.", "error");
+      notificationManager.show(
+        "Oh no! Something went wrong while saving your profile. Please check your connection and try again.",
+        "error"
+      );
     }
   }
 

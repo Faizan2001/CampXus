@@ -652,7 +652,10 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by major:", error);
-      notificationManager.show("Could not search for students by major.", "error");
+      notificationManager.show(
+        "Could not search for students by major.",
+        "error"
+      );
       return [];
     }
   }
@@ -1423,7 +1426,10 @@ class DataManager {
             return;
           }
           console.error("Error in schedule listener:", error);
-          notificationManager.show("Lost connection to schedule updates", "error");
+          notificationManager.show(
+            "Lost connection to schedule updates",
+            "error"
+          );
         }
       );
 
@@ -1945,7 +1951,10 @@ class DataManager {
   async searchUsers(_criteria) {
     try {
       if (!this.isOnline) {
-        notificationManager.show("Search requires internet connection", "error");
+        notificationManager.show(
+          "Search requires internet connection",
+          "error"
+        );
         return null;
       }
 

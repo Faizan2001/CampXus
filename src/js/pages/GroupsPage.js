@@ -403,7 +403,8 @@ export class GroupsPage {
 
         try {
           // Compute Function URL based on environment (emulator vs deployed)
-          const projectId = window.ENV?.FIREBASE_PROJECT_ID || "campxus-staging";
+          const projectId =
+            window.ENV?.FIREBASE_PROJECT_ID || "campxus-staging";
           const region = "us-central1";
           const isLocal =
             typeof window !== "undefined" &&
@@ -429,7 +430,9 @@ export class GroupsPage {
           if (result.success) {
             triggerBtn.innerHTML = "✅ Success!";
             notificationManager.show(
-              `Scheduler executed successfully! Spaces created: ${result.spacesCreated || 0}, Deactivated: ${result.spacesDeactivated || 0}`,
+              `Scheduler executed successfully! Spaces created: ${
+                result.spacesCreated || 0
+              }, Deactivated: ${result.spacesDeactivated || 0}`,
               "success"
             );
 
@@ -445,7 +448,10 @@ export class GroupsPage {
         } catch (e) {
           console.error("[GroupsPage] Trigger scheduler failed:", e);
           triggerBtn.innerHTML = "❌ Failed";
-          notificationManager.show(`Failed to trigger scheduler: ${e.message}`, "error");
+          notificationManager.show(
+            `Failed to trigger scheduler: ${e.message}`,
+            "error"
+          );
         } finally {
           setTimeout(() => {
             triggerBtn.innerHTML = originalText;

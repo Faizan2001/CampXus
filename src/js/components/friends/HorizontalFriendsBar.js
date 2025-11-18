@@ -378,7 +378,7 @@ export class HorizontalFriendsBar {
             this.quickAccessFriends = hydrated;
             this.sortQuickAccessFriendsForDisplay();
             // Update existing dots in place and reorder minimally to avoid flicker
-            this.refreshPresenceDotsWithLatestData();
+            this.refreshPresencePillsWithLatestData();
             this._reorderDomToMatchQuickAccessOrder();
             // Ensure profile listeners are bound
             await this.setupStarredFriendProfileListeners();
@@ -1857,8 +1857,8 @@ export class HorizontalFriendsBar {
                 order: f.order || 0,
                 // Include photo/avatar fields to detect changes
                 photoUrl: f.profilePhotoUrl || null,
-                useAvatar: f.useAvatar,
-                avatarStyle: f.avatarConfig?.style,
+                useAvatar: f.avatarConfig?.style,
+                avatarStyle: f.avatarConfig?.seed,
                 avatarSeed: f.avatarConfig?.seed,
               }));
             const currentStable = stableMap(this.quickAccessFriends);
@@ -2143,7 +2143,7 @@ export class HorizontalFriendsBar {
           });
         }
       }
-      this.showPresenceDotsLoading(priority);
+      this.showPresencePillsLoading(priority);
     });
 
     // 🎯 NEW: Listen for campus presence ready events (from app.js background init)
@@ -2157,10 +2157,10 @@ export class HorizontalFriendsBar {
           this.initialFreshComplete = true;
           this.friendLoading.clear();
         }
-        this.refreshPresenceDotsWithLatestData();
+        this.refreshPresencePillsWithLatestData();
       } else {
         // Using cached data - showing existing presence dots
-        this.hidePresenceDotsLoading();
+        this.hidePresencePillsLoading();
       }
     });
 
@@ -2188,7 +2188,7 @@ export class HorizontalFriendsBar {
         );
       }
       this.loadingState.user = false;
-      this.hidePresenceDotsLoading();
+      this.hidePresencePillsLoading();
     });
 
     this._freshDataListenersSetup = true;
@@ -2200,7 +2200,7 @@ export class HorizontalFriendsBar {
   /**
    * 🚀 FRESH DATA PRIORITY: Show loading state on presence dots
    */
-  showPresenceDotsLoading(priority = "fresh_data") {
+  showPresencePillsLoading(priority = "fresh_data") {
     logManager.dev.debug("Showing loading state on presence pills", {
       priority,
     });
@@ -2210,7 +2210,7 @@ export class HorizontalFriendsBar {
   /**
    * 🚀 FRESH DATA PRIORITY: Update presence dots with fresh location data
    */
-  updatePresenceDotsWithFreshData(freshLocationData) {
+  updatePresencePillsWithFreshData(freshLocationData) {
     logManager.dev.debug(
       "Updating presence pills with fresh location data:",
       freshLocationData
@@ -2220,21 +2220,21 @@ export class HorizontalFriendsBar {
     this.enrichFriendsWithScheduleStatus(now)
       .then(() => {
         this._updateAvatarPresencePills();
-        this.hidePresenceDotsLoading();
+        this.hidePresencePillsLoading();
       })
       .catch((error) => {
         console.error(
           "[HorizontalFriendsBar] Failed to update presence pills with fresh data:",
           error
         );
-        this.hidePresenceDotsLoading();
+        this.hidePresencePillsLoading();
       });
   }
 
   /**
    * 🚀 FRESH DATA PRIORITY: Hide loading state on presence dots
    */
-  hidePresenceDotsLoading() {
+  hidePresencePillsLoading() {
     console.log(
       "⏹️ [HorizontalFriendsBar] Hiding loading state for presence pills"
     );
@@ -2244,7 +2244,7 @@ export class HorizontalFriendsBar {
   /**
    * 🎯 FRESH DATA PRIORITY: Refresh presence dots with latest data after background load
    */
-  refreshPresenceDotsWithLatestData() {
+  refreshPresencePillsWithLatestData() {
     // Refreshing presence pills with latest data
 
     try {
@@ -2254,8 +2254,8 @@ export class HorizontalFriendsBar {
           this._updateAvatarPresencePills();
         })
         .catch((error) => {
-          console.error(
-            "❌ [HorizontalFriendsBar] Failed to refresh presence pills:",
+          console.warn(
+            "[HorizontalFriendsBar] Presence pill timer update failed:",
             error
           );
         });
@@ -2420,8 +2420,7 @@ export class HorizontalFriendsBar {
         const existing = this.scheduleCache.get(friendId);
         if (
           existing &&
-          nowMs - existing.fetchedAt <
-            PRESENCE_CONFIG.SCHEDULE_CACHE_TTL_MS
+          nowMs - existing.fetchedAt < PRESENCE_CONFIG.SCHEDULE_CACHE_TTL_MS
         ) {
           return;
         }
@@ -2471,7 +2470,11 @@ export class HorizontalFriendsBar {
     // Build batch inputs for status derivation
     const statusInputs = friends.map((friend, index) => {
       const friendId =
-        friend.friendId || friend.userId || friend.uid || friend.id || `friend_${index}`;
+        friend.friendId ||
+        friend.userId ||
+        friend.uid ||
+        friend.id ||
+        `friend_${index}`;
       const lastKnownLocation = friend.lastKnownLocation || null;
       const { gpsStatus, lastGpsAt } = this._buildGpsFields(lastKnownLocation);
       const cacheEntry = this.scheduleCache.get(friendId) || null;
@@ -2497,10 +2500,7 @@ export class HorizontalFriendsBar {
     this.presenceStatusByFriendId.clear();
     statusInputs.forEach((input, index) => {
       const id =
-        input.friendId ||
-        input.userId ||
-        input.uid ||
-        `friend_${index}`;
+        input.friendId || input.userId || input.uid || `friend_${index}`;
       const statusInfo =
         statusMap[id] || SchedulePresenceService.deriveStatus(input, now);
 
@@ -2513,7 +2513,12 @@ export class HorizontalFriendsBar {
 
       // Analytics: track status changes
       const prev = previousStatuses.get(id);
-      if (prev && prev.state && statusInfo.state && prev.state !== statusInfo.state) {
+      if (
+        prev &&
+        prev.state &&
+        statusInfo.state &&
+        prev.state !== statusInfo.state
+      ) {
         AnalyticsService.trackFeatureUsage("presence_status_changed", {
           scope: "horizontal_friends_bar",
           friend_id: id,
@@ -2542,7 +2547,8 @@ export class HorizontalFriendsBar {
       const avatarImage = this.userAvatarElement.querySelector(".avatar-image");
       if (avatarImage) {
         const markup = createPresencePill(this.userSchedulePresenceStatus, {
-          expanded: this.selectedFriendId === null || this.selectedFriendId === "user",
+          expanded:
+            this.selectedFriendId === null || this.selectedFriendId === "user",
         });
         const existing = avatarImage.querySelector(".presence-pill");
         if (existing) {
@@ -2565,7 +2571,11 @@ export class HorizontalFriendsBar {
 
     this.quickAccessFriends.forEach((friend, index) => {
       const friendId =
-        friend.friendId || friend.userId || friend.uid || friend.id || `friend_${index}`;
+        friend.friendId ||
+        friend.userId ||
+        friend.uid ||
+        friend.id ||
+        `friend_${index}`;
       const avatarElement = this.avatarElements.get(friendId);
       if (!avatarElement) return;
 
@@ -2959,7 +2969,7 @@ export class HorizontalFriendsBar {
 
           // Save and update dot immediately (no full re-render)
           this.quickAccessFriends[friendIndex] = updated;
-          this.updateFriendPresenceDot(friendIndex, updated);
+          this.updateFriendPresencePill(friendIndex, updated);
           logManager.presence?.debug?.(
             `⚡ Presence fast-path applied for ${friendId}`
           );
@@ -3126,7 +3136,7 @@ export class HorizontalFriendsBar {
           (f) => (f.friendId || f.userId) === friendId
         );
         if (friendIndex !== -1) {
-          this.updateFriendPresenceDot(friendIndex, updatedFriend);
+          this.updateFriendPresencePill(friendIndex, updatedFriend);
           // Updated presence dot due to activity change
         }
       }
@@ -3755,6 +3765,7 @@ export class HorizontalFriendsBar {
               return false;
             }
 
+            // Must have at least one valid ID
             if (!friend.friendId && !friend.userId) {
               console.warn("⚠️ Filtered out friend without valid ID:", friend);
               return false;
@@ -4343,7 +4354,7 @@ export class HorizontalFriendsBar {
    * @param {number} friendIndex - Index of friend in quickAccessFriends array
    * @param {Object} friend - Friend data object
    */
-  updateFriendPresenceDot(friendIndex, friend) {
+  updateFriendPresencePill(friendIndex, friend) {
     try {
       const friendId =
         friend.friendId || friend.userId || friend.uid || friend.id;
@@ -4493,7 +4504,7 @@ export class HorizontalFriendsBar {
         // Update each friend's presence dot individually without full re-render
         refreshedFriends.forEach((friend, index) => {
           this.quickAccessFriends[index] = friend;
-          this.updateFriendPresenceDot(index, friend);
+          this.updateFriendPresencePill(index, friend);
         });
 
         // After dots updated, re-sort and re-render friends to reflect new priorities
@@ -5425,7 +5436,7 @@ export class HorizontalFriendsBar {
    * Update the user's presence dot with new location data
    * @param {Object} systemInfo - User's system info with location data
    */
-  updateUserPresenceDot(systemInfo) {
+  updateUserPresencePill(systemInfo) {
     if (!this.userAvatarElement || !this.isInitialized) return;
 
     if (!document.contains(this.userAvatarElement)) {
@@ -5492,7 +5503,7 @@ export class HorizontalFriendsBar {
             );
 
             // Update presence dot immediately with new profile data
-            this.updateUserPresenceDot(systemInfo);
+            this.updateUserPresencePill(systemInfo);
           }
         }
       );
@@ -5511,7 +5522,7 @@ export class HorizontalFriendsBar {
       // Get current user data and refresh presence dot for time updates only
       // 🔧 FIX: Use currentUser.systemInfo directly (not currentUser.profile.systemInfo)
       if (currentUser?.systemInfo) {
-        this.updateUserPresenceDot(currentUser.systemInfo);
+        this.updateUserPresencePill(currentUser.systemInfo);
       }
     }, 30000); // 30 seconds for time display updates
 

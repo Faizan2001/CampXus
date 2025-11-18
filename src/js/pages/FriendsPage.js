@@ -2671,7 +2671,9 @@ class FriendsUI {
   showLoadingState() {
     if (this.elements.friendsList) {
       // Create 5 skeleton items
-      const skeletons = Array(5).fill('<div class="skeleton-loader"></div>').join('');
+      const skeletons = Array(5)
+        .fill('<div class="skeleton-loader"></div>')
+        .join("");
       this.elements.friendsList.innerHTML = skeletons;
     }
   }
@@ -2682,8 +2684,11 @@ class FriendsUI {
   hideLoadingState() {
     // The render function will overwrite the content, so we just need to ensure
     // we don't leave skeletons if the list is empty (handled by renderFriends)
-    if (this.elements.friendsList && this.elements.friendsList.innerHTML.includes('skeleton-loader')) {
-       this.elements.friendsList.innerHTML = '';
+    if (
+      this.elements.friendsList &&
+      this.elements.friendsList.innerHTML.includes("skeleton-loader")
+    ) {
+      this.elements.friendsList.innerHTML = "";
     }
   }
 
@@ -2693,15 +2698,15 @@ class FriendsUI {
   showSearchLoading() {
     const searchInput = this.elements.searchInput;
     if (searchInput) {
-      searchInput.parentElement.classList.add('is-loading');
+      searchInput.parentElement.classList.add("is-loading");
       // Add a spinner icon if not present
-      let spinner = searchInput.parentElement.querySelector('.fa-spinner');
+      let spinner = searchInput.parentElement.querySelector(".fa-spinner");
       if (!spinner) {
-         const icon = searchInput.parentElement.querySelector('.fa-search');
-         if (icon) {
-            icon.classList.remove('fa-search');
-            icon.classList.add('fa-spinner', 'fa-spin');
-         }
+        const icon = searchInput.parentElement.querySelector(".fa-search");
+        if (icon) {
+          icon.classList.remove("fa-search");
+          icon.classList.add("fa-spinner", "fa-spin");
+        }
       }
     }
   }
@@ -2712,12 +2717,12 @@ class FriendsUI {
   hideSearchLoading() {
     const searchInput = this.elements.searchInput;
     if (searchInput) {
-      searchInput.parentElement.classList.remove('is-loading');
+      searchInput.parentElement.classList.remove("is-loading");
       // Restore search icon
-      const icon = searchInput.parentElement.querySelector('.fa-spinner');
+      const icon = searchInput.parentElement.querySelector(".fa-spinner");
       if (icon) {
-         icon.classList.remove('fa-spinner', 'fa-spin');
-         icon.classList.add('fa-search');
+        icon.classList.remove("fa-spinner", "fa-spin");
+        icon.classList.add("fa-search");
       }
     }
   }
