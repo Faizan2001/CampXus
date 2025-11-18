@@ -202,6 +202,25 @@ class LogManager {
   }
 
   /**
+   * Root level convenience methods for conventional usage
+   */
+  info(message, data) {
+    this.system.info(message, data);
+  }
+
+  warn(message, data) {
+    this.system.warn(message, data);
+  }
+
+  error(message, data) {
+    this.system.error(message, data);
+  }
+
+  debug(message, data) {
+    this.dev.debug(message, data);
+  }
+
+  /**
    * Determine if we are in development mode using multiple fallbacks (Vite + NODE_ENV)
    */
   _isDevEnv() {

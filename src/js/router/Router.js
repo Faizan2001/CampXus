@@ -14,6 +14,7 @@
 import { authManager } from "../services/auth/AuthService.js"; // 🎯 NEW: Import authManager for authentication checks
 import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import currentUser for better auth state checking
 import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
+import { notificationManager } from "../services/realtime/NotificationService.js"; // 🎯 NEW: Import notificationManager
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 import { profileCache } from "../cache/profileCache.js"; // 🚀 Session hint for faster initial route
@@ -120,7 +121,7 @@ class SPARouter {
       user: {
         title: "Profile - MeetchuThere",
         template: "/templates/user-profile.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/profile-setup.css"],
+        cssFiles: ["/src/css/styles.css", "/src/css/user-profile.css"],
         jsImporters: [() => import("/src/js/pages/UserProfilePage.js")],
         description: "View a student profile",
         requiresAuth: true,
@@ -184,14 +185,14 @@ class SPARouter {
     // Find the main content container
     this.mainContentContainer = document.querySelector(".main-content");
     if (!this.mainContentContainer) {
-      console.error(
+      logManager.system.error(
         "❌ Main content container not found! SPA Router cannot work."
       );
-      console.log(
+      logManager.system.debug(
         "📋 Available elements with class 'main':",
         document.querySelectorAll("[class*='main']")
       );
-      console.log(
+      logManager.system.debug(
         "📋 Body contents:",
         document.body.innerHTML.substring(0, 500) + "..."
       );
@@ -578,7 +579,7 @@ class SPARouter {
       const isLoggedIn = state.isLoggedIn;
       const currentRoute = this.currentPage;
 
-      console.log(
+      logManager.auth.login(
         `🔐 Router: Auth state changed - isLoggedIn: ${isLoggedIn}, currentRoute: ${currentRoute}`
       );
 
@@ -614,7 +615,7 @@ class SPARouter {
       if (isLoggedIn) {
         // User just logged in
         if (currentRoute === "landing") {
-          console.log(
+          logManager.auth.login(
             "🏠 User logged in from landing page, redirecting to home"
           );
           this.navigateTo("home");
@@ -631,11 +632,11 @@ class SPARouter {
             sessionStorage.getItem("intentionalLogout") === "true";
           if (wasIntentionalLogout) {
             sessionStorage.removeItem("intentionalLogout");
-            console.log(
+            logManager.auth.logout(
               `👋 User intentionally logged out from ${currentRoute}, redirecting to landing`
             );
           } else {
-            console.log(
+            logManager.auth.logout(
               `🔒 User logged out from protected route (${currentRoute}), redirecting to landing`
             );
           }
@@ -646,7 +647,7 @@ class SPARouter {
         }
       }
     } catch (error) {
-      console.error("❌ Error in handleAuthRedirect:", error);
+      logManager.system.error("❌ Error in handleAuthRedirect:", error);
     }
   }
 
@@ -810,7 +811,7 @@ class SPARouter {
    */
   async navigateTo(route, updateHistory = true) {
     if (!this.routes[route]) {
-      console.error(`❌ Route not found: ${route}`);
+      logManager.error(`❌ Route not found: ${route}`);
       this.showErrorFeedback(`Page not found: ${route}`);
       return;
     }
@@ -822,7 +823,7 @@ class SPARouter {
       (this._lastNavigation.route === route &&
         now - this._lastNavigation.ts < 300)
     ) {
-      console.log("⏭️ Duplicate navigation to same route ignored");
+      logManager.debug("⏭️ Duplicate navigation to same route ignored");
       return;
     }
     this._pendingRoute = route;
@@ -854,10 +855,10 @@ class SPARouter {
       }
 
       if (!isAuthenticated) {
-        console.warn(
+        logManager.warn(
           `🔒 Access denied to route: ${route}. Redirecting to landing page.`
         );
-        console.log("🔍 Debug auth state:", {
+        logManager.debug("🔍 Debug auth state:", {
           hasFirebaseUser: !!authManager?.auth?.currentUser,
           hasUserStore: !!currentUser.user,
           isLoggedInStore: currentUser.isLoggedIn(),
@@ -891,7 +892,7 @@ class SPARouter {
         sessionStorage.getItem("intentionalLogout") === "true";
 
       if (hasFirebaseUser) {
-        console.log(
+        logManager.info(
           "🏠 Authenticated user accessing landing, redirecting to home"
         );
         this.navigateTo("home", updateHistory);
@@ -916,7 +917,7 @@ class SPARouter {
           ]);
         } catch (_) {}
         if (authManager?.auth?.currentUser) {
-          console.log(
+          logManager.info(
             "🏠 Authenticated user accessing landing (post-wait), redirecting to home"
           );
           this.navigateTo("home", updateHistory);
@@ -941,9 +942,11 @@ class SPARouter {
     ) {
       try {
         await dataManager.updateUserLastActive(currentUser.user.uid);
-        console.log(`⚡ Immediate lastActive update on navigation to ${route}`);
+        logManager.system.info(
+          `⚡ Immediate lastActive update on navigation to ${route}`
+        );
       } catch (lastActiveError) {
-        console.warn(
+        logManager.system.warn(
           `⚠️ Failed to update lastActive on ${route} navigation (non-critical):`,
           lastActiveError
         );
@@ -957,7 +960,7 @@ class SPARouter {
           await mod.openNotifyOverlay();
         }
       } catch (e) {
-        console.warn("⚠️ Failed to open notify overlay via route:", e);
+        logManager.warn("⚠️ Failed to open notify overlay via route:", e);
       }
       this._pendingRoute = null;
       return;
@@ -980,7 +983,7 @@ class SPARouter {
       // Load the page content
       await this.loadPage(route);
     } catch (error) {
-      console.error(`❌ Error loading page ${route}:`, error);
+      logManager.error(`❌ Error loading page ${route}:`, error);
       this.showErrorFeedback(`Failed to load ${route}.`);
     } finally {
       // 🎯 LEARNING: The finally block ensures the loading indicator is always hidden,
@@ -1063,7 +1066,7 @@ class SPARouter {
   async loadPage(route, _updateHistory = true) {
     const routeData = this.routes[route];
     if (!routeData) {
-      console.error(`❌ Route data not found for: ${route}`);
+      logManager.error(`❌ Route data not found for: ${route}`);
       return;
     }
 
@@ -1109,7 +1112,7 @@ class SPARouter {
 
       // If a newer navigation started, abandon this one
       if (this._navId !== navId) {
-        console.log(
+        logManager.debug(
           "⏭️ Navigation superseded, abandoning DOM updates for",
           route
         );
@@ -1130,7 +1133,7 @@ class SPARouter {
           detail: { route: leavingRoute, router: this, targetRoute: route },
         });
         document.dispatchEvent(unloadEvent);
-        console.log(
+        logManager.debug(
           `🔔 Dispatched spa:page:unload for route: ${leavingRoute} → ${route}`
         );
       }
@@ -1146,10 +1149,10 @@ class SPARouter {
         htmlContent.includes('class="top-nav"') ||
         htmlContent.includes('class="nav-')
       ) {
-        console.error(
+        logManager.error(
           `🚨 Template content contains navigation elements - this indicates index.html was loaded instead of template`
         );
-        console.error(
+        logManager.error(
           "Template content preview:",
           htmlContent.substring(0, 500)
         );
@@ -1159,7 +1162,7 @@ class SPARouter {
       }
 
       // Update the main content
-      console.log(
+      logManager.debug(
         `📝 Injecting template content into main-content (${htmlContent.length} chars)`
       );
       this.mainContentContainer.innerHTML = htmlContent;
@@ -1205,14 +1208,14 @@ class SPARouter {
       // Pass the full hash so page controllers can access query params
       this.dispatchPageLoadEvent(route, currentHash);
 
-      console.log(`✅ Successfully loaded page: ${route}`);
+      logManager.info(`✅ Successfully loaded page: ${route}`);
     } catch (error) {
       if (error?.name === "AbortError") {
-        console.log("🛑 Navigation aborted (newer route started)");
+        logManager.debug("🛑 Navigation aborted (newer route started)");
         if (this._pendingRoute === route) this._pendingRoute = null;
         return;
       }
-      console.error(`❌ Error loading page ${route}:`, error);
+      logManager.error(`❌ Error loading page ${route}:`, error);
       // 🎯 REFACTOR: The navigateTo method's finally block will handle hiding the loader.
       this.showErrorPage(error);
     }
@@ -1258,7 +1261,7 @@ class SPARouter {
           resolve();
         };
         link.onerror = (error) => {
-          console.error(`❌ Failed to load CSS: ${cssFile}`, error);
+          logManager.error(`❌ Failed to load CSS: ${cssFile}`, error);
           reject(error);
         };
         document.head.appendChild(link);
@@ -1283,7 +1286,7 @@ class SPARouter {
 
     const response = await fetch(url, { signal });
     if (!response.ok) {
-      console.error(`❌ Template fetch failed: ${url} (${response.status})`);
+      logManager.error(`❌ Template fetch failed: ${url} (${response.status})`);
       throw new Error(
         `Failed to load template: ${url} - ${response.status} ${response.statusText}`
       );
@@ -1295,13 +1298,13 @@ class SPARouter {
     // instead of a template fragment (happens when Vite's history API fallback
     // serves index.html for 404'd template requests)
     if (looksLikeFullDocument(html)) {
-      console.error(
+      logManager.error(
         `🚨 Template fetch returned full HTML document instead of fragment: ${url}`
       );
-      console.error(
+      logManager.error(
         "This usually means the template file wasn't found and Vite served index.html as fallback"
       );
-      console.error("First 200 chars of response:", html.substring(0, 200));
+      logManager.error("First 200 chars of response:", html.substring(0, 200));
       throw new Error(
         `Template loading error: ${url} returned a full HTML document instead of a template fragment. Check that the template file exists.`
       );
@@ -1324,7 +1327,7 @@ class SPARouter {
         try {
           await importer();
         } catch (e) {
-          console.error("❌ Failed to load route module via importer", e);
+          logManager.error("❌ Failed to load route module via importer", e);
           throw e;
         }
       }
@@ -1519,7 +1522,7 @@ class SPARouter {
         mobileBottomNav.style.display = "none";
       }
       if (this._navVisibility.hidden !== true) {
-        console.log(`🔒 Navigation hidden - ${route} page, not logged in`);
+        logManager.debug(`🔒 Navigation hidden - ${route} page, not logged in`);
         this._navVisibility.hidden = true;
       }
     } else {
@@ -1530,7 +1533,9 @@ class SPARouter {
         mobileBottomNav.style.display = "";
       }
       if (this._navVisibility.hidden !== false) {
-        console.log("🔓 Navigation shown - authenticated or protected route");
+        logManager.debug(
+          "🔓 Navigation shown - authenticated or protected route"
+        );
         this._navVisibility.hidden = false;
       }
     }
@@ -1574,7 +1579,7 @@ class SPARouter {
    * Enhanced to handle offline scenarios gracefully
    */
   showErrorPage(error) {
-    console.log("🔍 Analyzing error for appropriate response:", error);
+    logManager.debug("🔍 Analyzing error for appropriate response:", error);
 
     // 🛡️ SAFETY: Ensure error has a message property
     const errorMessage =
@@ -1590,20 +1595,16 @@ class SPARouter {
       (errorName === "TypeError" && errorMessage.includes("fetch"));
 
     if (isOfflineError) {
-      console.log("📱 Detected offline error - showing appropriate message");
+      logManager.info(
+        "📱 Detected offline error - showing appropriate message"
+      );
 
       // Use the notification system for offline errors instead of replacing content
-      if (window.dataManager?.showNotification) {
-        window.dataManager.showNotification(
-          "📱 You're offline! Some features may not work until you reconnect.",
-          "warning",
-          { duration: 8000 }
-        );
-      } else {
-        console.warn(
-          "📱 Offline detected but notification system not available"
-        );
-      }
+      notificationManager.show(
+        "📱 You're offline! Some features may not work until you reconnect.",
+        "warning",
+        { duration: 8000 }
+      );
 
       // Don't replace the current page content when offline
       // Instead, just stay where we are with a helpful message
@@ -1698,7 +1699,7 @@ Stack: ${error?.stack || "No stack trace available"}
       },
     });
     document.dispatchEvent(event);
-    console.log(`🔔 Dispatched spa:page:load event for route: ${route}`);
+    logManager.debug(`🔔 Dispatched spa:page:load event for route: ${route}`);
   }
 
   /**
@@ -1706,12 +1707,12 @@ Stack: ${error?.stack || "No stack trace available"}
    * 🎯 Learning: Provide user-friendly error messages
    */
   showErrorFeedback(message) {
-    console.error("🚨 SPA Router Error:", message);
+    logManager.error("🚨 SPA Router Error:", message);
 
-    // Use data manager for notifications if available
-    if (window.dataManager?.showNotification) {
-      window.dataManager.showNotification(message, "error", { duration: 5000 });
-    } else {
+    // Use notification manager for notifications
+    try {
+      notificationManager.show(message, "error", { duration: 5000 });
+    } catch (e) {
       // Fallback to alert if notification system not available
       alert(message);
     }

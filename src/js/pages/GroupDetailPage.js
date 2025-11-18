@@ -5,6 +5,7 @@ import { currentUser } from "../store/userStore.js";
 import { blockService } from "../services/social/BlockService.js";
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js";
 import { friendsManager } from "../services/friends/FriendsService.js";
+import { notificationManager } from "../services/realtime/NotificationService.js";
 
 export class GroupDetailPage {
   constructor() {
@@ -306,13 +307,13 @@ export class GroupDetailPage {
           } else {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
-            alert(res?.message || "Failed to send friend request");
+            notificationManager.show(res?.message || "Failed to send friend request", "error");
           }
         } catch (err) {
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-user-plus"></i>';
           console.error("[GroupDetailPage] Add friend failed", err);
-          alert("Failed to send friend request");
+          notificationManager.show("Failed to send friend request", "error");
         }
       });
     });
@@ -466,7 +467,7 @@ export class GroupDetailPage {
           }
         } catch (e) {
           logManager?.system?.error?.("Failed to load older messages", e);
-          alert("Failed to load older messages");
+          notificationManager.show("Failed to load older messages", "error");
         } finally {
           this.isLoadingMore = false;
           loadOlderBtn.disabled = false;
@@ -486,7 +487,7 @@ export class GroupDetailPage {
         if (now - lastAt < 3100) {
           const waitMs = 3100 - (now - lastAt);
           const secs = Math.ceil(waitMs / 1000);
-          alert(`Please wait ${secs}s before sending another message.`);
+          notificationManager.show(`Please wait ${secs}s before sending another message.`, "warning");
           return;
         }
         this._lastSendAtBySpace[this.spaceId] = now;
@@ -497,7 +498,7 @@ export class GroupDetailPage {
         input.value = "";
       } catch (e) {
         logManager?.system?.error?.("sendMessage failed", e);
-        alert("Failed to send message");
+        notificationManager.show("Failed to send message", "error");
       } finally {
         sendBtn.disabled = false;
       }

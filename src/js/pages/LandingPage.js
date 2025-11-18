@@ -12,6 +12,7 @@
 import { authManager } from "../services/auth/AuthService.js";
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
+import { notificationManager } from "../services/realtime/NotificationService.js";
 
 /**
  * Landing Page Class
@@ -104,18 +105,16 @@ class LandingPage {
       } else {
         logManager.auth.error("LandingPage: authManager or showAuthModal method not available");
         logManager.auth.error("LandingPage: No authentication method available");
-        alert("Authentication system temporarily unavailable. Please refresh and try again.");
+        notificationManager.show("Authentication system temporarily unavailable. Please refresh and try again.", "error");
       }
     } catch (error) {
       logManager.ui.error("❌ LandingPage: Error handling join button click:", error);
 
       // Show user-friendly error
-      if (window.dataManager && window.dataManager.showNotification) {
-        window.dataManager.showNotification(
-          "Unable to open sign-in. Please refresh the page and try again.",
-          "error"
-        );
-      }
+      notificationManager.show(
+        "Unable to open sign-in. Please refresh the page and try again.",
+        "error"
+      );
     } finally {
       // Restore button state after a short delay
       setTimeout(() => {

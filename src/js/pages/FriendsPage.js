@@ -2669,40 +2669,69 @@ class FriendsUI {
    * ⏳ Show loading state
    */
   showLoadingState() {
-    // TODO: Implement a proper loading skeleton
-    // Reduced logging for cleaner console
+    if (this.elements.friendsList) {
+      // Create 5 skeleton items
+      const skeletons = Array(5).fill('<div class="skeleton-loader"></div>').join('');
+      this.elements.friendsList.innerHTML = skeletons;
+    }
   }
 
   /**
    * ✅ Hide loading state
    */
   hideLoadingState() {
-    // TODO: Hide loading skeleton
-    // Reduced logging for cleaner console
+    // The render function will overwrite the content, so we just need to ensure
+    // we don't leave skeletons if the list is empty (handled by renderFriends)
+    if (this.elements.friendsList && this.elements.friendsList.innerHTML.includes('skeleton-loader')) {
+       this.elements.friendsList.innerHTML = '';
+    }
   }
 
   /**
    * 🔍 Show search loading state
    */
   showSearchLoading() {
-    // TODO: Implement search loading state
-    // Reduced logging for cleaner console
+    const searchInput = this.elements.searchInput;
+    if (searchInput) {
+      searchInput.parentElement.classList.add('is-loading');
+      // Add a spinner icon if not present
+      let spinner = searchInput.parentElement.querySelector('.fa-spinner');
+      if (!spinner) {
+         const icon = searchInput.parentElement.querySelector('.fa-search');
+         if (icon) {
+            icon.classList.remove('fa-search');
+            icon.classList.add('fa-spinner', 'fa-spin');
+         }
+      }
+    }
   }
 
   /**
    * 🔍 Hide search loading state
    */
   hideSearchLoading() {
-    // TODO: Hide search loading state
-    // Reduced logging for cleaner console
+    const searchInput = this.elements.searchInput;
+    if (searchInput) {
+      searchInput.parentElement.classList.remove('is-loading');
+      // Restore search icon
+      const icon = searchInput.parentElement.querySelector('.fa-spinner');
+      if (icon) {
+         icon.classList.remove('fa-spinner', 'fa-spin');
+         icon.classList.add('fa-search');
+      }
+    }
   }
 
   /**
    * 💬 Show user feedback messages
    */
   showMessage(message, type = "info") {
-    // TODO: Implement a nicer notification system
-    console.log(`[${type.toUpperCase()}] ${message}`);
+    try {
+      notificationManager.show(message, type);
+    } catch (e) {
+      // Fallback if notificationManager isn't ready
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
   }
 
   /**

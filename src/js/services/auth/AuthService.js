@@ -942,16 +942,7 @@ class AuthManager {
           { duration: 6000 }
         );
       } catch (e) {
-        // Fallback to DataService if NotificationService fails for any reason
-        if (
-          typeof dataManager !== "undefined" &&
-          dataManager.showNotification
-        ) {
-          dataManager.showNotification(
-            "Verify your email to sign in. Check your inbox for the link.",
-            "warning"
-          );
-        }
+        console.warn("Notification failed:", e);
       }
     }
     this.showAuthModal();
@@ -971,12 +962,7 @@ class AuthManager {
         { duration: 6000 }
       );
     } catch (_) {
-      if (typeof dataManager !== "undefined" && dataManager.showNotification) {
-        dataManager.showNotification(
-          "Dev account creation is disabled. Try again later.",
-          "warning"
-        );
-      }
+      console.warn("Notification failed");
     }
     this.showAuthModal();
   }

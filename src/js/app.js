@@ -194,7 +194,7 @@ async function initializeSPA() {
       logManager.system.init("Profile hydrated from cache (SWR mode)");
     }
   } catch (e) {
-    console.warn("Profile hydration failed (non-fatal)", e);
+    logManager.system.warn("Profile hydration failed (non-fatal)", e);
   }
 
   // 🎯 Use smart initial load to avoid flashing landing on refresh
@@ -301,17 +301,17 @@ async function initializeSPA() {
               showPermissionNotice();
             } catch (_) {}
           } catch (e) {
-            console.warn("Push messaging init failed (non-fatal)", e);
+            logManager.system.warn("Push messaging init failed (non-fatal)", e);
           }
         })();
       })
       .catch((error) => {
-        console.warn(
+        logManager.auth.warn(
           `Authentication timeout or error (background), continuing: ${error.message}`
         );
       });
   } else {
-    console.warn(
+    logManager.auth.warn(
       "AuthManager or authReady promise not found. Proceeding without auth check."
     );
   }
@@ -495,13 +495,13 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
         );
         locationScheduler.start?.();
       } catch (e) {
-        console.warn(
+        logManager.location.warn(
           "LocationScheduler start failed (non-critical):",
           e?.message || e
         );
       }
     } catch (e) {
-      console.warn("Campus Presence lazy init failed:", e?.message || e);
+      logManager.location.warn("Campus Presence lazy init failed:", e?.message || e);
     }
   };
 
@@ -646,7 +646,7 @@ export function navigateTo(route) {
   if (spaRouter) {
     spaRouter.navigateTo(route);
   } else {
-    console.error("SPA Router not initialized yet");
+    logManager.system.error("SPA Router not initialized yet");
   }
 }
 
@@ -799,7 +799,7 @@ async function initializeCampusPresenceInBackground() {
  * 🎯 Priority Mode: Ensures presence dots get latest coordinates quickly
  */
 async function fetchFreshLocationForPresence() {
-  console.log("🎯 Priority: Fetching fresh location data for presence dots...");
+  logManager.location.info("🎯 Priority: Fetching fresh location data for presence dots...");
 
   try {
     const { campusLocationService } = await import(
@@ -811,15 +811,15 @@ async function fetchFreshLocationForPresence() {
     ) {
       // This method bypasses debouncing and gets fresh GPS immediately
       campusLocationService.requestSingleLocationUpdate();
-      console.log(
+      logManager.location.info(
         "✅ Priority: Fresh location request initiated for presence dots"
       );
     } else if (typeof campusLocationService.handleTriggerEvent === "function") {
       // Alternative method for immediate location update
       await campusLocationService.handleTriggerEvent("presence_priority");
-      console.log("✅ Priority: Trigger event sent for fresh presence data");
+      logManager.location.info("✅ Priority: Trigger event sent for fresh presence data");
     } else {
-      console.warn("⚠️ Priority: No immediate location method available");
+      logManager.location.warn("⚠️ Priority: No immediate location method available");
     }
 
     // Emit event that fresh data is being fetched
@@ -833,7 +833,7 @@ async function fetchFreshLocationForPresence() {
       })
     );
   } catch (error) {
-    console.error(
+    logManager.location.error(
       "❌ Priority: Failed to fetch fresh location for presence:",
       error
     );
@@ -889,7 +889,7 @@ function tryRegisterServiceWorker() {
   const devSWDisabled =
     !isProduction && localStorage.getItem("disableDevSW") === "true";
   if (devSWDisabled) {
-    console.info(
+    logManager.system.info(
       "Service worker disabled in dev mode (localStorage.disableDevSW)"
     );
     return;
@@ -925,5 +925,5 @@ function tryRegisterServiceWorker() {
         });
       } catch (_) {}
     })
-    .catch((e) => console.warn("SW registration failed (non-fatal):", e));
+    .catch((e) => logManager.system.warn("SW registration failed (non-fatal):", e));
 }

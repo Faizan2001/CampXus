@@ -274,7 +274,7 @@ class DataManager {
   setupNetworkListeners() {
     window.addEventListener("online", () => {
       this.isOnline = true;
-      this.showNotification("Back online! Syncing changes...", "success", {
+      notificationManager.show("Back online! Syncing changes...", "success", {
         duration: 3000,
       });
       this.processPendingOperations();
@@ -282,7 +282,7 @@ class DataManager {
 
     window.addEventListener("offline", () => {
       this.isOnline = false;
-      this.showNotification(
+      notificationManager.show(
         "You're offline. Changes will be saved locally and synced when you reconnect.",
         "warning",
         { duration: 5000 }
@@ -319,9 +319,9 @@ class DataManager {
     }
 
     if (this.pendingOperations.length === 0) {
-      this.showNotification("All changes synced successfully", "success");
+      notificationManager.show("All changes synced successfully", "success");
     } else {
-      this.showNotification(
+      notificationManager.show(
         `${this.pendingOperations.length} operations still pending`,
         "warning"
       );
@@ -434,27 +434,6 @@ class DataManager {
     if (this.cache.has(key)) {
       this.cache.delete(key);
       console.log(`♻️ Invalidated cache for key: ${key}`);
-    }
-  }
-
-  // =========================
-  // NOTIFICATION UI
-  // =========================
-
-  /**
-   * Show a notification toast via NotificationService
-   * @param {string} message The message to display
-   * @param {"success"|"error"|"warning"|"info"} type Notification type
-   * @param {object} options Additional options (e.g., { duration })
-   * @private
-   */
-  showNotification(message, type = "info", options = {}) {
-    try {
-      // Route all toasts through the centralized NotificationService
-      notificationManager.showSystemNotification(message, type, options);
-    } catch (e) {
-      // Fallback to console to avoid breaking flows
-      console.log(`[${type.toUpperCase()}] ${message}`);
     }
   }
 
@@ -595,7 +574,7 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by university:", error);
-      this.showNotification("Could not search for students.", "error");
+      notificationManager.show("Could not search for students.", "error");
       return [];
     }
   }
@@ -673,7 +652,7 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by major:", error);
-      this.showNotification("Could not search for students by major.", "error");
+      notificationManager.show("Could not search for students by major.", "error");
       return [];
     }
   }
@@ -757,7 +736,7 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by ID/email:", error);
-      this.showNotification(
+      notificationManager.show(
         "Could not search by student ID or email.",
         "error"
       );
@@ -811,7 +790,7 @@ class DataManager {
       return results;
     } catch (error) {
       console.error("❌ Error in exact student ID lookup:", error);
-      this.showNotification("Could not search by student ID.", "error");
+      notificationManager.show("Could not search by student ID.", "error");
       return [];
     }
   }
@@ -851,7 +830,7 @@ class DataManager {
       return userData;
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      this.showError("Failed to load profile data");
+      notificationManager.show("Failed to load profile data", "error");
       return null;
     }
   }
@@ -944,7 +923,7 @@ class DataManager {
         // Cache immediately for offline access
         this.setCachedData(`user_${userId}`, profileData);
 
-        this.showNotification("Changes will sync when online", "info", {
+        notificationManager.show("Changes will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -968,7 +947,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error saving profile:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -1267,7 +1246,7 @@ class DataManager {
           this.saveUserSchedule(userId, scheduleData, currentUserId)
         );
         this.setCachedData(`schedule_${userId}`, enhancedScheduleData);
-        this.showNotification("Schedule will sync when online", "info", {
+        notificationManager.show("Schedule will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -1286,7 +1265,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error saving schedule:", error);
-      this.showError("Failed to save schedule");
+      notificationManager.show("Failed to save schedule", "error");
       return { success: false, error: error.message };
     }
   }
@@ -1360,7 +1339,7 @@ class DataManager {
       return scheduleData;
     } catch (error) {
       console.error("Error fetching schedule:", error);
-      this.showError("Failed to load schedule");
+      notificationManager.show("Failed to load schedule", "error");
       return null;
     }
   }
@@ -1444,7 +1423,7 @@ class DataManager {
             return;
           }
           console.error("Error in schedule listener:", error);
-          this.showError("Lost connection to schedule updates");
+          notificationManager.show("Lost connection to schedule updates", "error");
         }
       );
 
@@ -1469,46 +1448,6 @@ class DataManager {
    */
   clearCache() {
     this.cache.clear();
-  }
-
-  /**
-   * Show error message to user with consistent styling
-   * @private
-   */
-  showError(message) {
-    this.showNotification(message, "error");
-  }
-
-  /**
-   * Show user notifications with consistent styling and accessibility
-   * @param {string} message - Message to show
-   * @param {string} type - 'error' | 'success' | 'info' | 'warning'
-   * @private
-   */
-  showNotification(message, type = "info", options = {}) {
-    // Delegate to the centralized NotificationService to avoid duplicate UI systems
-    try {
-      notificationManager.showSystemNotification(message, type, options);
-    } catch (e) {
-      console.log(`[${type.toUpperCase()}] ${message}`);
-    }
-  }
-
-  /**
-   * Get notification styles based on type
-   * @private
-   */
-  getNotificationStyles(type) {
-    const styles = {
-      error:
-        "background: #fecaca; color: #b91c1c; border-left: 4px solid #ef4444;",
-      success:
-        "background: #bbf7d0; color: #166534; border-left: 4px solid #10b981;",
-      warning:
-        "background: #fef3c7; color: #d97706; border-left: 4px solid #f59e0b;",
-      info: "background: #dbeafe; color: #1d4ed8; border-left: 4px solid #3b82f6;",
-    };
-    return styles[type] || styles.info;
   }
 
   /**
@@ -1701,7 +1640,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateUserProfile(userId, profileData)
         );
-        this.showNotification("Changes will sync when online", "info", {
+        notificationManager.show("Changes will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -1727,7 +1666,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error updating user profile:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -1869,7 +1808,7 @@ class DataManager {
 
       if (!this.isOnline) {
         this.pendingOperations.push(() => this.updateUserBio(userId, bio));
-        this.showNotification("Changes will sync when online", "info", {
+        notificationManager.show("Changes will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -1956,7 +1895,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error deleting user profile:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -1986,14 +1925,14 @@ class DataManager {
         this.invalidateCache(`user_${userId}`)
       );
 
-      this.showNotification(
+      notificationManager.show(
         `Updated ${userUpdates.length} users successfully`,
         "success"
       );
       return { success: true };
     } catch (error) {
       console.error("Error in batch update:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -2006,7 +1945,7 @@ class DataManager {
   async searchUsers(_criteria) {
     try {
       if (!this.isOnline) {
-        this.showError("Search requires internet connection");
+        notificationManager.show("Search requires internet connection", "error");
         return null;
       }
 
@@ -2018,7 +1957,7 @@ class DataManager {
       return [];
     } catch (error) {
       console.error("Error searching users:", error);
-      this.showError("Search failed");
+      notificationManager.show("Search failed", "error");
       return null;
     }
   }
@@ -4103,7 +4042,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateUserLocationStatus(userId, campusStatus, coordinates)
         );
-        this.showNotification("Location will sync when online", "info", {
+        notificationManager.show("Location will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, cached: true };
@@ -4199,7 +4138,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateLocationSharingPreference(userId, enabled)
         );
-        this.showNotification("Preference will sync when online", "info", {
+        notificationManager.show("Preference will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, cached: true };
@@ -4385,7 +4324,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateBilateralLocationSharing(friendshipId, userId, enabled)
         );
-        this.showNotification(
+        notificationManager.show(
           "Location sharing will sync when online",
           "info",
           {
@@ -4502,7 +4441,7 @@ class DataManager {
         return { success: false, error: "Missing sender or recipients" };
 
       if (!navigator.onLine) {
-        this.showNotification("You are offline", "warning");
+        notificationManager.show("You are offline", "warning");
         return { success: false, error: "offline" };
       }
 

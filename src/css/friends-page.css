@@ -1963,7 +1963,6 @@ div.friend-options-menu.show div.options-dropdown,
   border: none !important;
   background: none !important;
   width: 100% !important;
-  text-align: left !important;
 }
 .glassmorphism-dropdown-active .menu-option + .menu-option {
   border-top: 1px solid rgba(var(--text-primary-rgb), 0.08) !important;
@@ -2360,7 +2359,7 @@ body.dark-mode.page-friends
     0 8px 24px var(--friends-options-dark-shadow-medium),
     0 4px 12px var(--friends-options-dark-shadow-light),
     inset 0 1px 0 var(--friends-options-dark-highlight-medium),
-    inset 0 -1px 0 var(--friends-white-highlight-faint) !important;
+    inset 0 -1px 0 var(--friends-options-dark-highlight-medium) !important;
 }
 body.dark-mode.page-friends .friend-options-menu .options-dropdown::before {
   background: linear-gradient(
@@ -2882,8 +2881,8 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   }
 
   .student-avatar {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
   }
 
   .friend-actions {
@@ -2904,26 +2903,6 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .request-time,
   .mutual-friends {
     font-size: 0.875rem;
-  }
-  .user-avatar,
-  .avatar-placeholder {
-    width: 44px;
-    height: 44px;
-    font-size: 20px;
-  }
-  .user-avatar i.fas {
-    font-size: 1.5rem;
-  }
-  .btn-friend-menu {
-    width: 32px;
-    height: 32px;
-    padding: 8px;
-  }
-  .btn-accept-request,
-  .btn-reject-request {
-    padding: 8px 12px;
-    font-size: 0.875rem;
-    gap: 6px;
   }
 }
 
@@ -3166,5 +3145,50 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .friend-options-menu .menu-option {
     transition: none !important;
     transform: none !important;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+/* Skeleton Loading State */
+:root {
+  --skeleton-base: rgba(0, 0, 0, 0.06);
+  --skeleton-highlight: rgba(0, 0, 0, 0.12);
+}
+
+body.dark-mode {
+  --skeleton-base: rgba(255, 255, 255, 0.06);
+  --skeleton-highlight: rgba(255, 255, 255, 0.12);
+}
+
+.skeleton-loader {
+  animation: skeleton-loading 1.5s infinite linear;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  height: 80px; /* Approximate height of a friend card */
+  margin-bottom: var(--spacing-sm);
+  width: 100%;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .skeleton-loader {
+    height: 60px; /* Adjusted height for smaller screens */
   }
 }

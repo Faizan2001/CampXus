@@ -3,6 +3,7 @@ import { logManager } from "../utils/debug/LogManager.js";
 import { unreadTracker } from "../services/groups/UnreadTracker.js";
 import { currentUser } from "../store/userStore.js";
 import { groupsCache } from "../services/groups/GroupsCache.js";
+import { notificationManager } from "../services/realtime/NotificationService.js";
 
 function isNonProductionEnvironment() {
   try {
@@ -369,7 +370,7 @@ export class GroupsPage {
           await this.loadGroups();
         } catch (e) {
           console.error("Create test spaces failed", e);
-          alert("Failed to create test spaces");
+          notificationManager.show("Failed to create test spaces", "error");
         } finally {
           createBtn.disabled = false;
         }
@@ -387,7 +388,7 @@ export class GroupsPage {
           await this.loadGroups();
         } catch (e) {
           console.error("Clear test spaces failed", e);
-          alert("Failed to clear test spaces");
+          notificationManager.show("Failed to clear test spaces", "error");
         } finally {
           clearBtn.disabled = false;
         }
@@ -427,12 +428,9 @@ export class GroupsPage {
 
           if (result.success) {
             triggerBtn.innerHTML = "✅ Success!";
-            alert(
-              `Scheduler executed successfully!\n\nSpaces created: ${
-                result.spacesCreated || 0
-              }\nSpaces deactivated: ${
-                result.spacesDeactivated || 0
-              }\nTotal buckets: ${result.totalBuckets || 0}`
+            notificationManager.show(
+              `Scheduler executed successfully! Spaces created: ${result.spacesCreated || 0}, Deactivated: ${result.spacesDeactivated || 0}`,
+              "success"
             );
 
             // Invalidate cache and reload groups
@@ -447,9 +445,7 @@ export class GroupsPage {
         } catch (e) {
           console.error("[GroupsPage] Trigger scheduler failed:", e);
           triggerBtn.innerHTML = "❌ Failed";
-          alert(
-            `Failed to trigger scheduler:\n${e.message}\n\nCheck console for details.`
-          );
+          notificationManager.show(`Failed to trigger scheduler: ${e.message}`, "error");
         } finally {
           setTimeout(() => {
             triggerBtn.innerHTML = originalText;

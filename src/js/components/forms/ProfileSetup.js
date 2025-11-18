@@ -36,6 +36,7 @@ import { scheduleStorageService } from "../../services/schedule/ScheduleStorageS
 import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { AnalyticsService } from "../../services/analytics/AnalyticsService.js";
+import { notificationManager } from "../../services/realtime/NotificationService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
 import {
   normalizeHandle,
@@ -123,14 +124,6 @@ class ProfileSetup {
 
     // Store this instance globally to prevent duplicates
     window.profileSetupInstance = this;
-
-    // Add offline/online event listeners for UI feedback
-    window.addEventListener("offline", () => this.showOfflineBanner(true));
-    window.addEventListener("online", () => this.showOfflineBanner(false));
-    // Show banner if already offline on load
-    if (!navigator.onLine) {
-      this.showOfflineBanner(true);
-    }
 
     // Ensure handle field is present even if no profile data yet (first load / reload)
     setTimeout(() => {
@@ -921,7 +914,7 @@ class ProfileSetup {
   showError(message) {
     // Simple error display - could be enhanced with better UI
     console.error("🚨 Profile Setup Error:", message);
-    alert(message); // TODO: Replace with better error UI
+    notificationManager.show(message, "error");
   }
 
   /**
@@ -1379,7 +1372,7 @@ class ProfileSetup {
       }
     } catch (error) {
       console.error("Error during skip setup:", error);
-      alert("Could not process skip action. Please try again.");
+      notificationManager.show("Could not process skip action. Please try again.", "error");
       if (nextBtn) nextBtn.disabled = false;
     }
   }
@@ -1810,9 +1803,7 @@ class ProfileSetup {
       console.log("📸 Processing uploaded photo...");
       const { mainBlob, thumbBlob } = await processProfilePhoto(file);
       if (mainBlob.size > 400 * 1024) {
-        alert(
-          "Photo is too large after processing. Please choose a different image."
-        );
+        notificationManager.show("Photo is too large after processing. Please choose a different image.", "warning");
         return;
       }
       // Only delete old files if a previous photo exists
@@ -1838,7 +1829,7 @@ class ProfileSetup {
       this.validateCurrentStep();
     } catch (err) {
       console.error("Photo upload failed:", err);
-      alert("Failed to upload photo. Please try another image.");
+      notificationManager.show("Failed to upload photo. Please try another image.", "error");
     }
   }
 
@@ -2447,7 +2438,7 @@ class ProfileSetup {
                 (this.currentUser && this.currentUser.uid) ||
                 (currentUser && currentUser.uid);
               if (!uid) {
-                alert("Please sign in to preview your public profile.");
+                notificationManager.show("Please sign in to preview your public profile.", "info");
                 return;
               }
               window.location.hash = `#user?id=${uid}&preview=1`;
@@ -2597,13 +2588,13 @@ class ProfileSetup {
 
     if (!avatarManager) {
       console.error("❌ Avatar manager not available");
-      alert("Avatar system is not loaded. Please refresh the page.");
+      notificationManager.show("Avatar system is not loaded. Please refresh the page.", "error");
       return;
     }
 
     if (!this.currentUser) {
       console.error("❌ No user available for avatar editor");
-      alert("Please sign in to customize your avatar.");
+      notificationManager.show("Please sign in to customize your avatar.", "info");
       return;
     }
 
@@ -3008,9 +2999,7 @@ class ProfileSetup {
       }, 1500); // 1.5-second delay
     } catch (error) {
       console.error("❌ Final profile save failed:", error);
-      alert(
-        "Oh no! Something went wrong while saving your profile. Please check your connection and try again."
-      );
+      notificationManager.show("Oh no! Something went wrong while saving your profile. Please check your connection and try again.", "error");
     }
   }
 
@@ -3680,7 +3669,7 @@ class ProfileSetup {
 
     // Show error using existing error system or simple alert for now
     console.error("Schedule Import Error:", message);
-    alert(message); // TODO: Replace with better error UI
+    notificationManager.show(message, "error");
   }
 
   /**
@@ -4058,45 +4047,6 @@ class ProfileSetup {
 
     // Start loading image (browser will handle caching)
     // Spinner remains until image loads or fails
-  }
-
-  /**
-   * Show or hide an offline status banner at the top of the profile setup page.
-   * This helps users know when they are offline and that changes will sync later.
-   */
-  showOfflineBanner(isOffline) {
-    let banner = document.getElementById("offline-status-banner");
-    if (isOffline) {
-      if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "offline-status-banner";
-        banner.setAttribute("role", "status");
-        banner.setAttribute("aria-live", "polite");
-        banner.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          z-index: 20000;
-          background: #f87171;
-          color: #fff;
-          text-align: center;
-          font-size: 1rem;
-          font-weight: 600;
-          padding: 0.75rem 0.5rem;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-          letter-spacing: 0.02em;
-        `;
-        banner.innerHTML =
-          '<span style="display:inline-block;margin-right:0.5em;vertical-align:middle;">⚠️</span>' +
-          '<span style="vertical-align:middle;">You are offline. Changes will be saved locally and synced when you are back online.</span>';
-        document.body.appendChild(banner);
-      } else {
-        banner.style.display = "block";
-      }
-    } else if (banner) {
-      banner.style.display = "none";
-    }
   }
 
   /**
