@@ -112,8 +112,8 @@ The pill uses text + color, not color alone.
 
 - `IN_CLASS` – currently in class (based on schedule)  
   - Blue pill – `IN CLASS`
-- `FREE_ON_CAMPUS` – likely on campus and free  
-  - Green pill – `FREE ON CAMPUS` or `ON CAMPUS`
+  - `FREE_ON_CAMPUS` – likely on campus and free  
+    - Green pill – `FREE NOW`
 - `OFF_CAMPUS` – definitely not on campus  
   - Red pill – `OFF CAMPUS`
 - `NO_CLASSES` – has no classes today  
@@ -197,7 +197,7 @@ if (effectiveGpsStatus === 'on') {
     pillText = 'IN CLASS';
   } else {
     state = 'FREE_ON_CAMPUS'; // green
-    pillText = 'FREE ON CAMPUS';
+    pillText = 'FREE NOW';
   }
 }
 ```
@@ -225,12 +225,12 @@ if (effectiveGpsStatus === 'unknown') {
 
     case 'between_classes':
       state = 'FREE_ON_CAMPUS'; // green
-      pillText = 'FREE ON CAMPUS';
+      pillText = 'FREE NOW';
       break;
 
     case 'no_class_now_but_later':
       state = 'NO_CLASSES'; // grey
-      pillText = 'HAS CLASS LATER';
+      pillText = 'CLASS LATER';
       break;
 
     case 'no_classes_today':
@@ -252,13 +252,13 @@ if (effectiveGpsStatus === 'unknown') {
 | Final State        | Pill Text                      | Color |
 | ------------------ | ------------------------------ | ----- |
 | `IN_CLASS`         | IN CLASS                       | Blue  |
-| `FREE_ON_CAMPUS`   | FREE ON CAMPUS                 | Green |
+| `FREE_ON_CAMPUS`   | FREE NOW                       | Green |
 | `OFF_CAMPUS`       | OFF CAMPUS                     | Red   |
-| `NO_CLASSES`       | NO CLASSES \| HAS CLASS LATER  | Grey  |
+| `NO_CLASSES`       | NO CLASSES \| CLASS LATER      | Grey  |
 | `UNKNOWN_NO_DATA`  | NO DATA                        | Grey  |
 | `UNKNOWN_PRIVATE`  | PRIVATE                        | Grey  |
 
-Note: pill text for `FREE_ON_CAMPUS` may be either `FREE ON CAMPUS` or `ON CAMPUS` (short variant); both map to the same `FREE_ON_CAMPUS` state.
+Note: pill text for `FREE_ON_CAMPUS` is `FREE NOW`. The internal state name remains `FREE_ON_CAMPUS`.
 
 ---
 
@@ -273,7 +273,7 @@ so I can decide who to meet without opening every schedule.
 ### US-2 – Free friend discovery
 
 As a student who has a free period,  
-when I see a friend with `FREE ON CAMPUS`,  
+when I see a friend with `FREE NOW`,  
 I want to tap and see until when they’re free / when their next class is  
 so I can decide if it’s worth asking them to meet.
 
@@ -375,7 +375,7 @@ Detect `between_classes` if:
 
 If the gap between the nearest past and next future class is **greater** than `MAX_CAMPUS_GAP_MINUTES`,  
 then `scheduleState = 'no_class_now_but_later'` (because there is still a class later today).  
-In GPS-unknown cases this resolves to state `NO_CLASSES` (grey), pill text `HAS CLASS LATER` (not green).
+In GPS-unknown cases this resolves to state `NO_CLASSES` (grey), pill text `CLASS LATER` (not green).
 
 #### FR-6 – After-class timeout
 
@@ -499,7 +499,7 @@ friends.filter(f => !f.isRestricted);
 
 Restricted friend:
 
-- Never show `IN CLASS`, `FREE ON CAMPUS`, `NO CLASSES`.
+- Never show `IN CLASS`, `FREE NOW`, `NO CLASSES`.
 - No tooltips about “class until X”.
 - Only `PRIVATE` (grey).
 
@@ -535,7 +535,7 @@ Base pill:
 - Font: System UI (`-apple-system`, `Roboto`, etc.).
 - Font size: 9–10px.
 - Weight: 800–900.
-- Text: UPPERCASE or Title Case (`IN CLASS`, `FREE ON CAMPUS`).
+- Text: UPPERCASE or Title Case (`IN CLASS`, `FREE NOW`).
 
 Colors:
 
@@ -610,11 +610,22 @@ Add unit tests for:
 - GPS staleness.
 - Weekends / no-classes days.
 
+#### Progress
+- ✅ `src/js/services/presence/SchedulePresenceService.js` now exports `PRESENCE_STATES`, `PRESENCE_CONFIG`, and `SchedulePresenceService` with full privacy/GPS/schedule resolution plus metadata (`source`, `hasSchedule`, `hasFreshGPS`, `inDayGap`, `nextClassTime`, `currentClassEnd`, `postClassTimeoutReached`).
+- ✅ Schedule inference builds daily class timelines from `schedule`/`timeSlots`, applies gap + GPS priority rules, respects privacy gates, and gracefully handles missing schedules via fallbacks.
+- ✅ Batch helper `deriveStatusForFriends` returns keyed maps with safeguards for the `MAX_FRIENDS_PER_BATCH` threshold.
+- ✅ Added comprehensive Jest coverage in `src/js/tests/services/presence/SchedulePresenceService.test.js` touching GPS overrides, stale data, privacy mode, between-class gaps, schedule fallbacks, and nested schedule sources.
+
 ### Phase 2 – Pill Component
 
 - Implement `PresenceIndicator.createPresencePill(statusInfo, { expanded })`.
 - Implement CSS for `.presence-pill` and color variants.
 - Swap out existing dot usage in the friends bar to pills.
+
+#### Progress
+- ✅ Added `src/js/components/presence/PresenceIndicator.js` exporting `createPresencePill(statusInfo, { expanded })` which renders semantic `.presence-pill.{blue|green|red|grey}` markup with `.pill-text` and an `expanded` modifier for selected states.
+- ✅ Extended `src/css/presence.css` with schedule presence pill styles (centered under avatars, responsive sizes, gradients for blue/green/red/grey, dark mode, reduced motion support) matching the existing presence visual language.
+- ✅ Updated `src/js/components/friends/HorizontalFriendsBar.js` to render presence pills for the current user and Quick Access friends when `enableSchedulePresencePills` is true, falling back to legacy `PresenceDot` markup only when the flag is disabled.
 
 ### Phase 3 – Friends Bar Integration
 
@@ -626,6 +637,13 @@ Add `enrichFriendsWithScheduleStatus(friends)`:
 - Attach `friend.schedulePresenceStatus` used in rendering.
 - Add `statusUpdateTimer` (60s) + granular `updateFriendPresenceUI`.
 
+#### Progress
+- ✅ Implemented `HorizontalFriendsBar.enrichFriendsWithScheduleStatus(now)` which filters restricted friends out of schedule fetches, hydrates non-restricted friends’ schedules via `dataManager.getUserSchedule` + `scheduleStorageService.convertToHomePageFormat`, and caches 7×N matrices + `timeSlots` in `this.scheduleCache` with `PRESENCE_CONFIG.SCHEDULE_CACHE_TTL_MS`.
+- ✅ Wired batch status computation through `SchedulePresenceService.deriveStatusForFriends` using GPS + cached schedule inputs, storing results in `this.presenceStatusByFriendId` and `friend.schedulePresenceStatus` for all Quick Access friends.
+- ✅ Added `_updateAvatarPresencePills()` to update pills in-place (including expanded state for the selected friend) and `startSchedulePresenceTimer()/stopSchedulePresenceTimer()` which recalc presence every `PRESENCE_CONFIG.STATUS_UPDATE_INTERVAL_MS` while the bar is active.
+- ✅ HorizontalFriendsBar now derives a parallel `userSchedulePresenceStatus` for the current user and exposes it via `getUserPresenceStatus()`, keeping pills, state, and ARIA labels consistent across user and friends.
+
+
 ### Phase 4 – Privacy + Edge Cases
 
 - Enforce `isRestricted` gates.
@@ -633,6 +651,11 @@ Add `enrichFriendsWithScheduleStatus(friends)`:
 - Validate behaviour for:
   - All-day no classes.
   - Long gaps.
+
+#### Progress
+- ✅ `SchedulePresenceService.deriveStatus` short-circuits to `UNKNOWN_PRIVATE` / `PRIVATE` (grey) when `friend.isRestricted === true`, skipping all schedule inference and ensuring a neutral pill for restricted users.
+- ✅ `HorizontalFriendsBar.enrichFriendsWithScheduleStatus` filters out restricted friends before any `getUserSchedule` calls and proactively clears `scheduleCache` entries when a friend becomes restricted, so schedules are never fetched or retained for them.
+- ✅ Privacy change events handled in `handlePrivacyChange` now flow through the updated `loadQuickAccessFriends(false)` + `enrichFriendsWithScheduleStatus()` pipeline, ensuring pills and disabled avatars reflect schedule visibility toggles immediately without leaking class-level detail.
 
 ### Phase 5 – Feature Flag, Analytics & Rollout
 
@@ -644,6 +667,11 @@ Add `enrichFriendsWithScheduleStatus(friends)`:
   - `schedule_fetch_failed`
   - `presence_privacy_blocked`
 - Optional: A/B test against legacy dots for a small subset of users.
+
+#### Progress
+- ✅ Introduced global `enableSchedulePresencePills` flag in `SchedulePresenceService` and wired `HorizontalFriendsBar` to use schedule-based pills when true, falling back to legacy GPS-only `PresenceDot` UI when false.
+- ✅ Instrumented key analytics via `AnalyticsService.trackFeatureUsage` for `presence_pill_rendered`, `presence_status_changed`, `friend_tapped_with_pill`, `schedule_fetch_failed`, and `presence_privacy_blocked`, scoped to the horizontal friends bar and tagged with friend IDs and state transitions where available.
+- ⚠️ A/B routing and staged rollout controls are not yet wired; current implementation treats `enableSchedulePresencePills` as a static feature flag to simplify initial integration.
 
 ---
 
@@ -676,10 +704,10 @@ Friends bar:
 
 ### Scenario Tests (Key Cases)
 
-- Morning commute (GPS unknown, 45 min before first class): `scheduleState = 'no_class_now_but_later'` → state `NO_CLASSES` (grey), pill `HAS CLASS LATER`. We do **not** show green unless GPS says they’re actually on campus.
+- Morning commute (GPS unknown, 45 min before first class): `scheduleState = 'no_class_now_but_later'` → state `NO_CLASSES` (grey), pill `CLASS LATER`. We do **not** show green unless GPS says they’re actually on campus.
 - In class: mid-block.
 - Between classes (short gap): 1–2 hours gap.
-- Between classes (long gap): >3h gap → `scheduleState = 'no_class_now_but_later'` → state `NO_CLASSES` (grey), pill `HAS CLASS LATER`.
+- Between classes (long gap): >3h gap → `scheduleState = 'no_class_now_but_later'` → state `NO_CLASSES` (grey), pill `CLASS LATER`.
 - Just finished last class: within 1h, GPS unknown → `NO_CLASSES` (grey), not green.
 - Long after last class: >2h after → neutral grey (`NO CLASSES` – we stop assuming they’re still on campus from schedule alone).
 - Weekend / no classes: `NO CLASSES`.
@@ -720,7 +748,7 @@ User perception:
 
 ### Secondary
 
-- Increased messages / coordination after `FREE ON CAMPUS` status.
+- Increased messages / coordination after `FREE NOW` status.
 - No significant increase in “Hide schedule” toggle usage.
 
 ---
@@ -825,8 +853,8 @@ Else:
 
     If UNKNOWN:
       if in_class                    -> IN_CLASS (blue)
-      else if between_classes        -> FREE_ON_CAMPUS (green)
-      else if no_class_now_but_later -> NO_CLASSES (grey, HAS CLASS LATER)
+      else if between_classes        -> FREE_ON_CAMPUS (green, FREE NOW)
+      else if no_class_now_but_later -> NO_CLASSES (grey, CLASS LATER)
       else if no_classes_today       -> NO_CLASSES (grey, NO CLASSES)
       else                           -> UNKNOWN_NO_DATA (grey, NO DATA)
 ```

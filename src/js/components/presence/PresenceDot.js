@@ -372,9 +372,9 @@ export class PresenceDot {
       return '<div class="presence-dot grey"></div>';
     }
 
-    // Build normal dot and add spinner overlay class if needed
-    const extraClass = addOverlay ? "spinner-overlay" : "";
-    const forceSolid = addOverlay; // While loading fresh data, suppress timer flicker
+    // Build normal dot (spinner overlay removed; dots stay static)
+    const extraClass = "";
+    const forceSolid = addOverlay; // While loading fresh data, still suppress timer flicker
     const sharingFlag = hasLocationSharing === true;
     return this.create(lastActive, lastKnownLocation, sharingFlag, {
       extraClass,
