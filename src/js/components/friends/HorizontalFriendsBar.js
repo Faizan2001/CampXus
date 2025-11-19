@@ -4333,7 +4333,7 @@ export class HorizontalFriendsBar {
       );
 
       // Update only the presence dot for this specific friend
-      this.updateFriendPresenceDot(friendIndex, friend);
+      this.updateFriendPresencePill(friendIndex, friend);
 
       console.log(
         `✅ Campus presence update processed for ${
@@ -4566,7 +4566,7 @@ export class HorizontalFriendsBar {
 
       // Update only the presence dot for this specific friend
       // This will show solid dot (no text) for active users, timer dots for inactive
-      this.updateFriendPresenceDot(friendIndex, friend);
+      this.updateFriendPresencePill(friendIndex, friend);
 
       console.log(
         `✅ User activity update processed for ${
@@ -5408,7 +5408,7 @@ export class HorizontalFriendsBar {
     });
 
     // Update presence dot immediately
-    this.updateUserPresenceDot(systemInfo);
+    this.updateUserPresencePill(systemInfo);
 
     // Trigger location update animation for location updates
     if (hasLocationUpdate) {

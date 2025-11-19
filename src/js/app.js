@@ -262,14 +262,6 @@ async function initializeSPA() {
                     "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
                     { duration: 5000 }
                   );
-                } else if (
-                  freshState.actionable === "needs_install" &&
-                  freshState.isIOS
-                ) {
-                  notificationManager.showInfoNotification(
-                    "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
-                    { duration: 6000 }
-                  );
                 } else if (freshState.actionable === "denied") {
                   notificationManager.showWarningNotification(
                     "Notifications are blocked. Enable them in your browser/app settings to get alerts.",

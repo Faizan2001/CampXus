@@ -20,7 +20,7 @@
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
   /* Extra visual height of bottom nav (top padding + border). Ensures content stays above nav in iOS PWA. */
-  --mobile-bottom-nav-top-gap: 8px;
+  --mobile-bottom-nav-top-gap: 0px;
   /* iOS safe-area top inset (0 on devices without a notch) */
   --safe-top: env(safe-area-inset-top, 0px);
   --main-content-available-height: calc(
@@ -96,6 +96,22 @@ body {
     height: 100%;
     max-height: 100%;
   }
+}
+
+/* Immersive Chat Mode Overrides */
+body.immersive-chat-mode .app-container {
+  padding-top: 0 !important;
+  height: 100dvh !important;
+}
+
+body.immersive-chat-mode .main-content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 /* ===== TOP NAVIGATION ===== */
@@ -642,8 +658,8 @@ body.has-bottom-nav .main-content {
   min-height: 0;
   box-sizing: border-box;
   overflow-x: hidden;
-  /* Ensure content grid fills available space */
-  height: 100%;
+  /* Ensure content grid fills available space but allows growth */
+  min-height: 100%;
 }
 
 /* General page-specific overrides - moved home-specific styles to schedule.css */
@@ -1585,7 +1601,9 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   }
 
   /* Exception: friends page needs the main scroller to remain scrollable on iOS */
-  body.page-friends .main-content {
+  body.page-friends .main-content,
+  body.page-groups .main-content,
+  body.page-user .main-content {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }

@@ -150,6 +150,30 @@ export class GroupDetailPage {
       return;
     }
 
+    // Immersive mode: hide navs
+    document.body.classList.add("immersive-chat-mode");
+
+    // Add back button
+    const backBtn = document.createElement("button");
+    backBtn.className = "group-back-btn";
+    backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
+    backBtn.onclick = async () => {
+      try {
+        const { navigateTo } = await import("../app.js");
+        navigateTo("groups");
+      } catch (_) {
+        window.location.hash = "#groups";
+      }
+    };
+    
+    // Insert back button before title
+    if (titleEl && titleEl.parentNode) {
+      titleEl.parentNode.insertBefore(backBtn, titleEl);
+    }
+
+    // Hide subtitle
+    if (subEl) subEl.style.display = "none";
+
     // Load space metadata
     const space = await classSpacesService.getSpace(this.spaceId);
     if (!space) {
@@ -614,6 +638,7 @@ export class GroupDetailPage {
   }
 
   destroy() {
+    document.body.classList.remove("immersive-chat-mode");
     if (this.unsub) {
       this.unsub();
       this.unsub = null;

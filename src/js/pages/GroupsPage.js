@@ -264,33 +264,46 @@ export class GroupsPage {
     for (const s of spaces) {
       const title = this.buildTitle(s);
       const members = s.memberCount || s.memberIds?.length || 0;
-      const preview = s.lastMessagePreview?.content || "";
+      const preview = s.lastMessagePreview?.content || "No messages yet";
       const hasUnread = unreadTracker.hasUnread(s.spaceId, s, userId);
       const relativeTime = unreadTracker.getRelativeTime(s);
 
+      // Dynamic styling based on course code
+      const courseCode = s.courseCode || (s.courseName ? s.courseName.substring(0, 3) : "GEN");
+      const { hue, icon } = this.getCourseStyle(courseCode);
+
       const card = document.createElement("div");
       card.className = "group-card";
+      // Inject hue as CSS variable for the stylesheet to use
+      card.style.setProperty("--course-hue", hue);
+      
       card.innerHTML = `
-        <div class="group-title">${title}${
-        hasUnread ? '<span class="unread-badge"></span>' : ""
-      }</div>
-        <div class="group-sub">${s.classroom || ""} • ${
-        s.dayPattern || ""
-      } ${this.slotToDisplay(s)}</div>
-        <div class="group-meta">
-          <span>${members} classmates</span>
-          ${
-            relativeTime
-              ? `<span class="group-time">• ${relativeTime}</span>`
-              : ""
-          }
+        <div class="card-icon-container">
+          <i class="fas ${icon}"></i>
         </div>
-        <div class="group-preview">${preview}</div>
+        <div class="card-content">
+          <div class="card-header">
+            <div class="course-badge">${courseCode}</div>
+            ${hasUnread ? '<div class="unread-indicator"></div>' : ""}
+          </div>
+          <h3 class="group-title">${title}</h3>
+          <div class="card-meta">
+            <span class="meta-item"><i class="far fa-clock"></i> ${this.slotToDisplay(s)}</span>
+            <span class="meta-item"><i class="fas fa-map-marker-alt"></i> ${s.classroom || "TBD"}</span>
+          </div>
+          <div class="card-footer">
+            <div class="preview-text">${preview}</div>
+            <div class="member-info">
+              <i class="fas fa-user-friends"></i> ${members}
+              ${relativeTime ? `<span class="time-ago">• ${relativeTime}</span>` : ""}
+            </div>
+          </div>
+        </div>
       `;
+
       card.addEventListener("click", async () => {
         try {
           const { navigateTo } = await import("../app.js");
-          // Store selected spaceId for router (hash gets normalized)
           try {
             sessionStorage.setItem("group:spaceId", s.spaceId);
           } catch (_) {}
@@ -305,6 +318,45 @@ export class GroupsPage {
       });
       listEl.appendChild(card);
     }
+  }
+
+  getCourseStyle(code) {
+    const c = (code || "").toUpperCase().replace(/[^A-Z]/g, "");
+    let hue = 0;
+    let icon = "fa-book";
+
+    // Categories
+    if (c.startsWith("CSE") || c.startsWith("CS") || c.startsWith("SWE")) {
+      hue = 230; // Blue/Purple
+      icon = "fa-laptop-code";
+    } else if (c.startsWith("EEE") || c.startsWith("EE")) {
+      hue = 40; // Gold
+      icon = "fa-bolt";
+    } else if (c.startsWith("MAT") || c.startsWith("MTH")) {
+      hue = 270; // Purple
+      icon = "fa-square-root-alt";
+    } else if (c.startsWith("PHY")) {
+      hue = 330; // Pink
+      icon = "fa-atom";
+    } else if (c.startsWith("CHE") || c.startsWith("BIO")) {
+      hue = 150; // Green
+      icon = "fa-flask";
+    } else if (c.startsWith("ENG") || c.startsWith("HUM")) {
+      hue = 300; // Magenta
+      icon = "fa-feather-alt";
+    } else if (c.startsWith("BBA") || c.startsWith("ECO")) {
+      hue = 190; // Cyan
+      icon = "fa-chart-line";
+    } else {
+      // Hash based generation for others
+      let hash = 0;
+      for (let i = 0; i < c.length; i++) {
+        hash = c.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      hue = Math.abs(hash % 360);
+    }
+    
+    return { hue, icon };
   }
 
   updateCacheIndicator() {
@@ -477,9 +529,9 @@ export class GroupsPage {
       s.courseCode ||
       (s.courseName ? this.toTitleCase(s.courseName) : "Course");
     const sec = s.section ? `S-${parseInt(s.section, 10)}` : "";
-    const slot = `${s.dayPattern || ""} ${this.slotToDisplay(s)}`.trim();
-    return `${codeOrName} • ${sec} • ${slot}`
-      .replace(/\s+•\s+•/g, " •")
+    // User requested to remove the slot part from the title
+    return `${codeOrName} • ${sec}`
+      .replace(/\s+•\s*$/, "")
       .replace(/•\s*$/, "");
   }
 

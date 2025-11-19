@@ -136,6 +136,52 @@ class UserProfilePage {
     // Show loading state immediately
     this.showLoadingState();
 
+    // Immersive mode: hide navs (mobile only via CSS)
+    document.body.classList.add("immersive-profile-mode");
+
+    // Add back button
+    const backBtn = document.createElement("button");
+    backBtn.className = "profile-back-btn";
+    backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
+    backBtn.onclick = async () => {
+      try {
+        const { navigateTo } = await import("../app.js");
+        navigateTo("home"); // Default to home or previous if tracked
+      } catch (_) {
+        window.location.hash = "#home";
+      }
+    };
+
+    // Insert back button to profile card for relative positioning
+    const profileCard = document.getElementById("profile-card");
+    if (profileCard) {
+      profileCard.insertBefore(backBtn, profileCard.firstChild);
+      this.dom.backBtn = backBtn;
+    }
+
+    // Add scroll hint
+    const hint = document.createElement("div");
+    hint.className = "scroll-hint visible";
+    hint.innerHTML = '<i class="fas fa-chevron-down"></i>';
+    document.body.appendChild(hint);
+    this.dom.scrollHint = hint;
+
+    // Scroll listener to hide hint
+    const container = document.querySelector(".user-profile-view");
+    if (container) {
+      this.dom.profileView = container; // Cache the container
+      // Scroll hint logic
+      const onScroll = () => {
+        if (this.dom.profileView.scrollTop > 10) {
+          if (hint && hint.parentNode) {
+            hint.remove();
+          }
+          this.dom.profileView.removeEventListener("scroll", onScroll);
+        }
+      };
+      this.dom.profileView.addEventListener("scroll", onScroll);
+    }
+
     // CRITICAL: Wait for auth to be ready before proceeding
     logManager.dev.debug("[UserProfilePage] Waiting for auth readiness...");
     try {
@@ -862,7 +908,13 @@ class UserProfilePage {
   }
 
   destroy() {
-    // no persistent listeners yet
+    document.body.classList.remove("immersive-profile-mode");
+    if (this.dom.scrollHint) {
+      this.dom.scrollHint.remove();
+    }
+    if (this.dom.backBtn) {
+      this.dom.backBtn.remove();
+    }
   }
 }
 
