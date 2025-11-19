@@ -278,7 +278,7 @@ class UserProfilePage {
       ) {
         await Promise.race([
           authManager.authReady,
-          new Promise((resolve) => setTimeout(resolve, 3000)),
+          new Promise((resolve) => setTimeout(resolve, 10000)),
         ]);
       }
       // Double check auth state
