@@ -122,33 +122,120 @@ class UserProfilePage {
   async mount() {
     logManager.dev.debug("[UserProfilePage] mount() called");
 
+    const isMobileImmersive = window.innerWidth <= 500;
+    if (isMobileImmersive) {
+      // Apply immersive mode IMMEDIATELY to prevent layout jump
+      // This must happen before any DOM queries or rendering
+      document.body.classList.add("immersive-profile-mode");
+    }
+
     // Parse user ID from the stored hash (passed from event)
     this.targetUid = this.parseUserIdFromHash(this.fullHash);
+    if (!this.targetUid) {
+      // Fallback: try parsing from window.location.hash directly if fullHash was empty
+      this.targetUid = this.parseUserIdFromHash(window.location.hash);
+    }
     logManager.dev.debug("[UserProfilePage] targetUid parsed:", this.targetUid);
     this.cacheDom();
 
     if (!this.targetUid) {
-      logManager.ui.warn("[UserProfilePage] No targetUid found in hash");
+      logManager.ui.warn("[UserProfilePage] No targetUid found in hash", {
+        fullHash: this.fullHash,
+        locationHash: window.location.hash,
+      });
       if (this.dom.name) this.dom.name.textContent = "Profile not found";
       return;
     }
 
-    // Show loading state immediately
-    this.showLoadingState();
-
-    // Immersive mode: hide navs (mobile only via CSS)
-    document.body.classList.add("immersive-profile-mode");
+    // Show loading state immediately for mobile to stabilize layout
+    if (isMobileImmersive) {
+      this.showLoadingState();
+    }
 
     // Add back button
     const backBtn = document.createElement("button");
     backBtn.className = "profile-back-btn";
     backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
+    const fromParam = (() => {
+      try {
+        const raw = this.fullHash || window.location.hash || "";
+        const idx = raw.indexOf("?");
+        const qs = idx >= 0 ? raw.substring(idx + 1) : "";
+        const p = new URLSearchParams(qs);
+        return { from: p.get("from"), tab: p.get("tab") };
+      } catch (_) {
+        return null;
+      }
+    })();
     backBtn.onclick = async () => {
       try {
+        // Set return tab state BEFORE navigation (history or direct)
+        if (fromParam?.from === "group" && fromParam?.tab === "members") {
+          try {
+            sessionStorage.setItem("group:returnTab", "members");
+            console.log(
+              "[UserProfilePage] Set group:returnTab=members for back nav"
+            );
+          } catch (_) {}
+        }
+
+        if (window.history && window.history.length > 1) {
+          console.log("[UserProfilePage] Using history.back() path", {
+            historyLength: window.history.length,
+          });
+          window.history.back();
+          return;
+        }
         const { navigateTo } = await import("../app.js");
-        navigateTo("home"); // Default to home or previous if tracked
+        logManager.dev.debug("[UserProfilePage] Back button clicked", {
+          fromParam,
+          historyLength: window.history.length,
+        });
+        if (fromParam?.from === "group") {
+          logManager.dev.debug(
+            "[UserProfilePage] Navigating back to group page"
+          );
+          return navigateTo("group");
+        }
+        if (fromParam?.from === "friends") {
+          logManager.dev.debug(
+            "[UserProfilePage] Navigating back to friends page"
+          );
+          return navigateTo("friends");
+        }
+        logManager.dev.debug(
+          "[UserProfilePage] Navigating back to home page (default)"
+        );
+        navigateTo("home");
       } catch (_) {
-        window.location.hash = "#home";
+        logManager.dev.debug(
+          "[UserProfilePage] Back button fallback hash navigation",
+          { fromParam }
+        );
+        if (fromParam?.from === "group") {
+          if (fromParam?.tab === "members") {
+            try {
+              sessionStorage.setItem("group:returnTab", "members");
+              logManager.dev.debug(
+                "[UserProfilePage] Stored returnTab=members in sessionStorage (fallback before hash)"
+              );
+            } catch (_) {}
+          }
+          logManager.dev.debug(
+            "[UserProfilePage] Fallback: setting hash to #group"
+          );
+          window.location.hash = "#group";
+        } else if (fromParam?.from === "friends") {
+          logManager.dev.debug(
+            "[UserProfilePage] Fallback: setting hash to #friends"
+          );
+          window.location.hash = "#friends";
+        } else {
+          logManager.dev.debug(
+            "[UserProfilePage] Fallback: setting hash to #home"
+          );
+          window.location.hash = "#home";
+        }
       }
     };
 
@@ -194,8 +281,15 @@ class UserProfilePage {
           new Promise((resolve) => setTimeout(resolve, 3000)),
         ]);
       }
+      // Double check auth state
+  if (currentUser?.isLoggedIn && !currentUser.isLoggedIn()) {
+        logManager.dev.debug(
+          "[UserProfilePage] User not logged in, waiting for profile..."
+        );
+        await currentUser.waitForProfileWithTimeout(2000).catch(() => {});
+      }
     } catch (e) {
-      logManager.ui.warn("[UserProfilePage] Auth ready wait error:", e);
+      logManager.dev.warn("[UserProfilePage] Auth wait error", e);
     }
 
     // Get myUid with fallback
@@ -214,14 +308,8 @@ class UserProfilePage {
 
     const isSelf = myUid && this.targetUid === myUid;
     const preview = this.isPreviewMode(this.fullHash);
-    logManager.dev.debug(
-      "[UserProfilePage] isSelf:",
-      isSelf,
-      "preview:",
-      preview
-    );
 
-    // Preview banner (optional enhancement)
+    // Preview banner
     try {
       if (preview) {
         const card = document.getElementById("profile-card");
@@ -237,12 +325,11 @@ class UserProfilePage {
       }
     } catch (_) {}
 
-    // Load profiles
+    // Load myProfile
     let myProfile = null;
     if (myUid) {
       myProfile =
         currentUser?.profile || (await dataManager.getUserProfile(myUid));
-      logManager.dev.debug("[UserProfilePage] myProfile loaded:", !!myProfile);
     }
 
     let targetProfile = null;
@@ -267,7 +354,7 @@ class UserProfilePage {
         "[UserProfilePage] Trying waitForProfileWithTimeout fallback..."
       );
       try {
-        if (currentUser.waitForProfileWithTimeout) {
+  if (currentUser?.waitForProfileWithTimeout) {
           await currentUser.waitForProfileWithTimeout(1500).catch(() => {});
           targetProfile = currentUser?.profile || null;
           logManager.dev.debug(

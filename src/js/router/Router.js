@@ -973,11 +973,17 @@ class SPARouter {
       // Update browser history if requested
       if (updateHistory) {
         const routeData = this.routes[route];
-        history.pushState(
-          { route },
-          routeData.title,
-          `#${route}` // Use hash for simplicity
-        );
+        const currentHash = window.location.hash || "";
+        const targetHash = currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`;
+        const historyStateRoute = (history.state && history.state.route) || null;
+        const isDuplicate = historyStateRoute === route && currentHash === targetHash;
+        const isInitialLoadSameHash = !history.state && currentHash === targetHash; // page reload scenario
+        // Avoid pushing duplicate history entries (prevents double-back issue after reload)
+        if (!isDuplicate && !isInitialLoadSameHash) {
+          history.pushState({ route }, routeData.title, targetHash);
+        } else {
+          logManager.dev && logManager.dev.debug("[Router] Skipped pushState (duplicate/initial reload) for route", route);
+        }
       }
 
       // Load the page content
@@ -1195,7 +1201,7 @@ class SPARouter {
       const currentRoutePart = this._parseRouteName(currentHash);
       if (currentRoutePart !== route) {
         // Only replace if the route actually changed (preserve query params otherwise)
-        history.replaceState({ route }, routeData.title, `#${route}`);
+        history.replaceState({ route }, routeData.title, currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`);
       }
 
       // Dispatch custom event for other parts of the app

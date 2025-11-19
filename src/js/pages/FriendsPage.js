@@ -1626,7 +1626,7 @@ class FriendsUI {
         <div class="friend-actions" data-friend-id="${friend.id}">
           <div class="friend-actions-compact">
             <a class="profile-view-btn" 
-               href="#user?id=${encodeURIComponent(friend.id)}"
+               href="#user?id=${encodeURIComponent(friend.id)}&from=friends"
                aria-label="View profile"
                title="View profile">
               <i class="fas fa-id-badge" aria-hidden="true"></i>

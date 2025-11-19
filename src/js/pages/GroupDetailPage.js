@@ -130,9 +130,7 @@ export class GroupDetailPage {
     }
 
     this.spaceId = this.parseSpaceIdFromHash();
-    try {
-      sessionStorage.removeItem("group:spaceId");
-    } catch (_) {}
+    // Preserve spaceId in sessionStorage for back navigation from profile
     const titleEl = document.getElementById("group-title");
     const subEl = document.getElementById("group-sub");
     const messagesEl = document.getElementById("messages");
@@ -145,7 +143,35 @@ export class GroupDetailPage {
     const membersList = document.getElementById("membersList");
     const loadOlderBtn = document.getElementById("loadOlderBtn");
 
+    console.log("[GroupDetailPage] Mount called with spaceId:", this.spaceId);
+    
+    // If returning from a member profile, restore Members tab
+    try {
+      const returnTab = sessionStorage.getItem("group:returnTab");
+      console.log("[GroupDetailPage] Checking returnTab session value:", returnTab);
+      if (returnTab === "members") {
+        console.log("[GroupDetailPage] Restoring members tab view");
+        if (tabMembers) tabMembers.classList.add("active");
+        if (tabChat) tabChat.classList.remove("active");
+        if (membersPane) membersPane.classList.remove("hidden");
+        if (chatPane) chatPane.classList.add("hidden");
+        
+        // Defer removal until after first render cycle so a second mount in same tick still sees it
+        setTimeout(() => {
+          try {
+            sessionStorage.removeItem("group:returnTab");
+            console.log("[GroupDetailPage] Cleared returnTab session value");
+          } catch(e) {}
+        }, 100);
+      } else {
+        console.log("[GroupDetailPage] No returnTab set, defaulting to chat");
+      }
+    } catch (e) {
+      console.error("[GroupDetailPage] Error restoring members tab", e);
+    }
+
     if (!this.spaceId) {
+      logManager.dev.debug("[GroupDetailPage] Missing spaceId before metadata load", { stored: sessionStorage.getItem("group:spaceId") });
       titleEl.textContent = "Group not found";
       return;
     }
@@ -196,6 +222,7 @@ export class GroupDetailPage {
       unreadTracker.markAsViewed(this.spaceId, myUid);
     }
 
+    logManager.dev.debug("[GroupDetailPage] Rendering members list", { spaceId: this.spaceId, memberCount: Array.isArray(space.memberIds) ? space.memberIds.length : 0 });
     // Members list (with avatar chips + block/unblock actions)
     const memberIds = Array.isArray(space.memberIds) ? space.memberIds : [];
     const memberInfo = space.memberInfo || {};
@@ -224,20 +251,20 @@ export class GroupDetailPage {
             blocked ? " blocked" : ""
           }" data-uid="${uid}">
             <div class="member-main">
-              <a class="member-avatar" href="#user?id=${target}" aria-label="View profile">
+              <a class="member-avatar" href="#user?id=${target}&from=group&tab=members" aria-label="View profile">
                 ${
                   avatar
                     ? `<img src="${avatar}" alt="${escapeHtml(label)}">`
                     : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`
                 }
               </a>
-              <a class="member-link" href="#user?id=${target}">${escapeHtml(
+              <a class="member-link" href="#user?id=${target}&from=group&tab=members">${escapeHtml(
           label
         )}</a>
               ${blocked ? '<span class="member-badge">Blocked</span>' : ""}
             </div>
             <div class="member-actions">
-              <a class="member-profile-btn" href="#user?id=${target}" title="View profile" aria-label="View profile">
+              <a class="member-profile-btn" href="#user?id=${target}&from=group&tab=members" title="View profile" aria-label="View profile">
                 <i class="fas fa-id-badge"></i>
               </a>
               ${
@@ -263,6 +290,7 @@ export class GroupDetailPage {
       })
       .join("");
 
+    logManager.dev.debug("[GroupDetailPage] Members list HTML rendered", { spaceId: this.spaceId });
     // Bind report buttons for members
     const reportBtns = membersList.querySelectorAll(".member-report-btn");
     reportBtns.forEach((btn) => {
@@ -310,6 +338,7 @@ export class GroupDetailPage {
       });
     });
 
+    logManager.dev.debug("[GroupDetailPage] Binding member action buttons", { spaceId: this.spaceId });
     // Bind add-friend buttons
     const addFriendBtns = membersList.querySelectorAll(".member-add-btn");
     addFriendBtns.forEach((btn) => {
@@ -367,12 +396,14 @@ export class GroupDetailPage {
       tabMembers.classList.remove("active");
       chatPane.classList.remove("hidden");
       membersPane.classList.add("hidden");
+      console.log("[GroupDetailPage] Tab switched to chat");
     });
     tabMembers.addEventListener("click", () => {
       tabMembers.classList.add("active");
       tabChat.classList.remove("active");
       membersPane.classList.remove("hidden");
       chatPane.classList.add("hidden");
+      console.log("[GroupDetailPage] Tab switched to members");
     });
 
     // Messages listener

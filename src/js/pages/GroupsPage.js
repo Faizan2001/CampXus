@@ -302,6 +302,7 @@ export class GroupsPage {
       `;
 
       card.addEventListener("click", async () => {
+        logManager.dev.debug("[GroupsPage] Group card clicked", { spaceId: s.spaceId });
         try {
           const { navigateTo } = await import("../app.js");
           try {
