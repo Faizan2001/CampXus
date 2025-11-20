@@ -102,11 +102,71 @@ try {
 export { auth };
 export const db = getFirestore(app);
 
-export async function getStorageInstance() {
-  const { getStorage } = await import("firebase/storage");
-  return getStorage(app);
+// Connect to emulators in development (localhost only)
+const isLocalhost =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
+
+if (isLocalhost) {
+  const { connectAuthEmulator } = await import("firebase/auth");
+  const { connectFirestoreEmulator } = await import("firebase/firestore");
+
+  try {
+    // Connect Auth emulator
+    connectAuthEmulator(auth, "http://localhost:9099", {
+      disableWarnings: true,
+    });
+
+    // Connect Firestore emulator
+    connectFirestoreEmulator(db, "localhost", 8080);
+
+    console.log(
+      "%c🔧 EMULATOR MODE 🔧",
+      "background: #ff6b6b; color: white; font-size: 16px; font-weight: bold; padding: 8px 16px; border-radius: 4px;"
+    );
+    console.log(
+      "%cConnected to Firebase Emulators:\n" +
+        "  • Auth:      http://localhost:9099\n" +
+        "  • Firestore: http://localhost:8080\n" +
+        "  • Storage:   http://localhost:9199\n" +
+        "  • UI:        http://localhost:4000",
+      "color: #51cf66; font-weight: bold;"
+    );
+    console.log(
+      "%c⚠️  Data will NOT persist unless you use --export-on-exit",
+      "color: #ffd43b; font-weight: bold;"
+    );
+  } catch (error) {
+    console.warn(
+      "⚠️ Emulator connection failed (may already be connected):",
+      error.message
+    );
+  }
 }
 
+export async function getStorageInstance() {
+  const { getStorage, connectStorageEmulator } = await import(
+    "firebase/storage"
+  );
+  const storage = getStorage(app);
+
+  // Connect Storage emulator in development
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+
+  if (isLocalhost) {
+    try {
+      connectStorageEmulator(storage, "localhost", 9199);
+    } catch (error) {
+      // Already connected, ignore
+    }
+  }
+
+  return storage;
+}
 
 // TEMPORARY: Expose Firestore helpers globally for manual console testing of handle system
 // Remove after Phase 2 once dedicated admin tooling or test harness is in place.

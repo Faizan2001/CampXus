@@ -17,7 +17,7 @@
 import { dataManager } from "../services/data/DataService.js";
 import { friendsManager } from "../services/friends/FriendsService.js";
 import { currentUser } from "../store/userStore.js";
-import { avatarManager } from "../utils/avatar/avatarManager.js";
+import { getAvatarUrl } from "../utils/avatar/avatarUtils.js";
 import { escapeHTML } from "../utils/security/sanitize.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
@@ -386,15 +386,17 @@ export class NotificationsPage {
     const isRead = notification.read || false;
     const readClass = isRead ? "notification-read" : "notification-unread";
 
+    const avatarUrl =
+      getAvatarUrl(notification.fromUserInfo) ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
+
     return `
       <div class="notification-item location-request ${readClass}" data-notification-id="${
       notification.id
     }">
         <div class="notification-content">
           <div class="notification-avatar">
-            <img src="${avatarManager.generateAvatarUrl(
-              notification.fromUserInfo.avatarConfig
-            )}" 
+            <img src="${avatarUrl}" 
                  alt="@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
@@ -431,7 +433,9 @@ export class NotificationsPage {
   renderAvailabilityPing(notification = {}) {
     const fromUserInfo = notification.fromUserInfo || {};
     const handle = escapeHTML(fromUserInfo.handle || "friend");
-    const avatarConfig = fromUserInfo.avatarConfig;
+    const avatarUrl =
+      getAvatarUrl(fromUserInfo) ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
     const response = (notification.response || "").toLowerCase();
     const hasResponded =
       notification.status === "responded" ||
@@ -473,7 +477,7 @@ export class NotificationsPage {
       <div class="notification-item availability-request ${readClass}" data-notification-id="${notification.id}">
         <div class="notification-content">
           <div class="notification-avatar">
-            <img src="${avatarManager.generateAvatarUrl(avatarConfig)}"
+            <img src="${avatarUrl}"
                  alt="@${handle}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
@@ -498,7 +502,9 @@ export class NotificationsPage {
   renderAvailabilityResponse(notification = {}) {
     const fromUserInfo = notification.fromUserInfo || {};
     const handle = escapeHTML(fromUserInfo.handle || "friend");
-    const avatarConfig = fromUserInfo.avatarConfig;
+    const avatarUrl =
+      getAvatarUrl(fromUserInfo) ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
     const response = (notification.response || "").toLowerCase();
     const isAvailable = response === "available";
     const readClass =
@@ -511,7 +517,7 @@ export class NotificationsPage {
       <div class="notification-item availability-response ${readClass}" data-notification-id="${notification.id}">
         <div class="notification-content">
           <div class="notification-avatar">
-            <img src="${avatarManager.generateAvatarUrl(avatarConfig)}"
+            <img src="${avatarUrl}"
                  alt="@${handle}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
@@ -555,15 +561,17 @@ export class NotificationsPage {
       (notification.friendRequest && notification.friendRequest.requestId) ||
       notification.id;
 
+    const avatarUrl =
+      getAvatarUrl(notification.fromUserInfo) ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
+
     return `
       <div class="notification-item friend-request ${readClass}" data-notification-id="${
       notification.id
     }">
         <div class="notification-content">
           <div class="notification-avatar">
-            <img src="${avatarManager.generateAvatarUrl(
-              notification.fromUserInfo.avatarConfig
-            )}" 
+            <img src="${avatarUrl}" 
                  alt="@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}"
                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
           </div>
@@ -600,14 +608,16 @@ export class NotificationsPage {
     const isRead = notification.read || false;
     const readClass = isRead ? "notification-read" : "notification-unread";
 
+    const avatarUrl =
+      getAvatarUrl(notification.fromUserInfo) ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
+
     return `
       <div class="notification-item location-enabled ${readClass}" data-notification-id="${
       notification.id
     }">
         <div class="notification-avatar">
-      <img src="${avatarManager.generateAvatarUrl(
-            notification.fromUserInfo.avatarConfig
-          )}" 
+      <img src="${avatarUrl}" 
         alt="@${escapeHTML(notification.fromUserInfo.handle || 'unknown')}"
                onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
         </div>

@@ -1,10 +1,10 @@
 /**
  * Landing Page Controller
- * 
- * Handles the landing page functionality for MeetchuThere - the welcome page 
- * that users see when they're not logged in. Features animated text and 
+ *
+ * Handles the landing page functionality for MeetchuThere - the welcome page
+ * that users see when they're not logged in. Features animated text and
  * call-to-action interactions.
- * 
+ *
  * @fileoverview Landing page with animated tagline and authentication integration
  */
 
@@ -12,6 +12,7 @@
 import { authManager } from "../services/auth/AuthService.js";
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
+import { notificationManager } from "../services/realtime/NotificationService.js";
 
 /**
  * Landing Page Class
@@ -39,7 +40,7 @@ class LandingPage {
   init() {
     // Set up join button click handler
     this.setupJoinButton();
-    
+
     // Start text animation
     this.startTextAnimation();
 
@@ -87,35 +88,50 @@ class LandingPage {
       this.joinButton.innerHTML = `<span class="cta-text">Opening...</span>`;
       this.joinButton.disabled = true;
 
-      logManager.ui.click("LandingPage: Join button clicked - opening authentication");
+      logManager.ui.click(
+        "LandingPage: Join button clicked - opening authentication"
+      );
 
       try {
         AnalyticsService?.trackFeatureUsage?.("landing_signup", {
           source: "landing",
         });
       } catch (trackError) {
-        logManager.ui?.warn?.("LandingPage: Analytics tracking failed", trackError);
+        logManager.ui?.warn?.(
+          "LandingPage: Analytics tracking failed",
+          trackError
+        );
       }
 
       // Trigger authentication modal with Sign Up tab active
       if (authManager && authManager.showAuthModal) {
         authManager.showAuthModal("signup");
-        logManager.auth.login("LandingPage: Authentication modal opened successfully");
+        logManager.auth.login(
+          "LandingPage: Authentication modal opened successfully"
+        );
       } else {
-        logManager.auth.error("LandingPage: authManager or showAuthModal method not available");
-        logManager.auth.error("LandingPage: No authentication method available");
-        alert("Authentication system temporarily unavailable. Please refresh and try again.");
-      }
-    } catch (error) {
-      logManager.ui.error("❌ LandingPage: Error handling join button click:", error);
-
-      // Show user-friendly error
-      if (window.dataManager && window.dataManager.showNotification) {
-        window.dataManager.showNotification(
-          "Unable to open sign-in. Please refresh the page and try again.",
+        logManager.auth.error(
+          "LandingPage: authManager or showAuthModal method not available"
+        );
+        logManager.auth.error(
+          "LandingPage: No authentication method available"
+        );
+        notificationManager.show(
+          "Authentication system temporarily unavailable. Please refresh and try again.",
           "error"
         );
       }
+    } catch (error) {
+      logManager.ui.error(
+        "❌ LandingPage: Error handling join button click:",
+        error
+      );
+
+      // Show user-friendly error
+      notificationManager.show(
+        "Unable to open sign-in. Please refresh the page and try again.",
+        "error"
+      );
     } finally {
       // Restore button state after a short delay
       setTimeout(() => {
@@ -134,24 +150,32 @@ class LandingPage {
   startTextAnimation() {
     const animatedText1 = document.getElementById("animatedText1");
     const animatedText2 = document.getElementById("animatedText2");
-    
+
     logManager.ui.init("🔍 LandingPage: startTextAnimation called");
-    logManager.ui.init(`🔍 LandingPage: animatedText1 found: ${!!animatedText1}`);
-    logManager.ui.init(`🔍 LandingPage: animatedText2 found: ${!!animatedText2}`);
-    
+    logManager.ui.init(
+      `🔍 LandingPage: animatedText1 found: ${!!animatedText1}`
+    );
+    logManager.ui.init(
+      `🔍 LandingPage: animatedText2 found: ${!!animatedText2}`
+    );
+
     if (!animatedText1 || !animatedText2) {
       logManager.ui.warn("⚠️ LandingPage: Animated text elements not found");
       return;
     }
 
     // Respect reduced motion preferences: show first text only, no animation
-    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefersReducedMotion =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) {
       animatedText1.style.opacity = "1";
       animatedText1.style.transform = "translateY(0)";
       animatedText2.style.opacity = "0";
       animatedText2.style.transform = "translateY(100%)";
-      logManager.ui.init("🎬 LandingPage: Reduced-motion active; static text displayed");
+      logManager.ui.init(
+        "🎬 LandingPage: Reduced-motion active; static text displayed"
+      );
       return;
     }
 
@@ -178,13 +202,13 @@ class LandingPage {
     // Initial state: first text slides in from bottom, second waits below
     slideInFromBottom(animatedText1);
     hideBelow(animatedText2);
-    
+
     logManager.ui.init("🎬 LandingPage: Initial slide-up animation set");
 
     // Create smooth slide-up replacement animation every 2.5s
     let showingFirst = true;
     if (this.animationInterval) clearInterval(this.animationInterval);
-    
+
     this.animationInterval = setInterval(() => {
       if (showingFirst) {
         // Current text slides up and out, new text slides up from bottom
@@ -213,7 +237,7 @@ class LandingPage {
   setupInteractions() {
     // Add smooth scrolling to features section if needed
     this.setupSmoothScrolling();
-    
+
     // Add parallax or other visual enhancements
     this.setupVisualEnhancements();
   }
@@ -223,18 +247,18 @@ class LandingPage {
    */
   setupSmoothScrolling() {
     const links = document.querySelectorAll('a[href^="#"]');
-    
-    links.forEach(link => {
+
+    links.forEach((link) => {
       link.addEventListener("click", (event) => {
         event.preventDefault();
-        
+
         const targetId = link.getAttribute("href").substring(1);
         const targetElement = document.getElementById(targetId);
-        
+
         if (targetElement) {
           targetElement.scrollIntoView({
             behavior: "smooth",
-            block: "start"
+            block: "start",
           });
         }
       });
@@ -249,21 +273,21 @@ class LandingPage {
     if (window.IntersectionObserver) {
       const observer = new IntersectionObserver(
         (entries) => {
-          entries.forEach(entry => {
+          entries.forEach((entry) => {
             if (entry.isIntersecting) {
               entry.target.classList.add("animate-in");
             }
           });
         },
-        { 
+        {
           threshold: 0.1,
-          rootMargin: "0px 0px -50px 0px"
+          rootMargin: "0px 0px -50px 0px",
         }
       );
 
       // Observe feature cards for animation
       const featureCards = document.querySelectorAll(".feature-card");
-      featureCards.forEach(card => {
+      featureCards.forEach((card) => {
         observer.observe(card);
       });
     }
@@ -291,10 +315,10 @@ class LandingPage {
   initPresenceDemo() {
     const container = document.querySelector(".landing-avatar-demo");
     const avatarImg = document.getElementById("demo-avatar-img");
-    const presenceDot = document.getElementById("demo-presence-dot");
+    const presencePill = document.getElementById("demo-presence-pill");
     const presenceText = document.getElementById("demo-presence-text");
 
-    if (!container || !avatarImg || !presenceDot || !presenceText) {
+    if (!container || !avatarImg || !presencePill || !presenceText) {
       logManager.ui.warn("LandingPage: Presence demo elements missing");
       return;
     }
@@ -311,24 +335,49 @@ class LandingPage {
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    this.presenceElements = { container, avatarImg, presenceDot, presenceText };
+    this.presenceElements = {
+      container,
+      avatarImg,
+      presencePill,
+      presenceText,
+    };
     this.presenceStateIndex = 0;
 
     const states = [
-      { cls: "grey", label: "Not sharing", color: "#9fa7b8" },
-      { cls: "red", label: "Off campus", color: "#ff87a4" },
-      { cls: "green", label: "On campus", color: "#75f7b9" },
+      {
+        cls: "grey",
+        label: "Not sharing",
+        color: "#9fa7b8",
+        pillText: "PRIVATE",
+      },
+      {
+        cls: "red",
+        label: "Off campus",
+        color: "#ff87a4",
+        pillText: "OFF CAMPUS",
+      },
+      {
+        cls: "green",
+        label: "On campus",
+        color: "#75f7b9",
+        pillText: "ON CAMPUS",
+      },
     ];
 
     const applyState = () => {
       const state = states[this.presenceStateIndex];
       if (!state) return;
 
-      presenceDot.className = `presence-dot ${state.cls}`;
-      presenceDot.setAttribute(
+      presencePill.className = `presence-pill ${state.cls}`;
+      presencePill.setAttribute(
         "aria-label",
         `Presence status: ${state.label}`
       );
+
+      const pillTextSpan = presencePill.querySelector(".pill-text");
+      if (pillTextSpan) {
+        pillTextSpan.textContent = state.pillText;
+      }
 
       presenceText.textContent = state.label;
       presenceText.setAttribute("data-state", state.cls);
@@ -341,8 +390,7 @@ class LandingPage {
         container.style.setProperty("--presence-color", state.color);
       }
 
-      this.presenceStateIndex =
-        (this.presenceStateIndex + 1) % states.length;
+      this.presenceStateIndex = (this.presenceStateIndex + 1) % states.length;
     };
 
     applyState();
@@ -419,7 +467,7 @@ class LandingPage {
       return;
     }
 
-    const { container, avatarImg, presenceDot, presenceText } =
+    const { container, avatarImg, presencePill, presenceText } =
       this.presenceElements;
 
     if (container) {
@@ -428,12 +476,13 @@ class LandingPage {
       container.style.removeProperty("--presence-color");
     }
 
-    if (presenceDot) {
-      presenceDot.className = "presence-dot grey";
-      presenceDot.setAttribute(
-        "aria-label",
-        "Presence status: Not sharing"
-      );
+    if (presencePill) {
+      presencePill.className = "presence-pill grey";
+      presencePill.setAttribute("aria-label", "Presence status: Not sharing");
+      const pillTextSpan = presencePill.querySelector(".pill-text");
+      if (pillTextSpan) {
+        pillTextSpan.textContent = "PRIVATE";
+      }
     }
 
     if (presenceText) {
@@ -457,13 +506,15 @@ let landingPageInstance = null;
 // Listen for the spa:page:load event to initialize
 document.addEventListener("spa:page:load", (event) => {
   if (event.detail.route === "landing") {
-    logManager.ui.init("📍 LandingPage: SPA page load event received for landing page");
+    logManager.ui.init(
+      "📍 LandingPage: SPA page load event received for landing page"
+    );
 
     // Clean up previous instance if it exists
     if (landingPageInstance) {
       landingPageInstance.cleanup();
     }
-    
+
     // Create new instance
     landingPageInstance = new LandingPage();
   }
@@ -472,7 +523,9 @@ document.addEventListener("spa:page:load", (event) => {
 // Listen for page unload to cleanup
 document.addEventListener("spa:page:unload", (event) => {
   if (event.detail.route === "landing" && landingPageInstance) {
-    logManager.ui.init("🧹 LandingPage: SPA page unload event received, cleaning up");
+    logManager.ui.init(
+      "🧹 LandingPage: SPA page unload event received, cleaning up"
+    );
     landingPageInstance.cleanup();
     landingPageInstance = null;
   }

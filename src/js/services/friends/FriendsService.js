@@ -475,6 +475,11 @@ export class FriendsManager {
       handle: friendship.friendInfo?.handle || "unknown",
       major: friendship.friendInfo?.major || "Unknown Major",
       avatarConfig: friendship.friendInfo?.avatarConfig || null,
+      profilePhotoUrl: friendship.friendInfo?.profilePhotoUrl || null,
+      useAvatar:
+        typeof friendship.friendInfo?.useAvatar === "boolean"
+          ? friendship.friendInfo.useAvatar
+          : undefined,
       friendsSince: friendship.createdAt,
       lastInteraction: friendship.lastInteraction,
       connectionStrength: friendship.connectionStrength || "normal",
@@ -541,9 +546,8 @@ export class FriendsManager {
     if (term.length < 1) return [];
 
     const viewerProfile =
-      (await currentUser
-        .waitForProfileWithTimeout?.(5000)
-        .catch(() => null)) || (await currentUser.waitForProfile());
+      (await currentUser.waitForProfileWithTimeout?.(5000).catch(() => null)) ||
+      (await currentUser.waitForProfile());
     if (!viewerProfile) return [];
 
     // Student ID exact (6+ digits)
@@ -631,20 +635,42 @@ export class FriendsManager {
             handle_lower: userData.profile?.handle_lower,
             major: userData.profile?.major,
             major_lower: userData.profile?.major_lower,
+            profilePhotoUrl: userData.profile?.profilePhotoUrl || null,
+            useAvatar:
+              typeof userData.profile?.useAvatar === "boolean"
+                ? userData.profile.useAvatar
+                : undefined,
           },
           universityInfo: userData.universityInfo || {},
           avatarConfig: userData.avatarConfig || null,
+          profilePhotoUrl: userData.profile?.profilePhotoUrl || null,
+          useAvatar:
+            typeof userData.profile?.useAvatar === "boolean"
+              ? userData.profile.useAvatar
+              : undefined,
         });
       }
 
       // Prefer exact match first, then lexicographic
       candidates.sort((a, b) => {
-        const aExact = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() === normalized;
-        const bExact = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() === normalized;
+        const aExact =
+          (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() ===
+          normalized;
+        const bExact =
+          (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() ===
+          normalized;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
-        const ah = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase();
-        const bh = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase();
+        const ah = (
+          a.profile?.handle_lower ||
+          a.profile?.handle ||
+          ""
+        ).toLowerCase();
+        const bh = (
+          b.profile?.handle_lower ||
+          b.profile?.handle ||
+          ""
+        ).toLowerCase();
         return ah.localeCompare(bh);
       });
 
@@ -792,6 +818,11 @@ export class FriendsManager {
           major: userProfile.profile.major,
           university: userProfile.universityInfo.university,
           avatarConfig: userProfile.avatarConfig,
+          profilePhotoUrl: userProfile.profile.profilePhotoUrl || null,
+          useAvatar:
+            typeof userProfile.profile.useAvatar === "boolean"
+              ? userProfile.profile.useAvatar
+              : undefined,
         },
         toUserInfo: {
           handle:
@@ -802,6 +833,11 @@ export class FriendsManager {
             targetUniversityInfo.universityName ||
             "",
           avatarConfig: targetUserData?.avatarConfig,
+          profilePhotoUrl: targetUserData?.profile?.profilePhotoUrl || null,
+          useAvatar:
+            typeof targetUserData?.profile?.useAvatar === "boolean"
+              ? targetUserData.profile.useAvatar
+              : undefined,
         },
       };
 
@@ -900,6 +936,60 @@ export class FriendsManager {
       // (We'll delete the request after successful friendship creation)
 
       // 🎯 STEP 1: Create the friendship document with bilateral privacy
+
+      // Build user info objects with only defined values (Firestore doesn't allow undefined)
+      const user1Info = {
+        handle: requestData.fromUserInfo.handle,
+        major: requestData.fromUserInfo.major,
+      };
+
+      // Add avatar/photo fields only if they exist
+      const user1AvatarConfig =
+        requestData.fromUserInfo.avatarConfig ||
+        requestData.fromUserInfo.avatar;
+      if (user1AvatarConfig) {
+        user1Info.avatarConfig = user1AvatarConfig;
+      }
+      if (requestData.fromUserInfo.profilePhotoUrl) {
+        user1Info.profilePhotoUrl = requestData.fromUserInfo.profilePhotoUrl;
+      }
+      if (requestData.fromUserInfo.useAvatar !== undefined) {
+        user1Info.useAvatar = requestData.fromUserInfo.useAvatar;
+      }
+
+      const user2Info = {
+        handle: requestData.toUserInfo.handle,
+        major: requestData.toUserInfo.major,
+      };
+
+      // Add avatar/photo fields only if they exist
+      const user2AvatarConfig =
+        requestData.toUserInfo.avatarConfig ||
+        requestData.toUserInfo.avatar ||
+        userProfile.avatarConfig;
+      if (user2AvatarConfig) {
+        user2Info.avatarConfig = user2AvatarConfig;
+      }
+      const user2PhotoUrl =
+        requestData.toUserInfo.profilePhotoUrl ||
+        (userProfile.profile && userProfile.profile.profilePhotoUrl) ||
+        userProfile.profilePhotoUrl ||
+        null;
+      if (user2PhotoUrl) {
+        user2Info.profilePhotoUrl = user2PhotoUrl;
+      }
+      const user2UseAvatar =
+        requestData.toUserInfo.useAvatar !== undefined
+          ? requestData.toUserInfo.useAvatar
+          : typeof userProfile.profile?.useAvatar === "boolean"
+          ? userProfile.profile.useAvatar
+          : typeof userProfile.useAvatar === "boolean"
+          ? userProfile.useAvatar
+          : undefined;
+      if (user2UseAvatar !== undefined) {
+        user2Info.useAvatar = user2UseAvatar;
+      }
+
       const friendshipData = {
         users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
         user1Id: requestData.fromUserId,
@@ -907,24 +997,8 @@ export class FriendsManager {
         createdAt: new Date(),
         mutualFriends: 0,
         lastInteraction: new Date(),
-
-        // Cache user info from the request (already available!)
-        user1Info: {
-          handle: requestData.fromUserInfo.handle,
-          major: requestData.fromUserInfo.major,
-          avatarConfig:
-            requestData.fromUserInfo.avatarConfig ||
-            requestData.fromUserInfo.avatar,
-        },
-
-        user2Info: {
-          handle: requestData.toUserInfo.handle,
-          major: requestData.toUserInfo.major,
-          avatarConfig:
-            requestData.toUserInfo.avatarConfig ||
-            requestData.toUserInfo.avatar ||
-            userProfile.avatarConfig,
-        },
+        user1Info,
+        user2Info,
 
         // 🔐 NEW: Bilateral Privacy Controls (default to visible)
         scheduleVisibility: {
@@ -1172,7 +1246,7 @@ export class FriendsManager {
         return [];
       }
 
-      // 🎯 Transform friendship documents with simple avatar handling
+      // 🎯 Transform friendship documents with avatar + photo handling
       const friends = friendships.map((friendship) => {
         // Determine which user info to show (the friend, not the current user)
         const isUser1 = friendship.user1Id === currentUser.uid;
@@ -1190,6 +1264,11 @@ export class FriendsManager {
           handle: friendInfo?.handle || "unknown",
           major: friendInfo?.major || "Unknown Major",
           avatarConfig: friendInfo?.avatarConfig || null,
+          profilePhotoUrl: friendInfo?.profilePhotoUrl || null,
+          useAvatar:
+            typeof friendInfo?.useAvatar === "boolean"
+              ? friendInfo.useAvatar
+              : undefined,
 
           // Friendship metadata
           friendsSince: friendship.createdAt,
@@ -1404,9 +1483,14 @@ export class FriendsManager {
         handle: friendInfo.handle,
         major: friendInfo.major,
         avatarConfig: friendInfo.avatarConfig,
+        profilePhotoUrl: friendInfo.profilePhotoUrl || null,
         starredAt: now,
         lastInteraction: now, // For recent-first ordering
       };
+
+      if (typeof friendInfo.useAvatar === "boolean") {
+        quickAccessEntry.useAvatar = friendInfo.useAvatar;
+      }
 
       // 🌍 Campus Presence: Add friendshipId if available (required for bilateral location sharing)
       if (friendInfo.friendshipId) {
@@ -1424,10 +1508,11 @@ export class FriendsManager {
       );
 
       if (result.success) {
-        // Clear Quick Access cache to force fresh data
+        // Clear FriendsService cache to force fresh read from DataManager
         this.clearCache(`quick_access_${currentUser.uid}`);
-        // Also clear DataManager cache
-        dataManager.clearCache(`quick_access_${currentUser.uid}`);
+        // DON'T clear DataManager cache - it was just optimistically updated with fresh data!
+        // Clearing it would force a Firestore read that returns stale data due to eventual consistency
+        // dataManager.clearCache(`quick_access_${currentUser.uid}`);
 
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
@@ -1510,10 +1595,11 @@ export class FriendsManager {
       );
 
       if (result.success) {
-        // Clear Quick Access cache to force fresh data
+        // Clear FriendsService cache to force fresh read from DataManager
         this.clearCache(`quick_access_${currentUser.uid}`);
-        // Also clear DataManager cache
-        dataManager.clearCache(`quick_access_${currentUser.uid}`);
+        // DON'T clear DataManager cache - it was just optimistically updated with fresh data!
+        // Clearing it would force a Firestore read that returns stale data due to eventual consistency
+        // dataManager.clearCache(`quick_access_${currentUser.uid}`);
 
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
@@ -1573,16 +1659,6 @@ export class FriendsManager {
       return [];
     }
 
-    // Try cache first if requested
-    if (useCache) {
-      const cacheKey = `quick_access_${currentUser.uid}`;
-      const cachedResults = this.getCached(cacheKey);
-      if (cachedResults) {
-        console.log("📦 Using cached Quick Access friends");
-        return cachedResults;
-      }
-    }
-
     try {
       console.log(
         "📋 Getting Quick Access friends for handle:",
@@ -1597,22 +1673,53 @@ export class FriendsManager {
         return [];
       }
 
+      // Ensure starredFriends is an array (defensive check)
+      const rawFriends = quickAccessData.starredFriends;
+      if (!Array.isArray(rawFriends)) {
+        console.warn(
+          "⚠️ [FriendsService] starredFriends is not an array:",
+          typeof rawFriends,
+          rawFriends
+        );
+        return [];
+      }
+
+      const toJsDate = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (value && typeof value.toDate === "function") {
+          try {
+            return value.toDate();
+          } catch (_e) {
+            // fall through
+          }
+        }
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          if (
+            typeof value.seconds === "number" &&
+            typeof value.nanoseconds === "number"
+          ) {
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
+          }
+          if (
+            typeof value._seconds === "number" &&
+            typeof value._nanoseconds === "number"
+          ) {
+            return new Date(value._seconds * 1000 + value._nanoseconds / 1e6);
+          }
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
       // Sort by recent-first ordering (most recently interacted with first)
-      const sortedFriends = quickAccessData.starredFriends.sort((a, b) => {
+      const sortedFriends = rawFriends.sort((a, b) => {
         const dateA =
-          a.lastInteraction?.toDate?.() ||
-          new Date(a.lastInteraction || a.starredAt);
+          toJsDate(a.lastInteraction) || toJsDate(a.starredAt) || new Date(0);
         const dateB =
-          b.lastInteraction?.toDate?.() ||
-          new Date(b.lastInteraction || b.starredAt);
+          toJsDate(b.lastInteraction) || toJsDate(b.starredAt) || new Date(0);
         return dateB - dateA; // Most recent first
       });
-
-      // Cache results for performance
-      if (useCache && sortedFriends.length > 0) {
-        const cacheKey = `quick_access_${currentUser.uid}`;
-        this.setCached(cacheKey, sortedFriends);
-      }
 
       console.log(
         `✅ Found ${sortedFriends.length} Quick Access friends (unlimited system!)`
@@ -2032,11 +2139,12 @@ export class FriendsManager {
 
       // 🚧 Prevent duplicate pending requests (spam guard)
       try {
-        const hasPending = await dataManager.hasPendingOutgoingLocationShareRequest(
-          currentUser.uid,
-          friendId,
-          friendshipId
-        );
+        const hasPending =
+          await dataManager.hasPendingOutgoingLocationShareRequest(
+            currentUser.uid,
+            friendId,
+            friendshipId
+          );
         if (hasPending) {
           return {
             success: false,
@@ -2071,6 +2179,11 @@ export class FriendsManager {
           handle: userProfile.profile.handle,
           avatarConfig: userProfile.avatarConfig,
           major: userProfile.profile.major,
+          profilePhotoUrl: userProfile.profile.profilePhotoUrl || null,
+          useAvatar:
+            typeof userProfile.profile.useAvatar === "boolean"
+              ? userProfile.profile.useAvatar
+              : undefined,
         },
         locationRequest: {
           friendshipId: friendshipId,

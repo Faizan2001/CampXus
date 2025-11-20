@@ -4,7 +4,7 @@
 import { currentUser } from "../../store/userStore.js";
 import { navigateTo } from "../../app.js";
 import { authManager } from "../../services/auth/AuthService.js";
-import { avatarManager } from "../../utils/avatar/avatarManager.js";
+import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 import { dataManager } from "../../services/data/DataService.js";
 
 // Lightweight local debug gate for chatty logs
@@ -623,50 +623,25 @@ function updateUserAvatarDisplays(userData) {
   const avatarTrigger = document.getElementById("userAvatarTrigger");
   const avatarLarge = document.getElementById("userAvatarLarge");
 
-  // Handle both direct profile data and nested userData structure
-  const avatarConfig =
-    userData?.avatarConfig || userData?.profile?.avatarConfig;
-  const hasAvatarConfig = !!avatarConfig;
-
-  // Skip rendering if avatar config hasn't changed (performance optimization)
+  // Skip rendering if avatar "signature" hasn't changed (performance optimization)
+  const avatarUrl = getAvatarUrl(userData);
   if (
-    cachedAvatarConfig &&
-    avatarConfig &&
-    JSON.stringify(cachedAvatarConfig) === JSON.stringify(avatarConfig) &&
-    cachedAvatarHtml
+    cachedAvatarConfig === avatarUrl &&
+    cachedAvatarHtml &&
+    typeof avatarUrl === "string"
   ) {
     return;
   }
 
-  // 🎯 FIX: Check for avatarManager and the correct function `generateAvatarUrl`
-  if (
-    hasAvatarConfig &&
-    avatarManager &&
-    typeof avatarManager.generateAvatarUrl === "function"
-  ) {
-    try {
-      const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
-      const avatarHtml = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
-
-      if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
-      if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
-
-      // Cache the rendered avatar for performance
-      cachedAvatarConfig = avatarConfig;
-      cachedAvatarHtml = avatarHtml;
-
-      console.log("🎨 Custom avatar rendered successfully.");
-    } catch (error) {
-      console.error(
-        "❌ Error generating avatar URL, falling back to default.",
-        error
-      );
-      displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
-      cachedAvatarConfig = null;
-      cachedAvatarHtml = null;
-    }
+  if (avatarUrl) {
+    const avatarHtml = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
+    if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
+    if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
+    cachedAvatarConfig = avatarUrl;
+    cachedAvatarHtml = avatarHtml;
+    console.log("🎨 User avatar rendered successfully.");
   } else {
-    // Fallback for no config or no avatar manager
+    // Fallback for no config or photo
     displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
     cachedAvatarConfig = null;
     cachedAvatarHtml = null;
@@ -1090,14 +1065,10 @@ function initializeMobileBottomNav() {
         if (sheetEmailEl) {
           sheetEmailEl.textContent = info.email || "";
         }
-        if (sheetAvatar && avatarManager) {
+        if (sheetAvatar) {
           try {
-            const avatarCfg = info.avatarConfig;
-            if (
-              avatarCfg &&
-              typeof avatarManager.generateAvatarUrl === "function"
-            ) {
-              const url = avatarManager.generateAvatarUrl(avatarCfg);
+            const url = getAvatarUrl(info);
+            if (url) {
               sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
             } else {
               sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
@@ -1147,21 +1118,14 @@ function updateMobileUserAvatar(userData) {
   const mobileUserAvatar = document.getElementById("mobileUserAvatar");
   if (!mobileUserAvatar) return;
 
-  const avatarConfig =
-    userData?.avatarConfig || userData?.profile?.avatarConfig;
-
-  if (
-    avatarConfig &&
-    avatarManager &&
-    typeof avatarManager.generateAvatarUrl === "function"
-  ) {
-    try {
-      const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
+  try {
+    const avatarUrl = getAvatarUrl(userData);
+    if (avatarUrl) {
       mobileUserAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" style="width: 24px; height: 24px; border-radius: 50%;">`;
-    } catch (error) {
+    } else {
       mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
     }
-  } else {
+  } catch (error) {
     mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
   }
 }

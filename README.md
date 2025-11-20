@@ -2,6 +2,12 @@
 
 A real-time social scheduling platform for university students. Connect with classmates, share schedules, and coordinate study sessions with privacy controls and campus presence features.
 
+## Local Development
+
+- Always run BOTH:
+  npm run firebase:emulators # Terminal 1 (keep running)
+  npm run dev # Terminal 2 (keep running)
+
 ## Overview
 
 CampXus helps university students manage their schedules and connect with classmates through:
@@ -15,6 +21,7 @@ CampXus helps university students manage their schedules and connect with classm
 ## Features
 
 ### Schedule Management
+
 - Paste-to-import schedule text (automatic course detection)
 - Dynamic time slot creation and editing
 - Real-time schedule comparison and conflict detection
@@ -22,6 +29,7 @@ CampXus helps university students manage their schedules and connect with classm
 - University-specific time slot defaults (IUB supported)
 
 ### Social Features
+
 - University email validation for secure access
 - Friend discovery by exact handle (@username) or student ID
 - Real-time friend requests and notifications
@@ -29,6 +37,7 @@ CampXus helps university students manage their schedules and connect with classm
 - Horizontal friends bar with privacy indicators
 
 ### Campus Integration
+
 - Adaptive location detection (network and GPS)
 - Campus presence sharing with privacy controls
 - University-specific configurations
@@ -40,17 +49,18 @@ CampXus helps university students manage their schedules and connect with classm
 - **Backend**: Firebase (Authentication, Firestore, Real-time listeners)
 - **Build**: Vite with optimized code splitting
 - **Testing**: Jest with jsdom environment
- 
 
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 16+
 - Firebase project with Authentication and Firestore enabled
 
 ### Installation
 
 1. **Clone and install:**
+
    ```bash
    git clone https://github.com/Faizan2001/CampXus.git
    cd CampXus
@@ -59,6 +69,7 @@ CampXus helps university students manage their schedules and connect with classm
 
 2. **Firebase setup:**
    Create `.env.local` with your Firebase config:
+
    ```bash
    FIREBASE_API_KEY=your_api_key_here
    FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
@@ -89,9 +100,11 @@ npm run dev                # Start Vite dev server
 npm test                   # Run Jest test suites
 
 # Firebase
-npm run firebase:emulators # Start local Firebase emulators
-npm run firebase:serve     # Serve with Firebase hosting
-npm run firebase:deploy    # Deploy to production
+npm run firebase:emulators             # Start local Firebase emulators
+npm run firebase:emulators:persist    # Start emulators + save/restore data on exit
+npm run firebase:emulators:export     # Export current emulator data
+npm run firebase:serve                # Serve with Firebase hosting
+npm run firebase:deploy               # Deploy to production
 
 # Security
 npm run security:audit     # Security vulnerability scan
@@ -167,6 +180,7 @@ We welcome contributions! Please:
 4. Submit a pull request
 
 ### Focus Areas
+
 - Mobile experience improvements
 - New university integrations
 - Enhanced privacy features

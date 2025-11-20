@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() { return request.auth != null; }
+
+    // Profile photos bucket
+    match /profilePhotos/{uid}/{file} {
+      // Read allowed to signed-in users (you can tighten later)
+      allow read: if isSignedIn();
+
+      // Create/Update: enforce owner, size and content-type
+      allow create, update: if isSignedIn()
+                            && request.auth.uid == uid
+                            && request.resource.size < 400 * 1024
+                            && request.resource.contentType.matches('image/.*');
+
+      // Delete: owner can delete; request.resource is null during delete, so do not check size/type
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

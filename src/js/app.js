@@ -23,6 +23,8 @@ import {
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
+import "/src/css/mutual-friends-modal.css";
+import "/src/css/user-profile.css";
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
@@ -192,7 +194,7 @@ async function initializeSPA() {
       logManager.system.init("Profile hydrated from cache (SWR mode)");
     }
   } catch (e) {
-    console.warn("Profile hydration failed (non-fatal)", e);
+    logManager.system.warn("Profile hydration failed (non-fatal)", e);
   }
 
   // 🎯 Use smart initial load to avoid flashing landing on refresh
@@ -260,14 +262,6 @@ async function initializeSPA() {
                     "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
                     { duration: 5000 }
                   );
-                } else if (
-                  freshState.actionable === "needs_install" &&
-                  freshState.isIOS
-                ) {
-                  notificationManager.showInfoNotification(
-                    "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
-                    { duration: 6000 }
-                  );
                 } else if (freshState.actionable === "denied") {
                   notificationManager.showWarningNotification(
                     "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
@@ -299,17 +293,17 @@ async function initializeSPA() {
               showPermissionNotice();
             } catch (_) {}
           } catch (e) {
-            console.warn("Push messaging init failed (non-fatal)", e);
+            logManager.system.warn("Push messaging init failed (non-fatal)", e);
           }
         })();
       })
       .catch((error) => {
-        console.warn(
+        logManager.auth.warn(
           `Authentication timeout or error (background), continuing: ${error.message}`
         );
       });
   } else {
-    console.warn(
+    logManager.auth.warn(
       "AuthManager or authReady promise not found. Proceeding without auth check."
     );
   }
@@ -350,21 +344,22 @@ async function initializeSPA() {
     // Place banner near the bottom-left so it never obscures the top navigation
     // and make it click-through (pointer-events: none).
     const bottomOffset = `calc(var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 8px)`;
-    envBanner.style.cssText = [
-      "position:fixed",
-      `left:8px` ,
-      `bottom:${bottomOffset}`,
-      "background:rgba(255,152,0,0.9)",
-      "color:white",
-      "padding:4px 8px",
-      "z-index:1500",
-      "border-radius:4px",
-      "font-size:10px",
-      "font-weight:600",
-      "letter-spacing:0.5px",
-      "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
-      "pointer-events:none",
-    ].join(";") + ";";
+    envBanner.style.cssText =
+      [
+        "position:fixed",
+        `left:8px`,
+        `bottom:${bottomOffset}`,
+        "background:rgba(255,152,0,0.9)",
+        "color:white",
+        "padding:4px 8px",
+        "z-index:1500",
+        "border-radius:4px",
+        "font-size:10px",
+        "font-weight:600",
+        "letter-spacing:0.5px",
+        "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
+        "pointer-events:none",
+      ].join(";") + ";";
     envBanner.textContent = envName;
     document.body.appendChild(envBanner);
   }
@@ -492,13 +487,16 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
         );
         locationScheduler.start?.();
       } catch (e) {
-        console.warn(
+        logManager.location.warn(
           "LocationScheduler start failed (non-critical):",
           e?.message || e
         );
       }
     } catch (e) {
-      console.warn("Campus Presence lazy init failed:", e?.message || e);
+      logManager.location.warn(
+        "Campus Presence lazy init failed:",
+        e?.message || e
+      );
     }
   };
 
@@ -643,7 +641,7 @@ export function navigateTo(route) {
   if (spaRouter) {
     spaRouter.navigateTo(route);
   } else {
-    console.error("SPA Router not initialized yet");
+    logManager.system.error("SPA Router not initialized yet");
   }
 }
 
@@ -796,7 +794,9 @@ async function initializeCampusPresenceInBackground() {
  * 🎯 Priority Mode: Ensures presence dots get latest coordinates quickly
  */
 async function fetchFreshLocationForPresence() {
-  console.log("🎯 Priority: Fetching fresh location data for presence dots...");
+  logManager.location.info(
+    "🎯 Priority: Fetching fresh location data for presence dots..."
+  );
 
   try {
     const { campusLocationService } = await import(
@@ -808,15 +808,19 @@ async function fetchFreshLocationForPresence() {
     ) {
       // This method bypasses debouncing and gets fresh GPS immediately
       campusLocationService.requestSingleLocationUpdate();
-      console.log(
+      logManager.location.info(
         "✅ Priority: Fresh location request initiated for presence dots"
       );
     } else if (typeof campusLocationService.handleTriggerEvent === "function") {
       // Alternative method for immediate location update
       await campusLocationService.handleTriggerEvent("presence_priority");
-      console.log("✅ Priority: Trigger event sent for fresh presence data");
+      logManager.location.info(
+        "✅ Priority: Trigger event sent for fresh presence data"
+      );
     } else {
-      console.warn("⚠️ Priority: No immediate location method available");
+      logManager.location.warn(
+        "⚠️ Priority: No immediate location method available"
+      );
     }
 
     // Emit event that fresh data is being fetched
@@ -830,7 +834,7 @@ async function fetchFreshLocationForPresence() {
       })
     );
   } catch (error) {
-    console.error(
+    logManager.location.error(
       "❌ Priority: Failed to fetch fresh location for presence:",
       error
     );
@@ -865,7 +869,9 @@ function syncMetaThemeColorToNav() {
       const r = parseInt(parts[0], 10) || 21;
       const g = parseInt(parts[1], 10) || 24;
       const b = parseInt(parts[2], 10) || 32;
-      color = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+      color = `#${[r, g, b]
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("")}`;
     }
   }
 
@@ -884,7 +890,7 @@ function tryRegisterServiceWorker() {
   const devSWDisabled =
     !isProduction && localStorage.getItem("disableDevSW") === "true";
   if (devSWDisabled) {
-    console.info(
+    logManager.system.info(
       "Service worker disabled in dev mode (localStorage.disableDevSW)"
     );
     return;
@@ -920,5 +926,7 @@ function tryRegisterServiceWorker() {
         });
       } catch (_) {}
     })
-    .catch((e) => console.warn("SW registration failed (non-fatal):", e));
+    .catch((e) =>
+      logManager.system.warn("SW registration failed (non-fatal):", e)
+    );
 }

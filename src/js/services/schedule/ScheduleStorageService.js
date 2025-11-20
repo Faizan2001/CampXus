@@ -31,6 +31,7 @@ import {
 } from "../realtime/RealtimeService.js";
 import { currentUser } from "../../store/userStore.js";
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
+import { normalizeCourseForSave } from "../../utils/schedule/courseNormalization.js";
 
 /**
  * Phase-1 Schedule Storage Service
@@ -181,6 +182,31 @@ export class ScheduleStorageService {
             currentUser.uid
           );
           console.log("☁️ Schedule synced to Firestore");
+
+          // ✅ Also persist normalized courses[] for grouping (only when provided)
+          try {
+            const rawCourses = Array.isArray(scheduleForSave?.courses)
+              ? scheduleForSave.courses
+              : [];
+            if (rawCourses.length > 0) {
+              const normalized = rawCourses
+                .map((c) => normalizeCourseForSave(c))
+                .filter(Boolean)
+                .filter((c) =>
+                  c && c.section > 0 && c.dayPattern && c.timeSlot && c.classroom && c.classroom !== "" && !/^(ONLINE|TBA|NA|NONE)$/i.test(c.classroom)
+                );
+              if (normalized.length > 0) {
+                await this.dataManager.updateUserCourses(userId, normalized);
+                console.log("📘 users.courses updated (normalized)", normalized.length);
+              } else {
+                console.log("ℹ️ users.courses normalization produced 0 valid entries");
+              }
+            } else {
+              console.log("ℹ️ No raw courses on schedule save (skipping users.courses)");
+            }
+          } catch (e) {
+            console.warn("⚠️ Failed to update users.courses (non-blocking)", e);
+          }
         } catch (error) {
           console.error("⚠️ Firestore sync failed:", error);
           // Queue for offline sync

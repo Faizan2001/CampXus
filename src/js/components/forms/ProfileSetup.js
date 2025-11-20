@@ -36,8 +36,8 @@ import { scheduleStorageService } from "../../services/schedule/ScheduleStorageS
 import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { AnalyticsService } from "../../services/analytics/AnalyticsService.js";
+import { notificationManager } from "../../services/realtime/NotificationService.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
-import { syncUserDataCache } from "../../services/data/DataService.js"; // 🔄 Combined cache sync function (follows DRY principles)
 import {
   normalizeHandle,
   validateHandle,
@@ -55,6 +55,35 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js"; // 🎯 NEW: Schedule import functionality
+import {
+  getCuratedQABank,
+  MAX_QA_ANSWERS,
+  MIN_QA_ANSWERS,
+  MAX_QA_ANSWER_LENGTH,
+  MIN_QA_ANSWER_LENGTH,
+} from "../../services/profile/QABankService.js";
+import {
+  processProfilePhoto,
+  uploadProfilePhotoBlobs,
+  deleteExistingProfilePhotos,
+} from "../../services/profile/ProfilePhotoService.js";
+import {
+  STARTER_INTERESTS,
+  MAX_INTERESTS,
+  normalizeInterest,
+  isValidCustomInterest,
+  interestIcon,
+} from "../../services/profile/InterestsService.js";
+import {
+  MAX_SOCIAL_LINKS,
+  SOCIAL_LINK_TYPES,
+  validateSocialLink,
+  isDuplicateLink,
+  prepareSocialLinksForSave,
+  getSocialLinkIcon,
+  getSocialLinkColor,
+  getSocialLinkDisplayName,
+} from "../../services/profile/SocialLinksService.js";
 import {
   onboardingService,
   DEFAULT_ONBOARDING_STATE,
@@ -77,7 +106,7 @@ class ProfileSetup {
     }
 
     this.currentStep = 0;
-    this.totalSteps = 3; // Basic Info, Avatar & Bio, Schedule Import
+    this.totalSteps = 4; // 0: Basics, 1: Photo/Avatar, 2: Story, 3: Schedule & Social
     this.profileData = {};
     this.avatarConfig = null; // Stores user's avatar configuration
     this.scheduleData = null; // Stores imported schedule data
@@ -85,6 +114,7 @@ class ProfileSetup {
     this.dataLoadInProgress = false; // Prevent duplicate data loading
     this.existingProfileData = null; // Cache for existing profile data
     this.isInitialized = false; // Flag to prevent re-initialization
+    this._lastAvatarEditClickAt = 0; // Track explicit avatar edit clicks
 
     this.boundScheduleHelpKeyHandler = (event) => {
       if (event.key === "Escape") {
@@ -94,14 +124,6 @@ class ProfileSetup {
 
     // Store this instance globally to prevent duplicates
     window.profileSetupInstance = this;
-
-    // Add offline/online event listeners for UI feedback
-    window.addEventListener("offline", () => this.showOfflineBanner(true));
-    window.addEventListener("online", () => this.showOfflineBanner(false));
-    // Show banner if already offline on load
-    if (!navigator.onLine) {
-      this.showOfflineBanner(true);
-    }
 
     // Ensure handle field is present even if no profile data yet (first load / reload)
     setTimeout(() => {
@@ -139,6 +161,21 @@ class ProfileSetup {
 
     // Cooldown refresh interval reference
     this.handleCooldownInterval = null;
+
+    // Q&A bank (curated)
+    this.qnaBank = getCuratedQABank();
+    this.qnaAnswers = new Map(); // id -> answer string
+    this.qnaSelectedIds = new Set(); // selected question ids
+
+    // Profile photo state (photo-first by default)
+    this.profilePhotoUrl = null;
+    this.useAvatar = false;
+
+    // Interests
+    this.interests = new Set();
+
+    // Social Links
+    this.socialLinks = [];
 
     // Predefined majors list (code → name)
     this.MAJORS = [
@@ -503,6 +540,78 @@ class ProfileSetup {
         bioCount.textContent = bioValue.length;
       }
 
+      // Load existing icebreaker answers (Q&A) - rendered later via initQnaUI
+      try {
+        const qna = profile.qnaResponses || [];
+        if (Array.isArray(qna) && qna.length) {
+          qna.forEach((entry) => {
+            if (entry?.questionId && typeof entry?.answer === "string") {
+              this.qnaAnswers.set(entry.questionId, entry.answer);
+            }
+          });
+        }
+      } catch (_) {}
+
+      // Load photo + useAvatar (photo-first by default for new users)
+      try {
+        // Read raw values from the organized profile object so we can detect absence
+        const rawUseAvatar = Object.prototype.hasOwnProperty.call(
+          profile,
+          "useAvatar"
+        )
+          ? profile.useAvatar
+          : null;
+        const hasStoredUseAvatar =
+          rawUseAvatar !== null && rawUseAvatar !== undefined;
+        const storedUseAvatar = !!rawUseAvatar;
+
+        // Prefer photo from organized profile, but fall back to any known shapes
+        const photoUrl =
+          getProfileValue("profilePhotoUrl", "") ||
+          this.existingProfileData?.profile?.profilePhotoUrl ||
+          currentUser?.profile?.profilePhotoUrl ||
+          currentUser?.profile?.profile?.profilePhotoUrl ||
+          "";
+        this.profilePhotoUrl = photoUrl || null;
+
+        if (hasStoredUseAvatar) {
+          // Respect explicit user preference whenever it exists,
+          // even if a profile photo is available.
+          this.useAvatar = storedUseAvatar;
+        } else {
+          // No stored preference (brand-new or legacy profile) → photo-first.
+          // Photo preview will show either their uploaded photo or a neutral placeholder.
+          this.useAvatar = false;
+        }
+
+        const toggle = document.getElementById("use-avatar-toggle");
+        if (toggle) toggle.checked = !!this.useAvatar;
+        this._swapPhotoAvatarUI();
+        this._updateSwapButtonLabel();
+        this._updatePhotoHelperText();
+      } catch (_) {} // Load interests
+      try {
+        const interests = Array.isArray(profile.interests)
+          ? profile.interests
+          : [];
+        interests.forEach((i) =>
+          this.interests.add(i.toString().toLowerCase())
+        );
+        this.renderInterestsSelected();
+        this.renderInterestsSuggestions();
+      } catch (_) {}
+
+      // Load social links
+      try {
+        const socialLinks = Array.isArray(profile.socialLinks)
+          ? profile.socialLinks
+          : [];
+        this.socialLinks = socialLinks.filter(
+          (link) => link && link.type && link.url
+        );
+        this.renderSocialLinks();
+      } catch (_) {}
+
       // Handle avatar configuration
       const avatarSource = isNested ? profileData : profile;
       if (avatarSource.avatarConfig) {
@@ -805,7 +914,7 @@ class ProfileSetup {
   showError(message) {
     // Simple error display - could be enhanced with better UI
     console.error("🚨 Profile Setup Error:", message);
-    alert(message); // TODO: Replace with better error UI
+    notificationManager.show(message, "error");
   }
 
   /**
@@ -952,6 +1061,11 @@ class ProfileSetup {
     this.initMajorTypeahead();
     this.initStartingYearDropdown();
     this.initializeAvatarSystem();
+    // Initialize icebreakers + interests + photo + social links bindings after DOM is ready
+    this.initQnaUI();
+    this.initInterestsUI();
+    this.initPhotoBindings();
+    this.initSocialLinksUI();
   }
 
   /**
@@ -1015,6 +1129,12 @@ class ProfileSetup {
     this.updateStepDisplay();
     this.updateProgress();
     this.validateCurrentStep();
+
+    // Re-bind dynamics
+    this.initQnaUI();
+    this.initInterestsUI();
+    this.initPhotoBindings();
+    this.initSocialLinksUI();
   }
 
   /**
@@ -1093,7 +1213,7 @@ class ProfileSetup {
    */
   collectCurrentStepData() {
     if (this.currentStep === 0) {
-      // Format names using our utility function!
+      // Step 0: Basics
       this.profileData.firstName = formatName(
         document.getElementById("setup-first-name").value.trim()
       );
@@ -1109,16 +1229,17 @@ class ProfileSetup {
         .getElementById("setup-major")
         .value.trim()
         .toUpperCase();
-    } else if (this.currentStep === 1) {
-      this.profileData.bio = document.getElementById("setup-bio").value.trim();
-      // Avatar configuration is handled by this.avatarConfig
-      // Schedule privacy settings are now managed on the Friends page
     } else if (this.currentStep === 2) {
-      // Schedule Import step - schedule data is stored separately in this.scheduleData
-      // DO NOT add schedule data to profileData to avoid Firestore nested arrays error
-      console.log("📅 Schedule import step completed", {
+      // Step 2: Story (Bio, Icebreakers, Interests)
+      const bioEl = document.getElementById("setup-bio");
+      this.profileData.bio = bioEl ? bioEl.value.trim() : "";
+      // Icebreaker questions and interests are already tracked in qnaAnswers / this.interests
+    } else if (this.currentStep === 3) {
+      // Step 3: Schedule & Social (schedule handled separately)
+      console.log("📅 Schedule & Social step completed", {
         hasScheduleData: !!this.scheduleData,
         coursesCount: this.scheduleData?.courses?.length || 0,
+        socialLinksCount: this.socialLinks?.length || 0,
       });
     }
   }
@@ -1170,10 +1291,12 @@ class ProfileSetup {
       this.updateProgress();
       this.validateCurrentStep();
 
-      // Update avatar preview when navigating to avatar step (step 1)
+      // Update avatar preview when navigating to photo/avatar step (step 1)
       if (this.currentStep === 1) {
-        // Simple single preview update
-        this.updateAvatarPreview();
+        // Ensure correct UI section is shown and previews are updated
+        requestAnimationFrame(() => {
+          this._swapPhotoAvatarUI();
+        });
       }
     } else {
       // Final step - save the profile with loading state
@@ -1222,8 +1345,10 @@ class ProfileSetup {
 
       // Update avatar preview when navigating back to avatar step (step 1)
       if (this.currentStep === 1) {
-        // Simple single preview update
-        this.updateAvatarPreview();
+        // Ensure correct UI section is shown and previews are updated
+        requestAnimationFrame(() => {
+          this._swapPhotoAvatarUI();
+        });
       }
     }
   }
@@ -1247,7 +1372,10 @@ class ProfileSetup {
       }
     } catch (error) {
       console.error("Error during skip setup:", error);
-      alert("Could not process skip action. Please try again.");
+      notificationManager.show(
+        "Could not process skip action. Please try again.",
+        "error"
+      );
       if (nextBtn) nextBtn.disabled = false;
     }
   }
@@ -1273,7 +1401,8 @@ class ProfileSetup {
         document.getElementById("setup-last-name")?.value.trim() || "";
       const startingYear =
         document.getElementById("setup-starting-year")?.value || "";
-      const majorRaw = document.getElementById("setup-major")?.value.trim() || "";
+      const majorRaw =
+        document.getElementById("setup-major")?.value.trim() || "";
       const major = majorRaw.toUpperCase();
       const email = document.getElementById("setup-email")?.value.trim() || "";
 
@@ -1350,12 +1479,32 @@ class ProfileSetup {
         this.clearValidationErrors();
       }
     } else if (this.currentStep === 1) {
-      // Step 1: Avatar & bio (optional)
+      // Step 1: Photo & Avatar
+      // For photo mode, require an uploaded picture before allowing Next.
+      // For avatar mode, require user to have chosen/confirmed an avatar.
       nextBtn.textContent = "Next Step →";
-      nextBtn.disabled = false;
-      nextBtn.classList.remove("disabled-state");
+      const isAvatarMode = this.useAvatar === true;
+      const hasPhoto = !!this.profilePhotoUrl;
+      // Treat either an explicit avatarConfig or the ability to
+      // generate a default avatar as "having an avatar" so that
+      // the default generated avatar also satisfies this step.
+      const hasAvatar =
+        !!this.avatarConfig || (!!this.currentUser && !!avatarManager);
+
+      // Valid if: (photo mode AND has photo) OR (avatar mode AND has avatar)
+      const isStepValid =
+        (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
+      nextBtn.disabled = !isStepValid;
+      nextBtn.classList.toggle("disabled-state", !isStepValid);
     } else if (this.currentStep === 2) {
-      // Step 2: Schedule Import (optional, this is the new final step)
+      // Step 2: Story – require at least 1 valid icebreaker answer
+      nextBtn.textContent = "Next Step →";
+      const validQnaCount = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
+      const isStepValid = validQnaCount >= MIN_QA_ANSWERS;
+      nextBtn.disabled = !isStepValid;
+      nextBtn.classList.toggle("disabled-state", !isStepValid);
+    } else if (this.currentStep === 3) {
+      // Step 3: Schedule & Social – optional final step
       nextBtn.textContent = "Complete Setup!";
       nextBtn.disabled = false;
       nextBtn.classList.remove("disabled-state");
@@ -1368,7 +1517,7 @@ class ProfileSetup {
    */
   validateStepData() {
     if (this.currentStep === 0) {
-      // Validate Step 0 (Basic Info) using our utility functions
+      // Validate Step 0 (Basics) using our utility functions
       const firstName = document
         .getElementById("setup-first-name")
         .value.trim();
@@ -1393,9 +1542,710 @@ class ProfileSetup {
         return false;
       }
     }
-    // Step 1 (Profile pic/bio) is optional, so no validation needed
+    if (this.currentStep === 1) {
+      // Step 1 (Show yourself):
+      // If user is in photo mode, require a photo before proceeding.
+      // If user is in avatar mode, require an avatar to be chosen.
+      const isAvatarMode = this.useAvatar === true;
+      const hasPhoto = !!this.profilePhotoUrl;
+      const hasAvatar =
+        !!this.avatarConfig || (!!this.currentUser && !!avatarManager);
+
+      const isValid =
+        (!isAvatarMode && hasPhoto) || (isAvatarMode && hasAvatar);
+      if (!isValid) {
+        this.showIncompleteFieldsFeedback();
+        return false;
+      }
+    }
+    // Step 2 (Story / Icebreakers)
+    if (this.currentStep === 2) {
+      // live validation feedback: show if over max or show guidance; final save enforces ≥1 with min length
+      const count = this.getQnaResponseCount();
+      const feedback = document.getElementById("qna-feedback");
+      if (feedback) {
+        feedback.textContent = `Answer at least ${MIN_QA_ANSWERS} (min ${MIN_QA_ANSWER_LENGTH} chars), up to ${MAX_QA_ANSWERS}.`;
+        feedback.className = "field-hint";
+      }
+    }
 
     return true;
+  }
+
+  /**
+   * ===================== Q&A (Curated) =====================
+   */
+  initQnaUI() {
+    try {
+      const picker = document.getElementById("qna-picker");
+      const selectedList = document.getElementById("qna-selected-list");
+      if (!picker || !selectedList) return;
+
+      // Start with existing answers' questionIds or default to first bank item
+      const existingIds = Array.from(this.qnaAnswers.entries())
+        .filter(([, a]) => typeof a === "string")
+        .map(([id]) => id);
+      if (existingIds.length) {
+        existingIds.forEach((id) => this.qnaSelectedIds.add(id));
+      } else {
+        const defaultId = this.qnaBank[0]?.id;
+        if (defaultId) this.qnaSelectedIds.add(defaultId);
+      }
+
+      const onPickerChange = (e) => {
+        const id = e.target.value;
+        if (!id) return;
+        if (this.qnaSelectedIds.has(id)) return; // no duplicates
+        if (this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
+          const feedback = document.getElementById("qna-feedback");
+          if (feedback) {
+            feedback.textContent = `You can add up to ${MAX_QA_ANSWERS} questions.`;
+            feedback.className = "field-hint";
+          }
+          picker.value = "";
+          return;
+        }
+        this.qnaSelectedIds.add(id);
+        this.renderQnaSelected();
+        this.refreshQnaPicker();
+        picker.value = "";
+        this.validateCurrentStep();
+      };
+
+      if (!picker.hasAttribute("data-listener-attached")) {
+        picker.addEventListener("change", onPickerChange);
+        picker.setAttribute("data-listener-attached", "true");
+      }
+
+      this.renderQnaSelected();
+      this.refreshQnaPicker();
+      this.validateCurrentStep();
+    } catch (err) {
+      console.warn("initQnaUI failed:", err);
+    }
+  }
+
+  refreshQnaPicker() {
+    const picker = document.getElementById("qna-picker");
+    if (!picker) return;
+    // rebuild options: keep placeholder, then add items not in selected
+    const placeholder = picker.querySelector('option[value=""]');
+    picker.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "Add a question…";
+    ph.disabled = true;
+    ph.selected = true;
+    picker.appendChild(ph);
+    this.qnaBank.forEach((q) => {
+      if (this.qnaSelectedIds.has(q.id)) return;
+      const opt = document.createElement("option");
+      opt.value = q.id;
+      opt.textContent = q.text;
+      picker.appendChild(opt);
+    });
+    // disable picker if reached max
+    picker.disabled = this.qnaSelectedIds.size >= MAX_QA_ANSWERS;
+  }
+
+  renderQnaSelected() {
+    const selectedList = document.getElementById("qna-selected-list");
+    if (!selectedList) return;
+    selectedList.innerHTML = "";
+    const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
+    const allowRemove = this.qnaSelectedIds.size > 1;
+    Array.from(this.qnaSelectedIds).forEach((id) => {
+      const q = bankById.get(id);
+      const item = document.createElement("div");
+      item.className = "qna-item";
+      item.setAttribute("data-qna-id", id);
+      item.innerHTML = `
+        <button type="button" class="qna-remove" aria-label="Remove question" title="Remove question">−</button>
+        <label class="form-label">${q?.text || ""}</label>
+        <textarea class="form-input qna-answer" rows="2" maxlength="${MAX_QA_ANSWER_LENGTH}" placeholder="Type your answer"></textarea>
+        <div class="char-counter-container"><span class="qna-count">0</span>/${MAX_QA_ANSWER_LENGTH}</div>
+      `;
+      const ta = item.querySelector("textarea.qna-answer");
+      const counter = item.querySelector(".qna-count");
+      const removeBtn = item.querySelector(".qna-remove");
+      // restore existing answer
+      const prev = this.qnaAnswers.get(id) || "";
+      if (prev) {
+        ta.value = prev;
+        if (counter) counter.textContent = String(prev.length);
+      }
+      // textarea input
+      ta.addEventListener("input", (e) => {
+        const val = (e.target.value || "").slice(0, MAX_QA_ANSWER_LENGTH);
+        this.qnaAnswers.set(id, val.trim());
+        if (counter) counter.textContent = String(val.length);
+        this.validateCurrentStep();
+      });
+      // remove button
+      if (!allowRemove) {
+        removeBtn.disabled = true;
+        removeBtn.classList.add("disabled");
+      } else {
+        removeBtn.addEventListener("click", () => {
+          if (this.qnaSelectedIds.size <= 1) return; // guard
+          this.qnaSelectedIds.delete(id);
+          // keep answer in map but optional: clear to free if removed
+          // this.qnaAnswers.delete(id);
+          this.renderQnaSelected();
+          this.refreshQnaPicker();
+          this.validateCurrentStep();
+        });
+      }
+      selectedList.appendChild(item);
+    });
+  }
+
+  getQnaResponseCount(minLen = 1) {
+    let count = 0;
+    this.qnaSelectedIds.forEach((id) => {
+      const val = (this.qnaAnswers.get(id) || "").trim();
+      if (val.length >= minLen) count++;
+    });
+    return count;
+  }
+
+  buildQnaResponsesForSave() {
+    const now = new Date();
+    const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
+    const responses = [];
+    this.qnaSelectedIds.forEach((id) => {
+      const answer = this.qnaAnswers.get(id) || "";
+      const trimmed = answer.trim();
+      if (trimmed.length < MIN_QA_ANSWER_LENGTH) return; // must meet min length
+      const q = bankById.get(id);
+      if (!q) return;
+      responses.push({
+        questionId: id,
+        question: q.text,
+        answer: trimmed.slice(0, MAX_QA_ANSWER_LENGTH),
+        answeredAt: now,
+      });
+    });
+    // Keep only up to MAX_QA_ANSWERS
+    return responses.slice(0, MAX_QA_ANSWERS);
+  }
+
+  // ===================== Photo =====================
+  initPhotoBindings() {
+    try {
+      const uploadBtn = document.getElementById("profile-photo-upload-btn");
+      const fileInput = document.getElementById("profile-photo-input");
+      const swapBtn = document.getElementById("swap-photo-avatar-btn");
+
+      // Always start in photo mode (default UI)
+      if (this.useAvatar === undefined) {
+        this.useAvatar = false;
+      }
+
+      if (
+        uploadBtn &&
+        fileInput &&
+        !uploadBtn.hasAttribute("data-listener-attached")
+      ) {
+        uploadBtn.addEventListener("click", (e) => {
+          // Always open file picker, never avatar editor from this button
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof e.stopImmediatePropagation === "function") {
+            e.stopImmediatePropagation();
+          }
+          // Hard reset any stale avatar editor intent flags
+          this._avatarEditorRequested = false;
+          this._lastAvatarEditClickAt = 0;
+          console.log("📸 Opening file picker for photo upload...");
+          fileInput.click();
+        });
+        uploadBtn.setAttribute("data-listener-attached", "true");
+      }
+      if (fileInput && !fileInput.hasAttribute("data-listener-attached")) {
+        fileInput.addEventListener("change", (e) =>
+          this.handlePhotoSelected(e)
+        );
+        fileInput.setAttribute("data-listener-attached", "true");
+      }
+      if (swapBtn && !swapBtn.hasAttribute("data-listener-attached")) {
+        swapBtn.addEventListener("click", () => {
+          console.log(
+            "🔄 Swapping UI mode. Current useAvatar:",
+            this.useAvatar
+          );
+          // Toggle between photo and avatar UI
+          this.useAvatar = !this.useAvatar;
+
+          // Update UI to reflect the new mode
+          this._swapPhotoAvatarUI();
+          this._updateSwapButtonLabel();
+          this._updatePhotoHelperText();
+          this.validateCurrentStep();
+        });
+        swapBtn.setAttribute("data-listener-attached", "true");
+      }
+
+      // Initialize UI state
+      this._swapPhotoAvatarUI();
+      this._updateSwapButtonLabel();
+      this._updatePhotoHelperText();
+      this.validateCurrentStep();
+    } catch (err) {
+      console.warn("initPhotoBindings failed:", err);
+    }
+  }
+
+  async handlePhotoSelected(event) {
+    try {
+      const userId = this.currentUser?.uid || currentUser?.uid;
+      if (!userId) return;
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      console.log("📸 Processing uploaded photo...");
+      const { mainBlob, thumbBlob } = await processProfilePhoto(file);
+      if (mainBlob.size > 400 * 1024) {
+        notificationManager.show(
+          "Photo is too large after processing. Please choose a different image.",
+          "warning"
+        );
+        return;
+      }
+      // Only delete old files if a previous photo exists
+      if (this.profilePhotoUrl) {
+        await deleteExistingProfilePhotos(userId);
+      }
+      const { url } = await uploadProfilePhotoBlobs(
+        userId,
+        mainBlob,
+        thumbBlob
+      );
+
+      this.profilePhotoUrl = url;
+      // Ensure we're in photo mode after upload
+      this.useAvatar = false;
+
+      console.log("✅ Photo uploaded successfully:", url);
+
+      // Update UI
+      this._swapPhotoAvatarUI();
+      this._updateSwapButtonLabel();
+      this._updatePhotoHelperText();
+      this.validateCurrentStep();
+    } catch (err) {
+      console.error("Photo upload failed:", err);
+      notificationManager.show(
+        "Failed to upload photo. Please try another image.",
+        "error"
+      );
+    }
+  }
+
+  updatePhotoPreview() {
+    try {
+      const photoBox = document.getElementById("photo-preview-display");
+      if (!photoBox) return;
+
+      photoBox.innerHTML = "";
+      // Always render either the uploaded photo or a neutral placeholder
+      if (this.profilePhotoUrl) {
+        const img = document.createElement("img");
+        img.src = this.profilePhotoUrl;
+        img.alt = "Profile photo";
+        img.width = 96;
+        img.height = 96;
+        img.loading = "lazy";
+        img.style.cssText =
+          "width:96px;height:96px;border-radius:50%;object-fit:cover;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;";
+        photoBox.appendChild(img);
+      } else {
+        const i = document.createElement("i");
+        i.className = "fas fa-user-circle";
+        i.style.cssText = "font-size:48px;opacity:.6;";
+        photoBox.appendChild(i);
+      }
+    } catch (_) {}
+  }
+
+  _updateSwapButtonLabel() {
+    const btn = document.getElementById("swap-photo-avatar-btn");
+    if (!btn) return;
+    if (this.useAvatar) {
+      btn.textContent = "or, Upload a Photo Instead";
+    } else {
+      btn.textContent = "or, Select an Avatar";
+    }
+  }
+
+  _updatePhotoHelperText() {
+    const actionSpan = document.getElementById("profile-photo-helper-action");
+    const btnText = document.getElementById("profile-photo-btn-text");
+
+    if (!actionSpan) return;
+
+    if (this.profilePhotoUrl) {
+      actionSpan.textContent = "Update picture";
+      if (btnText) btnText.textContent = "Update Photo";
+    } else {
+      actionSpan.textContent = "Upload a photo";
+      if (btnText) btnText.textContent = "Upload Photo";
+    }
+  }
+
+  /**
+   * Swap between photo and avatar UI sections
+   * Shows only one UI at a time based on this.useAvatar flag
+   */
+  _swapPhotoAvatarUI() {
+    const photoSection = document.getElementById("photo-ui-section");
+    const avatarSection = document.getElementById("avatar-ui-section");
+    const group = document.querySelector(".avatar-photo-group");
+
+    if (!photoSection || !avatarSection) {
+      console.warn("⚠️ Photo or avatar section not found in DOM");
+      return;
+    }
+
+    if (this.useAvatar) {
+      // Show avatar UI, hide photo UI
+      photoSection.style.display = "none";
+      avatarSection.style.display = "block";
+      if (group) {
+        group.classList.add("avatar-photo-mode-avatar");
+        group.classList.remove("avatar-photo-mode-photo");
+      }
+      // Update avatar preview when switching to avatar mode
+      this.updateAvatarPreview();
+      console.log("🎨 Switched to avatar UI");
+    } else {
+      // Show photo UI, hide avatar UI
+      photoSection.style.display = "block";
+      avatarSection.style.display = "none";
+      if (group) {
+        group.classList.add("avatar-photo-mode-photo");
+        group.classList.remove("avatar-photo-mode-avatar");
+      }
+      // Update photo preview when switching to photo mode
+      this.updatePhotoPreview();
+      console.log("📸 Switched to photo UI");
+    }
+  }
+
+  // ===================== Interests =====================
+  initInterestsUI() {
+    try {
+      const input = document.getElementById("interest-input");
+      const addBtn = document.getElementById("add-interest-btn");
+      if (input && !input.hasAttribute("data-listener-attached")) {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            this.tryAddInterest(input.value);
+          }
+        });
+        input.setAttribute("data-listener-attached", "true");
+      }
+      if (addBtn && !addBtn.hasAttribute("data-listener-attached")) {
+        addBtn.addEventListener("click", () => {
+          this.tryAddInterest(input.value);
+        });
+        addBtn.setAttribute("data-listener-attached", "true");
+      }
+      this.renderInterestsSuggestions();
+      this.renderInterestsSelected();
+    } catch (err) {
+      console.warn("initInterestsUI failed:", err);
+    }
+  }
+
+  tryAddInterest(raw) {
+    const feedback = document.getElementById("interest-feedback");
+    const v = normalizeInterest(raw);
+    if (!isValidCustomInterest(v)) {
+      if (feedback) {
+        feedback.textContent = "Use 3–20 lowercase letters/numbers/spaces.";
+        feedback.className = "error-message";
+      }
+      return;
+    }
+    if (this.interests.has(v)) {
+      if (feedback) {
+        feedback.textContent = "Already added.";
+        feedback.className = "field-hint";
+      }
+      return;
+    }
+    if (this.interests.size >= MAX_INTERESTS) {
+      if (feedback) {
+        feedback.textContent = `Max ${MAX_INTERESTS} interests.`;
+        feedback.className = "error-message";
+      }
+      return;
+    }
+    this.interests.add(v);
+    const input = document.getElementById("interest-input");
+    if (input) input.value = "";
+    if (feedback) {
+      feedback.textContent = "Added.";
+      feedback.className = "field-hint";
+    }
+    this.renderInterestsSelected();
+  }
+
+  renderInterestsSuggestions() {
+    const host = document.getElementById("interests-suggestions");
+    if (!host) return;
+    host.innerHTML = "";
+    STARTER_INTERESTS.forEach((i) => {
+      if (this.interests.has(i.key)) return;
+      const chip = this._makeInterestChip(i.key);
+      chip.addEventListener("click", () => {
+        if (this.interests.size >= MAX_INTERESTS) return;
+        this.interests.add(i.key);
+        this.renderInterestsSelected();
+        this.renderInterestsSuggestions();
+      });
+      host.appendChild(chip);
+    });
+  }
+
+  renderInterestsSelected() {
+    const host = document.getElementById("interests-selected");
+    if (!host) return;
+    host.innerHTML = "";
+    Array.from(this.interests).forEach((key) => {
+      const chip = this._makeInterestChip(key, true);
+      const removeBtn = chip.querySelector(".chip-remove");
+      if (removeBtn) {
+        removeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.interests.delete(key);
+          this.renderInterestsSelected();
+          this.renderInterestsSuggestions();
+        });
+      }
+      host.appendChild(chip);
+    });
+  }
+
+  _makeInterestChip(key, removable = false) {
+    const chip = document.createElement("div");
+    chip.className = "interest-chip";
+    chip.setAttribute("data-color", String((this._hash(key) % 5) + 1));
+    const iconEl = document.createElement("i");
+    iconEl.className = interestIcon(key);
+    const label = document.createElement("span");
+    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+    chip.appendChild(iconEl);
+    chip.appendChild(label);
+    if (removable) {
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "chip-remove";
+      removeBtn.textContent = "×";
+      chip.appendChild(removeBtn);
+    }
+    return chip;
+  }
+
+  _hash(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = (h << 5) - h + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h);
+  }
+
+  // ===================== Social Links =====================
+  initSocialLinksUI() {
+    try {
+      console.log("[ProfileSetup] initSocialLinksUI called");
+      const typeSelect = document.getElementById("social-link-type");
+      const input = document.getElementById("social-link-input");
+      const addBtn = document.getElementById("add-social-link-btn");
+
+      console.log("[ProfileSetup] Social links elements:", {
+        typeSelect: !!typeSelect,
+        input: !!input,
+        addBtn: !!addBtn,
+      });
+
+      if (!typeSelect || !input || !addBtn) {
+        console.warn("[ProfileSetup] Social links elements not found");
+        return;
+      }
+
+      // Update placeholder based on selected type
+      const updatePlaceholder = () => {
+        const selectedType = typeSelect.value;
+        const typeConfig = SOCIAL_LINK_TYPES.find(
+          (t) => t.type === selectedType
+        );
+        if (typeConfig) {
+          input.placeholder = typeConfig.placeholder;
+        }
+      };
+
+      // Attach event listeners only once
+      if (!typeSelect.hasAttribute("data-listener-attached")) {
+        typeSelect.addEventListener("change", updatePlaceholder);
+        typeSelect.setAttribute("data-listener-attached", "true");
+      }
+
+      if (!input.hasAttribute("data-listener-attached")) {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            this.tryAddSocialLink();
+          }
+        });
+        input.setAttribute("data-listener-attached", "true");
+      }
+
+      if (!addBtn.hasAttribute("data-listener-attached")) {
+        console.log("[ProfileSetup] Attaching click listener to add button");
+        addBtn.addEventListener("click", () => {
+          console.log("[ProfileSetup] Add button clicked!");
+          this.tryAddSocialLink();
+        });
+        addBtn.setAttribute("data-listener-attached", "true");
+      } else {
+        console.log("[ProfileSetup] Add button already has listener");
+      }
+
+      updatePlaceholder();
+      this.renderSocialLinks();
+    } catch (err) {
+      console.warn("initSocialLinksUI failed:", err);
+    }
+  }
+
+  tryAddSocialLink() {
+    console.log("[ProfileSetup] tryAddSocialLink called");
+    const typeSelect = document.getElementById("social-link-type");
+    const input = document.getElementById("social-link-input");
+    const feedback = document.getElementById("social-link-feedback");
+
+    console.log("[ProfileSetup] Elements found:", {
+      typeSelect: !!typeSelect,
+      input: !!input,
+      feedback: !!feedback,
+    });
+    if (!typeSelect || !input) {
+      console.warn("[ProfileSetup] Missing required elements");
+      return;
+    }
+
+    const type = typeSelect.value;
+    const inputValue = input.value.trim();
+
+    if (!inputValue) {
+      if (feedback) {
+        feedback.textContent = "Please enter a username or URL.";
+        feedback.className = "error-message";
+      }
+      return;
+    }
+
+    // Validate the link
+    const validation = validateSocialLink(type, inputValue);
+    if (!validation.valid) {
+      if (feedback) {
+        feedback.textContent = validation.reason;
+        feedback.className = "error-message";
+      }
+      return;
+    }
+
+    // Check for duplicates
+    if (isDuplicateLink(this.socialLinks, validation.url)) {
+      if (feedback) {
+        feedback.textContent = "This link has already been added.";
+        feedback.className = "error-message";
+      }
+      return;
+    }
+
+    // Check max limit
+    if (this.socialLinks.length >= MAX_SOCIAL_LINKS) {
+      if (feedback) {
+        feedback.textContent = `Maximum ${MAX_SOCIAL_LINKS} links allowed.`;
+        feedback.className = "error-message";
+      }
+      return;
+    }
+
+    // Add the link
+    this.socialLinks.push({
+      type: type,
+      url: validation.url,
+    });
+
+    // Clear input and show success
+    input.value = "";
+    if (feedback) {
+      feedback.textContent = "Link added successfully!";
+      feedback.className = "field-hint";
+    }
+
+    this.renderSocialLinks();
+  }
+
+  renderSocialLinks() {
+    const host = document.getElementById("social-links-list");
+    if (!host) return;
+
+    host.innerHTML = "";
+
+    if (this.socialLinks.length === 0) {
+      return; // No links to display
+    }
+
+    this.socialLinks.forEach((link, index) => {
+      const item = document.createElement("div");
+      item.className = "social-link-item";
+
+      // Icon
+      const iconBox = document.createElement("div");
+      iconBox.className = `social-link-icon ${getSocialLinkColor(link.type)}`;
+      const icon = document.createElement("i");
+      icon.className = getSocialLinkIcon(link.type);
+      iconBox.appendChild(icon);
+
+      // Content
+      const content = document.createElement("div");
+      content.className = "social-link-content";
+
+      const typeLabel = document.createElement("div");
+      typeLabel.className = "social-link-type";
+      typeLabel.textContent =
+        SOCIAL_LINK_TYPES.find((t) => t.type === link.type)?.label || link.type;
+
+      const urlDisplay = document.createElement("div");
+      urlDisplay.className = "social-link-url";
+      urlDisplay.textContent = getSocialLinkDisplayName(link);
+      urlDisplay.title = link.url; // Show full URL on hover
+
+      content.appendChild(typeLabel);
+      content.appendChild(urlDisplay);
+
+      // Remove button
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "social-link-remove";
+      removeBtn.innerHTML = "×";
+      removeBtn.addEventListener("click", () => {
+        this.socialLinks.splice(index, 1);
+        this.renderSocialLinks();
+      });
+
+      item.appendChild(iconBox);
+      item.appendChild(content);
+      item.appendChild(removeBtn);
+      host.appendChild(item);
+    });
   }
 
   /**
@@ -1544,6 +2394,8 @@ class ProfileSetup {
 
     // Next button text is handled by validateCurrentStep
     this.validateCurrentStep(); // Re-validate to update button text and state
+
+    // (Public View button now injected into bottom nav for visibility)
   }
 
   /**
@@ -1554,6 +2406,7 @@ class ProfileSetup {
     const skipBtn = document.getElementById("setup-skip-btn");
     const nextButton = document.getElementById("setup-next-btn");
     const finishButton = document.getElementById("finish-setup-button");
+    const skipNextContainer = document.querySelector(".skip-next-buttons");
 
     if (prevBtn) {
       prevBtn.style.display = this.currentStep === 0 ? "none" : "flex";
@@ -1576,6 +2429,49 @@ class ProfileSetup {
         nextButton.style.display = "inline-block";
         finishButton.style.display = "none";
       }
+    }
+
+    // Ensure a clearly visible Public View button when on Photo & Avatar step
+    try {
+      const existing = document.getElementById("public-view-nav-btn");
+      if (this.currentStep === 1) {
+        if (skipNextContainer && !existing) {
+          const pvBtn = document.createElement("button");
+          pvBtn.id = "public-view-nav-btn";
+          pvBtn.type = "button";
+          pvBtn.className = "button secondary";
+          pvBtn.innerHTML = '<i class="fas fa-eye"></i> Public View';
+          pvBtn.addEventListener("click", () => {
+            try {
+              const uid =
+                (this.currentUser && this.currentUser.uid) ||
+                (currentUser && currentUser.uid);
+              if (!uid) {
+                notificationManager.show(
+                  "Please sign in to preview your public profile.",
+                  "info"
+                );
+                return;
+              }
+              window.location.hash = `#user?id=${uid}&preview=1`;
+            } catch (e) {
+              console.error("Failed to open public view", e);
+            }
+          });
+          // Insert before Skip to keep Next on the right
+          const firstChild = skipNextContainer.firstElementChild;
+          if (firstChild) {
+            skipNextContainer.insertBefore(pvBtn, firstChild);
+          } else {
+            skipNextContainer.appendChild(pvBtn);
+          }
+        }
+        if (existing) existing.style.display = "inline-block";
+      } else if (existing) {
+        existing.style.display = "none";
+      }
+    } catch (_) {
+      // non-fatal UI enhancement
     }
   }
 
@@ -1657,18 +2553,27 @@ class ProfileSetup {
     // Use existing avatar config from loaded profile data (always fresh)
     if (this.existingProfileData?.avatarConfig) {
       this.avatarConfig = this.existingProfileData.avatarConfig;
-    }
-    // Generate default avatar if none exists
-    else if (!this.avatarConfig && avatarManager) {
-      this.avatarConfig = avatarManager.generateDefaultAvatar(
-        this.currentUser.uid
-      );
+    } else if (!this.avatarConfig && avatarManager) {
+      // No stored avatar yet → prepare a default config so that
+      // avatar mode is immediately valid (even if the user keeps
+      // the default generated avatar).
+      try {
+        this.avatarConfig = avatarManager.generateDefaultAvatar(
+          this.currentUser.uid
+        );
+      } catch (e) {
+        console.warn("⚠️ Failed to generate default avatar config", e);
+      }
     }
 
-    // If user is currently on avatar step (1) ensure preview renders now
+    // If user is currently on avatar step (1) ensure preview and validation
+    // reflect the current mode (photo vs avatar) and avatar availability.
     if (this.currentStep === 1) {
       // Defer a frame to let DOM mount
-      requestAnimationFrame(() => this.updateAvatarPreview());
+      requestAnimationFrame(() => {
+        this._swapPhotoAvatarUI();
+        this.validateCurrentStep();
+      });
     }
   }
 
@@ -1676,15 +2581,38 @@ class ProfileSetup {
    * Open avatar editor modal - SIMPLIFIED
    */
   openAvatarEditor() {
+    // Only allow opening when explicitly requested by the avatar edit button,
+    // and within a short time window from that click.
+    const now = Date.now();
+    const recentExplicitClick =
+      this._avatarEditorRequested &&
+      this._lastAvatarEditClickAt &&
+      now - this._lastAvatarEditClickAt < 2000;
+    if (!recentExplicitClick) {
+      console.warn(
+        "[ProfileSetup] Ignoring openAvatarEditor call without recent explicit avatar button click"
+      );
+      return;
+    }
+    // Clear intent flags immediately to avoid accidental reuse
+    this._avatarEditorRequested = false;
+    this._lastAvatarEditClickAt = 0;
+
     if (!avatarManager) {
       console.error("❌ Avatar manager not available");
-      alert("Avatar system is not loaded. Please refresh the page.");
+      notificationManager.show(
+        "Avatar system is not loaded. Please refresh the page.",
+        "error"
+      );
       return;
     }
 
     if (!this.currentUser) {
       console.error("❌ No user available for avatar editor");
-      alert("Please sign in to customize your avatar.");
+      notificationManager.show(
+        "Please sign in to customize your avatar.",
+        "info"
+      );
       return;
     }
 
@@ -1699,6 +2627,9 @@ class ProfileSetup {
 
       // Update the preview immediately
       this.updateAvatarPreview();
+
+      // Validate current step to enable Next button if avatar was chosen
+      this.validateCurrentStep();
 
       // If profile is complete, save the avatar change immediately
       if (
@@ -1750,17 +2681,7 @@ class ProfileSetup {
       currentUser.setProfile(updatedProfile);
       console.log("🎨 Avatar updated in currentUser store");
 
-      // 4. 🔄 Sync cached user data so friends see avatar changes immediately
-      // Using centralized cache sync for consistency and reliability
-      syncUserDataCache(this.currentUser.uid)
-        .then(() =>
-          console.log("✅ Friends will see your cleaned avatar in real-time!")
-        )
-        .catch((err) =>
-          console.log("⚠️ Avatar cache update failed (but profile saved):", err)
-        );
-
-      // 5. 🎯 CRITICAL: Dispatch avatar change event to refresh menu immediately
+      // 4. 🎯 CRITICAL: Dispatch avatar change event to refresh menu immediately
       console.log("🚀 Dispatching avatar:changed event for menu refresh...");
       document.dispatchEvent(
         new CustomEvent("avatar:changed", {
@@ -1772,7 +2693,7 @@ class ProfileSetup {
         })
       );
 
-      // 6. 🛡️ FALLBACK: Also try direct force refresh as backup
+      // 5. 🛡️ FALLBACK: Also try direct force refresh as backup
       try {
         // Dynamic import to avoid circular dependencies
         const { forceAvatarRefresh } = await import(
@@ -1876,6 +2797,41 @@ class ProfileSetup {
           lastUpdated: serverTimestamp(),
         },
       };
+
+      // Curated icebreaker questions (Q&A) (PRD: ≥1, ≤5 answers)
+      const qna = this.buildQnaResponsesForSave();
+      if (qna.length < MIN_QA_ANSWERS) {
+        // Bring user back to Story step and show feedback
+        this.currentStep = 2;
+        this.updateStepDisplay();
+        const feedback = document.getElementById("qna-feedback");
+        if (feedback) {
+          feedback.textContent = `Please answer at least ${MIN_QA_ANSWERS} question (${MIN_QA_ANSWER_LENGTH}–${MAX_QA_ANSWER_LENGTH} chars).`;
+          feedback.className = "error-message";
+          feedback.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        throw new Error("Please answer at least one curated question.");
+      }
+      // Only add field when provided, per PRD
+      profileDataForFirestore.profile.qnaResponses = qna;
+
+      // Profile photo + useAvatar
+      if (this.profilePhotoUrl) {
+        profileDataForFirestore.profile.profilePhotoUrl = this.profilePhotoUrl;
+      }
+      profileDataForFirestore.profile.useAvatar = !!this.useAvatar;
+
+      // Interests (≤10)
+      const interests = Array.from(this.interests || []);
+      if (interests.length > 0) {
+        profileDataForFirestore.profile.interests = interests.slice(0, 10);
+      }
+
+      // Social Links (optional, ≤6)
+      const socialLinks = prepareSocialLinksForSave(this.socialLinks);
+      if (socialLinks.length > 0) {
+        profileDataForFirestore.profile.socialLinks = socialLinks;
+      }
 
       const userId =
         this.currentUser?.uid ||
@@ -1991,7 +2947,7 @@ class ProfileSetup {
 
         // Prepare merged user doc update
         const userUpdate = {
-          profile: cleanProfileData,
+          profile: profileDataForFirestore.profile,
           universityInfo: profileDataForFirestore.universityInfo,
           avatarConfig: profileDataForFirestore.avatarConfig,
           systemInfo: systemInfoUpdates,
@@ -2004,7 +2960,10 @@ class ProfileSetup {
         try {
           onboardingService.resetSessionHints();
         } catch (error) {
-          console.warn("⚠️ Failed to reset onboarding session hints for new user", error);
+          console.warn(
+            "⚠️ Failed to reset onboarding session hints for new user",
+            error
+          );
         }
       }
 
@@ -2028,21 +2987,6 @@ class ProfileSetup {
           "📅 Schedule saved to Firestore with dual storage strategy"
         );
       }
-
-      // 🔄 NEW: Sync cached user data so friends see changes immediately
-      const userInfoForCache = {
-        handle: claimedHandle,
-        major: cleanProfileData.major,
-        university: universityKey || "unknown",
-        avatarConfig: this.avatarConfig,
-      };
-
-      // Update cache in background (don't wait for it)
-      syncUserDataCache(userId, userInfoForCache)
-        .then(() => console.log("✅ Friends will see your updated info!"))
-        .catch((err) =>
-          console.log("⚠️ Cache update failed, but profile saved:", err)
-        );
 
       // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
       console.log(
@@ -2073,8 +3017,9 @@ class ProfileSetup {
       }, 1500); // 1.5-second delay
     } catch (error) {
       console.error("❌ Final profile save failed:", error);
-      alert(
-        "Oh no! Something went wrong while saving your profile. Please check your connection and try again."
+      notificationManager.show(
+        "Oh no! Something went wrong while saving your profile. Please check your connection and try again.",
+        "error"
       );
     }
   }
@@ -2214,12 +3159,21 @@ class ProfileSetup {
       skipBtn.setAttribute("data-listener-attached", "true");
     }
 
-    // Avatar editor button event listener
+    // Avatar editor button event listener (explicit user intent only)
     if (
       avatarEditBtn &&
       !avatarEditBtn.hasAttribute("data-listener-attached")
     ) {
-      avatarEditBtn.addEventListener("click", () => {
+      avatarEditBtn.addEventListener("click", (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof event.stopImmediatePropagation === "function") {
+            event.stopImmediatePropagation();
+          }
+        }
+        this._avatarEditorRequested = true;
+        this._lastAvatarEditClickAt = Date.now();
         this.openAvatarEditor();
       });
       avatarEditBtn.setAttribute("data-listener-attached", "true");
@@ -2234,6 +3188,9 @@ class ProfileSetup {
       });
       bioInput.setAttribute("data-listener-attached", "true");
     }
+
+    // Q/A
+    this.initQnaUI();
 
     // 🎯 NEW: Schedule import event listeners
     if (
@@ -2300,7 +3257,9 @@ class ProfileSetup {
 
       const closeBtn = scheduleHelpOverlay.querySelector(".close-help");
       if (closeBtn && !closeBtn.hasAttribute("data-listener-attached")) {
-        closeBtn.addEventListener("click", () => this.closeScheduleHelpOverlay());
+        closeBtn.addEventListener("click", () =>
+          this.closeScheduleHelpOverlay()
+        );
         closeBtn.setAttribute("data-listener-attached", "true");
       }
     }
@@ -2347,11 +3306,11 @@ class ProfileSetup {
 
     // Ensure a wrapper around the input (so dropdown anchors to the input, not the whole form-group)
     let wrapper = input.parentElement;
-    if (!wrapper.classList.contains('typeahead-wrapper')) {
-      const newWrapper = document.createElement('div');
-      newWrapper.className = 'typeahead-wrapper';
-      newWrapper.style.position = 'relative';
-      newWrapper.style.width = '100%';
+    if (!wrapper.classList.contains("typeahead-wrapper")) {
+      const newWrapper = document.createElement("div");
+      newWrapper.className = "typeahead-wrapper";
+      newWrapper.style.position = "relative";
+      newWrapper.style.width = "100%";
       // Insert wrapper and move input inside
       wrapper.insertBefore(newWrapper, input);
       newWrapper.appendChild(input);
@@ -2359,7 +3318,7 @@ class ProfileSetup {
     }
 
     // Container for suggestions anchored to wrapper
-    let list = wrapper.querySelector('#major-suggestions');
+    let list = wrapper.querySelector("#major-suggestions");
     if (!list) {
       list = document.createElement("div");
       list.id = "major-suggestions";
@@ -2370,11 +3329,12 @@ class ProfileSetup {
     const setPlacement = () => {
       // Decide whether to open upwards based on viewport space
       const rect = input.getBoundingClientRect();
-      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const viewportH =
+        window.innerHeight || document.documentElement.clientHeight;
       const spaceBelow = viewportH - rect.bottom;
       const spaceAbove = rect.top;
       const needUp = spaceBelow < 180 && spaceAbove > spaceBelow; // threshold
-      list.classList.toggle('open-up', needUp);
+      list.classList.toggle("open-up", needUp);
     };
 
     const render = (items) => {
@@ -2510,18 +3470,19 @@ class ProfileSetup {
 
     const setPlacement = () => {
       const rect = display.getBoundingClientRect();
-      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const viewportH =
+        window.innerHeight || document.documentElement.clientHeight;
       const spaceBelow = viewportH - rect.bottom;
       const spaceAbove = rect.top;
       const needUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-      list.classList.toggle('open-up', needUp);
+      list.classList.toggle("open-up", needUp);
     };
 
     const toggle = () => {
       const isOpen = list.classList.toggle("open");
       display.setAttribute("aria-expanded", String(isOpen));
       if (isOpen) requestAnimationFrame(setPlacement);
-      else list.classList.remove('open-up');
+      else list.classList.remove("open-up");
     };
 
     display.addEventListener("click", toggle);
@@ -2535,7 +3496,8 @@ class ProfileSetup {
 
     // Keep in sync if template preselects a value
     select.addEventListener("change", () => {
-      display.textContent = select.options[select.selectedIndex]?.text || "Select year";
+      display.textContent =
+        select.options[select.selectedIndex]?.text || "Select year";
       renderYears();
     });
   }
@@ -2608,11 +3570,13 @@ class ProfileSetup {
         // Mobile UX: auto-scroll to preview when courses are detected
         try {
           const coursesDetected = Number(result?.stats?.validCourses || 0) > 0;
-          const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+          const isMobile =
+            window.matchMedia &&
+            window.matchMedia("(max-width: 768px)").matches;
           if (coursesDetected && isMobile && previewDiv) {
             // slight delay to ensure preview is rendered
             setTimeout(() => {
-              previewDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              previewDiv.scrollIntoView({ behavior: "smooth", block: "start" });
             }, 50);
           }
         } catch (_) {}
@@ -2726,7 +3690,7 @@ class ProfileSetup {
 
     // Show error using existing error system or simple alert for now
     console.error("Schedule Import Error:", message);
-    alert(message); // TODO: Replace with better error UI
+    notificationManager.show(message, "error");
   }
 
   /**
@@ -3107,45 +4071,6 @@ class ProfileSetup {
   }
 
   /**
-   * Show or hide an offline status banner at the top of the profile setup page.
-   * This helps users know when they are offline and that changes will sync later.
-   */
-  showOfflineBanner(isOffline) {
-    let banner = document.getElementById("offline-status-banner");
-    if (isOffline) {
-      if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "offline-status-banner";
-        banner.setAttribute("role", "status");
-        banner.setAttribute("aria-live", "polite");
-        banner.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          z-index: 20000;
-          background: #f87171;
-          color: #fff;
-          text-align: center;
-          font-size: 1rem;
-          font-weight: 600;
-          padding: 0.75rem 0.5rem;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-          letter-spacing: 0.02em;
-        `;
-        banner.innerHTML =
-          '<span style="display:inline-block;margin-right:0.5em;vertical-align:middle;">⚠️</span>' +
-          '<span style="vertical-align:middle;">You are offline. Changes will be saved locally and synced when you are back online.</span>';
-        document.body.appendChild(banner);
-      } else {
-        banner.style.display = "block";
-      }
-    } else if (banner) {
-      banner.style.display = "none";
-    }
-  }
-
-  /**
    * Caches frequently accessed DOM elements for performance.
    */
   cacheDOMElements() {
@@ -3294,6 +4219,18 @@ function initializeProfileSetup() {
   if (!window.profileSetupInstance) {
     console.log("🚀 [DEBUG] No ProfileSetup instance found, creating one.");
     window.profileSetupInstance = new ProfileSetup();
+
+    // Attach critical UI listeners immediately so controls respond
+    // even while waiting for user/profile hydration. Safe to call
+    // multiple times due to data-listener-attached guards.
+    try {
+      // Defer to next frame to ensure template nodes exist
+      requestAnimationFrame(() => {
+        try {
+          window.profileSetupInstance.initSocialLinksUI();
+        } catch (_) {}
+      });
+    } catch (_) {}
   }
 
   // Trigger the initialization process.

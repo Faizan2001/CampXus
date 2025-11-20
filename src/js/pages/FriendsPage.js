@@ -1171,8 +1171,6 @@ class FriendsUI {
     }
   }
 
-
-
   /**
    * 📊 Load initial data when page opens
    */
@@ -1627,6 +1625,12 @@ class FriendsUI {
         </div>
         <div class="friend-actions" data-friend-id="${friend.id}">
           <div class="friend-actions-compact">
+            <a class="profile-view-btn" 
+               href="#user?id=${encodeURIComponent(friend.id)}&from=friends"
+               aria-label="View profile"
+               title="View profile">
+              <i class="fas fa-id-badge" aria-hidden="true"></i>
+            </a>
             <button class="drawer-toggle-btn" 
                     data-friend-id="${friend.id}"
                     aria-expanded="false" 
@@ -2335,7 +2339,9 @@ class FriendsUI {
           this.toggleFriendActionsDrawer(firstFriendId, true);
         }
       } catch (e) {
-        logWarn("[Friends Onboarding] Failed to ensure drawer open", { error: e });
+        logWarn("[Friends Onboarding] Failed to ensure drawer open", {
+          error: e,
+        });
       }
     };
 
@@ -2349,7 +2355,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-star",
           title: "Star friends",
-          description: "Star this friend to see their updates on the schedule page.",
+          description:
+            "Star this friend to see their updates on the schedule page.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2365,7 +2372,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-drawer-toggle",
           title: "Privacy & Options",
-          description: "Open this drawer for privacy toggles, and other options.",
+          description:
+            "Open this drawer for privacy toggles, and other options.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2395,7 +2403,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-location",
           title: "Location Privacy",
-          description: "Toggle this button to hide/share your campus presence with this friend.",
+          description:
+            "Toggle this button to hide/share your campus presence with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2413,7 +2422,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-schedule",
           title: "Schedule Privacy",
-          description: "Toggle this button to hide/share your schedule with this friend.",
+          description:
+            "Toggle this button to hide/share your schedule with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2538,7 +2548,9 @@ class FriendsUI {
             if (!e?.detail || e.detail.route !== "home") return;
             // Convert outstanding glow intent into showFriendsBarHint
             if (sessionStorage.getItem(glowKey) === "1") {
-              try { target.classList.remove("onboarding-glow"); } catch (_) {}
+              try {
+                target.classList.remove("onboarding-glow");
+              } catch (_) {}
               sessionStorage.setItem(showHintKey, "1");
               sessionStorage.removeItem(glowKey);
             }
@@ -2657,40 +2669,74 @@ class FriendsUI {
    * ⏳ Show loading state
    */
   showLoadingState() {
-    // TODO: Implement a proper loading skeleton
-    // Reduced logging for cleaner console
+    if (this.elements.friendsList) {
+      // Create 5 skeleton items
+      const skeletons = Array(5)
+        .fill('<div class="skeleton-loader"></div>')
+        .join("");
+      this.elements.friendsList.innerHTML = skeletons;
+    }
   }
 
   /**
    * ✅ Hide loading state
    */
   hideLoadingState() {
-    // TODO: Hide loading skeleton
-    // Reduced logging for cleaner console
+    // The render function will overwrite the content, so we just need to ensure
+    // we don't leave skeletons if the list is empty (handled by renderFriends)
+    if (
+      this.elements.friendsList &&
+      this.elements.friendsList.innerHTML.includes("skeleton-loader")
+    ) {
+      this.elements.friendsList.innerHTML = "";
+    }
   }
 
   /**
    * 🔍 Show search loading state
    */
   showSearchLoading() {
-    // TODO: Implement search loading state
-    // Reduced logging for cleaner console
+    const searchInput = this.elements.searchInput;
+    if (searchInput) {
+      searchInput.parentElement.classList.add("is-loading");
+      // Add a spinner icon if not present
+      let spinner = searchInput.parentElement.querySelector(".fa-spinner");
+      if (!spinner) {
+        const icon = searchInput.parentElement.querySelector(".fa-search");
+        if (icon) {
+          icon.classList.remove("fa-search");
+          icon.classList.add("fa-spinner", "fa-spin");
+        }
+      }
+    }
   }
 
   /**
    * 🔍 Hide search loading state
    */
   hideSearchLoading() {
-    // TODO: Hide search loading state
-    // Reduced logging for cleaner console
+    const searchInput = this.elements.searchInput;
+    if (searchInput) {
+      searchInput.parentElement.classList.remove("is-loading");
+      // Restore search icon
+      const icon = searchInput.parentElement.querySelector(".fa-spinner");
+      if (icon) {
+        icon.classList.remove("fa-spinner", "fa-spin");
+        icon.classList.add("fa-search");
+      }
+    }
   }
 
   /**
    * 💬 Show user feedback messages
    */
   showMessage(message, type = "info") {
-    // TODO: Implement a nicer notification system
-    console.log(`[${type.toUpperCase()}] ${message}`);
+    try {
+      notificationManager.show(message, type);
+    } catch (e) {
+      // Fallback if notificationManager isn't ready
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
   }
 
   /**
@@ -2712,7 +2758,11 @@ class FriendsUI {
       const uid = currentUser?.state?.user?.uid;
       if (!uid) return;
       const cached = uiCache.get(uiCache.keys.friendsList(uid));
-      if (Array.isArray(cached) && cached.length > 0 && this.elements?.friendsList) {
+      if (
+        Array.isArray(cached) &&
+        cached.length > 0 &&
+        this.elements?.friendsList
+      ) {
         console.log("👥 Rendering friends from cache before fresh fetch", {
           count: cached.length,
         });
@@ -4027,6 +4077,9 @@ class FriendsUI {
         handle: friend.handle,
         major: friend.major,
         avatarConfig: friend.avatarConfig,
+        profilePhotoUrl: friend.profilePhotoUrl || null,
+        useAvatar:
+          typeof friend.useAvatar === "boolean" ? friend.useAvatar : undefined,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
       // Optimistic UI: flip immediately
@@ -4120,21 +4173,28 @@ class FriendsUI {
       `⭐ Updating Quick Access star states for ${friends.length} friends`
     );
 
-    // Use Promise.all for parallel execution to improve performance
-    const starPromises = friends.map(async (friend) => {
-      const friendId = friend.id;
+    try {
+      // Always fetch a fresh snapshot of Quick Access friends from FriendsService.
+      // FriendsService will still leverage DataManager's cache under the hood,
+      // but this bypasses any stale in-memory TTL cache inside FriendsService itself.
+      const quickAccessFriends = await friendsManager.getQuickAccessFriends(
+        false
+      );
+      const starredFriendIds = new Set(
+        (quickAccessFriends || []).map(
+          (friend) => friend.friendId || friend.userId
+        )
+      );
 
-      try {
-        // Check if friend is in Quick Access
-        const isStarred = await friendsManager.isInQuickAccess(friendId);
+      friends.forEach((friend) => {
+        const friendId = friend.id;
+        const isStarred = starredFriendIds.has(friendId);
 
-        // Find the star button for this friend
         const starButton = this.elements.friendsList.querySelector(
           `.quick-access-star[data-friend-id="${friendId}"]`
         );
 
         if (starButton) {
-          // Update the star button state
           this.updateStarButtonState(starButton, isStarred);
           console.log(
             `⭐ Updated star state for @${friend.handle}: ${
@@ -4144,17 +4204,12 @@ class FriendsUI {
         } else {
           console.warn(`⚠️ Star button not found for friend ${friendId}`);
         }
-      } catch (error) {
-        console.error(
-          `❌ Error updating star state for @${friend.handle}:`,
-          error
-        );
-      }
-    });
+      });
 
-    // Wait for all star updates to complete
-    await Promise.all(starPromises);
-    console.log(`✅ Quick Access star states updated for all friends`);
+      console.log(`✅ Quick Access star states updated for all friends`);
+    } catch (error) {
+      console.error("❌ Error updating all Quick Access star states:", error);
+    }
   }
 
   /**
@@ -5102,7 +5157,6 @@ class FriendsUI {
       logError("❌ Error during Friends UI cleanup:", { error });
     }
   }
-
 }
 
 // 🌟 Export a single instance

@@ -15,6 +15,8 @@
     "firebase:serve": "firebase serve",
     "firebase:deploy": "firebase deploy",
     "firebase:emulators": "firebase emulators:start",
+    "firebase:emulators:export": "firebase emulators:export ./.emulator-data",
+    "firebase:emulators:persist": "firebase emulators:start --import=./.emulator-data --export-on-exit=./.emulator-data",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "security:check": "npx audit-ci",

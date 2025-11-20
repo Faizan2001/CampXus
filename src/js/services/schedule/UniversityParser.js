@@ -934,82 +934,29 @@ export class UniversityParser {
     // Prefer extracting time from the current line first, then fallback to combined context
     const timeSearchTexts = [line, combinedText];
     for (const searchText of timeSearchTexts) {
-      // 1) Try day-coded full time first (e.g., MW:13:00-14:30)
-      let m = searchText.match(dayTimeRangeRegex);
-      if (m) {
-        detectedDayCode = m[1].toUpperCase();
-        timeInfo = `${m[2]}-${m[3]}`;
-        const matchIndex = searchText.indexOf(m[0]);
-        timeContext = searchText.substring(
-          Math.max(0, matchIndex - 20),
-          Math.min(searchText.length, matchIndex + m[0].length + 20)
-        );
-        console.log(
-          `⏰ Found day-coded time: "${m[0]}" → day=${detectedDayCode}, time="${timeInfo}"`
-        );
-        break;
-      }
-
-      // 2) Try generic full time range next
-      m = searchText.match(/(\d{1,2}:\d{2}-\d{1,2}:\d{2})/);
-      if (m) {
-        timeInfo = m[1];
-        const matchIndex = searchText.indexOf(m[0]);
-        timeContext = searchText.substring(
-          Math.max(0, matchIndex - 20),
-          Math.min(searchText.length, matchIndex + m[0].length + 20)
-        );
-        // Try to detect a day code immediately preceding the time
-        const dcWindow = searchText.substring(
-          Math.max(0, matchIndex - 10),
-          matchIndex
-        );
-        const dcMatch = dcWindow.match(
-          new RegExp(`\\b(${dayKeys})\\s*:?[\\s]*$`, "i")
-        );
-        if (dcMatch) {
-          detectedDayCode = dcMatch[1].toUpperCase();
-        }
-        console.log(
-          `⏰ Found time pattern: "${m[0]}" → extracted: "${timeInfo}"`
-        );
-        console.log(`📍 Time context: "${timeContext}"`);
-        break;
-      }
-
-      // 3) Try day-coded partial start time (e.g., MW:13:00- or MW:13:0)
-      m = searchText.match(partialDayTimeRegex);
-      if (m) {
-        detectedDayCode = m[1].toUpperCase();
-        timeInfo = m[2];
-        const matchIndex = searchText.indexOf(m[0]);
-        timeContext = searchText.substring(
-          Math.max(0, matchIndex - 20),
-          Math.min(searchText.length, matchIndex + m[0].length + 20)
-        );
-        console.log(
-          `⏰ Found partial day-coded time: "${m[0]}" → day=${detectedDayCode}, start="${timeInfo}"`
-        );
-        break;
-      }
-
-      // 4) Other compact patterns and fragments
-      const fallbackPatterns = [
-        /\b(\d{1,2}:\d{1,2})\b/, // 14:40
-        /\b(\d{3,4})\b/, // 1440, 1830
-      ];
-      for (const pattern of fallbackPatterns) {
-        const tm = searchText.match(pattern);
-        if (tm) {
-          timeInfo = tm[1];
-          const matchIndex = searchText.indexOf(tm[0]);
+      for (const pattern of timePatterns) {
+        const timeMatch = searchText.match(pattern);
+        if (timeMatch) {
+          timeInfo = timeMatch[1];
+          // Capture surrounding context for better processing
+          const matchIndex = searchText.indexOf(timeMatch[0]);
           timeContext = searchText.substring(
             Math.max(0, matchIndex - 20),
-            Math.min(searchText.length, matchIndex + tm[0].length + 20)
+            matchIndex + timeMatch[0].length + 20
           );
+          // Try to detect a day code near the time (supports optional colon)
+          const dcWindow = searchText.substring(
+            Math.max(0, matchIndex - 10),
+            matchIndex
+          );
+          const dcMatch = dcWindow.match(/\b(MWF|MW|TR|ST|AR|S|M|T|W|A|F|R)\s*:?[\s]*$/i);
+          if (dcMatch) {
+            detectedDayCode = dcMatch[1].toUpperCase();
+          }
           console.log(
-            `⏰ Found fallback time pattern: "${tm[0]}" → extracted: "${timeInfo}"`
+            `⏰ Found time pattern: "${timeMatch[0]}" → extracted: "${timeInfo}"`
           );
+          console.log(`📍 Time context: "${timeContext}"`);
           break;
         }
       }
@@ -1325,8 +1272,32 @@ export class UniversityParser {
       .trim();
 
     console.log("🔧 Cleaning time string:", timeStr, "→", cleanTimeStr);
+    // Prefer exact full-range matches before any mobile cut-off inference
+    // Pattern 1: Perfect format "18:30-21:30"
+    let match = cleanTimeStr.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
+    if (match) {
+      const [, hour1, min1, hour2, min2] = match;
+      return {
+        startTime: `${hour1.padStart(2, "0")}:${min1}`,
+        endTime: `${hour2.padStart(2, "0")}:${min2}`,
+        inferred: false,
+      };
+    }
 
-    // Check for mobile-responsive cut-off pattern first (highest priority)
+    // Pattern 2: "1830-2130" (no colons)
+    match = cleanTimeStr.match(/(\d{3,4})-(\d{3,4})/);
+    if (match) {
+      let [, time1, time2] = match;
+      time1 = time1.padStart(4, "0");
+      time2 = time2.padStart(4, "0");
+      return {
+        startTime: `${time1.substring(0, 2)}:${time1.substring(2)}`,
+        endTime: `${time2.substring(0, 2)}:${time2.substring(2)}`,
+        inferred: false,
+      };
+    }
+
+    // Check for mobile-responsive cut-off pattern only if no full range was detected
     if (
       cleanTimeStr.includes("CUTOFF") ||
       cleanTimeStr.match(/(\d{1,2}:?\d{0,2})-?$/)
@@ -1356,33 +1327,6 @@ export class UniversityParser {
           };
         }
       }
-    }
-
-    // Try various patterns to extract times (existing logic)
-    let match;
-
-    // Pattern 1: Perfect format "18:30-21:30"
-    match = cleanTimeStr.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
-    if (match) {
-      const [, hour1, min1, hour2, min2] = match;
-      return {
-        startTime: `${hour1.padStart(2, "0")}:${min1}`,
-        endTime: `${hour2.padStart(2, "0")}:${min2}`,
-        inferred: false,
-      };
-    }
-
-    // Pattern 2: "1830-2130" (no colons)
-    match = cleanTimeStr.match(/(\d{3,4})-(\d{3,4})/);
-    if (match) {
-      let [, time1, time2] = match;
-      time1 = time1.padStart(4, "0");
-      time2 = time2.padStart(4, "0");
-      return {
-        startTime: `${time1.substring(0, 2)}:${time1.substring(2)}`,
-        endTime: `${time2.substring(0, 2)}:${time2.substring(2)}`,
-        inferred: false,
-      };
     }
 
     // Pattern 3: Corrupted format like "18302130" (all smashed together)

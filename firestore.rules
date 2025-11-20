@@ -6,6 +6,60 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
+    // --- Class Spaces (dev testing + read access) ---
+    // Reads: allow authenticated users (spaces are university-visible in app logic)
+    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
+    match /classSpaces/{spaceId} {
+      allow read: if request.auth != null;
+      // Allow client writes ONLY for dev test spaces you own
+      // Create: must be a devTest doc owned by caller
+      allow create: if request.auth != null &&
+        request.resource.data.devTest == true &&
+        request.resource.data.devOwnerUid == request.auth.uid;
+      // Update: only permitted on existing devTest docs owned by caller (prevents flipping prod docs to dev)
+      allow update: if request.auth != null &&
+        resource.data.devTest == true &&
+        resource.data.devOwnerUid == request.auth.uid &&
+        request.resource.data.devTest == true &&
+        request.resource.data.devOwnerUid == resource.data.devOwnerUid;
+      allow delete: if request.auth != null &&
+        resource.data.devTest == true &&
+        resource.data.devOwnerUid == request.auth.uid;
+
+      // Messages subcollection: client reads only; writes via Cloud Function (sendGroupMessage)
+      match /messages/{msgId} {
+        allow read: if request.auth != null;
+        // Dev-only: allow creating messages under your own devTest spaces
+        allow create: if request.auth != null &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devTest == true &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devOwnerUid == request.auth.uid
+          || (
+            // Direct write path: allow members to create messages with strict validation
+            request.auth != null &&
+            request.auth.uid == request.resource.data.senderId &&
+            request.auth.uid in get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds &&
+            request.resource.data.content is string &&
+            request.resource.data.content.size() > 0 &&
+            request.resource.data.content.size() <= 500 &&
+            request.resource.data.createdAt == request.time &&
+            request.resource.data.edited == false &&
+            request.resource.data.deleted == false &&
+            // Prevent client from supplying denormalized or server-controlled fields
+            !('senderInfo' in request.resource.data) &&
+            !('messageId' in request.resource.data)
+          );
+        // Only the original sender may mark edited=true later (soft edits), if you later enable it
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // Members subcollection (if used): client reads only; membership managed by server/scheduler
+      match /members/{memberId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
     function devCreationEnabled() {
       // Toggle stored on document: admin/config
       return exists(/databases/$(database)/documents/admin/config) &&
@@ -76,25 +130,30 @@ service cloud.firestore {
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {
-      // Allow read for both individual documents and collection queries
-      // 1. Individual document reads: check document ID pattern (works for deleted docs)
-      // 2. Collection queries: check if user is in the friendship
-      allow read: if request.auth != null && (
-        // Individual document access by ID pattern
+      // Read access: only participants in the friendship can read
+      // This is enforced at the document level; client queries must include
+      // a filter like where("users", "array-contains", request.auth.uid)
+      // so that only documents containing the caller are ever returned.
+      allow read: if request.auth != null &&
+        (
+          request.auth.uid in resource.data.users ||
+          resource.data.user1Id == request.auth.uid ||
+          resource.data.user2Id == request.auth.uid
+        );
+
+      // Delete requires friendship ID to contain requester's UID  
+      allow delete: if request.auth != null &&
         (friendshipId.split('_')[0] == request.auth.uid || 
-         friendshipId.split('_')[1] == request.auth.uid) ||
-        // Collection query access (for documents that exist)
-        (resource != null && request.auth.uid in resource.data.users)
-      );
-      
-      // Delete requires document to exist, so keep existing check
-      allow delete: if request.auth != null && request.auth.uid in resource.data.users;
-      
-      // Create/update require verified OR dev email
+         friendshipId.split('_')[1] == request.auth.uid);
+
+      // Create/update require verified OR dev email and caller must be a participant
       allow create: if request.auth != null &&
+        request.resource.data.users is list &&
         request.auth.uid in request.resource.data.users &&
         (isVerified() || isDevEmail());
       allow update: if request.auth != null &&
+        resource != null &&
+        resource.data.users is list &&
         request.auth.uid in resource.data.users &&
         (isVerified() || isDevEmail()) &&
         (validateBilateralPrivacyUpdate(request, resource) || validateCachedInfoUpdate(request, resource));
@@ -145,6 +204,17 @@ service cloud.firestore {
     match /user_deletion_requests/{requestId} {
         allow create: if request.auth.uid == request.resource.data.userId;
         allow read, update, delete: if false;
+    }
+
+    // --- Moderation Reports (/moderationReports) ---
+    // Users can submit reports for review by moderators/admins
+    match /moderationReports/{reportId} {
+      // Only authenticated users can create reports (they are reporting something)
+      allow create: if request.auth != null &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.createdAt == request.time;
+      // Reads/updates/deletes reserved for admin panel (not client-accessible)
+      allow read, update, delete: if false;
     }
 
     // --- Helper Functions ---

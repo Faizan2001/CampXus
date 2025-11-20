@@ -123,9 +123,13 @@ export class LocationSharingToggle {
               role="switch"
               aria-checked="${globalEnabled}"
               aria-label="Toggle campus presence sharing with friends"
-              ${needsPermission ? 'data-permission-missing="true"' : ''}
+              ${needsPermission ? 'data-permission-missing="true"' : ""}
               data-permission-state="${permissionState}"
-              ${needsPermission ? 'title="Location permission required to resume sharing"' : ''}
+              ${
+                needsPermission
+                  ? 'title="Location permission required to resume sharing"'
+                  : ""
+              }
               data-action="toggle-global"
               ${this.isLoading ? "disabled" : ""}>
         <span class="location-toggle-text location-toggle-off">OFF</span>
@@ -322,8 +326,8 @@ export class LocationSharingToggle {
           const bar =
             getHorizontalFriendsBarInstance &&
             getHorizontalFriendsBarInstance();
-          if (bar && typeof bar.updateUserPresenceDot === "function") {
-            bar.updateUserPresenceDot({
+          if (bar && typeof bar.updateUserPresencePill === "function") {
+            bar.updateUserPresencePill({
               locationSharingEnabled: newEnabled,
               lastKnownLocation: null,
               lastActive: null,
@@ -500,8 +504,9 @@ export class LocationSharingToggle {
       if (this.options.mode === "global") {
         const permissionMissing = !!this.currentState.permissionMissing;
         const permissionState = permissionMissing ? "missing" : "granted";
-        const needsPermission =
-          !!(this.currentState.globalEnabled && permissionMissing);
+        const needsPermission = !!(
+          this.currentState.globalEnabled && permissionMissing
+        );
 
         toggle.setAttribute("data-permission-state", permissionState);
 
