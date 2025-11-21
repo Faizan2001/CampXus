@@ -178,6 +178,17 @@ async function initializeSPA() {
 
   spaRouter = new SPARouter();
 
+  // Keep layout safe-area variables in sync with nav visibility
+  const syncChrome = () => {
+    try {
+      spaRouter?.updateLayoutChromeState?.();
+    } catch (_) {}
+  };
+  syncChrome();
+  window.addEventListener("resize", syncChrome);
+  window.addEventListener("orientationchange", syncChrome);
+  window.addEventListener("layoutChromeChange", syncChrome);
+
   // 🚀 PROFILE HYDRATION (stale-while-revalidate) BEFORE first page paint
   try {
     // First attempt: optimistic (before auth resolved) for instant UI fill

@@ -178,6 +178,7 @@ export class GroupDetailPage {
 
     // Immersive mode: hide navs
     document.body.classList.add("immersive-chat-mode");
+    window.dispatchEvent(new Event("layoutChromeChange"));
 
     // Add back button
     const backBtn = document.createElement("button");
@@ -670,6 +671,7 @@ export class GroupDetailPage {
 
   destroy() {
     document.body.classList.remove("immersive-chat-mode");
+    window.dispatchEvent(new Event("layoutChromeChange"));
     if (this.unsub) {
       this.unsub();
       this.unsub = null;
