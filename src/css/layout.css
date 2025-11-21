@@ -20,16 +20,18 @@
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
   /* Extra visual height of bottom nav (top padding + border). Ensures content stays above nav in iOS PWA. */
-  --mobile-bottom-nav-top-gap: 0px;
+  --mobile-bottom-nav-top-gap: 6px;
   /* iOS safe-area top inset (0 on devices without a notch) */
   --safe-top: env(safe-area-inset-top, 0px);
-  --main-content-available-height: calc(
-    100dvh - var(--nav-height) - env(safe-area-inset-bottom, 0px)
+  /* Unified layout offsets (updated via body classes in JS) */
+  --top-offset: var(--nav-height);
+  --bottom-offset: env(safe-area-inset-bottom, 0px);
+  --content-available-height: calc(
+    100dvh - var(--top-offset) - var(--bottom-offset)
   );
-  --main-content-available-height-with-bottom-nav: calc(
-    100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-      var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom, 0px)
-  );
+  /* Legacy aliases kept for existing page styles */
+  --main-content-available-height: var(--content-available-height);
+  --main-content-available-height-with-bottom-nav: var(--content-available-height);
 }
 
 /* ===== UNIVERSAL THEME VARIABLES (DARK DEFAULT) ===== */
@@ -58,6 +60,23 @@ body {
   color: var(--color-text);
 }
 
+/* Toggle layout offsets via body classes (set in JS) */
+body.has-bottom-nav {
+  --bottom-offset: calc(
+    var(--mobile-bottom-nav-height, 60px) +
+      var(--mobile-bottom-nav-top-gap, 8px) +
+      env(safe-area-inset-bottom, 0px)
+  );
+}
+body.no-top-nav {
+  --top-offset: var(--safe-top);
+}
+body.immersive-chat-mode,
+body.immersive-profile-mode {
+  --top-offset: var(--safe-top);
+  --bottom-offset: env(safe-area-inset-bottom, 0px);
+}
+
 /* ===== APP CONTAINER ===== */
 .app-container {
   /* Let content define height; avoid forcing fixed viewport height on iOS */
@@ -71,7 +90,7 @@ body {
   width: 100%;
   overflow-x: hidden;
   /* Push content below the fixed top-nav (safe area is handled inside the nav via safe-spacer) */
-  padding-top: var(--nav-height);
+  padding-top: var(--top-offset);
 }
 
 /* iOS PWA Standalone Mode - Prevent clipping and respect safe areas */
@@ -614,11 +633,11 @@ body:not(.dark-mode) .nav-link:hover {
   background: var(--main-content-bg);
   position: relative;
   /* Dynamic height that adapts to bottom nav visibility */
-  height: var(--main-content-available-height);
-  max-height: var(--main-content-available-height);
-  min-height: var(--main-content-available-height);
-  /* Reduced padding - bottom nav handles safe area */
-  padding-bottom: 0.75rem;
+  height: var(--content-available-height);
+  max-height: var(--content-available-height);
+  min-height: var(--content-available-height);
+  /* Keep content off the bottom chrome/safe area */
+  padding-bottom: var(--bottom-offset);
 }
 
 /* Prevent default focus outline around the main content container */
@@ -628,12 +647,6 @@ body:not(.dark-mode) .nav-link:hover {
   box-shadow: none !important;
 }
 
-/* When bottom navigation is visible - use reduced height */
-body.has-bottom-nav .main-content {
-  height: var(--main-content-available-height-with-bottom-nav);
-  max-height: var(--main-content-available-height-with-bottom-nav);
-  min-height: var(--main-content-available-height-with-bottom-nav);
-}
 .main-content::before {
   content: "";
   position: absolute;
@@ -660,6 +673,8 @@ body.has-bottom-nav .main-content {
   overflow-x: hidden;
   /* Ensure content grid fills available space but allows growth */
   min-height: 100%;
+  /* Keep cards clear of bottom chrome/safe area without extra gaps */
+  padding-bottom: var(--bottom-offset);
 }
 
 /* General page-specific overrides - moved home-specific styles to schedule.css */
@@ -992,7 +1007,7 @@ body:not(.dark-mode) .user-dropdown {
   position: fixed;
   left: 0;
   right: 0;
-  /* Anchor to bottom (avoid layout jump while env() resolves) */
+  /* Anchor to absolute bottom; padding handles safe area */
   bottom: 0;
   z-index: 1000;
   display: none;
@@ -1003,10 +1018,9 @@ body:not(.dark-mode) .user-dropdown {
   padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
   padding-top: 6px;
-  /* Include the iOS home-indicator inset inside the bar */
-  /* Small inner gap; height includes the safe-area inset to avoid a gap */
-  padding-bottom: 8px;
-  height: calc(var(--bn-h) + env(safe-area-inset-bottom, 0px));
+  /* Seat content inside the nav; absorb safe area inside */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: calc(var(--bn-h) + var(--mobile-bottom-nav-top-gap, 8px));
   background: var(--color-nav);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1044,6 +1058,10 @@ body:not(.dark-mode) .user-dropdown {
   line-height: 24px;
   margin-top: 2px; /* bring icon slightly closer to label */
   transition: transform 0.18s ease;
+  /* Default to regular weight; active will switch to solid */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 400;
+  font-style: normal;
 }
 .mobile-nav-label {
   font-size: 11px;
@@ -1073,6 +1091,9 @@ body:not(.dark-mode) .user-dropdown {
 .mobile-nav-item.active i,
 .mobile-nav-item[data-current="true"] i {
   transform: scale(1.08);
+  /* Solid weight on active */
+  font-weight: 900;
+  font-family: "Font Awesome 6 Free";
 }
 .mobile-nav-item.active .mobile-nav-label,
 .mobile-nav-item[data-current="true"] .mobile-nav-label {
@@ -1332,13 +1353,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (max-width: 480px) {
   :root {
     --nav-height: 56px;
-    --main-content-available-height: calc(
-      100dvh - var(--nav-height) - env(safe-area-inset-bottom)
+    --top-offset: var(--nav-height);
+    --content-available-height: calc(
+      100dvh - var(--top-offset) - var(--bottom-offset)
     );
-    --main-content-available-height-with-bottom-nav: calc(
-      100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-        var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom)
-    );
+    --main-content-available-height: var(--content-available-height);
+    --main-content-available-height-with-bottom-nav: var(--content-available-height);
   }
 
   .top-nav .top-nav-inner {
@@ -1392,20 +1412,16 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     font-size: 0.65rem !important;
   }
   main.main-content {
-    padding: 0.75rem !important;
+    /* Preserve bottom offset so content stays above bottom nav */
+    padding: 0.75rem 0.75rem var(--bottom-offset) !important;
   }
 
-  /* Mobile: always assume bottom nav is present due to display: grid in mobile-bottom-nav */
   .main-content {
     /* Use dynamic height variables that account for bottom nav */
     height: auto;
-    min-height: var(--main-content-available-height-with-bottom-nav);
-    /* Reserve space equal to bottom nav height + safe-area */
-    padding-bottom: calc(
-      var(--mobile-bottom-nav-height, 60px) +
-      var(--mobile-bottom-nav-top-gap, 8px) +
-      env(safe-area-inset-bottom, 0px)
-    );
+    min-height: var(--content-available-height);
+    max-height: var(--content-available-height);
+    padding-bottom: var(--bottom-offset);
   }
 
   .content-grid {
@@ -1590,14 +1606,14 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 
   /* Mobile bottom nav present - adjust main content for all pages */
   .main-content {
-    height: var(--main-content-available-height-with-bottom-nav);
-    max-height: var(--main-content-available-height-with-bottom-nav);
-    min-height: var(--main-content-available-height-with-bottom-nav);
+    height: var(--content-available-height);
+    max-height: var(--content-available-height);
+    min-height: var(--content-available-height);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     /* small extra bottom padding to keep last items comfortably above the nav */
-    padding-bottom: 16px;
+    padding-bottom: calc(12px + var(--bottom-offset));
   }
 
   /* Exception: friends page needs the main scroller to remain scrollable on iOS */

@@ -1482,28 +1482,68 @@ class SPARouter {
     // New logic: ensure the visual active state is applied to primary nav links (.nav-link),
     // not the logo or dropdown items that also have data-spa-route attributes.
 
-    // 1. Clear existing active classes only from top-level nav links & any stray elements
-    document
-      .querySelectorAll(".nav-link.active")
-      .forEach((el) => el.classList.remove("active"));
+    const setIconState = (el, route, isActive) => {
+      const icon = el?.querySelector?.("i");
+      if (!icon) return;
+      const iconMap = {
+        home: {
+          active: { add: ["fa-solid", "fa-calendar-minus"], remove: ["fa-regular"] },
+          inactive: { add: ["fa-regular", "fa-calendar-minus"], remove: ["fa-solid"] },
+        },
+        groups: {
+          active: {
+            add: ["fa-solid", "fa-handshake"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-handshake"],
+            remove: ["fa-solid"],
+          },
+        },
+        friends: {
+          active: { add: ["fa-solid", "fa-users"], remove: ["fa-regular", "fa-user"] },
+          inactive: { add: ["fa-regular", "fa-user"], remove: ["fa-solid", "fa-users"] },
+        },
+        notifications: {
+          active: { add: ["fa-solid", "fa-bell"], remove: ["fa-regular"] },
+          inactive: { add: ["fa-regular", "fa-bell"], remove: ["fa-solid"] },
+        },
+      };
+      const state = iconMap[route];
+      const target = state ? (isActive ? state.active : state.inactive) : null;
+      const remove = target?.remove || [];
+      const add = target?.add || [];
+      remove.forEach((cls) => icon.classList.remove(cls));
+      add.forEach((cls) => icon.classList.add(cls));
+      // Fallback: if no mapping, just flip solid/regular where present
+      if (!state) {
+        if (icon.classList.contains("fa-solid") || icon.classList.contains("fa-regular")) {
+          icon.classList.toggle("fa-solid", !!isActive);
+          icon.classList.toggle("fa-regular", !isActive);
+        }
+      }
+    };
+
+    // 1. Clear existing active classes on any SPA route element (top nav + mobile nav)
+    document.querySelectorAll("[data-spa-route].active").forEach((el) => {
+      el.classList.remove("active");
+      setIconState(el, el?.dataset?.spaRoute, false);
+    });
     // Also remove from logo if previously applied (legacy behavior)
     const brand = document.querySelector(".logo [data-spa-route].active");
     if (brand) brand.classList.remove("active");
 
-    // 2. Find matching nav links for the active route
-    const matchingNavLinks = document.querySelectorAll(
-      `.nav-link[data-spa-route="${activeRoute}"]`
-    );
-    if (matchingNavLinks.length > 0) {
-      matchingNavLinks.forEach((el) => el.classList.add("active"));
-      return;
-    }
-
-    // 3. Fallback: if no .nav-link found (e.g., future minimal route), apply to first element with the route
-    const fallback = document.querySelector(
+    // 2. Activate all elements that match the current route (top + mobile)
+    const matchingRouteEls = document.querySelectorAll(
       `[data-spa-route="${activeRoute}"]`
     );
-    if (fallback) fallback.classList.add("active");
+    if (matchingRouteEls.length > 0) {
+      matchingRouteEls.forEach((el) => {
+        el.classList.add("active");
+        setIconState(el, el?.dataset?.spaRoute, true);
+      });
+      return;
+    }
   }
 
   /**
@@ -1546,7 +1586,38 @@ class SPARouter {
       }
     }
 
+    // Sync layout offsets (safe areas + nav chrome) for current route
+    this.updateLayoutChromeState(route);
+
     // Let Menu.js control auth-dependent body class; CSS handles About visibility
+  }
+
+  /**
+   * Update body flags that drive safe-area offsets and content height.
+   * Keeps content sized between top/bottom navs on mobile and collapses correctly when navs hide.
+   */
+  updateLayoutChromeState(route = this.currentPage) {
+    const body = document.body;
+    if (!body) return;
+
+    const isLoggedIn = currentUser.isLoggedIn() && currentUser.user;
+    const mobileBottomNav = document.querySelector(".mobile-bottom-nav");
+    const isMobileWidth = window.innerWidth <= 768;
+    const isImmersive =
+      body.classList.contains("immersive-chat-mode") ||
+      body.classList.contains("immersive-profile-mode");
+
+    const topNavVisible = !isImmersive;
+    const shouldHideBottomNav =
+      !isLoggedIn || route === "landing" || isImmersive;
+    const showBottomNav = isMobileWidth && !shouldHideBottomNav;
+
+    body.classList.toggle("has-bottom-nav", showBottomNav);
+    body.classList.toggle("no-top-nav", !topNavVisible);
+
+    if (mobileBottomNav) {
+      mobileBottomNav.style.display = showBottomNav ? "" : "none";
+    }
   }
 
   /**

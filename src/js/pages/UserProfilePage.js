@@ -127,6 +127,7 @@ class UserProfilePage {
       // Apply immersive mode IMMEDIATELY to prevent layout jump
       // This must happen before any DOM queries or rendering
       document.body.classList.add("immersive-profile-mode");
+      window.dispatchEvent(new Event("layoutChromeChange"));
     }
 
     // Parse user ID from the stored hash (passed from event)
@@ -996,6 +997,7 @@ class UserProfilePage {
 
   destroy() {
     document.body.classList.remove("immersive-profile-mode");
+    window.dispatchEvent(new Event("layoutChromeChange"));
     if (this.dom.scrollHint) {
       this.dom.scrollHint.remove();
     }

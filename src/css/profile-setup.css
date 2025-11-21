@@ -31,12 +31,21 @@
 /* Main content area - use unified sizing system */
 body.page-profile .main-content {
   padding: 0.5rem 0.4rem !important;
+  /* Keep the form clear of the bottom nav/home indicator */
+  padding-bottom: var(--bottom-offset) !important;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 auto;
   display: flex !important; /* Use flex for proper hierarchy */
   flex-direction: column !important;
   /* Remove hardcoded sizing - use unified system from layout.css */
+}
+
+/* Ensure mobile override keeps bottom offset intact */
+@media (max-width: 768px) {
+  body.page-profile main.main-content {
+    padding: 0.5rem 0.4rem var(--bottom-offset) !important;
+  }
 }
 
 /* Grid host - use flex layout for proper scrolling */
@@ -48,6 +57,8 @@ body.page-profile .content-grid {
   width: 100% !important;
   max-width: 100% !important;
   padding: 0 !important;
+  /* Leave breathing room above the bottom nav on mobile */
+  padding-bottom: var(--bottom-offset) !important;
   gap: 0 !important;
 }
 
