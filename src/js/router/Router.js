@@ -171,6 +171,12 @@ class SPARouter {
     this._suppressAuthRedirects = false;
     // Prevent re-entrant profile gate redirects
     this._profileGateInProgress = false;
+    // Allow SPA init to skip the first full-screen loading overlay
+    this._skipNextLoadingOverlay = false;
+    // Short auth grace window so returning users with a cached
+    // session hint can see their schedule immediately while
+    // Firebase Auth finishes hydrating in the background.
+    this._initialAuthGraceUntil = Date.now() + 5000;
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -672,33 +678,10 @@ class SPARouter {
    * 🎯 Learning: When someone visits a direct link, show the right page
    */
   loadInitialPage() {
-    // loadInitialPage called
-
     // Parse the current URL to determine which page to load
     const hash = window.location.hash;
-    let route = this._parseRouteName(hash);
-
-    // 🛡️ Authentication-aware routing: Check if user is logged in
-    const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
-
-    if (!isAuthenticated) {
-      // Default conservative behavior (kept for legacy direct calls): go to landing
-      route = "landing";
-      if (hash && this.routes[hash]?.requiresAuth) {
-        window.history.replaceState(null, "", "#landing");
-      }
-    } else {
-      // If authenticated but trying to access landing, redirect to home
-      if (route === "landing") {
-        route = "home";
-        window.history.replaceState(null, "", "#home");
-      }
-    }
-
-    // Initial page load
-
-    // Load the determined route without updating history (since we're loading from URL)
-    // Navigating for initial load
+    const route = this._parseRouteName(hash);
+    // Let navigateTo handle all auth gating and redirects.
     this.navigateTo(route, false);
   }
 
@@ -722,15 +705,8 @@ class SPARouter {
       ? Math.max(timeoutMs, 3500)
       : timeoutMs;
 
-    const firebaseUser = authManager?.auth?.currentUser;
-    // Fast path: if the requested route requires auth and we don't have a Firebase user yet,
-    // immediately pivot to landing (without mutating the URL). This avoids multi-second redirect
-    // delays Lighthouse flags while keeping the original hash intact.
-    if (desiredConfig?.requiresAuth && !firebaseUser) {
-      return this.navigateTo("landing", false);
-    }
-
     // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
+    const firebaseUser = authManager?.auth?.currentUser;
     const alreadyAuthed = !!firebaseUser;
     if (desiredRoute === "landing") {
       // If we already know user is authenticated, go straight to home
@@ -768,7 +744,9 @@ class SPARouter {
 
     // Route requires auth but Firebase auth user is not yet known — avoid flashing landing and wait briefly
     this._suppressAuthRedirects = true;
-    this.showLoading();
+    if (!hasSessionHint) {
+      this.showLoading();
+    }
     try {
       if (authReadyPromise && typeof authReadyPromise.then === "function") {
         await Promise.race([
@@ -789,9 +767,12 @@ class SPARouter {
           ]);
         } catch (_) {}
       }
-      const target = !!authManager?.auth?.currentUser
-        ? desiredRoute
-        : "landing";
+      const authedUser = authManager?.auth?.currentUser;
+      // With a strong session hint (cached profile / user store), prefer
+      // rendering the intended protected route instead of bouncing through
+      // the landing page, even if Firebase auth has not fully hydrated yet.
+      const target =
+        authedUser || hasSessionHint ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -877,11 +858,33 @@ class SPARouter {
         isAuthenticated = !!authManager?.auth?.currentUser;
       }
 
+      // During the very first navigation after app startup, allow a brief
+      // optimistic window where a strong session hint (cached profile/user)
+      // can unlock protected routes even if Firebase hasn't populated
+      // auth.currentUser yet. This lets returning users see their schedule
+      // immediately from local cache while auth/network hydrate in the background.
       if (!isAuthenticated) {
-        logManager.warn(
+        const hasSessionHint =
+          !!authManager?.auth?.currentUser ||
+          !!profileCache.peek() ||
+          currentUser.isLoggedIn();
+        const withinInitialGrace =
+          typeof this._initialAuthGraceUntil === "number" &&
+          Date.now() <= this._initialAuthGraceUntil;
+
+        if (hasSessionHint && withinInitialGrace) {
+          logManager.auth.login(
+            `🕒 Initial auth grace: allowing optimistic access to protected route: ${route}`
+          );
+          isAuthenticated = true;
+        }
+      }
+
+      if (!isAuthenticated) {
+        logManager.auth.error(
           `🔒 Access denied to route: ${route}. Redirecting to landing page.`
         );
-        logManager.debug("🔍 Debug auth state:", {
+        logManager.dev.debug("🔍 Debug auth state:", {
           hasFirebaseUser: !!authManager?.auth?.currentUser,
           hasUserStore: !!currentUser.user,
           isLoggedInStore: currentUser.isLoggedIn(),
@@ -1659,6 +1662,10 @@ class SPARouter {
    * 🎯 Learning: Smooth transitions make the app feel more professional
    */
   showLoading() {
+    if (this._skipNextLoadingOverlay) {
+      this._skipNextLoadingOverlay = false;
+      return;
+    }
     if (this.loadingIndicator) {
       this.loadingIndicator.style.display = "block";
       // Small delay to ensure display is set before adding animation class
