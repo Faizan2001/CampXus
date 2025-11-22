@@ -13,11 +13,27 @@
 
 import { authManager } from "../services/auth/AuthService.js"; // 🎯 NEW: Import authManager for authentication checks
 import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import currentUser for better auth state checking
-import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
 import { notificationManager } from "../services/realtime/NotificationService.js"; // 🎯 NEW: Import notificationManager
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 import { profileCache } from "../cache/profileCache.js"; // 🚀 Session hint for faster initial route
+
+// Lazy DataService loader so Firestore bundle is only pulled in when needed
+let routerDataManagerPromise = null;
+async function getRouterDataManager() {
+  if (!routerDataManagerPromise) {
+    routerDataManagerPromise = import("../services/data/DataService.js")
+      .then((mod) => mod.dataManager)
+      .catch((error) => {
+        logManager.system.warn(
+          "Router: Failed to load DataService (non-critical):",
+          error
+        );
+        return null;
+      });
+  }
+  return routerDataManagerPromise;
+}
 
 /**
  * Helper function to detect if fetched content is a full HTML document
@@ -706,8 +722,15 @@ class SPARouter {
       ? Math.max(timeoutMs, 3500)
       : timeoutMs;
 
-    // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
     const firebaseUser = authManager?.auth?.currentUser;
+    // Fast path: if the requested route requires auth and we don't have a Firebase user yet,
+    // immediately pivot to landing (without mutating the URL). This avoids multi-second redirect
+    // delays Lighthouse flags while keeping the original hash intact.
+    if (desiredConfig?.requiresAuth && !firebaseUser) {
+      return this.navigateTo("landing", false);
+    }
+
+    // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
     const alreadyAuthed = !!firebaseUser;
     if (desiredRoute === "landing") {
       // If we already know user is authenticated, go straight to home
@@ -941,10 +964,13 @@ class SPARouter {
       (route === "home" || route === "friends")
     ) {
       try {
-        await dataManager.updateUserLastActive(currentUser.user.uid);
-        logManager.system.info(
-          `⚡ Immediate lastActive update on navigation to ${route}`
-        );
+        const dm = await getRouterDataManager();
+        if (dm && currentUser.user?.uid) {
+          await dm.updateUserLastActive(currentUser.user.uid);
+          logManager.system.info(
+            `⚡ Immediate lastActive update on navigation to ${route}`
+          );
+        }
       } catch (lastActiveError) {
         logManager.system.warn(
           `⚠️ Failed to update lastActive on ${route} navigation (non-critical):`,
@@ -1036,16 +1062,19 @@ class SPARouter {
       // Last resort: fetch from Firestore directly
       if (!isComplete) {
         try {
-          const profileDoc = await dataManager.getUserProfile(firebaseUser.uid);
-          if (profileDoc) {
-            isComplete = !!(
-              profileDoc?.systemInfo?.profileSetupComplete === true
-            );
-            // Opportunistically hydrate store for consistency
-            if (!currentUser?.profile) {
-              try {
-                currentUser.setProfile(profileDoc);
-              } catch (_) {}
+          const dm = await getRouterDataManager();
+          if (dm) {
+            const profileDoc = await dm.getUserProfile(firebaseUser.uid);
+            if (profileDoc) {
+              isComplete = !!(
+                profileDoc?.systemInfo?.profileSetupComplete === true
+              );
+              // Opportunistically hydrate store for consistency
+              if (!currentUser?.profile) {
+                try {
+                  currentUser.setProfile(profileDoc);
+                } catch (_) {}
+              }
             }
           }
         } catch (_) {}
@@ -1389,10 +1418,15 @@ class SPARouter {
       robots.name = "robots";
       document.head.appendChild(robots);
     }
-    robots.setAttribute(
-      "content",
-      indexable ? "index,follow" : "noindex,nofollow"
-    );
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    const isLocalHost =
+      host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+    const allowIndexForLocalPreview = isLocalHost;
+    const content =
+      indexable || allowIndexForLocalPreview
+        ? "index,follow"
+        : "noindex,nofollow";
+    robots.setAttribute("content", content);
   }
 
   /**

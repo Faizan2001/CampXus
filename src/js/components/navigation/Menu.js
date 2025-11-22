@@ -1,11 +1,23 @@
 // js/menu.js - Enhanced dark/light mode toggle with glassmorphism design
 
-// Import DataManager for all user data operations
 import { currentUser } from "../../store/userStore.js";
 import { navigateTo } from "../../app.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
-import { dataManager } from "../../services/data/DataService.js";
+
+// Lazy DataService loader so Firestore bundle is only pulled in when needed
+let menuDataManagerPromise = null;
+function getMenuDataManager() {
+  if (!menuDataManagerPromise) {
+    menuDataManagerPromise = import("../../services/data/DataService.js")
+      .then((mod) => mod.dataManager)
+      .catch((error) => {
+        console.warn("Menu: Failed to load DataService:", error);
+        return null;
+      });
+  }
+  return menuDataManagerPromise;
+}
 
 // Lightweight local debug gate for chatty logs
 const __LOG_PROFILE__ = (
@@ -1256,12 +1268,19 @@ function initializeNotificationsIndicator() {
   }
 }
 
-function setupNotificationsIndicatorListener(userId) {
+async function setupNotificationsIndicatorListener(userId) {
   try {
     // Cleanup previous
     teardownNotificationsIndicator();
+    const dm = await getMenuDataManager();
+    if (!dm) {
+      console.warn(
+        "Menu: DataService unavailable; notifications indicator disabled"
+      );
+      return;
+    }
     // Attach new realtime listener
-    notificationsUnsub = dataManager.setupNotificationsListener(
+    notificationsUnsub = dm.setupNotificationsListener(
       userId,
       (notifications) => {
         // Show dot if there are any unseen friend/location/availability pings
@@ -1283,7 +1302,7 @@ function setupNotificationsIndicatorListener(userId) {
     );
 
     // Also listen to pending friend requests directly
-    friendReqUnsub = dataManager.listenToPendingFriendRequests(
+    friendReqUnsub = dm.listenToPendingFriendRequests(
       userId,
       (requests) => {
         _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
@@ -1425,7 +1444,7 @@ function setupNotifyFriendsIndicator() {
 
     // Listen for responded availability pings sent BY me in the last 30 minutes
     if (currentUser && typeof currentUser.subscribe === "function") {
-      currentUser.subscribe(({ isLoggedIn }) => {
+      currentUser.subscribe(async ({ isLoggedIn }) => {
         if (!isLoggedIn || !currentUser.uid) {
           if (notifyRespUnsub) {
             try {
@@ -1452,7 +1471,14 @@ function setupNotifyFriendsIndicator() {
               notifyRespUnsub();
             } catch (_) {}
           }
-          notifyRespUnsub = dataManager.setupAvailabilityResponsesListener(
+          const dm = await getMenuDataManager();
+          if (!dm) {
+            console.warn(
+              "Menu: DataService unavailable; Notify indicator disabled"
+            );
+            return;
+          }
+          notifyRespUnsub = dm.setupAvailabilityResponsesListener(
             uid,
             (hasUnseen) => {
               _notifyHasAlert = !!hasUnseen;

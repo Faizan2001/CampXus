@@ -23,23 +23,24 @@ This file contains CSS styles for the Campus Presence feature including:
 .presence-pill {
   position: absolute;
   left: 50%;
-  bottom: -10px;
+  bottom: -8px; /* Tucked closer to avatar */
   transform: translateX(-50%);
-  min-width: 52px;
+  min-width: auto; /* Allow shrinking */
   max-width: 88px;
-  height: 18px;
-  padding: 0 8px;
+  height: 15px; /* Thinner height */
+  padding: 0 6px; /* Reduced padding */
+  border-radius: 4px; /* Slightly squarer for "tag" look, or keep 999px for pill */
   border-radius: 999px;
-  border: 2px solid #ffffff;
+  border: 1.5px solid #ffffff; /* Thinner border */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 8px; /* Smaller font */
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em; /* Tighter tracking */
   z-index: 11;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1); /* Lighter shadow */
   backdrop-filter: blur(6px);
   white-space: nowrap;
   overflow: hidden;
@@ -52,10 +53,10 @@ This file contains CSS styles for the Campus Presence feature including:
 .presence-pill .pill-text {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     sans-serif;
-  font-weight: 900;
-  font-size: 9px;
+  font-weight: 800;
+  font-size: 8px;
   line-height: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Reduced text shadow */
 }
 
 .presence-pill.expanded {
@@ -92,33 +93,33 @@ This file contains CSS styles for the Campus Presence feature including:
 
 @media (max-width: 768px) {
   .presence-pill {
-    height: 16px;
-    bottom: -8px;
-    padding: 0 6px;
-    font-size: 8px;
-    border-width: 1.5px;
-  }
-
-  .presence-pill.expanded {
-    height: 20px;
-    padding: 0 10px;
-    font-size: 9px;
-  }
-}
-
-@media (max-width: 480px) {
-  .presence-pill {
-    height: 15px;
+    height: 13px; /* Thinner for mobile */
     bottom: -6px;
     padding: 0 5px;
     font-size: 7px;
-    border-width: 1px;
+    border-width: 1.5px;
   }
 
   .presence-pill.expanded {
     height: 18px;
     padding: 0 8px;
     font-size: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .presence-pill {
+    height: 12px; /* Even thinner for small screens */
+    bottom: -5px;
+    padding: 0 4px;
+    font-size: 6.5px;
+    border-width: 1px;
+  }
+
+  .presence-pill.expanded {
+    height: 16px;
+    padding: 0 6px;
+    font-size: 7px;
   }
 }
 

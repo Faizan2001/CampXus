@@ -1222,12 +1222,12 @@ export const scheduleDailyClassSpaces = onSchedule(
       }
     }
 
-    // Upsert spaces for buckets with ≥4 members (production threshold per PRD)
+    // Upsert spaces for buckets with ≥3 members (production threshold per PRD)
     for (const [spaceId, set] of buckets) {
       const members = Array.from(set);
       const { university, course } = index.get(spaceId) || {};
       const ref = db.collection("classSpaces").doc(spaceId);
-      if (members.length >= 4) {
+      if (members.length >= 3) {
         // Prepare memberInfo cache (top N to keep doc reasonable; can expand later)
         const memberInfo = {};
         const preview = members.slice(0, 20); // limit info cache; roster UI can lazy fetch

@@ -73,12 +73,12 @@ export class SchedulePresenceService {
     if (gpsInfo.effectiveStatus === "on") {
       if (scheduleContext.scheduleState === "in_class") {
         status.state = PRESENCE_STATES.IN_CLASS;
-        status.pillText = "IN CLASS";
+        status.pillText = "CLASS";
         status.color = "blue";
         status.metadata.source = scheduleContext.hasSchedule ? "mixed" : "gps";
       } else {
         status.state = PRESENCE_STATES.FREE_ON_CAMPUS;
-        status.pillText = "FREE NOW";
+        status.pillText = "FREE";
         status.color = "green";
         status.metadata.source = "gps";
       }
@@ -94,22 +94,39 @@ export class SchedulePresenceService {
     }
 
     // GPS unknown - rely on schedule/fallback
+    const getMinutesToNextClass = () => {
+      try {
+        const next = scheduleContext.nextClass;
+        if (!next || !(next.start instanceof Date)) return Infinity;
+        return getMinutesBetween(next.start, safeNow);
+      } catch {
+        return Infinity;
+      }
+    };
+
     switch (scheduleContext.scheduleState) {
       case "in_class":
         status.state = PRESENCE_STATES.IN_CLASS;
-        status.pillText = "IN CLASS";
+        status.pillText = "CLASS";
         status.color = "blue";
         status.metadata.source = "schedule";
         break;
       case "between_classes":
         status.state = PRESENCE_STATES.FREE_ON_CAMPUS;
-        status.pillText = "FREE NOW";
+        status.pillText = "FREE";
         status.color = "green";
         status.metadata.source = "schedule";
         break;
       case "no_class_now_but_later":
         status.state = PRESENCE_STATES.NO_CLASSES;
         status.pillText = "CLASS LATER";
+        // Within 30 minutes of next class, clarify as "CLASS SOON"
+        {
+          const minutesToNext = getMinutesToNextClass();
+          if (minutesToNext > 0 && minutesToNext <= 30) {
+            status.pillText = "CLASS SOON";
+          }
+        }
         status.color = "grey";
         status.metadata.source = "schedule";
         break;
@@ -271,8 +288,7 @@ function deriveScheduleContext(friend, now) {
     minutesSinceLastClass = getMinutesBetween(now, previousClass.end);
     if (Number.isFinite(minutesSinceLastClass)) {
       postClassTimeoutReached =
-        minutesSinceLastClass >=
-        PRESENCE_CONFIG.POST_CLASS_TIMEOUT_MINUTES;
+        minutesSinceLastClass >= PRESENCE_CONFIG.POST_CLASS_TIMEOUT_MINUTES;
     } else {
       minutesSinceLastClass = null;
     }
@@ -312,9 +328,10 @@ function buildClassesForDay(daySchedule, timeSlots, now) {
     return [];
   }
 
-  const slots = Array.isArray(timeSlots) && timeSlots.length
-    ? timeSlots
-    : DEFAULT_TIMESLOTS;
+  const slots =
+    Array.isArray(timeSlots) && timeSlots.length
+      ? timeSlots
+      : DEFAULT_TIMESLOTS;
 
   const limit = Math.min(daySchedule.length, slots.length);
   const classes = [];

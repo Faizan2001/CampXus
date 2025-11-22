@@ -38,6 +38,14 @@ export class GroupsPage {
     this.showDevTools = shouldShowDevSpaceTools();
     this.isRefreshing = false;
     this.groupsListener = null; // realtime groups list listener (unsubscribe)
+    this.pullState = {
+      startY: 0,
+      active: false,
+      distance: 0,
+      threshold: 70,
+      indicator: null,
+      handlers: null,
+    };
   }
 
   async mount(rootEl) {
@@ -109,6 +117,7 @@ export class GroupsPage {
 
     // Hybrid: cache-first render, then attach realtime listener for fast badges
     await this.loadGroupsHybrid();
+    this.setupPullToRefresh();
   }
 
   // Cache-first, then realtime listener while viewing the page
@@ -124,7 +133,6 @@ export class GroupsPage {
     if (cached && Array.isArray(cached)) {
       console.log("[GroupsPage] Loaded groups from cache (hybrid)");
       this.renderGroups(cached, listEl, emptyEl);
-      this.updateCacheIndicator();
     } else {
       listEl.innerHTML = '<div class="loading">Loading groups...</div>';
     }
@@ -167,7 +175,6 @@ export class GroupsPage {
 
           // Render immediately
           this.renderGroups(spaces, listEl, emptyEl);
-          this.updateCacheIndicator();
           console.log(`[GroupsPage] Realtime update: ${spaces.length} groups`);
         },
         (error) => {
@@ -202,6 +209,7 @@ export class GroupsPage {
 
   unmount() {
     this.detachGroupsListener();
+    this.teardownPullToRefresh();
   }
 
   async loadGroups() {
@@ -220,7 +228,6 @@ export class GroupsPage {
     if (cached) {
       console.log("[GroupsPage] Using cached groups data");
       this.renderGroups(cached, listEl, emptyEl);
-      this.updateCacheIndicator();
       return;
     }
 
@@ -234,7 +241,6 @@ export class GroupsPage {
       // Save to cache
       groupsCache.set(spaces, userId);
       this.renderGroups(spaces, listEl, emptyEl);
-      this.updateCacheIndicator();
     } catch (error) {
       console.error("[GroupsPage] Error loading groups:", error);
       listEl.innerHTML = `
@@ -249,6 +255,150 @@ export class GroupsPage {
         this.loadGroups();
       });
     }
+  }
+
+  setupPullToRefresh() {
+    const page = this.container?.querySelector(".groups-page");
+    const listEl = this.container?.querySelector("#groups-list");
+    if (!page || !listEl) return;
+
+    const indicator = document.createElement("div");
+    indicator.className = "pull-refresh-indicator";
+    indicator.innerHTML = `
+      <span class="refresh-icon">↻</span>
+    `;
+    indicator.style.display = "none";
+    const setTransform = (val) => {
+      const y = typeof val === "number" ? `${val}px` : val;
+      indicator.style.transform = `translate(-50%, ${y})`;
+    };
+    page.insertBefore(indicator, listEl);
+    this.pullState.indicator = indicator;
+
+    const getY = (evt) =>
+      evt?.touches?.[0]?.clientY ?? evt?.clientY ?? 0;
+
+    const canStart = () => {
+      const scrollTop =
+        document.documentElement.scrollTop ||
+        document.body.scrollTop ||
+        page.scrollTop ||
+        0;
+      return scrollTop <= 0;
+    };
+
+    const resetIndicator = () => {
+      if (!this.pullState.indicator) return;
+      setTransform("-120%");
+      this.pullState.indicator.style.display = "none";
+      this.pullState.indicator.classList.remove(
+        "ready",
+        "refreshing",
+        "success"
+      );
+    };
+
+    const onStart = (evt) => {
+      if (this.isRefreshing || !canStart()) return;
+      this.pullState.active = true;
+      this.pullState.startY = getY(evt);
+      this.pullState.distance = 0;
+      indicator.style.display = "flex";
+      setTransform("-120%");
+      indicator.classList.remove("ready", "refreshing", "success");
+    };
+
+    const onMove = (evt) => {
+      if (!this.pullState.active) return;
+      const currentY = getY(evt);
+      const distance = Math.max(0, currentY - this.pullState.startY);
+      this.pullState.distance = distance;
+
+      if (distance === 0) {
+        resetIndicator();
+        return;
+      }
+
+      const translate = Math.min(distance / 2, this.pullState.threshold * 1.5);
+      indicator.style.display = "flex";
+      setTransform(translate);
+      const ready = distance > this.pullState.threshold;
+      indicator.classList.toggle("ready", ready);
+    };
+
+    const onEnd = async () => {
+      if (!this.pullState.active) return;
+      const shouldRefresh = this.pullState.distance > this.pullState.threshold;
+      this.pullState.active = false;
+      this.pullState.distance = 0;
+      if (shouldRefresh) {
+        await this.triggerPullRefresh();
+      } else {
+        resetIndicator();
+      }
+    };
+
+    page.addEventListener("touchstart", onStart, { passive: true });
+    page.addEventListener("touchmove", onMove, { passive: true });
+    page.addEventListener("touchend", onEnd);
+    page.addEventListener("mousedown", onStart);
+    page.addEventListener("mousemove", onMove);
+    page.addEventListener("mouseup", onEnd);
+
+    this.pullState.handlers = { onStart, onMove, onEnd, resetIndicator };
+  }
+
+  async triggerPullRefresh() {
+    if (this.isRefreshing) return;
+    const { resetIndicator } = this.pullState.handlers || {};
+    const indicatorEl = this.pullState.indicator;
+
+    if (indicatorEl) {
+      indicatorEl.style.display = "flex";
+      indicatorEl.classList.add("refreshing");
+      indicatorEl.style.transform = "translate(-50%, 0)";
+    }
+
+    this.isRefreshing = true;
+    try {
+      const userId = currentUser?.uid;
+      if (userId) {
+        groupsCache.invalidate(userId);
+      }
+      await this.loadGroups();
+      indicatorEl?.classList.add("success");
+    } finally {
+      this.isRefreshing = false;
+      setTimeout(() => {
+        resetIndicator?.();
+      }, 600);
+    }
+  }
+
+  teardownPullToRefresh() {
+    const page = this.container?.querySelector(".groups-page");
+    if (page && this.pullState.handlers) {
+      const { onStart, onMove, onEnd } = this.pullState.handlers;
+      page.removeEventListener("touchstart", onStart);
+      page.removeEventListener("touchmove", onMove);
+      page.removeEventListener("touchend", onEnd);
+      page.removeEventListener("mousedown", onStart);
+      page.removeEventListener("mousemove", onMove);
+      page.removeEventListener("mouseup", onEnd);
+    }
+
+    if (this.pullState.indicator?.parentNode) {
+      this.pullState.indicator.parentNode.removeChild(this.pullState.indicator);
+    }
+
+    this.pullState = {
+      startY: 0,
+      active: false,
+      distance: 0,
+      threshold: 70,
+      indicator: null,
+      handlers: null,
+    };
   }
 
   renderGroups(spaces, listEl, emptyEl) {
@@ -358,52 +508,6 @@ export class GroupsPage {
     }
     
     return { hue, icon };
-  }
-
-  updateCacheIndicator() {
-    const userId = currentUser?.uid;
-    if (!userId) return;
-
-    const ageStr = groupsCache.getAgeString(userId);
-    let indicator = this.container.querySelector(".cache-indicator");
-
-    if (!indicator && ageStr) {
-      const groupsSection = this.container.querySelector(".groups-page");
-      if (groupsSection) {
-        indicator = document.createElement("div");
-        indicator.className = "cache-indicator";
-        groupsSection.insertBefore(
-          indicator,
-          groupsSection.querySelector(".groups-list")
-        );
-      }
-    }
-
-    if (indicator) {
-      if (ageStr) {
-        indicator.innerHTML = `
-          <span class="cache-age">Updated ${ageStr}</span>
-          <button class="btn-refresh" title="Refresh groups">
-            <span class="refresh-icon">↻</span>
-          </button>
-        `;
-
-        const refreshBtn = indicator.querySelector(".btn-refresh");
-        refreshBtn?.addEventListener("click", async () => {
-          if (this.isRefreshing) return;
-          this.isRefreshing = true;
-          refreshBtn.disabled = true;
-
-          groupsCache.invalidate(userId);
-          await this.loadGroups();
-
-          this.isRefreshing = false;
-          refreshBtn.disabled = false;
-        });
-      } else {
-        indicator.remove();
-      }
-    }
   }
 
   bindDevTools() {

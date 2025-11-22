@@ -2343,15 +2343,11 @@ async function loadState(retryAttempt = 0) {
     currentUser.setScheduleLoading(true);
     currentUser.clearScheduleError();
 
-    // Use ScheduleStorageService to handle dual storage strategy
-    const scheduleData = await scheduleStorageService.loadUserSchedule(
-      user.uid
-    );
-
-    if (scheduleData) {
-      // Convert to HomePage format using ScheduleStorageService
+    // Helper to apply schedule data consistently (initial + background refresh)
+    const applyScheduleData = (data, reason = "initial") => {
+      if (!data) return;
       const homePageFormat = scheduleStorageService.convertToHomePageFormat(
-        scheduleData,
+        data,
         user.uid
       );
 
@@ -2369,28 +2365,41 @@ async function loadState(retryAttempt = 0) {
       memoCache.clear();
       matrixCache.clear();
       console.log(
-        "🧹 Cleared memoization and matrix caches after loading user schedule"
+        `🧹 Cleared memoization and matrix caches after loading user schedule (${reason})`
       );
 
       // Update userStore with schedule data
-      currentUser.setScheduleData(scheduleData);
+      currentUser.setScheduleData(data);
 
       // Initialize schedule signature to avoid first no-op realtime re-render
       try {
         state.lastScheduleSignature = JSON.stringify({
-          schedule: scheduleData?.schedule || null,
-          pinnedSlots: scheduleData?.pinnedSlots || null,
-          timeBasedPins: scheduleData?.timeBasedPins || null,
-          slotInfo: scheduleData?.slotInfo || null,
+          schedule: data?.schedule || null,
+          pinnedSlots: data?.pinnedSlots || null,
+          timeBasedPins: data?.timeBasedPins || null,
+          slotInfo: data?.slotInfo || null,
         });
         // Track last applied version for robust realtime gating
         state.lastAppliedScheduleVersion =
-          typeof scheduleData?.metadata?.version === "number"
-            ? scheduleData.metadata.version
+          typeof data?.metadata?.version === "number"
+            ? data.metadata.version
             : null;
       } catch (_) {
         // Non-fatal; signature remains null
       }
+    };
+
+    // Use ScheduleStorageService to handle dual storage strategy (cache-first + revalidate)
+    const {
+      data: scheduleData,
+      source: scheduleSource,
+      revalidatePromise,
+    } = await scheduleStorageService.loadUserSchedule(user.uid, {
+      mode: "cache-first",
+    });
+
+    if (scheduleData) {
+      applyScheduleData(scheduleData, scheduleSource || "initial");
 
       // Set up real-time sync through ScheduleStorageService
       setupScheduleRealTimeSync(user.uid);
@@ -2410,6 +2419,42 @@ async function loadState(retryAttempt = 0) {
         console.log("🧹 Removing legacy 'user' key duplicate");
         delete state.users["user"];
       }
+    }
+
+    // When background revalidation finishes, refresh UI if data changed
+    if (revalidatePromise) {
+      revalidatePromise
+        .then((freshData) => {
+          if (!freshData) return;
+          // Ensure same user still active
+          if (currentUser?.uid && currentUser.uid !== user.uid) return;
+
+          // Skip if identical to last applied signature
+          try {
+            const freshSig = JSON.stringify({
+              schedule: freshData?.schedule || null,
+              pinnedSlots: freshData?.pinnedSlots || null,
+              timeBasedPins: freshData?.timeBasedPins || null,
+              slotInfo: freshData?.slotInfo || null,
+            });
+            if (freshSig === state.lastScheduleSignature) {
+              return;
+            }
+          } catch (_) {
+            // fall through
+          }
+
+          applyScheduleData(freshData, "revalidate");
+
+          // Lightly refresh UI if still on home
+          const currentRoute = window.location.hash.replace("#", "") || "home";
+          if (currentRoute === "home") {
+            updateUI();
+          }
+        })
+        .catch((err) => {
+          console.warn("⚠️ Background schedule refresh failed (non-blocking):", err);
+        });
     }
   } catch (error) {
     console.error("❌ [Phase-1] Failed to load user schedule:", error);

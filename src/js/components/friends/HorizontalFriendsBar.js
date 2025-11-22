@@ -171,9 +171,39 @@ export class HorizontalFriendsBar {
       if (!this.currentUser) {
         throw new Error("Current user not available");
       }
+      const uid = currentUser?.uid || currentUser?.user?.uid || null;
 
       // Create the UI structure
       this.createUIStructure();
+
+      // Render the current user's avatar immediately so the bar isn't empty
+      try {
+        this.renderUserAvatar(
+          (this.userContainer =
+            this.userContainer ||
+            document.getElementById(`${this.containerId}-user`))
+        );
+      } catch (_) {
+        /* non-fatal */
+      }
+
+      // Hydrate Quick Access list from session cache for instant render (stale-while-revalidate)
+      let cachedQuickAccessUsed = false;
+      try {
+        const cached = uiCache.get(uiCache.keys.quickAccessFriends(uid));
+        if (Array.isArray(cached) && cached.length > 0) {
+          this.quickAccessFriends = cached;
+          this.sortQuickAccessFriendsForDisplay();
+          this.render();
+          cachedQuickAccessUsed = true;
+        }
+      } catch (e) {
+        console.warn("[HorizontalFriendsBar] Failed to hydrate cached Quick Access (non-fatal)", e);
+      }
+      // Lightweight loading placeholder for friends while we fetch fresh data (only if no cache)
+      if (!cachedQuickAccessUsed) {
+        this.showLoadingState();
+      }
 
       // Set up Campus Presence fresh data listeners early so we catch initial events
       this.setupFreshDataEventListeners();
@@ -459,6 +489,20 @@ export class HorizontalFriendsBar {
 
       this.quickAccessFriends = validatedFriends;
       this.sortQuickAccessFriendsForDisplay();
+
+      // Persist quick access snapshot for fast re-hydration on next navigation
+      try {
+        const uid = currentUser?.uid || currentUser?.user?.uid;
+        if (uid) {
+          uiCache.set(
+            uiCache.keys.quickAccessFriends(uid),
+            validatedFriends,
+            10 * 60 * 1000 // 10 minutes
+          );
+        }
+      } catch (_) {
+        /* non-fatal */
+      }
 
       // Phase 3 – derive schedule-based presence for Quick Access friends
       await this.enrichFriendsWithScheduleStatus();
@@ -4832,8 +4876,22 @@ export class HorizontalFriendsBar {
     if (avatarsContainer) {
       avatarsContainer.innerHTML = `
         <div class="friends-loading-state">
-          <div class="loading-spinner"></div>
-          <p>Loading friends...</p>
+          <div class="avatar-skeleton">
+            <div class="avatar-skeleton-circle"></div>
+            <div class="avatar-skeleton-bar"></div>
+          </div>
+          <div class="avatar-skeleton">
+            <div class="avatar-skeleton-circle"></div>
+            <div class="avatar-skeleton-bar"></div>
+          </div>
+          <div class="avatar-skeleton">
+            <div class="avatar-skeleton-circle"></div>
+            <div class="avatar-skeleton-bar"></div>
+          </div>
+          <div class="avatar-skeleton desktop-only">
+            <div class="avatar-skeleton-circle"></div>
+            <div class="avatar-skeleton-bar"></div>
+          </div>
         </div>
       `;
     }

@@ -1567,6 +1567,11 @@ class FriendsUI {
     }
   }
 
+  _friendsListHasNonSkeletonContent() {
+    const html = this.elements?.friendsList?.innerHTML || "";
+    return html.trim().length > 0 && !html.includes("skeleton-loader");
+  }
+
   /**
    * 👥 Display the friends list with bilateral privacy support
    */
@@ -1600,77 +1605,7 @@ class FriendsUI {
         .join(";");
     } catch (_) {}
 
-    const friendsHTML = friends
-      .map(
-        (friend) => `
-      <div class="friend-card" data-friend-id="${friend.id}">
-        <div class="friend-avatar">
-          ${this.renderAvatar(friend)}
-          ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
-        </div>
-        <div class="friend-info">
-          <h4 class="friend-name">${escapeHTML(friend.handle || "unknown")}</h4>
-          <p class="friend-major">${escapeHTML(friend.major)}</p>
-          ${
-            friend.mutualFriends > 0
-              ? `
-            <p class="mutual-friends">
-              <i class="fas fa-users"></i>
-              ${friend.mutualFriends} mutual friends
-            </p>
-          `
-              : ""
-          }
-          ${this.renderScheduleAccessStatus(friend)}
-        </div>
-        <div class="friend-actions" data-friend-id="${friend.id}">
-          <div class="friend-actions-compact">
-            <a class="profile-view-btn" 
-               href="#user?id=${encodeURIComponent(friend.id)}&from=friends"
-               aria-label="View profile"
-               title="View profile">
-              <i class="fas fa-id-badge" aria-hidden="true"></i>
-            </a>
-            <button class="drawer-toggle-btn" 
-                    data-friend-id="${friend.id}"
-                    aria-expanded="false" 
-                    aria-label="Show more options"
-                    title="More options">
-              <i class="fas fa-chevron-down" aria-hidden="true"></i>
-            </button>
-            <button class="quick-access-star" 
-                    data-friend-id="${friend.id}"
-                    aria-label="Add to Quick Access"
-                    title="Add to Quick Access">
-              <i class="fas fa-star" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="friend-actions-dropdown" data-friend-id="${
-        friend.id
-      }" aria-hidden="true">
-  <button class="mutual-location-btn unknown" 
-                data-friend-id="${friend.id}"
-                aria-label="Mutual location status"
-                title="Mutual location status">
-          <i class="fas fa-map-marker-alt"></i>
-        </button>
-  <button class="mutual-schedule-btn unknown" 
-                data-friend-id="${friend.id}"
-                aria-label="Mutual schedule status"
-                title="Mutual schedule status">
-          <i class="fas fa-calendar"></i>
-        </button>
-        <div class="friend-options-container" data-friend-id="${friend.id}">
-          <!-- FriendOptionsMenu will be rendered here -->
-        </div>
-      </div>
-    `
-      )
-      .join("");
-
-    this.elements.friendsList.innerHTML = friendsHTML;
+    this._diffAndRenderFriends(friends);
 
     // Persist for next navigation to minimize empty-state flicker
     try {
@@ -1723,6 +1658,126 @@ class FriendsUI {
         });
       }
     }
+  }
+
+  _diffAndRenderFriends(friends) {
+    const listEl = this.elements?.friendsList;
+    if (!listEl) return;
+
+    const existingCards = new Map();
+    const existingDropdowns = new Map();
+
+    listEl.querySelectorAll(".friend-card").forEach((card) => {
+      const id = card.dataset.friendId;
+      if (id) existingCards.set(id, card);
+    });
+    listEl.querySelectorAll(".friend-actions-dropdown").forEach((dd) => {
+      const id = dd.dataset.friendId;
+      if (id) existingDropdowns.set(id, dd);
+    });
+
+    const frag = document.createDocumentFragment();
+
+    friends.forEach((friend) => {
+      const id = friend?.id;
+      if (!id) return;
+
+      let card = existingCards.get(id);
+      if (!card) {
+        card = document.createElement("div");
+        card.className = "friend-card";
+        card.dataset.friendId = id;
+      }
+      card.innerHTML = this._buildFriendCardInner(friend);
+      frag.appendChild(card);
+      existingCards.delete(id);
+
+      let dropdown = existingDropdowns.get(id);
+      if (!dropdown) {
+        dropdown = document.createElement("div");
+        dropdown.className = "friend-actions-dropdown";
+        dropdown.dataset.friendId = id;
+      }
+      dropdown.setAttribute("aria-hidden", "true");
+      dropdown.innerHTML = this._buildFriendDropdownInner(friend);
+      frag.appendChild(dropdown);
+      existingDropdowns.delete(id);
+    });
+
+    // Remove stale elements
+    existingCards.forEach((el) => el.remove());
+    existingDropdowns.forEach((el) => el.remove());
+
+    // Replace list content
+    listEl.innerHTML = "";
+    listEl.appendChild(frag);
+  }
+
+  _buildFriendCardInner(friend) {
+    return `
+      <div class="friend-avatar">
+        ${this.renderAvatar(friend)}
+        ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
+      </div>
+      <div class="friend-info">
+        <h4 class="friend-name">${escapeHTML(friend.handle || "unknown")}</h4>
+        <p class="friend-major">${escapeHTML(friend.major)}</p>
+        ${
+          friend.mutualFriends > 0
+            ? `
+          <p class="mutual-friends">
+            <i class="fas fa-users"></i>
+            ${friend.mutualFriends} mutual friends
+          </p>
+        `
+            : ""
+        }
+        ${this.renderScheduleAccessStatus(friend)}
+      </div>
+      <div class="friend-actions" data-friend-id="${friend.id}">
+        <div class="friend-actions-compact">
+          <a class="profile-view-btn" 
+             href="#user?id=${encodeURIComponent(friend.id)}&from=friends"
+             aria-label="View profile"
+             title="View profile">
+            <i class="fas fa-id-badge" aria-hidden="true"></i>
+          </a>
+          <button class="drawer-toggle-btn" 
+                  data-friend-id="${friend.id}"
+                  aria-expanded="false" 
+                  aria-label="Show more options"
+                  title="More options">
+            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+          </button>
+          <button class="quick-access-star" 
+                  data-friend-id="${friend.id}"
+                  aria-label="Add to Quick Access"
+                  title="Add to Quick Access">
+            <i class="fas fa-star" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  _buildFriendDropdownInner(friend) {
+    return `
+      <button class="mutual-location-btn unknown" 
+              data-friend-id="${friend.id}"
+              aria-label="Mutual location status"
+              title="Mutual location status">
+        <i class="fas fa-map-marker-alt"></i>
+      </button>
+      <button class="mutual-schedule-btn unknown" 
+              data-friend-id="${friend.id}"
+              aria-label="Mutual schedule status"
+              title="Mutual schedule status">
+        <i class="fas fa-calendar"></i>
+      </button>
+      <div class="friend-options-container" data-friend-id="${friend.id}">
+        <!-- FriendOptionsMenu will be rendered here -->
+      </div>
+    `;
   }
 
   /**
@@ -2670,6 +2725,10 @@ class FriendsUI {
    */
   showLoadingState() {
     if (this.elements.friendsList) {
+      const hasContent =
+        this.elements.friendsList.innerHTML.trim().length > 0 &&
+        !this.elements.friendsList.innerHTML.includes("skeleton-loader");
+      if (hasContent) return;
       // Create 5 skeleton items
       const skeletons = Array(5)
         .fill('<div class="skeleton-loader"></div>')

@@ -9,9 +9,7 @@
  */
 
 // Import necessary services and utilities
-import { authManager } from "../services/auth/AuthService.js";
 import { logManager } from "../utils/debug/LogManager.js";
-import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 
 /**
@@ -93,6 +91,9 @@ class LandingPage {
       );
 
       try {
+        const { AnalyticsService } = await import(
+          "../services/analytics/AnalyticsService.js"
+        );
         AnalyticsService?.trackFeatureUsage?.("landing_signup", {
           source: "landing",
         });
@@ -104,22 +105,28 @@ class LandingPage {
       }
 
       // Trigger authentication modal with Sign Up tab active
-      if (authManager && authManager.showAuthModal) {
-        authManager.showAuthModal("signup");
-        logManager.auth.login(
-          "LandingPage: Authentication modal opened successfully"
+      try {
+        const { authManager } = await import(
+          "../services/auth/AuthService.js"
         );
-      } else {
+        if (authManager && authManager.showAuthModal) {
+          authManager.showAuthModal("signup");
+          logManager.auth.login(
+            "LandingPage: Authentication modal opened successfully"
+          );
+        } else {
+          throw new Error("authManager or showAuthModal not available");
+        }
+      } catch (authError) {
         logManager.auth.error(
-          "LandingPage: authManager or showAuthModal method not available"
-        );
-        logManager.auth.error(
-          "LandingPage: No authentication method available"
+          "LandingPage: Authentication system not available",
+          authError
         );
         notificationManager.show(
           "Authentication system temporarily unavailable. Please refresh and try again.",
           "error"
         );
+        return;
       }
     } catch (error) {
       logManager.ui.error(
