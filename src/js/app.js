@@ -208,9 +208,34 @@ async function initializeSPA() {
     logManager.system.warn("Profile hydration failed (non-fatal)", e);
   }
 
-  // 🎯 Use smart initial load to avoid flashing landing on refresh
+  // 🎯 Use a fast, cache-aware initial load:
+  // If we have a strong session hint (cached profile or hydrated user),
+  // optimistically render the target route (usually home) immediately and
+  // skip the full-screen loading overlay. Auth will continue to resolve in
+  // the background and Router's auth handling will correct the route if
+  // needed. Otherwise, fall back to the smart auth-aware loader.
   try {
-    await spaRouter.loadInitialPageSmart(authManager?.authReady, 1500);
+    const hasSessionHint =
+      !!authManager?.auth?.currentUser ||
+      !!profileCache.peek() ||
+      (currentUser && currentUser.isLoggedIn && currentUser.isLoggedIn());
+
+    if (spaRouter) {
+      // If we already know (or strongly suspect) the user is logged in,
+      // avoid sending them through the landing route on reload.
+      if (hasSessionHint) {
+        try {
+          if (window.location.hash === "#landing") {
+            history.replaceState({}, "", "#home");
+          }
+        } catch (_) {}
+        // Extra safety: skip first overlay in case any early navigation
+        // path still attempts to show the SPA loader.
+        spaRouter._skipNextLoadingOverlay = true;
+      }
+
+      await spaRouter.loadInitialPageSmart(authManager?.authReady, 1500);
+    }
   } catch (e) {
     // Fallback to legacy initial load if anything goes wrong
     spaRouter.loadInitialPage();
