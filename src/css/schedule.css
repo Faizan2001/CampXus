@@ -1296,9 +1296,13 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after { animation: non
 /* Status / loading / error */
 .friends-bar-status { display: flex; justify-content: center; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-light); position: relative; z-index: 1; }
 .current-selection { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background: var(--surface-light); padding: 0.4rem 0.8rem; border-radius: var(--border-radius); border: 1px solid var(--border-light); transition: all 0.2s ease; }
-.friends-loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; color: var(--text-secondary); }
-.loading-spinner { width: 32px; height: 32px; border: 3px solid var(--border-light); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.friends-loading-state { display: flex; gap: 0.75rem; padding: 1rem 1.25rem; align-items: center; }
+.avatar-skeleton { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; width: 62px; }
+.avatar-skeleton-circle { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(120deg, var(--surface-light) 25%, var(--border-light) 50%, var(--surface-light) 75%); background-size: 200% 200%; animation: none; }
+.avatar-skeleton-bar { width: 70%; height: 8px; border-radius: 999px; background: linear-gradient(120deg, var(--surface-light) 25%, var(--border-light) 50%, var(--surface-light) 75%); background-size: 200% 200%; animation: none; }
+.friends-loading-state .desktop-only { display: none; }
+@media (min-width: 640px) { .friends-loading-state { gap: 1rem; padding: 1.25rem 1.5rem; } .friends-loading-state .desktop-only { display: flex; } }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .friends-empty-state { display: none; }
 .error-content { color: var(--text-secondary); }
 .error-icon { font-size: 2rem; margin-bottom: 1rem; }

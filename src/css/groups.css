@@ -15,6 +15,10 @@ body.page-group .main-content {
   margin: 0 auto;
 }
 
+.groups-page {
+  position: relative;
+}
+
 .groups-header {
   margin: 0 0 0.75rem 0;
 }
@@ -60,49 +64,55 @@ body.page-group .main-content {
   gap: 0.75rem;
 }
 
-/* Cache indicator */
-.cache-indicator {
-  display: flex;
+/* Pull-to-refresh indicator */
+.pull-refresh-indicator {
+  display: none;
   align-items: center;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
-
-.cache-indicator .cache-age {
-  flex: 1;
-}
-
-.cache-indicator .btn-refresh {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 0.3rem 0.6rem;
-  cursor: pointer;
+  justify-content: center;
   color: #fff;
-  transition: background 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
+  font-size: 1rem;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  position: absolute;
+  left: 50%;
+  top: 0.4rem;
+  transform: translate(-50%, -120%);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.cache-indicator .btn-refresh:hover {
-  background: rgba(255, 255, 255, 0.1);
+.pull-refresh-indicator.ready {
+  border-color: rgba(117, 235, 187, 0.6);
 }
 
-.cache-indicator .btn-refresh:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.pull-refresh-indicator.refreshing .refresh-icon {
+  animation: spin 0.9s linear infinite;
 }
 
-.cache-indicator .refresh-icon {
-  font-size: 1.1rem;
-  display: inline-block;
+.pull-refresh-indicator.success {
+  background: rgba(117, 235, 187, 0.15);
+  border-color: rgba(117, 235, 187, 0.6);
+  color: #75ebbb;
+}
+
+.pull-refresh-indicator .refresh-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (min-width: 600px) {

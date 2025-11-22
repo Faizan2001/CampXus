@@ -6,7 +6,12 @@ import {
   browserLocalPersistence,
   indexedDBLocalPersistence,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  getFirestore,
+} from "firebase/firestore";
 
 // Browser-compatible configuration loading
 // Load Firebase config from environment variables with security validation
@@ -66,6 +71,7 @@ try {
 
 // Initialize Auth with explicit persistence configuration to reduce IDBRequest listeners
 let auth;
+let db;
 try {
   // Try browserLocalPersistence first (uses localStorage, fewer IDBRequest listeners)
   auth = initializeAuth(app, {
@@ -98,9 +104,25 @@ try {
   }
 }
 
+// Initialize Firestore with modern persistent cache (multi-tab friendly)
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+} catch (error) {
+  // Fallback to default Firestore if persistence setup fails
+  console.warn(
+    "⚠️ Failed to initialize Firestore with persistent cache (non-fatal):",
+    error?.message || error
+  );
+  db = getFirestore(app);
+}
+
 // Initialize other services with error handling
 export { auth };
-export const db = getFirestore(app);
+export { db };
 
 // Connect to emulators in development (localhost only)
 const isLocalhost =
