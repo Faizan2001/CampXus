@@ -176,6 +176,13 @@ async function initializeSPA() {
 
   spaRouter = new SPARouter();
 
+  // Keep layout safe-area variables in sync with nav visibility
+  const syncChrome = () => {
+    try {
+      spaRouter?.updateLayoutChromeState?.();
+    } catch (_) {}
+  };
+
   // 🚀 PROFILE HYDRATION (stale-while-revalidate) BEFORE first page paint
   try {
     // First attempt: optimistic (before auth resolved) for instant UI fill
@@ -581,6 +588,19 @@ function setupSPAEventListeners() {
 
     // Update any global UI elements based on current page
     updateGlobalUIForPage(route);
+  });
+
+  // Sync chrome state after navigation and on resize (affects bottom nav visibility)
+  document.addEventListener("spa:route:changed", () => {
+    try {
+      spaRouter?.updateLayoutChromeState?.();
+    } catch (_) {}
+  });
+
+  window.addEventListener("resize", () => {
+    try {
+      spaRouter?.updateLayoutChromeState?.();
+    } catch (_) {}
   });
 }
 

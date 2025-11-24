@@ -20,16 +20,18 @@
   --nav-height: 64px; /* desktop default */
   --mobile-bottom-nav-height: 60px; /* exposed for reservations */
   /* Extra visual height of bottom nav (top padding + border). Ensures content stays above nav in iOS PWA. */
-  --mobile-bottom-nav-top-gap: 8px;
+  --mobile-bottom-nav-top-gap: 6px;
   /* iOS safe-area top inset (0 on devices without a notch) */
   --safe-top: env(safe-area-inset-top, 0px);
-  --main-content-available-height: calc(
-    100dvh - var(--nav-height) - env(safe-area-inset-bottom, 0px)
+  /* Unified layout offsets (updated via body classes in JS) */
+  --top-offset: var(--nav-height);
+  --bottom-offset: env(safe-area-inset-bottom, 0px);
+  --content-available-height: calc(
+    100dvh - var(--top-offset) - var(--bottom-offset)
   );
-  --main-content-available-height-with-bottom-nav: calc(
-    100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-      var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom, 0px)
-  );
+  /* Legacy aliases kept for existing page styles */
+  --main-content-available-height: var(--content-available-height);
+  --main-content-available-height-with-bottom-nav: var(--content-available-height);
 }
 
 /* ===== UNIVERSAL THEME VARIABLES (DARK DEFAULT) ===== */
@@ -58,6 +60,23 @@ body {
   color: var(--color-text);
 }
 
+/* Toggle layout offsets via body classes (set in JS) */
+body.has-bottom-nav {
+  --bottom-offset: calc(
+    var(--mobile-bottom-nav-height, 60px) +
+      var(--mobile-bottom-nav-top-gap, 8px) +
+      env(safe-area-inset-bottom, 0px)
+  );
+}
+body.no-top-nav {
+  --top-offset: var(--safe-top);
+}
+body.immersive-chat-mode,
+body.immersive-profile-mode {
+  --top-offset: var(--safe-top);
+  --bottom-offset: env(safe-area-inset-bottom, 0px);
+}
+
 /* ===== APP CONTAINER ===== */
 .app-container {
   /* Let content define height; avoid forcing fixed viewport height on iOS */
@@ -71,7 +90,7 @@ body {
   width: 100%;
   overflow-x: hidden;
   /* Push content below the fixed top-nav (safe area is handled inside the nav via safe-spacer) */
-  padding-top: var(--nav-height);
+  padding-top: var(--top-offset);
 }
 
 /* iOS PWA Standalone Mode - Prevent clipping and respect safe areas */
@@ -96,6 +115,22 @@ body {
     height: 100%;
     max-height: 100%;
   }
+}
+
+/* Immersive Chat Mode Overrides */
+body.immersive-chat-mode .app-container {
+  padding-top: 0 !important;
+  height: 100dvh !important;
+}
+
+body.immersive-chat-mode .main-content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 /* ===== TOP NAVIGATION ===== */
@@ -598,11 +633,11 @@ body:not(.dark-mode) .nav-link:hover {
   background: var(--main-content-bg);
   position: relative;
   /* Dynamic height that adapts to bottom nav visibility */
-  height: var(--main-content-available-height);
-  max-height: var(--main-content-available-height);
-  min-height: var(--main-content-available-height);
-  /* Reduced padding - bottom nav handles safe area */
-  padding-bottom: 0.75rem;
+  height: var(--content-available-height);
+  max-height: var(--content-available-height);
+  min-height: var(--content-available-height);
+  /* Keep content off the bottom chrome/safe area */
+  padding-bottom: var(--bottom-offset);
 }
 
 /* Prevent default focus outline around the main content container */
@@ -610,13 +645,6 @@ body:not(.dark-mode) .nav-link:hover {
 .main-content:focus-visible {
   outline: none !important;
   box-shadow: none !important;
-}
-
-/* When bottom navigation is visible - use reduced height */
-body.has-bottom-nav .main-content {
-  height: var(--main-content-available-height-with-bottom-nav);
-  max-height: var(--main-content-available-height-with-bottom-nav);
-  min-height: var(--main-content-available-height-with-bottom-nav);
 }
 .main-content::before {
   content: "";
@@ -642,8 +670,10 @@ body.has-bottom-nav .main-content {
   min-height: 0;
   box-sizing: border-box;
   overflow-x: hidden;
-  /* Ensure content grid fills available space */
-  height: 100%;
+  /* Ensure content grid fills available space but allows growth */
+  min-height: 100%;
+  /* Keep cards clear of bottom chrome/safe area without extra gaps */
+  padding-bottom: var(--bottom-offset);
 }
 
 /* General page-specific overrides - moved home-specific styles to schedule.css */
@@ -976,7 +1006,7 @@ body:not(.dark-mode) .user-dropdown {
   position: fixed;
   left: 0;
   right: 0;
-  /* Anchor to bottom (avoid layout jump while env() resolves) */
+  /* Anchor to absolute bottom; padding handles safe area */
   bottom: 0;
   z-index: 1000;
   display: none;
@@ -987,10 +1017,9 @@ body:not(.dark-mode) .user-dropdown {
   padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
   padding-top: 6px;
-  /* Include the iOS home-indicator inset inside the bar */
-  /* Small inner gap; height includes the safe-area inset to avoid a gap */
-  padding-bottom: 8px;
-  height: calc(var(--bn-h) + env(safe-area-inset-bottom, 0px));
+  /* Seat content inside the nav; absorb safe area inside */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: calc(var(--bn-h) + var(--mobile-bottom-nav-top-gap, 8px));
   background: var(--color-nav);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1316,13 +1345,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 @media (max-width: 480px) {
   :root {
     --nav-height: 56px;
-    --main-content-available-height: calc(
-      100dvh - var(--nav-height) - env(safe-area-inset-bottom)
+    --top-offset: var(--nav-height);
+    --content-available-height: calc(
+      100dvh - var(--top-offset) - var(--bottom-offset)
     );
-    --main-content-available-height-with-bottom-nav: calc(
-      100dvh - var(--nav-height) - var(--mobile-bottom-nav-height) -
-        var(--mobile-bottom-nav-top-gap, 8px) - env(safe-area-inset-bottom)
-    );
+    --main-content-available-height: var(--content-available-height);
+    --main-content-available-height-with-bottom-nav: var(--content-available-height);
   }
 
   .top-nav .top-nav-inner {

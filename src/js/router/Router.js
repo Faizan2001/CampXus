@@ -1138,15 +1138,16 @@ class SPARouter {
       // Update navigation active states
       this.updateNavigationStates(route);
 
-      // Update navigation visibility based on route and auth state
-      this.updateNavigationVisibility(route);
+    // Update navigation visibility based on route and auth state
+    this.updateNavigationVisibility(route);
 
-      // Update URL hash to match current route (for direct linking and refresh)
-      if (window.location.hash !== `#${route}`) {
-        history.replaceState({ route }, routeData.title, `#${route}`);
-      }
+    // Sync layout offsets (safe areas + nav chrome) for current route
+    this.updateLayoutChromeState(route);
 
-      // Dispatch custom event for other parts of the app
+    // Update URL hash to match current route (for direct linking and refresh)
+    if (window.location.hash !== `#${route}`) {
+      history.replaceState({ route }, routeData.title, `#${route}`);
+    }      // Dispatch custom event for other parts of the app
       this.dispatchNavigationEvent(route);
 
       // Dispatch route changed event for mobile navigation
@@ -1486,6 +1487,34 @@ class SPARouter {
     }
 
     // Let Menu.js control auth-dependent body class; CSS handles About visibility
+  }
+
+  /**
+   * Update body flags that drive safe-area offsets and content height.
+   * Keeps content sized between top/bottom navs on mobile and collapses correctly when navs hide.
+   */
+  updateLayoutChromeState(route = this.currentPage) {
+    const body = document.body;
+    if (!body) return;
+
+    const isLoggedIn = currentUser.isLoggedIn() && currentUser.user;
+    const mobileBottomNav = document.querySelector(".mobile-bottom-nav");
+    const isMobileWidth = window.innerWidth <= 768;
+    const isImmersive =
+      body.classList.contains("immersive-chat-mode") ||
+      body.classList.contains("immersive-profile-mode");
+
+    const topNavVisible = !isImmersive;
+    const shouldHideBottomNav =
+      !isLoggedIn || route === "landing" || isImmersive;
+    const showBottomNav = isMobileWidth && !shouldHideBottomNav;
+
+    body.classList.toggle("has-bottom-nav", showBottomNav);
+    body.classList.toggle("no-top-nav", !topNavVisible);
+
+    if (mobileBottomNav) {
+      mobileBottomNav.style.display = showBottomNav ? "" : "none";
+    }
   }
 
   /**
