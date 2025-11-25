@@ -60,6 +60,47 @@ service cloud.firestore {
       }
     }
 
+    // --- Clubs (/clubs) ---
+    // Clubs are read by any authenticated user. Writes are restricted:
+    // - Verified users may create clubs (real users)
+    // - Dev-only test clubs may be created/edited/deleted by their owner when marked devTest
+    match /clubs/{clubId} {
+      allow read: if request.auth != null;
+
+      // Create: allow verified users to create clubs, or allow devTest clubs created by their owner
+      allow create: if request.auth != null && (
+        isVerified() || (
+          request.resource.data.devTest == true &&
+          request.resource.data.devOwnerUid == request.auth.uid
+        )
+      );
+
+      // Update: allow the original creator to update if they are verified, or allow owner to update their devTest club
+      allow update: if request.auth != null && (
+        (resource.data.createdBy == request.auth.uid && isVerified()) ||
+        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid && request.resource.data.devTest == true && request.resource.data.devOwnerUid == resource.data.devOwnerUid)
+      );
+
+      // Delete: allow creator to delete if verified, or owner to delete devTest clubs
+      allow delete: if request.auth != null && (
+        (resource.data.createdBy == request.auth.uid && isVerified()) ||
+        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
+      );
+
+      // Events subcollection: reads allowed; creates limited to verified/officers (server preferred)
+      match /events/{eventId} {
+        allow read: if request.auth != null;
+        allow create: if false; // event creation should go through Cloud Functions or explicit club-authorized paths
+        allow update, delete: if false;
+      }
+
+      // Members subcollection: read for authenticated users; write via server/authorized flows
+      match /members/{memberId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
     function devCreationEnabled() {
       // Toggle stored on document: admin/config
       return exists(/databases/$(database)/documents/admin/config) &&

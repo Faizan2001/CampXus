@@ -38,6 +38,12 @@ export class GroupsPage {
     this.showDevTools = shouldShowDevSpaceTools();
     this.isRefreshing = false;
     this.groupsListener = null; // realtime groups list listener (unsubscribe)
+    this.activeTab = "classes"; // "classes" or "clubs"
+    this.clubsInstance = null; // Lazy-loaded ClubsPage instance
+    this.tabsContainer = null; // Cached tabs container
+    this.tabButtons = null; // Cached tab buttons
+    this.groupsRoot = null; // Cached #groups-root element
+    this.isTabSwitching = false; // Prevent double-clicks
     this.pullState = {
       startY: 0,
       active: false,
@@ -67,7 +73,7 @@ export class GroupsPage {
               <i class="fas fa-user-circle"></i>
             </div>
             <h2>Complete Your Profile First</h2>
-            <p>You need to complete your profile setup before accessing class spaces.</p>
+            <p>You need to complete your profile setup before accessing groups.</p>
             <button id="completeProfileBtn" class="btn primary">Complete Profile</button>
           </div>
         </section>
@@ -87,6 +93,72 @@ export class GroupsPage {
       return;
     }
 
+    // Bind tab switcher (from template)
+    this.bindTabSwitcher();
+
+    // Default to classes tab
+    this.activeTab = "classes";
+    await this.renderActiveTab();
+  }
+
+  bindTabSwitcher() {
+    this.tabsContainer = document.querySelector(".groups-content-tabs");
+    this.groupsRoot = document.querySelector("#groups-root");
+    if (!this.tabsContainer) return;
+
+    // Cache tab buttons
+    this.tabButtons = this.tabsContainer.querySelectorAll(".tab");
+
+    this.tabButtons.forEach((tabBtn) => {
+      tabBtn.addEventListener("click", async (e) => {
+        const newTab = e.currentTarget.dataset.tab;
+        if (newTab === this.activeTab) return;
+
+        // Prevent double-clicks during transition
+        if (this.isTabSwitching) return;
+        this.isTabSwitching = true;
+
+        // Determine slide direction: clubs = right, classes = left
+        const slideDirection = newTab === "clubs" ? "right" : "left";
+
+        // Update active tab styling immediately (no re-query)
+        this.tabButtons.forEach((t) => t.classList.remove("active"));
+        e.currentTarget.classList.add("active");
+
+        // Cleanup previous tab
+        if (this.activeTab === "classes") {
+          this.detachGroupsListener();
+          this.teardownPullToRefresh();
+        } else if (this.activeTab === "clubs" && this.clubsInstance) {
+          this.clubsInstance.unmount();
+          this.clubsInstance = null;
+        }
+
+        this.activeTab = newTab;
+        
+        // Apply slide direction for animation
+        if (this.groupsRoot) {
+          this.groupsRoot.setAttribute("data-slide", slideDirection);
+        }
+        
+        await this.renderActiveTab();
+        this.isTabSwitching = false;
+      });
+    });
+  }
+
+  async renderActiveTab() {
+    // Render into #groups-root, not the full container
+    const targetEl = this.groupsRoot || this.container;
+    
+    if (this.activeTab === "classes") {
+      await this.renderClassesTab(targetEl);
+    } else if (this.activeTab === "clubs") {
+      await this.renderClubsTab(targetEl);
+    }
+  }
+
+  async renderClassesTab(targetEl) {
     // Only show the Trigger Scheduler button when running on localhost (emulator)
     const isLocal =
       typeof window !== "undefined" &&
@@ -104,9 +176,10 @@ export class GroupsPage {
           ${triggerBtnHtml}
         </div>`
       : "";
-    this.container.innerHTML = `
+    targetEl.innerHTML = `
       <section class="groups-page">
         ${devTools}
+        <p class="tab-description">Spaces are created daily at 06:00 based on matching schedules.</p>
         <div id="groups-list" class="groups-list"></div>
         <div id="groups-empty" class="groups-empty hidden">No class spaces yet. They are created daily at 06:00.</div>
       </section>
@@ -120,10 +193,30 @@ export class GroupsPage {
     this.setupPullToRefresh();
   }
 
+  async renderClubsTab(targetEl) {
+    // Lazy-load and mount ClubsPage into the same container
+    try {
+      const { default: ClubsPage } = await import("./ClubsPage.js");
+      this.clubsInstance = new ClubsPage();
+      await this.clubsInstance.mount(targetEl);
+    } catch (err) {
+      console.error("[GroupsPage] Failed to load ClubsPage:", err);
+      targetEl.innerHTML = `
+        <section class="groups-page">
+          <div class="error-message">
+            <p>Failed to load Clubs. Please try again.</p>
+            <button class="btn primary" onclick="location.reload()">Reload</button>
+          </div>
+        </section>
+      `;
+    }
+  }
+
   // Cache-first, then realtime listener while viewing the page
   async loadGroupsHybrid() {
-    const listEl = this.container.querySelector("#groups-list");
-    const emptyEl = this.container.querySelector("#groups-empty");
+    const targetEl = this.groupsRoot || this.container;
+    const listEl = targetEl.querySelector("#groups-list");
+    const emptyEl = targetEl.querySelector("#groups-empty");
 
     const userId = currentUser?.uid;
     if (!userId) return;
@@ -210,11 +303,17 @@ export class GroupsPage {
   unmount() {
     this.detachGroupsListener();
     this.teardownPullToRefresh();
+    // Clean up clubs instance if active
+    if (this.clubsInstance) {
+      this.clubsInstance.unmount();
+      this.clubsInstance = null;
+    }
   }
 
   async loadGroups() {
-    const listEl = this.container.querySelector("#groups-list");
-    const emptyEl = this.container.querySelector("#groups-empty");
+    const targetEl = this.groupsRoot || this.container;
+    const listEl = targetEl.querySelector("#groups-list");
+    const emptyEl = targetEl.querySelector("#groups-empty");
 
     // Get current user ID for cache scoping
     const userId = currentUser?.uid;
@@ -512,9 +611,10 @@ export class GroupsPage {
 
   bindDevTools() {
     if (!this.showDevTools) return;
-    const createBtn = this.container.querySelector("#btnCreateDevSpaces");
-    const clearBtn = this.container.querySelector("#btnClearDevSpaces");
-    const triggerBtn = this.container.querySelector("#btnTriggerScheduler");
+    const targetEl = this.groupsRoot || this.container;
+    const createBtn = targetEl.querySelector("#btnCreateDevSpaces");
+    const clearBtn = targetEl.querySelector("#btnClearDevSpaces");
+    const triggerBtn = targetEl.querySelector("#btnTriggerScheduler");
 
     if (createBtn) {
       createBtn.addEventListener("click", async () => {

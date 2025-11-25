@@ -66,10 +66,21 @@
 
     <!-- PWA and Icon Configuration -->
     <!-- Unified dark status bar for iOS/Android (system-aware) -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d021a" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#ffffff"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#0d021a"
+    />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="color-scheme" content="dark light" />
     <meta name="apple-mobile-web-app-title" content="MeetchuThere" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -168,7 +179,9 @@
         <div class="top-nav-inner">
           <div class="nav-left nav-brand">
             <div class="logo">
-              <span data-spa-route="home" style="cursor: pointer">MeetchuThere</span>
+              <span data-spa-route="home" style="cursor: pointer"
+                >MeetchuThere</span
+              >
             </div>
           </div>
 
@@ -186,7 +199,11 @@
                 <i class="fas fa-people-group"></i>
                 <span class="nav-text">Groups</span>
               </a>
-              <a data-spa-route="notifications" class="nav-link" href="#notifications">
+              <a
+                data-spa-route="notifications"
+                class="nav-link"
+                href="#notifications"
+              >
                 <i class="fas fa-bell"></i>
                 <span class="nav-text">Notifications</span>
               </a>
@@ -195,22 +212,54 @@
 
           <div class="nav-right">
             <!-- Notify Friends (mobile+desktop; shows when authenticated) -->
-            <button id="notifyFriendsBtn" class="nav-link nav-cta" type="button" style="display: none" aria-label="Notify friends" title="Notify friends">
+            <button
+              id="notifyFriendsBtn"
+              class="nav-link nav-cta"
+              type="button"
+              style="display: none"
+              aria-label="Notify friends"
+              title="Notify friends"
+            >
               <i class="far fa-paper-plane"></i>
               <span class="nav-text">Notify</span>
-              <span class="nav-dot" aria-hidden="true" style="display: none"></span>
+              <span
+                class="nav-dot"
+                aria-hidden="true"
+                style="display: none"
+              ></span>
             </button>
             <!-- Mobile Install PWA button (shown under 480px when eligible) -->
-            <button id="installPwaBtn" class="nav-link nav-cta nav-install" type="button" style="display: none" aria-label="Install app" title="Install app">
+            <button
+              id="installPwaBtn"
+              class="nav-link nav-cta nav-install"
+              type="button"
+              style="display: none"
+              aria-label="Install app"
+              title="Install app"
+            >
               <span class="nav-text">Install</span>
             </button>
             <!-- About (visible to all, even when signed out) -->
-            <a data-spa-route="about" class="nav-link nav-cta" id="aboutBtn" href="#about" aria-label="About" title="About">
+            <a
+              data-spa-route="about"
+              class="nav-link nav-cta"
+              id="aboutBtn"
+              href="#about"
+              aria-label="About"
+              title="About"
+            >
               <span class="nav-text">About</span>
             </a>
             <!-- User Profile Menu (shown when authenticated) -->
             <div class="user-menu" id="userMenu" style="display: none">
-              <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false" aria-label="User menu" title="Open user menu">
+              <button
+                type="button"
+                class="user-menu-trigger"
+                id="userMenuTrigger"
+                aria-expanded="false"
+                aria-label="User menu"
+                title="Open user menu"
+              >
                 <!-- Default avatar icon (will be replaced with custom avatar) -->
                 <div class="user-avatar-trigger" id="userAvatarTrigger">
                   <i class="fas fa-user-circle"></i>
@@ -223,13 +272,22 @@
                     <i class="fas fa-user-circle"></i>
                   </div>
                   <div class="user-details">
-                    <strong class="user-name" id="userDropdownName">John Doe</strong>
-                    <span class="user-email" id="userDropdownEmail">john@university.edu</span>
+                    <strong class="user-name" id="userDropdownName"
+                      >John Doe</strong
+                    >
+                    <span class="user-email" id="userDropdownEmail"
+                      >john@university.edu</span
+                    >
                   </div>
                 </div>
 
                 <div class="dropdown-menu">
-                  <a data-spa-route="profile" class="dropdown-item" id="profileSetupBtn" href="#profile">
+                  <a
+                    data-spa-route="profile"
+                    class="dropdown-item"
+                    id="profileSetupBtn"
+                    href="#profile"
+                  >
                     <i class="fas fa-user-edit"></i>
                     <span>My Profile</span>
                   </a>
@@ -238,7 +296,12 @@
                     <span>About Developer</span>
                   </a>
                   <!-- Dark Mode Toggle (moved to dropdown) -->
-                  <button type="button" class="dropdown-item" id="darkModeToggle" aria-label="Toggle dark mode">
+                  <button
+                    type="button"
+                    class="dropdown-item"
+                    id="darkModeToggle"
+                    aria-label="Toggle dark mode"
+                  >
                     <i class="fas fa-sun"></i>
                     <span id="darkModeText">Light Mode</span>
                   </button>
