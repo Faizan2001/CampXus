@@ -513,6 +513,68 @@ Even with the sliding pill fix, the tab bar was still **shrinking in width** whe
 
 ---
 
+## 🔒 2025-11-26 — P1 Fix: Firestore Rules for Follow/Unfollow
+
+### The Bug (Identified by Code Review):
+
+The follow/unfollow feature was **broken for normal users**. Here's why:
+
+**Original rules only allowed updates by:**
+- Club creator (if verified)
+- DevTest club owner
+
+**But follow/unfollow does:**
+```javascript
+await updateDoc(doc(db, "clubs", clubId), {
+  followerCount: increment(-1 or +1),
+});
+```
+
+Any user who didn't create the club would get `PERMISSION_DENIED`.
+
+### Why It Seemed to Work During Testing:
+
+We were testing with the same user who created test clubs via "Create Test Club" button — that user was the `devOwnerUid`, so updates were allowed.
+
+### The Fix:
+
+Added a third condition to the update rule that allows **any authenticated user** to update **only** the `followerCount` field by exactly ±1:
+
+```javascript
+// Anyone authenticated can update ONLY followerCount by exactly +1 or -1
+(
+  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+  (
+    request.resource.data.followerCount == resource.data.followerCount + 1 ||
+    request.resource.data.followerCount == resource.data.followerCount - 1
+  )
+)
+```
+
+### Security Analysis:
+
+| Attack Vector | Protected? | How |
+|---------------|------------|-----|
+| Setting arbitrary followerCount | ✅ | Must be exactly ±1 from current value |
+| Modifying other fields | ✅ | `hasOnly(['followerCount'])` blocks all other fields |
+| Unauthenticated access | ✅ | `request.auth != null` required |
+| Bulk manipulation | ⚠️ Partial | Rate limiting would need Cloud Function |
+
+### Files Changed:
+
+- `firestore.rules` — Updated clubs update rule (lines 78-95)
+
+### Manual Test:
+
+1. Restart Firebase emulator to pick up rule changes
+2. Create a test club with User A
+3. Log in as User B (different user)
+4. Try to follow the club created by User A
+5. **Expected:** Follow succeeds, follower count increments
+6. **Before fix:** Permission denied, UI rolls back
+
+---
+
 -- Quick Fun Explanation (for a beginner) --
 
 Think of the app as a big school building. "Clubs" are new classrooms we want to add. Right now we're doing the safe stuff:
