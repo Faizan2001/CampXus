@@ -119,7 +119,7 @@ class SPARouter {
       groups: {
         title: "Groups - MeetchuThere",
         template: "/templates/groups.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/clubs.css"],
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
         jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
         description: "Your class spaces and clubs",
         requiresAuth: true,
@@ -128,7 +128,7 @@ class SPARouter {
       clubs: {
         title: "Clubs - MeetchuThere",
         template: "/templates/clubs.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/clubs.css"],
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
         jsImporters: [() => import("/src/js/pages/ClubsPage.js")],
         description: "Campus clubs and student organizations",
         requiresAuth: true,
@@ -137,7 +137,7 @@ class SPARouter {
       club: {
         title: "Club - MeetchuThere",
         template: "/templates/club.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/clubs.css"],
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
         jsImporters: [() => import("/src/js/pages/ClubDetailPage.js")],
         description: "Club detail, members and events",
         requiresAuth: true,

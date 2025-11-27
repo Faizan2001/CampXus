@@ -1,0 +1,19 @@
+/**
+ * Clubs Feature - CSS Entry Point
+ * 
+ * This file imports all clubs-related stylesheets.
+ * Import this single file in app.js to get all clubs styles.
+ * 
+ * Structure:
+ * - base.css      → Page layout, grids, cards, club detail page
+ * - buttons.css   → Button system (primary, secondary, danger)
+ * - events.css    → Event cards, list, status badges
+ * - modals.css    → Create event & event detail modals
+ * - members.css   → Members tab (future)
+ * - live.css      → Live events section (future)
+ */
+
+@import './base.css';
+@import './buttons.css';
+@import './events.css';
+@import './modals.css';

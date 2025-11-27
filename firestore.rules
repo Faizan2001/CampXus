@@ -101,11 +101,32 @@ service cloud.firestore {
         (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
       );
 
-      // Events subcollection: reads allowed; creates limited to verified/officers (server preferred)
+      // Events subcollection: reads allowed; creates/updates for club members or devTest clubs
       match /events/{eventId} {
         allow read: if request.auth != null;
-        allow create: if false; // event creation should go through Cloud Functions or explicit club-authorized paths
-        allow update, delete: if false;
+        
+        // Create: allow for devTest clubs (for emulator testing) or verified club officials
+        allow create: if request.auth != null && (
+          // DevTest club: owner can create events
+          (get(/databases/$(database)/documents/clubs/$(clubId)).data.devTest == true &&
+           get(/databases/$(database)/documents/clubs/$(clubId)).data.devOwnerUid == request.auth.uid) ||
+          // Verified users who are club president can create events
+          (isVerified() && get(/databases/$(database)/documents/clubs/$(clubId)).data.presidentId == request.auth.uid)
+        );
+        
+        // Update: same rules as create
+        allow update: if request.auth != null && (
+          (get(/databases/$(database)/documents/clubs/$(clubId)).data.devTest == true &&
+           get(/databases/$(database)/documents/clubs/$(clubId)).data.devOwnerUid == request.auth.uid) ||
+          (isVerified() && get(/databases/$(database)/documents/clubs/$(clubId)).data.presidentId == request.auth.uid)
+        );
+        
+        // Delete: only club owner (devTest) or president
+        allow delete: if request.auth != null && (
+          (get(/databases/$(database)/documents/clubs/$(clubId)).data.devTest == true &&
+           get(/databases/$(database)/documents/clubs/$(clubId)).data.devOwnerUid == request.auth.uid) ||
+          (isVerified() && get(/databases/$(database)/documents/clubs/$(clubId)).data.presidentId == request.auth.uid)
+        );
       }
 
       // Members subcollection: read for authenticated users; write via server/authorized flows

@@ -1,0 +1,212 @@
+/* ========================================
+   CLUBS - BUTTON SYSTEM
+   Unified button styles for clubs feature
+======================================== */
+
+/* --- Base Button Reset --- */
+.clubs-section .btn,
+.club-section .btn,
+.clubs-page .btn,
+.club-modal .btn,
+.event-detail-modal .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  line-height: 1.2;
+}
+
+/* --- Primary Button (Gradient) --- */
+.clubs-section .btn.primary,
+.club-section .btn.primary,
+.clubs-page .btn.primary,
+.club-modal .btn.primary,
+.event-detail-modal .btn.primary {
+  background: linear-gradient(135deg, var(--primary-gradient-start, #667eea), var(--primary-gradient-end, #764ba2));
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+}
+
+.clubs-section .btn.primary:hover,
+.club-section .btn.primary:hover,
+.clubs-page .btn.primary:hover,
+.club-modal .btn.primary:hover,
+.event-detail-modal .btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
+}
+
+.clubs-section .btn.primary:active,
+.club-section .btn.primary:active,
+.clubs-page .btn.primary:active,
+.club-modal .btn.primary:active,
+.event-detail-modal .btn.primary:active {
+  transform: translateY(0);
+}
+
+/* --- Secondary Button (Glassmorphism) --- */
+.clubs-section .btn.secondary,
+.club-section .btn.secondary,
+.clubs-page .btn.secondary,
+.club-modal .btn.secondary,
+.event-detail-modal .btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color, #e2e8f0);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.clubs-section .btn.secondary:hover,
+.club-section .btn.secondary:hover,
+.clubs-page .btn.secondary:hover,
+.club-modal .btn.secondary:hover,
+.event-detail-modal .btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* --- Danger Button (Red Gradient) --- */
+.clubs-section .btn.danger,
+.club-section .btn.danger,
+.clubs-page .btn.danger,
+.club-modal .btn.danger,
+.event-detail-modal .btn.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.clubs-section .btn.danger:hover,
+.club-section .btn.danger:hover,
+.clubs-page .btn.danger:hover,
+.club-modal .btn.danger:hover,
+.event-detail-modal .btn.danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+/* --- Button Sizes --- */
+.btn.large {
+  padding: 0.85rem 1.5rem;
+  font-size: 1rem;
+}
+
+.btn.small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+/* --- Icon-Only Button --- */
+.btn.icon-only {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.btn.icon-only.small {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* --- Close Button (X) - Glassmorphism Style --- */
+.club-modal .modal-close-btn,
+.event-detail-modal .modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  /* Force exact square dimensions for circle */
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  padding: 0 !important;
+  margin: 0;
+  /* Center the icon */
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  /* Glassmorphism styling */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50% !important;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* Reset any inherited box sizing issues */
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* Prevent text selection on mobile */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent touch callout on iOS */
+  -webkit-touch-callout: none;
+  /* Improve tap target on mobile */
+  touch-action: manipulation;
+}
+
+.club-modal .modal-close-btn:hover,
+.event-detail-modal .modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+  transform: scale(1.08);
+}
+
+.club-modal .modal-close-btn:active,
+.event-detail-modal .modal-close-btn:active {
+  transform: scale(0.95);
+}
+
+.club-modal .modal-close-btn i,
+.event-detail-modal .modal-close-btn i {
+  font-size: 0.95rem;
+  line-height: 1;
+  /* Ensure icon is centered */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========================================
+   DARK MODE - BUTTONS
+   (Already styled for dark mode above,
+    these are just overrides if needed)
+======================================== */
+
+body.dark-mode .clubs-section .btn.secondary,
+body.dark-mode .club-section .btn.secondary,
+body.dark-mode .clubs-page .btn.secondary,
+body.dark-mode .club-modal .btn.secondary,
+body.dark-mode .event-detail-modal .btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-color, #e2e8f0);
+}
+
+body.dark-mode .clubs-section .btn.secondary:hover,
+body.dark-mode .club-section .btn.secondary:hover,
+body.dark-mode .clubs-page .btn.secondary:hover,
+body.dark-mode .club-modal .btn.secondary:hover,
+body.dark-mode .event-detail-modal .btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}

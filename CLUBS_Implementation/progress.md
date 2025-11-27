@@ -590,4 +590,184 @@ Each step below will come with a short checklist you can follow — like "turn o
 - I will not change production-critical files without telling you first.
 - If you confirm `A` or `B`, I'll implement that step and update this file with the results and tests you can run.
 
+---
+
+## 🗓️ 2025-11-26 — Phase 3 Step 1: Events Display & Test Event Creation
+
+### What I Built (The Fun Version! 🎉)
+
+Think of this like adding a bulletin board to each club room. Now when you walk into a club's page, you can see all their events pinned up!
+
+**Features added:**
+- 📋 **Events Tab now works!** — Shows real events from Firestore instead of placeholder
+- 📆 **Upcoming vs Past** — Events are sorted by date, past events are collapsible
+- ➕ **Create Test Event button** — If you own the club (devTest), you can create events for testing
+- 🔴 **Live badge** — Events marked as "live" pulse with a red dot
+- ⏳ **Pending badge** — Events awaiting approval show a yellow pending badge
+
+### Files Changed:
+
+| File | What Changed |
+|------|--------------|
+| `firestore.rules` | Added create/update/delete rules for events subcollection |
+| `src/js/pages/ClubDetailPage.js` | Added `loadEvents()`, `renderEventsTab()`, `renderEventCard()`, `createTestEvent()` |
+| `src/css/clubs.css` | Added ~150 lines of event card styling |
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+1. **Restart Firebase emulator** to pick up rule changes:
+   ```bash
+   npx firebase emulators:start --only firestore,functions
+   ```
+
+2. **Start dev server** (if not running):
+   ```bash
+   npm run dev
+   ```
+
+3. **Navigate to Groups → Clubs tab** (`#groups`)
+
+4. **Create a test club** (if you don't have one) — click "Create Test Club"
+
+5. **Click "View"** on your test club to open the detail page
+
+6. **Look at the Events tab** — you should see:
+   - Empty state: "No events yet" with a **Create Test Event** button
+   - If you already have events: Event cards with date, time, location
+
+7. **Click "Create Test Event"** — watch:
+   - Spinner while creating
+   - Toast notification "Created event: Test Workshop #123"
+   - Event card appears in "Upcoming" section!
+
+8. **Create 2-3 more events** to see the list grow
+
+9. **Verify in emulator UI** — Open Firestore emulator (`http://localhost:4000`) and check:
+   - `clubs/{clubId}/events` subcollection has new documents
+   - Each event has `title`, `timeSlots`, `firstSlotStart`, etc.
+
+### If Something Breaks:
+
+- **"Permission denied" on create?** — Make sure you're the `devOwnerUid` of the club (you created it via "Create Test Club")
+- **Events not loading?** — Check browser console for errors, ensure Firestore emulator is running
+- **CSS looks weird?** — Hard refresh (Ctrl+Shift+R)
+
+---
+
+*Progress log updated: 2025-11-26*
+
+---
+
+## 📝 2025-11-26 — Phase 3 Step 2: Create Event Modal
+
+### What I Built (The Fun Version! 🎪)
+
+No more random test events! Now you get a **real form** to create events — like filling out an event signup sheet, but prettier!
+
+**Features added:**
+- 📋 **Create Event Modal** — A beautiful overlay form
+- ✏️ **Real fields** — Title, description, date, start/end time, location
+- ✅ **Validation** — Checks required fields, end time > start time
+- 💫 **Smooth animations** — Slides in, fades out
+- 🌙 **Dark mode support** — Looks good in both themes
+- ⌨️ **Keyboard friendly** — Press Escape to close
+
+### Files Changed:
+
+| File | What Changed |
+|------|--------------|
+| `src/js/components/clubs/CreateEventModal.js` | NEW — Self-contained modal component |
+| `src/css/clubs.css` | Added ~120 lines of modal styling |
+| `src/js/pages/ClubDetailPage.js` | Replaced random test with modal |
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+1. **Hard refresh** the app (Ctrl+Shift+R)
+
+2. Go to **Groups → Clubs tab** → **View** a test club
+
+3. Click the **"Create Event"** button
+
+4. You should see a **modal overlay** with:
+   - Title field (required)
+   - Description textarea
+   - Date picker (defaults to tomorrow)
+   - Start/End time pickers (default 5-7pm)
+   - Location field (required)
+
+5. **Try submitting empty** — should show error toast
+
+6. **Fill in the form** and click "Create Event":
+   - Spinner shows while saving
+   - Toast says "Event created!"
+   - Modal closes
+   - Event card appears in the list!
+
+7. **Test keyboard**: Press `Escape` to close modal
+
+8. **Test overlay click**: Click outside the modal to close it
+
+### If Something Breaks:
+
+- **Modal doesn't appear?** — Check console for import errors
+- **Styles look off?** — Hard refresh to pick up new CSS
+- **Create fails?** — Check Firestore rules, ensure emulator is running
+
+---
+
+## 👁️ 2025-11-26 — Phase 3 Step 3: Event Detail Modal
+
+### What I Built (The Fun Version! 🎭)
+
+Click an event card and BAM — a beautiful detail view slides in! It's like opening an event flyer to see all the details.
+
+**Features added:**
+- 👆 **Clickable event cards** — Tap any event to see full details
+- 📋 **Full event info** — Date, time, location, description, creator
+- 🔴 **Status badges** — Live, Pending, Rejected, Cancelled
+- ✏️ **Edit button** — For event creators/club owners (placeholder for now)
+- 🗑️ **Delete button** — With confirmation dialog
+- 🎨 **Beautiful design** — Matches the app's glassmorphism theme
+
+### Files Changed:
+
+| File | What Changed |
+|------|--------------|
+| `src/js/components/clubs/EventDetailModal.js` | NEW — Event detail modal |
+| `src/css/clubs.css` | Added ~180 lines of detail modal styling |
+| `src/js/pages/ClubDetailPage.js` | Added click handlers + `openEventDetailModal()` |
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+1. **Hard refresh** the app (Ctrl+Shift+R)
+
+2. Go to **Groups → Clubs → View** a test club with events
+
+3. **Click any event card** — You should see:
+   - Beautiful modal with full event details
+   - Date & time in a highlighted box
+   - Location with map icon
+   - Description (if any)
+   - "Created by" info
+
+4. **Test close options**:
+   - Click the X button
+   - Click outside the modal
+   - Press Escape
+
+5. **Test delete** (if you're the club owner):
+   - Click "Delete" button
+   - Confirm in the dialog
+   - Event should disappear from the list!
+
+6. **Click "Edit"** — Should show "Edit feature coming soon!" toast
+
+### If Something Breaks:
+
+- **Modal doesn't open?** — Check console for import errors
+- **Delete fails?** — Check Firestore rules for events subcollection
+- **Buttons missing?** — Only club owner/president sees Edit/Delete
+
+---
+
 -- End of file
