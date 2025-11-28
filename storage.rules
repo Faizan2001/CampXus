@@ -3,6 +3,26 @@ service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() { return request.auth != null; }
 
+    // =========================================================================
+    // CLUB OWNERSHIP VERIFICATION (via Firestore lookup)
+    // =========================================================================
+    // Checks if the authenticated user is an authorized club official:
+    // - devOwnerUid: For dev/testing clubs (devTest == true)
+    // - presidentId: For production clubs
+    // - createdBy: The club creator (backup for production clubs)
+    function isClubOfficial(clubId) {
+      let club = firestore.get(/databases/(default)/documents/clubs/$(clubId));
+      return club != null && (
+        // Dev/test club: only devOwnerUid can manage
+        (club.data.devTest == true && club.data.devOwnerUid == request.auth.uid) ||
+        // Production club: presidentId or createdBy can manage
+        (club.data.devTest != true && (
+          club.data.presidentId == request.auth.uid ||
+          club.data.createdBy == request.auth.uid
+        ))
+      );
+    }
+
     // Profile photos bucket
     match /profilePhotos/{uid}/{file} {
       // Read allowed to signed-in users (you can tighten later)
@@ -16,6 +36,59 @@ service firebase.storage {
 
       // Delete: owner can delete; request.resource is null during delete, so do not check size/type
       allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // =========================================================================
+    // CLUB EVENT IMAGES
+    // =========================================================================
+    // Path: clubEvents/{clubId}/{eventId}/{ownerUid}_{file}
+    // Security: Only verified club officials (devOwnerUid or presidentId) can write/delete
+    // The UID prefix in filename provides an audit trail of who uploaded the file
+    match /clubEvents/{clubId}/{eventId}/{file} {
+      // Read allowed to any signed-in user
+      allow read: if isSignedIn();
+
+      // Create/Update: 
+      // 1. Must be authenticated
+      // 2. File must be prefixed with uploader's UID (audit trail)
+      // 3. User must be a verified club official (Firestore lookup)
+      // 4. File size and type constraints
+      allow create, update: if isSignedIn()
+                            && file.matches(request.auth.uid + '_.*')
+                            && isClubOfficial(clubId)
+                            && request.resource.size < 1024 * 1024
+                            && request.resource.contentType.matches('image/.*');
+
+      // Delete: 
+      // 1. UID prefix must match authenticated user (only delete your own uploads)
+      // 2. User must still be a club official
+      allow delete: if isSignedIn()
+                    && file.matches(request.auth.uid + '_.*')
+                    && isClubOfficial(clubId);
+    }
+
+    // =========================================================================
+    // CLUB ASSETS (logos, banners)
+    // =========================================================================
+    // Path: clubAssets/{clubId}/{ownerUid}_{file}
+    // Security: Only verified club officials can write/delete their club's assets
+    match /clubAssets/{clubId}/{file} {
+      allow read: if isSignedIn();
+
+      // Create/Update:
+      // 1. UID prefix for audit trail
+      // 2. Must be verified club official
+      // 3. File size and type constraints
+      allow create, update: if isSignedIn()
+                            && file.matches(request.auth.uid + '_.*')
+                            && isClubOfficial(clubId)
+                            && request.resource.size < 500 * 1024
+                            && request.resource.contentType.matches('image/.*');
+
+      // Delete: must be authenticated, own the file, and be a club official
+      allow delete: if isSignedIn()
+                    && file.matches(request.auth.uid + '_.*')
+                    && isClubOfficial(clubId);
     }
 
     // Default deny

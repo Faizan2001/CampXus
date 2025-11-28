@@ -22,6 +22,17 @@ design system for the MeetchuThere application. It includes:
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* Remove blue tap flash on mobile/PWA */
+}
+
+/* Global touch feedback for interactive elements */
+button:active,
+a:active,
+[role="button"]:active,
+.clickable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
 
 /* Root font-size for consistent rem calculations across all environments */

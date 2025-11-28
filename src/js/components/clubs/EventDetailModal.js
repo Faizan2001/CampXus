@@ -14,19 +14,23 @@ export class EventDetailModal {
     this.onEdit = options.onEdit || (() => {});
     this.onDelete = options.onDelete || (() => {});
     this.onClose = options.onClose || (() => {});
-    
+
     this.overlay = null;
   }
 
   /**
    * Check if current user can edit/delete this event
-   * Must match Firestore rules: only devOwnerUid or presidentId can manage
+   * Must match storage.rules isClubOfficial(): devOwnerUid, presidentId, or createdBy
    */
   get canManage() {
     if (!currentUser?.uid) return false;
-    // Club owner (devTest) or president can manage - matches firestore.rules
-    return this.clubData?.devOwnerUid === currentUser.uid || 
-           this.clubData?.presidentId === currentUser.uid;
+    // Club owner (devTest), president, or club creator can manage
+    // Matches storage.rules isClubOfficial() and firestore.rules event permissions
+    return (
+      this.clubData?.devOwnerUid === currentUser.uid ||
+      this.clubData?.presidentId === currentUser.uid ||
+      this.clubData?.createdBy === currentUser.uid
+    );
   }
 
   /**
@@ -35,7 +39,7 @@ export class EventDetailModal {
   show() {
     this.render();
     this.bindEvents();
-    
+
     requestAnimationFrame(() => {
       this.overlay?.classList.add("active");
     });
@@ -65,22 +69,21 @@ export class EventDetailModal {
    */
   formatTimeSlots() {
     if (!this.event.timeSlots || this.event.timeSlots.length === 0) {
-      // Fallback to firstSlotStart
-      if (this.event.firstSlotStart) {
-        const date = this.event.firstSlotStart?.toDate?.() || new Date(this.event.firstSlotStart);
-        return [{
-          dateStr: date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
-          timeStr: date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-        }];
-      }
       return [];
     }
 
-    return this.event.timeSlots.map(slot => {
+    return this.event.timeSlots.map((slot) => {
       const date = new Date(slot.date + "T00:00:00");
       return {
-        dateStr: date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
-        timeStr: `${this.formatTime(slot.startTime)} - ${this.formatTime(slot.endTime)}`
+        dateStr: date.toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+        timeStr: `${this.formatTime(slot.startTime)} - ${this.formatTime(
+          slot.endTime
+        )}`,
       };
     });
   }
@@ -103,7 +106,10 @@ export class EventDetailModal {
     if (this.event.isLive) {
       return `<span class="event-detail-status live"><i class="fas fa-circle"></i> LIVE NOW</span>`;
     }
-    if (this.event.status === "pending_president" || this.event.status === "pending_saf") {
+    if (
+      this.event.status === "pending_president" ||
+      this.event.status === "pending_saf"
+    ) {
       return `<span class="event-detail-status pending"><i class="fas fa-clock"></i> Pending Approval</span>`;
     }
     if (this.event.status === "rejected") {
@@ -124,80 +130,188 @@ export class EventDetailModal {
     const e = this.event;
     const timeSlots = this.formatTimeSlots();
     const statusBadge = this.getStatusBadge();
+    const hasImage = !!e.imageUrl;
+
+    // Get first time slot for compact display
+    const firstSlot = timeSlots[0];
+    const additionalSlots = timeSlots.length > 1 ? timeSlots.length - 1 : 0;
 
     this.overlay = document.createElement("div");
     this.overlay.className = "event-detail-modal-overlay";
-    this.overlay.innerHTML = `
-      <div class="event-detail-modal">
-        <button class="modal-close-btn" type="button" aria-label="Close">
-          <i class="fas fa-times"></i>
-        </button>
+    
+    // Different layout for events with images vs without
+    if (hasImage) {
+      // Hero image layout - image is the focus
+      this.overlay.innerHTML = `
+        <div class="event-detail-modal has-hero-image">
+          <button class="modal-close-btn" type="button" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
 
-        ${e.imageUrl ? `
-          <div class="event-detail-image">
-            <img src="${e.imageUrl}" alt="${escapeHtml(e.title)}" />
-          </div>
-        ` : ""}
-
-        <div class="event-detail-content">
-          <div class="event-detail-header">
-            <h2>${escapeHtml(e.title || "Untitled Event")}</h2>
-            ${statusBadge}
-          </div>
-
-          <div class="event-detail-meta">
-            ${timeSlots.map(slot => `
-              <div class="event-detail-slot">
-                <div class="slot-date">
-                  <i class="fas fa-calendar"></i>
-                  ${slot.dateStr}
-                </div>
-                <div class="slot-time">
-                  <i class="fas fa-clock"></i>
-                  ${slot.timeStr}
+          <div class="event-hero-container">
+            <img src="${e.imageUrl}" alt="${escapeHtml(e.title)}" class="event-hero-image" />
+            
+            <div class="event-hero-overlay">
+              <div class="event-hero-content">
+                ${statusBadge}
+                <h2 class="event-hero-title">${escapeHtml(e.title || "Untitled Event")}</h2>
+                
+                <div class="event-hero-meta">
+                  ${firstSlot ? `
+                    <div class="hero-meta-item">
+                      <i class="fas fa-calendar"></i>
+                      <span>${firstSlot.dateStr}${additionalSlots > 0 ? ` (+${additionalSlots} more)` : ''}</span>
+                    </div>
+                    <div class="hero-meta-item">
+                      <i class="fas fa-clock"></i>
+                      <span>${firstSlot.timeStr}</span>
+                    </div>
+                  ` : ''}
+                  <div class="hero-meta-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${escapeHtml(e.location || "Location TBA")}</span>
+                  </div>
                 </div>
               </div>
-            `).join("")}
-
-            <div class="event-detail-location">
-              <i class="fas fa-map-marker-alt"></i>
-              ${escapeHtml(e.location || "Location TBA")}
             </div>
           </div>
 
-          ${e.description ? `
-            <div class="event-detail-description">
-              <h3>About this event</h3>
-              <p>${escapeHtml(e.description)}</p>
-            </div>
-          ` : ""}
-
-          <div class="event-detail-info">
-            <div class="info-item">
-              <i class="fas fa-user"></i>
-              <span>Created by ${escapeHtml(e.createdByInfo?.firstName || "Unknown")} ${escapeHtml(e.createdByInfo?.lastName || "")}</span>
-            </div>
-            ${e.createdAt ? `
-              <div class="info-item">
-                <i class="fas fa-calendar-plus"></i>
-                <span>Posted ${this.formatDate(e.createdAt)}</span>
+          ${additionalSlots > 0 || e.description || this.canManage ? `
+            <div class="event-detail-footer">
+              ${additionalSlots > 0 ? `
+                <div class="event-all-dates">
+                  <button class="view-all-dates-btn" type="button">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>View all ${timeSlots.length} dates</span>
+                    <i class="fas fa-chevron-down expand-icon"></i>
+                  </button>
+                  <div class="all-dates-list" hidden>
+                    ${timeSlots.map((slot, index) => `
+                      <div class="event-detail-slot compact">
+                        <span class="slot-number">${index + 1}</span>
+                        <div class="slot-date">
+                          <i class="fas fa-calendar"></i>
+                          ${slot.dateStr}
+                        </div>
+                        <div class="slot-time">
+                          <i class="fas fa-clock"></i>
+                          ${slot.timeStr}
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              
+              ${e.description ? `
+                <p class="event-footer-description">${escapeHtml(e.description)}</p>
+              ` : ''}
+              
+              <div class="event-footer-info">
+                <span><i class="fas fa-user"></i> ${escapeHtml(e.createdByInfo?.firstName || "Unknown")}</span>
+                ${e.createdAt ? `<span><i class="fas fa-calendar-plus"></i> ${this.formatDate(e.createdAt)}</span>` : ''}
               </div>
-            ` : ""}
-          </div>
 
-          ${this.canManage ? `
-            <div class="event-detail-actions">
-              <button class="btn secondary" id="editEventBtn">
-                <i class="fas fa-edit"></i> Edit
-              </button>
-              <button class="btn danger" id="deleteEventBtn">
-                <i class="fas fa-trash"></i> Delete
-              </button>
+              ${this.canManage ? `
+                <div class="event-detail-actions">
+                  <button class="btn secondary" id="editEventBtn">
+                    <i class="fas fa-edit"></i> Edit
+                  </button>
+                  <button class="btn danger" id="deleteEventBtn">
+                    <i class="fas fa-trash"></i> Delete
+                  </button>
+                </div>
+              ` : ''}
             </div>
-          ` : ""}
+          ` : ''}
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      // Standard layout for events without images
+      this.overlay.innerHTML = `
+        <div class="event-detail-modal">
+          <button class="modal-close-btn" type="button" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+
+          <div class="event-detail-content">
+            <div class="event-detail-header">
+              <h2>${escapeHtml(e.title || "Untitled Event")}</h2>
+              ${statusBadge}
+            </div>
+
+            <div class="event-detail-meta">
+              ${timeSlots
+                .map(
+                  (slot) => `
+                <div class="event-detail-slot">
+                  <div class="slot-date">
+                    <i class="fas fa-calendar"></i>
+                    ${slot.dateStr}
+                  </div>
+                  <div class="slot-time">
+                    <i class="fas fa-clock"></i>
+                    ${slot.timeStr}
+                  </div>
+                </div>
+              `
+                )
+                .join("")}
+
+              <div class="event-detail-location">
+                <i class="fas fa-map-marker-alt"></i>
+                ${escapeHtml(e.location || "Location TBA")}
+              </div>
+            </div>
+
+            ${
+              e.description
+                ? `
+              <div class="event-detail-description">
+                <h3>About this event</h3>
+                <p>${escapeHtml(e.description)}</p>
+              </div>
+            `
+                : ""
+            }
+
+            <div class="event-detail-info">
+              <div class="info-item">
+                <i class="fas fa-user"></i>
+                <span>Created by ${escapeHtml(
+                  e.createdByInfo?.firstName || "Unknown"
+                )} ${escapeHtml(e.createdByInfo?.lastName || "")}</span>
+              </div>
+              ${
+                e.createdAt
+                  ? `
+                <div class="info-item">
+                  <i class="fas fa-calendar-plus"></i>
+                  <span>Posted ${this.formatDate(e.createdAt)}</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+
+            ${
+              this.canManage
+                ? `
+              <div class="event-detail-actions">
+                <button class="btn secondary" id="editEventBtn">
+                  <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn danger" id="deleteEventBtn">
+                  <i class="fas fa-trash"></i> Delete
+                </button>
+              </div>
+            `
+                : ""
+            }
+          </div>
+        </div>
+      `;
+    }
 
     document.body.appendChild(this.overlay);
   }
@@ -214,7 +328,7 @@ export class EventDetailModal {
     if (diffDays === 0) return "today";
     if (diffDays === 1) return "yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
-    
+
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 
@@ -225,9 +339,10 @@ export class EventDetailModal {
     const closeBtn = this.overlay.querySelector(".modal-close-btn");
     const editBtn = this.overlay.querySelector("#editEventBtn");
     const deleteBtn = this.overlay.querySelector("#deleteEventBtn");
+    const viewAllDatesBtn = this.overlay.querySelector(".view-all-dates-btn");
 
     closeBtn?.addEventListener("click", () => this.hide());
-    
+
     this.overlay.addEventListener("click", (e) => {
       if (e.target === this.overlay) this.hide();
     });
@@ -243,13 +358,31 @@ export class EventDetailModal {
     });
 
     deleteBtn?.addEventListener("click", () => this.confirmDelete());
+
+    // Toggle view all dates list
+    viewAllDatesBtn?.addEventListener("click", () => {
+      const datesList = this.overlay.querySelector(".all-dates-list");
+      const expandIcon = viewAllDatesBtn.querySelector(".expand-icon");
+      if (datesList) {
+        const isHidden = datesList.hasAttribute("hidden");
+        if (isHidden) {
+          datesList.removeAttribute("hidden");
+          expandIcon?.classList.add("rotated");
+        } else {
+          datesList.setAttribute("hidden", "");
+          expandIcon?.classList.remove("rotated");
+        }
+      }
+    });
   }
 
   /**
    * Confirm and delete the event
    */
   async confirmDelete() {
-    const confirmed = confirm(`Delete "${this.event.title}"?\n\nThis cannot be undone.`);
+    const confirmed = confirm(
+      `Delete "${this.event.title}"?\n\nThis cannot be undone.`
+    );
     if (!confirmed) return;
 
     const deleteBtn = this.overlay.querySelector("#deleteEventBtn");
@@ -262,18 +395,19 @@ export class EventDetailModal {
       const { db } = await import("../../lib/firebase/firebase-config.js");
       const { doc, deleteDoc } = await import("firebase/firestore");
 
-      await deleteDoc(doc(db, "clubs", this.clubData.id, "events", this.event.id));
+      await deleteDoc(
+        doc(db, "clubs", this.clubData.id, "events", this.event.id)
+      );
 
       logManager.info("[EventDetailModal] Deleted event:", this.event.id);
       notificationManager.show("Event deleted", "success");
 
       this.hide();
       this.onDelete(this.event.id);
-
     } catch (err) {
       logManager.error("[EventDetailModal] Failed to delete event:", err);
       notificationManager.show("Failed to delete event", "error");
-      
+
       if (deleteBtn) {
         deleteBtn.disabled = false;
         deleteBtn.innerHTML = `<i class="fas fa-trash"></i> Delete`;
@@ -294,7 +428,10 @@ export class EventDetailModal {
 }
 
 function escapeHtml(s) {
-  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /**

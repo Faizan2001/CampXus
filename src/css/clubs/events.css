@@ -83,9 +83,12 @@
 
 .event-card {
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  background: linear-gradient(135deg, rgba(40, 40, 60, 0.9), rgba(30, 30, 45, 0.95));
+  flex-direction: column;
+  background: linear-gradient(
+    135deg,
+    rgba(40, 40, 60, 0.9),
+    rgba(30, 30, 45, 0.95)
+  );
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   overflow: hidden;
@@ -95,20 +98,25 @@
 }
 
 .event-card::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, var(--primary-gradient-start, #667eea), var(--primary-gradient-end, #764ba2));
+  background: linear-gradient(
+    180deg,
+    var(--primary-gradient-start, #667eea),
+    var(--primary-gradient-end, #764ba2)
+  );
   border-radius: 4px 0 0 4px;
+  z-index: 2;
 }
 
 .event-card:hover {
   transform: translateY(-3px) scale(1.01);
   box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15),
-              0 4px 12px rgba(0, 0, 0, 0.2);
+    0 4px 12px rgba(0, 0, 0, 0.2);
   border-color: rgba(102, 126, 234, 0.3);
 }
 
@@ -128,11 +136,41 @@
   opacity: 0.75;
 }
 
-/* --- Event Image --- */
-.event-card .event-image {
+/* --- Event Image Container --- */
+.event-card .event-image-container {
+  position: relative;
   width: 100%;
   height: 140px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.event-card .event-image {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.event-card:hover .event-image {
+  transform: scale(1.05);
+}
+
+/* Gradient overlay on image to ensure text readability */
+.event-card .event-image-container::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(
+    to top,
+    rgba(20, 20, 35, 0.9) 0%,
+    rgba(20, 20, 35, 0.5) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 /* --- Event Card Content --- */
@@ -142,6 +180,13 @@
   flex-direction: column;
   gap: 0.6rem;
   flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+/* When card has image, adjust content positioning */
+.event-card.has-image .event-card-content {
+  padding-top: 0.85rem;
 }
 
 /* --- Event Header (Title + Status) --- */
@@ -158,6 +203,33 @@
   font-weight: 600;
   color: white;
   letter-spacing: -0.01em;
+}
+
+/* --- Event Badges Container --- */
+.event-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* --- Multi-day Badge --- */
+.event-multi-day-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-radius: 6px;
+  background: rgba(139, 125, 232, 0.15);
+  color: #a78bfa;
+}
+
+.event-multi-day-badge i {
+  font-size: 0.6rem;
 }
 
 /* --- Event Status Badge --- */
@@ -185,8 +257,15 @@
 }
 
 @keyframes pulse-live {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.9); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
 }
 
 .event-status.pending {
@@ -295,16 +374,16 @@
   .event-card-content {
     padding: 0.85rem 1rem;
   }
-  
+
   .event-title {
     font-size: 0.95rem;
   }
-  
+
   .event-meta {
     gap: 0.6rem;
     font-size: 0.8rem;
   }
-  
+
   .event-description {
     font-size: 0.8rem;
     -webkit-line-clamp: 2;
@@ -316,13 +395,17 @@
 ======================================== */
 
 body:not(.dark-mode) .event-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.98));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(248, 250, 252, 0.98)
+  );
   border-color: rgba(0, 0, 0, 0.08);
 }
 
 body:not(.dark-mode) .event-card:hover {
   box-shadow: 0 12px 32px rgba(102, 126, 234, 0.12),
-              0 4px 12px rgba(0, 0, 0, 0.08);
+    0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 body:not(.dark-mode) .event-title {

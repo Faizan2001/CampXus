@@ -87,16 +87,19 @@ Which would you like next? Reply with `A`, `B`, or both. Or tell me a different 
 What I changed (non-destructive):
 
 - Added two new SPA routes to `src/js/router/Router.js`:
-   - `clubs` -> `/templates/clubs.html` (renders `ClubsPage.js` + `clubs.css`)
-   - `club` -> `/templates/club.html` (renders `ClubDetailPage.js` + `clubs.css`)
+
+  - `clubs` -> `/templates/clubs.html` (renders `ClubsPage.js` + `clubs.css`)
+  - `club` -> `/templates/club.html` (renders `ClubDetailPage.js` + `clubs.css`)
 
 - New template files (safe static HTML):
-   - `public/templates/clubs.html`
-   - `public/templates/club.html`
+
+  - `public/templates/clubs.html`
+  - `public/templates/club.html`
 
 - New page controllers (lightweight, emulator-friendly):
-   - `src/js/pages/ClubsPage.js` — loads a small preview of `clubs` collection from Firestore emulator, and provides a button `Create Test Club (Emulator)` which writes a document to `clubs/` in the emulator.
-   - `src/js/pages/ClubDetailPage.js` — reads a club document by ID from the emulator and shows basic fields.
+
+  - `src/js/pages/ClubsPage.js` — loads a small preview of `clubs` collection from Firestore emulator, and provides a button `Create Test Club (Emulator)` which writes a document to `clubs/` in the emulator.
+  - `src/js/pages/ClubDetailPage.js` — reads a club document by ID from the emulator and shows basic fields.
 
 - New CSS file: `src/css/clubs.css` (minimal, uses existing CSS variables so it is compatible with the current theme)
 
@@ -108,27 +111,27 @@ Why this is safe:
 
 Manual tests / checks (easy, step-by-step)
 
-1) Ensure emulator is running (you said it is). If not, start it:
+1. Ensure emulator is running (you said it is). If not, start it:
 
 ```bash
 npx firebase emulators:start --only firestore,functions
 ```
 
-2) Start your dev server (Vite):
+2. Start your dev server (Vite):
 
 ```bash
 npm run dev
 ```
 
-3) Open the app in the browser, then navigate to `#clubs` (e.g., `http://localhost:5173/#clubs`).
+3. Open the app in the browser, then navigate to `#clubs` (e.g., `http://localhost:5173/#clubs`).
 
 Expected result: You should see the Clubs header and either a message "No clubs found in emulator." or a list of clubs if you already have test data in the emulator.
 
-4) Click the `Create Test Club (Emulator)` button.
+4. Click the `Create Test Club (Emulator)` button.
 
 Expected result: A small card appears in the list showing the new test club and its id. In your terminal running the emulator you should see a Firestore write logged.
 
-5) Click the `Open` button on the test club card (it links to `#club?id=<id>`).
+5. Click the `Open` button on the test club card (it links to `#club?id=<id>`).
 
 Expected result: The `club` detail page loads and shows the club name, description, and follower count fetched from the emulator.
 
@@ -148,10 +151,10 @@ I implemented the frontend scaffold as requested. If you want, I can now create 
 What I changed:
 
 - Updated `firestore.rules` to add a `match /clubs/{clubId}` block that:
-   - Allows reads for authenticated users
-   - Allows creation for verified users or devTest docs owned by the caller
-   - Allows updates/deletes only for the verified creator or devTest owner
-   - Adds readonly subcollection rules for `events` and `members` (server-managed writes)
+  - Allows reads for authenticated users
+  - Allows creation for verified users or devTest docs owned by the caller
+  - Allows updates/deletes only for the verified creator or devTest owner
+  - Adds readonly subcollection rules for `events` and `members` (server-managed writes)
 
 Why this change is safe:
 
@@ -160,7 +163,7 @@ Why this change is safe:
 
 Manual tests / checks (after rules change)
 
-1) Restart the Firebase emulator so it picks up the rule changes. In your project root run:
+1. Restart the Firebase emulator so it picks up the rule changes. In your project root run:
 
 ```bash
 npx firebase emulators:start --only firestore,functions
@@ -168,19 +171,22 @@ npx firebase emulators:start --only firestore,functions
 
 If you already had them running, stop and restart the emulators so the new rules are loaded.
 
-2) Reload the app and navigate to `#clubs` (`http://localhost:5173/#clubs`).
+2. Reload the app and navigate to `#clubs` (`http://localhost:5173/#clubs`).
 
-3) Try the `Create Test Club (Emulator)` button again.
+3. Try the `Create Test Club (Emulator)` button again.
 
 Expected results:
+
 - The previous permission errors (`No matching allow statements` / `PERMISSION_DENIED`) should be resolved for the `clubs` collection when using an authenticated emulator user.
 - You should be able to create a `devTest` club (created by your emulator-authenticated user) and open it via the detail page.
 
 Notes:
+
 - If you still see permission errors, confirm the client is authenticated in the emulator (check `auth` state in browser console) and that the user has `email_verified` if you are testing verified creation flows.
 - You can create a devTest document through the UI button (our ClubsPage writes a `devTest` doc when used by the logged-in emulator user). If needed, I can modify the ClubsPage to explicitly set `devTest: true` and `devOwnerUid` for the test creation flow — want me to do that?
 
 Next steps (pick one):
+
 - I: Create a data seeder script for the emulator (`CLUBS_Implementation/seed-clubs.js`) and a sample JSON import so you can pre-populate clubs for UI testing.
 - II: Add unit tests exercising rules using the Firebase Emulator `firebasemock` approach (or `@firebase/rules-unit-testing`) to ensure the rules behave as expected.
 - III: Wire `ClubsPage` to the repo's `dataManager` pattern and add proper error handling & toasts via `notificationManager`.
@@ -196,11 +202,13 @@ Tell me which next step you want (I, II, or III). If you want me to make the `Cr
 Think of it like opening a new wing in your campus building — the "Clubs" wing! Here's what's new:
 
 #### 1. **Clubs Tab in Navigation** 🧭
+
 - Added a shiny new "Clubs" link (with a flag icon 🏁) in your top nav bar
 - Now sits right between "Groups" and "Notifications"
 - Click it and you're teleported to the clubs list!
 
 #### 2. **Beautiful Clubs List Page** 📋
+
 - Replaced the plain placeholder with a polished grid of club cards
 - Each card shows:
   - Club logo (or a pretty gradient placeholder)
@@ -210,6 +218,7 @@ Think of it like opening a new wing in your campus building — the "Clubs" wing
   - "View" button to open details
 
 #### 3. **Gorgeous Club Detail Page** 🎨
+
 - Hero section with banner and logo
 - Stats bar showing Followers, Members, Events
 - Follow button that updates count in real-time
@@ -217,6 +226,7 @@ Think of it like opening a new wing in your campus building — the "Clubs" wing
 - Back button to return to clubs list
 
 #### 4. **Follow/Unfollow Feature** ❤️
+
 - Click "Follow" → instant UI update → saves to Firestore
 - Updates both:
   - Your user doc (`followedClubs` array)
@@ -226,16 +236,17 @@ Think of it like opening a new wing in your campus building — the "Clubs" wing
 
 ### Files Changed:
 
-| File | What Changed |
-|------|--------------|
-| `index.html` | Added Clubs nav link |
-| `src/js/pages/ClubsPage.js` | Complete rewrite with grid UI, follow logic |
-| `src/js/pages/ClubDetailPage.js` | Complete rewrite with hero, stats, tabs |
-| `src/css/clubs.css` | 300+ lines of polished glassmorphism styles |
+| File                             | What Changed                                |
+| -------------------------------- | ------------------------------------------- |
+| `index.html`                     | Added Clubs nav link                        |
+| `src/js/pages/ClubsPage.js`      | Complete rewrite with grid UI, follow logic |
+| `src/js/pages/ClubDetailPage.js` | Complete rewrite with hero, stats, tabs     |
+| `src/css/clubs.css`              | 300+ lines of polished glassmorphism styles |
 
 ### Manual Tests (Your Checkpoint!) 🧪
 
 1. **Refresh your dev server** (Vite should hot-reload, but if not):
+
    ```bash
    npm run dev
    ```
@@ -243,21 +254,25 @@ Think of it like opening a new wing in your campus building — the "Clubs" wing
 2. **Look at your nav bar** — you should see a new "Clubs" link with a flag icon!
 
 3. **Click "Clubs"** — you should see:
+
    - A header saying "Campus Clubs"
    - A grid of club cards (or empty state if none exist)
    - "Create Test Club" button in top-right
 
 4. **Create a test club** — click the button and watch:
+
    - Spinner while creating
    - Card appears instantly
    - Toast notification "Created Club XYZ!"
 
 5. **Click "Follow" on a club card**:
+
    - Button changes to "Following" ✓
    - Follower count increments
    - Toast says "Now following club!"
 
 6. **Click "View"** to open a club detail page:
+
    - See the hero banner and logo
    - Stats bar with follower count
    - Follow button works here too!
@@ -276,6 +291,7 @@ Think of it like opening a new wing in your campus building — the "Clubs" wing
 ## 🛑 STRATEGIC CHECKPOINT — PICK YOUR NEXT ADVENTURE!
 
 You've now got a working Clubs feature with:
+
 - ✅ Navigation link
 - ✅ List page with cards
 - ✅ Detail page with hero
@@ -284,22 +300,29 @@ You've now got a working Clubs feature with:
 **What would you like next?** Pick one (or combine):
 
 ### A. Events Feature 📅
+
 Add the ability to create and view club events. This includes:
+
 - Event cards on the club detail page
 - Event creation form (for officials)
 - Event detail modal/page
 
 ### B. Members Tab 👥
+
 Show club officials and the president in the Members tab:
+
 - Display member cards with role badges
 - Add "promote to official" flow (for presidents)
 
 ### C. Club Creation for Real Users 🏗️
+
 Right now only test clubs work. Add proper club creation:
+
 - Creation form with name, description, logo upload
 - SAF moderator approval workflow
 
 ### D. Seed Script + More Test Data 🌱
+
 Create a Node script to populate emulator with sample clubs, members, events for better testing.
 
 Reply with **A**, **B**, **C**, **D**, or tell me what you'd prefer!
@@ -309,6 +332,7 @@ Reply with **A**, **B**, **C**, **D**, or tell me what you'd prefer!
 ## 🔧 2025-11-26 — Fix: Clubs Navigation (Tab Inside Groups)
 
 ### What Was Wrong:
+
 I had added Clubs as a **separate nav link** in the top bar. But according to the PRD:
 
 > "Groups Tab (existing) → Classes (tab) ← Current class spaces → Clubs (tab) ← NEW"
@@ -317,13 +341,13 @@ Clubs should be a **tab inside the Groups page**, not a standalone nav item!
 
 ### What I Fixed:
 
-| Change | Description |
-|--------|-------------|
-| Removed Clubs nav link | No more separate "Clubs" in top navbar |
-| Added tab switcher | Groups page now has [Classes] [Clubs] pills |
-| Updated GroupsPage.js | Handles tab switching, lazy-loads ClubsPage |
-| Updated groups.html | Template now includes tab switcher HTML |
-| Added tab CSS | Glassmorphism pill-style tabs in groups.css |
+| Change                       | Description                                 |
+| ---------------------------- | ------------------------------------------- |
+| Removed Clubs nav link       | No more separate "Clubs" in top navbar      |
+| Added tab switcher           | Groups page now has [Classes] [Clubs] pills |
+| Updated GroupsPage.js        | Handles tab switching, lazy-loads ClubsPage |
+| Updated groups.html          | Template now includes tab switcher HTML     |
+| Added tab CSS                | Glassmorphism pill-style tabs in groups.css |
 | ClubsPage conditional header | Hides its own header when inside Groups tab |
 
 ### How It Works Now:
@@ -336,13 +360,13 @@ Groups (nav link)
 
 ### Files Changed:
 
-| File | What Changed |
-|------|--------------|
-| `index.html` | Removed standalone Clubs nav link |
-| `public/templates/groups.html` | Added tab switcher HTML |
-| `src/js/pages/GroupsPage.js` | Added tab logic, lazy-loads ClubsPage |
-| `src/css/groups.css` | Added `.groups-content-tabs` styles |
-| `src/js/pages/ClubsPage.js` | Conditional header (hides when in tab) |
+| File                           | What Changed                           |
+| ------------------------------ | -------------------------------------- |
+| `index.html`                   | Removed standalone Clubs nav link      |
+| `public/templates/groups.html` | Added tab switcher HTML                |
+| `src/js/pages/GroupsPage.js`   | Added tab logic, lazy-loads ClubsPage  |
+| `src/css/groups.css`           | Added `.groups-content-tabs` styles    |
+| `src/js/pages/ClubsPage.js`    | Conditional header (hides when in tab) |
 
 ### Manual Tests:
 
@@ -355,7 +379,7 @@ Groups (nav link)
 
 ---
 
-*Progress log updated: 2025-11-26*
+_Progress log updated: 2025-11-26_
 
 ---
 
@@ -364,6 +388,7 @@ Groups (nav link)
 ### What Was Wrong:
 
 The tab switcher was **flickering/resizing** when switching between Classes and Clubs because:
+
 1. The active state applied a `background` directly to the button, causing layout recalculation
 2. No fixed dimensions on the tab container
 3. Content change caused the container to resize
@@ -374,22 +399,22 @@ I studied how the existing `group-tabs` (Chat/Members switcher) works — it use
 
 #### CSS Changes (`groups.css`):
 
-| Change | Why |
-|--------|-----|
-| Added `::before` pseudo-element | Creates the sliding pill indicator (like Chat/Members tabs) |
-| `transform: translateX(100%)` on Clubs active | Pill smoothly slides right |
-| `height: 44px` fixed on container | Tab bar never resizes |
-| `background: transparent` on active tab | No reflow, just color change |
-| `cubic-bezier(0.34, 1.56, 0.64, 1)` | Physics-like bounce animation! |
-| `slideInFromLeft` / `slideInFromRight` animations | Content slides in from direction of tab |
+| Change                                            | Why                                                         |
+| ------------------------------------------------- | ----------------------------------------------------------- |
+| Added `::before` pseudo-element                   | Creates the sliding pill indicator (like Chat/Members tabs) |
+| `transform: translateX(100%)` on Clubs active     | Pill smoothly slides right                                  |
+| `height: 44px` fixed on container                 | Tab bar never resizes                                       |
+| `background: transparent` on active tab           | No reflow, just color change                                |
+| `cubic-bezier(0.34, 1.56, 0.64, 1)`               | Physics-like bounce animation!                              |
+| `slideInFromLeft` / `slideInFromRight` animations | Content slides in from direction of tab                     |
 
 #### JS Changes (`GroupsPage.js`):
 
-| Change | Why |
-|--------|-----|
-| `data-slide` attribute on `#groups-root` | Tells CSS which direction to animate content |
-| `slideDirection = "right"` for Clubs tab | Content slides in from right |
-| `slideDirection = "left"` for Classes tab | Content slides in from left |
+| Change                                    | Why                                          |
+| ----------------------------------------- | -------------------------------------------- |
+| `data-slide` attribute on `#groups-root`  | Tells CSS which direction to animate content |
+| `slideDirection = "right"` for Clubs tab  | Content slides in from right                 |
+| `slideDirection = "left"` for Classes tab | Content slides in from left                  |
 
 ### The Magic:
 
@@ -419,12 +444,12 @@ I studied how the existing `group-tabs` (Chat/Members switcher) works — it use
 
 ### Before vs After:
 
-| Before | After |
-|--------|-------|
+| Before                             | After                  |
+| ---------------------------------- | ---------------------- |
 | Button background toggle (flicker) | Sliding pill indicator |
-| Tab bar resized on content change | Fixed 44px height |
-| Instant content swap | Slide-in animation |
-| Janky | Buttery smooth! 🧈 |
+| Tab bar resized on content change  | Fixed 44px height      |
+| Instant content swap               | Slide-in animation     |
+| Janky                              | Buttery smooth! 🧈     |
 
 ---
 
@@ -444,20 +469,20 @@ Even with the sliding pill fix, the tab bar was still **shrinking in width** whe
 
 #### JS Changes (`GroupsPage.js`):
 
-| Change | Why |
-|--------|-----|
-| `renderActiveTab()` renders to `this.groupsRoot` | Tab bar never gets replaced |
-| `renderClassesTab(targetEl)` takes target as param | Explicit about where content goes |
-| `renderClubsTab(targetEl)` takes target as param | Explicit about where content goes |
-| `loadGroupsHybrid()` queries `this.groupsRoot` | Find elements in correct container |
-| `loadGroups()` queries `this.groupsRoot` | Find elements in correct container |
-| `bindDevTools()` queries `this.groupsRoot` | Find elements in correct container |
+| Change                                             | Why                                |
+| -------------------------------------------------- | ---------------------------------- |
+| `renderActiveTab()` renders to `this.groupsRoot`   | Tab bar never gets replaced        |
+| `renderClassesTab(targetEl)` takes target as param | Explicit about where content goes  |
+| `renderClubsTab(targetEl)` takes target as param   | Explicit about where content goes  |
+| `loadGroupsHybrid()` queries `this.groupsRoot`     | Find elements in correct container |
+| `loadGroups()` queries `this.groupsRoot`           | Find elements in correct container |
+| `bindDevTools()` queries `this.groupsRoot`         | Find elements in correct container |
 
 #### CSS Changes (`groups.css`):
 
-| Change | Why |
-|--------|-----|
-| `.groups-section { width: 100% }` | Parent never shrinks |
+| Change                                                         | Why                       |
+| -------------------------------------------------------------- | ------------------------- |
+| `.groups-section { width: 100% }`                              | Parent never shrinks      |
 | `.groups-content-tabs { width: 100%; box-sizing: border-box }` | Tab bar always full width |
 
 ### Structure Now:
@@ -492,19 +517,21 @@ Even with the sliding pill fix, the tab bar was still **shrinking in width** whe
 ### Files Fixed:
 
 #### `src/js/pages/ClubsPage.js`
-| Location | Before | After |
-|----------|--------|-------|
-| `handleFollowClick` success | `.showNotification(...)` | `.show(message, type)` |
-| `handleFollowClick` error | `.showNotification(...)` | `.show(message, type)` |
-| `createTestClub` success | `.showNotification(...)` | `.show(message, type)` |
-| `createTestClub` error | `.showNotification(...)` | `.show(message, type)` |
+
+| Location                     | Before                           | After                                             |
+| ---------------------------- | -------------------------------- | ------------------------------------------------- |
+| `handleFollowClick` success  | `.showNotification(...)`         | `.show(message, type)`                            |
+| `handleFollowClick` error    | `.showNotification(...)`         | `.show(message, type)`                            |
+| `createTestClub` success     | `.showNotification(...)`         | `.show(message, type)`                            |
+| `createTestClub` error       | `.showNotification(...)`         | `.show(message, type)`                            |
 | `createTestClub` accentColor | Inline random + hardcoded "blue" | Single `accentColor` variable used in both places |
 
 #### `src/js/pages/ClubDetailPage.js`
-| Location | Before | After |
-|----------|--------|-------|
+
+| Location               | Before                   | After                  |
+| ---------------------- | ------------------------ | ---------------------- |
 | `handleFollow` success | `.showNotification(...)` | `.show(message, type)` |
-| `handleFollow` error | `.showNotification(...)` | `.show(message, type)` |
+| `handleFollow` error   | `.showNotification(...)` | `.show(message, type)` |
 
 ### Why These Fixes Matter:
 
@@ -520,10 +547,12 @@ Even with the sliding pill fix, the tab bar was still **shrinking in width** whe
 The follow/unfollow feature was **broken for normal users**. Here's why:
 
 **Original rules only allowed updates by:**
+
 - Club creator (if verified)
 - DevTest club owner
 
 **But follow/unfollow does:**
+
 ```javascript
 await updateDoc(doc(db, "clubs", clubId), {
   followerCount: increment(-1 or +1),
@@ -542,23 +571,22 @@ Added a third condition to the update rule that allows **any authenticated user*
 
 ```javascript
 // Anyone authenticated can update ONLY followerCount by exactly +1 or -1
-(
-  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
-  (
-    request.resource.data.followerCount == resource.data.followerCount + 1 ||
-    request.resource.data.followerCount == resource.data.followerCount - 1
-  )
-)
+request.resource.data
+  .diff(resource.data)
+  .affectedKeys()
+  .hasOnly(["followerCount"]) &&
+  (request.resource.data.followerCount == resource.data.followerCount + 1 ||
+    request.resource.data.followerCount == resource.data.followerCount - 1);
 ```
 
 ### Security Analysis:
 
-| Attack Vector | Protected? | How |
-|---------------|------------|-----|
-| Setting arbitrary followerCount | ✅ | Must be exactly ±1 from current value |
-| Modifying other fields | ✅ | `hasOnly(['followerCount'])` blocks all other fields |
-| Unauthenticated access | ✅ | `request.auth != null` required |
-| Bulk manipulation | ⚠️ Partial | Rate limiting would need Cloud Function |
+| Attack Vector                   | Protected? | How                                                  |
+| ------------------------------- | ---------- | ---------------------------------------------------- |
+| Setting arbitrary followerCount | ✅         | Must be exactly ±1 from current value                |
+| Modifying other fields          | ✅         | `hasOnly(['followerCount'])` blocks all other fields |
+| Unauthenticated access          | ✅         | `request.auth != null` required                      |
+| Bulk manipulation               | ⚠️ Partial | Rate limiting would need Cloud Function              |
 
 ### Files Changed:
 
@@ -599,6 +627,7 @@ Each step below will come with a short checklist you can follow — like "turn o
 Think of this like adding a bulletin board to each club room. Now when you walk into a club's page, you can see all their events pinned up!
 
 **Features added:**
+
 - 📋 **Events Tab now works!** — Shows real events from Firestore instead of placeholder
 - 📆 **Upcoming vs Past** — Events are sorted by date, past events are collapsible
 - ➕ **Create Test Event button** — If you own the club (devTest), you can create events for testing
@@ -607,20 +636,22 @@ Think of this like adding a bulletin board to each club room. Now when you walk 
 
 ### Files Changed:
 
-| File | What Changed |
-|------|--------------|
-| `firestore.rules` | Added create/update/delete rules for events subcollection |
+| File                             | What Changed                                                                        |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| `firestore.rules`                | Added create/update/delete rules for events subcollection                           |
 | `src/js/pages/ClubDetailPage.js` | Added `loadEvents()`, `renderEventsTab()`, `renderEventCard()`, `createTestEvent()` |
-| `src/css/clubs.css` | Added ~150 lines of event card styling |
+| `src/css/clubs.css`              | Added ~150 lines of event card styling                                              |
 
 ### Manual Tests (Your Checkpoint!) 🧪
 
 1. **Restart Firebase emulator** to pick up rule changes:
+
    ```bash
    npx firebase emulators:start --only firestore,functions
    ```
 
 2. **Start dev server** (if not running):
+
    ```bash
    npm run dev
    ```
@@ -632,10 +663,12 @@ Think of this like adding a bulletin board to each club room. Now when you walk 
 5. **Click "View"** on your test club to open the detail page
 
 6. **Look at the Events tab** — you should see:
+
    - Empty state: "No events yet" with a **Create Test Event** button
    - If you already have events: Event cards with date, time, location
 
 7. **Click "Create Test Event"** — watch:
+
    - Spinner while creating
    - Toast notification "Created event: Test Workshop #123"
    - Event card appears in "Upcoming" section!
@@ -654,7 +687,7 @@ Think of this like adding a bulletin board to each club room. Now when you walk 
 
 ---
 
-*Progress log updated: 2025-11-26*
+_Progress log updated: 2025-11-26_
 
 ---
 
@@ -665,6 +698,7 @@ Think of this like adding a bulletin board to each club room. Now when you walk 
 No more random test events! Now you get a **real form** to create events — like filling out an event signup sheet, but prettier!
 
 **Features added:**
+
 - 📋 **Create Event Modal** — A beautiful overlay form
 - ✏️ **Real fields** — Title, description, date, start/end time, location
 - ✅ **Validation** — Checks required fields, end time > start time
@@ -674,11 +708,11 @@ No more random test events! Now you get a **real form** to create events — lik
 
 ### Files Changed:
 
-| File | What Changed |
-|------|--------------|
+| File                                          | What Changed                         |
+| --------------------------------------------- | ------------------------------------ |
 | `src/js/components/clubs/CreateEventModal.js` | NEW — Self-contained modal component |
-| `src/css/clubs.css` | Added ~120 lines of modal styling |
-| `src/js/pages/ClubDetailPage.js` | Replaced random test with modal |
+| `src/css/clubs.css`                           | Added ~120 lines of modal styling    |
+| `src/js/pages/ClubDetailPage.js`              | Replaced random test with modal      |
 
 ### Manual Tests (Your Checkpoint!) 🧪
 
@@ -689,6 +723,7 @@ No more random test events! Now you get a **real form** to create events — lik
 3. Click the **"Create Event"** button
 
 4. You should see a **modal overlay** with:
+
    - Title field (required)
    - Description textarea
    - Date picker (defaults to tomorrow)
@@ -698,6 +733,7 @@ No more random test events! Now you get a **real form** to create events — lik
 5. **Try submitting empty** — should show error toast
 
 6. **Fill in the form** and click "Create Event":
+
    - Spinner shows while saving
    - Toast says "Event created!"
    - Modal closes
@@ -722,6 +758,7 @@ No more random test events! Now you get a **real form** to create events — lik
 Click an event card and BAM — a beautiful detail view slides in! It's like opening an event flyer to see all the details.
 
 **Features added:**
+
 - 👆 **Clickable event cards** — Tap any event to see full details
 - 📋 **Full event info** — Date, time, location, description, creator
 - 🔴 **Status badges** — Live, Pending, Rejected, Cancelled
@@ -731,11 +768,11 @@ Click an event card and BAM — a beautiful detail view slides in! It's like ope
 
 ### Files Changed:
 
-| File | What Changed |
-|------|--------------|
-| `src/js/components/clubs/EventDetailModal.js` | NEW — Event detail modal |
-| `src/css/clubs.css` | Added ~180 lines of detail modal styling |
-| `src/js/pages/ClubDetailPage.js` | Added click handlers + `openEventDetailModal()` |
+| File                                          | What Changed                                    |
+| --------------------------------------------- | ----------------------------------------------- |
+| `src/js/components/clubs/EventDetailModal.js` | NEW — Event detail modal                        |
+| `src/css/clubs.css`                           | Added ~180 lines of detail modal styling        |
+| `src/js/pages/ClubDetailPage.js`              | Added click handlers + `openEventDetailModal()` |
 
 ### Manual Tests (Your Checkpoint!) 🧪
 
@@ -744,6 +781,7 @@ Click an event card and BAM — a beautiful detail view slides in! It's like ope
 2. Go to **Groups → Clubs → View** a test club with events
 
 3. **Click any event card** — You should see:
+
    - Beautiful modal with full event details
    - Date & time in a highlighted box
    - Location with map icon
@@ -751,11 +789,13 @@ Click an event card and BAM — a beautiful detail view slides in! It's like ope
    - "Created by" info
 
 4. **Test close options**:
+
    - Click the X button
    - Click outside the modal
    - Press Escape
 
 5. **Test delete** (if you're the club owner):
+
    - Click "Delete" button
    - Confirm in the dialog
    - Event should disappear from the list!
@@ -767,6 +807,344 @@ Click an event card and BAM — a beautiful detail view slides in! It's like ope
 - **Modal doesn't open?** — Check console for import errors
 - **Delete fails?** — Check Firestore rules for events subcollection
 - **Buttons missing?** — Only club owner/president sees Edit/Delete
+
+---
+
+## ✏️ 2025-XX-XX — Phase 3 Step 4: Edit Event Feature
+
+### What I Built (The Fun Version! 🎨)
+
+The "Edit feature coming soon!" toast is gone! Now when you click Edit, you get the **same beautiful form** you used to create the event — but it's pre-filled with the existing data!
+
+**Features added:**
+
+- ✏️ **Edit mode for CreateEventModal** — Same component, dual personality!
+- 📝 **Pre-filled form** — All fields populated with existing event data
+- 💾 **Smart save** — Creates new events OR updates existing ones
+- 🎭 **Dynamic header** — Shows "Edit Event" or "Create Event" based on mode
+
+### Files Changed:
+
+| File                                          | What Changed                                   |
+| --------------------------------------------- | ---------------------------------------------- |
+| `src/js/components/clubs/CreateEventModal.js` | Added edit mode, pre-fill logic, UPDATE path   |
+| `src/js/pages/ClubDetailPage.js`              | Added `openEditEventModal()`, fixed Edit click |
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+1. **Hard refresh** the app (Ctrl+Shift+R)
+2. Go to **Groups → Clubs → View** a test club
+3. **Click any event card** to open details
+4. **Click "Edit"** — Modal should now open (not a toast!)
+5. Verify form is **pre-filled** with:
+   - Existing title
+   - Existing description
+   - Existing date
+   - Existing time range
+   - Existing location
+6. **Change something** (e.g., the title) and click **"Save Changes"**
+7. Modal closes, event card updates in the list!
+8. Click the event again — verify your changes stuck!
+
+---
+
+## 🖼️ 2025-XX-XX — Phase 3 Step 5: Event Image Upload
+
+### What I Built (The Fun Version! 📸)
+
+Events can now have eye-catching images! Like adding a poster to your event flyer!
+
+**Features added:**
+
+- 📸 **Image picker** — Click the dashed box to select an image
+- 🔄 **Auto-processing** — Images resized to 1200×675 (16:9), converted to WebP
+- ☁️ **Cloud storage** — Images uploaded to Firebase Storage
+- 👁️ **Preview before save** — See the image before creating the event
+- 🗑️ **Remove button** — Changed your mind? Remove the image!
+- 🎨 **Edit mode image** — Shows existing image, allows replacement
+
+### Files Changed:
+
+| File                                          | What Changed                                     |
+| --------------------------------------------- | ------------------------------------------------ |
+| `src/js/services/clubs/ClubImageService.js`   | NEW — Image processing & Storage upload service  |
+| `storage.rules`                               | Added clubEventImages bucket rules               |
+| `src/js/components/clubs/CreateEventModal.js` | Added image section, upload logic in handleSubmit |
+| `src/css/clubs/modals.css`                    | Added image preview container styles             |
+
+### How It Works:
+
+1. **Select Image** — Clicking the dashed box opens file picker
+2. **Validate** — Only images under 5MB allowed initially
+3. **Preview** — Image shown in the form before saving
+4. **Process** — Resized to 1200×675, compressed to WebP format
+5. **Upload** — Sent to Firebase Storage after event is created
+6. **Display** — Event cards and detail modal show the image!
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+1. **Restart Firebase emulator** (to pick up Storage rules):
+   ```bash
+   npx firebase emulators:start --only firestore,functions,storage
+   ```
+
+2. **Hard refresh** the app (Ctrl+Shift+R)
+
+3. **Create a NEW event with an image**:
+   - Go to Groups → Clubs → View a test club
+   - Click "Create Event"
+   - Fill in the required fields (title, date, time, location)
+   - **Click the dashed image area** or drag an image onto it
+   - You should see a preview of your image!
+   - Click "Create Event"
+   - Watch: "Uploading image..." then "Event created!"
+
+4. **View the event** — Click the event card:
+   - Image should appear at the top of the detail modal!
+
+5. **Edit an event to ADD an image**:
+   - Open an event that has no image
+   - Click Edit
+   - Add an image via the picker
+   - Save Changes
+   - Verify image now appears!
+
+6. **Edit an event to REMOVE an image**:
+   - Open an event that HAS an image
+   - Click Edit
+   - Click the red X button to remove the image
+   - Save Changes
+   - Verify image is gone!
+
+7. **Edit an event to REPLACE an image**:
+   - Open an event that HAS an image
+   - Click Edit
+   - Click the dashed area to select a NEW image
+   - Save Changes
+   - Verify the new image appears!
+
+### If Something Breaks:
+
+- **"Storage not configured"?** — Ensure emulator includes `--only storage`
+- **Upload fails?** — Check Storage rules in emulator UI
+- **Image not showing?** — Check Network tab for 404s, verify URL in Firestore
+- **Preview not appearing?** — Check console for file validation errors
+
+---
+
+## 🚀 2025-01-XX — Multi-Time-Slot Events Implementation
+
+### What Was Built
+
+This update adds support for **multi-day events** where club officials can schedule events that span multiple days with different time slots. For example, a 3-day orientation event with different times each day.
+
+### Files Changed
+
+1. **`src/js/components/clubs/CreateEventModal.js`** — Complete refactor:
+   - Added `timeSlots` array state with auto-incrementing `nextSlotId`
+   - New `initializeTimeSlots()` method for create/edit mode initialization
+   - New `renderTimeSlots()` method generates dynamic slot cards
+   - New `addTimeSlot()` adds slots (max 10)
+   - New `removeTimeSlot(id)` removes specific slots
+   - New `syncTimeSlotInputs()` keeps state in sync with DOM
+   - Updated `handleSubmit()` to collect all slots and compute `firstSlotStart`/`lastSlotEnd`
+   - Edit mode pre-fills all existing time slots
+
+2. **`src/js/components/clubs/EventDetailModal.js`**:
+   - Standard layout: Shows all time slots in scrollable list
+   - Hero image layout: Shows first slot with "(+X more)" in overlay
+   - Added expandable "View all X dates" button for multi-slot events
+   - New `viewAllDatesBtn` event listener toggles dates list visibility
+
+3. **`src/js/pages/ClubDetailPage.js`**:
+   - Updated `renderEventCard()` to show multi-day badge
+   - New `multiDayBadge` variable: `<span class="event-multi-day-badge"><i class="fas fa-layer-group"></i> X-day event</span>`
+
+4. **`src/css/clubs/modals.css`** — ~150 lines of new CSS:
+   - `.time-slots-container` — Container for all slot cards
+   - `.time-slot-card` — Individual slot card with glassmorphic styling
+   - `.slot-header` — Slot number badge + remove button
+   - `.slot-number` — Purple gradient number indicator
+   - `.remove-slot-btn` — Red danger button (hidden on first slot)
+   - `.time-row` — Flexbox row for start/end time inputs
+   - `.add-slot-btn` — Purple outlined button to add more slots
+   - `.slot-counter` — "X of 10 slots" indicator
+   - `.event-all-dates` — Collapsible section for hero image layout
+   - `.view-all-dates-btn` — Button with expand/collapse chevron
+   - `.all-dates-list` — List of all slots with animation
+   - `.event-detail-slot.compact` — Compact slot display for lists
+
+5. **`src/css/clubs/events.css`**:
+   - `.event-badges` — Container for status + multi-day badges
+   - `.event-multi-day-badge` — Purple badge showing "X-day event"
+
+### Data Model
+
+Time slots are stored as an array in Firestore:
+```javascript
+{
+  timeSlots: [
+    { date: "2025-01-15", startTime: "10:00", endTime: "14:00" },
+    { date: "2025-01-16", startTime: "11:00", endTime: "15:00" },
+    { date: "2025-01-17", startTime: "09:00", endTime: "12:00" }
+  ],
+  firstSlotStart: Timestamp,  // For sorting: earliest date+startTime
+  lastSlotEnd: Timestamp      // For expiry checks: latest date+endTime
+}
+```
+
+### UI Features
+
+1. **Create/Edit Modal**:
+   - Default: 1 time slot with date, start time, end time
+   - "Add Another Day" button to add more slots (max 10)
+   - Each slot has a remove button (except the first)
+   - Counter shows "X of 10 slots used"
+   - Validation ensures at least 1 slot before submit
+
+2. **Event Cards**:
+   - Multi-day events show purple "X-day event" badge
+   - Badge appears alongside status badges (Pending, Live)
+
+3. **Event Detail Modal**:
+   - Standard layout: Shows all slots in list
+   - Hero image layout: Shows first slot in overlay
+   - Expandable "View all X dates" section for multi-day events
+   - Smooth slide/fade animation on expand
+
+### Manual Tests
+
+1. **Create a multi-day event**:
+   - Navigate to a club detail page
+   - Click "+ Create Event"
+   - Fill in title, location
+   - Add 2-3 time slots with different dates
+   - Save and verify all slots appear in event detail
+
+2. **Edit a multi-day event**:
+   - Open an existing multi-day event
+   - Click Edit
+   - Verify all slots are pre-filled
+   - Add a new slot, remove an existing one
+   - Save and verify changes
+
+3. **Check multi-day badge on cards**:
+   - Create an event with 3 time slots
+   - Go back to Events tab
+   - Verify the card shows "3-day event" badge
+
+4. **Test hero image layout**:
+   - Create a multi-day event WITH an image
+   - Open the event detail
+   - Verify first date shows in overlay with "(+2 more)"
+   - Click "View all 3 dates" button
+   - Verify all dates expand with animation
+
+---
+
+## 🎨 2025-11-29 — Modern Date/Time Picker & UI Improvements
+
+### What Was Built
+
+Major UI overhaul for the Create/Edit Event modal to provide a modern, 2025-style experience.
+
+### Features Added
+
+1. **Modern Schedule Card Design**
+   - Glassmorphic card design for each time slot
+   - Visual day badges with gradient styling
+   - Intuitive picker areas for date and time
+
+2. **Custom Date Picker Modal**
+   - Beautiful calendar grid overlay
+   - Month navigation with smooth transitions
+   - Today button for quick selection
+   - Disabled past dates (except in edit mode for existing past dates)
+   - Selected date highlighting
+
+3. **Custom Time Picker Modal**
+   - iOS-style scrolling wheel interface
+   - Hour (1-12), Minute (5-min increments), AM/PM selection
+   - Click-to-select wheel items
+   - Confirm/Cancel actions
+
+4. **Improved Modal Sizing**
+   - Responsive max-widths: 560px (600px+), 640px (768px+), 720px (1024px+)
+   - Better desktop experience with more breathing room
+
+5. **Global Touch Feedback**
+   - Added `-webkit-tap-highlight-color: transparent` to remove blue tap flash
+   - Added subtle scale/opacity effect on button/link active states
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `src/js/components/clubs/CreateEventModal.js` | Added `showDatePicker()`, `showTimePicker()`, `setDateValue()`, `setTimeValue()` methods, updated `renderTimeSlotRow()` with new schedule card HTML |
+| `src/css/clubs/modals.css` | ~350 lines of custom picker CSS including calendar grid, time wheels, glassmorphic overlays |
+| `src/css/variables.css` | Added global tap highlight removal and touch feedback styles |
+
+### Manual Tests
+
+1. Open Create Event modal
+2. Click on a date area → Calendar picker should appear
+3. Navigate months and select a date
+4. Click on a time area → Time wheel picker should appear
+5. Scroll through hours/minutes, select AM/PM, confirm
+6. Verify all picker modals close when clicking outside
+7. Verify ESC key closes modals
+
+---
+
+## 🔒 2025-11-29 — Storage Rules Fix (P0 Bug)
+
+### The Bug
+
+Firebase Storage rules used `String.split()` which is **not supported** in the Storage rules language. This caused deployment to fail silently.
+
+```javascript
+// ❌ BROKEN - split() not supported
+file.split('_')[0] == request.auth.uid
+
+// ✅ FIXED - matches() with regex
+file.matches(request.auth.uid + '_.*')
+```
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `storage.rules` | Replaced all `file.split('_')[0]` with `file.matches(request.auth.uid + '_.*')` |
+
+### Security
+
+The fix maintains the same security posture - only files with the correct UID prefix can be uploaded/deleted. The regex pattern `{uid}_.*` ensures the filename starts with the authenticated user's UID followed by an underscore.
+
+---
+
+## 🎯 NEXT STEPS — What's Left in Phase 3?
+
+You've now completed the core Events System! Here's what's left:
+
+### Still in Phase 3:
+- [x] **Multi-time-slot events** — Events that span multiple days/times ✅
+- [x] **Modern date/time pickers** — Custom calendar and time wheel UI ✅
+- [ ] **Recurring events** — Weekly/monthly repeat patterns (optional)
+
+### Ready for Phase 4 (Live Events):
+- [ ] **Go Live button** — Activates check-in mode
+- [ ] **QR code generation** — For event check-ins
+- [ ] **Attendance tracking** — Who showed up
+
+### Ready for Phase 5 (Moderation):
+- [ ] **SAF approval workflow** — Events need SAF approval
+- [ ] **Flagging system** — Report inappropriate content
+
+Pick your next adventure! Reply with:
+- **A** — Continue with recurring events
+- **B** — Jump to Phase 4 (Live Events)
+- **C** — Jump to Phase 5 (Moderation)
+- **D** — Something else you want to build
 
 ---
 

@@ -30,7 +30,11 @@
 .clubs-page .btn.primary,
 .club-modal .btn.primary,
 .event-detail-modal .btn.primary {
-  background: linear-gradient(135deg, var(--primary-gradient-start, #667eea), var(--primary-gradient-end, #764ba2));
+  background: linear-gradient(
+    135deg,
+    var(--primary-gradient-start, #667eea),
+    var(--primary-gradient-end, #764ba2)
+  );
   color: white;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
 }

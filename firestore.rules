@@ -101,32 +101,34 @@ service cloud.firestore {
         (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
       );
 
-      // Events subcollection: reads allowed; creates/updates for club members or devTest clubs
+      // Events subcollection: reads allowed; creates/updates for club officials
+      // Must match storage.rules isClubOfficial() and UI authorization (ClubDetailPage, EventDetailModal)
       match /events/{eventId} {
         allow read: if request.auth != null;
         
-        // Create: allow for devTest clubs (for emulator testing) or verified club officials
-        allow create: if request.auth != null && (
-          // DevTest club: owner can create events
-          (get(/databases/$(database)/documents/clubs/$(clubId)).data.devTest == true &&
-           get(/databases/$(database)/documents/clubs/$(clubId)).data.devOwnerUid == request.auth.uid) ||
-          // Verified users who are club president can create events
-          (isVerified() && get(/databases/$(database)/documents/clubs/$(clubId)).data.presidentId == request.auth.uid)
-        );
+        // Helper: Check if user is a club official (devOwnerUid, presidentId, or createdBy)
+        // This mirrors storage.rules isClubOfficial() function
+        function isClubOfficial() {
+          let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+          return (
+            // DevTest club: only devOwnerUid can manage
+            (club.devTest == true && club.devOwnerUid == request.auth.uid) ||
+            // Production club: presidentId or createdBy can manage
+            (club.devTest != true && (
+              club.presidentId == request.auth.uid ||
+              club.createdBy == request.auth.uid
+            ))
+          );
+        }
+        
+        // Create: allow for club officials (devOwnerUid, presidentId, or createdBy)
+        allow create: if request.auth != null && isClubOfficial();
         
         // Update: same rules as create
-        allow update: if request.auth != null && (
-          (get(/databases/$(database)/documents/clubs/$(clubId)).data.devTest == true &&
-           get(/databases/$(database)/documents/clubs/$(clubId)).data.devOwnerUid == request.auth.uid) ||
-          (isVerified() && get(/databases/$(database)/documents/clubs/$(clubId)).data.presidentId == request.auth.uid)
-        );
+        allow update: if request.auth != null && isClubOfficial();
         
-        // Delete: only club owner (devTest) or president
-        allow delete: if request.auth != null && (
-          (get(/databases/$(database)/documents/clubs/$(clubId)).data.devTest == true &&
-           get(/databases/$(database)/documents/clubs/$(clubId)).data.devOwnerUid == request.auth.uid) ||
-          (isVerified() && get(/databases/$(database)/documents/clubs/$(clubId)).data.presidentId == request.auth.uid)
-        );
+        // Delete: same rules as create/update
+        allow delete: if request.auth != null && isClubOfficial();
       }
 
       // Members subcollection: read for authenticated users; write via server/authorized flows

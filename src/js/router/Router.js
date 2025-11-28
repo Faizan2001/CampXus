@@ -789,8 +789,7 @@ class SPARouter {
       // With a strong session hint (cached profile / user store), prefer
       // rendering the intended protected route instead of bouncing through
       // the landing page, even if Firebase auth has not fully hydrated yet.
-      const target =
-        authedUser || hasSessionHint ? desiredRoute : "landing";
+      const target = authedUser || hasSessionHint ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -1021,15 +1020,24 @@ class SPARouter {
       if (updateHistory) {
         const routeData = this.routes[route];
         const currentHash = window.location.hash || "";
-        const targetHash = currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`;
-        const historyStateRoute = (history.state && history.state.route) || null;
-        const isDuplicate = historyStateRoute === route && currentHash === targetHash;
-        const isInitialLoadSameHash = !history.state && currentHash === targetHash; // page reload scenario
+        const targetHash = currentHash.startsWith(`#${route}?`)
+          ? currentHash
+          : `#${route}`;
+        const historyStateRoute =
+          (history.state && history.state.route) || null;
+        const isDuplicate =
+          historyStateRoute === route && currentHash === targetHash;
+        const isInitialLoadSameHash =
+          !history.state && currentHash === targetHash; // page reload scenario
         // Avoid pushing duplicate history entries (prevents double-back issue after reload)
         if (!isDuplicate && !isInitialLoadSameHash) {
           history.pushState({ route }, routeData.title, targetHash);
         } else {
-          logManager.dev && logManager.dev.debug("[Router] Skipped pushState (duplicate/initial reload) for route", route);
+          logManager.dev &&
+            logManager.dev.debug(
+              "[Router] Skipped pushState (duplicate/initial reload) for route",
+              route
+            );
         }
       }
 
@@ -1251,7 +1259,11 @@ class SPARouter {
       const currentRoutePart = this._parseRouteName(currentHash);
       if (currentRoutePart !== route) {
         // Only replace if the route actually changed (preserve query params otherwise)
-        history.replaceState({ route }, routeData.title, currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`);
+        history.replaceState(
+          { route },
+          routeData.title,
+          currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`
+        );
       }
 
       // Dispatch custom event for other parts of the app
@@ -1542,8 +1554,14 @@ class SPARouter {
       if (!icon) return;
       const iconMap = {
         home: {
-          active: { add: ["fa-solid", "fa-calendar-minus"], remove: ["fa-regular"] },
-          inactive: { add: ["fa-regular", "fa-calendar-minus"], remove: ["fa-solid"] },
+          active: {
+            add: ["fa-solid", "fa-calendar-minus"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-calendar-minus"],
+            remove: ["fa-solid"],
+          },
         },
         groups: {
           active: {
@@ -1556,8 +1574,14 @@ class SPARouter {
           },
         },
         friends: {
-          active: { add: ["fa-solid", "fa-users"], remove: ["fa-regular", "fa-user"] },
-          inactive: { add: ["fa-regular", "fa-user"], remove: ["fa-solid", "fa-users"] },
+          active: {
+            add: ["fa-solid", "fa-users"],
+            remove: ["fa-regular", "fa-user"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-user"],
+            remove: ["fa-solid", "fa-users"],
+          },
         },
         notifications: {
           active: { add: ["fa-solid", "fa-bell"], remove: ["fa-regular"] },
@@ -1572,7 +1596,10 @@ class SPARouter {
       add.forEach((cls) => icon.classList.add(cls));
       // Fallback: if no mapping, just flip solid/regular where present
       if (!state) {
-        if (icon.classList.contains("fa-solid") || icon.classList.contains("fa-regular")) {
+        if (
+          icon.classList.contains("fa-solid") ||
+          icon.classList.contains("fa-regular")
+        ) {
           icon.classList.toggle("fa-solid", !!isActive);
           icon.classList.toggle("fa-regular", !isActive);
         }
