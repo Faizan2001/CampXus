@@ -5204,15 +5204,4 @@ export async function syncUserDataCache(userId, customUserInfo = null) {
   }
 }
 
-/**
- * @deprecated Cloud Function handles propagation. This wrapper will be removed in a future cleanup.
- * Will be removed in future versions
- */
-export async function updateCachedUserData(userId, newUserInfo) {
-  console.warn(
-    "⚠️ updateCachedUserData is deprecated. Use syncUserDataCache() instead."
-  );
-  return syncUserDataCache(userId, newUserInfo);
-}
-
 // --- END OF FILE ---
