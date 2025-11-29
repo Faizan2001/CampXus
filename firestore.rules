@@ -64,33 +64,46 @@ service cloud.firestore {
     // Clubs are read by any authenticated user. Writes are restricted:
     // - Verified users may create clubs (real users)
     // - Dev-only test clubs may be created/edited/deleted by their owner when marked devTest
-    // - Any authenticated user can update ONLY followerCount (for follow/unfollow)
     match /clubs/{clubId} {
       allow read: if request.auth != null;
 
       // Create: allow verified users to create clubs, or allow devTest clubs created by their owner
-      allow create: if request.auth != null && (
-        isVerified() || (
-          request.resource.data.devTest == true &&
-          request.resource.data.devOwnerUid == request.auth.uid
-        )
-      );
+      // NOTE: followerCount is server-managed; clients must not set it to a non-zero value.
+      allow create: if request.auth != null &&
+        (
+          isVerified() || (
+            request.resource.data.devTest == true &&
+            request.resource.data.devOwnerUid == request.auth.uid
+          )
+        ) &&
+        (
+          !('followerCount' in request.resource.data) ||
+          request.resource.data.followerCount == 0
+        );
 
       // Update: 
       // 1. Creator can update their club (if verified)
       // 2. DevTest owner can update their devTest club
-      // 3. ANY authenticated user can update ONLY followerCount by ±1 (for follow/unfollow)
+      // NOTE: followerCount is server-managed (Cloud Functions); clients cannot change it directly.
       allow update: if request.auth != null && (
-        // Creator can update (verified)
-        (resource.data.createdBy == request.auth.uid && isVerified()) ||
-        // DevTest owner can update their club
-        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid && request.resource.data.devTest == true && request.resource.data.devOwnerUid == resource.data.devOwnerUid) ||
-        // Anyone authenticated can update ONLY followerCount by exactly +1 or -1
+        // Creator can update (verified) but may not touch followerCount
         (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+          resource.data.createdBy == request.auth.uid &&
+          isVerified() &&
           (
-            request.resource.data.followerCount == resource.data.followerCount + 1 ||
-            request.resource.data.followerCount == resource.data.followerCount - 1
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          )
+        ) ||
+        // DevTest owner can update their club but may not touch followerCount
+        (
+          resource.data.devTest == true &&
+          resource.data.devOwnerUid == request.auth.uid &&
+          request.resource.data.devTest == true &&
+          request.resource.data.devOwnerUid == resource.data.devOwnerUid &&
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
           )
         )
       );

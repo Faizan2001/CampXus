@@ -37,7 +37,7 @@ export default class ClubsPage {
     }
 
     // Load user's followed clubs from their profile
-    this.followedClubs = new Set(currentUser?.followedClubs || []);
+    this.followedClubs = new Set(currentUser?.profile?.followedClubs || []);
 
     // Check if we're inside the Groups page (tab) or standalone route
     const isInsideGroupsTab = document.querySelector(".groups-content-tabs") !== null;
@@ -162,7 +162,7 @@ export default class ClubsPage {
 
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { doc, updateDoc, arrayUnion, arrayRemove, increment } = await import("firebase/firestore");
+      const { doc, updateDoc, arrayUnion, arrayRemove } = await import("firebase/firestore");
 
       // Update user's followedClubs array
       const userRef = doc(db, "users", currentUser.uid);
@@ -170,11 +170,21 @@ export default class ClubsPage {
         followedClubs: isCurrentlyFollowing ? arrayRemove(clubId) : arrayUnion(clubId),
       });
 
-      // Update club's follower count
-      const clubRef = doc(db, "clubs", clubId);
-      await updateDoc(clubRef, {
-        followerCount: increment(isCurrentlyFollowing ? -1 : 1),
-      });
+      // Keep currentUser.profile.followedClubs in sync for this session
+      const existingProfile = currentUser.profile || {};
+      const existingFollowed = Array.isArray(existingProfile.followedClubs)
+        ? existingProfile.followedClubs
+        : [];
+      const updatedFollowed = isCurrentlyFollowing
+        ? existingFollowed.filter((id) => id !== clubId)
+        : Array.from(new Set([...existingFollowed, clubId]));
+
+      if (typeof currentUser.setProfile === "function") {
+        currentUser.setProfile({
+          ...existingProfile,
+          followedClubs: updatedFollowed,
+        });
+      }
 
       // Update local club data
       const club = this.clubs.find((c) => c.id === clubId);
@@ -226,10 +236,12 @@ export default class ClubsPage {
       const clubName = `Test Club ${Math.floor(Math.random() * 1000)}`;
       const accentColorOptions = ["blue", "purple", "green", "orange", "pink"];
       const accentColor = accentColorOptions[Math.floor(Math.random() * accentColorOptions.length)];
+      const universityName =
+        currentUser?.profile?.universityInfo?.university || "Test University";
       const docRef = await addDoc(collection(db, "clubs"), {
         name: clubName,
         description: "A test club created from the emulator for development",
-        university: currentUser?.universityInfo?.university || "Test University",
+        university: universityName,
         createdBy: currentUser?.uid || null,
         devOwnerUid: currentUser?.uid || null,
         devTest: true,
@@ -243,7 +255,7 @@ export default class ClubsPage {
         id: docRef.id,
         name: clubName,
         description: "A test club created from the emulator for development",
-        university: currentUser?.universityInfo?.university || "Test University",
+        university: universityName,
         followerCount: 0,
         accentColor,
       };

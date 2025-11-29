@@ -97,7 +97,14 @@ export function getState() {
 export function _setStateForTesting(newState) {
   state = { ...state, ...newState };
 }
+
+// Forward declaration for memoCache clearing (actual cache defined later)
+let clearMemoCache = () => {};
+
 export function _resetStateForTesting() {
+  // Clear memoization cache to prevent stale data between tests
+  clearMemoCache();
+  
   state = {
     activeUserId: null,
     users: {},
@@ -905,6 +912,9 @@ const memoCache = {
     return `${dayIndex}-${timeIndex}-${compareMode}-${activeUserId}-${userIds}`;
   },
 };
+
+// Assign the actual clear function now that memoCache is defined
+clearMemoCache = () => memoCache.clear();
 
 /**
  * Normalize a user's schedule-related matrices so each has 7 day arrays and each

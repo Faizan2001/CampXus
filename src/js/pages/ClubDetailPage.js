@@ -51,8 +51,12 @@ export default class ClubDetailPage {
       await currentUser.waitForProfile();
     } catch (_) {}
 
-    // Check if user follows this club
-    this.isFollowing = (currentUser?.followedClubs || []).includes(this.clubId);
+    // Check if user follows this club (from profile.followedClubs)
+    const followedFromProfile =
+      currentUser?.profile?.followedClubs || [];
+    this.isFollowing = Array.isArray(followedFromProfile)
+      ? followedFromProfile.includes(this.clubId)
+      : false;
 
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
@@ -508,23 +512,36 @@ export default class ClubDetailPage {
 
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { doc, updateDoc, arrayUnion, arrayRemove, increment } =
+      const { doc, updateDoc, arrayUnion, arrayRemove } =
         await import("firebase/firestore");
 
-      // Update user's followedClubs
+      // Update user's followedClubs in Firestore
       await updateDoc(doc(db, "users", currentUser.uid), {
         followedClubs: wasFollowing
           ? arrayRemove(this.clubId)
           : arrayUnion(this.clubId),
       });
 
-      // Update club's follower count
-      await updateDoc(doc(db, "clubs", this.clubId), {
-        followerCount: increment(wasFollowing ? -1 : 1),
-      });
+      // Keep currentUser.profile.followedClubs in sync for this session
+      const existingProfile = currentUser.profile || {};
+      const existingFollowed = Array.isArray(existingProfile.followedClubs)
+        ? existingProfile.followedClubs
+        : [];
+      const updatedFollowed = wasFollowing
+        ? existingFollowed.filter((id) => id !== this.clubId)
+        : Array.from(new Set([...existingFollowed, this.clubId]));
+
+      if (typeof currentUser.setProfile === "function") {
+        currentUser.setProfile({
+          ...existingProfile,
+          followedClubs: updatedFollowed,
+        });
+      }
 
       // Update displayed count
       if (this.clubData) {
+        // Optimistically adjust follower count locally;
+        // actual persistent value is managed by Cloud Functions.
         this.clubData.followerCount =
           (this.clubData.followerCount || 0) + (wasFollowing ? -1 : 1);
         const countEl = this.container.querySelector("#followerCount");

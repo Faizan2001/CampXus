@@ -1203,6 +1203,11 @@ export class CreateEventModal {
         this.onSuccess(this.event.id, { ...this.event, ...updateData });
       } else {
         // CREATE new event - first create the doc to get an ID
+        const profileFirstName =
+          currentUser?.profile?.profile?.firstName || "Unknown";
+        const profileLastName =
+          currentUser?.profile?.profile?.lastName || "";
+
         const eventData = {
           title,
           description,
@@ -1216,8 +1221,8 @@ export class CreateEventModal {
           imageUrl: null,
           createdBy: currentUser?.uid,
           createdByInfo: {
-            firstName: currentUser?.firstName || "Unknown",
-            lastName: currentUser?.lastName || "",
+            firstName: profileFirstName,
+            lastName: profileLastName,
           },
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
