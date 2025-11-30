@@ -32,9 +32,11 @@ export default class ClubsPage {
           </div>
         </section>
       `;
-      this.container.querySelector("#completeProfileBtn")?.addEventListener("click", () => {
-        window.location.hash = "#profile";
-      });
+      this.container
+        .querySelector("#completeProfileBtn")
+        ?.addEventListener("click", () => {
+          window.location.hash = "#profile";
+        });
       return;
     }
 
@@ -42,16 +44,21 @@ export default class ClubsPage {
     this.followedClubs = new Set(currentUser?.profile?.followedClubs || []);
 
     // Check if we're inside the Groups page (tab) or standalone route
-    const isInsideGroupsTab = document.querySelector(".groups-content-tabs") !== null;
+    const isInsideGroupsTab =
+      document.querySelector(".groups-content-tabs") !== null;
 
     this.container.innerHTML = `
       <section class="clubs-page">
-        ${!isInsideGroupsTab ? `
+        ${
+          !isInsideGroupsTab
+            ? `
         <div class="clubs-header-bar">
           <h1><i class="fas fa-flag"></i> Campus Clubs</h1>
           <p class="clubs-subtitle">Discover student organizations at your university</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         
         <!-- Live Events Section -->
         <div id="live-events-container"></div>
@@ -73,7 +80,7 @@ export default class ClubsPage {
 
     // Initialize Live Events Section
     await this.initLiveEventsSection();
-    
+
     await this.loadClubsPreview();
   }
 
@@ -83,24 +90,24 @@ export default class ClubsPage {
   async initLiveEventsSection() {
     const container = this.container.querySelector("#live-events-container");
     if (!container) return;
-    
+
     // Cleanup previous instance
     if (this.liveEventsSection) {
       this.liveEventsSection.destroy();
     }
-    
+
     this.liveEventsSection = new LiveEventsSection({
       container,
-      universityCode: currentUser?.profile?.universityCode || "iub",
+      universityCode: currentUser?.profile?.universityInfo?.university || "iub",
       onEventClick: (event, clubId) => {
         // Navigate to club page with event
         window.location.hash = `#club?id=${clubId}&eventId=${event.id}`;
       },
       onClubClick: (clubId) => {
         window.location.hash = `#club?id=${clubId}`;
-      }
+      },
     });
-    
+
     await this.liveEventsSection.init();
   }
 
@@ -114,9 +121,13 @@ export default class ClubsPage {
       ]);
 
       const { collection, query, getDocs, orderBy, limit } = firestore;
-      const q = query(collection(db, "clubs"), orderBy("createdAt", "desc"), limit(20));
+      const q = query(
+        collection(db, "clubs"),
+        orderBy("createdAt", "desc"),
+        limit(20)
+      );
       const snap = await getDocs(q);
-      
+
       if (snap.empty) {
         listEl.innerHTML = `
           <div class="clubs-empty">
@@ -144,34 +155,52 @@ export default class ClubsPage {
   }
 
   renderClubs(listEl) {
-    listEl.innerHTML = this.clubs.map((c) => {
-      const isFollowing = this.followedClubs.has(c.id);
-      const accentColor = c.accentColor || "blue";
-      return `
-        <div class="club-card" data-club-id="${c.id}" data-accent="${accentColor}">
+    listEl.innerHTML = this.clubs
+      .map((c) => {
+        const isFollowing = this.followedClubs.has(c.id);
+        const accentColor = c.accentColor || "blue";
+        return `
+        <div class="club-card" data-club-id="${
+          c.id
+        }" data-accent="${accentColor}">
           <div class="club-card-header">
             <div class="club-logo">
-              ${c.logoUrl ? `<img src="${c.logoUrl}" alt="${escapeHtml(c.name)}" />` : `<i class="fas fa-flag"></i>`}
+              ${
+                c.logoUrl
+                  ? `<img src="${c.logoUrl}" alt="${escapeHtml(c.name)}" />`
+                  : `<i class="fas fa-flag"></i>`
+              }
             </div>
             <div class="club-info">
               <h3>${escapeHtml(c.name || "Untitled Club")}</h3>
-              <span class="club-university">${escapeHtml(c.university || "")}</span>
+              <span class="club-university">${escapeHtml(
+                c.university || ""
+              )}</span>
             </div>
           </div>
-          <p class="club-description">${escapeHtml(c.description || "No description")}</p>
+          <p class="club-description">${escapeHtml(
+            c.description || "No description"
+          )}</p>
           <div class="club-stats">
-            <span><i class="fas fa-users"></i> ${c.followerCount || 0} followers</span>
+            <span><i class="fas fa-users"></i> ${
+              c.followerCount || 0
+            } followers</span>
           </div>
           <div class="club-actions">
-            <button class="btn ${isFollowing ? 'secondary' : 'primary'} follow-btn" data-club-id="${c.id}">
-              <i class="fas ${isFollowing ? 'fa-check' : 'fa-plus'}"></i>
-              ${isFollowing ? 'Following' : 'Follow'}
+            <button class="btn ${
+              isFollowing ? "secondary" : "primary"
+            } follow-btn" data-club-id="${c.id}">
+              <i class="fas ${isFollowing ? "fa-check" : "fa-plus"}"></i>
+              ${isFollowing ? "Following" : "Follow"}
             </button>
-            <a href="#club?id=${c.id}" class="btn secondary">View <i class="fas fa-arrow-right"></i></a>
+            <a href="#club?id=${
+              c.id
+            }" class="btn secondary">View <i class="fas fa-arrow-right"></i></a>
           </div>
         </div>
       `;
-    }).join("");
+      })
+      .join("");
 
     // Bind follow button clicks
     listEl.querySelectorAll(".follow-btn").forEach((btn) => {
@@ -201,12 +230,16 @@ export default class ClubsPage {
 
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { doc, updateDoc, arrayUnion, arrayRemove } = await import("firebase/firestore");
+      const { doc, updateDoc, arrayUnion, arrayRemove } = await import(
+        "firebase/firestore"
+      );
 
       // Update user's followedClubs array
       const userRef = doc(db, "users", currentUser.uid);
       await updateDoc(userRef, {
-        followedClubs: isCurrentlyFollowing ? arrayRemove(clubId) : arrayUnion(clubId),
+        followedClubs: isCurrentlyFollowing
+          ? arrayRemove(clubId)
+          : arrayUnion(clubId),
       });
 
       // Keep currentUser.profile.followedClubs in sync for this session
@@ -228,9 +261,12 @@ export default class ClubsPage {
       // Update local club data
       const club = this.clubs.find((c) => c.id === clubId);
       if (club) {
-        club.followerCount = (club.followerCount || 0) + (isCurrentlyFollowing ? -1 : 1);
+        club.followerCount =
+          (club.followerCount || 0) + (isCurrentlyFollowing ? -1 : 1);
         // Update the stats display
-        const card = this.container.querySelector(`.club-card[data-club-id="${clubId}"]`);
+        const card = this.container.querySelector(
+          `.club-card[data-club-id="${clubId}"]`
+        );
         const statsEl = card?.querySelector(".club-stats span");
         if (statsEl) {
           statsEl.innerHTML = `<i class="fas fa-users"></i> ${club.followerCount} followers`;
@@ -262,7 +298,7 @@ export default class ClubsPage {
   async createTestClub() {
     if (this.isCreating) return;
     this.isCreating = true;
-    
+
     const btn = this.container.querySelector("#createTestClub");
     const originalText = btn.innerHTML;
     btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Creating...`;
@@ -270,17 +306,25 @@ export default class ClubsPage {
 
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
+      const { collection, addDoc, serverTimestamp } = await import(
+        "firebase/firestore"
+      );
 
       const clubName = `Test Club ${Math.floor(Math.random() * 1000)}`;
       const accentColorOptions = ["blue", "purple", "green", "orange", "pink"];
-      const accentColor = accentColorOptions[Math.floor(Math.random() * accentColorOptions.length)];
+      const accentColor =
+        accentColorOptions[
+          Math.floor(Math.random() * accentColorOptions.length)
+        ];
       const universityName =
         currentUser?.profile?.universityInfo?.university || "Test University";
+      const universityCode =
+        currentUser?.profile?.universityInfo?.university || "iub";
       const docRef = await addDoc(collection(db, "clubs"), {
         name: clubName,
         description: "A test club created from the emulator for development",
         university: universityName,
+        universityCode: universityCode,
         createdBy: currentUser?.uid || null,
         devOwnerUid: currentUser?.uid || null,
         devTest: true,
@@ -322,7 +366,10 @@ export default class ClubsPage {
 }
 
 function escapeHtml(str) {
-  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // Wire to SPA router lifecycle
@@ -337,7 +384,9 @@ document.addEventListener("spa:page:unload", () => {
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
   if (route !== "clubs") return;
-  const root = document.querySelector("#clubs-root") || document.querySelector(".main-content");
+  const root =
+    document.querySelector("#clubs-root") ||
+    document.querySelector(".main-content");
   _clubsPageInstance = new ClubsPage();
   await _clubsPageInstance.mount(root);
 });

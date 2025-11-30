@@ -238,15 +238,18 @@ Groups Tab (existing)
 A permanent card at the top of the Clubs page that aggregates all events from all clubs:
 
 **States**:
+
 - **Active** (≥1 live event): Colorful/glowing, pulsing red dot, vibrant
 - **Inactive** (0 live events): Greyed out, shows "No live events right now"
 
 **Contains**:
+
 - Live Events carousel (horizontal scroll)
 - Expandable "Upcoming Events" dropdown with count
 - Expandable "Past Events" dropdown with count
 
 **Auto-escalation**: Events automatically appear in this card based on their time window:
+
 - **Live**: `isLive === true` OR `currentTime` within event's start-end window
 - **Upcoming**: `startTime > currentTime`
 - **Past**: `endedAt` exists OR 24h after event end time
@@ -699,10 +702,89 @@ All questions from requirements gathering have been resolved:
 | 23  | Data retention           | 90 days events, 24h live chat                           |
 | 24  | Color picker             | Preset palette                                          |
 | 25  | Live announcements       | Officials only (one-way broadcast, no chat)             |
-| 26  | Event start trigger      | Manual button by official                               |
+| 26  | Event start trigger      | Manual button by official OR auto when in time window   |
 | 27  | Membership storage       | Hybrid (user doc + club followerCount)                  |
 | 28  | Event images             | One hero image per event                                |
 | 29  | Officers display         | Inside Members tab with role badge                      |
+| 30  | Overnight events         | Supported (e.g., 10PM-1AM = ends next day)              |
+
+---
+
+## 10.1 Event Lifecycle Clarification
+
+This section clarifies exactly how events transition through the Mother Card sections.
+
+### Event State Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          EVENT LIFECYCLE                                     │
+│                                                                             │
+│   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐                │
+│   │  UPCOMING   │ ───▶ │    LIVE     │ ───▶ │    PAST     │                │
+│   │  (future)   │      │  (now)      │      │  (ended)    │                │
+│   └─────────────┘      └─────────────┘      └─────────────┘                │
+│                                                                             │
+│   Criteria:            Criteria:            Criteria:                       │
+│   • startTime > now    • isLive=true OR     • endedAt exists OR            │
+│   • Within 3 days      • now >= startTime   • now > endTime + 24h          │
+│                          AND now <= endTime                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### When Events Appear in Each Section
+
+**UPCOMING (Dropdown in Mother Card)**
+
+- Event `status` is "approved"
+- Current time is BEFORE the event's `firstSlotStart`
+- Event starts within the next 3 days
+- Sorted by start time (soonest first)
+- Shows "In 2 days", "Tomorrow", "In 3 hours" badges
+
+**LIVE (Mother Card Carousel - Active State)**
+An event appears as LIVE when EITHER:
+
+1. **Auto-Live**: Current time is within the event's time window (`firstSlotStart <= now <= lastSlotEnd`)
+2. **Manually Live**: An official clicked "Go Live" button (`isLive === true`)
+
+Badge differences:
+
+- 🔴 **LIVE** (red pulsing) — Auto-live because current time is in window
+- 🟢 **OFFICIALLY LIVE** (green + ✓) — Official confirmed event has started
+
+**PAST (Dropdown in Mother Card)**
+An event moves to PAST when EITHER:
+
+1. An official clicked "End Event" (`endedAt` timestamp exists)
+2. 24 hours have passed since the event's `lastSlotEnd` time
+
+Shows events from the last 7 days only.
+
+### Overnight Events Support
+
+Events can span past midnight. Example: 10:00 PM to 1:00 AM
+
+- `startTime`: "22:00" on Dec 1
+- `endTime`: "01:00" (interpreted as next day, Dec 2)
+
+The system automatically handles this by detecting when `endTime < startTime` and adding a day to the end date calculation.
+
+### Mother Card States
+
+**ACTIVE State** (≥1 live event):
+
+- Colorful gradient border with glow animation
+- Shows "X events live now" with pulsing red dot
+- Live events carousel is visible
+- Upcoming/Past dropdowns available
+
+**INACTIVE State** (0 live events):
+
+- Greyed out subtle card
+- Shows "No live events" message
+- Calendar icon with "Check back during scheduled events"
+- Upcoming/Past dropdowns still available
 
 ---
 

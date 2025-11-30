@@ -93,7 +93,7 @@ clubs: university ASC, nextEventDate ASC
   location: "IUB Main Ground",               // Text, max 200 chars
   imageUrl: "gs://bucket/events/evt_abc123/hero.webp" | null,
 
-  // === Scheduling (supports multi-day) ===
+  // === Scheduling (supports multi-day and overnight events) ===
   timeSlots: [
     {
       date: "2025-12-01",                    // YYYY-MM-DD format
@@ -106,10 +106,13 @@ clubs: university ASC, nextEventDate ASC
       endTime: "22:00"
     }
   ],
+  // OVERNIGHT EVENTS: If endTime < startTime (e.g., "22:00" to "01:00"),
+  // the event ends on the NEXT DAY. The system handles this automatically
+  // by adding 1 day to the end date during calculations.
 
   // Computed fields (for querying)
   firstSlotStart: Timestamp,                 // Earliest start across all slots
-  lastSlotEnd: Timestamp,                    // Latest end across all slots
+  lastSlotEnd: Timestamp,                    // Latest end across all slots (adjusted for overnight)
 
   // === Status ===
   status: "approved",

@@ -12,6 +12,7 @@ export default class ClubDetailPage {
     this.isFollowing = false;
     this.events = [];
     this.activeTab = "events";
+    this.initialEventId = null;
   }
 
   async mount() {
@@ -19,11 +20,12 @@ export default class ClubDetailPage {
       document.querySelector("#club-root") ||
       document.querySelector(".main-content");
 
-    // Parse club id from location hash: #club?id=XYZ
+    // Parse club id (and optional eventId) from location hash: #club?id=XYZ&eventId=ABC
     const raw = String(window.location.hash || "").replace(/^#/, "");
     const qs = raw.split("?")[1] || "";
     const params = new URLSearchParams(qs);
     this.clubId = params.get("id");
+    this.initialEventId = params.get("eventId");
 
     if (!this.clubId) {
       this.container.innerHTML = `
@@ -58,31 +60,40 @@ export default class ClubDetailPage {
       ? followedFromProfile.includes(this.clubId)
       : false;
 
-    try {
-      const { db } = await import("../lib/firebase/firebase-config.js");
-      const { doc, getDoc } = await import("firebase/firestore");
-      const docRef = doc(db, "clubs", this.clubId);
-      const snap = await getDoc(docRef);
+	    try {
+	      const { db } = await import("../lib/firebase/firebase-config.js");
+	      const { doc, getDoc } = await import("firebase/firestore");
+	      const docRef = doc(db, "clubs", this.clubId);
+	      const snap = await getDoc(docRef);
+	
+	      if (!snap.exists()) {
+	        this.container.innerHTML = `
+	          <section class="club-detail">
+	            <div class="club-error">
+	              <i class="fas fa-search"></i>
+	              <p>Club not found.</p>
+	              <a href="#clubs" class="btn primary"><i class="fas fa-arrow-left"></i> Back to Clubs</a>
+	            </div>
+	          </section>
+	        `;
+	        return;
+	      }
+	
+	      this.clubData = { id: snap.id, ...snap.data() };
+	
+	      // Fetch events for this club
+	      await this.loadEvents();
+	
+	      this.renderClub();
 
-      if (!snap.exists()) {
-        this.container.innerHTML = `
-          <section class="club-detail">
-            <div class="club-error">
-              <i class="fas fa-search"></i>
-              <p>Club not found.</p>
-              <a href="#clubs" class="btn primary"><i class="fas fa-arrow-left"></i> Back to Clubs</a>
-            </div>
-          </section>
-        `;
-        return;
-      }
-
-      this.clubData = { id: snap.id, ...snap.data() };
-
-      // Fetch events for this club
-      await this.loadEvents();
-
-      this.renderClub();
+	      // If a specific event was requested via URL (from Mother Card),
+	      // auto-open its detail modal after events are loaded.
+	      if (this.initialEventId) {
+	        const targetEvent = this.events.find((e) => e.id === this.initialEventId);
+	        if (targetEvent) {
+	          this.openEventDetailModal(targetEvent);
+	        }
+	      }
     } catch (err) {
       logManager.error("[ClubDetailPage] load error:", err);
       this.container.innerHTML = `
