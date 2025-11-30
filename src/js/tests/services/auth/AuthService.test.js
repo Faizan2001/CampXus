@@ -231,14 +231,18 @@ class MockAuthManager {
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
-    const strength = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChar].filter(
-      Boolean
-    ).length;
+    const strength = [
+      hasUpperCase,
+      hasLowerCase,
+      hasNumbers,
+      hasSpecialChar,
+    ].filter(Boolean).length;
 
     if (strength < 2) {
       return {
         isStrong: false,
-        message: "Password should include uppercase, lowercase, numbers, or special characters",
+        message:
+          "Password should include uppercase, lowercase, numbers, or special characters",
       };
     }
 
@@ -409,7 +413,9 @@ describe("AuthService", () => {
     test("should recognize valid development email", () => {
       expect(authManager.isDevelopmentEmail("john.dev@iub.edu.bd")).toBe(true);
       expect(authManager.isDevelopmentEmail("a.b.dev@iub.edu.bd")).toBe(true);
-      expect(authManager.isDevelopmentEmail("test123.dev@iub.edu.bd")).toBe(true);
+      expect(authManager.isDevelopmentEmail("test123.dev@iub.edu.bd")).toBe(
+        true
+      );
     });
 
     test("should reject non-development emails", () => {
@@ -430,7 +436,9 @@ describe("AuthService", () => {
     });
 
     test("should handle whitespace", () => {
-      expect(authManager.isDevelopmentEmail("  john.dev@iub.edu.bd  ")).toBe(true);
+      expect(authManager.isDevelopmentEmail("  john.dev@iub.edu.bd  ")).toBe(
+        true
+      );
     });
   });
 
@@ -580,7 +588,9 @@ describe("AuthService", () => {
         "password456"
       );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.field === "confirmPassword")).toBe(true);
+      expect(result.errors.some((e) => e.field === "confirmPassword")).toBe(
+        true
+      );
     });
   });
 

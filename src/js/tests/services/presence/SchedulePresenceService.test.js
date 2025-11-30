@@ -193,8 +193,7 @@ describe("SchedulePresenceService.deriveStatusForFriends", () => {
       { friendId: "b", isRestricted: true },
     ];
 
-    const result =
-      SchedulePresenceService.deriveStatusForFriends(friends, now);
+    const result = SchedulePresenceService.deriveStatusForFriends(friends, now);
 
     expect(Object.keys(result)).toEqual(["a", "b"]);
     expect(result.a.state).toBeDefined();

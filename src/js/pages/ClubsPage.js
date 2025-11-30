@@ -1,6 +1,7 @@
 import { currentUser } from "../store/userStore.js";
 import { logManager } from "../utils/debug/LogManager.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
+import { LiveEventsSection } from "../components/clubs/LiveEventsSection.js";
 
 export default class ClubsPage {
   constructor() {
@@ -8,6 +9,7 @@ export default class ClubsPage {
     this.isCreating = false;
     this.clubs = [];
     this.followedClubs = new Set(); // Track which clubs the user follows
+    this.liveEventsSection = null; // Live events section instance
   }
 
   async mount(rootEl) {
@@ -50,6 +52,13 @@ export default class ClubsPage {
           <p class="clubs-subtitle">Discover student organizations at your university</p>
         </div>
         ` : ''}
+        
+        <!-- Live Events Section -->
+        <div id="live-events-container"></div>
+        
+        <div class="clubs-section-header">
+          <h2 class="clubs-section-title"><i class="fas fa-flag"></i> All Clubs</h2>
+        </div>
         <div class="clubs-controls">
           <button id="createTestClub" class="btn secondary"><i class="fas fa-plus"></i> Create Test Club</button>
         </div>
@@ -62,7 +71,37 @@ export default class ClubsPage {
     const btn = this.container.querySelector("#createTestClub");
     btn?.addEventListener("click", async () => this.createTestClub());
 
+    // Initialize Live Events Section
+    await this.initLiveEventsSection();
+    
     await this.loadClubsPreview();
+  }
+
+  /**
+   * Initialize the Live Events section
+   */
+  async initLiveEventsSection() {
+    const container = this.container.querySelector("#live-events-container");
+    if (!container) return;
+    
+    // Cleanup previous instance
+    if (this.liveEventsSection) {
+      this.liveEventsSection.destroy();
+    }
+    
+    this.liveEventsSection = new LiveEventsSection({
+      container,
+      universityCode: currentUser?.profile?.universityCode || "iub",
+      onEventClick: (event, clubId) => {
+        // Navigate to club page with event
+        window.location.hash = `#club?id=${clubId}&eventId=${event.id}`;
+      },
+      onClubClick: (clubId) => {
+        window.location.hash = `#club?id=${clubId}`;
+      }
+    });
+    
+    await this.liveEventsSection.init();
   }
 
   async loadClubsPreview() {
@@ -274,7 +313,11 @@ export default class ClubsPage {
   }
 
   unmount() {
-    // Cleanup if we had listeners (none for now)
+    // Cleanup live events section
+    if (this.liveEventsSection) {
+      this.liveEventsSection.destroy();
+      this.liveEventsSection = null;
+    }
   }
 }
 

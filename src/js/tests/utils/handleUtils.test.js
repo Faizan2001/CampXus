@@ -3,17 +3,17 @@
  *                       HANDLE UTILITIES TEST SUITE
  *                    Testing @username Validation & Formatting
  * =============================================================================
- * 
+ *
  * 🎯 What are "Handles"?
  * Handles are unique usernames like @john_doe that users can use to find each other.
  * Think of them like Twitter/Instagram handles!
- * 
+ *
  * 🧪 Why test these?
  * - Users see error messages when handles are invalid - we need to show the RIGHT ones
  * - Security: Reserved handles (admin, system) shouldn't be claimable
  * - UX: Cooldowns prevent handle-squatting
  * - @mentions in chat depend on valid handle extraction
- * 
+ *
  * =============================================================================
  */
 
@@ -228,7 +228,7 @@ describe("canChangeHandle", () => {
   test("should allow custom cooldown periods", () => {
     const oneHourAgo = new Date("2025-01-15T11:00:00Z");
     const twoHourCooldown = 2 * 60 * 60 * 1000;
-    
+
     const result = canChangeHandle(oneHourAgo, twoHourCooldown);
     expect(result.allowed).toBe(false);
     expect(result.remainingMs).toBeGreaterThan(0);
@@ -292,7 +292,7 @@ describe("isReservedHandle", () => {
     // the function receives lowercase strings
     expect(isReservedHandle("Admin")).toBe(false); // Not in Set
     expect(isReservedHandle("ADMIN")).toBe(false); // Not in Set
-    expect(isReservedHandle("admin")).toBe(true);  // In Set
+    expect(isReservedHandle("admin")).toBe(true); // In Set
   });
 
   test("should allow handles that CONTAIN reserved words", () => {
@@ -320,13 +320,17 @@ describe("extractMentionCandidates", () => {
   });
 
   test("should extract multiple mentions", () => {
-    const result = extractMentionCandidates("Hey @alice and @bob, check this out!");
+    const result = extractMentionCandidates(
+      "Hey @alice and @bob, check this out!"
+    );
     expect(result).toEqual(expect.arrayContaining(["alice", "bob"]));
     expect(result.length).toBe(2);
   });
 
   test("should deduplicate mentions", () => {
-    const result = extractMentionCandidates("@john said hi, then @john said bye");
+    const result = extractMentionCandidates(
+      "@john said hi, then @john said bye"
+    );
     expect(result).toEqual(["john"]);
   });
 

@@ -3,7 +3,6 @@ import { jest } from "@jest/globals";
 
 // Functions from script.js
 import {
-
   toggleSlotInSchedule,
   determineSlotStatus,
   generateTooltipMessage,
@@ -16,7 +15,10 @@ import {
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 
 // Import DOM_ELEMENTS and its initializer
-import { DOM_ELEMENTS, initializeDomElements } from "../../utils/dom/domElements.js";
+import {
+  DOM_ELEMENTS,
+  initializeDomElements,
+} from "../../utils/dom/domElements.js";
 
 // Import the new modal functions to test them directly
 import { initModal, showModal } from "../../components/modals/Modal.js";
@@ -518,13 +520,13 @@ describe("Modal System (js/modal.js)", () => {
       jest.runAllTimers(); // Ensure modal is active
 
       // Simulate click directly on the modal overlay with proper event
-      const clickEvent = new MouseEvent('click', {
+      const clickEvent = new MouseEvent("click", {
         bubbles: true,
         cancelable: true,
       });
-      Object.defineProperty(clickEvent, 'target', {
+      Object.defineProperty(clickEvent, "target", {
         value: DOM_ELEMENTS.appModal,
-        enumerable: true
+        enumerable: true,
       });
       DOM_ELEMENTS.appModal.dispatchEvent(clickEvent);
 
@@ -554,14 +556,14 @@ describe("UI Rendering (Placeholder)", () => {
 
   test("should verify DOM elements can be created", () => {
     // Test that basic DOM functionality works
-    const testDiv = document.createElement('div');
-    testDiv.className = 'test-element';
+    const testDiv = document.createElement("div");
+    testDiv.className = "test-element";
     document.body.appendChild(testDiv);
-    
+
     expect(testDiv).toBeDefined();
-    expect(testDiv.className).toBe('test-element');
-    expect(document.querySelector('.test-element')).toBe(testDiv);
-    
+    expect(testDiv.className).toBe("test-element");
+    expect(document.querySelector(".test-element")).toBe(testDiv);
+
     // Cleanup
     document.body.removeChild(testDiv);
   });
@@ -776,9 +778,7 @@ describe("Heterogeneous Schedule Comparison", () => {
         selectedUserIds: new Set(["1", "2"]),
       };
       // New format lists busy users
-      expect(generateTooltipMessage(0, 0, testState)).toBe(
-        "Busy: Alice, Bob"
-      );
+      expect(generateTooltipMessage(0, 0, testState)).toBe("Busy: Alice, Bob");
     });
   });
 
@@ -869,7 +869,6 @@ describe("Schedule Disabled State", () => {
         contains: jest.fn(),
       },
     };
-
 
     DOM_ELEMENTS.usersSection = {
       classList: {

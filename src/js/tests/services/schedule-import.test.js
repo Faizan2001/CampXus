@@ -3,136 +3,137 @@
  *                    SCHEDULE IMPORT SERVICE TESTS
  *                  Comprehensive Testing for Phase-0
  * =============================================================================
- * 
+ *
  * This test suite covers the complete schedule import functionality:
  * - UniversityParser text parsing edge cases
  * - ScheduleValidator validation logic
  * - ScheduleImportService integration
  * - Error handling and recovery
- * 
+ *
  * =============================================================================
  */
 
-import { ScheduleImportService } from '../../services/schedule/ScheduleImportService.js';
-import { UniversityParser } from '../../services/schedule/UniversityParser.js';
-import { ScheduleValidator } from '../../services/schedule/ScheduleValidator.js';
+import { ScheduleImportService } from "../../services/schedule/ScheduleImportService.js";
+import { UniversityParser } from "../../services/schedule/UniversityParser.js";
+import { ScheduleValidator } from "../../services/schedule/ScheduleValidator.js";
 
-describe('Schedule Import System', () => {
-  
+describe("Schedule Import System", () => {
   /**
    * =============================================================================
    *                         UNIVERSITY PARSER TESTS
    * =============================================================================
    */
-  describe('UniversityParser', () => {
+  describe("UniversityParser", () => {
     let parser;
 
     beforeEach(() => {
       parser = new UniversityParser();
     });
 
-    describe('Single Line Parsing', () => {
-      test('should parse standard single-line format', () => {
-        const line = 'CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A';
+    describe("Single Line Parsing", () => {
+      test("should parse standard single-line format", () => {
+        const line =
+          "CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A";
         const result = parser.parseCourseLine(line);
 
         expect(result).toBeTruthy();
-        expect(result.courseCode).toBe('CSE110');
-        expect(result.courseName).toBe('Introduction to Programming');
+        expect(result.courseCode).toBe("CSE110");
+        expect(result.courseName).toBe("Introduction to Programming");
         expect(result.section).toBe(3);
-        expect(result.room).toBe('C1001');
-        expect(result.dayCode).toBe('MW');
-        expect(result.days).toEqual(['Monday', 'Wednesday']);
-        expect(result.startTime).toBe('08:00');
-        expect(result.endTime).toBe('09:30');
+        expect(result.room).toBe("C1001");
+        expect(result.dayCode).toBe("MW");
+        expect(result.days).toEqual(["Monday", "Wednesday"]);
+        expect(result.startTime).toBe("08:00");
+        expect(result.endTime).toBe("09:30");
         expect(result.timeSlotIndex).toBe(0); // First time slot
       });
 
-      test('should handle OCR time format errors', () => {
-        const line = 'CSE110 Programming 3 C1001 MW:8:0-9:3 Fall2024 A';
+      test("should handle OCR time format errors", () => {
+        const line = "CSE110 Programming 3 C1001 MW:8:0-9:3 Fall2024 A";
         const result = parser.parseCourseLine(line);
 
         expect(result).toBeTruthy();
-        expect(result.startTime).toBe('08:00'); // Should correct 8:0 → 08:00
-        expect(result.endTime).toBe('09:30');   // Should correct 9:3 → 09:30
+        expect(result.startTime).toBe("08:00"); // Should correct 8:0 → 08:00
+        expect(result.endTime).toBe("09:30"); // Should correct 9:3 → 09:30
       });
 
-      test('should parse evening time slots (dynamic)', () => {
-        const line = 'CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B';
+      test("should parse evening time slots (dynamic)", () => {
+        const line =
+          "CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B";
         const result = parser.parseCourseLine(line);
 
         expect(result).toBeTruthy();
-        expect(result.dayCode).toBe('ST');
-        expect(result.days).toEqual(['Sunday', 'Tuesday']);
-        expect(result.startTime).toBe('18:30');
-        expect(result.endTime).toBe('21:30');
+        expect(result.dayCode).toBe("ST");
+        expect(result.days).toEqual(["Sunday", "Tuesday"]);
+        expect(result.startTime).toBe("18:30");
+        expect(result.endTime).toBe("21:30");
         expect(result.timeSlotIndex).toBe(-1); // dynamic slot beyond defaults
       });
 
-      test('should handle unknown day codes gracefully', () => {
-        const line = 'CSE999 Unknown Course 3 C1001 XYZ:08:00-09:30 Fall2024 A';
+      test("should handle unknown day codes gracefully", () => {
+        const line = "CSE999 Unknown Course 3 C1001 XYZ:08:00-09:30 Fall2024 A";
         const result = parser.parseCourseLine(line);
 
         expect(result).toBeTruthy();
-        expect(result.dayCode).toBe('XYZ');
+        expect(result.dayCode).toBe("XYZ");
         expect(result.days).toEqual([]); // Unknown day code
       });
 
-      test('should return null for invalid lines', () => {
+      test("should return null for invalid lines", () => {
         const invalidLines = [
-          '',
-          'Not a course line at all',
-          'CSE110', // Too short
-          'Random text with no structure'
+          "",
+          "Not a course line at all",
+          "CSE110", // Too short
+          "Random text with no structure",
         ];
 
-        invalidLines.forEach(line => {
+        invalidLines.forEach((line) => {
           const result = parser.parseCourseLine(line);
           expect(result).toBeNull();
         });
       });
     });
 
-    describe('Multi-line Parsing', () => {
-      test('should parse course info and schedule on separate lines', () => {
-        const courseLine = 'CMN205 Introduction to Interactive Media 2 C2002';
-        const scheduleLine = 'ST:14:40-16:10 12/14 Z';
-        
+    describe("Multi-line Parsing", () => {
+      test("should parse course info and schedule on separate lines", () => {
+        const courseLine = "CMN205 Introduction to Interactive Media 2 C2002";
+        const scheduleLine = "ST:14:40-16:10 12/14 Z";
+
         const result = parser.parseMultilineFormat(courseLine, scheduleLine);
 
         expect(result).toBeTruthy();
-        expect(result.courseCode).toBe('CMN205');
-        expect(result.courseName).toBe('Introduction to Interactive Media');
+        expect(result.courseCode).toBe("CMN205");
+        expect(result.courseName).toBe("Introduction to Interactive Media");
         expect(result.section).toBe(2);
-        expect(result.room).toBe('C2002');
-        expect(result.dayCode).toBe('ST');
-        expect(result.days).toEqual(['Sunday', 'Tuesday']);
-        expect(result.startTime).toBe('14:40');
-        expect(result.endTime).toBe('16:10');
-        expect(result.confidence).toBe('high');
+        expect(result.room).toBe("C2002");
+        expect(result.dayCode).toBe("ST");
+        expect(result.days).toEqual(["Sunday", "Tuesday"]);
+        expect(result.startTime).toBe("14:40");
+        expect(result.endTime).toBe("16:10");
+        expect(result.confidence).toBe("high");
       });
 
-      test('should handle multi-line with OCR errors', () => {
-        const courseLine = 'PHY101 Basic Physics 3 C1001';
-        const scheduleLine = 'MW:11:20-12:50 Spring2024 A';
-        
+      test("should handle multi-line with OCR errors", () => {
+        const courseLine = "PHY101 Basic Physics 3 C1001";
+        const scheduleLine = "MW:11:20-12:50 Spring2024 A";
+
         const result = parser.parseMultilineFormat(courseLine, scheduleLine);
 
         expect(result).toBeTruthy();
-        expect(result.startTime).toBe('11:20'); 
-        expect(result.endTime).toBe('12:50');   
+        expect(result.startTime).toBe("11:20");
+        expect(result.endTime).toBe("12:50");
       });
 
-      test('should return null for malformed multi-line', () => {
+      test("should return null for malformed multi-line", () => {
         const tests = [
           // Missing course info
-          ['', 'ST:14:40-16:10 12/14 Z'],
-          // Missing schedule info  
-          ['CMN205 Interactive Media 2 C2002', ''],
+          ["", "ST:14:40-16:10 12/14 Z"],
+          // Missing schedule info
+          ["CMN205 Interactive Media 2 C2002", ""],
           // Invalid course format
-          ['InvalidCourseFormat', 'ST:14:40-16:10 12/14 Z'],
+          ["InvalidCourseFormat", "ST:14:40-16:10 12/14 Z"],
           // Invalid schedule format
-          ['CMN205 Interactive Media 2 C2002', 'InvalidScheduleFormat']
+          ["CMN205 Interactive Media 2 C2002", "InvalidScheduleFormat"],
         ];
 
         tests.forEach(([courseLine, scheduleLine]) => {
@@ -142,8 +143,8 @@ describe('Schedule Import System', () => {
       });
     });
 
-    describe('Full Text Parsing', () => {
-      test('should parse mixed single-line and multi-line format', () => {
+    describe("Full Text Parsing", () => {
+      test("should parse mixed single-line and multi-line format", () => {
         const scheduleText = `
 CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A
 CMN205 Introduction to Interactive Media 2 C2002
@@ -154,21 +155,21 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         const courses = parser.parseScheduleText(scheduleText);
 
         expect(courses).toHaveLength(3);
-        
+
         // First course (single-line)
-        expect(courses[0].courseCode).toBe('CSE110');
-        expect(courses[0].dayCode).toBe('MW');
-        
+        expect(courses[0].courseCode).toBe("CSE110");
+        expect(courses[0].dayCode).toBe("MW");
+
         // Second course (multi-line)
-        expect(courses[1].courseCode).toBe('CMN205');
-        expect(courses[1].dayCode).toBe('ST');
-        
+        expect(courses[1].courseCode).toBe("CMN205");
+        expect(courses[1].dayCode).toBe("ST");
+
         // Third course (single-line)
-        expect(courses[2].courseCode).toBe('CSE470');
+        expect(courses[2].courseCode).toBe("CSE470");
         expect(courses[2].timeSlotIndex).toBe(-1); // Dynamic evening slot beyond defaults
       });
 
-      test('should handle empty and invalid lines gracefully', () => {
+      test("should handle empty and invalid lines gracefully", () => {
         const scheduleText = `
 CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A
 
@@ -179,26 +180,26 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
 
         // Parser may extract more courses with smart extraction
         expect(courses.length).toBeGreaterThanOrEqual(2);
-        expect(courses[0].courseCode).toBe('CSE110');
+        expect(courses[0].courseCode).toBe("CSE110");
       });
 
-      test('should handle null input gracefully', () => {
+      test("should handle null input gracefully", () => {
         // Current implementation may not throw, just return empty
         const result = parser.parseScheduleText(null);
         expect(Array.isArray(result)).toBe(true);
       });
     });
 
-    describe('Time Slot Matching', () => {
-      test('should find correct time slot indices for standard slots', () => {
+    describe("Time Slot Matching", () => {
+      test("should find correct time slot indices for standard slots", () => {
         const testCases = [
-          { start: '08:00', end: '09:30', expected: 0 },
-          { start: '09:40', end: '11:10', expected: 1 },
-          { start: '11:20', end: '12:50', expected: 2 },
-          { start: '13:00', end: '14:30', expected: 3 },
-          { start: '14:40', end: '16:10', expected: 4 },
-          { start: '16:20', end: '17:50', expected: 5 },
-          { start: '10:00', end: '11:00', expected: -1 }  // Non-standard time
+          { start: "08:00", end: "09:30", expected: 0 },
+          { start: "09:40", end: "11:10", expected: 1 },
+          { start: "11:20", end: "12:50", expected: 2 },
+          { start: "13:00", end: "14:30", expected: 3 },
+          { start: "14:40", end: "16:10", expected: 4 },
+          { start: "16:20", end: "17:50", expected: 5 },
+          { start: "10:00", end: "11:00", expected: -1 }, // Non-standard time
         ];
 
         testCases.forEach(({ start, end, expected }) => {
@@ -207,9 +208,9 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         });
       });
 
-      test('should return -1 for evening slots (dynamic)', () => {
+      test("should return -1 for evening slots (dynamic)", () => {
         // Evening slot 18:30-21:30 might be -1 as it's dynamic beyond defaults
-        const index = parser.findTimeSlotIndex('18:30', '21:30');
+        const index = parser.findTimeSlotIndex("18:30", "21:30");
         expect(index).toBe(-1);
       });
     });
@@ -220,26 +221,27 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
    *                         SCHEDULE VALIDATOR TESTS
    * =============================================================================
    */
-  describe('ScheduleValidator', () => {
+  describe("ScheduleValidator", () => {
     let validator;
 
     beforeEach(() => {
       validator = new ScheduleValidator();
     });
 
-    describe('Single Course Validation', () => {
-      test('should validate a well-formed course', () => {
+    describe("Single Course Validation", () => {
+      test("should validate a well-formed course", () => {
         const course = {
-          courseCode: 'CSE110',
-          courseName: 'Introduction to Programming',
+          courseCode: "CSE110",
+          courseName: "Introduction to Programming",
           section: 3,
-          room: 'C1001',
-          dayCode: 'MW',
-          days: ['Monday', 'Wednesday'],
-          startTime: '08:00',
-          endTime: '09:30',
+          room: "C1001",
+          dayCode: "MW",
+          days: ["Monday", "Wednesday"],
+          startTime: "08:00",
+          endTime: "09:30",
           timeSlotIndex: 0,
-          originalLine: 'CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A'
+          originalLine:
+            "CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A",
         };
 
         const result = validator.validateCourse(course, 0);
@@ -248,108 +250,123 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         expect(result.errors).toHaveLength(0);
       });
 
-      test('should detect missing required fields', () => {
+      test("should detect missing required fields", () => {
         const incompleteCourse = {
-          courseCode: 'CSE110',
+          courseCode: "CSE110",
           // Missing courseName, days, startTime, endTime
           section: 3,
-          room: 'C1001'
+          room: "C1001",
         };
 
         const result = validator.validateCourse(incompleteCourse, 0);
 
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Missing or empty field: days');
-        expect(result.errors).toContain('Missing or empty field: startTime');
-        expect(result.errors).toContain('Missing or empty field: endTime');
+        expect(result.errors).toContain("Missing or empty field: days");
+        expect(result.errors).toContain("Missing or empty field: startTime");
+        expect(result.errors).toContain("Missing or empty field: endTime");
       });
 
-      test('should detect invalid course code format', () => {
+      test("should detect invalid course code format", () => {
         const course = {
-          courseCode: 'INVALID123TOOLONG', // Invalid format
-          courseName: 'Test Course',
-          days: ['Monday'],
-          startTime: '08:00',
-          endTime: '09:30'
+          courseCode: "INVALID123TOOLONG", // Invalid format
+          courseName: "Test Course",
+          days: ["Monday"],
+          startTime: "08:00",
+          endTime: "09:30",
         };
 
         const result = validator.validateCourse(course, 0);
 
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Invalid course code format (expected: ABC123)');
-        expect(result.suggestions).toContain("Course codes should be 2-4 letters followed by 3-4 digits, optionally ending with 'L' for labs");
+        expect(result.errors).toContain(
+          "Invalid course code format (expected: ABC123)"
+        );
+        expect(result.suggestions).toContain(
+          "Course codes should be 2-4 letters followed by 3-4 digits, optionally ending with 'L' for labs"
+        );
       });
 
-      test('should detect unknown day codes', () => {
+      test("should detect unknown day codes", () => {
         const course = {
-          courseCode: 'CSE110',
-          courseName: 'Test Course',
-          dayCode: 'UNKNOWN',
+          courseCode: "CSE110",
+          courseName: "Test Course",
+          dayCode: "UNKNOWN",
           days: [], // Empty because day code is unknown
-          startTime: '08:00',
-          endTime: '09:30'
+          startTime: "08:00",
+          endTime: "09:30",
         };
 
         const result = validator.validateCourse(course, 0);
 
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Unknown day code: UNKNOWN');
-        expect(result.suggestions).toContain('Common day codes: ST (Sun/Tue), MW (Mon/Wed), AR (Thu/Sat)');
+        expect(result.errors).toContain("Unknown day code: UNKNOWN");
+        expect(result.suggestions).toContain(
+          "Common day codes: ST (Sun/Tue), MW (Mon/Wed), AR (Thu/Sat)"
+        );
       });
 
-      test('should warn about non-standard time slots', () => {
+      test("should warn about non-standard time slots", () => {
         const course = {
-          courseCode: 'CSE110',
-          courseName: 'Test Course',
-          days: ['Monday'],
-          startTime: '10:00',
-          endTime: '11:00',
-          timeSlotIndex: -1 // Non-standard time
+          courseCode: "CSE110",
+          courseName: "Test Course",
+          days: ["Monday"],
+          startTime: "10:00",
+          endTime: "11:00",
+          timeSlotIndex: -1, // Non-standard time
         };
 
         const result = validator.validateCourse(course, 0);
 
         expect(result.isValid).toBe(true); // Still valid, just a warning
-        expect(result.warnings).toContain('Time 10:00-11:00 doesn\'t match standard time slots');
-        expect(result.suggestions).toContain('Course may need manual time slot assignment');
+        expect(result.warnings).toContain(
+          "Time 10:00-11:00 doesn't match standard time slots"
+        );
+        expect(result.suggestions).toContain(
+          "Course may need manual time slot assignment"
+        );
       });
 
-      test('should auto-correct long course names', () => {
+      test("should auto-correct long course names", () => {
         const course = {
-          courseCode: 'CSE110',
-          courseName: 'This is an extremely long course name that exceeds the maximum allowed length for course names in the system',
-          days: ['Monday'],
-          startTime: '08:00',
-          endTime: '09:30'
+          courseCode: "CSE110",
+          courseName:
+            "This is an extremely long course name that exceeds the maximum allowed length for course names in the system",
+          days: ["Monday"],
+          startTime: "08:00",
+          endTime: "09:30",
         };
 
         const result = validator.validateCourse(course, 0);
 
         expect(result.isValid).toBe(true);
-        expect(result.correctedData.courseName).toBe('This is an extremely long course name that exceeds...');
-        expect(result.warnings).toContain('Course name truncated to 50 characters');
+        expect(result.correctedData.courseName).toBe(
+          "This is an extremely long course name that exceeds..."
+        );
+        expect(result.warnings).toContain(
+          "Course name truncated to 50 characters"
+        );
       });
     });
 
-    describe('Schedule Validation', () => {
-      test('should validate array of courses', () => {
+    describe("Schedule Validation", () => {
+      test("should validate array of courses", () => {
         const courses = [
           {
-            courseCode: 'CSE110',
-            courseName: 'Programming',
-            days: ['monday'],
-            startTime: '08:00',
-            endTime: '09:30',
-            timeSlotIndex: 0
+            courseCode: "CSE110",
+            courseName: "Programming",
+            days: ["monday"],
+            startTime: "08:00",
+            endTime: "09:30",
+            timeSlotIndex: 0,
           },
           {
-            courseCode: 'CSE470',
-            courseName: 'Software Engineering',
-            days: ['tuesday'],
-            startTime: '18:30',
-            endTime: '21:30',
-            timeSlotIndex: 6
-          }
+            courseCode: "CSE470",
+            courseName: "Software Engineering",
+            days: ["tuesday"],
+            startTime: "18:30",
+            endTime: "21:30",
+            timeSlotIndex: 6,
+          },
         ];
 
         const result = validator.validateSchedule(courses);
@@ -359,73 +376,75 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
         expect(result.warnings).toHaveLength(0);
       });
 
-      test('should separate valid and invalid courses', () => {
+      test("should separate valid and invalid courses", () => {
         const courses = [
           {
-            courseCode: 'CSE110',
-            courseName: 'Programming',
-            days: ['monday'],
-            startTime: '08:00',
-            endTime: '09:30'
+            courseCode: "CSE110",
+            courseName: "Programming",
+            days: ["monday"],
+            startTime: "08:00",
+            endTime: "09:30",
           },
           {
-            courseCode: 'INVALID', // Invalid course code
+            courseCode: "INVALID", // Invalid course code
             // Missing required fields
-            days: []
-          }
+            days: [],
+          },
         ];
 
         const result = validator.validateSchedule(courses);
 
         expect(result.validatedCourses).toHaveLength(1);
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0].courseCode).toBe('INVALID');
-        expect(result.errors[0].issues).toContain('Invalid course code format (expected: ABC123)');
+        expect(result.errors[0].courseCode).toBe("INVALID");
+        expect(result.errors[0].issues).toContain(
+          "Invalid course code format (expected: ABC123)"
+        );
       });
     });
 
-    describe('Advanced Validation Features', () => {
-      test('should check for duplicate courses', () => {
+    describe("Advanced Validation Features", () => {
+      test("should check for duplicate courses", () => {
         const courses = [
           {
-            courseCode: 'CSE110',
-            dayCode: 'MW',
-            startTime: '08:00'
+            courseCode: "CSE110",
+            dayCode: "MW",
+            startTime: "08:00",
           },
           {
-            courseCode: 'CSE110',
-            dayCode: 'MW',
-            startTime: '08:00'
-          }
+            courseCode: "CSE110",
+            dayCode: "MW",
+            startTime: "08:00",
+          },
         ];
 
         const duplicates = validator.checkForDuplicates(courses);
 
         expect(duplicates).toHaveLength(1);
-        expect(duplicates[0].courseCode).toBe('CSE110');
-        expect(duplicates[0].message).toBe('Duplicate course detected');
+        expect(duplicates[0].courseCode).toBe("CSE110");
+        expect(duplicates[0].message).toBe("Duplicate course detected");
       });
 
-      test('should detect time conflicts', () => {
+      test("should detect time conflicts", () => {
         const courses = [
           {
-            courseCode: 'CSE110',
-            days: ['monday'],
-            timeSlotIndex: 0
+            courseCode: "CSE110",
+            days: ["monday"],
+            timeSlotIndex: 0,
           },
           {
-            courseCode: 'PHY101',
-            days: ['monday'], // Same day
-            timeSlotIndex: 0  // Same time slot
-          }
+            courseCode: "PHY101",
+            days: ["monday"], // Same day
+            timeSlotIndex: 0, // Same time slot
+          },
         ];
 
         const conflicts = validator.checkTimeConflicts(courses);
 
         expect(conflicts).toHaveLength(1);
-        expect(conflicts[0].course1.courseCode).toBe('CSE110');
-        expect(conflicts[0].course2.courseCode).toBe('PHY101');
-        expect(conflicts[0].day).toBe('monday');
+        expect(conflicts[0].course1.courseCode).toBe("CSE110");
+        expect(conflicts[0].course2.courseCode).toBe("PHY101");
+        expect(conflicts[0].day).toBe("monday");
         expect(conflicts[0].timeSlot).toBe(0);
       });
     });
@@ -436,14 +455,14 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
    *                      SCHEDULE IMPORT SERVICE TESTS
    * =============================================================================
    */
-  describe('ScheduleImportService Integration', () => {
+  describe("ScheduleImportService Integration", () => {
     let service;
 
     beforeEach(() => {
       service = new ScheduleImportService();
     });
 
-    test('should process complete schedule text successfully', async () => {
+    test("should process complete schedule text successfully", async () => {
       const scheduleText = `
 CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A
 CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
@@ -460,10 +479,10 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
       expect(result.stats.totalCourses).toBe(2);
       expect(result.stats.validCourses).toBe(2);
       expect(result.stats.errorCourses).toBe(0);
-      expect(result.stats.successRate).toBe('100.0');
+      expect(result.stats.successRate).toBe("100.0");
     });
 
-    test('should handle mixed valid and invalid courses', async () => {
+    test("should handle mixed valid and invalid courses", async () => {
       const scheduleText = `
 CSE110 Introduction to Programming 3 C1001 MW:08:00-09:30 Fall2024 A
 INVALID COURSE LINE
@@ -479,70 +498,74 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
       expect(parseFloat(result.stats.successRate)).toBeGreaterThan(50);
     });
 
-    test('should convert to MeetchuThere format correctly with dynamic slots', async () => {
-      const scheduleText = 'CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A';
+    test("should convert to MeetchuThere format correctly with dynamic slots", async () => {
+      const scheduleText =
+        "CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A";
       const result = await service.processScheduleText(scheduleText);
 
       expect(result.success).toBe(true);
-      
+
       // Schedule is now 7 days x N dynamic time slots
       expect(result.scheduleData.schedule).toHaveLength(7);
       expect(result.scheduleData.timeSlots.length).toBeGreaterThan(0);
-      
+
       // Check Monday (index 1) and Wednesday (index 3) have the course at first slot
       expect(result.scheduleData.schedule[1][0]).toBe(true); // Monday, first slot
       expect(result.scheduleData.schedule[3][0]).toBe(true); // Wednesday, first slot
-      
+
       // Check course info is populated
-      expect(result.scheduleData.slotInfo[1][0].courseCode).toBe('CSE110');
-      expect(result.scheduleData.slotInfo[3][0].courseCode).toBe('CSE110');
-      
+      expect(result.scheduleData.slotInfo[1][0].courseCode).toBe("CSE110");
+      expect(result.scheduleData.slotInfo[3][0].courseCode).toBe("CSE110");
+
       // Check Sunday is empty for first slot
       expect(result.scheduleData.schedule[0][0]).toBe(false); // Sunday, first slot
     });
 
-    test('should prevent concurrent external processing', async () => {
-      const scheduleText = 'CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A';
-      
-      // Start processing  
+    test("should prevent concurrent external processing", async () => {
+      const scheduleText =
+        "CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A";
+
+      // Start processing
       service.isProcessing = true; // Simulate ongoing processing
-      
+
       // Try to process while already processing
       const result = await service.processScheduleText(scheduleText);
-      
+
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Already processing a schedule. Please wait.');
-      
+      expect(result.error).toBe("Already processing a schedule. Please wait.");
+
       // Reset for other tests
       service.isProcessing = false;
     });
 
-    test('should allow internal processScheduleText calls from processScheduleImage', async () => {
-      const scheduleText = 'CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A';
-      
+    test("should allow internal processScheduleText calls from processScheduleImage", async () => {
+      const scheduleText =
+        "CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A";
+
       // Test that internal calls (with skipLockCheck=true) work even when processing flag is set
       service.isProcessing = true;
-      
+
       const result = await service.processScheduleText(scheduleText, true);
-      
+
       expect(result.success).toBe(true);
       expect(result.scheduleData).toBeDefined();
-      
+
       // Reset for other tests
       service.isProcessing = false;
     });
 
-    test('should generate helpful import summary', async () => {
-      const scheduleText = 'CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A';
+    test("should generate helpful import summary", async () => {
+      const scheduleText =
+        "CSE110 Programming 3 C1001 MW:08:00-09:30 Fall2024 A";
       const result = await service.processScheduleText(scheduleText);
-      
+
       const summary = service.getImportSummary(result);
-      expect(summary).toBe('Imported 1 out of 1 courses (100.0% success rate)');
+      expect(summary).toBe("Imported 1 out of 1 courses (100.0% success rate)");
     });
 
-    test('should handle empty text gracefully', async () => {
-      const result = await service.processScheduleText('');
-      
+    test("should handle empty text gracefully", async () => {
+      const result = await service.processScheduleText("");
+
       // Empty text now returns success with empty schedule (no courses to parse)
       expect(result.success).toBe(true);
       expect(result.scheduleData).toBeDefined();
@@ -556,34 +579,35 @@ CSE470 Software Engineering 3 C2001 ST:18:30-21:30 Fall2024 B
    *                           ERROR HANDLING TESTS
    * =============================================================================
    */
-  describe('Error Handling and Edge Cases', () => {
-    test('should handle empty schedule text gracefully', async () => {
+  describe("Error Handling and Edge Cases", () => {
+    test("should handle empty schedule text gracefully", async () => {
       const service = new ScheduleImportService();
-      const result = await service.processScheduleText('');
-      
+      const result = await service.processScheduleText("");
+
       // Empty text returns success with empty schedule (no error)
       expect(result.success).toBe(true);
       expect(result.scheduleData).toBeDefined();
       expect(result.stats.totalCourses).toBe(0);
     });
 
-    test('should handle malformed JSON-like input', async () => {
+    test("should handle malformed JSON-like input", async () => {
       const service = new ScheduleImportService();
       const malformedText = '{ "courses": [ { "invalid": "json" } ] }';
-      
+
       const result = await service.processScheduleText(malformedText);
-      
+
       // Should not crash, but may have no valid courses
       expect(result.success).toBe(true);
       expect(result.stats.validCourses).toBe(0);
     });
 
-    test('should handle special characters in course names', async () => {
+    test("should handle special characters in course names", async () => {
       const service = new ScheduleImportService();
-      const scheduleText = 'CSE110 Programming: C++ & Java 3 C1001 MW:08:00-09:30 Fall2024 A';
-      
+      const scheduleText =
+        "CSE110 Programming: C++ & Java 3 C1001 MW:08:00-09:30 Fall2024 A";
+
       const result = await service.processScheduleText(scheduleText);
-      
+
       expect(result.success).toBe(true);
       expect(result.stats.validCourses).toBe(1);
     });

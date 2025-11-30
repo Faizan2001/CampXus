@@ -9,11 +9,12 @@
  * - buttons.css   → Button system (primary, secondary, danger)
  * - events.css    → Event cards, list, status badges
  * - modals.css    → Create event & event detail modals
+ * - live.css      → Live events section on Clubs tab
  * - members.css   → Members tab (future)
- * - live.css      → Live events section (future)
  */
 
 @import "./base.css";
 @import "./buttons.css";
 @import "./events.css";
 @import "./modals.css";
+@import "./live.css";

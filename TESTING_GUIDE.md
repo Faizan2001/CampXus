@@ -3,8 +3,9 @@
 > A beginner-friendly guide to understanding tests. Welcome to the world of testing! 🎉
 
 ## Table of Contents
+
 - [Why Do We Test?](#why-do-we-test)
-- [The Testing Pyramid](#the-testing-pyramid-) 
+- [The Testing Pyramid](#the-testing-pyramid-)
 - [Types of Tests Explained](#types-of-tests-explained)
 - [Our Testing Setup](#our-testing-setup)
 - [How to Run Tests](#how-to-run-tests)
@@ -22,7 +23,7 @@ Imagine you're building a house of cards 🃏. Every time you add a new card, th
 
 1. **Catch bugs early** - Before users see them! 🐛
 2. **Refactor with confidence** - Change code without fear of breaking things
-3. **Document behavior** - Tests show how code is *supposed* to work
+3. **Document behavior** - Tests show how code is _supposed_ to work
 4. **Sleep better at night** - Knowing your code works! 😴
 
 ---
@@ -36,7 +37,7 @@ Think of tests like a pyramid with three layers:
         /  \        🌐 E2E Tests (Few)
        /----\       Real browser, real clicks, slow but comprehensive
       /      \
-     /--------\     🔗 Integration Tests (Some)  
+     /--------\     🔗 Integration Tests (Some)
     /          \    Components working together
    /------------\
   /              \  🧱 Unit Tests (Many)
@@ -44,6 +45,7 @@ Think of tests like a pyramid with three layers:
 ```
 
 ### The Golden Rule:
+
 - **Many** unit tests (fast, cheap, reliable)
 - **Some** integration tests (moderate speed)
 - **Few** E2E tests (slow, expensive, but realistic)
@@ -59,22 +61,25 @@ Think of tests like a pyramid with three layers:
 **Analogy:** Testing if a single Lego brick is the right shape and size, without building the whole castle.
 
 **Example from our codebase:**
+
 ```javascript
 // Testing the normalizeHandle function
-test('normalizes handle to lowercase', () => {
-  expect(normalizeHandle('JOHN_DOE')).toBe('john_doe');
+test("normalizes handle to lowercase", () => {
+  expect(normalizeHandle("JOHN_DOE")).toBe("john_doe");
 });
 ```
 
 **Characteristics:**
+
 - ⚡ Super fast (milliseconds)
 - 🎯 Tests one specific thing
 - 🔒 No network, no database, no external stuff
 - ✅ Should be most of your tests
 
 **We use unit tests for:**
+
 - `handleUtils.js` - Handle validation and formatting
-- `timeUtils.js` - Time calculations  
+- `timeUtils.js` - Time calculations
 - `scheduleParsing.js` - Schedule text parsing
 - Pure utility functions
 
@@ -87,22 +92,25 @@ test('normalizes handle to lowercase', () => {
 **Analogy:** Testing if several Lego bricks can snap together correctly and form a small structure.
 
 **Example:**
+
 ```javascript
 // Testing Router + Authentication together
-test('redirects unauthenticated users to landing', async () => {
+test("redirects unauthenticated users to landing", async () => {
   authManager.isAuthenticated.mockReturnValue(false);
-  await router.navigate('/home');
-  expect(window.location.hash).toBe('#landing');
+  await router.navigate("/home");
+  expect(window.location.hash).toBe("#landing");
 });
 ```
 
 **Characteristics:**
+
 - 🐢 Slower than unit tests
 - 🤝 Tests components interacting
 - 📦 May need mocks for external services
 - ⚖️ Balance between speed and realism
 
 **We use integration tests for:**
+
 - `Router.js` - Navigation + auth guards + templates
 - Page controllers - Components + services
 - Firebase listeners - Service + state management
@@ -116,24 +124,27 @@ test('redirects unauthenticated users to landing', async () => {
 **Analogy:** Actually building the complete Lego castle and testing if doors open, drawbridge works, and knights can move around.
 
 **Example:**
+
 ```javascript
 // Playwright/Cypress E2E test (we don't have these yet)
-test('user can import their schedule', async ({ page }) => {
-  await page.goto('/');
-  await page.click('text=Sign In');
-  await page.fill('#email', 'test@test.com');
-  await page.click('text=Import Schedule');
+test("user can import their schedule", async ({ page }) => {
+  await page.goto("/");
+  await page.click("text=Sign In");
+  await page.fill("#email", "test@test.com");
+  await page.click("text=Import Schedule");
   // ... more real user interactions
 });
 ```
 
 **Characteristics:**
+
 - 🐌 Slowest (seconds to minutes)
 - 🌍 Tests real browser behavior
 - 💰 Expensive to write and maintain
 - 🎬 Like recording a user's journey
 
 **When to use E2E:**
+
 - Critical user flows (login, signup)
 - Payment flows (if any)
 - Complex multi-step processes
@@ -146,11 +157,11 @@ test('user can import their schedule', async ({ page }) => {
 
 ### Tools We Use
 
-| Tool | Purpose |
-|------|---------|
-| **Jest** | Test runner - executes tests and shows results |
-| **jsdom** | Fake browser in Node.js - simulates DOM |
-| **ES Modules** | Modern JavaScript imports |
+| Tool           | Purpose                                        |
+| -------------- | ---------------------------------------------- |
+| **Jest**       | Test runner - executes tests and shows results |
+| **jsdom**      | Fake browser in Node.js - simulates DOM        |
+| **ES Modules** | Modern JavaScript imports                      |
 
 ### File Structure
 
@@ -174,8 +185,9 @@ src/js/tests/
 ### The jest.setup.js File
 
 This runs before every test and sets up:
+
 - 🪟 Fake `window.ENV` with Firebase config
-- 💾 Fake `localStorage` 
+- 💾 Fake `localStorage`
 - 📱 Fake `matchMedia` for responsive tests
 - 🧹 Cleanup after each test
 
@@ -232,14 +244,14 @@ Time:        1.234 s
 Every test follows three steps - **Arrange, Act, Assert**:
 
 ```javascript
-test('adds two numbers correctly', () => {
+test("adds two numbers correctly", () => {
   // 🎬 ARRANGE - Set up the test data
   const a = 2;
   const b = 3;
-  
+
   // 🎯 ACT - Do the thing you're testing
   const result = add(a, b);
-  
+
   // ✅ ASSERT - Check the result
   expect(result).toBe(5);
 });
@@ -248,32 +260,35 @@ test('adds two numbers correctly', () => {
 ### Real Example from CampXus
 
 ```javascript
-import { normalizeHandle, validateHandle } from '../../utils/handle/handleUtils.js';
+import {
+  normalizeHandle,
+  validateHandle,
+} from "../../utils/handle/handleUtils.js";
 
-describe('handleUtils', () => {
-  describe('normalizeHandle', () => {
-    test('converts uppercase to lowercase', () => {
+describe("handleUtils", () => {
+  describe("normalizeHandle", () => {
+    test("converts uppercase to lowercase", () => {
       // Arrange
-      const input = 'JOHN_DOE';
-      
+      const input = "JOHN_DOE";
+
       // Act
       const result = normalizeHandle(input);
-      
+
       // Assert
-      expect(result).toBe('john_doe');
+      expect(result).toBe("john_doe");
     });
-    
-    test('trims whitespace', () => {
-      expect(normalizeHandle('  john  ')).toBe('john');
+
+    test("trims whitespace", () => {
+      expect(normalizeHandle("  john  ")).toBe("john");
     });
   });
-  
-  describe('validateHandle', () => {
-    test('rejects handles that are too short', () => {
-      const result = validateHandle('ab');
-      
+
+  describe("validateHandle", () => {
+    test("rejects handles that are too short", () => {
+      const result = validateHandle("ab");
+
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('at least 3');
+      expect(result.error).toContain("at least 3");
     });
   });
 });
@@ -283,21 +298,21 @@ describe('handleUtils', () => {
 
 ```javascript
 // Equality
-expect(value).toBe(5);           // Exact match (===)
-expect(value).toEqual({a: 1});   // Deep equality for objects
+expect(value).toBe(5); // Exact match (===)
+expect(value).toEqual({ a: 1 }); // Deep equality for objects
 
 // Truthiness
-expect(value).toBeTruthy();      // Passes if truthy
-expect(value).toBeFalsy();       // Passes if falsy
-expect(value).toBeNull();        // Passes if null
-expect(value).toBeDefined();     // Passes if not undefined
+expect(value).toBeTruthy(); // Passes if truthy
+expect(value).toBeFalsy(); // Passes if falsy
+expect(value).toBeNull(); // Passes if null
+expect(value).toBeDefined(); // Passes if not undefined
 
 // Numbers
 expect(value).toBeGreaterThan(3);
 expect(value).toBeLessThanOrEqual(10);
 
 // Strings
-expect(string).toContain('hello');
+expect(string).toContain("hello");
 expect(string).toMatch(/pattern/);
 
 // Arrays
@@ -306,7 +321,7 @@ expect(array).toHaveLength(3);
 
 // Exceptions
 expect(() => badFunction()).toThrow();
-expect(() => badFunction()).toThrow('specific error');
+expect(() => badFunction()).toThrow("specific error");
 ```
 
 ---
@@ -315,29 +330,29 @@ expect(() => badFunction()).toThrow('specific error');
 
 ### ✅ High Priority - Always Test These
 
-| Module | Why It's Important |
-|--------|-------------------|
-| `handleUtils.js` | User-facing validation, can't have bugs! |
-| `Router.js` | Core navigation, auth guards protect routes |
-| `timeUtils.js` | Schedule calculations must be accurate |
-| `scheduleParsing.js` | Import feature users depend on |
-| `ScheduleValidator.js` | Prevents bad data in database |
+| Module                 | Why It's Important                          |
+| ---------------------- | ------------------------------------------- |
+| `handleUtils.js`       | User-facing validation, can't have bugs!    |
+| `Router.js`            | Core navigation, auth guards protect routes |
+| `timeUtils.js`         | Schedule calculations must be accurate      |
+| `scheduleParsing.js`   | Import feature users depend on              |
+| `ScheduleValidator.js` | Prevents bad data in database               |
 
 ### 📊 Medium Priority - Test When Possible
 
-| Module | Why |
-|--------|-----|
-| Page controllers | Complex logic orchestration |
-| Services | Business logic that could have edge cases |
-| State management | Data integrity |
+| Module           | Why                                       |
+| ---------------- | ----------------------------------------- |
+| Page controllers | Complex logic orchestration               |
+| Services         | Business logic that could have edge cases |
+| State management | Data integrity                            |
 
 ### ⏭️ Lower Priority - Skip or Mock
 
-| Module | Why |
-|--------|-----|
-| Simple UI components | Hard to test, low bug risk |
+| Module                | Why                                  |
+| --------------------- | ------------------------------------ |
+| Simple UI components  | Hard to test, low bug risk           |
 | Firebase direct calls | Mock these, test integration instead |
-| Third-party libraries | They have their own tests |
+| Third-party libraries | They have their own tests            |
 
 ---
 
@@ -362,16 +377,20 @@ Each test should be able to run alone:
 ```javascript
 // ❌ Bad - tests depend on each other
 let user;
-test('creates user', () => { user = createUser(); });
-test('deletes user', () => { deleteUser(user); }); // Fails if run alone!
+test("creates user", () => {
+  user = createUser();
+});
+test("deletes user", () => {
+  deleteUser(user);
+}); // Fails if run alone!
 
 // ✅ Good - each test sets up its own data
-test('creates user', () => {
+test("creates user", () => {
   const user = createUser();
   expect(user).toBeDefined();
 });
 
-test('deletes user', () => {
+test("deletes user", () => {
   const user = createUser(); // Create fresh user
   deleteUser(user);
   expect(getUser(user.id)).toBeNull();
@@ -384,17 +403,17 @@ When testing code that uses Firebase, localStorage, or APIs:
 
 ```javascript
 // Mock Firebase auth
-jest.mock('../../lib/firebase/auth.js', () => ({
+jest.mock("../../lib/firebase/auth.js", () => ({
   authManager: {
     isAuthenticated: jest.fn(),
     getCurrentUser: jest.fn(),
-  }
+  },
 }));
 
-test('redirects unauthenticated user', () => {
+test("redirects unauthenticated user", () => {
   // Control the mock's behavior
   authManager.isAuthenticated.mockReturnValue(false);
-  
+
   // Now test your code
   // ...
 });
@@ -408,7 +427,7 @@ Think about what could go wrong:
 describe('validateHandle', () => {
   // Happy path
   test('accepts valid handle', () => { ... });
-  
+
   // Edge cases - what could go wrong?
   test('handles null input', () => { ... });
   test('handles empty string', () => { ... });
@@ -437,35 +456,34 @@ npm test && npm run build && git commit -m "feat: add feature"
 ```javascript
 /**
  * Tests for [ModuleName]
- * 
+ *
  * What this module does:
  * - Thing 1
  * - Thing 2
  */
 
 // Import the module being tested
-import { functionA, functionB } from '../../path/to/module.js';
+import { functionA, functionB } from "../../path/to/module.js";
 
 // Group related tests together
-describe('ModuleName', () => {
-  
+describe("ModuleName", () => {
   // Run before each test (optional)
   beforeEach(() => {
     // Reset state, clear mocks, etc.
   });
-  
-  describe('functionA', () => {
-    test('does something expected', () => {
-      const result = functionA('input');
-      expect(result).toBe('expected');
+
+  describe("functionA", () => {
+    test("does something expected", () => {
+      const result = functionA("input");
+      expect(result).toBe("expected");
     });
-    
-    test('handles edge case', () => {
-      expect(functionA(null)).toBe('default');
+
+    test("handles edge case", () => {
+      expect(functionA(null)).toBe("default");
     });
   });
-  
-  describe('functionB', () => {
+
+  describe("functionB", () => {
     // More tests...
   });
 });
@@ -482,10 +500,10 @@ Testing might seem like extra work, but it's actually a superpower:
 3. **Better documentation** - tests show how code works
 4. **Confident refactoring** - change code without fear
 
-Remember: **Any test is better than no test!** Start small, and you'll get better with practice. 
+Remember: **Any test is better than no test!** Start small, and you'll get better with practice.
 
 Happy testing! 🧪✨
 
 ---
 
-*Questions? Check out the [Jest documentation](https://jestjs.io/docs/getting-started) or ask in the team chat!*
+_Questions? Check out the [Jest documentation](https://jestjs.io/docs/getting-started) or ask in the team chat!_

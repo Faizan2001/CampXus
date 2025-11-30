@@ -2389,3 +2389,185 @@ body.dark-mode .event-detail-status.rejected {
     font-size: 0.95rem;
   }
 }
+
+/* ====================================
+   LIVE EVENT ACTION BUTTONS
+   ==================================== */
+
+.live-action-container {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.live-status-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.live-countdown {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.live-countdown i {
+  color: #10b981;
+  font-size: 0.85rem;
+}
+
+.live-countdown.ending-soon {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.live-countdown.ending-soon i {
+  color: #f59e0b;
+}
+
+/* Live Action Buttons */
+.live-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-width: 140px;
+}
+
+.live-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Go Live Button */
+.live-action-btn.go-live {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.live-action-btn.go-live:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.45);
+}
+
+.live-action-btn.go-live:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Pulsing animation for Go Live */
+.live-action-btn.go-live::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  opacity: 0;
+  z-index: -1;
+  animation: goLivePulse 2s ease-in-out infinite;
+}
+
+@keyframes goLivePulse {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.05);
+  }
+}
+
+/* End Event Button */
+.live-action-btn.end-live {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
+}
+
+.live-action-btn.end-live:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(239, 68, 68, 0.45);
+}
+
+.live-action-btn.end-live:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Go Live Hint */
+.go-live-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  padding: 0.6rem 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.go-live-hint i {
+  color: rgba(139, 125, 232, 0.7);
+  font-size: 0.8rem;
+}
+
+/* Live Now Badge Enhancement in Modal */
+.event-detail-modal .event-status-badge.live-now {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  animation: liveGlow 2s ease-in-out infinite;
+}
+
+@keyframes liveGlow {
+  0%, 100% {
+    box-shadow: 0 2px 12px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.6);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .live-status-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .live-countdown {
+    justify-content: center;
+  }
+  
+  .live-action-btn {
+    width: 100%;
+    padding: 0.85rem 1.5rem;
+  }
+  
+  .go-live-hint {
+    text-align: center;
+    justify-content: center;
+  }
+}

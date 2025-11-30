@@ -404,6 +404,11 @@ export default class ClubDetailPage {
         await this.loadEvents();
         this.renderEventsTab(this.container.querySelector("#tabContent"));
       },
+      onLiveStatusChange: async (updatedEvent) => {
+        // Reload events after live status change
+        await this.loadEvents();
+        this.renderEventsTab(this.container.querySelector("#tabContent"));
+      }
     });
   }
 
@@ -461,11 +466,13 @@ export default class ClubDetailPage {
     }
 
     const hasImage = !!event.imageUrl;
+    const isLive = event.isLive === true;
 
     return `
-      <div class="event-card ${isPast ? "past" : ""} ${hasImage ? "has-image" : ""}" data-event-id="${
+      <div class="event-card ${isPast ? "past" : ""} ${hasImage ? "has-image" : ""} ${isLive ? "live-event" : ""}" data-event-id="${
       event.id
     }">
+        ${isLive ? `<div class="event-live-badge"><i class="fas fa-broadcast-tower"></i> LIVE NOW</div>` : ""}
         ${
           hasImage
             ? `<div class="event-image-container"><img src="${event.imageUrl}" alt="${title}" class="event-image" loading="lazy" /></div>`

@@ -395,9 +395,9 @@ describe("FriendshipPrivacyService", () => {
         };
         const result = privacyService.validateFriendshipDocument(doc);
         expect(result.isValid).toBe(false);
-        expect(result.errors.some((e) => e.includes("cannot be the same"))).toBe(
-          true
-        );
+        expect(
+          result.errors.some((e) => e.includes("cannot be the same"))
+        ).toBe(true);
       });
 
       test("should reject document without scheduleVisibility", () => {
@@ -505,7 +505,9 @@ describe("FriendshipPrivacyService", () => {
         const result = privacyService.getPrivacyStatus(null, "user1");
 
         expect(result.myVisibility).toBe(PRIVACY_DEFAULTS.scheduleVisibility);
-        expect(result.theirVisibility).toBe(PRIVACY_DEFAULTS.scheduleVisibility);
+        expect(result.theirVisibility).toBe(
+          PRIVACY_DEFAULTS.scheduleVisibility
+        );
       });
 
       test("should correctly identify current user's visibility", () => {

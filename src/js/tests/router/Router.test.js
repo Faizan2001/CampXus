@@ -3,26 +3,26 @@
  *                          SPA ROUTER TEST SUITE
  *                    Testing Single Page Application Navigation
  * =============================================================================
- * 
+ *
  * 🎯 What is a Router?
  * A router is like a traffic controller for your web app. When you click a link,
  * the router decides:
  * - Which page content to show
  * - Whether you're allowed to see that page (auth check)
  * - What URL to display in the browser
- * 
+ *
  * 🧪 Why test the Router?
  * - It's the BACKBONE of your SPA - if routing breaks, the whole app breaks!
  * - Auth guards protect private pages - we MUST verify they work
  * - URL handling affects bookmarks, sharing, and SEO
  * - Hash-based navigation needs careful testing
- * 
+ *
  * 📚 Test Categories:
  * 1. Route Configuration - Does each route exist and have the right settings?
  * 2. Route Matching - Can we correctly parse URLs?
  * 3. Auth Guards - Are protected routes really protected?
  * 4. URL Utilities - Do helper functions work correctly?
- * 
+ *
  * =============================================================================
  */
 
@@ -32,10 +32,10 @@ import { jest } from "@jest/globals";
  * =============================================================================
  *                          SIMPLIFIED ROUTER TESTS
  * =============================================================================
- * 
- * Instead of trying to mock all the complex dependencies, we'll test the 
+ *
+ * Instead of trying to mock all the complex dependencies, we'll test the
  * Router's logic by examining its configuration and testing pure functions.
- * 
+ *
  * This is a common pattern in testing - when a module has many dependencies,
  * focus on testing:
  * 1. Configuration/data structures (no dependencies)
@@ -140,7 +140,9 @@ function matchRoute(path, routes) {
       const match = path.match(regex);
       if (match) {
         // Extract param names and values
-        const paramNames = [...config.path.matchAll(/:([^/]+)/g)].map((m) => m[1]);
+        const paramNames = [...config.path.matchAll(/:([^/]+)/g)].map(
+          (m) => m[1]
+        );
         const params = {};
         paramNames.forEach((name, i) => {
           params[name] = match[i + 1];
@@ -217,7 +219,14 @@ describe("Router Route Configuration", () => {
     });
 
     test("protected routes should have requiresAuth: true", () => {
-      const protectedRoutes = ["home", "friends", "profile", "notifications", "groups", "clubs"];
+      const protectedRoutes = [
+        "home",
+        "friends",
+        "profile",
+        "notifications",
+        "groups",
+        "clubs",
+      ];
       protectedRoutes.forEach((routeName) => {
         if (ROUTES_CONFIG[routeName]) {
           expect(ROUTES_CONFIG[routeName].requiresAuth).toBe(true);
@@ -345,18 +354,19 @@ describe("URL Parsing Utilities", () => {
     // Remove leading # if present
     const cleanHash = hash.replace(/^#/, "");
     // Handle empty hash as landing
-    if (!cleanHash || cleanHash === "/") return { route: "landing", params: {} };
-    
+    if (!cleanHash || cleanHash === "/")
+      return { route: "landing", params: {} };
+
     // Split by / and get route name
     const parts = cleanHash.split("/").filter(Boolean);
     const route = parts[0] || "landing";
-    
+
     // Extract params (everything after route name)
     const params = {};
     if (parts.length > 1) {
       params.id = parts[1];
     }
-    
+
     return { route, params };
   }
 
@@ -449,12 +459,16 @@ describe("Template Safety Checks", () => {
 
   test("should detect <html> tags", () => {
     expect(looksLikeFullDocument("<html><head></head></html>")).toBe(true);
-    expect(looksLikeFullDocument("<html lang=\"en\">")).toBe(true);
+    expect(looksLikeFullDocument('<html lang="en">')).toBe(true);
   });
 
   test("should accept template fragments (not full documents)", () => {
-    expect(looksLikeFullDocument("<div class=\"page\">Content</div>")).toBe(false);
-    expect(looksLikeFullDocument("<section>Template content</section>")).toBe(false);
+    expect(looksLikeFullDocument('<div class="page">Content</div>')).toBe(
+      false
+    );
+    expect(looksLikeFullDocument("<section>Template content</section>")).toBe(
+      false
+    );
     expect(looksLikeFullDocument("<!-- Template fragment -->")).toBe(false);
   });
 
@@ -472,24 +486,29 @@ describe("Navigation Flow", () => {
   /**
    * Simulates the navigation decision process
    */
-  function determineNavigationAction(targetRoute, currentRoute, isLoggedIn, routes) {
+  function determineNavigationAction(
+    targetRoute,
+    currentRoute,
+    isLoggedIn,
+    routes
+  ) {
     const routeConfig = routes[targetRoute];
-    
+
     // Unknown route
     if (!routeConfig) {
       return { action: "redirect", target: "landing", reason: "unknown_route" };
     }
-    
+
     // Auth check
     if (routeConfig.requiresAuth && !isLoggedIn) {
       return { action: "redirect", target: "landing", reason: "auth_required" };
     }
-    
+
     // Same page (no navigation needed)
     if (targetRoute === currentRoute) {
       return { action: "stay", reason: "same_page" };
     }
-    
+
     // All good, navigate
     return { action: "navigate", target: targetRoute };
   }
@@ -502,19 +521,34 @@ describe("Navigation Flow", () => {
   };
 
   test("should redirect to landing for unknown routes", () => {
-    const result = determineNavigationAction("nonexistent", "landing", false, mockRoutes);
+    const result = determineNavigationAction(
+      "nonexistent",
+      "landing",
+      false,
+      mockRoutes
+    );
     expect(result.action).toBe("redirect");
     expect(result.target).toBe("landing");
   });
 
   test("should redirect logged-out users from protected routes", () => {
-    const result = determineNavigationAction("home", "landing", false, mockRoutes);
+    const result = determineNavigationAction(
+      "home",
+      "landing",
+      false,
+      mockRoutes
+    );
     expect(result.action).toBe("redirect");
     expect(result.reason).toBe("auth_required");
   });
 
   test("should allow navigation for logged-in users to protected routes", () => {
-    const result = determineNavigationAction("home", "landing", true, mockRoutes);
+    const result = determineNavigationAction(
+      "home",
+      "landing",
+      true,
+      mockRoutes
+    );
     expect(result.action).toBe("navigate");
     expect(result.target).toBe("home");
   });
@@ -525,9 +559,19 @@ describe("Navigation Flow", () => {
   });
 
   test("should allow anyone to access public routes", () => {
-    const resultLoggedOut = determineNavigationAction("about", "landing", false, mockRoutes);
-    const resultLoggedIn = determineNavigationAction("about", "landing", true, mockRoutes);
-    
+    const resultLoggedOut = determineNavigationAction(
+      "about",
+      "landing",
+      false,
+      mockRoutes
+    );
+    const resultLoggedIn = determineNavigationAction(
+      "about",
+      "landing",
+      true,
+      mockRoutes
+    );
+
     expect(resultLoggedOut.action).toBe("navigate");
     expect(resultLoggedIn.action).toBe("navigate");
   });

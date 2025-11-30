@@ -1148,4 +1148,427 @@ Pick your next adventure! Reply with:
 
 ---
 
+## 🔴 Phase 4 Step 1: Go Live & End Event Buttons
+
+### What Was Built (The Fun Version! 🎬)
+
+Club officials can now broadcast their events LIVE — like hitting the "Go Live" button on Instagram! And when the party's over, they can end the broadcast.
+
+**Features added:**
+
+- 🟢 **Go Live Button** — Appears when event is within 30 mins of start time
+- 🔴 **End Event Button** — Appears when event is currently live
+- ⏱️ **Live Countdown** — Shows "Time remaining: 2h 45m" during live events
+- 💡 **Smart Hints** — "Available 30 min before event starts" message
+- 🎨 **Beautiful CSS** — Green pulsing button for Go Live, red for End Event
+- 📝 **Firestore Integration** — Saves `isLive`, `startedAt`, `startedBy`, `endedAt`, `endedBy`
+- 🔄 **Real-time UI Refresh** — Event list updates when you go live or end
+
+### How It Works:
+
+**Time Window Logic:**
+```javascript
+// Can Go Live when:
+// - Current time is within 30 minutes BEFORE event start
+// - OR current time is AFTER event start but BEFORE event end
+// - AND event is not already live
+
+// Can End Event when:
+// - Event is currently live (isLive === true)
+// - User is club official (canManage === true)
+```
+
+**Firestore Fields Updated:**
+```javascript
+// Go Live:
+{
+  isLive: true,
+  startedAt: serverTimestamp(),
+  startedBy: userId,
+  startedByInfo: { name: "User Name", uid: userId }
+}
+
+// End Event:
+{
+  isLive: false,
+  endedAt: serverTimestamp(),
+  endedBy: userId
+}
+```
+
+### Files Changed:
+
+| File | What Changed |
+|------|--------------|
+| `src/js/components/clubs/EventDetailModal.js` | Added `isWithinTimeWindow`, `hasEnded`, `getTimeRemaining()`, `startCountdownTimer()`, `getLiveActionButton()`, `goLive()`, `endEvent()` |
+| `src/js/pages/ClubDetailPage.js` | Added `onLiveStatusChange` callback, live badge on event cards |
+| `src/css/clubs/modals.css` | Added ~120 lines for live action buttons, countdown, hints |
+| `src/css/clubs/events.css` | Added ~80 lines for live event card styling with glow animation |
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+**Setup:**
+1. Make sure Firebase emulator is running:
+   ```bash
+   npx firebase emulators:start --only firestore,functions,storage
+   ```
+
+2. Start dev server:
+   ```bash
+   npm run dev
+   ```
+
+**Test 1: Go Live Button Visibility**
+1. Create an event with start time set to NOW (or within 30 minutes)
+2. Open the event detail modal
+3. You should see a green **"Go Live"** button at the bottom
+4. Verify the button has a subtle pulsing animation
+
+**Test 2: Go Live Hint (Too Early)**
+1. Create an event with start time set to TOMORROW
+2. Open the event detail modal
+3. You should see a gray hint: "Go Live will be available 30 minutes before the event starts"
+4. The "Go Live" button should NOT be visible
+
+**Test 3: Actually Go Live**
+1. Open an event within the time window (30 min before start)
+2. Click the green **"Go Live"** button
+3. Verify:
+   - Toast notification: "Event is now LIVE!"
+   - Button changes to red **"End Event"**
+   - Live countdown appears: "Time remaining: Xh Xm"
+   - Event list refreshes (modal closes and reopens or event list updates)
+4. Check emulator Firestore UI:
+   - `isLive: true`
+   - `startedAt: <timestamp>`
+   - `startedBy: <your-uid>`
+
+**Test 4: End Event**
+1. Open a live event
+2. Click the red **"End Event"** button
+3. Verify:
+   - Toast notification: "Event ended"
+   - Button disappears (event is over)
+   - Event status updates
+4. Check emulator Firestore UI:
+   - `isLive: false`
+   - `endedAt: <timestamp>`
+   - `endedBy: <your-uid>`
+
+**Test 5: Live Event Card Styling**
+1. Make an event live (use Test 3)
+2. Go back to the Events tab in club detail
+3. Verify the live event card:
+   - Has a green glow animation
+   - Shows "LIVE NOW" badge in top-right corner
+   - Badge has a pulsing dot animation
+
+**Test 6: Non-Official User View**
+1. Log in as a user who is NOT a club official
+2. Open a live event
+3. Verify:
+   - You can SEE the live status
+   - You do NOT see Go Live or End Event buttons
+
+### If Something Breaks:
+
+- **Go Live fails?** — Check Firestore rules allow `isLive` update for club officials
+- **Countdown not updating?** — Countdown updates every 60 seconds, wait a minute
+- **Button not appearing?** — Check `canManage` getter and `isWithinTimeWindow` logic
+- **Event not refreshing?** — Check `onLiveStatusChange` callback is wired up
+
+---
+
+_Progress log updated: Phase 4 Step 1 complete_
+
+---
+
+## 📺 Phase 4 Step 2: Live Events Section on Clubs Tab
+
+### Important Clarification: Two-State Live System
+
+After re-reading the PRD, I realized there are **two distinct concepts** that were being conflated:
+
+**1. "Happening Now" (Automatic)**
+- Events **automatically appear** in the Live Events section when current time falls within their scheduled time window
+- No manual action required
+- PRD Goal: "Events auto-appear in 'Live' section during their time window"
+
+**2. "Officially LIVE" (Manual)**
+- When a club official clicks "Go Live" to indicate the event has **actually started**
+- Enables live chat, triggers notifications, shows "Event has started by [Name]" message
+- PRD Definition: "Events where currentTime is within the event's time window AND marked as 'started' by an official"
+
+### What Was Built (The Fun Version! 📺)
+
+The Clubs tab now has a **Live Events carousel** at the top showing what's happening RIGHT NOW on campus! Think of it like a "What's On" section on Netflix, but for your university.
+
+**Features added:**
+
+- 🔴 **LIVE badge** — Events where an official clicked "Go Live" (pulsing red)
+- 🟢 **NOW badge** — Events within time window but not manually started (green)
+- 📅 **Coming Up** — Upcoming events in the next 3 days (greyed out)
+- 🎠 **Scrollable carousel** — Swipe horizontally to see more events
+- 🔄 **Auto-refresh** — Updates every 60 seconds automatically
+- 🖼️ **Event images** — Beautiful cards with club logos
+
+### Visual Hierarchy on Clubs Tab:
+
+```
+┌─────────────────────────────────────────┐
+│  🔴 Live Events              2 events   │
+│  ┌─────────┐ ┌─────────┐                │
+│  │🔴 LIVE  │ │🟢 NOW   │  ← carousel   │
+│  │ Event A │ │ Event B │                │
+│  └─────────┘ └─────────┘                │
+│                                         │
+│  📅 Coming Up                           │
+│  ┌─────────┐ ┌─────────┐  ← greyed     │
+│  │In 2 days│ │Tomorrow │                │
+│  └─────────┘ └─────────┘                │
+├─────────────────────────────────────────┤
+│  🏁 All Clubs                           │
+│  ┌─────┐ ┌─────┐ ┌─────┐               │
+│  │Club │ │Club │ │Club │  ← grid       │
+│  └─────┘ └─────┘ └─────┘               │
+└─────────────────────────────────────────┘
+```
+
+### Files Created/Changed:
+
+| File | What Changed |
+|------|--------------|
+| `src/js/components/clubs/LiveEventsSection.js` | NEW — Complete component with query, categorize, render logic |
+| `src/js/pages/ClubsPage.js` | Added import, container, `initLiveEventsSection()`, cleanup |
+| `src/css/clubs/live.css` | NEW — ~400 lines of carousel, card, badge styling |
+| `src/css/clubs/index.css` | Added import for live.css |
+
+### How Event Categorization Works:
+
+```javascript
+// Query all approved events from all clubs
+// Then categorize by time:
+
+for (event in allEvents) {
+  if (event.isLive === true) {
+    // Official clicked "Go Live" → RED LIVE badge
+    live.push(event);
+  } else if (isInTimeWindow(event)) {
+    // Within time window but not manually started → GREEN NOW badge
+    happeningNow.push(event);
+  } else if (startsWithin3Days(event)) {
+    // Coming up → Greyed out
+    upcoming.push(event);
+  }
+}
+```
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+**Setup:**
+1. Firebase emulator running
+2. Dev server running: `npm run dev`
+
+**Test 1: Live Events Section Visibility**
+1. Go to **Groups → Clubs tab** (`#groups` then click Clubs)
+2. You should see:
+   - "Live Events" or "Coming Up" header (if any events exist)
+   - A horizontal carousel of event cards
+   - Club grid below
+
+**Test 2: Happening Now (Automatic)**
+1. Create an event starting NOW (set start time to current time or 10 min ago)
+2. Go to Clubs tab
+3. Event should appear with **🟢 NOW** badge automatically
+4. No need to click anything!
+
+**Test 3: LIVE Badge (Manual)**
+1. Create an event starting NOW
+2. Open the event detail modal, click **"Go Live"**
+3. Go back to Clubs tab
+4. Event should now show **🔴 LIVE** badge instead of NOW
+5. Card should have red glow animation
+
+**Test 4: Upcoming Events (Greyed)**
+1. Create an event starting TOMORROW
+2. Go to Clubs tab
+3. Event should appear in "Coming Up" section
+4. Card should be slightly greyed/faded
+5. Shows "In 1 day" or "Tomorrow" badge
+
+**Test 5: Click Event Card**
+1. Click any event card in the carousel
+2. Should navigate to club detail page: `#club?id=X&eventId=Y`
+
+**Test 6: Auto-Refresh**
+1. Open Clubs tab with events showing
+2. Use Firestore emulator UI to toggle `isLive` on an event
+3. Wait 60 seconds
+4. Live Events section should update automatically
+
+**Test 7: Empty State**
+1. Delete all events (or use a fresh emulator)
+2. Go to Clubs tab
+3. Live Events section should NOT appear (gracefully hidden)
+
+### If Something Breaks:
+
+- **No events showing?** — Check `universityCode` matches (default is "iub")
+- **Query errors?** — Check browser console, might be missing index
+- **CSS not loading?** — Hard refresh (Ctrl+Shift+R) or restart Vite
+- **Auto-refresh not working?** — Check `startAutoRefresh()` interval
+
+---
+
+_Progress log updated: Phase 4 Step 2 complete_
+
+---
+
+## 🃏 Phase 4 Step 3: Mother Card UX Redesign
+
+### What Was Built (The Fun Version! 🎴)
+
+The Live Events section has been completely redesigned with a **"Mother Card"** concept — think of it as a permanent command center for events at the top of the Clubs tab!
+
+**The Problem We Solved:**
+The previous design had live events and upcoming events as separate sections that would appear/disappear. This was confusing and didn't give users a consistent place to find events.
+
+**The Solution — Mother Card:**
+A **permanent, prominent card** at the top of the Clubs page that:
+- 🟢 **Always visible** — Whether events are live or not
+- ✨ **Active state** — Glowing with red gradient when events are live
+- 💤 **Inactive state** — Greyed out when no live events
+- 📊 **Live count** — Shows "X events live now" with pulsing indicator
+- 🎠 **Carousel inside** — Live event cards scroll horizontally
+- 📂 **Dropdown sections** — Upcoming and Past events tucked away
+
+### Visual Design:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  MOTHER CARD (ACTIVE - Live events exist)                   │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ 🔴 3 events live now                          [LIVE] 💥 ││
+│  │                                                         ││
+│  │ ┌──────────┐ ┌──────────┐ ┌──────────┐  ← carousel    ││
+│  │ │ 🔴 LIVE  │ │ ✓ OFFIC │ │ 🔴 LIVE  │                 ││
+│  │ │ Event A  │ │ Event B  │ │ Event C  │                 ││
+│  │ └──────────┘ └──────────┘ └──────────┘                 ││
+│  │                                                         ││
+│  │ ┌─ ⏰ Upcoming ────────────── [3] ──────────── ▼ ─────┐││
+│  │ └────────────────────────────────────────────────────┘││
+│  │ ┌─ 📜 Past Events ─────────── [2] ──────────── ▼ ─────┐││
+│  │ └────────────────────────────────────────────────────┘││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  MOTHER CARD (INACTIVE - No live events)                    │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ ○ No live events                                        ││
+│  │                                                         ││
+│  │           📅 Check back during scheduled events         ││
+│  │                                                         ││
+│  │ ┌─ ⏰ Upcoming ────────────── [5] ──────────── ▼ ─────┐││
+│  │ ┌─ 📜 Past Events ─────────── [3] ──────────── ▼ ─────┐││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Files Changed:
+
+| File | What Changed |
+|------|--------------|
+| `src/js/components/clubs/LiveEventsSection.js` | Complete rewrite with Mother Card architecture, dropdown state management, past events categorization |
+| `src/css/clubs/live.css` | ~200 lines of new CSS for mother card states, dropdowns, compact event cards |
+
+### New Features:
+
+**1. Active/Inactive States:**
+- When ≥1 live event → Glowing red gradient border, pulsing animation
+- When 0 live events → Greyed out subtle card with "No live events" message
+
+**2. Dropdown Sections:**
+- **Upcoming:** Next 3 days of events (expandable)
+- **Past:** Last 7 days of ended events (expandable)
+- Click toggle to expand/collapse
+- Chevron rotates on expand
+- Shows count badges
+
+**3. Compact Event Cards:**
+- Used inside dropdowns (smaller than live cards)
+- Shows thumbnail, title, club name, time badge
+- "In 2 days" / "3h ago" relative time
+
+**4. Event Categorization Updated:**
+- **Live:** `isLive === true` OR currently in time window
+- **Upcoming:** Future events (next 3 days)
+- **Past:** Ended events (last 7 days) — officially ended OR 24h after end time
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+**Setup:**
+1. Firebase emulator: `npm run firebase:emulators:persist`
+2. Dev server: `npm run dev`
+
+**Test 1: Inactive State (No Live Events)**
+1. Ensure no events are currently live
+2. Go to **Groups → Clubs tab**
+3. Verify:
+   - Mother Card appears at top (greyed out)
+   - Shows "No live events" with calendar icon
+   - Upcoming and Past dropdown buttons visible
+
+**Test 2: Active State (With Live Events)**
+1. Create an event with current time in its time window
+2. Go to Clubs tab
+3. Verify:
+   - Mother Card has red gradient glow
+   - Shows "X events live now" with count
+   - Live events carousel visible inside card
+   - LIVE badge (red) or OFFICIALLY LIVE badge (green)
+
+**Test 3: Upcoming Dropdown**
+1. Create events for tomorrow and next few days
+2. Open Clubs tab
+3. Click "Upcoming" dropdown toggle
+4. Verify:
+   - Section expands with smooth animation
+   - Chevron rotates to point up
+   - Event cards show "In 1 day", "In 2 days", etc.
+5. Click again to collapse
+
+**Test 4: Past Events Dropdown**
+1. Create and end some events (or wait for time to pass)
+2. Open Clubs tab
+3. Click "Past Events" dropdown toggle
+4. Verify:
+   - Shows events from last 7 days
+   - Cards show "2h ago", "1 day ago", etc.
+   - Events with `endedAt` appear here
+
+**Test 5: Click Event in Dropdown**
+1. Expand Upcoming or Past dropdown
+2. Click any event card
+3. Should open EventDetailModal for that event
+
+**Test 6: Auto-Refresh**
+1. Have the Clubs tab open
+2. In Firestore emulator, change an event's `isLive` status
+3. Wait ~60 seconds
+4. Mother Card should update automatically
+
+### If Something Breaks:
+
+- **Mother Card not showing?** — Check `universityCode` matches your test data
+- **Dropdowns not expanding?** — Check browser console for JS errors
+- **Past events not showing?** — Events need `endedAt` timestamp or be 24h past end time
+- **Styling looks wrong?** — Hard refresh (Ctrl+Shift+R) to clear CSS cache
+
+---
+
+_Progress log updated: Phase 4 Step 3 (Mother Card) complete — 2025-11-30_
+
+---
+
 -- End of file

@@ -436,3 +436,95 @@ body:not(.dark-mode) .events-placeholder {
   border-color: rgba(0, 0, 0, 0.1);
   color: #6b7280;
 }
+
+/* ========================================
+   LIVE EVENT CARD ENHANCEMENTS
+======================================== */
+
+.event-card.live-event {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.08),
+    rgba(30, 30, 45, 0.95)
+  );
+  animation: liveCardGlow 3s ease-in-out infinite;
+}
+
+@keyframes liveCardGlow {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15),
+                0 0 0 1px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25),
+                0 0 0 2px rgba(16, 185, 129, 0.3);
+  }
+}
+
+.event-card.live-event:hover {
+  border-color: rgba(16, 185, 129, 0.6);
+  transform: translateY(-4px);
+}
+
+/* Live Badge on Card */
+.event-live-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.4);
+  z-index: 2;
+}
+
+.event-live-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: liveDot 1.5s ease-in-out infinite;
+}
+
+@keyframes liveDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+/* Live Event Status Badge Override */
+.event-status-badge.live {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  font-weight: 600;
+}
+
+/* Light Mode Live Event */
+body:not(.dark-mode) .event-card.live-event {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.06),
+    rgba(248, 250, 252, 0.98)
+  );
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+body:not(.dark-mode) .event-card.live-event:hover {
+  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.15),
+              0 4px 12px rgba(0, 0, 0, 0.08);
+}

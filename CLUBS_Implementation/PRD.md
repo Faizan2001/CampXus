@@ -207,28 +207,49 @@ Groups Tab (existing)
 **Layout**:
 
 ```
-┌─────────────────────────────────────────┐
-│  [Classes]  [Clubs]     ← Tab switcher  │
-├─────────────────────────────────────────┤
-│  🔴 LIVE EVENTS                         │
-│  ┌─────────┐ ┌─────────┐                │
-│  │ Event 1 │ │ Event 2 │  ← Scrollable  │
-│  └─────────┘ └─────────┘                │
-│                                         │
-│  ── Upcoming Events ──────────────────  │
-│  ┌─────────┐ ┌─────────┐  ← Greyed out  │
-│  │ Event 3 │ │ Event 4 │                │
-│  └─────────┘ └─────────┘                │
-├─────────────────────────────────────────┤
-│  ALL CLUBS                              │
-│  ┌─────┐ ┌─────┐ ┌─────┐               │
-│  │Club │ │Club │ │Club │  ← Grid       │
-│  └─────┘ └─────┘ └─────┘               │
-│  ┌─────┐ ┌─────┐ ┌─────┐               │
-│  │Club │ │Club │ │Club │               │
-│  └─────┘ └─────┘ └─────┘               │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  [Classes]  [Clubs]           ← Tab switcher    │
+├─────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────┐│
+│  │  🔴 LIVE EVENTS               [3 live now]  ││
+│  │  ───────────────────────────────────────────││
+│  │  ┌───────┐ ┌───────┐ ┌───────┐              ││
+│  │  │Event 1│ │Event 2│ │Event 3│  ← scroll    ││
+│  │  └───────┘ └───────┘ └───────┘              ││
+│  │                                              ││
+│  │  ▼ Upcoming (5)      ▼ Past Events (12)     ││
+│  │  (expandable dropdown sections)             ││
+│  └─────────────────────────────────────────────┘│
+│  ← "Mother Card" - permanent, contains all     │
+│     events from all clubs                       │
+├─────────────────────────────────────────────────┤
+│  ALL CLUBS                                      │
+│  ┌─────┐ ┌─────┐ ┌─────┐                       │
+│  │Club │ │Club │ │Club │  ← Grid               │
+│  └─────┘ └─────┘ └─────┘                       │
+│  ┌─────┐ ┌─────┐ ┌─────┐                       │
+│  │Club │ │Club │ │Club │                       │
+│  └─────┘ └─────┘ └─────┘                       │
+└─────────────────────────────────────────────────┘
 ```
+
+**Live Events "Mother Card"**:
+
+A permanent card at the top of the Clubs page that aggregates all events from all clubs:
+
+**States**:
+- **Active** (≥1 live event): Colorful/glowing, pulsing red dot, vibrant
+- **Inactive** (0 live events): Greyed out, shows "No live events right now"
+
+**Contains**:
+- Live Events carousel (horizontal scroll)
+- Expandable "Upcoming Events" dropdown with count
+- Expandable "Past Events" dropdown with count
+
+**Auto-escalation**: Events automatically appear in this card based on their time window:
+- **Live**: `isLive === true` OR `currentTime` within event's start-end window
+- **Upcoming**: `startTime > currentTime`
+- **Past**: `endedAt` exists OR 24h after event end time
 
 **Club Card displays**:
 
@@ -248,13 +269,14 @@ Groups Tab (existing)
 
 ---
 
-### 4.2 Live Events Section
+### 4.2 Live Events Section (Inside Mother Card)
 
-**Definition**: Events where `currentTime` is within the event's time window AND marked as "started" by an official.
+**Definition**: Events where `currentTime` is within the event's time window OR `isLive === true` (officially started by an official).
 
 **Event Card (Live) displays**:
 
-- 🔴 Pulsing "LIVE" badge
+- 🔴 Pulsing "LIVE" badge (red) - auto-live from time window
+- 🟢 "OFFICIALLY LIVE" badge (green + ✓) - official clicked Go Live
 - Event title (header)
 - Club logo + name
 - Location (text)
@@ -274,7 +296,7 @@ Groups Tab (existing)
 
 ---
 
-### 4.3 Upcoming Events Section
+### 4.3 Upcoming Events Section (Dropdown in Mother Card)
 
 **Definition**: Events where `startTime > currentTime` (not yet started)
 

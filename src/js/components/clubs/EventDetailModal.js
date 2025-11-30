@@ -1,6 +1,7 @@
 /**
  * EventDetailModal - Modal for viewing event details
  * Shows full event info with edit/delete options for authorized users
+ * Phase 4: Added Go Live / End Event functionality
  */
 
 import { currentUser } from "../../store/userStore.js";
@@ -14,8 +15,10 @@ export class EventDetailModal {
     this.onEdit = options.onEdit || (() => {});
     this.onDelete = options.onDelete || (() => {});
     this.onClose = options.onClose || (() => {});
+    this.onLiveStatusChange = options.onLiveStatusChange || (() => {});
 
     this.overlay = null;
+    this.countdownInterval = null;
   }
 
   /**
@@ -34,11 +37,71 @@ export class EventDetailModal {
   }
 
   /**
+   * Check if the event is within its active time window
+   * An event can go live if current time is between:
+   * - 30 minutes before the first slot start time
+   * - AND the last slot end time
+   */
+  get isWithinTimeWindow() {
+    if (!this.event.timeSlots || this.event.timeSlots.length === 0) return false;
+    
+    const now = new Date();
+    
+    // Get first slot start and last slot end
+    const firstSlot = this.event.timeSlots[0];
+    const lastSlot = this.event.timeSlots[this.event.timeSlots.length - 1];
+    
+    const firstStart = new Date(`${firstSlot.date}T${firstSlot.startTime}`);
+    const lastEnd = new Date(`${lastSlot.date}T${lastSlot.endTime}`);
+    
+    // Can go live 30 minutes before start
+    const windowStart = new Date(firstStart.getTime() - 30 * 60 * 1000);
+    
+    return now >= windowStart && now <= lastEnd;
+  }
+
+  /**
+   * Check if the event has ended (past all time slots)
+   */
+  get hasEnded() {
+    if (!this.event.timeSlots || this.event.timeSlots.length === 0) return false;
+    
+    const now = new Date();
+    const lastSlot = this.event.timeSlots[this.event.timeSlots.length - 1];
+    const lastEnd = new Date(`${lastSlot.date}T${lastSlot.endTime}`);
+    
+    return now > lastEnd;
+  }
+
+  /**
+   * Get time remaining until event ends (for live events)
+   */
+  getTimeRemaining() {
+    if (!this.event.timeSlots || this.event.timeSlots.length === 0) return null;
+    
+    const now = new Date();
+    const lastSlot = this.event.timeSlots[this.event.timeSlots.length - 1];
+    const lastEnd = new Date(`${lastSlot.date}T${lastSlot.endTime}`);
+    
+    const diffMs = lastEnd - now;
+    if (diffMs <= 0) return null;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m remaining`;
+    }
+    return `${minutes}m remaining`;
+  }
+
+  /**
    * Show the modal
    */
   show() {
     this.render();
     this.bindEvents();
+    this.startCountdown();
 
     requestAnimationFrame(() => {
       this.overlay?.classList.add("active");
@@ -54,6 +117,11 @@ export class EventDetailModal {
       document.removeEventListener("keydown", this.escHandler);
       this.escHandler = null;
     }
+    // Clear countdown interval
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
     if (this.overlay) {
       this.overlay.classList.remove("active");
       setTimeout(() => {
@@ -62,6 +130,29 @@ export class EventDetailModal {
       }, 300);
     }
     this.onClose();
+  }
+
+  /**
+   * Start countdown timer for live events
+   */
+  startCountdown() {
+    if (!this.event.isLive) return;
+    
+    const updateCountdown = () => {
+      const countdownEl = this.overlay?.querySelector('.live-countdown');
+      if (countdownEl) {
+        const remaining = this.getTimeRemaining();
+        if (remaining) {
+          countdownEl.textContent = remaining;
+        } else {
+          countdownEl.textContent = 'Event ended';
+          clearInterval(this.countdownInterval);
+        }
+      }
+    };
+    
+    // Update every minute
+    this.countdownInterval = setInterval(updateCountdown, 60000);
   }
 
   /**
@@ -104,7 +195,13 @@ export class EventDetailModal {
    */
   getStatusBadge() {
     if (this.event.isLive) {
-      return `<span class="event-detail-status live"><i class="fas fa-circle"></i> LIVE NOW</span>`;
+      const timeRemaining = this.getTimeRemaining();
+      return `
+        <div class="live-status-container">
+          <span class="event-detail-status live"><i class="fas fa-circle"></i> LIVE NOW</span>
+          ${timeRemaining ? `<span class="live-countdown">${timeRemaining}</span>` : ''}
+        </div>
+      `;
     }
     if (
       this.event.status === "pending_president" ||
@@ -122,6 +219,62 @@ export class EventDetailModal {
   }
 
   /**
+   * Get the Go Live / End Event action button HTML
+   * Only shown to officials when conditions are met
+   */
+  getLiveActionButton() {
+    if (!this.canManage) return '';
+    if (this.event.status !== 'approved' && !this.event.isLive) return '';
+    
+    if (this.event.isLive) {
+      // Show "End Event" button if event is live
+      return `
+        <button class="btn live-action-btn end-live" id="endEventBtn">
+          <i class="fas fa-stop-circle"></i> End Event
+        </button>
+      `;
+    } else if (this.isWithinTimeWindow && !this.hasEnded) {
+      // Show "Go Live" button if within time window
+      return `
+        <button class="btn live-action-btn go-live" id="goLiveBtn">
+          <i class="fas fa-broadcast-tower"></i> Go Live
+        </button>
+      `;
+    } else if (!this.hasEnded) {
+      // Event hasn't started yet - show disabled button with hint
+      const firstSlot = this.event.timeSlots?.[0];
+      if (firstSlot) {
+        const startDate = new Date(`${firstSlot.date}T${firstSlot.startTime}`);
+        const now = new Date();
+        const diffMs = startDate - now;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        let timeUntil = '';
+        if (diffDays > 0) {
+          timeUntil = `in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+        } else if (diffHours > 0) {
+          timeUntil = `in ${diffHours}h ${diffMins % 60}m`;
+        } else if (diffMins > 30) {
+          timeUntil = `in ${diffMins}m`;
+        }
+        
+        if (timeUntil) {
+          return `
+            <div class="go-live-hint">
+              <i class="fas fa-info-circle"></i>
+              <span>Go Live available ${timeUntil}</span>
+            </div>
+          `;
+        }
+      }
+    }
+    
+    return '';
+  }
+
+  /**
    * Render the modal DOM
    */
   render() {
@@ -130,6 +283,7 @@ export class EventDetailModal {
     const e = this.event;
     const timeSlots = this.formatTimeSlots();
     const statusBadge = this.getStatusBadge();
+    const liveActionBtn = this.getLiveActionButton();
     const hasImage = !!e.imageUrl;
 
     // Get first time slot for compact display
@@ -143,7 +297,7 @@ export class EventDetailModal {
     if (hasImage) {
       // Hero image layout - image is the focus
       this.overlay.innerHTML = `
-        <div class="event-detail-modal has-hero-image">
+        <div class="event-detail-modal has-hero-image ${e.isLive ? 'is-live' : ''}">
           <button class="modal-close-btn" type="button" aria-label="Close">
             <i class="fas fa-times"></i>
           </button>
@@ -172,6 +326,8 @@ export class EventDetailModal {
                     <span>${escapeHtml(e.location || "Location TBA")}</span>
                   </div>
                 </div>
+                
+                ${liveActionBtn}
               </div>
             </div>
           </div>
@@ -229,7 +385,7 @@ export class EventDetailModal {
     } else {
       // Standard layout for events without images
       this.overlay.innerHTML = `
-        <div class="event-detail-modal">
+        <div class="event-detail-modal ${e.isLive ? 'is-live' : ''}">
           <button class="modal-close-btn" type="button" aria-label="Close">
             <i class="fas fa-times"></i>
           </button>
@@ -239,6 +395,8 @@ export class EventDetailModal {
               <h2>${escapeHtml(e.title || "Untitled Event")}</h2>
               ${statusBadge}
             </div>
+            
+            ${liveActionBtn}
 
             <div class="event-detail-meta">
               ${timeSlots
@@ -340,6 +498,8 @@ export class EventDetailModal {
     const editBtn = this.overlay.querySelector("#editEventBtn");
     const deleteBtn = this.overlay.querySelector("#deleteEventBtn");
     const viewAllDatesBtn = this.overlay.querySelector(".view-all-dates-btn");
+    const goLiveBtn = this.overlay.querySelector("#goLiveBtn");
+    const endEventBtn = this.overlay.querySelector("#endEventBtn");
 
     closeBtn?.addEventListener("click", () => this.hide());
 
@@ -358,6 +518,12 @@ export class EventDetailModal {
     });
 
     deleteBtn?.addEventListener("click", () => this.confirmDelete());
+    
+    // Go Live button handler
+    goLiveBtn?.addEventListener("click", () => this.handleGoLive());
+    
+    // End Event button handler
+    endEventBtn?.addEventListener("click", () => this.handleEndEvent());
 
     // Toggle view all dates list
     viewAllDatesBtn?.addEventListener("click", () => {
@@ -374,6 +540,113 @@ export class EventDetailModal {
         }
       }
     });
+  }
+
+  /**
+   * Handle Go Live button click - Mark event as live
+   */
+  async handleGoLive() {
+    const btn = this.overlay.querySelector("#goLiveBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Going Live...`;
+    }
+
+    try {
+      const { db } = await import("../../lib/firebase/firebase-config.js");
+      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+
+      // Get current user info for the startedByInfo field
+      const startedByInfo = {
+        firstName: currentUser?.profile?.firstName || "Unknown",
+        lastName: currentUser?.profile?.lastName || "",
+        role: "Official" // TODO: Get actual role from club membership
+      };
+
+      await updateDoc(
+        doc(db, "clubs", this.clubData.id, "events", this.event.id),
+        {
+          isLive: true,
+          startedAt: serverTimestamp(),
+          startedBy: currentUser?.uid,
+          startedByInfo
+        }
+      );
+
+      logManager.info("[EventDetailModal] Event went live:", this.event.id);
+      notificationManager.show("🔴 Event is now LIVE!", "success");
+
+      // Update local event state
+      this.event.isLive = true;
+      this.event.startedBy = currentUser?.uid;
+      this.event.startedByInfo = startedByInfo;
+
+      // Notify parent to refresh
+      this.onLiveStatusChange(this.event);
+      
+      // Re-render modal to show updated state
+      this.hide();
+      
+    } catch (err) {
+      logManager.error("[EventDetailModal] Failed to go live:", err);
+      notificationManager.show("Failed to start event", "error");
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-broadcast-tower"></i> Go Live`;
+      }
+    }
+  }
+
+  /**
+   * Handle End Event button click - Mark event as no longer live
+   */
+  async handleEndEvent() {
+    const confirmed = confirm(
+      `End "${this.event.title}"?\n\nThe event will no longer appear as live.`
+    );
+    if (!confirmed) return;
+
+    const btn = this.overlay.querySelector("#endEventBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Ending...`;
+    }
+
+    try {
+      const { db } = await import("../../lib/firebase/firebase-config.js");
+      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+
+      await updateDoc(
+        doc(db, "clubs", this.clubData.id, "events", this.event.id),
+        {
+          isLive: false,
+          endedAt: serverTimestamp(),
+          endedBy: currentUser?.uid
+        }
+      );
+
+      logManager.info("[EventDetailModal] Event ended:", this.event.id);
+      notificationManager.show("Event ended", "info");
+
+      // Update local event state
+      this.event.isLive = false;
+
+      // Notify parent to refresh
+      this.onLiveStatusChange(this.event);
+      
+      // Re-render modal to show updated state
+      this.hide();
+      
+    } catch (err) {
+      logManager.error("[EventDetailModal] Failed to end event:", err);
+      notificationManager.show("Failed to end event", "error");
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-stop-circle"></i> End Event`;
+      }
+    }
   }
 
   /**
@@ -421,6 +694,9 @@ export class EventDetailModal {
   destroy() {
     if (this.escHandler) {
       document.removeEventListener("keydown", this.escHandler);
+    }
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
     }
     this.overlay?.remove();
     this.overlay = null;
