@@ -31,7 +31,9 @@
   );
   /* Legacy aliases kept for existing page styles */
   --main-content-available-height: var(--content-available-height);
-  --main-content-available-height-with-bottom-nav: var(--content-available-height);
+  --main-content-available-height-with-bottom-nav: var(
+    --content-available-height
+  );
 }
 
 /* ===== UNIVERSAL THEME VARIABLES (DARK DEFAULT) ===== */
@@ -53,7 +55,9 @@ body.theme-ready:not(.dark-mode) {
   --color-safearea: var(--color-nav);
 }
 
-html { background-color: var(--color-bg); }
+html {
+  background-color: var(--color-bg);
+}
 body {
   /* iOS black-translucent uses body background for status bar area */
   background-color: var(--color-nav);
@@ -64,8 +68,7 @@ body {
 body.has-bottom-nav {
   --bottom-offset: calc(
     var(--mobile-bottom-nav-height, 60px) +
-      var(--mobile-bottom-nav-top-gap, 8px) +
-      env(safe-area-inset-bottom, 0px)
+      var(--mobile-bottom-nav-top-gap, 8px) + env(safe-area-inset-bottom, 0px)
   );
 }
 body.no-top-nav {
@@ -147,16 +150,21 @@ body.immersive-chat-mode .main-content {
   box-shadow: 0 4px 20px var(--shadow);
 }
 
-.top-nav .safe-spacer{ height: var(--safe-top); }
+.top-nav .safe-spacer {
+  height: var(--safe-top);
+}
 
-.top-nav .top-nav-inner{
+.top-nav .top-nav-inner {
   height: var(--nav-height);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0 clamp(0.75rem, 2vw, 1rem);
   padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
-  padding-right: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-right, 0px));
+  padding-right: max(
+    clamp(0.75rem, 2vw, 1rem),
+    env(safe-area-inset-right, 0px)
+  );
   box-sizing: border-box;
 }
 
@@ -164,9 +172,13 @@ body.immersive-chat-mode .main-content {
 @media (display-mode: standalone),
   (display-mode: fullscreen),
   (display-mode: minimal-ui) {
-  .top-nav { background: var(--nav-solid-bg); }
+  .top-nav {
+    background: var(--nav-solid-bg);
+  }
 
-  .top-nav::before { display: none; }
+  .top-nav::before {
+    display: none;
+  }
 
   /* Bottom navigation uses the same solid background for seamless gesture area */
   .mobile-bottom-nav {
@@ -206,15 +218,19 @@ body.immersive-chat-mode .main-content {
 /* Make Install button highly attention-drawing with modern UI/UX principles */
 #installPwaBtn.nav-link {
   /* Eye-catching gradient background that adapts to theme */
-  background: linear-gradient(135deg, #8b7de8 0%, #a855f7 50%, #c084fc 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #8b7de8 0%,
+    #a855f7 50%,
+    #c084fc 100%
+  ) !important;
   color: #ffffff !important;
   font-weight: 700 !important;
   font-family: "Sora", "Poppins", sans-serif !important;
   padding: 0.35rem 1.25rem !important;
   border-radius: 0.75rem !important;
   box-shadow: 0 4px 15px rgba(139, 125, 232, 0.4),
-              0 0 20px rgba(139, 125, 232, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    0 0 20px rgba(139, 125, 232, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   position: relative;
   overflow: hidden;
   transform: translateY(0);
@@ -259,11 +275,15 @@ body.immersive-chat-mode .main-content {
 
 /* Hover state - more intense and lifted */
 #installPwaBtn.nav-link:hover {
-  background: linear-gradient(135deg, #9d8ef5 0%, #b870ff 50%, #d4a0ff 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #9d8ef5 0%,
+    #b870ff 50%,
+    #d4a0ff 100%
+  ) !important;
   transform: translateY(-3px) scale(1.05) !important;
   box-shadow: 0 6px 25px rgba(139, 125, 232, 0.6),
-              0 0 35px rgba(139, 125, 232, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    0 0 35px rgba(139, 125, 232, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
 #installPwaBtn.nav-link:hover::after {
@@ -274,22 +294,30 @@ body.immersive-chat-mode .main-content {
 #installPwaBtn.nav-link:active {
   transform: translateY(-1px) scale(1.02) !important;
   box-shadow: 0 3px 15px rgba(139, 125, 232, 0.5),
-              0 0 25px rgba(139, 125, 232, 0.3) !important;
+    0 0 25px rgba(139, 125, 232, 0.3) !important;
 }
 
 /* Light mode specific enhancements */
 body:not(.dark-mode) #installPwaBtn.nav-link {
-  background: linear-gradient(135deg, #8b7de8 0%, #9d4edd 50%, #c77dff 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #8b7de8 0%,
+    #9d4edd 50%,
+    #c77dff 100%
+  ) !important;
   box-shadow: 0 4px 15px rgba(139, 125, 232, 0.35),
-              0 2px 8px rgba(139, 125, 232, 0.25),
-              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    0 2px 8px rgba(139, 125, 232, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 body:not(.dark-mode) #installPwaBtn.nav-link:hover {
-  background: linear-gradient(135deg, #9d8ef5 0%, #b565f2 50%, #d896ff 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #9d8ef5 0%,
+    #b565f2 50%,
+    #d896ff 100%
+  ) !important;
   box-shadow: 0 6px 25px rgba(139, 125, 232, 0.5),
-              0 3px 12px rgba(139, 125, 232, 0.35),
-              inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    0 3px 12px rgba(139, 125, 232, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 /* Ensure text stays white and visible */
@@ -309,12 +337,13 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
   outline: 3px solid rgba(139, 125, 232, 0.5);
   outline-offset: 3px;
   box-shadow: 0 4px 15px rgba(139, 125, 232, 0.4),
-              0 0 0 4px rgba(139, 125, 232, 0.2) !important;
+    0 0 0 4px rgba(139, 125, 232, 0.2) !important;
 }
 
 /* Gradient animation */
 @keyframes installGradientShift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -334,7 +363,8 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
 
 /* Pulse glow animation */
 @keyframes installPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0;
   }
   50% {
@@ -348,7 +378,7 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
     padding: 0.25rem 1rem !important;
     font-size: 0.9rem;
   }
-  
+
   #installPwaBtn.nav-link .nav-text {
     font-size: 0.9rem;
   }
@@ -368,8 +398,7 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
     padding: 0.25rem 0.7rem !important;
     font-size: 0.85rem;
     box-shadow: 0 3px 12px rgba(139, 125, 232, 0.4),
-                0 0 15px rgba(139, 125, 232, 0.25),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+      0 0 15px rgba(139, 125, 232, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   }
 }
 
@@ -378,12 +407,12 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
   #installPwaBtn.nav-link {
     animation: none;
   }
-  
+
   #installPwaBtn.nav-link::before,
   #installPwaBtn.nav-link::after {
     animation: none;
   }
-  
+
   #installPwaBtn.nav-link:hover {
     transform: translateY(-2px) !important;
   }
@@ -477,16 +506,17 @@ body:not(.dark-mode) .nav-link {
 .nav-link.has-alert::after {
   content: "";
   position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
+  top: 6px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #ff4d4d; /* unified red dot badge */
+  box-shadow: 0 0 0 2px var(--color-nav); /* subtle ring for contrast */
 }
 
-/* Inline badge dot for the Notify button */
-#notifyFriendsBtn .nav-dot {
+/* Inline badge dot for the Messages button */
+#messagesNavBtn .nav-dot {
   position: absolute;
   top: 10px;
   right: 12px;
@@ -501,9 +531,18 @@ body:not(.dark-mode) .nav-link {
 
 /* Tighter corner placement on mobile (icon-only button) */
 @media (max-width: 768px) {
-  #notifyFriendsBtn .nav-dot {
-    top: 6px;
+  .nav-link.has-alert::after {
+    top: 4px;
     right: 6px;
+    width: 9px;
+    height: 9px;
+  }
+
+  #messagesNavBtn .nav-dot {
+    top: 4px;
+    right: 6px;
+    width: 9px;
+    height: 9px;
   }
 }
 .nav-link::before {
@@ -627,6 +666,8 @@ body:not(.dark-mode) .nav-link:hover {
   margin: 0 auto;
   box-sizing: border-box;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -1122,6 +1163,20 @@ body:not(.dark-mode) .user-dropdown {
   box-shadow: 0 0 0 2px var(--bg-primary); /* Add ring to prevent blending with icon */
 }
 
+/* Alert dot for mobile nav items (messages, notifications if added back) */
+.mobile-nav-item.has-alert::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 0 2px var(--bg-primary);
+  animation: badgePop 0.32s ease-out both;
+}
+
 /* profile trigger + avatar in bottom nav */
 .mobile-profile-trigger {
   position: relative;
@@ -1138,7 +1193,9 @@ body:not(.dark-mode) .user-dropdown {
 .mobile-profile-trigger.active .mobile-user-avatar {
   transform: scale(1.1);
 }
-.mobile-profile-trigger i { color: inherit; }
+.mobile-profile-trigger i {
+  color: inherit;
+}
 .mobile-profile-trigger.active i {
   color: var(--accent-primary);
 }
@@ -1358,7 +1415,9 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
       100dvh - var(--top-offset) - var(--bottom-offset)
     );
     --main-content-available-height: var(--content-available-height);
-    --main-content-available-height-with-bottom-nav: var(--content-available-height);
+    --main-content-available-height-with-bottom-nav: var(
+      --content-available-height
+    );
   }
 
   .top-nav .top-nav-inner {
@@ -1461,8 +1520,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     /* Slightly shorter bottom nav on small screens */
     --mobile-bottom-nav-height: 52px;
   }
-  .mobile-nav-item { grid-template-rows: 26px auto; }
-  .top-nav .top-nav-inner { padding: 0 0.75rem; }
+  .mobile-nav-item {
+    grid-template-rows: 26px auto;
+  }
+  .top-nav .top-nav-inner {
+    padding: 0 0.75rem;
+  }
   .logo span {
     font-size: 1.25rem;
     font-family: "Sora", "Poppins", sans-serif;
@@ -1516,13 +1579,13 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     font-weight: 500 !important;
   }
 
-  /* Hide notify button text on mobile - icon only */
-  #notifyFriendsBtn .nav-text {
+  /* Hide Messages button text on mobile - icon only */
+  #messagesNavBtn .nav-text {
     display: none !important;
   }
 
-  /* Larger icon and proper touch target for notify button on mobile */
-  #notifyFriendsBtn {
+  /* Larger icon and proper touch target for Messages button on mobile */
+  #messagesNavBtn {
     min-width: 48px;
     min-height: 48px;
     padding: 0.625rem;
@@ -1530,7 +1593,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     align-items: center;
   }
 
-  #notifyFriendsBtn i {
+  #messagesNavBtn i {
     font-size: 1.4rem;
   }
 
@@ -1619,6 +1682,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   /* Exception: friends page needs the main scroller to remain scrollable on iOS */
   body.page-friends .main-content,
   body.page-groups .main-content,
+  body.page-messages .main-content,
   body.page-user .main-content {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
@@ -1726,16 +1790,16 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     padding: var(--space-sm) var(--space-md);
   }
 
-  /* Larger Notify button on desktop */
-  #notifyFriendsBtn {
+  /* Larger Messages button on desktop */
+  #messagesNavBtn {
     padding: 0.75rem 1.5rem;
   }
 
-  #notifyFriendsBtn i {
+  #messagesNavBtn i {
     font-size: 1.2rem;
   }
 
-  #notifyFriendsBtn .nav-text {
+  #messagesNavBtn .nav-text {
     font-size: 1rem;
     font-weight: 600;
   }

@@ -187,9 +187,9 @@ export class GroupDetailPage {
     backBtn.onclick = async () => {
       try {
         const { navigateTo } = await import("../app.js");
-        navigateTo("groups");
+        navigateTo("messages");
       } catch (_) {
-        window.location.hash = "#groups";
+        window.location.hash = "#messages";
       }
     };
     

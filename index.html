@@ -196,38 +196,41 @@
                 <span class="nav-text">Friends</span>
               </a>
               <a data-spa-route="groups" class="nav-link" href="#groups">
-                <i class="fas fa-people-group"></i>
-                <span class="nav-text">Groups</span>
+                <i class="fa-regular fa-handshake"></i>
+                <span class="nav-text">Clubs</span>
               </a>
-              <a
-                data-spa-route="notifications"
-                class="nav-link"
-                href="#notifications"
+              <!-- Messages (moved from right CTA; shows when authenticated) -->
+              <button
+                id="messagesNavBtn"
+                class="nav-link nav-cta"
+                type="button"
+                style="display: none"
+                data-spa-route="messages"
+                aria-label="Messages"
+                title="Messages"
               >
-                <i class="fas fa-bell"></i>
-                <span class="nav-text">Notifications</span>
-              </a>
+                <i class="far fa-paper-plane"></i>
+                <span class="nav-text">Messages</span>
+                <span
+                  class="nav-dot"
+                  aria-hidden="true"
+                  style="display: none"
+                ></span>
+              </button>
             </div>
           </div>
 
           <div class="nav-right">
-            <!-- Notify Friends (mobile+desktop; shows when authenticated) -->
-            <button
-              id="notifyFriendsBtn"
+            <!-- Notifications (moved to top-right, icon-only) -->
+            <a
+              data-spa-route="notifications"
               class="nav-link nav-cta"
-              type="button"
-              style="display: none"
-              aria-label="Notify friends"
-              title="Notify friends"
+              href="#notifications"
+              aria-label="Notifications"
+              title="Notifications"
             >
-              <i class="far fa-paper-plane"></i>
-              <span class="nav-text">Notify</span>
-              <span
-                class="nav-dot"
-                aria-hidden="true"
-                style="display: none"
-              ></span>
-            </button>
+              <i class="fas fa-bell"></i>
+            </a>
             <!-- Mobile Install PWA button (shown under 480px when eligible) -->
             <button
               id="installPwaBtn"
@@ -387,11 +390,11 @@
         data-spa-route="groups"
         href="#groups"
         class="mobile-nav-item"
-        aria-label="Groups"
+        aria-label="Clubs"
         aria-current="false"
       >
         <i class="fa-regular fa-handshake"></i>
-        <span class="mobile-nav-label">Groups</span>
+        <span class="mobile-nav-label">Clubs</span>
       </a>
       <a
         data-spa-route="friends"
@@ -404,19 +407,14 @@
         <span class="mobile-nav-label">Friends</span>
       </a>
       <a
-        data-spa-route="notifications"
-        href="#notifications"
+        data-spa-route="messages"
+        href="#messages"
         class="mobile-nav-item"
-        aria-label="Notifications"
+        aria-label="Messages"
         aria-current="false"
       >
-        <i class="fa-regular fa-bell"></i>
-        <span class="mobile-nav-label">Notifications</span>
-        <span
-          class="mobile-nav-badge"
-          aria-label="Unread notifications"
-          aria-live="polite"
-        ></span>
+        <i class="fa-regular fa-paper-plane"></i>
+        <span class="mobile-nav-label">Messages</span>
       </a>
       <button
         class="mobile-nav-item mobile-profile-trigger"

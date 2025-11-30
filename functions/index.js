@@ -152,10 +152,6 @@ function computeWebpushTag(data = {}) {
       case "starred_presence":
         // Collapse repeated presence from same actor within a day; allow stacking across different actors
         return `presence-${actorId || today}-${today}`;
-      case "availability_response":
-        return `availability-response-${pingId || Date.now()}`;
-      case "availability_ping":
-        return `availability-ping-${pingId || fromUserId || Date.now()}`;
       default:
         return `meetchuthere-${type}-${today}`;
     }
@@ -174,8 +170,6 @@ function computeWebpushTTLSeconds(data = {}) {
       return 6 * 60 * 60; // 6h
     case "starred_presence":
       return 6 * 60 * 60; // 6h
-    case "availability_response":
-      return 24 * 60 * 60; // 24h
     default:
       return 24 * 60 * 60; // sensible default
   }
@@ -760,35 +754,6 @@ export const onNotificationCreated = onDocumentCreated(
       return;
     }
 
-    if (data.type === "availability_ping") {
-      // Initial push for availability ping so recipient sees device banner
-      const toUserId = data.userId;
-      if (!toUserId) return;
-      const handle = data?.fromUserInfo?.handle
-        ? `@${data.fromUserInfo.handle}`
-        : "A friend";
-      const notification = {
-        title: "Are you free?",
-        body: `${handle} wants to know if you're free`,
-      };
-      const payload = {
-        link: "/#notifications",
-        type: "availability_ping",
-        pingId:
-          data?.availabilityPing?.pingId || data?.availabilityPing?.id || "",
-        fromUserId: data.fromUserId || "",
-      };
-      try {
-        const res = await sendToUser(toUserId, notification, payload);
-        logger.info("Availability ping push sent", res);
-      } catch (e) {
-        logger.warn("Failed to send availability ping push", {
-          toUserId,
-          err: String(e),
-        });
-      }
-      return;
-    }
   }
 );
 
@@ -910,122 +875,7 @@ export const onUserPresenceUpdated = onDocumentUpdated(
   }
 );
 
-// Availability ping: create response notification to sender and delete original
-export const onAvailabilityPingResponded = onDocumentUpdated(
-  "notifications/{id}",
-  async (event) => {
-    const before = event.data?.before?.data();
-    const after = event.data?.after?.data();
-    if (!after) return;
-    if (after.type !== "availability_ping") return;
-
-    const id = event.params?.id;
-    const prevResp = before?.response || null;
-    const newResp = after?.response || null;
-    const statusChangedToResponded =
-      before?.status !== "responded" && after?.status === "responded";
-    const responseAdded =
-      !prevResp && (newResp === "available" || newResp === "busy");
-    if (!statusChangedToResponded && !responseAdded) return;
-
-    const senderId = after.fromUserId; // original sender
-    const respondentId = after.userId; // recipient who responded
-    if (!senderId || !respondentId) return;
-
-    // Build fromUserInfo for respondent
-    let fromUserInfo = { handle: "friend", avatarConfig: null };
-    try {
-      const respDoc = await db.collection("users").doc(respondentId).get();
-      if (respDoc.exists) {
-        const ud = respDoc.data();
-        fromUserInfo = {
-          handle: ud?.profile?.handle || ud?.profile?.firstName || "friend",
-          avatarConfig: ud?.avatarConfig || ud?.profile?.avatarConfig || null,
-        };
-      }
-    } catch (e) {
-      logger.warn("Failed to fetch respondent user info", {
-        respondentId,
-        err: String(e),
-      });
-    }
-
-    // Create a response notification for the sender
-    try {
-      await db.collection("notifications").add({
-        userId: senderId,
-        fromUserId: respondentId,
-        fromUserInfo,
-        type: "availability_response",
-        response: newResp || after.status || "available",
-        availabilityResponse: { pingId: after?.availabilityPing?.pingId || "" },
-        createdAt: new Date(),
-        // Response notification expires after 5 minutes (backend cleanup)
-        // Sender's UI shows response for 10 minutes (local linger)
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        status: "pending",
-      });
-      // Also send a push to the sender's device (no in-app list item required)
-      try {
-        const title = "Availability Response";
-        const who = fromUserInfo?.handle
-          ? `@${fromUserInfo.handle}`
-          : "A friend";
-        const how = newResp === "available" ? "Available" : "Busy";
-        const body = `${who} responded: ${how}`;
-        // Link to notify overlay; Router opens overlay without reloading
-        const payload = {
-          link: "/#notify",
-          type: "availability_response",
-          pingId: after?.availabilityPing?.pingId || "",
-        };
-        await sendToUser(senderId, { title, body }, payload);
-      } catch (pushErr) {
-        logger.warn("Failed to send availability response push", {
-          senderId,
-          err: String(pushErr),
-        });
-      }
-    } catch (e) {
-      logger.error("Failed creating availability_response notification", {
-        senderId,
-        respondentId,
-        err: String(e),
-      });
-    }
-
-    // Do not delete the original availability_ping; keep until expiresAt so
-    // sender cooldown remains enforced across devices/sessions.
-  }
-);
-
-// Periodic cleanup: remove expired availability ping/response docs
-export const cleanupExpiredAvailabilityPings = onSchedule(
-  "every 5 minutes",
-  async () => {
-    const now = new Date();
-    try {
-      const coll = db.collection("notifications");
-      const types = ["availability_ping", "availability_response"];
-      for (const t of types) {
-        const snap = await coll
-          .where("type", "==", t)
-          .where("expiresAt", "<", now)
-          .get();
-        if (snap.empty) continue;
-        const batch = db.batch();
-        snap.docs.forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-        logger.info("Cleaned up expired availability docs", {
-          type: t,
-          count: snap.size,
-        });
-      }
-    } catch (e) {
-      logger.warn("Failed cleanupExpiredAvailabilityPings", { err: String(e) });
-    }
-  }
-);
+// (Availability ping/response Cloud Functions removed as the feature was deprecated)
 // 4) Token write trigger for server-side dedupe (browser -> PWA upgrade)
 export const onFcmTokenWrite = onDocumentWritten(
   "users/{userId}/fcmTokens/{tokenId}",

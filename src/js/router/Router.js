@@ -106,22 +106,21 @@ class SPARouter {
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
         indexable: false,
       },
-      notify: {
-        title: "Notify Friends - MeetchuThere",
-        template: "/templates/notify.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/notify.css"],
-        jsImporters: [() => import("/src/js/pages/NotifyFriendsPage.js")],
-        description:
-          "Ask your starred friends if they're free and see responses",
+      messages: {
+        title: "Messages - MeetchuThere",
+        template: "/templates/groups.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/groups.css"],
+        jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
+        description: "Your class spaces and group chats",
         requiresAuth: true,
         indexable: false,
       },
       groups: {
-        title: "Groups - MeetchuThere",
-        template: "/templates/groups.html",
+        title: "Clubs - MeetchuThere",
+        template: "/templates/clubs.html",
         cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
-        jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
-        description: "Your class spaces and clubs",
+        jsImporters: [() => import("/src/js/pages/ClubsPage.js")],
+        description: "Campus clubs and events",
         requiresAuth: true,
         indexable: false,
       },
@@ -998,20 +997,6 @@ class SPARouter {
         );
       }
     }
-    // Special-case: open Notify overlay without route reload
-    if (route === "notify") {
-      try {
-        const mod = await import("../pages/NotifyFriendsPage.js");
-        if (mod && typeof mod.openNotifyOverlay === "function") {
-          await mod.openNotifyOverlay();
-        }
-      } catch (e) {
-        logManager.warn("⚠️ Failed to open notify overlay via route:", e);
-      }
-      this._pendingRoute = null;
-      return;
-    }
-
     try {
       // 🎯 LEARNING: Show the loading indicator at the start of the navigation process.
       this.showLoading();
@@ -1583,6 +1568,16 @@ class SPARouter {
             remove: ["fa-solid", "fa-users"],
           },
         },
+        messages: {
+          active: {
+            add: ["fa-solid", "fa-paper-plane"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-paper-plane"],
+            remove: ["fa-solid"],
+          },
+        },
         notifications: {
           active: { add: ["fa-solid", "fa-bell"], remove: ["fa-regular"] },
           inactive: { add: ["fa-regular", "fa-bell"], remove: ["fa-solid"] },
@@ -1606,6 +1601,14 @@ class SPARouter {
       }
     };
 
+    // Treat certain routes as aliases in the navigation so the correct
+    // tab remains highlighted even when legacy hashes are used elsewhere.
+    const resolveActiveNavRoutes = (route) => {
+      if (route === "clubs") return ["clubs", "groups"];
+      if (route === "groups") return ["groups", "clubs"];
+      return [route];
+    };
+
     // 1. Clear existing active classes on any SPA route element (top nav + mobile nav)
     document.querySelectorAll("[data-spa-route].active").forEach((el) => {
       el.classList.remove("active");
@@ -1616,8 +1619,11 @@ class SPARouter {
     if (brand) brand.classList.remove("active");
 
     // 2. Activate all elements that match the current route (top + mobile)
+    const navRoutesToMatch = resolveActiveNavRoutes(activeRoute);
     const matchingRouteEls = document.querySelectorAll(
-      `[data-spa-route="${activeRoute}"]`
+      navRoutesToMatch
+        .map((route) => `[data-spa-route="${route}"]`)
+        .join(", ")
     );
     if (matchingRouteEls.length > 0) {
       matchingRouteEls.forEach((el) => {

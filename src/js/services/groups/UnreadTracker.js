@@ -86,6 +86,13 @@ export class UnreadTracker {
     this.ensureUserLoaded(userId);
     this.viewedTimes[spaceId] = new Date().toISOString();
     this.saveToStorage();
+
+    // Dispatch event so navigation badges can recalculate
+    try {
+      document.dispatchEvent(
+        new CustomEvent("classspace:viewed", { detail: { spaceId, userId } })
+      );
+    } catch (_) {}
   }
 
   /**

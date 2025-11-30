@@ -383,7 +383,7 @@ document.addEventListener("spa:page:unload", () => {
 
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
-  if (route !== "clubs") return;
+  if (route !== "clubs" && route !== "groups") return;
   const root =
     document.querySelector("#clubs-root") ||
     document.querySelector(".main-content");

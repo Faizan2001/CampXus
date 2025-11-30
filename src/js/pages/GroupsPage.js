@@ -38,12 +38,7 @@ export class GroupsPage {
     this.showDevTools = shouldShowDevSpaceTools();
     this.isRefreshing = false;
     this.groupsListener = null; // realtime groups list listener (unsubscribe)
-    this.activeTab = "classes"; // "classes" or "clubs"
-    this.clubsInstance = null; // Lazy-loaded ClubsPage instance
-    this.tabsContainer = null; // Cached tabs container
-    this.tabButtons = null; // Cached tab buttons
     this.groupsRoot = null; // Cached #groups-root element
-    this.isTabSwitching = false; // Prevent double-clicks
     this.pullState = {
       startY: 0,
       active: false,
@@ -93,69 +88,12 @@ export class GroupsPage {
       return;
     }
 
-    // Bind tab switcher (from template)
-    this.bindTabSwitcher();
+    // Cache groups root
+    this.groupsRoot =
+      document.querySelector("#groups-root") || this.container;
 
-    // Default to classes tab
-    this.activeTab = "classes";
-    await this.renderActiveTab();
-  }
-
-  bindTabSwitcher() {
-    this.tabsContainer = document.querySelector(".groups-content-tabs");
-    this.groupsRoot = document.querySelector("#groups-root");
-    if (!this.tabsContainer) return;
-
-    // Cache tab buttons
-    this.tabButtons = this.tabsContainer.querySelectorAll(".tab");
-
-    this.tabButtons.forEach((tabBtn) => {
-      tabBtn.addEventListener("click", async (e) => {
-        const newTab = e.currentTarget.dataset.tab;
-        if (newTab === this.activeTab) return;
-
-        // Prevent double-clicks during transition
-        if (this.isTabSwitching) return;
-        this.isTabSwitching = true;
-
-        // Determine slide direction: clubs = right, classes = left
-        const slideDirection = newTab === "clubs" ? "right" : "left";
-
-        // Update active tab styling immediately (no re-query)
-        this.tabButtons.forEach((t) => t.classList.remove("active"));
-        e.currentTarget.classList.add("active");
-
-        // Cleanup previous tab
-        if (this.activeTab === "classes") {
-          this.detachGroupsListener();
-          this.teardownPullToRefresh();
-        } else if (this.activeTab === "clubs" && this.clubsInstance) {
-          this.clubsInstance.unmount();
-          this.clubsInstance = null;
-        }
-
-        this.activeTab = newTab;
-        
-        // Apply slide direction for animation
-        if (this.groupsRoot) {
-          this.groupsRoot.setAttribute("data-slide", slideDirection);
-        }
-        
-        await this.renderActiveTab();
-        this.isTabSwitching = false;
-      });
-    });
-  }
-
-  async renderActiveTab() {
-    // Render into #groups-root, not the full container
-    const targetEl = this.groupsRoot || this.container;
-    
-    if (this.activeTab === "classes") {
-      await this.renderClassesTab(targetEl);
-    } else if (this.activeTab === "clubs") {
-      await this.renderClubsTab(targetEl);
-    }
+    // Render class spaces list
+    await this.renderClassesTab(this.groupsRoot);
   }
 
   async renderClassesTab(targetEl) {
@@ -191,25 +129,6 @@ export class GroupsPage {
     // Hybrid: cache-first render, then attach realtime listener for fast badges
     await this.loadGroupsHybrid();
     this.setupPullToRefresh();
-  }
-
-  async renderClubsTab(targetEl) {
-    // Lazy-load and mount ClubsPage into the same container
-    try {
-      const { default: ClubsPage } = await import("./ClubsPage.js");
-      this.clubsInstance = new ClubsPage();
-      await this.clubsInstance.mount(targetEl);
-    } catch (err) {
-      console.error("[GroupsPage] Failed to load ClubsPage:", err);
-      targetEl.innerHTML = `
-        <section class="groups-page">
-          <div class="error-message">
-            <p>Failed to load Clubs. Please try again.</p>
-            <button class="btn primary" onclick="location.reload()">Reload</button>
-          </div>
-        </section>
-      `;
-    }
   }
 
   // Cache-first, then realtime listener while viewing the page
@@ -762,7 +681,7 @@ document.addEventListener("spa:page:unload", () => {
 
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
-  if (route !== "groups") return;
+  if (route !== "messages") return;
   const root =
     document.querySelector("#groups-root") ||
     document.querySelector(".main-content");

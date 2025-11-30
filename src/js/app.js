@@ -126,6 +126,7 @@ async function initializeSPA() {
       "home",
       "friends",
       "notifications",
+      "messages",
       "about",
       "profile",
       "landing",
@@ -622,18 +623,17 @@ function setupSPAEventListeners() {
 /**
  * Update page title based on current route
  * 🎯 Learning: Good SPAs update the browser title for each "page"
+ *
+ * NOTE: The SPA Router now owns route-specific titles via its route
+ * configuration (Router.routes[route].title). To avoid conflicts and
+ * duplication, this helper intentionally no longer overrides
+ * document.title; it is kept as a no-op for backwards compatibility
+ * with existing event listeners that call updatePageTitle(route).
  */
 function updatePageTitle(route) {
-  const titles = {
-    home: "Schedule - MeetchuThere",
-    profile: "Profile Setup - MeetchuThere",
-    friends: "Friends - MeetchuThere",
-    notifications: "Notifications - MeetchuThere",
-    about: "About - MeetchuThere",
-  };
-
-  const title = titles[route] || "MeetchuThere";
-  document.title = title;
+  // Router already set document.title based on the active route.
+  // No additional work is required here.
+  void route; // explicit no-op to satisfy linters and keep signature stable
 }
 
 /**
