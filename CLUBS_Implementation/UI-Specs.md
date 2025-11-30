@@ -679,17 +679,17 @@ Reuse the existing `.group-tabs` pill-style pattern:
 
 ---
 
-## 💬 Live Event Chat
+## 📢 Live Timeline (Announcements)
 
 ```css
-.live-chat-container {
+.live-timeline-container {
   display: flex;
   flex-direction: column;
   height: 100%;
   background: var(--bg-color);
 }
 
-.live-chat-header {
+.live-timeline-header {
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
@@ -698,7 +698,7 @@ Reuse the existing `.group-tabs` pill-style pattern:
   gap: 0.75rem;
 }
 
-.live-chat-back {
+.live-timeline-back {
   background: transparent;
   border: none;
   color: #fff;
@@ -708,22 +708,18 @@ Reuse the existing `.group-tabs` pill-style pattern:
   border-radius: 50%;
 }
 
-.live-chat-back:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.live-chat-info {
+.live-timeline-info {
   flex: 1;
 }
 
-.live-chat-title {
+.live-timeline-title {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
-.live-chat-status {
+.live-timeline-status {
   font-size: 0.75rem;
   color: #ef4444;
   display: flex;
@@ -731,7 +727,7 @@ Reuse the existing `.group-tabs` pill-style pattern:
   gap: 0.3rem;
 }
 
-.live-chat-status::before {
+.live-timeline-status::before {
   content: "";
   width: 6px;
   height: 6px;
@@ -740,7 +736,7 @@ Reuse the existing `.group-tabs` pill-style pattern:
   animation: pulse-live 1.5s ease-in-out infinite;
 }
 
-.live-chat-messages {
+.live-timeline-feed {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
@@ -749,8 +745,8 @@ Reuse the existing `.group-tabs` pill-style pattern:
   gap: 0.75rem;
 }
 
-/* Event Started Message (Special) */
-.chat-event-started {
+/* Event Live Banner (Pinned) */
+.announcement-event-live {
   background: linear-gradient(
     135deg,
     rgba(239, 68, 68, 0.15),
@@ -763,7 +759,7 @@ Reuse the existing `.group-tabs` pill-style pattern:
   margin-bottom: 0.5rem;
 }
 
-.chat-event-started-title {
+.announcement-event-live-title {
   font-size: 0.9rem;
   font-weight: 600;
   color: #ef4444;
@@ -773,19 +769,19 @@ Reuse the existing `.group-tabs` pill-style pattern:
   gap: 0.5rem;
 }
 
-.chat-event-started-by {
+.announcement-event-live-by {
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 0.25rem;
 }
 
-/* Regular Chat Message */
-.chat-message {
+/* Announcement Item */
+.announcement-item {
   display: flex;
   gap: 0.6rem;
 }
 
-.chat-message-avatar {
+.announcement-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -793,7 +789,7 @@ Reuse the existing `.group-tabs` pill-style pattern:
   object-fit: cover;
 }
 
-.chat-message-content {
+.announcement-content {
   flex: 1;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
@@ -801,20 +797,20 @@ Reuse the existing `.group-tabs` pill-style pattern:
   padding: 0.6rem 0.75rem;
 }
 
-.chat-message-header {
+.announcement-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.3rem;
 }
 
-.chat-message-name {
+.announcement-name {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.chat-message-role {
+.announcement-role {
   font-size: 0.65rem;
   background: rgba(143, 61, 255, 0.2);
   color: #c471ed;
@@ -823,20 +819,20 @@ Reuse the existing `.group-tabs` pill-style pattern:
   font-weight: 500;
 }
 
-.chat-message-time {
+.announcement-time {
   font-size: 0.65rem;
   color: var(--text-tertiary);
   margin-left: auto;
 }
 
-.chat-message-text {
+.announcement-text {
   font-size: 0.85rem;
   color: var(--text-primary);
   line-height: 1.4;
 }
 
-/* Chat Input (Officials Only) */
-.live-chat-input-container {
+/* Announcement Input (Officials Only) */
+.live-timeline-input-container {
   padding: 0.75rem 1rem;
   padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
   background: var(--bg-color);
@@ -845,7 +841,7 @@ Reuse the existing `.group-tabs` pill-style pattern:
   gap: 0.5rem;
 }
 
-.live-chat-input {
+.live-timeline-input {
   flex: 1;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--glass-border);
@@ -855,12 +851,16 @@ Reuse the existing `.group-tabs` pill-style pattern:
   font-size: 0.9rem;
 }
 
-.live-chat-input:focus {
+.live-timeline-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.live-timeline-input:focus {
   outline: none;
   border-color: rgba(143, 61, 255, 0.5);
 }
 
-.live-chat-send {
+.live-timeline-post {
   background: linear-gradient(135deg, #6c63ff, #9b67f8);
   border: none;
   color: #fff;
@@ -871,27 +871,23 @@ Reuse the existing `.group-tabs` pill-style pattern:
   transition: all 0.2s ease;
 }
 
-.live-chat-send:hover {
+.live-timeline-post:hover {
   transform: scale(1.05);
 }
 
-.live-chat-send:disabled {
+.live-timeline-post:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Read-Only Notice (Students) */
-.live-chat-readonly {
+/* No Input for Students (view-only) */
+.live-timeline-readonly {
   padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.03);
   border-top: 1px solid var(--glass-border);
   text-align: center;
   font-size: 0.8rem;
   color: var(--text-tertiary);
-}
-
-.live-chat-readonly i {
-  margin-right: 0.3rem;
 }
 ```
 

@@ -1571,4 +1571,74 @@ _Progress log updated: Phase 4 Step 3 (Mother Card) complete — 2025-11-30_
 
 ---
 
+## 📝 2025-11-30 — PRD Clarification: Live Events Feature (No Chat)
+
+### What Was Clarified:
+
+After reviewing the implementation requirements, the Live Events feature has been clarified:
+
+**❌ What We're NOT Building:**
+- No live chat / real-time messaging between users
+- No back-and-forth conversations
+
+**✅ What We ARE Building:**
+- **Live Timeline** — One-way announcement feed from officials to students
+- **Auto-escalation** — Events automatically appear in Live section when `currentTime` is within their `timeSlots` range
+- **Manual Go Live** — Officials can click "Go Live" to officially mark the event as started
+- **Announcements** — Officials can post broadcast-style updates during live events (students view only)
+
+### Two Ways Events Become "Live":
+
+| Method | Badge | Trigger | Description |
+|--------|-------|---------|-------------|
+| **Auto** | 🟢 NOW | Time window | Current time is within event's scheduled start/end |
+| **Manual** | 🔴 LIVE | Go Live button | Official clicked "Go Live" (can be 30 min before start) |
+
+### Documentation Updated:
+
+| File | Changes |
+|------|---------|
+| `PRD.md` | Renamed "Live Event Chat" → "Live Event Timeline (Announcements Only)", updated user flows |
+| `Implementation-Plan.md` | Renamed Phase 4 to "Live Events & Announcements", updated component names |
+| `Data-Model.md` | Renamed `liveChat` subcollection → `announcements` subcollection |
+| `UI-Specs.md` | Renamed CSS classes from `chat` to `announcement` / `timeline` |
+| `Cloud-Functions.md` | Renamed cleanup function, updated event started trigger |
+| `Firestore-Rules.md` | Renamed `liveChat` → `announcements` subcollection rules |
+
+### Phase 4 Status — COMPLETE ✅
+
+With this clarification, **Phase 4 is now complete**:
+
+| Task | Status |
+|------|--------|
+| Live Events Mother Card | ✅ Done |
+| Auto-escalation (time window → NOW badge) | ✅ Done |
+| Manual Go Live (→ LIVE badge) | ✅ Done |
+| End Event button | ✅ Done |
+| Upcoming/Past dropdowns | ✅ Done |
+
+### What's Left for Phase 4 (Optional):
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Live Timeline UI | 🔲 Optional | Officials post announcements during live events |
+| Announcements subcollection | 🔲 Optional | One-way broadcast messages |
+
+The announcement/timeline feature is **optional** for MVP. The core Live Events functionality (auto-escalation, Mother Card, Go Live/End Event) is complete.
+
+---
+
+## 🎯 NEXT STEPS — Phase 5: Moderation & Roles
+
+Now ready to proceed with Phase 5:
+
+- [ ] **Moderate Tab** — Pending events for presidents/SAF
+- [ ] **Event Approval Flow** — Approve/Reject with comments
+- [ ] **Role Management** — Promote/demote officials
+- [ ] **SAF Dashboard** — Moderate across all clubs
+
+Would you like to proceed with Phase 5?
+
+---
+
 -- End of file

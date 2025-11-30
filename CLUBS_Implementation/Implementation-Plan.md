@@ -231,13 +231,13 @@ This document outlines the phased development approach for the Clubs feature.
 
 ---
 
-## 📦 Phase 4: Live Events & Chat
+## 📦 Phase 4: Live Events & Announcements
 
 ### Goals
 
-- Live Events section on Clubs tab
-- Live event chat (broadcast style)
-- "Event Started" functionality
+- Live Events section on Clubs tab (auto-escalation from all clubs)
+- Live timeline with official announcements (one-way broadcast)
+- Auto-live (time window) + Manual "Go Live" toggle
 
 ### Tasks
 
@@ -262,48 +262,51 @@ This document outlines the phased development approach for the Clubs feature.
 □ Click → open live chat view
 ```
 
-#### 4.3 Live Chat Component (`src/js/components/clubs/LiveEventChat.js`)
+#### 4.3 Live Timeline Component (`src/js/components/clubs/LiveTimeline.js`)
 
 ```javascript
-□ Real-time listener for liveChat subcollection
-□ Render messages: avatar, name, role, time, content
-□ "Event has started" pinned message at top
-□ Message input (officials only)
-□ Send message functionality
-□ Auto-scroll on new messages
-□ Read-only indicator for students
+□ Real-time listener for announcements subcollection
+□ Render announcements: avatar, name, role, time, content
+□ "Event is now live!" pinned message at top
+□ Announcement input (officials only)
+□ Post announcement functionality
+□ Auto-scroll on new announcements
+□ View-only for students (no input shown)
 ```
 
-#### 4.4 Start Event Flow
+#### 4.4 Go Live Flow (Auto + Manual)
 
 ```javascript
-□ "Mark as Started" button (officials, during time window)
+□ Auto-escalation: Events appear in Live section when currentTime is within timeSlots
+□ Manual "Go Live" button (officials, 30 min before to end of event)
 □ Update event: isLive=true, startedAt, startedBy, startedByInfo
-□ Create "Event has started" message in liveChat
-□ Trigger notification to followers
+□ Create "Event is now live!" announcement in announcements subcollection
+□ Trigger push notification to followers
+□ "End Event" button to manually close
 ```
 
-#### 4.5 CSS for Live Events (`src/css/clubs.css` additions)
+#### 4.5 CSS for Live Events (`src/css/clubs/live.css`)
 
 ```css
-□ .live-events-section
-□ .live-event-card
-□ .live-badge (pulsing animation)
-□ .upcoming-events-section (greyed style)
-□ .live-chat-container
-□ .chat-message
-□ .chat-input (officials only)
-□ .event-started-message (special styling)
+□ .live-events-section / .mother-card
+□ .live-event-card (with glow animation)
+□ .live-badge (pulsing red) / .now-badge (green)
+□ .upcoming-events-section (greyed/collapsed)
+□ .live-timeline-container
+□ .announcement-item
+□ .announcement-input (officials only)
+□ .event-live-message (pinned styling)
 ```
 
 ### Deliverables
 
-- [ ] Live events section renders
-- [ ] Live badge pulses
-- [ ] Chat messages display in real-time
-- [ ] Officials can post
-- [ ] Students see read-only
-- [ ] "Event started" flow works
+- [ ] Live events section with Mother Card renders
+- [ ] Auto-escalation: events appear when in time window (🟢 NOW badge)
+- [ ] Manual Go Live: officials can toggle live (🔴 LIVE badge)
+- [ ] Announcements display in real-time on live timeline
+- [ ] Officials can post announcements
+- [ ] Students view announcements (no input)
+- [ ] End Event flow works
 
 ---
 

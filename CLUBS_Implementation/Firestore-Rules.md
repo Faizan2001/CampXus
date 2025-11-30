@@ -9,7 +9,7 @@ This document contains the Firestore security rules for the Clubs feature.
 ```
 clubs/{clubId}                    → University-scoped read, role-based write
 clubs/{clubId}/events/{eventId}   → Club-scoped read, official+ write
-clubs/{clubId}/events/{eventId}/liveChat/{msgId} → Event-scoped read, official+ write
+clubs/{clubId}/events/{eventId}/announcements/{annId} → Event-scoped read, official+ write
 clubs/{clubId}/members/{userId}   → Club-scoped read, president+ write
 admin/*                           → Super admin only
 ```
@@ -225,25 +225,25 @@ service cloud.firestore {
           isClubPresident(clubId)
         );
 
-        // ----- LIVE CHAT SUBCOLLECTION -----
-        match /liveChat/{messageId} {
-          // READ: Same university users can read
+        // ----- ANNOUNCEMENTS SUBCOLLECTION (Live Timeline) -----
+        match /announcements/{announcementId} {
+          // READ: Same university users can read announcements
           allow read: if isAuthenticated() && (
             isSuperAdmin() ||
             isSameUniversity(getClubDoc(clubId).university)
           );
 
-          // CREATE: Only officials can post in live chat
+          // CREATE: Only officials can post announcements
           allow create: if isAuthenticated() && (
             isClubOfficial(clubId) &&
-            request.resource.data.senderId == request.auth.uid &&
+            request.resource.data.postedBy == request.auth.uid &&
             request.resource.data.content is string &&
             request.resource.data.content.size() > 0 &&
             request.resource.data.content.size() <= 500 &&
             request.resource.data.createdAt == request.time
           );
 
-          // UPDATE: Not allowed (messages are immutable)
+          // UPDATE: Not allowed (announcements are immutable)
           allow update: if false;
 
           // DELETE: Only via Cloud Function (TTL cleanup)

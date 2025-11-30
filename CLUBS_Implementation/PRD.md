@@ -283,14 +283,14 @@ A permanent card at the top of the Clubs page that aggregates all events from al
 - Time remaining ("Ends in 2h 30m")
 - Live chat preview (latest message)
 
-**Live Event Chat**:
+**Live Event Timeline** (Announcements Only):
 
 - Opens when tapping live event card
-- **Read-only for students**
-- **Officials can post** broadcast-style messages
-- Message format: `[Avatar] [Name - Role] [Timestamp]: Message`
+- **Announcement feed** — Officials broadcast updates, students view only
+- No back-and-forth chat; purely one-way communication
+- Message format: `[Avatar] [Name - Role] [Timestamp]: Announcement`
 - Auto-deletes 24 hours after event ends
-- "Event has started" message shown at top with official's name who triggered it
+- "Event is now live!" message shown at top when event starts
 
 **Auto-refresh**: Every 60 seconds for live event list
 
@@ -491,16 +491,18 @@ SAF opens Clubs page
     → All students see it (no follow required)
 ```
 
-### 5.6 Official Starts Event
+### 5.6 Event Goes Live (Auto or Manual)
 
 ```
-During event time window:
-Official opens their club's live event
-    → Sees "Mark as Started" button
-    → Taps button
-    → "Event has started" message appears with official's name
-    → Event moves to top of Live Events section
-    → Followers receive "Event is now live!" notification
+Automatic: When current time enters event's time window
+    → Event automatically appears in Live Events section
+    → Shows 🟢 "NOW" badge (happening now)
+
+Manual: Official clicks "Go Live" button
+    → Event shows 🔴 "LIVE" badge (officially started)
+    → "Event is now live!" announcement posted to timeline
+    → Followers receive push notification
+    → Officials can now post announcements to the live timeline
 ```
 
 ---
@@ -518,7 +520,7 @@ Official opens their club's live event
 | Edit any event in club        | ❌      | ❌       | ✅        | ✅  | ✅    |
 | Delete events                 | ❌      | ❌       | ✅        | ✅  | ✅    |
 | Approve events                | ❌      | ❌       | ✅        | ✅  | ✅    |
-| Post in live chat             | ❌      | ✅       | ✅        | ✅  | ✅    |
+| Post announcements (live)     | ❌      | ✅       | ✅        | ✅  | ✅    |
 | Start event                   | ❌      | ✅       | ✅        | ✅  | ✅    |
 | Promote officials             | ❌      | ❌       | ✅        | ✅  | ✅    |
 | Assign president              | ❌      | ❌       | ❌        | ✅  | ✅    |
@@ -696,7 +698,7 @@ All questions from requirements gathering have been resolved:
 | 22  | Video feature            | Excluded from this PRD (Phase 2)                        |
 | 23  | Data retention           | 90 days events, 24h live chat                           |
 | 24  | Color picker             | Preset palette                                          |
-| 25  | Live chat posting        | Officials only (broadcast style)                        |
+| 25  | Live announcements       | Officials only (one-way broadcast, no chat)             |
 | 26  | Event start trigger      | Manual button by official                               |
 | 27  | Membership storage       | Hybrid (user doc + club followerCount)                  |
 | 28  | Event images             | One hero image per event                                |

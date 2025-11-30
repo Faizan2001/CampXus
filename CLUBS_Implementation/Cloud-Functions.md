@@ -18,7 +18,7 @@ This document defines the Firebase Cloud Functions required for the Clubs featur
 | `onEventStarted`          | Firestore      | Notify followers           |
 | `sendEventReminders`      | Scheduled      | 15-min reminders           |
 | `cleanupOldEvents`        | Scheduled      | 90-day retention           |
-| `cleanupExpiredLiveChat`  | Scheduled      | 24-hour TTL                |
+| `cleanupExpiredAnnouncements` | Scheduled  | 24-hour TTL                |
 | `updateWeeklyEventCounts` | Scheduled      | Stats refresh              |
 
 ---
@@ -609,12 +609,12 @@ exports.onEventStarted = functions.firestore
       const clubDoc = await db.doc(`clubs/${clubId}`).get();
       const club = clubDoc.data();
 
-      // Create "Event has started" message in live chat
-      await db.collection(`clubs/${clubId}/events/${eventId}/liveChat`).add({
-        content: "Event has started! 🎉",
-        senderId: after.startedBy,
-        senderInfo: after.startedByInfo,
-        messageType: "event_started",
+      // Create "Event is now live!" announcement
+      await db.collection(`clubs/${clubId}/events/${eventId}/announcements`).add({
+        content: "Event is now live! 🎉",
+        postedBy: after.startedBy,
+        posterInfo: after.startedByInfo,
+        type: "event_live",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         expiresAt: after.lastSlotEnd
           ? new Date(after.lastSlotEnd.toDate().getTime() + 24 * 60 * 60 * 1000)
@@ -806,29 +806,29 @@ exports.cleanupOldEvents = functions.pubsub
   });
 
 /**
- * Clean up expired live chat messages
+ * Clean up expired announcements
  * Runs every hour
  */
-exports.cleanupExpiredLiveChat = functions.pubsub
+exports.cleanupExpiredAnnouncements = functions.pubsub
   .schedule("0 * * * *")
   .timeZone("UTC")
   .onRun(async (context) => {
     const now = new Date();
 
-    const expiredMessages = await db
-      .collectionGroup("liveChat")
+    const expiredAnnouncements = await db
+      .collectionGroup("announcements")
       .where("expiresAt", "<", now)
       .get();
 
-    console.log(`Found ${expiredMessages.size} expired chat messages`);
+    console.log(`Found ${expiredAnnouncements.size} expired announcements`);
 
     // Delete in batches
     const batchSize = 400;
     let batch = db.batch();
     let count = 0;
 
-    for (const msgDoc of expiredMessages.docs) {
-      batch.delete(msgDoc.ref);
+    for (const annDoc of expiredAnnouncements.docs) {
+      batch.delete(annDoc.ref);
       count++;
 
       if (count >= batchSize) {
@@ -842,7 +842,7 @@ exports.cleanupExpiredLiveChat = functions.pubsub
       await batch.commit();
     }
 
-    console.log(`Deleted ${expiredMessages.size} expired chat messages`);
+    console.log(`Deleted ${expiredAnnouncements.size} expired announcements`);
     return null;
   });
 
@@ -1105,7 +1105,7 @@ module.exports = { sendClubNotification };
 ### Deploy all club functions:
 
 ```bash
-firebase deploy --only functions:onClubFollow,functions:promoteToOfficial,functions:demoteOfficial,functions:assignPresident,functions:onEventCreated,functions:onEventStatusChanged,functions:onEventStarted,functions:cleanupOldEvents,functions:cleanupExpiredLiveChat,functions:updateWeeklyEventCounts,functions:sendEventReminders,functions:cleanupOldClubNotifications
+firebase deploy --only functions:onClubFollow,functions:promoteToOfficial,functions:demoteOfficial,functions:assignPresident,functions:onEventCreated,functions:onEventStatusChanged,functions:onEventStarted,functions:cleanupOldEvents,functions:cleanupExpiredAnnouncements,functions:updateWeeklyEventCounts,functions:sendEventReminders,functions:cleanupOldClubNotifications
 ```
 
 ### Or deploy by file:

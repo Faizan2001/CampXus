@@ -12,7 +12,7 @@ firestore/
 │   └── {clubId}/
 │       ├── events/             # Subcollection: club events
 │       │   └── {eventId}/
-│       │       └── liveChat/   # Subcollection: live event messages
+│       │       └── announcements/  # Subcollection: live timeline announcements
 │       └── members/            # Subcollection: club membership
 ├── users/                      # Existing - add clubRoles field
 ├── notifications/              # Existing - add club notification types
@@ -174,18 +174,18 @@ events: isLive ASC, lastSlotEnd ASC
 
 ---
 
-### 3. Live Chat Message (`/clubs/{clubId}/events/{eventId}/liveChat/{messageId}`)
+### 3. Live Announcement (`/clubs/{clubId}/events/{eventId}/announcements/{announcementId}`)
 
 ```javascript
 {
-  messageId: "msg_xyz789",
+  announcementId: "ann_xyz789",
 
   // === Content ===
   content: "Registration is now open at the entrance!",  // Max 500 chars
 
   // === Author (officials only) ===
-  senderId: "official_uid",
-  senderInfo: {
+  postedBy: "official_uid",
+  posterInfo: {
     firstName: "Ahmed",
     lastName: "Khan",
     handle: "ahmed",
@@ -193,12 +193,12 @@ events: isLive ASC, lastSlotEnd ASC
     role: "Event Coordinator"                // Their club role
   },
 
-  // === Special Message Types ===
-  messageType: "announcement",
+  // === Announcement Types ===
+  type: "update",
   // Possible values:
-  // - "announcement"       : Regular official message
-  // - "event_started"      : Auto-generated when event starts
-  // - "event_ending"       : Auto-generated 15 min before end
+  // - "update"            : Regular official announcement
+  // - "event_live"        : Auto-generated when Go Live clicked
+  // - "event_ended"       : Auto-generated when event ends
 
   // === Metadata ===
   createdAt: Timestamp,
@@ -208,7 +208,7 @@ events: isLive ASC, lastSlotEnd ASC
 }
 ```
 
-**Note**: No subcollections. Messages auto-deleted by Cloud Function after `expiresAt`.
+**Note**: Announcements are one-way broadcasts from officials. No replies or reactions. Auto-deleted by Cloud Function after `expiresAt`.
 
 ---
 
