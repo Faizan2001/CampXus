@@ -48,17 +48,37 @@ The **Clubs Feature** is a centralized hub within MeetchuThere where university 
 
 ### 1.3 How does it fit into MeetchuThere?
 
+**Current Navigation Structure (Updated 2025-01):**
+
 ```
-Groups Tab (existing)
-├── Classes (tab) ← Current class spaces
-└── Clubs (tab) ← NEW: Clubs hub
-    ├── Live Events section
-    ├── Upcoming Events section (greyed out, below Live)
-    └── Club cards grid
-        └── Individual Club Page
-            ├── Events tab
-            ├── Members tab (with officer badges)
-            └── Moderate tab (authorized users only)
+Main Navigation
+├── Schedule      (nav icon)
+├── Friends       (nav icon)
+├── Clubs         (nav icon) ← Campus organizations & events
+├── Messages      (nav icon) ← Class spaces (formerly under Groups)
+└── Notifications (top-right icon only)
+```
+
+> **Note:** The original design had Clubs as a sub-tab under "Groups". This was restructured for better discoverability:
+>
+> - **Messages** tab → Class spaces for course-based messaging (renders via `GroupsPage.js`)
+> - **Clubs** tab → Campus organizations and events (renders via `ClubsPage.js`)
+> - Both are now top-level navigation items with dedicated nav icons
+> - The "Notify Friends" feature was removed from navigation entirely
+
+**Clubs Tab Structure:**
+
+```
+Clubs (nav link)
+├── Live Events section (Mother Card)
+│   ├── Currently live events carousel
+│   ├── Upcoming Events dropdown (greyed out)
+│   └── Past Events dropdown
+└── Club cards grid
+    └── Individual Club Page
+        ├── Events tab
+        ├── Members tab (with officer badges)
+        └── Moderate tab (authorized users only)
 ```
 
 ---
@@ -202,13 +222,13 @@ Groups Tab (existing)
 
 ### 4.1 Clubs Listing Page
 
-**Location**: Groups → Clubs tab
+**Location**: Clubs (main nav icon) → `#clubs` route
 
 **Layout**:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  [Classes]  [Clubs]           ← Tab switcher    │
+│  CAMPUS CLUBS                    ← Page header  │
 ├─────────────────────────────────────────────────┤
 │  ┌─────────────────────────────────────────────┐│
 │  │  🔴 LIVE EVENTS               [3 live now]  ││

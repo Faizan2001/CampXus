@@ -24,6 +24,10 @@ import { notificationManager } from "../services/realtime/NotificationService.js
 import { renderPushPermissionBanner } from "../components/notifications/PushPermissionBanner.js";
 import { campusLocationService } from "../services/location/CampusLocationService.js";
 import {
+  isClubNotification,
+  getClubNotificationDisplay,
+} from "../services/clubs/ClubNotificationService.js";
+import {
   realTimeManager,
   REALTIME_EVENTS,
 } from "../services/realtime/RealtimeService.js";
@@ -40,7 +44,7 @@ export class NotificationsPage {
     this.isInitialized = false;
     this.isActive = false;
     this.baseRendered = false; // Prevent full re-render flicker
-    this.filter = "all"; // 'all' | 'friend' | 'location'
+    this.filter = "all"; // 'all' | 'friend' | 'location' | 'club'
     this._listElement = null; // track current bound list element for delegation
     this._listDelegatedHandler = null; // reference to delegated handler
 
@@ -215,6 +219,12 @@ export class NotificationsPage {
                   <i class="fas fa-map-marker-alt"></i>
                   Location Requests
                 </button>
+                <button class="filter-btn ${
+                  this.filter === "club" ? "active" : ""
+                }" data-filter="club">
+                  <i class="fas fa-flag"></i>
+                  Clubs
+                </button>
               </div>
               <div id="notificationsList" class="notifications-scrollable-container">
                 ${this.renderNotifications()}
@@ -259,12 +269,7 @@ export class NotificationsPage {
       .querySelectorAll(".notifications-filters .filter-btn")
       .forEach((btn) => {
         const f = btn.getAttribute("data-filter");
-        btn.classList.toggle(
-          "active",
-          (f === "all" && this.filter === "all") ||
-            (f === "friend" && this.filter === "friend") ||
-            (f === "location" && this.filter === "location")
-        );
+        btn.classList.toggle("active", f === this.filter);
       });
     const markAll = document.querySelector(".mark-all-read");
     if (markAll) {
@@ -293,6 +298,12 @@ export class NotificationsPage {
       fromUserId: n.fromUserId,
       fromUserInfo: n.fromUserInfo,
       createdAt: n.createdAt,
+      // Club-specific fields (safe defaults if missing)
+      clubId: n.clubId,
+      eventId: n.eventId,
+      title: n.title,
+      message: n.message,
+      clubInfo: n.clubInfo,
       locationRequest: n.locationRequest,
       read: n.read,
       status: n.status,
@@ -313,6 +324,8 @@ export class NotificationsPage {
       merged = merged.filter((n) => n.type === "friend_request");
     } else if (this.filter === "location") {
       merged = merged.filter((n) => n.type === "location_share_request");
+    } else if (this.filter === "club") {
+      merged = merged.filter((n) => isClubNotification(n));
     }
     merged.sort((a, b) => {
       const ta = a.createdAt?.toDate
@@ -329,8 +342,8 @@ export class NotificationsPage {
         <div class="no-notifications">
           <h4 class="no-notifications-text">All caught up!</h4>
           <p class="no-notifications-subtitle">
-            No new notifications right now. When friends send you requests or share their location,
-            you'll see them here.
+            No new notifications right now. When friends send you requests, share their location,
+            or clubs post new updates, you'll see them here.
           </p>
           <div class="empty-actions">
             <button type="button" class="button secondary" data-spa-route="friends">
@@ -349,6 +362,9 @@ export class NotificationsPage {
         }
         if (notification.type === "friend_request") {
           return this.renderFriendRequest(notification);
+        }
+        if (isClubNotification(notification)) {
+          return this.renderClubNotification(notification);
         }
         if (notification.type === "location_sharing_enabled") {
           return this.renderLocationSharingEnabled(notification);
@@ -453,6 +469,69 @@ export class NotificationsPage {
           </button>
           <button class="reject-friend-btn" data-request-id="${requestId}">
             Decline
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render a club notification (events, approvals, reminders, etc.)
+   * @param {Object} notification - Club notification with clubInfo metadata
+   * @returns {string} HTML string for the notification
+   */
+  renderClubNotification(notification) {
+    const isRead = notification.read || false;
+    const readClass = isRead ? "notification-read" : "notification-unread";
+
+    const clubId = notification.clubId || "";
+    const eventId = notification.eventId || "";
+    const display = getClubNotificationDisplay(notification);
+
+    const clubName =
+      notification.clubInfo?.name || "Club update";
+    const avatarUrl =
+      notification.clubInfo?.logoUrl ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzIxMjEzMiIvPjxwYXRoIGQ9Ik0xMSAxOUwxNSAxMUwyMSAyM0gxMSIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==";
+
+    const badgeHtml = display.badgeText
+      ? `<span class="club-badge ${display.badgeClass}">${escapeHTML(
+          display.badgeText
+        )}</span>`
+      : "";
+
+    return `
+      <div class="notification-item club-notification ${readClass}" data-notification-id="${
+        notification.id
+      }">
+        <div class="notification-avatar">
+          <img src="${avatarUrl}"
+               alt="${escapeHTML(clubName)} logo"
+               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzIxMjEzMiIvPjxwYXRoIGQ9Ik0xMSAxOUwxNSAxMUwyMSAyM0gxMSIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg=='">
+        </div>
+        <div class="notification-content">
+          <div class="notification-text">
+            <span class="notification-icon type-club" aria-hidden="true">
+              <i class="${display.iconClass}"></i>
+            </span>
+            <strong>${escapeHTML(clubName)}</strong>
+            ${badgeHtml}
+          </div>
+          <div class="notification-details">
+            ${escapeHTML(display.message)}
+          </div>
+          <div class="notification-time">${this.formatTime(
+            notification.createdAt
+          )}</div>
+        </div>
+        <div class="notification-actions">
+          <button class="open-club-notification button tertiary" data-club-id="${escapeHTML(
+            clubId
+          )}" data-event-id="${eventId ? escapeHTML(eventId) : ""}">
+            View
+          </button>
+          <button class="dismiss-btn" data-notification-id="${notification.id}">
+            Dismiss
           </button>
         </div>
       </div>
@@ -633,6 +712,24 @@ export class NotificationsPage {
           const notificationId = dismiss.dataset.notificationId;
           console.log("🗑️ Dismissing notification:", notificationId);
           await this.dismissNotification(notificationId);
+          return;
+        }
+
+        const openClub = e.target.closest(".open-club-notification");
+        if (openClub) {
+          const clubId = openClub.dataset.clubId;
+          const eventId = openClub.dataset.eventId;
+          if (clubId) {
+            const hash = eventId
+              ? `#club?id=${clubId}&eventId=${eventId}`
+              : `#club?id=${clubId}`;
+            console.log("🎟️ Opening club from notification:", {
+              clubId,
+              eventId,
+              hash,
+            });
+            window.location.hash = hash;
+          }
           return;
         }
       };

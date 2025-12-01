@@ -13,6 +13,7 @@ export class CreateEventModal {
   constructor(options = {}) {
     this.clubId = options.clubId;
     this.clubName = options.clubName || "Club";
+    this.clubData = options.clubData || null; // Club data for role checking
     this.onSuccess = options.onSuccess || (() => {});
     this.onClose = options.onClose || (() => {});
 
@@ -1128,6 +1129,23 @@ export class CreateEventModal {
   }
 
   /**
+   * Check if current user is the club president (can auto-approve events)
+   */
+  isUserPresident() {
+    const uid = currentUser?.uid;
+    if (!uid || !this.clubData) return false;
+
+    // DevTest: devOwnerUid is treated as president
+    if (this.clubData.devTest && this.clubData.devOwnerUid === uid) return true;
+
+    // Production: presidentId or createdBy
+    if (this.clubData.presidentId === uid) return true;
+    if (this.clubData.createdBy === uid) return true;
+
+    return false;
+  }
+
+  /**
    * Show the modal
    */
   show() {
@@ -1669,6 +1687,9 @@ export class CreateEventModal {
 
       if (this.editMode && this.event?.id) {
         // UPDATE existing event
+        const wasRejected = this.event.status === "rejected";
+        const isPresident = this.isUserPresident();
+
         const updateData = {
           title,
           description,
@@ -1679,6 +1700,17 @@ export class CreateEventModal {
           updatedAt: Timestamp.now(),
           updatedBy: currentUser?.uid,
         };
+
+        // If a non‑president edits a rejected event, treat it as a resubmission:
+        // send it back to pending_president and clear rejection metadata so it
+        // re-enters the moderation queue.
+        if (!isPresident && wasRejected) {
+          updateData.status = "pending_president";
+          updateData.rejectionReason = null;
+          updateData.rejectedAt = null;
+          updateData.rejectedBy = null;
+          updateData.rejectedByInfo = null;
+        }
 
         // Handle image changes
         if (this.croppedImageBlob || this.selectedImageFile) {
@@ -1699,7 +1731,19 @@ export class CreateEventModal {
         await updateDoc(eventRef, updateData);
 
         logManager.info("[CreateEventModal] Updated event:", this.event.id);
-        notificationManager.show(`Event "${title}" updated!`, "success");
+
+        if (
+          !isPresident &&
+          wasRejected &&
+          updateData.status === "pending_president"
+        ) {
+          notificationManager.show(
+            `Event "${title}" updated and resubmitted for approval.`,
+            "success"
+          );
+        } else {
+          notificationManager.show(`Event "${title}" updated!`, "success");
+        }
 
         // Call success callback with updated data
         this.onSuccess(this.event.id, { ...this.event, ...updateData });
@@ -1709,6 +1753,11 @@ export class CreateEventModal {
           currentUser?.profile?.profile?.firstName || "Unknown";
         const profileLastName = currentUser?.profile?.profile?.lastName || "";
 
+        // Determine status based on user role
+        // Presidents and devOwners can auto-approve, officials need approval
+        const isPresident = this.isUserPresident();
+        const eventStatus = isPresident ? "approved" : "pending_president";
+
         const eventData = {
           title,
           description,
@@ -1717,11 +1766,13 @@ export class CreateEventModal {
           timeSlots,
           firstSlotStart: Timestamp.fromDate(firstSlotStartDate),
           lastSlotEnd: Timestamp.fromDate(lastSlotEndDate),
-          status: "approved", // Auto-approve for now (devTest flow)
+          status: eventStatus,
           isLive: false,
           imageUrl: null,
           createdBy: currentUser?.uid,
           createdByInfo: {
+            name: `${profileFirstName} ${profileLastName}`.trim() || "Unknown",
+            uid: currentUser?.uid,
             firstName: profileFirstName,
             lastName: profileLastName,
           },
@@ -1745,7 +1796,16 @@ export class CreateEventModal {
         }
 
         logManager.info("[CreateEventModal] Created event:", eventId);
-        notificationManager.show(`Event "${title}" created!`, "success");
+
+        // Show appropriate message based on status
+        if (eventStatus === "pending_president") {
+          notificationManager.show(
+            `Event "${title}" submitted for approval! The president will review it soon.`,
+            "success"
+          );
+        } else {
+          notificationManager.show(`Event "${title}" created!`, "success");
+        }
 
         // Call success callback and close
         this.onSuccess(eventId, eventData);

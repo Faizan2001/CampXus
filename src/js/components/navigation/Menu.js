@@ -187,7 +187,9 @@ function toggleDarkMode() {
   try {
     // Update the first theme-color meta without media (fallback) if present,
     // otherwise update all theme-color tags so Android/iOS reflect app toggle.
-    const metas = Array.from(document.querySelectorAll('meta[name="theme-color"]'));
+    const metas = Array.from(
+      document.querySelectorAll('meta[name="theme-color"]')
+    );
     const darkColor = "#0d021a";
     const lightColor = "#ffffff";
     const color = isDarkMode ? darkColor : lightColor;
@@ -1295,8 +1297,7 @@ async function setupNotificationsIndicatorListener(userId) {
             n.status !== "read" &&
             n.status !== "dismissed";
           const isTargetType =
-            n.type === "friend_request" ||
-            n.type === "location_share_request";
+            n.type === "friend_request" || n.type === "location_share_request";
           return isUnseen && isTargetType;
         });
         recomputeNotificationsDot();
@@ -1304,13 +1305,10 @@ async function setupNotificationsIndicatorListener(userId) {
     );
 
     // Also listen to pending friend requests directly
-    friendReqUnsub = dm.listenToPendingFriendRequests(
-      userId,
-      (requests) => {
-        _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
-        recomputeNotificationsDot();
-      }
-    );
+    friendReqUnsub = dm.listenToPendingFriendRequests(userId, (requests) => {
+      _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
+      recomputeNotificationsDot();
+    });
   } catch (e) {
     console.warn("⚠️ Could not set notifications listener:", e);
   }
@@ -1357,9 +1355,7 @@ function initializeMessagesEntry() {
       // auth subscription fires (affects iOS PWA on cold start).
       try {
         if (typeof currentUser?.isLoggedIn === "function") {
-          btn.style.display = currentUser.isLoggedIn()
-            ? "inline-flex"
-            : "none";
+          btn.style.display = currentUser.isLoggedIn() ? "inline-flex" : "none";
         }
       } catch (_) {}
 
@@ -1430,10 +1426,11 @@ async function setupMessagesIndicator(userId) {
     _messagesUserId = userId;
 
     // Dynamically import to keep Menu.js bundle light
-    const [{ db }, { collection, query, where, onSnapshot }] = await Promise.all([
-      import("../../lib/firebase/firebase-config.js"),
-      import("firebase/firestore"),
-    ]);
+    const [{ db }, { collection, query, where, onSnapshot }] =
+      await Promise.all([
+        import("../../lib/firebase/firebase-config.js"),
+        import("firebase/firestore"),
+      ]);
     const { unreadTracker } = await import(
       "../../services/groups/UnreadTracker.js"
     );

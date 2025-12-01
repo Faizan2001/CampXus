@@ -312,6 +312,8 @@ This document outlines the phased development approach for the Clubs feature.
 
 ## 📦 Phase 5: Moderation & Role System
 
+> **Current Implementation Status:** Phase 5 core (president moderation & roles) is complete. SAF dashboard, Cloud Function role management, and admin-level features are deferred to Phase 7. See `progress.md` for details.
+
 ### Goals
 
 - Moderate tab for presidents/SAF

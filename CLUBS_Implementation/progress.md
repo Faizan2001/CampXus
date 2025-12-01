@@ -2076,4 +2076,891 @@ Phase 5 (Moderation & Roles) can now proceed.
 
 ---
 
+## 🧭 2025-01-XX — Navigation Restructure: Messages & Clubs Separation
+
+### What Changed (Major UI Restructure)
+
+The original PRD design had **Clubs as a sub-tab under "Groups"**. This was restructured for better discoverability and cleaner separation of concerns:
+
+**Before (Original Design):**
+
+```
+Main Navigation
+├── Schedule
+├── Friends
+├── Groups (existing) ← contains:
+│   ├── Classes (tab) ← class spaces
+│   └── Clubs (tab) ← campus organizations
+├── Notify Friends (removed)
+└── Notifications
+```
+
+**After (Current Implementation):**
+
+```
+Main Navigation
+├── Schedule      (nav icon)
+├── Friends       (nav icon)
+├── Clubs         (nav icon) ← Campus organizations & events
+├── Messages      (nav icon) ← Class spaces messaging
+└── Notifications (top-right icon only)
+```
+
+### Changes Made:
+
+| Component      | Before               | After                         |
+| -------------- | -------------------- | ----------------------------- |
+| Class Spaces   | Groups → Classes tab | Messages (top-level nav)      |
+| Campus Clubs   | Groups → Clubs tab   | Clubs (top-level nav)         |
+| Notify Friends | Had nav link         | Removed entirely              |
+| Notifications  | Had nav link         | Top-right icon only (desktop) |
+| Mobile Nav     | Had dead badge code  | Fixed with realtime listener  |
+
+### Files Affected:
+
+| File                                      | Changes                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `index.html`                              | Nav structure with Messages and Clubs as separate items              |
+| `src/js/router/Router.js`                 | Routes: `messages`→GroupsPage, `groups`→ClubsPage, `clubs`→ClubsPage |
+| `src/js/components/navigation/Menu.js`    | Added realtime unread listener for Messages badge                    |
+| `src/js/services/groups/UnreadTracker.js` | Added custom event dispatch for immediate badge updates              |
+| `src/css/layout.css`                      | Added `.mobile-nav-item.has-alert::after` for mobile badge           |
+| `public/templates/clubs.html`             | Removed redundant header (just root container now)                   |
+| `CLUBS_Implementation/PRD.md`             | Updated section 1.3 and 4.1 to reflect new structure                 |
+
+### Why This Change:
+
+1. **Better Discoverability** — Clubs and Messages are both first-class features deserving dedicated nav slots
+2. **Cleaner Mental Model** — "Messages" for class conversations, "Clubs" for campus organizations
+3. **Removed Dead Feature** — "Notify Friends" had been deprecated and removed
+4. **Fixed Mobile UX** — Mobile nav now properly shows unread indicators for Messages
+
+### Router Configuration:
+
+```javascript
+// src/js/router/Router.js
+{
+  path: 'messages',      // Top-level nav: Class spaces
+  component: GroupsPage  // Renders class spaces list
+},
+{
+  path: 'groups',        // Legacy route (redirects to clubs)
+  component: ClubsPage   // Renders campus clubs
+},
+{
+  path: 'clubs',         // Top-level nav: Campus clubs
+  component: ClubsPage   // Renders campus clubs
+}
+```
+
+---
+
 -- End of file
+
+---
+
+## 🛡️ 2025-11-30 — Phase 5: Moderation & Role System
+
+### What Was Built (The Fun Version! 👑)
+
+Club presidents can now manage their teams and approve events — like being the principal of your own student organization! Here's what's new:
+
+**Features Added:**
+
+1. **👥 Members Tab (Complete!)**
+
+   - Shows all club members organized by role
+   - 👑 President section at top with golden badge
+   - ⭐ Officials section with purple badges
+   - 👤 Regular members section
+   - Promote ↑ / Demote ↓ buttons for managing roles
+   - Beautiful member cards with avatars and join dates
+
+2. **🛡️ Moderate Tab (Complete!)**
+
+   - Shows all pending events awaiting approval
+   - ✅ Approve button with one-click approval
+   - ❌ Reject button with optional reason modal
+   - Pending count badge on the tab
+   - Empty state when all caught up
+   - Access restricted to presidents only
+
+3. **⚙️ Event Approval Flow (Complete!)**
+
+   - Presidents/devOwners can auto-approve (events go straight to approved)
+   - Officials can create events that go to "pending_president" status
+   - Rejections include optional feedback reason
+   - Notifications for approval/rejection actions
+
+4. **🔐 Updated Firestore Rules**
+   - `isClubPresident()` helper for president-only actions
+   - `isClubOfficialMember()` helper for officials in `officialIds` array
+   - Officials can create events (pending status)
+   - Officials can only edit their own pending/rejected events
+   - Presidents can approve/reject/delete any events
+
+### Files Created/Changed:
+
+| File                                          | What Changed                                             |
+| --------------------------------------------- | -------------------------------------------------------- |
+| `src/js/components/clubs/MembersTab.js`       | **NEW** — Members display + role management              |
+| `src/js/components/clubs/ModerateTab.js`      | **NEW** — Event approval/rejection UI                    |
+| `src/css/clubs/members.css`                   | **NEW** — ~400 lines of Members & Moderate styling       |
+| `src/css/clubs/index.css`                     | Added import for members.css                             |
+| `src/js/pages/ClubDetailPage.js`              | Added Moderate tab, integrated new components            |
+| `src/js/components/clubs/CreateEventModal.js` | Role-based event status (pending/approved)               |
+| `firestore.rules`                             | Updated events subcollection rules for role-based access |
+
+### UX Design Principles Applied:
+
+1. **Non-technical friendly** — Clear labels, icons, and confirmations
+2. **Consistent CSS** — Uses existing clubs glassmorphism, purple gradients, dark theme
+3. **Optimistic UI** — Immediate feedback with rollback on error
+4. **Mobile responsive** — Cards and buttons work well on small screens
+
+### Visual Layout:
+
+```
+Club Detail Page
+├── Events Tab (default)
+├── Members Tab
+│   ├── 👑 President Section
+│   │   └── [President Card]
+│   ├── ⭐ Club Officials
+│   │   ├── [Official Card] [↓ demote]
+│   │   └── [Official Card] [↓ demote]
+│   └── 👤 Members
+│       ├── [Member Card] [↑ promote]
+│       └── [Member Card] [↑ promote]
+└── Moderate Tab (president only)
+    ├── 🕐 Pending Approval (3)
+    │   ├── [Event Card] [✓ Approve] [✗ Reject]
+    │   └── [Event Card] [✓ Approve] [✗ Reject]
+    └── ✅ All Caught Up! (when empty)
+```
+
+### Manual Tests (Your Checkpoint!) 🧪
+
+**Setup:**
+
+1. Firebase emulator running: `npm run firebase:emulators`
+2. Dev server running: `npm run dev`
+
+**Test 1: Moderate Tab Visibility**
+
+1. Navigate to a club you own (created as devTest owner)
+2. Verify you see 3 tabs: Events, Members, Moderate
+3. Log in as a different user → Should NOT see Moderate tab
+
+**Test 2: Members Tab Display**
+
+1. Click Members tab on any club
+2. Verify sections show: President, Officials (if any), Members
+3. Verify role badges appear correctly
+4. Verify your own card shows "(You)" indicator
+
+**Test 3: Promote a Member**
+
+1. As club president, go to Members tab
+2. Find a regular member with the ↑ arrow button
+3. Click to promote → Confirm dialog appears
+4. Confirm → Member moves to Officials section with ⭐ badge
+5. Check Firestore: member should have `role: "official"` and be in `officialIds`
+
+**Test 4: Demote an Official**
+
+1. As club president, go to Members tab
+2. Find an official with the ↓ arrow button
+3. Click to demote → Confirm dialog appears
+4. Confirm → Member moves back to Members section
+5. Check Firestore: member should have `role: "member"`
+
+**Test 5: Create Event as Official**
+
+1. Promote a test user to official
+2. Log in as that official
+3. Create an event
+4. Toast should say "submitted for approval"
+5. Event should have `status: "pending_president"`
+
+**Test 6: Approve Event**
+
+1. As president, go to Moderate tab
+2. Find a pending event
+3. Click ✅ Approve
+4. Event should move to Events tab with approved status
+5. Pending count badge should decrease
+
+**Test 7: Reject Event**
+
+1. As president, go to Moderate tab
+2. Click ✗ Reject on an event
+3. Rejection modal appears with optional reason field
+4. Enter a reason and confirm
+5. Event status changes to "rejected"
+6. Pending count badge decreases
+
+**Test 8: Empty State**
+
+1. Approve/reject all pending events
+2. Moderate tab should show "All Caught Up!" message
+3. Green checkmark icon displayed
+
+### If Something Breaks:
+
+- **Moderate tab not visible?** — Check you're the club owner (devOwnerUid, presidentId, or createdBy)
+- **Promote fails?** — Check Firestore rules allow updating `members` array
+- **Events not showing in Moderate?** — Check events have `status: "pending_president"` or `"pending_saf"`
+- **CSS looks wrong?** — Hard refresh (Ctrl+Shift+R) to pick up new members.css
+
+---
+
+### Phase 5 Completion Checklist:
+
+| Feature                               | Status  |
+| ------------------------------------- | ------- |
+| Members Tab with role sections        | ✅ Done |
+| Role badges (President, Official)     | ✅ Done |
+| Promote/Demote buttons                | ✅ Done |
+| Moderate Tab (pending events list)    | ✅ Done |
+| Approve event with one click          | ✅ Done |
+| Reject event with reason modal        | ✅ Done |
+| Pending count badge on tab            | ✅ Done |
+| Officials create pending events       | ✅ Done |
+| Firestore rules for role-based access | ✅ Done |
+| Empty state for Moderate tab          | ✅ Done |
+| Access control (president only)       | ✅ Done |
+
+> **Note:** System notifications for approval/rejection actions are implemented in **Phase 6** (Cloud Functions + ClubNotificationService).
+
+### What's NOT Implemented Yet:
+
+| Feature                        | Status      | Notes                                                                  |
+| ------------------------------ | ----------- | ---------------------------------------------------------------------- |
+| SAF Moderator Dashboard        | 🔲 Not Done | University-wide moderation view                                        |
+| SAF Approval step              | 🔲 Not Done | `pending_saf` → `approved` flow                                        |
+| Remove member from club        | 🔲 Not Done | Kick functionality                                                     |
+| Transfer presidency            | 🔲 Not Done | Hand over club ownership                                               |
+| Cloud Function role management | 🔲 Not Done | Role changes are currently club-doc-only; user `clubRoles` not updated |
+
+> **Architecture Note:** Role management (promote/demote) currently writes directly to `clubs/{clubId}` document (`members` array + `officialIds`). The original Implementation-Plan.md envisioned Cloud Functions for this (`promoteToOfficial`, `demoteOfficial`, `assignPresident`) which would also update user-level `clubRoles` on `/users/{userId}`. This is acceptable for MVP but should be migrated to Cloud Functions in a future phase for:
+>
+> - Server-side audit logging
+> - Consistent `clubRoles` sync on user documents
+> - Better concurrency handling via transactions
+
+### Phase 5 Summary:
+
+**Phase 5 Core is COMPLETE! ✅**
+
+Club presidents can now:
+
+- View all members by role
+- Promote members to officials
+- Demote officials back to members
+- Review and approve pending events
+- Reject events with feedback
+
+---
+
+_Progress log updated: Phase 5 core implementation complete — 2025-11-30_
+
+---
+
+## 🔔 2025-11-30 — Phase 6: Club Notifications (Backend + UI)
+
+### What I Implemented
+
+Phase 6 connects the Clubs system to the existing notifications infrastructure so that club activity shows up in:
+
+- The `/notifications` page (with a dedicated **Clubs** filter)
+- Browser / PWA push notifications (via the existing FCM pipeline)
+
+This was done in three layers: Cloud Functions, Firestore documents, and front-end rendering.
+
+---
+
+### 1) Cloud Functions — Club Event Notification Triggers
+
+**File touched:** `functions/index.js`
+
+I added new helpers and triggers that watch the `clubs/{clubId}/events/{eventId}` documents and create notification documents in `/notifications`. Push delivery reuses the existing `onNotificationCreated` trigger and `sendToUser()` helper.
+
+#### New helpers
+
+- `createClubNotificationForUser(userId, data)`
+  - Creates a `/notifications/{id}` document with:
+    - `userId`, `type`, `clubId`, `eventId`, `title`, `message`, `clubInfo`
+    - `createdAt: serverTimestamp()`, `status: "pending"`, `readAt: null`
+- `notifyClubFollowers(clubId, notificationData)`
+  - Finds users where `followedClubs` contains `clubId`
+  - Writes a notification doc for each follower in batches of 400 to respect Firestore batch limits
+- `updateClubEventStats(clubId)`
+  - Recomputes:
+    - `eventsThisWeek` (approved events in next 7 days)
+    - `nextEventDate` (earliest upcoming approved event)
+  - Updates these fields on the club document
+
+#### New Firestore triggers
+
+All use Admin SDK and bypass client rules as intended for system operations.
+
+1. **`onClubEventCreated`**
+
+   - Path: `clubs/{clubId}/events/{eventId}` — `onDocumentCreated`
+   - Behavior:
+     - If `status !== "pending_president"`, exits early
+     - Loads the club doc for `clubId`
+     - If `club.presidentId` is present, creates:
+       - `type: "club_event_pending"`
+       - `title: "New Event Pending Approval"`
+       - `message: "\"<event title>\" is waiting for your review"`
+       - `clubInfo: { name, logoUrl, accentColor }`
+     - This notifies the club president whenever an official submits a new event for approval
+
+2. **`onClubEventStatusChanged`**
+
+   - Path: `clubs/{clubId}/events/{eventId}` — `onDocumentUpdated`
+   - Behavior:
+
+     - Loads `before` and `after`; if `before.status === after.status`, exits
+     - Loads `club` doc for `clubId`
+
+   - **When an event is approved**
+
+     - Condition: `after.status === "approved"` and `before.status !== "approved"`
+     - Notifies the event creator:
+       - `type: "club_event_approved"`
+       - `title: "Event Approved! 🎉"`
+       - `message: "\"<title>\" is now live"`
+     - Determines if this is a **re-approval** (edited approved event):
+       - `isReapproval = before.status === "pending_president" && before.approvedAt != null`
+     - If re-approval:
+       - Calls `notifyClubFollowers` with `type: "club_event_changed"`
+         - Title: `"<club name> updated an event"`
+         - Message: `"\"<title>\" has been updated"`
+     - Else (first approval):
+       - Calls `notifyClubFollowers` with `type: "club_new_event"`
+         - Title: `"New event from <club name>"`
+         - Message: event title
+     - Finally calls `updateClubEventStats(clubId)` to refresh `eventsThisWeek` and `nextEventDate`
+
+   - **When an event is rejected**
+
+     - Condition: `after.status === "rejected"` and `after.createdBy` exists
+     - Sends a notification to the event creator:
+       - `type: "club_event_rejected"`
+       - Title: `"Event Not Approved"`
+       - Message: `rejectionReason` if present, otherwise `"\"<title>\" was not approved"`
+
+   - **When an approved event is cancelled**
+     - Condition: `before.status === "approved"` and `after.status === "cancelled"`
+     - Calls `notifyClubFollowers` with:
+       - `type: "club_event_cancelled"`
+       - Title: `"Event cancelled"`
+       - Message: `"\"<title>\" from <club name> has been cancelled"`
+     - Updates club stats via `updateClubEventStats(clubId)`
+
+3. **`onClubEventStarted`**
+
+   - Path: `clubs/{clubId}/events/{eventId}` — `onDocumentUpdated`
+   - Behavior:
+
+     - Exits unless `before.isLive` is falsey and `after.isLive === true`
+     - Loads the club doc
+     - Calls `notifyClubFollowers` with:
+       - `type: "club_event_started"`
+       - Title: `"🔴 Event is LIVE!"`
+       - Message: `"\"<title>\" is happening now!"`
+
+   - This ties directly into the "Go Live" button from Phase 4: when an official starts the event, all followers get a "live" notification.
+
+---
+
+### 2) Scheduled Functions — Reminders & Cleanup
+
+**File touched:** `functions/index.js`
+
+I added two scheduled jobs using `onSchedule`:
+
+1. **`sendClubEventReminders`**
+
+   - Schedule: `"every 5 minutes"`
+   - Logic:
+     - Computes the time window `[now + 15 min, now + 20 min)`
+     - Uses a collection group query on `events`:
+       - `status == "approved"`
+       - `firstSlotStart >= fifteenMinutesFromNow`
+       - `firstSlotStart < twentyMinutesFromNow`
+     - For each matching event:
+       - Skips if `reminderSent` flag is already true
+       - Loads the parent club (`clubRef = eventDoc.ref.parent.parent`)
+       - Sets `reminderSent: true` on the event document
+       - Finds all followers (`users` where `followedClubs` contains clubId)
+       - Creates `/notifications` documents with:
+         - `type: "club_event_reminder"`
+         - Title: `"⏰ Event starting soon!"`
+         - Message: `"\"<title>\" starts in 15 minutes"`
+         - `clubInfo` denormalized from club doc
+       - Uses batched writes (chunks of ≤400 notifications) per event
+
+2. **`cleanupOldClubNotifications`**
+
+   - Schedule: `"every sunday 04:00"`
+   - Logic:
+     - Computes `thirtyDaysAgo`
+     - For each club notification `type`:
+       - `"club_new_event"`
+       - `"club_event_reminder"`
+       - `"club_event_changed"`
+       - `"club_event_started"`
+       - `"club_event_cancelled"`
+       - `"club_event_pending"`
+       - `"club_event_approved"`
+       - `"club_event_rejected"`
+     - Queries `/notifications` where:
+       - `type == <clubType>`
+       - `createdAt < thirtyDaysAgo`
+     - Deletes up to 400 old docs per type in a batch
+   - This enforces the PRD’s **30‑day retention** for club notifications.
+
+---
+
+### 3) Push Delivery — Extending `onNotificationCreated`
+
+**File touched:** `functions/index.js`
+
+There is already a generic `onNotificationCreated` trigger that sends push notifications (via `sendToUser`) for certain types (`location_share_request`). I extended it to understand `club_*` notifications:
+
+- For any `/notifications/{id}` where `type` starts with `"club_"`:
+  - Looks at `userId`, `clubId`, `eventId`, `title`, `message`
+  - Builds an SPA link:
+    - If `clubId` and `eventId` → `/#club?id=<clubId>&eventId=<eventId>`
+    - If only `clubId` → `/#club?id=<clubId>`
+    - Else → `/#notifications`
+  - Sends a push via `sendToUser(toUserId, notification, payload)`:
+    - `notification.title` = stored `title` (fallback `"Club update"`)
+    - `notification.body` = stored `message` (fallback `""`)
+    - `data.type` = club notification type
+    - `data.clubId`, `data.eventId`, `data.link` = deep link into SPA
+  - Logs success/error for observability
+
+Important: Cloud Functions **only** create `/notifications` docs; the push is triggered centrally from `onNotificationCreated`, so there is no duplicate sending.
+
+---
+
+### 4) Front-End Service — ClubNotificationService
+
+**File added:** `src/js/services/clubs/ClubNotificationService.js`
+
+Purpose: keep all **club notification type logic** in one small helper so the Notifications page can just ask for “how should I display this?”
+
+Exports:
+
+- `isClubNotification(notification)`
+  - Returns `true` if `notification.type` starts with `"club_"`
+- `getClubNotificationDisplay(notification)`
+  - Interprets type and builds display metadata:
+    - `title` — user-friendly title (falls back to `notification.title` or a generic "Club update")
+    - `message` — friendly description (falls back to `notification.message`)
+    - `badgeText` — e.g. `"New event"`, `"Starting soon"`, `"Live now"`, `"Pending approval"`, `"Approved"`, `"Not approved"`
+    - `badgeClass` — CSS class name (e.g. `badge-club-new`, `badge-club-reminder`)
+    - `iconClass` — Font Awesome class (e.g. `fa-calendar-plus`, `fa-clock`, `fa-broadcast-tower`)
+
+This helper is **read-only**: it does not write to Firestore and does not send notifications; all writes remain in Cloud Functions per the security design.
+
+---
+
+### 5) Notifications Page — Clubs Filter & Card UI
+
+**Files touched:**
+
+- `src/js/pages/NotificationsPage.js`
+- `src/css/notifications.css`
+
+I extended the existing Notifications page to properly render and filter club notifications.
+
+#### New "Clubs" filter
+
+- Added a **Clubs** pill button to the filter row:
+  - New filter value: `this.filter = "club"`
+  - Filter buttons now include:
+    - `All`
+    - `Friend Requests`
+    - `Location Requests`
+    - `Clubs`
+- The filter logic in `renderNotifications()`:
+  - `friend` → only `friend_request`
+  - `location` → only `location_share_request`
+  - `club` → any notification where `isClubNotification(notification)` is true (all `club_*` types)
+
+#### Club notification normalization
+
+- When mapping `this.notifications` into the internal list, I now preserve club fields:
+  - `clubId`, `eventId`, `title`, `message`, `clubInfo`
+- This keeps the rendering code simple and avoids accessing raw Firestore objects directly.
+
+#### New renderer: `renderClubNotification(notification)`
+
+For any `club_*` type, `renderNotifications()` now calls `renderClubNotification` instead of the generic fallback.
+
+Key UI details:
+
+- Layout:
+  - Uses the same `.notification-item` shell as other notifications
+  - Adds `club-notification` CSS class for visual styling
+  - Shows the **club logo** if `notification.clubInfo.logoUrl` is present
+  - Otherwise uses a neutral fallback icon
+- Text:
+  - Club name in bold (`notification.clubInfo.name` or "Club update")
+  - Short description derived from `getClubNotificationDisplay(notification).message`
+  - Relative timestamp via existing `formatTime()` helper
+- Badge:
+  - A small pill badge next to the club name:
+    - `New event`, `Starting soon`, `Live now`, `Updated`, `Cancelled`, `Pending approval`, `Approved`, `Not approved`
+  - Badge styling is driven by `badgeClass` from `getClubNotificationDisplay`
+- Actions:
+  - `View` button with `data-club-id` and `data-event-id` attributes
+  - `Dismiss` button (reuses existing dismissal flow)
+
+#### Click handling / Deep links
+
+- In `ensureListDelegationBound()` I added support for the **View** button:
+
+  - Detects `.open-club-notification` clicks
+  - Reads `data-club-id` and `data-event-id`
+  - Updates `window.location.hash` to:
+    - `#club?id=<clubId>&eventId=<eventId>` (if eventId present)
+    - `#club?id=<clubId>` (otherwise)
+
+- The existing `ClubDetailPage` already parses `eventId` from the URL and auto-opens the event modal, so this deep link behavior reuses that flow.
+
+#### Cosmetics / CSS
+
+In `src/css/notifications.css`:
+
+- Added styling for `.notification-item.club-notification`:
+  - Subtle purple/indigo gradient background
+  - Slight glow similar to other glassmorphism cards
+- Added `.notification-icon.type-club` for the leading icon circle
+- Added `.club-badge` + variant classes:
+  - `badge-club-new`, `badge-club-reminder`, `badge-club-live`, `badge-club-updated`,
+    `badge-club-cancelled`, `badge-club-pending`, `badge-club-approved`,
+    `badge-club-rejected`, `badge-club-generic`
+- Ensured `.notification-details` is visible for club notifications to show the descriptive message.
+
+#### Empty state copy
+
+- Updated the empty-state text to mention clubs:
+  - Now says: _“When friends send you requests, share their location, **or clubs post new updates**, you'll see them here.”_
+
+---
+
+### Manual Tests for Phase 6 (Step-by-Step)
+
+> These assume you are using the Firebase emulator (recommended) and have at least one test club with followers and events (from earlier phases).
+
+#### Setup
+
+1. Start emulators (Firestore, Functions, Storage as needed):
+   ```bash
+   npm run firebase:emulators
+   ```
+2. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+#### Test 1 — Pending Event → President Notification
+
+1. Log in as a **club official** (not president).
+2. Open **Club Detail → Events tab** for a club where you are an official.
+3. Create a new event (using the existing Create Event flow).
+4. In Firestore, confirm the event has `status: "pending_president"`.
+5. Log in as the **club president**.
+6. Navigate to `/#notifications`.
+7. Click the **Clubs** filter.
+
+Expected:
+
+- You see a new club notification with:
+  - Badge: `Pending approval`
+  - Title referencing the club
+  - Message like `"«Event Title» is waiting for your review"`
+- Clicking **View** takes you to `#club?id=<clubId>` (optionally with event pre-opened later once approved).
+
+#### Test 2 — Approve Event → Creator + Followers Notifications
+
+1. As president, go to the club’s **Moderate** tab.
+2. Approve the pending event.
+3. As the **event creator**:
+   - Open `/notifications`.
+   - Check under **All** or **Clubs** filter.
+4. As a **follower** of the same club:
+   - Open `/notifications`.
+
+Expected:
+
+- Creator receives:
+  - `club_event_approved` notification
+  - Badge: `Approved`
+  - Message: `"«Event Title» is now live"`
+- Followers receive:
+  - For first approval: `club_new_event` notification
+    - Badge: `New event`
+    - Message based on event title
+  - For edited-and-reapproved events: `club_event_changed` notification
+    - Badge: `Updated`
+    - Message like `"«Event Title» has been updated"`
+- Clicking **View** on follower’s notification deep-links to the club page (and event modal if you include `eventId`).
+
+#### Test 3 — Reject Event → Creator Notification
+
+1. As president, pick a pending event and choose **Reject**, optionally adding a reason.
+2. As the event creator, open `/notifications` with **Clubs** filter.
+
+Expected:
+
+- You see a `club_event_rejected` notification with:
+  - Badge: `Not approved`
+  - Message equal to the rejection reason if provided, otherwise a generic “was not approved” message.
+
+#### Test 4 — Cancel Approved Event → Followers Notification
+
+1. Take an **approved** event and change its status to `"cancelled"` (via Moderate tab or Firestore emulator).
+2. As a follower, open `/notifications` with **Clubs** filter.
+
+Expected:
+
+- You see a `club_event_cancelled` notification:
+  - Badge: `Cancelled`
+  - Message such as `"«Event Title» from <Club> has been cancelled"`.
+
+#### Test 5 — Go Live → Live Notification to Followers
+
+1. For an approved event within its time window, click **Go Live** as an official.
+2. As a follower, check `/notifications` with **Clubs** filter.
+
+Expected:
+
+- You see a `club_event_started` notification:
+  - Badge: `Live now`
+  - Message: `"«Event Title» is happening now!"`
+- Clicking **View** opens the club detail page; if you wire `eventId` in the URL, it should auto-open the event modal.
+
+#### Test 6 — Reminder Function (Emulator / Manual)
+
+Because reminders depend on real time, easiest is to simulate:
+
+1. Create an approved event with `firstSlotStart` ~15–20 minutes in the future.
+2. Ensure `reminderSent` is `false` / unset on the event.
+3. Wait for the scheduled function to run (or temporarily adjust the schedule for local testing if needed).
+4. Check `/notifications` for followers.
+
+Expected:
+
+- Followers receive `club_event_reminder` notifications:
+  - Badge: `Starting soon`
+  - Message: `"«Event Title» starts in 15 minutes"`
+- The event document now has `reminderSent: true` to prevent duplicate reminders.
+
+#### Test 7 — Notifications Page UI
+
+1. Open `/notifications` route:
+   - Confirm the **Clubs** filter button appears.
+2. Click the **Clubs** filter:
+   - Only `club_*` notifications remain in the list.
+3. Hover/inspect a club notification:
+   - Card has a purple/indigo-tinted glassmorphism style.
+   - Shows club logo if available, otherwise fallback icon.
+   - Shows appropriate badge text and icon based on type.
+4. Click **View**:
+   - URL hash changes to `#club?id=<clubId>` or `#club?id=<clubId>&eventId=<eventId>`.
+   - Club detail page loads; if an eventId is included, the event modal opens automatically (per existing `ClubDetailPage` behavior).
+
+---
+
+### Phase 6 Completion Checklist
+
+Per `Implementation-Plan.md` Phase 6:
+
+#### 6.1 Notification Types (`ClubNotificationService.js`)
+
+- [x] Recognize all `club_*` notification types
+- [x] Provide consistent titles/messages for each type
+- [x] Map each type to a badge label and icon
+
+#### 6.2 Cloud Functions for Notifications
+
+- [x] `onClubEventCreated` — notify president of `pending_president` events
+- [x] `onClubEventStatusChanged` — notify creator + followers on:
+  - [x] Approval (`club_event_approved` + `club_new_event` / `club_event_changed`)
+  - [x] Rejection (`club_event_rejected`)
+  - [x] Cancellation (`club_event_cancelled`)
+- [x] `onClubEventStarted` — notify followers when `isLive` becomes true (`club_event_started`)
+- [x] Scheduled reminders (`sendClubEventReminders`) — `club_event_reminder` 15 minutes before start
+- [x] Scheduled cleanup (`cleanupOldClubNotifications`) — delete club notifications older than 30 days
+- [x] Push integration via existing `onNotificationCreated` / `sendToUser`
+
+#### 6.3 Notifications Page Integration
+
+- [x] Added **Clubs** filter on Notifications page
+- [x] Club notification card rendering (logo, badge, type-specific text)
+- [x] Deep link to clubs/events when tapping **View**
+- [x] Club logo shown when available (`clubInfo.logoUrl`)
+
+---
+
+### Phase 6 Summary
+
+- The Clubs system is now fully connected to the global notifications pipeline:
+  - Cloud Functions create and clean up `/notifications` documents for all club event lifecycle events.
+  - The existing push system delivers OS-level notifications using the same FCM configuration as friends/location.
+  - The Notifications page has a dedicated **Clubs** filter and rich, clickable cards that deep-link into the Clubs UI.
+- All of this stays consistent with security and privacy goals:
+  - Only Cloud Functions create club notifications for other users.
+  - Clients only read, mark-as-read, or dismiss their own notifications.
+  - No changes were made to user-auth flows or core notification rules.
+
+_Progress log updated: Phase 6 (Notifications) implemented — 2025-11-30_
+
+---
+
+## 🎉 2025-12-01 — Phase 5 & 6 Complete: Moderation & Notifications
+
+### Summary of Changes
+
+This commit completes **Phase 5 (Moderation & Role System)** and **Phase 6 (Club Notifications)** of the Clubs implementation.
+
+---
+
+### Phase 5: Moderation & Role System ✅
+
+#### New Components Created:
+
+| File                                     | Purpose                                                     |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| `src/js/components/clubs/MembersTab.js`  | Members display with role badges and promote/demote actions |
+| `src/js/components/clubs/ModerateTab.js` | Event approval/rejection interface for presidents           |
+| `src/css/clubs/members.css`              | Styling for member cards, role badges, and actions          |
+
+#### Features Implemented:
+
+**Members Tab:**
+
+- Role hierarchy display: President → Officials → Members
+- Role badges with visual distinction (crown for president, star for officials)
+- Promote/demote buttons for presidents
+- Member cards with avatars, names, and join dates
+- Responsive card layout
+
+**Moderate Tab:**
+
+- Lists pending events awaiting approval
+- Approve with one click
+- Reject with optional comment modal
+- Visual feedback with loading states
+- Empty state when all caught up
+- Pending count badge on tab
+
+**Role-Based Event Creation:**
+
+- Presidents can create events (auto-approved)
+- Officials can create events (pending president approval)
+- Officials can edit/resubmit rejected events
+
+**Event Management & Live Controls:**
+
+- Presidents/devOwners/club creators can edit and delete any event
+- Officials can edit only events they created that are pending or rejected
+- Officials can start/end (Go Live / End Event) approved events they created
+
+#### Firestore Rules Updated:
+
+- Added `isClubPresident()` helper for events subcollection
+- Added `isClubOfficialMember()` helper for official role checking
+- Officials can only create events with `pending_president` status
+- Officials cannot self-approve or modify approval fields
+- Officials can toggle live status (`isLive`, `startedAt`, `startedBy`, `startedByInfo`, `endedAt`, `endedBy`) for approved events they created
+- Only presidents/devOwners/club creators can delete events
+- President/devOwner/club creator can update `members` and `officialIds` arrays on club doc while all non-membership fields (including `presidentId`) remain locked
+
+---
+
+### Phase 6: Club Notifications ✅
+
+#### New Components Created:
+
+| File                                               | Purpose                                              |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| `src/js/services/clubs/ClubNotificationService.js` | Notification type recognition and display formatting |
+
+#### Cloud Functions Added (`functions/index.js`):
+
+| Function                      | Trigger                 | Notification Types                                                                     |
+| ----------------------------- | ----------------------- | -------------------------------------------------------------------------------------- |
+| `onClubEventCreated`          | Event created           | `club_event_pending` (to president); for auto-approved events: `club_event_approved` (creator), `club_new_event` (followers) |
+| `onClubEventStatusChanged`    | Status changes          | `club_event_approved`, `club_event_rejected`, `club_new_event`, `club_event_cancelled` |
+| `onClubEventStarted`          | `isLive` becomes true   | `club_event_started`                                                                   |
+| `sendClubEventReminders`      | Scheduled (every 5 min) | `club_event_reminder` (15 min before)                                                  |
+| `cleanupOldClubNotifications` | Scheduled (daily)       | Deletes notifications > 30 days old                                                    |
+
+#### Notifications Page Updates:
+
+- Added **Clubs** filter button
+- Club notification card rendering with:
+  - Club logo (with fallback)
+  - Type-specific badges (New event, Approved, Rejected, Live now, etc.)
+  - Type-specific icons
+  - Deep link to club/event via **View** button
+- CSS styling for club notification cards (purple/indigo glassmorphism)
+
+#### Notification Badge Classes:
+
+| Type                   | Badge            | CSS Class              |
+| ---------------------- | ---------------- | ---------------------- |
+| `club_new_event`       | New event        | `badge-club-new`       |
+| `club_event_reminder`  | Starting soon    | `badge-club-reminder`  |
+| `club_event_started`   | Live now         | `badge-club-live`      |
+| `club_event_changed`   | Updated          | `badge-club-updated`   |
+| `club_event_cancelled` | Cancelled        | `badge-club-cancelled` |
+| `club_event_pending`   | Pending approval | `badge-club-pending`   |
+| `club_event_approved`  | Approved         | `badge-club-approved`  |
+| `club_event_rejected`  | Not approved     | `badge-club-rejected`  |
+
+---
+
+### Files Changed Summary
+
+**New Files (5):**
+
+- `src/js/components/clubs/MembersTab.js`
+- `src/js/components/clubs/ModerateTab.js`
+- `src/js/services/clubs/ClubNotificationService.js`
+- `src/css/clubs/members.css`
+- `src/js/tests/services/clubs/` (test directory)
+
+**Modified Files (10):**
+
+- `firestore.rules` — Added president/official role checks for events
+- `functions/index.js` — Added 6 new club notification functions
+- `src/js/pages/ClubDetailPage.js` — Integrated Members & Moderate tabs
+- `src/js/components/clubs/CreateEventModal.js` — Role-based status assignment
+- `src/js/pages/NotificationsPage.js` — Added Clubs filter and rendering
+- `src/css/notifications.css` — Club notification styling
+- `src/css/clubs/index.css` — Import members.css
+- `CLUBS_Implementation/progress.md` — This update
+- `CLUBS_Implementation/Implementation-Plan.md` — Clarification notes
+- `CLUBS_Implementation/PRD.md` — Scope clarifications
+
+---
+
+### What's Next: Phase 7 (Polish & Testing)
+
+- [ ] End-to-end testing of full event lifecycle
+- [ ] Edge case handling (network errors, race conditions)
+- [ ] Performance optimization for large clubs
+- [ ] Accessibility audit
+- [ ] Documentation finalization
+
+_Progress log updated: 2025-12-01_

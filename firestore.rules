@@ -84,6 +84,8 @@ service cloud.firestore {
       // Update: 
       // 1. Creator can update their club (if verified)
       // 2. DevTest owner can update their devTest club
+      // 3. Current president can update membership-related fields (members/officialIds)
+      //
       // NOTE: followerCount is server-managed (Cloud Functions); clients cannot change it directly.
       allow update: if request.auth != null && (
         // Creator can update (verified) but may not touch followerCount
@@ -105,6 +107,59 @@ service cloud.firestore {
             !('followerCount' in request.resource.data) ||
             request.resource.data.followerCount == resource.data.followerCount
           )
+        ) ||
+        // President can update membership-related fields (members / officialIds) without touching followerCount
+        // or other core club metadata. We enforce:
+        // - President check mirrors isClubPresident() used in events: devOwnerUid for devTest,
+        //   or presidentId/createdBy for production clubs.
+        // - No removed top-level fields; new fields limited to members/officialIds
+        // - All non-membership fields remain identical
+        (
+          (
+            // DevTest club: devOwnerUid acts as president
+            resource.data.devTest == true &&
+            resource.data.devOwnerUid == request.auth.uid
+          ) ||
+          (
+            // Production club: presidentId or createdBy
+            resource.data.devTest != true &&
+            (
+              resource.data.presidentId == request.auth.uid ||
+              resource.data.createdBy == request.auth.uid
+            )
+          )
+          ) &&
+          // Preserve followerCount (if present, it must not change)
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          ) &&
+          // Allow only members/officialIds as new top-level fields; all existing keys must remain
+          request.resource.data.keys().hasOnly(resource.data.keys() + ['members','officialIds']) &&
+          // For all other top-level fields (non-membership), require equality when present
+          (
+            (!('presidentId' in request.resource.data) || request.resource.data.presidentId == resource.data.presidentId) &&
+            (!('clubId' in request.resource.data) || request.resource.data.clubId == resource.data.clubId) &&
+            (!('name' in request.resource.data) || request.resource.data.name == resource.data.name) &&
+            (!('description' in request.resource.data) || request.resource.data.description == resource.data.description) &&
+            (!('bannerUrl' in request.resource.data) || request.resource.data.bannerUrl == resource.data.bannerUrl) &&
+            (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == resource.data.logoUrl) &&
+            (!('accentColor' in request.resource.data) || request.resource.data.accentColor == resource.data.accentColor) &&
+            (!('devTest' in request.resource.data) || request.resource.data.devTest == resource.data.devTest) &&
+            (!('devOwnerUid' in request.resource.data) || request.resource.data.devOwnerUid == resource.data.devOwnerUid) &&
+            (!('createdBy' in request.resource.data) || request.resource.data.createdBy == resource.data.createdBy) &&
+            (!('university' in request.resource.data) || request.resource.data.university == resource.data.university) &&
+            (!('universityCode' in request.resource.data) || request.resource.data.universityCode == resource.data.universityCode) &&
+            (!('requireSafApproval' in request.resource.data) || request.resource.data.requireSafApproval == resource.data.requireSafApproval) &&
+            (!('isActive' in request.resource.data) || request.resource.data.isActive == resource.data.isActive) &&
+            (!('presidentInfo' in request.resource.data) || request.resource.data.presidentInfo == resource.data.presidentInfo) &&
+            (!('memberCount' in request.resource.data) || request.resource.data.memberCount == resource.data.memberCount) &&
+            (!('eventsThisWeek' in request.resource.data) || request.resource.data.eventsThisWeek == resource.data.eventsThisWeek) &&
+            (!('nextEventDate' in request.resource.data) || request.resource.data.nextEventDate == resource.data.nextEventDate) &&
+            (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+            (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt == resource.data.updatedAt) &&
+            (!('lastEventAt' in request.resource.data) || request.resource.data.lastEventAt == resource.data.lastEventAt)
+          )
         )
       );
 
@@ -114,19 +169,26 @@ service cloud.firestore {
         (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
       );
 
-      // Events subcollection: reads allowed; creates/updates for club officials
+      // Events subcollection:
+      // - General authenticated users may only read approved events
+      // - Club presidents/dev owners/officials may read all events (for moderation)
       // Must match storage.rules isClubOfficial() and UI authorization (ClubDetailPage, EventDetailModal)
       match /events/{eventId} {
-        allow read: if request.auth != null;
+        allow read: if request.auth != null && (
+          // Presidents/devOwner and officials can read all events, regardless of status
+          isClubPresident() ||
+          isClubOfficialMember() ||
+          // Regular authenticated users may only read approved events
+          resource.data.status == 'approved'
+        );
         
-        // Helper: Check if user is a club official (devOwnerUid, presidentId, or createdBy)
-        // This mirrors storage.rules isClubOfficial() function
-        function isClubOfficial() {
+        // Helper: Check if user is the club president (can approve/manage all)
+        function isClubPresident() {
           let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
           return (
-            // DevTest club: only devOwnerUid can manage
+            // DevTest club: devOwnerUid acts as president
             (club.devTest == true && club.devOwnerUid == request.auth.uid) ||
-            // Production club: presidentId or createdBy can manage
+            // Production club: presidentId or createdBy
             (club.devTest != true && (
               club.presidentId == request.auth.uid ||
               club.createdBy == request.auth.uid
@@ -134,14 +196,64 @@ service cloud.firestore {
           );
         }
         
-        // Create: allow for club officials (devOwnerUid, presidentId, or createdBy)
-        allow create: if request.auth != null && isClubOfficial();
+        // Helper: Check if user is a club official (can create/manage certain events)
+        function isClubOfficialMember() {
+          let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+          // Check if user is in officialIds array (list membership)
+          return club.officialIds != null &&
+                 club.officialIds.hasAny([request.auth.uid]);
+        }
         
-        // Update: same rules as create
-        allow update: if request.auth != null && isClubOfficial();
+        // Create: allow for club presidents (any status) and officials (pending_president only)
+        allow create: if request.auth != null && (
+          // President/devOwner may create events with any valid status
+          isClubPresident() ||
+          // Non-president officials must submit events for moderation
+          (
+            isClubOfficialMember() &&
+            request.resource.data.createdBy == request.auth.uid &&
+            request.resource.data.status == 'pending_president' &&
+            // Officials cannot set approval fields on creation
+            request.resource.data.approvedBy == null &&
+            request.resource.data.approvedAt == null &&
+            request.resource.data.safApprovedBy == null &&
+            request.resource.data.safApprovedAt == null
+          )
+        );
         
-        // Delete: same rules as create/update
-        allow delete: if request.auth != null && isClubOfficial();
+        // Update: presidents can update any event; officials can only update their own
+        // pending or rejected events (no self-approval) and may toggle live state
+        // for their approved events.
+        allow update: if request.auth != null && (
+          // President/devOwner: full control over event (including approvals)
+          isClubPresident() || 
+          // Non-president officials: limited edits on their own events
+          (
+            isClubOfficialMember() &&
+            resource.data.createdBy == request.auth.uid &&
+            // Only events that are awaiting or have failed moderation
+            resource.data.status in ['pending_president', 'rejected'] &&
+            // New status must remain unapproved (cannot self-approve)
+            request.resource.data.status in ['pending_president'] &&
+            // Officials cannot change approval fields
+            request.resource.data.approvedBy == resource.data.approvedBy &&
+            request.resource.data.approvedAt == resource.data.approvedAt &&
+            request.resource.data.safApprovedBy == resource.data.safApprovedBy &&
+            request.resource.data.safApprovedAt == resource.data.safApprovedAt
+          ) ||
+          // Officials can toggle live status for approved events they created,
+          // but may not change any other fields.
+          (
+            isClubOfficialMember() &&
+            resource.data.createdBy == request.auth.uid &&
+            resource.data.status == 'approved' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['isLive', 'startedAt', 'startedBy', 'startedByInfo', 'endedAt', 'endedBy'])
+          )
+        );
+        
+        // Delete: only presidents can delete events
+        allow delete: if request.auth != null && isClubPresident();
       }
 
       // Members subcollection: read for authenticated users; write via server/authorized flows

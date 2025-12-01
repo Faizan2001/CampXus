@@ -22,17 +22,67 @@ export class EventDetailModal {
   }
 
   /**
-   * Check if current user can edit/delete this event
-   * Must match storage.rules isClubOfficial(): devOwnerUid, presidentId, or createdBy
+   * Check if current user can manage this event in any way
+   * (used for live controls). Presidents/dev owners/club creators can
+   * manage all events; officials can manage events they created.
    */
   get canManage() {
-    if (!currentUser?.uid) return false;
-    // Club owner (devTest), president, or club creator can manage
-    // Matches storage.rules isClubOfficial() and firestore.rules event permissions
+    const uid = currentUser?.uid;
+    if (!uid) return false;
+
+    // Club owner (devTest), president, or club creator can manage all events
+    const isPresidentLike =
+      this.clubData?.devOwnerUid === uid ||
+      this.clubData?.presidentId === uid ||
+      this.clubData?.createdBy === uid;
+
+    // Officials can manage events they created
+    const isOfficial =
+      Array.isArray(this.clubData?.officialIds) &&
+      this.clubData.officialIds.includes(uid);
+    const isEventCreator = this.event?.createdBy === uid;
+
+    return isPresidentLike || (isOfficial && isEventCreator);
+  }
+
+  /**
+   * Check if current user can edit this event (via Edit button)
+   * - Presidents/dev owners/club creators can edit any event
+   * - Officials can edit events they created that are pending or rejected
+   */
+  get canEdit() {
+    const uid = currentUser?.uid;
+    if (!uid) return false;
+
+    const isPresidentLike =
+      this.clubData?.devOwnerUid === uid ||
+      this.clubData?.presidentId === uid ||
+      this.clubData?.createdBy === uid;
+    if (isPresidentLike) return true;
+
+    const isOfficial =
+      Array.isArray(this.clubData?.officialIds) &&
+      this.clubData.officialIds.includes(uid);
+    const isEventCreator = this.event?.createdBy === uid;
+    const isPendingOrRejected =
+      this.event?.status === "pending_president" ||
+      this.event?.status === "rejected";
+
+    return isOfficial && isEventCreator && isPendingOrRejected;
+  }
+
+  /**
+   * Check if current user can delete this event
+   * - Only presidents/dev owners/club creators may delete (matches firestore.rules)
+   */
+  get canDelete() {
+    const uid = currentUser?.uid;
+    if (!uid) return false;
+
     return (
-      this.clubData?.devOwnerUid === currentUser.uid ||
-      this.clubData?.presidentId === currentUser.uid ||
-      this.clubData?.createdBy === currentUser.uid
+      this.clubData?.devOwnerUid === uid ||
+      this.clubData?.presidentId === uid ||
+      this.clubData?.createdBy === uid
     );
   }
 
@@ -432,15 +482,23 @@ export class EventDetailModal {
               </div>
 
               ${
-                this.canManage
+                this.canEdit || this.canDelete
                   ? `
                 <div class="event-detail-actions">
-                  <button class="btn secondary" id="editEventBtn">
+                  ${
+                    this.canEdit
+                      ? `<button class="btn secondary" id="editEventBtn">
                     <i class="fas fa-edit"></i> Edit
-                  </button>
-                  <button class="btn danger" id="deleteEventBtn">
+                  </button>`
+                      : ""
+                  }
+                  ${
+                    this.canDelete
+                      ? `<button class="btn danger" id="deleteEventBtn">
                     <i class="fas fa-trash"></i> Delete
-                  </button>
+                  </button>`
+                      : ""
+                  }
                 </div>
               `
                   : ""
@@ -522,15 +580,23 @@ export class EventDetailModal {
             </div>
 
             ${
-              this.canManage
+              this.canEdit || this.canDelete
                 ? `
               <div class="event-detail-actions">
-                <button class="btn secondary" id="editEventBtn">
+                ${
+                  this.canEdit
+                    ? `<button class="btn secondary" id="editEventBtn">
                   <i class="fas fa-edit"></i> Edit
-                </button>
-                <button class="btn danger" id="deleteEventBtn">
+                </button>`
+                    : ""
+                }
+                ${
+                  this.canDelete
+                    ? `<button class="btn danger" id="deleteEventBtn">
                   <i class="fas fa-trash"></i> Delete
-                </button>
+                </button>`
+                    : ""
+                }
               </div>
             `
                 : ""

@@ -10,7 +10,7 @@
  * - events.css    → Event cards, list, status badges
  * - modals.css    → Create event & event detail modals
  * - live.css      → Live events section on Clubs tab
- * - members.css   → Members tab (future)
+ * - members.css   → Members tab & Moderate tab
  */
 
 @import "./base.css";
@@ -18,3 +18,4 @@
 @import "./events.css";
 @import "./modals.css";
 @import "./live.css";
+@import "./members.css";

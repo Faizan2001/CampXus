@@ -1,8 +1,13 @@
 import { logManager } from "../utils/debug/LogManager.js";
 import { currentUser } from "../store/userStore.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
-import { showCreateEventModal, showEditEventModal } from "../components/clubs/CreateEventModal.js";
+import {
+  showCreateEventModal,
+  showEditEventModal,
+} from "../components/clubs/CreateEventModal.js";
 import { showEventDetailModal } from "../components/clubs/EventDetailModal.js";
+import { renderMembersTab } from "../components/clubs/MembersTab.js";
+import { renderModerateTab } from "../components/clubs/ModerateTab.js";
 
 export default class ClubDetailPage {
   constructor() {
@@ -11,6 +16,7 @@ export default class ClubDetailPage {
     this.clubData = null;
     this.isFollowing = false;
     this.events = [];
+    this.members = [];
     this.activeTab = "events";
     this.initialEventId = null;
   }
@@ -54,20 +60,19 @@ export default class ClubDetailPage {
     } catch (_) {}
 
     // Check if user follows this club (from profile.followedClubs)
-    const followedFromProfile =
-      currentUser?.profile?.followedClubs || [];
+    const followedFromProfile = currentUser?.profile?.followedClubs || [];
     this.isFollowing = Array.isArray(followedFromProfile)
       ? followedFromProfile.includes(this.clubId)
       : false;
 
-	    try {
-	      const { db } = await import("../lib/firebase/firebase-config.js");
-	      const { doc, getDoc } = await import("firebase/firestore");
-	      const docRef = doc(db, "clubs", this.clubId);
-	      const snap = await getDoc(docRef);
-	
-	      if (!snap.exists()) {
-	        this.container.innerHTML = `
+    try {
+      const { db } = await import("../lib/firebase/firebase-config.js");
+      const { doc, getDoc } = await import("firebase/firestore");
+      const docRef = doc(db, "clubs", this.clubId);
+      const snap = await getDoc(docRef);
+
+      if (!snap.exists()) {
+        this.container.innerHTML = `
 	          <section class="club-detail">
 	            <div class="club-error">
 	              <i class="fas fa-search"></i>
@@ -76,24 +81,53 @@ export default class ClubDetailPage {
 	            </div>
 	          </section>
 	        `;
-	        return;
-	      }
-	
-	      this.clubData = { id: snap.id, ...snap.data() };
-	
-	      // Fetch events for this club
-	      await this.loadEvents();
-	
-	      this.renderClub();
+        return;
+      }
 
-	      // If a specific event was requested via URL (from Mother Card),
-	      // auto-open its detail modal after events are loaded.
-	      if (this.initialEventId) {
-	        const targetEvent = this.events.find((e) => e.id === this.initialEventId);
-	        if (targetEvent) {
-	          this.openEventDetailModal(targetEvent);
-	        }
-	      }
+      this.clubData = { id: snap.id, ...snap.data() };
+
+      // Fetch events for this club
+      await this.loadEvents();
+
+      // Load members
+      this.members = this.clubData.members || [];
+
+      this.renderClub();
+
+      // If a specific event was requested via URL (from Mother Card),
+      // auto-open its detail modal after events are loaded, but apply
+      // the same visibility rules as the Events tab to avoid leaking
+      // pending/rejected events to regular users.
+      if (this.initialEventId) {
+        const isPresident =
+          (this.clubData?.devTest &&
+            this.clubData?.devOwnerUid === currentUser?.uid) ||
+          this.clubData?.presidentId === currentUser?.uid ||
+          this.clubData?.createdBy === currentUser?.uid;
+
+        const isOfficial =
+          this.clubData?.officialIds?.includes(currentUser?.uid) ||
+          (this.members || []).some(
+            (m) => m.uid === currentUser?.uid && m.role === "official"
+          );
+
+        const isModeratorView = isPresident || isOfficial;
+
+        const targetEvent = this.events.find(
+          (e) => e.id === this.initialEventId
+        );
+
+        if (targetEvent) {
+          if (isModeratorView || targetEvent.status === "approved") {
+            this.openEventDetailModal(targetEvent);
+          } else {
+            notificationManager.show(
+              "This event is not available.",
+              "warning"
+            );
+          }
+        }
+      }
     } catch (err) {
       logManager.error("[ClubDetailPage] load error:", err);
       this.container.innerHTML = `
@@ -111,6 +145,18 @@ export default class ClubDetailPage {
   renderClub() {
     const c = this.clubData;
     const accentColor = c.accentColor || "blue";
+
+    // Check if user can moderate (president or creator).
+    // For devTest clubs only, devOwnerUid is treated as president (must match firestore.rules).
+    const canModerate =
+      (c.devTest && c.devOwnerUid === currentUser?.uid) ||
+      c.presidentId === currentUser?.uid ||
+      c.createdBy === currentUser?.uid;
+
+    // Count pending events for badge
+    const pendingCount = this.events.filter(
+      (e) => e.status === "pending_president" || e.status === "pending_saf"
+    ).length;
 
     this.container.innerHTML = `
       <section class="club-detail" data-accent="${accentColor}">
@@ -175,6 +221,20 @@ export default class ClubDetailPage {
           <div class="club-tabs">
             <button class="tab-btn active" data-tab="events"><i class="fas fa-calendar"></i> Events</button>
             <button class="tab-btn" data-tab="members"><i class="fas fa-users"></i> Members</button>
+            ${
+              canModerate
+                ? `
+              <button class="tab-btn moderate-tab-btn" data-tab="moderate">
+                <i class="fas fa-shield-alt"></i> Moderate
+                ${
+                  pendingCount > 0
+                    ? `<span class="tab-badge">${pendingCount}</span>`
+                    : ""
+                }
+              </button>
+            `
+                : ""
+            }
           </div>
 
           <div class="club-tab-content" id="tabContent">
@@ -213,25 +273,113 @@ export default class ClubDetailPage {
     if (tab === "events") {
       this.renderEventsTab(content);
     } else if (tab === "members") {
-      content.innerHTML = `
-        <div class="members-placeholder">
-          <i class="fas fa-users"></i>
-          <p>No members to display yet.</p>
-          <p class="hint">Club officials and president will appear here.</p>
-        </div>
-      `;
+      this.renderMembersTabContent(content);
+    } else if (tab === "moderate") {
+      this.renderModerateTabContent(content);
+    }
+  }
+
+  /**
+   * Render the Members tab using the MembersTab component
+   */
+  renderMembersTabContent(container) {
+    renderMembersTab(container, this.clubData, this.members, async () => {
+      // Callback when member role changes - reload club data
+      await this.reloadClubData();
+      this.members = this.clubData.members || [];
+      this.renderMembersTabContent(container);
+    });
+  }
+
+  /**
+   * Render the Moderate tab using the ModerateTab component
+   */
+  renderModerateTabContent(container) {
+    renderModerateTab(container, this.clubData, this.events, async () => {
+      // Callback when event is approved/rejected - reload events
+      await this.loadEvents();
+      this.renderModerateTabContent(container);
+      // Also update pending count badge
+      this.updatePendingBadge();
+    });
+  }
+
+  /**
+   * Update the pending count badge on the Moderate tab
+   */
+  updatePendingBadge() {
+    const pendingCount = this.events.filter(
+      (e) => e.status === "pending_president" || e.status === "pending_saf"
+    ).length;
+
+    const badge = this.container.querySelector(".moderate-tab-btn .tab-badge");
+    if (badge) {
+      if (pendingCount > 0) {
+        badge.textContent = pendingCount;
+        badge.style.display = "";
+      } else {
+        badge.style.display = "none";
+      }
+    } else if (pendingCount > 0) {
+      // Add badge if it doesn't exist
+      const moderateBtn = this.container.querySelector(".moderate-tab-btn");
+      if (moderateBtn) {
+        const newBadge = document.createElement("span");
+        newBadge.className = "tab-badge";
+        newBadge.textContent = pendingCount;
+        moderateBtn.appendChild(newBadge);
+      }
+    }
+  }
+
+  /**
+   * Reload club data from Firestore
+   */
+  async reloadClubData() {
+    try {
+      const { db } = await import("../lib/firebase/firebase-config.js");
+      const { doc, getDoc } = await import("firebase/firestore");
+      const docRef = doc(db, "clubs", this.clubId);
+      const snap = await getDoc(docRef);
+
+      if (snap.exists()) {
+        this.clubData = { id: snap.id, ...snap.data() };
+      }
+    } catch (err) {
+      logManager.error("[ClubDetailPage] Failed to reload club data:", err);
     }
   }
 
   async loadEvents() {
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { collection, query, orderBy, getDocs } = await import(
+      const { collection, query, orderBy, where, getDocs } = await import(
         "firebase/firestore"
       );
 
+      // Determine viewer role for query scoping:
+      // - Presidents/dev owners can see all events
+      // - Officials (in officialIds) can see all events
+      // - Regular users should only ever query approved events
+      const isPresident =
+        (this.clubData?.devTest &&
+          this.clubData?.devOwnerUid === currentUser?.uid) ||
+        this.clubData?.presidentId === currentUser?.uid ||
+        this.clubData?.createdBy === currentUser?.uid;
+
+      const isOfficial = Array.isArray(this.clubData?.officialIds)
+        ? this.clubData.officialIds.includes(currentUser?.uid)
+        : false;
+
       const eventsRef = collection(db, "clubs", this.clubId, "events");
-      const q = query(eventsRef, orderBy("firstSlotStart", "asc"));
+      const q =
+        isPresident || isOfficial
+          ? query(eventsRef, orderBy("firstSlotStart", "asc"))
+          : query(
+              eventsRef,
+              where("status", "==", "approved"),
+              orderBy("firstSlotStart", "asc")
+            );
       const snapshot = await getDocs(q);
 
       this.events = snapshot.docs.map((doc) => ({
@@ -249,7 +397,27 @@ export default class ClubDetailPage {
   renderEventsTab(container) {
     const now = new Date();
 
-    // Separate into upcoming/live and past events
+    // Determine viewer role
+    const isPresident =
+      (this.clubData?.devTest &&
+        this.clubData?.devOwnerUid === currentUser?.uid) ||
+      this.clubData?.presidentId === currentUser?.uid ||
+      this.clubData?.createdBy === currentUser?.uid;
+
+    const isOfficial =
+      this.clubData?.officialIds?.includes(currentUser?.uid) ||
+      (this.members || []).some(
+        (m) => m.uid === currentUser?.uid && m.role === "official"
+      );
+
+    // For regular visitors, only show approved events.
+    // Presidents/officials can see all events (including pending/rejected).
+    const isModeratorView = isPresident || isOfficial;
+    const visibleEvents = isModeratorView
+      ? this.events
+      : this.events.filter((e) => e.status === "approved");
+
+    // Separate into upcoming/live and past events (based on visibleEvents)
     // An event is "upcoming" if:
     // 1. It hasn't started yet (firstSlotStart >= now), OR
     // 2. It's currently live (isLive flag), OR
@@ -257,7 +425,7 @@ export default class ClubDetailPage {
     const upcoming = [];
     const past = [];
 
-    for (const event of this.events) {
+    for (const event of visibleEvents) {
       const startDate =
         event.firstSlotStart?.toDate?.() || new Date(event.firstSlotStart);
       const endDate =
@@ -275,14 +443,12 @@ export default class ClubDetailPage {
       }
     }
 
-    // Check if user can create events (is devTest owner, president, or club creator)
-    // Must match storage.rules isClubOfficial() authorization
-    const canCreate =
-      this.clubData?.devOwnerUid === currentUser?.uid ||
-      this.clubData?.presidentId === currentUser?.uid ||
-      this.clubData?.createdBy === currentUser?.uid;
+    // Check if user can create events
+    // - President, devOwner, or creator can create (and auto-approve)
+    // - Officials can create but their events need approval
+    const canCreate = isModeratorView;
 
-    if (this.events.length === 0) {
+    if (visibleEvents.length === 0) {
       container.innerHTML = `
         <div class="events-placeholder">
           <i class="fas fa-calendar-alt"></i>
@@ -376,7 +542,7 @@ export default class ClubDetailPage {
     container.querySelectorAll(".event-card").forEach((card) => {
       card.addEventListener("click", () => {
         const eventId = card.dataset.eventId;
-        const event = this.events.find((e) => e.id === eventId);
+        const event = visibleEvents.find((e) => e.id === eventId);
         if (event) {
           this.openEventDetailModal(event);
         }
@@ -391,10 +557,13 @@ export default class ClubDetailPage {
     showCreateEventModal({
       clubId: this.clubId,
       clubName: this.clubData?.name,
+      clubData: this.clubData, // Pass club data for role checking
       onSuccess: async () => {
         // Reload events and re-render
         await this.loadEvents();
         this.renderEventsTab(this.container.querySelector("#tabContent"));
+        // Update pending badge in case it changed
+        this.updatePendingBadge();
       },
     });
   }
@@ -414,12 +583,16 @@ export default class ClubDetailPage {
         // Reload events after deletion
         await this.loadEvents();
         this.renderEventsTab(this.container.querySelector("#tabContent"));
+        // Pending count may have changed
+        this.updatePendingBadge();
       },
       onLiveStatusChange: async (updatedEvent) => {
         // Reload events after live status change
         await this.loadEvents();
         this.renderEventsTab(this.container.querySelector("#tabContent"));
-      }
+        // Pending count may have changed due to status transition
+        this.updatePendingBadge();
+      },
     });
   }
 
@@ -430,11 +603,14 @@ export default class ClubDetailPage {
     showEditEventModal({
       clubId: this.clubId,
       clubName: this.clubData?.name,
+      clubData: this.clubData, // Pass club data for role checking
       event: event, // Pass the event data to pre-fill the form
       onSuccess: async () => {
         // Reload events and re-render
         await this.loadEvents();
         this.renderEventsTab(this.container.querySelector("#tabContent"));
+        // Editing can change pending/rejected → pending_president, so refresh badge
+        this.updatePendingBadge();
       },
     });
   }
@@ -480,10 +656,14 @@ export default class ClubDetailPage {
     const isLive = event.isLive === true;
 
     return `
-      <div class="event-card ${isPast ? "past" : ""} ${hasImage ? "has-image" : ""} ${isLive ? "live-event" : ""}" data-event-id="${
-      event.id
-    }">
-        ${isLive ? `<div class="event-live-badge"><i class="fas fa-broadcast-tower"></i> LIVE NOW</div>` : ""}
+      <div class="event-card ${isPast ? "past" : ""} ${
+      hasImage ? "has-image" : ""
+    } ${isLive ? "live-event" : ""}" data-event-id="${event.id}">
+        ${
+          isLive
+            ? `<div class="event-live-badge"><i class="fas fa-broadcast-tower"></i> LIVE NOW</div>`
+            : ""
+        }
         ${
           hasImage
             ? `<div class="event-image-container"><img src="${event.imageUrl}" alt="${title}" class="event-image" loading="lazy" /></div>`
@@ -530,8 +710,9 @@ export default class ClubDetailPage {
 
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { doc, updateDoc, arrayUnion, arrayRemove } =
-        await import("firebase/firestore");
+      const { doc, updateDoc, arrayUnion, arrayRemove } = await import(
+        "firebase/firestore"
+      );
 
       // Update user's followedClubs in Firestore
       await updateDoc(doc(db, "users", currentUser.uid), {
