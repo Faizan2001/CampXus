@@ -31,5 +31,35 @@ Welcome to the Clubs Feature implementation documentation for MeetchuThere!
 
 ---
 
+## Super Admin Setup
+
+To set up a super admin, create a document at `/admin/superAdmins` in Firestore with:
+
+```javascript
+{
+  uids: ["your-firebase-uid-here"],
+  pinHash: "sha256-hash-of-your-pin"
+}
+```
+
+### Generate PIN Hash
+
+Run this in your browser console to generate a SHA-256 hash of your 6-digit PIN:
+
+```javascript
+const pin = "123456"; // Replace with your chosen PIN
+const encoder = new TextEncoder();
+const data = encoder.encode(pin);
+crypto.subtle.digest("SHA-256", data).then((hash) => {
+  const hashArray = Array.from(new Uint8Array(hash));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  console.log("PIN Hash:", hashHex);
+});
+```
+
+Copy the output and paste it as the `pinHash` value in Firestore.
+
+---
+
 _Generated: November 26, 2025_
 _Branch: public-profilexgroups_
