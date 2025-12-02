@@ -502,18 +502,23 @@ export const approveClubEventSaf = https.onCall(async (data, context) => {
   const moderatorUniversityId = moderator.universityId || null;
   const clubUniversityId = club.universityId || null;
 
-  // Enforce university scope for SAF moderators
-  if (moderatorUniversityId && clubUniversityId) {
-    if (moderatorUniversityId !== clubUniversityId) {
-      throw new https.HttpsError(
-        "permission-denied",
-        "Cannot moderate clubs outside your university"
-      );
-    }
-  } else if (moderatorUniversityId && !clubUniversityId) {
+  // Enforce university scope for SAF moderators (must be present and matching)
+  if (!moderatorUniversityId) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "SAF moderator is not scoped to a university"
+    );
+  }
+  if (!clubUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
       "Club is not scoped to a university"
+    );
+  }
+  if (moderatorUniversityId !== clubUniversityId) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "Cannot moderate clubs outside your university"
     );
   }
 

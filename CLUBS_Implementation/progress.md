@@ -3171,3 +3171,11 @@ _Progress log updated: Phase 7 complete — 2025-12-03_
 _Progress log updated: Phase 8 denorm sync + maintenance decision — 2025-12-03_
 
 ---
+
+## 2025-12-04 — SAF Approval Hardening (Bugfix)
+
+- Presidents can no longer bypass SAF review: ModerateTab now hides `pending_saf` events and blocks approving them; only `pending_president` events remain actionable by presidents.
+- SAF callable (`approveClubEventSaf`) now enforces university scoping strictly: moderator `universityId` is required and must match the club; missing or mismatched scope is denied.
+- Tests: `npm test -- --runInBand`.
+
+This secures the SAF approval step and prevents cross-university approvals by unscoped moderators.

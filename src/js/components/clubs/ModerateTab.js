@@ -24,10 +24,8 @@ import { currentUser } from "../../store/userStore.js";
  * @param {Function} onEventUpdated - Callback when event is approved/rejected
  */
 export function renderModerateTab(container, clubData, events, onEventUpdated) {
-  // Filter for pending events only
-  const pendingEvents = events.filter(
-    (e) => e.status === "pending_president" || e.status === "pending_saf"
-  );
+  // Filter for pending events only (presidents should not see SAF-queued events)
+  const pendingEvents = events.filter((e) => e.status === "pending_president");
 
   // Check if user can moderate
   const canModerate = checkCanModerate(clubData);
@@ -251,6 +249,17 @@ async function handleApprove(clubData, event, btn, onEventUpdated) {
     const clubId = clubData.id;
     const eventId = event.id;
     const requiresSafApproval = clubData.requireSafApproval === true;
+
+    // Presidents must not bypass SAF queue; block if event is already pending_saf
+    if (event.status === "pending_saf") {
+      notificationManager.show(
+        "This event is awaiting SAF review. Presidents cannot approve it.",
+        "warning"
+      );
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
+      return;
+    }
 
     // Determine next status based on club settings and current event status.
     // - If SAF approval is required and event is pending_president, move to pending_saf.
