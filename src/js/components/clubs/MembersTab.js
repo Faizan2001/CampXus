@@ -279,31 +279,34 @@ async function handlePromote(clubId, memberUid, memberName, onMemberUpdated) {
 
   try {
     const { db } = await import("../../lib/firebase/firebase-config.js");
-    const { doc, updateDoc, arrayUnion, arrayRemove, getDoc } = await import(
+    const { doc, runTransaction, arrayUnion } = await import(
       "firebase/firestore"
     );
 
     const clubRef = doc(db, "clubs", clubId);
-    const clubSnap = await getDoc(clubRef);
 
-    if (!clubSnap.exists()) {
-      throw new Error("Club not found");
-    }
+    await runTransaction(db, async (tx) => {
+      const clubSnap = await tx.get(clubRef);
 
-    const clubData = clubSnap.data();
-    const membersList = clubData.members || [];
-
-    // Find and update the member's role
-    const updatedMembers = membersList.map((m) => {
-      if (m.uid === memberUid) {
-        return { ...m, role: "official" };
+      if (!clubSnap.exists()) {
+        throw new Error("Club not found");
       }
-      return m;
-    });
 
-    await updateDoc(clubRef, {
-      members: updatedMembers,
-      officialIds: arrayUnion(memberUid),
+      const clubData = clubSnap.data() || {};
+      const membersList = clubData.members || [];
+
+      // Find and update the member's role
+      const updatedMembers = membersList.map((m) => {
+        if (m.uid === memberUid) {
+          return { ...m, role: "official" };
+        }
+        return m;
+      });
+
+      tx.update(clubRef, {
+        members: updatedMembers,
+        officialIds: arrayUnion(memberUid),
+      });
     });
 
     notificationManager.show(
@@ -338,31 +341,34 @@ async function handleDemote(clubId, memberUid, memberName, onMemberUpdated) {
 
   try {
     const { db } = await import("../../lib/firebase/firebase-config.js");
-    const { doc, updateDoc, arrayRemove, getDoc } = await import(
+    const { doc, runTransaction, arrayRemove } = await import(
       "firebase/firestore"
     );
 
     const clubRef = doc(db, "clubs", clubId);
-    const clubSnap = await getDoc(clubRef);
 
-    if (!clubSnap.exists()) {
-      throw new Error("Club not found");
-    }
+    await runTransaction(db, async (tx) => {
+      const clubSnap = await tx.get(clubRef);
 
-    const clubData = clubSnap.data();
-    const membersList = clubData.members || [];
-
-    // Find and update the member's role
-    const updatedMembers = membersList.map((m) => {
-      if (m.uid === memberUid) {
-        return { ...m, role: "member" };
+      if (!clubSnap.exists()) {
+        throw new Error("Club not found");
       }
-      return m;
-    });
 
-    await updateDoc(clubRef, {
-      members: updatedMembers,
-      officialIds: arrayRemove(memberUid),
+      const clubData = clubSnap.data() || {};
+      const membersList = clubData.members || [];
+
+      // Find and update the member's role
+      const updatedMembers = membersList.map((m) => {
+        if (m.uid === memberUid) {
+          return { ...m, role: "member" };
+        }
+        return m;
+      });
+
+      tx.update(clubRef, {
+        members: updatedMembers,
+        officialIds: arrayRemove(memberUid),
+      });
     });
 
     notificationManager.show(

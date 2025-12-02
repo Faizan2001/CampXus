@@ -180,6 +180,15 @@ class SPARouter {
         requiresSuperAdmin: true, // 🔐 Special flag for super admin only routes
         indexable: false,
       },
+      saf: {
+        title: "SAF Moderation - MeetchuThere",
+        template: "/templates/saf.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/admin.css"],
+        jsImporters: [() => import("/src/js/pages/SafModeratePage.js")],
+        description: "Student Affairs event moderation dashboard",
+        requiresAuth: true,
+        indexable: false,
+      },
     };
 
     this.currentPage = "landing"; // Default page now landing

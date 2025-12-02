@@ -1749,14 +1749,21 @@ export class CreateEventModal {
         this.onSuccess(this.event.id, { ...this.event, ...updateData });
       } else {
         // CREATE new event - first create the doc to get an ID
-        const profileFirstName =
+      const profileFirstName =
           currentUser?.profile?.profile?.firstName || "Unknown";
         const profileLastName = currentUser?.profile?.profile?.lastName || "";
 
         // Determine status based on user role
-        // Presidents and devOwners can auto-approve, officials need approval
+        // Presidents and devOwners can auto-approve unless SAF approval is required,
+        // in which case events move to pending_saf after president review.
         const isPresident = this.isUserPresident();
-        const eventStatus = isPresident ? "approved" : "pending_president";
+        const requiresSafApproval =
+          this.clubData?.requireSafApproval === true;
+        const eventStatus = isPresident
+          ? requiresSafApproval
+            ? "pending_saf"
+            : "approved"
+          : "pending_president";
 
         const eventData = {
           title,

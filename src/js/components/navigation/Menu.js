@@ -1086,12 +1086,23 @@ function initializeMobileBottomNav() {
           try {
             const url = getAvatarUrl(info);
             if (url) {
-              sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
+              // Render avatar image via DOM APIs to avoid innerHTML injection
+              sheetAvatar.innerHTML = "";
+              const img = document.createElement("img");
+              img.src = url;
+              img.alt = "User Avatar";
+              sheetAvatar.appendChild(img);
             } else {
-              sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+              sheetAvatar.innerHTML = "";
+              const icon = document.createElement("i");
+              icon.className = "fas fa-user-circle";
+              sheetAvatar.appendChild(icon);
             }
           } catch {
-            sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+            sheetAvatar.innerHTML = "";
+            const icon = document.createElement("i");
+            icon.className = "fas fa-user-circle";
+            sheetAvatar.appendChild(icon);
           }
         }
       }
@@ -1138,12 +1149,26 @@ function updateMobileUserAvatar(userData) {
   try {
     const avatarUrl = getAvatarUrl(userData);
     if (avatarUrl) {
-      mobileUserAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" style="width: 24px; height: 24px; border-radius: 50%;">`;
+      mobileUserAvatar.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = avatarUrl;
+      img.alt = "User Avatar";
+      img.className = "user-avatar-img";
+      img.style.width = "24px";
+      img.style.height = "24px";
+      img.style.borderRadius = "50%";
+      mobileUserAvatar.appendChild(img);
     } else {
-      mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+      mobileUserAvatar.innerHTML = "";
+      const icon = document.createElement("i");
+      icon.className = "fas fa-user-circle";
+      mobileUserAvatar.appendChild(icon);
     }
   } catch (error) {
-    mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+    mobileUserAvatar.innerHTML = "";
+    const icon = document.createElement("i");
+    icon.className = "fas fa-user-circle";
+    mobileUserAvatar.appendChild(icon);
   }
 }
 

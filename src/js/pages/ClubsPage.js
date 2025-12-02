@@ -329,6 +329,7 @@ export default class ClubsPage {
         devOwnerUid: currentUser?.uid || null,
         devTest: true,
         followerCount: 0,
+        officialIds: [],
         accentColor,
         createdAt: serverTimestamp(),
       });
@@ -339,6 +340,7 @@ export default class ClubsPage {
         name: clubName,
         description: "A test club created from the emulator for development",
         university: universityName,
+        officialIds: [],
         followerCount: 0,
         accentColor,
       };
@@ -369,7 +371,9 @@ function escapeHtml(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // Wire to SPA router lifecycle

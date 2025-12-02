@@ -2782,9 +2782,19 @@ async function saveStateToStorage(transactionId = null, transactionIds = []) {
  * Handles click events on time range headers for editing.
  * @param {Event} event - The click event.
  */
-export function handleTimeRangeHeaderClick(event) {
-  // Use event.target since this is called from event delegation
-  const slotIndexString = event.target.dataset.slotIndex;
+export function handleTimeRangeHeaderClick(event, slotIndexArg = null) {
+  // Prefer explicitly provided slotIndex (from delegation) and fall back to the nearest header element
+  const headerEl =
+    (event.target && event.target.closest?.(".editable-timeslot-header")) ||
+    (event.currentTarget &&
+      event.currentTarget.closest?.(".editable-timeslot-header"));
+  const slotIndexString =
+    slotIndexArg !== null && slotIndexArg !== undefined
+      ? String(slotIndexArg)
+      : headerEl?.dataset?.slotIndex ||
+        event.target?.dataset?.slotIndex ||
+        event.currentTarget?.dataset?.slotIndex;
+
   if (slotIndexString === undefined) {
     console.error("Slot index is undefined for clicked header.", {
       target: event.target,
@@ -4597,7 +4607,7 @@ function handleScheduleTableClick(e) {
     });
     const slotIndex = parseInt(headerEl.dataset.slotIndex, 10);
     if (!isNaN(slotIndex)) {
-      handleTimeRangeHeaderClick(e);
+      handleTimeRangeHeaderClick(e, slotIndex);
     }
     return;
   }

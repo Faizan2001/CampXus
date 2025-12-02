@@ -79,7 +79,7 @@ export function renderModerateTab(container, clubData, events, onEventUpdated) {
   container.innerHTML = html;
 
   // Bind action buttons
-  bindModerateActions(container, clubData.id, events, onEventUpdated);
+  bindModerateActions(container, clubData, events, onEventUpdated);
 }
 
 /**
@@ -198,7 +198,7 @@ function renderPendingEventCard(event, clubData) {
 /**
  * Bind click handlers for approve/reject buttons
  */
-function bindModerateActions(container, clubId, events, onEventUpdated) {
+function bindModerateActions(container, clubData, events, onEventUpdated) {
   // Approve buttons
   container.querySelectorAll(".approve-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
@@ -207,7 +207,12 @@ function bindModerateActions(container, clubId, events, onEventUpdated) {
       const event = events.find((ev) => ev.id === eventId);
       if (!event) return;
 
-      await handleApprove(clubId, eventId, event.title, btn, onEventUpdated);
+      await handleApprove(
+        clubData,
+        event,
+        btn,
+        onEventUpdated
+      );
     });
   });
 
@@ -219,7 +224,7 @@ function bindModerateActions(container, clubId, events, onEventUpdated) {
       const event = events.find((ev) => ev.id === eventId);
       if (!event) return;
 
-      showRejectModal(clubId, eventId, event.title, onEventUpdated);
+      showRejectModal(clubData.id, eventId, event.title, onEventUpdated);
     });
   });
 }
@@ -227,7 +232,7 @@ function bindModerateActions(container, clubId, events, onEventUpdated) {
 /**
  * Handle event approval
  */
-async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
+async function handleApprove(clubData, event, btn, onEventUpdated) {
   // Disable button and show spinner
   const originalContent = btn.innerHTML;
   btn.disabled = true;
@@ -243,8 +248,20 @@ async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
     const firstName = profile.firstName || "";
     const lastName = profile.lastName || "";
 
+    const clubId = clubData.id;
+    const eventId = event.id;
+    const requiresSafApproval = clubData.requireSafApproval === true;
+
+    // Determine next status based on club settings and current event status.
+    // - If SAF approval is required and event is pending_president, move to pending_saf.
+    // - Otherwise, move directly to approved.
+    let nextStatus = "approved";
+    if (event.status === "pending_president" && requiresSafApproval) {
+      nextStatus = "pending_saf";
+    }
+
     await updateDoc(doc(db, "clubs", clubId, "events", eventId), {
-      status: "approved",
+      status: nextStatus,
       approvedAt: serverTimestamp(),
       approvedBy: currentUser.uid,
       approvedByInfo: {
@@ -253,7 +270,13 @@ async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
       },
     });
 
-    notificationManager.show(`"${eventTitle}" has been approved!`, "success");
+    const eventTitle = event.title || "Event";
+    const message =
+      nextStatus === "pending_saf"
+        ? `"${eventTitle}" has been approved by the president and is awaiting SAF review.`
+        : `"${eventTitle}" has been approved!`;
+
+    notificationManager.show(message, "success");
 
     if (onEventUpdated) {
       await onEventUpdated();

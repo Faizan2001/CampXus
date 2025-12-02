@@ -354,6 +354,23 @@ async function assertSuperAdmin(context) {
   return { uid: context.auth.uid, config: data };
 }
 
+async function assertSafModerator(context) {
+  if (!context.auth) {
+    throw new https.HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const uid = context.auth.uid;
+  const snap = await db.collection("safModerators").doc(uid).get();
+  if (!snap.exists) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "Not a SAF moderator"
+    );
+  }
+
+  return { uid, moderator: snap.data() || {} };
+}
+
 async function getUserPrefs(userId) {
   const doc = await db.collection("users").doc(userId).get();
   const data = doc.exists ? doc.data() : {};
@@ -456,6 +473,74 @@ export const addSafModerator = https.onCall(async (data, context) => {
     moderatorUid: uid,
     universityId,
     callerUid,
+  });
+
+  return { success: true };
+});
+
+// SAF event approval: pending_saf -> approved for clubs in moderator's university
+export const approveClubEventSaf = https.onCall(async (data, context) => {
+  const { uid: moderatorUid, moderator } = await assertSafModerator(context);
+
+  const clubId = String(data?.clubId || "").trim();
+  const eventId = String(data?.eventId || "").trim();
+
+  if (!clubId || !eventId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "Parameters 'clubId' and 'eventId' are required"
+    );
+  }
+
+  const clubRef = db.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  if (!clubSnap.exists) {
+    throw new https.HttpsError("not-found", "Club not found");
+  }
+
+  const club = clubSnap.data() || {};
+  const moderatorUniversityId = moderator.universityId || null;
+  const clubUniversityId = club.universityId || null;
+
+  // Enforce university scope for SAF moderators
+  if (moderatorUniversityId && clubUniversityId) {
+    if (moderatorUniversityId !== clubUniversityId) {
+      throw new https.HttpsError(
+        "permission-denied",
+        "Cannot moderate clubs outside your university"
+      );
+    }
+  } else if (moderatorUniversityId && !clubUniversityId) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "Club is not scoped to a university"
+    );
+  }
+
+  const eventRef = clubRef.collection("events").doc(eventId);
+  const eventSnap = await eventRef.get();
+  if (!eventSnap.exists) {
+    throw new https.HttpsError("not-found", "Event not found");
+  }
+
+  const event = eventSnap.data() || {};
+  if (event.status !== "pending_saf") {
+    throw new https.HttpsError(
+      "failed-precondition",
+      "Only events with status 'pending_saf' can be SAF-approved"
+    );
+  }
+
+  await eventRef.update({
+    status: "approved",
+    safApprovedBy: moderatorUid,
+    safApprovedAt: FieldValue.serverTimestamp(),
+  });
+
+  logger.info("approveClubEventSaf: SAF approved event", {
+    clubId,
+    eventId,
+    moderatorUid,
   });
 
   return { success: true };
@@ -1901,6 +1986,42 @@ export const onUserDeleted = onDocumentDeleted(
       subDocsDeleted: total,
       friendshipsRemoved,
     });
+  }
+);
+
+// 9) Maintain club memberCount based on /clubs/{clubId}/members subcollection
+export const onClubMemberChanged = onDocumentWritten(
+  "clubs/{clubId}/members/{memberId}",
+  async (event) => {
+    const { clubId } = event.params;
+
+    try {
+      const membersSnap = await db
+        .collection("clubs")
+        .doc(clubId)
+        .collection("members")
+        .get();
+
+      const memberCount = membersSnap.size;
+
+      await db
+        .collection("clubs")
+        .doc(clubId)
+        .update({
+          memberCount,
+          updatedAt: new Date(),
+        });
+
+      logger.info("onClubMemberChanged: memberCount updated", {
+        clubId,
+        memberCount,
+      });
+    } catch (error) {
+      logger.error("onClubMemberChanged: failed to update memberCount", {
+        clubId,
+        error: String(error),
+      });
+    }
   }
 );
 

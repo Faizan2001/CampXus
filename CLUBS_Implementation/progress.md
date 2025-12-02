@@ -2337,8 +2337,8 @@ Club Detail Page
 
 | Feature                        | Status      | Notes                                                                  |
 | ------------------------------ | ----------- | ---------------------------------------------------------------------- |
-| SAF Moderator Dashboard        | 🔲 Not Done | University-wide moderation view                                        |
-| SAF Approval step              | 🔲 Not Done | `pending_saf` → `approved` flow                                        |
+| SAF Moderator Dashboard        | ✅ Done     | `/saf` route with per‑university pending_saf events and approve actions |
+| SAF Approval step              | ✅ Done     | `pending_president` → `pending_saf` (president) → `approved` (SAF)      |
 | Remove member from club        | 🔲 Not Done | Kick functionality                                                     |
 | Transfer presidency            | 🔲 Not Done | Hand over club ownership                                               |
 | Cloud Function role management | 🔲 Not Done | Role changes are currently club-doc-only; user `clubRoles` not updated |
@@ -3042,6 +3042,72 @@ _Progress log updated: 2025-12-01_
 
 - Hardened `/clubs/{clubId}/events/{eventId}` rules so `isClubPresident()` / `isClubOfficialMember()` guard optional fields (like `devTest`, `officialIds`) and `isSuperAdmin()` short‑circuits read/write/delete checks.
 - Effect: deleting older clubs from the Admin dashboard via `AdminService.deleteClub` no longer triggers evaluation errors such as “Property devTest/officialIds is undefined on object”, while role‑based restrictions for non‑admins remain intact.
+
+### 2025-12-04 — SAF Approval Flow & Moderation Hardening
+
+- **SAF Event Approval Flow**
+  - Event creation (`CreateEventModal`) now respects `clubs.requireSafApproval`:
+    - President/devOwner creates event:
+      - If `requireSafApproval === true` → initial `status: "pending_saf"`.
+      - Otherwise → initial `status: "approved"`.
+    - Officials still create `status: "pending_president"` events.
+  - President approvals in `ModerateTab` now:
+    - Move `pending_president` → `pending_saf` when `requireSafApproval === true`.
+    - Move directly to `approved` when SAF approval is not required.
+  - A new callable Cloud Function `approveClubEventSaf` implements the SAF‑only step:
+    - Validates caller via `assertSafModerator()` (`safModerators/{uid}`).
+    - Enforces scope: moderator’s `universityId` must match `clubs/{clubId}.universityId`.
+    - Only allows transition for events currently in `status == "pending_saf"`.
+    - Updates event to `status: "approved"`, sets `safApprovedBy`/`safApprovedAt`.
+    - Reuses existing `onClubEventStatusChanged` logic to notify creators/followers and update club stats.
+
+- **SAF Moderator Dashboard (`/#saf`)**
+  - Added a dedicated SAF moderation route in the SPA router:
+    - Route key: `saf`.
+    - Template: `public/templates/saf.html` (reuses `.admin-page` layout).
+    - CSS: `admin.css` for glassmorphism and layout consistent with `/admin`.
+    - JS controller: `src/js/pages/SafModeratePage.js`.
+  - `SafModeratePage` behavior:
+    - On mount:
+      - Waits for `currentUser` profile.
+      - Loads `safModerators/{uid}`; if missing, shows access‑denied screen.
+      - Uses `moderator.universityId` to:
+        - Query `clubs` where `universityId == moderator.universityId`.
+        - For each club, query `events` where `status == "pending_saf"`.
+      - Aggregates all `pending_saf` events into a single dashboard list.
+    - UI:
+      - Uses admin‑style section header (`admin-saf`) with university subtitle.
+      - Renders one glass card per pending event showing:
+        - Club name, university, date/time, location, description, creator.
+        - A “Pending SAF” badge and primary **Approve** button.
+      - Empty state uses the same visual language as `admin-loading` (“All caught up!”).
+    - Approve interaction:
+      - On Approve click, calls the `approveClubEventSaf` callable via `firebase/functions`.
+      - Removes the event from the local list and re‑renders.
+      - Shows toast feedback via `NotificationService`.
+
+- **Event Image Permissions for Officials**
+  - `storage.rules` `isClubOfficial(clubId)` updated to match role hierarchy:
+    - DevTest clubs: `devOwnerUid` only.
+    - Production clubs: `presidentId`, `createdBy`, **or** membership in `officialIds` (guarded with type checks).
+  - Effect: club officials listed in `officialIds` can now upload/delete event images under `clubEvents/{clubId}/{eventId}/{uid}_hero.webp` and club assets under `clubAssets/{clubId}/{uid}_*.webp`, aligning Storage behavior with UI expectations.
+
+- **Member Count Integrity**
+  - New Cloud Function trigger `onClubMemberChanged`:
+    - Path: `clubs/{clubId}/members/{memberId}`.
+    - On any write, re‑counts `clubs/{clubId}/members` and updates `club.memberCount` + `updatedAt`.
+  - Effect: `ClubDetailPage`’s member count stays in sync with the members subcollection without requiring manual `rebuildClubStats` runs.
+
+- **Role Changes – Concurrency Hardening**
+  - `MembersTab` promote/demote handlers now use Firestore transactions instead of ad‑hoc read/modify/write:
+    - Wraps membership updates in `runTransaction`, reading the latest `club.members` and atomically writing:
+      - Updated `members` array with role changed to `official`/`member`.
+      - `officialIds` updated via `arrayUnion`/`arrayRemove`.
+  - Effect: concurrent promote/demote actions no longer race on the `members` array; updates are applied deterministically.
+
+- **Dev/Test Club Defaults**
+  - `ClubsPage.createTestClub()` now initializes `officialIds: []` on devTest clubs and local state, keeping dev/test clubs consistent with production data shape.
+
 
 ### 2025-12-03 — Hardening: Admin Activity & Denormalized Sync Queries
 
