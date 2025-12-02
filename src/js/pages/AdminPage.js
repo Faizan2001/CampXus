@@ -418,10 +418,6 @@ export class AdminPage {
             <i class="fas fa-users"></i>
             <span>Clubs</span>
           </button>
-          <button class="admin-tab" data-tab="maintenance">
-            <i class="fas fa-tools"></i>
-            <span>Maintenance</span>
-          </button>
         </nav>
 
         <div class="admin-content">
@@ -481,9 +477,6 @@ export class AdminPage {
           break;
         case "clubs":
           await this.renderClubsTab(contentEl);
-          break;
-        case "maintenance":
-          await this.renderMaintenanceTab(contentEl);
           break;
       }
     } catch (error) {
@@ -560,10 +553,6 @@ export class AdminPage {
               <button class="quick-action-btn" data-action="add-saf">
                 <i class="fas fa-user-plus"></i>
                 Add SAF Mod
-              </button>
-              <button class="quick-action-btn" data-action="rebuild-stats">
-                <i class="fas fa-sync-alt"></i>
-                Rebuild Stats
               </button>
             </div>
           </div>
@@ -728,9 +717,6 @@ export class AdminPage {
       case "add-saf":
         this.rootEl.querySelector('[data-tab="saf"]').click();
         setTimeout(() => this.openAddSafModal(), 300);
-        break;
-      case "rebuild-stats":
-        this.rebuildStats();
         break;
     }
   }
@@ -1614,339 +1600,14 @@ export class AdminPage {
   // ==========================================
   // MAINTENANCE TAB
   // ==========================================
-
-  async renderMaintenanceTab(contentEl) {
-    contentEl.innerHTML = `
-      <div class="admin-maintenance">
-        <div class="section-header">
-          <h2><i class="fas fa-tools"></i> Maintenance Tools</h2>
-        </div>
-
-        <div class="maintenance-grid">
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-sync-alt"></i>
-            </div>
-            <h3>Rebuild Stats</h3>
-            <p>Recalculate all club member counts, event counts, and other statistics.</p>
-            <button class="btn-maintenance" data-action="rebuild-stats">
-              Run Rebuild
-            </button>
-          </div>
-
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-broom"></i>
-            </div>
-            <h3>Cleanup Old Events</h3>
-            <p>Remove events older than 30 days that are no longer relevant.</p>
-            <button class="btn-maintenance" data-action="cleanup-events">
-              Run Cleanup
-            </button>
-          </div>
-
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-comments"></i>
-            </div>
-            <h3>Clear Expired Live Chat</h3>
-            <p>Delete all live chat messages that are past their expiry time.</p>
-            <button class="btn-maintenance" data-action="cleanup-livechat">
-              Run Cleanup
-            </button>
-          </div>
-
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-database"></i>
-            </div>
-            <h3>Verify Data Integrity</h3>
-            <p>Check for orphaned records, missing references, and data inconsistencies.</p>
-            <button class="btn-maintenance" data-action="verify-data">
-              Run Verification
-            </button>
-          </div>
-
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-bell-slash"></i>
-            </div>
-            <h3>Clear Old Notifications</h3>
-            <p>Remove read notifications older than 7 days.</p>
-            <button class="btn-maintenance" data-action="cleanup-notifications">
-              Run Cleanup
-            </button>
-          </div>
-
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-calendar-times"></i>
-            </div>
-            <h3>Clear University Schedules</h3>
-            <p>Clear all student schedules for a specific university (semester reset).</p>
-            <div class="maintenance-field">
-              <select id="maintenance-university-select">
-                <option value="">Select university</option>
-              </select>
-            </div>
-            <button class="btn-maintenance" data-action="clear-schedules">
-              Clear Schedules
-            </button>
-          </div>
-
-          <div class="maintenance-card glass-card">
-            <div class="maintenance-icon">
-              <i class="fas fa-sync"></i>
-            </div>
-            <h3>Sync Denormalized Data</h3>
-            <p>Re-sync cached user info in clubs, events, and memberships.</p>
-            <button class="btn-maintenance" data-action="sync-denormalized">
-              Run Sync
-            </button>
-          </div>
-        </div>
-
-        <div class="maintenance-log glass-card">
-          <h3><i class="fas fa-terminal"></i> Maintenance Log</h3>
-          <div class="log-output" id="maintenance-log">
-            <p class="log-placeholder">Run a maintenance task to see output here...</p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Populate university dropdown for semester reset
-    try {
-      const universities = await this.fetchUniversities();
-      const selectEl = contentEl.querySelector(
-        "#maintenance-university-select"
-      );
-      if (selectEl && universities.length > 0) {
-        universities.forEach((u) => {
-          const opt = document.createElement("option");
-          opt.value = u.id;
-          opt.textContent = u.name || u.id;
-          selectEl.appendChild(opt);
-        });
-      }
-    } catch (error) {
-      logManager.warn(
-        "AdminPage: Failed to load universities for maintenance tools",
-        error
-      );
-    }
-
-    // Setup maintenance action handlers
-    contentEl.querySelectorAll(".btn-maintenance").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        this.runMaintenanceTask(btn.dataset.action);
-      });
-    });
-  }
-
-  async runMaintenanceTask(action) {
-    const logEl = this.rootEl.querySelector("#maintenance-log");
-    const log = (message, type = "info") => {
-      const timestamp = new Date().toLocaleTimeString();
-      const className =
-        type === "error"
-          ? "log-error"
-          : type === "success"
-          ? "log-success"
-          : "log-info";
-      logEl.innerHTML += `<div class="log-entry ${className}">[${timestamp}] ${message}</div>`;
-      logEl.scrollTop = logEl.scrollHeight;
-    };
-
-    logEl.innerHTML = ""; // Clear previous logs
-    log(`Starting ${action}...`);
-
-    try {
-      switch (action) {
-        case "rebuild-stats":
-          await this.rebuildStats(log);
-          break;
-        case "cleanup-events":
-          await this.cleanupOldEvents(log);
-          break;
-        case "verify-data":
-          await this.verifyDataIntegrity(log);
-          break;
-        case "cleanup-notifications":
-          await this.cleanupNotifications(log);
-          break;
-        case "clear-schedules":
-          await this.clearUniversitySchedules(log);
-          break;
-        case "cleanup-livechat":
-          await this.cleanupLiveChat(log);
-          break;
-        case "sync-denormalized":
-          await this.syncDenormalizedData(log);
-          break;
-      }
-      log("✓ Task completed successfully!", "success");
-    } catch (error) {
-      log(`✗ Error: ${error.message}`, "error");
-      logManager.error("Maintenance task error", error);
-    }
-  }
-
-  async rebuildStats(log = console.log) {
-    await adminRebuildClubStats(log);
-  }
-
-  async cleanupOldEvents(log) {
-    log("Cleaning up old events via Cloud Function...");
-    try {
-      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
-        await import("firebase/functions");
-      const { default: app } = await import(
-        "../lib/firebase/firebase-config.js"
-      );
-      const functions = getFunctions(app, "us-central1");
-
-      const isLocal =
-        typeof window !== "undefined" &&
-        (window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1");
-      if (isLocal) {
-        try {
-          connectFunctionsEmulator(functions, "localhost", 5001);
-        } catch (_) {}
-      }
-
-      const callable = httpsCallable(functions, "runAdminCleanup");
-      const res = await callable({ type: "events" });
-      log(`Deleted ${res?.data?.deleted ?? "N/A"} old events.`);
-    } catch (error) {
-      log("Failed to clean up events via Cloud Function", "error");
-      // Fallback to client-side cleanup if Cloud Function fails
-      try {
-        const deleted = await adminCleanupOldEvents(30, log);
-        log(`Fallback: deleted ${deleted} events via client-side cleanup.`);
-      } catch (fallbackError) {
-        throw fallbackError;
-      }
-    }
-  }
-
-  async verifyDataIntegrity(log) {
-    await adminVerifyDataIntegrityService(log);
-  }
-
-  async cleanupNotifications(log) {
-    await adminCleanupOldNotifications(7, log);
-  }
-
-  async clearUniversitySchedules(log) {
-    const selectEl = this.rootEl.querySelector(
-      "#maintenance-university-select"
-    );
-    const universityId = selectEl?.value;
-    if (!universityId) {
-      log("Please select a university before clearing schedules.", "error");
-      throw new Error("No university selected");
-    }
-
-    log(`Clearing schedules for university: ${universityId}...`);
-
-    try {
-      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
-        await import("firebase/functions");
-      const { default: app } = await import(
-        "../lib/firebase/firebase-config.js"
-      );
-      const functions = getFunctions(app, "us-central1");
-
-      const isLocal =
-        typeof window !== "undefined" &&
-        (window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1");
-      if (isLocal) {
-        try {
-          connectFunctionsEmulator(functions, "localhost", 5001);
-        } catch (_) {
-          // ignore if already connected
-        }
-      }
-
-      const callable = httpsCallable(functions, "clearUniversitySchedules");
-      const res = await callable({ university: universityId });
-      log(
-        `Cleared schedules for ${
-          res?.data?.cleared ?? "N/A"
-        } users in ${universityId}.`
-      );
-    } catch (error) {
-      log("Failed to clear university schedules via Cloud Function", "error");
-      throw error;
-    }
-  }
-
-  async cleanupLiveChat(log) {
-    log("Cleaning up expired live chat messages via Cloud Function...");
-    try {
-      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
-        await import("firebase/functions");
-      const { default: app } = await import(
-        "../lib/firebase/firebase-config.js"
-      );
-      const functions = getFunctions(app, "us-central1");
-
-      const isLocal =
-        typeof window !== "undefined" &&
-        (window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1");
-      if (isLocal) {
-        try {
-          connectFunctionsEmulator(functions, "localhost", 5001);
-        } catch (_) {}
-      }
-
-      const callable = httpsCallable(functions, "runAdminCleanup");
-      const res = await callable({ type: "liveChat" });
-      log(
-        `Deleted ${res?.data?.deleted ?? "N/A"} expired live chat messages.`
-      );
-    } catch (error) {
-      log("Failed to clean up live chat via Cloud Function", "error");
-      throw error;
-    }
-  }
-
-  async syncDenormalizedData(log) {
-    log("Running full denormalized data sync via Cloud Function...");
-    try {
-      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
-        await import("firebase/functions");
-      const { default: app } = await import(
-        "../lib/firebase/firebase-config.js"
-      );
-      const functions = getFunctions(app, "us-central1");
-
-      const isLocal =
-        typeof window !== "undefined" &&
-        (window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1");
-      if (isLocal) {
-        try {
-          connectFunctionsEmulator(functions, "localhost", 5001);
-        } catch (_) {}
-      }
-
-      const callable = httpsCallable(functions, "syncDenormalizedData");
-      const res = await callable({});
-      log(
-        `Synced denormalized data for ${
-          res?.data?.processed ?? "N/A"
-        } user profiles.`
-      );
-    } catch (error) {
-      log("Failed to run denormalized data sync via Cloud Function", "error");
-      throw error;
-    }
-  }
+  //
+  // NOTE: The full Maintenance tab UI (clear schedules, old events cleanup,
+  // sync denormalized data, etc.) is intentionally disabled for now.
+  // The backend Cloud Functions remain available, but the SPA no longer
+  // exposes this functionality in the Admin dashboard. When you want to
+  // re-enable it, restore the tab button in renderDashboard, re-add the
+  // switch case in loadTabContent, and bring back the methods that were
+  // previously defined here.
 
   // ==========================================
   // MODAL HELPER

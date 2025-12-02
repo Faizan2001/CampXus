@@ -417,423 +417,6 @@ function isStarredBy(recipientUser, actorId) {
   );
 }
 
-// -----------------------------
-// Admin Cloud Functions (Phase 7)
-// -----------------------------
-
-// Clear all schedules for a given university (semester reset)
-export const clearUniversitySchedules = https.onCall(
-  async (data, context) => {
-    const { uid: callerUid } = await assertSuperAdmin(context);
-    const university = data?.university;
-
-    if (!university || typeof university !== "string") {
-      throw new https.HttpsError(
-        "invalid-argument",
-        "Parameter 'university' is required"
-      );
-    }
-
-    const usersSnapshot = await db
-      .collection("users")
-      .where("universityInfo.university", "==", university)
-      .get();
-
-    const batchSize = 400;
-    let batch = db.batch();
-    let countInBatch = 0;
-
-    for (const userDoc of usersSnapshot.docs) {
-      batch.update(userDoc.ref, {
-        "scheduleData.schedule": {},
-        "scheduleData.slotInfo": {},
-        "scheduleData.metadata.isEmpty": true,
-        "scheduleData.metadata.totalClasses": 0,
-        "scheduleData.metadata.lastModified": FieldValue.serverTimestamp(),
-      });
-
-      countInBatch++;
-      if (countInBatch >= batchSize) {
-        await batch.commit();
-        batch = db.batch();
-        countInBatch = 0;
-      }
-    }
-
-    if (countInBatch > 0) {
-      await batch.commit();
-    }
-
-    logger.info("clearUniversitySchedules completed", {
-      university,
-      clearedUsers: usersSnapshot.size,
-      callerUid,
-    });
-
-    return { success: true, cleared: usersSnapshot.size };
-  }
-);
-
-// Rebuild club statistics (followers, members, events) for all clubs
-export const rebuildClubStats = https.onCall(async (data, context) => {
-  const { uid: callerUid } = await assertSuperAdmin(context);
-
-  const clubsSnap = await db.collection("clubs").get();
-  let updated = 0;
-
-  for (const clubDoc of clubsSnap.docs) {
-    const clubId = clubDoc.id;
-
-    // Count followers from user docs
-    const followersCountSnap = await db
-      .collection("users")
-      .where("followedClubs", "array-contains", clubId)
-      .count()
-      .get();
-
-    // Count active members (officials + president)
-    const membersSnap = await db
-      .collection(`clubs/${clubId}/members`)
-      .where("role", "in", ["official", "president"])
-      .where("isActive", "==", true)
-      .get();
-
-    // Events this week + next event date
-    const now = new Date();
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    const eventsThisWeekSnap = await db
-      .collection(`clubs/${clubId}/events`)
-      .where("status", "==", "approved")
-      .where("firstSlotStart", ">=", now)
-      .where("firstSlotStart", "<=", weekFromNow)
-      .get();
-
-    const nextEventSnap = await db
-      .collection(`clubs/${clubId}/events`)
-      .where("status", "==", "approved")
-      .where("firstSlotStart", ">=", now)
-      .orderBy("firstSlotStart", "asc")
-      .limit(1)
-      .get();
-
-    const updates = {
-      followerCount: followersCountSnap.data().count || 0,
-      memberCount: membersSnap.size,
-      eventsThisWeek: eventsThisWeekSnap.size,
-      nextEventDate: nextEventSnap.empty
-        ? null
-        : nextEventSnap.docs[0].data().firstSlotStart,
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-
-    await clubDoc.ref.update(updates);
-    updated++;
-  }
-
-  logger.info("rebuildClubStats completed", {
-    updated,
-    callerUid,
-  });
-
-  return { success: true, updated };
-});
-
-// Manual cleanup trigger for events / live chat
-export const runAdminCleanup = https.onCall(async (data, context) => {
-  const { uid: callerUid } = await assertSuperAdmin(context);
-  const type = data?.type;
-
-  if (!type) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameter 'type' is required"
-    );
-  }
-
-  let deleted = 0;
-
-  if (type === "events") {
-    // Mirror AdminService.cleanupOldEvents: delete from the
-    // top-level clubEvents collection based on endTime.
-    const daysOld =
-      typeof data?.daysOld === "number" && data.daysOld > 0
-        ? data.daysOld
-        : 30;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-    const eventsSnap = await db.collection("clubEvents").get();
-    const batchSize = 500;
-    let batch = db.batch();
-    let opsInBatch = 0;
-
-    for (const eventDoc of eventsSnap.docs) {
-      const data = eventDoc.data() || {};
-      const endTime =
-        data.endTime && typeof data.endTime.toDate === "function"
-          ? data.endTime.toDate()
-          : null;
-
-      if (!endTime || endTime >= cutoffDate) {
-        continue;
-      }
-
-      batch.delete(eventDoc.ref);
-      deleted++;
-      opsInBatch++;
-
-      if (opsInBatch >= batchSize) {
-        await batch.commit();
-        batch = db.batch();
-        opsInBatch = 0;
-      }
-    }
-
-    if (opsInBatch > 0) {
-      await batch.commit();
-    }
-  } else if (type === "liveChat") {
-    const now = new Date();
-    const expiredMessagesSnap = await db
-      .collectionGroup("liveChat")
-      .where("expiresAt", "<", now)
-      .get();
-
-    if (!expiredMessagesSnap.empty) {
-      const batchSize = 400;
-      let batch = db.batch();
-      let batchCount = 0;
-
-      for (const msgDoc of expiredMessagesSnap.docs) {
-        batch.delete(msgDoc.ref);
-        deleted++;
-        batchCount++;
-
-        if (batchCount >= batchSize) {
-          await batch.commit();
-          batch = db.batch();
-          batchCount = 0;
-        }
-      }
-
-      if (batchCount > 0) {
-        await batch.commit();
-      }
-    }
-  } else {
-    throw new https.HttpsError("invalid-argument", "Unknown cleanup type");
-  }
-
-  logger.info("runAdminCleanup completed", {
-    type,
-    deleted,
-    callerUid,
-  });
-
-  return { success: true, deleted };
-});
-
-// Phase 8: Sync denormalized club data for users (presidentInfo, members.userInfo, events.*ByInfo)
-export const syncDenormalizedData = https.onCall(async (data, context) => {
-  const { uid: callerUid } = await assertSuperAdmin(context);
-  const targetUserId = data?.userId || null;
-
-  const syncForUser = async (userId) => {
-    const userSnap = await db.collection("users").doc(userId).get();
-    if (!userSnap.exists) {
-      return;
-    }
-    const after = userSnap.data() || {};
-
-    // Build minimal "after" shape compatible with syncUserAvatarPhotoChanges
-    const fakeBefore = {}; // Using empty before ensures we treat all fields as "changed"
-    const beforeAvatar = null;
-    const afterAvatar = after.avatarConfig || null;
-    const avatarChanged =
-      JSON.stringify(beforeAvatar) !== JSON.stringify(afterAvatar);
-    const beforePhoto = null;
-    const afterPhoto = after.profile?.profilePhotoUrl || null;
-    const photoChanged = beforePhoto !== afterPhoto;
-    const beforeUseAvatar = undefined;
-    const afterUseAvatar = after.profile?.useAvatar;
-    const useAvatarChanged = beforeUseAvatar !== afterUseAvatar;
-    const beforeHandle = null;
-    const afterHandle = after.profile?.handle || null;
-    const handleChanged = beforeHandle !== afterHandle;
-    const beforeMajor = null;
-    const afterMajor = after.profile?.major || null;
-    const majorChanged = beforeMajor !== afterMajor;
-    const beforeUniversity = null;
-    const afterUniversity = after.universityInfo?.university || null;
-    const universityChanged = beforeUniversity !== afterUniversity;
-
-    const updatedUserInfo = {
-      handle: afterHandle,
-      major: afterMajor || "Unknown",
-      university: afterUniversity || "unknown",
-      avatarConfig: afterAvatar || null,
-      profilePhotoUrl: afterPhoto || null,
-      useAvatar: typeof afterUseAvatar === "boolean" ? afterUseAvatar : false,
-    };
-
-    let batch = db.batch();
-    let pendingWrites = 0;
-    const flushIfNeeded = async () => {
-      if (pendingWrites > 0) {
-        await batch.commit();
-        batch = db.batch();
-        pendingWrites = 0;
-      }
-    };
-    const queueUpdate = async (ref, data) => {
-      batch.update(ref, data);
-      pendingWrites += 1;
-      if (pendingWrites >= 400) {
-        await flushIfNeeded();
-      }
-    };
-
-    const denormProfile = {
-      handle: updatedUserInfo.handle,
-      major: updatedUserInfo.major,
-      university: updatedUserInfo.university,
-      avatarConfig: updatedUserInfo.avatarConfig,
-      profilePhotoUrl: updatedUserInfo.profilePhotoUrl,
-      useAvatar: updatedUserInfo.useAvatar,
-    };
-
-    // Same targets as in syncUserAvatarPhotoChanges (0a–0d)
-
-    // Clubs where user is president
-    const presidentClubsSnap = await db
-      .collection("clubs")
-      .where("presidentId", "==", userId)
-      .get();
-    for (const clubDoc of presidentClubsSnap.docs) {
-      await queueUpdate(clubDoc.ref, { presidentInfo: denormProfile });
-    }
-
-    // Club members (uid / userId)
-    const memberByUidSnap = await db
-      .collectionGroup("members")
-      .where("uid", "==", userId)
-      .get()
-      .catch((err) => {
-        logger.error("syncDenormalizedData: members uid query failed", {
-          userId,
-          error: String(err),
-        });
-        return { empty: true, docs: [] };
-      });
-    const memberByUserIdSnap = await db
-      .collectionGroup("members")
-      .where("userId", "==", userId)
-      .get()
-      .catch((err) => {
-        logger.error("syncDenormalizedData: members userId query failed", {
-          userId,
-          error: String(err),
-        });
-        return { empty: true, docs: [] };
-      });
-    const memberDocs = [
-      ...(memberByUidSnap.docs || []),
-      ...(memberByUserIdSnap.docs || []),
-    ];
-    for (const memberDoc of memberDocs) {
-      const data = memberDoc.data() || {};
-      const updates = {
-        userInfo: {
-          ...(data.userInfo || {}),
-          handle: denormProfile.handle,
-          major: denormProfile.major,
-          university: denormProfile.university,
-          avatarConfig: denormProfile.avatarConfig,
-          profilePhotoUrl: denormProfile.profilePhotoUrl,
-          useAvatar: denormProfile.useAvatar,
-        },
-      };
-      await queueUpdate(memberDoc.ref, updates);
-    }
-
-    // Events created by this user
-    const createdEventsSnap = await db
-      .collectionGroup("events")
-      .where("createdBy", "==", userId)
-      .get()
-      .catch((err) => {
-        logger.error("syncDenormalizedData: events createdBy query failed", {
-          userId,
-          error: String(err),
-        });
-        return { empty: true, docs: [] };
-      });
-    for (const eventDoc of createdEventsSnap.docs) {
-      const data = eventDoc.data() || {};
-      const createdByInfo = data.createdByInfo || {};
-      const updates = {
-        createdByInfo: {
-          ...createdByInfo,
-          handle: denormProfile.handle,
-          avatarConfig: denormProfile.avatarConfig,
-          profilePhotoUrl: denormProfile.profilePhotoUrl,
-          useAvatar: denormProfile.useAvatar,
-        },
-      };
-      await queueUpdate(eventDoc.ref, updates);
-    }
-
-    // Events started by this user
-    const startedEventsSnap = await db
-      .collectionGroup("events")
-      .where("startedBy", "==", userId)
-      .get()
-      .catch((err) => {
-        logger.error("syncDenormalizedData: events startedBy query failed", {
-          userId,
-          error: String(err),
-        });
-        return { empty: true, docs: [] };
-      });
-    for (const eventDoc of startedEventsSnap.docs) {
-      const data = eventDoc.data() || {};
-      const startedByInfo = data.startedByInfo || {};
-      const updates = {
-        startedByInfo: {
-          ...startedByInfo,
-          handle: denormProfile.handle,
-          avatarConfig: denormProfile.avatarConfig,
-          profilePhotoUrl: denormProfile.profilePhotoUrl,
-          useAvatar: denormProfile.useAvatar,
-        },
-      };
-      await queueUpdate(eventDoc.ref, updates);
-    }
-
-    await flushIfNeeded();
-
-    logger.info("syncDenormalizedData: user synced", {
-      targetUserId: userId,
-      calledBy: callerUid,
-    });
-  };
-
-  if (targetUserId) {
-    await syncForUser(targetUserId);
-    return { success: true, processed: 1 };
-  }
-
-  // Full backfill for all users (use with care)
-  const usersSnap = await db.collection("users").get();
-  let processed = 0;
-  for (const userDoc of usersSnap.docs) {
-    await syncForUser(userDoc.id);
-    processed++;
-  }
-
-  return { success: true, processed };
-});
 
 // SAF moderator management via callable functions
 export const addSafModerator = https.onCall(async (data, context) => {
@@ -1324,6 +907,86 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
       });
     } catch (err) {
       logger.error("syncUserAvatarPhotoChanges: failed", {
+        error: String(err),
+      });
+    }
+  }
+);
+
+// 0b) Maintain club followerCount when a user's followedClubs array changes
+export const onClubFollow = onDocumentUpdated(
+  "users/{userId}",
+  async (event) => {
+    const userId = event.params.userId;
+    try {
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+      if (!beforeSnap || !afterSnap) {
+        logger.warn("onClubFollow: missing before/after snapshot", { userId });
+        return;
+      }
+
+      const beforeData = beforeSnap.data() || {};
+      const afterData = afterSnap.data() || {};
+
+      const beforeClubsRaw = beforeData.followedClubs;
+      const afterClubsRaw = afterData.followedClubs;
+
+      const beforeClubs = Array.isArray(beforeClubsRaw)
+        ? beforeClubsRaw.filter((id) => typeof id === "string")
+        : [];
+      const afterClubs = Array.isArray(afterClubsRaw)
+        ? afterClubsRaw.filter((id) => typeof id === "string")
+        : [];
+
+      // Compute set-diff for follows/unfollows
+      const newFollows = afterClubs.filter((id) => !beforeClubs.includes(id));
+      const unfollows = beforeClubs.filter((id) => !afterClubs.includes(id));
+
+      if (newFollows.length === 0 && unfollows.length === 0) {
+        return;
+      }
+
+      // De-duplicate within each list for safety
+      const uniqueNewFollows = [...new Set(newFollows)];
+      const uniqueUnfollows = [...new Set(unfollows)];
+
+      const changes = [
+        ...uniqueNewFollows.map((clubId) => ({ clubId, delta: 1 })),
+        ...uniqueUnfollows.map((clubId) => ({ clubId, delta: -1 })),
+      ];
+
+      let batch = db.batch();
+      let opsInBatch = 0;
+      const batchSize = 400;
+
+      for (const { clubId, delta } of changes) {
+        const clubRef = db.collection("clubs").doc(clubId);
+        batch.update(clubRef, {
+          followerCount: FieldValue.increment(delta),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        opsInBatch++;
+
+        if (opsInBatch >= batchSize) {
+          await batch.commit();
+          batch = db.batch();
+          opsInBatch = 0;
+        }
+      }
+
+      if (opsInBatch > 0) {
+        await batch.commit();
+      }
+
+      logger.info("onClubFollow: follower counts updated", {
+        userId,
+        newFollows: uniqueNewFollows.length,
+        unfollows: uniqueUnfollows.length,
+      });
+    } catch (err) {
+      logger.error("onClubFollow: failed", {
+        userId,
         error: String(err),
       });
     }

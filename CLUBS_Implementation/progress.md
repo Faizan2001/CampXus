@@ -2969,108 +2969,39 @@ _Progress log updated: 2025-12-01_
 
 ## 🔐 Phase 7: Admin Dashboard ✅
 
-### What Was Built (The Fun Version! 👑)
+### What Was Built
 
-The Super Admin Dashboard is like the control room of a space station — only the chosen few can access it, and they need a secret code! This hidden `/admin` route gives super admins full control over the entire clubs ecosystem.
+- Hidden `/admin` route gated by:
+  - Router‐level `requiresSuperAdmin` flag (checks `/admin/superAdmins.uids`).
+  - PIN verification (SHA‑256 of 6‑digit PIN stored in `admin/superAdmins.pinHash`).
+- Tabs:
+  - **Overview** — Stats for universities, clubs, events (from `clubEvents`), SAF mods, quick actions, and a recent admin activity feed backed by `/adminActivity`.
+  - **Universities** — List + create/edit/delete universities (`/universities/{id}`).
+  - **SAF Mods** — Manage SAF moderators in `/safModerators/{uid}` with basic activity counts.
+  - **Clubs** — List, create, edit, assign president and delete clubs, wired through `AdminService` to keep `presidentId` + membership in sync and update `universities.{code}.clubCount`.
 
-**Security Layers:**
+### Files Created/Modified (Summary)
 
-1. 🛡️ **Super Admin Check** — Your UID must be in `/admin/superAdmins.uids` array
-2. 🔑 **PIN Verification** — Enter a 6-digit PIN that gets SHA-256 hashed and compared
-3. 🚪 **Router Gate** — New `requiresSuperAdmin` flag blocks unauthorized navigation
+| File                                    | What Changed                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `public/templates/admin.html`           | Admin page template (`#admin-root`)                                         |
+| `src/js/pages/AdminPage.js`             | Admin SPA controller: PIN screen, Overview/Universities/SAF/Clubs tabs      |
+| `src/css/admin.css`                     | Admin dashboard styles                                                      |
+| `src/js/router/Router.js`               | Adds hidden `admin` route + `requiresSuperAdmin` gate                       |
+| `firestore.rules`                       | Adds `/admin/*`, `/safModerators/*`, `/universities/*`, `/clubEvents/*`, `/adminActivity/*` helpers |
+| `src/js/services/admin/AdminService.js` | Admin helpers for universities, SAF mods, clubs, and stats utilities        |
 
-**Features added:**
+### Firestore Rules (High‑Level)
 
-- 📊 **Overview Tab** — Dashboard stats (universities, clubs, events, SAF mods) + quick actions
-- 🏫 **Universities Tab** — Create, edit, delete universities with domain/code
-- 👮 **SAF Mods Tab** — Add/remove SAF moderators, filter by university
-- 🎭 **Clubs Tab** — Full club management (create, edit, delete via AdminService, assign presidents via AdminService.assignPresident so `presidentId` + membership stay in sync)
-- 🔧 **Maintenance Tab** — Rebuild stats, cleanup old events/notifications, data integrity checks
-
-### Files Created/Modified:
-
-| File                                    | What Changed                                                                          |
-| --------------------------------------- | ------------------------------------------------------------------------------------- |
-| `public/templates/admin.html`           | NEW — Basic admin page template                                                       |
-| `src/js/pages/AdminPage.js`             | NEW — 850+ lines: PIN verification, all 5 tab UIs, CRUD operations, maintenance tools |
-| `src/css/admin.css`                     | NEW — 1100+ lines: glassmorphism styling matching clubs aesthetic                     |
-| `src/js/router/Router.js`               | Added hidden `admin` route; router enforces `requiresSuperAdmin` + AdminPage + Firestore super-admin rules |
-| `firestore.rules`                       | Added `/admin/*`, `/safModerators/*`, `/universities/*`, `/clubEvents/*` and super-admin helpers |
-| `src/js/services/admin/AdminService.js` | NEW — Admin helpers for universities/SAF/clubs/maintenance (used by AdminPage for club creation & stats) |
-
-### Dashboard Tabs:
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│  👑 Super Admin Dashboard                    [Admin Badge]   │
-├──────────────────────────────────────────────────────────────┤
-│  [Overview] [Universities] [SAF Mods] [Clubs] [Maintenance]  │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  📊 Overview Tab:                                            │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                │
-│  │   5    │ │   23   │ │   7    │ │   4    │                │
-│  │ Unis   │ │ Clubs  │ │Events  │ │SAF Mods│                │
-│  └────────┘ └────────┘ └────────┘ └────────┘                │
-│                                                              │
-│  Quick Actions: [Create Club] [Add SAF] [Rebuild Stats]     │
-│                                                              │
-│  Recent Activity: (activity log)                            │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### Firestore Rules Added / Updated:
-
-```javascript
-// Helper at top-level of rules:
-function isSuperAdmin() {
-  return request.auth != null &&
-         exists(/databases/$(database)/documents/admin/superAdmins) &&
-         request.auth.uid in get(/databases/$(database)/documents/admin/superAdmins).data.uids;
-}
-
-// /admin/* — Super admin configuration docs
-match /admin/{docId} {
-  // Allow authenticated users to read superAdmins doc so client can evaluate isSuperAdmin()
-  // safely; all writes remain super-admin-only and superAdmins itself is console/Admin SDK only.
-  allow read: if (docId == "superAdmins" && request.auth != null) || isSuperAdmin();
-  allow create, update, delete: if isSuperAdmin() && docId != "superAdmins";
-}
-
-// /safModerators/* — SAF moderator list (flat collection)
-match /safModerators/{uid} {
-  // Super admins manage the SAF list
-  allow read, write: if isSuperAdmin();
-  // Individual SAF moderator can read their own entry
-  allow read: if request.auth != null && request.auth.uid == uid;
-}
-
-// /universities/* — now writable only by super admins
-match /universities/{universityId} {
-  allow read: if request.auth != null;
-  allow write: if isSuperAdmin();
-}
-
-// /clubs/* — super admins can create/update/delete clubs and members
-match /clubs/{clubId} {
-  allow read: if request.auth != null;
-  allow create: if request.auth != null &&
-    (isSuperAdmin() || /* existing verified + devTest logic */);
-  allow update, delete: if request.auth != null &&
-    (isSuperAdmin() || /* existing creator/devTest/president logic */);
-
-  match /members/{memberId} {
-    allow read: if request.auth != null;
-    allow write: if isSuperAdmin();
-  }
-}
-
-// /clubEvents/* — global collection used by admin maintenance tools
-match /clubEvents/{eventId} {
-  allow read, write: if isSuperAdmin();
-}
-```
+- Helper: `isSuperAdmin()` checks `request.auth.uid` against `/admin/superAdmins.uids`.
+- Collections:
+  - `/admin/{docId}` → super admin config; `superAdmins` doc is read‑only from clients.
+  - `/safModerators/{uid}` → SAF moderators list (super admin managed; self‑read allowed).
+  - `/universities/{universityId}` → read for authed users; writes only for `isSuperAdmin()`.
+  - `/clubs/{clubId}` → super admins can create/update/delete; creators/presidents still follow Phase 5 rules; delete rules hardened for legacy `devTest` clubs.
+  - `/clubs/{clubId}/events/{eventId}` → role‑based event access; super admins short‑circuit checks; optional fields (`devTest`, `officialIds`) guarded to avoid evaluation errors.
+  - `/clubEvents/{eventId}` → global collection for events used by analytics/Overview stats, gated by `isSuperAdmin()`.
+  - `/adminActivity/{activityId}` → admin activity log; super admin read/create only.
 
 ### Status & Remaining Work
 
@@ -3086,82 +3017,12 @@ match /clubEvents/{eventId} {
   - SAF Mods: list, add, remove moderators stored in `safModerators/{uid}`, with per-moderator aggregate stats (`eventsApproved`, `clubsCreated`) derived from events/clubs.
   - Clubs: list all clubs, create via modal (with university dropdown, accent color picker, logo/banner upload, optional SAF-approval flag), edit core fields (including `isActive` toggle), assign president (via `AdminService.assignPresident`), and hard delete via `AdminService.deleteClub` (subcollections + university clubCount cleanup).
   - Maintenance: rebuild stats, cleanup old events, verify data integrity, cleanup old notifications, clear expired live chat, and clear university schedules; heavy operations (`clearUniversitySchedules`, event/live-chat cleanup, stats rebuild) are backed by Cloud Functions with client-side fallbacks.
-- Logging added for key admin flows (mount, super-admin checks, universities/SAF/clubs CRUD, maintenance tasks) **and** persisted admin activity entries written to `/adminActivity` for dashboard auditing.
+  - Logging added for key admin flows (mount, super-admin checks, universities/SAF/clubs CRUD) and persisted admin activity entries written to `/adminActivity` for dashboard auditing.
 
 **Deferred / To Be Done in Later Phases**
 
-- Dedicated Cloud Function + UI wiring for **Sync Denormalized Data** (bulk re-sync of cached user info); today this is handled incrementally via existing triggers (e.g., avatar/profile update functions) and the Maintenance card is a documented placeholder.
-- Rich SAF moderator activity history (full timeline/filters) beyond the current aggregate "events approved / clubs created" counters surfaced in the SAF tab.
-
-### Manual Tests (Your Checkpoint!) 🧪
-
-**Setup First — Create Super Admin Doc:**
-
-Before testing, you need to manually create the super admin config in Firestore:
-
-1. Open Firestore emulator UI (`http://localhost:4000/firestore`)
-2. Create collection: `admin`
-3. Create document with ID: `superAdmins`
-4. Add fields:
-
-   - `uids` (array): Add your test user's UID
-   - `pinHash` (string): SHA-256 hash of your 6-digit PIN
-
-   To generate PIN hash, run in browser console:
-
-   ```javascript
-   const pin = "123456"; // Your chosen PIN
-   const encoder = new TextEncoder();
-   const data = encoder.encode(pin);
-   crypto.subtle.digest("SHA-256", data).then((hash) => {
-     const hashArray = Array.from(new Uint8Array(hash));
-     console.log(
-       hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
-     );
-   });
-   ```
-
-**Test 1: Access Denied (Non-Admin)**
-
-1. Log in as a user NOT in the `superAdmins.uids` array
-2. Navigate to `#admin`
-3. Should see "Access Denied" screen and redirect to home
-
-**Test 2: PIN Verification**
-
-1. Log in as a user IN the `superAdmins.uids` array
-2. Navigate to `#admin`
-3. Should see PIN entry screen
-4. Enter wrong PIN → Error message
-5. Enter correct PIN → Dashboard loads!
-
-**Test 3: Overview Tab**
-
-1. After PIN verification, see the Overview tab
-2. Verify stat cards show correct counts
-3. Click "Create Club" quick action → Switches to Clubs tab + opens modal
-
-**Test 4: Universities Management**
-
-1. Click "Universities" tab
-2. Click "Add University" → Fill form → Submit
-3. Verify new university appears in list
-4. Click edit/delete buttons to test those flows
-
-**Test 5: SAF Moderators**
-
-1. Click "SAF Mods" tab
-2. Click "Add SAF Mod" → Enter UID → Submit
-3. Verify new moderator appears in list
-4. Click remove button to test removal
-
-**Test 6: Clubs Management**
-
-1. Click "Clubs" tab
-2. See table of all clubs with search/filter
-3. Click "Create Club" → Fill form → Submit
-4. Click crown icon to assign president
-5. Click trash icon to delete (with confirmation)
+- Rich SAF moderator activity history (full timeline/filters) beyond aggregate "events approved / clubs created" counts.
+- Club deactivation/reactivation flows (toggle `isActive`) beyond hard delete.
 
 **Test 7: Maintenance Tools**
 
@@ -3179,125 +3040,8 @@ Before testing, you need to manually create the super admin config in Firestore:
 
 ### 2025-12-03 — Fix: Club Deletion & Legacy Event Rules
 
-What was happening:
-
-- Deleting some older clubs from the Admin dashboard as a super admin failed with a Firestore error like:  
-  `evaluation error at L182:24 for 'list' ... Property devTest/officialIds is undefined on object`.
-- This came from the `/clubs/{clubId}/events/{eventId}` rules, which assumed newer fields (`devTest`, `officialIds`) were always present on the parent club document when checking `isClubPresident()` / `isClubOfficialMember()`.
-- Because admin deletion needs to read `clubs/{clubId}/events/*` to batch‑delete them, these evaluation errors blocked deletion even for super admins.
-
-What I changed in `firestore.rules`:
-
-- Hardened the events subcollection helpers to be safe for legacy club documents:
-
-  ```javascript
-  match /clubs/{clubId}/events/{eventId} {
-    allow read: if request.auth != null && (
-      isSuperAdmin() ||
-      isClubPresident() ||
-      isClubOfficialMember() ||
-      resource.data.status == 'approved'
-    );
-
-    function isClubPresident() {
-      let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
-
-      let isDevTestClub =
-        ('devTest' in club) &&
-        club.devTest == true;
-
-      let devOwnerIsPresident =
-        isDevTestClub &&
-        ('devOwnerUid' in club) &&
-        club.devOwnerUid == request.auth.uid;
-
-      let prodPresidentMatch =
-        !isDevTestClub && (
-          (('presidentId' in club) && club.presidentId == request.auth.uid) ||
-          (('createdBy' in club) && club.createdBy == request.auth.uid)
-        );
-
-      return devOwnerIsPresident || prodPresidentMatch;
-    }
-
-    function isClubOfficialMember() {
-      let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
-
-      let hasOfficialIds =
-        ('officialIds' in club) &&
-        (club.officialIds is list);
-
-      return hasOfficialIds &&
-             club.officialIds.hasAny([request.auth.uid]);
-    }
-
-    allow create: if request.auth != null && (
-      isSuperAdmin() ||
-      isClubPresident() ||
-      (
-        isClubOfficialMember() &&
-        request.resource.data.createdBy == request.auth.uid &&
-        request.resource.data.status == 'pending_president' &&
-        request.resource.data.approvedBy == null &&
-        request.resource.data.approvedAt == null &&
-        request.resource.data.safApprovedBy == null &&
-        request.resource.data.safApprovedAt == null
-      )
-    );
-
-    allow update: if request.auth != null && (
-      isSuperAdmin() ||
-      isClubPresident() ||
-      (
-        isClubOfficialMember() &&
-        resource.data.createdBy == request.auth.uid &&
-        resource.data.status in ['pending_president', 'rejected'] &&
-        request.resource.data.status in ['pending_president'] &&
-        request.resource.data.approvedBy == resource.data.approvedBy &&
-        request.resource.data.approvedAt == resource.data.approvedAt &&
-        request.resource.data.safApprovedBy == resource.data.safApprovedBy &&
-        request.resource.data.safApprovedAt == resource.data.safApprovedAt
-      ) ||
-      (
-        isClubOfficialMember() &&
-        resource.data.createdBy == request.auth.uid &&
-        resource.data.status == 'approved' &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['isLive', 'startedAt', 'startedBy', 'startedByInfo', 'endedAt', 'endedBy'])
-      )
-    );
-
-    allow delete: if request.auth != null && (
-      isSuperAdmin() ||
-      isClubPresident()
-    );
-  }
-  ```
-
-- Key behavior points:
-  - `isSuperAdmin()` is now checked first in the `allow read/create/update/delete` blocks so super admin event operations short‑circuit and do not depend on legacy club fields.
-  - Both helpers now guard optional fields with `'fieldName' in club` before using `is list` or doing comparisons, preventing `Property X is undefined on object` evaluation errors on older docs.
-
-Why this matters for Phase 7:
-
-- Admin dashboard delete now calls `AdminService.deleteClub`, which:
-  - Reads members and events subcollections,
-  - Deletes all subdocuments,
-  - Deletes the club doc,
-  - Decrements `universities/{code}.clubCount` if applicable.
-- With the hardened rules:
-  - Super admins can successfully delete clubs created under older schemas (no `devTest`/`officialIds`), aligning behavior with the Admin System spec.
-  - Regular users still cannot delete clubs or events; the role‑based behavior from earlier phases is preserved.
-
-Manual test for this fix:
-
-1. Log in as a super admin (UID in `admin/superAdmins.uids` and valid PIN).
-2. Go to `#admin` → **Clubs** tab.
-3. Pick an older club (one that throws the error today), click the trash icon, and confirm.
-4. Expected:
-   - Console shows `AdminPage: Deleting club from dashboard` then `AdminPage: Club deleted from dashboard`.
-   - No Firestore "Property devTest/officialIds is undefined" errors.
-   - Club disappears from the table.
+- Hardened `/clubs/{clubId}/events/{eventId}` rules so `isClubPresident()` / `isClubOfficialMember()` guard optional fields (like `devTest`, `officialIds`) and `isSuperAdmin()` short‑circuits read/write/delete checks.
+- Effect: deleting older clubs from the Admin dashboard via `AdminService.deleteClub` no longer triggers evaluation errors such as “Property devTest/officialIds is undefined on object”, while role‑based restrictions for non‑admins remain intact.
 
 ### 2025-12-03 — Hardening: Admin Activity & Denormalized Sync Queries
 
@@ -3329,15 +3073,35 @@ _Progress log updated: Phase 7 complete — 2025-12-03_
 
 ---
 
-## 📋 Phase 8: Polish & Testing (TODO)
+## 📋 Phase 8: Polish & Decisions
 
-### Remaining Tasks:
+### Phase 8: Denormalized Data Sync (Implemented)
 
-- [ ] End-to-end testing of full admin workflow
-- [ ] Edge case handling for admin operations
-- [ ] Rate limiting considerations for bulk operations
-- [ ] Add activity logging for admin actions
-- [ ] Accessibility audit for admin dashboard
-- [ ] Mobile responsiveness testing
+- `syncUserAvatarPhotoChanges` Cloud Function now fully covers club/event denormalization when a user updates their profile:
+  - `club.presidentInfo`
+  - `clubs/{clubId}/members/{uid}.userInfo`
+  - `clubs/{clubId}/events/{eventId}.createdByInfo`
+  - `clubs/{clubId}/events/{eventId}.startedByInfo`
+- This ensures admins and users see up‑to‑date names/avatars in presidents, members, and event listings without any manual “sync” action.
+
+### Phase 8: Admin Maintenance Tab (Deferred)
+
+- The spec included a **Maintenance** tab (Rebuild Stats, Clear Old Events, Clear Schedules, Sync Denormalized Data, etc.) wired to Cloud Functions.
+- We implemented and exercised these tools locally, but you decided they are not needed for the current milestone.
+- Final decision:
+  - Maintenance UI has been removed from `AdminPage.js` and is no longer visible in the admin dashboard.
+  - Maintenance‑specific callables (`clearUniversitySchedules`, `rebuildClubStats`, `runAdminCleanup`, `syncDenormalizedData`) have been removed from `functions/index.js`.
+  - The underlying client‑side helpers (e.g., `AdminService.rebuildClubStats`) remain available in case we reintroduce an operations/maintenance phase later.
+- Rationale:
+  - Keep the admin surface focused on core responsibilities (universities, SAF mods, clubs) until you explicitly need operational tooling.
+  - Avoid confusing/partial maintenance features while debugging higher‑priority flows.
+
+### Phase 8: Remaining Polish (Future Work)
+
+- End‑to‑end testing of full admin workflow.
+- Accessibility and mobile‑responsiveness review for the Admin dashboard.
+- Optional: richer SAF moderator activity timeline (beyond aggregate “events approved / clubs created” in the SAF tab).
+
+_Progress log updated: Phase 8 denorm sync + maintenance decision — 2025-12-03_
 
 ---
