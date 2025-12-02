@@ -420,10 +420,12 @@ service cloud.firestore {
 
     // --- Notifications (/notifications) - Campus Presence 2025 ---
     match /notifications/{notificationId} {
-      // Users can read notifications sent TO them or FROM them
+      // Users can read notifications sent TO them or FROM them.
+      // Guard field access so legacy/system notifications without userId/fromUserId
+      // do not cause evaluation errors.
       allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.fromUserId == request.auth.uid
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) ||
+        (('fromUserId' in resource.data) && resource.data.fromUserId == request.auth.uid)
       );
       
       // Users can create notifications they are sending (FROM them) if verified OR dev email
@@ -433,7 +435,7 @@ service cloud.firestore {
       
       // Users can update/delete notifications sent TO them (mark as read, dismiss) if verified OR dev email
       allow update, delete: if request.auth != null && 
-        resource.data.userId == request.auth.uid &&
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) &&
         (isVerified() || isDevEmail());
     }
 
@@ -489,6 +491,14 @@ service cloud.firestore {
 	    // Only super admins may access this collection from clients; server/Admin SDK may bypass rules.
 	    match /clubEvents/{eventId} {
 	      allow read, write: if isSuperAdmin();
+	    }
+
+	    // --- Admin Activity Log (/adminActivity) ---
+	    // Lightweight audit trail for admin actions surfaced in the dashboard.
+	    // Only super admins may read or write these documents from the client.
+	    match /adminActivity/{activityId} {
+	      allow read, create: if isSuperAdmin();
+	      allow update, delete: if false;
 	    }
 
     // --- Helper Functions ---

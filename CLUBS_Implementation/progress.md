@@ -3079,25 +3079,19 @@ match /clubEvents/{eventId} {
 - `/admin` route exists, is hidden from navigation, and is auth-gated:  
   - Router enforces `requiresAuth`,  
   - AdminPage checks Firestore superAdmins doc and shows either Access Denied or PIN screen.
-- Super admin PIN verification works client-side using SHA-256 against `admin/superAdmins.pinHash`.
+- Super admin PIN verification works client-side using SHA-256 against `admin/superAdmins.pinHash`, with a max-attempts lockout (5 tries → 5 minute cooldown).
 - Admin dashboard tabs implemented and wired to Firestore:
-  - Overview: counts for universities, clubs, events, SAF mods + quick actions.
-  - Universities: list, create, delete; Firestore rules restrict writes to super admins.
-  - SAF Mods: list, add, remove moderators stored in `safModerators/{uid}`.
-  - Clubs: list all clubs, create via modal (with university dropdown), assign president, delete club.
-  - Maintenance: rebuild stats, cleanup old events, verify data integrity, cleanup old notifications.
-- Logging added for key admin flows (mount, super-admin checks, universities/SAF/clubs CRUD, maintenance tasks).
+  - Overview: counts for universities, clubs, events, SAF mods + quick actions, plus a **Recent Activity** feed backed by `/adminActivity` (club created/deleted, SAF changes, maintenance runs).
+  - Universities: list, create, edit, delete; Firestore rules restrict writes to super admins.
+  - SAF Mods: list, add, remove moderators stored in `safModerators/{uid}`, with per-moderator aggregate stats (`eventsApproved`, `clubsCreated`) derived from events/clubs.
+  - Clubs: list all clubs, create via modal (with university dropdown, accent color picker, logo/banner upload, optional SAF-approval flag), edit core fields (including `isActive` toggle), assign president (via `AdminService.assignPresident`), and hard delete via `AdminService.deleteClub` (subcollections + university clubCount cleanup).
+  - Maintenance: rebuild stats, cleanup old events, verify data integrity, cleanup old notifications, clear expired live chat, and clear university schedules; heavy operations (`clearUniversitySchedules`, event/live-chat cleanup, stats rebuild) are backed by Cloud Functions with client-side fallbacks.
+- Logging added for key admin flows (mount, super-admin checks, universities/SAF/clubs CRUD, maintenance tasks) **and** persisted admin activity entries written to `/adminActivity` for dashboard auditing.
 
 **Deferred / To Be Done in Later Phases**
 
-- SAF moderator activity log UI (Phase 7.3 last bullet).
-- Club deactivation / reactivation flows (toggle `isActive`) beyond hard delete.
-- Admin Cloud Functions (`functions/admin/*`) for:
-  - `addSafModerator`, `removeSafModerator`,
-  - `clearOldEvents(daysOld)` (server-side),
-  - `clearUniversitySchedules(university)` (semester reset),
-  - server-side `rebuildClubStats()` / follower count rebuild.
-- Wiring admin actions to Cloud Functions instead of direct client writes, once the Admin SDK layer is in place.
+- Dedicated Cloud Function + UI wiring for **Sync Denormalized Data** (bulk re-sync of cached user info); today this is handled incrementally via existing triggers (e.g., avatar/profile update functions) and the Maintenance card is a documented placeholder.
+- Rich SAF moderator activity history (full timeline/filters) beyond the current aggregate "events approved / clubs created" counters surfaced in the SAF tab.
 
 ### Manual Tests (Your Checkpoint!) 🧪
 
@@ -3304,6 +3298,24 @@ Manual test for this fix:
    - Console shows `AdminPage: Deleting club from dashboard` then `AdminPage: Club deleted from dashboard`.
    - No Firestore "Property devTest/officialIds is undefined" errors.
    - Club disappears from the table.
+
+### 2025-12-03 — Hardening: Admin Activity & Denormalized Sync Queries
+
+What changed:
+
+- Extended admin tooling to capture a richer, auditable trail:
+  - `AdminService.createClub`, `updateClub`, `deleteClub`, `assignPresident`, and all maintenance helpers now write entries into `/adminActivity` with structured payloads (e.g., club IDs, university IDs, counts, issues found).
+  - Long‑running maintenance jobs (`rebuildClubStats`, `cleanupOldEvents`, `verifyDataIntegrity`, `cleanupOldNotifications`) were updated to chunk writes/deletes into batches of 500 to stay within Firestore limits for large datasets.
+- Hardened notifications rules to be legacy‑safe:
+  - `/notifications/{notificationId}` read/update/delete checks now guard access on `('userId' in resource.data)` / `('fromUserId' in resource.data)` before comparing to `request.auth.uid`, so older/system notifications without these fields no longer trigger evaluation errors.
+- Improved observability and safety around denormalized user sync:
+  - `syncUserAvatarPhotoChanges` (trigger) and `syncDenormalizedData` (admin callable) still treat updates as best‑effort, but collection group queries that previously swallowed all errors (`members` by `uid`/`userId`, `events` by `createdBy`/`startedBy`) now log `logger.error` entries with the failing userId and error string while falling back to an empty result.
+
+Why this matters:
+
+- Admin dashboard actions are now backed by a durable activity log that can drive the Overview "Recent Activity" feed and future compliance/audit requirements.
+- Maintenance tasks scale better to real production volumes without hitting batch‑size limits and now emit explicit activity entries summarizing what was changed.
+- Denormalized-profile sync remains resilient (a single failed query doesn't kill the whole run) but no longer fails silently; missing indexes, rules issues, or transient errors will surface in Cloud Functions logs with clear context.
    - In Firestore emulator, that club’s `members` and `events` subcollections, plus the club doc itself, are removed.
 
 If you still see errors after this change:

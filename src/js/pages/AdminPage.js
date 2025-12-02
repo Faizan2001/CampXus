@@ -16,6 +16,7 @@ import {
   getDoc,
   getDocs,
   collection,
+  collectionGroup,
   query,
   where,
   setDoc,
@@ -29,20 +30,56 @@ import {
 import { logManager } from "../utils/debug/LogManager.js";
 import {
   createClub,
+  updateClub as adminUpdateClub,
   assignPresident as adminAssignPresident,
   deleteClub as adminDeleteClub,
+  createUniversity as adminCreateUniversity,
+  updateUniversity as adminUpdateUniversity,
+  deleteUniversity as adminDeleteUniversity,
+  addSafModerator as adminAddSafModerator,
+  removeSafModerator as adminRemoveSafModerator,
+  rebuildClubStats as adminRebuildClubStats,
+  cleanupOldEvents as adminCleanupOldEvents,
+  verifyDataIntegrity as adminVerifyDataIntegrityService,
+  cleanupOldNotifications as adminCleanupOldNotifications,
 } from "../services/admin/AdminService.js";
+import {
+  processClubLogo,
+  processClubBanner,
+  uploadClubLogo,
+  uploadClubBanner,
+} from "../services/clubs/ClubImageService.js";
 
 export class AdminPage {
   constructor() {
     this.rootEl = null;
     this.isVerified = false; // PIN verified this session
     this.activeTab = "overview";
+    this.pinAttempts = 0;
+    this.pinLockUntil = 0;
     this.cachedData = {
       universities: null,
       clubs: null,
       stats: null,
     };
+
+    // Restore PIN lock state from this session if available
+    if (typeof window !== "undefined") {
+      const attemptsRaw = window.sessionStorage.getItem("adminPinAttempts");
+      const lockRaw = window.sessionStorage.getItem("adminPinLockUntil");
+      if (attemptsRaw) {
+        const parsed = parseInt(attemptsRaw, 10);
+        if (!Number.isNaN(parsed)) {
+          this.pinAttempts = parsed;
+        }
+      }
+      if (lockRaw) {
+        const parsed = parseInt(lockRaw, 10);
+        if (!Number.isNaN(parsed)) {
+          this.pinLockUntil = parsed;
+        }
+      }
+    }
   }
 
   /**
@@ -160,6 +197,9 @@ export class AdminPage {
     `;
 
     this.setupPinVerification(container);
+
+    // Apply lock state if too many attempts
+    this.updatePinLockUI(container);
   }
 
   /**
@@ -207,9 +247,76 @@ export class AdminPage {
   }
 
   /**
+   * Check whether PIN entry is currently locked due to too many attempts.
+   */
+  isPinLocked() {
+    if (!this.pinLockUntil) return false;
+    const now = Date.now();
+    if (now >= this.pinLockUntil) {
+      // Lock window has expired; reset state
+      this.pinLockUntil = 0;
+      this.pinAttempts = 0;
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("adminPinLockUntil");
+        window.sessionStorage.removeItem("adminPinAttempts");
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Get remaining lock time in milliseconds.
+   */
+  getPinLockRemainingMs() {
+    if (!this.pinLockUntil) return 0;
+    const remaining = this.pinLockUntil - Date.now();
+    return remaining > 0 ? remaining : 0;
+  }
+
+  /**
+   * Update PIN UI based on lock state (disable input/button & show message).
+   */
+  updatePinLockUI(container) {
+    const input = container.querySelector(".pin-input");
+    const verifyBtn = container.querySelector(".btn-verify-pin");
+    const errorEl = container.querySelector(".pin-error");
+
+    if (!this.isPinLocked()) {
+      if (input) input.disabled = false;
+      if (verifyBtn) verifyBtn.disabled = input?.value.length !== 6;
+      return;
+    }
+
+    const remainingMs = this.getPinLockRemainingMs();
+    const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+    const message = `Too many incorrect attempts. Please try again in ${remainingMinutes} minute${remainingMinutes > 1 ? "s" : ""}.`;
+
+    if (input) input.disabled = true;
+    if (verifyBtn) verifyBtn.disabled = true;
+    if (errorEl) {
+      const span = errorEl.querySelector("span");
+      if (span) {
+        span.textContent = message;
+      }
+      errorEl.style.display = "flex";
+    }
+  }
+
+  /**
    * Verify PIN against stored hash
    */
   async verifyPin(pin, errorEl) {
+    // Enforce simple lockout after too many attempts
+    const pinScreen =
+      this.rootEl && this.rootEl.querySelector(".admin-pin-screen");
+    if (this.isPinLocked()) {
+      if (pinScreen) {
+        this.updatePinLockUI(pinScreen);
+      }
+      return;
+    }
+
     try {
       // Hash the PIN using SHA-256
       const encoder = new TextEncoder();
@@ -230,11 +337,41 @@ export class AdminPage {
 
       if (pinHash === storedHash) {
         this.isVerified = true;
+        this.pinAttempts = 0;
+        this.pinLockUntil = 0;
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem("adminPinAttempts");
+          window.sessionStorage.removeItem("adminPinLockUntil");
+        }
         logManager.info("Admin PIN verified successfully");
         this.renderDashboard();
       } else {
-        errorEl.style.display = "flex";
-        logManager.warn("Invalid admin PIN attempt");
+        this.pinAttempts += 1;
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(
+            "adminPinAttempts",
+            String(this.pinAttempts)
+          );
+        }
+
+        const maxAttempts = 5;
+        if (this.pinAttempts >= maxAttempts) {
+          const lockDurationMs = 5 * 60 * 1000; // 5 minutes
+          this.pinLockUntil = Date.now() + lockDurationMs;
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem(
+              "adminPinLockUntil",
+              String(this.pinLockUntil)
+            );
+          }
+          logManager.warn("Admin PIN locked after too many attempts");
+          if (pinScreen) {
+            this.updatePinLockUI(pinScreen);
+          }
+        } else {
+          errorEl.style.display = "flex";
+          logManager.warn("Invalid admin PIN attempt");
+        }
       }
     } catch (error) {
       logManager.error("PIN verification error", error);
@@ -483,13 +620,35 @@ export class AdminPage {
 
       // Get SAF moderators count
       const safSnap = await getDocs(collection(db, "safModerators"));
+      // Recent admin activity (latest 10 actions)
+      let recentActivity = [];
+      try {
+        const activityQuery = query(
+          collection(db, "adminActivity"),
+          orderBy("createdAt", "desc"),
+          limit(10)
+        );
+        const activitySnap = await getDocs(activityQuery);
+        recentActivity = activitySnap.docs.map((d) => {
+          const data = d.data() || {};
+          return {
+            type: data.type || "default",
+            message: this.buildActivityMessage(data),
+            timestamp: data.createdAt || null,
+          };
+        });
+      } catch (activityError) {
+        logManager.warn("AdminPage: Failed to fetch recent admin activity", {
+          message: activityError?.message,
+        });
+      }
 
       return {
         universities: uniSnap.size,
         totalClubs: clubsSnap.size,
         activeEvents: activeEvents.length,
         safModerators: safSnap.size,
-        recentActivity: [], // Would fetch from admin activity log
+        recentActivity,
       };
     } catch (error) {
       logManager.error("Error fetching dashboard stats", error);
@@ -508,10 +667,42 @@ export class AdminPage {
       club_created: "plus-circle",
       saf_added: "user-plus",
       event_approved: "check-circle",
+      maintenance_rebuild_stats: "tools",
+      maintenance_cleanup_events: "trash",
+      maintenance_verify_data: "search",
+      maintenance_cleanup_notifications: "bell-slash",
       club_deleted: "trash",
       default: "info-circle",
     };
     return icons[type] || icons.default;
+  }
+
+  buildActivityMessage(activity) {
+    const { type } = activity;
+    switch (type) {
+      case "club_created":
+        return `New club "${activity.name || activity.clubId}" created`;
+      case "club_deleted":
+        return `Club "${activity.name || activity.clubId}" deleted`;
+      case "club_updated":
+        return `Club "${activity.name || activity.clubId}" updated`;
+      case "club_president_assigned":
+        return `President assigned for club ${activity.clubId}`;
+      case "saf_added":
+        return `SAF moderator added (${activity.moderatorUid})`;
+      case "saf_removed":
+        return `SAF moderator removed (${activity.moderatorUid})`;
+      case "maintenance_rebuild_stats":
+        return `Rebuilt club statistics for ${activity.clubsUpdated || 0} clubs`;
+      case "maintenance_cleanup_events":
+        return `Cleaned up ${activity.deleted || 0} old events`;
+      case "maintenance_verify_data":
+        return `Data integrity check found ${activity.issues || 0} issues`;
+      case "maintenance_cleanup_notifications":
+        return `Deleted ${activity.deleted || 0} old notifications`;
+      default:
+        return activity.message || "Admin action";
+    }
   }
 
   formatTimeAgo(timestamp) {
@@ -653,18 +844,15 @@ export class AdminPage {
         const formData = new FormData(form);
 
         const code = formData.get("code");
+        const name = formData.get("name");
+        const domain = formData.get("domain");
         logManager.info("AdminPage: Creating university via dashboard", {
           code,
+          name,
+          domain,
         });
 
-        await setDoc(doc(db, "universities", code), {
-          name: formData.get("name"),
-          domain: formData.get("domain"),
-          code,
-          createdAt: serverTimestamp(),
-          clubCount: 0,
-          safCount: 0,
-        });
+        await adminCreateUniversity({ code, name, domain });
 
         logManager.info("AdminPage: University created", { code });
         await this.loadTabContent("universities");
@@ -673,13 +861,64 @@ export class AdminPage {
   }
 
   openEditUniversityModal(id) {
-    // Would fetch university data and populate form
-    logManager.info("Edit university", id);
+    this.showModal({
+      title: "Edit University",
+      content: `
+        <form class="admin-form" id="edit-university-form">
+          <div class="form-group">
+            <label>University Name</label>
+            <input type="text" name="name" required placeholder="University name">
+          </div>
+          <div class="form-group">
+            <label>Email Domain</label>
+            <input type="text" name="domain" required placeholder="e.g., iub.edu.bd">
+          </div>
+          <div class="form-group">
+            <label>Short Code</label>
+            <input type="text" name="code" value="${id}" disabled>
+          </div>
+        </form>
+      `,
+      confirmText: "Save Changes",
+      onConfirm: async () => {
+        const form = document.getElementById("edit-university-form");
+        const formData = new FormData(form);
+        const name = formData.get("name");
+        const domain = formData.get("domain");
+
+        logManager.info("AdminPage: Updating university via dashboard", {
+          id,
+          name,
+          domain,
+        });
+
+        await adminUpdateUniversity(id, { name, domain });
+        await this.loadTabContent("universities");
+      },
+    });
+
+    // Populate current values asynchronously
+    (async () => {
+      try {
+        const uniSnap = await getDoc(doc(db, "universities", id));
+        const data = uniSnap.data() || {};
+        const form = document.getElementById("edit-university-form");
+        if (!form) return;
+        form.elements.name.value = data.name || id;
+        form.elements.domain.value = data.domain || "";
+      } catch (error) {
+        logManager.error("AdminPage: Failed to load university for edit", {
+          id,
+          error,
+        });
+      }
+    })();
   }
 
   async confirmDeleteUniversity(id) {
     if (confirm(`Delete university "${id}"? This cannot be undone.`)) {
-      await deleteDoc(doc(db, "universities", id));
+      logManager.warn("AdminPage: Deleting university via dashboard", { id });
+      await adminDeleteUniversity(id);
       await this.loadTabContent("universities");
     }
   }
@@ -734,6 +973,18 @@ export class AdminPage {
                     <span class="saf-university">${
                       mod.universityName || "All"
                     }</span>
+                    ${
+                      mod.activityStats
+                        ? `<div class="saf-stats">
+                             <span>Clubs created: ${
+                               mod.activityStats.clubsCreated
+                             }</span>
+                             <span>Events approved: ${
+                               mod.activityStats.eventsApproved
+                             }</span>
+                           </div>`
+                        : ""
+                    }
                   </div>
                   <div class="saf-actions">
                     <button class="btn-remove" title="Remove SAF">
@@ -773,7 +1024,43 @@ export class AdminPage {
   async fetchSafModerators() {
     try {
       const snap = await getDocs(collection(db, "safModerators"));
-      const moderators = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const moderators = [];
+
+      for (const docSnap of snap.docs) {
+        const base = { id: docSnap.id, ...docSnap.data() };
+        const uid = base.id;
+
+        // Compute simple activity stats for SAF moderators:
+        // - Number of events they SAF-approved
+        // - Number of clubs they created
+        try {
+          const eventsQuery = query(
+            collectionGroup(db, "events"),
+            where("safApprovedBy", "==", uid)
+          );
+          const eventsSnap = await getDocs(eventsQuery);
+
+          const clubsQuery = query(
+            collection(db, "clubs"),
+            where("createdBy", "==", uid)
+          );
+          const clubsSnap = await getDocs(clubsQuery);
+
+          base.activityStats = {
+            eventsApproved: eventsSnap.size,
+            clubsCreated: clubsSnap.size,
+          };
+        } catch (statsError) {
+          // If stats fail (e.g., missing index), log but do not block SAF list.
+          logManager.warn("AdminPage: Failed to compute SAF activity stats", {
+            uid,
+            message: statsError?.message,
+          });
+        }
+
+        moderators.push(base);
+      }
+
       logManager.info("AdminPage: Fetched SAF moderators", {
         count: moderators.length,
       });
@@ -812,17 +1099,17 @@ export class AdminPage {
         const formData = new FormData(form);
         const uid = formData.get("uid");
         const universityId = formData.get("university") || null;
+        const displayName = formData.get("displayName") || null;
 
         logManager.info("AdminPage: Adding SAF moderator", {
           uid,
           universityId,
         });
 
-        await setDoc(doc(db, "safModerators", uid), {
+        await adminAddSafModerator({
           uid,
-          displayName: formData.get("displayName") || null,
+          displayName,
           universityId,
-          addedAt: serverTimestamp(),
           addedBy: currentUser.profile?.uid,
         });
 
@@ -834,7 +1121,7 @@ export class AdminPage {
   async confirmRemoveSaf(id) {
     if (confirm("Remove this SAF moderator?")) {
       logManager.warn("AdminPage: Removing SAF moderator", { id });
-      await deleteDoc(doc(db, "safModerators", id));
+      await adminRemoveSafModerator(id);
       await this.loadTabContent("saf");
     }
   }
@@ -1037,6 +1324,31 @@ export class AdminPage {
               <option value="other">Other</option>
             </select>
           </div>
+          <div class="form-group">
+            <label>Accent Color</label>
+            <div class="accent-color-options">
+              <button type="button" class="color-option" data-color="blue">Blue</button>
+              <button type="button" class="color-option" data-color="purple">Purple</button>
+              <button type="button" class="color-option" data-color="green">Green</button>
+              <button type="button" class="color-option" data-color="orange">Orange</button>
+              <button type="button" class="color-option" data-color="pink">Pink</button>
+            </div>
+            <input type="hidden" name="accentColor" value="blue" />
+          </div>
+          <div class="form-group">
+            <label>Logo (optional)</label>
+            <input type="file" name="logo" accept="image/*" />
+          </div>
+          <div class="form-group">
+            <label>Banner (optional)</label>
+            <input type="file" name="banner" accept="image/*" />
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="requireSafApproval" />
+              Require SAF approval for events
+            </label>
+          </div>
         </form>
       `,
       confirmText: "Create Club",
@@ -1048,11 +1360,41 @@ export class AdminPage {
         const description = formData.get("description") || "";
         const universityId = formData.get("universityId");
         const category = formData.get("category");
+        const accentColor = formData.get("accentColor") || "blue";
+        const requireSafApproval =
+          formData.get("requireSafApproval") === "on";
+
+        const logoInput = form.querySelector('input[name="logo"]');
+        const bannerInput = form.querySelector('input[name="banner"]');
+        const logoFile = logoInput?.files?.[0] || null;
+        const bannerFile = bannerInput?.files?.[0] || null;
 
         const selectedUniversity =
           universities.find((u) => u.id === universityId) || null;
         const universityName =
           selectedUniversity?.name || selectedUniversity?.id || universityId;
+
+        // Generate a stable clubId so we can upload assets before creating the document
+        const clubId = this.generateClubId(name);
+
+        let logoUrl = null;
+        let bannerUrl = null;
+
+        try {
+          if (logoFile) {
+            const logoBlob = await processClubLogo(logoFile);
+            logoUrl = await uploadClubLogo(clubId, logoBlob);
+          }
+          if (bannerFile) {
+            const bannerBlob = await processClubBanner(bannerFile);
+            bannerUrl = await uploadClubBanner(clubId, bannerBlob);
+          }
+        } catch (imageError) {
+          logManager.warn(
+            "AdminPage: Failed to upload one or more club images",
+            imageError
+          );
+        }
 
         logManager.info("AdminPage: Creating club via dashboard", {
           name,
@@ -1060,12 +1402,17 @@ export class AdminPage {
         });
 
         await createClub({
+          clubId,
           name,
           description,
           universityId,
           universityName,
           category,
           createdBy: currentUser.profile?.uid,
+          accentColor,
+          requireSafApproval,
+          logoUrl,
+          bannerUrl,
         });
 
         logManager.info("AdminPage: Club created via dashboard", {
@@ -1076,6 +1423,24 @@ export class AdminPage {
         await this.loadTabContent("clubs");
       },
     });
+
+    // Wire up accent color picker buttons inside the modal
+    const formEl = document.getElementById("create-club-form");
+    if (formEl) {
+      const colorButtons = formEl.querySelectorAll(".color-option");
+      const hiddenInput = formEl.querySelector(
+        'input[name="accentColor"]'
+      );
+      colorButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const color = btn.dataset.color;
+          if (hiddenInput) hiddenInput.value = color;
+          colorButtons.forEach((b) =>
+            b.classList.toggle("selected", b === btn)
+          );
+        });
+      });
+    }
   }
 
   generateClubId(name) {
@@ -1091,8 +1456,101 @@ export class AdminPage {
   }
 
   openEditClubModal(clubId) {
-    logManager.info("Edit club", clubId);
-    // Would fetch club data and show edit form
+    this.showModal({
+      title: "Edit Club",
+      content: `
+        <form class="admin-form" id="edit-club-form">
+          <div class="form-group">
+            <label>Club Name *</label>
+            <input type="text" name="name" required placeholder="Club name">
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" rows="3" placeholder="Brief description"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select name="category">
+              <option value="academic">Academic</option>
+              <option value="social">Social</option>
+              <option value="sports">Sports</option>
+              <option value="arts">Arts & Culture</option>
+              <option value="tech">Technology</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <label class="inline-checkbox">
+              <input type="checkbox" name="isActive" checked />
+              Active (visible in Clubs UI)
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="requireSafApproval" />
+              Require SAF approval for events
+            </label>
+          </div>
+        </form>
+      `,
+      confirmText: "Save Changes",
+      onConfirm: async () => {
+        const form = document.getElementById("edit-club-form");
+        const formData = new FormData(form);
+        const name = formData.get("name");
+        const description = formData.get("description") || "";
+        const category = formData.get("category");
+        const isActive = formData.get("isActive") === "on";
+        const requireSafApproval =
+          formData.get("requireSafApproval") === "on";
+
+        logManager.info("AdminPage: Updating club from dashboard", {
+          clubId,
+          name,
+          isActive,
+          requireSafApproval,
+        });
+
+        await adminUpdateClub(clubId, {
+          name,
+          description,
+          category,
+          isActive,
+          requireSafApproval,
+        });
+
+        await this.loadTabContent("clubs");
+      },
+    });
+
+    // Populate current values asynchronously
+    (async () => {
+      try {
+        const clubSnap = await getDoc(doc(db, "clubs", clubId));
+        const data = clubSnap.data() || {};
+        const form = document.getElementById("edit-club-form");
+        if (!form) return;
+
+        form.elements.name.value = data.name || "";
+        form.elements.description.value = data.description || "";
+        if (form.elements.category) {
+          form.elements.category.value = data.category || "other";
+        }
+        if (form.elements.isActive) {
+          form.elements.isActive.checked = data.isActive !== false;
+        }
+        if (form.elements.requireSafApproval) {
+          form.elements.requireSafApproval.checked =
+            data.requireSafApproval === true;
+        }
+      } catch (error) {
+        logManager.error("AdminPage: Failed to load club for edit", {
+          clubId,
+          error,
+        });
+      }
+    })();
   }
 
   openAssignPresidentModal(clubId) {
@@ -1189,6 +1647,17 @@ export class AdminPage {
 
           <div class="maintenance-card glass-card">
             <div class="maintenance-icon">
+              <i class="fas fa-comments"></i>
+            </div>
+            <h3>Clear Expired Live Chat</h3>
+            <p>Delete all live chat messages that are past their expiry time.</p>
+            <button class="btn-maintenance" data-action="cleanup-livechat">
+              Run Cleanup
+            </button>
+          </div>
+
+          <div class="maintenance-card glass-card">
+            <div class="maintenance-icon">
               <i class="fas fa-database"></i>
             </div>
             <h3>Verify Data Integrity</h3>
@@ -1208,6 +1677,33 @@ export class AdminPage {
               Run Cleanup
             </button>
           </div>
+
+          <div class="maintenance-card glass-card">
+            <div class="maintenance-icon">
+              <i class="fas fa-calendar-times"></i>
+            </div>
+            <h3>Clear University Schedules</h3>
+            <p>Clear all student schedules for a specific university (semester reset).</p>
+            <div class="maintenance-field">
+              <select id="maintenance-university-select">
+                <option value="">Select university</option>
+              </select>
+            </div>
+            <button class="btn-maintenance" data-action="clear-schedules">
+              Clear Schedules
+            </button>
+          </div>
+
+          <div class="maintenance-card glass-card">
+            <div class="maintenance-icon">
+              <i class="fas fa-sync"></i>
+            </div>
+            <h3>Sync Denormalized Data</h3>
+            <p>Re-sync cached user info in clubs, events, and memberships.</p>
+            <button class="btn-maintenance" data-action="sync-denormalized">
+              Run Sync
+            </button>
+          </div>
         </div>
 
         <div class="maintenance-log glass-card">
@@ -1218,6 +1714,27 @@ export class AdminPage {
         </div>
       </div>
     `;
+
+    // Populate university dropdown for semester reset
+    try {
+      const universities = await this.fetchUniversities();
+      const selectEl = contentEl.querySelector(
+        "#maintenance-university-select"
+      );
+      if (selectEl && universities.length > 0) {
+        universities.forEach((u) => {
+          const opt = document.createElement("option");
+          opt.value = u.id;
+          opt.textContent = u.name || u.id;
+          selectEl.appendChild(opt);
+        });
+      }
+    } catch (error) {
+      logManager.warn(
+        "AdminPage: Failed to load universities for maintenance tools",
+        error
+      );
+    }
 
     // Setup maintenance action handlers
     contentEl.querySelectorAll(".btn-maintenance").forEach((btn) => {
@@ -1258,6 +1775,15 @@ export class AdminPage {
         case "cleanup-notifications":
           await this.cleanupNotifications(log);
           break;
+        case "clear-schedules":
+          await this.clearUniversitySchedules(log);
+          break;
+        case "cleanup-livechat":
+          await this.cleanupLiveChat(log);
+          break;
+        case "sync-denormalized":
+          await this.syncDenormalizedData(log);
+          break;
       }
       log("✓ Task completed successfully!", "success");
     } catch (error) {
@@ -1267,101 +1793,159 @@ export class AdminPage {
   }
 
   async rebuildStats(log = console.log) {
-    log("Fetching all clubs...");
-    const clubsSnap = await getDocs(collection(db, "clubs"));
-
-    const batch = writeBatch(db);
-    let updated = 0;
-
-    for (const clubDoc of clubsSnap.docs) {
-      const clubId = clubDoc.id;
-
-      // Count members
-      const membersSnap = await getDocs(
-        collection(db, "clubs", clubId, "members")
-      );
-      const memberCount = membersSnap.size;
-
-      // Count events
-      const eventsSnap = await getDocs(
-        query(collection(db, "clubEvents"), where("clubId", "==", clubId))
-      );
-      const eventCount = eventsSnap.size;
-
-      batch.update(doc(db, "clubs", clubId), {
-        memberCount,
-        eventCount,
-        statsUpdatedAt: serverTimestamp(),
-      });
-
-      updated++;
-      log(
-        `Updated ${
-          clubDoc.data().name
-        }: ${memberCount} members, ${eventCount} events`
-      );
-    }
-
-    await batch.commit();
-    log(`Rebuilt stats for ${updated} clubs`);
+    await adminRebuildClubStats(log);
   }
 
   async cleanupOldEvents(log) {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    log("Cleaning up old events via Cloud Function...");
+    try {
+      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
+        await import("firebase/functions");
+      const { default: app } = await import(
+        "../lib/firebase/firebase-config.js"
+      );
+      const functions = getFunctions(app, "us-central1");
 
-    log("Finding events older than 30 days...");
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1");
+      if (isLocal) {
+        try {
+          connectFunctionsEmulator(functions, "localhost", 5001);
+        } catch (_) {}
+      }
 
-    const eventsSnap = await getDocs(collection(db, "clubEvents"));
-    const oldEvents = eventsSnap.docs.filter((d) => {
-      const endTime = d.data().endTime?.toDate?.();
-      return endTime && endTime < thirtyDaysAgo;
-    });
-
-    log(`Found ${oldEvents.length} old events to clean up`);
-
-    const batch = writeBatch(db);
-    oldEvents.forEach((event) => {
-      batch.delete(event.ref);
-    });
-
-    await batch.commit();
-    log(`Deleted ${oldEvents.length} old events`);
+      const callable = httpsCallable(functions, "runAdminCleanup");
+      const res = await callable({ type: "events" });
+      log(`Deleted ${res?.data?.deleted ?? "N/A"} old events.`);
+    } catch (error) {
+      log("Failed to clean up events via Cloud Function", "error");
+      // Fallback to client-side cleanup if Cloud Function fails
+      try {
+        const deleted = await adminCleanupOldEvents(30, log);
+        log(`Fallback: deleted ${deleted} events via client-side cleanup.`);
+      } catch (fallbackError) {
+        throw fallbackError;
+      }
+    }
   }
 
   async verifyDataIntegrity(log) {
-    log("Checking club data integrity...");
-
-    const clubsSnap = await getDocs(collection(db, "clubs"));
-    let issues = 0;
-
-    for (const clubDoc of clubsSnap.docs) {
-      const data = clubDoc.data();
-
-      // Check for missing required fields
-      if (!data.name) {
-        log(`⚠ Club ${clubDoc.id} missing name`, "error");
-        issues++;
-      }
-
-      // Check president exists if set
-      if (data.presidentUid) {
-        const memberDoc = await getDoc(
-          doc(db, "clubs", clubDoc.id, "members", data.presidentUid)
-        );
-        if (!memberDoc.exists()) {
-          log(`⚠ Club ${data.name}: President not in members list`, "error");
-          issues++;
-        }
-      }
-    }
-
-    log(`Verification complete. Found ${issues} issues.`);
+    await adminVerifyDataIntegrityService(log);
   }
 
   async cleanupNotifications(log) {
-    log("This would clean up old notifications...");
-    log("(Notification cleanup requires Cloud Function for batch operations)");
+    await adminCleanupOldNotifications(7, log);
+  }
+
+  async clearUniversitySchedules(log) {
+    const selectEl = this.rootEl.querySelector(
+      "#maintenance-university-select"
+    );
+    const universityId = selectEl?.value;
+    if (!universityId) {
+      log("Please select a university before clearing schedules.", "error");
+      throw new Error("No university selected");
+    }
+
+    log(`Clearing schedules for university: ${universityId}...`);
+
+    try {
+      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
+        await import("firebase/functions");
+      const { default: app } = await import(
+        "../lib/firebase/firebase-config.js"
+      );
+      const functions = getFunctions(app, "us-central1");
+
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1");
+      if (isLocal) {
+        try {
+          connectFunctionsEmulator(functions, "localhost", 5001);
+        } catch (_) {
+          // ignore if already connected
+        }
+      }
+
+      const callable = httpsCallable(functions, "clearUniversitySchedules");
+      const res = await callable({ university: universityId });
+      log(
+        `Cleared schedules for ${
+          res?.data?.cleared ?? "N/A"
+        } users in ${universityId}.`
+      );
+    } catch (error) {
+      log("Failed to clear university schedules via Cloud Function", "error");
+      throw error;
+    }
+  }
+
+  async cleanupLiveChat(log) {
+    log("Cleaning up expired live chat messages via Cloud Function...");
+    try {
+      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
+        await import("firebase/functions");
+      const { default: app } = await import(
+        "../lib/firebase/firebase-config.js"
+      );
+      const functions = getFunctions(app, "us-central1");
+
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1");
+      if (isLocal) {
+        try {
+          connectFunctionsEmulator(functions, "localhost", 5001);
+        } catch (_) {}
+      }
+
+      const callable = httpsCallable(functions, "runAdminCleanup");
+      const res = await callable({ type: "liveChat" });
+      log(
+        `Deleted ${res?.data?.deleted ?? "N/A"} expired live chat messages.`
+      );
+    } catch (error) {
+      log("Failed to clean up live chat via Cloud Function", "error");
+      throw error;
+    }
+  }
+
+  async syncDenormalizedData(log) {
+    log("Running full denormalized data sync via Cloud Function...");
+    try {
+      const { getFunctions, httpsCallable, connectFunctionsEmulator } =
+        await import("firebase/functions");
+      const { default: app } = await import(
+        "../lib/firebase/firebase-config.js"
+      );
+      const functions = getFunctions(app, "us-central1");
+
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1");
+      if (isLocal) {
+        try {
+          connectFunctionsEmulator(functions, "localhost", 5001);
+        } catch (_) {}
+      }
+
+      const callable = httpsCallable(functions, "syncDenormalizedData");
+      const res = await callable({});
+      log(
+        `Synced denormalized data for ${
+          res?.data?.processed ?? "N/A"
+        } user profiles.`
+      );
+    } catch (error) {
+      log("Failed to run denormalized data sync via Cloud Function", "error");
+      throw error;
+    }
   }
 
   // ==========================================
