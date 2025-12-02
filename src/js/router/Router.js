@@ -170,6 +170,16 @@ class SPARouter {
         indexable: true,
         og: { image: "/icons/icon-512x512.png", type: "website" },
       },
+      admin: {
+        title: "Admin Dashboard - MeetchuThere",
+        template: "/templates/admin.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/admin.css"],
+        jsImporters: [() => import("/src/js/pages/AdminPage.js")],
+        description: "Super Admin Dashboard",
+        requiresAuth: true,
+        requiresSuperAdmin: true, // 🔐 Special flag for super admin only routes
+        indexable: false,
+      },
     };
 
     this.currentPage = "landing"; // Default page now landing
@@ -850,8 +860,8 @@ class SPARouter {
     this._lastNavigation = { route, ts: now };
 
     // 🛡️ Authentication Check with proper ES6 imports!
-    const routeConfig = this.routes[route];
-    if (routeConfig.requiresAuth) {
+	    const routeConfig = this.routes[route];
+	    if (routeConfig.requiresAuth) {
       // Use Firebase auth currentUser as the source of truth (avoid optimistic store hydration)
       let isAuthenticated = !!authManager?.auth?.currentUser;
 
@@ -879,7 +889,7 @@ class SPARouter {
       // can unlock protected routes even if Firebase hasn't populated
       // auth.currentUser yet. This lets returning users see their schedule
       // immediately from local cache while auth/network hydrate in the background.
-      if (!isAuthenticated) {
+	      if (!isAuthenticated) {
         const hasSessionHint =
           !!authManager?.auth?.currentUser ||
           !!profileCache.peek() ||
@@ -913,19 +923,32 @@ class SPARouter {
         return;
       }
 
-      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
-      // If navigating to any protected route other than 'profile', verify setup completion.
-      // This covers first-login flow and direct hash navigation.
-      if (route !== "profile") {
-        const redirected = await this._ensureProfileCompletionGate(
-          updateHistory
-        );
-        if (redirected) {
-          if (this._pendingRoute === route) this._pendingRoute = null;
-          return; // navigation has been redirected to profile setup
-        }
-      }
-    }
+	      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
+	      // If navigating to any protected route other than 'profile', verify setup completion.
+	      // This covers first-login flow and direct hash navigation.
+	      if (route !== "profile") {
+	        const redirected = await this._ensureProfileCompletionGate(
+	          updateHistory
+	        );
+	        if (redirected) {
+	          if (this._pendingRoute === route) this._pendingRoute = null;
+	          return; // navigation has been redirected to profile setup
+	        }
+	      }
+
+	      // 🔐 Super Admin Gate: check if route requires super admin privileges
+	      if (routeConfig.requiresSuperAdmin) {
+	        const isSuperAdmin = await this._checkSuperAdmin();
+	        if (!isSuperAdmin) {
+	          logManager.auth.warn(
+	            `🚫 Super admin access denied for route: ${route}`
+	          );
+	          this.navigateTo("home", updateHistory);
+	          if (this._pendingRoute === route) this._pendingRoute = null;
+	          return;
+	        }
+	      }
+	    }
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
     if (route === "landing") {
@@ -1271,6 +1294,39 @@ class SPARouter {
       logManager.error(`❌ Error loading page ${route}:`, error);
       // 🎯 REFACTOR: The navigateTo method's finally block will handle hiding the loader.
       this.showErrorPage(error);
+    }
+  }
+
+  /**
+   * Check if the current user is a super admin.
+   * Super admins are listed in /admin/superAdmins.uids array.
+   * @returns {Promise<boolean>} True if user is a super admin
+   */
+  async _checkSuperAdmin() {
+    try {
+      const firebaseUser = authManager?.auth?.currentUser;
+      if (!firebaseUser) return false;
+
+      // Use existing Firebase config (db) to avoid duplicating initialization
+      const { db } = await import("../lib/firebase/firebase-config.js");
+      const { doc, getDoc } = await import("firebase/firestore");
+
+      const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
+      if (!adminDoc.exists()) {
+        logManager.warn("Super admin document does not exist");
+        return false;
+      }
+
+      const superAdmins = adminDoc.data()?.uids || [];
+      const isSuper = superAdmins.includes(firebaseUser.uid);
+      logManager.auth.user("Router: Super admin check", {
+        uid: firebaseUser.uid,
+        isSuperAdmin: isSuper,
+      });
+      return isSuper;
+    } catch (error) {
+      logManager.auth.error("Error checking super admin status:", error);
+      return false;
     }
   }
 
@@ -1621,9 +1677,7 @@ class SPARouter {
     // 2. Activate all elements that match the current route (top + mobile)
     const navRoutesToMatch = resolveActiveNavRoutes(activeRoute);
     const matchingRouteEls = document.querySelectorAll(
-      navRoutesToMatch
-        .map((route) => `[data-spa-route="${route}"]`)
-        .join(", ")
+      navRoutesToMatch.map((route) => `[data-spa-route="${route}"]`).join(", ")
     );
     if (matchingRouteEls.length > 0) {
       matchingRouteEls.forEach((el) => {

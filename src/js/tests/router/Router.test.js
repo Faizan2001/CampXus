@@ -115,6 +115,13 @@ const ROUTES_CONFIG = {
     requiresAuth: true,
     title: "User Profile",
   },
+  admin: {
+    path: "admin",
+    template: "admin.html",
+    requiresAuth: true,
+    requiresSuperAdmin: true,
+    title: "Admin Dashboard",
+  },
 };
 
 // Utility functions we can test (these are pure functions from Router.js logic)
@@ -435,6 +442,30 @@ describe("Auth Guard Logic", () => {
   test("should allow access to protected routes when logged in", () => {
     const protectedRoute = { requiresAuth: true };
     expect(checkAuthGuard(protectedRoute, true).allowed).toBe(true);
+  });
+
+  test("should require super admin for admin route", () => {
+    const adminRoute = { requiresAuth: true, requiresSuperAdmin: true };
+
+    // Helper to simulate the extended guard
+    const check = (route, isLoggedIn, isSuperAdmin) => {
+      if (!route.requiresAuth) return { allowed: true };
+      if (!isLoggedIn) return { allowed: false, reason: "auth_required" };
+      if (route.requiresSuperAdmin && !isSuperAdmin) {
+        return { allowed: false, reason: "super_admin_required" };
+      }
+      return { allowed: true };
+    };
+
+    expect(check(adminRoute, false, false)).toEqual({
+      allowed: false,
+      reason: "auth_required",
+    });
+    expect(check(adminRoute, true, false)).toEqual({
+      allowed: false,
+      reason: "super_admin_required",
+    });
+    expect(check(adminRoute, true, true)).toEqual({ allowed: true });
   });
 });
 

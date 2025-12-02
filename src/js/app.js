@@ -26,6 +26,7 @@ import "/src/css/styles.css";
 import "/src/css/mutual-friends-modal.css";
 import "/src/css/user-profile.css";
 import "/src/css/clubs/index.css"; // 🏁 Clubs feature styles (modular folder)
+import "/src/css/admin.css"; // 👑 Super Admin dashboard styles
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
