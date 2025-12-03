@@ -66,6 +66,23 @@ export default class ClubsPage {
         <div class="clubs-section-header">
           <h2 class="clubs-section-title"><i class="fas fa-flag"></i> All Clubs</h2>
         </div>
+        
+        <!-- Search Bar -->
+        <div class="clubs-search-bar">
+          <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input 
+              type="text" 
+              id="clubs-search-input" 
+              placeholder="Search clubs by name..."
+              autocomplete="off"
+            />
+            <button class="search-clear-btn" id="search-clear-btn" style="display: none;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        
         <div class="clubs-controls">
           <button id="createTestClub" class="btn secondary"><i class="fas fa-plus"></i> Create Test Club</button>
         </div>
@@ -77,6 +94,98 @@ export default class ClubsPage {
 
     const btn = this.container.querySelector("#createTestClub");
     btn?.addEventListener("click", async () => this.createTestClub());
+
+    // Setup search functionality
+    this.setupSearch();
+
+    // Initialize Live Events Section
+    await this.initLiveEventsSection();
+
+    await this.loadClubsPreview();
+  }
+
+  /**
+   * Setup search functionality for filtering clubs
+   */
+  setupSearch() {
+    const searchInput = this.container.querySelector("#clubs-search-input");
+    const clearBtn = this.container.querySelector("#search-clear-btn");
+
+    if (!searchInput) return;
+
+    // Debounce search input
+    let searchTimeout;
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.trim();
+      
+      // Show/hide clear button
+      if (clearBtn) {
+        clearBtn.style.display = query ? "flex" : "none";
+      }
+
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        this.filterAndRenderClubs(query);
+      }, 200);
+    });
+
+    // Clear button handler
+    clearBtn?.addEventListener("click", () => {
+      searchInput.value = "";
+      clearBtn.style.display = "none";
+      this.filterAndRenderClubs("");
+      searchInput.focus();
+    });
+  }
+
+  /**
+   * Filter clubs by search query and render
+   * Shows followed clubs first, then others
+   */
+  filterAndRenderClubs(query = "") {
+    const listEl = this.container.querySelector("#clubs-list");
+    if (!listEl) return;
+
+    const normalizedQuery = query.toLowerCase().trim();
+    
+    // Filter clubs by name
+    let filteredClubs = this.clubs;
+    if (normalizedQuery) {
+      filteredClubs = this.clubs.filter(club => 
+        (club.name || "").toLowerCase().includes(normalizedQuery)
+      );
+    }
+
+    // Sort: followed clubs first, then by follower count
+    const sortedClubs = [...filteredClubs].sort((a, b) => {
+      const aFollowed = this.followedClubs.has(a.id) ? 1 : 0;
+      const bFollowed = this.followedClubs.has(b.id) ? 1 : 0;
+      
+      // Followed clubs first
+      if (bFollowed !== aFollowed) {
+        return bFollowed - aFollowed;
+      }
+      
+      // Then by follower count (descending)
+      return (b.followerCount || 0) - (a.followerCount || 0);
+    });
+
+    if (sortedClubs.length === 0) {
+      listEl.innerHTML = `
+        <div class="clubs-empty">
+          <i class="fas fa-search"></i>
+          <p>${normalizedQuery ? `No clubs found matching "${escapeHtml(query)}"` : "No clubs yet. Create a test club to get started!"}</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Store original clubs for later rendering
+    const originalClubs = this.clubs;
+    this.clubs = sortedClubs;
+    this.renderClubs(listEl);
+    this.clubs = originalClubs;
+  }
 
     // Initialize Live Events Section
     await this.initLiveEventsSection();
@@ -124,7 +233,7 @@ export default class ClubsPage {
       const q = query(
         collection(db, "clubs"),
         orderBy("createdAt", "desc"),
-        limit(20)
+        limit(50) // Increased limit to have more clubs to sort
       );
       const snap = await getDocs(q);
 
@@ -140,6 +249,20 @@ export default class ClubsPage {
 
       this.clubs = [];
       snap.forEach((d) => this.clubs.push({ id: d.id, ...d.data() }));
+
+      // Sort: followed clubs first, then by follower count
+      this.clubs.sort((a, b) => {
+        const aFollowed = this.followedClubs.has(a.id) ? 1 : 0;
+        const bFollowed = this.followedClubs.has(b.id) ? 1 : 0;
+        
+        // Followed clubs first
+        if (bFollowed !== aFollowed) {
+          return bFollowed - aFollowed;
+        }
+        
+        // Then by follower count (descending)
+        return (b.followerCount || 0) - (a.followerCount || 0);
+      });
 
       this.renderClubs(listEl);
     } catch (err) {
@@ -167,7 +290,7 @@ export default class ClubsPage {
             <div class="club-logo">
               ${
                 c.logoUrl
-                  ? `<img src="${c.logoUrl}" alt="${escapeHtml(c.name)}" />`
+                  ? `<img src="${c.logoUrl}" alt="${escapeHtml(c.name)}" loading="lazy" />`
                   : `<i class="fas fa-flag"></i>`
               }
             </div>
@@ -212,6 +335,10 @@ export default class ClubsPage {
     const btn = e.currentTarget;
     const clubId = btn.dataset.clubId;
     if (!clubId || !currentUser?.uid) return;
+
+    // Bug #23: Prevent multiple clicks during async operation
+    if (btn.disabled) return;
+    btn.disabled = true;
 
     const isCurrentlyFollowing = this.followedClubs.has(clubId);
 
@@ -261,8 +388,10 @@ export default class ClubsPage {
       // Update local club data
       const club = this.clubs.find((c) => c.id === clubId);
       if (club) {
-        club.followerCount =
-          (club.followerCount || 0) + (isCurrentlyFollowing ? -1 : 1);
+        // R24: Ensure follower count never goes below 0
+        const currentCount = club.followerCount || 0;
+        const newCount = currentCount + (isCurrentlyFollowing ? -1 : 1);
+        club.followerCount = Math.max(0, newCount);
         // Update the stats display
         const card = this.container.querySelector(
           `.club-card[data-club-id="${clubId}"]`
@@ -292,6 +421,9 @@ export default class ClubsPage {
         btn.classList.remove("secondary");
       }
       notificationManager.show("Failed to update follow status", "error");
+    } finally {
+      // Bug #23: Re-enable button after operation
+      btn.disabled = false;
     }
   }
 
@@ -320,16 +452,19 @@ export default class ClubsPage {
         currentUser?.profile?.universityInfo?.university || "Test University";
       const universityCode =
         currentUser?.profile?.universityInfo?.university || "iub";
+      const creatorUid = currentUser?.uid || null;
       const docRef = await addDoc(collection(db, "clubs"), {
         name: clubName,
         description: "A test club created from the emulator for development",
         university: universityName,
         universityCode: universityCode,
-        createdBy: currentUser?.uid || null,
-        devOwnerUid: currentUser?.uid || null,
+        createdBy: creatorUid,
+        devOwnerUid: creatorUid,
         devTest: true,
+        presidentId: creatorUid, // Bug #12: Initialize presidentId for role checks
         followerCount: 0,
         officialIds: [],
+        members: [], // Bug #15: Initialize empty members array
         accentColor,
         createdAt: serverTimestamp(),
       });

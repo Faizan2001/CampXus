@@ -304,7 +304,7 @@ A permanent card at the top of the Clubs page that aggregates all events from al
 - Club logo + name
 - Location (text)
 - Time remaining ("Ends in 2h 30m")
-- Live chat preview (latest message)
+- Announcements preview (latest message)
 
 **Live Event Timeline** (Announcements Only):
 
@@ -461,7 +461,7 @@ Student opens MeetchuThere
     → Taps "Clubs" tab
     → Sees "LIVE EVENTS" section with pulsing badges
     → Taps live event card
-    → Views live chat (read-only)
+    → Views announcements (read-only)
     → Sees "Event has started by [Official Name]" at top
     → Reads announcements from officials
 ```
@@ -648,7 +648,7 @@ Admin (You)
 | Approved events         | 90 days after `endTime`       | Daily at 3:00 AM |
 | Rejected/pending events | 30 days after creation        | Daily at 3:00 AM |
 | Event images            | Deleted when event deleted    | Immediate        |
-| Live chat messages      | 24 hours after event ends     | Hourly check     |
+| Announcements           | 24 hours after event ends     | Hourly check     |
 | Club notifications      | 30 days                       | Weekly cleanup   |
 | Club follower count     | Maintained until club deleted | N/A              |
 
@@ -697,7 +697,7 @@ All questions from requirements gathering have been resolved:
 
 | #   | Question                 | Decision                                                |
 | --- | ------------------------ | ------------------------------------------------------- |
-| 1   | Navigation location      | Groups → Clubs tab (Option A)                           |
+| 1   | Navigation location      | Top-level nav item (routes via #groups or #clubs)       |
 | 2   | Club page navigation     | Full page with back button                              |
 | 3   | SAF dashboard access     | "Moderate" tab in Clubs page                            |
 | 4   | President delegation     | Can delegate approval to officials: No (President only) |
@@ -719,7 +719,7 @@ All questions from requirements gathering have been resolved:
 | 20  | Event edit               | Requires re-approval                                    |
 | 21  | University announcements | Optional badge, bypasses club flow                      |
 | 22  | Video feature            | Excluded from this PRD (Phase 2)                        |
-| 23  | Data retention           | 90 days events, 24h live chat                           |
+| 23  | Data retention           | 90 days events, 24h announcements                       |
 | 24  | Color picker             | Preset palette                                          |
 | 25  | Live announcements       | Officials only (one-way broadcast, no chat)             |
 | 26  | Event start trigger      | Manual button by official OR auto when in time window   |

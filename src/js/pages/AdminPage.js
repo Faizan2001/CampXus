@@ -43,6 +43,7 @@ import {
   verifyDataIntegrity as adminVerifyDataIntegrityService,
   cleanupOldNotifications as adminCleanupOldNotifications,
 } from "../services/admin/AdminService.js";
+import { renderUserSearchAssign } from "../components/shared/UserSearchAssign.js";
 import {
   processClubLogo,
   processClubBanner,
@@ -290,7 +291,9 @@ export class AdminPage {
 
     const remainingMs = this.getPinLockRemainingMs();
     const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
-    const message = `Too many incorrect attempts. Please try again in ${remainingMinutes} minute${remainingMinutes > 1 ? "s" : ""}.`;
+    const message = `Too many incorrect attempts. Please try again in ${remainingMinutes} minute${
+      remainingMinutes > 1 ? "s" : ""
+    }.`;
 
     if (input) input.disabled = true;
     if (verifyBtn) verifyBtn.disabled = true;
@@ -565,9 +568,18 @@ export class AdminPage {
                   ? stats.recentActivity
                       .map(
                         (a) => `
-                    <div class="activity-item">
-                      <i class="fas fa-${this.getActivityIcon(a.type)}"></i>
-                      <span>${a.message}</span>
+                    <div class="activity-item" style="border-left: 4px solid ${this.getActivityColor(
+                      a.type
+                    )};">
+                      <i class="fas fa-${this.getActivityIcon(
+                        a.type
+                      )}" style="color:${this.getActivityColor(a.type)};"></i>
+                      <span class="activity-text">${a.message}</span>
+                      <span class="activity-tag" style="background:${this.getActivityColor(
+                        a.type
+                      )}1A; color:${this.getActivityColor(a.type)};">
+                        ${a.type}
+                      </span>
                       <time>${this.formatTimeAgo(a.timestamp)}</time>
                     </div>
                   `
@@ -654,6 +666,8 @@ export class AdminPage {
   getActivityIcon(type) {
     const icons = {
       club_created: "plus-circle",
+      club_president_assigned: "crown",
+      club_official_assigned: "star",
       saf_added: "user-plus",
       event_approved: "check-circle",
       maintenance_rebuild_stats: "tools",
@@ -664,6 +678,24 @@ export class AdminPage {
       default: "info-circle",
     };
     return icons[type] || icons.default;
+  }
+
+  getActivityColor(type) {
+    const colors = {
+      club_created: "#34d399",
+      club_president_assigned: "#8b5cf6",
+      club_official_assigned: "#22c55e",
+      saf_added: "#3b82f6",
+      saf_removed: "#ef4444",
+      event_approved: "#10b981",
+      maintenance_rebuild_stats: "#f59e0b",
+      maintenance_cleanup_events: "#f97316",
+      maintenance_verify_data: "#0ea5e9",
+      maintenance_cleanup_notifications: "#6366f1",
+      club_deleted: "#ef4444",
+      default: "#6b7280",
+    };
+    return colors[type] || colors.default;
   }
 
   buildActivityMessage(activity) {
@@ -682,7 +714,9 @@ export class AdminPage {
       case "saf_removed":
         return `SAF moderator removed (${activity.moderatorUid})`;
       case "maintenance_rebuild_stats":
-        return `Rebuilt club statistics for ${activity.clubsUpdated || 0} clubs`;
+        return `Rebuilt club statistics for ${
+          activity.clubsUpdated || 0
+        } clubs`;
       case "maintenance_cleanup_events":
         return `Cleaned up ${activity.deleted || 0} old events`;
       case "maintenance_verify_data":
@@ -962,12 +996,8 @@ export class AdminPage {
                     ${
                       mod.activityStats
                         ? `<div class="saf-stats">
-                             <span>Clubs created: ${
-                               mod.activityStats.clubsCreated
-                             }</span>
-                             <span>Events approved: ${
-                               mod.activityStats.eventsApproved
-                             }</span>
+                             <span>Clubs created: ${mod.activityStats.clubsCreated}</span>
+                             <span>Events approved: ${mod.activityStats.eventsApproved}</span>
                            </div>`
                         : ""
                     }
@@ -1061,47 +1091,76 @@ export class AdminPage {
     this.showModal({
       title: "Add SAF Moderator",
       content: `
-        <form class="admin-form" id="add-saf-form">
+        <div class="assign-modal">
           <div class="form-group">
-            <label>User UID</label>
-            <input type="text" name="uid" required placeholder="Firebase User UID">
-          </div>
-          <div class="form-group">
-            <label>Display Name</label>
-            <input type="text" name="displayName" placeholder="Optional display name">
-          </div>
-          <div class="form-group">
-            <label>University (optional)</label>
-            <select name="university">
+            <label>University scope</label>
+            <select id="saf-assign-university">
               <option value="">All Universities</option>
-              <!-- Would be populated with universities -->
             </select>
           </div>
-        </form>
+          <div id="saf-assign-search"></div>
+          <p class="form-hint"><i class="fas fa-info-circle"></i> Search for a user and click Assign. Results are limited to the selected university unless "All" is chosen.</p>
+        </div>
       `,
-      confirmText: "Add SAF Mod",
-      onConfirm: async () => {
-        const form = document.getElementById("add-saf-form");
-        const formData = new FormData(form);
-        const uid = formData.get("uid");
-        const universityId = formData.get("university") || null;
-        const displayName = formData.get("displayName") || null;
-
-        logManager.info("AdminPage: Adding SAF moderator", {
-          uid,
-          universityId,
-        });
-
-        await adminAddSafModerator({
-          uid,
-          displayName,
-          universityId,
-          addedBy: currentUser.profile?.uid,
-        });
-
-        await this.loadTabContent("saf");
-      },
+      confirmText: "Close",
+      onConfirm: async () => {},
     });
+
+    // Populate universities then wire search component
+    (async () => {
+      const select = document.getElementById("saf-assign-university");
+      const searchContainer = document.getElementById("saf-assign-search");
+      const universities = await this.fetchUniversities();
+      if (select) {
+        select.innerHTML = `
+          <option value="">All Universities</option>
+          ${universities
+            .map((u) => `<option value="${u.id}">${u.name}</option>`)
+            .join("")}
+        `;
+      }
+
+      const mountSearch = () => {
+        if (!searchContainer) return;
+        renderUserSearchAssign(searchContainer, {
+          scopeUniversityId: select?.value || null,
+          allowAllUniversities: !select?.value,
+          allowMissingProfile: true,
+          bypassSearchable: true, // Admin can find users even if they have search disabled
+          onSelect: (user) => {
+            const uniId = select?.value || null;
+            const profile = user.profile || {};
+            const handle = profile.handle || profile.handle_lower || user.id;
+            this.showModal({
+              title: "Confirm SAF Moderator",
+              content: `<p>Assign <strong>@${handle}</strong> as SAF moderator${
+                uniId ? ` for <strong>${uniId}</strong>` : " (all universities)"
+              }?</p>`,
+              confirmText: "Assign",
+              onConfirm: async () => {
+                logManager.info("AdminPage: Adding SAF moderator", {
+                  uid: user.id,
+                  universityId: uniId,
+                });
+                await adminAddSafModerator({
+                  uid: user.id,
+                  displayName:
+                    `${profile.firstName || ""} ${
+                      profile.lastName || ""
+                    }`.trim() || null,
+                  universityId: uniId,
+                  addedBy: currentUser.profile?.uid,
+                });
+                await this.loadTabContent("saf");
+              },
+            });
+          },
+        });
+      };
+
+      mountSearch();
+      select?.addEventListener("change", mountSearch);
+    })();
   }
 
   async confirmRemoveSaf(id) {
@@ -1171,7 +1230,14 @@ export class AdminPage {
               ${clubs
                 .map(
                   (club) => `
-                <tr data-id="${club.id}">
+                <tr data-id="${club.id}" data-club-name="${
+                    club.name || ""
+                  }" data-university-id="${
+                    club.universityId ||
+                    club.universityCode ||
+                    club.university ||
+                    ""
+                  }" data-president-id="${club.presidentId || ""}">
                   <td>
                     <div class="club-name-cell">
                       ${
@@ -1234,7 +1300,10 @@ export class AdminPage {
         this.openEditClubModal(row.dataset.id);
       });
       row.querySelector(".btn-president")?.addEventListener("click", () => {
-        this.openAssignPresidentModal(row.dataset.id);
+        this.openAssignPresidentModal(row.dataset.id, {
+          clubName: row.dataset.clubName,
+          universityId: row.dataset.universityId,
+        });
       });
       row.querySelector(".btn-delete")?.addEventListener("click", () => {
         this.confirmDeleteClub(row.dataset.id);
@@ -1273,10 +1342,7 @@ export class AdminPage {
     const optionsHtml =
       universities.length > 0
         ? universities
-            .map(
-              (u) =>
-                `<option value="${u.id}">${u.name || u.id}</option>`
-            )
+            .map((u) => `<option value="${u.id}">${u.name || u.id}</option>`)
             .join("")
         : "";
 
@@ -1347,8 +1413,7 @@ export class AdminPage {
         const universityId = formData.get("universityId");
         const category = formData.get("category");
         const accentColor = formData.get("accentColor") || "blue";
-        const requireSafApproval =
-          formData.get("requireSafApproval") === "on";
+        const requireSafApproval = formData.get("requireSafApproval") === "on";
 
         const logoInput = form.querySelector('input[name="logo"]');
         const bannerInput = form.querySelector('input[name="banner"]');
@@ -1414,9 +1479,7 @@ export class AdminPage {
     const formEl = document.getElementById("create-club-form");
     if (formEl) {
       const colorButtons = formEl.querySelectorAll(".color-option");
-      const hiddenInput = formEl.querySelector(
-        'input[name="accentColor"]'
-      );
+      const hiddenInput = formEl.querySelector('input[name="accentColor"]');
       colorButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           const color = btn.dataset.color;
@@ -1488,8 +1551,7 @@ export class AdminPage {
         const description = formData.get("description") || "";
         const category = formData.get("category");
         const isActive = formData.get("isActive") === "on";
-        const requireSafApproval =
-          formData.get("requireSafApproval") === "on";
+        const requireSafApproval = formData.get("requireSafApproval") === "on";
 
         logManager.info("AdminPage: Updating club from dashboard", {
           clubId,
@@ -1539,50 +1601,149 @@ export class AdminPage {
     })();
   }
 
-  openAssignPresidentModal(clubId) {
+  async openAssignPresidentModal(clubId, opts = {}) {
+    // Fetch club for scope
+    const clubSnap = await getDoc(doc(db, "clubs", clubId));
+    const club = clubSnap.exists()
+      ? { id: clubSnap.id, ...clubSnap.data() }
+      : { id: clubId, name: opts.clubName || "Club" };
+
     this.showModal({
       title: "Assign President",
       content: `
-        <form class="admin-form" id="assign-president-form">
-          <div class="form-group">
-            <label>President UID</label>
-            <input type="text" name="uid" required placeholder="Firebase User UID">
-          </div>
-          <p class="form-hint">
-            <i class="fas fa-info-circle"></i>
-            The user must be an existing member of the club or will be added as president.
-          </p>
-        </form>
+        <div class="assign-modal">
+          <p>Search for a student to make president of <strong>${
+            club.name || clubId
+          }</strong>.</p>
+          <div id="assign-president-search"></div>
+        </div>
       `,
-      confirmText: "Assign",
+      confirmText: "Close",
+      onConfirm: async () => {},
+    });
+
+    const searchContainer = document.getElementById("assign-president-search");
+    if (searchContainer) {
+      renderUserSearchAssign(searchContainer, {
+        scopeUniversityId:
+          club.universityId ||
+          club.universityCode ||
+          club.university ||
+          opts.universityId ||
+          null,
+        allowAllUniversities: false,
+        bypassSearchable: true, // Admin can find users even if they have search disabled
+        onSelect: (user) => {
+          const profile = user.profile || {};
+          const handle = profile.handle || profile.handle_lower || user.id;
+          this.showModal({
+            title: "Confirm President",
+            content: `
+              <p>Make <strong>@${handle}</strong> the president of <strong>${
+              club.name || clubId
+            }</strong>?</p>
+            `,
+            confirmText: "Assign President",
+            onConfirm: async () => {
+              await adminAssignPresident(clubId, user.id);
+              await this.loadTabContent("clubs");
+            },
+          });
+        },
+      });
+    }
+  }
+
+  async confirmDeleteClub(clubId) {
+    // Fetch the club to get its name
+    let clubName = clubId;
+    try {
+      const clubSnap = await getDoc(doc(db, "clubs", clubId));
+      if (clubSnap.exists()) {
+        clubName = clubSnap.data().name || clubId;
+      }
+    } catch (err) {
+      logManager.warn("AdminPage: Failed to fetch club name for deletion", {
+        clubId,
+        err,
+      });
+    }
+
+    // Show modal requiring user to type the club name
+    this.showModal({
+      title: "Delete Club",
+      content: `
+        <div class="delete-club-confirm">
+          <div class="warning-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <p class="warning-text">
+            <strong>This action cannot be undone.</strong> This will permanently delete 
+            the club "<strong>${escapeHtmlAdmin(
+              clubName
+            )}</strong>" and all its associated data, 
+            including events and memberships.
+          </p>
+          <div class="form-group">
+            <label>To confirm, type the club name exactly:</label>
+            <input 
+              type="text" 
+              id="confirmClubName" 
+              placeholder="${escapeHtmlAdmin(clubName)}"
+              autocomplete="off"
+            />
+          </div>
+          <p class="type-hint" id="typeHint" style="display: none;">
+            <i class="fas fa-check-circle"></i> Club name matches
+          </p>
+        </div>
+      `,
+      confirmText: "Delete Club",
       onConfirm: async () => {
-        const form = document.getElementById("assign-president-form");
-        const uid = new FormData(form).get("uid");
-        logManager.info("AdminPage: Assigning president from dashboard", {
+        const input = document.getElementById("confirmClubName");
+        const typedName = input?.value?.trim();
+
+        if (typedName !== clubName) {
+          throw new Error("Club name does not match. Deletion cancelled.");
+        }
+
+        logManager.warn("AdminPage: Deleting club from dashboard", {
           clubId,
-          uid,
+          clubName,
         });
-        await adminAssignPresident(clubId, uid);
-        logManager.info("AdminPage: President assigned from dashboard", {
+        await adminDeleteClub(clubId);
+        logManager.info("AdminPage: Club deleted from dashboard", {
           clubId,
-          uid,
+          clubName,
         });
         await this.loadTabContent("clubs");
       },
     });
-  }
 
-  async confirmDeleteClub(clubId) {
-    if (
-      confirm(
-        `Delete club "${clubId}"? This will remove all club data including events and memberships.`
-      )
-    ) {
-      logManager.warn("AdminPage: Deleting club from dashboard", { clubId });
-      await adminDeleteClub(clubId);
-      logManager.info("AdminPage: Club deleted from dashboard", { clubId });
-      await this.loadTabContent("clubs");
-    }
+    // Add validation listener for the input
+    setTimeout(() => {
+      const input = document.getElementById("confirmClubName");
+      const hint = document.getElementById("typeHint");
+      const confirmBtn = document.querySelector(".admin-modal .btn-confirm");
+
+      if (input && confirmBtn) {
+        // Initially disable the confirm button
+        confirmBtn.disabled = true;
+        confirmBtn.classList.add("btn-disabled");
+
+        input.addEventListener("input", () => {
+          const typedName = input.value.trim();
+          const matches = typedName === clubName;
+
+          if (hint) {
+            hint.style.display = matches ? "block" : "none";
+          }
+
+          confirmBtn.disabled = !matches;
+          confirmBtn.classList.toggle("btn-disabled", !matches);
+        });
+      }
+    }, 100);
   }
 
   filterClubs(searchTerm) {
@@ -1673,6 +1834,16 @@ export class AdminPage {
 }
 
 export default AdminPage;
+
+// Helper function to escape HTML
+function escapeHtmlAdmin(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 // Wire AdminPage to SPA router lifecycle
 let _adminPageInstance = null;

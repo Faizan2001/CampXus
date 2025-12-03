@@ -1,6 +1,7 @@
 import { initializeApp as initAdminApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { getStorage } from "firebase-admin/storage";
 import {
   onDocumentCreated,
   onDocumentUpdated,
@@ -8,7 +9,8 @@ import {
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { https } from "firebase-functions"; // for potential callable future use
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { https } from "firebase-functions"; // for v1 callable functions
 import * as logger from "firebase-functions/logger";
 
 // Initialize Admin SDK once
@@ -362,13 +364,87 @@ async function assertSafModerator(context) {
   const uid = context.auth.uid;
   const snap = await db.collection("safModerators").doc(uid).get();
   if (!snap.exists) {
-    throw new https.HttpsError(
-      "permission-denied",
-      "Not a SAF moderator"
-    );
+    throw new https.HttpsError("permission-denied", "Not a SAF moderator");
   }
 
   return { uid, moderator: snap.data() || {} };
+}
+
+async function getSuperAdminUids() {
+  const snap = await db.doc("admin/superAdmins").get();
+  const data = snap.exists ? snap.data() || {} : {};
+  return Array.isArray(data.uids) ? data.uids : [];
+}
+
+async function assertClubRoleManager(uid, club) {
+  if (!uid) {
+    throw new https.HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const superAdmins = await getSuperAdminUids();
+  if (superAdmins.includes(uid)) {
+    return { role: "superAdmin" };
+  }
+
+  const isDevOwner = club?.devTest === true && club?.devOwnerUid === uid;
+  const isPresident =
+    club?.presidentId === uid || club?.createdBy === uid || isDevOwner;
+
+  if (isPresident) {
+    return { role: "president" };
+  }
+
+  const safSnap = await db.collection("safModerators").doc(uid).get();
+  if (safSnap.exists) {
+    const moderator = safSnap.data() || {};
+    const moderatorUniversityId = moderator.universityId || null;
+    if (
+      moderatorUniversityId &&
+      club?.universityId &&
+      moderatorUniversityId === club.universityId
+    ) {
+      return { role: "saf" };
+    }
+  }
+
+  throw new https.HttpsError(
+    "permission-denied",
+    "Not authorized to manage club roles"
+  );
+}
+
+async function setUserClubRole(userId, clubId, club, role, title) {
+  const userRef = db.collection("users").doc(userId);
+  const payload = {
+    role,
+    title: title || (role === "president" ? "President" : "Official"),
+    clubId,
+    clubName: club?.name || null,
+    universityId: club?.universityId || null,
+    universityCode: club?.universityCode || club?.university || null,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  await userRef.set(
+    {
+      clubRoles: {
+        [clubId]: payload,
+      },
+    },
+    { merge: true }
+  );
+}
+
+async function clearUserClubRole(userId, clubId) {
+  const userRef = db.collection("users").doc(userId);
+  await userRef.set(
+    {
+      clubRoles: {
+        [clubId]: FieldValue.delete(),
+      },
+    },
+    { merge: true }
+  );
 }
 
 async function getUserPrefs(userId) {
@@ -434,7 +510,6 @@ function isStarredBy(recipientUser, actorId) {
   );
 }
 
-
 // SAF moderator management via callable functions
 export const addSafModerator = https.onCall(async (data, context) => {
   const { uid: callerUid } = await assertSuperAdmin(context);
@@ -472,6 +547,411 @@ export const addSafModerator = https.onCall(async (data, context) => {
   logger.info("addSafModerator completed", {
     moderatorUid: uid,
     universityId,
+    callerUid,
+  });
+
+  return { success: true };
+});
+
+// Promote a member to official and sync user.clubRoles
+export const promoteClubOfficial = https.onCall(async (data, context) => {
+  const callerUid = context.auth?.uid;
+  if (!callerUid) {
+    throw new https.HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const clubId = String(data?.clubId || "").trim();
+  const userId = String(data?.userId || "").trim();
+  const roleTitle = typeof data?.roleTitle === "string" ? data.roleTitle : null;
+
+  if (!clubId || !userId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "Parameters 'clubId' and 'userId' are required"
+    );
+  }
+
+  const clubRef = db.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  if (!clubSnap.exists) {
+    throw new https.HttpsError("not-found", "Club not found");
+  }
+  const club = { id: clubSnap.id, ...clubSnap.data() };
+
+  // Fetch user profile for denormalized member entry
+  const userSnap = await db.collection("users").doc(userId).get();
+  if (!userSnap.exists) {
+    throw new https.HttpsError("not-found", "User not found");
+  }
+  const userData = userSnap.data() || {};
+
+  await assertClubRoleManager(callerUid, club);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(clubRef);
+    if (!snap.exists) {
+      throw new https.HttpsError("not-found", "Club not found");
+    }
+    const current = snap.data() || {};
+    const members = Array.isArray(current.members) ? [...current.members] : [];
+
+    const memberEntry = {
+      uid: userId,
+      role: "official",
+      name:
+        userData.profile?.displayName ||
+        [userData.profile?.firstName, userData.profile?.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim() ||
+        null,
+      displayName:
+        userData.profile?.displayName ||
+        [userData.profile?.firstName, userData.profile?.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim() ||
+        null,
+      photoUrl:
+        userData.profile?.profilePhotoUrl || userData.profile?.photoUrl || null,
+      avatarConfig: userData.avatarConfig || null,
+      joinedAt: FieldValue.serverTimestamp(),
+    };
+
+    let found = false;
+    const updatedMembers = members.map((m) => {
+      if (m.uid === userId) {
+        found = true;
+        return { ...memberEntry, ...m, role: "official" };
+      }
+      return m;
+    });
+    if (!found) {
+      updatedMembers.push(memberEntry);
+    }
+
+    const uniqueOfficialIds = new Set(
+      Array.isArray(current.officialIds) ? current.officialIds : []
+    );
+    uniqueOfficialIds.add(userId);
+
+    // D6: memberCount = president + officials only
+    const hasPresident = !!current.presidentId;
+    const newMemberCount = uniqueOfficialIds.size + (hasPresident ? 1 : 0);
+
+    tx.update(clubRef, {
+      members: updatedMembers,
+      officialIds: Array.from(uniqueOfficialIds),
+      memberCount: newMemberCount,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  await setUserClubRole(userId, clubId, club, "official", roleTitle);
+
+  logger.info("promoteClubOfficial: success", {
+    clubId,
+    userId,
+    callerUid,
+  });
+
+  return { success: true };
+});
+
+// Demote an official back to member and clear user.clubRoles entry
+export const demoteClubOfficial = https.onCall(async (data, context) => {
+  const callerUid = context.auth?.uid;
+  if (!callerUid) {
+    throw new https.HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const clubId = String(data?.clubId || "").trim();
+  const userId = String(data?.userId || "").trim();
+
+  if (!clubId || !userId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "Parameters 'clubId' and 'userId' are required"
+    );
+  }
+
+  const clubRef = db.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  if (!clubSnap.exists) {
+    throw new https.HttpsError("not-found", "Club not found");
+  }
+  const club = { id: clubSnap.id, ...clubSnap.data() };
+
+  await assertClubRoleManager(callerUid, club);
+
+  if (club.presidentId === userId) {
+    throw new https.HttpsError(
+      "failed-precondition",
+      "Use assignClubPresident to change the president"
+    );
+  }
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(clubRef);
+    if (!snap.exists) {
+      throw new https.HttpsError("not-found", "Club not found");
+    }
+    const current = snap.data() || {};
+    const members = Array.isArray(current.members) ? [...current.members] : [];
+
+    const updatedMembers = members.map((m) => {
+      if (m.uid === userId) {
+        const { role, ...rest } = m;
+        return { ...rest, role: "member" };
+      }
+      return m;
+    });
+
+    const updatedOfficialIds = (
+      Array.isArray(current.officialIds) ? current.officialIds : []
+    ).filter((id) => id !== userId);
+
+    // R3: Demoted official becomes regular member, not removed
+    // memberCount = president + officials only (D6)
+    const officialCount = updatedOfficialIds.length;
+    const hasPresident = !!current.presidentId;
+    const newMemberCount = officialCount + (hasPresident ? 1 : 0);
+
+    tx.update(clubRef, {
+      members: updatedMembers,
+      officialIds: updatedOfficialIds,
+      memberCount: newMemberCount,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  await clearUserClubRole(userId, clubId);
+
+  logger.info("demoteClubOfficial: success", {
+    clubId,
+    userId,
+    callerUid,
+  });
+
+  return { success: true };
+});
+
+// Assign a new president and keep clubRoles in sync for old/new presidents
+export const assignClubPresident = https.onCall(async (data, context) => {
+  const callerUid = context.auth?.uid;
+  if (!callerUid) {
+    throw new https.HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const clubId = String(data?.clubId || "").trim();
+  const userId = String(data?.userId || "").trim();
+
+  if (!clubId || !userId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "Parameters 'clubId' and 'userId' are required"
+    );
+  }
+
+  const clubRef = db.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  if (!clubSnap.exists) {
+    throw new https.HttpsError("not-found", "Club not found");
+  }
+  const club = { id: clubSnap.id, ...clubSnap.data() };
+
+  await assertClubRoleManager(callerUid, club);
+
+  const userSnap = await db.collection("users").doc(userId).get();
+  if (!userSnap.exists) {
+    throw new https.HttpsError("not-found", "User not found");
+  }
+  const userData = userSnap.data() || {};
+
+  const memberEntry = {
+    uid: userId,
+    role: "president",
+    name:
+      userData.profile?.displayName ||
+      [userData.profile?.firstName, userData.profile?.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      null,
+    displayName:
+      userData.profile?.displayName ||
+      [userData.profile?.firstName, userData.profile?.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      null,
+    photoUrl:
+      userData.profile?.profilePhotoUrl || userData.profile?.photoUrl || null,
+    avatarConfig: userData.avatarConfig || null,
+    joinedAt: FieldValue.serverTimestamp(),
+  };
+
+  const previousPresidentId = club.presidentId || null;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(clubRef);
+    if (!snap.exists) {
+      throw new https.HttpsError("not-found", "Club not found");
+    }
+    const current = snap.data() || {};
+    const members = Array.isArray(current.members) ? [...current.members] : [];
+
+    // R3: Old president is completely removed from club (no connection)
+    // Filter out the old president entirely, don't just demote to member
+    let updatedMembers = members.filter((m) => m.uid !== previousPresidentId);
+
+    // Update or add new president
+    updatedMembers = updatedMembers.map((m) => {
+      if (m.uid === userId) {
+        return { ...memberEntry, ...m, role: "president" };
+      }
+      return m;
+    });
+
+    if (!updatedMembers.some((m) => m.uid === userId)) {
+      updatedMembers.push(memberEntry);
+    }
+
+    // Remove new president from officialIds (can't be both)
+    // Also remove old president from officialIds if they were there
+    const updatedOfficialIds = (
+      Array.isArray(current.officialIds) ? current.officialIds : []
+    ).filter((id) => id !== userId && id !== previousPresidentId);
+
+    // D6: memberCount = president + officials only
+    const newMemberCount = updatedOfficialIds.length + 1; // +1 for president
+
+    tx.update(clubRef, {
+      presidentId: userId,
+      members: updatedMembers,
+      officialIds: updatedOfficialIds,
+      memberCount: newMemberCount,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  // Ensure denormalized member info is present (in case legacy members lacked it)
+  try {
+    const latest = await clubRef.get();
+    const data = latest.exists ? latest.data() || {} : {};
+    const members = Array.isArray(data.members) ? [...data.members] : [];
+    let changed = false;
+    const enrichedMembers = members.map((m) => {
+      if (m.uid !== userId) return m;
+      changed = true;
+      return {
+        ...m,
+        ...memberEntry,
+        role: "president",
+      };
+    });
+    if (!enrichedMembers.some((m) => m.uid === userId)) {
+      enrichedMembers.push(memberEntry);
+      changed = true;
+    }
+    if (changed) {
+      // D6: memberCount = president + officials only
+      const officialIds = Array.isArray(data.officialIds)
+        ? data.officialIds
+        : [];
+      const newMemberCount = officialIds.length + 1;
+      await clubRef.update({
+        members: enrichedMembers,
+        memberCount: newMemberCount,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  } catch (e) {
+    logger.warn("assignClubPresident: denorm update skipped", {
+      error: String(e),
+      clubId,
+      userId,
+    });
+  }
+
+  await setUserClubRole(userId, clubId, club, "president", "President");
+  if (previousPresidentId && previousPresidentId !== userId) {
+    await clearUserClubRole(previousPresidentId, clubId);
+  }
+
+  logger.info("assignClubPresident: success", {
+    clubId,
+    userId,
+    callerUid,
+    previousPresidentId,
+  });
+
+  return { success: true };
+});
+
+// Remove a member from the club (kick) and clear user.clubRoles
+export const removeClubMember = https.onCall(async (data, context) => {
+  const callerUid = context.auth?.uid;
+  if (!callerUid) {
+    throw new https.HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const clubId = String(data?.clubId || "").trim();
+  const userId = String(data?.userId || "").trim();
+
+  if (!clubId || !userId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "Parameters 'clubId' and 'userId' are required"
+    );
+  }
+
+  const clubRef = db.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  if (!clubSnap.exists) {
+    throw new https.HttpsError("not-found", "Club not found");
+  }
+  const club = { id: clubSnap.id, ...clubSnap.data() };
+
+  await assertClubRoleManager(callerUid, club);
+
+  // Do not allow kicking the sitting president
+  if (club.presidentId === userId) {
+    throw new https.HttpsError(
+      "failed-precondition",
+      "Cannot remove the current president; transfer presidency first"
+    );
+  }
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(clubRef);
+    if (!snap.exists) {
+      throw new https.HttpsError("not-found", "Club not found");
+    }
+    const current = snap.data() || {};
+    const members = Array.isArray(current.members) ? current.members : [];
+    const updatedMembers = members.filter((m) => m.uid !== userId);
+    const updatedOfficialIds = (
+      Array.isArray(current.officialIds) ? current.officialIds : []
+    ).filter((id) => id !== userId);
+
+    // D6: memberCount = president + officials only
+    const hasPresident = !!current.presidentId;
+    const newMemberCount = updatedOfficialIds.length + (hasPresident ? 1 : 0);
+
+    tx.update(clubRef, {
+      members: updatedMembers,
+      officialIds: updatedOfficialIds,
+      memberCount: newMemberCount,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  await clearUserClubRole(userId, clubId);
+
+  logger.info("removeClubMember: success", {
+    clubId,
+    userId,
     callerUid,
   });
 
@@ -564,7 +1044,9 @@ export const removeSafModerator = https.onCall(async (data, context) => {
 
   const modRef = db.collection("safModerators").doc(uid);
   const modSnap = await modRef.get();
-  const universityId = modSnap.exists ? modSnap.data()?.universityId || null : null;
+  const universityId = modSnap.exists
+    ? modSnap.data()?.universityId || null
+    : null;
 
   await modRef.delete();
 
@@ -655,12 +1137,12 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
         return;
       }
 
-  const updatedUserInfo = {
-    handle: afterHandle,
-    major: afterMajor || "Unknown",
-    university: afterUniversity || "unknown",
-    avatarConfig: afterAvatar || null,
-    profilePhotoUrl: afterPhoto || null,
+      const updatedUserInfo = {
+        handle: afterHandle,
+        major: afterMajor || "Unknown",
+        university: afterUniversity || "unknown",
+        avatarConfig: afterAvatar || null,
+        profilePhotoUrl: afterPhoto || null,
         // Default to photo-first when useAvatar is not explicitly set
         useAvatar: typeof afterUseAvatar === "boolean" ? afterUseAvatar : false,
       };
@@ -726,13 +1208,10 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
         .where("uid", "==", userId)
         .get()
         .catch((err) => {
-          logger.error(
-            "syncUserAvatarPhotoChanges: members uid query failed",
-            {
-              userId,
-              error: String(err),
-            }
-          );
+          logger.error("syncUserAvatarPhotoChanges: members uid query failed", {
+            userId,
+            error: String(err),
+          });
           return { empty: true, docs: [] };
         });
 
@@ -1187,9 +1666,7 @@ export const onNotificationCreated = onDocumentCreated(
       // Deep link to club or specific event inside the SPA
       let link = "/#notifications";
       if (clubId) {
-        link = `/#club?id=${clubId}${
-          eventId ? `&eventId=${eventId}` : ""
-        }`;
+        link = `/#club?id=${clubId}${eventId ? `&eventId=${eventId}` : ""}`;
       }
 
       const notification = {
@@ -1224,7 +1701,6 @@ export const onNotificationCreated = onDocumentCreated(
       }
       return;
     }
-
   }
 );
 
@@ -1514,6 +1990,67 @@ async function notifyClubFollowers(clubId, notificationData) {
   });
 }
 
+// R12: Helper to notify ALL users in a university (for live event notifications)
+async function notifyAllUniversityUsers(
+  universityCode,
+  clubId,
+  notificationData
+) {
+  // Query all users with matching university code
+  const usersSnapshot = await db
+    .collection("users")
+    .where("universityInfo.university", "==", universityCode)
+    .get();
+
+  if (usersSnapshot.empty) {
+    logger.info("No users to notify for university", {
+      universityCode,
+      clubId,
+    });
+    return;
+  }
+
+  let batch = db.batch();
+  let countInBatch = 0;
+  let total = 0;
+
+  for (const userDoc of usersSnapshot.docs) {
+    const notifRef = db.collection("notifications").doc();
+    batch.set(notifRef, {
+      userId: userDoc.id,
+      clubId,
+      type: notificationData.type,
+      eventId: notificationData.eventId || null,
+      title: notificationData.title || "",
+      message: notificationData.message || "",
+      clubInfo: notificationData.clubInfo || null,
+      createdAt: FieldValue.serverTimestamp(),
+      status: "pending",
+      readAt: null,
+    });
+    countInBatch += 1;
+    total += 1;
+
+    // Firestore batch limit is 500, we use 400 to be safe
+    if (countInBatch >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      countInBatch = 0;
+    }
+  }
+
+  if (countInBatch > 0) {
+    await batch.commit();
+  }
+
+  logger.info("Sent university-wide notifications for live event", {
+    universityCode,
+    clubId,
+    type: notificationData.type,
+    total,
+  });
+}
+
 async function updateClubEventStats(clubId) {
   const now = new Date();
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -1582,10 +2119,13 @@ export const onClubEventCreated = onDocumentCreated(
       }
 
       if (!reviewerUid) {
-        logger.info("No president/devOwner/creator to notify for pending event", {
-          clubId,
-          eventId,
-        });
+        logger.info(
+          "No president/devOwner/creator to notify for pending event",
+          {
+            clubId,
+            eventId,
+          }
+        );
         return;
       }
 
@@ -1744,10 +2284,7 @@ export const onClubEventStatusChanged = onDocumentUpdated(
     }
 
     // Event re-submitted for president review (rejected -> pending_president)
-    if (
-      after.status === "pending_president" &&
-      before.status === "rejected"
-    ) {
+    if (after.status === "pending_president" && before.status === "rejected") {
       // Determine reviewer (same logic as onClubEventCreated)
       let reviewerUid = club.presidentId || null;
       if (!reviewerUid && club.devTest && club.devOwnerUid) {
@@ -1763,7 +2300,9 @@ export const onClubEventStatusChanged = onDocumentUpdated(
           clubId,
           eventId,
           title: "Event Resubmitted for Approval",
-          message: `"${after.title || "Event"}" was updated and is waiting for your review again`,
+          message: `"${
+            after.title || "Event"
+          }" was updated and is waiting for your review again`,
           clubInfo: {
             name: club.name || "",
             logoUrl: club.logoUrl || null,
@@ -1777,10 +2316,10 @@ export const onClubEventStatusChanged = onDocumentUpdated(
           reviewerUid,
         });
       } else {
-        logger.info(
-          "No reviewer found for resubmitted pending event",
-          { clubId, eventId }
-        );
+        logger.info("No reviewer found for resubmitted pending event", {
+          clubId,
+          eventId,
+        });
       }
     }
 
@@ -1802,10 +2341,38 @@ export const onClubEventStatusChanged = onDocumentUpdated(
 
       await updateClubEventStats(clubId);
     }
+
+    // Log when a live event is stopped (either manually or due to edit)
+    // This provides an audit trail for live event management
+    const wasLiveStopped = !before.liveStoppedAt && after.liveStoppedAt;
+    if (wasLiveStopped) {
+      const stopReason = after.liveStopReason || "manual";
+      const stoppedBy = after.liveStoppedBy || "unknown";
+
+      // Log to adminActivity for audit trail
+      await db.collection("adminActivity").add({
+        action: "club_event_live_stopped",
+        clubId,
+        eventId,
+        eventTitle: after.title || "Untitled Event",
+        clubName: club.name || "Unknown Club",
+        stoppedBy,
+        stopReason,
+        timestamp: FieldValue.serverTimestamp(),
+      });
+
+      logger.info("Live event stopped", {
+        clubId,
+        eventId,
+        stopReason,
+        stoppedBy,
+      });
+    }
   }
 );
 
-// When an event is marked as started (isLive toggles to true), notify followers
+// When an event is marked as started (isLive toggles to true), notify ALL users in the university
+// R12: Live event notifications go to all users, not just followers
 export const onClubEventStarted = onDocumentUpdated(
   "clubs/{clubId}/events/{eventId}",
   async (event) => {
@@ -1825,19 +2392,49 @@ export const onClubEventStarted = onDocumentUpdated(
     }
     const club = clubSnap.data() || {};
 
-    await notifyClubFollowers(clubId, {
-      type: "club_event_started",
-      eventId,
-      title: "🔴 Event is LIVE!",
-      message: `"${after.title || "An event"}" is happening now!`,
-      clubInfo: {
-        name: club.name || "",
-        logoUrl: club.logoUrl || null,
-        accentColor: club.accentColor || null,
-      },
-    });
+    // R12: Notify ALL users in the same university, not just followers
+    const universityCode = club.universityCode || club.university || null;
 
-    logger.info("Event started, notified followers", { clubId, eventId });
+    if (universityCode) {
+      // Notify all users at this university
+      await notifyAllUniversityUsers(universityCode, clubId, {
+        type: "club_event_started",
+        eventId,
+        title: "🔴 Event is LIVE!",
+        message: `"${after.title || "An event"}" from ${
+          club.name || "a club"
+        } is happening now!`,
+        clubInfo: {
+          name: club.name || "",
+          logoUrl: club.logoUrl || null,
+          accentColor: club.accentColor || null,
+        },
+      });
+
+      logger.info("Event started, notified all university users", {
+        clubId,
+        eventId,
+        universityCode,
+      });
+    } else {
+      // Fallback to followers only if no university code
+      await notifyClubFollowers(clubId, {
+        type: "club_event_started",
+        eventId,
+        title: "🔴 Event is LIVE!",
+        message: `"${after.title || "An event"}" is happening now!`,
+        clubInfo: {
+          name: club.name || "",
+          logoUrl: club.logoUrl || null,
+          accentColor: club.accentColor || null,
+        },
+      });
+
+      logger.info("Event started, notified followers (no university code)", {
+        clubId,
+        eventId,
+      });
+    }
   }
 );
 
@@ -2009,13 +2606,10 @@ export const onClubMemberChanged = onDocumentWritten(
 
       const memberCount = membersSnap.size;
 
-      await db
-        .collection("clubs")
-        .doc(clubId)
-        .update({
-          memberCount,
-          updatedAt: new Date(),
-        });
+      await db.collection("clubs").doc(clubId).update({
+        memberCount,
+        updatedAt: new Date(),
+      });
 
       logger.info("onClubMemberChanged: memberCount updated", {
         clubId,
@@ -2630,3 +3224,244 @@ export const onMessageCreate = onDocumentCreated(
     }
   }
 );
+
+// -----------------------------
+// R21: Scheduled Cleanup for Old Club Events (90 days)
+// -----------------------------
+// Runs weekly to clean up approved events older than 90 days
+// and pending/rejected events older than 30 days
+export const cleanupOldClubEvents = onSchedule(
+  "every sunday 03:00",
+  async () => {
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    let totalDeleted = 0;
+    let imagesDeleted = 0;
+
+    // Get all clubs
+    const clubsSnap = await db.collection("clubs").get();
+
+    for (const clubDoc of clubsSnap.docs) {
+      const clubId = clubDoc.id;
+
+      // Get events for this club
+      const eventsSnap = await db
+        .collection("clubs")
+        .doc(clubId)
+        .collection("events")
+        .get();
+
+      for (const eventDoc of eventsSnap.docs) {
+        const event = eventDoc.data();
+        const lastSlotEnd = event.lastSlotEnd?.toDate?.();
+        const createdAt = event.createdAt?.toDate?.();
+        const status = event.status || "pending_president";
+
+        let shouldDelete = false;
+
+        // Approved events: delete after 90 days past lastSlotEnd
+        if (
+          status === "approved" &&
+          lastSlotEnd &&
+          lastSlotEnd < ninetyDaysAgo
+        ) {
+          shouldDelete = true;
+        }
+
+        // Pending/rejected events: delete after 30 days from creation
+        if (
+          (status === "pending_president" ||
+            status === "pending_saf" ||
+            status === "rejected") &&
+          createdAt &&
+          createdAt < thirtyDaysAgo
+        ) {
+          shouldDelete = true;
+        }
+
+        if (shouldDelete) {
+          try {
+            // Delete announcements subcollection first
+            const announcementsSnap = await eventDoc.ref
+              .collection("announcements")
+              .get();
+            const batch = db.batch();
+            announcementsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+
+            // Track image for R20 orphaned cleanup verification
+            if (event.imageUrl) {
+              imagesDeleted++;
+              // Note: Actual Storage deletion would require getStorage().bucket().file(path).delete()
+              // For now we just track the count; images are cleaned separately
+            }
+
+            // Delete event document
+            await eventDoc.ref.delete();
+            totalDeleted++;
+          } catch (error) {
+            logger.error(`Error deleting event ${eventDoc.id}:`, error);
+          }
+        }
+      }
+    }
+
+    logger.info("Cleanup old club events complete", {
+      totalDeleted,
+      imagesDeleted,
+    });
+  }
+);
+
+// -----------------------------
+// R21: Callable Function for Dev Testing (Manual Trigger)
+// -----------------------------
+// Allows super admins to manually trigger the 90-day cleanup for testing
+
+export const manualCleanupOldEvents = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  // Verify super admin
+  const superAdminsDoc = await db.doc("admin/superAdmins").get();
+  const superAdminUids = superAdminsDoc.exists
+    ? superAdminsDoc.data()?.uids || []
+    : [];
+  if (!superAdminUids.includes(uid)) {
+    throw new HttpsError("permission-denied", "Super admin access required");
+  }
+
+  const { daysOld = 90, dryRun = true } = request.data || {};
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+  let eventsFound = 0;
+  let eventsDeleted = 0;
+  const eventsList = [];
+
+  // Get all clubs
+  const clubsSnap = await db.collection("clubs").get();
+
+  for (const clubDoc of clubsSnap.docs) {
+    const clubId = clubDoc.id;
+    const clubName = clubDoc.data()?.name || clubId;
+
+    const eventsSnap = await db
+      .collection("clubs")
+      .doc(clubId)
+      .collection("events")
+      .get();
+
+    for (const eventDoc of eventsSnap.docs) {
+      const event = eventDoc.data();
+      const lastSlotEnd = event.lastSlotEnd?.toDate?.();
+
+      if (lastSlotEnd && lastSlotEnd < cutoffDate) {
+        eventsFound++;
+        eventsList.push({
+          clubName,
+          eventId: eventDoc.id,
+          title: event.title || "Untitled",
+          endDate: lastSlotEnd.toISOString(),
+          imageUrl: event.imageUrl || null,
+        });
+
+        if (!dryRun) {
+          try {
+            // Delete announcements first
+            const announcementsSnap = await eventDoc.ref
+              .collection("announcements")
+              .get();
+            const batch = db.batch();
+            announcementsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+
+            await eventDoc.ref.delete();
+            eventsDeleted++;
+          } catch (error) {
+            logger.error(`Error deleting event ${eventDoc.id}:`, error);
+          }
+        }
+      }
+    }
+  }
+
+  logger.info("Manual cleanup old events", {
+    uid,
+    daysOld,
+    dryRun,
+    eventsFound,
+    eventsDeleted,
+  });
+
+  return {
+    success: true,
+    dryRun,
+    daysOld,
+    eventsFound,
+    eventsDeleted,
+    events: eventsList.slice(0, 50), // Limit to first 50 for response size
+  };
+});
+
+// -----------------------------
+// R20: Orphaned Image Verification (Callable)
+// -----------------------------
+// Lists event images that may be orphaned (event deleted but image remains)
+export const verifyOrphanedImages = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  // Verify super admin
+  const superAdminsDoc = await db.doc("admin/superAdmins").get();
+  const superAdminUids = superAdminsDoc.exists
+    ? superAdminsDoc.data()?.uids || []
+    : [];
+  if (!superAdminUids.includes(uid)) {
+    throw new HttpsError("permission-denied", "Super admin access required");
+  }
+
+  // Collect all imageUrls from existing events
+  const existingImageUrls = new Set();
+
+  const clubsSnap = await db.collection("clubs").get();
+
+  for (const clubDoc of clubsSnap.docs) {
+    const eventsSnap = await db
+      .collection("clubs")
+      .doc(clubDoc.id)
+      .collection("events")
+      .get();
+
+    for (const eventDoc of eventsSnap.docs) {
+      const imageUrl = eventDoc.data()?.imageUrl;
+      if (imageUrl) {
+        existingImageUrls.add(imageUrl);
+      }
+    }
+  }
+
+  logger.info("Orphaned image verification", {
+    uid,
+    totalImagesReferenced: existingImageUrls.size,
+  });
+
+  // Note: Full orphan detection requires listing Storage bucket files
+  // and comparing against existingImageUrls. This is a placeholder that
+  // returns the count of referenced images for now.
+
+  return {
+    success: true,
+    totalEventsWithImages: existingImageUrls.size,
+    message:
+      "To fully detect orphans, compare Storage bucket listing against these URLs",
+    // Future: Add Storage listing and comparison
+  };
+});

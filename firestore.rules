@@ -6,6 +6,13 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
+    // Check if user is a SAF (Student Activities and Facilities) Moderator
+    // SAF moderators can create/delete clubs and approve events for their university
+    function isSafModerator() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/safModerators/$(request.auth.uid));
+    }
+
     // --- Class Spaces (dev testing + read access) ---
     // Reads: allow authenticated users (spaces are university-visible in app logic)
     // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
@@ -62,18 +69,19 @@ service cloud.firestore {
 
 	    // --- Clubs (/clubs) ---
     // Clubs are read by any authenticated user. Writes are restricted:
-    // - Verified users may create clubs (real users)
+    // - Only SAF moderators or super admins may create clubs (production)
     // - Dev-only test clubs may be created/edited/deleted by their owner when marked devTest
 	    match /clubs/{clubId} {
 	      allow read: if request.auth != null;
 
-	      // Create: allow verified users to create clubs, or allow devTest clubs created by their owner,
-	      // or super admins (via admin dashboard).
+	      // Create: only SAF moderators or super admins can create clubs (controlled creation)
+	      // DevTest clubs can be created by their owner for development purposes.
 	      // NOTE: followerCount is server-managed; clients must not set it to a non-zero value.
 	      allow create: if request.auth != null &&
 	        (
 	          isSuperAdmin() ||
-	          isVerified() || (
+	          isSafModerator() ||
+	          (
 	            request.resource.data.devTest == true &&
 	            request.resource.data.devOwnerUid == request.auth.uid
 	          )
@@ -166,10 +174,11 @@ service cloud.firestore {
 	          )
 	        );
 
-	      // Delete: allow creator to delete if verified, or owner to delete devTest clubs,
-	      // or super admins (for global moderation/cleanup)
+	      // Delete: SAF moderators, super admins, creator (if verified), or devTest owner
+	      // SAF moderators can delete any club for moderation purposes
 	      allow delete: if request.auth != null && (
 	        isSuperAdmin() ||
+	        isSafModerator() ||
 	        (resource.data.createdBy == request.auth.uid && isVerified()) ||
 	        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
 	      );

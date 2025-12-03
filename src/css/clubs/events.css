@@ -452,13 +452,14 @@ body:not(.dark-mode) .events-placeholder {
 }
 
 @keyframes liveCardGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15),
-                0 0 0 1px rgba(16, 185, 129, 0.2);
+      0 0 0 1px rgba(16, 185, 129, 0.2);
   }
   50% {
     box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25),
-                0 0 0 2px rgba(16, 185, 129, 0.3);
+      0 0 0 2px rgba(16, 185, 129, 0.3);
   }
 }
 
@@ -488,7 +489,7 @@ body:not(.dark-mode) .events-placeholder {
 }
 
 .event-live-badge::before {
-  content: '';
+  content: "";
   width: 6px;
   height: 6px;
   background: white;
@@ -497,7 +498,8 @@ body:not(.dark-mode) .events-placeholder {
 }
 
 @keyframes liveDot {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -526,5 +528,41 @@ body:not(.dark-mode) .event-card.live-event {
 
 body:not(.dark-mode) .event-card.live-event:hover {
   box-shadow: 0 12px 32px rgba(16, 185, 129, 0.15),
-              0 4px 12px rgba(0, 0, 0, 0.08);
+    0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Load More Events Button (R26: pagination) --- */
+.events-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+  margin-top: 1rem;
+}
+
+.events-load-more .btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.events-load-more .btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.events-load-more .btn i.fa-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

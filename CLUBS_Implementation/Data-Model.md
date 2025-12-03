@@ -16,9 +16,10 @@ firestore/
 │       └── members/            # Subcollection: club membership
 ├── users/                      # Existing - add clubRoles field
 ├── notifications/              # Existing - add club notification types
+├── safModerators/              # SAF moderator documents (keyed by user UID)
+│   └── {userId}                # Individual moderator doc with universityId
 ├── admin/
 │   ├── superAdmins             # Super admin UIDs
-│   ├── safModerators           # SAF moderator assignments
 │   └── clubConfig              # Global club settings
 └── universities/               # Existing - add club settings
 ```
@@ -61,6 +62,10 @@ firestore/
   memberCount: 15,                           // Officials + President
   eventsThisWeek: 2,                         // Updated by Cloud Function
   nextEventDate: Timestamp | null,           // Updated when events change
+
+  // === Development/Testing (optional) ===
+  devTest: false,                            // True for dev-only test clubs
+  devOwnerUid: null | "dev_uid",             // Dev user treated as president for devTest clubs
 
   // === Metadata ===
   createdAt: Timestamp,
@@ -124,6 +129,13 @@ clubs: university ASC, nextEventDate ASC
   // - "rejected"           : Not approved
   // - "cancelled"          : Was approved, now cancelled
 
+  // === Rejection Info (populated when status = "rejected") ===
+  rejectedBy: "president_uid" | null,        // UID of who rejected
+  rejectedByInfo: {                          // Denormalized for display (R5)
+    firstName: "Ahmed",
+    lastName: "Khan"
+  } | null,
+  rejectedAt: Timestamp | null,              // When rejection occurred
   rejectionReason: null | "Please add more details about registration",
 
   // === Live Event State ===
@@ -135,6 +147,11 @@ clubs: university ASC, nextEventDate ASC
     lastName: "...",
     role: "Event Coordinator"
   } | null,
+
+  // === Live Stop Fields ===
+  liveStoppedAt: Timestamp | null,           // When live was stopped (edit during live OR explicit stop)
+  liveStoppedBy: "uid" | null,               // Who stopped it (R7)
+  liveStopReason: "edited" | "manual" | null, // Why it was stopped
 
   // === Flags ===
   isUniversityAnnouncement: false,           // SAF/Admin bypass badge
@@ -293,7 +310,23 @@ Add these fields to existing user schema:
 
 ---
 
-### 6. Admin Documents (`/admin/...`)
+### 6. SAF Moderator Document (`/safModerators/{userId}`)
+
+SAF (Student Activities Forum) moderators are stored as individual documents keyed by user UID.
+
+```javascript
+{
+  uid: "saf_user_uid",
+  displayName: "Dr. Rahman",
+  universityId: "iub",                        // University they moderate
+  addedAt: Timestamp,
+  addedBy: "admin_uid"                        // Who assigned them
+}
+```
+
+---
+
+### 7. Admin Documents (`/admin/...`)
 
 #### `/admin/superAdmins`
 
@@ -302,26 +335,6 @@ Add these fields to existing user schema:
   uids: ["your_firebase_uid"],                 // Array of super admin UIDs
   pinHash: "hashed_pin_here",                  // For secondary verification
   updatedAt: Timestamp
-}
-```
-
-#### `/admin/safModerators`
-
-```javascript
-{
-  // Keyed by university
-  "iub": {
-    moderators: [
-      {
-        uid: "saf_user_uid",
-        name: "Dr. Rahman",
-        email: "rahman@iub.edu.bd",
-        assignedAt: Timestamp,
-        assignedBy: "admin_uid"
-      }
-    ],
-    updatedAt: Timestamp
-  }
 }
 ```
 
@@ -348,7 +361,7 @@ Add these fields to existing user schema:
 
   // Retention settings (in days)
   eventRetentionDays: 90,
-  liveChatRetentionHours: 24,
+  announcementRetentionHours: 24,  // Announcements deleted 24h after event ends
   rejectedEventRetentionDays: 30,
 
   updatedAt: Timestamp
@@ -405,15 +418,15 @@ Extend existing notification schema:
 
 To minimize Firestore reads, we denormalize frequently-accessed data:
 
-| Source       | Denormalized To     | Fields                      | Update Trigger               |
-| ------------ | ------------------- | --------------------------- | ---------------------------- |
-| User profile | Club.presidentInfo  | name, handle, avatar        | Profile update               |
-| User profile | Event.createdByInfo | name, role                  | Profile update               |
-| User profile | LiveChat.senderInfo | name, handle, avatar, role  | Profile update               |
-| User profile | ClubMember.userInfo | name, handle, avatar, major | Profile update               |
-| Club stats   | Club.followerCount  | count                       | Follow/unfollow              |
-| Club stats   | Club.eventsThisWeek | count                       | Event approved (daily reset) |
-| Event dates  | Club.nextEventDate  | timestamp                   | Event change                 |
+| Source       | Denormalized To         | Fields                      | Update Trigger               |
+| ------------ | ----------------------- | --------------------------- | ---------------------------- |
+| User profile | Club.presidentInfo      | name, handle, avatar        | Profile update               |
+| User profile | Event.createdByInfo     | name, role                  | Profile update               |
+| User profile | Announcement.senderInfo | name, handle, avatar, role  | Profile update               |
+| User profile | ClubMember.userInfo     | name, handle, avatar, major | Profile update               |
+| Club stats   | Club.followerCount      | count                       | Follow/unfollow              |
+| Club stats   | Club.eventsThisWeek     | count                       | Event approved (daily reset) |
+| Event dates  | Club.nextEventDate      | timestamp                   | Event change                 |
 
 **Cloud Function triggers** handle denormalization updates.
 
@@ -430,16 +443,16 @@ To minimize Firestore reads, we denormalize frequently-accessed data:
 
 ### Daily Estimates (Active Day)
 
-| Operation         | Count | Type                                                    |
-| ----------------- | ----- | ------------------------------------------------------- |
-| Load Clubs list   | 200   | 200 reads (25 clubs × 8 page loads)                     |
-| Load Club page    | 150   | 450 reads (150 × 3 docs: club + events query + members) |
-| View event        | 100   | 100 reads                                               |
-| Live chat load    | 50    | 250 reads (50 × 5 messages avg)                         |
-| Follow/unfollow   | 20    | 60 writes (user + club counter + member doc)            |
-| Create event      | 5     | 10 writes (event + notification)                        |
-| Approve event     | 5     | 15 writes (event + notification + club stats)           |
-| Live chat message | 30    | 30 writes                                               |
+| Operation          | Count | Type                                                    |
+| ------------------ | ----- | ------------------------------------------------------- |
+| Load Clubs list    | 200   | 200 reads (25 clubs × 8 page loads)                     |
+| Load Club page     | 150   | 450 reads (150 × 3 docs: club + events query + members) |
+| View event         | 100   | 100 reads                                               |
+| Load announcements | 50    | 250 reads (50 × 5 messages avg)                         |
+| Follow/unfollow    | 20    | 60 writes (user + club counter + member doc)            |
+| Create event       | 5     | 10 writes (event + notification)                        |
+| Approve event      | 5     | 15 writes (event + notification + club stats)           |
+| Post announcement  | 30    | 30 writes                                               |
 
 **Daily Total**: ~1,100 reads, ~115 writes
 
@@ -462,13 +475,13 @@ const oldEvents = await db
   .get();
 ```
 
-### Delete expired live chat messages
+### Delete expired announcements (24h after event ends)
 
 ```javascript
 const now = new Date();
 
-const expiredMessages = await db
-  .collectionGroup("liveChat")
+const expiredAnnouncements = await db
+  .collectionGroup("announcements")
   .where("expiresAt", "<", now)
   .get();
 ```

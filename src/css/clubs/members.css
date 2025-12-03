@@ -853,6 +853,76 @@
 }
 
 /* ==========================================================================
+   MODERATE TAB - READ-ONLY NOTICE (for officials)
+   ========================================================================== */
+
+.moderate-readonly-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.1),
+    rgba(251, 191, 36, 0.05)
+  );
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 10px;
+  color: rgba(251, 191, 36, 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.moderate-readonly-notice i {
+  font-size: 0.9rem;
+  color: rgba(251, 191, 36, 0.8);
+}
+
+/* ==========================================================================
+   REJECTION MODAL - ENHANCED STYLES
+   ========================================================================== */
+
+.reject-modal-body .rejector-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  background: rgba(139, 125, 232, 0.1);
+  border: 1px solid rgba(139, 125, 232, 0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.reject-modal-body .rejector-info i {
+  color: #a78bfa;
+}
+
+.reject-modal-body .rejector-info strong {
+  color: #fff;
+}
+
+.reject-modal-body .char-count-container {
+  margin-top: 0.4rem;
+}
+
+.reject-modal-body .char-count {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease;
+}
+
+.reject-modal-body .char-count.char-count-warning {
+  color: rgba(251, 191, 36, 0.8);
+}
+
+.reject-modal-body .char-count.char-count-valid {
+  color: rgba(16, 185, 129, 0.8);
+}
+
+/* ==========================================================================
    EMPTY OFFICIALS
    ========================================================================== */
 
@@ -872,4 +942,63 @@
 .empty-officials .hint {
   margin: 0;
   padding: 0;
+}
+
+/* ==========================================================================
+   SEARCH & ASSIGN
+   ========================================================================== */
+.role-search-section {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.assign-search .search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--input-bg, rgba(255, 255, 255, 0.06));
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.assign-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: inherit;
+  outline: none;
+}
+
+.assign-search .search-results-container {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.assign-search .student-card.assign-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.08),
+    rgba(14, 165, 233, 0.04)
+  );
+  align-items: center;
+}
+
+.assign-search .student-meta {
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+.assign-search .btn-assign {
+  white-space: nowrap;
 }

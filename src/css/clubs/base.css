@@ -542,3 +542,95 @@ body:not(.dark-mode) .hero-stat-label {
 body:not(.dark-mode) .club-logo-large {
   border-color: rgba(255, 255, 255, 1);
 }
+
+/* ========================================
+   CLUBS SEARCH BAR
+======================================== */
+
+.clubs-search-bar {
+  margin: 0 0.5rem 1rem;
+}
+
+.clubs-search-bar .search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.clubs-search-bar .search-input-wrapper:focus-within {
+  border-color: var(--accent-primary, rgba(139, 125, 232, 0.5));
+  background: var(--glass-bg-hover, rgba(139, 125, 232, 0.08));
+  box-shadow: 0 0 0 3px rgba(139, 125, 232, 0.1);
+}
+
+.clubs-search-bar .search-input-wrapper i.fa-search {
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.clubs-search-bar .search-input-wrapper input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary, #fff);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.clubs-search-bar .search-input-wrapper input::placeholder {
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+}
+
+.clubs-search-bar .search-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.clubs-search-bar .search-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* Light mode adjustments */
+body:not(.dark-mode) .clubs-search-bar .search-input-wrapper {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body:not(.dark-mode) .clubs-search-bar .search-input-wrapper:focus-within {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+body:not(.dark-mode) .clubs-search-bar .search-input-wrapper input {
+  color: var(--text-primary, #1f2937);
+}
+
+body:not(.dark-mode)
+  .clubs-search-bar
+  .search-input-wrapper
+  input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+body:not(.dark-mode) .clubs-search-bar .search-clear-btn {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.5);
+}
